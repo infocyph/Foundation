@@ -1,0 +1,43 @@
+{
+    "name": "infocyph/foundation",
+    "description": "Illuminate-style integration foundation for the Infocyph PHP ecosystem.",
+    "license": "MIT",
+    "type": "library",
+    "require": {
+        "php": ">=8.4",
+        "infocyph/arraykit": "dev-main",
+        "infocyph/auth-layer": "dev-main",
+        "infocyph/cachelayer": "dev-main",
+        "infocyph/dblayer": "dev-main",
+        "infocyph/epicrypt": "dev-main",
+        "infocyph/intermix": "dev-main",
+        "infocyph/otp": "dev-main",
+        "infocyph/pathwise": "dev-main",
+        "infocyph/reqshield": "dev-main",
+        "infocyph/talkingbytes": "dev-main",
+        "infocyph/uid": "dev-main",
+        "infocyph/webrick": "dev-main"
+    },
+    "require-dev": {
+        "infocyph/phpforge": "dev-main"
+    },
+    "autoload": {
+        "psr-4": {
+            "Infocyph\\Foundation\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Infocyph\\Foundation\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "infocyph/phpforge": true
+        },
+        "optimize-autoloader": true,
+        "sort-packages": true
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

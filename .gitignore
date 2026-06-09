@@ -1,0 +1,17 @@
+vendor
+example
+.idea
+example.php
+test.php
+composer.lock
+git-story_media
+*~
+*.txt
+.windsurf
+.vscode
+.phpunit.cache
+.psalm-cache
+*.patch
+patch.php
+.route-cache-*
+AI_CONTEXT.md
