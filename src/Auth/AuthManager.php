@@ -7,6 +7,8 @@ namespace Infocyph\Foundation\Auth;
 use Infocyph\AuthLayer\Authentication\Login\AuthenticatorInterface;
 use Infocyph\AuthLayer\Authorization\Gate\AuthorizerInterface;
 use Infocyph\AuthLayer\Principal\CurrentPrincipalContext;
+use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Config\ConfigValidator;
 
 final readonly class AuthManager
 {
@@ -15,6 +17,7 @@ final readonly class AuthManager
      */
     public function __construct(
         private AuthServices $services,
+        private ConfigRepository $config,
         private array $drivers = [],
     ) {}
 
@@ -46,6 +49,29 @@ final readonly class AuthManager
     public function drivers(): array
     {
         return $this->drivers;
+    }
+
+    public function isProductionReady(): bool
+    {
+        return !(new ConfigValidator($this->config))->validateForProduction()->fails();
+    }
+
+    /**
+     * @return array{
+     *   production_ready: bool,
+     *   issues: list<string>,
+     *   drivers: array<string, string>
+     * }
+     */
+    public function readinessReport(): array
+    {
+        $result = (new ConfigValidator($this->config))->validateForProduction();
+
+        return [
+            'production_ready' => !$result->fails(),
+            'issues' => $result->messages(),
+            'drivers' => $this->drivers(),
+        ];
     }
 
     public function services(): AuthServices

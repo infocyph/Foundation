@@ -27,7 +27,7 @@ final class ConfigLoader
      */
     private function defaults(): array
     {
-        return array_replace_recursive(
+        return ConfigMerger::merge(
             FoundationDefaults::all(),
             AuthDefaults::all(),
         );

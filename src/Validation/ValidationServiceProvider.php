@@ -14,8 +14,19 @@ final class ValidationServiceProvider extends ServiceProvider
     {
         $container = $app->container();
 
+        $container->bind(ValidationSchemaRegistry::class, fn() => new ValidationSchemaRegistry(
+            config: $app->config(),
+            baseSchemas: AuthRequestSchemas::all(),
+        ), LifetimeEnum::Singleton);
+
+        $container->bind(FoundationValidator::class, fn() => new FoundationValidator(
+            config: $app->config(),
+            schemas: $container->get(ValidationSchemaRegistry::class),
+        ), LifetimeEnum::Singleton);
+
         $container->bind(ValidationManager::class, fn() => new ValidationManager(
             config: $app->config(),
+            validator: $container->get(FoundationValidator::class),
         ), LifetimeEnum::Singleton);
 
         $container->bind('foundation.validator', fn() => $container->get(ValidationManager::class), LifetimeEnum::Singleton);

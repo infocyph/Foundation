@@ -42,7 +42,18 @@ final class FoundationDefaults
                 'connections' => [],
             ],
             'notifications' => [
-                'default_channel' => 'log',
+                'auth' => [
+                    'from' => null,
+                    'log' => [
+                        'dailyFiles' => true,
+                        'directory' => null,
+                        'filenamePrefix' => 'auth',
+                        'maxMessageBytes' => null,
+                    ],
+                    'templates' => [],
+                    'transport' => 'null',
+                ],
+                'default_channel' => 'email',
                 'channels' => [],
             ],
             'paths' => [
@@ -53,14 +64,26 @@ final class FoundationDefaults
             ],
             'providers' => [],
             'router' => [
+                'auto_slash_redirect' => false,
                 'cache' => null,
+                'expose_url_services' => false,
+                'matcher' => 'fused',
                 'middleware' => [],
+                'middleware_groups' => [],
+                'signed_urls' => [
+                    'default_ttl' => null,
+                    'key' => null,
+                    'options' => [],
+                ],
+                'url_base_uri' => '',
             ],
             'security' => [
                 'signed_urls' => true,
             ],
             'validation' => [
+                'extend' => [],
                 'fail_fast' => true,
+                'schemas' => [],
             ],
         ];
     }

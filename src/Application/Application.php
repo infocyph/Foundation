@@ -6,20 +6,26 @@ namespace Infocyph\Foundation\Application;
 
 use Infocyph\Foundation\Auth\AuthManager;
 use Infocyph\Foundation\Auth\AuthServices;
+use Infocyph\Foundation\Auth\Http\AuthActions;
 use Infocyph\Foundation\Bootstrap\Bootstrapper;
 use Infocyph\Foundation\Cache\CacheManager;
+use Infocyph\Foundation\Config\ConfigValidationResult;
+use Infocyph\Foundation\Config\ConfigValidator;
 use Infocyph\Foundation\Config\ConfigLoader;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Container\ContainerFactory;
 use Infocyph\Foundation\Database\DatabaseManager;
 use Infocyph\Foundation\Exception\ServiceResolutionException;
 use Infocyph\Foundation\Filesystem\PathManager;
+use Infocyph\Foundation\Http\HttpKernel;
 use Infocyph\Foundation\Notifications\NotificationManager;
 use Infocyph\Foundation\Routing\RouterManager;
 use Infocyph\Foundation\Security\SecurityManager;
 use Infocyph\Foundation\Validation\ValidationManager;
 use Infocyph\InterMix\DI\Container;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
+use Infocyph\Webrick\Request\Request;
+use Infocyph\Webrick\Response\Response;
 
 final class Application
 {
@@ -60,12 +66,22 @@ final class Application
 
     public function auth(): AuthServices
     {
-        return $this->make(AuthServices::class);
+        return $this->boot()->make(AuthServices::class);
+    }
+
+    public function authActions(): AuthActions
+    {
+        return $this->boot()->make(AuthActions::class);
     }
 
     public function authManager(): AuthManager
     {
-        return $this->make(AuthManager::class);
+        return $this->boot()->make(AuthManager::class);
+    }
+
+    public function basePath(string $path = ''): string
+    {
+        return $this->paths()->base($path);
     }
 
     public function boot(): self
@@ -82,7 +98,12 @@ final class Application
 
     public function cache(): CacheManager
     {
-        return $this->service('foundation.cache');
+        return $this->boot()->service('foundation.cache');
+    }
+
+    public function cachePath(string $path = ''): string
+    {
+        return $this->paths()->cache($path);
     }
 
     public function config(): ConfigRepository
@@ -97,7 +118,36 @@ final class Application
 
     public function db(): DatabaseManager
     {
-        return $this->service('foundation.db');
+        return $this->boot()->service('foundation.db');
+    }
+
+    public function environment(): ?string
+    {
+        $environment = $this->config->get('app.env');
+
+        return is_string($environment) && $environment !== ''
+            ? $environment
+            : null;
+    }
+
+    public function booted(): bool
+    {
+        return $this->booted;
+    }
+
+    public function handle(Request $request): Response
+    {
+        return $this->boot()->http()->handle($request);
+    }
+
+    public function http(): HttpKernel
+    {
+        return $this->boot()->service('foundation.http');
+    }
+
+    public function isProduction(): bool
+    {
+        return $this->config()->isProduction();
     }
 
     public function has(string $id): bool
@@ -116,12 +166,12 @@ final class Application
 
     public function notifications(): NotificationManager
     {
-        return $this->service('foundation.notifications');
+        return $this->boot()->service('foundation.notifications');
     }
 
     public function paths(): PathManager
     {
-        return $this->service('foundation.paths');
+        return $this->boot()->service('foundation.paths');
     }
 
     public function providers(): ServiceRegistry
@@ -138,17 +188,92 @@ final class Application
 
     public function router(): RouterManager
     {
-        return $this->service('foundation.router');
+        return $this->boot()->service('foundation.router');
+    }
+
+    /**
+     * @return array{
+     *   production_ready: bool,
+     *   auth: array<string, mixed>,
+     *   cache: array<string, mixed>,
+     *   config: array<string, mixed>,
+     *   database: array<string, mixed>,
+     *   notifications: array<string, mixed>
+     * }
+     */
+    public function readinessReport(): array
+    {
+        $configResult = $this->validateConfiguration();
+        $databaseConfigured = $this->databaseConfigured();
+        $authConnection = $this->authConnectionName();
+        $authSchema = [
+            'installed' => false,
+            'installed_tables' => [],
+            'missing_tables' => [],
+        ];
+
+        if ($databaseConfigured) {
+            try {
+                $authSchema = $this->db()->authSchema()->readiness($authConnection);
+            } catch (\Throwable) {
+                $authSchema = [
+                    'installed' => false,
+                    'installed_tables' => [],
+                    'missing_tables' => [],
+                ];
+            }
+        }
+
+        $auth = $this->authManager()->readinessReport();
+
+        return [
+            'production_ready' => !$configResult->fails() && ($auth['production_ready'] ?? false) === true,
+            'auth' => $auth,
+            'cache' => [
+                'configured' => $this->config()->has('cache.stores.' . (string) $this->config()->get('cache.default', '')),
+                'default' => $this->config()->get('cache.default', 'memory'),
+            ],
+            'config' => [
+                'issues' => $configResult->messages(),
+                'valid' => !$configResult->fails(),
+            ],
+            'database' => [
+                'auth_connection' => $authConnection,
+                'auth_schema' => $authSchema,
+                'auth_schema_installed' => $authSchema['installed'],
+                'configured' => $databaseConfigured,
+                'default' => $this->config()->get('database.default'),
+            ],
+            'notifications' => [
+                'configured' => (string) $this->config()->get('notifications.auth.transport', 'null') !== 'null',
+                'transport' => $this->config()->get('notifications.auth.transport', 'null'),
+            ],
+        ];
+    }
+
+    public function runningInConsole(): bool
+    {
+        return PHP_SAPI === 'cli';
     }
 
     public function security(): SecurityManager
     {
-        return $this->service('foundation.security');
+        return $this->boot()->service('foundation.security');
+    }
+
+    public function storagePath(string $path = ''): string
+    {
+        return $this->paths()->storage($path);
     }
 
     public function validator(): ValidationManager
     {
-        return $this->service('foundation.validator');
+        return $this->boot()->service('foundation.validator');
+    }
+
+    public function validateConfiguration(): ConfigValidationResult
+    {
+        return (new ConfigValidator($this->config))->validate();
     }
 
     private function bindCoreServices(): void
@@ -156,6 +281,32 @@ final class Application
         $this->container->bind(self::class, $this, LifetimeEnum::Singleton);
         $this->container->bind(ConfigRepository::class, $this->config, LifetimeEnum::Singleton);
         $this->container->bind(Container::class, $this->container, LifetimeEnum::Singleton);
+    }
+
+    private function authConnectionName(): ?string
+    {
+        $configured = $this->config()->get('auth.dblayer.connection');
+        if (is_string($configured) && $configured !== '') {
+            return $configured;
+        }
+
+        $default = $this->config()->get('database.default');
+
+        return is_string($default) && $default !== ''
+            ? $default
+            : null;
+    }
+
+    private function databaseConfigured(): bool
+    {
+        $connection = $this->authConnectionName();
+        if ($connection === null) {
+            return false;
+        }
+
+        $configured = $this->config()->get('database.connections.' . $connection);
+
+        return is_array($configured) && $configured !== [];
     }
 
     /**

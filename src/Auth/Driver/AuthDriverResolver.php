@@ -40,11 +40,8 @@ final readonly class AuthDriverResolver
 
     public function passwords(): AuthPasswordDriver
     {
-        $legacy = $this->config->get('auth.drivers.security');
-        $default = is_string($legacy) && $legacy !== '' ? $legacy : 'native';
-
         /** @var AuthPasswordDriver */
-        return $this->enumConfig('auth.drivers.passwords', $default, AuthPasswordDriver::class);
+        return $this->enumConfig('auth.drivers.passwords', 'native', AuthPasswordDriver::class);
     }
 
     public function storage(): AuthStorageDriver
@@ -55,11 +52,8 @@ final readonly class AuthDriverResolver
 
     public function tokens(): AuthTokenDriver
     {
-        $legacy = $this->config->get('auth.drivers.security');
-        $default = is_string($legacy) && $legacy === 'epicrypt' ? 'epicrypt' : 'simple';
-
         /** @var AuthTokenDriver */
-        return $this->enumConfig('auth.drivers.tokens', $default, AuthTokenDriver::class);
+        return $this->enumConfig('auth.drivers.tokens', 'simple', AuthTokenDriver::class);
     }
 
     /**

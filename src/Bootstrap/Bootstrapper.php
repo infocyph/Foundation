@@ -11,6 +11,7 @@ use Infocyph\Foundation\Cache\CacheServiceProvider;
 use Infocyph\Foundation\Database\DatabaseServiceProvider;
 use Infocyph\Foundation\Exception\BootstrapException;
 use Infocyph\Foundation\Filesystem\FilesystemServiceProvider;
+use Infocyph\Foundation\Http\HttpServiceProvider;
 use Infocyph\Foundation\Notifications\NotificationServiceProvider;
 use Infocyph\Foundation\Routing\RoutingServiceProvider;
 use Infocyph\Foundation\Security\SecurityServiceProvider;
@@ -29,6 +30,7 @@ final class Bootstrapper
         FilesystemServiceProvider::class,
         ValidationServiceProvider::class,
         RoutingServiceProvider::class,
+        HttpServiceProvider::class,
         AuthServiceProvider::class,
     ];
 

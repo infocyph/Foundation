@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Security;
 
+use Infocyph\AuthLayer\Authentication\TokenAuth\RefreshTokenServiceInterface;
+use Infocyph\AuthLayer\Contract\Security\AccessTokenServiceInterface;
 use Infocyph\AuthLayer\Contract\Security\PasswordHasherInterface;
+use Infocyph\AuthLayer\Contract\Security\PasswordPolicyInterface;
 use Infocyph\AuthLayer\Contract\Security\PasswordVerifierInterface;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\InterMix\DI\Container;
@@ -30,8 +33,23 @@ final readonly class SecurityManager
         return $this->container->get(PasswordHasherInterface::class);
     }
 
+    public function passwordPolicy(): PasswordPolicyInterface
+    {
+        return $this->container->get(PasswordPolicyInterface::class);
+    }
+
     public function passwordVerifier(): PasswordVerifierInterface
     {
         return $this->container->get(PasswordVerifierInterface::class);
+    }
+
+    public function accessTokens(): AccessTokenServiceInterface
+    {
+        return $this->container->get(AccessTokenServiceInterface::class);
+    }
+
+    public function refreshTokens(): RefreshTokenServiceInterface
+    {
+        return $this->container->get(RefreshTokenServiceInterface::class);
     }
 }

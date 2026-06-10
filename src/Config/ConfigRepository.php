@@ -68,7 +68,7 @@ final class ConfigRepository
 
     public function merge(array $values): void
     {
-        $this->items = self::mergeRecursive($this->items, $values);
+        $this->items = ConfigMerger::merge($this->items, $values);
     }
 
     public function set(string $key, mixed $value): void
@@ -97,26 +97,4 @@ final class ConfigRepository
         $current = $value;
     }
 
-    /**
-     * @param array<string, mixed> $base
-     * @param array<string, mixed> $overrides
-     * @return array<string, mixed>
-     */
-    private static function mergeRecursive(array $base, array $overrides): array
-    {
-        foreach ($overrides as $key => $value) {
-            if (
-                isset($base[$key], $value)
-                && is_array($base[$key])
-                && is_array($value)
-            ) {
-                $base[$key] = self::mergeRecursive($base[$key], $value);
-                continue;
-            }
-
-            $base[$key] = $value;
-        }
-
-        return $base;
-    }
 }

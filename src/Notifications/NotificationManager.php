@@ -7,6 +7,7 @@ namespace Infocyph\Foundation\Notifications;
 use Infocyph\AuthLayer\Contract\Notification\AuthNotifierInterface;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\InterMix\DI\Container;
+use Infocyph\TalkingBytes\Email\Emailer;
 
 final readonly class NotificationManager
 {
@@ -18,6 +19,11 @@ final readonly class NotificationManager
     public function authNotifier(): AuthNotifierInterface
     {
         return $this->container->get(AuthNotifierInterface::class);
+    }
+
+    public function emailer(): Emailer
+    {
+        return $this->container->get('foundation.notifications.emailer');
     }
 
     public function config(?string $key = null, mixed $default = null): mixed
