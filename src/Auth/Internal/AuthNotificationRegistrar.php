@@ -35,6 +35,8 @@ final readonly class AuthNotificationRegistrar
                 emailer: $this->container->get('foundation.notifications.emailer'),
                 mapper: $this->container->get(AuthNotificationMapper::class),
                 accounts: $this->container->get(AccountProviderInterface::class),
+                criticalTypes: $this->criticalTypes(),
+                failSilently: (bool) $this->app->config()->get('notifications.auth.fail_silently', false),
                 from: $this->optionalString($this->app->config()->get('notifications.auth.from')),
             ), LifetimeEnum::Singleton);
 
@@ -56,5 +58,27 @@ final readonly class AuthNotificationRegistrar
         return is_string($value) && $value !== ''
             ? $value
             : null;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function criticalTypes(): array
+    {
+        $configured = $this->app->config()->get('notifications.auth.critical_types', []);
+        if (!is_array($configured)) {
+            return [];
+        }
+
+        $types = [];
+        foreach ($configured as $type) {
+            if (!is_string($type) || $type === '') {
+                continue;
+            }
+
+            $types[] = $type;
+        }
+
+        return $types;
     }
 }

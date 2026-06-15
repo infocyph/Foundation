@@ -204,6 +204,8 @@ final class Application
     public function readinessReport(): array
     {
         $configResult = $this->validateConfiguration();
+        $usesCacheLayer = (string) $this->config()->get('auth.drivers.cache', 'array') === 'cachelayer';
+        $usesDbLayer = (string) $this->config()->get('auth.drivers.storage', 'memory') === 'dblayer';
         $databaseConfigured = $this->databaseConfigured();
         $authConnection = $this->authConnectionName();
         $authSchema = [
@@ -211,6 +213,8 @@ final class Application
             'installed_tables' => [],
             'missing_tables' => [],
         ];
+        $databaseIssues = [];
+        $cacheWarnings = [];
 
         if ($databaseConfigured) {
             try {
@@ -224,14 +228,28 @@ final class Application
             }
         }
 
+        if ($usesDbLayer && ($authSchema['installed'] ?? false) !== true) {
+            $databaseIssues[] = 'Auth DB schema is not installed.';
+        }
+
+        if ($usesCacheLayer) {
+            $cacheWarnings[] = 'CacheLayer counters are not guaranteed atomic for auth lockout usage.';
+        }
+
         $auth = $this->authManager()->readinessReport();
+        $notificationsTransport = (string) $this->config()->get('notifications.auth.transport', 'null');
+        $notificationsConfigured = $notificationsTransport !== '' && $notificationsTransport !== 'null' && $notificationsTransport !== 'replace-me';
 
         return [
-            'production_ready' => !$configResult->fails() && ($auth['production_ready'] ?? false) === true,
+            'production_ready' => !$configResult->fails()
+                && ($auth['production_ready'] ?? false) === true
+                && (!$usesDbLayer || ($authSchema['installed'] ?? false) === true)
+                && $databaseIssues === [],
             'auth' => $auth,
             'cache' => [
                 'configured' => $this->config()->has('cache.stores.' . (string) $this->config()->get('cache.default', '')),
                 'default' => $this->config()->get('cache.default', 'memory'),
+                'warnings' => $cacheWarnings,
             ],
             'config' => [
                 'issues' => $configResult->messages(),
@@ -243,10 +261,13 @@ final class Application
                 'auth_schema_installed' => $authSchema['installed'],
                 'configured' => $databaseConfigured,
                 'default' => $this->config()->get('database.default'),
+                'issues' => $databaseIssues,
             ],
             'notifications' => [
-                'configured' => (string) $this->config()->get('notifications.auth.transport', 'null') !== 'null',
-                'transport' => $this->config()->get('notifications.auth.transport', 'null'),
+                'configured' => $notificationsConfigured,
+                'critical_types' => $this->notificationCriticalTypes(),
+                'fail_silently' => (bool) $this->config()->get('notifications.auth.fail_silently', false),
+                'transport' => $notificationsTransport,
             ],
         ];
     }
@@ -317,5 +338,27 @@ final class Application
     private function service(string $id): mixed
     {
         return $this->make($id);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function notificationCriticalTypes(): array
+    {
+        $configured = $this->config()->get('notifications.auth.critical_types', []);
+        if (!is_array($configured)) {
+            return [];
+        }
+
+        $types = [];
+        foreach ($configured as $type) {
+            if (!is_string($type) || $type === '') {
+                continue;
+            }
+
+            $types[] = $type;
+        }
+
+        return $types;
     }
 }

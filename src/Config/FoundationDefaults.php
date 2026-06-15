@@ -43,6 +43,13 @@ final class FoundationDefaults
             ],
             'notifications' => [
                 'auth' => [
+                    'critical_types' => [
+                        'password_reset_requested',
+                        'email_verification_requested',
+                        'passwordless_login_requested',
+                        'mfa_challenge_requested',
+                    ],
+                    'fail_silently' => false,
                     'from' => null,
                     'log' => [
                         'dailyFiles' => true,

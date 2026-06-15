@@ -96,5 +96,4 @@ final class ConfigRepository
 
         $current = $value;
     }
-
 }

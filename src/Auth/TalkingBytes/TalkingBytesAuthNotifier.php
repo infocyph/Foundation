@@ -7,15 +7,21 @@ namespace Infocyph\Foundation\Auth\TalkingBytes;
 use Infocyph\AuthLayer\Contract\Notification\AuthNotifierInterface;
 use Infocyph\AuthLayer\Contract\Storage\AccountProviderInterface;
 use Infocyph\AuthLayer\Notification\AuthNotification;
+use Infocyph\AuthLayer\Notification\AuthNotificationType;
 use Infocyph\TalkingBytes\Email\Emailer;
 use Infocyph\TalkingBytes\Email\ValueObject\EmailAddress;
 
 final readonly class TalkingBytesAuthNotifier implements AuthNotifierInterface
 {
+    /**
+     * @param list<string> $criticalTypes
+     */
     public function __construct(
         private Emailer $emailer,
         private AuthNotificationMapper $mapper,
         private AccountProviderInterface $accounts,
+        private array $criticalTypes = [],
+        private bool $failSilently = false,
         private ?string $from = null,
     ) {}
 
@@ -31,7 +37,17 @@ final readonly class TalkingBytesAuthNotifier implements AuthNotifierInterface
         );
 
         if (!$result->successful) {
-            throw new \RuntimeException($result->error ?? 'Failed to send auth notification.');
+            $message = $result->error ?? 'Failed to send auth notification.';
+
+            if ($this->shouldThrow($notification)) {
+                throw new \RuntimeException($message);
+            }
+
+            error_log(sprintf(
+                '[foundation.auth.notification] %s (%s)',
+                $message,
+                $notification->type->value,
+            ));
         }
     }
 
@@ -65,5 +81,25 @@ final readonly class TalkingBytesAuthNotifier implements AuthNotifierInterface
         }
 
         return null;
+    }
+
+    private function shouldThrow(AuthNotification $notification): bool
+    {
+        if ($this->failSilently) {
+            return false;
+        }
+
+        return in_array($notification->type->value, $this->criticalTypes, true)
+            || $this->isCriticalByDefault($notification->type);
+    }
+
+    private function isCriticalByDefault(AuthNotificationType $type): bool
+    {
+        return in_array($type, [
+            AuthNotificationType::PASSWORD_RESET_REQUESTED,
+            AuthNotificationType::EMAIL_VERIFICATION_REQUESTED,
+            AuthNotificationType::PASSWORDLESS_LOGIN_REQUESTED,
+            AuthNotificationType::MFA_CHALLENGE_REQUESTED,
+        ], true);
     }
 }

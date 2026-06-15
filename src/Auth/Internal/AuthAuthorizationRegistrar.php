@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Internal;
 
-use Infocyph\AuthLayer\Authentication\TokenAuth\RefreshTokenServiceInterface;
 use Infocyph\AuthLayer\Authorization\Gate\AuthorizerInterface;
 use Infocyph\AuthLayer\Authorization\Gate\PermissionAuthorizer;
 use Infocyph\AuthLayer\Authorization\Grant\DelegationManager;

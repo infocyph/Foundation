@@ -31,6 +31,12 @@ final readonly class AuthPasskeyRegistrar
             return;
         }
 
+        if ($drivers->passkey() === AuthPasskeyDriver::WEBAUTHN) {
+            throw new ConfigurationException(
+                'auth.drivers.passkey=webauthn requires a WebAuthn adapter that is not included yet.',
+            );
+        }
+
         if ($drivers->passkey() !== AuthPasskeyDriver::MEMORY) {
             throw new ConfigurationException(sprintf(
                 'Auth passkey driver "%s" is not implemented yet.',
