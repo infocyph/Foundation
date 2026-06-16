@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Facades;
 
-use Infocyph\AuthLayer\Contract\Notification\AuthNotifierInterface;
+use Infocyph\Foundation\Auth\Contract\Notification\AuthNotifierInterface;
 use Infocyph\TalkingBytes\Email\Emailer;
 
 final class Notify extends Facade

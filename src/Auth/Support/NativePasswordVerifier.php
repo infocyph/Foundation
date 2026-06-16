@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Support;
 
-use Infocyph\AuthLayer\Contract\Security\PasswordHasherInterface;
-use Infocyph\AuthLayer\Contract\Security\PasswordVerificationResult;
-use Infocyph\AuthLayer\Contract\Security\PasswordVerifierInterface;
+use Infocyph\Foundation\Auth\Contract\Security\PasswordHasherInterface;
+use Infocyph\Foundation\Auth\Contract\Security\PasswordVerificationResult;
+use Infocyph\Foundation\Auth\Contract\Security\PasswordVerifierInterface;
 
 final readonly class NativePasswordVerifier implements PasswordVerifierInterface
 {

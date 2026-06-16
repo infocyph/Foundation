@@ -4,23 +4,23 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth;
 
-use Infocyph\AuthLayer\Account\AccountManager;
-use Infocyph\AuthLayer\Authentication\EmailVerification\EmailVerificationManager;
-use Infocyph\AuthLayer\Authentication\Login\AuthenticatorInterface;
-use Infocyph\AuthLayer\Authentication\PasswordChange\PasswordChangeManager;
-use Infocyph\AuthLayer\Authentication\PasswordReset\PasswordResetManager;
-use Infocyph\AuthLayer\Authentication\Passwordless\PasswordlessManager;
-use Infocyph\AuthLayer\Authentication\RememberMe\RememberMeManager;
-use Infocyph\AuthLayer\Authentication\Session\SessionManager;
-use Infocyph\AuthLayer\Authentication\TokenAuth\TokenAuthManager;
-use Infocyph\AuthLayer\Authorization\Gate\PermissionAuthorizer;
-use Infocyph\AuthLayer\Authorization\Grant\DelegationManager;
-use Infocyph\AuthLayer\Authorization\Permission\PermissionManager;
-use Infocyph\AuthLayer\Authorization\Role\RoleManager;
-use Infocyph\AuthLayer\Device\DeviceManager;
-use Infocyph\AuthLayer\Mfa\MfaManager;
-use Infocyph\AuthLayer\Passkey\PasskeyManager;
-use Infocyph\AuthLayer\Principal\CurrentPrincipalContext;
+use Infocyph\Foundation\Auth\Account\AccountManager;
+use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailVerificationManager;
+use Infocyph\Foundation\Auth\Authentication\Login\AuthenticatorInterface;
+use Infocyph\Foundation\Auth\Authentication\PasswordChange\PasswordChangeManager;
+use Infocyph\Foundation\Auth\Authentication\PasswordReset\PasswordResetManager;
+use Infocyph\Foundation\Auth\Authentication\Passwordless\PasswordlessManager;
+use Infocyph\Foundation\Auth\Authentication\RememberMe\RememberMeManager;
+use Infocyph\Foundation\Auth\Authentication\Session\SessionManager;
+use Infocyph\Foundation\Auth\Authentication\TokenAuth\TokenAuthManager;
+use Infocyph\Foundation\Auth\Authorization\Gate\PermissionAuthorizer;
+use Infocyph\Foundation\Auth\Authorization\Grant\DelegationManager;
+use Infocyph\Foundation\Auth\Authorization\Permission\PermissionManager;
+use Infocyph\Foundation\Auth\Authorization\Role\RoleManager;
+use Infocyph\Foundation\Auth\Device\DeviceManager;
+use Infocyph\Foundation\Auth\Mfa\MfaManager;
+use Infocyph\Foundation\Auth\Passkey\PasskeyManager;
+use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
 
 final readonly class AuthServices
 {

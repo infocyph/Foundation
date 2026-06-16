@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Support;
 
-use Infocyph\AuthLayer\Mfa\MfaChallenge;
-use Infocyph\AuthLayer\Mfa\MfaVerificationResult;
-use Infocyph\AuthLayer\Mfa\MfaVerifierInterface;
+use Infocyph\Foundation\Auth\Mfa\MfaChallenge;
+use Infocyph\Foundation\Auth\Mfa\MfaVerificationResult;
+use Infocyph\Foundation\Auth\Mfa\MfaVerifierInterface;
 
 final readonly class SimpleMfaVerifier implements MfaVerifierInterface
 {

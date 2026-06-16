@@ -43,6 +43,7 @@ final readonly class ConfigValidator
         $storageDriver = (string) $this->config->get('auth.drivers.storage', 'memory');
         $cacheDriver = (string) $this->config->get('auth.drivers.cache', 'array');
         $notificationDriver = (string) $this->config->get('auth.drivers.notifications', 'collect');
+        $passkeyDriver = (string) $this->config->get('auth.drivers.passkey', 'memory');
 
         if ($assumeProduction) {
             $this->validateProductionDrivers($issues, $storageDriver);
@@ -59,6 +60,10 @@ final readonly class ConfigValidator
 
         if ($notificationDriver === AuthNotificationDriver::TALKINGBYTES->value) {
             $this->validateNotificationTransport($issues);
+        }
+
+        if ($passkeyDriver === AuthPasskeyDriver::WEBAUTHN->value) {
+            $this->validateWebAuthn($issues, $assumeProduction);
         }
 
         return new ConfigValidationResult($issues);
@@ -198,6 +203,96 @@ final readonly class ConfigValidator
         }
     }
 
+    /**
+     * @param list<ConfigIssue> $issues
+     */
+    private function validateWebAuthn(array &$issues, bool $assumeProduction): void
+    {
+        $rpId = $this->config->get('auth.webauthn.rp_id');
+        $origin = $this->config->get('auth.webauthn.origin');
+        $attestation = $this->config->get('auth.webauthn.attestation', 'none');
+        $userVerification = $this->config->get('auth.webauthn.user_verification', 'preferred');
+        $residentKey = $this->config->get('auth.webauthn.resident_key', 'preferred');
+        $algorithms = $this->config->get('auth.webauthn.algorithms', ['ES256', 'RS256']);
+        $transports = $this->config->get('auth.webauthn.transports', ['internal', 'hybrid', 'usb', 'nfc', 'ble']);
+
+        if (!is_string($rpId) || $rpId === '') {
+            $issues[] = new ConfigIssue(
+                'auth.webauthn.rp_id must be configured when auth.drivers.passkey uses webauthn.',
+                'auth.webauthn.rp_id',
+            );
+        }
+
+        if (!is_string($origin) || $origin === '') {
+            $issues[] = new ConfigIssue(
+                'auth.webauthn.origin must be configured when auth.drivers.passkey uses webauthn.',
+                'auth.webauthn.origin',
+            );
+
+            return;
+        }
+
+        $scheme = parse_url($origin, PHP_URL_SCHEME);
+        $host = parse_url($origin, PHP_URL_HOST);
+
+        if (!is_string($scheme) || !in_array(strtolower($scheme), ['http', 'https'], true)) {
+            $issues[] = new ConfigIssue(
+                'auth.webauthn.origin must be a valid http or https origin.',
+                'auth.webauthn.origin',
+            );
+
+            return;
+        }
+
+        if ($assumeProduction && strtolower($scheme) !== 'https' && !$this->isLocalWebAuthnHost($host)) {
+            $issues[] = new ConfigIssue(
+                'auth.webauthn.origin must use https outside localhost/local development.',
+                'auth.webauthn.origin',
+            );
+        }
+
+        if (!is_string($attestation) || $attestation !== 'none') {
+            $issues[] = new ConfigIssue(
+                'auth.webauthn.attestation must be "none" because other attestation modes are not supported yet.',
+                'auth.webauthn.attestation',
+            );
+        }
+
+        $this->validateAllowedString(
+            $issues,
+            'auth.webauthn.user_verification',
+            $userVerification,
+            ['required', 'preferred', 'discouraged'],
+        );
+        $this->validateAllowedString(
+            $issues,
+            'auth.webauthn.resident_key',
+            $residentKey,
+            ['required', 'preferred', 'discouraged'],
+        );
+        $this->validateAllowedStringList(
+            $issues,
+            'auth.webauthn.algorithms',
+            $algorithms,
+            ['ES256', 'RS256'],
+        );
+        $this->validateAllowedStringList(
+            $issues,
+            'auth.webauthn.transports',
+            $transports,
+            ['internal', 'hybrid', 'usb', 'nfc', 'ble'],
+        );
+    }
+
+    private function isLocalWebAuthnHost(mixed $host): bool
+    {
+        if (!is_string($host) || $host === '') {
+            return false;
+        }
+
+        return in_array(strtolower($host), ['localhost', '127.0.0.1'], true);
+    }
+
     private function databaseDefault(): ?string
     {
         $configuredAuthConnection = $this->config->get('auth.dblayer.connection');
@@ -220,5 +315,48 @@ final readonly class ConfigValidator
         return is_string($first) && $first !== ''
             ? $first
             : null;
+    }
+
+    /**
+     * @param list<ConfigIssue> $issues
+     * @param list<string> $allowed
+     */
+    private function validateAllowedString(array &$issues, string $key, mixed $value, array $allowed): void
+    {
+        if (!is_string($value) || !in_array($value, $allowed, true)) {
+            $issues[] = new ConfigIssue(
+                sprintf('%s must be one of: %s.', $key, implode(', ', $allowed)),
+                $key,
+            );
+        }
+    }
+
+    /**
+     * @param list<ConfigIssue> $issues
+     * @param list<string> $allowed
+     */
+    private function validateAllowedStringList(array &$issues, string $key, mixed $value, array $allowed): void
+    {
+        if (!is_array($value) || $value === []) {
+            $issues[] = new ConfigIssue(
+                sprintf('%s must be a non-empty list of: %s.', $key, implode(', ', $allowed)),
+                $key,
+            );
+
+            return;
+        }
+
+        foreach ($value as $item) {
+            if (is_string($item) && in_array($item, $allowed, true)) {
+                continue;
+            }
+
+            $issues[] = new ConfigIssue(
+                sprintf('%s contains unsupported value. Allowed values: %s.', $key, implode(', ', $allowed)),
+                $key,
+            );
+
+            return;
+        }
     }
 }

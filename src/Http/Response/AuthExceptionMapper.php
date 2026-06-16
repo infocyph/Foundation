@@ -19,13 +19,13 @@ final readonly class AuthExceptionMapper
         ?array $map = null,
     ) {
         $this->map = $map ?? [
-            'Infocyph\AuthLayer\Exception\AuthenticationException' => 401,
-            'Infocyph\AuthLayer\Exception\AuthorizationException' => 403,
-            'Infocyph\AuthLayer\Exception\SessionException' => 401,
-            'Infocyph\AuthLayer\Exception\TokenAuthException' => 401,
-            'Infocyph\AuthLayer\Exception\MfaException' => 403,
-            'Infocyph\AuthLayer\Exception\PasskeyException' => 403,
-            'Infocyph\AuthLayer\Exception\LockoutException' => 423,
+            'Infocyph\Foundation\Auth\Exception\AuthenticationException' => 401,
+            'Infocyph\Foundation\Auth\Exception\AuthorizationException' => 403,
+            'Infocyph\Foundation\Auth\Exception\SessionException' => 401,
+            'Infocyph\Foundation\Auth\Exception\TokenAuthException' => 401,
+            'Infocyph\Foundation\Auth\Exception\MfaException' => 403,
+            'Infocyph\Foundation\Auth\Exception\PasskeyException' => 403,
+            'Infocyph\Foundation\Auth\Exception\LockoutException' => 423,
         ];
     }
 

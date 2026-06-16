@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Http\Middleware;
 
-use Infocyph\AuthLayer\Principal\CurrentPrincipalContext;
+use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
 use Infocyph\Foundation\Http\Resolver\RequestPrincipalResolver;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;

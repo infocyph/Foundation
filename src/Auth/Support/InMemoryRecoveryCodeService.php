@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Support;
 
-use Infocyph\AuthLayer\Mfa\RecoveryCodeServiceInterface;
-use Infocyph\AuthLayer\Mfa\RecoveryCodeVerificationResult;
+use Infocyph\Foundation\Auth\Mfa\RecoveryCodeServiceInterface;
+use Infocyph\Foundation\Auth\Mfa\RecoveryCodeVerificationResult;
 
 final class InMemoryRecoveryCodeService implements RecoveryCodeServiceInterface
 {

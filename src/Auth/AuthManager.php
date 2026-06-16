@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth;
 
-use Infocyph\AuthLayer\Authentication\Login\AuthenticatorInterface;
-use Infocyph\AuthLayer\Authorization\Gate\AuthorizerInterface;
-use Infocyph\AuthLayer\Principal\CurrentPrincipalContext;
+use Infocyph\Foundation\Auth\Authentication\Login\AuthenticatorInterface;
+use Infocyph\Foundation\Auth\Authorization\Gate\AuthorizerInterface;
+use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Config\ConfigValidator;
 

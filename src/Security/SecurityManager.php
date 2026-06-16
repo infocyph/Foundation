@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Security;
 
-use Infocyph\AuthLayer\Authentication\TokenAuth\RefreshTokenServiceInterface;
-use Infocyph\AuthLayer\Contract\Security\AccessTokenServiceInterface;
-use Infocyph\AuthLayer\Contract\Security\PasswordHasherInterface;
-use Infocyph\AuthLayer\Contract\Security\PasswordPolicyInterface;
-use Infocyph\AuthLayer\Contract\Security\PasswordVerifierInterface;
+use Infocyph\Foundation\Auth\Authentication\TokenAuth\RefreshTokenServiceInterface;
+use Infocyph\Foundation\Auth\Contract\Security\AccessTokenServiceInterface;
+use Infocyph\Foundation\Auth\Contract\Security\PasswordHasherInterface;
+use Infocyph\Foundation\Auth\Contract\Security\PasswordPolicyInterface;
+use Infocyph\Foundation\Auth\Contract\Security\PasswordVerifierInterface;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\InterMix\DI\Container;
 

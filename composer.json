@@ -6,7 +6,6 @@
     "require": {
         "php": ">=8.4",
         "infocyph/arraykit": "dev-main",
-        "infocyph/auth-layer": "dev-main",
         "infocyph/cachelayer": "dev-main",
         "infocyph/dblayer": "dev-main",
         "infocyph/epicrypt": "dev-main",
@@ -16,7 +15,8 @@
         "infocyph/reqshield": "dev-main",
         "infocyph/talkingbytes": "dev-main",
         "infocyph/uid": "dev-main",
-        "infocyph/webrick": "dev-main"
+        "infocyph/webrick": "dev-main",
+        "web-auth/webauthn-lib": "^5.0"
     },
     "require-dev": {
         "infocyph/phpforge": "dev-main"

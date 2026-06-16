@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Http\Resolver;
 
-use Infocyph\AuthLayer\Contract\Clock\ClockInterface;
-use Infocyph\AuthLayer\Contract\Storage\AccountProviderInterface;
-use Infocyph\AuthLayer\Contract\Storage\SessionStoreInterface;
-use Infocyph\AuthLayer\Principal\PrincipalInterface;
+use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
+use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
+use Infocyph\Foundation\Auth\Contract\Storage\SessionStoreInterface;
+use Infocyph\Foundation\Auth\Principal\PrincipalInterface;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Webrick\Request\Request;
 

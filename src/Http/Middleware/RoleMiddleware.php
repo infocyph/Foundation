@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Http\Middleware;
 
-use Infocyph\AuthLayer\Authorization\Role\RoleManager;
-use Infocyph\AuthLayer\Principal\CurrentPrincipalContext;
+use Infocyph\Foundation\Auth\Authorization\Role\RoleManager;
+use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
 use Infocyph\Foundation\Http\Response\AuthResponseFactory;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;

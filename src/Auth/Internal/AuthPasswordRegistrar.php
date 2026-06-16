@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Internal;
 
-use Infocyph\AuthLayer\Contract\Security\PasswordHasherInterface;
-use Infocyph\AuthLayer\Contract\Security\PasswordVerifierInterface;
+use Infocyph\Foundation\Auth\Contract\Security\PasswordHasherInterface;
+use Infocyph\Foundation\Auth\Contract\Security\PasswordVerifierInterface;
 use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
 use Infocyph\Foundation\Auth\Driver\AuthPasswordDriver;
-use Infocyph\Foundation\Auth\Epicrypt\EpicryptPasswordHasher;
-use Infocyph\Foundation\Auth\Epicrypt\EpicryptPasswordVerifier;
+use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptPasswordHasher;
+use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptPasswordVerifier;
 use Infocyph\Foundation\Auth\Support\NativePasswordHasher;
 use Infocyph\Foundation\Auth\Support\NativePasswordVerifier;
 use Infocyph\Epicrypt\Password\PasswordHasher as EpicryptPasswordEngine;

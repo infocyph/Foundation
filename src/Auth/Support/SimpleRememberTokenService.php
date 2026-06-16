@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Support;
 
-use Infocyph\AuthLayer\Authentication\RememberMe\RememberToken;
-use Infocyph\AuthLayer\Authentication\RememberMe\RememberTokenServiceInterface;
-use Infocyph\AuthLayer\Authentication\RememberMe\RememberTokenVerificationResult;
-use Infocyph\AuthLayer\Contract\Clock\ClockInterface;
-use Infocyph\AuthLayer\Contract\Storage\RememberTokenStoreInterface;
+use Infocyph\Foundation\Auth\Authentication\RememberMe\RememberToken;
+use Infocyph\Foundation\Auth\Authentication\RememberMe\RememberTokenServiceInterface;
+use Infocyph\Foundation\Auth\Authentication\RememberMe\RememberTokenVerificationResult;
+use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
+use Infocyph\Foundation\Auth\Contract\Storage\RememberTokenStoreInterface;
 
 final readonly class SimpleRememberTokenService implements RememberTokenServiceInterface
 {

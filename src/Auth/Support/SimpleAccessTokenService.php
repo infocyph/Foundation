@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Support;
 
-use Infocyph\AuthLayer\Authentication\TokenAuth\AccessTokenClaims;
-use Infocyph\AuthLayer\Contract\Clock\ClockInterface;
-use Infocyph\AuthLayer\Contract\Security\AccessTokenServiceInterface;
-use Infocyph\AuthLayer\Contract\Security\TokenVerificationResult;
+use Infocyph\Foundation\Auth\Authentication\TokenAuth\AccessTokenClaims;
+use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
+use Infocyph\Foundation\Auth\Contract\Security\AccessTokenServiceInterface;
+use Infocyph\Foundation\Auth\Contract\Security\TokenVerificationResult;
 
 final readonly class SimpleAccessTokenService implements AccessTokenServiceInterface
 {

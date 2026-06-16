@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Support;
 
-use Infocyph\AuthLayer\Authentication\EmailVerification\EmailVerificationTokenServiceInterface;
-use Infocyph\AuthLayer\Contract\Clock\ClockInterface;
-use Infocyph\AuthLayer\Contract\Security\TokenVerificationResult;
+use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailVerificationTokenServiceInterface;
+use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
+use Infocyph\Foundation\Auth\Contract\Security\TokenVerificationResult;
 
 final readonly class SimpleEmailVerificationTokenService implements EmailVerificationTokenServiceInterface
 {

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Notifications;
 
-use Infocyph\AuthLayer\Notification\AuthNotificationType;
+use Infocyph\Foundation\Auth\Notification\AuthNotificationType;
 use Infocyph\Foundation\Config\ConfigRepository;
 
 final readonly class NotificationTemplateRegistry

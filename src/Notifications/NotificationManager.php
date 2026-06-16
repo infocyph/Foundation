@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Notifications;
 
-use Infocyph\AuthLayer\Contract\Notification\AuthNotifierInterface;
+use Infocyph\Foundation\Auth\Contract\Notification\AuthNotifierInterface;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\InterMix\DI\Container;
 use Infocyph\TalkingBytes\Email\Emailer;

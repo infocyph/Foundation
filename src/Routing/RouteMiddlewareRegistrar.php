@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Routing;
 
-use Infocyph\AuthLayer\Authorization\Gate\AuthorizerInterface;
-use Infocyph\AuthLayer\Authorization\Role\RoleManager;
-use Infocyph\AuthLayer\Contract\Storage\AccountProviderInterface;
-use Infocyph\AuthLayer\Principal\CurrentPrincipalContext;
+use Infocyph\Foundation\Auth\Authorization\Gate\AuthorizerInterface;
+use Infocyph\Foundation\Auth\Authorization\Role\RoleManager;
+use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
+use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Http\Middleware\AuthMiddleware;
 use Infocyph\Foundation\Http\Middleware\GuestMiddleware;

@@ -4,22 +4,22 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Internal;
 
-use Infocyph\AuthLayer\Authorization\Gate\AuthorizerInterface;
-use Infocyph\AuthLayer\Authorization\Gate\PermissionAuthorizer;
-use Infocyph\AuthLayer\Authorization\Grant\DelegationManager;
-use Infocyph\AuthLayer\Authorization\Grant\GrantResolver;
-use Infocyph\AuthLayer\Authorization\Grant\GrantStoreInterface;
-use Infocyph\AuthLayer\Authorization\Permission\PermissionAssignmentStoreInterface;
-use Infocyph\AuthLayer\Authorization\Permission\PermissionManager;
-use Infocyph\AuthLayer\Authorization\Permission\PermissionResolver;
-use Infocyph\AuthLayer\Authorization\Permission\PermissionStoreInterface;
-use Infocyph\AuthLayer\Authorization\Role\RoleAssignmentStoreInterface;
-use Infocyph\AuthLayer\Authorization\Role\RoleManager;
-use Infocyph\AuthLayer\Authorization\Role\RolePermissionResolver;
-use Infocyph\AuthLayer\Authorization\Role\RoleStoreInterface;
-use Infocyph\AuthLayer\Contract\Clock\ClockInterface;
-use Infocyph\AuthLayer\Contract\Id\AuthIdGeneratorInterface;
-use Infocyph\AuthLayer\Contract\Storage\AuditEventStoreInterface;
+use Infocyph\Foundation\Auth\Authorization\Gate\AuthorizerInterface;
+use Infocyph\Foundation\Auth\Authorization\Gate\PermissionAuthorizer;
+use Infocyph\Foundation\Auth\Authorization\Grant\DelegationManager;
+use Infocyph\Foundation\Auth\Authorization\Grant\GrantResolver;
+use Infocyph\Foundation\Auth\Authorization\Grant\GrantStoreInterface;
+use Infocyph\Foundation\Auth\Authorization\Permission\PermissionAssignmentStoreInterface;
+use Infocyph\Foundation\Auth\Authorization\Permission\PermissionManager;
+use Infocyph\Foundation\Auth\Authorization\Permission\PermissionResolver;
+use Infocyph\Foundation\Auth\Authorization\Permission\PermissionStoreInterface;
+use Infocyph\Foundation\Auth\Authorization\Role\RoleAssignmentStoreInterface;
+use Infocyph\Foundation\Auth\Authorization\Role\RoleManager;
+use Infocyph\Foundation\Auth\Authorization\Role\RolePermissionResolver;
+use Infocyph\Foundation\Auth\Authorization\Role\RoleStoreInterface;
+use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
+use Infocyph\Foundation\Auth\Contract\Id\AuthIdGeneratorInterface;
+use Infocyph\Foundation\Auth\Contract\Storage\AuditEventStoreInterface;
 use Infocyph\InterMix\DI\Container;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 

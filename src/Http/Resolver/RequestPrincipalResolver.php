@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Http\Resolver;
 
-use Infocyph\AuthLayer\Principal\PrincipalInterface;
+use Infocyph\Foundation\Auth\Principal\PrincipalInterface;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Webrick\Request\Request;
 

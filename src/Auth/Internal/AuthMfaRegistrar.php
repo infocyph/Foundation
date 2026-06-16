@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Internal;
 
-use Infocyph\AuthLayer\Contract\Cache\TtlStoreInterface;
-use Infocyph\AuthLayer\Mfa\MfaFactorStoreInterface;
-use Infocyph\AuthLayer\Mfa\MfaVerifierInterface;
-use Infocyph\AuthLayer\Mfa\RecoveryCodeServiceInterface;
+use Infocyph\Foundation\Auth\Contract\Cache\TtlStoreInterface;
+use Infocyph\Foundation\Auth\Mfa\MfaFactorStoreInterface;
+use Infocyph\Foundation\Auth\Mfa\MfaVerifierInterface;
+use Infocyph\Foundation\Auth\Mfa\RecoveryCodeServiceInterface;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
 use Infocyph\Foundation\Auth\Driver\AuthMfaDriver;
-use Infocyph\Foundation\Auth\Otp\OtpMfaVerifier;
-use Infocyph\Foundation\Auth\Otp\OtpProvisioningService;
-use Infocyph\Foundation\Auth\Otp\OtpRecoveryCodeService;
-use Infocyph\Foundation\Auth\Otp\OtpReplayStore;
+use Infocyph\Foundation\Auth\Adapter\Otp\OtpMfaVerifier;
+use Infocyph\Foundation\Auth\Adapter\Otp\OtpProvisioningService;
+use Infocyph\Foundation\Auth\Adapter\Otp\OtpRecoveryCodeService;
+use Infocyph\Foundation\Auth\Adapter\Otp\OtpReplayStore;
 use Infocyph\Foundation\Auth\Support\InMemoryRecoveryCodeService;
 use Infocyph\Foundation\Auth\Support\SimpleMfaVerifier;
 use Infocyph\Foundation\Exception\ConfigurationException;

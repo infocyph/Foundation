@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Http\Resolver;
 
-use Infocyph\AuthLayer\Account\AccountInterface;
-use Infocyph\AuthLayer\Account\AccountStatus;
-use Infocyph\AuthLayer\Principal\Principal;
-use Infocyph\AuthLayer\Principal\PrincipalInterface;
-use Infocyph\AuthLayer\Principal\PrincipalType;
+use Infocyph\Foundation\Auth\Account\AccountInterface;
+use Infocyph\Foundation\Auth\Account\AccountStatus;
+use Infocyph\Foundation\Auth\Principal\Principal;
+use Infocyph\Foundation\Auth\Principal\PrincipalInterface;
+use Infocyph\Foundation\Auth\Principal\PrincipalType;
 
 abstract class AbstractPrincipalResolver implements PrincipalResolverInterface
 {

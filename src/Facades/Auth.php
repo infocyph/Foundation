@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Facades;
 
-use Infocyph\AuthLayer\Authentication\Login\LoginResult;
+use Infocyph\Foundation\Auth\Authentication\Login\LoginResult;
 use Infocyph\Foundation\Auth\AuthManager;
 use Infocyph\Foundation\Auth\AuthServices;
 use Infocyph\Foundation\Auth\Http\LogoutResult;
@@ -31,7 +31,7 @@ final class Auth extends Facade
         return static::app()->authManager();
     }
 
-    public static function principal(): \Infocyph\AuthLayer\Principal\CurrentPrincipalContext
+    public static function principal(): \Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext
     {
         return static::manager()->principal();
     }

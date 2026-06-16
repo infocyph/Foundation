@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Support;
 
-use Infocyph\AuthLayer\Authentication\TokenAuth\IssuedRefreshToken;
-use Infocyph\AuthLayer\Authentication\TokenAuth\RefreshTokenClaims;
-use Infocyph\AuthLayer\Authentication\TokenAuth\RefreshTokenServiceInterface;
-use Infocyph\AuthLayer\Contract\Clock\ClockInterface;
-use Infocyph\AuthLayer\Contract\Security\TokenVerificationResult;
+use Infocyph\Foundation\Auth\Authentication\TokenAuth\IssuedRefreshToken;
+use Infocyph\Foundation\Auth\Authentication\TokenAuth\RefreshTokenClaims;
+use Infocyph\Foundation\Auth\Authentication\TokenAuth\RefreshTokenServiceInterface;
+use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
+use Infocyph\Foundation\Auth\Contract\Security\TokenVerificationResult;
 
 final readonly class SimpleRefreshTokenService implements RefreshTokenServiceInterface
 {

@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Internal;
 
-use Infocyph\AuthLayer\Contract\Notification\AuthNotifierInterface;
-use Infocyph\AuthLayer\Contract\Storage\AccountProviderInterface;
-use Infocyph\AuthLayer\Support\CollectingAuthNotifier;
+use Infocyph\Foundation\Auth\Contract\Notification\AuthNotifierInterface;
+use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
+use Infocyph\Foundation\Auth\Support\CollectingAuthNotifier;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
 use Infocyph\Foundation\Auth\Driver\AuthNotificationDriver;
-use Infocyph\Foundation\Auth\TalkingBytes\AuthNotificationMapper;
-use Infocyph\Foundation\Auth\TalkingBytes\TalkingBytesAuthNotifier;
+use Infocyph\Foundation\Auth\Adapter\TalkingBytes\AuthNotificationMapper;
+use Infocyph\Foundation\Auth\Adapter\TalkingBytes\TalkingBytesAuthNotifier;
 use Infocyph\Foundation\Exception\ConfigurationException;
 use Infocyph\Foundation\Notifications\NotificationTemplateRegistry;
 use Infocyph\InterMix\DI\Container;

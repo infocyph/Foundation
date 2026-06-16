@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Support;
 
-use Infocyph\AuthLayer\Contract\Clock\ClockInterface;
-use Infocyph\AuthLayer\Passkey\PasskeyAuthenticationResult;
-use Infocyph\AuthLayer\Passkey\PasskeyChallenge;
-use Infocyph\AuthLayer\Passkey\PasskeyCredential;
-use Infocyph\AuthLayer\Passkey\PasskeyCredentialStoreInterface;
-use Infocyph\AuthLayer\Passkey\PasskeyRegistrationResult;
-use Infocyph\AuthLayer\Passkey\PasskeyServiceInterface;
-use Infocyph\AuthLayer\Passkey\PasskeyVerificationResult;
+use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
+use Infocyph\Foundation\Auth\Passkey\PasskeyAuthenticationResult;
+use Infocyph\Foundation\Auth\Passkey\PasskeyChallenge;
+use Infocyph\Foundation\Auth\Passkey\PasskeyCredential;
+use Infocyph\Foundation\Auth\Passkey\PasskeyCredentialStoreInterface;
+use Infocyph\Foundation\Auth\Passkey\PasskeyRegistrationResult;
+use Infocyph\Foundation\Auth\Passkey\PasskeyServiceInterface;
+use Infocyph\Foundation\Auth\Passkey\PasskeyVerificationResult;
 
 final class InMemoryPasskeyService implements PasskeyServiceInterface
 {

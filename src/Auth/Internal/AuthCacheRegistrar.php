@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Internal;
 
-use Infocyph\AuthLayer\Contract\Cache\CounterStoreInterface;
-use Infocyph\AuthLayer\Contract\Cache\TtlStoreInterface;
-use Infocyph\AuthLayer\Contract\Clock\ClockInterface;
-use Infocyph\AuthLayer\Support\ArrayTtlStore;
-use Infocyph\AuthLayer\Support\InMemoryCounterStore;
+use Infocyph\Foundation\Auth\Contract\Cache\CounterStoreInterface;
+use Infocyph\Foundation\Auth\Contract\Cache\TtlStoreInterface;
+use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
+use Infocyph\Foundation\Auth\Support\ArrayTtlStore;
+use Infocyph\Foundation\Auth\Support\InMemoryCounterStore;
 use Infocyph\Foundation\Application\Application;
-use Infocyph\Foundation\Auth\CacheLayer\CacheLayerCounterStore;
-use Infocyph\Foundation\Auth\CacheLayer\CacheLayerTtlStore;
+use Infocyph\Foundation\Auth\Adapter\CacheLayer\CacheLayerCounterStore;
+use Infocyph\Foundation\Auth\Adapter\CacheLayer\CacheLayerTtlStore;
 use Infocyph\Foundation\Auth\Driver\AuthCacheDriver;
 use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
 use Infocyph\CacheLayer\Cache\CacheInterface;

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Http\Middleware;
 
-use Infocyph\AuthLayer\Account\AccountStatus;
-use Infocyph\AuthLayer\Contract\Storage\AccountProviderInterface;
-use Infocyph\AuthLayer\Principal\CurrentPrincipalContext;
+use Infocyph\Foundation\Auth\Account\AccountStatus;
+use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
+use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
 use Infocyph\Foundation\Http\Response\AuthResponseFactory;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;

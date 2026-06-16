@@ -44,13 +44,23 @@ final class AuthRequestSchemas
             ],
             'auth.passkey.registration_finish' => [
                 'account_id' => 'required|string|max:255',
-                'credential' => 'required|array',
+                'challenge_id' => 'required|string|max:255',
+                'credential' => 'nullable|array',
+                'credential_id' => 'nullable|string|max:1024',
+                'public_key' => 'nullable|string|max:8192',
+                'client_data' => 'nullable|string|max:8192',
+                'attestation_object' => 'nullable|string|max:16384',
             ],
             'auth.passkey.authentication_start' => [
                 'identifier' => 'nullable|string|max:255',
             ],
             'auth.passkey.authentication_finish' => [
-                'credential' => 'required|array',
+                'challenge_id' => 'required|string|max:255',
+                'credential' => 'nullable|array',
+                'credential_id' => 'nullable|string|max:1024',
+                'client_data' => 'nullable|string|max:8192',
+                'authenticator_data' => 'nullable|string|max:8192',
+                'signature' => 'nullable|string|max:8192',
             ],
             'auth.role.create' => [
                 'name' => 'required|string|max:255',

@@ -37,19 +37,19 @@ final class RoutingServiceProvider extends ServiceProvider
         ), LifetimeEnum::Singleton);
         $container->bind(SessionPrincipalResolver::class, fn() => new SessionPrincipalResolver(
             config: $app->config(),
-            sessions: $container->get(\Infocyph\AuthLayer\Contract\Storage\SessionStoreInterface::class),
-            accounts: $container->get(\Infocyph\AuthLayer\Contract\Storage\AccountProviderInterface::class),
-            clock: $container->get(\Infocyph\AuthLayer\Contract\Clock\ClockInterface::class),
+            sessions: $container->get(\Infocyph\Foundation\Auth\Contract\Storage\SessionStoreInterface::class),
+            accounts: $container->get(\Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface::class),
+            clock: $container->get(\Infocyph\Foundation\Auth\Contract\Clock\ClockInterface::class),
         ), LifetimeEnum::Singleton);
         $container->bind(BearerTokenPrincipalResolver::class, fn() => new BearerTokenPrincipalResolver(
             config: $app->config(),
-            tokens: $container->get(\Infocyph\AuthLayer\Contract\Security\AccessTokenServiceInterface::class),
-            accounts: $container->get(\Infocyph\AuthLayer\Contract\Storage\AccountProviderInterface::class),
+            tokens: $container->get(\Infocyph\Foundation\Auth\Contract\Security\AccessTokenServiceInterface::class),
+            accounts: $container->get(\Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface::class),
         ), LifetimeEnum::Singleton);
         $container->bind(RememberMePrincipalResolver::class, fn() => new RememberMePrincipalResolver(
             config: $app->config(),
-            rememberMe: $container->get(\Infocyph\AuthLayer\Authentication\RememberMe\RememberMeManager::class),
-            accounts: $container->get(\Infocyph\AuthLayer\Contract\Storage\AccountProviderInterface::class),
+            rememberMe: $container->get(\Infocyph\Foundation\Auth\Authentication\RememberMe\RememberMeManager::class),
+            accounts: $container->get(\Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface::class),
         ), LifetimeEnum::Singleton);
         $container->bind(RequestPrincipalResolver::class, fn() => new RequestPrincipalResolver(
             config: $app->config(),
@@ -73,7 +73,7 @@ final class RoutingServiceProvider extends ServiceProvider
         ), LifetimeEnum::Singleton);
         $container->bind(VerifiedMiddleware::class, fn() => new VerifiedMiddleware(
             $app->authManager()->principal(),
-            $app->make(\Infocyph\AuthLayer\Contract\Storage\AccountProviderInterface::class),
+            $app->make(\Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface::class),
             $container->get(AuthResponseFactory::class),
         ), LifetimeEnum::Singleton);
         $container->bind(MfaRequiredMiddleware::class, fn() => new MfaRequiredMiddleware(
