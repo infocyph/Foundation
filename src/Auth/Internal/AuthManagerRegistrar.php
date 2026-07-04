@@ -5,176 +5,148 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Auth\Internal;
 
 use Infocyph\Foundation\Auth\Account\AccountManager;
-use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailVerificationManager;
-use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailVerificationTokenServiceInterface;
-use Infocyph\Foundation\Auth\Authentication\Lockout\LockoutConfig;
-use Infocyph\Foundation\Auth\Authentication\Lockout\LockoutManager;
+use Infocyph\Foundation\Auth\Authentication\EmailVerification\{EmailVerificationManager, EmailVerificationTokenServiceInterface};
+use Infocyph\Foundation\Auth\Authentication\Lockout\{LockoutConfig, LockoutManager};
 use Infocyph\Foundation\Auth\Authentication\PasswordChange\PasswordChangeManager;
-use Infocyph\Foundation\Auth\Authentication\PasswordReset\PasswordResetManager;
-use Infocyph\Foundation\Auth\Authentication\PasswordReset\PasswordResetTokenServiceInterface;
-use Infocyph\Foundation\Auth\Authentication\Passwordless\PasswordlessManager;
-use Infocyph\Foundation\Auth\Authentication\Passwordless\PasswordlessTokenServiceInterface;
-use Infocyph\Foundation\Auth\Authentication\RememberMe\RememberMeManager;
-use Infocyph\Foundation\Auth\Authentication\RememberMe\RememberTokenServiceInterface;
-use Infocyph\Foundation\Auth\Authentication\Session\SessionConfig;
-use Infocyph\Foundation\Auth\Authentication\Session\SessionManager;
-use Infocyph\Foundation\Auth\Authentication\TokenAuth\RefreshTokenServiceInterface;
-use Infocyph\Foundation\Auth\Authentication\TokenAuth\TokenAuthManager;
-use Infocyph\Foundation\Auth\Contract\Cache\CounterStoreInterface;
-use Infocyph\Foundation\Auth\Contract\Cache\TtlStoreInterface;
-use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
-use Infocyph\Foundation\Auth\Contract\Id\AuthIdGeneratorInterface;
-use Infocyph\Foundation\Auth\Contract\Notification\AuthNotifierInterface;
-use Infocyph\Foundation\Auth\Contract\Security\AccessTokenServiceInterface;
-use Infocyph\Foundation\Auth\Contract\Security\PasswordVerifierInterface;
-use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
-use Infocyph\Foundation\Auth\Contract\Storage\AccountStoreInterface;
-use Infocyph\Foundation\Auth\Contract\Storage\AuditEventStoreInterface;
-use Infocyph\Foundation\Auth\Contract\Storage\EmailVerificationStoreInterface;
-use Infocyph\Foundation\Auth\Contract\Storage\LockoutStoreInterface;
-use Infocyph\Foundation\Auth\Contract\Storage\PasswordResetStoreInterface;
-use Infocyph\Foundation\Auth\Contract\Storage\RefreshTokenStoreInterface;
-use Infocyph\Foundation\Auth\Contract\Storage\RememberTokenStoreInterface;
-use Infocyph\Foundation\Auth\Contract\Storage\SessionStoreInterface;
-use Infocyph\Foundation\Auth\Device\DeviceManager;
-use Infocyph\Foundation\Auth\Device\DeviceStoreInterface;
-use Infocyph\Foundation\Auth\Mfa\MfaFactorStoreInterface;
-use Infocyph\Foundation\Auth\Mfa\MfaManager;
-use Infocyph\Foundation\Auth\Mfa\MfaVerifierInterface;
-use Infocyph\Foundation\Auth\Mfa\RecoveryCodeServiceInterface;
-use Infocyph\Foundation\Auth\Passkey\PasskeyCredentialStoreInterface;
-use Infocyph\Foundation\Auth\Passkey\PasskeyManager;
-use Infocyph\Foundation\Auth\Passkey\PasskeyServiceInterface;
-use Infocyph\Foundation\Application\Application;
-use Infocyph\InterMix\DI\Container;
-use Infocyph\InterMix\DI\Support\LifetimeEnum;
+use Infocyph\Foundation\Auth\Authentication\Passwordless\{PasswordlessManager, PasswordlessTokenServiceInterface};
+use Infocyph\Foundation\Auth\Authentication\PasswordReset\{PasswordResetManager, PasswordResetTokenServiceInterface};
+use Infocyph\Foundation\Auth\Authentication\RememberMe\{RememberMeManager, RememberTokenServiceInterface};
+use Infocyph\Foundation\Auth\Authentication\Session\{SessionConfig, SessionManager};
+use Infocyph\Foundation\Auth\Authentication\TokenAuth\{RefreshTokenServiceInterface, TokenAuthManager};
+use Infocyph\Foundation\Auth\Contract\Cache\{CounterStoreInterface, TtlStoreInterface};
+use Infocyph\Foundation\Auth\Contract\Security\{AccessTokenServiceInterface};
+use Infocyph\Foundation\Auth\Contract\Storage\{
+    EmailVerificationStoreInterface,
+    LockoutStoreInterface,
+    PasswordResetStoreInterface,
+    RefreshTokenStoreInterface,
+    RememberTokenStoreInterface,
+    SessionStoreInterface
+};
+use Infocyph\Foundation\Auth\Device\{DeviceManager, DeviceStoreInterface};
+use Infocyph\Foundation\Auth\Mfa\{MfaFactorStoreInterface, MfaManager, MfaVerifierInterface, RecoveryCodeServiceInterface};
+use Infocyph\Foundation\Auth\Passkey\{PasskeyCredentialStoreInterface, PasskeyManager, PasskeyServiceInterface};
 
-final readonly class AuthManagerRegistrar
+final readonly class AuthManagerRegistrar extends AbstractAuthRegistrar
 {
-    public function __construct(
-        private Application $app,
-        private Container $container,
-    ) {}
-
     public function register(): void
     {
-        $app = $this->app;
-        $container = $this->container;
-
-        $container->bind(SessionManager::class, fn() => new SessionManager(
-            sessions: $container->get(SessionStoreInterface::class),
-            ids: $container->get(AuthIdGeneratorInterface::class),
+        $this->singleton(SessionManager::class, fn() => new SessionManager(
+            sessions: $this->service(SessionStoreInterface::class),
+            ids: $this->idGenerator(),
             config: new SessionConfig(
-                absoluteTtlSeconds: (int) $app->config()->get('auth.session_ttl', 3600),
-                recentAuthWindowSeconds: (int) $app->config()->get('auth.recent_auth_window', 900),
+                absoluteTtlSeconds: $this->intConfig('auth.session_ttl', 3600),
+                recentAuthWindowSeconds: $this->intConfig('auth.recent_auth_window', 900),
             ),
-            clock: $container->get(ClockInterface::class),
-        ), LifetimeEnum::Singleton);
+            clock: $this->clock(),
+        ));
 
-        $container->bind(LockoutManager::class, fn() => new LockoutManager(
-            counters: $container->get(CounterStoreInterface::class),
-            locks: $container->get(LockoutStoreInterface::class),
-            audit: $container->get(AuditEventStoreInterface::class),
-            ids: $container->get(AuthIdGeneratorInterface::class),
+        $this->singleton(LockoutManager::class, fn() => new LockoutManager(
+            counters: $this->service(CounterStoreInterface::class),
+            locks: $this->service(LockoutStoreInterface::class),
+            audit: $this->auditStore(),
+            ids: $this->idGenerator(),
             config: new LockoutConfig(
-                maxLoginFailures: (int) $app->config()->get('auth.lockout.max_login_failures', 5),
-                maxMfaFailures: (int) $app->config()->get('auth.lockout.max_mfa_failures', 5),
-                maxPasskeyFailures: (int) $app->config()->get('auth.lockout.max_passkey_failures', 5),
-                windowSeconds: (int) $app->config()->get('auth.lockout.window_seconds', 900),
-                lockSeconds: (int) $app->config()->get('auth.lockout.lock_seconds', 900),
+                maxLoginFailures: $this->intConfig('auth.lockout.max_login_failures', 5),
+                maxMfaFailures: $this->intConfig('auth.lockout.max_mfa_failures', 5),
+                maxPasskeyFailures: $this->intConfig('auth.lockout.max_passkey_failures', 5),
+                windowSeconds: $this->intConfig('auth.lockout.window_seconds', 900),
+                lockSeconds: $this->intConfig('auth.lockout.lock_seconds', 900),
             ),
-            clock: $container->get(ClockInterface::class),
-        ), LifetimeEnum::Singleton);
+            clock: $this->clock(),
+        ));
 
-        $container->bind(AccountManager::class, fn() => new AccountManager(
-            accounts: $container->get(AccountProviderInterface::class),
-            store: $container->get(AccountStoreInterface::class),
-            ids: $container->get(AuthIdGeneratorInterface::class),
-            clock: $container->get(ClockInterface::class),
-        ), LifetimeEnum::Singleton);
+        $this->singleton(AccountManager::class, fn() => new AccountManager(
+            accounts: $this->accountProvider(),
+            store: $this->accountStore(),
+            ids: $this->idGenerator(),
+            clock: $this->clock(),
+        ));
 
-        $container->bind(PasswordChangeManager::class, fn() => new PasswordChangeManager(
-            accounts: $container->get(AccountProviderInterface::class),
-            accountStore: $container->get(AccountStoreInterface::class),
-            passwords: $container->get(PasswordVerifierInterface::class),
-            audit: $container->get(AuditEventStoreInterface::class),
-            notifier: $container->get(AuthNotifierInterface::class),
-            ids: $container->get(AuthIdGeneratorInterface::class),
-            clock: $container->get(ClockInterface::class),
-        ), LifetimeEnum::Singleton);
+        $this->singleton(PasswordChangeManager::class, fn() => new PasswordChangeManager(
+            accounts: $this->accountProvider(),
+            accountStore: $this->accountStore(),
+            passwords: $this->passwordVerifier(),
+            audit: $this->auditStore(),
+            notifier: $this->notifier(),
+            ids: $this->idGenerator(),
+            clock: $this->clock(),
+        ));
 
-        $container->bind(PasswordResetManager::class, fn() => new PasswordResetManager(
-            tokens: $container->get(PasswordResetTokenServiceInterface::class),
-            store: $container->get(PasswordResetStoreInterface::class),
-            accounts: $container->get(AccountStoreInterface::class),
-            notifier: $container->get(AuthNotifierInterface::class),
-            audit: $container->get(AuditEventStoreInterface::class),
-            ids: $container->get(AuthIdGeneratorInterface::class),
-            ttlSeconds: (int) $app->config()->get('auth.password_reset_ttl', 3600),
-            clock: $container->get(ClockInterface::class),
-        ), LifetimeEnum::Singleton);
+        $this->singleton(PasswordResetManager::class, fn() => new PasswordResetManager(
+            tokens: $this->service(PasswordResetTokenServiceInterface::class),
+            store: $this->service(PasswordResetStoreInterface::class),
+            accounts: $this->accountStore(),
+            notifier: $this->notifier(),
+            audit: $this->auditStore(),
+            ids: $this->idGenerator(),
+            ttlSeconds: $this->intConfig('auth.password_reset_ttl', 3600),
+            clock: $this->clock(),
+        ));
 
-        $container->bind(EmailVerificationManager::class, fn() => new EmailVerificationManager(
-            tokens: $container->get(EmailVerificationTokenServiceInterface::class),
-            store: $container->get(EmailVerificationStoreInterface::class),
-            accounts: $container->get(AccountStoreInterface::class),
-            notifier: $container->get(AuthNotifierInterface::class),
-            audit: $container->get(AuditEventStoreInterface::class),
-            ids: $container->get(AuthIdGeneratorInterface::class),
-            ttlSeconds: (int) $app->config()->get('auth.email_verification_ttl', 3600),
-            clock: $container->get(ClockInterface::class),
-        ), LifetimeEnum::Singleton);
+        $this->singleton(EmailVerificationManager::class, fn() => new EmailVerificationManager(
+            tokens: $this->service(EmailVerificationTokenServiceInterface::class),
+            store: $this->service(EmailVerificationStoreInterface::class),
+            accounts: $this->accountStore(),
+            notifier: $this->notifier(),
+            audit: $this->auditStore(),
+            ids: $this->idGenerator(),
+            ttlSeconds: $this->intConfig('auth.email_verification_ttl', 3600),
+            clock: $this->clock(),
+        ));
 
-        $container->bind(PasswordlessManager::class, fn() => new PasswordlessManager(
-            tokens: $container->get(PasswordlessTokenServiceInterface::class),
-            notifier: $container->get(AuthNotifierInterface::class),
-        ), LifetimeEnum::Singleton);
+        $this->singleton(PasswordlessManager::class, fn() => new PasswordlessManager(
+            tokens: $this->service(PasswordlessTokenServiceInterface::class),
+            notifier: $this->notifier(),
+        ));
 
-        $container->bind(RememberMeManager::class, fn() => new RememberMeManager(
-            tokens: $container->get(RememberTokenServiceInterface::class),
-            store: $container->get(RememberTokenStoreInterface::class),
-            audit: $container->get(AuditEventStoreInterface::class),
-            ids: $container->get(AuthIdGeneratorInterface::class),
-            clock: $container->get(ClockInterface::class),
-        ), LifetimeEnum::Singleton);
+        $this->singleton(RememberMeManager::class, fn() => new RememberMeManager(
+            tokens: $this->service(RememberTokenServiceInterface::class),
+            store: $this->service(RememberTokenStoreInterface::class),
+            audit: $this->auditStore(),
+            ids: $this->idGenerator(),
+            clock: $this->clock(),
+        ));
 
-        $container->bind(TokenAuthManager::class, fn() => new TokenAuthManager(
-            accessTokens: $container->get(AccessTokenServiceInterface::class),
-            refreshTokenService: $container->get(RefreshTokenServiceInterface::class),
-            refreshTokens: $container->get(RefreshTokenStoreInterface::class),
-            audit: $container->get(AuditEventStoreInterface::class),
-            ids: $container->get(AuthIdGeneratorInterface::class),
-            refreshTtlSeconds: (int) $app->config()->get('auth.refresh_token_ttl', 1209600),
-            clock: $container->get(ClockInterface::class),
-        ), LifetimeEnum::Singleton);
+        $this->singleton(TokenAuthManager::class, fn() => new TokenAuthManager(
+            accessTokens: $this->service(AccessTokenServiceInterface::class),
+            refreshTokenService: $this->service(RefreshTokenServiceInterface::class),
+            refreshTokens: $this->service(RefreshTokenStoreInterface::class),
+            audit: $this->auditStore(),
+            ids: $this->idGenerator(),
+            refreshTtlSeconds: $this->intConfig('auth.refresh_token_ttl', 1209600),
+            clock: $this->clock(),
+        ));
 
-        $container->bind(MfaManager::class, fn() => new MfaManager(
-            factors: $container->get(MfaFactorStoreInterface::class),
-            verifier: $container->get(MfaVerifierInterface::class),
-            recoveryCodes: $container->get(RecoveryCodeServiceInterface::class),
-            ttl: $container->get(TtlStoreInterface::class),
-            audit: $container->get(AuditEventStoreInterface::class),
-            notifier: $container->get(AuthNotifierInterface::class),
-            ids: $container->get(AuthIdGeneratorInterface::class),
-            challengeTtlSeconds: (int) $app->config()->get('auth.mfa_challenge_ttl', 300),
-            satisfiedTtlSeconds: (int) $app->config()->get('auth.mfa_satisfied_ttl', 900),
-            clock: $container->get(ClockInterface::class),
-        ), LifetimeEnum::Singleton);
+        $this->singleton(MfaManager::class, fn() => new MfaManager(
+            factors: $this->service(MfaFactorStoreInterface::class),
+            verifier: $this->service(MfaVerifierInterface::class),
+            recoveryCodes: $this->service(RecoveryCodeServiceInterface::class),
+            ttl: $this->service(TtlStoreInterface::class),
+            audit: $this->auditStore(),
+            notifier: $this->notifier(),
+            ids: $this->idGenerator(),
+            challengeTtlSeconds: $this->intConfig('auth.mfa_challenge_ttl', 300),
+            satisfiedTtlSeconds: $this->intConfig('auth.mfa_satisfied_ttl', 900),
+            clock: $this->clock(),
+        ));
 
-        $container->bind(PasskeyManager::class, fn() => new PasskeyManager(
-            service: $container->get(PasskeyServiceInterface::class),
-            credentials: $container->get(PasskeyCredentialStoreInterface::class),
-            audit: $container->get(AuditEventStoreInterface::class),
-            notifier: $container->get(AuthNotifierInterface::class),
-            ids: $container->get(AuthIdGeneratorInterface::class),
-            lockouts: $container->get(LockoutManager::class),
-            clock: $container->get(ClockInterface::class),
-        ), LifetimeEnum::Singleton);
+        $this->singleton(PasskeyManager::class, fn() => new PasskeyManager(
+            service: $this->service(PasskeyServiceInterface::class),
+            credentials: $this->service(PasskeyCredentialStoreInterface::class),
+            audit: $this->auditStore(),
+            notifier: $this->notifier(),
+            ids: $this->idGenerator(),
+            lockouts: $this->container->has(LockoutManager::class)
+                ? $this->service(LockoutManager::class)
+                : null,
+            clock: $this->clock(),
+        ));
 
-        $container->bind(DeviceManager::class, fn() => new DeviceManager(
-            devices: $container->get(DeviceStoreInterface::class),
-            ids: $container->get(AuthIdGeneratorInterface::class),
-            clock: $container->get(ClockInterface::class),
-        ), LifetimeEnum::Singleton);
+        $this->singleton(DeviceManager::class, fn() => new DeviceManager(
+            devices: $this->service(DeviceStoreInterface::class),
+            ids: $this->idGenerator(),
+            clock: $this->clock(),
+        ));
     }
 }

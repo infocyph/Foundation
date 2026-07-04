@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Device;
 
+use Infocyph\Foundation\Auth\Support\TracksSuccessfulStatus;
+
 final readonly class DeviceResult
 {
+    use TracksSuccessfulStatus;
+
     /**
      * @param list<DeviceRecord> $devices
      * @param array<string, mixed> $context
@@ -18,16 +22,16 @@ final readonly class DeviceResult
         public array $context = [],
     ) {}
 
-    public function failed(): bool
+    /**
+     * @return list<\UnitEnum>
+     */
+    protected function successfulStatuses(): array
     {
-        return !$this->successful();
-    }
-
-    public function successful(): bool
-    {
-        return $this->status === DeviceStatus::REGISTERED
-            || $this->status === DeviceStatus::TRUSTED
-            || $this->status === DeviceStatus::TOUCHED
-            || $this->status === DeviceStatus::REVOKED;
+        return [
+            DeviceStatus::REGISTERED,
+            DeviceStatus::TRUSTED,
+            DeviceStatus::TOUCHED,
+            DeviceStatus::REVOKED,
+        ];
     }
 }

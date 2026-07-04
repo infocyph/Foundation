@@ -12,23 +12,23 @@ final class App extends Facade
 {
     public static function boot(): Application
     {
-        return static::app()->boot();
+        return self::app()->boot();
     }
 
     public static function config(?string $key = null, mixed $default = null): mixed
     {
         return $key === null
-            ? static::app()->config()
-            : static::app()->config()->get($key, $default);
+            ? self::app()->config()
+            : self::app()->config()->get($key, $default);
     }
 
     public static function handle(Request $request): Response
     {
-        return static::app()->handle($request);
+        return self::app()->handle($request);
     }
 
     public static function instance(): Application
     {
-        return static::app();
+        return self::app();
     }
 }

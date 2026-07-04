@@ -7,42 +7,50 @@ namespace Infocyph\Foundation\Facades;
 use Infocyph\Foundation\Auth\Authentication\Login\LoginResult;
 use Infocyph\Foundation\Auth\AuthManager;
 use Infocyph\Foundation\Auth\AuthServices;
+use Infocyph\Foundation\Auth\Http\AuthActions;
 use Infocyph\Foundation\Auth\Http\LogoutResult;
+use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
 
 final class Auth extends Facade
 {
-    public static function actions(): \Infocyph\Foundation\Auth\Http\AuthActions
+    public static function actions(): AuthActions
     {
-        return static::app()->authActions();
+        return self::app()->authActions();
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     */
     public static function attempt(array $payload): LoginResult
     {
-        return static::actions()->login($payload);
+        return self::actions()->login($payload);
     }
 
     public static function logout(?string $sessionId = null): LogoutResult
     {
-        return static::actions()->logout($sessionId);
+        return self::actions()->logout($sessionId);
     }
 
     public static function manager(): AuthManager
     {
-        return static::app()->authManager();
+        return self::app()->authManager();
     }
 
-    public static function principal(): \Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext
+    public static function principal(): CurrentPrincipalContext
     {
-        return static::manager()->principal();
+        return self::manager()->principal();
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public static function readinessReport(): array
     {
-        return static::manager()->readinessReport();
+        return self::manager()->readinessReport();
     }
 
     public static function services(): AuthServices
     {
-        return static::app()->auth();
+        return self::app()->auth();
     }
 }

@@ -7,5 +7,6 @@ namespace Infocyph\Foundation\Auth\Driver;
 enum AuthNotificationDriver: string
 {
     case COLLECT = 'collect';
+
     case TALKINGBYTES = 'talkingbytes';
 }

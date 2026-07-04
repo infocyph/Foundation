@@ -22,6 +22,9 @@ final readonly class PolicyMiddleware
         private ?string $resourceKey = null,
     ) {}
 
+    /**
+     * @param callable(Request): Response $next
+     */
     public function __invoke(Request $request, callable $next): Response
     {
         $principal = $this->principals->get();

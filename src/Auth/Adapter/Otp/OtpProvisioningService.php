@@ -18,6 +18,23 @@ final readonly class OtpProvisioningService
     ) {}
 
     /**
+     * @return array<string, mixed>
+     */
+    public function factorMetadata(string $secret, string $label): array
+    {
+        return [
+            'otp' => [
+                'algorithm' => $this->algorithm,
+                'digits' => $this->digits,
+                'issuer' => $this->issuer,
+                'label' => $label,
+                'period' => $this->period,
+                'secret' => $secret,
+            ],
+        ];
+    }
+
+    /**
      * @return array{payload: EnrollmentPayload, factor_metadata: array<string, mixed>}
      */
     public function provision(string $accountId, ?string $label = null, bool $withQrSvg = false): array
@@ -41,26 +58,9 @@ final readonly class OtpProvisioningService
         ];
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    public function factorMetadata(string $secret, string $label): array
-    {
-        return [
-            'otp' => [
-                'algorithm' => $this->algorithm,
-                'digits' => $this->digits,
-                'issuer' => $this->issuer,
-                'label' => $label,
-                'period' => $this->period,
-                'secret' => $secret,
-            ],
-        ];
-    }
-
     private function totp(string $secret): TOTP
     {
-        return (new TOTP($secret, $this->digits, $this->period))
+        return new TOTP($secret, $this->digits, $this->period)
             ->setAlgorithm($this->algorithm);
     }
 }

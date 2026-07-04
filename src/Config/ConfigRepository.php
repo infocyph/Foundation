@@ -13,6 +13,9 @@ final class ConfigRepository
         private array $items = [],
     ) {}
 
+    /**
+     * @return array<string, mixed>
+     */
     public function all(): array
     {
         return $this->items;
@@ -66,6 +69,9 @@ final class ConfigRepository
         return $this->isEnvironment('production');
     }
 
+    /**
+     * @param array<string, mixed> $values
+     */
     public function merge(array $values): void
     {
         $this->items = ConfigMerger::merge($this->items, $values);
@@ -78,7 +84,7 @@ final class ConfigRepository
                 return;
             }
 
-            $this->items = $value;
+            $this->items = $this->map($value);
 
             return;
         }
@@ -95,5 +101,24 @@ final class ConfigRepository
         }
 
         $current = $value;
+    }
+
+    /**
+     * @param array<mixed> $value
+     * @return array<string, mixed>
+     */
+    private function map(array $value): array
+    {
+        $normalized = [];
+
+        foreach ($value as $key => $item) {
+            if (!is_string($key)) {
+                continue;
+            }
+
+            $normalized[$key] = $item;
+        }
+
+        return $normalized;
     }
 }

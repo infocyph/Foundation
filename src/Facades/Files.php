@@ -10,31 +10,31 @@ final class Files extends Facade
 {
     public static function base(string $path = ''): string
     {
-        return static::manager()->base($path);
+        return self::manager()->base($path);
     }
 
     public static function cache(string $path = ''): string
     {
-        return static::manager()->cache($path);
+        return self::manager()->cache($path);
     }
 
     public static function config(string $path = ''): string
     {
-        return static::manager()->config($path);
+        return self::manager()->config($path);
     }
 
     public static function logs(string $path = ''): string
     {
-        return static::manager()->logs($path);
+        return self::manager()->logs($path);
     }
 
     public static function manager(): PathManager
     {
-        return static::app()->paths();
+        return self::app()->paths();
     }
 
     public static function storage(string $path = ''): string
     {
-        return static::manager()->storage($path);
+        return self::manager()->storage($path);
     }
 }

@@ -13,10 +13,12 @@ use Infocyph\Webrick\Request\Request;
 final class BearerTokenPrincipalResolver extends AbstractPrincipalResolver
 {
     public function __construct(
-        private readonly ConfigRepository $config,
+        ConfigRepository $config,
         private readonly AccessTokenServiceInterface $tokens,
         private readonly AccountProviderInterface $accounts,
-    ) {}
+    ) {
+        parent::__construct($config);
+    }
 
     public function name(): string
     {
@@ -49,21 +51,16 @@ final class BearerTokenPrincipalResolver extends AbstractPrincipalResolver
 
     private function bearerToken(Request $request): ?string
     {
-        $header = $request->header(
-            (string) $this->config->get('auth.http.bearer_header', 'Authorization'),
-        );
-
-        if (!is_string($header) || $header === '') {
+        $header = $this->headerValue($request, 'auth.http.bearer_header', 'Authorization');
+        if ($header === null) {
             return null;
         }
 
-        $prefix = (string) $this->config->get('auth.http.bearer_prefix', 'Bearer ');
+        $prefix = $this->stringConfig('auth.http.bearer_prefix', 'Bearer ');
         if ($prefix !== '' && strncasecmp($header, $prefix, strlen($prefix)) === 0) {
-            $token = substr($header, strlen($prefix));
+            $token = trim(substr($header, strlen($prefix)));
 
-            return $token !== false && $token !== ''
-                ? trim($token)
-                : null;
+            return $token !== '' ? $token : null;
         }
 
         return null;

@@ -20,7 +20,7 @@ final class CacheServiceProvider extends ServiceProvider
 
         $container->bind(CacheManager::class, fn() => new CacheManager(
             config: $app->config(),
-            factory: $container->get(CacheLayerFactory::class),
+            factory: $app->make(CacheLayerFactory::class),
         ), LifetimeEnum::Singleton);
 
         $container->bind('foundation.cache', fn() => $container->get(CacheManager::class), LifetimeEnum::Singleton);

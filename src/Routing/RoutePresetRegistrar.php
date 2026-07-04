@@ -10,62 +10,90 @@ use Infocyph\Webrick\Router\Definition\Registrar;
 
 final readonly class RoutePresetRegistrar
 {
+    private const array BUILT_IN_GROUPS = [
+        'api-auth' => ['resolve-auth', 'auth'],
+        'mfa-auth' => ['resolve-auth', 'auth', 'mfa'],
+        'verified-auth' => ['resolve-auth', 'auth', 'verified'],
+        'web-auth' => ['resolve-auth', 'auth'],
+    ];
+
+    private const array GROUP_ALIASES = [
+        'auth:mfa' => 'mfa-auth',
+        'auth:verified' => 'verified-auth',
+        'auth:web' => 'web-auth',
+    ];
+
     public function __construct(
         private RouteMiddlewareRegistrar $middleware,
         private ConfigRepository $config,
     ) {}
 
-    public function register(): void
-    {
-        $this->middleware->register();
-    }
-
+    /**
+     * @param list<string>|string|null $prefix
+     * @param list<string>|string|Closure|null $domain
+     */
     public function apiAuth(
         Registrar $router,
         Closure $callback,
         array|string|null $prefix = null,
-        string|array|Closure|null $domain = null,
+        array|string|Closure|null $domain = null,
         ?string $namePrefix = null,
     ): void {
-        $this->group($router, 'api-auth', $callback, $prefix, $domain, $namePrefix);
+        $this->preset($router, 'api-auth', $callback, $prefix, $domain, $namePrefix);
     }
 
+    /**
+     * @param list<string>|string|null $prefix
+     * @param list<string>|string|Closure|null $domain
+     */
     public function authMfa(
         Registrar $router,
         Closure $callback,
         array|string|null $prefix = null,
-        string|array|Closure|null $domain = null,
+        array|string|Closure|null $domain = null,
         ?string $namePrefix = null,
     ): void {
-        $this->group($router, 'mfa-auth', $callback, $prefix, $domain, $namePrefix);
+        $this->preset($router, 'mfa-auth', $callback, $prefix, $domain, $namePrefix);
     }
 
+    /**
+     * @param list<string>|string|null $prefix
+     * @param list<string>|string|Closure|null $domain
+     */
     public function authVerified(
         Registrar $router,
         Closure $callback,
         array|string|null $prefix = null,
-        string|array|Closure|null $domain = null,
+        array|string|Closure|null $domain = null,
         ?string $namePrefix = null,
     ): void {
-        $this->group($router, 'verified-auth', $callback, $prefix, $domain, $namePrefix);
+        $this->preset($router, 'verified-auth', $callback, $prefix, $domain, $namePrefix);
     }
 
+    /**
+     * @param list<string>|string|null $prefix
+     * @param list<string>|string|Closure|null $domain
+     */
     public function authWeb(
         Registrar $router,
         Closure $callback,
         array|string|null $prefix = null,
-        string|array|Closure|null $domain = null,
+        array|string|Closure|null $domain = null,
         ?string $namePrefix = null,
     ): void {
-        $this->group($router, 'web-auth', $callback, $prefix, $domain, $namePrefix);
+        $this->preset($router, 'web-auth', $callback, $prefix, $domain, $namePrefix);
     }
 
+    /**
+     * @param list<string>|string|null $prefix
+     * @param list<string>|string|Closure|null $domain
+     */
     public function group(
         Registrar $router,
         string $preset,
         Closure $callback,
         array|string|null $prefix = null,
-        string|array|Closure|null $domain = null,
+        array|string|Closure|null $domain = null,
         ?string $namePrefix = null,
     ): void {
         $router->group(
@@ -77,16 +105,17 @@ final readonly class RoutePresetRegistrar
         );
     }
 
+    public function register(): void
+    {
+        $this->middleware->register();
+    }
+
     /**
      * @return list<string>
      */
     public function stack(string $preset): array
     {
         $stack = $this->configuredGroups()[$preset] ?? $this->builtInGroups()[$preset] ?? [];
-
-        if (!is_array($stack)) {
-            return [];
-        }
 
         return $this->normalizeStack($stack);
     }
@@ -96,15 +125,13 @@ final readonly class RoutePresetRegistrar
      */
     private function builtInGroups(): array
     {
-        return [
-            'api-auth' => ['resolve-auth', 'auth'],
-            'auth:mfa' => ['resolve-auth', 'auth', 'mfa'],
-            'auth:verified' => ['resolve-auth', 'auth', 'verified'],
-            'auth:web' => ['resolve-auth', 'auth'],
-            'mfa-auth' => ['resolve-auth', 'auth', 'mfa'],
-            'verified-auth' => ['resolve-auth', 'auth', 'verified'],
-            'web-auth' => ['resolve-auth', 'auth'],
-        ];
+        $groups = self::BUILT_IN_GROUPS;
+
+        foreach (self::GROUP_ALIASES as $alias => $preset) {
+            $groups[$alias] = $groups[$preset];
+        }
+
+        return $groups;
     }
 
     /**
@@ -130,7 +157,7 @@ final readonly class RoutePresetRegistrar
     }
 
     /**
-     * @param list<mixed> $stack
+     * @param array<mixed> $stack
      * @return list<string>
      */
     private function normalizeStack(array $stack): array
@@ -145,5 +172,20 @@ final readonly class RoutePresetRegistrar
         }
 
         return $normalized;
+    }
+
+    /**
+     * @param list<string>|string|null $prefix
+     * @param list<string>|string|Closure|null $domain
+     */
+    private function preset(
+        Registrar $router,
+        string $preset,
+        Closure $callback,
+        array|string|null $prefix = null,
+        array|string|Closure|null $domain = null,
+        ?string $namePrefix = null,
+    ): void {
+        $this->group($router, $preset, $callback, $prefix, $domain, $namePrefix);
     }
 }

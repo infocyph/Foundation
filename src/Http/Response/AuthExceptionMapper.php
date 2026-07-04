@@ -4,6 +4,13 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Http\Response;
 
+use Infocyph\Foundation\Auth\Exception\AuthenticationException;
+use Infocyph\Foundation\Auth\Exception\AuthorizationException;
+use Infocyph\Foundation\Auth\Exception\LockoutException;
+use Infocyph\Foundation\Auth\Exception\MfaException;
+use Infocyph\Foundation\Auth\Exception\PasskeyException;
+use Infocyph\Foundation\Auth\Exception\SessionException;
+use Infocyph\Foundation\Auth\Exception\TokenAuthException;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 
@@ -14,30 +21,30 @@ final readonly class AuthExceptionMapper
      */
     private array $map;
 
+    /**
+     * @param array<class-string, int>|null $map
+     */
     public function __construct(
         private AuthResponseFactory $responses,
         ?array $map = null,
     ) {
         $this->map = $map ?? [
-            'Infocyph\Foundation\Auth\Exception\AuthenticationException' => 401,
-            'Infocyph\Foundation\Auth\Exception\AuthorizationException' => 403,
-            'Infocyph\Foundation\Auth\Exception\SessionException' => 401,
-            'Infocyph\Foundation\Auth\Exception\TokenAuthException' => 401,
-            'Infocyph\Foundation\Auth\Exception\MfaException' => 403,
-            'Infocyph\Foundation\Auth\Exception\PasskeyException' => 403,
-            'Infocyph\Foundation\Auth\Exception\LockoutException' => 423,
+            AuthenticationException::class => 401,
+            AuthorizationException::class => 403,
+            SessionException::class => 401,
+            TokenAuthException::class => 401,
+            MfaException::class => 403,
+            PasskeyException::class => 403,
+            LockoutException::class => 423,
         ];
     }
 
     public function supports(\Throwable $exception): bool
     {
-        foreach (array_keys($this->map) as $class) {
-            if ($exception instanceof $class) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any(
+            array_keys($this->map),
+            static fn(string $class): bool => $exception instanceof $class,
+        );
     }
 
     public function toResponse(Request $request, \Throwable $exception): Response
@@ -47,6 +54,7 @@ final readonly class AuthExceptionMapper
         foreach ($this->map as $class => $candidate) {
             if ($exception instanceof $class) {
                 $status = $candidate;
+
                 break;
             }
         }

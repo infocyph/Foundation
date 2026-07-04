@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Auth\Authentication\Passwordless;
 
 use Infocyph\Foundation\Auth\Contract\Security\TokenVerificationResult;
+use Infocyph\Foundation\Auth\Support\TracksSuccessfulStatus;
 
 final readonly class PasswordlessResult
 {
+    use TracksSuccessfulStatus;
+
     /**
      * @param array<string, mixed> $context
      */
@@ -19,14 +22,11 @@ final readonly class PasswordlessResult
         public array $context = [],
     ) {}
 
-    public function failed(): bool
+    /**
+     * @return list<\UnitEnum>
+     */
+    protected function successfulStatuses(): array
     {
-        return !$this->successful();
-    }
-
-    public function successful(): bool
-    {
-        return $this->status === PasswordlessStatus::ISSUED
-            || $this->status === PasswordlessStatus::VERIFIED;
+        return [PasswordlessStatus::ISSUED, PasswordlessStatus::VERIFIED];
     }
 }

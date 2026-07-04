@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Adapter\CacheLayer;
 
-use Infocyph\Foundation\Auth\Contract\Cache\TtlStoreInterface;
 use Infocyph\CacheLayer\Cache\CacheInterface;
+use Infocyph\Foundation\Auth\Contract\Cache\TtlStoreInterface;
 
 final readonly class CacheLayerTtlStore implements TtlStoreInterface
 {

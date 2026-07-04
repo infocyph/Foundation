@@ -10,6 +10,7 @@ use Infocyph\Foundation\Auth\Mfa\MfaFactorStoreInterface;
 use Infocyph\Foundation\Auth\Mfa\MfaFactorType;
 use Infocyph\Foundation\Auth\Mfa\MfaVerificationResult;
 use Infocyph\Foundation\Auth\Mfa\MfaVerifierInterface;
+use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\OTP\Contracts\ReplayStoreInterface;
 use Infocyph\OTP\TOTP;
 use Infocyph\OTP\ValueObjects\VerificationWindow;
@@ -47,7 +48,7 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         }
 
         try {
-            $totp = (new TOTP($config['secret'], $config['digits'], $config['period']))
+            $totp = new TOTP($config['secret'], $config['digits'], $config['period'])
                 ->setAlgorithm($config['algorithm']);
         } catch (\Throwable) {
             return new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_factor_invalid_configuration');
@@ -89,20 +90,21 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
      */
     private function factorConfig(MfaFactor $factor): array
     {
-        $otp = is_array($factor->metadata['otp'] ?? null)
-            ? $factor->metadata['otp']
-            : $factor->metadata;
+        $otp = ValueNormalizer::associativeArray($factor->metadata['otp'] ?? null);
+        if ($otp === []) {
+            $otp = $factor->metadata;
+        }
 
         return [
             'algorithm' => is_string($otp['algorithm'] ?? null) && $otp['algorithm'] !== ''
                 ? $otp['algorithm']
                 : 'sha1',
-            'digits' => max(4, (int) ($otp['digits'] ?? 6)),
-            'period' => max(1, (int) ($otp['period'] ?? 30)),
+            'digits' => max(4, $this->integerOption($otp, 'digits', 6)),
+            'period' => max(1, $this->integerOption($otp, 'period', 30)),
             'secret' => is_string($otp['secret'] ?? null) && $otp['secret'] !== ''
                 ? $otp['secret']
                 : null,
-            'window' => max(0, (int) ($otp['window'] ?? $this->window)),
+            'window' => max(0, $this->integerOption($otp, 'window', $this->window)),
         ];
     }
 
@@ -115,5 +117,15 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         }
 
         return null;
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     */
+    private function integerOption(array $config, string $key, int $default): int
+    {
+        $value = $config[$key] ?? null;
+
+        return is_numeric($value) ? (int) $value : $default;
     }
 }

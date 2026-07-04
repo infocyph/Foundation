@@ -4,33 +4,23 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Http\Middleware;
 
-use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
-use Infocyph\Foundation\Http\Response\AuthResponseFactory;
-use Infocyph\Webrick\Request\Request;
-use Infocyph\Webrick\Response\Response;
-
-final readonly class MfaRequiredMiddleware
+final readonly class MfaRequiredMiddleware extends AbstractPrincipalRequirementMiddleware
 {
-    public function __construct(
-        private CurrentPrincipalContext $principals,
-        private AuthResponseFactory $responses,
-    ) {}
-
-    public function __invoke(Request $request, callable $next): Response
+    /**
+     * @return list<string>
+     */
+    protected function attributeKeys(): array
     {
-        $principal = $this->principals->get();
-        if ($principal === null) {
-            return $this->responses->unauthorized($request, 'Authentication is required.');
-        }
+        return ['auth.mfa_satisfied', 'auth.mfa'];
+    }
 
-        $satisfied = $request->getAttribute('auth.mfa_satisfied')
-            ?? $request->getAttribute('auth.mfa')
-            ?? $principal->metadata()['mfa_satisfied'] ?? false;
+    protected function failureMessage(): string
+    {
+        return 'Multi-factor verification is required.';
+    }
 
-        if ($satisfied !== true) {
-            return $this->responses->forbidden($request, 'Multi-factor verification is required.');
-        }
-
-        return $next($request);
+    protected function metadataKey(): string
+    {
+        return 'mfa_satisfied';
     }
 }

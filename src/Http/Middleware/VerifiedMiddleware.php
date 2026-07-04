@@ -19,6 +19,9 @@ final readonly class VerifiedMiddleware
         private AuthResponseFactory $responses,
     ) {}
 
+    /**
+     * @param callable(Request): Response $next
+     */
     public function __invoke(Request $request, callable $next): Response
     {
         $principal = $this->principals->get();

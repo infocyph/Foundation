@@ -7,5 +7,6 @@ namespace Infocyph\Foundation\Auth\Driver;
 enum AuthStorageDriver: string
 {
     case DBLAYER = 'dblayer';
+
     case MEMORY = 'memory';
 }

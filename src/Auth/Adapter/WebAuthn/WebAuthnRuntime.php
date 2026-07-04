@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Adapter\WebAuthn;
 
+use Infocyph\Foundation\Support\ValueNormalizer;
 use JsonException;
+
+use Symfony\Component\Serializer\SerializerInterface;
 use Webauthn\AttestationStatement\AttestationStatementSupportManager;
 use Webauthn\AttestationStatement\NoneAttestationStatementSupport;
 use Webauthn\AuthenticatorAssertionResponseValidator;
@@ -24,7 +27,7 @@ final class WebAuthnRuntime
 
     private ?AuthenticatorAttestationResponseValidator $attestationValidator = null;
 
-    private ?\Symfony\Component\Serializer\SerializerInterface $serializer = null;
+    private ?SerializerInterface $serializer = null;
 
     public function __construct(
         private readonly WebAuthnConfig $config,
@@ -126,7 +129,7 @@ final class WebAuthnRuntime
             throw new WebAuthnException('Unable to decode WebAuthn JSON payload.', 0, $exception);
         }
 
-        return is_array($decoded) ? $decoded : [];
+        return ValueNormalizer::associativeArray($decoded);
     }
 
     /**
@@ -141,9 +144,9 @@ final class WebAuthnRuntime
         }
     }
 
-    private function serializer(): \Symfony\Component\Serializer\SerializerInterface
+    private function serializer(): SerializerInterface
     {
-        if ($this->serializer instanceof \Symfony\Component\Serializer\SerializerInterface) {
+        if ($this->serializer instanceof SerializerInterface) {
             return $this->serializer;
         }
 

@@ -58,14 +58,21 @@ final readonly class WebAuthnCredentialMapper
     }
 
     /**
-     * @param list<string> $transports
+     * @param array<int|string, string> $transports
      * @return list<string>
      */
     private function transports(array $transports): array
     {
-        return array_values(array_filter(
-            $transports,
-            static fn(mixed $transport): bool => is_string($transport) && $transport !== '',
-        ));
+        $normalized = [];
+
+        foreach ($transports as $transport) {
+            if ($transport === '') {
+                continue;
+            }
+
+            $normalized[] = $transport;
+        }
+
+        return $normalized;
     }
 }

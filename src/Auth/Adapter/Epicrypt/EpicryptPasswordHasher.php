@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Adapter\Epicrypt;
 
-use Infocyph\Foundation\Auth\Contract\Security\PasswordHasherInterface;
 use Infocyph\Epicrypt\Password\PasswordHasher;
+use Infocyph\Foundation\Auth\Contract\Security\PasswordHasherInterface;
 
 final readonly class EpicryptPasswordHasher implements PasswordHasherInterface
 {

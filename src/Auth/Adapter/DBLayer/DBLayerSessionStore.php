@@ -11,54 +11,41 @@ final readonly class DBLayerSessionStore extends DBLayerStore implements Session
 {
     public function create(AuthSession $session): void
     {
-        $this->execute(
-            sprintf('INSERT INTO %s (id, account_id, device_id, created_at, last_seen_at, expires_at, recent_auth_at, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', $this->table('sessions')),
-            [
-                $session->id,
-                $session->accountId,
-                $session->deviceId,
-                $session->createdAt,
-                $session->lastSeenAt,
-                $session->expiresAt,
-                $session->recentAuthAt,
-                DBLayerJson::encode($session->metadata),
-            ],
-        );
+        $this->insertRecord('sessions', [
+            'id' => $session->id,
+            'account_id' => $session->accountId,
+            'device_id' => $session->deviceId,
+            'created_at' => $session->createdAt,
+            'last_seen_at' => $session->lastSeenAt,
+            'expires_at' => $session->expiresAt,
+            'recent_auth_at' => $session->recentAuthAt,
+            'metadata' => DBLayerJson::encode($session->metadata),
+        ]);
     }
 
     public function find(string $sessionId): ?AuthSession
     {
-        $row = $this->first(
+        return $this->firstMapped(
             sprintf('SELECT * FROM %s WHERE id = ?', $this->table('sessions')),
+            $this->mapSession(...),
             [$sessionId],
         );
-
-        return $row === null ? null : $this->mapSession($row);
     }
 
     public function revoke(string $sessionId): void
     {
-        $this->execute(
-            sprintf('DELETE FROM %s WHERE id = ?', $this->table('sessions')),
-            [$sessionId],
-        );
+        $this->deleteWhere('sessions', 'id = ?', [$sessionId]);
     }
 
     public function revokeAllForAccount(string $accountId, ?string $exceptSessionId = null): void
     {
         if ($exceptSessionId !== null && $exceptSessionId !== '') {
-            $this->execute(
-                sprintf('DELETE FROM %s WHERE account_id = ? AND id <> ?', $this->table('sessions')),
-                [$accountId, $exceptSessionId],
-            );
+            $this->deleteWhere('sessions', 'account_id = ? AND id <> ?', [$accountId, $exceptSessionId]);
 
             return;
         }
 
-        $this->execute(
-            sprintf('DELETE FROM %s WHERE account_id = ?', $this->table('sessions')),
-            [$accountId],
-        );
+        $this->deleteWhere('sessions', 'account_id = ?', [$accountId]);
     }
 
     public function rotate(string $sessionId, AuthSession $replacement): void
@@ -69,12 +56,12 @@ final readonly class DBLayerSessionStore extends DBLayerStore implements Session
 
     public function touch(string $sessionId, int $lastSeenAt): void
     {
-        $this->execute(
-            sprintf('UPDATE %s SET last_seen_at = ? WHERE id = ?', $this->table('sessions')),
-            [$lastSeenAt, $sessionId],
-        );
+        $this->updateWhere('sessions', ['last_seen_at' => $lastSeenAt], 'id = ?', [$sessionId]);
     }
 
+    /**
+     * @param array<string, mixed> $row
+     */
     private function mapSession(array $row): AuthSession
     {
         return new AuthSession(

@@ -7,21 +7,9 @@ namespace Infocyph\Foundation\Auth\Adapter\DBLayer;
 use Infocyph\Foundation\Auth\Authorization\Role\Role;
 use Infocyph\Foundation\Auth\Authorization\Role\RoleAssignmentStoreInterface;
 use Infocyph\Foundation\Auth\Authorization\Role\RoleStoreInterface;
-use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
-use Infocyph\Foundation\Database\AuthSchema\AuthTables;
-use Infocyph\Foundation\Database\DBLayerFactory;
 
-final readonly class DBLayerRoleStore extends DBLayerStore implements RoleStoreInterface, RoleAssignmentStoreInterface
+final readonly class DBLayerRoleStore extends ClockedDBLayerStore implements RoleAssignmentStoreInterface, RoleStoreInterface
 {
-    public function __construct(
-        DBLayerFactory $db,
-        AuthTables $tables,
-        private ClockInterface $clock,
-        ?string $connection = null,
-    ) {
-        parent::__construct($db, $tables, $connection);
-    }
-
     public function assignRole(string $accountId, string $roleId): void
     {
         if ($this->exists(
@@ -33,7 +21,7 @@ final readonly class DBLayerRoleStore extends DBLayerStore implements RoleStoreI
 
         $this->execute(
             sprintf('INSERT INTO %s (account_id, role_id, created_at) VALUES (?, ?, ?)', $this->table('accountRoles')),
-            [$accountId, $roleId, $this->clock->now()],
+            [$accountId, $roleId, $this->now()],
         );
     }
 
@@ -47,36 +35,31 @@ final readonly class DBLayerRoleStore extends DBLayerStore implements RoleStoreI
 
     public function rolesForAccount(string $accountId): array
     {
-        return array_map(
-            fn(array $row): Role => new Role(
-                id: $this->string($row['id'] ?? ''),
-                name: $this->string($row['name'] ?? ''),
-                metadata: DBLayerJson::decode($row['metadata'] ?? null),
-            ),
-            $this->all(
-                sprintf('SELECT r.* FROM %s r INNER JOIN %s ar ON ar.role_id = r.id WHERE ar.account_id = ?', $this->table('roles'), $this->table('accountRoles')),
-                [$accountId],
-            ),
+        return $this->allMapped(
+            sprintf('SELECT r.* FROM %s r INNER JOIN %s ar ON ar.role_id = r.id WHERE ar.account_id = ?', $this->table('roles'), $this->table('accountRoles')),
+            $this->mapRole(...),
+            [$accountId],
         );
     }
 
     public function save(Role $role): void
     {
-        if ($this->first(
-            sprintf('SELECT id FROM %s WHERE id = ?', $this->table('roles')),
-            [$role->id],
-        ) !== null) {
-            $this->execute(
-                sprintf('UPDATE %s SET name = ?, metadata = ? WHERE id = ?', $this->table('roles')),
-                [$role->name, DBLayerJson::encode($role->metadata), $role->id],
-            );
+        $this->upsertRecord('roles', 'id', [
+            'id' => $role->id,
+            'name' => $role->name,
+            'metadata' => DBLayerJson::encode($role->metadata),
+        ]);
+    }
 
-            return;
-        }
-
-        $this->execute(
-            sprintf('INSERT INTO %s (id, name, metadata) VALUES (?, ?, ?)', $this->table('roles')),
-            [$role->id, $role->name, DBLayerJson::encode($role->metadata)],
+    /**
+     * @param array<string, mixed> $row
+     */
+    private function mapRole(array $row): Role
+    {
+        return new Role(
+            id: $this->string($row['id'] ?? ''),
+            name: $this->string($row['name'] ?? ''),
+            metadata: DBLayerJson::decode($row['metadata'] ?? null),
         );
     }
 }

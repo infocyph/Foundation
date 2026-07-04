@@ -17,6 +17,11 @@ final readonly class DatabaseManager
         private AuthSchemaInstaller $authSchemaInstaller,
     ) {}
 
+    public function authSchema(): AuthSchemaInstaller
+    {
+        return $this->authSchemaInstaller;
+    }
+
     public function config(?string $key = null, mixed $default = null): mixed
     {
         if ($key === null || $key === '') {
@@ -24,11 +29,6 @@ final readonly class DatabaseManager
         }
 
         return $this->config->get('database.' . $key, $default);
-    }
-
-    public function authSchema(): AuthSchemaInstaller
-    {
-        return $this->authSchemaInstaller;
     }
 
     public function connection(?string $name = null, bool $fresh = false): Connection

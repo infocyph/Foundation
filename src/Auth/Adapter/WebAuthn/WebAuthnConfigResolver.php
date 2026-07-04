@@ -16,7 +16,7 @@ final readonly class WebAuthnConfigResolver
     public function resolve(): WebAuthnConfig
     {
         $configured = $this->config->get('auth.webauthn', []);
-        $resolved = WebAuthnConfig::fromArray(is_array($configured) ? $configured : []);
+        $resolved = WebAuthnConfig::fromArray($this->normalizeConfig($configured));
 
         if ($resolved->rpId === null || $resolved->origin === null) {
             throw new ConfigurationException(
@@ -25,5 +25,26 @@ final readonly class WebAuthnConfigResolver
         }
 
         return $resolved;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function normalizeConfig(mixed $configured): array
+    {
+        if (!is_array($configured)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($configured as $key => $value) {
+            if (!is_string($key)) {
+                continue;
+            }
+
+            $normalized[$key] = $value;
+        }
+
+        return $normalized;
     }
 }

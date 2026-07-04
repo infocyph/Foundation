@@ -52,7 +52,7 @@ final class WebrickRouterFactory
                 'signKey' => $this->optionalString($this->config->get('router.signed_urls.key')),
                 'signedDefaultTtl' => $this->optionalInt($this->config->get('router.signed_urls.default_ttl')),
                 'signedUrlConfig' => $this->signedUrlConfig(),
-                'urlBaseUri' => (string) $this->config->get('router.url_base_uri', ''),
+                'urlBaseUri' => $this->stringConfig('router.url_base_uri'),
             ],
             preGlobal: [],
             postGlobal: [],
@@ -77,7 +77,7 @@ final class WebrickRouterFactory
             signKey: $this->optionalString($this->config->get('router.signed_urls.key')),
             signedDefaultTtl: $this->optionalInt($this->config->get('router.signed_urls.default_ttl')),
             signedUrlConfig: $this->signedUrlConfig(),
-            urlBaseUri: (string) $this->config->get('router.url_base_uri', ''),
+            urlBaseUri: $this->stringConfig('router.url_base_uri'),
         );
 
         Router::setInstance($this->registrar);
@@ -120,7 +120,7 @@ final class WebrickRouterFactory
 
     private function matcher(): MatcherInterface
     {
-        return match ((string) $this->config->get('router.matcher', 'fused')) {
+        return match ($this->stringConfig('router.matcher', 'fused')) {
             'generated' => GeneratedMatcher::make(),
             'sharded' => ShardedMatcher::make(),
             default => FusedMatcher::make(),
@@ -193,5 +193,14 @@ final class WebrickRouterFactory
         return is_array($signedOptions) && $signedOptions !== []
             ? SignedUrlConfig::fromArray($signedOptions)
             : null;
+    }
+
+    private function stringConfig(string $key, string $default = ''): string
+    {
+        $value = $this->config->get($key, $default);
+
+        return is_string($value)
+            ? $value
+            : $default;
     }
 }

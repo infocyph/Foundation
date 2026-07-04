@@ -13,6 +13,32 @@ final readonly class AuthSchema
     /**
      * @return list<string>
      */
+    public function dropStatements(): array
+    {
+        return [
+            sprintf('DROP TABLE IF EXISTS %s', $this->tables->lockouts()),
+            sprintf('DROP TABLE IF EXISTS %s', $this->tables->auditEvents()),
+            sprintf('DROP TABLE IF EXISTS %s', $this->tables->devices()),
+            sprintf('DROP TABLE IF EXISTS %s', $this->tables->grants()),
+            sprintf('DROP TABLE IF EXISTS %s', $this->tables->rolePermissions()),
+            sprintf('DROP TABLE IF EXISTS %s', $this->tables->accountPermissions()),
+            sprintf('DROP TABLE IF EXISTS %s', $this->tables->accountRoles()),
+            sprintf('DROP TABLE IF EXISTS %s', $this->tables->permissions()),
+            sprintf('DROP TABLE IF EXISTS %s', $this->tables->roles()),
+            sprintf('DROP TABLE IF EXISTS %s', $this->tables->passkeyCredentials()),
+            sprintf('DROP TABLE IF EXISTS %s', $this->tables->mfaFactors()),
+            sprintf('DROP TABLE IF EXISTS %s', $this->tables->refreshTokens()),
+            sprintf('DROP TABLE IF EXISTS %s', $this->tables->rememberTokens()),
+            sprintf('DROP TABLE IF EXISTS %s', $this->tables->emailVerifications()),
+            sprintf('DROP TABLE IF EXISTS %s', $this->tables->passwordResets()),
+            sprintf('DROP TABLE IF EXISTS %s', $this->tables->sessions()),
+            sprintf('DROP TABLE IF EXISTS %s', $this->tables->accounts()),
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
     public function statements(): array
     {
         $accounts = $this->tables->accounts();
@@ -212,32 +238,6 @@ final readonly class AuthSchema
             "CREATE INDEX IF NOT EXISTS {$auditEvents}_occurred_idx ON {$auditEvents} (occurred_at)",
             "CREATE INDEX IF NOT EXISTS {$auditEvents}_type_idx ON {$auditEvents} (type)",
             "CREATE INDEX IF NOT EXISTS {$lockouts}_until_idx ON {$lockouts} (until_at)",
-        ];
-    }
-
-    /**
-     * @return list<string>
-     */
-    public function dropStatements(): array
-    {
-        return [
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->lockouts()),
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->auditEvents()),
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->devices()),
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->grants()),
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->rolePermissions()),
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->accountPermissions()),
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->accountRoles()),
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->permissions()),
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->roles()),
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->passkeyCredentials()),
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->mfaFactors()),
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->refreshTokens()),
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->rememberTokens()),
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->emailVerifications()),
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->passwordResets()),
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->sessions()),
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->accounts()),
         ];
     }
 }

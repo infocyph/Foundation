@@ -5,22 +5,22 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Facades;
 
 use Infocyph\Foundation\Auth\Contract\Notification\AuthNotifierInterface;
-use Infocyph\TalkingBytes\Email\Emailer;
+use Infocyph\Foundation\Notifications\NotificationManager;
 
 final class Notify extends Facade
 {
     public static function auth(): AuthNotifierInterface
     {
-        return static::manager()->authNotifier();
+        return self::manager()->authNotifier();
     }
 
-    public static function emailer(): Emailer
+    public static function emailer(): object
     {
-        return static::manager()->emailer();
+        return self::manager()->emailer();
     }
 
-    public static function manager(): \Infocyph\Foundation\Notifications\NotificationManager
+    public static function manager(): NotificationManager
     {
-        return static::app()->notifications();
+        return self::app()->notifications();
     }
 }

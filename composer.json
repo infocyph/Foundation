@@ -5,22 +5,26 @@
     "type": "library",
     "require": {
         "php": ">=8.4",
-        "infocyph/arraykit": "dev-main",
-        "infocyph/cachelayer": "dev-main",
-        "infocyph/dblayer": "dev-main",
-        "infocyph/epicrypt": "dev-main",
-        "infocyph/intermix": "dev-main",
-        "infocyph/otp": "dev-main",
-        "infocyph/pathwise": "dev-main",
-        "infocyph/reqshield": "dev-main",
-        "infocyph/talkingbytes": "dev-main",
-        "infocyph/uid": "dev-main",
-        "infocyph/webrick": "dev-main",
-        "web-auth/webauthn-lib": "^5.0"
+        "infocyph/arraykit": "^4.3",
+        "infocyph/cachelayer": "^1.2.2",
+        "infocyph/dblayer": "^2.0",
+        "infocyph/epicrypt": "^1.0.1",
+        "infocyph/intermix": "^7.2.1",
+        "infocyph/otp": "^5.3",
+        "infocyph/pathwise": "^2.5.1",
+        "infocyph/reqshield": "^2.4",
+        "infocyph/uid": "^4.2.1",
+        "infocyph/webrick": "^2.1",
+        "web-auth/webauthn-lib": "^5.3.5"
     },
     "require-dev": {
         "infocyph/phpforge": "dev-main"
     },
+    "suggest": {
+        "infocyph/talkingbytes": "Required for the talkingbytes notification driver and Foundation email transport integration."
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
     "autoload": {
         "psr-4": {
             "Infocyph\\Foundation\\": "src/"
@@ -33,11 +37,11 @@
     },
     "config": {
         "allow-plugins": {
-            "infocyph/phpforge": true
+            "ergebnis/composer-normalize": true,
+            "infocyph/phpforge": true,
+            "pestphp/pest-plugin": true
         },
         "optimize-autoloader": true,
         "sort-packages": true
-    },
-    "minimum-stability": "dev",
-    "prefer-stable": true
+    }
 }

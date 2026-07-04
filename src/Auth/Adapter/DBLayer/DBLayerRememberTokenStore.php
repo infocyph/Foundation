@@ -5,109 +5,61 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Auth\Adapter\DBLayer;
 
 use Infocyph\Foundation\Auth\Authentication\RememberMe\RememberTokenRecord;
-use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\RememberTokenStoreInterface;
-use Infocyph\Foundation\Database\AuthSchema\AuthTables;
-use Infocyph\Foundation\Database\DBLayerFactory;
 
-final readonly class DBLayerRememberTokenStore extends DBLayerStore implements RememberTokenStoreInterface
+final readonly class DBLayerRememberTokenStore extends ClockedDBLayerStore implements RememberTokenStoreInterface
 {
-    public function __construct(
-        DBLayerFactory $db,
-        AuthTables $tables,
-        private ClockInterface $clock,
-        ?string $connection = null,
-    ) {
-        parent::__construct($db, $tables, $connection);
-    }
-
     public function find(string $recordId): ?RememberTokenRecord
     {
-        $row = $this->first(
+        return $this->firstMapped(
             sprintf('SELECT * FROM %s WHERE id = ?', $this->table('rememberTokens')),
+            $this->mapRecord(...),
             [$recordId],
         );
-
-        return $row === null ? null : $this->mapRecord($row);
     }
 
     public function findBySelector(string $selector): ?RememberTokenRecord
     {
-        $row = $this->first(
+        return $this->firstMapped(
             sprintf('SELECT * FROM %s WHERE selector = ?', $this->table('rememberTokens')),
+            $this->mapRecord(...),
             [$selector],
         );
-
-        return $row === null ? null : $this->mapRecord($row);
     }
 
     public function markUsed(string $recordId, int $usedAt): void
     {
-        $this->execute(
-            sprintf('UPDATE %s SET last_used_at = ? WHERE id = ? AND revoked_at IS NULL', $this->table('rememberTokens')),
-            [$usedAt, $recordId],
-        );
+        $this->updateWhere('rememberTokens', ['last_used_at' => $usedAt], 'id = ? AND revoked_at IS NULL', [$recordId]);
     }
 
     public function revokeFamily(string $familyId): void
     {
-        $this->execute(
-            sprintf('UPDATE %s SET revoked_at = ? WHERE family_id = ? AND revoked_at IS NULL', $this->table('rememberTokens')),
-            [$this->clock->now(), $familyId],
-        );
+        $this->updateWhere('rememberTokens', ['revoked_at' => $this->now()], 'family_id = ? AND revoked_at IS NULL', [$familyId]);
     }
 
     public function rotate(string $recordId, RememberTokenRecord $replacement): void
     {
-        $this->execute(
-            sprintf('UPDATE %s SET rotated_at = ? WHERE id = ?', $this->table('rememberTokens')),
-            [$this->clock->now(), $recordId],
-        );
+        $this->updateWhere('rememberTokens', ['rotated_at' => $this->now()], 'id = ?', [$recordId]);
 
         $this->save($replacement);
     }
 
     public function save(RememberTokenRecord $record): void
     {
-        if ($this->find($record->id) !== null) {
-            $this->execute(
-                sprintf('UPDATE %s SET account_id = ?, device_id = ?, selector = ?, verifier_hash = ?, family_id = ?, issued_at = ?, expires_at = ?, last_used_at = ?, rotated_at = ?, revoked_at = ?, metadata = ? WHERE id = ?', $this->table('rememberTokens')),
-                [
-                    $record->accountId,
-                    $record->deviceId,
-                    $record->selector,
-                    $record->verifierHash,
-                    $record->familyId,
-                    $record->issuedAt,
-                    $record->expiresAt,
-                    $record->lastUsedAt,
-                    $record->rotatedAt,
-                    $record->revokedAt,
-                    DBLayerJson::encode($record->metadata),
-                    $record->id,
-                ],
-            );
-
-            return;
-        }
-
-        $this->execute(
-            sprintf('INSERT INTO %s (id, account_id, device_id, selector, verifier_hash, family_id, issued_at, expires_at, last_used_at, rotated_at, revoked_at, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', $this->table('rememberTokens')),
-            [
-                $record->id,
-                $record->accountId,
-                $record->deviceId,
-                $record->selector,
-                $record->verifierHash,
-                $record->familyId,
-                $record->issuedAt,
-                $record->expiresAt,
-                $record->lastUsedAt,
-                $record->rotatedAt,
-                $record->revokedAt,
-                DBLayerJson::encode($record->metadata),
-            ],
-        );
+        $this->upsertRecord('rememberTokens', 'id', [
+            'id' => $record->id,
+            'account_id' => $record->accountId,
+            'device_id' => $record->deviceId,
+            'selector' => $record->selector,
+            'verifier_hash' => $record->verifierHash,
+            'family_id' => $record->familyId,
+            'issued_at' => $record->issuedAt,
+            'expires_at' => $record->expiresAt,
+            'last_used_at' => $record->lastUsedAt,
+            'rotated_at' => $record->rotatedAt,
+            'revoked_at' => $record->revokedAt,
+            'metadata' => DBLayerJson::encode($record->metadata),
+        ]);
     }
 
     public function wasFamilyRevoked(string $familyId): bool
@@ -118,6 +70,9 @@ final readonly class DBLayerRememberTokenStore extends DBLayerStore implements R
         ) !== null;
     }
 
+    /**
+     * @param array<string, mixed> $row
+     */
     private function mapRecord(array $row): RememberTokenRecord
     {
         return new RememberTokenRecord(

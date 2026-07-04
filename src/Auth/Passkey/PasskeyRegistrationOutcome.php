@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Passkey;
 
+use Infocyph\Foundation\Auth\Support\TracksSuccessfulStatus;
+
 final readonly class PasskeyRegistrationOutcome
 {
+    use TracksSuccessfulStatus;
+
     /**
      * @param array<string, mixed> $context
      */
@@ -17,14 +21,11 @@ final readonly class PasskeyRegistrationOutcome
         public array $context = [],
     ) {}
 
-    public function failed(): bool
+    /**
+     * @return list<\UnitEnum>
+     */
+    protected function successfulStatuses(): array
     {
-        return !$this->successful();
-    }
-
-    public function successful(): bool
-    {
-        return $this->status === PasskeyRegistrationStatus::STARTED
-            || $this->status === PasskeyRegistrationStatus::REGISTERED;
+        return [PasskeyRegistrationStatus::STARTED, PasskeyRegistrationStatus::REGISTERED];
     }
 }

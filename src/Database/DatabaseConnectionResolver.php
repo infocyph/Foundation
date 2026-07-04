@@ -14,29 +14,6 @@ final readonly class DatabaseConnectionResolver
     ) {}
 
     /**
-     * @return array<string, array<string, mixed>>
-     */
-    public function connections(): array
-    {
-        $connections = $this->config->get('database.connections', []);
-
-        if (!is_array($connections)) {
-            return [];
-        }
-
-        $resolved = [];
-        foreach ($connections as $name => $connection) {
-            if (!is_string($name) || !is_array($connection)) {
-                continue;
-            }
-
-            $resolved[$name] = $connection;
-        }
-
-        return $resolved;
-    }
-
-    /**
      * @return array<string, mixed>
      */
     public function configuration(?string $name = null): array
@@ -71,5 +48,47 @@ final readonly class DatabaseConnectionResolver
         }
 
         throw new ConfigurationException('No database.default connection has been configured.');
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    public function connections(): array
+    {
+        $connections = $this->config->get('database.connections', []);
+
+        if (!is_array($connections)) {
+            return [];
+        }
+
+        $resolved = [];
+        foreach ($connections as $name => $connection) {
+            if (!is_string($name) || !is_array($connection)) {
+                continue;
+            }
+
+            $resolved[$name] = $this->map($connection);
+        }
+
+        return $resolved;
+    }
+
+    /**
+     * @param array<mixed> $value
+     * @return array<string, mixed>
+     */
+    private function map(array $value): array
+    {
+        $normalized = [];
+
+        foreach ($value as $key => $item) {
+            if (!is_string($key)) {
+                continue;
+            }
+
+            $normalized[$key] = $item;
+        }
+
+        return $normalized;
     }
 }

@@ -16,6 +16,9 @@ final readonly class GuestMiddleware
         private AuthResponseFactory $responses,
     ) {}
 
+    /**
+     * @param callable(Request): Response $next
+     */
     public function __invoke(Request $request, callable $next): Response
     {
         if ($this->principals->get() !== null) {

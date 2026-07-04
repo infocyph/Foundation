@@ -29,6 +29,12 @@ final class ProductionPreset implements FoundationPreset
             ],
             'cache' => [
                 'default' => 'auth',
+                'stores' => [
+                    'auth' => [
+                        'driver' => 'local',
+                        'namespace' => 'foundation-auth',
+                    ],
+                ],
             ],
             'database' => [
                 'default' => 'primary',

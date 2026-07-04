@@ -7,5 +7,6 @@ namespace Infocyph\Foundation\Auth\Driver;
 enum AuthCacheDriver: string
 {
     case ARRAY = 'array';
+
     case CACHELAYER = 'cachelayer';
 }

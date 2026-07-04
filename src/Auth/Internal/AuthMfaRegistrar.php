@@ -4,90 +4,81 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Internal;
 
-use Infocyph\Foundation\Auth\Contract\Cache\TtlStoreInterface;
-use Infocyph\Foundation\Auth\Mfa\MfaFactorStoreInterface;
-use Infocyph\Foundation\Auth\Mfa\MfaVerifierInterface;
-use Infocyph\Foundation\Auth\Mfa\RecoveryCodeServiceInterface;
 use Infocyph\Foundation\Application\Application;
-use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
-use Infocyph\Foundation\Auth\Driver\AuthMfaDriver;
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpMfaVerifier;
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpProvisioningService;
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpRecoveryCodeService;
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpReplayStore;
+use Infocyph\Foundation\Auth\Contract\Cache\TtlStoreInterface;
+use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
+use Infocyph\Foundation\Auth\Driver\AuthMfaDriver;
+use Infocyph\Foundation\Auth\Mfa\MfaFactorStoreInterface;
+use Infocyph\Foundation\Auth\Mfa\MfaVerifierInterface;
+use Infocyph\Foundation\Auth\Mfa\RecoveryCodeServiceInterface;
 use Infocyph\Foundation\Auth\Support\InMemoryRecoveryCodeService;
 use Infocyph\Foundation\Auth\Support\SimpleMfaVerifier;
-use Infocyph\Foundation\Exception\ConfigurationException;
-use Infocyph\InterMix\DI\Container;
-use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\OTP\Contracts\ReplayStoreInterface;
 use Infocyph\OTP\RecoveryCodes;
 use Infocyph\OTP\Stores\InMemoryRecoveryCodeStore;
 
-final readonly class AuthMfaRegistrar
+final readonly class AuthMfaRegistrar extends AbstractAuthRegistrar
 {
     public function __construct(
-        private Application $app,
-        private Container $container,
+        Application $app,
+        \Infocyph\InterMix\DI\Container $container,
         private AuthSecretResolver $secrets,
-    ) {}
+    ) {
+        parent::__construct($app, $container);
+    }
 
     public function register(AuthDriverResolver $drivers): void
     {
-        if ($drivers->mfa() === AuthMfaDriver::OTP) {
+        $driver = $drivers->mfa();
+
+        if ($driver === AuthMfaDriver::OTP) {
             $this->registerOtp();
 
             return;
         }
 
-        if ($drivers->mfa() !== AuthMfaDriver::SIMPLE) {
-            throw new ConfigurationException(sprintf(
-                'Auth MFA driver "%s" is not implemented yet.',
-                $drivers->mfa()->value,
-            ));
-        }
-
-        $this->container->bind(MfaVerifierInterface::class, fn() => new SimpleMfaVerifier(
-            (string) $this->app->config()->get('auth.mfa_default_code', '000000'),
-        ), LifetimeEnum::Singleton);
-        $this->container->bind(RecoveryCodeServiceInterface::class, fn() => new InMemoryRecoveryCodeService(), LifetimeEnum::Singleton);
+        $this->singleton(MfaVerifierInterface::class, fn() => new SimpleMfaVerifier(
+            $this->stringConfig('auth.mfa_default_code', '000000'),
+        ));
+        $this->singleton(RecoveryCodeServiceInterface::class, fn() => new InMemoryRecoveryCodeService());
     }
 
     private function registerOtp(): void
     {
-        $app = $this->app;
-        $container = $this->container;
+        $this->singleton(ReplayStoreInterface::class, fn() => new OtpReplayStore(
+            $this->app->make(TtlStoreInterface::class),
+            max(1, $this->intConfig('auth.otp.replay.ttl', 90)),
+        ));
 
-        $container->bind(ReplayStoreInterface::class, fn() => new OtpReplayStore(
-            $container->get(TtlStoreInterface::class),
-            max(1, (int) $app->config()->get('auth.otp.replay.ttl', 90)),
-        ), LifetimeEnum::Singleton);
+        $this->singleton(OtpProvisioningService::class, fn() => new OtpProvisioningService(
+            issuer: $this->stringConfig('auth.otp.issuer', 'Foundation'),
+            algorithm: $this->stringConfig('auth.otp.totp.algorithm', 'sha1'),
+            digits: $this->intConfig('auth.otp.totp.digits', 6),
+            period: $this->intConfig('auth.otp.totp.period', 30),
+            secretBytes: $this->intConfig('auth.otp.totp.secret_bytes', 64),
+        ));
 
-        $container->bind(OtpProvisioningService::class, fn() => new OtpProvisioningService(
-            issuer: (string) $app->config()->get('auth.otp.issuer', 'Foundation'),
-            algorithm: (string) $app->config()->get('auth.otp.totp.algorithm', 'sha1'),
-            digits: (int) $app->config()->get('auth.otp.totp.digits', 6),
-            period: (int) $app->config()->get('auth.otp.totp.period', 30),
-            secretBytes: (int) $app->config()->get('auth.otp.totp.secret_bytes', 64),
-        ), LifetimeEnum::Singleton);
-
-        $container->bind(RecoveryCodes::class, fn() => new RecoveryCodes(
+        $this->singleton(RecoveryCodes::class, fn() => new RecoveryCodes(
             new InMemoryRecoveryCodeStore(),
             hashKey: $this->secrets->tokenSecret(),
-        ), LifetimeEnum::Singleton);
+        ));
 
-        $container->bind(MfaVerifierInterface::class, fn() => new OtpMfaVerifier(
-            factors: $container->get(MfaFactorStoreInterface::class),
-            replayStore: (bool) $app->config()->get('auth.otp.replay.enabled', true)
-                ? $container->get(ReplayStoreInterface::class)
+        $this->singleton(MfaVerifierInterface::class, fn() => new OtpMfaVerifier(
+            factors: $this->app->make(MfaFactorStoreInterface::class),
+            replayStore: $this->boolConfig('auth.otp.replay.enabled', true)
+                ? $this->app->make(ReplayStoreInterface::class)
                 : null,
-            window: (int) $app->config()->get('auth.otp.totp.window', 1),
-        ), LifetimeEnum::Singleton);
+            window: $this->intConfig('auth.otp.totp.window', 1),
+        ));
 
-        $container->bind(RecoveryCodeServiceInterface::class, fn() => new OtpRecoveryCodeService(
-            recoveryCodes: $container->get(RecoveryCodes::class),
-            defaultCount: (int) $app->config()->get('auth.otp.recovery_codes.count', 10),
-            codeLength: (int) $app->config()->get('auth.otp.recovery_codes.length', 10),
-        ), LifetimeEnum::Singleton);
+        $this->singleton(RecoveryCodeServiceInterface::class, fn() => new OtpRecoveryCodeService(
+            recoveryCodes: $this->app->make(RecoveryCodes::class),
+            defaultCount: $this->intConfig('auth.otp.recovery_codes.count', 10),
+            codeLength: $this->intConfig('auth.otp.recovery_codes.length', 10),
+        ));
     }
 }

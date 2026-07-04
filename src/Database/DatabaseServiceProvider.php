@@ -22,23 +22,23 @@ final class DatabaseServiceProvider extends ServiceProvider
         ), LifetimeEnum::Singleton);
 
         $container->bind(DBLayerFactory::class, fn() => new DBLayerFactory(
-            $container->get(DatabaseConnectionResolver::class),
+            $app->make(DatabaseConnectionResolver::class),
         ), LifetimeEnum::Singleton);
 
         $container->bind(AuthTables::class, new AuthTables(), LifetimeEnum::Singleton);
         $container->bind(AuthSchema::class, fn() => new AuthSchema(
-            $container->get(AuthTables::class),
+            $app->make(AuthTables::class),
         ), LifetimeEnum::Singleton);
         $container->bind(AuthSchemaInstaller::class, fn() => new AuthSchemaInstaller(
-            $container->get(DBLayerFactory::class),
-            $container->get(AuthSchema::class),
-            $container->get(AuthTables::class),
+            $app->make(DBLayerFactory::class),
+            $app->make(AuthSchema::class),
+            $app->make(AuthTables::class),
         ), LifetimeEnum::Singleton);
 
         $container->bind(DatabaseManager::class, fn() => new DatabaseManager(
             config: $app->config(),
-            factory: $container->get(DBLayerFactory::class),
-            authSchemaInstaller: $container->get(AuthSchemaInstaller::class),
+            factory: $app->make(DBLayerFactory::class),
+            authSchemaInstaller: $app->make(AuthSchemaInstaller::class),
         ), LifetimeEnum::Singleton);
 
         $container->bind('foundation.db', fn() => $container->get(DatabaseManager::class), LifetimeEnum::Singleton);

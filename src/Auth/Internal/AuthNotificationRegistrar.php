@@ -4,60 +4,37 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Internal;
 
-use Infocyph\Foundation\Auth\Contract\Notification\AuthNotifierInterface;
-use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
-use Infocyph\Foundation\Auth\Support\CollectingAuthNotifier;
-use Infocyph\Foundation\Application\Application;
-use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
-use Infocyph\Foundation\Auth\Driver\AuthNotificationDriver;
 use Infocyph\Foundation\Auth\Adapter\TalkingBytes\AuthNotificationMapper;
 use Infocyph\Foundation\Auth\Adapter\TalkingBytes\TalkingBytesAuthNotifier;
-use Infocyph\Foundation\Exception\ConfigurationException;
+use Infocyph\Foundation\Auth\Contract\Notification\AuthNotifierInterface;
+use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
+use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
+use Infocyph\Foundation\Auth\Driver\AuthNotificationDriver;
+use Infocyph\Foundation\Auth\Support\CollectingAuthNotifier;
 use Infocyph\Foundation\Notifications\NotificationTemplateRegistry;
-use Infocyph\InterMix\DI\Container;
-use Infocyph\InterMix\DI\Support\LifetimeEnum;
 
-final readonly class AuthNotificationRegistrar
+final readonly class AuthNotificationRegistrar extends AbstractAuthRegistrar
 {
-    public function __construct(
-        private Application $app,
-        private Container $container,
-    ) {}
-
     public function register(AuthDriverResolver $drivers): void
     {
         if ($drivers->notifications() === AuthNotificationDriver::TALKINGBYTES) {
-            $this->container->bind(AuthNotificationMapper::class, fn() => new AuthNotificationMapper(
-                $this->container->get(NotificationTemplateRegistry::class),
-            ), LifetimeEnum::Singleton);
+            $this->singleton(AuthNotificationMapper::class, fn() => new AuthNotificationMapper(
+                $this->app->make(NotificationTemplateRegistry::class),
+            ));
 
-            $this->container->bind(AuthNotifierInterface::class, fn() => new TalkingBytesAuthNotifier(
-                emailer: $this->container->get('foundation.notifications.emailer'),
-                mapper: $this->container->get(AuthNotificationMapper::class),
-                accounts: $this->container->get(AccountProviderInterface::class),
+            $this->singleton(AuthNotifierInterface::class, fn() => new TalkingBytesAuthNotifier(
+                emailer: $this->app->notifications()->emailer(),
+                mapper: $this->app->make(AuthNotificationMapper::class),
+                accounts: $this->app->make(AccountProviderInterface::class),
                 criticalTypes: $this->criticalTypes(),
-                failSilently: (bool) $this->app->config()->get('notifications.auth.fail_silently', false),
-                from: $this->optionalString($this->app->config()->get('notifications.auth.from')),
-            ), LifetimeEnum::Singleton);
+                failSilently: $this->boolConfig('notifications.auth.fail_silently', false),
+                from: $this->nullableString($this->app->config()->get('notifications.auth.from')),
+            ));
 
             return;
         }
 
-        if ($drivers->notifications() !== AuthNotificationDriver::COLLECT) {
-            throw new ConfigurationException(sprintf(
-                'Auth notification driver "%s" is not implemented yet.',
-                $drivers->notifications()->value,
-            ));
-        }
-
-        $this->container->bind(AuthNotifierInterface::class, fn() => new CollectingAuthNotifier(), LifetimeEnum::Singleton);
-    }
-
-    private function optionalString(mixed $value): ?string
-    {
-        return is_string($value) && $value !== ''
-            ? $value
-            : null;
+        $this->singleton(AuthNotifierInterface::class, fn() => new CollectingAuthNotifier());
     }
 
     /**
@@ -65,20 +42,6 @@ final readonly class AuthNotificationRegistrar
      */
     private function criticalTypes(): array
     {
-        $configured = $this->app->config()->get('notifications.auth.critical_types', []);
-        if (!is_array($configured)) {
-            return [];
-        }
-
-        $types = [];
-        foreach ($configured as $type) {
-            if (!is_string($type) || $type === '') {
-                continue;
-            }
-
-            $types[] = $type;
-        }
-
-        return $types;
+        return $this->stringList($this->app->config()->get('notifications.auth.critical_types', []));
     }
 }

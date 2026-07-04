@@ -31,11 +31,6 @@ final readonly class AuthManager
         return $this->services->authorizer;
     }
 
-    public function principal(): CurrentPrincipalContext
-    {
-        return $this->services->principals;
-    }
-
     public function driver(string $name, ?string $default = null): ?string
     {
         $driver = $this->drivers[$name] ?? $default;
@@ -53,7 +48,12 @@ final readonly class AuthManager
 
     public function isProductionReady(): bool
     {
-        return !(new ConfigValidator($this->config))->validateForProduction()->fails();
+        return !new ConfigValidator($this->config)->validateForProduction()->fails();
+    }
+
+    public function principal(): CurrentPrincipalContext
+    {
+        return $this->services->principals;
     }
 
     /**
@@ -65,7 +65,7 @@ final readonly class AuthManager
      */
     public function readinessReport(): array
     {
-        $result = (new ConfigValidator($this->config))->validateForProduction();
+        $result = new ConfigValidator($this->config)->validateForProduction();
 
         return [
             'production_ready' => !$result->fails(),

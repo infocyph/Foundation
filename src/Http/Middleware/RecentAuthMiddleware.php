@@ -4,33 +4,23 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Http\Middleware;
 
-use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
-use Infocyph\Foundation\Http\Response\AuthResponseFactory;
-use Infocyph\Webrick\Request\Request;
-use Infocyph\Webrick\Response\Response;
-
-final readonly class RecentAuthMiddleware
+final readonly class RecentAuthMiddleware extends AbstractPrincipalRequirementMiddleware
 {
-    public function __construct(
-        private CurrentPrincipalContext $principals,
-        private AuthResponseFactory $responses,
-    ) {}
-
-    public function __invoke(Request $request, callable $next): Response
+    /**
+     * @return list<string>
+     */
+    protected function attributeKeys(): array
     {
-        $principal = $this->principals->get();
-        if ($principal === null) {
-            return $this->responses->unauthorized($request, 'Authentication is required.');
-        }
+        return ['auth.recent_auth', 'auth.recent'];
+    }
 
-        $recent = $request->getAttribute('auth.recent_auth')
-            ?? $request->getAttribute('auth.recent')
-            ?? $principal->metadata()['recent_auth'] ?? false;
+    protected function failureMessage(): string
+    {
+        return 'Recent authentication is required.';
+    }
 
-        if ($recent !== true) {
-            return $this->responses->forbidden($request, 'Recent authentication is required.');
-        }
-
-        return $next($request);
+    protected function metadataKey(): string
+    {
+        return 'recent_auth';
     }
 }

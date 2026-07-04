@@ -8,31 +8,32 @@ use Infocyph\Foundation\Auth\Authentication\TokenAuth\RefreshTokenServiceInterfa
 use Infocyph\Foundation\Auth\Contract\Security\AccessTokenServiceInterface;
 use Infocyph\Foundation\Auth\Contract\Security\PasswordHasherInterface;
 use Infocyph\Foundation\Auth\Contract\Security\PasswordVerifierInterface;
+use Infocyph\Foundation\Security\SecurityManager;
 
 final class Security extends Facade
 {
     public static function accessTokens(): AccessTokenServiceInterface
     {
-        return static::manager()->accessTokens();
+        return self::manager()->accessTokens();
     }
 
-    public static function manager(): \Infocyph\Foundation\Security\SecurityManager
+    public static function manager(): SecurityManager
     {
-        return static::app()->security();
+        return self::app()->security();
     }
 
     public static function passwordHasher(): PasswordHasherInterface
     {
-        return static::manager()->passwordHasher();
+        return self::manager()->passwordHasher();
     }
 
     public static function passwordVerifier(): PasswordVerifierInterface
     {
-        return static::manager()->passwordVerifier();
+        return self::manager()->passwordVerifier();
     }
 
     public static function refreshTokens(): RefreshTokenServiceInterface
     {
-        return static::manager()->refreshTokens();
+        return self::manager()->refreshTokens();
     }
 }

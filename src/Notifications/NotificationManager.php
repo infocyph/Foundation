@@ -5,33 +5,28 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Notifications;
 
 use Infocyph\Foundation\Auth\Contract\Notification\AuthNotifierInterface;
-use Infocyph\Foundation\Config\ConfigRepository;
-use Infocyph\InterMix\DI\Container;
-use Infocyph\TalkingBytes\Email\Emailer;
+use Infocyph\Foundation\Support\AbstractContainerManager;
 
-final readonly class NotificationManager
+final readonly class NotificationManager extends AbstractContainerManager
 {
-    public function __construct(
-        private ConfigRepository $config,
-        private Container $container,
-    ) {}
-
     public function authNotifier(): AuthNotifierInterface
     {
-        return $this->container->get(AuthNotifierInterface::class);
+        return $this->typedService(
+            AuthNotifierInterface::class,
+            'Notification auth notifier must resolve to AuthNotifierInterface.',
+        );
     }
 
-    public function emailer(): Emailer
+    public function emailer(): object
     {
-        return $this->container->get('foundation.notifications.emailer');
+        return $this->objectService(
+            'foundation.notifications.emailer',
+            'Foundation notification emailer must resolve to an object.',
+        );
     }
 
-    public function config(?string $key = null, mixed $default = null): mixed
+    protected function configSection(): string
     {
-        if ($key === null || $key === '') {
-            return $this->config->get('notifications', []);
-        }
-
-        return $this->config->get('notifications.' . $key, $default);
+        return 'notifications';
     }
 }

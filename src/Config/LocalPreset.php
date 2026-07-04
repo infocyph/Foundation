@@ -31,6 +31,9 @@ final class LocalPreset implements FoundationPreset
                     'transport' => 'null',
                 ],
             ],
+            'paths' => [
+                'auto_create_runtime_directories' => true,
+            ],
         ];
     }
 }

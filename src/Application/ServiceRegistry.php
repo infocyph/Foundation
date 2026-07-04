@@ -7,6 +7,11 @@ namespace Infocyph\Foundation\Application;
 final class ServiceRegistry
 {
     /**
+     * @var array<string, true>
+     */
+    private array $booted = [];
+
+    /**
      * @var array<string, ServiceProviderInterface>
      */
     private array $providers = [];
@@ -16,26 +21,9 @@ final class ServiceRegistry
      */
     private array $registered = [];
 
-    /**
-     * @var array<string, true>
-     */
-    private array $booted = [];
-
     public function add(ServiceProviderInterface $provider): void
     {
         $this->providers[$provider::class] = $provider;
-    }
-
-    public function register(Application $app): void
-    {
-        foreach ($this->providers as $provider) {
-            if (isset($this->registered[$provider::class])) {
-                continue;
-            }
-
-            $provider->register($app);
-            $this->registered[$provider::class] = true;
-        }
     }
 
     public function boot(Application $app): void
@@ -49,6 +37,18 @@ final class ServiceRegistry
 
             $provider->boot($app);
             $this->booted[$provider::class] = true;
+        }
+    }
+
+    public function register(Application $app): void
+    {
+        foreach ($this->providers as $provider) {
+            if (isset($this->registered[$provider::class])) {
+                continue;
+            }
+
+            $provider->register($app);
+            $this->registered[$provider::class] = true;
         }
     }
 }

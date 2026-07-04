@@ -31,17 +31,17 @@ final class AuthServiceProvider extends ServiceProvider
         $secrets = new AuthSecretResolver($app);
         $epicrypt = new EpicryptConfigResolver($app);
 
-        (new AuthCoreRegistrar($container))->register($drivers);
-        (new AuthProductionGuard($app))->guard($drivers);
-        (new AuthStoreRegistrar($app, $container))->register($drivers->storage());
-        (new AuthCacheRegistrar($app, $container))->register($drivers);
-        (new AuthPasswordRegistrar($container, $epicrypt))->register($drivers);
-        (new AuthTokenRegistrar($app, $container, $secrets, $epicrypt))->register($drivers);
-        (new AuthMfaRegistrar($app, $container, $secrets))->register($drivers);
-        (new AuthPasskeyRegistrar($app, $container))->register($drivers);
-        (new AuthNotificationRegistrar($app, $container))->register($drivers);
-        (new AuthManagerRegistrar($app, $container))->register();
-        (new AuthAuthorizationRegistrar($container))->register();
-        (new AuthRuntimeRegistrar($app, $container))->register();
+        new AuthCoreRegistrar($container)->register($drivers);
+        new AuthProductionGuard($app)->guard($drivers);
+        new AuthStoreRegistrar($app, $container)->register($drivers->storage());
+        new AuthCacheRegistrar($app, $container)->register($drivers);
+        new AuthPasswordRegistrar($app, $container, $epicrypt)->register($drivers);
+        new AuthTokenRegistrar($app, $container, $secrets, $epicrypt)->register($drivers);
+        new AuthMfaRegistrar($app, $container, $secrets)->register($drivers);
+        new AuthPasskeyRegistrar($app, $container)->register($drivers);
+        new AuthNotificationRegistrar($app, $container)->register($drivers);
+        new AuthManagerRegistrar($app, $container)->register();
+        new AuthAuthorizationRegistrar($app, $container)->register();
+        new AuthRuntimeRegistrar($app, $container)->register();
     }
 }

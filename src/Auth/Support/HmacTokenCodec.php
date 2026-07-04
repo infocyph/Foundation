@@ -11,17 +11,6 @@ final readonly class HmacTokenCodec
     ) {}
 
     /**
-     * @param array<string, mixed> $claims
-     */
-    public function encode(array $claims): string
-    {
-        $payload = $this->base64UrlEncode((string) json_encode($claims, JSON_THROW_ON_ERROR));
-        $signature = $this->base64UrlEncode(hash_hmac('sha256', $payload, $this->secret, true));
-
-        return $payload . '.' . $signature;
-    }
-
-    /**
      * @return array<string, mixed>|null
      */
     public function decode(string $token): ?array
@@ -43,8 +32,31 @@ final readonly class HmacTokenCodec
         }
 
         $claims = json_decode($decoded, true);
+        if (!is_array($claims)) {
+            return null;
+        }
 
-        return is_array($claims) ? $claims : null;
+        $normalized = [];
+        foreach ($claims as $key => $value) {
+            if (!is_string($key)) {
+                continue;
+            }
+
+            $normalized[$key] = $value;
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * @param array<string, mixed> $claims
+     */
+    public function encode(array $claims): string
+    {
+        $payload = $this->base64UrlEncode(json_encode($claims, JSON_THROW_ON_ERROR));
+        $signature = $this->base64UrlEncode(hash_hmac('sha256', $payload, $this->secret, true));
+
+        return $payload . '.' . $signature;
     }
 
     private function base64UrlDecode(string $value): ?string

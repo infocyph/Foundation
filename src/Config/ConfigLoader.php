@@ -4,22 +4,64 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Config;
 
+use Infocyph\Foundation\Support\ValueNormalizer;
+
 final class ConfigLoader
 {
     /**
-     * @param array<string, mixed> $input
+     * @param array<string, mixed> $inline
      */
-    public function load(array $input = []): ConfigRepository
+    public function load(array $inline = []): ConfigRepository
     {
-        $normalized = $this->normalizeInput($input);
-        $defaults = $this->defaults();
-        $fileConfig = $this->loadConfigDirectory($normalized);
+        $normalized = $this->normalizeInput($inline);
+        $preset = ValueNormalizer::associativeArray($normalized['_preset'] ?? null);
 
-        $repository = new ConfigRepository($defaults);
-        $repository->merge($fileConfig);
-        $repository->merge($normalized);
+        unset($normalized['_preset']);
 
-        return $repository;
+        $basePath = $this->basePath($normalized);
+        $fileConfig = $this->loadProjectConfig($basePath, $normalized);
+
+        return new ConfigRepository(ConfigMerger::mergeMany([
+            $this->defaults(),
+            $preset,
+            $fileConfig,
+            $normalized,
+        ]));
+    }
+
+    private function absolute(string $path): bool
+    {
+        return preg_match('/^(?:[A-Z]:[\\\\\\/]|\\\\\\\\|\/)/i', $path) === 1;
+    }
+
+    /**
+     * @param array<string, mixed> $inline
+     */
+    private function basePath(array $inline): string
+    {
+        $app = ValueNormalizer::associativeArray($inline['app'] ?? null);
+        $basePath = $app['base_path'] ?? null;
+
+        return is_string($basePath) && $basePath !== ''
+            ? rtrim($basePath, DIRECTORY_SEPARATOR)
+            : (getcwd() ?: dirname(__DIR__, 2));
+    }
+
+    /**
+     * @param array<string, mixed> $inline
+     */
+    private function configPath(string $basePath, array $inline): string
+    {
+        $paths = ValueNormalizer::associativeArray($inline['paths'] ?? null);
+        $configured = $paths['config'] ?? null;
+
+        if (!is_string($configured) || $configured === '') {
+            return $basePath . DIRECTORY_SEPARATOR . 'config';
+        }
+
+        return $this->absolute($configured)
+            ? rtrim($configured, DIRECTORY_SEPARATOR)
+            : $basePath . DIRECTORY_SEPARATOR . trim($configured, DIRECTORY_SEPARATOR);
     }
 
     /**
@@ -27,24 +69,19 @@ final class ConfigLoader
      */
     private function defaults(): array
     {
-        return ConfigMerger::merge(
+        return ConfigMerger::mergeMany([
             FoundationDefaults::all(),
             AuthDefaults::all(),
-        );
+        ]);
     }
 
     /**
-     * @param array<string, mixed> $input
+     * @param array<string, mixed> $inline
      * @return array<string, mixed>
      */
-    private function loadConfigDirectory(array $input): array
+    private function loadProjectConfig(string $basePath, array $inline): array
     {
-        $basePath = $input['app']['base_path'] ?? null;
-        if (!is_string($basePath) || $basePath === '') {
-            return [];
-        }
-
-        $configDir = rtrim($basePath, '/\\') . DIRECTORY_SEPARATOR . 'config';
+        $configDir = $this->configPath($basePath, $inline);
         if (!is_dir($configDir)) {
             return [];
         }
@@ -55,9 +92,9 @@ final class ConfigLoader
 
         foreach ($files as $file) {
             $name = pathinfo($file, PATHINFO_FILENAME);
-            $values = require $file;
+            $values = ValueNormalizer::associativeArray(require $file);
 
-            if (!is_string($name) || $name === '' || !is_array($values)) {
+            if ($name === '' || $values === []) {
                 continue;
             }
 
@@ -73,16 +110,22 @@ final class ConfigLoader
      */
     private function normalizeInput(array $input): array
     {
-        if (isset($input['base_path']) && !isset($input['app']['base_path'])) {
-            $input['app']['base_path'] = $input['base_path'];
+        $app = ValueNormalizer::associativeArray($input['app'] ?? null);
+
+        if (isset($input['base_path']) && !isset($app['base_path'])) {
+            $app['base_path'] = $input['base_path'];
         }
 
-        if (isset($input['env']) && !isset($input['app']['env'])) {
-            $input['app']['env'] = $input['env'];
+        if (isset($input['env']) && !isset($app['env'])) {
+            $app['env'] = $input['env'];
         }
 
-        if (isset($input['debug']) && !isset($input['app']['debug'])) {
-            $input['app']['debug'] = $input['debug'];
+        if (isset($input['debug']) && !isset($app['debug'])) {
+            $app['debug'] = $input['debug'];
+        }
+
+        if ($app !== []) {
+            $input['app'] = $app;
         }
 
         return $input;

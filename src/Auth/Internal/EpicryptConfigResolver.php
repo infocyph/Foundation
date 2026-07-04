@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Auth\Internal;
 
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Support\ValueNormalizer;
 
 final readonly class EpicryptConfigResolver
 {
@@ -19,28 +20,23 @@ final readonly class EpicryptConfigResolver
     {
         $options = $this->app->config()->get('auth.epicrypt.password', []);
 
-        return is_array($options) ? $options : [];
+        return ValueNormalizer::associativeArray($options);
     }
 
     public function tokenAudience(): ?string
     {
-        return $this->optionalString($this->app->config()->get('auth.epicrypt.tokens.audience'));
+        return ValueNormalizer::nullableString($this->app->config()->get('auth.epicrypt.tokens.audience'));
     }
 
     public function tokenIssuer(): ?string
     {
-        return $this->optionalString($this->app->config()->get('auth.epicrypt.tokens.issuer'));
+        return ValueNormalizer::nullableString($this->app->config()->get('auth.epicrypt.tokens.issuer'));
     }
 
     public function tokenLeeway(): int
     {
-        return max(0, (int) $this->app->config()->get('auth.epicrypt.tokens.leeway_seconds', 0));
-    }
+        $value = $this->app->config()->get('auth.epicrypt.tokens.leeway_seconds', 0);
 
-    private function optionalString(mixed $value): ?string
-    {
-        return is_string($value) && $value !== ''
-            ? $value
-            : null;
+        return max(0, is_numeric($value) ? (int) $value : 0);
     }
 }

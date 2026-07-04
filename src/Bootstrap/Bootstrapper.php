@@ -5,14 +5,17 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Bootstrap;
 
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\ProviderFileLoader;
 use Infocyph\Foundation\Application\ServiceProviderInterface;
 use Infocyph\Foundation\Auth\AuthServiceProvider;
 use Infocyph\Foundation\Cache\CacheServiceProvider;
 use Infocyph\Foundation\Database\DatabaseServiceProvider;
 use Infocyph\Foundation\Exception\BootstrapException;
 use Infocyph\Foundation\Filesystem\FilesystemServiceProvider;
+use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\Foundation\Http\HttpServiceProvider;
 use Infocyph\Foundation\Notifications\NotificationServiceProvider;
+use Infocyph\Foundation\Routing\RouteFileLoader;
 use Infocyph\Foundation\Routing\RoutingServiceProvider;
 use Infocyph\Foundation\Security\SecurityServiceProvider;
 use Infocyph\Foundation\Validation\ValidationServiceProvider;
@@ -34,22 +37,36 @@ final class Bootstrapper
         AuthServiceProvider::class,
     ];
 
-    public function prepare(Application $app): void
-    {
-        foreach ($this->providersFor($app) as $provider) {
-            $app->register($provider);
-        }
-    }
-
     public function boot(Application $app): void
     {
         $app->providers()->boot($app);
+
+        if ((bool) $app->config()->get('router.load_files', true) && $app->has(RouteFileLoader::class)) {
+            $app->make(RouteFileLoader::class)->load();
+        }
+    }
+
+    public function prepare(Application $app): void
+    {
+        foreach ($this->defaultProviders() as $provider) {
+            $app->register($provider);
+        }
+
+        $app->providers()->register($app);
+
+        foreach ($this->configuredProviders($app) as $provider) {
+            $app->register($provider);
+        }
+
+        foreach ($this->providerFileProviders($app) as $provider) {
+            $app->register($provider);
+        }
     }
 
     /**
      * @return list<ServiceProviderInterface>
      */
-    private function providersFor(Application $app): array
+    private function configuredProviders(Application $app): array
     {
         $configured = $app->config()->get('providers', []);
         if (!is_array($configured)) {
@@ -58,7 +75,22 @@ final class Bootstrapper
 
         $providers = [];
 
-        foreach ([...$this->defaultProviders, ...$configured] as $provider) {
+        foreach ($configured as $provider) {
+            $instance = $this->instantiateProvider($provider);
+            $providers[$instance::class] = $instance;
+        }
+
+        return array_values($providers);
+    }
+
+    /**
+     * @return list<ServiceProviderInterface>
+     */
+    private function defaultProviders(): array
+    {
+        $providers = [];
+
+        foreach ($this->defaultProviders as $provider) {
             $instance = $this->instantiateProvider($provider);
             $providers[$instance::class] = $instance;
         }
@@ -89,5 +121,21 @@ final class Bootstrapper
         }
 
         return new $provider();
+    }
+
+    /**
+     * @return list<ServiceProviderInterface>
+     */
+    private function providerFileProviders(Application $app): array
+    {
+        $loader = new ProviderFileLoader($app->make(PathManager::class));
+        $providers = [];
+
+        foreach ($loader->providers() as $provider) {
+            $instance = $this->instantiateProvider($provider);
+            $providers[$instance::class] = $instance;
+        }
+
+        return array_values($providers);
     }
 }

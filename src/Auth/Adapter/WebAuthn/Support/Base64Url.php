@@ -25,6 +25,6 @@ final class Base64Url
 
     public static function random(int $bytes = 32): string
     {
-        return self::encode(random_bytes($bytes));
+        return self::encode(random_bytes(max(1, $bytes)));
     }
 }

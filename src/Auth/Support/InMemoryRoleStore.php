@@ -8,7 +8,7 @@ use Infocyph\Foundation\Auth\Authorization\Role\Role;
 use Infocyph\Foundation\Auth\Authorization\Role\RoleAssignmentStoreInterface;
 use Infocyph\Foundation\Auth\Authorization\Role\RoleStoreInterface;
 
-final class InMemoryRoleStore implements RoleStoreInterface, RoleAssignmentStoreInterface
+final class InMemoryRoleStore implements RoleAssignmentStoreInterface, RoleStoreInterface
 {
     /**
      * @var array<string, list<string>>

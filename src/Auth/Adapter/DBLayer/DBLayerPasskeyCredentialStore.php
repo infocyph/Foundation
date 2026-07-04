@@ -4,102 +4,58 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Adapter\DBLayer;
 
-use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Auth\Passkey\PasskeyCredential;
 use Infocyph\Foundation\Auth\Passkey\PasskeyCredentialStoreInterface;
-use Infocyph\Foundation\Database\AuthSchema\AuthTables;
-use Infocyph\Foundation\Database\DBLayerFactory;
 
-final readonly class DBLayerPasskeyCredentialStore extends DBLayerStore implements PasskeyCredentialStoreInterface
+final readonly class DBLayerPasskeyCredentialStore extends ClockedDBLayerStore implements PasskeyCredentialStoreInterface
 {
-    public function __construct(
-        DBLayerFactory $db,
-        AuthTables $tables,
-        private ClockInterface $clock,
-        ?string $connection = null,
-    ) {
-        parent::__construct($db, $tables, $connection);
-    }
-
     public function findByCredentialId(string $credentialId): ?PasskeyCredential
     {
-        $row = $this->first(
+        return $this->firstMapped(
             sprintf('SELECT * FROM %s WHERE credential_id = ? AND revoked_at IS NULL', $this->table('passkeyCredentials')),
+            $this->mapCredential(...),
             [$credentialId],
         );
-
-        return $row === null ? null : $this->mapCredential($row);
     }
 
     public function findForAccount(string $accountId): array
     {
-        return array_map(
-            fn(array $row): PasskeyCredential => $this->mapCredential($row),
-            $this->all(
-                sprintf('SELECT * FROM %s WHERE account_id = ? AND revoked_at IS NULL', $this->table('passkeyCredentials')),
-                [$accountId],
-            ),
+        return $this->allMapped(
+            sprintf('SELECT * FROM %s WHERE account_id = ? AND revoked_at IS NULL', $this->table('passkeyCredentials')),
+            $this->mapCredential(...),
+            [$accountId],
         );
     }
 
     public function revoke(string $credentialId): void
     {
-        $this->execute(
-            sprintf('UPDATE %s SET revoked_at = ? WHERE (credential_id = ? OR id = ?) AND revoked_at IS NULL', $this->table('passkeyCredentials')),
-            [$this->clock->now(), $credentialId, $credentialId],
-        );
+        $this->updateWhere('passkeyCredentials', ['revoked_at' => $this->now()], '(credential_id = ? OR id = ?) AND revoked_at IS NULL', [$credentialId, $credentialId]);
     }
 
     public function save(PasskeyCredential $credential): void
     {
-        if ($this->first(
-            sprintf('SELECT id FROM %s WHERE id = ?', $this->table('passkeyCredentials')),
-            [$credential->id],
-        ) !== null) {
-            $this->execute(
-                sprintf('UPDATE %s SET account_id = ?, credential_id = ?, public_key = ?, sign_count = ?, transports = ?, created_at = ?, last_used_at = ?, revoked_at = ?, metadata = ? WHERE id = ?', $this->table('passkeyCredentials')),
-                [
-                    $credential->accountId,
-                    $credential->credentialId,
-                    $credential->publicKey,
-                    $credential->signCount,
-                    DBLayerJson::encode($credential->transports),
-                    $credential->createdAt,
-                    $credential->lastUsedAt,
-                    $credential->revokedAt,
-                    DBLayerJson::encode($credential->metadata),
-                    $credential->id,
-                ],
-            );
-
-            return;
-        }
-
-        $this->execute(
-            sprintf('INSERT INTO %s (id, account_id, credential_id, public_key, sign_count, transports, created_at, last_used_at, revoked_at, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', $this->table('passkeyCredentials')),
-            [
-                $credential->id,
-                $credential->accountId,
-                $credential->credentialId,
-                $credential->publicKey,
-                $credential->signCount,
-                DBLayerJson::encode($credential->transports),
-                $credential->createdAt,
-                $credential->lastUsedAt,
-                $credential->revokedAt,
-                DBLayerJson::encode($credential->metadata),
-            ],
-        );
+        $this->upsertRecord('passkeyCredentials', 'id', [
+            'id' => $credential->id,
+            'account_id' => $credential->accountId,
+            'credential_id' => $credential->credentialId,
+            'public_key' => $credential->publicKey,
+            'sign_count' => $credential->signCount,
+            'transports' => DBLayerJson::encodeList($credential->transports),
+            'created_at' => $credential->createdAt,
+            'last_used_at' => $credential->lastUsedAt,
+            'revoked_at' => $credential->revokedAt,
+            'metadata' => DBLayerJson::encode($credential->metadata),
+        ]);
     }
 
     public function updateUsage(string $credentialId, int $signCount, int $usedAt): void
     {
-        $this->execute(
-            sprintf('UPDATE %s SET sign_count = ?, last_used_at = ? WHERE credential_id = ? AND revoked_at IS NULL', $this->table('passkeyCredentials')),
-            [$signCount, $usedAt, $credentialId],
-        );
+        $this->updateWhere('passkeyCredentials', ['sign_count' => $signCount, 'last_used_at' => $usedAt], 'credential_id = ? AND revoked_at IS NULL', [$credentialId]);
     }
 
+    /**
+     * @param array<string, mixed> $row
+     */
     private function mapCredential(array $row): PasskeyCredential
     {
         return new PasskeyCredential(
@@ -108,10 +64,7 @@ final readonly class DBLayerPasskeyCredentialStore extends DBLayerStore implemen
             credentialId: $this->string($row['credential_id'] ?? ''),
             publicKey: $this->string($row['public_key'] ?? ''),
             signCount: $this->int($row['sign_count'] ?? 0),
-            transports: array_values(array_filter(
-                DBLayerJson::decode($row['transports'] ?? null),
-                is_string(...),
-            )),
+            transports: DBLayerJson::decodeStringList($row['transports'] ?? null),
             createdAt: $this->int($row['created_at'] ?? 0),
             lastUsedAt: $this->intOrNull($row['last_used_at'] ?? null),
             revokedAt: $this->intOrNull($row['revoked_at'] ?? null),

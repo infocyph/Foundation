@@ -12,15 +12,7 @@ final readonly class DBLayerMfaFactorStore extends DBLayerStore implements MfaFa
     public function findForAccount(string $accountId): array
     {
         return array_map(
-            fn(array $row): MfaFactor => new MfaFactor(
-                id: $this->string($row['id'] ?? ''),
-                accountId: $this->string($row['account_id'] ?? ''),
-                type: $this->string($row['type'] ?? ''),
-                label: $this->string($row['label'] ?? ''),
-                enabled: $this->truthy($row['enabled'] ?? false),
-                createdAt: $this->int($row['created_at'] ?? 0),
-                metadata: DBLayerJson::decode($row['metadata'] ?? null),
-            ),
+            $this->mapFactor(...),
             $this->all(
                 sprintf('SELECT * FROM %s WHERE account_id = ?', $this->table('mfaFactors')),
                 [$accountId],
@@ -69,6 +61,22 @@ final readonly class DBLayerMfaFactorStore extends DBLayerStore implements MfaFa
                 $factor->createdAt,
                 DBLayerJson::encode($factor->metadata),
             ],
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     */
+    private function mapFactor(array $row): MfaFactor
+    {
+        return new MfaFactor(
+            id: $this->string($row['id'] ?? ''),
+            accountId: $this->string($row['account_id'] ?? ''),
+            type: $this->string($row['type'] ?? ''),
+            label: $this->string($row['label'] ?? ''),
+            enabled: $this->truthy($row['enabled'] ?? false),
+            createdAt: $this->int($row['created_at'] ?? 0),
+            metadata: DBLayerJson::decode($row['metadata'] ?? null),
         );
     }
 }

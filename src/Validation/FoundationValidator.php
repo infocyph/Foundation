@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Validation;
 
-use Infocyph\Foundation\Exception\ConfigurationException;
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Exception\ConfigurationException;
 use Infocyph\ReqShield\Support\ValidationResult;
 use Infocyph\ReqShield\Validator;
 
@@ -20,19 +20,6 @@ final class FoundationValidator
         private readonly ConfigRepository $config,
         private readonly ValidationSchemaRegistry $schemas,
     ) {}
-
-    public function has(string $schema): bool
-    {
-        return $this->schemas->has($schema);
-    }
-
-    /**
-     * @return array<string, array<string, mixed>>
-     */
-    public function schemas(): array
-    {
-        return $this->schemas->all();
-    }
 
     /**
      * @param array<string, mixed> $rules
@@ -52,11 +39,30 @@ final class FoundationValidator
         unset($this->validators[$schema]);
     }
 
+    public function has(string $schema): bool
+    {
+        return $this->schemas->has($schema);
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    public function schemas(): array
+    {
+        return $this->schemas->all();
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
     public function validate(string $schema, array $payload): ValidationResult
     {
         return $this->validator($schema)->validate($payload);
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function rules(string $schema): array
     {
         $rules = $this->schemas->schema($schema);

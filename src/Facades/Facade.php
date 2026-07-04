@@ -11,13 +11,13 @@ abstract class Facade
 {
     protected static ?Application $app = null;
 
-    protected static function app(): Application
-    {
-        return static::$app ?? throw new FoundationException('No Foundation application has been set.');
-    }
-
     public static function setApplication(Application $app): void
     {
         static::$app = $app;
+    }
+
+    protected static function app(): Application
+    {
+        return static::$app ?? throw new FoundationException('No Foundation application has been set.');
     }
 }

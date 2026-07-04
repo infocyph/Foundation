@@ -9,10 +9,10 @@ use Infocyph\Foundation\Auth\AuthServices;
 use Infocyph\Foundation\Auth\Http\AuthActions;
 use Infocyph\Foundation\Bootstrap\Bootstrapper;
 use Infocyph\Foundation\Cache\CacheManager;
-use Infocyph\Foundation\Config\ConfigValidationResult;
-use Infocyph\Foundation\Config\ConfigValidator;
 use Infocyph\Foundation\Config\ConfigLoader;
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Config\ConfigValidationResult;
+use Infocyph\Foundation\Config\ConfigValidator;
 use Infocyph\Foundation\Container\ContainerFactory;
 use Infocyph\Foundation\Database\DatabaseManager;
 use Infocyph\Foundation\Exception\ServiceResolutionException;
@@ -45,8 +45,8 @@ final class Application
      */
     public static function create(array $config = []): self
     {
-        $repository = (new ConfigLoader())->load($config);
-        $container = (new ContainerFactory())->create(
+        $repository = new ConfigLoader()->load($config);
+        $container = new ContainerFactory()->create(
             is_string($repository->get('app.container_alias'))
                 ? $repository->get('app.container_alias')
                 : null,
@@ -62,6 +62,11 @@ final class Application
         $app->bootstrapper->prepare($app);
 
         return $app;
+    }
+
+    public function appPath(string $path = ''): string
+    {
+        return $this->paths()->app($path);
     }
 
     public function auth(): AuthServices
@@ -96,9 +101,19 @@ final class Application
         return $this;
     }
 
+    public function booted(): bool
+    {
+        return $this->booted;
+    }
+
+    public function bootstrapPath(string $path = ''): string
+    {
+        return $this->paths()->bootstrap($path);
+    }
+
     public function cache(): CacheManager
     {
-        return $this->boot()->service('foundation.cache');
+        return $this->boot()->make(CacheManager::class);
     }
 
     public function cachePath(string $path = ''): string
@@ -111,14 +126,24 @@ final class Application
         return $this->config;
     }
 
+    public function configPath(string $path = ''): string
+    {
+        return $this->paths()->config($path);
+    }
+
     public function container(): Container
     {
         return $this->container;
     }
 
+    public function databasePath(string $path = ''): string
+    {
+        return $this->paths()->database($path);
+    }
+
     public function db(): DatabaseManager
     {
-        return $this->boot()->service('foundation.db');
+        return $this->boot()->make(DatabaseManager::class);
     }
 
     public function environment(): ?string
@@ -130,24 +155,9 @@ final class Application
             : null;
     }
 
-    public function booted(): bool
-    {
-        return $this->booted;
-    }
-
     public function handle(Request $request): Response
     {
         return $this->boot()->http()->handle($request);
-    }
-
-    public function http(): HttpKernel
-    {
-        return $this->boot()->service('foundation.http');
-    }
-
-    public function isProduction(): bool
-    {
-        return $this->config()->isProduction();
     }
 
     public function has(string $id): bool
@@ -155,6 +165,27 @@ final class Application
         return $this->container->has($id);
     }
 
+    public function http(): HttpKernel
+    {
+        return $this->boot()->make(HttpKernel::class);
+    }
+
+    public function isProduction(): bool
+    {
+        return $this->config()->isProduction();
+    }
+
+    public function logsPath(string $path = ''): string
+    {
+        return $this->paths()->logs($path);
+    }
+
+    /**
+     * @template T of object
+     *
+     * @param string|class-string<T> $id
+     * @return ($id is class-string<T> ? T : mixed)
+     */
     public function make(string $id): mixed
     {
         try {
@@ -166,12 +197,12 @@ final class Application
 
     public function notifications(): NotificationManager
     {
-        return $this->boot()->service('foundation.notifications');
+        return $this->boot()->make(NotificationManager::class);
     }
 
     public function paths(): PathManager
     {
-        return $this->boot()->service('foundation.paths');
+        return $this->boot()->make(PathManager::class);
     }
 
     public function providers(): ServiceRegistry
@@ -179,16 +210,9 @@ final class Application
         return $this->providers;
     }
 
-    public function register(ServiceProviderInterface $provider): self
+    public function publicPath(string $path = ''): string
     {
-        $this->providers->add($provider);
-
-        return $this;
-    }
-
-    public function router(): RouterManager
-    {
-        return $this->boot()->service('foundation.router');
+        return $this->paths()->public($path);
     }
 
     /**
@@ -198,14 +222,15 @@ final class Application
      *   cache: array<string, mixed>,
      *   config: array<string, mixed>,
      *   database: array<string, mixed>,
-     *   notifications: array<string, mixed>
+     *   notifications: array<string, mixed>,
+     *   paths: array<string, mixed>
      * }
      */
     public function readinessReport(): array
     {
         $configResult = $this->validateConfiguration();
-        $usesCacheLayer = (string) $this->config()->get('auth.drivers.cache', 'array') === 'cachelayer';
-        $usesDbLayer = (string) $this->config()->get('auth.drivers.storage', 'memory') === 'dblayer';
+        $usesCacheLayer = $this->stringConfig('auth.drivers.cache', 'array') === 'cachelayer';
+        $usesDbLayer = $this->stringConfig('auth.drivers.storage', 'memory') === 'dblayer';
         $databaseConfigured = $this->databaseConfigured();
         $authConnection = $this->authConnectionName();
         $authSchema = [
@@ -228,7 +253,7 @@ final class Application
             }
         }
 
-        if ($usesDbLayer && ($authSchema['installed'] ?? false) !== true) {
+        if ($usesDbLayer && $authSchema['installed'] !== true) {
             $databaseIssues[] = 'Auth DB schema is not installed.';
         }
 
@@ -236,19 +261,21 @@ final class Application
             $cacheWarnings[] = 'CacheLayer counters are not guaranteed atomic for auth lockout usage.';
         }
 
-        $auth = $this->authManager()->readinessReport();
-        $notificationsTransport = (string) $this->config()->get('notifications.auth.transport', 'null');
+        $auth = $this->authReadinessReport();
+        $pathIssues = $this->pathIssues();
+        $notificationsTransport = $this->stringConfig('notifications.auth.transport', 'null');
         $notificationsConfigured = $notificationsTransport !== '' && $notificationsTransport !== 'null' && $notificationsTransport !== 'replace-me';
 
         return [
             'production_ready' => !$configResult->fails()
-                && ($auth['production_ready'] ?? false) === true
-                && (!$usesDbLayer || ($authSchema['installed'] ?? false) === true)
-                && $databaseIssues === [],
+                && $auth['production_ready'] === true
+                && (!$usesDbLayer || $authSchema['installed'] === true)
+                && $databaseIssues === []
+                && (!$this->isProduction() || $pathIssues === []),
             'auth' => $auth,
             'cache' => [
-                'configured' => $this->config()->has('cache.stores.' . (string) $this->config()->get('cache.default', '')),
-                'default' => $this->config()->get('cache.default', 'memory'),
+                'configured' => $this->config()->has('cache.stores.' . $this->stringConfig('cache.default', '')),
+                'default' => $this->stringConfig('cache.default', 'memory'),
                 'warnings' => $cacheWarnings,
             ],
             'config' => [
@@ -263,6 +290,7 @@ final class Application
                 'default' => $this->config()->get('database.default'),
                 'issues' => $databaseIssues,
             ],
+            'paths' => $this->paths()->all() + ['issues' => $pathIssues],
             'notifications' => [
                 'configured' => $notificationsConfigured,
                 'critical_types' => $this->notificationCriticalTypes(),
@@ -272,6 +300,28 @@ final class Application
         ];
     }
 
+    public function register(ServiceProviderInterface $provider): self
+    {
+        $this->providers->add($provider);
+
+        return $this;
+    }
+
+    public function resourcesPath(string $path = ''): string
+    {
+        return $this->paths()->resources($path);
+    }
+
+    public function router(): RouterManager
+    {
+        return $this->boot()->make(RouterManager::class);
+    }
+
+    public function routesPath(string $path = ''): string
+    {
+        return $this->paths()->routes($path);
+    }
+
     public function runningInConsole(): bool
     {
         return PHP_SAPI === 'cli';
@@ -279,7 +329,12 @@ final class Application
 
     public function security(): SecurityManager
     {
-        return $this->boot()->service('foundation.security');
+        return $this->boot()->make(SecurityManager::class);
+    }
+
+    public function sessionsPath(string $path = ''): string
+    {
+        return $this->paths()->sessions($path);
     }
 
     public function storagePath(string $path = ''): string
@@ -287,21 +342,19 @@ final class Application
         return $this->paths()->storage($path);
     }
 
-    public function validator(): ValidationManager
+    public function uploadsPath(string $path = ''): string
     {
-        return $this->boot()->service('foundation.validator');
+        return $this->paths()->uploads($path);
     }
 
     public function validateConfiguration(): ConfigValidationResult
     {
-        return (new ConfigValidator($this->config))->validate();
+        return new ConfigValidator($this->config)->validate();
     }
 
-    private function bindCoreServices(): void
+    public function validator(): ValidationManager
     {
-        $this->container->bind(self::class, $this, LifetimeEnum::Singleton);
-        $this->container->bind(ConfigRepository::class, $this->config, LifetimeEnum::Singleton);
-        $this->container->bind(Container::class, $this->container, LifetimeEnum::Singleton);
+        return $this->boot()->make(ValidationManager::class);
     }
 
     private function authConnectionName(): ?string
@@ -318,6 +371,35 @@ final class Application
             : null;
     }
 
+    /**
+     * @return array{
+     *   production_ready: bool,
+     *   issues: list<string>,
+     *   drivers: array<string, string>
+     * }
+     */
+    private function authReadinessReport(): array
+    {
+        try {
+            return $this->authManager()->readinessReport();
+        } catch (\Throwable $e) {
+            $message = $e->getPrevious()?->getMessage() ?? $e->getMessage();
+
+            return [
+                'production_ready' => false,
+                'issues' => [$message !== '' ? $message : 'Unable to resolve auth services for readiness reporting.'],
+                'drivers' => [],
+            ];
+        }
+    }
+
+    private function bindCoreServices(): void
+    {
+        $this->container->bind(self::class, $this, LifetimeEnum::Singleton);
+        $this->container->bind(ConfigRepository::class, $this->config, LifetimeEnum::Singleton);
+        $this->container->bind(Container::class, $this->container, LifetimeEnum::Singleton);
+    }
+
     private function databaseConfigured(): bool
     {
         $connection = $this->authConnectionName();
@@ -328,16 +410,6 @@ final class Application
         $configured = $this->config()->get('database.connections.' . $connection);
 
         return is_array($configured) && $configured !== [];
-    }
-
-    /**
-     * @template T of object
-     * @param class-string<T>|string $id
-     * @return T|mixed
-     */
-    private function service(string $id): mixed
-    {
-        return $this->make($id);
     }
 
     /**
@@ -360,5 +432,36 @@ final class Application
         }
 
         return $types;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function pathIssues(): array
+    {
+        $issues = [];
+
+        foreach ($this->paths()->runtimeDirectories() as $directory) {
+            if (!is_dir($directory)) {
+                $issues[] = sprintf('Runtime directory "%s" does not exist.', $directory);
+
+                continue;
+            }
+
+            if (!is_writable($directory)) {
+                $issues[] = sprintf('Runtime directory "%s" is not writable.', $directory);
+            }
+        }
+
+        return $issues;
+    }
+
+    private function stringConfig(string $key, string $default = ''): string
+    {
+        $value = $this->config()->get($key, $default);
+
+        return is_string($value)
+            ? $value
+            : $default;
     }
 }

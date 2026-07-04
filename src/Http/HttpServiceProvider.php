@@ -25,10 +25,10 @@ final class HttpServiceProvider extends ServiceProvider
             debug: (bool) $app->config()->get('app.debug', false),
             capturePhpErrors: true,
             requestIdHeader: 'X-Request-Id',
-            responseRenderer: function (Request $request, \Throwable $exception, int $status, array $headers) use ($container): ?Response {
+            responseRenderer: function (Request $request, \Throwable $exception, int $status, array $headers) use ($app): ?Response {
                 unset($status, $headers);
 
-                $mapper = $container->get(AuthExceptionMapper::class);
+                $mapper = $app->make(AuthExceptionMapper::class);
 
                 return $mapper->supports($exception)
                     ? $mapper->toResponse($request, $exception)
@@ -37,8 +37,8 @@ final class HttpServiceProvider extends ServiceProvider
         ), LifetimeEnum::Singleton);
 
         $container->bind(HttpKernel::class, fn() => new HttpKernel(
-            router: $container->get(RouterManager::class),
-            errorHandler: $container->get(ErrorHandler::class),
+            router: $app->make(RouterManager::class),
+            errorHandler: $app->make(ErrorHandler::class),
         ), LifetimeEnum::Singleton);
 
         $container->bind('foundation.http', fn() => $container->get(HttpKernel::class), LifetimeEnum::Singleton);

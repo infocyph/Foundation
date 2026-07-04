@@ -104,6 +104,9 @@ final readonly class DBLayerAccountStore extends DBLayerStore implements Account
         );
     }
 
+    /**
+     * @param array<string, mixed> $row
+     */
     private function mapAccount(array $row): Account
     {
         return new Account(

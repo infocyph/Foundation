@@ -7,5 +7,6 @@ namespace Infocyph\Foundation\Auth\Driver;
 enum AuthMfaDriver: string
 {
     case OTP = 'otp';
+
     case SIMPLE = 'simple';
 }

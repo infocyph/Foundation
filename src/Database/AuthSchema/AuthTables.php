@@ -6,6 +6,21 @@ namespace Infocyph\Foundation\Database\AuthSchema;
 
 final class AuthTables
 {
+    public function accountPermissions(): string
+    {
+        return 'auth_account_permissions';
+    }
+
+    public function accountRoles(): string
+    {
+        return 'auth_account_roles';
+    }
+
+    public function accounts(): string
+    {
+        return 'auth_accounts';
+    }
+
     /**
      * @return list<string>
      */
@@ -30,21 +45,6 @@ final class AuthTables
             $this->auditEvents(),
             $this->lockouts(),
         ];
-    }
-
-    public function accountPermissions(): string
-    {
-        return 'auth_account_permissions';
-    }
-
-    public function accountRoles(): string
-    {
-        return 'auth_account_roles';
-    }
-
-    public function accounts(): string
-    {
-        return 'auth_accounts';
     }
 
     public function auditEvents(): string

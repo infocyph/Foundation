@@ -6,9 +6,68 @@ namespace Infocyph\Foundation\Notifications;
 
 use Infocyph\Foundation\Auth\Notification\AuthNotificationType;
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Support\ValueNormalizer;
 
 final readonly class NotificationTemplateRegistry
 {
+    /**
+     * @var array<string, array{0: string, 1: string}>
+     */
+    private const array DEFAULTS = [
+        'account_locked' => [
+            'Your account was locked',
+            "Your account has been locked.\n\n{{payload_lines}}",
+        ],
+        'delegated_access_granted' => [
+            'Delegated access granted',
+            "Delegated access was granted.\n\n{{payload_lines}}",
+        ],
+        'delegated_access_revoked' => [
+            'Delegated access revoked',
+            "Delegated access was revoked.\n\n{{payload_lines}}",
+        ],
+        'email_verification_requested' => [
+            'Verify your email address',
+            "Verify your email address to finish setup.\n\nEmail: {{email}}\nToken: {{token}}",
+        ],
+        'login_alert' => [
+            'New login detected',
+            "A new login was detected for your account.\n\n{{payload_lines}}",
+        ],
+        'mfa_challenge_requested' => [
+            'Multi-factor authentication required',
+            "A multi-factor challenge was issued for your account.\n\nChallenge ID: {{challenge_id}}\nFactor ID: {{factor_id}}\nPurpose: {{purpose}}",
+        ],
+        'new_device_alert' => [
+            'New device sign-in',
+            "A new device was used to access your account.\n\n{{payload_lines}}",
+        ],
+        'passkey_registered' => [
+            'A passkey was added',
+            "A passkey was registered for your account.\n\nCredential ID: {{credential_id}}",
+        ],
+        'passkey_removed' => [
+            'A passkey was removed',
+            "A passkey was removed from your account.\n\nCredential ID: {{credential_id}}",
+        ],
+        'password_changed' => [
+            'Your password was changed',
+            "Your password was changed successfully.\n\n{{payload_lines}}",
+        ],
+        'password_reset_requested' => [
+            'Reset your password',
+            "A password reset was requested for your account.\n\nToken: {{token}}\nRequest ID: {{request_id}}",
+        ],
+        'passwordless_login_requested' => [
+            'Your passwordless login token',
+            "Use the token below to sign in.\n\nIdentifier: {{identifier}}\nToken: {{token}}",
+        ],
+        'suspicious_activity' => [
+            'Suspicious activity detected',
+            "We detected suspicious activity on your account.\n\n{{payload_lines}}",
+        ],
+    ];
+
     public function __construct(
         private ConfigRepository $config,
     ) {}
@@ -19,10 +78,7 @@ final readonly class NotificationTemplateRegistry
     public function for(AuthNotificationType $type): array
     {
         $defaults = $this->defaults($type);
-        $overrides = $this->config->get('notifications.auth.templates.' . $type->value, []);
-        if (!is_array($overrides)) {
-            $overrides = [];
-        }
+        $overrides = ValueNormalizer::associativeArray($this->config->get('notifications.auth.templates.' . $type->value, []));
 
         return [
             'subject' => $this->stringValue($overrides, 'subject', $defaults['subject']),
@@ -36,73 +92,9 @@ final readonly class NotificationTemplateRegistry
      */
     private function defaults(AuthNotificationType $type): array
     {
-        return match ($type) {
-            AuthNotificationType::PASSWORD_RESET_REQUESTED => [
-                'subject' => 'Reset your password',
-                'text' => "A password reset was requested for your account.\n\nToken: {{token}}\nRequest ID: {{request_id}}",
-                'html' => null,
-            ],
-            AuthNotificationType::EMAIL_VERIFICATION_REQUESTED => [
-                'subject' => 'Verify your email address',
-                'text' => "Verify your email address to finish setup.\n\nEmail: {{email}}\nToken: {{token}}",
-                'html' => null,
-            ],
-            AuthNotificationType::PASSWORDLESS_LOGIN_REQUESTED => [
-                'subject' => 'Your passwordless login token',
-                'text' => "Use the token below to sign in.\n\nIdentifier: {{identifier}}\nToken: {{token}}",
-                'html' => null,
-            ],
-            AuthNotificationType::MFA_CHALLENGE_REQUESTED => [
-                'subject' => 'Multi-factor authentication required',
-                'text' => "A multi-factor challenge was issued for your account.\n\nChallenge ID: {{challenge_id}}\nFactor ID: {{factor_id}}\nPurpose: {{purpose}}",
-                'html' => null,
-            ],
-            AuthNotificationType::PASSWORD_CHANGED => [
-                'subject' => 'Your password was changed',
-                'text' => "Your password was changed successfully.\n\n{{payload_lines}}",
-                'html' => null,
-            ],
-            AuthNotificationType::PASSKEY_REGISTERED => [
-                'subject' => 'A passkey was added',
-                'text' => "A passkey was registered for your account.\n\nCredential ID: {{credential_id}}",
-                'html' => null,
-            ],
-            AuthNotificationType::PASSKEY_REMOVED => [
-                'subject' => 'A passkey was removed',
-                'text' => "A passkey was removed from your account.\n\nCredential ID: {{credential_id}}",
-                'html' => null,
-            ],
-            AuthNotificationType::ACCOUNT_LOCKED => [
-                'subject' => 'Your account was locked',
-                'text' => "Your account has been locked.\n\n{{payload_lines}}",
-                'html' => null,
-            ],
-            AuthNotificationType::SUSPICIOUS_ACTIVITY => [
-                'subject' => 'Suspicious activity detected',
-                'text' => "We detected suspicious activity on your account.\n\n{{payload_lines}}",
-                'html' => null,
-            ],
-            AuthNotificationType::NEW_DEVICE_ALERT => [
-                'subject' => 'New device sign-in',
-                'text' => "A new device was used to access your account.\n\n{{payload_lines}}",
-                'html' => null,
-            ],
-            AuthNotificationType::DELEGATED_ACCESS_GRANTED => [
-                'subject' => 'Delegated access granted',
-                'text' => "Delegated access was granted.\n\n{{payload_lines}}",
-                'html' => null,
-            ],
-            AuthNotificationType::DELEGATED_ACCESS_REVOKED => [
-                'subject' => 'Delegated access revoked',
-                'text' => "Delegated access was revoked.\n\n{{payload_lines}}",
-                'html' => null,
-            ],
-            AuthNotificationType::LOGIN_ALERT => [
-                'subject' => 'New login detected',
-                'text' => "A new login was detected for your account.\n\n{{payload_lines}}",
-                'html' => null,
-            ],
-        };
+        [$subject, $text] = self::DEFAULTS[$type->value];
+
+        return ['subject' => $subject, 'text' => $text, 'html' => null];
     }
 
     /**

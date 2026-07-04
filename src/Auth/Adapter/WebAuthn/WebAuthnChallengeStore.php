@@ -15,20 +15,16 @@ final readonly class WebAuthnChallengeStore
 
     public function get(string $challengeId): ?WebAuthnChallengeRecord
     {
-        $payload = $this->ttl->get($this->key($challengeId));
+        $payload = $this->normalizePayload($this->ttl->get($this->key($challengeId)));
 
-        return is_array($payload)
-            ? WebAuthnChallengeRecord::fromArray($payload)
-            : null;
+        return $payload === null ? null : WebAuthnChallengeRecord::fromArray($payload);
     }
 
     public function pull(string $challengeId): ?WebAuthnChallengeRecord
     {
-        $payload = $this->ttl->pull($this->key($challengeId));
+        $payload = $this->normalizePayload($this->ttl->pull($this->key($challengeId)));
 
-        return is_array($payload)
-            ? WebAuthnChallengeRecord::fromArray($payload)
-            : null;
+        return $payload === null ? null : WebAuthnChallengeRecord::fromArray($payload);
     }
 
     public function put(WebAuthnChallengeRecord $record, int $ttlSeconds): void
@@ -39,5 +35,26 @@ final readonly class WebAuthnChallengeStore
     private function key(string $challengeId): string
     {
         return $this->prefix . $challengeId;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function normalizePayload(mixed $payload): ?array
+    {
+        if (!is_array($payload)) {
+            return null;
+        }
+
+        $normalized = [];
+        foreach ($payload as $key => $value) {
+            if (!is_string($key)) {
+                continue;
+            }
+
+            $normalized[$key] = $value;
+        }
+
+        return $normalized;
     }
 }

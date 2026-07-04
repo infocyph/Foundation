@@ -14,11 +14,13 @@ use Infocyph\Webrick\Request\Request;
 final class SessionPrincipalResolver extends AbstractPrincipalResolver
 {
     public function __construct(
-        private readonly ConfigRepository $config,
+        ConfigRepository $config,
         private readonly SessionStoreInterface $sessions,
         private readonly AccountProviderInterface $accounts,
         private readonly ClockInterface $clock,
-    ) {}
+    ) {
+        parent::__construct($config);
+    }
 
     public function name(): string
     {
@@ -59,20 +61,12 @@ final class SessionPrincipalResolver extends AbstractPrincipalResolver
 
     private function sessionId(Request $request): ?string
     {
-        $header = $request->header(
-            (string) $this->config->get('auth.http.session_header', 'X-Session-Id'),
+        return $this->headerOrCookieValue(
+            $request,
+            'auth.http.session_header',
+            'X-Session-Id',
+            'auth.http.session_cookie',
+            'foundation_session',
         );
-
-        if (is_string($header) && $header !== '') {
-            return $header;
-        }
-
-        $cookie = $request->cookie(
-            (string) $this->config->get('auth.http.session_cookie', 'foundation_session'),
-        );
-
-        return is_string($cookie) && $cookie !== ''
-            ? $cookie
-            : null;
     }
 }

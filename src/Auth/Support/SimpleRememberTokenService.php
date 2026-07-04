@@ -18,8 +18,10 @@ final readonly class SimpleRememberTokenService implements RememberTokenServiceI
         private int $ttlSeconds = 2592000,
     ) {}
 
-    public function issue(string $accountId, string $deviceId): RememberToken
+    public function issue(string $_accountId, string $_deviceId): RememberToken
     {
+        unset($_accountId, $_deviceId);
+
         $selector = bin2hex(random_bytes(8));
         $verifier = bin2hex(random_bytes(24));
         $familyId = bin2hex(random_bytes(16));

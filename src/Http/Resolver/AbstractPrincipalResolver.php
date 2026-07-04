@@ -9,9 +9,43 @@ use Infocyph\Foundation\Auth\Account\AccountStatus;
 use Infocyph\Foundation\Auth\Principal\Principal;
 use Infocyph\Foundation\Auth\Principal\PrincipalInterface;
 use Infocyph\Foundation\Auth\Principal\PrincipalType;
+use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Webrick\Request\Request;
 
 abstract class AbstractPrincipalResolver implements PrincipalResolverInterface
 {
+    public function __construct(
+        protected readonly ConfigRepository $config,
+    ) {}
+
+    protected function headerOrCookieValue(
+        Request $request,
+        string $headerKey,
+        string $headerDefault,
+        string $cookieKey,
+        string $cookieDefault,
+    ): ?string {
+        $header = $this->headerValue($request, $headerKey, $headerDefault);
+        if ($header !== null) {
+            return $header;
+        }
+
+        $cookie = $request->cookie($this->stringConfig($cookieKey, $cookieDefault));
+
+        return is_string($cookie) && $cookie !== ''
+            ? $cookie
+            : null;
+    }
+
+    protected function headerValue(Request $request, string $key, string $default): ?string
+    {
+        $value = $request->header($this->stringConfig($key, $default));
+
+        return is_string($value) && $value !== ''
+            ? $value
+            : null;
+    }
+
     /**
      * @param array<string, mixed> $metadata
      */
@@ -31,5 +65,12 @@ abstract class AbstractPrincipalResolver implements PrincipalResolverInterface
             accountId: $account->id(),
             metadata: $metadata,
         );
+    }
+
+    protected function stringConfig(string $key, string $default): string
+    {
+        $value = $this->config->get($key, $default);
+
+        return is_string($value) ? $value : $default;
     }
 }

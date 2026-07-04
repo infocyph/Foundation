@@ -6,88 +6,126 @@ namespace Infocyph\Foundation\Facades;
 
 use Closure;
 use Infocyph\Foundation\Routing\RouterManager;
+use Infocyph\Webrick\Interfaces\RouteInterface;
 use Infocyph\Webrick\Router\Definition\Registrar;
 
 final class Route extends Facade
 {
+    /**
+     * @param list<string>|string|null $prefix
+     * @param list<string>|string|Closure|null $domain
+     */
     public static function apiAuth(
         Closure $callback,
         array|string|null $prefix = null,
-        string|array|Closure|null $domain = null,
+        array|string|Closure|null $domain = null,
         ?string $namePrefix = null,
     ): void {
-        static::manager()->apiAuth($callback, $prefix, $domain, $namePrefix);
+        self::manager()->apiAuth($callback, $prefix, $domain, $namePrefix);
     }
 
+    /**
+     * @param list<string>|string|null $prefix
+     * @param list<string>|string|Closure|null $domain
+     */
     public static function authMfa(
         Closure $callback,
         array|string|null $prefix = null,
-        string|array|Closure|null $domain = null,
+        array|string|Closure|null $domain = null,
         ?string $namePrefix = null,
     ): void {
-        static::manager()->authMfa($callback, $prefix, $domain, $namePrefix);
+        self::manager()->authMfa($callback, $prefix, $domain, $namePrefix);
     }
 
+    /**
+     * @param list<string>|string|null $prefix
+     * @param list<string>|string|Closure|null $domain
+     */
     public static function authVerified(
         Closure $callback,
         array|string|null $prefix = null,
-        string|array|Closure|null $domain = null,
+        array|string|Closure|null $domain = null,
         ?string $namePrefix = null,
     ): void {
-        static::manager()->authVerified($callback, $prefix, $domain, $namePrefix);
+        self::manager()->authVerified($callback, $prefix, $domain, $namePrefix);
     }
 
+    /**
+     * @param list<string>|string|null $prefix
+     * @param list<string>|string|Closure|null $domain
+     */
     public static function authWeb(
         Closure $callback,
         array|string|null $prefix = null,
-        string|array|Closure|null $domain = null,
+        array|string|Closure|null $domain = null,
         ?string $namePrefix = null,
     ): void {
-        static::manager()->authWeb($callback, $prefix, $domain, $namePrefix);
+        self::manager()->authWeb($callback, $prefix, $domain, $namePrefix);
     }
 
-    public static function get(string $path, array|string|callable $handler, string|array|null $nameOrOptions = null): mixed
+    /**
+     * @param array{0:string|object,1:string}|callable|string $handler
+     * @param array<string, mixed>|string|null $nameOrOptions
+     */
+    public static function get(string $path, array|string|callable $handler, string|array|null $nameOrOptions = null): RouteInterface
     {
-        return static::manager()->get($path, $handler, $nameOrOptions);
+        return self::registrar()->get($path, $handler, $nameOrOptions);
     }
 
+    /**
+     * @param list<string>|string|null $prefix
+     * @param list<string>|string|Closure|null $domain
+     * @param list<mixed>|Closure $middleware
+     */
     public static function group(
         array|string|null $prefix = null,
-        string|array|Closure|null $domain = null,
+        array|string|Closure|null $domain = null,
         array|Closure $middleware = [],
         string|Closure|null $namePrefix = null,
         ?Closure $callback = null,
     ): void {
-        static::manager()->router()->group($prefix, $domain, $middleware, $namePrefix, $callback);
+        self::manager()->router()->group($prefix, $domain, $middleware, $namePrefix, $callback);
     }
 
+    /**
+     * @param list<string>|string|null $prefix
+     * @param list<string>|string|Closure|null $domain
+     */
     public static function groupWithPreset(
         string $preset,
         Closure $callback,
         array|string|null $prefix = null,
-        string|array|Closure|null $domain = null,
+        array|string|Closure|null $domain = null,
         ?string $namePrefix = null,
     ): void {
-        static::manager()->groupWithPreset($preset, $callback, $prefix, $domain, $namePrefix);
+        self::manager()->groupWithPreset($preset, $callback, $prefix, $domain, $namePrefix);
     }
 
     public static function manager(): RouterManager
     {
-        return static::app()->router();
+        return self::app()->router();
     }
 
-    public static function post(string $path, array|string|callable $handler, string|array|null $nameOrOptions = null): mixed
+    /**
+     * @param array{0:string|object,1:string}|callable|string $handler
+     * @param array<string, mixed>|string|null $nameOrOptions
+     */
+    public static function post(string $path, array|string|callable $handler, string|array|null $nameOrOptions = null): RouteInterface
     {
-        return static::manager()->post($path, $handler, $nameOrOptions);
+        return self::registrar()->post($path, $handler, $nameOrOptions);
     }
 
-    public static function put(string $path, array|string|callable $handler, string|array|null $nameOrOptions = null): mixed
+    /**
+     * @param array{0:string|object,1:string}|callable|string $handler
+     * @param array<string, mixed>|string|null $nameOrOptions
+     */
+    public static function put(string $path, array|string|callable $handler, string|array|null $nameOrOptions = null): RouteInterface
     {
-        return static::manager()->put($path, $handler, $nameOrOptions);
+        return self::registrar()->put($path, $handler, $nameOrOptions);
     }
 
     public static function registrar(): Registrar
     {
-        return static::manager()->router();
+        return self::manager()->router();
     }
 }

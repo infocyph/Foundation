@@ -7,5 +7,6 @@ namespace Infocyph\Foundation\Auth\Driver;
 enum AuthPasswordDriver: string
 {
     case EPICRYPT = 'epicrypt';
+
     case NATIVE = 'native';
 }

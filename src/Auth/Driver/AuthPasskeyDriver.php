@@ -7,6 +7,8 @@ namespace Infocyph\Foundation\Auth\Driver;
 enum AuthPasskeyDriver: string
 {
     case DISABLED = 'disabled';
+
     case MEMORY = 'memory';
+
     case WEBAUTHN = 'webauthn';
 }

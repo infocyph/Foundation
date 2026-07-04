@@ -6,9 +6,8 @@ namespace Infocyph\Foundation\Notifications;
 
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
+use Infocyph\Foundation\Exception\ConfigurationException;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
-use Infocyph\TalkingBytes\Email\Config\LogEmailConfig;
-use Infocyph\TalkingBytes\Email\Emailer;
 
 final class NotificationServiceProvider extends ServiceProvider
 {
@@ -30,19 +29,40 @@ final class NotificationServiceProvider extends ServiceProvider
         $container->bind('foundation.notifications', fn() => $container->get(NotificationManager::class), LifetimeEnum::Singleton);
     }
 
-    private function createEmailer(Application $app): Emailer
+    private function boolConfig(Application $app, string $key, bool $default): bool
     {
-        $transport = (string) $app->config()->get('notifications.auth.transport', 'null');
+        $value = $app->config()->get($key, $default);
+
+        return match (true) {
+            is_bool($value) => $value,
+            is_string($value) => in_array(strtolower($value), ['1', 'true', 'yes', 'on'], true),
+            is_int($value) => $value !== 0,
+            default => $default,
+        };
+    }
+
+    private function createEmailer(Application $app): object
+    {
+        $emailerClass = 'Infocyph\\TalkingBytes\\Email\\Emailer';
+        $logConfigClass = 'Infocyph\\TalkingBytes\\Email\\Config\\LogEmailConfig';
+
+        if (!class_exists($emailerClass)) {
+            throw new ConfigurationException(
+                'Foundation notifications require infocyph/talkingbytes to resolve the emailer service.',
+            );
+        }
+
+        $transport = $this->stringConfig($app, 'notifications.auth.transport', 'null');
 
         return match ($transport) {
-            'log' => Emailer::usingLog(LogEmailConfig::fromArray([
-                'dailyFiles' => (bool) $app->config()->get('notifications.auth.log.dailyFiles', true),
+            'log' => $this->requireObject($emailerClass::usingLog($logConfigClass::fromArray([
+                'dailyFiles' => $this->boolConfig($app, 'notifications.auth.log.dailyFiles', true),
                 'directory' => $this->notificationLogDirectory($app),
-                'filenamePrefix' => (string) $app->config()->get('notifications.auth.log.filenamePrefix', 'auth'),
+                'filenamePrefix' => $this->stringConfig($app, 'notifications.auth.log.filenamePrefix', 'auth'),
                 'maxMessageBytes' => $app->config()->get('notifications.auth.log.maxMessageBytes'),
-            ])),
-            'mail' => Emailer::usingMailFunction(),
-            default => Emailer::usingNull(),
+            ])), 'TalkingBytes Emailer'),
+            'mail' => $this->requireObject($emailerClass::usingMailFunction(), 'TalkingBytes Emailer'),
+            default => $this->requireObject($emailerClass::usingNull(), 'TalkingBytes Emailer'),
         };
     }
 
@@ -53,9 +73,25 @@ final class NotificationServiceProvider extends ServiceProvider
             return $configured;
         }
 
-        $basePath = rtrim((string) $app->config()->get('app.base_path', '.'), '/\\');
-        $logsPath = trim((string) $app->config()->get('paths.logs', 'storage/logs'), '/\\');
+        $basePath = rtrim($this->stringConfig($app, 'app.base_path', '.'), '/\\');
+        $logsPath = trim($this->stringConfig($app, 'paths.logs', 'storage/logs'), '/\\');
 
         return $basePath . DIRECTORY_SEPARATOR . $logsPath . DIRECTORY_SEPARATOR . 'email';
+    }
+
+    private function requireObject(mixed $value, string $context): object
+    {
+        if (!is_object($value)) {
+            throw new ConfigurationException(sprintf('%s must resolve to an object.', $context));
+        }
+
+        return $value;
+    }
+
+    private function stringConfig(Application $app, string $key, string $default): string
+    {
+        $value = $app->config()->get($key, $default);
+
+        return is_string($value) ? $value : $default;
     }
 }

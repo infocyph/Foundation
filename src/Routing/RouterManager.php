@@ -21,92 +21,9 @@ final readonly class RouterManager
         private RoutePresetRegistrar $presets,
     ) {}
 
-    public function config(?string $key = null, mixed $default = null): mixed
-    {
-        if ($key === null || $key === '') {
-            return $this->config->get('router', []);
-        }
-
-        return $this->config->get('router.' . $key, $default);
-    }
-
-    public function registerAuthMiddleware(): void
-    {
-        $this->presets->register();
-    }
-
-    public function apiAuth(
-        Closure $callback,
-        array|string|null $prefix = null,
-        string|array|Closure|null $domain = null,
-        ?string $namePrefix = null,
-    ): void {
-        $this->presets->apiAuth($this->router(), $callback, $prefix, $domain, $namePrefix);
-    }
-
-    public function authMfa(
-        Closure $callback,
-        array|string|null $prefix = null,
-        string|array|Closure|null $domain = null,
-        ?string $namePrefix = null,
-    ): void {
-        $this->presets->authMfa($this->router(), $callback, $prefix, $domain, $namePrefix);
-    }
-
-    public function authVerified(
-        Closure $callback,
-        array|string|null $prefix = null,
-        string|array|Closure|null $domain = null,
-        ?string $namePrefix = null,
-    ): void {
-        $this->presets->authVerified($this->router(), $callback, $prefix, $domain, $namePrefix);
-    }
-
-    public function authWeb(
-        Closure $callback,
-        array|string|null $prefix = null,
-        string|array|Closure|null $domain = null,
-        ?string $namePrefix = null,
-    ): void {
-        $this->presets->authWeb($this->router(), $callback, $prefix, $domain, $namePrefix);
-    }
-
-    public function dispatch(Request $request, ?ErrorHandler $errorHandler = null): Response
-    {
-        return $this->kernel($errorHandler)->handle($request);
-    }
-
-    public function groupWithPreset(
-        string $preset,
-        Closure $callback,
-        array|string|null $prefix = null,
-        string|array|Closure|null $domain = null,
-        ?string $namePrefix = null,
-    ): void {
-        $this->presets->group($this->router(), $preset, $callback, $prefix, $domain, $namePrefix);
-    }
-
-    public function kernel(?ErrorHandler $errorHandler = null): RouterKernel
-    {
-        $this->presets->register();
-
-        return $this->factory->kernel($errorHandler);
-    }
-
-    public function router(): Registrar
-    {
-        $this->presets->register();
-
-        return $this->factory->router();
-    }
-
-    public function routes(): Collection
-    {
-        $this->presets->register();
-
-        return $this->factory->routes();
-    }
-
+    /**
+     * @param list<mixed> $arguments
+     */
     public function __call(string $method, array $arguments): mixed
     {
         $router = $this->router();
@@ -120,5 +37,131 @@ final readonly class RouterManager
         }
 
         return $router->{$method}(...$arguments);
+    }
+
+    /**
+     * @param list<string>|string|null $prefix
+     * @param list<string>|string|Closure|null $domain
+     */
+    public function apiAuth(
+        Closure $callback,
+        array|string|null $prefix = null,
+        array|string|Closure|null $domain = null,
+        ?string $namePrefix = null,
+    ): void {
+        $this->preset('apiAuth', $callback, $prefix, $domain, $namePrefix);
+    }
+
+    /**
+     * @param list<string>|string|null $prefix
+     * @param list<string>|string|Closure|null $domain
+     */
+    public function authMfa(
+        Closure $callback,
+        array|string|null $prefix = null,
+        array|string|Closure|null $domain = null,
+        ?string $namePrefix = null,
+    ): void {
+        $this->preset('authMfa', $callback, $prefix, $domain, $namePrefix);
+    }
+
+    /**
+     * @param list<string>|string|null $prefix
+     * @param list<string>|string|Closure|null $domain
+     */
+    public function authVerified(
+        Closure $callback,
+        array|string|null $prefix = null,
+        array|string|Closure|null $domain = null,
+        ?string $namePrefix = null,
+    ): void {
+        $this->preset('authVerified', $callback, $prefix, $domain, $namePrefix);
+    }
+
+    /**
+     * @param list<string>|string|null $prefix
+     * @param list<string>|string|Closure|null $domain
+     */
+    public function authWeb(
+        Closure $callback,
+        array|string|null $prefix = null,
+        array|string|Closure|null $domain = null,
+        ?string $namePrefix = null,
+    ): void {
+        $this->preset('authWeb', $callback, $prefix, $domain, $namePrefix);
+    }
+
+    public function config(?string $key = null, mixed $default = null): mixed
+    {
+        if ($key === null || $key === '') {
+            return $this->config->get('router', []);
+        }
+
+        return $this->config->get('router.' . $key, $default);
+    }
+
+    public function dispatch(Request $request, ?ErrorHandler $errorHandler = null): Response
+    {
+        return $this->kernel($errorHandler)->handle($request);
+    }
+
+    /**
+     * @param list<string>|string|null $prefix
+     * @param list<string>|string|Closure|null $domain
+     */
+    public function groupWithPreset(
+        string $preset,
+        Closure $callback,
+        array|string|null $prefix = null,
+        array|string|Closure|null $domain = null,
+        ?string $namePrefix = null,
+    ): void {
+        $this->presets->group($this->router(), $preset, $callback, $prefix, $domain, $namePrefix);
+    }
+
+    public function kernel(?ErrorHandler $errorHandler = null): RouterKernel
+    {
+        return $this->registered(fn() => $this->factory->kernel($errorHandler));
+    }
+
+    public function registerAuthMiddleware(): void
+    {
+        $this->presets->register();
+    }
+
+    public function router(): Registrar
+    {
+        return $this->registered($this->factory->router(...));
+    }
+
+    public function routes(): Collection
+    {
+        return $this->registered($this->factory->routes(...));
+    }
+
+    /**
+     * @param list<string>|string|null $prefix
+     * @param list<string>|string|Closure|null $domain
+     */
+    private function preset(
+        string $method,
+        Closure $callback,
+        array|string|null $prefix = null,
+        array|string|Closure|null $domain = null,
+        ?string $namePrefix = null,
+    ): void {
+        $this->presets->{$method}($this->router(), $callback, $prefix, $domain, $namePrefix);
+    }
+
+    /**
+     * @template TResult
+     * @param callable(): TResult $callback
+     * @return TResult
+     */
+    private function registered(callable $callback): mixed
+    {
+        $this->presets->register();
+
+        return $callback();
     }
 }

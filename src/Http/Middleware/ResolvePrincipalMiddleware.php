@@ -16,6 +16,9 @@ final readonly class ResolvePrincipalMiddleware
         private RequestPrincipalResolver $resolver,
     ) {}
 
+    /**
+     * @param callable(Request): Response $next
+     */
     public function __invoke(Request $request, callable $next): Response
     {
         $previous = $this->principals->get();

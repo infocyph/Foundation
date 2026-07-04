@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Auth\Adapter\WebAuthn;
 
 use Infocyph\Foundation\Exception\ConfigurationException;
+use Infocyph\Foundation\Support\ValueNormalizer;
 
 final readonly class WebAuthnConfig
 {
@@ -47,13 +48,13 @@ final readonly class WebAuthnConfig
             'preferred',
             'auth.webauthn.resident_key',
         );
-        $algorithms = self::stringList($config['algorithms'] ?? ['ES256', 'RS256']);
+        $algorithms = ValueNormalizer::stringList($config['algorithms'] ?? ['ES256', 'RS256']);
         self::assertAllowedStrings(
             $algorithms,
             ['ES256', 'RS256'],
             'auth.webauthn.algorithms',
         );
-        $transports = self::stringList($config['transports'] ?? ['internal', 'hybrid', 'usb', 'nfc', 'ble']);
+        $transports = ValueNormalizer::stringList($config['transports'] ?? ['internal', 'hybrid', 'usb', 'nfc', 'ble']);
         self::assertAllowedStrings(
             $transports,
             ['internal', 'hybrid', 'usb', 'nfc', 'ble'],
@@ -61,9 +62,9 @@ final readonly class WebAuthnConfig
         );
 
         return new self(
-            rpId: self::nullableString($config['rp_id'] ?? null),
+            rpId: ValueNormalizer::nullableString($config['rp_id'] ?? null),
             rpName: self::string($config['rp_name'] ?? null, 'Foundation'),
-            origin: self::nullableString($config['origin'] ?? null),
+            origin: ValueNormalizer::nullableString($config['origin'] ?? null),
             timeout: max(1, self::int($config['timeout'] ?? null, 60000)),
             challengeTtl: max(1, self::int($config['challenge_ttl'] ?? null, 300)),
             userVerification: $userVerification,
@@ -72,6 +73,30 @@ final readonly class WebAuthnConfig
             algorithms: $algorithms,
             transports: $transports,
         );
+    }
+
+    /**
+     * @param list<string> $values
+     * @param list<string> $allowed
+     */
+    private static function assertAllowedStrings(array $values, array $allowed, string $key): void
+    {
+        if ($values === []) {
+            throw new ConfigurationException(sprintf('%s must not be empty.', $key));
+        }
+
+        foreach ($values as $value) {
+            if (in_array($value, $allowed, true)) {
+                continue;
+            }
+
+            throw new ConfigurationException(sprintf(
+                '%s contains unsupported value "%s". Allowed values: %s.',
+                $key,
+                $value,
+                implode(', ', $allowed),
+            ));
+        }
     }
 
     /**
@@ -97,62 +122,10 @@ final readonly class WebAuthnConfig
         return is_numeric($value) ? (int) $value : $default;
     }
 
-    private static function nullableString(mixed $value): ?string
-    {
-        return is_string($value) && $value !== ''
-            ? $value
-            : null;
-    }
-
     private static function string(mixed $value, string $default): string
     {
         return is_string($value) && $value !== ''
             ? $value
             : $default;
-    }
-
-    /**
-     * @return list<string>
-     */
-    private static function stringList(mixed $value): array
-    {
-        if (!is_array($value)) {
-            return [];
-        }
-
-        $items = [];
-        foreach ($value as $item) {
-            if (!is_string($item) || $item === '') {
-                continue;
-            }
-
-            $items[] = $item;
-        }
-
-        return $items;
-    }
-
-    /**
-     * @param list<string> $values
-     * @param list<string> $allowed
-     */
-    private static function assertAllowedStrings(array $values, array $allowed, string $key): void
-    {
-        if ($values === []) {
-            throw new ConfigurationException(sprintf('%s must not be empty.', $key));
-        }
-
-        foreach ($values as $value) {
-            if (in_array($value, $allowed, true)) {
-                continue;
-            }
-
-            throw new ConfigurationException(sprintf(
-                '%s contains unsupported value "%s". Allowed values: %s.',
-                $key,
-                $value,
-                implode(', ', $allowed),
-            ));
-        }
     }
 }

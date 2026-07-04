@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Adapter\WebAuthn;
 
+use Infocyph\Foundation\Support\ValueNormalizer;
+
 final readonly class WebAuthnChallengeRecord
 {
     /**
@@ -20,23 +22,6 @@ final readonly class WebAuthnChallengeRecord
         public array $allowedCredentialIds = [],
         public array $metadata = [],
     ) {}
-
-    /**
-     * @return array<string, mixed>
-     */
-    public function toArray(): array
-    {
-        return [
-            'id' => $this->id,
-            'account_id' => $this->accountId,
-            'purpose' => $this->purpose,
-            'challenge' => $this->challenge,
-            'issued_at' => $this->issuedAt,
-            'expires_at' => $this->expiresAt,
-            'allowed_credential_ids' => $this->allowedCredentialIds,
-            'metadata' => $this->metadata,
-        ];
-    }
 
     /**
      * @param array<string, mixed> $payload
@@ -60,29 +45,25 @@ final readonly class WebAuthnChallengeRecord
             challenge: $challenge,
             issuedAt: (int) $issuedAt,
             expiresAt: (int) $expiresAt,
-            allowedCredentialIds: self::stringList($payload['allowed_credential_ids'] ?? []),
-            metadata: is_array($payload['metadata'] ?? null) ? $payload['metadata'] : [],
+            allowedCredentialIds: ValueNormalizer::stringList($payload['allowed_credential_ids'] ?? []),
+            metadata: ValueNormalizer::associativeArray($payload['metadata'] ?? null),
         );
     }
 
     /**
-     * @return list<string>
+     * @return array<string, mixed>
      */
-    private static function stringList(mixed $value): array
+    public function toArray(): array
     {
-        if (!is_array($value)) {
-            return [];
-        }
-
-        $items = [];
-        foreach ($value as $item) {
-            if (!is_string($item) || $item === '') {
-                continue;
-            }
-
-            $items[] = $item;
-        }
-
-        return $items;
+        return [
+            'id' => $this->id,
+            'account_id' => $this->accountId,
+            'purpose' => $this->purpose,
+            'challenge' => $this->challenge,
+            'issued_at' => $this->issuedAt,
+            'expires_at' => $this->expiresAt,
+            'allowed_credential_ids' => $this->allowedCredentialIds,
+            'metadata' => $this->metadata,
+        ];
     }
 }

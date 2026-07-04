@@ -28,22 +28,55 @@ final readonly class ConfigValidator
         return $this->runChecks(true);
     }
 
+    private function databaseDefault(): ?string
+    {
+        $configuredAuthConnection = $this->config->get('auth.dblayer.connection');
+        if (is_string($configuredAuthConnection) && $configuredAuthConnection !== '') {
+            return $configuredAuthConnection;
+        }
+
+        $configured = $this->config->get('database.default');
+        if (is_string($configured) && $configured !== '') {
+            return $configured;
+        }
+
+        $connections = $this->config->get('database.connections', []);
+        if (!is_array($connections) || $connections === []) {
+            return null;
+        }
+
+        $first = array_key_first($connections);
+
+        return is_string($first) && $first !== ''
+            ? $first
+            : null;
+    }
+
+    private function isLocalWebAuthnHost(mixed $host): bool
+    {
+        if (!is_string($host) || $host === '') {
+            return false;
+        }
+
+        return in_array(strtolower($host), ['localhost', '127.0.0.1'], true);
+    }
+
     private function runChecks(bool $assumeProduction): ConfigValidationResult
     {
         $issues = [];
 
-        $this->validateDriver($issues, 'auth.drivers.cache', (string) $this->config->get('auth.drivers.cache', 'array'), AuthCacheDriver::class);
-        $this->validateDriver($issues, 'auth.drivers.mfa', (string) $this->config->get('auth.drivers.mfa', 'simple'), AuthMfaDriver::class);
-        $this->validateDriver($issues, 'auth.drivers.notifications', (string) $this->config->get('auth.drivers.notifications', 'collect'), AuthNotificationDriver::class);
-        $this->validateDriver($issues, 'auth.drivers.passkey', (string) $this->config->get('auth.drivers.passkey', 'memory'), AuthPasskeyDriver::class);
-        $this->validateDriver($issues, 'auth.drivers.passwords', (string) $this->config->get('auth.drivers.passwords', 'native'), AuthPasswordDriver::class);
-        $this->validateDriver($issues, 'auth.drivers.storage', (string) $this->config->get('auth.drivers.storage', 'memory'), AuthStorageDriver::class);
-        $this->validateDriver($issues, 'auth.drivers.tokens', (string) $this->config->get('auth.drivers.tokens', 'simple'), AuthTokenDriver::class);
+        $this->validateDriver($issues, 'auth.drivers.cache', $this->stringConfig('auth.drivers.cache', 'array'), AuthCacheDriver::class);
+        $this->validateDriver($issues, 'auth.drivers.mfa', $this->stringConfig('auth.drivers.mfa', 'simple'), AuthMfaDriver::class);
+        $this->validateDriver($issues, 'auth.drivers.notifications', $this->stringConfig('auth.drivers.notifications', 'collect'), AuthNotificationDriver::class);
+        $this->validateDriver($issues, 'auth.drivers.passkey', $this->stringConfig('auth.drivers.passkey', 'memory'), AuthPasskeyDriver::class);
+        $this->validateDriver($issues, 'auth.drivers.passwords', $this->stringConfig('auth.drivers.passwords', 'native'), AuthPasswordDriver::class);
+        $this->validateDriver($issues, 'auth.drivers.storage', $this->stringConfig('auth.drivers.storage', 'memory'), AuthStorageDriver::class);
+        $this->validateDriver($issues, 'auth.drivers.tokens', $this->stringConfig('auth.drivers.tokens', 'simple'), AuthTokenDriver::class);
 
-        $storageDriver = (string) $this->config->get('auth.drivers.storage', 'memory');
-        $cacheDriver = (string) $this->config->get('auth.drivers.cache', 'array');
-        $notificationDriver = (string) $this->config->get('auth.drivers.notifications', 'collect');
-        $passkeyDriver = (string) $this->config->get('auth.drivers.passkey', 'memory');
+        $storageDriver = $this->stringConfig('auth.drivers.storage', 'memory');
+        $cacheDriver = $this->stringConfig('auth.drivers.cache', 'array');
+        $notificationDriver = $this->stringConfig('auth.drivers.notifications', 'collect');
+        $passkeyDriver = $this->stringConfig('auth.drivers.passkey', 'memory');
 
         if ($assumeProduction) {
             $this->validateProductionDrivers($issues, $storageDriver);
@@ -69,14 +102,64 @@ final readonly class ConfigValidator
         return new ConfigValidationResult($issues);
     }
 
+    private function stringConfig(string $key, string $default): string
+    {
+        $value = $this->config->get($key, $default);
+
+        return is_string($value) ? $value : $default;
+    }
+
+    /**
+     * @param list<ConfigIssue> $issues
+     * @param list<string> $allowed
+     */
+    private function validateAllowedString(array &$issues, string $key, mixed $value, array $allowed): void
+    {
+        if (!is_string($value) || !in_array($value, $allowed, true)) {
+            $issues[] = new ConfigIssue(
+                sprintf('%s must be one of: %s.', $key, implode(', ', $allowed)),
+                $key,
+            );
+        }
+    }
+
+    /**
+     * @param list<ConfigIssue> $issues
+     * @param list<string> $allowed
+     */
+    private function validateAllowedStringList(array &$issues, string $key, mixed $value, array $allowed): void
+    {
+        if (!is_array($value) || $value === []) {
+            $issues[] = new ConfigIssue(
+                sprintf('%s must be a non-empty list of: %s.', $key, implode(', ', $allowed)),
+                $key,
+            );
+
+            return;
+        }
+
+        foreach ($value as $item) {
+            if (is_string($item) && in_array($item, $allowed, true)) {
+                continue;
+            }
+
+            $issues[] = new ConfigIssue(
+                sprintf('%s contains unsupported value. Allowed values: %s.', $key, implode(', ', $allowed)),
+                $key,
+            );
+
+            return;
+        }
+    }
+
     /**
      * @param list<ConfigIssue> $issues
      */
     private function validateCacheStore(array &$issues): void
     {
-        $store = (string) $this->config->get(
+        $store = $this->stringConfig(
             'auth.cachelayer.store',
-            (string) $this->config->get('cache.default', ''),
+            $this->stringConfig('cache.default', ''),
         );
 
         if ($store === '') {
@@ -94,22 +177,6 @@ final readonly class ConfigValidator
                 'cache.stores.' . $store,
             );
         }
-    }
-
-    /**
-     * @param list<ConfigIssue> $issues
-     * @param class-string<\BackedEnum> $enumClass
-     */
-    private function validateDriver(array &$issues, string $key, string $value, string $enumClass): void
-    {
-        if ($enumClass::tryFrom($value) !== null) {
-            return;
-        }
-
-        $issues[] = new ConfigIssue(
-            sprintf('Invalid driver "%s" configured for %s.', $value, $key),
-            $key,
-        );
     }
 
     /**
@@ -138,9 +205,34 @@ final readonly class ConfigValidator
 
     /**
      * @param list<ConfigIssue> $issues
+     * @param class-string<\BackedEnum> $enumClass
+     */
+    private function validateDriver(array &$issues, string $key, string $value, string $enumClass): void
+    {
+        if ($enumClass::tryFrom($value) !== null) {
+            return;
+        }
+
+        $issues[] = new ConfigIssue(
+            sprintf('Invalid driver "%s" configured for %s.', $value, $key),
+            $key,
+        );
+    }
+
+    /**
+     * @param list<ConfigIssue> $issues
      */
     private function validateNotificationTransport(array &$issues): void
     {
+        if (!class_exists('Infocyph\\TalkingBytes\\Email\\Emailer')) {
+            $issues[] = new ConfigIssue(
+                'infocyph/talkingbytes must be installed when auth.drivers.notifications uses talkingbytes.',
+                'auth.drivers.notifications',
+            );
+
+            return;
+        }
+
         $transport = $this->config->get('notifications.auth.transport');
         if (
             !is_string($transport)
@@ -160,7 +252,7 @@ final readonly class ConfigValidator
      */
     private function validateProductionDrivers(array &$issues, string $storageDriver): void
     {
-        if ((string) $this->config->get('auth.drivers.tokens', 'simple') === AuthTokenDriver::SIMPLE->value) {
+        if ($this->stringConfig('auth.drivers.tokens', 'simple') === AuthTokenDriver::SIMPLE->value) {
             $issues[] = new ConfigIssue('auth.drivers.tokens uses simple.', 'auth.drivers.tokens');
         }
 
@@ -168,15 +260,15 @@ final readonly class ConfigValidator
             $issues[] = new ConfigIssue('auth.drivers.storage uses memory.', 'auth.drivers.storage');
         }
 
-        if ((string) $this->config->get('auth.drivers.mfa', 'simple') === AuthMfaDriver::SIMPLE->value) {
+        if ($this->stringConfig('auth.drivers.mfa', 'simple') === AuthMfaDriver::SIMPLE->value) {
             $issues[] = new ConfigIssue('auth.drivers.mfa uses simple.', 'auth.drivers.mfa');
         }
 
-        if ((string) $this->config->get('auth.drivers.notifications', 'collect') === AuthNotificationDriver::COLLECT->value) {
+        if ($this->stringConfig('auth.drivers.notifications', 'collect') === AuthNotificationDriver::COLLECT->value) {
             $issues[] = new ConfigIssue('auth.drivers.notifications uses collect.', 'auth.drivers.notifications');
         }
 
-        if ((string) $this->config->get('auth.drivers.passkey', 'memory') === AuthPasskeyDriver::MEMORY->value) {
+        if ($this->stringConfig('auth.drivers.passkey', 'memory') === AuthPasskeyDriver::MEMORY->value) {
             $issues[] = new ConfigIssue('auth.drivers.passkey uses memory.', 'auth.drivers.passkey');
         }
     }
@@ -282,81 +374,5 @@ final readonly class ConfigValidator
             $transports,
             ['internal', 'hybrid', 'usb', 'nfc', 'ble'],
         );
-    }
-
-    private function isLocalWebAuthnHost(mixed $host): bool
-    {
-        if (!is_string($host) || $host === '') {
-            return false;
-        }
-
-        return in_array(strtolower($host), ['localhost', '127.0.0.1'], true);
-    }
-
-    private function databaseDefault(): ?string
-    {
-        $configuredAuthConnection = $this->config->get('auth.dblayer.connection');
-        if (is_string($configuredAuthConnection) && $configuredAuthConnection !== '') {
-            return $configuredAuthConnection;
-        }
-
-        $configured = $this->config->get('database.default');
-        if (is_string($configured) && $configured !== '') {
-            return $configured;
-        }
-
-        $connections = $this->config->get('database.connections', []);
-        if (!is_array($connections) || $connections === []) {
-            return null;
-        }
-
-        $first = array_key_first($connections);
-
-        return is_string($first) && $first !== ''
-            ? $first
-            : null;
-    }
-
-    /**
-     * @param list<ConfigIssue> $issues
-     * @param list<string> $allowed
-     */
-    private function validateAllowedString(array &$issues, string $key, mixed $value, array $allowed): void
-    {
-        if (!is_string($value) || !in_array($value, $allowed, true)) {
-            $issues[] = new ConfigIssue(
-                sprintf('%s must be one of: %s.', $key, implode(', ', $allowed)),
-                $key,
-            );
-        }
-    }
-
-    /**
-     * @param list<ConfigIssue> $issues
-     * @param list<string> $allowed
-     */
-    private function validateAllowedStringList(array &$issues, string $key, mixed $value, array $allowed): void
-    {
-        if (!is_array($value) || $value === []) {
-            $issues[] = new ConfigIssue(
-                sprintf('%s must be a non-empty list of: %s.', $key, implode(', ', $allowed)),
-                $key,
-            );
-
-            return;
-        }
-
-        foreach ($value as $item) {
-            if (is_string($item) && in_array($item, $allowed, true)) {
-                continue;
-            }
-
-            $issues[] = new ConfigIssue(
-                sprintf('%s contains unsupported value. Allowed values: %s.', $key, implode(', ', $allowed)),
-                $key,
-            );
-
-            return;
-        }
     }
 }

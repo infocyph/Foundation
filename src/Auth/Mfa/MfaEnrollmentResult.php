@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Mfa;
 
+use Infocyph\Foundation\Auth\Support\TracksSuccessfulStatus;
+
 final readonly class MfaEnrollmentResult
 {
+    use TracksSuccessfulStatus;
+
     /**
      * @param list<string> $recoveryCodes
      * @param array<string, mixed> $context
@@ -18,15 +22,11 @@ final readonly class MfaEnrollmentResult
         public array $context = [],
     ) {}
 
-    public function failed(): bool
+    /**
+     * @return list<\UnitEnum>
+     */
+    protected function successfulStatuses(): array
     {
-        return !$this->successful();
-    }
-
-    public function successful(): bool
-    {
-        return $this->status === MfaStatus::ENROLLED
-            || $this->status === MfaStatus::ACTIVATED
-            || $this->status === MfaStatus::REMOVED;
+        return [MfaStatus::ENROLLED, MfaStatus::ACTIVATED, MfaStatus::REMOVED];
     }
 }

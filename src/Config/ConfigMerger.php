@@ -19,7 +19,8 @@ final class ConfigMerger
                 && is_array($base[$key])
                 && is_array($value)
             ) {
-                $base[$key] = self::merge($base[$key], $value);
+                $base[$key] = self::merge(self::map($base[$key]), self::map($value));
+
                 continue;
             }
 
@@ -27,5 +28,39 @@ final class ConfigMerger
         }
 
         return $base;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $items
+     * @return array<string, mixed>
+     */
+    public static function mergeMany(array $items): array
+    {
+        $merged = [];
+
+        foreach ($items as $item) {
+            $merged = self::merge($merged, $item);
+        }
+
+        return $merged;
+    }
+
+    /**
+     * @param array<mixed> $value
+     * @return array<string, mixed>
+     */
+    private static function map(array $value): array
+    {
+        $normalized = [];
+
+        foreach ($value as $key => $item) {
+            if (!is_string($key)) {
+                continue;
+            }
+
+            $normalized[$key] = $item;
+        }
+
+        return $normalized;
     }
 }

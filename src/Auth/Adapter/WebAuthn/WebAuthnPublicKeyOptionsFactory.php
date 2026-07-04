@@ -41,7 +41,7 @@ final readonly class WebAuthnPublicKeyOptionsFactory
             rpId: $this->config->rpId,
             allowCredentials: $this->descriptors($allowedCredentialIds),
             userVerification: $this->config->userVerification,
-            timeout: $this->config->timeout,
+            timeout: $this->timeout(),
         );
     }
 
@@ -78,7 +78,7 @@ final readonly class WebAuthnPublicKeyOptionsFactory
             ),
             attestation: $this->config->attestation,
             excludeCredentials: $this->descriptors($excludedCredentialIds),
-            timeout: $this->config->timeout,
+            timeout: $this->timeout(),
         );
     }
 
@@ -100,6 +100,13 @@ final readonly class WebAuthnPublicKeyOptionsFactory
         return array_values(array_unique($mapped));
     }
 
+    private function decodeCredentialId(string $credentialId): string
+    {
+        $decoded = Base64Url::decode($credentialId);
+
+        return $decoded !== '' ? $decoded : $credentialId;
+    }
+
     /**
      * @param list<string> $credentialIds
      * @return list<PublicKeyCredentialDescriptor>
@@ -116,10 +123,11 @@ final readonly class WebAuthnPublicKeyOptionsFactory
         );
     }
 
-    private function decodeCredentialId(string $credentialId): string
+    /**
+     * @return int<1, max>
+     */
+    private function timeout(): int
     {
-        $decoded = Base64Url::decode($credentialId);
-
-        return $decoded !== '' ? $decoded : $credentialId;
+        return max(1, $this->config->timeout);
     }
 }

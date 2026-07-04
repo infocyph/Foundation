@@ -8,7 +8,7 @@ use Infocyph\Foundation\Auth\Authorization\Permission\Permission;
 use Infocyph\Foundation\Auth\Authorization\Permission\PermissionAssignmentStoreInterface;
 use Infocyph\Foundation\Auth\Authorization\Permission\PermissionStoreInterface;
 
-final class InMemoryPermissionStore implements PermissionStoreInterface, PermissionAssignmentStoreInterface
+final class InMemoryPermissionStore implements PermissionAssignmentStoreInterface, PermissionStoreInterface
 {
     /**
      * @var array<string, list<string>>

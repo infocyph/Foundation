@@ -9,10 +9,10 @@ use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailVerificationR
 use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailVerificationStatus;
 use Infocyph\Foundation\Auth\Authentication\Login\LoginRequest;
 use Infocyph\Foundation\Auth\Authentication\Login\LoginResult;
+use Infocyph\Foundation\Auth\Authentication\Passwordless\PasswordlessResult;
 use Infocyph\Foundation\Auth\Authentication\PasswordReset\PasswordResetResult;
 use Infocyph\Foundation\Auth\Authentication\PasswordReset\PasswordResetStatus;
-use Infocyph\Foundation\Auth\Authentication\Passwordless\PasswordlessResult;
-use Infocyph\Foundation\Auth\Authentication\Passwordless\PasswordlessStatus;
+use Infocyph\Foundation\Auth\AuthServices;
 use Infocyph\Foundation\Auth\Contract\Security\PasswordHasherInterface;
 use Infocyph\Foundation\Auth\Contract\Security\PasswordPolicyInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
@@ -20,11 +20,10 @@ use Infocyph\Foundation\Auth\Mfa\MfaChallengeResult;
 use Infocyph\Foundation\Auth\Mfa\MfaStatus;
 use Infocyph\Foundation\Auth\Passkey\PasskeyAuthenticationOutcome;
 use Infocyph\Foundation\Auth\Passkey\PasskeyAuthenticationResult;
-use Infocyph\Foundation\Auth\Passkey\PasskeyAuthenticationStatus;
 use Infocyph\Foundation\Auth\Passkey\PasskeyRegistrationOutcome;
 use Infocyph\Foundation\Auth\Passkey\PasskeyRegistrationResult;
 use Infocyph\Foundation\Auth\Passkey\PasskeyRegistrationStatus;
-use Infocyph\Foundation\Auth\AuthServices;
+use Infocyph\Foundation\Support\ValueNormalizer;
 
 final readonly class AuthActions
 {
@@ -35,6 +34,40 @@ final readonly class AuthActions
         private PasswordPolicyInterface $policy,
     ) {}
 
+    /**
+     * @param array<string, mixed> $payload
+     */
+    public function finishPasskeyAuthentication(array $payload): PasskeyAuthenticationOutcome
+    {
+        return $this->services->passkeys->finishAuthentication(
+            $this->passkeyAuthenticationResult($payload),
+            $this->context($payload),
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    public function finishPasskeyRegistration(array $payload): PasskeyRegistrationOutcome
+    {
+        $accountId = $this->accountId($payload);
+        if ($accountId === null) {
+            return new PasskeyRegistrationOutcome(
+                PasskeyRegistrationStatus::INVALID,
+                code: 'account_not_found',
+                context: $this->context($payload),
+            );
+        }
+
+        return $this->services->passkeys->finishRegistration(
+            $this->passkeyRegistrationResult($payload, $accountId),
+            $this->context($payload),
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
     public function login(array $payload): LoginResult
     {
         return $this->services->authenticator->login(new LoginRequest(
@@ -63,6 +96,9 @@ final readonly class AuthActions
         );
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     */
     public function requestEmailVerification(array $payload): EmailVerificationResult
     {
         $account = $this->resolveAccount($payload);
@@ -83,6 +119,9 @@ final readonly class AuthActions
         );
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     */
     public function requestMfa(array $payload): MfaChallengeResult
     {
         $accountId = $this->accountId($payload);
@@ -102,6 +141,20 @@ final readonly class AuthActions
         );
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     */
+    public function requestPasswordless(array $payload): PasswordlessResult
+    {
+        return $this->services->passwordless->issue(
+            $this->string($payload, 'identifier', $this->string($payload, 'email')),
+            $this->context($payload),
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
     public function requestPasswordReset(array $payload): PasswordResetResult
     {
         $account = $this->resolveAccount($payload);
@@ -119,14 +172,23 @@ final readonly class AuthActions
         );
     }
 
-    public function requestPasswordless(array $payload): PasswordlessResult
+    /**
+     * @param array<string, mixed> $payload
+     */
+    public function resetPassword(array $payload): PasswordResetResult
     {
-        return $this->services->passwordless->issue(
-            $this->string($payload, 'identifier', $this->string($payload, 'email')),
-            $this->context($payload),
+        return $this->services->passwordResets->completeWithPlainPassword(
+            token: $this->string($payload, 'token'),
+            plainPassword: $this->string($payload, 'password', $this->string($payload, 'new_password')),
+            hasher: $this->passwords,
+            policy: $this->policy,
+            context: $this->context($payload),
         );
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     */
     public function startPasskeyAuthentication(array $payload): PasskeyAuthenticationOutcome
     {
         return $this->services->passkeys->startAuthentication(
@@ -135,6 +197,9 @@ final readonly class AuthActions
         );
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     */
     public function startPasskeyRegistration(array $payload): PasskeyRegistrationOutcome
     {
         $accountId = $this->accountId($payload);
@@ -152,17 +217,9 @@ final readonly class AuthActions
         );
     }
 
-    public function resetPassword(array $payload): PasswordResetResult
-    {
-        return $this->services->passwordResets->completeWithPlainPassword(
-            token: $this->string($payload, 'token'),
-            plainPassword: $this->string($payload, 'password', $this->string($payload, 'new_password')),
-            hasher: $this->passwords,
-            policy: $this->policy,
-            context: $this->context($payload),
-        );
-    }
-
+    /**
+     * @param array<string, mixed> $payload
+     */
     public function verifyEmail(array $payload): EmailVerificationResult
     {
         return $this->services->emailVerification->verify(
@@ -171,31 +228,9 @@ final readonly class AuthActions
         );
     }
 
-    public function finishPasskeyAuthentication(array $payload): PasskeyAuthenticationOutcome
-    {
-        return $this->services->passkeys->finishAuthentication(
-            $this->passkeyAuthenticationResult($payload),
-            $this->context($payload),
-        );
-    }
-
-    public function finishPasskeyRegistration(array $payload): PasskeyRegistrationOutcome
-    {
-        $accountId = $this->accountId($payload);
-        if ($accountId === null) {
-            return new PasskeyRegistrationOutcome(
-                PasskeyRegistrationStatus::INVALID,
-                code: 'account_not_found',
-                context: $this->context($payload),
-            );
-        }
-
-        return $this->services->passkeys->finishRegistration(
-            $this->passkeyRegistrationResult($payload, $accountId),
-            $this->context($payload),
-        );
-    }
-
+    /**
+     * @param array<string, mixed> $payload
+     */
     public function verifyMfa(array $payload): MfaChallengeResult
     {
         $challengeId = $this->nullableString($payload, 'challenge_id', $this->nullableString($payload, 'challengeId'));
@@ -225,6 +260,9 @@ final readonly class AuthActions
         );
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     */
     public function verifyPasswordless(array $payload): PasswordlessResult
     {
         return $this->services->passwordless->verify(
@@ -233,6 +271,9 @@ final readonly class AuthActions
         );
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     */
     private function accountId(array $payload): ?string
     {
         $direct = $this->nullableString($payload, 'account_id', $this->nullableString($payload, 'accountId'));
@@ -243,6 +284,23 @@ final readonly class AuthActions
         return $this->resolveAccount($payload)?->id();
     }
 
+    private function base64RawId(string $credentialId): string
+    {
+        if ($credentialId === '') {
+            return '';
+        }
+
+        $decoded = base64_decode(strtr($credentialId, '-_', '+/'), true);
+        if (!is_string($decoded)) {
+            return $credentialId;
+        }
+
+        return base64_encode($decoded);
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
     private function bool(array $payload, string $key, bool $default = false): bool
     {
         $value = $payload[$key] ?? null;
@@ -256,12 +314,13 @@ final readonly class AuthActions
     }
 
     /**
+     * @param array<string, mixed> $payload
      * @return array<string, mixed>
      */
     private function context(array $payload): array
     {
-        $context = $payload['context'] ?? null;
-        if (is_array($context)) {
+        $context = ValueNormalizer::associativeArray($payload['context'] ?? null);
+        if ($context !== []) {
             return $context;
         }
 
@@ -307,74 +366,13 @@ final readonly class AuthActions
         return $normalized;
     }
 
-    private function nullableString(array $payload, string $key, ?string $default = null): ?string
-    {
-        $value = $payload[$key] ?? null;
-
-        return is_string($value) && $value !== ''
-            ? $value
-            : $default;
-    }
-
-    private function resolveAccount(array $payload): ?AccountInterface
-    {
-        $accountId = $this->nullableString($payload, 'account_id', $this->nullableString($payload, 'accountId'));
-        if ($accountId !== null) {
-            return $this->accounts->findById($accountId);
-        }
-
-        $identifier = $this->nullableString($payload, 'identifier', $this->nullableString($payload, 'email'));
-
-        return $identifier !== null
-            ? $this->accounts->findByIdentifier($identifier)
-            : null;
-    }
-
-    private function passkeyAuthenticationResult(array $payload): PasskeyAuthenticationResult
-    {
-        $credential = $this->passkeyCredentialPayload($payload);
-
-        return new PasskeyAuthenticationResult(
-            challengeId: $this->stringValue($credential, 'challenge_id', $this->stringValue($credential, 'challengeId', $this->string($payload, 'challenge_id', $this->string($payload, 'challengeId')))),
-            credentialId: $this->stringValue($credential, 'id', $this->stringValue($credential, 'credential_id', $this->stringValue($credential, 'credentialId', $this->string($payload, 'credential_id', $this->string($payload, 'credentialId'))))),
-            clientData: $this->credentialResponseString($credential, 'clientDataJSON', $this->string($payload, 'client_data', $this->string($payload, 'clientData'))),
-            authenticatorData: $this->credentialResponseString($credential, 'authenticatorData', $this->string($payload, 'authenticator_data', $this->string($payload, 'authenticatorData'))),
-            signature: $this->credentialResponseString($credential, 'signature', $this->string($payload, 'signature')),
-            userHandle: $this->credentialResponseNullableString($credential, 'userHandle', $this->nullableString($payload, 'user_handle', $this->nullableString($payload, 'userHandle'))),
-            metadata: $this->passkeyMetadata($payload, $credential),
-        );
-    }
-
-    private function passkeyRegistrationResult(array $payload, string $accountId): PasskeyRegistrationResult
-    {
-        $credential = $this->passkeyCredentialPayload($payload);
-
-        return new PasskeyRegistrationResult(
-            challengeId: $this->stringValue($credential, 'challenge_id', $this->stringValue($credential, 'challengeId', $this->string($payload, 'challenge_id', $this->string($payload, 'challengeId')))),
-            accountId: $accountId,
-            credentialId: $this->stringValue($credential, 'id', $this->stringValue($credential, 'credential_id', $this->stringValue($credential, 'credentialId', $this->string($payload, 'credential_id', $this->string($payload, 'credentialId'))))),
-            publicKey: $this->stringValue($credential, 'public_key', $this->stringValue($credential, 'publicKey', $this->string($payload, 'public_key', $this->string($payload, 'publicKey')))),
-            transports: $this->credentialResponseStringList($credential, 'transports', $this->stringList($credential['transports'] ?? $payload['transports'] ?? [])),
-            signCount: $this->intValue($credential, 'sign_count', $this->intValue($credential, 'signCount', $this->int($payload, 'sign_count', $this->int($payload, 'signCount', 0)))),
-            metadata: $this->passkeyMetadata($payload, $credential),
-        );
-    }
-
-    private function string(array $payload, string $key, string $default = ''): string
-    {
-        $value = $payload[$key] ?? null;
-
-        return is_string($value) ? $value : $default;
-    }
-
     /**
+     * @param array<string, mixed> $payload
      * @return array<string, mixed>
      */
     private function credentialPayload(array $payload): array
     {
-        $credential = $payload['credential'] ?? null;
-
-        return is_array($credential) ? $credential : [];
+        return ValueNormalizer::associativeArray($payload['credential'] ?? null);
     }
 
     /**
@@ -388,20 +386,6 @@ final readonly class AuthActions
             if (is_string($value) && $value !== '') {
                 return $value;
             }
-        }
-
-        return $default;
-    }
-
-    /**
-     * @param array<string, mixed> $credential
-     * @return list<string>
-     */
-    private function credentialResponseStringList(array $credential, string $key, array $default = []): array
-    {
-        $response = $credential['response'] ?? null;
-        if (is_array($response) && is_array($response[$key] ?? null)) {
-            return $this->stringList($response[$key]);
         }
 
         return $default;
@@ -423,6 +407,24 @@ final readonly class AuthActions
         return $default;
     }
 
+    /**
+     * @param array<string, mixed> $credential
+     * @param list<string> $default
+     * @return list<string>
+     */
+    private function credentialResponseStringList(array $credential, string $key, array $default = []): array
+    {
+        $response = $credential['response'] ?? null;
+        if (is_array($response) && is_array($response[$key] ?? null)) {
+            return ValueNormalizer::stringList($response[$key]);
+        }
+
+        return $default;
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
     private function int(array $payload, string $key, int $default = 0): int
     {
         $value = $payload[$key] ?? null;
@@ -430,6 +432,9 @@ final readonly class AuthActions
         return is_numeric($value) ? (int) $value : $default;
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     */
     private function intValue(array $payload, string $key, int $default = 0): int
     {
         $value = $payload[$key] ?? null;
@@ -437,6 +442,9 @@ final readonly class AuthActions
         return is_numeric($value) ? (int) $value : $default;
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     */
     private function nullableArrayString(array $payload, string $key, ?string $default = null): ?string
     {
         $value = $payload[$key] ?? null;
@@ -448,25 +456,42 @@ final readonly class AuthActions
 
     /**
      * @param array<string, mixed> $payload
-     * @param array<string, mixed> $credential
-     * @return array<string, mixed>
      */
-    private function passkeyMetadata(array $payload, array $credential): array
+    private function nullableString(array $payload, string $key, ?string $default = null): ?string
     {
-        $metadata = $this->context($payload);
-        $metadata['credential'] = $credential;
+        $value = $payload[$key] ?? null;
 
-        return $metadata;
+        return is_string($value) && $value !== ''
+            ? $value
+            : $default;
     }
 
     /**
+     * @param array<string, mixed> $payload
+     */
+    private function passkeyAuthenticationResult(array $payload): PasskeyAuthenticationResult
+    {
+        $credential = $this->passkeyCredentialPayload($payload);
+
+        return new PasskeyAuthenticationResult(
+            challengeId: $this->stringValue($credential, 'challenge_id', $this->stringValue($credential, 'challengeId', $this->string($payload, 'challenge_id', $this->string($payload, 'challengeId')))),
+            credentialId: $this->stringValue($credential, 'id', $this->stringValue($credential, 'credential_id', $this->stringValue($credential, 'credentialId', $this->string($payload, 'credential_id', $this->string($payload, 'credentialId'))))),
+            clientData: $this->credentialResponseString($credential, 'clientDataJSON', $this->string($payload, 'client_data', $this->string($payload, 'clientData'))),
+            authenticatorData: $this->credentialResponseString($credential, 'authenticatorData', $this->string($payload, 'authenticator_data', $this->string($payload, 'authenticatorData'))),
+            signature: $this->credentialResponseString($credential, 'signature', $this->string($payload, 'signature')),
+            userHandle: $this->credentialResponseNullableString($credential, 'userHandle', $this->nullableString($payload, 'user_handle', $this->nullableString($payload, 'userHandle'))),
+            metadata: $this->passkeyMetadata($payload, $credential),
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $payload
      * @return array<string, mixed>
      */
     private function passkeyCredentialPayload(array $payload): array
     {
         $credential = $this->credentialPayload($payload);
-        $response = $credential['response'] ?? null;
-        $response = is_array($response) ? $response : [];
+        $response = ValueNormalizer::associativeArray($credential['response'] ?? null);
 
         $id = $this->stringValue(
             $credential,
@@ -532,41 +557,67 @@ final readonly class AuthActions
         return $credential;
     }
 
-    private function base64RawId(string $credentialId): string
+    /**
+     * @param array<string, mixed> $payload
+     * @param array<string, mixed> $credential
+     * @return array<string, mixed>
+     */
+    private function passkeyMetadata(array $payload, array $credential): array
     {
-        if ($credentialId === '') {
-            return '';
-        }
+        $metadata = $this->context($payload);
+        $metadata['credential'] = $credential;
 
-        $decoded = base64_decode(strtr($credentialId, '-_', '+/'), true);
-        if (!is_string($decoded)) {
-            return $credentialId;
-        }
-
-        return base64_encode($decoded);
+        return $metadata;
     }
 
     /**
-     * @return list<string>
+     * @param array<string, mixed> $payload
      */
-    private function stringList(mixed $value): array
+    private function passkeyRegistrationResult(array $payload, string $accountId): PasskeyRegistrationResult
     {
-        if (!is_array($value)) {
-            return [];
-        }
+        $credential = $this->passkeyCredentialPayload($payload);
 
-        $items = [];
-        foreach ($value as $item) {
-            if (!is_string($item) || $item === '') {
-                continue;
-            }
-
-            $items[] = $item;
-        }
-
-        return $items;
+        return new PasskeyRegistrationResult(
+            challengeId: $this->stringValue($credential, 'challenge_id', $this->stringValue($credential, 'challengeId', $this->string($payload, 'challenge_id', $this->string($payload, 'challengeId')))),
+            accountId: $accountId,
+            credentialId: $this->stringValue($credential, 'id', $this->stringValue($credential, 'credential_id', $this->stringValue($credential, 'credentialId', $this->string($payload, 'credential_id', $this->string($payload, 'credentialId'))))),
+            publicKey: $this->stringValue($credential, 'public_key', $this->stringValue($credential, 'publicKey', $this->string($payload, 'public_key', $this->string($payload, 'publicKey')))),
+            transports: $this->credentialResponseStringList($credential, 'transports', ValueNormalizer::stringList($credential['transports'] ?? $payload['transports'] ?? [])),
+            signCount: $this->intValue($credential, 'sign_count', $this->intValue($credential, 'signCount', $this->int($payload, 'sign_count', $this->int($payload, 'signCount', 0)))),
+            metadata: $this->passkeyMetadata($payload, $credential),
+        );
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function resolveAccount(array $payload): ?AccountInterface
+    {
+        $accountId = $this->nullableString($payload, 'account_id', $this->nullableString($payload, 'accountId'));
+        if ($accountId !== null) {
+            return $this->accounts->findById($accountId);
+        }
+
+        $identifier = $this->nullableString($payload, 'identifier', $this->nullableString($payload, 'email'));
+
+        return $identifier !== null
+            ? $this->accounts->findByIdentifier($identifier)
+            : null;
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function string(array $payload, string $key, string $default = ''): string
+    {
+        $value = $payload[$key] ?? null;
+
+        return is_string($value) ? $value : $default;
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
     private function stringValue(array $payload, string $key, string $default = ''): string
     {
         $value = $payload[$key] ?? null;

@@ -78,9 +78,7 @@ final class ValidationSchemaRegistry
      */
     public function schema(string $name): ?array
     {
-        $schema = $this->schemas[$name] ?? null;
-
-        return is_array($schema) ? $schema : null;
+        return $this->schemas[$name] ?? null;
     }
 
     /**
@@ -104,7 +102,24 @@ final class ValidationSchemaRegistry
     }
 
     /**
-     * @param mixed $schemas
+     * @param array<mixed, mixed> $schema
+     * @return array<string, mixed>
+     */
+    private function normalizeSchema(array $schema): array
+    {
+        $normalized = [];
+        foreach ($schema as $field => $rule) {
+            if (!is_string($field)) {
+                continue;
+            }
+
+            $normalized[$field] = $rule;
+        }
+
+        return $normalized;
+    }
+
+    /**
      * @return array<string, array<string, mixed>>
      */
     private function normalizeSchemas(mixed $schemas): array
@@ -120,24 +135,6 @@ final class ValidationSchemaRegistry
             }
 
             $normalized[$name] = $this->normalizeSchema($schema);
-        }
-
-        return $normalized;
-    }
-
-    /**
-     * @param array<string, mixed> $schema
-     * @return array<string, mixed>
-     */
-    private function normalizeSchema(array $schema): array
-    {
-        $normalized = [];
-        foreach ($schema as $field => $rule) {
-            if (!is_string($field)) {
-                continue;
-            }
-
-            $normalized[$field] = $rule;
         }
 
         return $normalized;

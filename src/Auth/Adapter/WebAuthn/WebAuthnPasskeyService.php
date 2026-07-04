@@ -14,6 +14,7 @@ use Infocyph\Foundation\Auth\Passkey\PasskeyCredentialStoreInterface;
 use Infocyph\Foundation\Auth\Passkey\PasskeyRegistrationResult;
 use Infocyph\Foundation\Auth\Passkey\PasskeyServiceInterface;
 use Infocyph\Foundation\Auth\Passkey\PasskeyVerificationResult;
+use Infocyph\Foundation\Support\ValueNormalizer;
 use Webauthn\AuthenticatorAssertionResponse;
 use Webauthn\AuthenticatorAttestationResponse;
 use Webauthn\CredentialRecord;
@@ -145,105 +146,66 @@ final readonly class WebAuthnPasskeyService implements PasskeyServiceInterface
 
     public function startAuthentication(?string $accountId = null): PasskeyChallenge
     {
-        $challengeId = $this->ids->challengeId();
-        $challenge = Base64Url::random(32);
-        $issuedAt = $this->clock->now();
-        $expiresAt = $issuedAt + $this->config->challengeTtl;
         $allowedCredentialIds = [];
 
         if ($accountId !== null) {
-            $allowedCredentialIds = array_map(
-                static fn(PasskeyCredential $credential): string => $credential->credentialId,
-                array_filter(
-                    $this->credentials->findForAccount($accountId),
-                    static fn(PasskeyCredential $credential): bool => !$credential->isRevoked(),
-                ),
-            );
+            $allowedCredentialIds = $this->activeCredentialIdsForAccount($accountId);
         }
 
-        $record = new WebAuthnChallengeRecord(
-            id: $challengeId,
+        return $this->createChallenge(
             accountId: $accountId,
             purpose: 'authentication',
-            challenge: $challenge,
-            issuedAt: $issuedAt,
-            expiresAt: $expiresAt,
-            allowedCredentialIds: $allowedCredentialIds,
-        );
-
-        $this->challenges->put($record, $this->config->challengeTtl);
-
-        return new PasskeyChallenge(
-            id: $challengeId,
-            accountId: $accountId,
-            purpose: 'authentication',
-            challenge: $challenge,
-            issuedAt: $issuedAt,
-            expiresAt: $expiresAt,
+            recordMetadata: [],
             metadata: [
-                'publicKey' => $this->options->authentication(
+                'publicKey' => fn(string $challenge) => $this->options->authentication(
                     Base64Url::decode($challenge),
                     $allowedCredentialIds,
                 ),
-                'webauthn' => [
-                    'origin' => $this->config->origin,
-                    'rp_id' => $this->config->rpId,
-                ],
             ],
+            allowedCredentialIds: $allowedCredentialIds,
         );
     }
 
     public function startRegistration(string $accountId): PasskeyChallenge
     {
-        $challengeId = $this->ids->challengeId();
-        $challenge = Base64Url::random(32);
-        $issuedAt = $this->clock->now();
-        $expiresAt = $issuedAt + $this->config->challengeTtl;
-        $excludedCredentialIds = array_map(
-            static fn(PasskeyCredential $credential): string => $credential->credentialId,
-            array_filter(
-                $this->credentials->findForAccount($accountId),
-                static fn(PasskeyCredential $credential): bool => !$credential->isRevoked(),
-            ),
-        );
+        $excludedCredentialIds = $this->activeCredentialIdsForAccount($accountId);
 
-        $record = new WebAuthnChallengeRecord(
-            id: $challengeId,
+        return $this->createChallenge(
             accountId: $accountId,
             purpose: 'registration',
-            challenge: $challenge,
-            issuedAt: $issuedAt,
-            expiresAt: $expiresAt,
-            metadata: [
+            recordMetadata: [
                 'exclude_credential_ids' => $excludedCredentialIds,
             ],
-        );
-
-        $this->challenges->put($record, $this->config->challengeTtl);
-
-        return new PasskeyChallenge(
-            id: $challengeId,
-            accountId: $accountId,
-            purpose: 'registration',
-            challenge: $challenge,
-            issuedAt: $issuedAt,
-            expiresAt: $expiresAt,
             metadata: [
-                'publicKey' => $this->options->registration(
+                'publicKey' => fn(string $challenge) => $this->options->registration(
                     $accountId,
                     Base64Url::decode($challenge),
                     $excludedCredentialIds,
                 ),
-                'webauthn' => [
-                    'origin' => $this->config->origin,
-                    'rp_id' => $this->config->rpId,
-                ],
             ],
+            allowedCredentialIds: [],
         );
     }
 
     /**
-     * @param array<string, mixed> $metadata
+     * @return list<string>
+     */
+    private function activeCredentialIdsForAccount(string $accountId): array
+    {
+        $credentialIds = [];
+
+        foreach ($this->credentials->findForAccount($accountId) as $credential) {
+            if ($credential->isRevoked()) {
+                continue;
+            }
+
+            $credentialIds[] = $credential->credentialId;
+        }
+
+        return $credentialIds;
+    }
+
+    /**
      * @return list<string>
      */
     private function challengeCredentialIds(WebAuthnChallengeRecord $challenge, string $key): array
@@ -253,10 +215,7 @@ final readonly class WebAuthnPasskeyService implements PasskeyServiceInterface
             return [];
         }
 
-        return array_values(array_filter(
-            $credentialIds,
-            static fn(mixed $credentialId): bool => is_string($credentialId) && $credentialId !== '',
-        ));
+        return ValueNormalizer::stringList($credentialIds);
     }
 
     private function consumeChallenge(string $challengeId, string $purpose): WebAuthnChallengeRecord
@@ -277,11 +236,72 @@ final readonly class WebAuthnPasskeyService implements PasskeyServiceInterface
         return $record;
     }
 
+    /**
+     * @param array<string, mixed> $recordMetadata
+     * @param array<string, mixed> $metadata
+     * @param list<string> $allowedCredentialIds
+     */
+    private function createChallenge(
+        ?string $accountId,
+        string $purpose,
+        array $recordMetadata,
+        array $metadata,
+        array $allowedCredentialIds,
+    ): PasskeyChallenge {
+        $challengeId = $this->ids->challengeId();
+        $challenge = Base64Url::random(32);
+        $issuedAt = $this->clock->now();
+        $expiresAt = $issuedAt + $this->config->challengeTtl;
+
+        $this->challenges->put(new WebAuthnChallengeRecord(
+            id: $challengeId,
+            accountId: $accountId,
+            purpose: $purpose,
+            challenge: $challenge,
+            issuedAt: $issuedAt,
+            expiresAt: $expiresAt,
+            allowedCredentialIds: $allowedCredentialIds,
+            metadata: $recordMetadata,
+        ), $this->config->challengeTtl);
+
+        return new PasskeyChallenge(
+            id: $challengeId,
+            accountId: $accountId,
+            purpose: $purpose,
+            challenge: $challenge,
+            issuedAt: $issuedAt,
+            expiresAt: $expiresAt,
+            metadata: [
+                'publicKey' => isset($metadata['publicKey']) && $metadata['publicKey'] instanceof \Closure
+                    ? $metadata['publicKey']($challenge)
+                    : null,
+                'webauthn' => [
+                    'origin' => $this->config->origin,
+                    'rp_id' => $this->config->rpId,
+                ],
+            ],
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $metadata
+     * @return array<string, mixed>
+     */
+    private function credentialPayloadFromMetadata(array $metadata): array
+    {
+        $credential = $metadata['credential'] ?? null;
+
+        return ValueNormalizer::associativeArray($credential);
+    }
+
     private function credentialRecord(PasskeyCredential $credential): CredentialRecord
     {
         $payload = $this->storedCredentialRecordPayload($credential);
         $record = $this->runtime->denormalizeCredentialRecord($payload);
-        $userHandle = Base64Url::decode($payload['userHandle'] ?? '');
+        $encodedUserHandle = $payload['userHandle'] ?? null;
+        $userHandle = is_string($encodedUserHandle)
+            ? Base64Url::decode($encodedUserHandle)
+            : '';
         $userHandle = $userHandle !== '' ? $userHandle : $credential->accountId;
 
         return CredentialRecord::create(
@@ -313,17 +333,6 @@ final readonly class WebAuthnPasskeyService implements PasskeyServiceInterface
         $decoded = Base64Url::decode($publicKey);
 
         return $decoded !== '' ? $decoded : $publicKey;
-    }
-
-    /**
-     * @param array<string, mixed> $metadata
-     * @return array<string, mixed>
-     */
-    private function credentialPayloadFromMetadata(array $metadata): array
-    {
-        $credential = $metadata['credential'] ?? null;
-
-        return is_array($credential) ? $credential : [];
     }
 
     private function host(): string
@@ -394,13 +403,13 @@ final readonly class WebAuthnPasskeyService implements PasskeyServiceInterface
      */
     private function storedCredentialRecordPayload(PasskeyCredential $credential): array
     {
-        $webauthn = $credential->metadata['webauthn'] ?? null;
-        if (!is_array($webauthn)) {
+        $webauthn = ValueNormalizer::associativeArray($credential->metadata['webauthn'] ?? null);
+        if ($webauthn === []) {
             throw new WebAuthnException('Stored WebAuthn credential metadata is missing.');
         }
 
-        $record = $webauthn['credential_record'] ?? null;
-        if (!is_array($record)) {
+        $record = ValueNormalizer::associativeArray($webauthn['credential_record'] ?? null);
+        if ($record === []) {
             throw new WebAuthnException('Stored WebAuthn credential record is missing.');
         }
 

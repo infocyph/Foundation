@@ -50,12 +50,6 @@ final readonly class AuthDriverResolver
         return $this->enumConfig('auth.drivers.storage', 'memory', AuthStorageDriver::class);
     }
 
-    public function tokens(): AuthTokenDriver
-    {
-        /** @var AuthTokenDriver */
-        return $this->enumConfig('auth.drivers.tokens', 'simple', AuthTokenDriver::class);
-    }
-
     /**
      * @return array<string, string>
      */
@@ -72,14 +66,21 @@ final readonly class AuthDriverResolver
         ];
     }
 
+    public function tokens(): AuthTokenDriver
+    {
+        /** @var AuthTokenDriver */
+        return $this->enumConfig('auth.drivers.tokens', 'simple', AuthTokenDriver::class);
+    }
+
     /**
      * @template T of BackedEnum
+     *
      * @param class-string<T> $enumClass
      * @return T
      */
     private function enumConfig(string $key, string $default, string $enumClass): BackedEnum
     {
-        $value = (string) $this->config->get($key, $default);
+        $value = $this->stringConfig($key, $default);
         $resolved = $enumClass::tryFrom($value);
 
         if (!$resolved instanceof $enumClass) {
@@ -91,5 +92,12 @@ final readonly class AuthDriverResolver
         }
 
         return $resolved;
+    }
+
+    private function stringConfig(string $key, string $default): string
+    {
+        $value = $this->config->get($key, $default);
+
+        return is_string($value) ? $value : $default;
     }
 }

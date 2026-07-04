@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Adapter\CacheLayer;
 
-use Infocyph\Foundation\Auth\Contract\Cache\CounterStoreInterface;
 use Infocyph\CacheLayer\Cache\CacheInterface;
+use Infocyph\Foundation\Auth\Contract\Cache\CounterStoreInterface;
 
 final readonly class CacheLayerCounterStore implements CounterStoreInterface
 {
