@@ -91,6 +91,8 @@ Use one of these entry modes:
 - `Foundation::api([...])`
 - `Foundation::create([...])`
 
+Foundation loads `.env` and `.env.local` from the project root before evaluating `config/*.php`, so host apps do not need an external dotenv package just to make `$_ENV` values available.
+
 ## Config
 
 Foundation loads configuration in this order:
@@ -101,6 +103,25 @@ Foundation loads configuration in this order:
 4. inline config passed at boot
 
 That means your app config files override the preset, and inline config overrides both.
+
+Environment files are loaded earlier as part of boot preparation:
+
+1. `.env`
+2. `.env.local`
+3. `config/*.php`
+4. inline config passed at boot
+
+You can disable env loading or replace the file list with inline app config:
+
+```php
+Foundation::create([
+    'base_path' => dirname(__DIR__),
+    'app' => [
+        'load_env' => true,
+        'env_files' => ['.env', '.env.testing'],
+    ],
+]);
+```
 
 Example `config/app.php`:
 

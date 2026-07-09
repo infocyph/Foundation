@@ -17,6 +17,8 @@ final class FoundationDefaults
                 'container_alias' => null,
                 'debug' => false,
                 'env' => 'local',
+                'env_files' => ['.env', '.env.local'],
+                'load_env' => true,
                 'name' => 'Foundation Application',
             ],
             'cache' => [

@@ -19,6 +19,7 @@ final class ConfigLoader
         unset($normalized['_preset']);
 
         $basePath = $this->basePath($normalized);
+        new EnvironmentLoader()->load($basePath, $normalized);
         $fileConfig = $this->loadProjectConfig($basePath, $normalized);
 
         return new ConfigRepository(ConfigMerger::mergeMany([
