@@ -467,9 +467,42 @@ final class FoundationDefaults
                 ],
             ],
             'security' => [
+                'epicrypt' => [
+                    'csrf' => [
+                        'secret' => null,
+                        'ttl_seconds' => 3600,
+                    ],
+                    'profile' => 'modern',
+                    'files' => [
+                        'chunk_size' => 8192,
+                    ],
+                    'integrity' => [
+                        'algorithm' => 'sha256',
+                    ],
+                    'key_rings' => [],
+                    'signed_urls' => [
+                        'expires_param' => 'ep_exp',
+                        'secret' => null,
+                        'signature_param' => 'ep_sig',
+                        'options' => [
+                            'allow_absolute_urls' => true,
+                            'allow_array_parameters' => false,
+                            'allow_relative_urls' => false,
+                            'allowed_hosts' => null,
+                            'bind_host' => true,
+                            'bind_scheme' => true,
+                            'method' => null,
+                        ],
+                    ],
+                    'tokens' => [
+                        'secret' => null,
+                        'ttl_seconds' => 900,
+                    ],
+                ],
                 'signed_urls' => true,
             ],
             'validation' => [
+                'database_connection' => null,
                 'extend' => [],
                 'fail_fast' => true,
                 'schemas' => [],

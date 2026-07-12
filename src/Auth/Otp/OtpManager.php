@@ -13,6 +13,8 @@ use Infocyph\Foundation\Auth\Mfa\MfaManager;
 use Infocyph\Foundation\Auth\Mfa\MfaVerificationResult;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Support\ValueNormalizer;
+use Infocyph\OTP\HOTP;
+use Infocyph\OTP\OCRA;
 use Infocyph\OTP\Result\StepUpResult;
 use Infocyph\OTP\Support\SecretUtility;
 use Infocyph\OTP\Support\StepUp;
@@ -150,6 +152,11 @@ final readonly class OtpManager
         return TOTP::generateSecret($bytes ?? $this->secretBytes());
     }
 
+    public function hotp(string $secret, int $digits = 6): HOTP
+    {
+        return new HOTP($secret, $digits);
+    }
+
     public function isValidSecret(string $secret): bool
     {
         return SecretUtility::isValidBase32($secret);
@@ -158,6 +165,11 @@ final readonly class OtpManager
     public function normalizeSecret(string $secret): string
     {
         return SecretUtility::normalizeBase32($secret);
+    }
+
+    public function ocra(string $suite, string $sharedKey): OCRA
+    {
+        return new OCRA($suite, $sharedKey);
     }
 
     public function parseProvisioningUri(string $uri): ParsedOtpAuthUri

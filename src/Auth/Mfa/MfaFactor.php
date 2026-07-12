@@ -31,4 +31,18 @@ final readonly class MfaFactor
             metadata: $this->metadata,
         );
     }
+
+    /** @param array<string, mixed> $metadata */
+    public function withMetadata(array $metadata): self
+    {
+        return new self(
+            id: $this->id,
+            accountId: $this->accountId,
+            type: $this->type,
+            label: $this->label,
+            enabled: $this->enabled,
+            createdAt: $this->createdAt,
+            metadata: $metadata,
+        );
+    }
 }

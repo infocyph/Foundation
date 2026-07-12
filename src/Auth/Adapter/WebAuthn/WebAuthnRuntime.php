@@ -8,8 +8,6 @@ use Infocyph\Foundation\Support\ValueNormalizer;
 use JsonException;
 
 use Symfony\Component\Serializer\SerializerInterface;
-use Webauthn\AttestationStatement\AttestationStatementSupportManager;
-use Webauthn\AttestationStatement\NoneAttestationStatementSupport;
 use Webauthn\AuthenticatorAssertionResponseValidator;
 use Webauthn\AuthenticatorAttestationResponseValidator;
 use Webauthn\CeremonyStep\CeremonyStepManagerFactory;
@@ -31,6 +29,7 @@ final class WebAuthnRuntime
 
     public function __construct(
         private readonly WebAuthnConfig $config,
+        private readonly WebAuthnAttestationPolicyInterface $attestationPolicy = new NoneWebAuthnAttestationPolicy(),
     ) {}
 
     public function assertionValidator(): AuthenticatorAssertionResponseValidator
@@ -115,6 +114,8 @@ final class WebAuthnRuntime
             $factory->setSecuredRelyingPartyId([$this->config->rpId]);
         }
 
+        $this->attestationPolicy->configure($this->config, $factory);
+
         return $factory;
     }
 
@@ -151,9 +152,7 @@ final class WebAuthnRuntime
         }
 
         $factory = new WebauthnSerializerFactory(
-            AttestationStatementSupportManager::create([
-                NoneAttestationStatementSupport::create(),
-            ]),
+            $this->attestationPolicy->supportManager($this->config),
         );
 
         return $this->serializer = $factory->create();

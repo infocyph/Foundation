@@ -31,10 +31,12 @@ final readonly class WebAuthnConfig
      */
     public static function fromArray(array $config): self
     {
-        $attestation = self::string($config['attestation'] ?? null, 'none');
-        if ($attestation !== 'none') {
-            throw new ConfigurationException('Only WebAuthn attestation=none is currently supported.');
-        }
+        $attestation = self::enumString(
+            $config['attestation'] ?? null,
+            ['none', 'direct', 'indirect', 'enterprise'],
+            'none',
+            'auth.webauthn.attestation',
+        );
 
         $userVerification = self::enumString(
             $config['user_verification'] ?? null,

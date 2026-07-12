@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Facades;
 
 use Infocyph\Foundation\Communication\CommunicationManager;
+use Infocyph\TalkingBytes\Core\Contract\MiddlewareInterface;
+use Infocyph\TalkingBytes\Core\Contract\TransportInterface;
 use Infocyph\TalkingBytes\Core\Event\EventDispatcher;
+use Infocyph\TalkingBytes\Core\Pipeline\MiddlewarePipeline;
 use Infocyph\TalkingBytes\Grpc\GrpcClient;
 use Infocyph\TalkingBytes\Grpc\GrpcServer;
 use Infocyph\TalkingBytes\Grpc\Native\NativeGrpcInvoker;
@@ -14,6 +17,9 @@ use Infocyph\TalkingBytes\Http\Concurrent\RequestPool;
 use Infocyph\TalkingBytes\Http\HttpClient;
 use Infocyph\TalkingBytes\Http\HttpClientConfig;
 use Infocyph\TalkingBytes\Http\Testing\FakeHttpTransport;
+use Infocyph\TalkingBytes\Signing\HmacSha256Signer;
+use Infocyph\TalkingBytes\Signing\RequestSignerInterface;
+use Infocyph\TalkingBytes\Signing\SignatureVerifier;
 use Infocyph\TalkingBytes\Webhook\Contracts\WebhookReplayStore;
 use Infocyph\TalkingBytes\Webhook\Testing\FakeWebhookSender;
 use Infocyph\TalkingBytes\Webhook\WebhookReceiver;
@@ -48,6 +54,12 @@ final class Comms extends Facade
         return self::manager()->grpcClient($caller, $profile);
     }
 
+    /** @param array<string, string> $methodMap */
+    public static function grpcGeneratedStubClient(object $stubClient, array $methodMap = [], ?string $profile = null): GrpcClient
+    {
+        return self::manager()->grpcGeneratedStubClient($stubClient, $methodMap, $profile);
+    }
+
     public static function grpcNativeClient(
         NativeGrpcInvoker $invoker,
         ?NativeGrpcStreamingInvoker $streamingInvoker = null,
@@ -62,6 +74,11 @@ final class Comms extends Facade
     public static function grpcServer(array $handlers = []): GrpcServer
     {
         return self::manager()->grpcServer($handlers);
+    }
+
+    public static function hmacSigner(string $secret): HmacSha256Signer
+    {
+        return self::manager()->hmacSigner($secret);
     }
 
     public static function httpClient(?string $profile = null): HttpClient
@@ -82,6 +99,17 @@ final class Comms extends Facade
     public static function manager(): CommunicationManager
     {
         return self::app()->communication();
+    }
+
+    /** @param list<MiddlewareInterface> $middlewares */
+    public static function pipeline(TransportInterface $transport, array $middlewares = []): MiddlewarePipeline
+    {
+        return self::manager()->pipeline($transport, $middlewares);
+    }
+
+    public static function signatureVerifier(RequestSignerInterface $signer): SignatureVerifier
+    {
+        return self::manager()->signatureVerifier($signer);
     }
 
     public static function useEventDispatcher(EventDispatcher $dispatcher): void

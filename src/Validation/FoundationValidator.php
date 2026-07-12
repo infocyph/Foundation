@@ -16,6 +16,7 @@ final readonly class FoundationValidator
 {
     public function __construct(
         private ConfigRepository $config,
+        private ReqShieldDatabaseProvider $database,
         private ValidationSchemaRegistry $schemas,
     ) {}
 
@@ -105,7 +106,7 @@ final readonly class FoundationValidator
 
     public function validator(string $schema): ReqShieldValidator
     {
-        $validator = ReqShieldValidator::make($this->rules($schema));
+        $validator = ReqShieldValidator::make($this->rules($schema), $this->database);
         $options = $this->options($schema);
 
         $validator->setFailFast(ValueNormalizer::bool($options['fail_fast'] ?? true, true));

@@ -11,6 +11,9 @@ use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\TalkingBytes\Email\Config\ImapConfig;
 use Infocyph\TalkingBytes\Email\Config\Pop3Config;
 use Infocyph\TalkingBytes\Email\Config\SpoolConfig;
+use Infocyph\TalkingBytes\Email\Dkim\DkimPublicKeyResolver;
+use Infocyph\TalkingBytes\Email\Dkim\DkimVerifier;
+use Infocyph\TalkingBytes\Email\Dkim\DnsDkimPublicKeyResolver;
 use Infocyph\TalkingBytes\Email\Email;
 use Infocyph\TalkingBytes\Email\Emailer;
 use Infocyph\TalkingBytes\Email\EmailMailboxFactory;
@@ -56,6 +59,11 @@ final readonly class NotificationManager extends AbstractContainerManager
             BounceParser::class,
             'Notification bounce parser must resolve to BounceParser.',
         );
+    }
+
+    public function dkimVerifier(?DkimPublicKeyResolver $resolver = null): DkimVerifier
+    {
+        return new DkimVerifier($resolver ?? new DnsDkimPublicKeyResolver());
     }
 
     public function emailer(): Emailer

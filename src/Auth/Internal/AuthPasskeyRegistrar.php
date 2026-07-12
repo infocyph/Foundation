@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Internal;
 
+use Infocyph\Foundation\Auth\Adapter\WebAuthn\NoneWebAuthnAttestationPolicy;
+use Infocyph\Foundation\Auth\Adapter\WebAuthn\WebAuthnAttestationPolicyInterface;
 use Infocyph\Foundation\Auth\Adapter\WebAuthn\WebAuthnChallengeStore;
 use Infocyph\Foundation\Auth\Adapter\WebAuthn\WebAuthnConfigResolver;
 use Infocyph\Foundation\Auth\Adapter\WebAuthn\WebAuthnCredentialMapper;
@@ -41,6 +43,7 @@ final readonly class AuthPasskeyRegistrar extends AbstractAuthRegistrar
             ));
             $this->singleton(WebAuthnRuntime::class, fn() => new WebAuthnRuntime(
                 $this->app->make(WebAuthnConfigResolver::class)->resolve(),
+                $this->attestationPolicy(),
             ));
             $this->singleton(WebAuthnCredentialMapper::class, fn() => new WebAuthnCredentialMapper(
                 $this->app->make(AuthIdGeneratorInterface::class),
@@ -70,5 +73,14 @@ final readonly class AuthPasskeyRegistrar extends AbstractAuthRegistrar
             $this->app->make(ClockInterface::class),
             $this->intConfig('auth.passkey_challenge_ttl', 300),
         ));
+    }
+
+    private function attestationPolicy(): WebAuthnAttestationPolicyInterface
+    {
+        if ($this->app->has(WebAuthnAttestationPolicyInterface::class)) {
+            return $this->app->make(WebAuthnAttestationPolicyInterface::class);
+        }
+
+        return new NoneWebAuthnAttestationPolicy();
     }
 }

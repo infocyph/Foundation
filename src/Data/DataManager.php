@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Data;
 
+use Infocyph\ArrayKit\Array\ArrayShape;
 use Infocyph\ArrayKit\ArrayKit;
 use Infocyph\ArrayKit\Collection\Collection;
 use Infocyph\ArrayKit\Collection\HookedCollection;
@@ -38,6 +39,11 @@ final readonly class DataManager
     public function dot(): ModuleProxy
     {
         return ArrayKit::dot();
+    }
+
+    public function dotenv(): ModuleProxy
+    {
+        return ArrayKit::dotenv();
     }
 
     /**
@@ -88,6 +94,11 @@ final readonly class DataManager
         return Environment::get($key, $default);
     }
 
+    public function environment(): ModuleProxy
+    {
+        return ArrayKit::env();
+    }
+
     public function helper(): ModuleProxy
     {
         return ArrayKit::helper();
@@ -131,6 +142,16 @@ final readonly class DataManager
     public function pipeline(mixed $data): Pipeline
     {
         return ArrayKit::pipeline($data);
+    }
+
+    /**
+     * @param array<array-key, mixed> $row
+     * @param array<string, string> $shape
+     * @return array<array-key, mixed>
+     */
+    public function requireShape(array $row, array $shape): array
+    {
+        return ArrayShape::require($row, $shape);
     }
 
     public function single(): ModuleProxy

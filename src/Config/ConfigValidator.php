@@ -347,9 +347,9 @@ final readonly class ConfigValidator
             );
         }
 
-        if (!is_string($attestation) || $attestation !== 'none') {
+        if (!is_string($attestation) || !in_array($attestation, ['none', 'direct', 'indirect', 'enterprise'], true)) {
             $issues[] = new ConfigIssue(
-                'auth.webauthn.attestation must be "none" because other attestation modes are not supported yet.',
+                'auth.webauthn.attestation must be one of: none, direct, indirect, enterprise.',
                 'auth.webauthn.attestation',
             );
         }

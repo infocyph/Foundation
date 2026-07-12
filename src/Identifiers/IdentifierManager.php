@@ -253,9 +253,19 @@ final readonly class IdentifierManager
         return Id::uuid1($node);
     }
 
+    public function uuid3(string $namespace, string $name): string
+    {
+        return Id::uuid3($namespace, $name);
+    }
+
     public function uuid4(): string
     {
         return Id::uuid4();
+    }
+
+    public function uuid5(string $namespace, string $name): string
+    {
+        return Id::uuid5($namespace, $name);
     }
 
     public function uuid6(?string $node = null): string
@@ -271,6 +281,26 @@ final readonly class IdentifierManager
     public function uuid8(?string $node = null): string
     {
         return Id::uuid8($node);
+    }
+
+    public function uuidFromBase(string $encoded, int $base): string
+    {
+        return UUID::fromBase($encoded, $base);
+    }
+
+    public function uuidFromBytes(string $bytes): string
+    {
+        return UUID::fromBytes($bytes);
+    }
+
+    public function uuidToBase(string $uuid, int $base): string
+    {
+        return UUID::toBase($uuid, $base);
+    }
+
+    public function uuidToBytes(string $uuid): string
+    {
+        return UUID::toBytes($uuid);
     }
 
     public function xid(): string

@@ -5,10 +5,26 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Auth\Adapter\DBLayer;
 
 use Infocyph\Foundation\Auth\Mfa\MfaFactor;
-use Infocyph\Foundation\Auth\Mfa\MfaFactorStoreInterface;
+use Infocyph\Foundation\Auth\Mfa\MfaFactorCompareAndSwapStoreInterface;
 
-final readonly class DBLayerMfaFactorStore extends DBLayerStore implements MfaFactorStoreInterface
+final readonly class DBLayerMfaFactorStore extends DBLayerStore implements MfaFactorCompareAndSwapStoreInterface
 {
+    public function compareAndSwap(MfaFactor $expected, MfaFactor $updated): bool
+    {
+        if ($updated->id !== $expected->id) {
+            return false;
+        }
+
+        return $this->connection()->update(
+            sprintf('UPDATE %s SET metadata = ? WHERE id = ? AND metadata = ?', $this->table('mfaFactors')),
+            [
+                DBLayerJson::encode($updated->metadata),
+                $expected->id,
+                DBLayerJson::encode($expected->metadata),
+            ],
+        ) === 1;
+    }
+
     public function findForAccount(string $accountId): array
     {
         return array_map(

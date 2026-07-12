@@ -145,9 +145,19 @@ final class Ids extends Facade
         return self::manager()->uuid1($node);
     }
 
+    public static function uuid3(string $namespace, string $name): string
+    {
+        return self::manager()->uuid3($namespace, $name);
+    }
+
     public static function uuid4(): string
     {
         return self::manager()->uuid4();
+    }
+
+    public static function uuid5(string $namespace, string $name): string
+    {
+        return self::manager()->uuid5($namespace, $name);
     }
 
     public static function uuid6(?string $node = null): string
@@ -163,6 +173,26 @@ final class Ids extends Facade
     public static function uuid8(?string $node = null): string
     {
         return self::manager()->uuid8($node);
+    }
+
+    public static function uuidFromBase(string $encoded, int $base): string
+    {
+        return self::manager()->uuidFromBase($encoded, $base);
+    }
+
+    public static function uuidFromBytes(string $bytes): string
+    {
+        return self::manager()->uuidFromBytes($bytes);
+    }
+
+    public static function uuidToBase(string $uuid, int $base): string
+    {
+        return self::manager()->uuidToBase($uuid, $base);
+    }
+
+    public static function uuidToBytes(string $uuid): string
+    {
+        return self::manager()->uuidToBytes($uuid);
     }
 
     public static function xid(): string

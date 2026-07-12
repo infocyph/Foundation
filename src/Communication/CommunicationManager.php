@@ -6,10 +6,14 @@ namespace Infocyph\Foundation\Communication;
 
 use Infocyph\Foundation\Support\AbstractContainerManager;
 use Infocyph\Foundation\Support\ValueNormalizer;
+use Infocyph\TalkingBytes\Core\Contract\MiddlewareInterface;
+use Infocyph\TalkingBytes\Core\Contract\TransportInterface;
 use Infocyph\TalkingBytes\Core\Event\CommunicationEventBus;
 use Infocyph\TalkingBytes\Core\Event\EventDispatcher;
+use Infocyph\TalkingBytes\Core\Pipeline\MiddlewarePipeline;
 use Infocyph\TalkingBytes\Grpc\GrpcClient;
 use Infocyph\TalkingBytes\Grpc\GrpcServer;
+use Infocyph\TalkingBytes\Grpc\Native\GeneratedStubGrpcInvoker;
 use Infocyph\TalkingBytes\Grpc\Native\NativeGrpcInvoker;
 use Infocyph\TalkingBytes\Grpc\Native\NativeGrpcStreamingInvoker;
 use Infocyph\TalkingBytes\Grpc\Retry\GrpcRetryPolicy;
@@ -21,6 +25,9 @@ use Infocyph\TalkingBytes\Http\Retry\HttpRetryPolicy;
 use Infocyph\TalkingBytes\Http\Testing\FakeHttpTransport;
 use Infocyph\TalkingBytes\Resilience\CircuitBreaker;
 use Infocyph\TalkingBytes\Resilience\RateLimiter;
+use Infocyph\TalkingBytes\Signing\HmacSha256Signer;
+use Infocyph\TalkingBytes\Signing\RequestSignerInterface;
+use Infocyph\TalkingBytes\Signing\SignatureVerifier;
 use Infocyph\TalkingBytes\Webhook\Contracts\WebhookReplayStore;
 use Infocyph\TalkingBytes\Webhook\Testing\FakeWebhookSender;
 use Infocyph\TalkingBytes\Webhook\Webhook;
@@ -56,6 +63,14 @@ final readonly class CommunicationManager extends AbstractContainerManager
         return $this->applyGrpcProfile(GrpcClient::using($caller), $profile);
     }
 
+    /** @param array<string, string> $methodMap */
+    public function grpcGeneratedStubClient(object $stubClient, array $methodMap = [], ?string $profile = null): GrpcClient
+    {
+        $invoker = new GeneratedStubGrpcInvoker($stubClient, $methodMap);
+
+        return $this->grpcNativeClient($invoker, $invoker, $profile);
+    }
+
     public function grpcNativeClient(
         NativeGrpcInvoker $invoker,
         ?NativeGrpcStreamingInvoker $streamingInvoker = null,
@@ -76,6 +91,11 @@ final readonly class CommunicationManager extends AbstractContainerManager
         return new GrpcServer($handlers);
     }
 
+    public function hmacSigner(string $secret): HmacSha256Signer
+    {
+        return new HmacSha256Signer($secret);
+    }
+
     public function httpClient(?string $profile = null): HttpClient
     {
         $config = $this->httpProfileConfig($profile);
@@ -92,6 +112,17 @@ final readonly class CommunicationManager extends AbstractContainerManager
     public function httpPool(int $maxConcurrency = 10): RequestPool
     {
         return HttpClient::multi($maxConcurrency);
+    }
+
+    /** @param list<MiddlewareInterface> $middlewares */
+    public function pipeline(TransportInterface $transport, array $middlewares = []): MiddlewarePipeline
+    {
+        return new MiddlewarePipeline($transport, $middlewares);
+    }
+
+    public function signatureVerifier(RequestSignerInterface $signer): SignatureVerifier
+    {
+        return new SignatureVerifier($signer);
     }
 
     public function useEventDispatcher(EventDispatcher $dispatcher): void

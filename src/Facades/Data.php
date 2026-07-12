@@ -33,6 +33,11 @@ final class Data extends Facade
         return self::manager()->dot();
     }
 
+    public static function dotenv(): ModuleProxy
+    {
+        return self::manager()->dotenv();
+    }
+
     /**
      * @param array<array-key, mixed> $values
      * @param array<string, string> $mapping
@@ -50,6 +55,11 @@ final class Data extends Facade
     public static function env(?string $key = null, mixed $default = null): mixed
     {
         return self::manager()->env($key, $default);
+    }
+
+    public static function environment(): ModuleProxy
+    {
+        return self::manager()->environment();
     }
 
     public static function helper(): ModuleProxy
@@ -95,6 +105,16 @@ final class Data extends Facade
     public static function pipeline(mixed $data): Pipeline
     {
         return self::manager()->pipeline($data);
+    }
+
+    /**
+     * @param array<array-key, mixed> $row
+     * @param array<string, string> $shape
+     * @return array<array-key, mixed>
+     */
+    public static function requireShape(array $row, array $shape): array
+    {
+        return self::manager()->requireShape($row, $shape);
     }
 
     public static function single(): ModuleProxy

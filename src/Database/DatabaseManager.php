@@ -141,6 +141,14 @@ final readonly class DatabaseManager
     }
 
     /**
+     * @param array<string, mixed> $securityOverrides
+     */
+    public function hardenProduction(array $securityOverrides = [], bool $refreshExisting = true): void
+    {
+        DBLayer::hardenProduction($securityOverrides, $refreshExisting);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function health(?string $name = null): array
@@ -237,6 +245,31 @@ final readonly class DatabaseManager
         DBLayer::rollBack($this->ensureRegistered($name));
     }
 
+    /**
+     * @param array<int, mixed> $bindings
+     */
+    public function scalar(string $query, array $bindings = [], ?string $name = null): mixed
+    {
+        return DBLayer::scalar($query, $bindings, $this->ensureRegistered($name));
+    }
+
+    /**
+     * @param array<int, mixed> $bindings
+     * @return list<array<string, mixed>>
+     */
+    public function select(string $query, array $bindings = [], ?string $name = null): array
+    {
+        return DBLayer::select($query, $bindings, $this->ensureRegistered($name));
+    }
+
+    /**
+     * @param array<string, mixed> $security
+     */
+    public function setSecurityDefaults(array $security, bool $refreshExisting = true): void
+    {
+        DBLayer::setSecurityDefaults($security, $refreshExisting);
+    }
+
     public function setTelemetryBufferLimits(?int $queryEvents = null, ?int $transactionEvents = null): void
     {
         DBLayer::setTelemetryBufferLimits($queryEvents, $transactionEvents);
@@ -249,6 +282,14 @@ final readonly class DatabaseManager
     public function slowQueryReport(array $percentiles = [50, 90, 95, 99], ?float $minimumMs = null): array
     {
         return DBLayer::slowQueryReport($percentiles, $minimumMs);
+    }
+
+    /**
+     * @param array<int, mixed> $bindings
+     */
+    public function statement(string $query, array $bindings = [], ?string $name = null): bool
+    {
+        return DBLayer::statement($query, $bindings, $this->ensureRegistered($name));
     }
 
     /**
@@ -293,6 +334,14 @@ final readonly class DatabaseManager
         return DBLayer::telemetry();
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    public function telemetryOtel(string $serviceName = 'dblayer'): array
+    {
+        return DBLayer::telemetryOtel($serviceName);
+    }
+
     public function transaction(callable $callback, ?string $name = null, int $attempts = 1): mixed
     {
         return $this->connection($name)->transaction($callback, $attempts);
@@ -301,6 +350,14 @@ final readonly class DatabaseManager
     public function transactionLevel(?string $name = null): int
     {
         return DBLayer::transactionLevel($this->ensureRegistered($name));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function transactionStats(?string $name = null): array
+    {
+        return DBLayer::transactionStats($this->ensureRegistered($name));
     }
 
     public function version(?string $name = null): string

@@ -125,6 +125,14 @@ final class DB extends Facade
     }
 
     /**
+     * @param array<string, mixed> $securityOverrides
+     */
+    public static function hardenProduction(array $securityOverrides = [], bool $refreshExisting = true): void
+    {
+        self::manager()->hardenProduction($securityOverrides, $refreshExisting);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public static function health(?string $name = null): array
@@ -226,6 +234,31 @@ final class DB extends Facade
         self::manager()->rollback($name);
     }
 
+    /**
+     * @param array<int, mixed> $bindings
+     */
+    public static function scalar(string $query, array $bindings = [], ?string $name = null): mixed
+    {
+        return self::manager()->scalar($query, $bindings, $name);
+    }
+
+    /**
+     * @param array<int, mixed> $bindings
+     * @return list<array<string, mixed>>
+     */
+    public static function select(string $query, array $bindings = [], ?string $name = null): array
+    {
+        return self::manager()->select($query, $bindings, $name);
+    }
+
+    /**
+     * @param array<string, mixed> $security
+     */
+    public static function setSecurityDefaults(array $security, bool $refreshExisting = true): void
+    {
+        self::manager()->setSecurityDefaults($security, $refreshExisting);
+    }
+
     public static function setTelemetryBufferLimits(?int $queryEvents = null, ?int $transactionEvents = null): void
     {
         self::manager()->setTelemetryBufferLimits($queryEvents, $transactionEvents);
@@ -238,6 +271,14 @@ final class DB extends Facade
     public static function slowQueryReport(array $percentiles = [50, 90, 95, 99], ?float $minimumMs = null): array
     {
         return self::manager()->slowQueryReport($percentiles, $minimumMs);
+    }
+
+    /**
+     * @param array<int, mixed> $bindings
+     */
+    public static function statement(string $query, array $bindings = [], ?string $name = null): bool
+    {
+        return self::manager()->statement($query, $bindings, $name);
     }
 
     /**
@@ -282,6 +323,14 @@ final class DB extends Facade
         return self::manager()->telemetry();
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    public static function telemetryOtel(string $serviceName = 'dblayer'): array
+    {
+        return self::manager()->telemetryOtel($serviceName);
+    }
+
     public static function transaction(callable $callback, ?string $name = null, int $attempts = 1): mixed
     {
         return self::manager()->transaction($callback, $name, $attempts);
@@ -290,6 +339,14 @@ final class DB extends Facade
     public static function transactionLevel(?string $name = null): int
     {
         return self::manager()->transactionLevel($name);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function transactionStats(?string $name = null): array
+    {
+        return self::manager()->transactionStats($name);
     }
 
     public static function version(?string $name = null): string

@@ -12,6 +12,8 @@ enum MfaFactorType: string
 
     case HOTP = 'hotp';
 
+    case OCRA = 'ocra';
+
     case PASSKEY = 'passkey';
 
     case RECOVERY_CODE = 'recovery_code';
