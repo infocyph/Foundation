@@ -28,6 +28,16 @@ final readonly class CacheLayerFactory
         return $this->makeFromStoreConfig($name, ['driver' => $name]);
     }
 
+    private function absolute(string $path): bool
+    {
+        return preg_match('/^(?:[A-Z]:[\\\\\\/]|\\\\\\\\|\/)/i', $path) === 1;
+    }
+
+    private function basePath(): string
+    {
+        return $this->stringConfig('app.base_path', getcwd() ?: '.');
+    }
+
     /**
      * @param array<string, mixed> $store
      */
@@ -48,13 +58,25 @@ final readonly class CacheLayerFactory
         $namespace = isset($store['namespace']) && is_string($store['namespace'])
             ? $store['namespace']
             : 'foundation:' . $name;
+        $directory = isset($store['dir']) && is_string($store['dir'])
+            ? $this->resolveDirectory($store['dir'])
+            : null;
 
         return match ($driver) {
             CacheDriver::APCU => Cache::apcu($namespace),
-            CacheDriver::FILE => Cache::file($namespace, isset($store['dir']) && is_string($store['dir']) ? $store['dir'] : null),
-            CacheDriver::LOCAL => Cache::local($namespace, isset($store['dir']) && is_string($store['dir']) ? $store['dir'] : null),
+            CacheDriver::FILE => Cache::file($namespace, $directory),
+            CacheDriver::LOCAL => Cache::local($namespace, $directory),
             CacheDriver::MEMORY => Cache::memory($namespace),
         };
+    }
+
+    private function resolveDirectory(string $directory): string
+    {
+        if ($directory === '' || $this->absolute($directory)) {
+            return $directory;
+        }
+
+        return $this->basePath() . DIRECTORY_SEPARATOR . ltrim($directory, DIRECTORY_SEPARATOR);
     }
 
     private function stringConfig(string $key, string $default): string

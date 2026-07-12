@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Routing;
 
 use Closure;
+use DateTimeInterface;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 use Infocyph\Webrick\Router\Definition\Registrar;
+use Infocyph\Webrick\Router\Facade\Router as WebrickRouter;
 use Infocyph\Webrick\Router\Kernel\ErrorHandler;
 use Infocyph\Webrick\Router\Kernel\RouterKernel;
 use Infocyph\Webrick\Router\Route\Collection;
@@ -137,6 +139,68 @@ final readonly class RouterManager
     public function routes(): Collection
     {
         return $this->registered($this->factory->routes(...));
+    }
+
+    /**
+     * @param array<string, mixed> $params
+     * @param array<string, mixed> $query
+     */
+    public function signedUrlFor(
+        string $name,
+        array $params = [],
+        array $query = [],
+        ?int $ttl = null,
+        bool $absolute = false,
+        ?string $payloadMode = null,
+    ): string {
+        $this->router();
+
+        return WebrickRouter::signedUrlFor($name, $params, $query, $ttl, $absolute, $payloadMode);
+    }
+
+    /**
+     * @param array<string, mixed> $params
+     * @param array<string, mixed> $query
+     */
+    public function temporaryUrlFor(
+        string $name,
+        array $params = [],
+        array $query = [],
+        int $ttl = 900,
+        bool $absolute = false,
+        ?string $payloadMode = null,
+    ): string {
+        $this->router();
+
+        return WebrickRouter::temporaryUrlFor($name, $params, $query, $ttl, $absolute, $payloadMode);
+    }
+
+    /**
+     * @param array<string, mixed> $params
+     * @param array<string, mixed> $query
+     */
+    public function temporaryUrlUntil(
+        string $name,
+        DateTimeInterface $expiresAt,
+        array $params = [],
+        array $query = [],
+        bool $absolute = false,
+        ?string $payloadMode = null,
+    ): string {
+        $this->router();
+
+        return WebrickRouter::temporaryUrlUntil($name, $expiresAt, $params, $query, $absolute, $payloadMode);
+    }
+
+    /**
+     * @param array<string, mixed> $params
+     * @param array<string, mixed> $query
+     */
+    public function urlFor(string $name, array $params = [], array $query = [], bool $absolute = false): string
+    {
+        $this->router();
+
+        return WebrickRouter::urlFor($name, $params, $query, $absolute);
     }
 
     /**

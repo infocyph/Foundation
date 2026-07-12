@@ -13,6 +13,7 @@
         "infocyph/otp": "^5.3",
         "infocyph/pathwise": "^2.5.1",
         "infocyph/reqshield": "^2.4.1",
+        "infocyph/talkingbytes": "^0.1.1",
         "infocyph/uid": "^4.2.1",
         "infocyph/webrick": "^2.01.1",
         "web-auth/webauthn-lib": "^5.3.5"
@@ -20,15 +21,15 @@
     "require-dev": {
         "infocyph/phpforge": "dev-main"
     },
-    "suggest": {
-        "infocyph/talkingbytes": "Required for the talkingbytes notification driver and Foundation email transport integration."
-    },
     "minimum-stability": "dev",
     "prefer-stable": true,
     "autoload": {
         "psr-4": {
             "Infocyph\\Foundation\\": "src/"
-        }
+        },
+        "files": [
+            "src/Config/config_helpers.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {

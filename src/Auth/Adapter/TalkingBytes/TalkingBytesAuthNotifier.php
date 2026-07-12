@@ -8,6 +8,8 @@ use Infocyph\Foundation\Auth\Contract\Notification\AuthNotifierInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
 use Infocyph\Foundation\Auth\Notification\AuthNotification;
 use Infocyph\Foundation\Auth\Notification\AuthNotificationType;
+use Infocyph\TalkingBytes\Email\Emailer;
+use Infocyph\TalkingBytes\Email\ValueObject\EmailAddress;
 
 final readonly class TalkingBytesAuthNotifier implements AuthNotifierInterface
 {
@@ -15,7 +17,7 @@ final readonly class TalkingBytesAuthNotifier implements AuthNotifierInterface
      * @param list<string> $criticalTypes
      */
     public function __construct(
-        private object $emailer,
+        private Emailer $emailer,
         private AuthNotificationMapper $mapper,
         private AccountProviderInterface $accounts,
         private array $criticalTypes = [],
@@ -30,14 +32,10 @@ final readonly class TalkingBytesAuthNotifier implements AuthNotifierInterface
             return;
         }
 
-        $result = $this->invoke(
-            $this->emailer,
-            'send',
-            $this->mapper->toEmail($notification, $recipient, $this->from),
-        );
+        $result = $this->emailer->send($this->mapper->toEmail($notification, $recipient, $this->from));
 
-        if (!$this->boolProperty($result, 'successful')) {
-            $message = $this->nullableStringProperty($result, 'error') ?? 'Failed to send auth notification.';
+        if (!$result->successful) {
+            $message = $result->error ?? 'Failed to send auth notification.';
 
             if ($this->shouldThrow($notification)) {
                 throw new \RuntimeException($message);
@@ -51,24 +49,6 @@ final readonly class TalkingBytesAuthNotifier implements AuthNotifierInterface
         }
     }
 
-    private function boolProperty(object $target, string $property): bool
-    {
-        return $this->property($target, $property) === true;
-    }
-
-    private function invoke(object $target, string $method, mixed ...$arguments): object
-    {
-        if (!method_exists($target, $method)) {
-            throw new \RuntimeException(sprintf(
-                'TalkingBytes object "%s" does not support method "%s".',
-                $target::class,
-                $method,
-            ));
-        }
-
-        return $this->requireObject($target->{$method}(...$arguments), sprintf('%s::%s', $target::class, $method));
-    }
-
     private function isCriticalByDefault(AuthNotificationType $type): bool
     {
         return in_array($type, [
@@ -77,46 +57,6 @@ final readonly class TalkingBytesAuthNotifier implements AuthNotifierInterface
             AuthNotificationType::PASSWORDLESS_LOGIN_REQUESTED,
             AuthNotificationType::MFA_CHALLENGE_REQUESTED,
         ], true);
-    }
-
-    private function mailbox(string $value): object
-    {
-        $class = 'Infocyph\\TalkingBytes\\Email\\ValueObject\\EmailAddress';
-
-        if (!class_exists($class)) {
-            throw new \RuntimeException('Foundation auth notifications require infocyph/talkingbytes.');
-        }
-
-        return $this->requireObject($class::fromMailbox($value), 'TalkingBytes EmailAddress');
-    }
-
-    private function nullableStringProperty(object $target, string $property): ?string
-    {
-        $value = $this->property($target, $property);
-
-        return is_string($value) && $value !== '' ? $value : null;
-    }
-
-    private function property(object $target, string $property): mixed
-    {
-        if (!property_exists($target, $property)) {
-            throw new \RuntimeException(sprintf(
-                'TalkingBytes object "%s" is missing property "%s".',
-                $target::class,
-                $property,
-            ));
-        }
-
-        return $target->{$property};
-    }
-
-    private function requireObject(mixed $value, string $context): object
-    {
-        if (!is_object($value)) {
-            throw new \RuntimeException(sprintf('%s must resolve to an object.', $context));
-        }
-
-        return $value;
     }
 
     private function resolveRecipient(AuthNotification $notification): ?string
@@ -142,7 +82,7 @@ final readonly class TalkingBytesAuthNotifier implements AuthNotifierInterface
             }
 
             try {
-                return $this->stringProperty($this->mailbox($candidate), 'email');
+                return EmailAddress::fromMailbox($candidate)->email;
             } catch (\Throwable) {
                 continue;
             }
@@ -159,20 +99,5 @@ final readonly class TalkingBytesAuthNotifier implements AuthNotifierInterface
 
         return in_array($notification->type->value, $this->criticalTypes, true)
             || $this->isCriticalByDefault($notification->type);
-    }
-
-    private function stringProperty(object $target, string $property): string
-    {
-        $value = $this->property($target, $property);
-
-        if (!is_string($value) || $value === '') {
-            throw new \RuntimeException(sprintf(
-                'TalkingBytes object "%s" property "%s" must be a non-empty string.',
-                $target::class,
-                $property,
-            ));
-        }
-
-        return $value;
     }
 }

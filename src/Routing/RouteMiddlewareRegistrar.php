@@ -64,6 +64,7 @@ final class RouteMiddlewareRegistrar
             $ability,
             $resourceKey[0] ?? null,
         ));
+        $this->app->make(WebrickMiddlewareFactory::class)->registerAliases();
 
         foreach ($this->configuredAliases() as $alias => $class) {
             MiddlewareAliases::register($alias, $class);

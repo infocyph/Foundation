@@ -39,6 +39,8 @@ final class HttpServiceProvider extends ServiceProvider
         $container->bind(HttpKernel::class, fn() => new HttpKernel(
             router: $app->make(RouterManager::class),
             errorHandler: $app->make(ErrorHandler::class),
+            container: $app->container(),
+            scopeRequests: (bool) $app->config()->get('app.container.request_scope', true),
         ), LifetimeEnum::Singleton);
 
         $container->bind('foundation.http', fn() => $container->get(HttpKernel::class), LifetimeEnum::Singleton);

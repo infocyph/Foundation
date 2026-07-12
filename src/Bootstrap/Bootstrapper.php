@@ -9,6 +9,7 @@ use Infocyph\Foundation\Application\ProviderFileLoader;
 use Infocyph\Foundation\Application\ServiceProviderInterface;
 use Infocyph\Foundation\Auth\AuthServiceProvider;
 use Infocyph\Foundation\Cache\CacheServiceProvider;
+use Infocyph\Foundation\Communication\CommunicationServiceProvider;
 use Infocyph\Foundation\Database\DatabaseServiceProvider;
 use Infocyph\Foundation\Exception\BootstrapException;
 use Infocyph\Foundation\Filesystem\FilesystemServiceProvider;
@@ -29,6 +30,7 @@ final class Bootstrapper
         CacheServiceProvider::class,
         DatabaseServiceProvider::class,
         SecurityServiceProvider::class,
+        CommunicationServiceProvider::class,
         NotificationServiceProvider::class,
         FilesystemServiceProvider::class,
         ValidationServiceProvider::class,
@@ -61,6 +63,8 @@ final class Bootstrapper
         foreach ($this->providerFileProviders($app) as $provider) {
             $app->register($provider);
         }
+
+        $app->providers()->register($app);
     }
 
     /**

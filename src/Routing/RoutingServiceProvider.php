@@ -32,8 +32,13 @@ final class RoutingServiceProvider extends ServiceProvider
     {
         $container = $app->container();
 
+        $container->bind(WebrickMiddlewareFactory::class, fn() => new WebrickMiddlewareFactory(
+            app: $app,
+            config: $app->config(),
+        ), LifetimeEnum::Singleton);
         $container->bind(WebrickRouterFactory::class, fn() => new WebrickRouterFactory(
             $app->config(),
+            $app->make(WebrickMiddlewareFactory::class),
         ), LifetimeEnum::Singleton);
 
         $container->bind(AuthResponseFactory::class, new AuthResponseFactory(), LifetimeEnum::Singleton);
@@ -99,6 +104,7 @@ final class RoutingServiceProvider extends ServiceProvider
         ), LifetimeEnum::Singleton);
         $container->bind(RouteFileLoader::class, fn() => new RouteFileLoader(
             paths: $app->make(PathManager::class),
+            config: $app->config(),
             router: $app->make(RouterManager::class),
             files: $this->routeFiles($app->config()->get('router.files', ['web.php', 'api.php', 'auth.php'])),
         ), LifetimeEnum::Singleton);

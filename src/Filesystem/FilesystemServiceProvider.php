@@ -13,7 +13,7 @@ final class FilesystemServiceProvider extends ServiceProvider
     public function boot(Application $app): void
     {
         if ((bool) $app->config()->get('paths.auto_create_runtime_directories', false)) {
-            $app->make(PathManager::class)->ensureRuntimeDirectories();
+            $app->make(FilesystemManager::class)->ensureRuntimeDirectories();
         }
     }
 
@@ -27,6 +27,20 @@ final class FilesystemServiceProvider extends ServiceProvider
             paths: $this->paths($config->get('paths', [])),
         ), LifetimeEnum::Singleton);
 
+        $container->bind(FilesystemManager::class, function () use ($app, $container): FilesystemManager {
+            $paths = $container->get(PathManager::class);
+            if (!$paths instanceof PathManager) {
+                throw new \RuntimeException('Filesystem paths service must resolve to PathManager.');
+            }
+
+            return new FilesystemManager(
+                config: $app->config(),
+                paths: $paths,
+            );
+        }, LifetimeEnum::Singleton);
+
+        $container->bind('foundation.files', fn() => $container->get(FilesystemManager::class), LifetimeEnum::Singleton);
+        $container->bind('foundation.filesystem', fn() => $container->get(FilesystemManager::class), LifetimeEnum::Singleton);
         $container->bind('foundation.paths', fn() => $container->get(PathManager::class), LifetimeEnum::Singleton);
     }
 

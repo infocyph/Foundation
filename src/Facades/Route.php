@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Facades;
 
 use Closure;
+use DateTimeInterface;
 use Infocyph\Foundation\Routing\RouterManager;
 use Infocyph\Webrick\Interfaces\RouteInterface;
 use Infocyph\Webrick\Router\Definition\Registrar;
@@ -127,5 +128,59 @@ final class Route extends Facade
     public static function registrar(): Registrar
     {
         return self::manager()->router();
+    }
+
+    /**
+     * @param array<string, mixed> $params
+     * @param array<string, mixed> $query
+     */
+    public static function signedUrlFor(
+        string $name,
+        array $params = [],
+        array $query = [],
+        ?int $ttl = null,
+        bool $absolute = false,
+        ?string $payloadMode = null,
+    ): string {
+        return self::manager()->signedUrlFor($name, $params, $query, $ttl, $absolute, $payloadMode);
+    }
+
+    /**
+     * @param array<string, mixed> $params
+     * @param array<string, mixed> $query
+     */
+    public static function temporaryUrlFor(
+        string $name,
+        array $params = [],
+        array $query = [],
+        int $ttl = 900,
+        bool $absolute = false,
+        ?string $payloadMode = null,
+    ): string {
+        return self::manager()->temporaryUrlFor($name, $params, $query, $ttl, $absolute, $payloadMode);
+    }
+
+    /**
+     * @param array<string, mixed> $params
+     * @param array<string, mixed> $query
+     */
+    public static function temporaryUrlUntil(
+        string $name,
+        DateTimeInterface $expiresAt,
+        array $params = [],
+        array $query = [],
+        bool $absolute = false,
+        ?string $payloadMode = null,
+    ): string {
+        return self::manager()->temporaryUrlUntil($name, $expiresAt, $params, $query, $absolute, $payloadMode);
+    }
+
+    /**
+     * @param array<string, mixed> $params
+     * @param array<string, mixed> $query
+     */
+    public static function urlFor(string $name, array $params = [], array $query = [], bool $absolute = false): string
+    {
+        return self::manager()->urlFor($name, $params, $query, $absolute);
     }
 }

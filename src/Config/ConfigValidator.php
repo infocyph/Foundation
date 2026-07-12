@@ -224,22 +224,26 @@ final readonly class ConfigValidator
      */
     private function validateNotificationTransport(array &$issues): void
     {
-        if (!class_exists('Infocyph\\TalkingBytes\\Email\\Emailer')) {
+        $transport = $this->config->get('notifications.auth.transport');
+        if (!is_string($transport) || $transport === '') {
             $issues[] = new ConfigIssue(
-                'infocyph/talkingbytes must be installed when auth.drivers.notifications uses talkingbytes.',
-                'auth.drivers.notifications',
+                'notifications.auth.transport must be configured when auth.drivers.notifications uses talkingbytes.',
+                'notifications.auth.transport',
             );
 
             return;
         }
 
-        $transport = $this->config->get('notifications.auth.transport');
-        if (
-            !is_string($transport)
-            || $transport === ''
-            || $transport === 'null'
-            || $transport === 'replace-me'
-        ) {
+        if (!in_array($transport, ['fake', 'log', 'mail', 'null', 'replace-me', 'sendmail', 'smtp', 'spool'], true)) {
+            $issues[] = new ConfigIssue(
+                sprintf('notifications.auth.transport "%s" is not supported.', $transport),
+                'notifications.auth.transport',
+            );
+
+            return;
+        }
+
+        if (in_array($transport, ['null', 'replace-me'], true)) {
             $issues[] = new ConfigIssue(
                 'notifications.auth.transport must be configured when auth.drivers.notifications uses talkingbytes.',
                 'notifications.auth.transport',

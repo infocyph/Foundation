@@ -19,6 +19,12 @@ final class ConfigMerger
                 && is_array($base[$key])
                 && is_array($value)
             ) {
+                if (array_is_list($base[$key]) || array_is_list($value)) {
+                    $base[$key] = $value;
+
+                    continue;
+                }
+
                 $base[$key] = self::merge(self::map($base[$key]), self::map($value));
 
                 continue;

@@ -28,7 +28,7 @@ final readonly class DatabaseConnectionResolver
             ));
         }
 
-        return $config;
+        return $this->normalizeConfiguration($config);
     }
 
     public function connectionName(?string $name = null): string
@@ -73,6 +73,20 @@ final readonly class DatabaseConnectionResolver
         return $resolved;
     }
 
+    private function absolute(string $path): bool
+    {
+        return preg_match('/^(?:[A-Z]:[\\\\\\/]|\\\\\\\\|\/)/i', $path) === 1;
+    }
+
+    private function basePath(): string
+    {
+        $configured = $this->config->get('app.base_path');
+
+        return is_string($configured) && $configured !== ''
+            ? rtrim($configured, DIRECTORY_SEPARATOR)
+            : (getcwd() ?: '.');
+    }
+
     /**
      * @param array<mixed> $value
      * @return array<string, mixed>
@@ -90,5 +104,27 @@ final readonly class DatabaseConnectionResolver
         }
 
         return $normalized;
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     * @return array<string, mixed>
+     */
+    private function normalizeConfiguration(array $config): array
+    {
+        $driver = $config['driver'] ?? null;
+        $database = $config['database'] ?? null;
+
+        if (
+            $driver === 'sqlite'
+            && is_string($database)
+            && $database !== ''
+            && $database !== ':memory:'
+            && !$this->absolute($database)
+        ) {
+            $config['database'] = $this->basePath() . DIRECTORY_SEPARATOR . ltrim($database, DIRECTORY_SEPARATOR);
+        }
+
+        return $config;
     }
 }

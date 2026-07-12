@@ -19,6 +19,8 @@ final class ConfigLoader
         unset($normalized['_preset']);
 
         $basePath = $this->basePath($normalized);
+        require_once __DIR__ . '/config_helpers.php';
+        ConfigRuntime::activate($basePath);
         new EnvironmentLoader()->load($basePath, $normalized);
         $fileConfig = $this->loadProjectConfig($basePath, $normalized);
 

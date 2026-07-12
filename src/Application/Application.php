@@ -9,6 +9,7 @@ use Infocyph\Foundation\Auth\AuthServices;
 use Infocyph\Foundation\Auth\Http\AuthActions;
 use Infocyph\Foundation\Bootstrap\Bootstrapper;
 use Infocyph\Foundation\Cache\CacheManager;
+use Infocyph\Foundation\Communication\CommunicationManager;
 use Infocyph\Foundation\Config\ConfigLoader;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Config\ConfigValidationResult;
@@ -16,6 +17,7 @@ use Infocyph\Foundation\Config\ConfigValidator;
 use Infocyph\Foundation\Container\ContainerFactory;
 use Infocyph\Foundation\Database\DatabaseManager;
 use Infocyph\Foundation\Exception\ServiceResolutionException;
+use Infocyph\Foundation\Filesystem\FilesystemManager;
 use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\Foundation\Http\HttpKernel;
 use Infocyph\Foundation\Notifications\NotificationManager;
@@ -46,11 +48,7 @@ final class Application
     public static function create(array $config = []): self
     {
         $repository = new ConfigLoader()->load($config);
-        $container = new ContainerFactory()->create(
-            is_string($repository->get('app.container_alias'))
-                ? $repository->get('app.container_alias')
-                : null,
-        );
+        $container = new ContainerFactory()->create($repository);
 
         $app = new self(
             config: $repository,
@@ -121,6 +119,11 @@ final class Application
         return $this->paths()->cache($path);
     }
 
+    public function communication(): CommunicationManager
+    {
+        return $this->boot()->make(CommunicationManager::class);
+    }
+
     public function config(): ConfigRepository
     {
         return $this->config;
@@ -153,6 +156,11 @@ final class Application
         return is_string($environment) && $environment !== ''
             ? $environment
             : null;
+    }
+
+    public function files(): FilesystemManager
+    {
+        return $this->boot()->make(FilesystemManager::class);
     }
 
     public function handle(Request $request): Response
