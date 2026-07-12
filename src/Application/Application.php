@@ -7,6 +7,7 @@ namespace Infocyph\Foundation\Application;
 use Infocyph\Foundation\Auth\AuthManager;
 use Infocyph\Foundation\Auth\AuthServices;
 use Infocyph\Foundation\Auth\Http\AuthActions;
+use Infocyph\Foundation\Auth\Otp\OtpManager;
 use Infocyph\Foundation\Bootstrap\Bootstrapper;
 use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Communication\CommunicationManager;
@@ -15,11 +16,13 @@ use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Config\ConfigValidationResult;
 use Infocyph\Foundation\Config\ConfigValidator;
 use Infocyph\Foundation\Container\ContainerFactory;
+use Infocyph\Foundation\Data\DataManager;
 use Infocyph\Foundation\Database\DatabaseManager;
 use Infocyph\Foundation\Exception\ServiceResolutionException;
 use Infocyph\Foundation\Filesystem\FilesystemManager;
 use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\Foundation\Http\HttpKernel;
+use Infocyph\Foundation\Identifiers\IdentifierManager;
 use Infocyph\Foundation\Notifications\NotificationManager;
 use Infocyph\Foundation\Routing\RouterManager;
 use Infocyph\Foundation\Security\SecurityManager;
@@ -139,6 +142,11 @@ final class Application
         return $this->container;
     }
 
+    public function data(): DataManager
+    {
+        return $this->boot()->make(DataManager::class);
+    }
+
     public function databasePath(string $path = ''): string
     {
         return $this->paths()->database($path);
@@ -178,6 +186,11 @@ final class Application
         return $this->boot()->make(HttpKernel::class);
     }
 
+    public function ids(): IdentifierManager
+    {
+        return $this->boot()->make(IdentifierManager::class);
+    }
+
     public function isProduction(): bool
     {
         return $this->config()->isProduction();
@@ -206,6 +219,11 @@ final class Application
     public function notifications(): NotificationManager
     {
         return $this->boot()->make(NotificationManager::class);
+    }
+
+    public function otp(): OtpManager
+    {
+        return $this->boot()->make(OtpManager::class);
     }
 
     public function paths(): PathManager

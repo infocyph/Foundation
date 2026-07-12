@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Auth\Internal;
 
 use Infocyph\Foundation\Auth\Account\AccountManager;
+use Infocyph\Foundation\Auth\Adapter\Otp\OtpProvisioningService;
 use Infocyph\Foundation\Auth\Authentication\EmailVerification\{EmailVerificationManager, EmailVerificationTokenServiceInterface};
 use Infocyph\Foundation\Auth\Authentication\Lockout\{LockoutConfig, LockoutManager};
 use Infocyph\Foundation\Auth\Authentication\PasswordChange\PasswordChangeManager;
@@ -25,6 +26,7 @@ use Infocyph\Foundation\Auth\Contract\Storage\{
 };
 use Infocyph\Foundation\Auth\Device\{DeviceManager, DeviceStoreInterface};
 use Infocyph\Foundation\Auth\Mfa\{MfaFactorStoreInterface, MfaManager, MfaVerifierInterface, RecoveryCodeServiceInterface};
+use Infocyph\Foundation\Auth\Otp\OtpManager;
 use Infocyph\Foundation\Auth\Passkey\{PasskeyCredentialStoreInterface, PasskeyManager, PasskeyServiceInterface};
 
 final readonly class AuthManagerRegistrar extends AbstractAuthRegistrar
@@ -129,6 +131,13 @@ final readonly class AuthManagerRegistrar extends AbstractAuthRegistrar
             challengeTtlSeconds: $this->intConfig('auth.mfa_challenge_ttl', 300),
             satisfiedTtlSeconds: $this->intConfig('auth.mfa_satisfied_ttl', 900),
             clock: $this->clock(),
+        ));
+
+        $this->singleton(OtpManager::class, fn() => new OtpManager(
+            config: $this->app->config(),
+            mfa: $this->service(MfaManager::class),
+            factors: $this->service(MfaFactorStoreInterface::class),
+            provisioning: $this->service(OtpProvisioningService::class),
         ));
 
         $this->singleton(PasskeyManager::class, fn() => new PasskeyManager(

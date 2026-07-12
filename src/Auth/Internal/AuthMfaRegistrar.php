@@ -33,10 +33,12 @@ final readonly class AuthMfaRegistrar extends AbstractAuthRegistrar
 
     public function register(AuthDriverResolver $drivers): void
     {
+        $this->registerOtpSupport();
+
         $driver = $drivers->mfa();
 
         if ($driver === AuthMfaDriver::OTP) {
-            $this->registerOtp();
+            $this->registerOtpDriver();
 
             return;
         }
@@ -47,7 +49,13 @@ final readonly class AuthMfaRegistrar extends AbstractAuthRegistrar
         $this->singleton(RecoveryCodeServiceInterface::class, fn() => new InMemoryRecoveryCodeService());
     }
 
-    private function registerOtp(): void
+    private function registerOtpDriver(): void
+    {
+        $this->singleton(MfaVerifierInterface::class, fn() => $this->app->make(OtpMfaVerifier::class));
+        $this->singleton(RecoveryCodeServiceInterface::class, fn() => $this->app->make(OtpRecoveryCodeService::class));
+    }
+
+    private function registerOtpSupport(): void
     {
         $this->singleton(ReplayStoreInterface::class, fn() => new OtpReplayStore(
             $this->app->make(TtlStoreInterface::class),
@@ -67,7 +75,7 @@ final readonly class AuthMfaRegistrar extends AbstractAuthRegistrar
             hashKey: $this->secrets->tokenSecret(),
         ));
 
-        $this->singleton(MfaVerifierInterface::class, fn() => new OtpMfaVerifier(
+        $this->singleton(OtpMfaVerifier::class, fn() => new OtpMfaVerifier(
             factors: $this->app->make(MfaFactorStoreInterface::class),
             replayStore: $this->boolConfig('auth.otp.replay.enabled', true)
                 ? $this->app->make(ReplayStoreInterface::class)
@@ -75,7 +83,7 @@ final readonly class AuthMfaRegistrar extends AbstractAuthRegistrar
             window: $this->intConfig('auth.otp.totp.window', 1),
         ));
 
-        $this->singleton(RecoveryCodeServiceInterface::class, fn() => new OtpRecoveryCodeService(
+        $this->singleton(OtpRecoveryCodeService::class, fn() => new OtpRecoveryCodeService(
             recoveryCodes: $this->app->make(RecoveryCodes::class),
             defaultCount: $this->intConfig('auth.otp.recovery_codes.count', 10),
             codeLength: $this->intConfig('auth.otp.recovery_codes.length', 10),

@@ -19,6 +19,7 @@ use Infocyph\Foundation\Auth\Authorization\Permission\PermissionManager;
 use Infocyph\Foundation\Auth\Authorization\Role\RoleManager;
 use Infocyph\Foundation\Auth\Device\DeviceManager;
 use Infocyph\Foundation\Auth\Mfa\MfaManager;
+use Infocyph\Foundation\Auth\Otp\OtpManager;
 use Infocyph\Foundation\Auth\Passkey\PasskeyManager;
 use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
 
@@ -34,6 +35,7 @@ final readonly class AuthServices
         public RememberMeManager $rememberMe,
         public TokenAuthManager $tokens,
         public MfaManager $mfa,
+        public OtpManager $otp,
         public PasskeyManager $passkeys,
         public AccountManager $accounts,
         public DeviceManager $devices,

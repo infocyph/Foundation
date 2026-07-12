@@ -24,6 +24,7 @@ use Infocyph\Foundation\Auth\Device\DeviceManager;
 use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
 use Infocyph\Foundation\Auth\Http\AuthActions;
 use Infocyph\Foundation\Auth\Mfa\MfaManager;
+use Infocyph\Foundation\Auth\Otp\OtpManager;
 use Infocyph\Foundation\Auth\Passkey\PasskeyManager;
 use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
 
@@ -54,6 +55,7 @@ final readonly class AuthRuntimeRegistrar extends AbstractAuthRegistrar
             rememberMe: $this->service(RememberMeManager::class),
             tokens: $this->service(TokenAuthManager::class),
             mfa: $this->service(MfaManager::class),
+            otp: $this->service(OtpManager::class),
             passkeys: $this->service(PasskeyManager::class),
             accounts: $this->service(AccountManager::class),
             devices: $this->service(DeviceManager::class),

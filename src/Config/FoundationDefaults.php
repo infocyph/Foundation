@@ -200,6 +200,74 @@ final class FoundationDefaults
                     'validation_profile' => null,
                 ],
             ],
+            'ids' => [
+                'default' => 'uuid7',
+                'sequence' => [
+                    'driver' => 'filesystem',
+                    'directory' => null,
+                    'wait_time' => 1000,
+                    'max_attempts' => 1000,
+                ],
+                'ulid' => [
+                    'mode' => 'monotonic',
+                ],
+                'nanoid' => [
+                    'length' => 21,
+                ],
+                'cuid2' => [
+                    'length' => 24,
+                ],
+                'opaque' => [
+                    'length' => 12,
+                    'salt' => '',
+                ],
+                'deterministic' => [
+                    'length' => 24,
+                    'namespace' => 'default',
+                ],
+                'snowflake' => [
+                    'datacenter_id' => 0,
+                    'worker_id' => 0,
+                    'custom_epoch' => null,
+                    'clock_backward_policy' => 'wait',
+                    'output' => 'string',
+                    'sequence' => [],
+                ],
+                'sonyflake' => [
+                    'machine_id' => 0,
+                    'custom_epoch' => null,
+                    'clock_backward_policy' => 'wait',
+                    'output' => 'string',
+                    'sequence' => [],
+                ],
+                'tbsl' => [
+                    'machine_id' => 0,
+                    'sequenced' => false,
+                    'clock_backward_policy' => 'wait',
+                    'output' => 'string',
+                    'sequence' => [],
+                ],
+                'randflake' => [
+                    'node_id' => 0,
+                    'lease_start' => 0,
+                    'lease_end' => 0,
+                    'secret' => 'change-me',
+                    'output' => 'string',
+                    'sequence' => [],
+                ],
+                'auth' => [
+                    'account' => 'uuid7',
+                    'audit_event' => 'uuid7',
+                    'challenge' => 'uuid7',
+                    'correlation' => 'ulid',
+                    'credential' => 'uuid7',
+                    'device' => 'uuid7',
+                    'grant' => 'uuid7',
+                    'permission' => 'uuid7',
+                    'role' => 'uuid7',
+                    'session' => 'uuid7',
+                ],
+            ],
             'notifications' => [
                 'auth' => [
                     'critical_types' => [

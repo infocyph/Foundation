@@ -9,6 +9,7 @@ use Infocyph\Foundation\Auth\AuthManager;
 use Infocyph\Foundation\Auth\AuthServices;
 use Infocyph\Foundation\Auth\Http\AuthActions;
 use Infocyph\Foundation\Auth\Http\LogoutResult;
+use Infocyph\Foundation\Auth\Otp\OtpManager;
 use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
 
 final class Auth extends Facade
@@ -34,6 +35,11 @@ final class Auth extends Facade
     public static function manager(): AuthManager
     {
         return self::app()->authManager();
+    }
+
+    public static function otp(): OtpManager
+    {
+        return self::services()->otp;
     }
 
     public static function principal(): CurrentPrincipalContext

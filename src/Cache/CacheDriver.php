@@ -12,5 +12,31 @@ enum CacheDriver: string
 
     case LOCAL = 'local';
 
+    case MEMCACHE = 'memcache';
+
     case MEMORY = 'memory';
+
+    case MONGODB = 'mongodb';
+
+    case NULL_STORE = 'null_store';
+
+    case PDO = 'pdo';
+
+    case PHP_FILES = 'php_files';
+
+    case REDIS = 'redis';
+
+    case REDIS_CLUSTER = 'redis_cluster';
+
+    case SCYLLADB = 'scylladb';
+
+    case SHARED_MEMORY = 'shared_memory';
+
+    case SQLITE = 'sqlite';
+
+    case TIERED = 'tiered';
+
+    case VALKEY = 'valkey';
+
+    case WEAK_MAP = 'weak_map';
 }

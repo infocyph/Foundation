@@ -10,11 +10,13 @@ use Infocyph\Foundation\Application\ServiceProviderInterface;
 use Infocyph\Foundation\Auth\AuthServiceProvider;
 use Infocyph\Foundation\Cache\CacheServiceProvider;
 use Infocyph\Foundation\Communication\CommunicationServiceProvider;
+use Infocyph\Foundation\Data\DataServiceProvider;
 use Infocyph\Foundation\Database\DatabaseServiceProvider;
 use Infocyph\Foundation\Exception\BootstrapException;
 use Infocyph\Foundation\Filesystem\FilesystemServiceProvider;
 use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\Foundation\Http\HttpServiceProvider;
+use Infocyph\Foundation\Identifiers\IdentifierServiceProvider;
 use Infocyph\Foundation\Notifications\NotificationServiceProvider;
 use Infocyph\Foundation\Routing\RouteFileLoader;
 use Infocyph\Foundation\Routing\RoutingServiceProvider;
@@ -33,6 +35,8 @@ final class Bootstrapper
         CommunicationServiceProvider::class,
         NotificationServiceProvider::class,
         FilesystemServiceProvider::class,
+        DataServiceProvider::class,
+        IdentifierServiceProvider::class,
         ValidationServiceProvider::class,
         RoutingServiceProvider::class,
         HttpServiceProvider::class,
