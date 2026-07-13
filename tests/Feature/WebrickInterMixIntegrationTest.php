@@ -104,8 +104,8 @@ PHP,
 });
 
 it('discovers attribute routes and exposes Webrick URL generation services', function (): void {
-    $project = foundationIntegrationProject([
-        'app/Http/Controllers/AttributeGreetingController.php' => <<<'PHP'
+    $controller = 'AttributeGreeting' . bin2hex(random_bytes(5)) . 'Controller';
+    $controllerSource = str_replace('__CONTROLLER__', $controller, <<<'PHP'
 <?php
 
 declare(strict_types=1);
@@ -115,7 +115,7 @@ namespace App\Http\Controllers;
 use Infocyph\Webrick\Response\Response;
 use Infocyph\Webrick\Router\Definition\Attribute\Route;
 
-final readonly class AttributeGreetingController
+final readonly class __CONTROLLER__
 {
     #[Route('GET', '/attribute-hello/{name}', name: 'attribute.hello')]
     public function show(string $name): Response
@@ -123,7 +123,9 @@ final readonly class AttributeGreetingController
         return Response::json(['hello' => $name]);
     }
 }
-PHP,
+PHP);
+    $project = foundationIntegrationProject([
+        'app/Http/Controllers/' . $controller . '.php' => $controllerSource,
     ]);
 
     try {
