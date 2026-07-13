@@ -15,7 +15,7 @@
         "infocyph/reqshield": "^2.4.1",
         "infocyph/talkingbytes": "^0.1.1",
         "infocyph/uid": "^4.2.1",
-        "infocyph/webrick": "^2.01.1",
+        "infocyph/webrick": "^2.01.2",
         "web-auth/webauthn-lib": "^5.3.5"
     },
     "require-dev": {
