@@ -10,13 +10,9 @@ It does not replace the standalone packages. It gives a host project one place t
 composer require infocyph/foundation
 ```
 
-Optional:
-
-```bash
-composer require infocyph/talkingbytes
-```
-
-Install `TalkingBytes` only if you want the `talkingbytes` notification driver.
+Foundation installs the Infocyph integration packages it needs, including
+TalkingBytes for notification delivery. Host applications configure the
+drivers they use; they do not need to wire each integration manually.
 
 ## Expected Project Structure
 
@@ -212,8 +208,58 @@ For a new app, usually start in this order:
 - Do not keep simple token drivers in production.
 - Configure real database connections before using `dblayer`.
 - Configure real cache stores before using `cachelayer`.
-- If you use `talkingbytes`, install `infocyph/talkingbytes` and configure `notifications.auth.transport`.
+- Configure `notifications.auth.transport` before using the `talkingbytes` notification driver.
 - If you use WebAuthn, set `auth.webauthn.rp_id` and `auth.webauthn.origin`.
+- Set a unique `auth.token_secret` of at least 32 bytes.
+- Install the auth schema before enabling DBLayer-backed authentication:
+
+```php
+$app->boot()->db()->authSchema()->install();
+```
+
+Use the built-in report as part of deployment health checks. It validates the
+production configuration and reports cache, database, auth-schema, and runtime
+directory issues without exposing secrets:
+
+```php
+$report = $app->boot()->readinessReport();
+
+if (!$report['production_ready']) {
+    throw new RuntimeException('Foundation is not ready for production.');
+}
+```
+
+## Integrated Capabilities
+
+Foundation remains an integration layer: the standalone packages own their
+domain behavior while Foundation supplies application configuration,
+container registration, facades, and HTTP-aware composition.
+
+- ArrayKit: environment, array-shape, and data helpers
+- CacheLayer: local, database, Redis, Valkey, Memcached, SQLite, and tiered caches
+- DBLayer: connections, repositories, telemetry, and auth-schema installation
+- Epicrypt: production password, token, and encryption-backed auth services
+- Intermix: application container, providers, scopes, and invocation
+- OTP and WebAuthn: TOTP, HOTP, OCRA, recovery codes, MFA, and passkeys
+- Pathwise and Webrick: filesystem operations, uploads, ranged/conditional downloads, HTTP responses, routing, and route caches
+- ReqShield: request schemas and database-backed validation rules
+- TalkingBytes: email, HTTP, gRPC, signatures, inbound processing, and DKIM helpers
+- UID: UUID, ULID, Snowflake, and related identifier generation
+
+## Release Process
+
+Run the release guard before tagging a release:
+
+```bash
+composer ic:release:guard
+```
+
+Foundation follows semantic versioning. Release tags are the public package
+versions; update `CHANGELOG.md`, run the guard in CI, then create the signed
+tag and publish from that immutable commit.
+
+See `SECURITY.md` for private vulnerability reporting and `CONTRIBUTING.md`
+for the development workflow.
 
 ## Quick Start Goal
 
