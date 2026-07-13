@@ -7,7 +7,7 @@ namespace Infocyph\Foundation\Auth\Adapter\DBLayer;
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\RefreshTokenRecord;
 use Infocyph\Foundation\Auth\Contract\Storage\RefreshTokenStoreInterface;
 
-final readonly class DBLayerRefreshTokenStore extends ClockedDBLayerStore implements RefreshTokenStoreInterface
+final readonly class DBLayerRefreshTokenStore extends DBLayerFamilyTokenStore implements RefreshTokenStoreInterface
 {
     public function find(string $tokenId): ?RefreshTokenRecord
     {
@@ -20,12 +20,12 @@ final readonly class DBLayerRefreshTokenStore extends ClockedDBLayerStore implem
 
     public function revokeFamily(string $familyId): void
     {
-        $this->updateWhere('refreshTokens', ['revoked_at' => $this->now()], 'family_id = ? AND revoked_at IS NULL', [$familyId]);
+        $this->revokeTokenFamily('refreshTokens', $familyId);
     }
 
     public function rotate(string $tokenId, RefreshTokenRecord $replacement): void
     {
-        $this->updateWhere('refreshTokens', ['rotated_at' => $this->now()], 'id = ?', [$tokenId]);
+        $this->markTokenRotated('refreshTokens', $tokenId);
 
         $this->save($replacement);
     }
@@ -49,10 +49,7 @@ final readonly class DBLayerRefreshTokenStore extends ClockedDBLayerStore implem
 
     public function wasFamilyRevoked(string $familyId): bool
     {
-        return $this->first(
-            sprintf('SELECT id FROM %s WHERE family_id = ? AND revoked_at IS NOT NULL', $this->table('refreshTokens')),
-            [$familyId],
-        ) !== null;
+        return $this->tokenFamilyWasRevoked('refreshTokens', $familyId);
     }
 
     /**

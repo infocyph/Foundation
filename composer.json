@@ -11,7 +11,7 @@
         "infocyph/epicrypt": "^1.0.1",
         "infocyph/intermix": "^7.2.2",
         "infocyph/otp": "^5.3",
-        "infocyph/pathwise": "^2.5.1",
+        "infocyph/pathwise": "^2.5.2",
         "infocyph/reqshield": "^2.4.1",
         "infocyph/talkingbytes": "^0.1.1",
         "infocyph/uid": "^4.2.1",

@@ -8,58 +8,27 @@ use Infocyph\Foundation\Auth\Contract\Id\AuthIdGeneratorInterface;
 
 final class RandomAuthIdGenerator implements AuthIdGeneratorInterface
 {
-    public function accountId(): string
+    use GeneratesAuthIds;
+
+    protected function generate(string $key): string
     {
-        return $this->generate('acct');
+        return sprintf('%s_%s', $this->prefixFor($key), bin2hex(random_bytes(16)));
     }
 
-    public function auditEventId(): string
+    private function prefixFor(string $key): string
     {
-        return $this->generate('evt');
-    }
-
-    public function challengeId(): string
-    {
-        return $this->generate('chl');
-    }
-
-    public function correlationId(): string
-    {
-        return $this->generate('corr');
-    }
-
-    public function credentialId(): string
-    {
-        return $this->generate('cred');
-    }
-
-    public function deviceId(): string
-    {
-        return $this->generate('dev');
-    }
-
-    public function grantId(): string
-    {
-        return $this->generate('grant');
-    }
-
-    public function permissionId(): string
-    {
-        return $this->generate('perm');
-    }
-
-    public function roleId(): string
-    {
-        return $this->generate('role');
-    }
-
-    public function sessionId(): string
-    {
-        return $this->generate('sess');
-    }
-
-    private function generate(string $prefix): string
-    {
-        return sprintf('%s_%s', $prefix, bin2hex(random_bytes(16)));
+        return match ($key) {
+            'account' => 'acct',
+            'audit_event' => 'evt',
+            'challenge' => 'chl',
+            'correlation' => 'corr',
+            'credential' => 'cred',
+            'device' => 'dev',
+            'grant' => 'grant',
+            'permission' => 'perm',
+            'role' => 'role',
+            'session' => 'sess',
+            default => throw new \LogicException(sprintf('Unsupported auth identifier key "%s".', $key)),
+        };
     }
 }

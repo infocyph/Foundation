@@ -5,6 +5,21 @@ declare(strict_types=1);
 use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\Foundation\Facades\DB;
 use Infocyph\Foundation\Foundation;
+use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
+use Infocyph\Foundation\Database\AuthSchema\AuthTables;
+
+it('keeps auth schema creation and teardown statements stable', function (): void {
+    $tables = new AuthTables;
+    $schema = new AuthSchema($tables);
+    $statements = $schema->statements();
+    $dropStatements = $schema->dropStatements();
+
+    expect($dropStatements)->toHaveCount(count($tables->all()))
+        ->and($dropStatements[0])->toBe('DROP TABLE IF EXISTS auth_lockouts')
+        ->and($dropStatements[array_key_last($dropStatements)])->toBe('DROP TABLE IF EXISTS auth_accounts')
+        ->and($statements)->toContain('CREATE INDEX IF NOT EXISTS auth_grants_resource_idx ON auth_grants (resource_type, resource_id)')
+        ->and($statements)->toContain('CREATE INDEX IF NOT EXISTS auth_refresh_tokens_family_idx ON auth_refresh_tokens (family_id)');
+});
 
 it('surfaces DBLayer repositories and query observability through Foundation', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-db-' . uniqid('', true);

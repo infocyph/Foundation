@@ -15,25 +15,10 @@ final readonly class AuthSchema
      */
     public function dropStatements(): array
     {
-        return [
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->lockouts()),
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->auditEvents()),
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->devices()),
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->grants()),
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->rolePermissions()),
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->accountPermissions()),
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->accountRoles()),
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->permissions()),
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->roles()),
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->passkeyCredentials()),
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->mfaFactors()),
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->refreshTokens()),
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->rememberTokens()),
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->emailVerifications()),
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->passwordResets()),
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->sessions()),
-            sprintf('DROP TABLE IF EXISTS %s', $this->tables->accounts()),
-        ];
+        return array_map(
+            static fn(string $table): string => sprintf('DROP TABLE IF EXISTS %s', $table),
+            array_reverse($this->tables->all()),
+        );
     }
 
     /**
@@ -208,36 +193,56 @@ final readonly class AuthSchema
                 reason TEXT NOT NULL,
                 until_at INTEGER NULL
             )",
-            "CREATE INDEX IF NOT EXISTS {$accounts}_status_idx ON {$accounts} (status)",
-            "CREATE INDEX IF NOT EXISTS {$sessions}_account_idx ON {$sessions} (account_id)",
-            "CREATE INDEX IF NOT EXISTS {$sessions}_device_idx ON {$sessions} (device_id)",
-            "CREATE INDEX IF NOT EXISTS {$sessions}_expires_idx ON {$sessions} (expires_at)",
-            "CREATE INDEX IF NOT EXISTS {$passwordResets}_account_idx ON {$passwordResets} (account_id)",
-            "CREATE INDEX IF NOT EXISTS {$passwordResets}_expires_idx ON {$passwordResets} (expires_at)",
-            "CREATE INDEX IF NOT EXISTS {$emailVerifications}_account_idx ON {$emailVerifications} (account_id)",
-            "CREATE INDEX IF NOT EXISTS {$emailVerifications}_email_idx ON {$emailVerifications} (email)",
-            "CREATE INDEX IF NOT EXISTS {$emailVerifications}_expires_idx ON {$emailVerifications} (expires_at)",
-            "CREATE INDEX IF NOT EXISTS {$rememberTokens}_account_idx ON {$rememberTokens} (account_id)",
-            "CREATE INDEX IF NOT EXISTS {$rememberTokens}_family_idx ON {$rememberTokens} (family_id)",
-            "CREATE INDEX IF NOT EXISTS {$rememberTokens}_expires_idx ON {$rememberTokens} (expires_at)",
-            "CREATE INDEX IF NOT EXISTS {$refreshTokens}_account_idx ON {$refreshTokens} (account_id)",
-            "CREATE INDEX IF NOT EXISTS {$refreshTokens}_family_idx ON {$refreshTokens} (family_id)",
-            "CREATE INDEX IF NOT EXISTS {$refreshTokens}_expires_idx ON {$refreshTokens} (expires_at)",
-            "CREATE INDEX IF NOT EXISTS {$mfaFactors}_account_idx ON {$mfaFactors} (account_id)",
-            "CREATE INDEX IF NOT EXISTS {$mfaFactors}_type_idx ON {$mfaFactors} (type)",
-            "CREATE INDEX IF NOT EXISTS {$passkeys}_account_idx ON {$passkeys} (account_id)",
-            "CREATE INDEX IF NOT EXISTS {$accountRoles}_role_idx ON {$accountRoles} (role_id)",
-            "CREATE INDEX IF NOT EXISTS {$accountPermissions}_permission_idx ON {$accountPermissions} (permission_id)",
-            "CREATE INDEX IF NOT EXISTS {$rolePermissions}_permission_idx ON {$rolePermissions} (permission_id)",
-            "CREATE INDEX IF NOT EXISTS {$grants}_principal_idx ON {$grants} (principal_id)",
-            "CREATE INDEX IF NOT EXISTS {$grants}_permission_idx ON {$grants} (permission)",
-            "CREATE INDEX IF NOT EXISTS {$grants}_resource_idx ON {$grants} (resource_type, resource_id)",
-            "CREATE INDEX IF NOT EXISTS {$devices}_account_idx ON {$devices} (account_id)",
-            "CREATE INDEX IF NOT EXISTS {$devices}_fingerprint_idx ON {$devices} (fingerprint)",
-            "CREATE INDEX IF NOT EXISTS {$auditEvents}_account_idx ON {$auditEvents} (account_id)",
-            "CREATE INDEX IF NOT EXISTS {$auditEvents}_occurred_idx ON {$auditEvents} (occurred_at)",
-            "CREATE INDEX IF NOT EXISTS {$auditEvents}_type_idx ON {$auditEvents} (type)",
-            "CREATE INDEX IF NOT EXISTS {$lockouts}_until_idx ON {$lockouts} (until_at)",
+            ...$this->indexStatements([
+                [$accounts, 'status', ['status']],
+                [$sessions, 'account', ['account_id']],
+                [$sessions, 'device', ['device_id']],
+                [$sessions, 'expires', ['expires_at']],
+                [$passwordResets, 'account', ['account_id']],
+                [$passwordResets, 'expires', ['expires_at']],
+                [$emailVerifications, 'account', ['account_id']],
+                [$emailVerifications, 'email', ['email']],
+                [$emailVerifications, 'expires', ['expires_at']],
+                [$rememberTokens, 'account', ['account_id']],
+                [$rememberTokens, 'family', ['family_id']],
+                [$rememberTokens, 'expires', ['expires_at']],
+                [$refreshTokens, 'account', ['account_id']],
+                [$refreshTokens, 'family', ['family_id']],
+                [$refreshTokens, 'expires', ['expires_at']],
+                [$mfaFactors, 'account', ['account_id']],
+                [$mfaFactors, 'type', ['type']],
+                [$passkeys, 'account', ['account_id']],
+                [$accountRoles, 'role', ['role_id']],
+                [$accountPermissions, 'permission', ['permission_id']],
+                [$rolePermissions, 'permission', ['permission_id']],
+                [$grants, 'principal', ['principal_id']],
+                [$grants, 'permission', ['permission']],
+                [$grants, 'resource', ['resource_type', 'resource_id']],
+                [$devices, 'account', ['account_id']],
+                [$devices, 'fingerprint', ['fingerprint']],
+                [$auditEvents, 'account', ['account_id']],
+                [$auditEvents, 'occurred', ['occurred_at']],
+                [$auditEvents, 'type', ['type']],
+                [$lockouts, 'until', ['until_at']],
+            ]),
         ];
+    }
+
+    /**
+     * @param list<array{0: string, 1: string, 2: list<string>}> $definitions
+     * @return list<string>
+     */
+    private function indexStatements(array $definitions): array
+    {
+        return array_map(
+            static fn(array $definition): string => sprintf(
+                'CREATE INDEX IF NOT EXISTS %s_%s_idx ON %s (%s)',
+                $definition[0],
+                $definition[1],
+                $definition[0],
+                implode(', ', $definition[2]),
+            ),
+            $definitions,
+        );
     }
 }

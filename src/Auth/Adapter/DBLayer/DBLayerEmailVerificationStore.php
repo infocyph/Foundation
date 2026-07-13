@@ -7,31 +7,16 @@ namespace Infocyph\Foundation\Auth\Adapter\DBLayer;
 use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailVerificationRequest;
 use Infocyph\Foundation\Auth\Contract\Storage\EmailVerificationStoreInterface;
 
-final readonly class DBLayerEmailVerificationStore extends ClockedDBLayerStore implements EmailVerificationStoreInterface
+final readonly class DBLayerEmailVerificationStore extends DBLayerConsumableStore implements EmailVerificationStoreInterface
 {
     public function consume(string $requestId): void
     {
-        $this->updateWhere('emailVerifications', ['consumed_at' => $this->now()], 'id = ?', [$requestId]);
+        $this->consumeRequest('emailVerifications', $requestId);
     }
 
     public function find(string $requestId): ?EmailVerificationRequest
     {
-        return $this->firstMapped(
-            sprintf('SELECT * FROM %s WHERE id = ?', $this->table('emailVerifications')),
-            /**
-             * @param array<string, mixed> $row
-             */
-            fn(array $row): EmailVerificationRequest => new EmailVerificationRequest(
-                id: $this->string($row['id'] ?? ''),
-                accountId: $this->string($row['account_id'] ?? ''),
-                email: $this->string($row['email'] ?? ''),
-                requestedAt: $this->int($row['requested_at'] ?? 0),
-                expiresAt: $this->int($row['expires_at'] ?? 0),
-                consumedAt: $this->intOrNull($row['consumed_at'] ?? null),
-                context: DBLayerJson::decode($row['context'] ?? null),
-            ),
-            [$requestId],
-        );
+        return $this->findRequest('emailVerifications', $this->mapRequest(...), $requestId);
     }
 
     public function save(EmailVerificationRequest $request): void
@@ -45,5 +30,21 @@ final readonly class DBLayerEmailVerificationStore extends ClockedDBLayerStore i
             'consumed_at' => $request->consumedAt,
             'context' => DBLayerJson::encode($request->context),
         ]);
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     */
+    private function mapRequest(array $row): EmailVerificationRequest
+    {
+        return new EmailVerificationRequest(
+            id: $this->string($row['id'] ?? ''),
+            accountId: $this->string($row['account_id'] ?? ''),
+            email: $this->string($row['email'] ?? ''),
+            requestedAt: $this->int($row['requested_at'] ?? 0),
+            expiresAt: $this->int($row['expires_at'] ?? 0),
+            consumedAt: $this->intOrNull($row['consumed_at'] ?? null),
+            context: DBLayerJson::decode($row['context'] ?? null),
+        );
     }
 }

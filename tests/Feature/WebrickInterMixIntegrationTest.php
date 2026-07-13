@@ -140,6 +140,10 @@ PHP,
             ],
         ]);
 
+        $routes = $app->boot()->router()->routes();
+
+        expect($routes->findByName('attribute.hello'))->not->toBeNull();
+
         $response = $app->handle(foundationRequest('/attribute-hello/Codex'));
 
         expect(foundationJsonResponse($response)['hello'])->toBe('Codex')

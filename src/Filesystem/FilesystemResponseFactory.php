@@ -193,9 +193,15 @@ final readonly class FilesystemResponseFactory
         array $headers,
         bool $inline,
     ): Response {
-        [$processor, $resolvedPath] = $this->prepareProcessor($path, $directory, $disk, $inline);
-        $manifest = $processor->prepareDownload($resolvedPath, $downloadName);
-        $shortCircuit = $this->shortCircuitResponse($request, $manifest, $headers);
+        [, , $manifest, $shortCircuit] = $this->prepareInitialDownload(
+            $request,
+            $path,
+            $downloadName,
+            $directory,
+            $disk,
+            $headers,
+            $inline,
+        );
 
         if ($shortCircuit instanceof Response) {
             return $shortCircuit;
@@ -208,6 +214,30 @@ final readonly class FilesystemResponseFactory
         }
 
         return $response;
+    }
+
+    /**
+     * @param array<string, string|list<string>> $headers
+     * @return array{
+     *   0: \Infocyph\Pathwise\StreamHandler\DownloadProcessor,
+     *   1: string,
+     *   2: array{etag: string, lastModified: int, status: int, headers: array<string, string>},
+     *   3: ?Response
+     * }
+     */
+    private function prepareInitialDownload(
+        Request $request,
+        string $path,
+        ?string $downloadName,
+        ?string $directory,
+        ?string $disk,
+        array $headers,
+        bool $inline,
+    ): array {
+        [$processor, $resolvedPath] = $this->prepareProcessor($path, $directory, $disk, $inline);
+        $manifest = $processor->prepareDownload($resolvedPath, $downloadName);
+
+        return [$processor, $resolvedPath, $manifest, $this->shortCircuitResponse($request, $manifest, $headers)];
     }
 
     /**
@@ -250,9 +280,15 @@ final readonly class FilesystemResponseFactory
         array $headers,
         bool $inline,
     ): Response {
-        [$processor, $resolvedPath] = $this->prepareProcessor($path, $directory, $disk, $inline);
-        $baseManifest = $processor->prepareDownload($resolvedPath, $downloadName);
-        $shortCircuit = $this->shortCircuitResponse($request, $baseManifest, $headers);
+        [$processor, $resolvedPath, $baseManifest, $shortCircuit] = $this->prepareInitialDownload(
+            $request,
+            $path,
+            $downloadName,
+            $directory,
+            $disk,
+            $headers,
+            $inline,
+        );
 
         if ($shortCircuit instanceof Response) {
             return $shortCircuit;

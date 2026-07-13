@@ -7,7 +7,7 @@ namespace Infocyph\Foundation\Auth\Adapter\DBLayer;
 use Infocyph\Foundation\Auth\Authentication\RememberMe\RememberTokenRecord;
 use Infocyph\Foundation\Auth\Contract\Storage\RememberTokenStoreInterface;
 
-final readonly class DBLayerRememberTokenStore extends ClockedDBLayerStore implements RememberTokenStoreInterface
+final readonly class DBLayerRememberTokenStore extends DBLayerFamilyTokenStore implements RememberTokenStoreInterface
 {
     public function find(string $recordId): ?RememberTokenRecord
     {
@@ -34,12 +34,12 @@ final readonly class DBLayerRememberTokenStore extends ClockedDBLayerStore imple
 
     public function revokeFamily(string $familyId): void
     {
-        $this->updateWhere('rememberTokens', ['revoked_at' => $this->now()], 'family_id = ? AND revoked_at IS NULL', [$familyId]);
+        $this->revokeTokenFamily('rememberTokens', $familyId);
     }
 
     public function rotate(string $recordId, RememberTokenRecord $replacement): void
     {
-        $this->updateWhere('rememberTokens', ['rotated_at' => $this->now()], 'id = ?', [$recordId]);
+        $this->markTokenRotated('rememberTokens', $recordId);
 
         $this->save($replacement);
     }
@@ -64,10 +64,7 @@ final readonly class DBLayerRememberTokenStore extends ClockedDBLayerStore imple
 
     public function wasFamilyRevoked(string $familyId): bool
     {
-        return $this->first(
-            sprintf('SELECT id FROM %s WHERE family_id = ? AND revoked_at IS NOT NULL', $this->table('rememberTokens')),
-            [$familyId],
-        ) !== null;
+        return $this->tokenFamilyWasRevoked('rememberTokens', $familyId);
     }
 
     /**

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Infocyph\Foundation\Auth\Contract\Id\AuthIdGeneratorInterface;
+use Infocyph\Foundation\Auth\Support\RandomAuthIdGenerator;
 use Infocyph\Foundation\Facades\Ids;
 use Infocyph\Foundation\Foundation;
 use Infocyph\UID\ULID;
@@ -101,4 +102,26 @@ it('supports configured sequence-backed generators and auth id strategies', func
         ->and(ULID::isValid($authIds->accountId()))->toBeTrue()
         ->and(strlen($authIds->correlationId()))->toBe(18)
         ->and($basePath . '/cache/ids-seq')->toBeDirectory();
+});
+
+it('preserves category prefixes for fallback auth identifiers', function (): void {
+    $ids = new RandomAuthIdGenerator;
+
+    $expectedPrefixes = [
+        $ids->accountId() => 'acct_',
+        $ids->auditEventId() => 'evt_',
+        $ids->challengeId() => 'chl_',
+        $ids->correlationId() => 'corr_',
+        $ids->credentialId() => 'cred_',
+        $ids->deviceId() => 'dev_',
+        $ids->grantId() => 'grant_',
+        $ids->permissionId() => 'perm_',
+        $ids->roleId() => 'role_',
+        $ids->sessionId() => 'sess_',
+    ];
+
+    foreach ($expectedPrefixes as $id => $prefix) {
+        expect($id)->toStartWith($prefix)
+            ->and($id)->toHaveLength(strlen($prefix) + 32);
+    }
 });

@@ -116,11 +116,9 @@ it('builds tiered cache stores from named store descriptors and applies file loc
 
     $reflection = new \ReflectionClass($cache);
     $adapterProperty = $reflection->getProperty('adapter');
-    $adapterProperty->setAccessible(true);
     $adapter = $adapterProperty->getValue($cache);
 
     $lockProperty = $reflection->getProperty('lockProvider');
-    $lockProperty->setAccessible(true);
     $lockProvider = $lockProperty->getValue($cache);
 
     expect($adapter)->toBeInstanceOf(ChainCacheAdapter::class)
@@ -128,7 +126,6 @@ it('builds tiered cache stores from named store descriptors and applies file loc
 
     $chainReflection = new \ReflectionClass($adapter);
     $poolsProperty = $chainReflection->getProperty('pools');
-    $poolsProperty->setAccessible(true);
     $pools = $poolsProperty->getValue($adapter);
 
     expect($pools)->toHaveCount(2);

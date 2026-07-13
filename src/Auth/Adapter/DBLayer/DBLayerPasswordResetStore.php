@@ -7,30 +7,16 @@ namespace Infocyph\Foundation\Auth\Adapter\DBLayer;
 use Infocyph\Foundation\Auth\Authentication\PasswordReset\PasswordResetRequest;
 use Infocyph\Foundation\Auth\Contract\Storage\PasswordResetStoreInterface;
 
-final readonly class DBLayerPasswordResetStore extends ClockedDBLayerStore implements PasswordResetStoreInterface
+final readonly class DBLayerPasswordResetStore extends DBLayerConsumableStore implements PasswordResetStoreInterface
 {
     public function consume(string $requestId): void
     {
-        $this->updateWhere('passwordResets', ['consumed_at' => $this->now()], 'id = ?', [$requestId]);
+        $this->consumeRequest('passwordResets', $requestId);
     }
 
     public function find(string $requestId): ?PasswordResetRequest
     {
-        return $this->firstMapped(
-            sprintf('SELECT * FROM %s WHERE id = ?', $this->table('passwordResets')),
-            /**
-             * @param array<string, mixed> $row
-             */
-            fn(array $row): PasswordResetRequest => new PasswordResetRequest(
-                id: $this->string($row['id'] ?? ''),
-                accountId: $this->string($row['account_id'] ?? ''),
-                requestedAt: $this->int($row['requested_at'] ?? 0),
-                expiresAt: $this->int($row['expires_at'] ?? 0),
-                consumedAt: $this->intOrNull($row['consumed_at'] ?? null),
-                context: DBLayerJson::decode($row['context'] ?? null),
-            ),
-            [$requestId],
-        );
+        return $this->findRequest('passwordResets', $this->mapRequest(...), $requestId);
     }
 
     public function save(PasswordResetRequest $request): void
@@ -47,11 +33,21 @@ final readonly class DBLayerPasswordResetStore extends ClockedDBLayerStore imple
 
     public function wasConsumed(string $requestId): bool
     {
-        $row = $this->first(
-            sprintf('SELECT consumed_at FROM %s WHERE id = ?', $this->table('passwordResets')),
-            [$requestId],
-        );
+        return $this->requestWasConsumed('passwordResets', $requestId);
+    }
 
-        return $row !== null && $this->intOrNull($row['consumed_at'] ?? null) !== null;
+    /**
+     * @param array<string, mixed> $row
+     */
+    private function mapRequest(array $row): PasswordResetRequest
+    {
+        return new PasswordResetRequest(
+            id: $this->string($row['id'] ?? ''),
+            accountId: $this->string($row['account_id'] ?? ''),
+            requestedAt: $this->int($row['requested_at'] ?? 0),
+            expiresAt: $this->int($row['expires_at'] ?? 0),
+            consumedAt: $this->intOrNull($row['consumed_at'] ?? null),
+            context: DBLayerJson::decode($row['context'] ?? null),
+        );
     }
 }
