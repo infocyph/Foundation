@@ -32,62 +32,6 @@ final readonly class RoutePresetRegistrar
      * @param list<string>|string|null $prefix
      * @param list<string>|string|Closure|null $domain
      */
-    public function apiAuth(
-        Registrar $router,
-        Closure $callback,
-        array|string|null $prefix = null,
-        array|string|Closure|null $domain = null,
-        ?string $namePrefix = null,
-    ): void {
-        $this->preset($router, 'api-auth', $callback, $prefix, $domain, $namePrefix);
-    }
-
-    /**
-     * @param list<string>|string|null $prefix
-     * @param list<string>|string|Closure|null $domain
-     */
-    public function authMfa(
-        Registrar $router,
-        Closure $callback,
-        array|string|null $prefix = null,
-        array|string|Closure|null $domain = null,
-        ?string $namePrefix = null,
-    ): void {
-        $this->preset($router, 'mfa-auth', $callback, $prefix, $domain, $namePrefix);
-    }
-
-    /**
-     * @param list<string>|string|null $prefix
-     * @param list<string>|string|Closure|null $domain
-     */
-    public function authVerified(
-        Registrar $router,
-        Closure $callback,
-        array|string|null $prefix = null,
-        array|string|Closure|null $domain = null,
-        ?string $namePrefix = null,
-    ): void {
-        $this->preset($router, 'verified-auth', $callback, $prefix, $domain, $namePrefix);
-    }
-
-    /**
-     * @param list<string>|string|null $prefix
-     * @param list<string>|string|Closure|null $domain
-     */
-    public function authWeb(
-        Registrar $router,
-        Closure $callback,
-        array|string|null $prefix = null,
-        array|string|Closure|null $domain = null,
-        ?string $namePrefix = null,
-    ): void {
-        $this->preset($router, 'web-auth', $callback, $prefix, $domain, $namePrefix);
-    }
-
-    /**
-     * @param list<string>|string|null $prefix
-     * @param list<string>|string|Closure|null $domain
-     */
     public function group(
         Registrar $router,
         string $preset,
@@ -172,20 +116,5 @@ final readonly class RoutePresetRegistrar
         }
 
         return $normalized;
-    }
-
-    /**
-     * @param list<string>|string|null $prefix
-     * @param list<string>|string|Closure|null $domain
-     */
-    private function preset(
-        Registrar $router,
-        string $preset,
-        Closure $callback,
-        array|string|null $prefix = null,
-        array|string|Closure|null $domain = null,
-        ?string $namePrefix = null,
-    ): void {
-        $this->group($router, $preset, $callback, $prefix, $domain, $namePrefix);
     }
 }

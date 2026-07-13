@@ -75,8 +75,8 @@ final readonly class IdentifierManager
             'opaque' => $this->opaque($this->nullableIntOption($options, 'length')),
             'randflake' => $this->randflake($this->randflakeConfigOption($options)),
             'randflake_string' => $this->randflakeString($this->randflakeConfigOption($options)),
-            'snowflake' => $this->snowflake($this->snowflakeConfigOption($options)),
-            'sonyflake' => $this->sonyflake($this->sonyflakeConfigOption($options)),
+            'snowflake' => $this->snowflake($this->configOption($options, SnowflakeConfig::class)),
+            'sonyflake' => $this->sonyflake($this->configOption($options, SonyflakeConfig::class)),
             'tbsl' => $this->tbsl($this->tbslConfigOption($options)),
             'ulid' => $this->ulid(
                 dateTime: $this->dateTimeOption($options),
@@ -163,11 +163,11 @@ final readonly class IdentifierManager
             'nanoid' => NanoID::parse($id, $this->nullableIntOption($options, 'length')),
             'randflake' => Randflake::parse($id, $this->randflakeSecret($options)),
             'randflake_string' => Randflake::parseString($id, $this->randflakeSecret($options)),
-            'snowflake' => $this->snowflakeEpoch($options) !== null
-                ? Snowflake::parseWithEpoch($id, $this->snowflakeEpoch($options))
+            'snowflake' => $this->driverEpoch($options, 'snowflake') !== null
+                ? Snowflake::parseWithEpoch($id, $this->driverEpoch($options, 'snowflake'))
                 : Snowflake::parse($id),
-            'sonyflake' => $this->sonyflakeEpoch($options) !== null
-                ? Sonyflake::parseWithEpoch($id, $this->sonyflakeEpoch($options))
+            'sonyflake' => $this->driverEpoch($options, 'sonyflake') !== null
+                ? Sonyflake::parseWithEpoch($id, $this->driverEpoch($options, 'sonyflake'))
                 : Sonyflake::parse($id),
             'tbsl' => TBSL::parse($id),
             'ulid' => [
@@ -340,6 +340,19 @@ final readonly class IdentifierManager
         return ClockBackwardPolicy::tryFrom(strtolower($value)) ?? ClockBackwardPolicy::WAIT;
     }
 
+    /**
+     * @template T of object
+     * @param array<string, mixed> $options
+     * @param class-string<T> $class
+     * @return ?T
+     */
+    private function configOption(array $options, string $class): ?object
+    {
+        $config = $options['config'] ?? null;
+
+        return $config instanceof $class ? $config : null;
+    }
+
     private function customEpochValue(mixed $epoch): DateTimeInterface|int|string|null
     {
         return $epoch instanceof DateTimeInterface || is_int($epoch) || is_string($epoch)
@@ -365,6 +378,15 @@ final readonly class IdentifierManager
             'correlation' => 'ulid',
             default => 'uuid7',
         };
+    }
+
+    /**
+     * @param array<string, mixed> $options
+     */
+    private function driverEpoch(array $options, string $driver): ?int
+    {
+        return $this->intValue($options['custom_epoch'] ?? null)
+            ?? $this->intValue($this->config->get('ids.' . $driver . '.custom_epoch'));
     }
 
     private function intConfig(string $key, int $default): int
@@ -481,75 +503,29 @@ final readonly class IdentifierManager
 
     private function snowflakeConfig(): SnowflakeConfig
     {
+        $options = $this->timeBasedOptions('snowflake');
+
         return new SnowflakeConfig(
             datacenterId: $this->intConfig('ids.snowflake.datacenter_id', 0),
             workerId: $this->intConfig('ids.snowflake.worker_id', 0),
-            customEpoch: $this->customEpochValue($this->config->get('ids.snowflake.custom_epoch')),
-            sequenceProvider: $this->sequenceProvider($this->arrayConfig('ids.snowflake.sequence')),
-            clockBackwardPolicy: $this->clockBackwardPolicy($this->stringConfig('ids.snowflake.clock_backward_policy', 'wait')),
-            outputType: $this->outputType($this->stringConfig('ids.snowflake.output', 'string')),
+            customEpoch: $options['customEpoch'],
+            sequenceProvider: $options['sequenceProvider'],
+            clockBackwardPolicy: $options['clockBackwardPolicy'],
+            outputType: $options['outputType'],
         );
-    }
-
-    /**
-     * @param array<string, mixed> $options
-     */
-    private function snowflakeConfigOption(array $options): ?SnowflakeConfig
-    {
-        $config = $options['config'] ?? null;
-
-        return $config instanceof SnowflakeConfig
-            ? $config
-            : null;
-    }
-
-    /**
-     * @param array<string, mixed> $options
-     */
-    private function snowflakeEpoch(array $options): ?int
-    {
-        $epoch = $this->intValue($options['custom_epoch'] ?? null);
-        if ($epoch !== null) {
-            return $epoch;
-        }
-
-        return $this->intValue($this->config->get('ids.snowflake.custom_epoch'));
     }
 
     private function sonyflakeConfig(): SonyflakeConfig
     {
+        $options = $this->timeBasedOptions('sonyflake');
+
         return new SonyflakeConfig(
             machineId: $this->intConfig('ids.sonyflake.machine_id', 0),
-            customEpoch: $this->customEpochValue($this->config->get('ids.sonyflake.custom_epoch')),
-            sequenceProvider: $this->sequenceProvider($this->arrayConfig('ids.sonyflake.sequence')),
-            clockBackwardPolicy: $this->clockBackwardPolicy($this->stringConfig('ids.sonyflake.clock_backward_policy', 'wait')),
-            outputType: $this->outputType($this->stringConfig('ids.sonyflake.output', 'string')),
+            customEpoch: $options['customEpoch'],
+            sequenceProvider: $options['sequenceProvider'],
+            clockBackwardPolicy: $options['clockBackwardPolicy'],
+            outputType: $options['outputType'],
         );
-    }
-
-    /**
-     * @param array<string, mixed> $options
-     */
-    private function sonyflakeConfigOption(array $options): ?SonyflakeConfig
-    {
-        $config = $options['config'] ?? null;
-
-        return $config instanceof SonyflakeConfig
-            ? $config
-            : null;
-    }
-
-    /**
-     * @param array<string, mixed> $options
-     */
-    private function sonyflakeEpoch(array $options): ?int
-    {
-        $epoch = $this->intValue($options['custom_epoch'] ?? null);
-        if ($epoch !== null) {
-            return $epoch;
-        }
-
-        return $this->intValue($this->config->get('ids.sonyflake.custom_epoch'));
     }
 
     private function stringConfig(string $key, string $default): string
@@ -583,6 +559,24 @@ final readonly class IdentifierManager
         return $config instanceof TBSLConfig
             ? $config
             : null;
+    }
+
+    /**
+     * @return array{
+     *     customEpoch:DateTimeInterface|int|string|null,
+     *     sequenceProvider:SequenceProviderInterface,
+     *     clockBackwardPolicy:ClockBackwardPolicy,
+     *     outputType:IdOutputType
+     * }
+     */
+    private function timeBasedOptions(string $driver): array
+    {
+        return [
+            'customEpoch' => $this->customEpochValue($this->config->get('ids.' . $driver . '.custom_epoch')),
+            'sequenceProvider' => $this->sequenceProvider($this->arrayConfig('ids.' . $driver . '.sequence')),
+            'clockBackwardPolicy' => $this->clockBackwardPolicy($this->stringConfig('ids.' . $driver . '.clock_backward_policy', 'wait')),
+            'outputType' => $this->outputType($this->stringConfig('ids.' . $driver . '.output', 'string')),
+        ];
     }
 
     private function ulidMode(UlidGenerationMode|string|null $mode): UlidGenerationMode
