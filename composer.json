@@ -6,8 +6,8 @@
     "require": {
         "php": ">=8.4",
         "infocyph/arraykit": "^4.4",
-        "infocyph/cachelayer": "^1.2.2",
-        "infocyph/dblayer": "^2.0.1",
+        "infocyph/cachelayer": "^1.4",
+        "infocyph/dblayer": "^2.1",
         "infocyph/epicrypt": "^1.0.1",
         "infocyph/intermix": "^7.2.2",
         "infocyph/otp": "^5.3",

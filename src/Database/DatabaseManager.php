@@ -27,6 +27,14 @@ final readonly class DatabaseManager
         private AuthSchemaInstaller $authSchemaInstaller,
     ) {}
 
+    /**
+     * @param callable():void $callback
+     */
+    public function afterCommit(callable $callback, ?string $name = null): void
+    {
+        $this->connection($name)->afterCommit($callback);
+    }
+
     public function authSchema(): AuthSchemaInstaller
     {
         return $this->authSchemaInstaller;

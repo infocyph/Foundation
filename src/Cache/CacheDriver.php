@@ -18,6 +18,8 @@ enum CacheDriver: string
 
     case MONGODB = 'mongodb';
 
+    case NODE = 'node';
+
     case NULL_STORE = 'null_store';
 
     case PDO = 'pdo';

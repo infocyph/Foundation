@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Auth\Internal;
 
 use Infocyph\CacheLayer\Cache\CacheInterface;
+use Infocyph\Foundation\Auth\Adapter\CacheLayer\AtomicCounterStore;
 use Infocyph\Foundation\Auth\Adapter\CacheLayer\CacheLayerCounterStore;
 use Infocyph\Foundation\Auth\Adapter\CacheLayer\CacheLayerTtlStore;
 use Infocyph\Foundation\Auth\Contract\Cache\CounterStoreInterface;
@@ -23,9 +24,10 @@ final readonly class AuthCacheRegistrar extends AbstractAuthRegistrar
             $this->singleton(CacheInterface::class, fn() => $this->app->cache()->store(
                 $this->stringConfig('auth.cachelayer.store', $this->stringConfig('cache.default', 'memory')),
             ));
-            $this->singleton(CounterStoreInterface::class, fn() => new CacheLayerCounterStore(
-                $this->app->make(CacheInterface::class),
-            ));
+            $counter = $this->stringConfig('auth.cachelayer.counter', '');
+            $this->singleton(CounterStoreInterface::class, $counter === ''
+                ? fn() => new CacheLayerCounterStore($this->app->make(CacheInterface::class))
+                : fn() => new AtomicCounterStore($this->app->cache()->counters($counter)));
             $this->singleton(TtlStoreInterface::class, fn() => new CacheLayerTtlStore(
                 $this->app->make(CacheInterface::class),
             ));

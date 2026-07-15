@@ -7,17 +7,93 @@ namespace Infocyph\Foundation\Cache;
 use Infocyph\CacheLayer\Cache\Cache;
 use Infocyph\CacheLayer\Cache\CacheInterface;
 use Infocyph\CacheLayer\Cache\Lock\FileLockProvider;
+use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
 use Infocyph\CacheLayer\Cache\Lock\PdoLockProvider;
+use Infocyph\CacheLayer\Cache\Lock\RedisLockProvider;
+use Infocyph\CacheLayer\Cluster\ClusterCache;
+use Infocyph\CacheLayer\Cluster\ClusterCacheConfig;
+use Infocyph\CacheLayer\Cluster\ClusterRuntime;
+use Infocyph\CacheLayer\Cluster\Transport\InvalidationTransportInterface;
+use Infocyph\CacheLayer\Cluster\Transport\Pdo\PdoInvalidationTransport;
+use Infocyph\CacheLayer\Cluster\Transport\RedisStreamInvalidationTransport;
+use Infocyph\CacheLayer\Counter\AtomicCounters;
+use Infocyph\CacheLayer\Counter\AtomicCounterStoreInterface;
+use Infocyph\CacheLayer\Node\Maintenance\NodeCacheMaintenance;
+use Infocyph\CacheLayer\Node\NodeCache;
+use Infocyph\CacheLayer\Node\NodeCacheConfig;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\DatabaseConnectionResolver;
+use Infocyph\Foundation\Database\DatabaseManager;
 use Infocyph\Foundation\Exception\ConfigurationException;
+use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\Foundation\Support\ValueNormalizer;
 
 final readonly class CacheLayerFactory
 {
     public function __construct(
         private ConfigRepository $config,
+        private DatabaseManager $database,
+        private PathManager $paths,
+        private RedisConnectionFactory $redis,
     ) {}
+
+    public function cluster(string $name): ClusterRuntime
+    {
+        $cluster = $this->clusters()[$name] ?? null;
+        if ($cluster === null) {
+            throw new ConfigurationException(sprintf('Cache cluster "%s" is not configured.', $name));
+        }
+
+        $storeName = $this->requiredString($cluster, 'store', 'cache.clusters.' . $name);
+        $store = $this->stores()[$storeName] ?? null;
+        if ($store === null || $this->resolveDriver($storeName, $store) !== CacheDriver::NODE) {
+            throw new ConfigurationException(sprintf(
+                'Cache cluster "%s" must reference a configured node cache store.',
+                $name,
+            ));
+        }
+
+        $runtime = ClusterCache::create(
+            $this->nodeConfig($storeName, $store),
+            new ClusterCacheConfig(
+                cluster: $this->requiredString($cluster, 'cluster', 'cache.clusters.' . $name),
+                nodeId: $this->requiredString($cluster, 'node_id', 'cache.clusters.' . $name),
+                consumerBatchSize: max(1, ValueNormalizer::int($cluster['consumer_batch_size'] ?? null, 1_000)),
+                invalidateLocallyFirst: ValueNormalizer::bool($cluster['invalidate_locally_first'] ?? null, true),
+            ),
+            $this->transport($this->requiredString($cluster, 'transport', 'cache.clusters.' . $name)),
+        );
+
+        $this->applyCacheConfiguration($runtime->cache(), $store, CacheDriver::NODE);
+
+        return $runtime;
+    }
+
+    public function counters(string $name): AtomicCounterStoreInterface
+    {
+        $counter = $this->counterDefinitions()[$name] ?? null;
+        if ($counter === null) {
+            throw new ConfigurationException(sprintf('Cache counter "%s" is not configured.', $name));
+        }
+
+        $driver = strtolower($this->requiredString($counter, 'driver', 'cache.counters.' . $name));
+        $connection = $this->redis->connection($counter);
+        $namespace = ValueNormalizer::string($counter['namespace'] ?? null, $name);
+
+        return match ($driver) {
+            'redis' => AtomicCounters::redis($namespace, $connection['dsn'], $connection['client']),
+            'valkey' => AtomicCounters::valkey($namespace, $connection['dsn'], $connection['client']),
+            default => throw new ConfigurationException(sprintf(
+                'Cache counter "%s" must use Redis or Valkey.',
+                $name,
+            )),
+        };
+    }
+
+    public function maintainNode(string $name, int $limit = 5_000): int
+    {
+        return $this->nodeMaintenance($name)->pruneExpired(max(1, $limit));
+    }
 
     public function make(?string $name = null): CacheInterface
     {
@@ -29,6 +105,40 @@ final readonly class CacheLayerFactory
         }
 
         return $this->makeFromStoreConfig($name, ['driver' => $name]);
+    }
+
+    public function nodeMaintenance(string $name): NodeCacheMaintenance
+    {
+        $store = $this->stores()[$name] ?? null;
+        if ($store === null || $this->resolveDriver($name, $store) !== CacheDriver::NODE) {
+            throw new ConfigurationException(sprintf('Cache node store "%s" is not configured.', $name));
+        }
+
+        return NodeCache::maintenance($this->nodeConfig($name, $store));
+    }
+
+    public function optimizeNode(string $name): void
+    {
+        $this->nodeMaintenance($name)->optimize();
+    }
+
+    public function pruneCluster(string $name, int $retentionSeconds, int $limit = 5_000): int
+    {
+        if ($retentionSeconds < 0) {
+            throw new ConfigurationException('Cluster event retention cannot be negative.');
+        }
+
+        $cluster = $this->clusters()[$name] ?? null;
+        if ($cluster === null) {
+            throw new ConfigurationException(sprintf('Cache cluster "%s" is not configured.', $name));
+        }
+
+        $transport = $this->transport($this->requiredString($cluster, 'transport', 'cache.clusters.' . $name));
+        if (!$transport instanceof PdoInvalidationTransport) {
+            throw new ConfigurationException('Only PDO cluster transports support retention pruning.');
+        }
+
+        return $transport->pruneBefore(time() - $retentionSeconds, max(1, $limit));
     }
 
     private function absolute(string $path): bool
@@ -123,9 +233,30 @@ final readonly class CacheLayerFactory
         };
     }
 
+    private function assertNodeCachePath(string $file, string $name): void
+    {
+        $directory = rtrim(str_replace('\\', '/', $this->paths->cache()), '/');
+        $candidate = str_replace('\\', '/', $file);
+
+        if ($candidate !== $directory && !str_starts_with($candidate, $directory . '/')) {
+            throw new ConfigurationException(sprintf(
+                'Node cache store "%s" must keep its SQLite file inside the configured cache directory.',
+                $name,
+            ));
+        }
+    }
+
     private function basePath(): string
     {
         return $this->stringConfig('app.base_path', getcwd() ?: '.');
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    private function clusters(): array
+    {
+        return $this->namedConfiguration('cache.clusters');
     }
 
     /**
@@ -195,6 +326,14 @@ final readonly class CacheLayerFactory
     }
 
     /**
+     * @return array<string, array<string, mixed>>
+     */
+    private function counterDefinitions(): array
+    {
+        return $this->namedConfiguration('cache.counters');
+    }
+
+    /**
      * @param array<string, mixed> $store
      */
     private function createCache(string $name, array $store, CacheDriver $driver): CacheInterface
@@ -215,6 +354,7 @@ final readonly class CacheLayerFactory
                 collectionName: ValueNormalizer::string($store['collection_name'] ?? null, 'entries'),
                 uri: ValueNormalizer::string($store['uri'] ?? null, 'mongodb://127.0.0.1:27017'),
             ),
+            CacheDriver::NODE => NodeCache::create($this->nodeConfig($name, $store)),
             CacheDriver::NULL_STORE => Cache::nullStore(),
             CacheDriver::PDO => $this->pdoCache($namespace, $store),
             CacheDriver::PHP_FILES => Cache::phpFiles($namespace, $this->directoryFrom($store, 'path', 'dir', 'directory')),
@@ -310,6 +450,9 @@ final readonly class CacheLayerFactory
                 'database' => ValueNormalizer::string($store['database'] ?? null, 'cachelayer'),
                 'collection_name' => ValueNormalizer::string($store['collection_name'] ?? null, 'entries'),
             ],
+            CacheDriver::NODE => throw new ConfigurationException(
+                'Node cache stores cannot be used as a tiered-cache descriptor.',
+            ),
             CacheDriver::NULL_STORE => ['driver' => 'null'],
             CacheDriver::PDO => $this->pdoDescriptor($namespace, $store),
             CacheDriver::PHP_FILES => ['driver' => 'php_files', 'namespace' => $namespace, 'dir' => $this->directoryFrom($store, 'path', 'dir', 'directory')],
@@ -409,6 +552,28 @@ final readonly class CacheLayerFactory
     }
 
     /**
+     * @return array<string, array<string, mixed>>
+     */
+    private function namedConfiguration(string $key): array
+    {
+        $configured = $this->config->get($key, []);
+        if (!is_array($configured)) {
+            return [];
+        }
+
+        $definitions = [];
+        foreach ($configured as $name => $definition) {
+            if (!is_string($name) || !is_array($definition)) {
+                continue;
+            }
+
+            $definitions[$name] = ValueNormalizer::associativeArray($definition);
+        }
+
+        return $definitions;
+    }
+
+    /**
      * @param array<string, mixed> $store
      */
     private function namespace(string $name, array $store): string
@@ -419,6 +584,66 @@ final readonly class CacheLayerFactory
         }
 
         return $this->stringConfig('cache.prefix', 'foundation:') . $name;
+    }
+
+    /**
+     * @param array<string, mixed> $store
+     */
+    private function nodeConfig(string $name, array $store): NodeCacheConfig
+    {
+        $file = $this->sqliteFile($store);
+        if ($file === null) {
+            throw new ConfigurationException(sprintf('Node cache store "%s" requires sqlite_file.', $name));
+        }
+
+        $this->assertNodeCachePath($file, $name);
+        $lock = ValueNormalizer::associativeArray($store['lock'] ?? []);
+
+        return new NodeCacheConfig(
+            sqliteFile: $file,
+            namespace: $this->namespace($name, $store),
+            lockDirectory: $this->directoryFrom($store, 'lock_directory'),
+            busyTimeoutMs: max(0, ValueNormalizer::int($store['busy_timeout_ms'] ?? null, 1_000)),
+            apcuEnabled: ValueNormalizer::bool($store['apcu_enabled'] ?? null, true),
+            failOpen: ValueNormalizer::bool($store['fail_open'] ?? null, true),
+            lockProvider: $this->nodeLockProvider($store, $lock),
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $store
+     * @param array<string, mixed> $lock
+     */
+    private function nodeLockProvider(array $store, array $lock): ?LockProviderInterface
+    {
+        $configured = ValueNormalizer::associativeArray($this->config->get('cache.lock', []));
+        $lock = array_replace($configured, $lock);
+        $driver = $this->stringOrNull($lock['driver'] ?? null);
+        if ($driver === null) {
+            return null;
+        }
+
+        $prefix = ValueNormalizer::string($lock['prefix'] ?? null, 'cachelayer:lock:');
+        $retrySleepMicros = ValueNormalizer::int($lock['retry_sleep_micros'] ?? null, 50_000);
+
+        return match ($this->normalizeLockDriver($driver)) {
+            'file' => new FileLockProvider(
+                $this->directoryFrom($lock, 'path', 'dir', 'directory'),
+                $retrySleepMicros,
+            ),
+            'pdo' => new PdoLockProvider(
+                $this->pdoClientFromConfig($store, $lock, CacheDriver::NODE),
+                $prefix,
+                $retrySleepMicros,
+                new FileLockProvider($this->paths->cache('locks'), $retrySleepMicros),
+            ),
+            'redis', 'valkey' => new RedisLockProvider(
+                $this->redis->client($lock, $driver),
+                $prefix,
+                $retrySleepMicros,
+            ),
+            default => throw new ConfigurationException(sprintf('Unsupported cache lock driver "%s".', $driver)),
+        };
     }
 
     private function normalizeDriverName(string $driver): string
@@ -468,11 +693,11 @@ final readonly class CacheLayerFactory
             return $client;
         }
 
-        if ($driver !== CacheDriver::PDO && $driver !== CacheDriver::SQLITE) {
+        if (!in_array($driver, [CacheDriver::NODE, CacheDriver::PDO, CacheDriver::SQLITE], true)) {
             throw new ConfigurationException('PDO lock provider requires a PDO-backed cache store or PDO client.');
         }
 
-        $runtime = $this->pdoRuntimeConfig($store);
+        $runtime = $this->pdoRuntimeConfig(array_replace($store, $lock));
         if ($runtime['client'] instanceof \PDO) {
             return $runtime['client'];
         }
@@ -552,15 +777,20 @@ final readonly class CacheLayerFactory
      */
     private function redisClientFromConfig(array $store, array $lock, string $driver): \Redis
     {
-        $client = $lock['client'] ?? $store['client'] ?? null;
-        if ($client instanceof \Redis) {
-            return $client;
+        return $this->redis->client(array_replace($store, $lock), $driver);
+    }
+
+    /**
+     * @param array<string, mixed> $definition
+     */
+    private function requiredString(array $definition, string $key, string $context): string
+    {
+        $value = $this->stringOrNull($definition[$key] ?? null);
+        if ($value === null) {
+            throw new ConfigurationException(sprintf('%s.%s must be configured.', $context, $key));
         }
 
-        throw new ConfigurationException(sprintf(
-            '%s lock provider requires a Redis client instance.',
-            ucfirst($driver),
-        ));
+        return $value;
     }
 
     /**
@@ -691,7 +921,7 @@ final readonly class CacheLayerFactory
      */
     private function sqliteFile(array $store): ?string
     {
-        $path = $this->stringOrNull($store['file'] ?? $store['path'] ?? $store['database'] ?? null);
+        $path = $this->stringOrNull($store['sqlite_file'] ?? $store['file'] ?? $store['path'] ?? $store['database'] ?? null);
 
         return $path === null
             ? null
@@ -786,5 +1016,32 @@ final readonly class CacheLayerFactory
         }
 
         return $descriptors;
+    }
+
+    private function transport(string $name): InvalidationTransportInterface
+    {
+        $transport = $this->namedConfiguration('cache.transports')[$name] ?? null;
+        if ($transport === null) {
+            throw new ConfigurationException(sprintf('Cache transport "%s" is not configured.', $name));
+        }
+
+        $driver = strtolower($this->requiredString($transport, 'driver', 'cache.transports.' . $name));
+
+        return match ($driver) {
+            'pdo' => new PdoInvalidationTransport(
+                $this->database->pdo($this->requiredString($transport, 'connection', 'cache.transports.' . $name)),
+                ValueNormalizer::bool($transport['allow_sqlite_for_testing'] ?? null, false),
+            ),
+            'redis_stream', 'redis-stream', 'stream', 'valkey_stream', 'valkey-stream' => new RedisStreamInvalidationTransport(
+                $this->redis->client($transport, $driver),
+                ValueNormalizer::string($transport['prefix'] ?? null, 'cachelayer:invalidation:'),
+                max(1, ValueNormalizer::int($transport['max_length'] ?? null, 100_000)),
+            ),
+            default => throw new ConfigurationException(sprintf(
+                'Unsupported cache transport "%s" driver "%s".',
+                $name,
+                $driver,
+            )),
+        };
     }
 }

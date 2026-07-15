@@ -265,7 +265,8 @@ final class Application
             'missing_tables' => [],
         ];
         $databaseIssues = [];
-        $cacheWarnings = [];
+        $cacheWarnings = $this->cacheReadinessWarnings($usesCacheLayer);
+        $clusterStatus = $this->clusterReadinessStatus();
 
         if ($databaseConfigured) {
             try {
@@ -283,10 +284,6 @@ final class Application
             $databaseIssues[] = 'Auth DB schema is not installed.';
         }
 
-        if ($usesCacheLayer) {
-            $cacheWarnings[] = 'CacheLayer counters are not guaranteed atomic for auth lockout usage.';
-        }
-
         $auth = $this->authReadinessReport();
         $pathIssues = $this->pathIssues();
         $notificationsTransport = $this->stringConfig('notifications.auth.transport', 'null');
@@ -302,6 +299,7 @@ final class Application
             'cache' => [
                 'configured' => $this->config()->has('cache.stores.' . $this->stringConfig('cache.default', '')),
                 'default' => $this->stringConfig('cache.default', 'memory'),
+                'clusters' => $clusterStatus,
                 'warnings' => $cacheWarnings,
             ],
             'config' => [
@@ -424,6 +422,50 @@ final class Application
         $this->container->bind(self::class, $this, LifetimeEnum::Singleton);
         $this->container->bind(ConfigRepository::class, $this->config, LifetimeEnum::Singleton);
         $this->container->bind(Container::class, $this->container, LifetimeEnum::Singleton);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function cacheReadinessWarnings(bool $usesCacheLayer): array
+    {
+        return $usesCacheLayer && $this->stringConfig('auth.cachelayer.counter', '') === ''
+            ? ['CacheLayer counters are not guaranteed atomic for auth lockout usage.']
+            : [];
+    }
+
+    /**
+     * @return array<string, array<string, int|string|null>>
+     */
+    private function clusterReadinessStatus(): array
+    {
+        $configured = $this->config()->get('cache.clusters', []);
+        if (!is_array($configured)) {
+            return [];
+        }
+
+        $statuses = [];
+        foreach (array_keys($configured) as $name) {
+            if (!is_string($name)) {
+                continue;
+            }
+
+            try {
+                $status = $this->cache()->clusterStatus($name);
+                $statuses[$name] = [
+                    'cursor' => $status->cursor,
+                    'cursor_updated_at' => $status->cursorUpdatedAt,
+                    'pending_events' => $status->pendingEventCount,
+                    'last_consume_count' => $status->lastConsumeCount,
+                    'last_consume_error' => $status->lastConsumeError,
+                    'last_recovery_at' => $status->lastRecoveryAt,
+                ];
+            } catch (\Throwable $exception) {
+                $statuses[$name] = ['error' => $exception->getMessage()];
+            }
+        }
+
+        return $statuses;
     }
 
     private function databaseConfigured(): bool
