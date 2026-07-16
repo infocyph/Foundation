@@ -6,6 +6,7 @@ namespace Infocyph\Foundation\Routing;
 
 use Infocyph\CacheLayer\Cache\CacheInterface;
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\Webrick\Middleware\CacheValidatorsMiddleware;
@@ -115,7 +116,7 @@ final readonly class WebrickMiddlewareFactory
         $store = ValueNormalizer::nullableString($name);
 
         try {
-            return $this->app->cache()->store($store);
+            return $this->app->make(CacheManager::class)->store($store);
         } catch (\Throwable) {
             return null;
         }
@@ -418,7 +419,13 @@ final readonly class WebrickMiddlewareFactory
     private function normalizeDefinition(mixed $definition): ?array
     {
         if (is_string($definition) && $definition !== '') {
-            return ['driver' => $definition];
+            $driver = $this->driverName($definition);
+
+            if ($driver === null) {
+                return null;
+            }
+
+            return ['driver' => $driver] + $this->middlewarePreset($driver);
         }
 
         if (!is_array($definition)) {
@@ -447,7 +454,9 @@ final readonly class WebrickMiddlewareFactory
             return $path;
         }
 
-        return rtrim($this->app->basePath(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . ltrim($path, DIRECTORY_SEPARATOR);
+        $basePath = $this->config->getString('app.base_path', getcwd() ?: '.') ?: (getcwd() ?: '.');
+
+        return rtrim($basePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . ltrim($path, DIRECTORY_SEPARATOR);
     }
 
     private function resolveClass(string $class): object|string

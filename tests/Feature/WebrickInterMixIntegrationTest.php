@@ -6,7 +6,9 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Facades\Route;
 use Infocyph\Foundation\Foundation;
+use Infocyph\Foundation\Routing\WebrickMiddlewareFactory;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
+use Infocyph\Webrick\Middleware\MaintenanceModeMiddleware;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 
@@ -126,6 +128,40 @@ PHP,
 
         expect($routes->findByName('facade.route'))->not->toBeNull()
             ->and(foundationJsonResponse($response))->toBe(['registered' => true]);
+    } finally {
+        foundationIntegrationRemoveDirectory($project);
+    }
+});
+
+it('applies definitions to string global middleware without recursively booting', function (): void {
+    $project = foundationIntegrationProject([]);
+
+    try {
+        $app = Foundation::create([
+            'base_path' => $project,
+            'router' => [
+                'middleware' => [
+                    'globals' => [
+                        'pre' => ['maintenance_mode', 'response_cache'],
+                        'post' => [],
+                    ],
+                    'definitions' => [
+                        'maintenance_mode' => [
+                            'file' => 'storage/framework/down',
+                        ],
+                        'response_cache' => [
+                            'enabled' => false,
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        $middleware = $app->make(WebrickMiddlewareFactory::class)->preGlobal();
+
+        expect($middleware)->toHaveCount(1)
+            ->and($middleware[0])->toBeInstanceOf(MaintenanceModeMiddleware::class)
+            ->and($app->booted())->toBeFalse();
     } finally {
         foundationIntegrationRemoveDirectory($project);
     }
