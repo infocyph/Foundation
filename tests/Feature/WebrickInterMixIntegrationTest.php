@@ -103,6 +103,34 @@ PHP,
     }
 });
 
+it('loads route files through Webrick facade declarations', function (): void {
+    $project = foundationIntegrationProject([
+        'routes/web.php' => <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+use Infocyph\Webrick\Router\Facade\Router as Route;
+
+Route::get('/facade-route', static fn(): array => ['registered' => true], 'facade.route');
+PHP,
+    ]);
+
+    try {
+        $app = Foundation::create([
+            'base_path' => $project,
+        ]);
+
+        $routes = $app->boot()->router()->routes();
+        $response = $app->handle(foundationRequest('/facade-route'));
+
+        expect($routes->findByName('facade.route'))->not->toBeNull()
+            ->and(foundationJsonResponse($response))->toBe(['registered' => true]);
+    } finally {
+        foundationIntegrationRemoveDirectory($project);
+    }
+});
+
 it('discovers attribute routes and exposes Webrick URL generation services', function (): void {
     $project = foundationIntegrationProject([]);
 

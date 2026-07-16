@@ -23,6 +23,9 @@ final readonly class RouteFileLoader
 
     public function load(): void
     {
+        // Bind Webrick's Route facade before application route files are evaluated.
+        $this->router->router();
+
         foreach ($this->files as $file) {
             $path = $this->paths->routes($file);
 
