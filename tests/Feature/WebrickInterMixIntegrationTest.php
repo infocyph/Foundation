@@ -193,7 +193,7 @@ PHP,
                     'key' => 'integration-signing-key',
                     'default_ttl' => 900,
                 ],
-                'webrick' => [
+                'middleware' => [
                     'globals' => [
                         'pre' => ['telemetry'],
                         'post' => [],

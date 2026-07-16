@@ -15,8 +15,10 @@ final class ApiPreset implements FoundationPreset
                 ],
             ],
             'router' => [
-                'middleware_groups' => [
-                    'api-auth' => ['resolve-auth', 'auth'],
+                'middleware' => [
+                    'groups' => [
+                        'api-auth' => ['resolve-auth', 'auth'],
+                    ],
                 ],
             ],
         ];

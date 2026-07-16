@@ -46,7 +46,7 @@ final class WebrickRouterFactory
                     );
                 }
             },
-            routeCache: $this->optionalString($this->config->get('router.cache')),
+            routeCache: RouteCachePath::for($this->config),
             registrarOptions: [
                 'autoSlashRedirect' => (bool) $this->config->get('router.auto_slash_redirect', false),
                 'exposeUrlServices' => (bool) $this->config->get('router.expose_url_services', false),

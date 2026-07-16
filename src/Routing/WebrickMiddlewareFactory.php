@@ -43,7 +43,7 @@ final readonly class WebrickMiddlewareFactory
      */
     public function postGlobal(): array
     {
-        return $this->resolveGlobalList('router.webrick.globals.post');
+        return $this->resolveGlobalList('post');
     }
 
     /**
@@ -51,7 +51,7 @@ final readonly class WebrickMiddlewareFactory
      */
     public function preGlobal(): array
     {
-        return $this->resolveGlobalList('router.webrick.globals.pre');
+        return $this->resolveGlobalList('pre');
     }
 
     public function registerAliases(): void
@@ -126,15 +126,12 @@ final readonly class WebrickMiddlewareFactory
      */
     private function configuredAliases(): array
     {
-        $configured = $this->config->get('router.webrick.aliases', []);
-        if (!is_array($configured)) {
-            return [];
-        }
+        $configured = $this->middlewareSection('aliases');
 
         $aliases = [];
 
         foreach ($configured as $alias => $definition) {
-            if (!is_string($alias) || $alias === '') {
+            if ($alias === '') {
                 continue;
             }
 
@@ -400,6 +397,22 @@ final readonly class WebrickMiddlewareFactory
     }
 
     /**
+     * @return array<string, mixed>
+     */
+    private function middlewarePreset(string $driver): array
+    {
+        return ValueNormalizer::associativeArray($this->config->get('router.middleware.definitions.' . $driver, []));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function middlewareSection(string $section): array
+    {
+        return ValueNormalizer::associativeArray($this->config->get('router.middleware.' . $section, []));
+    }
+
+    /**
      * @return MiddlewareDefinition|null
      */
     private function normalizeDefinition(mixed $definition): ?array
@@ -423,7 +436,7 @@ final readonly class WebrickMiddlewareFactory
             return null;
         }
 
-        $presetConfig = ValueNormalizer::associativeArray($this->config->get('router.webrick.middleware.' . $driver, []));
+        $presetConfig = $this->middlewarePreset($driver);
 
         return ['driver' => $driver] + $presetConfig + $normalized;
     }
@@ -451,9 +464,9 @@ final readonly class WebrickMiddlewareFactory
     /**
      * @return list<object|string>
      */
-    private function resolveGlobalList(string $key): array
+    private function resolveGlobalList(string $phase): array
     {
-        $configured = $this->config->get($key, []);
+        $configured = $this->config->get('router.middleware.globals.' . $phase, []);
         if (!is_array($configured)) {
             return [];
         }

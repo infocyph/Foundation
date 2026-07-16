@@ -83,7 +83,7 @@ final readonly class RoutePresetRegistrar
      */
     private function configuredGroups(): array
     {
-        $configured = $this->config->get('router.middleware_groups', []);
+        $configured = $this->config->get('router.middleware.groups', []);
         if (!is_array($configured)) {
             return [];
         }

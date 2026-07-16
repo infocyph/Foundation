@@ -15,21 +15,25 @@ final class ConfigLoader
     {
         $normalized = $this->normalizeInput($inline);
         $preset = ValueNormalizer::associativeArray($normalized['_preset'] ?? null);
+        $cacheControl = $normalized['_config_cache'] ?? null;
 
-        unset($normalized['_preset']);
+        unset($normalized['_config_cache'], $normalized['_preset']);
 
         $basePath = $this->basePath($normalized);
         require_once __DIR__ . '/config_helpers.php';
         ConfigRuntime::activate($basePath);
         new EnvironmentLoader()->load($basePath, $normalized);
-        $fileConfig = $this->loadProjectConfig($basePath, $normalized);
+        $configDirectory = $this->configPath($basePath, $normalized);
 
-        return new ConfigRepository(ConfigMerger::mergeMany([
-            $this->defaults(),
-            $preset,
-            $fileConfig,
-            $normalized,
-        ]));
+        return ConfigRepository::fromLazyFiles(
+            directory: $configDirectory,
+            cacheDirectory: $this->configCacheEnabled($cacheControl)
+                ? $this->configuredCachePath($cacheControl, $basePath)
+                : null,
+            fallback: $this->defaults(),
+            overrides: ConfigMerger::mergeMany([$preset, $normalized]),
+            namespaces: $this->configNamespaces($configDirectory),
+        );
     }
 
     private function absolute(string $path): bool
@@ -50,6 +54,42 @@ final class ConfigLoader
             : (getcwd() ?: dirname(__DIR__, 2));
     }
 
+    private function cachePath(string $basePath, string $path): string
+    {
+        return $this->absolute($path)
+            ? rtrim($path, DIRECTORY_SEPARATOR)
+            : $basePath . DIRECTORY_SEPARATOR . trim($path, DIRECTORY_SEPARATOR);
+    }
+
+    private function configCacheEnabled(mixed $control): bool
+    {
+        return $control !== false
+            && $control !== '0'
+            && $control !== 'false';
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function configNamespaces(string $directory): array
+    {
+        if (!is_dir($directory)) {
+            return [];
+        }
+
+        $namespaces = [];
+        foreach (glob($directory . DIRECTORY_SEPARATOR . '*.php') ?: [] as $file) {
+            $namespace = pathinfo($file, PATHINFO_FILENAME);
+            if ($namespace !== '') {
+                $namespaces[] = $namespace;
+            }
+        }
+
+        sort($namespaces);
+
+        return $namespaces;
+    }
+
     /**
      * @param array<string, mixed> $inline
      */
@@ -67,6 +107,19 @@ final class ConfigLoader
             : $basePath . DIRECTORY_SEPARATOR . trim($configured, DIRECTORY_SEPARATOR);
     }
 
+    private function configuredCachePath(mixed $control, string $basePath): string
+    {
+        if (is_string($control) && $this->configCacheEnabled($control) && $control !== '') {
+            return $this->cachePath($basePath, $control);
+        }
+
+        $configured = $_ENV['APP_CONFIG_CACHE'] ?? $_SERVER['APP_CONFIG_CACHE'] ?? getenv('APP_CONFIG_CACHE');
+
+        return is_string($configured) && $this->configCacheEnabled($configured) && $configured !== ''
+            ? $this->cachePath($basePath, $configured)
+            : $basePath . DIRECTORY_SEPARATOR . 'bootstrap/cache/config';
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -76,35 +129,6 @@ final class ConfigLoader
             FoundationDefaults::all(),
             AuthDefaults::all(),
         ]);
-    }
-
-    /**
-     * @param array<string, mixed> $inline
-     * @return array<string, mixed>
-     */
-    private function loadProjectConfig(string $basePath, array $inline): array
-    {
-        $configDir = $this->configPath($basePath, $inline);
-        if (!is_dir($configDir)) {
-            return [];
-        }
-
-        $loaded = [];
-        $files = glob($configDir . DIRECTORY_SEPARATOR . '*.php') ?: [];
-        sort($files);
-
-        foreach ($files as $file) {
-            $name = pathinfo($file, PATHINFO_FILENAME);
-            $values = ValueNormalizer::associativeArray(require $file);
-
-            if ($name === '' || $values === []) {
-                continue;
-            }
-
-            $loaded[$name] = $values;
-        }
-
-        return $loaded;
     }
 
     /**

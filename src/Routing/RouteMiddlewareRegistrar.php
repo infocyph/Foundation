@@ -8,7 +8,6 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Auth\Authorization\Gate\AuthorizerInterface;
 use Infocyph\Foundation\Auth\Authorization\Role\RoleManager;
 use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
-use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Http\Middleware\AuthMiddleware;
 use Infocyph\Foundation\Http\Middleware\GuestMiddleware;
 use Infocyph\Foundation\Http\Middleware\MfaRequiredMiddleware;
@@ -28,7 +27,6 @@ final class RouteMiddlewareRegistrar
 
     public function __construct(
         private readonly Application $app,
-        private readonly ConfigRepository $config,
     ) {}
 
     public function register(): void
@@ -66,32 +64,6 @@ final class RouteMiddlewareRegistrar
         ));
         $this->app->make(WebrickMiddlewareFactory::class)->registerAliases();
 
-        foreach ($this->configuredAliases() as $alias => $class) {
-            MiddlewareAliases::register($alias, $class);
-        }
-
         $this->registered = true;
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    private function configuredAliases(): array
-    {
-        $configured = $this->config->get('router.middleware', []);
-        if (!is_array($configured)) {
-            return [];
-        }
-
-        $aliases = [];
-        foreach ($configured as $alias => $class) {
-            if (!is_string($alias) || !is_string($class) || $alias === '' || $class === '') {
-                continue;
-            }
-
-            $aliases[$alias] = $class;
-        }
-
-        return $aliases;
     }
 }

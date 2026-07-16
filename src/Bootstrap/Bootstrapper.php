@@ -47,7 +47,7 @@ final class Bootstrapper
     {
         $app->providers()->boot($app);
 
-        if ((bool) $app->config()->get('router.load_files', true) && $app->has(RouteFileLoader::class)) {
+        if ($app->has(RouteFileLoader::class)) {
             $app->make(RouteFileLoader::class)->load();
         }
     }

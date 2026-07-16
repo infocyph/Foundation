@@ -94,10 +94,7 @@ final class RoutingServiceProvider extends ServiceProvider
             $app->authManager()->principal(),
             $app->make(AuthResponseFactory::class),
         ), LifetimeEnum::Singleton);
-        $container->bind(RouteMiddlewareRegistrar::class, fn() => new RouteMiddlewareRegistrar(
-            $app,
-            $app->config(),
-        ), LifetimeEnum::Singleton);
+        $container->bind(RouteMiddlewareRegistrar::class, fn() => new RouteMiddlewareRegistrar($app), LifetimeEnum::Singleton);
         $container->bind(RoutePresetRegistrar::class, fn() => new RoutePresetRegistrar(
             $app->make(RouteMiddlewareRegistrar::class),
             $app->config(),

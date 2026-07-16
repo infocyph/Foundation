@@ -438,33 +438,25 @@ final class FoundationDefaults
                     'controller_file_filter' => true,
                     'directories' => [],
                 ],
-                'load_files' => true,
                 'matcher' => 'fused',
-                'middleware' => [],
-                'middleware_groups' => [],
+                'middleware' => [
+                    'aliases' => [
+                        'signed' => 'verify_signed_url',
+                        'throttle' => 'throttle',
+                    ],
+                    'definitions' => [],
+                    'globals' => [
+                        'post' => [],
+                        'pre' => [],
+                    ],
+                    'groups' => [],
+                ],
                 'signed_urls' => [
                     'default_ttl' => null,
                     'key' => null,
                     'options' => [],
                 ],
                 'url_base_uri' => '',
-                'webrick' => [
-                    'aliases' => [
-                        'signed' => [
-                            'driver' => 'verify_signed_url',
-                            'enabled' => true,
-                        ],
-                        'throttle' => [
-                            'driver' => 'throttle',
-                            'enabled' => true,
-                        ],
-                    ],
-                    'globals' => [
-                        'post' => [],
-                        'pre' => [],
-                    ],
-                    'middleware' => [],
-                ],
             ],
             'security' => [
                 'epicrypt' => [
