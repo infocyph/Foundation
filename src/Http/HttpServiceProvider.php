@@ -7,6 +7,7 @@ namespace Infocyph\Foundation\Http;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Http\Response\AuthExceptionMapper;
+use Infocyph\Foundation\Http\Response\AuthResponseFactory;
 use Infocyph\Foundation\Routing\RouterManager;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Webrick\Request\Request;
@@ -19,6 +20,11 @@ final class HttpServiceProvider extends ServiceProvider
     public function register(Application $app): void
     {
         $container = $app->container();
+
+        $container->bind(AuthResponseFactory::class, fn() => new AuthResponseFactory(), LifetimeEnum::Singleton);
+        $container->bind(AuthExceptionMapper::class, fn() => new AuthExceptionMapper(
+            $app->make(AuthResponseFactory::class),
+        ), LifetimeEnum::Singleton);
 
         $container->bind(ErrorHandler::class, fn() => new ErrorHandler(
             logger: new NullLogger(),

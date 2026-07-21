@@ -26,6 +26,9 @@ final class FoundationDefaults
                     'lazy_loading' => false,
                     'request_scope' => true,
                 ],
+                'config_cache' => [
+                    'type' => ConfigLoader::TYPE_SHARDED,
+                ],
                 'debug' => false,
                 'env' => 'local',
                 'env_files' => ['.env', '.env.local'],

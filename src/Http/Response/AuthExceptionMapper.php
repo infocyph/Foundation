@@ -41,23 +41,12 @@ final readonly class AuthExceptionMapper
 
     public function supports(\Throwable $exception): bool
     {
-        return array_any(
-            array_keys($this->map),
-            static fn(string $class): bool => $exception instanceof $class,
-        );
+        return $this->statusFor($exception) !== null;
     }
 
     public function toResponse(Request $request, \Throwable $exception): Response
     {
-        $status = $this->supports($exception) ? 403 : 500;
-
-        foreach ($this->map as $class => $candidate) {
-            if ($exception instanceof $class) {
-                $status = $candidate;
-
-                break;
-            }
-        }
+        $status = $this->statusFor($exception) ?? 500;
 
         return match ($status) {
             401 => $this->responses->unauthorized($request, $this->message($exception, 'Authentication failed.')),
@@ -73,5 +62,16 @@ final readonly class AuthExceptionMapper
         return $exception->getMessage() !== ''
             ? $exception->getMessage()
             : $fallback;
+    }
+
+    private function statusFor(\Throwable $exception): ?int
+    {
+        foreach ($this->map as $class => $status) {
+            if ($exception instanceof $class) {
+                return $status;
+            }
+        }
+
+        return null;
     }
 }

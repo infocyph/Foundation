@@ -31,11 +31,12 @@ final readonly class ResolvePrincipalMiddleware
         }
 
         if ($principal !== null) {
-            $request = $request
-                ->withAttribute('auth.account_id', $principal->accountId())
-                ->withAttribute('auth.principal', $principal)
-                ->withAttribute('auth.principal_id', $principal->id())
-                ->withAttribute('auth.principal_type', $principal->type()->value);
+            $request = $request->withAttributes([
+                'auth.account_id' => $principal->accountId(),
+                'auth.principal' => $principal,
+                'auth.principal_id' => $principal->id(),
+                'auth.principal_type' => $principal->type()->value,
+            ]);
         }
 
         try {

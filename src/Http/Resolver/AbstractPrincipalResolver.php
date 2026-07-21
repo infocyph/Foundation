@@ -10,7 +10,6 @@ use Infocyph\Foundation\Auth\Principal\Principal;
 use Infocyph\Foundation\Auth\Principal\PrincipalInterface;
 use Infocyph\Foundation\Auth\Principal\PrincipalType;
 use Infocyph\Foundation\Config\ConfigRepository;
-use Infocyph\Webrick\Request\Request;
 
 abstract class AbstractPrincipalResolver implements PrincipalResolverInterface
 {
@@ -18,51 +17,25 @@ abstract class AbstractPrincipalResolver implements PrincipalResolverInterface
         protected readonly ConfigRepository $config,
     ) {}
 
-    protected function headerOrCookieValue(
-        Request $request,
-        string $headerKey,
-        string $headerDefault,
-        string $cookieKey,
-        string $cookieDefault,
-    ): ?string {
-        $header = $this->headerValue($request, $headerKey, $headerDefault);
-        if ($header !== null) {
-            return $header;
-        }
-
-        $cookie = $request->cookie($this->stringConfig($cookieKey, $cookieDefault));
-
-        return is_string($cookie) && $cookie !== ''
-            ? $cookie
-            : null;
-    }
-
-    protected function headerValue(Request $request, string $key, string $default): ?string
-    {
-        $value = $request->header($this->stringConfig($key, $default));
-
-        return is_string($value) && $value !== ''
-            ? $value
-            : null;
-    }
-
     /**
      * @param array<string, mixed> $metadata
      */
     protected function principalForAccount(AccountInterface $account, array $metadata = []): ?PrincipalInterface
     {
-        if (in_array($account->status(), [
-            AccountStatus::DISABLED,
-            AccountStatus::LOCKED,
-            AccountStatus::SUSPENDED,
-        ], true)) {
+        $status = $account->status();
+        if ($status === AccountStatus::DISABLED
+            || $status === AccountStatus::LOCKED
+            || $status === AccountStatus::SUSPENDED
+        ) {
             return null;
         }
 
+        $accountId = $account->id();
+
         return new Principal(
-            id: $account->id(),
+            id: $accountId,
             type: PrincipalType::ACCOUNT,
-            accountId: $account->id(),
+            accountId: $accountId,
             metadata: $metadata,
         );
     }

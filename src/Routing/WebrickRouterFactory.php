@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Routing;
 
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\InterMix\DI\Container;
 use Infocyph\Webrick\Interfaces\RouteInterface;
 use Infocyph\Webrick\Router\Definition\Registrar;
 use Infocyph\Webrick\Router\Facade\Router;
@@ -20,6 +21,8 @@ use Psr\Log\NullLogger;
 
 final class WebrickRouterFactory
 {
+    private ?RouterKernel $kernel = null;
+
     private ?Registrar $registrar = null;
 
     private ?Collection $routes = null;
@@ -27,17 +30,29 @@ final class WebrickRouterFactory
     public function __construct(
         private readonly ConfigRepository $config,
         private readonly WebrickMiddlewareFactory $middleware,
+        private readonly Container $container,
     ) {}
 
     public function kernel(?ErrorHandler $errorHandler = null): RouterKernel
     {
-        $routes = $this->routes();
-        $aliases = $this->aliasesByRoute($routes);
+        if ($this->kernel !== null) {
+            return $this->kernel;
+        }
 
-        return RouterKernel::bootWithRegistrar(
+        $routes = RouteCachePath::isWarm($this->config) ? null : $this->routes();
+        $aliases = $routes instanceof Collection ? $this->aliasesByRoute($routes) : [];
+        $routeCache = RouteCachePath::enabled($this->config)
+            ? RouteCachePath::for($this->config)
+            : null;
+
+        return $this->kernel = RouterKernel::bootWithRegistrar(
             log: new NullLogger(),
             matcher: $this->matcher(),
             register: function (Registrar $registrar) use ($routes, $aliases): void {
+                if (!$routes instanceof Collection) {
+                    return;
+                }
+
                 foreach ($routes->all() as $route) {
                     $this->replayRoute(
                         $registrar,
@@ -46,7 +61,7 @@ final class WebrickRouterFactory
                     );
                 }
             },
-            routeCache: RouteCachePath::for($this->config),
+            routeCache: $routeCache,
             registrarOptions: [
                 'autoSlashRedirect' => (bool) $this->config->get('router.auto_slash_redirect', false),
                 'exposeUrlServices' => (bool) $this->config->get('router.expose_url_services', false),
@@ -59,7 +74,9 @@ final class WebrickRouterFactory
             postGlobal: $this->middleware->postGlobal(),
             errorHandler: $errorHandler,
             bindUrlServices: $this->bindUrlServicesCallback(),
-            fallbackAliasesFromRegistrar: true,
+            fallbackAliasesFromRegistrar: false,
+            requestScopeEnabled: false,
+            container: $this->container,
         );
     }
 
@@ -84,7 +101,9 @@ final class WebrickRouterFactory
         $this->registrar = $registrar;
 
         Router::setInstance($registrar);
-        $this->bindUrlServices();
+        if ($this->kernel === null) {
+            $this->bindUrlServices();
+        }
 
         return $registrar;
     }

@@ -12,6 +12,9 @@ use Infocyph\Webrick\Response\Response;
 
 final readonly class RoleMiddleware
 {
+    /** @var array<string, true> */
+    private array $roleLookup;
+
     /**
      * @param list<string> $roles
      */
@@ -19,8 +22,10 @@ final readonly class RoleMiddleware
         private CurrentPrincipalContext $principals,
         private RoleManager $roleManager,
         private AuthResponseFactory $responses,
-        private array $roles,
-    ) {}
+        array $roles,
+    ) {
+        $this->roleLookup = array_fill_keys($roles, true);
+    }
 
     /**
      * @param callable(Request): Response $next
@@ -35,7 +40,7 @@ final readonly class RoleMiddleware
         }
 
         foreach ($this->roleManager->forAccount($accountId) as $role) {
-            if (in_array($role->name, $this->roles, true)) {
+            if (isset($this->roleLookup[$role->name])) {
                 return $next($request);
             }
         }

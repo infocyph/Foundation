@@ -4,13 +4,19 @@ declare(strict_types=1);
 
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
+use Infocyph\Foundation\Auth\AuthManager;
+use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Facades\Route;
 use Infocyph\Foundation\Foundation;
+use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Routing\RouteCachePath;
 use Infocyph\Foundation\Routing\WebrickMiddlewareFactory;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Webrick\Middleware\MaintenanceModeMiddleware;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
+use Infocyph\Webrick\Router\Definition\Registrar;
+use Infocyph\Webrick\Support\RouteCache as WebrickRouteCache;
 
 interface FoundationTestGateway
 {
@@ -34,8 +40,7 @@ final readonly class ProductionFoundationGateway implements FoundationTestGatewa
 }
 
 it('applies InterMix environment bindings from the application environment', function (): void {
-    $provider = new class extends ServiceProvider
-    {
+    $provider = new class extends ServiceProvider {
         public function register(Application $app): void
         {
             $app->container()
@@ -56,8 +61,7 @@ it('applies InterMix environment bindings from the application environment', fun
 });
 
 it('scopes request-lifetime services through the HTTP kernel', function (): void {
-    $provider = new class extends ServiceProvider
-    {
+    $provider = new class extends ServiceProvider {
         public function register(Application $app): void
         {
             $app->container()->bind('scoped.probe', fn() => new stdClass(), LifetimeEnum::Scoped);
@@ -130,6 +134,191 @@ PHP,
             ->and(foundationJsonResponse($response))->toBe(['registered' => true]);
     } finally {
         foundationIntegrationRemoveDirectory($project);
+    }
+});
+
+it('reuses one Webrick kernel for the application lifetime', function (): void {
+    $project = foundationIntegrationProject([
+        'routes/web.php' => <<<'PHP'
+<?php
+
+use Infocyph\Webrick\Router\Facade\Router as Route;
+
+Route::get('/kernel', static fn(): array => ['ok' => true]);
+PHP,
+    ]);
+
+    try {
+        $app = Foundation::create(['base_path' => $project])->boot();
+        $router = $app->router();
+
+        expect($router->kernel())->toBe($router->kernel());
+    } finally {
+        foundationIntegrationRemoveDirectory($project);
+    }
+});
+
+it('keeps unrelated subsystems deferred for plain routes', function (): void {
+    $project = foundationIntegrationProject([
+        'routes/web.php' => <<<'PHP'
+<?php
+
+use Infocyph\Webrick\Response\Response;
+use Infocyph\Webrick\Router\Facade\Router;
+
+Router::get('/lean', static fn(): Response => Response::json(['ok' => true]));
+PHP,
+    ]);
+
+    try {
+        $app = Foundation::create(['base_path' => $project]);
+
+        expect($app->container()->has(AuthManager::class))->toBeFalse()
+            ->and($app->container()->has(CacheManager::class))->toBeFalse()
+            ->and($app->has(AuthManager::class))->toBeTrue()
+            ->and(foundationJsonResponse($app->handle(foundationRequest('/lean'))))->toBe(['ok' => true])
+            ->and($app->container()->has(AuthManager::class))->toBeFalse()
+            ->and($app->container()->has(CacheManager::class))->toBeFalse();
+
+        expect($app->cache())->toBeInstanceOf(CacheManager::class)
+            ->and($app->container()->has(CacheManager::class))->toBeTrue();
+    } finally {
+        foundationIntegrationRemoveDirectory($project);
+    }
+});
+
+it('does not build configured middleware aliases until a route uses them', function (): void {
+    $project = foundationIntegrationProject([
+        'routes/web.php' => <<<'PHP'
+<?php
+
+use Infocyph\Webrick\Response\Response;
+use Infocyph\Webrick\Router\Facade\Router;
+
+Router::get('/without-cookie-middleware', static fn(): Response => Response::json(['ok' => true]));
+Router::get('/with-cookie-middleware', static fn(): Response => Response::json(['ok' => true]), [
+    'middleware' => ['encrypted-cookie'],
+]);
+PHP,
+    ]);
+
+    try {
+        $app = Foundation::create([
+            'base_path' => $project,
+            'router' => [
+                'middleware' => [
+                    'aliases' => ['encrypted-cookie' => 'cookie_encryption'],
+                    'definitions' => [
+                        'cookie_encryption' => [
+                            'keys' => [str_repeat('k', 32)],
+                            'store' => 'memory',
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        expect(foundationJsonResponse($app->handle(foundationRequest('/without-cookie-middleware'))))
+            ->toBe(['ok' => true])
+            ->and($app->container()->has(CacheManager::class))->toBeFalse();
+
+        expect(foundationJsonResponse($app->handle(foundationRequest('/with-cookie-middleware'))))
+            ->toBe(['ok' => true])
+            ->and($app->container()->has(CacheManager::class))->toBeTrue();
+    } finally {
+        foundationIntegrationRemoveDirectory($project);
+    }
+});
+
+it('activates auth only when auth middleware is dispatched', function (): void {
+    $project = foundationIntegrationProject([
+        'routes/web.php' => <<<'PHP'
+<?php
+
+use Infocyph\Webrick\Response\Response;
+use Infocyph\Webrick\Router\Facade\Router;
+
+Router::get('/protected', static fn(): Response => Response::json(['ok' => true]), [
+    'middleware' => ['auth'],
+]);
+PHP,
+    ]);
+
+    try {
+        $app = Foundation::create(['base_path' => $project]);
+        expect($app->container()->has(AuthManager::class))->toBeFalse();
+
+        $response = $app->handle(foundationRequest('/protected'));
+
+        expect($response->getStatusCode())->toBe(401)
+            ->and($app->container()->has(AuthManager::class))->toBeTrue();
+    } finally {
+        foundationIntegrationRemoveDirectory($project);
+    }
+});
+
+it('does not consume an existing route cache when routing cache is disabled', function (): void {
+    $project = foundationIntegrationProject([
+        'bootstrap/cache/routes/fused.php' => "<?php\n\nreturn [];\n",
+        'routes/web.php' => <<<'PHP'
+<?php
+
+use Infocyph\Webrick\Response\Response;
+use Infocyph\Webrick\Router\Facade\Router;
+
+Router::get('/source-route', static fn(): Response => Response::json(['source' => true]));
+PHP,
+    ]);
+
+    try {
+        $app = Foundation::create([
+            'base_path' => $project,
+            'router' => ['cache' => false],
+        ]);
+
+        expect(foundationJsonResponse($app->handle(foundationRequest('/source-route'))))
+            ->toBe(['source' => true]);
+    } finally {
+        foundationIntegrationRemoveDirectory($project);
+    }
+});
+
+it('boots every matcher from cache while preserving signed URL services', function (): void {
+    foreach (['fused', 'generated', 'sharded'] as $matcher) {
+        $project = foundationIntegrationProject([]);
+        $config = new ConfigRepository([
+            'app' => ['base_path' => $project],
+            'router' => ['matcher' => $matcher],
+        ]);
+
+        try {
+            WebrickRouteCache::build([
+                'cache' => RouteCachePath::for($config),
+                'matcher' => $matcher,
+                'register' => static function (Registrar $router): void {
+                    $router->get('/cached/{name}', 'foundationCachedRouteHandler', [
+                        'name' => 'cached.show',
+                    ]);
+                },
+                'signKey' => 'foundation-cache-signing-secret',
+                'fallbackAliasesFromRegistrar' => false,
+            ]);
+
+            $app = Foundation::create([
+                'base_path' => $project,
+                'router' => [
+                    'matcher' => $matcher,
+                    'signed_urls' => ['key' => 'foundation-cache-signing-secret'],
+                ],
+            ]);
+
+            expect(foundationJsonResponse($app->handle(foundationRequest('/cached/Codex'))))
+                ->toBe(['name' => 'Codex'])
+                ->and(Route::signedUrlFor('cached.show', ['name' => 'Codex']))
+                ->toContain('/cached/Codex');
+        } finally {
+            foundationIntegrationRemoveDirectory($project);
+        }
     }
 });
 
@@ -277,6 +466,11 @@ function foundationIntegrationProject(array $files): string
     }
 
     return $root;
+}
+
+function foundationCachedRouteHandler(string $name): Response
+{
+    return Response::json(['name' => $name]);
 }
 
 /**

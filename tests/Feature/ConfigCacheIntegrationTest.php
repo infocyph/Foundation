@@ -84,6 +84,108 @@ it('falls back to source config when a lazy cache file is invalid', function ():
     }
 });
 
+it('boots from a sharded lazy cache without loading environment or scanning config files', function (): void {
+    $project = configCacheProject([
+        '.env' => "APP_NAME=environment\n",
+        'config/app.php' => "<?php\n\nreturn ['name' => 'source'];\n",
+    ]);
+    $environment = [
+        'env_exists' => array_key_exists('APP_NAME', $_ENV),
+        'env_value' => $_ENV['APP_NAME'] ?? null,
+        'server_exists' => array_key_exists('APP_NAME', $_SERVER),
+        'server_value' => $_SERVER['APP_NAME'] ?? null,
+        'process_value' => getenv('APP_NAME'),
+    ];
+
+    try {
+        $loader = new ConfigLoader();
+        $config = $loader->load(['base_path' => $project]);
+        $loader->writeCache($config, $project . '/bootstrap/cache/config');
+
+        $manifest = $project . '/bootstrap/cache/config/__manifest.php';
+        $namespace = $project . '/bootstrap/cache/config/app.php';
+        expect(fileperms($manifest) & 0777)->toBe(0664)
+            ->and(fileperms($namespace) & 0777)->toBe(0664)
+            ->and($project . '/bootstrap/cache/config/__flat.php')->not->toBeFile();
+
+        unlink($project . '/.env');
+        unlink($project . '/config/app.php');
+
+        $cached = $loader->load([
+            'base_path' => $project,
+            '_preset' => ['app' => ['debug' => true]],
+        ]);
+
+        expect($cached->get('app.name'))->toBe('source')
+            ->and($cached->get('app.debug'))->toBeTrue()
+            ->and($cached->get('cache.default'))->toBe('memory')
+            ->and($cached->lazyNamespaces())->toContain('app', 'auth', 'cache', 'router')
+            ->and($manifest)->toBeFile();
+    } finally {
+        if ($environment['env_exists']) {
+            $_ENV['APP_NAME'] = $environment['env_value'];
+        } else {
+            unset($_ENV['APP_NAME']);
+        }
+
+        if ($environment['server_exists']) {
+            $_SERVER['APP_NAME'] = $environment['server_value'];
+        } else {
+            unset($_SERVER['APP_NAME']);
+        }
+
+        putenv($environment['process_value'] === false
+            ? 'APP_NAME'
+            : 'APP_NAME=' . $environment['process_value']);
+        configCacheRemoveDirectory($project);
+    }
+});
+
+it('supports an explicitly configured single config cache', function (): void {
+    $project = configCacheProject([
+        'config/app.php' => <<<'PHP'
+<?php
+
+return [
+    'name' => 'single',
+    'config_cache' => ['type' => 'single'],
+];
+PHP,
+    ]);
+
+    try {
+        $loader = new ConfigLoader();
+        $config = $loader->load(['base_path' => $project]);
+        $loader->writeCache($config, $project . '/bootstrap/cache/config');
+
+        unlink($project . '/config/app.php');
+
+        $cached = $loader->load(['base_path' => $project]);
+
+        expect($cached->get('app.name'))->toBe('single')
+            ->and($project . '/bootstrap/cache/config/__manifest.php')->toBeFile()
+            ->and($project . '/bootstrap/cache/config/app.php')->not->toBeFile()
+            ->and($project . '/bootstrap/cache/config/__flat.php')->not->toBeFile();
+    } finally {
+        configCacheRemoveDirectory($project);
+    }
+});
+
+it('falls back to source config when the cache manifest is invalid', function (): void {
+    $project = configCacheProject([
+        'config/app.php' => "<?php\n\nreturn ['name' => 'source'];\n",
+        'bootstrap/cache/config/__manifest.php' => "<?php\n\nreturn ['_format' => 99];\n",
+    ]);
+
+    try {
+        $config = (new ConfigLoader())->load(['base_path' => $project]);
+
+        expect($config->get('app.name'))->toBe('source');
+    } finally {
+        configCacheRemoveDirectory($project);
+    }
+});
+
 /**
  * @param array<string, string> $files
  */

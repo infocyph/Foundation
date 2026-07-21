@@ -18,6 +18,7 @@ use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\Foundation\Http\HttpServiceProvider;
 use Infocyph\Foundation\Identifiers\IdentifierServiceProvider;
 use Infocyph\Foundation\Notifications\NotificationServiceProvider;
+use Infocyph\Foundation\Routing\RouteCachePath;
 use Infocyph\Foundation\Routing\RouteFileLoader;
 use Infocyph\Foundation\Routing\RoutingServiceProvider;
 use Infocyph\Foundation\Security\SecurityServiceProvider;
@@ -25,10 +26,8 @@ use Infocyph\Foundation\Validation\ValidationServiceProvider;
 
 final class Bootstrapper
 {
-    /**
-     * @var list<class-string>
-     */
-    private array $defaultProviders = [
+    /** @var list<class-string> */
+    private const array DEFAULT_PROVIDERS = [
         CacheServiceProvider::class,
         DatabaseServiceProvider::class,
         SecurityServiceProvider::class,
@@ -43,19 +42,49 @@ final class Bootstrapper
         AuthServiceProvider::class,
     ];
 
+    /** @var list<class-string> */
+    private const array EAGER_PROVIDERS = [
+        FilesystemServiceProvider::class,
+        RoutingServiceProvider::class,
+        HttpServiceProvider::class,
+    ];
+
+    public function activateProviderFor(Application $app, string $service): bool
+    {
+        $provider = $this->providerFor($service);
+        if ($provider === null) {
+            return false;
+        }
+
+        if ($provider === AuthServiceProvider::class) {
+            $app->providers()->activate(IdentifierServiceProvider::class, $app);
+        }
+
+        return $app->providers()->activate($provider, $app);
+    }
+
     public function boot(Application $app): void
     {
         $app->providers()->boot($app);
 
-        if ($app->has(RouteFileLoader::class)) {
+        if ($app->has(RouteFileLoader::class) && !RouteCachePath::isWarm($app->config())) {
             $app->make(RouteFileLoader::class)->load();
         }
     }
 
+    public function canProvide(string $service): bool
+    {
+        return $this->providerFor($service) !== null;
+    }
+
     public function prepare(Application $app): void
     {
-        foreach ($this->defaultProviders() as $provider) {
-            $app->register($provider);
+        foreach (self::DEFAULT_PROVIDERS as $provider) {
+            if (in_array($provider, self::EAGER_PROVIDERS, true)) {
+                $app->register($this->instantiateProvider($provider));
+            } else {
+                $app->providers()->addDeferred($provider);
+            }
         }
 
         $app->providers()->register($app);
@@ -84,21 +113,6 @@ final class Bootstrapper
         $providers = [];
 
         foreach ($configured as $provider) {
-            $instance = $this->instantiateProvider($provider);
-            $providers[$instance::class] = $instance;
-        }
-
-        return array_values($providers);
-    }
-
-    /**
-     * @return list<ServiceProviderInterface>
-     */
-    private function defaultProviders(): array
-    {
-        $providers = [];
-
-        foreach ($this->defaultProviders as $provider) {
             $instance = $this->instantiateProvider($provider);
             $providers[$instance::class] = $instance;
         }
@@ -145,5 +159,43 @@ final class Bootstrapper
         }
 
         return array_values($providers);
+    }
+
+    /**
+     * @return class-string<ServiceProviderInterface>|null
+     */
+    private function providerFor(string $service): ?string
+    {
+        $aliases = [
+            'foundation.auth' => AuthServiceProvider::class,
+            'foundation.cache' => CacheServiceProvider::class,
+            'foundation.communication' => CommunicationServiceProvider::class,
+            'foundation.data' => DataServiceProvider::class,
+            'foundation.db' => DatabaseServiceProvider::class,
+            'foundation.ids' => IdentifierServiceProvider::class,
+            'foundation.notifications' => NotificationServiceProvider::class,
+            'foundation.security' => SecurityServiceProvider::class,
+            'foundation.uid' => IdentifierServiceProvider::class,
+            'foundation.validator' => ValidationServiceProvider::class,
+        ];
+
+        return $aliases[$service] ?? match (true) {
+            str_starts_with($service, 'Infocyph\\Foundation\\Auth\\') => AuthServiceProvider::class,
+            str_starts_with($service, 'Infocyph\\Foundation\\Cache\\') => CacheServiceProvider::class,
+            str_starts_with($service, 'Infocyph\\Foundation\\Communication\\') => CommunicationServiceProvider::class,
+            str_starts_with($service, 'Infocyph\\Foundation\\Data\\') => DataServiceProvider::class,
+            str_starts_with($service, 'Infocyph\\Foundation\\Database\\') => DatabaseServiceProvider::class,
+            str_starts_with($service, 'Infocyph\\Foundation\\Identifiers\\') => IdentifierServiceProvider::class,
+            str_starts_with($service, 'Infocyph\\Foundation\\Http\\Middleware\\'),
+            str_starts_with($service, 'Infocyph\\Foundation\\Http\\Resolver\\') => AuthServiceProvider::class,
+            str_starts_with($service, 'Infocyph\\Foundation\\Notifications\\') => NotificationServiceProvider::class,
+            str_starts_with($service, 'Infocyph\\Foundation\\Security\\') => SecurityServiceProvider::class,
+            str_starts_with($service, 'Infocyph\\Foundation\\Validation\\') => ValidationServiceProvider::class,
+            str_starts_with($service, 'Infocyph\\TalkingBytes\\Email\\') => NotificationServiceProvider::class,
+            str_starts_with($service, 'Infocyph\\TalkingBytes\\Grpc\\'),
+            str_starts_with($service, 'Infocyph\\TalkingBytes\\Http\\'),
+            str_starts_with($service, 'Infocyph\\TalkingBytes\\Webhook\\') => CommunicationServiceProvider::class,
+            default => null,
+        };
     }
 }

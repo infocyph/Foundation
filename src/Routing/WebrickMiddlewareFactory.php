@@ -58,7 +58,7 @@ final readonly class WebrickMiddlewareFactory
     public function registerAliases(): void
     {
         foreach ($this->configuredAliases() as $alias => $definition) {
-            if (!$this->enabled($definition) || !$this->buildable($definition)) {
+            if (!$this->enabled($definition)) {
                 continue;
             }
 
@@ -95,20 +95,6 @@ final readonly class WebrickMiddlewareFactory
         }
 
         return $resolved;
-    }
-
-    /**
-     * @param MiddlewareDefinition $definition
-     */
-    private function buildable(array $definition): bool
-    {
-        $driver = $this->driverName($definition['driver'] ?? null);
-
-        return match ($driver) {
-            'cookie_encryption' => $this->cookieEncryption($definition) !== null,
-            'verify_signed_url' => $this->verifySignedUrl($definition) !== null,
-            default => true,
-        };
     }
 
     private function cacheStore(mixed $name): ?CacheInterface

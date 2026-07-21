@@ -178,7 +178,7 @@ final class Application
 
     public function has(string $id): bool
     {
-        return $this->container->has($id);
+        return $this->container->has($id) || $this->bootstrapper->canProvide($id);
     }
 
     public function http(): HttpKernel
@@ -210,6 +210,10 @@ final class Application
     public function make(string $id): mixed
     {
         try {
+            if (!$this->container->has($id)) {
+                $this->bootstrapper->activateProviderFor($this, $id);
+            }
+
             return $this->container->get($id);
         } catch (\Throwable $e) {
             throw new ServiceResolutionException(sprintf('Unable to resolve service "%s".', $id), previous: $e);

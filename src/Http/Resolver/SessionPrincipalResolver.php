@@ -13,6 +13,10 @@ use Infocyph\Webrick\Request\Request;
 
 final class SessionPrincipalResolver extends AbstractPrincipalResolver
 {
+    private readonly string $cookie;
+
+    private readonly string $header;
+
     public function __construct(
         ConfigRepository $config,
         private readonly SessionStoreInterface $sessions,
@@ -20,6 +24,8 @@ final class SessionPrincipalResolver extends AbstractPrincipalResolver
         private readonly ClockInterface $clock,
     ) {
         parent::__construct($config);
+        $this->header = $this->stringConfig('auth.http.session_header', 'X-Session-Id');
+        $this->cookie = $this->stringConfig('auth.http.session_cookie', 'foundation_session');
     }
 
     public function name(): string
@@ -39,7 +45,8 @@ final class SessionPrincipalResolver extends AbstractPrincipalResolver
             return null;
         }
 
-        if ($session->expiresAt <= $this->clock->now()) {
+        $now = $this->clock->now();
+        if ($session->expiresAt <= $now) {
             $this->sessions->revoke($sessionId);
 
             return null;
@@ -50,7 +57,7 @@ final class SessionPrincipalResolver extends AbstractPrincipalResolver
             return null;
         }
 
-        $this->sessions->touch($sessionId, $this->clock->now());
+        $this->sessions->touch($sessionId, $now);
 
         return $this->principalForAccount($account, [
             'auth_via' => 'session',
@@ -61,12 +68,13 @@ final class SessionPrincipalResolver extends AbstractPrincipalResolver
 
     private function sessionId(Request $request): ?string
     {
-        return $this->headerOrCookieValue(
-            $request,
-            'auth.http.session_header',
-            'X-Session-Id',
-            'auth.http.session_cookie',
-            'foundation_session',
-        );
+        $header = $request->header($this->header);
+        if (is_string($header) && $header !== '') {
+            return $header;
+        }
+
+        $cookie = $request->cookie($this->cookie);
+
+        return is_string($cookie) && $cookie !== '' ? $cookie : null;
     }
 }

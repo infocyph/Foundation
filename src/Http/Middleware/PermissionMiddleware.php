@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Http\Middleware;
 
 use Infocyph\Foundation\Auth\Authorization\Gate\AuthorizerInterface;
-use Infocyph\Foundation\Auth\Exception\AuthorizationException;
 use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
 use Infocyph\Foundation\Http\Response\AuthExceptionMapper;
 use Infocyph\Foundation\Http\Response\AuthResponseFactory;
@@ -37,11 +36,9 @@ final readonly class PermissionMiddleware
 
         foreach ($this->abilities as $ability) {
             try {
-                $this->authorizer->authorize($principal, $ability);
-
-                return $next($request);
-            } catch (AuthorizationException) {
-                continue;
+                if ($this->authorizer->can($principal, $ability)->allowed) {
+                    return $next($request);
+                }
             } catch (\Throwable $e) {
                 return $this->exceptions->toResponse($request, $e);
             }

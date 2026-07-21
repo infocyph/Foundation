@@ -115,6 +115,14 @@ final class ConfigRepository extends Config
         return $this->isEnvironment('production');
     }
 
+    /**
+     * @return list<string>
+     */
+    public function lazyNamespaces(): array
+    {
+        return array_keys($this->lazyNamespaces);
+    }
+
     public function warmLazyCache(): void
     {
         $this->lazyFiles?->warmNamespaceCache(array_keys($this->lazyNamespaces));

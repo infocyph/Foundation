@@ -130,7 +130,7 @@ final readonly class RouterManager
         bool $absolute = false,
         ?string $payloadMode = null,
     ): string {
-        $this->router();
+        $this->kernel();
 
         return WebrickRouter::signedUrlFor($name, $params, $query, $ttl, $absolute, $payloadMode);
     }
@@ -147,7 +147,7 @@ final readonly class RouterManager
         bool $absolute = false,
         ?string $payloadMode = null,
     ): string {
-        $this->router();
+        $this->kernel();
 
         return WebrickRouter::temporaryUrlFor($name, $params, $query, $ttl, $absolute, $payloadMode);
     }
@@ -164,7 +164,7 @@ final readonly class RouterManager
         bool $absolute = false,
         ?string $payloadMode = null,
     ): string {
-        $this->router();
+        $this->kernel();
 
         return WebrickRouter::temporaryUrlUntil($name, $expiresAt, $params, $query, $absolute, $payloadMode);
     }
@@ -175,7 +175,7 @@ final readonly class RouterManager
      */
     public function urlFor(string $name, array $params = [], array $query = [], bool $absolute = false): string
     {
-        $this->router();
+        $this->kernel();
 
         return WebrickRouter::urlFor($name, $params, $query, $absolute);
     }

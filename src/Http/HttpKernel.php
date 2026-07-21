@@ -6,18 +6,19 @@ namespace Infocyph\Foundation\Http;
 
 use Infocyph\Foundation\Routing\RouterManager;
 use Infocyph\InterMix\DI\Container;
-use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 use Infocyph\Webrick\Router\Kernel\ErrorHandler;
 
-final readonly class HttpKernel
+final class HttpKernel
 {
+    private int $requestScopeSequence = 0;
+
     public function __construct(
-        private RouterManager $router,
-        private ErrorHandler $errorHandler,
-        private Container $container,
-        private bool $scopeRequests = true,
+        private readonly RouterManager $router,
+        private readonly ErrorHandler $errorHandler,
+        private readonly Container $container,
+        private readonly bool $scopeRequests = true,
     ) {}
 
     public function handle(Request $request): Response
@@ -26,10 +27,8 @@ final readonly class HttpKernel
             return $this->router->dispatch($request, $this->errorHandler);
         }
 
-        $this->container->bind(Request::class, fn() => $request, LifetimeEnum::Scoped);
-
         $response = $this->container->withinScope(
-            $this->scopeId($request),
+            'foundation.http.' . (++$this->requestScopeSequence),
             fn(): Response => $this->router->dispatch($request, $this->errorHandler),
         );
 
@@ -38,18 +37,5 @@ final readonly class HttpKernel
         }
 
         return $response;
-    }
-
-    private function scopeId(Request $request): string
-    {
-        $path = $request->getUri()->getPath();
-        $normalized = $path === '' ? '/' : $path;
-
-        return sprintf(
-            'http:%s:%s:%d',
-            strtolower($request->getMethod()),
-            $normalized,
-            spl_object_id($request),
-        );
     }
 }

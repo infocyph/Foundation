@@ -10,17 +10,33 @@ use Infocyph\Webrick\Request\Request;
 
 final readonly class RequestPrincipalResolver
 {
+    /** @var list<PrincipalResolverInterface> */
+    private array $orderedResolvers;
+
     /**
      * @param array<string, PrincipalResolverInterface> $resolvers
      */
     public function __construct(
-        private ConfigRepository $config,
-        private array $resolvers,
-    ) {}
+        ConfigRepository $config,
+        array $resolvers,
+    ) {
+        $order = $config->get('auth.http.principal_resolvers', []);
+        $ordered = [];
+
+        if (is_array($order)) {
+            foreach ($order as $name) {
+                if (is_string($name) && ($resolvers[$name] ?? null) instanceof PrincipalResolverInterface) {
+                    $ordered[] = $resolvers[$name];
+                }
+            }
+        }
+
+        $this->orderedResolvers = $ordered !== [] ? $ordered : array_values($resolvers);
+    }
 
     public function resolve(Request $request): ?PrincipalInterface
     {
-        foreach ($this->orderedResolvers() as $resolver) {
+        foreach ($this->orderedResolvers as $resolver) {
             $principal = $resolver->resolve($request);
             if ($principal !== null) {
                 return $principal;
@@ -28,33 +44,5 @@ final readonly class RequestPrincipalResolver
         }
 
         return null;
-    }
-
-    /**
-     * @return list<PrincipalResolverInterface>
-     */
-    private function orderedResolvers(): array
-    {
-        $order = $this->config->get('auth.http.principal_resolvers', []);
-        $ordered = [];
-
-        if (is_array($order)) {
-            foreach ($order as $name) {
-                if (!is_string($name)) {
-                    continue;
-                }
-
-                $resolver = $this->resolvers[$name] ?? null;
-                if ($resolver instanceof PrincipalResolverInterface) {
-                    $ordered[] = $resolver;
-                }
-            }
-        }
-
-        if ($ordered !== []) {
-            return $ordered;
-        }
-
-        return array_values($this->resolvers);
     }
 }

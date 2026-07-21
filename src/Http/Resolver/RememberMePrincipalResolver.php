@@ -12,12 +12,18 @@ use Infocyph\Webrick\Request\Request;
 
 final class RememberMePrincipalResolver extends AbstractPrincipalResolver
 {
+    private readonly string $cookie;
+
+    private readonly string $header;
+
     public function __construct(
         ConfigRepository $config,
         private readonly RememberMeManager $rememberMe,
         private readonly AccountProviderInterface $accounts,
     ) {
         parent::__construct($config);
+        $this->header = $this->stringConfig('auth.http.remember_header', 'X-Remember-Token');
+        $this->cookie = $this->stringConfig('auth.http.remember_cookie', 'foundation_remember');
     }
 
     public function name(): string
@@ -55,12 +61,13 @@ final class RememberMePrincipalResolver extends AbstractPrincipalResolver
 
     private function rememberToken(Request $request): ?string
     {
-        return $this->headerOrCookieValue(
-            $request,
-            'auth.http.remember_header',
-            'X-Remember-Token',
-            'auth.http.remember_cookie',
-            'foundation_remember',
-        );
+        $header = $request->header($this->header);
+        if (is_string($header) && $header !== '') {
+            return $header;
+        }
+
+        $cookie = $request->cookie($this->cookie);
+
+        return is_string($cookie) && $cookie !== '' ? $cookie : null;
     }
 }
