@@ -114,13 +114,21 @@ it('distinguishes cleared and missing configuration caches', function (): void {
             ->and(is_file($cachePath . '/__manifest.php'))->toBeFalse()
             ->and($console->run(['foundation', 'config:clear', '--path=' . $cachePath]))
             ->toBe(ExitCode::SUCCESS)
+            ->and($console->run([
+                'foundation',
+                'config:cache',
+                '--path=' . $cachePath,
+                '--type=single',
+            ]))->toBe(ExitCode::SUCCESS)
+            ->and(glob($cachePath . '/*.php'))->not->toBeEmpty()
             ->and($io->output())->toBe([
                 '[OK] Configuration cache cleared: ' . $cachePath,
                 '[INFO] Nothing to clear at: ' . $cachePath,
+                '[OK] Configuration cached (single): ' . $cachePath,
             ]);
     } finally {
-        if (is_file($cachePath . '/__manifest.php')) {
-            unlink($cachePath . '/__manifest.php');
+        foreach (glob($cachePath . '/*.php') ?: [] as $cacheFile) {
+            unlink($cacheFile);
         }
         if (is_dir($cachePath)) {
             rmdir($cachePath);

@@ -61,9 +61,7 @@ final readonly class ConfigCacheManager
     public function write(string $path, ?string $type = null): string
     {
         $directory = $this->path($path);
-        if (!$this->clear($directory)) {
-            throw new \RuntimeException(sprintf('Unable to clear config cache directory "%s".', $directory));
-        }
+        $this->clear($directory);
 
         $loader = new ConfigLoader();
         $config = $loader->load([
