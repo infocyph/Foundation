@@ -15,10 +15,36 @@ final readonly class ConfigCacheManager
     {
         $directory = $this->path($path);
         if (!is_dir($directory)) {
-            return true;
+            return false;
         }
 
-        return array_all(glob($directory . DIRECTORY_SEPARATOR . '*.php') ?: [], fn($cacheFile) => unlink($cacheFile));
+        $cacheFiles = glob($directory . DIRECTORY_SEPARATOR . '*.php');
+        if ($cacheFiles === false) {
+            throw new \RuntimeException(sprintf(
+                'Unable to inspect config cache directory "%s".',
+                $directory,
+            ));
+        }
+        if ($cacheFiles === []) {
+            return false;
+        }
+        if (!is_writable($directory)) {
+            throw new \RuntimeException(sprintf(
+                'Config cache directory "%s" is not writable.',
+                $directory,
+            ));
+        }
+
+        foreach ($cacheFiles as $cacheFile) {
+            if (!unlink($cacheFile)) {
+                throw new \RuntimeException(sprintf(
+                    'Unable to remove config cache file "%s".',
+                    $cacheFile,
+                ));
+            }
+        }
+
+        return true;
     }
 
     public function path(string $path): string

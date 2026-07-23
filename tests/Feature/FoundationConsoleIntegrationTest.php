@@ -93,6 +93,44 @@ it('reuses one lazily created Foundation application for real commands', functio
     }
 });
 
+it('distinguishes cleared and missing configuration caches', function (): void {
+    $basePath = sys_get_temp_dir() . '/foundation-console-config-' . bin2hex(random_bytes(5));
+    $cachePath = $basePath . '/cache';
+    mkdir($cachePath, 0775, true);
+    file_put_contents($cachePath . '/__manifest.php', '<?php return [];');
+
+    try {
+        $io = new BufferedIO();
+        $console = FoundationConsole::create(
+            static fn(?string $profile) => Foundation::console([
+                'base_path' => $basePath,
+                'env' => $profile ?? 'testing',
+                '_config_cache' => false,
+            ]),
+        )->withIO($io);
+
+        expect($console->run(['foundation', 'config:clear', '--path=' . $cachePath]))
+            ->toBe(ExitCode::SUCCESS)
+            ->and(is_file($cachePath . '/__manifest.php'))->toBeFalse()
+            ->and($console->run(['foundation', 'config:clear', '--path=' . $cachePath]))
+            ->toBe(ExitCode::SUCCESS)
+            ->and($io->output())->toBe([
+                '[OK] Configuration cache cleared: ' . $cachePath,
+                '[INFO] Nothing to clear at: ' . $cachePath,
+            ]);
+    } finally {
+        if (is_file($cachePath . '/__manifest.php')) {
+            unlink($cachePath . '/__manifest.php');
+        }
+        if (is_dir($cachePath)) {
+            rmdir($cachePath);
+        }
+        if (is_dir($basePath)) {
+            rmdir($basePath);
+        }
+    }
+});
+
 it('builds and clears every Webrick matcher through typed commands', function (string $matcher): void {
     $basePath = sys_get_temp_dir() . '/foundation-console-route-' . bin2hex(random_bytes(5));
     $routesPath = $basePath . '/routes';
