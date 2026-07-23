@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Infocyph\Console\Command\ExitCode;
 use Infocyph\Console\IO\BufferedIO;
+use Infocyph\Foundation\Console\Command\AppReadyCommand;
 use Infocyph\Foundation\Console\FoundationConsole;
 use Infocyph\Foundation\Foundation;
 
@@ -31,6 +32,34 @@ it('keeps console preflight paths independent of Foundation boot', function (arr
     'list' => [['foundation-test', 'list']],
     'version' => [['foundation-test', '--version']],
 ]);
+
+it('reserves Foundation system command routes', function (): void {
+    expect(fn() => FoundationConsole::create(
+        static fn(?string $profile) => Foundation::console([
+            'base_path' => sys_get_temp_dir(),
+            'env' => $profile ?? 'testing',
+            '_config_cache' => false,
+        ]),
+        commands: ['route:cache' => stdClass::class],
+    ))->toThrow(InvalidArgumentException::class, 'conflicts with a Foundation system command');
+});
+
+it('requires application commands to use an explicit valid route map', function (): void {
+    $factory = static fn(?string $profile) => Foundation::console([
+        'base_path' => sys_get_temp_dir(),
+        'env' => $profile ?? 'testing',
+        '_config_cache' => false,
+    ]);
+
+    expect(fn() => FoundationConsole::create(
+        $factory,
+        commands: [AppReadyCommand::class],
+    ))->toThrow(InvalidArgumentException::class, 'command-name-to-class map')
+        ->and(fn() => FoundationConsole::create(
+            $factory,
+            commands: ['app:invalid' => stdClass::class],
+        ))->toThrow(InvalidArgumentException::class, 'must implement');
+});
 
 it('reuses one lazily created Foundation application for real commands', function (): void {
     $created = 0;

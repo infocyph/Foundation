@@ -169,6 +169,26 @@ Calling `http()` or `handle()` on a console application fails immediately.
 Console integrations likewise require an application created by
 `Foundation::console()`.
 
+Console applications receive an explicit command route map:
+
+```php
+$commands = require $basePath . '/routes/console.php';
+
+$console = FoundationConsole::create(
+    applicationFactory: static fn (?string $profile) => Foundation::console([
+        'base_path' => $basePath,
+        'env' => $profile ?? 'local',
+    ]),
+    commands: $commands,
+);
+```
+
+`routes/console.php` maps command names to command classes. Foundation does not
+scan command directories or register application commands implicitly.
+Foundation's operational commands, including `config:*`, `route:*`,
+`auth:schema:*`, and `app:ready`, are predefined by Foundation and must not be
+redeclared in the application route map.
+
 ## Providers
 
 Register extra app providers in `bootstrap/providers.php`:
