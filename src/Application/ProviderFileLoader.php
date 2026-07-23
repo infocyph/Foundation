@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Application;
 
+use Infocyph\Foundation\Exception\BootstrapException;
 use Infocyph\Foundation\Filesystem\PathManager;
 
 final readonly class ProviderFileLoader
@@ -13,9 +14,10 @@ final readonly class ProviderFileLoader
     ) {}
 
     /**
+     * @param RuntimeMode $runtimeMode Runtime whose provider groups are selected.
      * @return list<class-string<ServiceProviderInterface>>
      */
-    public function providers(): array
+    public function providers(RuntimeMode $runtimeMode): array
     {
         $file = $this->paths->providersFile();
 
@@ -28,6 +30,7 @@ final readonly class ProviderFileLoader
             return [];
         }
 
+        $providers = $this->forRuntime($providers, $runtimeMode);
         $resolved = [];
 
         foreach ($providers as $provider) {
@@ -43,5 +46,33 @@ final readonly class ProviderFileLoader
         }
 
         return $resolved;
+    }
+
+    /**
+     * @param array<array-key, mixed> $providers
+     * @return list<mixed>
+     */
+    private function forRuntime(array $providers, RuntimeMode $runtimeMode): array
+    {
+        if ($providers !== [] && array_is_list($providers)) {
+            throw new BootstrapException(
+                'Provider files must define common, web, and console provider groups.',
+            );
+        }
+
+        $selected = [];
+
+        foreach (['common', $runtimeMode->value] as $group) {
+            $configured = $providers[$group] ?? [];
+            if (!is_array($configured)) {
+                continue;
+            }
+
+            foreach ($configured as $provider) {
+                $selected[] = $provider;
+            }
+        }
+
+        return $selected;
     }
 }

@@ -14,7 +14,7 @@ use Infocyph\TalkingBytes\Webhook\Support\WebhookHeaders;
 use Infocyph\TalkingBytes\Webhook\WebhookMessage;
 
 it('resolves configured talkingbytes http profiles', function (): void {
-    $app = Foundation::create([
+    $app = Foundation::web([
         'app' => [
             'base_path' => dirname(__DIR__, 2),
         ],
@@ -48,7 +48,7 @@ it('resolves configured talkingbytes http profiles', function (): void {
 });
 
 it('applies talkingbytes webhook profiles through foundation', function (): void {
-    $app = Foundation::create([
+    $app = Foundation::web([
         'app' => [
             'base_path' => dirname(__DIR__, 2),
         ],
@@ -106,7 +106,7 @@ it('applies talkingbytes webhook profiles through foundation', function (): void
 });
 
 it('creates talkingbytes grpc clients and servers through foundation', function (): void {
-    $app = Foundation::create([
+    $app = Foundation::web([
         'app' => [
             'base_path' => dirname(__DIR__, 2),
         ],

@@ -69,7 +69,7 @@ return [
 ];
 PHP);
 
-    $app = Foundation::create([
+    $app = Foundation::web([
         'app' => [
             'base_path' => $basePath,
         ],

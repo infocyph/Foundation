@@ -64,7 +64,7 @@ it('rolls back transactional outbox events without invalidating the local cache'
 });
 
 it('rejects unsafe cluster topology and non-atomic counter configuration', function (): void {
-    $app = Foundation::create([
+    $app = Foundation::web([
         'app' => ['base_path' => sys_get_temp_dir() . '/foundation-cache-policy-' . uniqid('', true)],
         'cache' => [
             'stores' => [
@@ -155,7 +155,7 @@ function foundationClusterCacheApplication(): \Infocyph\Foundation\Application\A
     mkdir($basePath . '/storage/cache', 0775, true);
     mkdir($basePath . '/database', 0775, true);
 
-    return Foundation::create([
+    return Foundation::web([
         'app' => ['base_path' => $basePath],
         'database' => [
             'default' => 'primary',

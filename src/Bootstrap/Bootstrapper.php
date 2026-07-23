@@ -27,6 +27,11 @@ use Infocyph\Foundation\Validation\ValidationServiceProvider;
 final class Bootstrapper
 {
     /** @var list<class-string> */
+    private const array CONSOLE_EAGER_PROVIDERS = [
+        FilesystemServiceProvider::class,
+    ];
+
+    /** @var list<class-string> */
     private const array DEFAULT_PROVIDERS = [
         CacheServiceProvider::class,
         DatabaseServiceProvider::class,
@@ -43,7 +48,7 @@ final class Bootstrapper
     ];
 
     /** @var list<class-string> */
-    private const array EAGER_PROVIDERS = [
+    private const array WEB_EAGER_PROVIDERS = [
         FilesystemServiceProvider::class,
         RoutingServiceProvider::class,
         HttpServiceProvider::class,
@@ -52,7 +57,7 @@ final class Bootstrapper
     public function activateProviderFor(Application $app, string $service): bool
     {
         $provider = $this->providerFor($service);
-        if ($provider === null) {
+        if ($provider === null || !$this->providerAllowed($app, $service, $provider)) {
             return false;
         }
 
@@ -67,20 +72,29 @@ final class Bootstrapper
     {
         $app->providers()->boot($app);
 
-        if ($app->has(RouteFileLoader::class) && !RouteCachePath::isWarm($app->config())) {
+        if ($app->runningInWeb()
+            && $app->has(RouteFileLoader::class)
+            && !RouteCachePath::isWarm($app->config())
+        ) {
             $app->make(RouteFileLoader::class)->load();
         }
     }
 
-    public function canProvide(string $service): bool
+    public function canProvide(Application $app, string $service): bool
     {
-        return $this->providerFor($service) !== null;
+        $provider = $this->providerFor($service);
+
+        return $provider !== null && $this->providerAllowed($app, $service, $provider);
     }
 
     public function prepare(Application $app): void
     {
+        $eagerProviders = $app->runningInConsole()
+            ? self::CONSOLE_EAGER_PROVIDERS
+            : self::WEB_EAGER_PROVIDERS;
+
         foreach (self::DEFAULT_PROVIDERS as $provider) {
-            if (in_array($provider, self::EAGER_PROVIDERS, true)) {
+            if (in_array($provider, $eagerProviders, true)) {
                 $app->register($this->instantiateProvider($provider));
             } else {
                 $app->providers()->addDeferred($provider);
@@ -112,7 +126,7 @@ final class Bootstrapper
 
         $providers = [];
 
-        foreach ($configured as $provider) {
+        foreach ($this->providersForRuntime($configured, $app) as $provider) {
             $instance = $this->instantiateProvider($provider);
             $providers[$instance::class] = $instance;
         }
@@ -146,6 +160,20 @@ final class Bootstrapper
     }
 
     /**
+     * @param class-string<ServiceProviderInterface> $provider
+     */
+    private function providerAllowed(Application $app, string $service, string $provider): bool
+    {
+        if ($app->runningInWeb()) {
+            return true;
+        }
+
+        return $provider !== HttpServiceProvider::class
+            && $service !== 'foundation.http'
+            && !str_starts_with($service, 'Infocyph\\Foundation\\Http\\');
+    }
+
+    /**
      * @return list<ServiceProviderInterface>
      */
     private function providerFileProviders(Application $app): array
@@ -153,7 +181,7 @@ final class Bootstrapper
         $loader = new ProviderFileLoader($app->make(PathManager::class));
         $providers = [];
 
-        foreach ($loader->providers() as $provider) {
+        foreach ($loader->providers($app->runtimeMode()) as $provider) {
             $instance = $this->instantiateProvider($provider);
             $providers[$instance::class] = $instance;
         }
@@ -172,8 +200,12 @@ final class Bootstrapper
             'foundation.communication' => CommunicationServiceProvider::class,
             'foundation.data' => DataServiceProvider::class,
             'foundation.db' => DatabaseServiceProvider::class,
+            'foundation.files' => FilesystemServiceProvider::class,
+            'foundation.filesystem' => FilesystemServiceProvider::class,
             'foundation.ids' => IdentifierServiceProvider::class,
             'foundation.notifications' => NotificationServiceProvider::class,
+            'foundation.paths' => FilesystemServiceProvider::class,
+            'foundation.router' => RoutingServiceProvider::class,
             'foundation.security' => SecurityServiceProvider::class,
             'foundation.uid' => IdentifierServiceProvider::class,
             'foundation.validator' => ValidationServiceProvider::class,
@@ -185,10 +217,13 @@ final class Bootstrapper
             str_starts_with($service, 'Infocyph\\Foundation\\Communication\\') => CommunicationServiceProvider::class,
             str_starts_with($service, 'Infocyph\\Foundation\\Data\\') => DataServiceProvider::class,
             str_starts_with($service, 'Infocyph\\Foundation\\Database\\') => DatabaseServiceProvider::class,
+            str_starts_with($service, 'Infocyph\\Foundation\\Filesystem\\') => FilesystemServiceProvider::class,
             str_starts_with($service, 'Infocyph\\Foundation\\Identifiers\\') => IdentifierServiceProvider::class,
             str_starts_with($service, 'Infocyph\\Foundation\\Http\\Middleware\\'),
             str_starts_with($service, 'Infocyph\\Foundation\\Http\\Resolver\\') => AuthServiceProvider::class,
+            str_starts_with($service, 'Infocyph\\Foundation\\Http\\') => HttpServiceProvider::class,
             str_starts_with($service, 'Infocyph\\Foundation\\Notifications\\') => NotificationServiceProvider::class,
+            str_starts_with($service, 'Infocyph\\Foundation\\Routing\\') => RoutingServiceProvider::class,
             str_starts_with($service, 'Infocyph\\Foundation\\Security\\') => SecurityServiceProvider::class,
             str_starts_with($service, 'Infocyph\\Foundation\\Validation\\') => ValidationServiceProvider::class,
             str_starts_with($service, 'Infocyph\\TalkingBytes\\Email\\') => NotificationServiceProvider::class,
@@ -197,5 +232,33 @@ final class Bootstrapper
             str_starts_with($service, 'Infocyph\\TalkingBytes\\Webhook\\') => CommunicationServiceProvider::class,
             default => null,
         };
+    }
+
+    /**
+     * @param array<array-key, mixed> $configured
+     * @return list<mixed>
+     */
+    private function providersForRuntime(array $configured, Application $app): array
+    {
+        if ($configured !== [] && array_is_list($configured)) {
+            throw new BootstrapException(
+                'Configured providers must define common, web, and console provider groups.',
+            );
+        }
+
+        $providers = [];
+
+        foreach (['common', $app->runtimeMode()->value] as $group) {
+            $groupProviders = $configured[$group] ?? [];
+            if (!is_array($groupProviders)) {
+                continue;
+            }
+
+            foreach ($groupProviders as $provider) {
+                $providers[] = $provider;
+            }
+        }
+
+        return $providers;
     }
 }

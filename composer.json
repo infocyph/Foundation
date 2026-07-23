@@ -5,16 +5,7 @@
     "type": "library",
     "require": {
         "php": ">=8.4",
-        "infocyph/arraykit": "^4.6",
-        "infocyph/cachelayer": "^1.6",
-        "infocyph/dblayer": "^2.1.2",
-        "infocyph/epicrypt": "^1.1",
-        "infocyph/intermix": "^7.2.5",
-        "infocyph/otp": "^5.04",
-        "infocyph/pathwise": "^2.5.3",
-        "infocyph/reqshield": "^2.4.2",
-        "infocyph/talkingbytes": "^0.2",
-        "infocyph/uid": "^4.3",
+        "infocyph/console": "dev-main@dev",
         "infocyph/webrick": "^2.02.1",
         "web-auth/webauthn-lib": "^5.3.5"
     },

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation;
 
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Config\ApiPreset;
 use Infocyph\Foundation\Config\FoundationPreset;
 use Infocyph\Foundation\Config\LocalPreset;
@@ -24,12 +25,9 @@ final class Foundation
     /**
      * @param array<string, mixed> $config
      */
-    public static function create(array $config = []): Application
+    public static function console(array $config = []): Application
     {
-        $app = Application::create($config);
-        Facade::setApplication($app);
-
-        return $app;
+        return self::createFor(RuntimeMode::Console, $config);
     }
 
     /**
@@ -47,7 +45,7 @@ final class Foundation
     {
         $config['_preset'] = $preset->config();
 
-        return self::create($config);
+        return self::web($config);
     }
 
     /**
@@ -56,5 +54,24 @@ final class Foundation
     public static function production(array $config = []): Application
     {
         return self::preset(new ProductionPreset(), $config);
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     */
+    public static function web(array $config = []): Application
+    {
+        return self::createFor(RuntimeMode::Web, $config);
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     */
+    private static function createFor(RuntimeMode $runtimeMode, array $config): Application
+    {
+        $app = Application::create($config, $runtimeMode);
+        Facade::setApplication($app);
+
+        return $app;
     }
 }

@@ -41,14 +41,16 @@ final class Application
         private readonly Container $container,
         private readonly ServiceRegistry $providers,
         private readonly Bootstrapper $bootstrapper,
+        private readonly RuntimeMode $runtimeMode,
     ) {
         $this->bindCoreServices();
     }
 
     /**
      * @param array<string, mixed> $config
+     * @param RuntimeMode $runtimeMode Explicit immutable execution path.
      */
-    public static function create(array $config = []): self
+    public static function create(array $config, RuntimeMode $runtimeMode): self
     {
         $repository = new ConfigLoader()->load($config);
         $container = new ContainerFactory()->create($repository);
@@ -58,6 +60,7 @@ final class Application
             container: $container,
             providers: new ServiceRegistry(),
             bootstrapper: new Bootstrapper(),
+            runtimeMode: $runtimeMode,
         );
 
         $app->bootstrapper->prepare($app);
@@ -173,16 +176,20 @@ final class Application
 
     public function handle(Request $request): Response
     {
-        return $this->boot()->http()->handle($request);
+        return $this->http()->handle($request);
     }
 
     public function has(string $id): bool
     {
-        return $this->container->has($id) || $this->bootstrapper->canProvide($id);
+        return $this->container->has($id) || $this->bootstrapper->canProvide($this, $id);
     }
 
     public function http(): HttpKernel
     {
+        if ($this->runningInConsole()) {
+            throw new \LogicException('The HTTP kernel is unavailable in the console runtime.');
+        }
+
         return $this->boot()->make(HttpKernel::class);
     }
 
@@ -232,7 +239,7 @@ final class Application
 
     public function paths(): PathManager
     {
-        return $this->boot()->make(PathManager::class);
+        return $this->make(PathManager::class);
     }
 
     public function providers(): ServiceRegistry
@@ -352,7 +359,17 @@ final class Application
 
     public function runningInConsole(): bool
     {
-        return PHP_SAPI === 'cli';
+        return $this->runtimeMode === RuntimeMode::Console;
+    }
+
+    public function runningInWeb(): bool
+    {
+        return $this->runtimeMode === RuntimeMode::Web;
+    }
+
+    public function runtimeMode(): RuntimeMode
+    {
+        return $this->runtimeMode;
     }
 
     public function security(): SecurityManager
@@ -424,6 +441,7 @@ final class Application
     private function bindCoreServices(): void
     {
         $this->container->bind(self::class, $this, LifetimeEnum::Singleton);
+        $this->container->bind(RuntimeMode::class, $this->runtimeMode, LifetimeEnum::Singleton);
         $this->container->bind(ConfigRepository::class, $this->config, LifetimeEnum::Singleton);
         $this->container->bind(Container::class, $this->container, LifetimeEnum::Singleton);
     }

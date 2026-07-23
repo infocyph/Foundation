@@ -10,7 +10,7 @@ it('validates database-backed reqshield rules through DBLayer', function (): voi
     $basePath = sys_get_temp_dir() . '/foundation-validation-db-' . uniqid('', true);
     mkdir($basePath . '/database', 0775, true);
 
-    $app = Foundation::create([
+    $app = Foundation::web([
         'app' => [
             'base_path' => $basePath,
         ],

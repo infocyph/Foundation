@@ -1,0 +1,137 @@
+<?php
+
+declare(strict_types=1);
+
+use Infocyph\Console\Command\ExitCode;
+use Infocyph\Console\IO\BufferedIO;
+use Infocyph\Foundation\Console\FoundationConsole;
+use Infocyph\Foundation\Foundation;
+
+it('keeps console preflight paths independent of Foundation boot', function (array $arguments): void {
+    $created = false;
+    $io = new BufferedIO();
+    $console = FoundationConsole::create(
+        static function (?string $_profile) use (&$created) {
+            $created = true;
+
+            return Foundation::console([
+                'base_path' => sys_get_temp_dir(),
+                'env' => $_profile ?? 'testing',
+                '_config_cache' => false,
+            ]);
+        },
+        name: 'foundation-test',
+        version: '1.0.0',
+    )->withIO($io);
+
+    expect($console->run($arguments))->toBe(ExitCode::SUCCESS)
+        ->and($created)->toBeFalse();
+})->with([
+    'help' => [['foundation-test', '--help']],
+    'list' => [['foundation-test', 'list']],
+    'version' => [['foundation-test', '--version']],
+]);
+
+it('reuses one lazily created Foundation application for real commands', function (): void {
+    $created = 0;
+    $basePath = sys_get_temp_dir() . '/foundation-console-' . bin2hex(random_bytes(5));
+    mkdir($basePath, 0775, true);
+
+    try {
+        $io = new BufferedIO();
+        $console = FoundationConsole::create(
+            static function (?string $_profile) use (&$created, $basePath) {
+                $created++;
+
+                return Foundation::console([
+                    'base_path' => $basePath,
+                    'env' => $_profile ?? 'testing',
+                    '_config_cache' => false,
+                    'router' => ['files' => []],
+                ]);
+            },
+            name: 'foundation-test',
+        )->withIO($io);
+
+        $path = $basePath . '/missing-config-cache';
+        expect($console->run(['foundation-test', 'config:clear', '--path=' . $path]))
+            ->toBe(ExitCode::SUCCESS)
+            ->and($console->run(['foundation-test', 'config:clear', '--path=' . $path]))
+            ->toBe(ExitCode::SUCCESS)
+            ->and($created)->toBe(1);
+    } finally {
+        rmdir($basePath);
+    }
+});
+
+it('builds and clears every Webrick matcher through typed commands', function (string $matcher): void {
+    $basePath = sys_get_temp_dir() . '/foundation-console-route-' . bin2hex(random_bytes(5));
+    $routesPath = $basePath . '/routes';
+    mkdir($routesPath, 0775, true);
+    file_put_contents($routesPath . '/api.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+use Infocyph\Webrick\Router\Facade\Router;
+
+Router::get('/console-cache', static fn(): array => ['cached' => true]);
+PHP);
+
+    try {
+        $console = FoundationConsole::create(
+            static fn(?string $profile) => Foundation::console([
+                'base_path' => $basePath,
+                'env' => $profile ?? 'testing',
+                '_config_cache' => false,
+                'router' => [
+                    'cache' => false,
+                    'files' => ['api.php'],
+                    'middleware' => [
+                        'globals' => [
+                            'pre' => [],
+                            'post' => [],
+                        ],
+                    ],
+                ],
+            ]),
+            name: 'foundation-test',
+        )->withIO(new BufferedIO());
+        $cache = $matcher === 'sharded'
+            ? $basePath . '/cache/routes'
+            : $basePath . '/cache/' . $matcher . '.php';
+
+        expect($console->run([
+            'foundation-test',
+            'route:cache',
+            '--matcher=' . $matcher,
+            '--cache=' . $cache,
+        ]))->toBe(ExitCode::SUCCESS)
+            ->and($console->run([
+                'foundation-test',
+                'route:clear',
+                '--matcher=' . $matcher,
+                '--cache=' . $cache,
+            ]))->toBe(ExitCode::SUCCESS);
+    } finally {
+        foundationConsoleRemoveDirectory($basePath);
+    }
+})->with(['fused', 'generated', 'sharded']);
+
+function foundationConsoleRemoveDirectory(string $directory): void
+{
+    if (!is_dir($directory)) {
+        return;
+    }
+
+    $files = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::CHILD_FIRST,
+    );
+
+    foreach ($files as $file) {
+        $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
+    }
+
+    rmdir($directory);
+}

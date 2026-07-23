@@ -425,7 +425,11 @@ final class FoundationDefaults
                 'storage' => 'storage',
                 'uploads' => 'storage/uploads',
             ],
-            'providers' => [],
+            'providers' => [
+                'common' => [],
+                'web' => [],
+                'console' => [],
+            ],
             'router' => [
                 'auto_slash_redirect' => false,
                 'cache' => null,

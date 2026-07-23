@@ -60,7 +60,10 @@ final class AuthServiceProvider extends ServiceProvider
         new AuthManagerRegistrar($app, $container)->register();
         new AuthAuthorizationRegistrar($app, $container)->register();
         new AuthRuntimeRegistrar($app, $container)->register();
-        $this->registerHttpServices($app);
+
+        if ($app->runningInWeb()) {
+            $this->registerHttpServices($app);
+        }
     }
 
     private function registerHttpServices(Application $app): void

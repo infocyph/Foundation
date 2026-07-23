@@ -11,7 +11,7 @@ it('creates sqlite cache stores from database connections and applies strict ser
     mkdir($basePath . '/storage/cache', 0775, true);
     mkdir($basePath . '/database', 0775, true);
 
-    $app = Foundation::create([
+    $app = Foundation::web([
         'app' => [
             'base_path' => $basePath,
         ],
@@ -78,7 +78,7 @@ it('builds tiered cache stores from named store descriptors and applies file loc
     mkdir($basePath . '/storage/cache/tiered', 0775, true);
     mkdir($basePath . '/storage/cache/locks', 0775, true);
 
-    $app = Foundation::create([
+    $app = Foundation::web([
         'app' => [
             'base_path' => $basePath,
         ],

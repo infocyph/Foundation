@@ -85,7 +85,8 @@ Use one of these entry modes:
 - `Foundation::local([...])`
 - `Foundation::production([...])`
 - `Foundation::api([...])`
-- `Foundation::create([...])`
+- `Foundation::web([...])`
+- `Foundation::console([...])`
 
 Foundation loads `.env` and `.env.local` from the project root before evaluating `config/*.php`, so host apps do not need an external dotenv package just to make `$_ENV` values available.
 
@@ -110,7 +111,7 @@ Environment files are loaded earlier as part of boot preparation:
 You can disable env loading or replace the file list with inline app config:
 
 ```php
-Foundation::create([
+Foundation::web([
     'base_path' => dirname(__DIR__),
     'app' => [
         'load_env' => true,
@@ -146,6 +147,28 @@ return [
 ];
 ```
 
+## Runtime Modes
+
+Choose the runtime explicitly at the entry point:
+
+```php
+$web = Foundation::web(['base_path' => __DIR__]);
+$console = Foundation::console(['base_path' => __DIR__]);
+```
+
+The mode is not inferred from `PHP_SAPI`, because tests and worker processes can
+legitimately execute web behavior under the CLI SAPI.
+
+The web runtime eagerly registers filesystem, routing, and HTTP services and
+loads configured route files when booted. The console runtime eagerly registers
+only filesystem paths. A command activates its optional providers on demand;
+for example, route-cache commands activate routing without registering the HTTP
+kernel or loading project routes through the normal web boot sequence.
+
+Calling `http()` or `handle()` on a console application fails immediately.
+Console integrations likewise require an application created by
+`Foundation::console()`.
+
 ## Providers
 
 Register extra app providers in `bootstrap/providers.php`:
@@ -154,11 +177,22 @@ Register extra app providers in `bootstrap/providers.php`:
 <?php
 
 return [
-    App\Providers\AppServiceProvider::class,
+    'common' => [
+        App\Providers\SharedServiceProvider::class,
+    ],
+    'web' => [
+        App\Providers\WebServiceProvider::class,
+    ],
+    'console' => [
+        App\Providers\ConsoleServiceProvider::class,
+    ],
 ];
 ```
 
 Each provider must implement Foundation's `ServiceProviderInterface`.
+`common` providers run in both modes; use it only for services genuinely needed
+by both paths. Flat provider lists are not accepted: every provider must be
+assigned deliberately to `common`, `web`, or `console`.
 
 ## Routes
 

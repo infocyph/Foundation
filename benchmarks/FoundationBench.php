@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Benchmarks;
 
+use Infocyph\Console\IO\BufferedIO;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Auth\Support\RandomAuthIdGenerator;
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Console\FoundationConsole;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Webrick\Request\Request;
 use PhpBench\Attributes as Bench;
@@ -29,13 +31,45 @@ final class FoundationBench
     #[Bench\BeforeMethods('setUpBasePath')]
     public function benchApplicationBoot(): void
     {
-        Foundation::create($this->applicationConfig())->boot();
+        Foundation::web($this->applicationConfig())->boot();
     }
 
     #[Bench\BeforeMethods('setUpBasePath')]
     public function benchApplicationCreation(): void
     {
-        Foundation::create($this->applicationConfig());
+        Foundation::web($this->applicationConfig());
+    }
+
+    #[Bench\BeforeMethods('setUpBasePath')]
+    public function benchConsoleApplicationBoot(): void
+    {
+        Foundation::console($this->applicationConfig())->boot();
+    }
+
+    #[Bench\BeforeMethods('setUpBasePath')]
+    public function benchConsoleApplicationCreation(): void
+    {
+        Foundation::console($this->applicationConfig());
+    }
+
+    public function benchConsoleBuild(): void
+    {
+        FoundationConsole::create(
+            static fn(?string $profile): Application => throw new \LogicException(sprintf(
+                'Preflight booted Foundation for profile "%s".',
+                $profile ?? 'default',
+            )),
+        );
+    }
+
+    public function benchConsoleHelpPreflight(): void
+    {
+        FoundationConsole::create(
+            static fn(?string $profile): Application => throw new \LogicException(sprintf(
+                'Preflight booted Foundation for profile "%s".',
+                $profile ?? 'default',
+            )),
+        )->withIO(new BufferedIO())->run(['foundation', '--help']);
     }
 
     #[Bench\BeforeMethods('setUpConfig')]
@@ -98,7 +132,7 @@ use Infocyph\Webrick\Router\Facade\Router;
 Router::get('/benchmark', static fn(): Response => Response::json(['ok' => true]));
 PHP);
 
-        $this->httpApplication = Foundation::create([
+        $this->httpApplication = Foundation::web([
             'app' => [
                 'base_path' => $this->basePath,
             ],

@@ -12,7 +12,7 @@ it('exposes otp enrollment lifecycle and helpers through foundation', function (
     $basePath = sys_get_temp_dir() . '/foundation-otp-' . uniqid('', true);
     mkdir($basePath . '/cache', 0775, true);
 
-    $app = Foundation::create([
+    $app = Foundation::web([
         'app' => [
             'base_path' => $basePath,
         ],

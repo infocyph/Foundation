@@ -25,7 +25,7 @@ it('surfaces Epicrypt data protection, key derivation, and integrity helpers thr
     $decryptedPath = $basePath . '/storage/files/plain.dec.txt';
     file_put_contents($plainPath, 'file-protection-payload');
 
-    Foundation::create([
+    Foundation::web([
         'app' => [
             'base_path' => $basePath,
         ],
@@ -112,7 +112,7 @@ it('surfaces Epicrypt security, crypto, token, generator, and certificate servic
     $decryptedPath = $basePath . '/storage/files/stream.dec.txt';
     file_put_contents($plainPath, 'secret-stream-payload');
 
-    Foundation::create([
+    Foundation::web([
         'app' => [
             'base_path' => $basePath,
         ],

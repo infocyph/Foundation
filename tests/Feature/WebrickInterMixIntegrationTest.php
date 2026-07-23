@@ -50,11 +50,11 @@ it('applies InterMix environment bindings from the application environment', fun
         }
     };
 
-    $app = Foundation::create([
+    $app = Foundation::web([
         'app' => [
             'env' => 'local',
         ],
-        'providers' => [$provider],
+        'providers' => ['web' => [$provider]],
     ]);
 
     expect($app->make(FoundationTestGateway::class))->toBeInstanceOf(LocalFoundationGateway::class);
@@ -93,9 +93,9 @@ PHP,
     ]);
 
     try {
-        $app = Foundation::create([
+        $app = Foundation::web([
             'base_path' => $project,
-            'providers' => [$provider],
+            'providers' => ['web' => [$provider]],
         ]);
 
         $first = foundationJsonResponse($app->handle(foundationRequest('/scope-check')));
@@ -123,7 +123,7 @@ PHP,
     ]);
 
     try {
-        $app = Foundation::create([
+        $app = Foundation::web([
             'base_path' => $project,
         ]);
 
@@ -149,7 +149,7 @@ PHP,
     ]);
 
     try {
-        $app = Foundation::create(['base_path' => $project])->boot();
+        $app = Foundation::web(['base_path' => $project])->boot();
         $router = $app->router();
 
         expect($router->kernel())->toBe($router->kernel());
@@ -171,7 +171,7 @@ PHP,
     ]);
 
     try {
-        $app = Foundation::create(['base_path' => $project]);
+        $app = Foundation::web(['base_path' => $project]);
 
         expect($app->container()->has(AuthManager::class))->toBeFalse()
             ->and($app->container()->has(CacheManager::class))->toBeFalse()
@@ -203,7 +203,7 @@ PHP,
     ]);
 
     try {
-        $app = Foundation::create([
+        $app = Foundation::web([
             'base_path' => $project,
             'router' => [
                 'middleware' => [
@@ -245,7 +245,7 @@ PHP,
     ]);
 
     try {
-        $app = Foundation::create(['base_path' => $project]);
+        $app = Foundation::web(['base_path' => $project]);
         expect($app->container()->has(AuthManager::class))->toBeFalse();
 
         $response = $app->handle(foundationRequest('/protected'));
@@ -271,7 +271,7 @@ PHP,
     ]);
 
     try {
-        $app = Foundation::create([
+        $app = Foundation::web([
             'base_path' => $project,
             'router' => ['cache' => false],
         ]);
@@ -304,7 +304,7 @@ it('boots every matcher from cache while preserving signed URL services', functi
                 'fallbackAliasesFromRegistrar' => false,
             ]);
 
-            $app = Foundation::create([
+            $app = Foundation::web([
                 'base_path' => $project,
                 'router' => [
                     'matcher' => $matcher,
@@ -326,7 +326,7 @@ it('applies definitions to string global middleware without recursively booting'
     $project = foundationIntegrationProject([]);
 
     try {
-        $app = Foundation::create([
+        $app = Foundation::web([
             'base_path' => $project,
             'router' => [
                 'middleware' => [
@@ -360,7 +360,7 @@ it('discovers attribute routes and exposes Webrick URL generation services', fun
     $project = foundationIntegrationProject([]);
 
     try {
-        $app = Foundation::create([
+        $app = Foundation::web([
             'base_path' => $project,
             'router' => [
                 'expose_url_services' => true,
@@ -409,7 +409,7 @@ PHP,
     ]);
 
     try {
-        $app = Foundation::create([
+        $app = Foundation::web([
             'base_path' => $project,
             'router' => [
                 'expose_url_services' => true,

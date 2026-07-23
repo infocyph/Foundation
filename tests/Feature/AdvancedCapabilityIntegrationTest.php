@@ -48,7 +48,7 @@ final class FoundationPipelineTransport implements TransportInterface
 }
 
 it('supports secure HOTP and OCRA MFA workflows', function (): void {
-    $app = Foundation::create([
+    $app = Foundation::web([
         'auth' => [
             'drivers' => [
                 'mfa' => 'otp',
@@ -123,7 +123,7 @@ it('keeps direct WebAuthn attestation fail-closed until a policy is registered',
 });
 
 it('exposes lean TalkingBytes composition helpers', function (): void {
-    $app = Foundation::create()->boot();
+    $app = Foundation::web()->boot();
     $comms = $app->communication();
     $signer = $comms->hmacSigner('secret');
     $pipeline = $comms->pipeline(new FoundationPipelineTransport());

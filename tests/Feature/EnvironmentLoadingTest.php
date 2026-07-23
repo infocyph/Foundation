@@ -27,7 +27,7 @@ PHP,
     $snapshot = foundationSnapshotEnvironment(['APP_NAME', 'APP_ENV', 'APP_DEBUG']);
 
     try {
-        $app = Foundation::create([
+        $app = Foundation::web([
             'base_path' => $project,
         ]);
 
@@ -58,7 +58,7 @@ PHP,
     $snapshot = foundationSnapshotEnvironment(['APP_NAME']);
 
     try {
-        $app = Foundation::create([
+        $app = Foundation::web([
             'base_path' => $project,
         ]);
 
@@ -87,7 +87,7 @@ PHP,
     foundationSetEnvironmentValue('APP_NAME', 'Process Name');
 
     try {
-        $app = Foundation::create([
+        $app = Foundation::web([
             'base_path' => $project,
         ]);
 
@@ -115,7 +115,7 @@ PHP,
     $snapshot = foundationSnapshotEnvironment(['APP_NAME']);
 
     try {
-        $app = Foundation::create([
+        $app = Foundation::web([
             'base_path' => $project,
             'app' => [
                 'load_env' => false,

@@ -26,7 +26,7 @@ it('boots production when passkey auth is disabled', function (): void {
 });
 
 it('boots with WebAuthn when rp metadata is provided', function (): void {
-    $app = Foundation::create([
+    $app = Foundation::web([
         'auth' => [
             'drivers' => [
                 'passkey' => 'webauthn',

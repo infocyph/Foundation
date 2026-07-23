@@ -28,7 +28,7 @@ it('surfaces DBLayer repositories and query observability through Foundation', f
 
     $events = [];
 
-    Foundation::create([
+    Foundation::web([
         'app' => [
             'base_path' => $basePath,
         ],

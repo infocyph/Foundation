@@ -13,7 +13,7 @@ it('exposes uid algorithms and parsing through foundation ids manager', function
     $basePath = sys_get_temp_dir() . '/foundation-ids-' . uniqid('', true);
     mkdir($basePath . '/cache', 0775, true);
 
-    $app = Foundation::create([
+    $app = Foundation::web([
         'app' => [
             'base_path' => $basePath,
         ],
@@ -57,7 +57,7 @@ it('supports configured sequence-backed generators and auth id strategies', func
     $basePath = sys_get_temp_dir() . '/foundation-ids-auth-' . uniqid('', true);
     mkdir($basePath . '/cache', 0775, true);
 
-    $app = Foundation::create([
+    $app = Foundation::web([
         'app' => [
             'base_path' => $basePath,
         ],

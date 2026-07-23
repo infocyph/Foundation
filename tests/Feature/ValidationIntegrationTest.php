@@ -20,7 +20,7 @@ final class FoundationValidationUserData
 }
 
 it('exposes reqshield runtime features through the foundation validator manager', function (): void {
-    $app = Foundation::create([
+    $app = Foundation::web([
         'validation' => [
             'defaults' => [
                 'nested' => true,
