@@ -6,6 +6,7 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Auth\AuthManager;
 use Infocyph\Foundation\Cache\CacheManager;
+use Infocyph\Foundation\Database\DatabaseManager;
 use Infocyph\Foundation\Facades\Route;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Config\ConfigRepository;
@@ -39,6 +40,18 @@ final readonly class ProductionFoundationGateway implements FoundationTestGatewa
     }
 }
 
+final class FoundationScopedProbe
+{
+    private static int $nextSequence = 0;
+
+    public readonly int $sequence;
+
+    public function __construct()
+    {
+        $this->sequence = ++self::$nextSequence;
+    }
+}
+
 it('applies InterMix environment bindings from the application environment', function (): void {
     $provider = new class extends ServiceProvider {
         public function register(Application $app): void
@@ -64,7 +77,7 @@ it('scopes request-lifetime services through the HTTP kernel', function (): void
     $provider = new class extends ServiceProvider {
         public function register(Application $app): void
         {
-            $app->container()->bind('scoped.probe', fn() => new stdClass(), LifetimeEnum::Scoped);
+            $app->container()->bind('scoped.probe', fn() => new FoundationScopedProbe(), LifetimeEnum::Scoped);
         }
     };
 
@@ -85,8 +98,8 @@ $router->router()->get('/scope-check', static function (): Response {
     $second = $app->make('scoped.probe');
 
     return Response::json([
-        'first' => spl_object_id($first),
-        'second' => spl_object_id($second),
+        'first' => $first->sequence,
+        'second' => $second->sequence,
     ]);
 }, 'scope.check');
 PHP,
@@ -181,7 +194,8 @@ PHP,
             ->and($app->container()->has(CacheManager::class))->toBeFalse();
 
         expect($app->cache())->toBeInstanceOf(CacheManager::class)
-            ->and($app->container()->has(CacheManager::class))->toBeTrue();
+            ->and($app->container()->has(CacheManager::class))->toBeTrue()
+            ->and($app->container()->has(DatabaseManager::class))->toBeFalse();
     } finally {
         foundationIntegrationRemoveDirectory($project);
     }

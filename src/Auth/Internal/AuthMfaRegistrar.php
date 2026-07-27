@@ -20,6 +20,7 @@ use Infocyph\Foundation\Auth\Support\SimpleMfaVerifier;
 use Infocyph\OTP\Contracts\ReplayStoreInterface;
 use Infocyph\OTP\RecoveryCodes;
 use Infocyph\OTP\Stores\InMemoryRecoveryCodeStore;
+use Infocyph\OTP\TOTP;
 
 final readonly class AuthMfaRegistrar extends AbstractAuthRegistrar
 {
@@ -33,11 +34,11 @@ final readonly class AuthMfaRegistrar extends AbstractAuthRegistrar
 
     public function register(AuthDriverResolver $drivers): void
     {
-        $this->registerOtpSupport();
-
         $driver = $drivers->mfa();
 
         if ($driver === AuthMfaDriver::OTP) {
+            $this->requirePackage(TOTP::class, 'infocyph/otp', 'otp');
+            $this->registerOtpSupport();
             $this->registerOtpDriver();
 
             return;
@@ -49,13 +50,7 @@ final readonly class AuthMfaRegistrar extends AbstractAuthRegistrar
         $this->singleton(RecoveryCodeServiceInterface::class, fn() => new InMemoryRecoveryCodeService());
     }
 
-    private function registerOtpDriver(): void
-    {
-        $this->singleton(MfaVerifierInterface::class, fn() => $this->app->make(OtpMfaVerifier::class));
-        $this->singleton(RecoveryCodeServiceInterface::class, fn() => $this->app->make(OtpRecoveryCodeService::class));
-    }
-
-    private function registerOtpSupport(): void
+    public function registerOtpSupport(): void
     {
         $this->singleton(ReplayStoreInterface::class, fn() => new OtpReplayStore(
             $this->app->make(TtlStoreInterface::class),
@@ -88,5 +83,11 @@ final readonly class AuthMfaRegistrar extends AbstractAuthRegistrar
             defaultCount: $this->intConfig('auth.otp.recovery_codes.count', 10),
             codeLength: $this->intConfig('auth.otp.recovery_codes.length', 10),
         ));
+    }
+
+    private function registerOtpDriver(): void
+    {
+        $this->singleton(MfaVerifierInterface::class, fn() => $this->app->make(OtpMfaVerifier::class));
+        $this->singleton(RecoveryCodeServiceInterface::class, fn() => $this->app->make(OtpRecoveryCodeService::class));
     }
 }

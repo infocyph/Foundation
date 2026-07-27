@@ -7,6 +7,7 @@ namespace Infocyph\Foundation\Bootstrap;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ProviderFileLoader;
 use Infocyph\Foundation\Application\ServiceProviderInterface;
+use Infocyph\Foundation\Auth\AuthOtpServiceProvider;
 use Infocyph\Foundation\Auth\AuthServiceProvider;
 use Infocyph\Foundation\Cache\CacheServiceProvider;
 use Infocyph\Foundation\Communication\CommunicationServiceProvider;
@@ -15,6 +16,7 @@ use Infocyph\Foundation\Database\DatabaseServiceProvider;
 use Infocyph\Foundation\Exception\BootstrapException;
 use Infocyph\Foundation\Filesystem\FilesystemServiceProvider;
 use Infocyph\Foundation\Filesystem\PathManager;
+use Infocyph\Foundation\Filesystem\PathServiceProvider;
 use Infocyph\Foundation\Http\HttpServiceProvider;
 use Infocyph\Foundation\Identifiers\IdentifierServiceProvider;
 use Infocyph\Foundation\Notifications\NotificationServiceProvider;
@@ -28,28 +30,12 @@ final class Bootstrapper
 {
     /** @var list<class-string> */
     private const array CONSOLE_EAGER_PROVIDERS = [
-        FilesystemServiceProvider::class,
-    ];
-
-    /** @var list<class-string> */
-    private const array DEFAULT_PROVIDERS = [
-        CacheServiceProvider::class,
-        DatabaseServiceProvider::class,
-        SecurityServiceProvider::class,
-        CommunicationServiceProvider::class,
-        NotificationServiceProvider::class,
-        FilesystemServiceProvider::class,
-        DataServiceProvider::class,
-        IdentifierServiceProvider::class,
-        ValidationServiceProvider::class,
-        RoutingServiceProvider::class,
-        HttpServiceProvider::class,
-        AuthServiceProvider::class,
+        PathServiceProvider::class,
     ];
 
     /** @var list<class-string> */
     private const array WEB_EAGER_PROVIDERS = [
-        FilesystemServiceProvider::class,
+        PathServiceProvider::class,
         RoutingServiceProvider::class,
         HttpServiceProvider::class,
     ];
@@ -61,11 +47,15 @@ final class Bootstrapper
             return false;
         }
 
-        if ($provider === AuthServiceProvider::class) {
-            $app->providers()->activate(IdentifierServiceProvider::class, $app);
+        if ($provider === AuthOtpServiceProvider::class) {
+            if (!$this->activateProvider($app, $provider)) {
+                return false;
+            }
+
+            return $this->activateProvider($app, AuthServiceProvider::class);
         }
 
-        return $app->providers()->activate($provider, $app);
+        return $this->activateProvider($app, $provider);
     }
 
     public function boot(Application $app): void
@@ -93,12 +83,8 @@ final class Bootstrapper
             ? self::CONSOLE_EAGER_PROVIDERS
             : self::WEB_EAGER_PROVIDERS;
 
-        foreach (self::DEFAULT_PROVIDERS as $provider) {
-            if (in_array($provider, $eagerProviders, true)) {
-                $app->register($this->instantiateProvider($provider));
-            } else {
-                $app->providers()->addDeferred($provider);
-            }
+        foreach ($eagerProviders as $provider) {
+            $app->register($this->instantiateProvider($provider));
         }
 
         $app->providers()->register($app);
@@ -112,6 +98,20 @@ final class Bootstrapper
         }
 
         $app->providers()->register($app);
+    }
+
+    /**
+     * @param class-string<ServiceProviderInterface> $provider
+     */
+    private function activateProvider(Application $app, string $provider): bool
+    {
+        if ($app->providers()->activate($provider, $app)) {
+            return true;
+        }
+
+        $app->providers()->addDeferred($provider);
+
+        return $app->providers()->activate($provider, $app);
     }
 
     /**
@@ -164,6 +164,10 @@ final class Bootstrapper
      */
     private function providerAllowed(Application $app, string $service, string $provider): bool
     {
+        if (!$this->providerDependencyAvailable($provider)) {
+            return false;
+        }
+
         if ($app->runningInWeb()) {
             return true;
         }
@@ -174,10 +178,37 @@ final class Bootstrapper
     }
 
     /**
+     * Report optional services as available only when their installed module is
+     * actually present. This keeps has() side-effect free and truthful.
+     *
+     * @param class-string<ServiceProviderInterface> $provider
+     */
+    private function providerDependencyAvailable(string $provider): bool
+    {
+        $dependency = match ($provider) {
+            AuthOtpServiceProvider::class => \Infocyph\OTP\TOTP::class,
+            CacheServiceProvider::class => \Infocyph\CacheLayer\Cache\Cache::class,
+            CommunicationServiceProvider::class => \Infocyph\TalkingBytes\Http\HttpClient::class,
+            DatabaseServiceProvider::class => \Infocyph\DBLayer\DB::class,
+            FilesystemServiceProvider::class => \Infocyph\Pathwise\PathwiseFacade::class,
+            NotificationServiceProvider::class => \Infocyph\TalkingBytes\Email\Emailer::class,
+            SecurityServiceProvider::class => \Infocyph\Epicrypt\Crypto\AeadCipher::class,
+            ValidationServiceProvider::class => \Infocyph\ReqShield\Validator::class,
+            default => null,
+        };
+
+        return $dependency === null || class_exists($dependency);
+    }
+
+    /**
      * @return list<ServiceProviderInterface>
      */
     private function providerFileProviders(Application $app): array
     {
+        if ($app->config()->isCompiled()) {
+            return [];
+        }
+
         $loader = new ProviderFileLoader($app->make(PathManager::class));
         $providers = [];
 
@@ -204,7 +235,7 @@ final class Bootstrapper
             'foundation.filesystem' => FilesystemServiceProvider::class,
             'foundation.ids' => IdentifierServiceProvider::class,
             'foundation.notifications' => NotificationServiceProvider::class,
-            'foundation.paths' => FilesystemServiceProvider::class,
+            'foundation.paths' => PathServiceProvider::class,
             'foundation.router' => RoutingServiceProvider::class,
             'foundation.security' => SecurityServiceProvider::class,
             'foundation.uid' => IdentifierServiceProvider::class,
@@ -212,11 +243,15 @@ final class Bootstrapper
         ];
 
         return $aliases[$service] ?? match (true) {
+            str_starts_with($service, 'Infocyph\\Foundation\\Auth\\Adapter\\Otp\\'),
+            str_starts_with($service, 'Infocyph\\Foundation\\Auth\\Otp\\') => AuthOtpServiceProvider::class,
             str_starts_with($service, 'Infocyph\\Foundation\\Auth\\') => AuthServiceProvider::class,
             str_starts_with($service, 'Infocyph\\Foundation\\Cache\\') => CacheServiceProvider::class,
             str_starts_with($service, 'Infocyph\\Foundation\\Communication\\') => CommunicationServiceProvider::class,
             str_starts_with($service, 'Infocyph\\Foundation\\Data\\') => DataServiceProvider::class,
             str_starts_with($service, 'Infocyph\\Foundation\\Database\\') => DatabaseServiceProvider::class,
+            $service === PathManager::class,
+            $service === PathServiceProvider::class => PathServiceProvider::class,
             str_starts_with($service, 'Infocyph\\Foundation\\Filesystem\\') => FilesystemServiceProvider::class,
             str_starts_with($service, 'Infocyph\\Foundation\\Identifiers\\') => IdentifierServiceProvider::class,
             str_starts_with($service, 'Infocyph\\Foundation\\Http\\Middleware\\'),

@@ -20,6 +20,12 @@ final readonly class AuthDriverResolver
         return $this->enumConfig('auth.drivers.cache', 'array', AuthCacheDriver::class);
     }
 
+    public function ids(): AuthIdDriver
+    {
+        /** @var AuthIdDriver */
+        return $this->enumConfig('auth.drivers.ids', 'random', AuthIdDriver::class);
+    }
+
     public function mfa(): AuthMfaDriver
     {
         /** @var AuthMfaDriver */
@@ -57,6 +63,7 @@ final readonly class AuthDriverResolver
     {
         return [
             'cache' => $this->cache()->value,
+            'ids' => $this->ids()->value,
             'mfa' => $this->mfa()->value,
             'notifications' => $this->notifications()->value,
             'passkey' => $this->passkey()->value,

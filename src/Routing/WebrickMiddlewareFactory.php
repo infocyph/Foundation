@@ -57,16 +57,22 @@ final readonly class WebrickMiddlewareFactory
 
     public function registerAliases(): void
     {
-        foreach ($this->configuredAliases() as $alias => $definition) {
-            if (!$this->enabled($definition)) {
-                continue;
-            }
-
-            MiddlewareAliases::register(
-                $alias,
-                fn(string ...$parameters): object|string => $this->aliasMiddleware($definition, ...$parameters),
-            );
+        $aliases = array_filter(
+            $this->configuredAliases(),
+            $this->enabled(...),
+        );
+        if ($aliases === []) {
+            return;
         }
+
+        MiddlewareAliases::registerResolver(
+            static fn(string $alias): bool => isset($aliases[$alias]),
+            fn(string $alias, string ...$parameters): object|string => $this->aliasMiddleware(
+                $aliases[$alias],
+                ...$parameters,
+            ),
+            'foundation.webrick',
+        );
     }
 
     /**
@@ -97,15 +103,11 @@ final readonly class WebrickMiddlewareFactory
         return $resolved;
     }
 
-    private function cacheStore(mixed $name): ?CacheInterface
+    private function cacheStore(mixed $name): CacheInterface
     {
         $store = ValueNormalizer::nullableString($name);
 
-        try {
-            return $this->app->make(CacheManager::class)->store($store);
-        } catch (\Throwable) {
-            return null;
-        }
+        return $this->app->make(CacheManager::class)->store($store);
     }
 
     /**

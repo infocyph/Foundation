@@ -15,7 +15,7 @@ final class DataServiceProvider extends ServiceProvider
     {
         $container = $app->container();
 
-        $container->bind(DataManager::class, function () use ($container): DataManager {
+        $this->bindFactory($container, DataManager::class, function () use ($container): DataManager {
             $paths = $container->get(PathManager::class);
             if (!$paths instanceof PathManager) {
                 throw new \RuntimeException('Data paths service must resolve to PathManager.');
@@ -24,7 +24,7 @@ final class DataServiceProvider extends ServiceProvider
             return new DataManager($paths);
         }, LifetimeEnum::Singleton);
 
-        $container->bind('foundation.data', function () use ($container): DataManager {
+        $this->bindFactory($container, 'foundation.data', function () use ($container): DataManager {
             $manager = $container->get(DataManager::class);
             if (!$manager instanceof DataManager) {
                 throw new \RuntimeException('Foundation data service must resolve to DataManager.');

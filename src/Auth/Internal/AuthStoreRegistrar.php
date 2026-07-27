@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Internal;
 
+use Infocyph\DBLayer\DB;
 use Infocyph\Foundation\Auth\Adapter\DBLayer\{
     DBLayerAccountStore,
     DBLayerAuditEventStore,
@@ -63,6 +64,7 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
     public function register(AuthStorageDriver $driver): void
     {
         if ($driver === AuthStorageDriver::DBLAYER) {
+            $this->requirePackage(DB::class, 'infocyph/dblayer', 'db');
             $this->registerDBLayerStores();
 
             return;

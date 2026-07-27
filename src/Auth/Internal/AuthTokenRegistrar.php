@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Internal;
 
+use Infocyph\Epicrypt\Token\Jwt\SymmetricJwt;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptAccessTokenService;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptEmailVerificationTokenService;
@@ -48,6 +49,7 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
         ));
 
         if ($driver === AuthTokenDriver::EPICRYPT) {
+            $this->requirePackage(SymmetricJwt::class, 'infocyph/epicrypt', 'crypto');
             $this->registerEpicryptTokens();
 
             return;

@@ -21,12 +21,12 @@ final class HttpServiceProvider extends ServiceProvider
     {
         $container = $app->container();
 
-        $container->bind(AuthResponseFactory::class, fn() => new AuthResponseFactory(), LifetimeEnum::Singleton);
-        $container->bind(AuthExceptionMapper::class, fn() => new AuthExceptionMapper(
+        $this->bindFactory($container, AuthResponseFactory::class, fn() => new AuthResponseFactory(), LifetimeEnum::Singleton);
+        $this->bindFactory($container, AuthExceptionMapper::class, fn() => new AuthExceptionMapper(
             $app->make(AuthResponseFactory::class),
         ), LifetimeEnum::Singleton);
 
-        $container->bind(ErrorHandler::class, fn() => new ErrorHandler(
+        $this->bindFactory($container, ErrorHandler::class, fn() => new ErrorHandler(
             logger: new NullLogger(),
             debug: (bool) $app->config()->get('app.debug', false),
             capturePhpErrors: true,
@@ -42,13 +42,11 @@ final class HttpServiceProvider extends ServiceProvider
             },
         ), LifetimeEnum::Singleton);
 
-        $container->bind(HttpKernel::class, fn() => new HttpKernel(
+        $this->bindFactory($container, HttpKernel::class, fn() => new HttpKernel(
             router: $app->make(RouterManager::class),
             errorHandler: $app->make(ErrorHandler::class),
-            container: $app->container(),
-            scopeRequests: (bool) $app->config()->get('app.container.request_scope', true),
         ), LifetimeEnum::Singleton);
 
-        $container->bind('foundation.http', fn() => $container->get(HttpKernel::class), LifetimeEnum::Singleton);
+        $this->bindFactory($container, 'foundation.http', fn() => $container->get(HttpKernel::class), LifetimeEnum::Singleton);
     }
 }

@@ -30,31 +30,37 @@ final class NotificationServiceProvider extends ServiceProvider
 {
     public function register(Application $app): void
     {
+        if (!class_exists(Emailer::class)) {
+            throw new \LogicException(
+                'Foundation notification services require infocyph/talkingbytes; run "php infbyte module:install communication".',
+            );
+        }
+
         $container = $app->container();
 
-        $container->bind(NotificationTemplateRegistry::class, fn() => new NotificationTemplateRegistry(
+        $this->bindFactory($container, NotificationTemplateRegistry::class, fn() => new NotificationTemplateRegistry(
             $app->config(),
         ), LifetimeEnum::Singleton);
 
         $container->bind(EmailSenderFactory::class, new EmailSenderFactory(), LifetimeEnum::Singleton);
         $container->bind(EmailReceiverFactory::class, new EmailReceiverFactory(), LifetimeEnum::Singleton);
         $container->bind(EmailMailboxFactory::class, new EmailMailboxFactory(), LifetimeEnum::Singleton);
-        $container->bind(EmailLimits::class, fn() => $this->emailLimits($app), LifetimeEnum::Singleton);
-        $container->bind(RawEmailParser::class, fn() => new RawEmailParser(
+        $this->bindFactory($container, EmailLimits::class, fn() => $this->emailLimits($app), LifetimeEnum::Singleton);
+        $this->bindFactory($container, RawEmailParser::class, fn() => new RawEmailParser(
             limits: $app->make(EmailLimits::class),
         ), LifetimeEnum::Singleton);
         $container->bind(BounceParser::class, new BounceParser(), LifetimeEnum::Singleton);
         $container->bind(AuthenticationResultsParser::class, new AuthenticationResultsParser(), LifetimeEnum::Singleton);
 
-        $container->bind(Emailer::class, fn() => $this->createEmailer($app), LifetimeEnum::Singleton);
-        $container->bind('foundation.notifications.emailer', fn() => $container->get(Emailer::class), LifetimeEnum::Singleton);
+        $this->bindFactory($container, Emailer::class, fn() => $this->createEmailer($app), LifetimeEnum::Singleton);
+        $this->bindFactory($container, 'foundation.notifications.emailer', fn() => $container->get(Emailer::class), LifetimeEnum::Singleton);
 
-        $container->bind(NotificationManager::class, fn() => new NotificationManager(
+        $this->bindFactory($container, NotificationManager::class, fn() => new NotificationManager(
             config: $app->config(),
             container: $container,
         ), LifetimeEnum::Singleton);
 
-        $container->bind('foundation.notifications', fn() => $container->get(NotificationManager::class), LifetimeEnum::Singleton);
+        $this->bindFactory($container, 'foundation.notifications', fn() => $container->get(NotificationManager::class), LifetimeEnum::Singleton);
     }
 
     private function absolute(string $path): bool

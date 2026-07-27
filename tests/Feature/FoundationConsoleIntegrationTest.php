@@ -3,9 +3,11 @@
 declare(strict_types=1);
 
 use Infocyph\Console\Command\ExitCode;
+use Infocyph\Console\Discovery\CommandManifestCompiler;
 use Infocyph\Console\IO\BufferedIO;
 use Infocyph\Foundation\Console\Command\AppReadyCommand;
 use Infocyph\Foundation\Console\FoundationConsole;
+use Infocyph\Foundation\Console\FoundationConsoleRuntime;
 use Infocyph\Foundation\Foundation;
 
 it('keeps console preflight paths independent of Foundation boot', function (array $arguments): void {
@@ -32,6 +34,36 @@ it('keeps console preflight paths independent of Foundation boot', function (arr
     'list' => [['foundation-test', 'list']],
     'version' => [['foundation-test', '--version']],
 ]);
+
+it('boots preflight commands from a compiled command manifest', function (): void {
+    $created = false;
+    $directory = sys_get_temp_dir() . '/foundation-command-manifest-' . bin2hex(random_bytes(5));
+    $manifest = $directory . '/commands.php';
+
+    try {
+        new CommandManifestCompiler()->write(FoundationConsole::commands([]), $manifest);
+        $console = FoundationConsole::create(
+            static function (?string $profile) use (&$created) {
+                $created = true;
+
+                return Foundation::console([
+                    'base_path' => sys_get_temp_dir(),
+                    'env' => $profile ?? 'testing',
+                    '_config_cache' => false,
+                ]);
+            },
+            name: 'foundation-test',
+            version: '1.0.0',
+            commandManifest: $manifest,
+        )->withIO(new BufferedIO());
+
+        expect($console->run(['foundation-test', '--version']))->toBe(ExitCode::SUCCESS)
+            ->and($created)->toBeFalse()
+            ->and($manifest)->toBeFile();
+    } finally {
+        foundationConsoleRemoveDirectory($directory);
+    }
+});
 
 it('reserves Foundation system command routes', function (): void {
     expect(fn() => FoundationConsole::create(
@@ -91,6 +123,60 @@ it('reuses one lazily created Foundation application for real commands', functio
     } finally {
         rmdir($basePath);
     }
+});
+
+it('reuses the immutable Foundation configuration adapter', function (): void {
+    $created = 0;
+    $runtime = new FoundationConsoleRuntime(
+        static function (?string $profile) use (&$created) {
+            $created++;
+
+            return Foundation::console([
+                'base_path' => sys_get_temp_dir(),
+                'env' => $profile ?? 'testing',
+                '_config_cache' => false,
+            ]);
+        },
+    );
+
+    $runtime->useProfile('testing');
+    $first = $runtime->configuration();
+
+    expect($runtime->configuration())->toBe($first)
+        ->and($runtime->container())->toBe($runtime->application()->container())
+        ->and($created)->toBe(1);
+});
+
+it('lists direct Infocyph modules without running Composer', function (): void {
+    $basePath = dirname(__DIR__, 2);
+    $io = new BufferedIO();
+    $console = FoundationConsole::create(
+        static fn(?string $profile) => Foundation::console([
+            'base_path' => $basePath,
+            'env' => $profile ?? 'testing',
+            '_config_cache' => false,
+        ]),
+        name: 'foundation-test',
+    )->withIO($io);
+
+    expect($console->run(['foundation-test', 'module:list', '--json=true']))
+        ->toBe(ExitCode::SUCCESS);
+
+    $report = json_decode(implode("\n", $io->output()), true, flags: JSON_THROW_ON_ERROR);
+    $modules = array_column($report['modules'], null, 'name');
+
+    expect(array_keys($modules))->toBe([
+        'cache',
+        'communication',
+        'crypto',
+        'db',
+        'filesystem',
+        'otp',
+        'passkeys',
+        'validation',
+    ])->and($modules['db']['package'])->toBe('infocyph/dblayer')
+        ->and($modules['db']['direct'])->toBeFalse()
+        ->and($modules['db']['installed'])->toBeTrue();
 });
 
 it('distinguishes cleared and missing configuration caches', function (): void {

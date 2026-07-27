@@ -67,15 +67,14 @@ final class WebrickRouterFactory
                 'exposeUrlServices' => (bool) $this->config->get('router.expose_url_services', false),
                 'signKey' => $this->optionalString($this->config->get('router.signed_urls.key')),
                 'signedDefaultTtl' => $this->optionalInt($this->config->get('router.signed_urls.default_ttl')),
-                'signedUrlConfig' => $this->signedUrlConfig(),
+                'signedUrlConfig' => $this->signedUrlOptions(),
                 'urlBaseUri' => $this->stringConfig('router.url_base_uri'),
             ],
             preGlobal: $this->middleware->preGlobal(),
             postGlobal: $this->middleware->postGlobal(),
             errorHandler: $errorHandler,
-            bindUrlServices: $this->bindUrlServicesCallback(),
             fallbackAliasesFromRegistrar: false,
-            requestScopeEnabled: false,
+            requestScopeEnabled: (bool) $this->config->get('app.container.request_scope', true),
             container: $this->container,
         );
     }
@@ -278,12 +277,24 @@ final class WebrickRouterFactory
 
     private function signedUrlConfig(): ?SignedUrlConfig
     {
+        $options = $this->signedUrlOptions();
+
+        return $options !== null
+            ? SignedUrlConfig::fromArray($options)
+            : null;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function signedUrlOptions(): ?array
+    {
         $signedOptions = $this->normalizeSignedUrlOptions(
             $this->config->get('router.signed_urls.options'),
         );
 
         return $signedOptions !== []
-            ? SignedUrlConfig::fromArray($signedOptions)
+            ? $signedOptions
             : null;
     }
 

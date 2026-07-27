@@ -3,9 +3,11 @@
 declare(strict_types=1);
 
 use Infocyph\Foundation\Auth\Contract\Id\AuthIdGeneratorInterface;
+use Infocyph\Foundation\Auth\Otp\OtpProvisioningService;
 use Infocyph\Foundation\Auth\Support\RandomAuthIdGenerator;
 use Infocyph\Foundation\Facades\Ids;
 use Infocyph\Foundation\Foundation;
+use Infocyph\Foundation\Identifiers\IdentifierManager;
 use Infocyph\UID\ULID;
 use Infocyph\UID\UUID;
 
@@ -63,6 +65,11 @@ it('supports configured sequence-backed generators and auth id strategies', func
         ],
         'paths' => [
             'cache' => 'cache',
+        ],
+        'auth' => [
+            'drivers' => [
+                'ids' => 'uid',
+            ],
         ],
         'ids' => [
             'default' => 'snowflake',
@@ -124,4 +131,20 @@ it('preserves category prefixes for fallback auth identifiers', function (): voi
         expect($id)->toStartWith($prefix)
             ->and($id)->toHaveLength(strlen($prefix) + 32);
     }
+});
+
+it('keeps identifier and otp services outside the default auth path', function (): void {
+    $app = Foundation::web([
+        '_config_cache' => false,
+        'router' => [
+            'cache' => false,
+            'files' => [],
+        ],
+    ]);
+
+    $ids = $app->make(AuthIdGeneratorInterface::class);
+
+    expect($ids)->toBeInstanceOf(RandomAuthIdGenerator::class)
+        ->and($app->container()->has(IdentifierManager::class))->toBeFalse()
+        ->and($app->container()->has(OtpProvisioningService::class))->toBeFalse();
 });

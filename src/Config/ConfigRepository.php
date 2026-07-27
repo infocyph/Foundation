@@ -32,7 +32,7 @@ final class ConfigRepository extends Config
     /**
      * @param array<string, mixed> $items
      */
-    public function __construct(array $items = [])
+    public function __construct(array $items = [], private readonly bool $compiled = false)
     {
         if ($items !== []) {
             $this->items = $items;
@@ -50,8 +50,9 @@ final class ConfigRepository extends Config
         array $fallback,
         array $overrides,
         array $namespaces,
+        bool $compiled = false,
     ): self {
-        $repository = new self();
+        $repository = new self(compiled: $compiled);
         $repository->lazyFiles = new LazyFileConfig($directory, namespaceCacheDirectory: $cacheDirectory);
         $repository->lazyDirectory = $directory;
         $repository->fallback = $fallback;
@@ -101,6 +102,11 @@ final class ConfigRepository extends Config
         return is_string($env) && $env !== ''
             ? $env
             : $default;
+    }
+
+    public function isCompiled(): bool
+    {
+        return $this->compiled;
     }
 
     public function isEnvironment(string $environment): bool

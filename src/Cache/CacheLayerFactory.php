@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Cache;
 
+use Closure;
 use Infocyph\CacheLayer\Cache\Cache;
 use Infocyph\CacheLayer\Cache\CacheInterface;
 use Infocyph\CacheLayer\Cache\Lock\FileLockProvider;
@@ -32,9 +33,10 @@ final readonly class CacheLayerFactory
 {
     public function __construct(
         private ConfigRepository $config,
-        private DatabaseManager $database,
         private PathManager $paths,
         private RedisConnectionFactory $redis,
+        /** @var Closure():DatabaseManager */
+        private Closure $database,
     ) {}
 
     public function cluster(string $name): ClusterRuntime
@@ -1029,7 +1031,7 @@ final readonly class CacheLayerFactory
 
         return match ($driver) {
             'pdo' => new PdoInvalidationTransport(
-                $this->database->pdo($this->requiredString($transport, 'connection', 'cache.transports.' . $name)),
+                ($this->database)()->pdo($this->requiredString($transport, 'connection', 'cache.transports.' . $name)),
                 ValueNormalizer::bool($transport['allow_sqlite_for_testing'] ?? null, false),
             ),
             'redis_stream', 'redis-stream', 'stream', 'valkey_stream', 'valkey-stream' => new RedisStreamInvalidationTransport(

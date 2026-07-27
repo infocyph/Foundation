@@ -22,6 +22,7 @@ final class AuthDefaults
                 ],
                 'drivers' => [
                     'cache' => 'array',
+                    'ids' => 'random',
                     'mfa' => 'simple',
                     'notifications' => 'collect',
                     'passkey' => 'memory',

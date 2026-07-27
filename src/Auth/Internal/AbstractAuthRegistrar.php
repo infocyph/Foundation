@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Internal;
 
+use Closure;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Auth\Contract\Id\AuthIdGeneratorInterface;
@@ -91,6 +92,22 @@ abstract readonly class AbstractAuthRegistrar
     }
 
     /**
+     * @param class-string $class
+     */
+    protected function requirePackage(string $class, string $package, string $module): void
+    {
+        if (class_exists($class) || interface_exists($class)) {
+            return;
+        }
+
+        throw new \LogicException(sprintf(
+            'The selected auth driver requires %s; run "php infbyte module:install %s".',
+            $package,
+            $module,
+        ));
+    }
+
+    /**
      * @template T of object
      * @param class-string<T> $id
      * @return T
@@ -102,6 +119,12 @@ abstract readonly class AbstractAuthRegistrar
 
     protected function singleton(string $id, mixed $concrete): void
     {
+        if ($concrete instanceof Closure) {
+            $this->container->factory($id, $concrete)->singleton();
+
+            return;
+        }
+
         $this->container->bind($id, $concrete, LifetimeEnum::Singleton);
     }
 

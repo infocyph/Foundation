@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Cache;
 
+use Infocyph\CacheLayer\Cache\Cache;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Database\DatabaseManager;
@@ -14,21 +15,27 @@ final class CacheServiceProvider extends ServiceProvider
 {
     public function register(Application $app): void
     {
+        if (!class_exists(Cache::class)) {
+            throw new \LogicException(
+                'Foundation cache services require infocyph/cachelayer; run "php infbyte module:install cache".',
+            );
+        }
+
         $container = $app->container();
 
-        $container->bind(CacheLayerFactory::class, fn() => new CacheLayerFactory(
+        $this->bindFactory($container, CacheLayerFactory::class, fn() => new CacheLayerFactory(
             config: $app->config(),
-            database: $app->make(DatabaseManager::class),
             paths: $app->make(PathManager::class),
             redis: new RedisConnectionFactory($app->config()),
+            database: fn(): DatabaseManager => $app->make(DatabaseManager::class),
         ), LifetimeEnum::Singleton);
 
-        $container->bind(CacheManager::class, fn() => new CacheManager(
+        $this->bindFactory($container, CacheManager::class, fn() => new CacheManager(
             config: $app->config(),
             factory: $app->make(CacheLayerFactory::class),
-            database: $app->make(DatabaseManager::class),
+            database: fn(): DatabaseManager => $app->make(DatabaseManager::class),
         ), LifetimeEnum::Singleton);
 
-        $container->bind('foundation.cache', fn() => $container->get(CacheManager::class), LifetimeEnum::Singleton);
+        $this->bindFactory($container, 'foundation.cache', fn() => $container->get(CacheManager::class), LifetimeEnum::Singleton);
     }
 }

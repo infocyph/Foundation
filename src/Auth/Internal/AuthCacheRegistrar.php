@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Internal;
 
+use Infocyph\CacheLayer\Cache\Cache;
 use Infocyph\CacheLayer\Cache\CacheInterface;
 use Infocyph\Foundation\Auth\Adapter\CacheLayer\AtomicCounterStore;
 use Infocyph\Foundation\Auth\Adapter\CacheLayer\CacheLayerCounterStore;
@@ -21,6 +22,7 @@ final readonly class AuthCacheRegistrar extends AbstractAuthRegistrar
     public function register(AuthDriverResolver $drivers): void
     {
         if ($drivers->cache() === AuthCacheDriver::CACHELAYER) {
+            $this->requirePackage(Cache::class, 'infocyph/cachelayer', 'cache');
             $this->singleton(CacheInterface::class, fn() => $this->app->cache()->store(
                 $this->stringConfig('auth.cachelayer.store', $this->stringConfig('cache.default', 'memory')),
             ));

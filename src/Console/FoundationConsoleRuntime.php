@@ -18,6 +18,8 @@ final class FoundationConsoleRuntime implements ConfigurationProvider, Container
 {
     private ?Application $application = null;
 
+    private ?Configuration $configuration = null;
+
     private ?string $profile = null;
 
     /**
@@ -44,7 +46,7 @@ final class FoundationConsoleRuntime implements ConfigurationProvider, Container
 
     public function configuration(): Configuration
     {
-        return Configuration::fromConfig($this->application()->config());
+        return $this->configuration ??= Configuration::fromConfig($this->application()->config());
     }
 
     public function container(): Container

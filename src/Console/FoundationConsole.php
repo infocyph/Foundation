@@ -11,8 +11,15 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Console\Command\AppReadyCommand;
 use Infocyph\Foundation\Console\Command\AuthSchemaInstallCommand;
 use Infocyph\Foundation\Console\Command\AuthSchemaStatusCommand;
+use Infocyph\Foundation\Console\Command\CommandCacheCommand;
+use Infocyph\Foundation\Console\Command\CommandClearCommand;
 use Infocyph\Foundation\Console\Command\ConfigCacheCommand;
 use Infocyph\Foundation\Console\Command\ConfigClearCommand;
+use Infocyph\Foundation\Console\Command\ModuleInstallCommand;
+use Infocyph\Foundation\Console\Command\ModuleListCommand;
+use Infocyph\Foundation\Console\Command\ModuleRemoveCommand;
+use Infocyph\Foundation\Console\Command\OptimizeClearCommand;
+use Infocyph\Foundation\Console\Command\OptimizeCommand;
 use Infocyph\Foundation\Console\Command\RouteCacheCommand;
 use Infocyph\Foundation\Console\Command\RouteClearCommand;
 
@@ -25,6 +32,13 @@ final class FoundationConsole
         'auth:schema:install' => AuthSchemaInstallCommand::class,
         'config:cache' => ConfigCacheCommand::class,
         'config:clear' => ConfigClearCommand::class,
+        'command:cache' => CommandCacheCommand::class,
+        'command:clear' => CommandClearCommand::class,
+        'module:install' => ModuleInstallCommand::class,
+        'module:list' => ModuleListCommand::class,
+        'module:remove' => ModuleRemoveCommand::class,
+        'optimize' => OptimizeCommand::class,
+        'optimize:clear' => OptimizeClearCommand::class,
         'route:cache' => RouteCacheCommand::class,
         'route:clear' => RouteClearCommand::class,
     ];
@@ -32,31 +46,10 @@ final class FoundationConsole
     private function __construct() {}
 
     /**
-     * @param Closure(?string): Application $applicationFactory
-     * @param array<array-key, mixed> $commands
-     */
-    public static function create(
-        Closure $applicationFactory,
-        string $name = 'foundation',
-        string $version = 'dev',
-        array $commands = [],
-    ): ConsoleApplication {
-        $runtime = new FoundationConsoleRuntime($applicationFactory);
-
-        return ConsoleApplication::configure()
-            ->name($name)
-            ->version($version)
-            ->commands(self::commands($commands))
-            ->containerProvider($runtime)
-            ->configurationProvider($runtime)
-            ->build();
-    }
-
-    /**
      * @param array<array-key, mixed> $applicationCommands
      * @return array<string, class-string<CommandContract>>
      */
-    private static function commands(array $applicationCommands): array
+    public static function commands(array $applicationCommands): array
     {
         $commands = self::SYSTEM_COMMANDS;
 
@@ -84,5 +77,32 @@ final class FoundationConsole
         }
 
         return $commands;
+    }
+
+    /**
+     * @param Closure(?string): Application $applicationFactory
+     * @param array<array-key, mixed> $commands
+     */
+    public static function create(
+        Closure $applicationFactory,
+        string $name = 'foundation',
+        string $version = 'dev',
+        array $commands = [],
+        ?string $commandManifest = null,
+    ): ConsoleApplication {
+        $runtime = new FoundationConsoleRuntime($applicationFactory);
+        $builder = ConsoleApplication::configure()
+            ->name($name)
+            ->version($version)
+            ->containerProvider($runtime)
+            ->configurationProvider($runtime);
+
+        if ($commandManifest !== null && is_file($commandManifest)) {
+            $builder->commandManifest($commandManifest);
+        } else {
+            $builder->commands(self::commands($commands));
+        }
+
+        return $builder->build();
     }
 }

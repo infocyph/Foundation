@@ -15,6 +15,8 @@ final class ConfigLoader
 
     public const string TYPE_SINGLE = 'single';
 
+    private const int CACHE_FORMAT = 2;
+
     /**
      * @param array<string, mixed> $inline
      */
@@ -35,7 +37,10 @@ final class ConfigLoader
 
         $cached = $cacheDirectory === null ? null : $this->loadCacheManifest($cacheDirectory);
         if (($cached['type'] ?? null) === self::TYPE_SINGLE) {
-            return new ConfigRepository(ConfigMerger::mergeMany([$cached['data'], $preset, $normalized]));
+            return new ConfigRepository(
+                ConfigMerger::mergeMany([$cached['data'], $preset, $normalized]),
+                compiled: true,
+            );
         }
         if ($cacheDirectory !== null && ($cached['type'] ?? null) === self::TYPE_SHARDED) {
             return ConfigRepository::fromLazyFiles(
@@ -44,6 +49,7 @@ final class ConfigLoader
                 fallback: $cached['complete'] ? [] : $this->defaults(),
                 overrides: ConfigMerger::mergeMany([$preset, $normalized]),
                 namespaces: $cached['namespaces'],
+                compiled: true,
             );
         }
 
@@ -224,7 +230,7 @@ final class ConfigLoader
         }
 
         $payload = $this->requireManifest($file);
-        if ($payload === null || ($payload['_format'] ?? null) !== 1) {
+        if ($payload === null || ($payload['_format'] ?? null) !== self::CACHE_FORMAT) {
             return null;
         }
 
@@ -361,7 +367,7 @@ final class ConfigLoader
         }
 
         return [
-            '_format' => 1,
+            '_format' => self::CACHE_FORMAT,
             '_type' => self::TYPE_SHARDED,
             '_namespaces' => $namespaces,
             '_complete' => true,
@@ -396,7 +402,7 @@ final class ConfigLoader
         $this->removeStaleShards($cacheDirectory, []);
 
         return [
-            '_format' => 1,
+            '_format' => self::CACHE_FORMAT,
             '_type' => self::TYPE_SINGLE,
             '_data' => $config->all(),
         ];

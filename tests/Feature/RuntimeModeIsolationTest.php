@@ -102,6 +102,10 @@ it('selects only providers assigned to the active runtime', function (): void {
         ])->and($loader->providers(RuntimeMode::Console))->toBe([
             CacheServiceProvider::class,
             FilesystemServiceProvider::class,
+        ])->and($loader->groups())->toBe([
+            'common' => [CacheServiceProvider::class],
+            'web' => [HttpServiceProvider::class],
+            'console' => [FilesystemServiceProvider::class],
         ]);
 
         file_put_contents(

@@ -14,34 +14,58 @@ final readonly class ProviderFileLoader
     ) {}
 
     /**
+     * @return array{common:list<class-string<ServiceProviderInterface>>,web:list<class-string<ServiceProviderInterface>>,console:list<class-string<ServiceProviderInterface>>}
+     */
+    public function groups(): array
+    {
+        $empty = ['common' => [], 'web' => [], 'console' => []];
+        $file = $this->paths->providersFile();
+        if (!is_file($file)) {
+            return $empty;
+        }
+
+        $providers = require $file;
+        if (!is_array($providers)) {
+            return $empty;
+        }
+        if ($providers !== [] && array_is_list($providers)) {
+            throw new BootstrapException(
+                'Provider files must define common, web, and console provider groups.',
+            );
+        }
+
+        $resolved = $empty;
+        foreach ($resolved as $group => $_providers) {
+            $configured = $providers[$group] ?? [];
+            if (!is_array($configured)) {
+                continue;
+            }
+
+            foreach ($configured as $provider) {
+                if (!is_string($provider)
+                    || !class_exists($provider)
+                    || !is_subclass_of($provider, ServiceProviderInterface::class)
+                ) {
+                    continue;
+                }
+
+                $resolved[$group][] = $provider;
+            }
+        }
+
+        return $resolved;
+    }
+
+    /**
      * @param RuntimeMode $runtimeMode Runtime whose provider groups are selected.
      * @return list<class-string<ServiceProviderInterface>>
      */
     public function providers(RuntimeMode $runtimeMode): array
     {
-        $file = $this->paths->providersFile();
-
-        if (!is_file($file)) {
-            return [];
-        }
-
-        $providers = require $file;
-        if (!is_array($providers)) {
-            return [];
-        }
-
-        $providers = $this->forRuntime($providers, $runtimeMode);
+        $providers = $this->forRuntime($this->groups(), $runtimeMode);
         $resolved = [];
 
         foreach ($providers as $provider) {
-            if (!is_string($provider) || !class_exists($provider)) {
-                continue;
-            }
-
-            if (!is_subclass_of($provider, ServiceProviderInterface::class)) {
-                continue;
-            }
-
             $resolved[] = $provider;
         }
 
@@ -49,26 +73,19 @@ final readonly class ProviderFileLoader
     }
 
     /**
-     * @param array<array-key, mixed> $providers
-     * @return list<mixed>
+     * @param array{
+     *     common:list<class-string<ServiceProviderInterface>>,
+     *     web:list<class-string<ServiceProviderInterface>>,
+     *     console:list<class-string<ServiceProviderInterface>>
+     * } $providers
+     * @return list<class-string<ServiceProviderInterface>>
      */
     private function forRuntime(array $providers, RuntimeMode $runtimeMode): array
     {
-        if ($providers !== [] && array_is_list($providers)) {
-            throw new BootstrapException(
-                'Provider files must define common, web, and console provider groups.',
-            );
-        }
-
         $selected = [];
 
         foreach (['common', $runtimeMode->value] as $group) {
-            $configured = $providers[$group] ?? [];
-            if (!is_array($configured)) {
-                continue;
-            }
-
-            foreach ($configured as $provider) {
+            foreach ($providers[$group] as $provider) {
                 $selected[] = $provider;
             }
         }

@@ -5,22 +5,29 @@
     "type": "library",
     "require": {
         "php": ">=8.4",
-        "infocyph/arraykit": "^4.6",
-        "infocyph/cachelayer": "^1.6",
         "infocyph/console": "dev-main@dev",
-        "infocyph/dblayer": "^2.1.2",
-        "infocyph/epicrypt": "^1.1",
-        "infocyph/intermix": "^7.2.5",
-        "infocyph/otp": "^5.04",
-        "infocyph/pathwise": "^2.5.3",
-        "infocyph/reqshield": "^2.4.2",
-        "infocyph/talkingbytes": "^0.2",
-        "infocyph/uid": "^4.3",
-        "infocyph/webrick": "^2.02.1",
-        "web-auth/webauthn-lib": "^5.3.5"
+        "infocyph/webrick": "^3.0.1"
     },
     "require-dev": {
-        "infocyph/phpforge": "dev-main@dev"
+        "infocyph/cachelayer": "^1.6",
+        "infocyph/dblayer": "^2.1.2",
+        "infocyph/epicrypt": "^1.1",
+        "infocyph/otp": "^5.04",
+        "infocyph/pathwise": "^2.5.3",
+        "infocyph/phpforge": "dev-main@dev",
+        "infocyph/reqshield": "^2.4.2",
+        "infocyph/talkingbytes": "^0.2",
+        "web-auth/webauthn-lib": "^5.3.5"
+    },
+    "suggest": {
+        "infocyph/cachelayer": "Adds Foundation cache stores and CacheLayer-backed authentication.",
+        "infocyph/dblayer": "Adds database services, database validation, and persistent authentication storage.",
+        "infocyph/epicrypt": "Adds Foundation cryptography and Epicrypt-backed authentication.",
+        "infocyph/otp": "Adds OTP-backed multi-factor authentication.",
+        "infocyph/pathwise": "Adds the full filesystem service; core application paths work without it.",
+        "infocyph/reqshield": "Adds request and application validation services.",
+        "infocyph/talkingbytes": "Adds communication and notification services.",
+        "web-auth/webauthn-lib": "Adds WebAuthn passkey authentication."
     },
     "minimum-stability": "stable",
     "prefer-stable": true,

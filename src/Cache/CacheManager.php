@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Cache;
 
+use Closure;
 use Infocyph\CacheLayer\Cache\CacheInterface;
 use Infocyph\CacheLayer\Cluster\ClusterRuntime;
 use Infocyph\CacheLayer\Cluster\Health\ClusterStatus;
@@ -32,7 +33,8 @@ final class CacheManager
     public function __construct(
         private ConfigRepository $config,
         private CacheLayerFactory $factory,
-        private DatabaseManager $database,
+        /** @var Closure():DatabaseManager */
+        private Closure $database,
     ) {}
 
     public function checkpointNode(string $name): void
@@ -108,7 +110,7 @@ final class CacheManager
     ): mixed {
         $runtime = $this->cluster($cluster);
 
-        return $this->database->transaction(
+        return ($this->database)()->transaction(
             function (Connection $databaseConnection) use ($callback, $runtime): mixed {
                 $outbox = $runtime->outbox($databaseConnection->getPdo());
                 $result = $callback($databaseConnection, $outbox);

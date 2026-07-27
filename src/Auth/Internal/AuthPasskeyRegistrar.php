@@ -21,6 +21,7 @@ use Infocyph\Foundation\Auth\Passkey\PasskeyCredentialStoreInterface;
 use Infocyph\Foundation\Auth\Passkey\PasskeyServiceInterface;
 use Infocyph\Foundation\Auth\Support\DisabledPasskeyService;
 use Infocyph\Foundation\Auth\Support\InMemoryPasskeyService;
+use Webauthn\PublicKeyCredential;
 
 final readonly class AuthPasskeyRegistrar extends AbstractAuthRegistrar
 {
@@ -35,6 +36,7 @@ final readonly class AuthPasskeyRegistrar extends AbstractAuthRegistrar
         }
 
         if ($driver === AuthPasskeyDriver::WEBAUTHN) {
+            $this->requirePackage(PublicKeyCredential::class, 'web-auth/webauthn-lib', 'passkeys');
             $this->singleton(WebAuthnConfigResolver::class, fn() => new WebAuthnConfigResolver(
                 $this->app->config(),
             ));

@@ -15,35 +15,35 @@ final class RoutingServiceProvider extends ServiceProvider
     {
         $container = $app->container();
 
-        $container->bind(WebrickMiddlewareFactory::class, fn() => new WebrickMiddlewareFactory(
+        $this->bindFactory($container, WebrickMiddlewareFactory::class, fn() => new WebrickMiddlewareFactory(
             app: $app,
             config: $app->config(),
         ), LifetimeEnum::Singleton);
-        $container->bind(WebrickRouterFactory::class, fn() => new WebrickRouterFactory(
+        $this->bindFactory($container, WebrickRouterFactory::class, fn() => new WebrickRouterFactory(
             $app->config(),
             $app->make(WebrickMiddlewareFactory::class),
             $container,
         ), LifetimeEnum::Singleton);
 
-        $container->bind(RouteMiddlewareRegistrar::class, fn() => new RouteMiddlewareRegistrar($app), LifetimeEnum::Singleton);
-        $container->bind(RoutePresetRegistrar::class, fn() => new RoutePresetRegistrar(
+        $this->bindFactory($container, RouteMiddlewareRegistrar::class, fn() => new RouteMiddlewareRegistrar($app), LifetimeEnum::Singleton);
+        $this->bindFactory($container, RoutePresetRegistrar::class, fn() => new RoutePresetRegistrar(
             $app->make(RouteMiddlewareRegistrar::class),
             $app->config(),
         ), LifetimeEnum::Singleton);
-        $container->bind(RouteFileLoader::class, fn() => new RouteFileLoader(
+        $this->bindFactory($container, RouteFileLoader::class, fn() => new RouteFileLoader(
             paths: $app->make(PathManager::class),
             config: $app->config(),
             router: $app->make(RouterManager::class),
             files: $this->routeFiles($app->config()->get('router.files', ['web.php', 'api.php', 'auth.php'])),
         ), LifetimeEnum::Singleton);
 
-        $container->bind(RouterManager::class, fn() => new RouterManager(
+        $this->bindFactory($container, RouterManager::class, fn() => new RouterManager(
             config: $app->config(),
             factory: $app->make(WebrickRouterFactory::class),
             presets: $app->make(RoutePresetRegistrar::class),
         ), LifetimeEnum::Singleton);
 
-        $container->bind('foundation.router', fn() => $container->get(RouterManager::class), LifetimeEnum::Singleton);
+        $this->bindFactory($container, 'foundation.router', fn() => $container->get(RouterManager::class), LifetimeEnum::Singleton);
     }
 
     /**

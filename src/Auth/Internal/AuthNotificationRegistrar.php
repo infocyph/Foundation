@@ -12,12 +12,14 @@ use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
 use Infocyph\Foundation\Auth\Driver\AuthNotificationDriver;
 use Infocyph\Foundation\Auth\Support\CollectingAuthNotifier;
 use Infocyph\Foundation\Notifications\NotificationTemplateRegistry;
+use Infocyph\TalkingBytes\Email\Emailer;
 
 final readonly class AuthNotificationRegistrar extends AbstractAuthRegistrar
 {
     public function register(AuthDriverResolver $drivers): void
     {
         if ($drivers->notifications() === AuthNotificationDriver::TALKINGBYTES) {
+            $this->requirePackage(Emailer::class, 'infocyph/talkingbytes', 'communication');
             $this->singleton(AuthNotificationMapper::class, fn() => new AuthNotificationMapper(
                 $this->app->make(NotificationTemplateRegistry::class),
             ));

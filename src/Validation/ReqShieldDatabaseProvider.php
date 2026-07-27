@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Validation;
 
+use Closure;
 use Infocyph\DBLayer\Query\QueryBuilder;
 use Infocyph\Foundation\Database\DatabaseManager;
 use Infocyph\ReqShield\Contracts\DatabaseProvider;
@@ -11,7 +12,8 @@ use Infocyph\ReqShield\Contracts\DatabaseProvider;
 final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
 {
     public function __construct(
-        private DatabaseManager $database,
+        /** @var Closure():DatabaseManager */
+        private Closure $database,
         private ?string $connection = null,
     ) {}
 
@@ -44,7 +46,7 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
         foreach ($grouped as $column => $entries) {
             $matched = $this->matchedEntries(
                 $this->rowsForValues(
-                    $this->database->query($this->connection)->from($table)->select($this->column($column)),
+                    $this->database()->query($this->connection)->from($table)->select($this->column($column)),
                     $this->column($column),
                     $this->entryValues($entries),
                 ),
@@ -80,7 +82,7 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
         $nonUnique = [];
 
         foreach ($grouped as $group) {
-            $query = $this->database->query($this->connection)
+            $query = $this->database()->query($this->connection)
                 ->from($table)
                 ->select($this->column($group['column']));
 
@@ -113,7 +115,7 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
     /** @param array<string, mixed> $columns */
     public function compositeUnique(string $table, array $columns, ?int $ignoreId = null): bool
     {
-        $query = $this->database->query($this->connection)->from($table);
+        $query = $this->database()->query($this->connection)->from($table);
 
         foreach ($columns as $column => $value) {
             $column = $this->column($column);
@@ -137,7 +139,7 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
     public function exists(string $table, string $column, mixed $value, ?int $ignoreId = null): bool
     {
         $column = $this->column($column);
-        $query = $this->database->query($this->connection)->from($table);
+        $query = $this->database()->query($this->connection)->from($table);
 
         if ($value === null) {
             $query->whereNull($column);
@@ -158,7 +160,7 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
      */
     public function query(string $query, array $params = []): array
     {
-        return $this->database->select($query, $params, $this->connection);
+        return $this->database()->select($query, $params, $this->connection);
     }
 
     /**
@@ -191,6 +193,11 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
         }
 
         return $column;
+    }
+
+    private function database(): DatabaseManager
+    {
+        return ($this->database)();
     }
 
     /**

@@ -10,9 +10,40 @@ It does not replace the standalone packages. It gives a host project one place t
 composer require infocyph/foundation
 ```
 
-Foundation installs the Infocyph integration packages it needs, including
-TalkingBytes for notification delivery. Host applications configure the
-drivers they use; they do not need to wire each integration manually.
+The core installation contains Foundation, Console, and Webrick. Feature
+libraries are direct, optional project dependencies: Foundation does not
+install unused database, cache, cryptography, filesystem, validation,
+communication, identifier, OTP, or WebAuthn packages.
+
+Install a feature through the Foundation console:
+
+```bash
+php infbyte module:install db
+php infbyte module:install cache
+php infbyte module:list
+```
+
+These commands install the existing package directly; no Foundation-prefixed
+bridge package is created:
+
+| Module | Composer package |
+| --- | --- |
+| `cache` | `infocyph/cachelayer` |
+| `communication` | `infocyph/talkingbytes` |
+| `crypto` | `infocyph/epicrypt` |
+| `db` | `infocyph/dblayer` |
+| `filesystem` | `infocyph/pathwise` |
+| `otp` | `infocyph/otp` |
+| `passkeys` | `web-auth/webauthn-lib` |
+| `validation` | `infocyph/reqshield` |
+
+`infocyph/uid` is already part of the runtime core through Console. Foundation
+still activates identifier services only when the application requests them or
+selects a UID-backed identifier driver.
+
+The equivalent direct Composer command remains valid, for example
+`composer require infocyph/dblayer`. Remove a direct module with
+`php infbyte module:remove db`.
 
 ## Expected Project Structure
 
@@ -172,7 +203,11 @@ Console integrations likewise require an application created by
 Console applications receive an explicit command route map:
 
 ```php
-$commands = require $basePath . '/routes/console.php';
+$manifestPath = $basePath . '/bootstrap/cache/console/commands.php';
+$manifest = is_file($manifestPath) ? $manifestPath : null;
+$commands = $manifest === null
+    ? require $basePath . '/routes/console.php'
+    : [];
 
 $console = FoundationConsole::create(
     applicationFactory: static fn (?string $profile) => Foundation::console([
@@ -180,12 +215,15 @@ $console = FoundationConsole::create(
         'env' => $profile ?? 'local',
     ]),
     commands: $commands,
+    commandManifest: $manifest,
 );
 ```
 
 `routes/console.php` maps command names to command classes. Foundation does not
 scan command directories or register application commands implicitly.
-Foundation's operational commands, including `config:*`, `route:*`,
+When the compiled command manifest exists, the CLI entry point does not load
+the project command route file during preflight or dispatch.
+Foundation's operational commands, including `config:*`, `route:*`, `module:*`,
 `auth:schema:*`, and `app:ready`, are predefined by Foundation and must not be
 redeclared in the application route map.
 

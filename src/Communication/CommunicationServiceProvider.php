@@ -18,20 +18,26 @@ final class CommunicationServiceProvider extends ServiceProvider
 {
     public function register(Application $app): void
     {
+        if (!class_exists(HttpClient::class)) {
+            throw new \LogicException(
+                'Foundation communication services require infocyph/talkingbytes; run "php infbyte module:install communication".',
+            );
+        }
+
         $container = $app->container();
 
-        $container->bind(CommunicationManager::class, fn() => new CommunicationManager(
+        $this->bindFactory($container, CommunicationManager::class, fn() => new CommunicationManager(
             config: $app->config(),
             container: $container,
         ), LifetimeEnum::Singleton);
 
-        $container->bind(HttpClient::class, fn(): HttpClient => $this->manager($container)->httpClient(), LifetimeEnum::Singleton);
-        $container->bind(WebhookSender::class, fn(): WebhookSender => $this->manager($container)->webhookSender(), LifetimeEnum::Singleton);
-        $container->bind(WebhookVerifier::class, fn(): WebhookVerifier => $this->manager($container)->webhookVerifier(), LifetimeEnum::Singleton);
-        $container->bind(WebhookReceiver::class, fn(): WebhookReceiver => $this->manager($container)->webhookReceiver(), LifetimeEnum::Singleton);
-        $container->bind(GrpcServer::class, fn() => GrpcServer::new(), LifetimeEnum::Singleton);
+        $this->bindFactory($container, HttpClient::class, fn(): HttpClient => $this->manager($container)->httpClient(), LifetimeEnum::Singleton);
+        $this->bindFactory($container, WebhookSender::class, fn(): WebhookSender => $this->manager($container)->webhookSender(), LifetimeEnum::Singleton);
+        $this->bindFactory($container, WebhookVerifier::class, fn(): WebhookVerifier => $this->manager($container)->webhookVerifier(), LifetimeEnum::Singleton);
+        $this->bindFactory($container, WebhookReceiver::class, fn(): WebhookReceiver => $this->manager($container)->webhookReceiver(), LifetimeEnum::Singleton);
+        $this->bindFactory($container, GrpcServer::class, fn() => GrpcServer::new(), LifetimeEnum::Singleton);
 
-        $container->bind('foundation.communication', fn() => $container->get(CommunicationManager::class), LifetimeEnum::Singleton);
+        $this->bindFactory($container, 'foundation.communication', fn() => $container->get(CommunicationManager::class), LifetimeEnum::Singleton);
     }
 
     private function manager(Container $container): CommunicationManager

@@ -3,6 +3,10 @@
 declare(strict_types=1);
 
 use Infocyph\Foundation\Config\ConfigLoader;
+use Infocyph\Foundation\Cache\CacheManager;
+use Infocyph\Foundation\Cache\CacheServiceProvider;
+use Infocyph\Foundation\Console\Support\ConfigCacheManager;
+use Infocyph\Foundation\Foundation;
 
 it('loads lazy namespace caches before project config files', function (): void {
     $project = configCacheProject([
@@ -184,6 +188,62 @@ it('falls back to source config when the cache manifest is invalid', function ()
     } finally {
         configCacheRemoveDirectory($project);
     }
+});
+
+it('compiles provider discovery into the configuration cache', function (): void {
+    $project = configCacheProject([
+        'bootstrap/providers.php' => sprintf(
+            "<?php\n\nreturn ['common' => [%s::class], 'web' => [], 'console' => []];\n",
+            CacheServiceProvider::class,
+        ),
+        'bootstrap/cache/config/.gitignore' => "*\n!.gitignore\n",
+    ]);
+
+    try {
+        $application = Foundation::console([
+            'base_path' => $project,
+            '_config_cache' => false,
+        ]);
+        $manager = new ConfigCacheManager($application);
+
+        expect($manager->write('bootstrap/cache/config', ConfigLoader::TYPE_SHARDED))
+            ->toBe(ConfigLoader::TYPE_SHARDED)
+            ->and($project . '/bootstrap/cache/config/.gitignore')->toBeFile();
+
+        unlink($project . '/bootstrap/providers.php');
+
+        $cached = Foundation::console(['base_path' => $project]);
+
+        expect($cached->config()->isCompiled())->toBeTrue()
+            ->and($cached->config()->get('providers.common'))->toBe([CacheServiceProvider::class])
+            ->and($cached->container()->has(CacheManager::class))->toBeTrue();
+    } finally {
+        configCacheRemoveDirectory($project);
+    }
+});
+
+it('keeps production requirements limited to the runtime core', function (): void {
+    $composer = json_decode(
+        file_get_contents(dirname(__DIR__, 2) . '/composer.json'),
+        true,
+        flags: JSON_THROW_ON_ERROR,
+    );
+
+    expect(array_keys($composer['require']))->toBe([
+        'php',
+        'infocyph/console',
+        'infocyph/webrick',
+    ])->and($composer['require-dev'])->not->toHaveKey('infocyph/uid')
+        ->and(array_keys($composer['suggest']))->toContain(
+        'infocyph/cachelayer',
+        'infocyph/dblayer',
+        'infocyph/epicrypt',
+        'infocyph/otp',
+        'infocyph/pathwise',
+        'infocyph/reqshield',
+        'infocyph/talkingbytes',
+        'web-auth/webauthn-lib',
+    );
 });
 
 /**

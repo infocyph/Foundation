@@ -23,6 +23,19 @@ use Infocyph\Webrick\Router\Dispatch\MiddlewareAliases;
 
 final class RouteMiddlewareRegistrar
 {
+    /** @var array<string, true> */
+    private const array AUTH_ALIASES = [
+        'resolve-auth' => true,
+        'auth' => true,
+        'guest' => true,
+        'verified' => true,
+        'mfa' => true,
+        'recent' => true,
+        'role' => true,
+        'permission' => true,
+        'policy' => true,
+    ];
+
     private bool $registered = false;
 
     public function __construct(
@@ -35,35 +48,53 @@ final class RouteMiddlewareRegistrar
             return;
         }
 
-        MiddlewareAliases::register('resolve-auth', fn() => $this->app->make(ResolvePrincipalMiddleware::class));
-        MiddlewareAliases::register('auth', fn() => $this->app->make(AuthMiddleware::class));
-        MiddlewareAliases::register('guest', fn() => $this->app->make(GuestMiddleware::class));
-        MiddlewareAliases::register('verified', fn() => $this->app->make(VerifiedMiddleware::class));
-        MiddlewareAliases::register('mfa', fn() => $this->app->make(MfaRequiredMiddleware::class));
-        MiddlewareAliases::register('recent', fn() => $this->app->make(RecentAuthMiddleware::class));
-        MiddlewareAliases::register('role', fn(string ...$roles) => new RoleMiddleware(
-            $this->app->make(CurrentPrincipalContext::class),
-            $this->app->make(RoleManager::class),
-            $this->app->make(AuthResponseFactory::class),
-            array_values($roles),
-        ));
-        MiddlewareAliases::register('permission', fn(string ...$abilities) => new PermissionMiddleware(
-            $this->app->make(CurrentPrincipalContext::class),
-            $this->app->make(AuthorizerInterface::class),
-            $this->app->make(AuthExceptionMapper::class),
-            $this->app->make(AuthResponseFactory::class),
-            array_values($abilities),
-        ));
-        MiddlewareAliases::register('policy', fn(string $ability, string ...$resourceKey) => new PolicyMiddleware(
-            $this->app->make(CurrentPrincipalContext::class),
-            $this->app->make(AuthorizerInterface::class),
-            $this->app->make(AuthExceptionMapper::class),
-            $this->app->make(AuthResponseFactory::class),
-            $ability,
-            $resourceKey[0] ?? null,
-        ));
+        MiddlewareAliases::registerResolver(
+            static fn(string $alias): bool => isset(self::AUTH_ALIASES[$alias]),
+            fn(string $alias, string ...$parameters): object => $this->resolveAuthAlias(
+                $alias,
+                array_values($parameters),
+            ),
+            'foundation.auth',
+        );
         $this->app->make(WebrickMiddlewareFactory::class)->registerAliases();
 
         $this->registered = true;
+    }
+
+    /**
+     * @param list<string> $parameters
+     */
+    private function resolveAuthAlias(string $alias, array $parameters): object
+    {
+        return match ($alias) {
+            'resolve-auth' => $this->app->make(ResolvePrincipalMiddleware::class),
+            'auth' => $this->app->make(AuthMiddleware::class),
+            'guest' => $this->app->make(GuestMiddleware::class),
+            'verified' => $this->app->make(VerifiedMiddleware::class),
+            'mfa' => $this->app->make(MfaRequiredMiddleware::class),
+            'recent' => $this->app->make(RecentAuthMiddleware::class),
+            'role' => new RoleMiddleware(
+                $this->app->make(CurrentPrincipalContext::class),
+                $this->app->make(RoleManager::class),
+                $this->app->make(AuthResponseFactory::class),
+                $parameters,
+            ),
+            'permission' => new PermissionMiddleware(
+                $this->app->make(CurrentPrincipalContext::class),
+                $this->app->make(AuthorizerInterface::class),
+                $this->app->make(AuthExceptionMapper::class),
+                $this->app->make(AuthResponseFactory::class),
+                $parameters,
+            ),
+            'policy' => new PolicyMiddleware(
+                $this->app->make(CurrentPrincipalContext::class),
+                $this->app->make(AuthorizerInterface::class),
+                $this->app->make(AuthExceptionMapper::class),
+                $this->app->make(AuthResponseFactory::class),
+                $parameters[0] ?? throw new \InvalidArgumentException('Policy middleware requires an ability.'),
+                $parameters[1] ?? null,
+            ),
+            default => throw new \LogicException(sprintf('Unsupported auth middleware alias "%s".', $alias)),
+        };
     }
 }
