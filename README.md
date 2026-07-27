@@ -24,7 +24,10 @@ php infbyte module:list
 ```
 
 These commands install the existing package directly; no Foundation-prefixed
-bridge package is created:
+bridge package is created. A successful install also publishes that module's
+documented Foundation config from `vendor/infocyph/foundation/resources/config`
+into the host `config/` directory. Existing project config is never
+overwritten, and the compiled config cache is invalidated after publication.
 
 | Module | Composer package |
 | --- | --- |
@@ -42,8 +45,10 @@ still activates identifier services only when the application requests them or
 selects a UID-backed identifier driver.
 
 The equivalent direct Composer command remains valid, for example
-`composer require infocyph/dblayer`. Remove a direct module with
-`php infbyte module:remove db`.
+`composer require infocyph/dblayer`; use `module:install` when config should be
+published automatically. Remove a direct module with
+`php infbyte module:remove db`. Removal deliberately retains project config
+because it may contain application-owned changes.
 
 ## Expected Project Structure
 
@@ -57,8 +62,9 @@ project-root/
   config/
     app.php
     auth.php
-    cache.php
-    database.php
+    ids.php
+    router.php
+    # Optional module config is published here when installed.
   database/
   public/
     index.php
@@ -289,10 +295,9 @@ For a new app, usually start in this order:
 1. `base_path`
 2. `config/app.php`
 3. `config/auth.php`
-4. `config/cache.php`
-5. `config/database.php`
-6. `bootstrap/providers.php`
-7. `routes/*.php`
+4. Install required modules so their config is published
+5. `bootstrap/providers.php`
+6. `routes/*.php`
 
 ## Production Notes
 

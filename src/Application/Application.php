@@ -218,12 +218,21 @@ final class Application
     {
         try {
             if (!$this->container->has($id)) {
-                $this->bootstrapper->activateProviderFor($this, $id);
+                $activated = $this->bootstrapper->activateProviderFor($this, $id);
+                $unavailable = $activated ? null : $this->bootstrapper->unavailableServiceMessage($id);
+                if ($unavailable !== null) {
+                    throw new \LogicException($unavailable);
+                }
             }
 
             return $this->container->get($id);
         } catch (\Throwable $e) {
-            throw new ServiceResolutionException(sprintf('Unable to resolve service "%s".', $id), previous: $e);
+            $message = sprintf('Unable to resolve service "%s".', $id);
+            if ($e->getMessage() !== '') {
+                $message .= ' ' . $e->getMessage();
+            }
+
+            throw new ServiceResolutionException($message, previous: $e);
         }
     }
 

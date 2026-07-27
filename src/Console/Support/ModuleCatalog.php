@@ -10,7 +10,8 @@ final class ModuleCatalog
      * @var array<string, array{
      *     package: string,
      *     description: string,
-     *     aliases: list<string>
+     *     aliases: list<string>,
+     *     config: list<string>
      * }>
      */
     private const array MODULES = [
@@ -18,41 +19,49 @@ final class ModuleCatalog
             'package' => 'infocyph/cachelayer',
             'description' => 'Cache stores, response caching, throttling, and cache-backed auth.',
             'aliases' => ['cachelayer'],
+            'config' => ['cache.php'],
         ],
         'communication' => [
             'package' => 'infocyph/talkingbytes',
             'description' => 'HTTP, webhook, gRPC, email, and notification integrations.',
             'aliases' => ['notifications', 'talkingbytes'],
+            'config' => ['communication.php', 'notifications.php'],
         ],
         'crypto' => [
             'package' => 'infocyph/epicrypt',
             'description' => 'Cryptography, secrets, and hardened auth token/password adapters.',
             'aliases' => ['epicrypt', 'security'],
+            'config' => ['security.php'],
         ],
         'db' => [
             'package' => 'infocyph/dblayer',
             'description' => 'Database connections, persistence, and database-backed auth.',
             'aliases' => ['database', 'dblayer'],
+            'config' => ['database.php'],
         ],
         'filesystem' => [
             'package' => 'infocyph/pathwise',
             'description' => 'Filesystem disks, uploads, downloads, and file operations.',
             'aliases' => ['files', 'pathwise'],
+            'config' => ['filesystem.php'],
         ],
         'otp' => [
             'package' => 'infocyph/otp',
             'description' => 'One-time passwords and OTP-backed MFA.',
             'aliases' => ['mfa'],
+            'config' => [],
         ],
         'passkeys' => [
             'package' => 'web-auth/webauthn-lib',
             'description' => 'WebAuthn passkey registration and authentication.',
             'aliases' => ['passkey', 'webauthn'],
+            'config' => [],
         ],
         'validation' => [
             'package' => 'infocyph/reqshield',
             'description' => 'Request, command, configuration, and database validation.',
             'aliases' => ['reqshield', 'validator'],
+            'config' => ['validation.php'],
         ],
     ];
 
@@ -60,7 +69,8 @@ final class ModuleCatalog
      * @return array<string, array{
      *     package: string,
      *     description: string,
-     *     aliases: list<string>
+     *     aliases: list<string>,
+     *     config: list<string>
      * }>
      */
     public function all(): array
@@ -73,7 +83,8 @@ final class ModuleCatalog
      *     name: string,
      *     package: string,
      *     description: string,
-     *     aliases: list<string>
+     *     aliases: list<string>,
+     *     config: list<string>
      * }
      */
     public function resolve(string $module): array

@@ -29,10 +29,13 @@ final class ModuleInstallCommand extends AbstractFoundationCommand
 
     protected function handle(): int
     {
+        $module = $this->arguments()->string('module');
+        $dryRun = $this->options()->bool('dry-run');
+
         try {
             $result = $this->modules->install(
-                $this->arguments()->string('module'),
-                $this->options()->bool('dry-run'),
+                $module,
+                $dryRun,
             );
         } catch (\InvalidArgumentException $exception) {
             $this->io()->error($exception->getMessage());
@@ -40,6 +43,25 @@ final class ModuleInstallCommand extends AbstractFoundationCommand
             return ExitCode::INVALID_USAGE;
         }
 
-        return $result->successful() ? ExitCode::SUCCESS : $result->exitCode;
+        if (!$result->successful() || $dryRun) {
+            return $result->successful() ? ExitCode::SUCCESS : $result->exitCode;
+        }
+
+        try {
+            $config = $this->modules->publishConfig($module);
+        } catch (\Throwable $exception) {
+            $this->io()->error('Module installed, but config publication failed: ' . $exception->getMessage());
+
+            return ExitCode::FAILURE;
+        }
+
+        foreach ($config['published'] as $path) {
+            $this->io()->success('Published module config: ' . $path);
+        }
+        foreach ($config['existing'] as $path) {
+            $this->io()->info('Kept existing module config: ' . $path);
+        }
+
+        return ExitCode::SUCCESS;
     }
 }

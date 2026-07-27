@@ -100,6 +100,26 @@ final class Bootstrapper
         $app->providers()->register($app);
     }
 
+    public function unavailableServiceMessage(string $service): ?string
+    {
+        $provider = $this->providerFor($service);
+        if ($provider === null) {
+            return null;
+        }
+
+        $dependency = $this->providerDependency($provider);
+        if ($dependency === null || class_exists($dependency['class'])) {
+            return null;
+        }
+
+        return sprintf(
+            'Foundation service "%s" requires %s; run "php infbyte module:install %s".',
+            $service,
+            $dependency['package'],
+            $dependency['module'],
+        );
+    }
+
     /**
      * @param class-string<ServiceProviderInterface> $provider
      */
@@ -178,6 +198,53 @@ final class Bootstrapper
     }
 
     /**
+     * @param class-string<ServiceProviderInterface> $provider
+     * @return array{class:class-string,module:string,package:string}|null
+     */
+    private function providerDependency(string $provider): ?array
+    {
+        return match ($provider) {
+            AuthOtpServiceProvider::class => [
+                'class' => \Infocyph\OTP\TOTP::class,
+                'module' => 'otp',
+                'package' => 'infocyph/otp',
+            ],
+            CacheServiceProvider::class => [
+                'class' => \Infocyph\CacheLayer\Cache\Cache::class,
+                'module' => 'cache',
+                'package' => 'infocyph/cachelayer',
+            ],
+            CommunicationServiceProvider::class,
+            NotificationServiceProvider::class => [
+                'class' => \Infocyph\TalkingBytes\Http\HttpClient::class,
+                'module' => 'communication',
+                'package' => 'infocyph/talkingbytes',
+            ],
+            DatabaseServiceProvider::class => [
+                'class' => \Infocyph\DBLayer\DB::class,
+                'module' => 'db',
+                'package' => 'infocyph/dblayer',
+            ],
+            FilesystemServiceProvider::class => [
+                'class' => \Infocyph\Pathwise\PathwiseFacade::class,
+                'module' => 'filesystem',
+                'package' => 'infocyph/pathwise',
+            ],
+            SecurityServiceProvider::class => [
+                'class' => \Infocyph\Epicrypt\Crypto\AeadCipher::class,
+                'module' => 'crypto',
+                'package' => 'infocyph/epicrypt',
+            ],
+            ValidationServiceProvider::class => [
+                'class' => \Infocyph\ReqShield\Validator::class,
+                'module' => 'validation',
+                'package' => 'infocyph/reqshield',
+            ],
+            default => null,
+        };
+    }
+
+    /**
      * Report optional services as available only when their installed module is
      * actually present. This keeps has() side-effect free and truthful.
      *
@@ -185,19 +252,9 @@ final class Bootstrapper
      */
     private function providerDependencyAvailable(string $provider): bool
     {
-        $dependency = match ($provider) {
-            AuthOtpServiceProvider::class => \Infocyph\OTP\TOTP::class,
-            CacheServiceProvider::class => \Infocyph\CacheLayer\Cache\Cache::class,
-            CommunicationServiceProvider::class => \Infocyph\TalkingBytes\Http\HttpClient::class,
-            DatabaseServiceProvider::class => \Infocyph\DBLayer\DB::class,
-            FilesystemServiceProvider::class => \Infocyph\Pathwise\PathwiseFacade::class,
-            NotificationServiceProvider::class => \Infocyph\TalkingBytes\Email\Emailer::class,
-            SecurityServiceProvider::class => \Infocyph\Epicrypt\Crypto\AeadCipher::class,
-            ValidationServiceProvider::class => \Infocyph\ReqShield\Validator::class,
-            default => null,
-        };
+        $dependency = $this->providerDependency($provider);
 
-        return $dependency === null || class_exists($dependency);
+        return $dependency === null || class_exists($dependency['class']);
     }
 
     /**
