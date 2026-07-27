@@ -15,32 +15,13 @@ final readonly class CommandCacheManager
     public function clear(string $path): bool
     {
         $manifest = $this->path($path);
-        $removed = false;
+        $entryPrefix = pathinfo(basename($manifest), PATHINFO_FILENAME) . '-';
+        $removed = $this->removeFile($manifest, 'command manifest');
+        $removed = $this->removeEntries(
+            dirname($manifest) . DIRECTORY_SEPARATOR . $entryPrefix . '*.php',
+        ) || $removed;
 
-        if (is_file($manifest)) {
-            if (!unlink($manifest)) {
-                throw new \RuntimeException(sprintf('Unable to remove command manifest "%s".', $manifest));
-            }
-            $removed = true;
-        }
-
-        $entryDirectory = $manifest . '.d';
-        if (!is_dir($entryDirectory)) {
-            return $removed;
-        }
-
-        $entries = glob($entryDirectory . DIRECTORY_SEPARATOR . '*.php') ?: [];
-        foreach ($entries as $entry) {
-            if (!unlink($entry)) {
-                throw new \RuntimeException(sprintf('Unable to remove command manifest entry "%s".', $entry));
-            }
-            $removed = true;
-        }
-        if (!rmdir($entryDirectory)) {
-            throw new \RuntimeException(sprintf('Unable to remove command manifest directory "%s".', $entryDirectory));
-        }
-
-        return $removed;
+        return $this->removeLegacyDirectory($manifest . '.d') || $removed;
     }
 
     public function path(string $path): string
@@ -81,5 +62,41 @@ final readonly class CommandCacheManager
     private function absolute(string $path): bool
     {
         return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1;
+    }
+
+    private function removeEntries(string $pattern): bool
+    {
+        $removed = false;
+        foreach (glob($pattern) ?: [] as $entry) {
+            $removed = $this->removeFile($entry, 'command manifest entry') || $removed;
+        }
+
+        return $removed;
+    }
+
+    private function removeFile(string $path, string $type): bool
+    {
+        if (!is_file($path)) {
+            return false;
+        }
+        if (!unlink($path)) {
+            throw new \RuntimeException(sprintf('Unable to remove %s "%s".', $type, $path));
+        }
+
+        return true;
+    }
+
+    private function removeLegacyDirectory(string $directory): bool
+    {
+        if (!is_dir($directory)) {
+            return false;
+        }
+
+        $this->removeEntries($directory . DIRECTORY_SEPARATOR . '*.php');
+        if (!rmdir($directory)) {
+            throw new \RuntimeException(sprintf('Unable to remove command manifest directory "%s".', $directory));
+        }
+
+        return true;
     }
 }

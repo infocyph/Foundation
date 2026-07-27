@@ -225,6 +225,88 @@ it('distinguishes cleared and missing configuration caches', function (): void {
     }
 });
 
+it('clears direct command shards without removing unrelated console cache files', function (): void {
+    $basePath = sys_get_temp_dir() . '/foundation-command-cache-' . bin2hex(random_bytes(5));
+    $cachePath = $basePath . '/bootstrap/cache/console';
+    $manifest = $cachePath . '/commands.php';
+    $entry = $cachePath . '/commands-' . hash('sha256', 'example') . '.php';
+    $sentinel = $cachePath . '/.gitignore';
+    mkdir($cachePath, 0775, true);
+    file_put_contents($manifest, '<?php return [];');
+    file_put_contents($entry, '<?php return [];');
+    file_put_contents($sentinel, "*\n!.gitignore\n");
+
+    try {
+        $console = FoundationConsole::create(
+            static fn(?string $profile) => Foundation::console([
+                'base_path' => $basePath,
+                'env' => $profile ?? 'testing',
+                '_config_cache' => false,
+            ]),
+        )->withIO(new BufferedIO());
+
+        expect($console->run([
+            'foundation',
+            'command:clear',
+            '--path=' . $manifest,
+        ]))->toBe(ExitCode::SUCCESS)
+            ->and($manifest)->not->toBeFile()
+            ->and($entry)->not->toBeFile()
+            ->and($sentinel)->toBeFile();
+    } finally {
+        foundationConsoleRemoveDirectory($basePath);
+    }
+});
+
+it('builds and clears every application cache through aggregate commands', function (): void {
+    $basePath = sys_get_temp_dir() . '/foundation-optimize-' . bin2hex(random_bytes(5));
+    mkdir($basePath . '/config', 0775, true);
+    mkdir($basePath . '/routes', 0775, true);
+    file_put_contents($basePath . '/config/router.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+return [
+    'files' => ['api.php'],
+    'matcher' => 'fused',
+];
+PHP);
+    file_put_contents($basePath . '/routes/api.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+use Infocyph\Webrick\Router\Facade\Router;
+
+Router::get('/optimized', static fn(): array => ['optimized' => true]);
+PHP);
+    file_put_contents($basePath . '/routes/console.php', "<?php\n\nreturn [];\n");
+
+    try {
+        $io = new BufferedIO();
+        $console = FoundationConsole::create(
+            static fn(?string $profile) => Foundation::console([
+                'base_path' => $basePath,
+                'env' => $profile ?? 'testing',
+                '_config_cache' => false,
+            ]),
+        )->withIO($io);
+
+        expect($console->run(['foundation', 'optimize']))->toBe(ExitCode::SUCCESS)
+            ->and($basePath . '/bootstrap/cache/config/__manifest.php')->toBeFile()
+            ->and($basePath . '/bootstrap/cache/routes/fused.php')->toBeFile()
+            ->and($basePath . '/bootstrap/cache/console/commands.php')->toBeFile()
+            ->and($console->run(['foundation', 'optimize:clear']))->toBe(ExitCode::SUCCESS)
+            ->and($basePath . '/bootstrap/cache/config/__manifest.php')->not->toBeFile()
+            ->and($basePath . '/bootstrap/cache/routes/fused.php')->not->toBeFile()
+            ->and($basePath . '/bootstrap/cache/console/commands.php')->not->toBeFile()
+            ->and(implode("\n", $io->output()))->toContain('Application caches cleared.');
+    } finally {
+        foundationConsoleRemoveDirectory($basePath);
+    }
+});
+
 it('builds and clears every Webrick matcher through typed commands', function (string $matcher): void {
     $basePath = sys_get_temp_dir() . '/foundation-console-route-' . bin2hex(random_bytes(5));
     $routesPath = $basePath . '/routes';
