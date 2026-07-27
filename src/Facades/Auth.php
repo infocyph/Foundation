@@ -39,7 +39,7 @@ final class Auth extends Facade
 
     public static function otp(): OtpManager
     {
-        return self::services()->otp;
+        return self::app()->otp();
     }
 
     public static function principal(): CurrentPrincipalContext

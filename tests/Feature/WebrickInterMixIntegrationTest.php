@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Auth\AuthManager;
+use Infocyph\Foundation\Auth\Otp\OtpManager;
 use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Database\DatabaseManager;
 use Infocyph\Foundation\Facades\Route;
@@ -196,6 +197,24 @@ PHP,
         expect($app->cache())->toBeInstanceOf(CacheManager::class)
             ->and($app->container()->has(CacheManager::class))->toBeTrue()
             ->and($app->container()->has(DatabaseManager::class))->toBeFalse();
+    } finally {
+        foundationIntegrationRemoveDirectory($project);
+    }
+});
+
+it('keeps optional OTP services unresolved when core auth is requested', function (): void {
+    $project = foundationIntegrationProject([]);
+
+    try {
+        $app = Foundation::web([
+            'base_path' => $project,
+            'auth' => [
+                'drivers' => ['mfa' => 'simple'],
+            ],
+        ]);
+
+        expect($app->authManager())->toBeInstanceOf(AuthManager::class)
+            ->and($app->container()->getRepository()->hasResolvedSingleton(OtpManager::class))->toBeFalse();
     } finally {
         foundationIntegrationRemoveDirectory($project);
     }
