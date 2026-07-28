@@ -63,7 +63,7 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
 {
     public function register(AuthStorageDriver $driver): void
     {
-        if ($driver === AuthStorageDriver::DBLAYER) {
+        if ($driver === AuthStorageDriver::DATABASE) {
             $this->requirePackage(DB::class, 'infocyph/dblayer', 'db');
             $this->registerDBLayerStores();
 
@@ -74,11 +74,6 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
 
     private function authConnection(): ?string
     {
-        $configured = $this->app->config()->get('auth.dblayer.connection');
-        if (is_string($configured) && $configured !== '') {
-            return $configured;
-        }
-
         $default = $this->app->config()->get('database.default');
 
         return is_string($default) && $default !== ''

@@ -37,6 +37,7 @@ final class FoundationDefaults
             ],
             'cache' => [
                 'default' => 'memory',
+                'default_counter' => null,
                 'prefix' => 'foundation:',
                 'stores' => [
                     'file' => [
@@ -466,39 +467,22 @@ final class FoundationDefaults
                 'url_base_uri' => '',
             ],
             'security' => [
-                'epicrypt' => [
-                    'csrf' => [
-                        'secret' => null,
-                        'ttl_seconds' => 3600,
-                    ],
-                    'profile' => 'modern',
-                    'files' => [
-                        'chunk_size' => 8192,
-                    ],
-                    'integrity' => [
-                        'algorithm' => 'sha256',
-                    ],
-                    'key_rings' => [],
-                    'signed_urls' => [
-                        'expires_param' => 'ep_exp',
-                        'secret' => null,
-                        'signature_param' => 'ep_sig',
-                        'options' => [
-                            'allow_absolute_urls' => true,
-                            'allow_array_parameters' => false,
-                            'allow_relative_urls' => false,
-                            'allowed_hosts' => null,
-                            'bind_host' => true,
-                            'bind_scheme' => true,
-                            'method' => null,
-                        ],
-                    ],
-                    'tokens' => [
-                        'secret' => null,
-                        'ttl_seconds' => 900,
-                    ],
+                'password' => [
+                    'algorithm' => 'argon2id',
+                    'cost' => 12,
+                    'memory_cost' => PASSWORD_ARGON2_DEFAULT_MEMORY_COST,
+                    'threads' => PASSWORD_ARGON2_DEFAULT_THREADS,
+                    'time_cost' => PASSWORD_ARGON2_DEFAULT_TIME_COST,
                 ],
-                'signed_urls' => true,
+                'jwt' => [
+                    'audience' => null,
+                    'issuer' => null,
+                    'leeway_seconds' => 0,
+                ],
+                'integrity' => [
+                    'algorithm' => 'sha256',
+                ],
+                'key_rings' => [],
             ],
             'validation' => [
                 'database_connection' => null,

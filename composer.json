@@ -6,11 +6,11 @@
     "require": {
         "php": ">=8.4",
         "infocyph/console": "dev-main@dev",
-        "infocyph/webrick": "^3.0.1"
+        "infocyph/webrick": "^3.2"
     },
     "require-dev": {
-        "infocyph/cachelayer": "^1.6",
-        "infocyph/dblayer": "^2.1.2",
+        "infocyph/cachelayer": "^2.0",
+        "infocyph/dblayer": "^2.3",
         "infocyph/epicrypt": "^1.1",
         "infocyph/otp": "^5.04",
         "infocyph/pathwise": "^2.5.3",

@@ -13,13 +13,6 @@ final class AuthDefaults
     {
         return [
             'auth' => [
-                'cachelayer' => [
-                    'namespace' => 'foundation-auth',
-                    'store' => 'memory',
-                ],
-                'dblayer' => [
-                    'connection' => null,
-                ],
                 'drivers' => [
                     'cache' => 'array',
                     'ids' => 'random',
@@ -31,14 +24,6 @@ final class AuthDefaults
                     'tokens' => 'simple',
                 ],
                 'email_verification_ttl' => 3600,
-                'epicrypt' => [
-                    'password' => [],
-                    'tokens' => [
-                        'audience' => null,
-                        'issuer' => null,
-                        'leeway_seconds' => 0,
-                    ],
-                ],
                 'http' => [
                     'bearer_header' => 'Authorization',
                     'bearer_prefix' => 'Bearer ',
@@ -109,7 +94,7 @@ final class AuthDefaults
                 'refresh_token_ttl' => 1209600,
                 'remember_me_ttl' => 2592000,
                 'session_ttl' => 3600,
-                'token_secret' => 'foundation-dev-secret',
+                'token_secret' => null,
             ],
         ];
     }

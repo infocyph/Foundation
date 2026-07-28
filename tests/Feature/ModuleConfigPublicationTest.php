@@ -53,6 +53,36 @@ it('invalidates compiled configuration after publishing a module template', func
     }
 });
 
+it('publishes the complete security configuration only with the crypto module', function (): void {
+    $basePath = sys_get_temp_dir() . '/foundation-module-crypto-' . bin2hex(random_bytes(5));
+    mkdir($basePath . '/config', 0775, true);
+
+    try {
+        $application = Foundation::console([
+            'base_path' => $basePath,
+            '_config_cache' => false,
+        ]);
+        $manager = new ModuleManager($application, new ModuleCatalog(), new ProcessRunner());
+        $result = $manager->publishConfig('crypto');
+        $configuration = require $basePath . '/config/security.php';
+
+        expect($result['published'])->toBe([$basePath . '/config/security.php'])
+            ->and($configuration)->toHaveKeys([
+                'password.algorithm',
+                'jwt.leeway_seconds',
+                'integrity.algorithm',
+                'key_rings',
+            ])
+            ->and($configuration)->not->toHaveKeys([
+                'csrf',
+                'signed_urls',
+                'tokens',
+            ]);
+    } finally {
+        moduleConfigRemoveDirectory($basePath);
+    }
+});
+
 function moduleConfigRemoveDirectory(string $directory): void
 {
     if (!is_dir($directory)) {

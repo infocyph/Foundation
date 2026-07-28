@@ -8,5 +8,5 @@ enum AuthCacheDriver: string
 {
     case ARRAY = 'array';
 
-    case CACHELAYER = 'cachelayer';
+    case CACHE = 'cache';
 }

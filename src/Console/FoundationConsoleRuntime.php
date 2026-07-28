@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Console;
 
 use Closure;
+use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
 use Infocyph\Console\Configuration\Configuration;
 use Infocyph\Console\Configuration\ConfigurationProvider;
 use Infocyph\Console\Container\ContainerProvider;
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Cache\CacheLayerFactory;
 use Infocyph\InterMix\DI\Container;
 
 /**
@@ -52,6 +54,17 @@ final class FoundationConsoleRuntime implements ConfigurationProvider, Container
     public function container(): Container
     {
         return $this->application()->container();
+    }
+
+    public function lockProvider(): LockProviderInterface
+    {
+        if (!class_exists(\Infocyph\CacheLayer\Cache\Cache::class)) {
+            throw new \LogicException(
+                'Console locks require infocyph/cachelayer; run "php infbyte module:install cache".',
+            );
+        }
+
+        return $this->application()->boot()->make(CacheLayerFactory::class)->lock();
     }
 
     public function useProfile(?string $profile): void

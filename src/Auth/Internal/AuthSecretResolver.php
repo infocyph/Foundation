@@ -33,7 +33,6 @@ final readonly class AuthSecretResolver
 
     private function isInvalidProductionSecret(string $secret): bool
     {
-        return $secret === 'foundation-dev-secret'
-            || $secret === 'replace-with-a-production-token-secret';
+        return $secret === 'foundation-dev-secret';
     }
 }

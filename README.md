@@ -29,16 +29,25 @@ documented Foundation config from `vendor/infocyph/foundation/resources/config`
 into the host `config/` directory. Existing project config is never
 overwritten, and the compiled config cache is invalidated after publication.
 
-| Module | Composer package |
-| --- | --- |
-| `cache` | `infocyph/cachelayer` |
-| `communication` | `infocyph/talkingbytes` |
-| `crypto` | `infocyph/epicrypt` |
-| `db` | `infocyph/dblayer` |
-| `filesystem` | `infocyph/pathwise` |
-| `otp` | `infocyph/otp` |
-| `passkeys` | `web-auth/webauthn-lib` |
-| `validation` | `infocyph/reqshield` |
+| Module | Composer package | Published configuration |
+| --- | --- | --- |
+| `cache` | `infocyph/cachelayer` | `config/cache.php` |
+| `communication` | `infocyph/talkingbytes` | `config/communication.php`, `config/notifications.php` |
+| `crypto` | `infocyph/epicrypt` | `config/security.php` |
+| `db` | `infocyph/dblayer` | `config/database.php` |
+| `filesystem` | `infocyph/pathwise` | `config/filesystem.php` |
+| `otp` | `infocyph/otp` | None |
+| `passkeys` | `web-auth/webauthn-lib` | None |
+| `validation` | `infocyph/reqshield` | `config/validation.php` |
+
+Cryptographic policy and adapter options live under `security.*`; the
+configuration filename and keys describe application capabilities rather than
+the implementation library. The installed provider supplies its secure
+cryptographic profile; Foundation exposes only settings with meaningful
+application choices. Authentication remains under `auth.*`, including
+`auth.token_secret`, while Webrick route signing remains under
+`router.signed_urls.*`. Foundation does not create parallel secrets or URL-
+signing configuration.
 
 `infocyph/uid` is already part of the runtime core through Console. Foundation
 still activates identifier services only when the application requests them or
@@ -73,6 +82,9 @@ project-root/
     web.php
     api.php
     auth.php
+    console.php
+    schedule.php
+    workers.php
   storage/
     cache/
     logs/
@@ -178,6 +190,8 @@ return [
     'drivers' => [
         'storage' => 'memory',
         'cache' => 'array',
+        'passwords' => 'native', // native|security
+        'tokens' => 'simple', // simple|security
         'notifications' => 'collect',
         'passkey' => 'memory',
     ],
@@ -229,9 +243,78 @@ $console = FoundationConsole::create(
 scan command directories or register application commands implicitly.
 When the compiled command manifest exists, the CLI entry point does not load
 the project command route file during preflight or dispatch.
-Foundation's operational commands, including `config:*`, `route:*`, `module:*`,
-`auth:schema:*`, and `app:ready`, are predefined by Foundation and must not be
-redeclared in the application route map.
+Foundation's operational commands, including `config:*`, `route:*`,
+`schedule:*`, `worker:*`, `create:*`, `module:*`, `auth:schema:*`, and
+`app:ready`, are predefined by Foundation and must not be redeclared in the
+application route map.
+
+Foundation keeps its application stubs in the package and writes an artifact
+only when its generator is invoked:
+
+```bash
+php infbyte create:controller Admin/User
+php infbyte create:command Reports/Daily
+php infbyte create:service Billing
+php infbyte create:job SendReceipt
+php infbyte create:middleware EnsureTenant
+php infbyte create:policy Invoice
+php infbyte create:provider Billing
+php infbyte create:repository User
+php infbyte create:repository Reporting/Person --table=reporting.people
+php infbyte create:worker Queue
+php infbyte create:event UserRegistered
+php infbyte create:listener SendWelcomeEmail
+php infbyte create:enum OrderStatus
+php infbyte create:exception BillingFailed
+php infbyte create:interface BillingGateway
+php infbyte create:trait FormatsMoney
+php infbyte create:class Services/ReportBuilder
+php infbyte create:test Http/UserAccess
+```
+
+Names may use `/` or `\` namespace separators. Conventional suffixes are added
+once, so both `User` and `UserController` produce `UserController.php`.
+Repositories extend Foundation's thin DBLayer bridge, infer a plural
+snake_case table (`UserRepository` becomes `users`), and accept `--table` for
+an explicit table or schema-qualified identifier. The DB module must be
+installed before repository generation.
+Jobs and listeners are plain invokable application classes; Foundation does not
+impose a queue backend or event dispatcher on them.
+Generators reject absolute paths and traversal, preserve existing files by
+default, and accept `--force` for an explicit atomic replacement. Generated
+commands, providers, and workers still require explicit registration in
+`routes/console.php`, `bootstrap/providers.php`, and `routes/workers.php`
+respectively; generators do not silently change application composition.
+
+Scheduled commands are defined only in `routes/schedule.php`, which returns a
+`Schedule` or a callable receiving one. `schedule:run`, `schedule:work`,
+`schedule:list`, `schedule:cache`, and `schedule:clear` are built in.
+`optimize` compiles the schedule when that route file exists, and
+`optimize:clear` removes it.
+
+```php
+use Infocyph\Console\Scheduling\Schedule;
+
+return static function (Schedule $schedule): void {
+    $schedule
+        ->command('reports:daily')
+        ->arguments(['--tenant=acme'])
+        ->dailyAt('02:00')
+        ->onOneServer(leaseSeconds: 180)
+        ->withoutOverlap(leaseSeconds: 180)
+        ->timeout(120)
+        ->memoryLimit(256);
+};
+```
+
+Dynamic worker definitions live in `routes/workers.php` as
+`name => WorkerProvider::class`. A provider supplies a safe argv command,
+`WorkloadProbe`, and `WorkerOptions`; `worker:run <name>` supervises it and
+`worker:list` inspects the map without autoloading its providers. Locks are
+resolved lazily through CacheLayer only for locked schedule entries, supervised
+workers, or command execution policies with overlap controls. File, Redis,
+Valkey, Memcached, and PDO (including SQLite's file-backed fallback) use one
+common locking path.
 
 ## Providers
 
@@ -326,6 +409,20 @@ if (!$report['production_ready']) {
 }
 ```
 
+DBLayer diagnostics remain opt-in. Enable telemetry only where query-shape
+aggregation is required, and use native execution plans explicitly:
+
+```php
+DB::enableTelemetry();
+
+$plan = DB::explain('SELECT * FROM users WHERE id = ?', [$id]);
+$shapes = DB::queryShapeReport(minimumMs: 5.0, limit: 20);
+```
+
+`EXPLAIN ANALYZE` executes the query; leave `analyze` false unless runtime
+execution is intentional. QueryBuilder also exposes DBLayer's `joinSub()`,
+`leftJoinSub()`, `rightJoinSub()`, and `explain()` methods directly.
+
 ## Integrated Capabilities
 
 Foundation remains an integration layer: the standalone packages own their
@@ -334,7 +431,7 @@ container registration, facades, and HTTP-aware composition.
 
 - ArrayKit: environment, array-shape, and data helpers
 - CacheLayer: local, database, Redis, Valkey, Memcached, SQLite, and tiered caches
-- DBLayer: connections, repositories, telemetry, and auth-schema installation
+- DBLayer: connections, repositories, execution plans, query-shape telemetry, and auth-schema installation
 - Epicrypt: production password, token, and encryption-backed auth services
 - Intermix: application container, providers, scopes, and invocation
 - OTP and WebAuthn: TOTP, HOTP, OCRA, recovery codes, MFA, and passkeys

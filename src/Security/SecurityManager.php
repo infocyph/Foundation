@@ -38,20 +38,11 @@ use Infocyph\Epicrypt\Generate\SaltGenerator;
 use Infocyph\Epicrypt\Integrity\FileHasher;
 use Infocyph\Epicrypt\Integrity\StringHasher;
 use Infocyph\Epicrypt\Password\Generator\PasswordGenerator;
-use Infocyph\Epicrypt\Password\PasswordHasher as EpicryptPasswordHasher;
 use Infocyph\Epicrypt\Password\PasswordPolicyValidator as EpicryptPasswordPolicyValidator;
 use Infocyph\Epicrypt\Password\PasswordStrength;
 use Infocyph\Epicrypt\Password\Secret\WrappedSecretManager;
-use Infocyph\Epicrypt\Security\ActionToken;
-use Infocyph\Epicrypt\Security\CsrfTokenManager;
-use Infocyph\Epicrypt\Security\EmailVerificationToken;
 use Infocyph\Epicrypt\Security\KeyRing;
 use Infocyph\Epicrypt\Security\KeyRotationHelper;
-use Infocyph\Epicrypt\Security\PasswordResetToken;
-use Infocyph\Epicrypt\Security\Policy\SecurityProfile;
-use Infocyph\Epicrypt\Security\RememberToken;
-use Infocyph\Epicrypt\Security\SignedUrl;
-use Infocyph\Epicrypt\Security\SignedUrlOptions;
 use Infocyph\Epicrypt\Token\Jwt\AsymmetricJwt;
 use Infocyph\Epicrypt\Token\Jwt\Jwks;
 use Infocyph\Epicrypt\Token\Jwt\SymmetricJwt;
@@ -78,14 +69,9 @@ final readonly class SecurityManager extends AbstractContainerManager
         );
     }
 
-    public function actionTokens(): ActionToken
-    {
-        return new ActionToken($this->epicryptTokenSecret(), $this->epicryptTokenTtl());
-    }
-
     public function aeadCipher(): AeadCipher
     {
-        return AeadCipher::forProfile($this->epicryptProfile());
+        return AeadCipher::forProfile();
     }
 
     public function asymmetricJwt(
@@ -94,10 +80,9 @@ final readonly class SecurityManager extends AbstractContainerManager
         ?JwtValidationOptions $validationOptions = null,
     ): AsymmetricJwt {
         return AsymmetricJwt::forProfile(
-            $this->epicryptProfile(),
-            $expectedClaims,
-            $passphrase,
-            $validationOptions,
+            expectedClaims: $expectedClaims,
+            passphrase: $passphrase,
+            validationOptions: $validationOptions,
         );
     }
 
@@ -141,14 +126,6 @@ final readonly class SecurityManager extends AbstractContainerManager
         return CsrBuilder::openSsl();
     }
 
-    public function csrfTokens(): CsrfTokenManager
-    {
-        return new CsrfTokenManager(
-            $this->requiredEpicryptSecret('csrf.secret'),
-            $this->epicryptPositiveInt('csrf.ttl_seconds', 3600),
-        );
-    }
-
     /**
      * @param array<string, mixed>|KeyDerivationContext $context
      */
@@ -161,19 +138,9 @@ final readonly class SecurityManager extends AbstractContainerManager
         return $this->keyDeriver()->deriveFromPassword($password, $salt, $length, $context);
     }
 
-    public function emailVerificationTokens(): EmailVerificationToken
-    {
-        return new EmailVerificationToken($this->epicryptTokenSecret(), $this->epicryptTokenTtl());
-    }
-
     public function envelopeProtector(): EnvelopeProtector
     {
-        return EnvelopeProtector::forProfile($this->epicryptProfile());
-    }
-
-    public function epicryptPasswords(): EpicryptPasswordHasher
-    {
-        return new EpicryptPasswordHasher();
+        return EnvelopeProtector::forProfile();
     }
 
     public function fileHasher(?string $algorithm = null): FileHasher
@@ -183,7 +150,7 @@ final readonly class SecurityManager extends AbstractContainerManager
 
     public function fileProtector(): FileProtector
     {
-        return FileProtector::forProfile($this->epicryptProfile());
+        return FileProtector::forProfile();
     }
 
     public function generateKey(int $length = 32, bool $asBase64Url = true): string
@@ -197,8 +164,7 @@ final readonly class SecurityManager extends AbstractContainerManager
     ): string {
         return $this->keyGenerator()->forPurpose(
             $this->resolveKeyPurpose($purpose),
-            $this->epicryptProfile(),
-            $asBase64Url,
+            asBase64Url: $asBase64Url,
         );
     }
 
@@ -260,7 +226,7 @@ final readonly class SecurityManager extends AbstractContainerManager
 
     public function keyRing(string $name): KeyRing
     {
-        $configured = $this->config('epicrypt.key_rings.' . $name);
+        $configured = $this->config('key_rings.' . $name);
         if (!is_array($configured)) {
             throw new \RuntimeException(sprintf('Security Epicrypt key ring "%s" is not configured.', $name));
         }
@@ -337,11 +303,6 @@ final readonly class SecurityManager extends AbstractContainerManager
     public function passwordPolicyValidator(): EpicryptPasswordPolicyValidator
     {
         return new EpicryptPasswordPolicyValidator();
-    }
-
-    public function passwordResetTokens(): PasswordResetToken
-    {
-        return new PasswordResetToken($this->epicryptTokenSecret(), $this->epicryptTokenTtl());
     }
 
     public function passwordStrength(): PasswordStrength
@@ -423,11 +384,6 @@ final readonly class SecurityManager extends AbstractContainerManager
         );
     }
 
-    public function rememberTokens(): RememberToken
-    {
-        return new RememberToken($this->epicryptTokenSecret(), $this->epicryptTokenTtl());
-    }
-
     public function rsaCipher(): RsaCipher
     {
         return new RsaCipher();
@@ -461,16 +417,6 @@ final readonly class SecurityManager extends AbstractContainerManager
     public function signedPayload(?string $context = null): SignedPayload
     {
         return new SignedPayload($context);
-    }
-
-    public function signedUrls(): SignedUrl
-    {
-        return new SignedUrl(
-            secret: $this->requiredEpicryptSecret('signed_urls.secret'),
-            signatureParam: ValueNormalizer::string($this->config('epicrypt.signed_urls.signature_param'), 'ep_sig'),
-            expiresParam: ValueNormalizer::string($this->config('epicrypt.signed_urls.expires_param'), 'ep_exp'),
-            defaultOptions: $this->signedUrlOptions(),
-        );
     }
 
     public function sodiumBoxKeyPairs(): KeyPairGenerator
@@ -509,7 +455,10 @@ final readonly class SecurityManager extends AbstractContainerManager
         RegisteredClaims|ExpectedJwtClaims|null $expectedClaims = null,
         ?JwtValidationOptions $validationOptions = null,
     ): SymmetricJwt {
-        return SymmetricJwt::forProfile($this->epicryptProfile(), $expectedClaims, $validationOptions);
+        return SymmetricJwt::forProfile(
+            expectedClaims: $expectedClaims,
+            validationOptions: $validationOptions,
+        );
     }
 
     public function tokenMaterial(): TokenMaterialGenerator
@@ -608,32 +557,9 @@ final readonly class SecurityManager extends AbstractContainerManager
         return 'security';
     }
 
-    private function epicryptPositiveInt(string $path, int $default): int
-    {
-        return max(1, ValueNormalizer::int($this->config('epicrypt.' . $path), $default));
-    }
-
-    private function epicryptProfile(): SecurityProfile
-    {
-        $profile = ValueNormalizer::nullableString($this->config('epicrypt.profile', SecurityProfile::MODERN->value))
-            ?? SecurityProfile::MODERN->value;
-
-        return SecurityProfile::from(strtolower($profile));
-    }
-
-    private function epicryptTokenSecret(): string
-    {
-        return $this->requiredEpicryptSecret('tokens.secret');
-    }
-
-    private function epicryptTokenTtl(): int
-    {
-        return $this->epicryptPositiveInt('tokens.ttl_seconds', 900);
-    }
-
     private function integrityAlgorithm(): string
     {
-        return ValueNormalizer::nullableString($this->config('epicrypt.integrity.algorithm', 'sha256')) ?? 'sha256';
+        return ValueNormalizer::nullableString($this->config('integrity.algorithm', 'sha256')) ?? 'sha256';
     }
 
     /**
@@ -721,16 +647,6 @@ final readonly class SecurityManager extends AbstractContainerManager
         return $metadata;
     }
 
-    private function requiredEpicryptSecret(string $path): string
-    {
-        $secret = ValueNormalizer::nullableString($this->config('epicrypt.' . $path));
-        if ($secret === null) {
-            throw new \RuntimeException(sprintf('Security Epicrypt configuration "security.epicrypt.%s" must be a non-empty string.', $path));
-        }
-
-        return $secret;
-    }
-
     private function resolveKeyPurpose(KeyPurpose|string $purpose): KeyPurpose
     {
         if ($purpose instanceof KeyPurpose) {
@@ -743,20 +659,5 @@ final readonly class SecurityManager extends AbstractContainerManager
     private function resolveKeyRing(KeyRing|string $keyRing): KeyRing
     {
         return is_string($keyRing) ? $this->keyRing($keyRing) : $keyRing;
-    }
-
-    private function signedUrlOptions(): SignedUrlOptions
-    {
-        $options = ValueNormalizer::associativeArray($this->config('epicrypt.signed_urls.options', []));
-
-        return new SignedUrlOptions(
-            method: ValueNormalizer::nullableString($options['method'] ?? null),
-            bindHost: ValueNormalizer::bool($options['bind_host'] ?? null, true),
-            bindScheme: ValueNormalizer::bool($options['bind_scheme'] ?? null, true),
-            allowAbsoluteUrls: ValueNormalizer::bool($options['allow_absolute_urls'] ?? null, true),
-            allowRelativeUrls: ValueNormalizer::bool($options['allow_relative_urls'] ?? null, false),
-            allowArrayParameters: ValueNormalizer::bool($options['allow_array_parameters'] ?? null, false),
-            allowedHosts: ($hosts = ValueNormalizer::stringList($options['allowed_hosts'] ?? null)) === [] ? null : $hosts,
-        );
     }
 }

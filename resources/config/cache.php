@@ -9,13 +9,48 @@ return [
     |--------------------------------------------------------------------------
     |
     | "default" names the store used when callers do not select one. Shipped
-    | names: `auth|file|local|memory|null|php_files|sqlite|database|redis|`
-    | `redis_cluster|valkey|memcached|shared_memory|weak_map|tiered`.
+    | names: `apcu|auth|file|local|memory|null|php_files|sqlite|database|`
+    | `redis|redis_cluster|valkey|memcached|shared_memory|weak_map|mongodb|`
+    | `node|scylladb|tiered`.
+    | "default_counter" optionally names an entry from "counters" for shared
+    | atomic increments such as authentication lockouts. Leave it null to use
+    | the selected store-backed fallback, which is not guaranteed atomic.
     | "prefix" namespaces entries; example: `acme:production:cache:`.
+    | The shipped `local` default is suitable for development. Production
+    | applications should explicitly select a durable or distributed store
+    | such as `tiered`, `redis`, `valkey`, or `memcached`.
     |
     */
-    'default' => env('CACHE_STORE', env('APP_ENV', 'local') === 'production' ? 'tiered' : 'local'),
+    'default' => env('CACHE_STORE', 'local'),
+    'default_counter' => env('CACHE_COUNTER'),
     'prefix' => env_string('CACHE_PREFIX', 'infbyte:cache:'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Shared Lock Provider
+    |--------------------------------------------------------------------------
+    |
+    | Console overlap, scheduling, worker supervision, and cache stampede
+    | protection can share CacheLayer's lock contract. "driver" accepts
+    | `file|redis|valkey|memcache|memcached|pdo` or null to leave cache-store
+    | locking unchanged while Console falls back to file locks. "store" names
+    | a configured cache store used for connection details; example: `redis`,
+    | `memcached`, `sqlite`, or `database`.
+    |
+    | "path" is used by file locks and as the safe fallback for SQLite/PDO;
+    | example: `storage/cache/locks`. "prefix" is an arbitrary namespace such
+    | as `acme:production:lock:`. "retry_sleep_micros" is a positive polling
+    | interval such as `50000`. Redis/Valkey stores use their DSN, Memcached
+    | stores use their server list, and PDO stores use their PDO connection.
+    |
+    */
+    'lock' => [
+        'driver' => env('CACHE_LOCK_DRIVER'),
+        'store' => env_string('CACHE_LOCK_STORE', 'local'),
+        'path' => env_string('CACHE_LOCK_PATH', storage_path('cache/locks')),
+        'prefix' => env_string('CACHE_LOCK_PREFIX', 'infbyte:cache:lock:'),
+        'retry_sleep_micros' => env_int('CACHE_LOCK_RETRY_SLEEP_MICROS', 50_000),
+    ],
 
     /*
     |--------------------------------------------------------------------------
@@ -26,13 +61,12 @@ return [
     | size; zero disables it. "level" is the backend compression level and
     | should be balanced against CPU capacity using production measurements.
     | Threshold is null/disabled or a positive byte count such as `1024`.
+    | Leave CACHE_COMPRESSION_THRESHOLD_BYTES unset to disable compression.
     | Compression level is `1..9`.
     |
     */
     'compression' => [
-        'threshold_bytes' => env_int('CACHE_COMPRESSION_THRESHOLD_BYTES', 0) > 0
-            ? env_int('CACHE_COMPRESSION_THRESHOLD_BYTES', 0)
-            : null,
+        'threshold_bytes' => env('CACHE_COMPRESSION_THRESHOLD_BYTES'),
         'level' => env_int('CACHE_COMPRESSION_LEVEL', 6),
     ],
 
@@ -71,6 +105,32 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Named Redis-Compatible Connections
+    |--------------------------------------------------------------------------
+    |
+    | Redis/Valkey stores, lock providers, atomic counters, and invalidation
+    | transports may share a named connection instead of repeating a DSN.
+    | "driver" accepts `redis|valkey`; "dsn" examples:
+    | `redis://:secret@127.0.0.1:6379/0` and
+    | `valkey://:secret@valkey.internal:6379/2`.
+    |
+    | A runtime override may provide an initialized phpredis "client" object.
+    | Objects should not be written into source or compiled configuration.
+    |
+    */
+    'connections' => [
+        'redis' => [
+            'driver' => 'redis',
+            'dsn' => env_string('CACHE_REDIS_DSN', 'redis://127.0.0.1:6379'),
+        ],
+        'valkey' => [
+            'driver' => 'valkey',
+            'dsn' => env_string('CACHE_VALKEY_DSN', 'valkey://127.0.0.1:6379'),
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Cache Stores
     |--------------------------------------------------------------------------
     |
@@ -86,6 +146,13 @@ return [
     | Memcached server entries define "host", "port", and selection "weight".
     | Shared memory "segment_size" is bytes. Memory, null, and weak-map stores
     | require no additional keys and are process-local or non-persistent.
+    | MongoDB uses "uri", "database", and "collection_name", or runtime
+    | "client"/"collection" objects. Node cache uses "sqlite_file",
+    | "lock_directory", non-negative "busy_timeout_ms", "apcu_enabled", and
+    | "fail_open". ScyllaDB uses "keyspace", "table", and an optional runtime
+    | "session"/"client". APCu, MongoDB, ScyllaDB, shared memory, Redis,
+    | Redis Cluster, Valkey, and Memcached require their matching extension or
+    | client only when the store is selected.
     |
     | Tiered caching reads the ordered "tiers" and writes through to L1 when
     | `write_to_l1` is true. Its lock uses `driver` and `path`.
@@ -99,9 +166,14 @@ return [
     | write-through switches accept `true|false`; Memcached ports are `1..65535`
     | and weights are non-negative integers. Tier entries use store names, for
     | example `memory` then `sqlite`. Retry delay is microseconds, e.g. `50000`.
+    | Any store may override the top-level "compression", "security", and
+    | "serialization" arrays using the same keys documented above.
     |
     */
     'stores' => [
+        'apcu' => [
+            'driver' => 'apcu',
+        ],
         'auth' => [
             'driver' => 'local',
             'path' => storage_path('cache/auth'),
@@ -144,7 +216,7 @@ return [
         ],
         'redis' => [
             'driver' => 'redis',
-            'dsn' => env_string('CACHE_REDIS_DSN', 'redis://127.0.0.1:6379'),
+            'connection' => 'redis',
         ],
         'redis_cluster' => [
             'driver' => 'redis_cluster',
@@ -158,7 +230,7 @@ return [
         ],
         'valkey' => [
             'driver' => 'valkey',
-            'dsn' => env_string('CACHE_VALKEY_DSN', 'valkey://127.0.0.1:6379'),
+            'connection' => 'valkey',
         ],
         'memcached' => [
             'driver' => 'memcached',
@@ -177,6 +249,25 @@ return [
         'weak_map' => [
             'driver' => 'weak_map',
         ],
+        'mongodb' => [
+            'driver' => 'mongodb',
+            'uri' => env_string('CACHE_MONGODB_URI', 'mongodb://127.0.0.1:27017'),
+            'database' => env_string('CACHE_MONGODB_DATABASE', 'cachelayer'),
+            'collection_name' => env_string('CACHE_MONGODB_COLLECTION', 'entries'),
+        ],
+        'node' => [
+            'driver' => 'node',
+            'sqlite_file' => env_string('CACHE_NODE_SQLITE_FILE', storage_path('cache/node.sqlite')),
+            'lock_directory' => env_string('CACHE_NODE_LOCK_DIRECTORY', storage_path('cache/locks')),
+            'busy_timeout_ms' => env_int('CACHE_NODE_BUSY_TIMEOUT_MS', 1_000),
+            'apcu_enabled' => env_bool('CACHE_NODE_APCU_ENABLED', true),
+            'fail_open' => env_bool('CACHE_NODE_FAIL_OPEN', true),
+        ],
+        'scylladb' => [
+            'driver' => 'scylladb',
+            'keyspace' => env_string('CACHE_SCYLLADB_KEYSPACE', 'cachelayer'),
+            'table' => env_string('CACHE_SCYLLADB_TABLE', 'cachelayer_entries'),
+        ],
         'tiered' => [
             'driver' => 'tiered',
             'write_to_l1' => env_bool('CACHE_TIERED_WRITE_TO_L1', true),
@@ -191,4 +282,71 @@ return [
             ],
         ],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Atomic Counters
+    |--------------------------------------------------------------------------
+    |
+    | Named counters are created only when requested. "driver" accepts
+    | `redis|valkey`; "connection" references the named connection above;
+    | "namespace" is an arbitrary key prefix such as `acme:limits:`.
+    | A direct "dsn" or runtime phpredis "client" may replace "connection".
+    |
+    | Example:
+    | 'rate_limits' => [
+    |     'driver' => 'redis',
+    |     'connection' => 'redis',
+    |     'namespace' => 'acme:limits:',
+    | ],
+    |
+    */
+    'counters' => [],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Cluster Invalidation Transports
+    |--------------------------------------------------------------------------
+    |
+    | Transport drivers: `pdo|redis_stream|valkey_stream`; aliases include
+    | `redis-stream|valkey-stream|stream`. PDO "connection" names a database
+    | connection. "allow_sqlite_for_testing" accepts `true|false` and should
+    | remain false outside tests. Stream transports accept a named cache
+    | "connection" or direct "dsn", a "prefix" such as
+    | `cachelayer:invalidation:`, and positive "max_length" such as `100000`.
+    |
+    | Example:
+    | 'events' => [
+    |     'driver' => 'redis_stream',
+    |     'connection' => 'redis',
+    |     'prefix' => 'acme:cache-events:',
+    |     'max_length' => 100000,
+    | ],
+    |
+    */
+    'transports' => [],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Node Cache Clusters
+    |--------------------------------------------------------------------------
+    |
+    | A cluster references a `node` store and an invalidation transport.
+    | "cluster" is a stable deployment name such as `production-catalog`;
+    | "node_id" must uniquely and stably identify the process host, for example
+    | `web-az1-03`; "consumer_batch_size" is a positive count such as `1000`;
+    | and "invalidate_locally_first" accepts `true|false`.
+    |
+    | Example:
+    | 'catalog' => [
+    |     'store' => 'node',
+    |     'cluster' => 'production-catalog',
+    |     'node_id' => 'web-az1-03',
+    |     'transport' => 'events',
+    |     'consumer_batch_size' => 1000,
+    |     'invalidate_locally_first' => true,
+    | ],
+    |
+    */
+    'clusters' => [],
 ];

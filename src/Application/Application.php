@@ -275,8 +275,8 @@ final class Application
     public function readinessReport(): array
     {
         $configResult = $this->validateConfiguration();
-        $usesCacheLayer = $this->stringConfig('auth.drivers.cache', 'array') === 'cachelayer';
-        $usesDbLayer = $this->stringConfig('auth.drivers.storage', 'memory') === 'dblayer';
+        $usesSharedCache = $this->stringConfig('auth.drivers.cache', 'array') === 'cache';
+        $usesDatabase = $this->stringConfig('auth.drivers.storage', 'memory') === 'database';
         $databaseConfigured = $this->databaseConfigured();
         $authConnection = $this->authConnectionName();
         $authSchema = [
@@ -285,7 +285,7 @@ final class Application
             'missing_tables' => [],
         ];
         $databaseIssues = [];
-        $cacheWarnings = $this->cacheReadinessWarnings($usesCacheLayer);
+        $cacheWarnings = $this->cacheReadinessWarnings($usesSharedCache);
         $clusterStatus = $this->clusterReadinessStatus();
 
         if ($databaseConfigured) {
@@ -300,7 +300,7 @@ final class Application
             }
         }
 
-        if ($usesDbLayer && $authSchema['installed'] !== true) {
+        if ($usesDatabase && $authSchema['installed'] !== true) {
             $databaseIssues[] = 'Auth DB schema is not installed.';
         }
 
@@ -312,7 +312,7 @@ final class Application
         return [
             'production_ready' => !$configResult->fails()
                 && $auth['production_ready'] === true
-                && (!$usesDbLayer || $authSchema['installed'] === true)
+                && (!$usesDatabase || $authSchema['installed'] === true)
                 && $databaseIssues === []
                 && (!$this->isProduction() || $pathIssues === []),
             'auth' => $auth,
@@ -413,11 +413,6 @@ final class Application
 
     private function authConnectionName(): ?string
     {
-        $configured = $this->config()->get('auth.dblayer.connection');
-        if (is_string($configured) && $configured !== '') {
-            return $configured;
-        }
-
         $default = $this->config()->get('database.default');
 
         return is_string($default) && $default !== ''
@@ -458,10 +453,10 @@ final class Application
     /**
      * @return list<string>
      */
-    private function cacheReadinessWarnings(bool $usesCacheLayer): array
+    private function cacheReadinessWarnings(bool $usesSharedCache): array
     {
-        return $usesCacheLayer && $this->stringConfig('auth.cachelayer.counter', '') === ''
-            ? ['CacheLayer counters are not guaranteed atomic for auth lockout usage.']
+        return $usesSharedCache && $this->stringConfig('cache.default_counter', '') === ''
+            ? ['The default cache store does not guarantee atomic auth lockout counters.']
             : [];
     }
 

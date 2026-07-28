@@ -6,7 +6,7 @@ namespace Infocyph\Foundation\Auth\Driver;
 
 enum AuthTokenDriver: string
 {
-    case EPICRYPT = 'epicrypt';
+    case SECURITY = 'security';
 
     case SIMPLE = 'simple';
 }

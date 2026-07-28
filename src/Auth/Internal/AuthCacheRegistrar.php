@@ -21,12 +21,10 @@ final readonly class AuthCacheRegistrar extends AbstractAuthRegistrar
 {
     public function register(AuthDriverResolver $drivers): void
     {
-        if ($drivers->cache() === AuthCacheDriver::CACHELAYER) {
+        if ($drivers->cache() === AuthCacheDriver::CACHE) {
             $this->requirePackage(Cache::class, 'infocyph/cachelayer', 'cache');
-            $this->singleton(CacheInterface::class, fn() => $this->app->cache()->store(
-                $this->stringConfig('auth.cachelayer.store', $this->stringConfig('cache.default', 'memory')),
-            ));
-            $counter = $this->stringConfig('auth.cachelayer.counter', '');
+            $this->singleton(CacheInterface::class, fn() => $this->app->cache()->store());
+            $counter = $this->stringConfig('cache.default_counter', '');
             $this->singleton(CounterStoreInterface::class, $counter === ''
                 ? fn() => new CacheLayerCounterStore($this->app->make(CacheInterface::class))
                 : fn() => new AtomicCounterStore($this->app->cache()->counters($counter)));

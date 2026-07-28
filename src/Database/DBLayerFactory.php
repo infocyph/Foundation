@@ -10,9 +10,10 @@ use Infocyph\DBLayer\DB;
 
 final class DBLayerFactory
 {
-    /**
-     * @var array<string, string>
-     */
+    /** @var array<string, ConnectionConfig> */
+    private array $configurations = [];
+
+    /** @var array<string, true> */
     private array $registered = [];
 
     public function __construct(
@@ -22,12 +23,12 @@ final class DBLayerFactory
     public function connection(?string $name = null, bool $fresh = false): Connection
     {
         $name = $this->resolver->connectionName($name);
-        $config = ConnectionConfig::fromArray($this->resolver->configuration($name));
-        $signature = $this->signature($config);
+        $config = $this->configurations[$name]
+            ??= ConnectionConfig::fromArray($this->resolver->configuration($name));
 
-        if (($this->registered[$name] ?? null) !== $signature || !DB::hasConnection($name)) {
+        if (!isset($this->registered[$name]) || !DB::hasConnection($name)) {
             DB::addConnection($config, $name);
-            $this->registered[$name] = $signature;
+            $this->registered[$name] = true;
         }
 
         return DB::connection($name, $fresh);
@@ -36,10 +37,5 @@ final class DBLayerFactory
     public function resolver(): DatabaseConnectionResolver
     {
         return $this->resolver;
-    }
-
-    private function signature(ConnectionConfig $config): string
-    {
-        return hash('sha256', json_encode($config->toSafeArray(), JSON_THROW_ON_ERROR));
     }
 }

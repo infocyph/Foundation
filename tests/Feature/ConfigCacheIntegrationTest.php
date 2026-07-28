@@ -233,7 +233,11 @@ it('keeps production requirements limited to the runtime core', function (): voi
         'php',
         'infocyph/console',
         'infocyph/webrick',
-    ])->and($composer['require-dev'])->not->toHaveKey('infocyph/uid')
+    ])->and($composer['require']['infocyph/console'] ?? null)->toBe('dev-main@dev')
+        ->and($composer['require']['infocyph/webrick'] ?? null)->toBe('^3.2')
+        ->and($composer['require-dev']['infocyph/cachelayer'] ?? null)->toBe('^2.0')
+        ->and($composer['require-dev']['infocyph/dblayer'] ?? null)->toBe('^2.3')
+        ->and($composer['require-dev'])->not->toHaveKey('infocyph/uid')
         ->and(array_keys($composer['suggest']))->toContain(
         'infocyph/cachelayer',
         'infocyph/dblayer',

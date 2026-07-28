@@ -13,19 +13,15 @@ final class ProductionPreset implements FoundationPreset
                 'env' => 'production',
             ],
             'auth' => [
-                'cachelayer' => [
-                    'store' => 'auth',
-                ],
                 'drivers' => [
-                    'cache' => 'cachelayer',
+                    'cache' => 'cache',
                     'mfa' => 'otp',
                     'notifications' => 'talkingbytes',
                     'passkey' => 'disabled',
-                    'passwords' => 'epicrypt',
-                    'storage' => 'dblayer',
-                    'tokens' => 'epicrypt',
+                    'passwords' => 'security',
+                    'storage' => 'database',
+                    'tokens' => 'security',
                 ],
-                'token_secret' => 'replace-with-a-production-token-secret',
             ],
             'cache' => [
                 'default' => 'auth',

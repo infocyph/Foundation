@@ -9,6 +9,7 @@ use Infocyph\Console\Command\ExitCode;
 use Infocyph\Foundation\Console\Support\CommandCacheManager;
 use Infocyph\Foundation\Console\Support\ConfigCacheManager;
 use Infocyph\Foundation\Console\Support\RouteCacheManager;
+use Infocyph\Foundation\Console\Support\ScheduleManager;
 
 final class OptimizeCommand extends AbstractFoundationCommand
 {
@@ -16,6 +17,7 @@ final class OptimizeCommand extends AbstractFoundationCommand
         private readonly ConfigCacheManager $config,
         private readonly RouteCacheManager $routes,
         private readonly CommandCacheManager $commands,
+        private readonly ScheduleManager $schedule,
     ) {}
 
     public static function define(CommandDefinition $command): void
@@ -32,6 +34,7 @@ final class OptimizeCommand extends AbstractFoundationCommand
             $matcher = $this->routes->matcher(null);
             $routePath = $this->routes->write($matcher, $this->routes->cachePath(null));
             $commandPath = $this->commands->write('bootstrap/cache/console/commands.php');
+            $schedulePath = $this->schedule->configured() ? $this->schedule->write() : 'not configured';
         } catch (\Throwable $exception) {
             $this->io()->error('optimize failed: ' . $exception->getMessage());
 
@@ -39,10 +42,11 @@ final class OptimizeCommand extends AbstractFoundationCommand
         }
 
         $this->io()->success(sprintf(
-            'Application caches ready: config=%s routes=%s commands=%s',
+            'Application caches ready: config=%s routes=%s commands=%s schedule=%s',
             $configType,
             $routePath,
             $commandPath,
+            $schedulePath,
         ));
 
         return ExitCode::SUCCESS;

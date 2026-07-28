@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 use Infocyph\CacheLayer\Cache\Adapter\ChainCacheAdapter;
 use Infocyph\CacheLayer\Cache\Lock\FileLockProvider;
+use Infocyph\CacheLayer\Cache\Lock\PdoLockProvider;
+use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Cache\RedisConnectionFactory;
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Foundation;
 
 it('creates sqlite cache stores from database connections and applies strict serialization policy', function (): void {
@@ -129,4 +133,76 @@ it('builds tiered cache stores from named store descriptors and applies file loc
     $pools = $poolsProperty->getValue($adapter);
 
     expect($pools)->toHaveCount(2);
+});
+
+it('shares the configured CacheLayer lock store with cache and console consumers', function (): void {
+    $basePath = sys_get_temp_dir() . '/foundation-cache-lock-' . uniqid('', true);
+    mkdir($basePath . '/storage/cache', 0775, true);
+    mkdir($basePath . '/database', 0775, true);
+
+    $app = Foundation::web([
+        'app' => [
+            'base_path' => $basePath,
+        ],
+        'database' => [
+            'default' => 'cache',
+            'connections' => [
+                'cache' => [
+                    'driver' => 'sqlite',
+                    'database' => 'database/cache.sqlite',
+                ],
+            ],
+        ],
+        'cache' => [
+            'default' => 'memory',
+            'lock' => [
+                'driver' => 'pdo',
+                'store' => 'database',
+                'path' => 'storage/cache/locks',
+            ],
+            'stores' => [
+                'memory' => [
+                    'driver' => 'memory',
+                ],
+                'database' => [
+                    'driver' => 'pdo',
+                    'connection' => 'cache',
+                ],
+            ],
+        ],
+    ]);
+
+    $cache = $app->cache()->store();
+    $lockProperty = new \ReflectionProperty($cache, 'lockProvider');
+    $cacheLock = $lockProperty->getValue($cache);
+    $sharedLock = $app->boot()->make(CacheLayerFactory::class)->lock();
+
+    expect($cacheLock)->toBeInstanceOf(PdoLockProvider::class)
+        ->and($sharedLock)->toBeInstanceOf(PdoLockProvider::class);
+
+    $handle = $sharedLock->acquire('shared-lock', 0.0, 10.0);
+    expect($handle)->not->toBeNull()
+        ->and($sharedLock->refresh($handle, 10.0))->toBeTrue();
+    $sharedLock->release($handle);
+});
+
+it('resolves named Redis-compatible connections without opening a client eagerly', function (): void {
+    $factory = new RedisConnectionFactory(new ConfigRepository([
+        'cache' => [
+            'connections' => [
+                'primary' => [
+                    'driver' => 'valkey',
+                    'dsn' => 'valkey://cache.internal:6379/2',
+                ],
+            ],
+        ],
+    ]));
+
+    expect($factory->connection([
+        'driver' => 'valkey',
+        'connection' => 'primary',
+    ]))->toBe([
+        'client' => null,
+        'dsn' => 'valkey://cache.internal:6379/2',
+    ]);
 });

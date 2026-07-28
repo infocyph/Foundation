@@ -27,11 +27,15 @@ return [
     | `true|false`; sender example: `Security <security@example.com>`; transport:
     | `fake|log|mail|null|sendmail|smtp|spool`.
     |
+    | The shipped `null` transport safely discards development notifications.
+    | Production applications should explicitly select `smtp|sendmail|spool`
+    | for delivery or `log` when notifications are audit-only.
+    |
     */
     'auth' => [
         'fail_silently' => env('NOTIFICATIONS_AUTH_FAIL_SILENTLY', false),
         'from' => env('NOTIFICATIONS_AUTH_FROM'),
-        'transport' => env('NOTIFICATIONS_AUTH_TRANSPORT', env('APP_ENV', 'local') === 'production' ? 'log' : 'null'),
+        'transport' => env('NOTIFICATIONS_AUTH_TRANSPORT', 'null'),
 
         /*
         |--------------------------------------------------------------------------

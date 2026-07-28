@@ -30,24 +30,22 @@ it('surfaces Epicrypt data protection, key derivation, and integrity helpers thr
             'base_path' => $basePath,
         ],
         'security' => [
-            'epicrypt' => [
-                'integrity' => [
-                    'algorithm' => 'sha256',
-                ],
-                'key_rings' => [
-                    'data' => [
-                        'active' => 'current',
-                        'keys' => [
-                            'previous' => $previousDataKey,
-                            'current' => $currentDataKey,
-                        ],
+            'integrity' => [
+                'algorithm' => 'sha256',
+            ],
+            'key_rings' => [
+                'data' => [
+                    'active' => 'current',
+                    'keys' => [
+                        'previous' => $previousDataKey,
+                        'current' => $currentDataKey,
                     ],
-                    'secrets' => [
-                        'active' => 'current',
-                        'keys' => [
-                            'previous' => $previousSecretKey,
-                            'current' => $currentSecretKey,
-                        ],
+                ],
+                'secrets' => [
+                    'active' => 'current',
+                    'keys' => [
+                        'previous' => $previousSecretKey,
+                        'current' => $currentSecretKey,
                     ],
                 ],
             ],
@@ -102,7 +100,7 @@ it('surfaces Epicrypt data protection, key derivation, and integrity helpers thr
     }
 });
 
-it('surfaces Epicrypt security, crypto, token, generator, and certificate services through Foundation security', function (): void {
+it('surfaces non-overlapping Epicrypt crypto, token, generator, and certificate services', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-epicrypt-services-' . uniqid('', true);
     mkdir($basePath . '/storage/cache', 0775, true);
     mkdir($basePath . '/storage/files', 0775, true);
@@ -115,24 +113,6 @@ it('surfaces Epicrypt security, crypto, token, generator, and certificate servic
     Foundation::web([
         'app' => [
             'base_path' => $basePath,
-        ],
-        'security' => [
-            'epicrypt' => [
-                'csrf' => [
-                    'secret' => 'csrf-test-secret',
-                    'ttl_seconds' => 60,
-                ],
-                'signed_urls' => [
-                    'secret' => 'url-test-secret',
-                    'options' => [
-                        'allowed_hosts' => ['example.test'],
-                    ],
-                ],
-                'tokens' => [
-                    'secret' => 'token-test-secret',
-                    'ttl_seconds' => 60,
-                ],
-            ],
         ],
     ]);
 
@@ -162,13 +142,6 @@ it('surfaces Epicrypt security, crypto, token, generator, and certificate servic
         Security::secretStream($streamKey)->encrypt($plainPath, $encryptedPath);
         Security::secretStream($streamKey)->decrypt($encryptedPath, $decryptedPath);
 
-        $csrfToken = Security::csrfTokens()->issueToken('session-1');
-        $signedUrl = Security::signedUrls()->generate('https://example.test/download', ['file' => 'report.pdf'], time() + 60);
-        $actionToken = Security::actionTokens()->issue('user-1', 'delete-account');
-        $emailToken = Security::emailVerificationTokens()->issue('user-1', 'user@example.test');
-        $resetToken = Security::passwordResetTokens()->issue('user-1');
-        $rememberToken = Security::rememberTokens()->issue('user-1', 'device-1');
-
         $opaqueToken = Security::opaqueTokens()->issue();
         $opaqueDigest = Security::opaqueTokens()->hash($opaqueToken);
         $payloadToken = Security::signedPayload('merchant.action')->encode(
@@ -194,7 +167,6 @@ it('surfaces Epicrypt security, crypto, token, generator, and certificate servic
         $rotationSignature = Security::keyRotation()->signWithKeyRing('rotation-payload', $rotationRing);
 
         $password = Security::passwordGenerator()->generate(20);
-        $passwordHash = Security::epicryptPasswords()->hashPassword($password);
         $passwordPolicy = Security::passwordPolicyValidator()->validate($password);
 
         $exchangeA = Security::sodiumBoxKeyPairs()->generate(asBase64Url: true);
@@ -218,17 +190,10 @@ it('surfaces Epicrypt security, crypto, token, generator, and certificate servic
             ->and(Security::nonces()->generate())->not->toBe('')
             ->and(Security::salts()->generate())->not->toBe('')
             ->and(Security::tokenMaterial()->generate())->not->toBe('')
-            ->and(Security::csrfTokens()->verifyToken('session-1', $csrfToken))->toBeTrue()
-            ->and(Security::signedUrls()->verify($signedUrl))->toBeTrue()
-            ->and(Security::actionTokens()->verify($actionToken, 'user-1', 'delete-account'))->toBeTrue()
-            ->and(Security::emailVerificationTokens()->verify($emailToken, 'user@example.test'))->toBeTrue()
-            ->and(Security::passwordResetTokens()->verify($resetToken, 'user-1'))->toBeTrue()
-            ->and(Security::rememberTokens()->verify($rememberToken, 'user-1', 'device-1'))->toBeTrue()
             ->and(Security::opaqueTokens()->verify($opaqueToken, $opaqueDigest))->toBeTrue()
             ->and(Security::signedPayload('merchant.action')->verify($payloadToken, 'payload-test-secret'))->toBeTrue()
             ->and($jwtVerifier->verify($jwt, 'jwt-test-secret'))->toBeTrue()
             ->and(Security::keyRotation()->verify('rotation-payload', $rotationSignature, $rotationRing))->toBeTrue()
-            ->and(Security::epicryptPasswords()->verifyPassword($password, $passwordHash))->toBeTrue()
             ->and($passwordPolicy->valid)->toBeTrue()
             ->and(Security::passwordStrength()->score($password))->toBeGreaterThan(0)
             ->and($exchangeSecretA)->toBe($exchangeSecretB)

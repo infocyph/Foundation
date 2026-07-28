@@ -1,0 +1,24 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Infocyph\Console\Command\Command;
+use Infocyph\Console\Command\CommandDefinition;
+use Infocyph\Console\Command\ExitCode;
+
+final class {{ class }} extends Command
+{
+    public static function define(CommandDefinition $command): void
+    {
+        $command
+            ->name('{{ command }}')
+            ->description('Run the {{ command }} application command.');
+    }
+
+    protected function handle(): int
+    {
+        return ExitCode::SUCCESS;
+    }
+}

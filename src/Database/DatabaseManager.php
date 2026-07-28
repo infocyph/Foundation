@@ -129,6 +129,30 @@ final readonly class DatabaseManager
         DBLayer::enableTelemetry();
     }
 
+    /**
+     * Inspect the database-native execution plan for a SELECT statement.
+     *
+     * @param array<int|string, mixed> $bindings
+     * @return list<array<string, mixed>>
+     */
+    public function explain(
+        string $query,
+        array $bindings = [],
+        bool $analyze = false,
+        bool $buffers = false,
+        bool $verbose = false,
+        ?string $name = null,
+    ): array {
+        return DBLayer::explain(
+            $query,
+            $bindings,
+            $analyze,
+            $buffers,
+            $verbose,
+            $this->ensureRegistered($name),
+        );
+    }
+
     public function flushQueryLog(): void
     {
         DBLayer::flushQueryLog();
@@ -192,17 +216,17 @@ final readonly class DatabaseManager
     /**
      * @param array<string, int> $poolConfig
      */
-    public function pool(array $poolConfig = []): Pool
+    public function pool(?array $poolConfig = null): Pool
     {
-        return DBLayer::pool($poolConfig);
+        return DBLayer::pool($poolConfig ?? $this->poolConfiguration());
     }
 
     /**
      * @param array<string, int> $poolConfig
      */
-    public function poolManager(array $poolConfig = []): PoolManager
+    public function poolManager(?array $poolConfig = null): PoolManager
     {
-        return DBLayer::poolManager($poolConfig);
+        return DBLayer::poolManager($poolConfig ?? $this->poolConfiguration());
     }
 
     public function profiler(): Profiler
@@ -226,6 +250,20 @@ final readonly class DatabaseManager
     public function queryLog(): array
     {
         return DBLayer::getQueryLog();
+    }
+
+    /**
+     * Aggregate buffered telemetry by normalized, parameterized query shape.
+     *
+     * @param list<int|float> $percentiles
+     * @return array<string, mixed>
+     */
+    public function queryShapeReport(
+        array $percentiles = [50, 90, 95, 99],
+        ?float $minimumMs = null,
+        ?int $limit = 20,
+    ): array {
+        return DBLayer::queryShapeReport($percentiles, $minimumMs, $limit);
     }
 
     public function readOnlyTransaction(callable $callback, ?string $name = null, int $attempts = 1): mixed
@@ -380,6 +418,8 @@ final readonly class DatabaseManager
 
     public function withPooledConnection(callable $callback, ?string $name = null): mixed
     {
+        $this->pool();
+
         return DBLayer::withPooledConnection($callback, $this->ensureRegistered($name));
     }
 
@@ -404,5 +444,25 @@ final readonly class DatabaseManager
         $this->connection($resolved);
 
         return $resolved;
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private function poolConfiguration(): array
+    {
+        $configured = $this->config->get('database.pool', []);
+        if (!is_array($configured)) {
+            return [];
+        }
+
+        $pool = [];
+        foreach ($configured as $key => $value) {
+            if (is_string($key) && (is_int($value) || is_numeric($value))) {
+                $pool[$key] = (int) $value;
+            }
+        }
+
+        return $pool;
     }
 }

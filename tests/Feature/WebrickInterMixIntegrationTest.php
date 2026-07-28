@@ -173,6 +173,8 @@ PHP,
 });
 
 it('keeps unrelated subsystems deferred for plain routes', function (): void {
+    $foundationConsoleLoaded = class_exists('Infocyph\Foundation\Console\FoundationConsole', false);
+    $consoleApplicationLoaded = class_exists('Infocyph\Console\Application', false);
     $project = foundationIntegrationProject([
         'routes/web.php' => <<<'PHP'
 <?php
@@ -192,7 +194,9 @@ PHP,
             ->and($app->has(AuthManager::class))->toBeTrue()
             ->and(foundationJsonResponse($app->handle(foundationRequest('/lean'))))->toBe(['ok' => true])
             ->and($app->container()->has(AuthManager::class))->toBeFalse()
-            ->and($app->container()->has(CacheManager::class))->toBeFalse();
+            ->and($app->container()->has(CacheManager::class))->toBeFalse()
+            ->and(class_exists('Infocyph\Foundation\Console\FoundationConsole', false))->toBe($foundationConsoleLoaded)
+            ->and(class_exists('Infocyph\Console\Application', false))->toBe($consoleApplicationLoaded);
 
         expect($app->cache())->toBeInstanceOf(CacheManager::class)
             ->and($app->container()->has(CacheManager::class))->toBeTrue()

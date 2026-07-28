@@ -15,6 +15,23 @@ use Infocyph\Foundation\Console\Command\CommandCacheCommand;
 use Infocyph\Foundation\Console\Command\CommandClearCommand;
 use Infocyph\Foundation\Console\Command\ConfigCacheCommand;
 use Infocyph\Foundation\Console\Command\ConfigClearCommand;
+use Infocyph\Foundation\Console\Command\CreateClassCommand;
+use Infocyph\Foundation\Console\Command\CreateCommandCommand;
+use Infocyph\Foundation\Console\Command\CreateControllerCommand;
+use Infocyph\Foundation\Console\Command\CreateEnumCommand;
+use Infocyph\Foundation\Console\Command\CreateEventCommand;
+use Infocyph\Foundation\Console\Command\CreateExceptionCommand;
+use Infocyph\Foundation\Console\Command\CreateInterfaceCommand;
+use Infocyph\Foundation\Console\Command\CreateJobCommand;
+use Infocyph\Foundation\Console\Command\CreateListenerCommand;
+use Infocyph\Foundation\Console\Command\CreateMiddlewareCommand;
+use Infocyph\Foundation\Console\Command\CreatePolicyCommand;
+use Infocyph\Foundation\Console\Command\CreateProviderCommand;
+use Infocyph\Foundation\Console\Command\CreateRepositoryCommand;
+use Infocyph\Foundation\Console\Command\CreateServiceCommand;
+use Infocyph\Foundation\Console\Command\CreateTestCommand;
+use Infocyph\Foundation\Console\Command\CreateTraitCommand;
+use Infocyph\Foundation\Console\Command\CreateWorkerCommand;
 use Infocyph\Foundation\Console\Command\ModuleInstallCommand;
 use Infocyph\Foundation\Console\Command\ModuleListCommand;
 use Infocyph\Foundation\Console\Command\ModuleRemoveCommand;
@@ -22,6 +39,13 @@ use Infocyph\Foundation\Console\Command\OptimizeClearCommand;
 use Infocyph\Foundation\Console\Command\OptimizeCommand;
 use Infocyph\Foundation\Console\Command\RouteCacheCommand;
 use Infocyph\Foundation\Console\Command\RouteClearCommand;
+use Infocyph\Foundation\Console\Command\ScheduleCacheCommand;
+use Infocyph\Foundation\Console\Command\ScheduleClearCommand;
+use Infocyph\Foundation\Console\Command\ScheduleListCommand;
+use Infocyph\Foundation\Console\Command\ScheduleRunCommand;
+use Infocyph\Foundation\Console\Command\ScheduleWorkCommand;
+use Infocyph\Foundation\Console\Command\WorkerListCommand;
+use Infocyph\Foundation\Console\Command\WorkerRunCommand;
 
 final class FoundationConsole
 {
@@ -34,6 +58,23 @@ final class FoundationConsole
         'config:clear' => ConfigClearCommand::class,
         'command:cache' => CommandCacheCommand::class,
         'command:clear' => CommandClearCommand::class,
+        'create:class' => CreateClassCommand::class,
+        'create:command' => CreateCommandCommand::class,
+        'create:controller' => CreateControllerCommand::class,
+        'create:enum' => CreateEnumCommand::class,
+        'create:event' => CreateEventCommand::class,
+        'create:exception' => CreateExceptionCommand::class,
+        'create:interface' => CreateInterfaceCommand::class,
+        'create:job' => CreateJobCommand::class,
+        'create:listener' => CreateListenerCommand::class,
+        'create:middleware' => CreateMiddlewareCommand::class,
+        'create:policy' => CreatePolicyCommand::class,
+        'create:provider' => CreateProviderCommand::class,
+        'create:repository' => CreateRepositoryCommand::class,
+        'create:service' => CreateServiceCommand::class,
+        'create:test' => CreateTestCommand::class,
+        'create:trait' => CreateTraitCommand::class,
+        'create:worker' => CreateWorkerCommand::class,
         'module:install' => ModuleInstallCommand::class,
         'module:list' => ModuleListCommand::class,
         'module:remove' => ModuleRemoveCommand::class,
@@ -41,6 +82,13 @@ final class FoundationConsole
         'optimize:clear' => OptimizeClearCommand::class,
         'route:cache' => RouteCacheCommand::class,
         'route:clear' => RouteClearCommand::class,
+        'schedule:cache' => ScheduleCacheCommand::class,
+        'schedule:clear' => ScheduleClearCommand::class,
+        'schedule:list' => ScheduleListCommand::class,
+        'schedule:run' => ScheduleRunCommand::class,
+        'schedule:work' => ScheduleWorkCommand::class,
+        'worker:list' => WorkerListCommand::class,
+        'worker:run' => WorkerRunCommand::class,
     ];
 
     private function __construct() {}
@@ -95,7 +143,8 @@ final class FoundationConsole
             ->name($name)
             ->version($version)
             ->containerProvider($runtime)
-            ->configurationProvider($runtime);
+            ->configurationProvider($runtime)
+            ->lockProviderFactory($runtime->lockProvider(...));
 
         if ($commandManifest !== null && is_file($commandManifest)) {
             $builder->commandManifest($commandManifest);

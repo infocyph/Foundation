@@ -9,6 +9,7 @@ use Infocyph\CacheLayer\Cache\Cache;
 use Infocyph\CacheLayer\Cache\CacheInterface;
 use Infocyph\CacheLayer\Cache\Lock\FileLockProvider;
 use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
+use Infocyph\CacheLayer\Cache\Lock\MemcachedLockProvider;
 use Infocyph\CacheLayer\Cache\Lock\PdoLockProvider;
 use Infocyph\CacheLayer\Cache\Lock\RedisLockProvider;
 use Infocyph\CacheLayer\Cluster\ClusterCache;
@@ -23,7 +24,6 @@ use Infocyph\CacheLayer\Node\Maintenance\NodeCacheMaintenance;
 use Infocyph\CacheLayer\Node\NodeCache;
 use Infocyph\CacheLayer\Node\NodeCacheConfig;
 use Infocyph\Foundation\Config\ConfigRepository;
-use Infocyph\Foundation\Database\DatabaseConnectionResolver;
 use Infocyph\Foundation\Database\DatabaseManager;
 use Infocyph\Foundation\Exception\ConfigurationException;
 use Infocyph\Foundation\Filesystem\PathManager;
@@ -90,6 +90,22 @@ final readonly class CacheLayerFactory
                 $name,
             )),
         };
+    }
+
+    public function lock(?string $storeName = null): LockProviderInterface
+    {
+        $lock = ValueNormalizer::associativeArray($this->config->get('cache.lock', []));
+        $storeName ??= $this->stringOrNull($lock['store'] ?? null)
+            ?? $this->stringConfig('cache.default', 'memory');
+        $store = $this->stores()[$storeName] ?? ['driver' => $storeName];
+        $driver = $this->resolveDriver($storeName, $store);
+
+        if ($this->stringOrNull($lock['driver'] ?? null) === null) {
+            $lock['driver'] = 'file';
+            $lock['path'] ??= $this->paths->cache('locks');
+        }
+
+        return $this->lockProviderFromConfig($store, $lock, $driver);
     }
 
     public function maintainNode(string $name, int $limit = 5_000): int
@@ -180,59 +196,22 @@ final readonly class CacheLayerFactory
     private function applyLockConfiguration(CacheInterface $cache, array $store, CacheDriver $driver): CacheInterface
     {
         $configured = ValueNormalizer::associativeArray($this->config->get('cache.lock', []));
-        $lock = array_replace($configured, ValueNormalizer::associativeArray($store['lock'] ?? []));
+        $storeLock = ValueNormalizer::associativeArray($store['lock'] ?? []);
+        $lock = array_replace($configured, $storeLock);
         $lockDriver = $this->stringOrNull($lock['driver'] ?? null);
 
         if ($lockDriver === null || $lockDriver === '') {
             return $cache;
         }
 
-        $prefix = ValueNormalizer::string($lock['prefix'] ?? null, 'cachelayer:lock:');
-        $retrySleepMicros = ValueNormalizer::int($lock['retry_sleep_micros'] ?? null, 50_000);
+        [$lockStore, $lockStoreDriver] = $this->resolveLockStore(
+            $store,
+            $driver,
+            $configured,
+            $storeLock,
+        );
 
-        return match ($this->normalizeLockDriver($lockDriver)) {
-            'file' => $cache->setLockProvider(
-                new FileLockProvider(
-                    $this->directoryFrom($lock, 'path', 'dir', 'directory'),
-                    $retrySleepMicros,
-                ),
-            ),
-            'memcache' => $cache->useMemcachedLock(
-                $this->memcachedClientFromConfig($store, $lock),
-                $prefix,
-            ),
-            'pdo' => $cache->setLockProvider(
-                new PdoLockProvider(
-                    $this->pdoClientFromConfig($store, $lock, $driver),
-                    $prefix,
-                    $retrySleepMicros,
-                    new FileLockProvider(
-                        $this->directoryFrom(
-                            ValueNormalizer::associativeArray($lock['fallback'] ?? []),
-                            'path',
-                            'dir',
-                            'directory',
-                        ),
-                        ValueNormalizer::int(
-                            ValueNormalizer::associativeArray($lock['fallback'] ?? [])['retry_sleep_micros'] ?? null,
-                            $retrySleepMicros,
-                        ),
-                    ),
-                ),
-            ),
-            'redis' => $cache->useRedisLock(
-                $this->redisClientFromConfig($store, $lock, 'redis'),
-                $prefix,
-            ),
-            'valkey' => $cache->useValkeyLock(
-                $this->redisClientFromConfig($store, $lock, 'valkey'),
-                $prefix,
-            ),
-            default => throw new ConfigurationException(sprintf(
-                'Unsupported cache lock driver "%s".',
-                $lockDriver,
-            )),
-        };
+        return $cache->setLockProvider($this->lockProviderFromConfig($lockStore, $lock, $lockStoreDriver));
     }
 
     private function assertNodeCachePath(string $file, string $name): void
@@ -279,55 +258,6 @@ final readonly class CacheLayerFactory
     }
 
     /**
-     * @param array<string, mixed> $config
-     * @return array{dsn:string,username:?string,password:?string}
-     */
-    private function connectionDsn(array $config): array
-    {
-        $driver = strtolower(ValueNormalizer::string($config['driver'] ?? null));
-        $host = ValueNormalizer::string($config['host'] ?? null, '127.0.0.1');
-        $port = ValueNormalizer::int($config['port'] ?? null, 0);
-        $database = ValueNormalizer::string($config['database'] ?? null);
-        $username = $this->stringOrNull($config['username'] ?? null);
-        $password = $this->stringOrNull($config['password'] ?? null);
-        $charset = $this->stringOrNull($config['charset'] ?? null);
-
-        return match ($driver) {
-            'mariadb', 'mysql' => [
-                'dsn' => sprintf(
-                    'mysql:host=%s;%sdbname=%s%s',
-                    $host,
-                    $port > 0 ? 'port=' . $port . ';' : '',
-                    $database,
-                    $charset !== null ? ';charset=' . $charset : '',
-                ),
-                'username' => $username,
-                'password' => $password,
-            ],
-            'pgsql', 'postgres', 'postgresql' => [
-                'dsn' => sprintf(
-                    'pgsql:host=%s;%sdbname=%s%s',
-                    $host,
-                    $port > 0 ? 'port=' . $port . ';' : '',
-                    $database,
-                    $charset !== null ? ';options=--client_encoding=' . $charset : '',
-                ),
-                'username' => $username,
-                'password' => $password,
-            ],
-            'sqlite' => [
-                'dsn' => $database === ':memory:' ? 'sqlite::memory:' : 'sqlite:' . $this->resolvePath($database),
-                'username' => null,
-                'password' => null,
-            ],
-            default => throw new ConfigurationException(sprintf(
-                'Unsupported database connection driver "%s" for cache store resolution.',
-                $driver,
-            )),
-        };
-    }
-
-    /**
      * @return array<string, array<string, mixed>>
      */
     private function counterDefinitions(): array
@@ -360,10 +290,7 @@ final readonly class CacheLayerFactory
             CacheDriver::NULL_STORE => Cache::nullStore(),
             CacheDriver::PDO => $this->pdoCache($namespace, $store),
             CacheDriver::PHP_FILES => Cache::phpFiles($namespace, $this->directoryFrom($store, 'path', 'dir', 'directory')),
-            CacheDriver::REDIS => Cache::redis(
-                $namespace,
-                ValueNormalizer::string($store['dsn'] ?? $store['connection'] ?? null, 'redis://127.0.0.1:6379'),
-            ),
+            CacheDriver::REDIS => $this->redisCache($namespace, $store, 'redis'),
             CacheDriver::REDIS_CLUSTER => Cache::redisCluster(
                 namespace: $namespace,
                 seeds: $this->seeds($store['seeds'] ?? null),
@@ -390,17 +317,9 @@ final readonly class CacheLayerFactory
                 $this->tiers($name, $store),
                 ValueNormalizer::bool($store['write_to_l1'] ?? null, true),
             ),
-            CacheDriver::VALKEY => Cache::valkey(
-                $namespace,
-                ValueNormalizer::string($store['dsn'] ?? $store['connection'] ?? null, 'valkey://127.0.0.1:6379'),
-            ),
+            CacheDriver::VALKEY => $this->redisCache($namespace, $store, 'valkey'),
             CacheDriver::WEAK_MAP => Cache::weakMap($namespace),
         };
-    }
-
-    private function databaseResolver(): DatabaseConnectionResolver
-    {
-        return new DatabaseConnectionResolver($this->config);
     }
 
     /**
@@ -458,12 +377,7 @@ final readonly class CacheLayerFactory
             CacheDriver::NULL_STORE => ['driver' => 'null'],
             CacheDriver::PDO => $this->pdoDescriptor($namespace, $store),
             CacheDriver::PHP_FILES => ['driver' => 'php_files', 'namespace' => $namespace, 'dir' => $this->directoryFrom($store, 'path', 'dir', 'directory')],
-            CacheDriver::REDIS => [
-                'driver' => 'redis',
-                'namespace' => $namespace,
-                'dsn' => ValueNormalizer::string($store['dsn'] ?? $store['connection'] ?? null, 'redis://127.0.0.1:6379'),
-                'client' => $store['client'] ?? null,
-            ],
+            CacheDriver::REDIS => $this->redisDescriptor($namespace, $store, 'redis'),
             CacheDriver::REDIS_CLUSTER => [
                 'driver' => 'redis_cluster',
                 'namespace' => $namespace,
@@ -491,12 +405,7 @@ final readonly class CacheLayerFactory
                 'file' => $this->sqliteFile($store),
                 'table' => ValueNormalizer::string($store['table'] ?? null, 'cachelayer_entries'),
             ],
-            CacheDriver::VALKEY => [
-                'driver' => 'valkey',
-                'namespace' => $namespace,
-                'dsn' => ValueNormalizer::string($store['dsn'] ?? $store['connection'] ?? null, 'valkey://127.0.0.1:6379'),
-                'client' => $store['client'] ?? null,
-            ],
+            CacheDriver::VALKEY => $this->redisDescriptor($namespace, $store, 'valkey'),
             CacheDriver::WEAK_MAP => ['driver' => 'weak_map', 'namespace' => $namespace],
         };
     }
@@ -527,6 +436,49 @@ final readonly class CacheLayerFactory
 
     /**
      * @param array<string, mixed> $store
+     * @param array<string, mixed> $lock
+     */
+    private function lockProviderFromConfig(
+        array $store,
+        array $lock,
+        CacheDriver $driver,
+    ): LockProviderInterface {
+        $lockDriver = $this->requiredString($lock, 'driver', 'cache.lock');
+        $prefix = ValueNormalizer::string($lock['prefix'] ?? null, 'cachelayer:lock:');
+        $retrySleepMicros = ValueNormalizer::int($lock['retry_sleep_micros'] ?? null, 50_000);
+        $fallback = ValueNormalizer::associativeArray($lock['fallback'] ?? []);
+
+        return match ($this->normalizeLockDriver($lockDriver)) {
+            'file' => new FileLockProvider(
+                $this->directoryFrom($lock, 'path', 'dir', 'directory'),
+                $retrySleepMicros,
+            ),
+            'memcache' => new MemcachedLockProvider(
+                $this->memcachedClientFromConfig($store, $lock),
+                $prefix,
+                $retrySleepMicros,
+            ),
+            'pdo' => new PdoLockProvider(
+                $this->pdoClientFromConfig($store, $lock, $driver),
+                $prefix,
+                $retrySleepMicros,
+                new FileLockProvider(
+                    $this->directoryFrom($fallback, 'path', 'dir', 'directory')
+                        ?? $this->paths->cache('locks'),
+                    ValueNormalizer::int($fallback['retry_sleep_micros'] ?? null, $retrySleepMicros),
+                ),
+            ),
+            'redis', 'valkey' => new RedisLockProvider(
+                $this->redis->client(array_replace($store, $lock), $lockDriver),
+                $prefix,
+                $retrySleepMicros,
+            ),
+            default => throw new ConfigurationException(sprintf('Unsupported cache lock driver "%s".', $lockDriver)),
+        };
+    }
+
+    /**
+     * @param array<string, mixed> $store
      */
     private function makeFromStoreConfig(string $name, array $store): CacheInterface
     {
@@ -549,8 +501,16 @@ final readonly class CacheLayerFactory
         if ($client instanceof \Memcached) {
             return $client;
         }
+        if (!class_exists(\Memcached::class)) {
+            throw new ConfigurationException('Memcached lock provider requires the Memcached extension.');
+        }
 
-        throw new ConfigurationException('Memcached lock provider requires a Memcached client instance.');
+        $client = new \Memcached();
+        if (!$client->addServers($this->servers($lock['servers'] ?? $store['servers'] ?? null))) {
+            throw new ConfigurationException('Memcached lock provider could not configure its servers.');
+        }
+
+        return $client;
     }
 
     /**
@@ -625,27 +585,14 @@ final readonly class CacheLayerFactory
             return null;
         }
 
-        $prefix = ValueNormalizer::string($lock['prefix'] ?? null, 'cachelayer:lock:');
-        $retrySleepMicros = ValueNormalizer::int($lock['retry_sleep_micros'] ?? null, 50_000);
+        [$lockStore, $lockStoreDriver] = $this->resolveLockStore(
+            $store,
+            CacheDriver::NODE,
+            $configured,
+            ValueNormalizer::associativeArray($store['lock'] ?? []),
+        );
 
-        return match ($this->normalizeLockDriver($driver)) {
-            'file' => new FileLockProvider(
-                $this->directoryFrom($lock, 'path', 'dir', 'directory'),
-                $retrySleepMicros,
-            ),
-            'pdo' => new PdoLockProvider(
-                $this->pdoClientFromConfig($store, $lock, CacheDriver::NODE),
-                $prefix,
-                $retrySleepMicros,
-                new FileLockProvider($this->paths->cache('locks'), $retrySleepMicros),
-            ),
-            'redis', 'valkey' => new RedisLockProvider(
-                $this->redis->client($lock, $driver),
-                $prefix,
-                $retrySleepMicros,
-            ),
-            default => throw new ConfigurationException(sprintf('Unsupported cache lock driver "%s".', $driver)),
-        };
+        return $this->lockProviderFromConfig($lockStore, $lock, $lockStoreDriver);
     }
 
     private function normalizeDriverName(string $driver): string
@@ -755,13 +702,11 @@ final readonly class CacheLayerFactory
         $connection = $this->stringOrNull($store['connection'] ?? null);
 
         if ($connection !== null) {
-            $resolved = $this->connectionDsn($this->databaseResolver()->configuration($connection));
-
             return [
-                'dsn' => $resolved['dsn'],
-                'username' => $resolved['username'],
-                'password' => $resolved['password'],
-                'client' => null,
+                'dsn' => null,
+                'username' => null,
+                'password' => null,
+                'client' => ($this->database)()->pdo($connection),
             ];
         }
 
@@ -775,11 +720,30 @@ final readonly class CacheLayerFactory
 
     /**
      * @param array<string, mixed> $store
-     * @param array<string, mixed> $lock
      */
-    private function redisClientFromConfig(array $store, array $lock, string $driver): \Redis
+    private function redisCache(string $namespace, array $store, string $driver): CacheInterface
     {
-        return $this->redis->client(array_replace($store, $lock), $driver);
+        $connection = $this->redis->connection($store + ['driver' => $driver]);
+
+        return $driver === 'valkey'
+            ? Cache::valkey($namespace, $connection['dsn'], $connection['client'])
+            : Cache::redis($namespace, $connection['dsn'], $connection['client']);
+    }
+
+    /**
+     * @param array<string, mixed> $store
+     * @return array<string, mixed>
+     */
+    private function redisDescriptor(string $namespace, array $store, string $driver): array
+    {
+        $connection = $this->redis->connection($store + ['driver' => $driver]);
+
+        return [
+            'driver' => $driver,
+            'namespace' => $namespace,
+            'dsn' => $connection['dsn'],
+            'client' => $connection['client'],
+        ];
     }
 
     /**
@@ -814,6 +778,34 @@ final readonly class CacheLayerFactory
             $name,
             $driverName,
         ));
+    }
+
+    /**
+     * @param array<string, mixed> $fallbackStore
+     * @param array<string, mixed> $configured
+     * @param array<string, mixed> $storeLock
+     * @return array{array<string, mixed>, CacheDriver}
+     */
+    private function resolveLockStore(
+        array $fallbackStore,
+        CacheDriver $fallbackDriver,
+        array $configured,
+        array $storeLock,
+    ): array {
+        $name = $this->stringOrNull($storeLock['store'] ?? null);
+        if ($name === null && $storeLock === []) {
+            $name = $this->stringOrNull($configured['store'] ?? null);
+        }
+        if ($name === null) {
+            return [$fallbackStore, $fallbackDriver];
+        }
+
+        $store = $this->stores()[$name] ?? null;
+        if ($store === null) {
+            throw new ConfigurationException(sprintf('Cache lock references undefined store "%s".', $name));
+        }
+
+        return [$store, $this->resolveDriver($name, $store)];
     }
 
     private function resolvePath(string $path): string

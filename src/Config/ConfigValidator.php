@@ -50,11 +50,6 @@ final readonly class ConfigValidator
 
     private function databaseDefault(): ?string
     {
-        $configuredAuthConnection = $this->config->get('auth.dblayer.connection');
-        if (is_string($configuredAuthConnection) && $configuredAuthConnection !== '') {
-            return $configuredAuthConnection;
-        }
-
         $configured = $this->config->get('database.default');
         if (is_string($configured) && $configured !== '') {
             return $configured;
@@ -126,11 +121,11 @@ final readonly class ConfigValidator
             $this->validateTokenSecret($issues);
         }
 
-        if ($storageDriver === AuthStorageDriver::DBLAYER->value) {
+        if ($storageDriver === AuthStorageDriver::DATABASE->value) {
             $this->validateDatabaseStorage($issues);
         }
 
-        if ($cacheDriver === AuthCacheDriver::CACHELAYER->value) {
+        if ($cacheDriver === AuthCacheDriver::CACHE->value) {
             $this->validateCacheStore($issues);
         }
 
@@ -267,15 +262,12 @@ final readonly class ConfigValidator
      */
     private function validateCacheStore(array &$issues): void
     {
-        $store = $this->stringConfig(
-            'auth.cachelayer.store',
-            $this->stringConfig('cache.default', ''),
-        );
+        $store = $this->stringConfig('cache.default', '');
 
         if ($store === '') {
             $issues[] = new ConfigIssue(
-                'auth.cachelayer.store must be configured when auth.drivers.cache uses cachelayer.',
-                'auth.cachelayer.store',
+                'cache.default must be configured when auth.drivers.cache uses cache.',
+                'cache.default',
             );
 
             return;
@@ -283,15 +275,15 @@ final readonly class ConfigValidator
 
         if (!$this->config->has('cache.stores.' . $store)) {
             $issues[] = new ConfigIssue(
-                sprintf('cache.stores.%s must exist when auth.drivers.cache uses cachelayer.', $store),
+                sprintf('cache.stores.%s must exist when auth.drivers.cache uses cache.', $store),
                 'cache.stores.' . $store,
             );
         }
 
-        $counter = $this->stringConfig('auth.cachelayer.counter', '');
+        $counter = $this->stringConfig('cache.default_counter', '');
         if ($counter !== '' && !$this->config->has('cache.counters.' . $counter)) {
             $issues[] = new ConfigIssue(
-                sprintf('cache.counters.%s must exist when auth.cachelayer.counter is configured.', $counter),
+                sprintf('cache.counters.%s must exist when cache.default_counter is configured.', $counter),
                 'cache.counters.' . $counter,
             );
         }
@@ -329,8 +321,8 @@ final readonly class ConfigValidator
         $connectionName = $this->databaseDefault();
         if ($connectionName === null) {
             $issues[] = new ConfigIssue(
-                'A database connection must be configured when auth.drivers.storage uses dblayer.',
-                'auth.dblayer.connection',
+                'database.default must be configured when auth.drivers.storage uses database.',
+                'database.default',
             );
 
             return;
@@ -339,7 +331,7 @@ final readonly class ConfigValidator
         $connection = $this->config->get('database.connections.' . $connectionName);
         if (!is_array($connection) || $connection === []) {
             $issues[] = new ConfigIssue(
-                sprintf('database.connections.%s must exist when auth.drivers.storage uses dblayer.', $connectionName),
+                sprintf('database.connections.%s must exist when auth.drivers.storage uses database.', $connectionName),
                 'database.connections.' . $connectionName,
             );
         }
@@ -450,7 +442,6 @@ final readonly class ConfigValidator
             !is_string($secret)
             || $secret === ''
             || $secret === 'foundation-dev-secret'
-            || $secret === 'replace-with-a-production-token-secret'
         ) {
             $issues[] = new ConfigIssue('auth.token_secret must be configured for production.', 'auth.token_secret');
 

@@ -1,0 +1,37 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Infocyph\Console\Worker\WorkerOptions;
+use Infocyph\Console\Worker\WorkloadProbe;
+use Infocyph\Foundation\Console\WorkerProvider;
+
+final readonly class {{ class }} implements WorkerProvider, WorkloadProbe
+{
+    /** @return list<string> */
+    public function command(): array
+    {
+        return [PHP_BINARY, 'infbyte', 'queue:work-once'];
+    }
+
+    public function options(): WorkerOptions
+    {
+        return new WorkerOptions(
+            maximumProcesses: 4,
+            jobsPerProcess: 1,
+            stopWhenEmpty: true,
+        );
+    }
+
+    public function pending(): int
+    {
+        return 0;
+    }
+
+    public function workload(): WorkloadProbe
+    {
+        return $this;
+    }
+}

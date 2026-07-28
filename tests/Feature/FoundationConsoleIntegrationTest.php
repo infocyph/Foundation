@@ -282,6 +282,17 @@ use Infocyph\Webrick\Router\Facade\Router;
 Router::get('/optimized', static fn(): array => ['optimized' => true]);
 PHP);
     file_put_contents($basePath . '/routes/console.php', "<?php\n\nreturn [];\n");
+    file_put_contents($basePath . '/routes/schedule.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+use Infocyph\Console\Scheduling\Schedule;
+
+return static function (Schedule $schedule): void {
+    $schedule->command('app:ready')->hourly()->withoutOverlap();
+};
+PHP);
 
     try {
         $io = new BufferedIO();
@@ -297,10 +308,12 @@ PHP);
             ->and($basePath . '/bootstrap/cache/config/__manifest.php')->toBeFile()
             ->and($basePath . '/bootstrap/cache/routes/fused.php')->toBeFile()
             ->and($basePath . '/bootstrap/cache/console/commands.php')->toBeFile()
+            ->and($basePath . '/bootstrap/cache/console/schedule.php')->toBeFile()
             ->and($console->run(['foundation', 'optimize:clear']))->toBe(ExitCode::SUCCESS)
             ->and($basePath . '/bootstrap/cache/config/__manifest.php')->not->toBeFile()
             ->and($basePath . '/bootstrap/cache/routes/fused.php')->not->toBeFile()
             ->and($basePath . '/bootstrap/cache/console/commands.php')->not->toBeFile()
+            ->and($basePath . '/bootstrap/cache/console/schedule.php')->not->toBeFile()
             ->and(implode("\n", $io->output()))->toContain('Application caches cleared.');
     } finally {
         foundationConsoleRemoveDirectory($basePath);
@@ -360,6 +373,165 @@ PHP);
         foundationConsoleRemoveDirectory($basePath);
     }
 })->with(['fused', 'generated', 'sharded']);
+
+it('runs unlocked schedules without resolving the configured lock provider', function (): void {
+    $basePath = sys_get_temp_dir() . '/foundation-unlocked-schedule-' . bin2hex(random_bytes(5));
+    mkdir($basePath . '/routes', 0775, true);
+    file_put_contents($basePath . '/infbyte', "<?php\n\nexit(0);\n");
+    file_put_contents($basePath . '/routes/schedule.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+use Infocyph\Console\Scheduling\Schedule;
+
+return static function (Schedule $schedule): void {
+    $schedule->command('reports:build')->everyMinute();
+};
+PHP);
+
+    try {
+        $io = new BufferedIO();
+        $console = FoundationConsole::create(
+            static fn(?string $profile) => Foundation::console([
+                'base_path' => $basePath,
+                'env' => $profile ?? 'testing',
+                '_config_cache' => false,
+                'cache' => [
+                    'lock' => [
+                        'driver' => 'unsupported',
+                        'store' => 'memory',
+                    ],
+                    'stores' => [
+                        'memory' => ['driver' => 'memory'],
+                    ],
+                ],
+            ]),
+        )->withIO($io);
+
+        expect($console->run(['foundation', 'schedule:run']))->toBe(ExitCode::SUCCESS)
+            ->and(implode("\n", $io->output()))->toContain('reports:build: exit 0');
+    } finally {
+        foundationConsoleRemoveDirectory($basePath);
+    }
+});
+
+it('lists worker class maps without autoloading unselected providers', function (): void {
+    $basePath = sys_get_temp_dir() . '/foundation-worker-list-' . bin2hex(random_bytes(5));
+    mkdir($basePath . '/routes', 0775, true);
+    file_put_contents(
+        $basePath . '/routes/workers.php',
+        "<?php\n\nreturn ['emails' => 'App\\\\Workers\\\\EmailWorker'];\n",
+    );
+
+    try {
+        $io = new BufferedIO();
+        $console = FoundationConsole::create(
+            static fn(?string $profile) => Foundation::console([
+                'base_path' => $basePath,
+                'env' => $profile ?? 'testing',
+                '_config_cache' => false,
+            ]),
+        )->withIO($io);
+
+        expect($console->run(['foundation', 'worker:list']))->toBe(ExitCode::SUCCESS)
+            ->and(implode("\n", $io->output()))->toContain('App\\Workers\\EmailWorker');
+    } finally {
+        foundationConsoleRemoveDirectory($basePath);
+    }
+});
+
+it('creates Foundation application artifacts from safe built-in stubs', function (): void {
+    $basePath = sys_get_temp_dir() . '/foundation-create-artifacts-' . bin2hex(random_bytes(5));
+    mkdir($basePath, 0775, true);
+    $io = new BufferedIO();
+    $console = FoundationConsole::create(
+        static fn(?string $profile) => Foundation::console([
+            'base_path' => $basePath,
+            'env' => $profile ?? 'testing',
+            '_config_cache' => false,
+        ]),
+    )->withIO($io);
+    $artifacts = [
+        ['create:class', 'Services/ReportBuilder', 'app/Services/ReportBuilder.php', 'final class ReportBuilder'],
+        ['create:command', 'Reports/Daily', 'app/Console/Commands/Reports/DailyCommand.php', "->name('reports:daily')"],
+        ['create:controller', 'Admin/User', 'app/Http/Controllers/Admin/UserController.php', 'final readonly class UserController'],
+        ['create:enum', 'OrderStatus', 'app/Enums/OrderStatus.php', 'enum OrderStatus'],
+        ['create:event', 'UserRegistered', 'app/Events/UserRegisteredEvent.php', 'final readonly class UserRegisteredEvent'],
+        ['create:exception', 'BillingFailed', 'app/Exceptions/BillingFailedException.php', 'extends \RuntimeException'],
+        ['create:interface', 'BillingGateway', 'app/Contracts/BillingGatewayInterface.php', 'interface BillingGatewayInterface'],
+        ['create:job', 'Billing/SendReceipt', 'app/Jobs/Billing/SendReceiptJob.php', 'final readonly class SendReceiptJob'],
+        ['create:listener', 'SendWelcomeEmail', 'app/Listeners/SendWelcomeEmailListener.php', 'public function __invoke(object $event): void'],
+        ['create:middleware', 'EnsureTenant', 'app/Http/Middleware/EnsureTenantMiddleware.php', 'final readonly class EnsureTenantMiddleware'],
+        ['create:policy', 'Invoice', 'app/Policies/InvoicePolicy.php', 'implements PolicyInterface'],
+        ['create:provider', 'Billing', 'app/Providers/BillingServiceProvider.php', 'final class BillingServiceProvider'],
+        ['create:repository', 'User', 'app/Repositories/UserRepository.php', "return 'users';"],
+        ['create:service', 'Billing', 'app/Services/BillingService.php', 'final class BillingService'],
+        ['create:test', 'Http/UserAccess', 'tests/Feature/Http/UserAccessTest.php', "it('user access')->todo()"],
+        ['create:trait', 'FormatsMoney', 'app/Concerns/FormatsMoneyTrait.php', 'trait FormatsMoneyTrait'],
+        ['create:worker', 'Queue', 'app/Console/Workers/QueueWorker.php', 'implements WorkerProvider, WorkloadProbe'],
+    ];
+
+    try {
+        foreach ($artifacts as [$command, $name, $relative, $expected]) {
+            expect($console->run(['foundation', $command, $name]))->toBe(ExitCode::SUCCESS);
+            $path = $basePath . '/' . $relative;
+            $contents = file_get_contents($path);
+            if ($contents === false) {
+                throw new RuntimeException('Unable to read generated artifact: ' . $path);
+            }
+
+            expect($path)->toBeFile()
+                ->and($contents)->toContain($expected);
+            token_get_all($contents, TOKEN_PARSE);
+        }
+
+        expect(implode("\n", $io->output()))
+            ->toContain('Register App\\Console\\Commands\\Reports\\DailyCommand in routes/console.php.')
+            ->toContain('Assign App\\Providers\\BillingServiceProvider to common, web, or console')
+            ->toContain('Map a worker name to App\\Console\\Workers\\QueueWorker in routes/workers.php.');
+    } finally {
+        foundationConsoleRemoveDirectory($basePath);
+    }
+});
+
+it('protects generated artifacts from traversal and accidental replacement', function (): void {
+    $basePath = sys_get_temp_dir() . '/foundation-create-safety-' . bin2hex(random_bytes(5));
+    mkdir($basePath, 0775, true);
+    $console = FoundationConsole::create(
+        static fn(?string $profile) => Foundation::console([
+            'base_path' => $basePath,
+            'env' => $profile ?? 'testing',
+            '_config_cache' => false,
+        ]),
+    )->withIO(new BufferedIO());
+
+    try {
+        expect($console->run(['foundation', 'create:controller', 'Health']))
+            ->toBe(ExitCode::SUCCESS);
+        $path = $basePath . '/app/Http/Controllers/HealthController.php';
+        file_put_contents($path, 'preserve');
+
+        expect($console->run(['foundation', 'create:controller', 'Health']))
+            ->toBe(ExitCode::INVALID_USAGE)
+            ->and(file_get_contents($path))->toBe('preserve')
+            ->and($console->run(['foundation', 'create:controller', 'Health', '--force']))
+            ->toBe(ExitCode::SUCCESS)
+            ->and(file_get_contents($path))->toContain('final readonly class HealthController')
+            ->and($console->run(['foundation', 'create:service', 'MailService']))
+            ->toBe(ExitCode::SUCCESS)
+            ->and($basePath . '/app/Services/MailService.php')->toBeFile()
+            ->and($console->run(['foundation', 'create:class', '../Outside']))
+            ->toBe(ExitCode::INVALID_USAGE)
+            ->and($console->run(['foundation', 'create:repository', 'Person', '--table=invalid-name']))
+            ->toBe(ExitCode::INVALID_USAGE)
+            ->and($console->run(['foundation', 'create:repository', 'Person', '--table=reporting..people']))
+            ->toBe(ExitCode::INVALID_USAGE)
+            ->and($basePath . '/Outside.php')->not->toBeFile();
+    } finally {
+        foundationConsoleRemoveDirectory($basePath);
+    }
+});
 
 function foundationConsoleRemoveDirectory(string $directory): void
 {
