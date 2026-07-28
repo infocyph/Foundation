@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Infocyph\Console\Command\Command;
+use Infocyph\Console\Command\CommandDefinition;
 use Infocyph\Console\Command\ExitCode;
 use Infocyph\Console\Discovery\CommandManifestCompiler;
 use Infocyph\Console\IO\BufferedIO;
@@ -9,6 +11,21 @@ use Infocyph\Foundation\Console\Command\AppReadyCommand;
 use Infocyph\Foundation\Console\FoundationConsole;
 use Infocyph\Foundation\Console\FoundationConsoleRuntime;
 use Infocyph\Foundation\Foundation;
+
+final class FoundationUserListFixtureCommand extends Command
+{
+    public static function define(CommandDefinition $command): void
+    {
+        $command
+            ->name('reports:daily')
+            ->description('Build the daily report.');
+    }
+
+    protected function handle(): int
+    {
+        return ExitCode::SUCCESS;
+    }
+}
 
 it('keeps console preflight paths independent of Foundation boot', function (array $arguments): void {
     $created = false;
@@ -34,6 +51,31 @@ it('keeps console preflight paths independent of Foundation boot', function (arr
     'list' => [['foundation-test', 'list']],
     'version' => [['foundation-test', '--version']],
 ]);
+
+it('lists Foundation commands under System and application commands by namespace', function (): void {
+    $created = false;
+    $io = new BufferedIO();
+    $console = FoundationConsole::create(
+        static function (?string $_profile) use (&$created) {
+            $created = true;
+
+            return Foundation::console([
+                'base_path' => sys_get_temp_dir(),
+                'env' => $_profile ?? 'testing',
+                '_config_cache' => false,
+            ]);
+        },
+        name: 'foundation-test',
+        commands: ['reports:daily' => FoundationUserListFixtureCommand::class],
+    )->withIO($io);
+
+    expect($console->run(['foundation-test', 'list']))->toBe(ExitCode::SUCCESS)
+        ->and($io->outputText())->toContain(
+            "Available commands:\n\nSystem:\n  app:ready",
+            "\n\nreports:\n  reports:daily",
+        )
+        ->and($created)->toBeFalse();
+});
 
 it('boots preflight commands from a compiled command manifest', function (): void {
     $created = false;

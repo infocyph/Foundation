@@ -142,6 +142,7 @@ final class FoundationConsole
         $builder = ConsoleApplication::configure()
             ->name($name)
             ->version($version)
+            ->commandGroup('System', ...array_keys(self::SYSTEM_COMMANDS))
             ->containerProvider($runtime)
             ->configurationProvider($runtime)
             ->lockProviderFactory($runtime->lockProvider(...));

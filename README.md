@@ -247,6 +247,11 @@ Foundation's operational commands, including `config:*`, `route:*`,
 `schedule:*`, `worker:*`, `create:*`, `module:*`, `auth:schema:*`, and
 `app:ready`, are predefined by Foundation and must not be redeclared in the
 application route map.
+`php infbyte list` presents every Foundation-owned command under `System`.
+Application commands are grouped by the first namespace segment in their route
+name, so `reports:daily` appears under `reports`; an unnamespaced application
+command appears under `Application`. Listing remains a preflight operation and
+does not boot Foundation or construct commands.
 
 Foundation keeps its application stubs in the package and writes an artifact
 only when its generator is invoked:
