@@ -35,6 +35,10 @@ final class ProductionPreset implements FoundationPreset
             'database' => [
                 'default' => 'primary',
             ],
+            'logging' => [
+                'driver' => 'file',
+                'level' => 'warning',
+            ],
             'notifications' => [
                 'auth' => [
                     'transport' => 'replace-me',

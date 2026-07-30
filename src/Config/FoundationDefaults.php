@@ -57,6 +57,14 @@ final class FoundationDefaults
             'database' => [
                 'default' => null,
                 'connections' => [],
+                'migrations' => [
+                    'classes' => [],
+                    'table' => 'migrations',
+                    'lock_store' => null,
+                    'lock_wait_seconds' => 10.0,
+                    'lock_lease_seconds' => 300.0,
+                ],
+                'seeders' => [],
             ],
             'communication' => [
                 'http' => [
@@ -272,6 +280,48 @@ final class FoundationDefaults
                     'session' => 'uuid7',
                 ],
             ],
+            'logging' => [
+                'driver' => 'null',
+                'level' => 'warning',
+                'path' => null,
+                'redact' => [
+                    'authorization',
+                    'cookie',
+                    'password',
+                    'secret',
+                    'token',
+                ],
+                'exceptions' => [
+                    'include_message' => false,
+                    'include_trace' => false,
+                    'ignore' => [],
+                    'sample_rate' => 1.0,
+                    'throttle_seconds' => 0,
+                    'throttle_limit' => 1,
+                ],
+            ],
+            'messaging' => [
+                'default_route' => [
+                    'transport' => 'sync',
+                    'queue' => 'default',
+                    'delay_seconds' => 0.0,
+                ],
+                'routes' => [],
+                'handlers' => [],
+                'listeners' => [],
+                'scheduled_messages' => [],
+                'consumer' => [
+                    'transport' => 'memory',
+                ],
+                'retry' => [
+                    'maximum_attempts' => 3,
+                    'initial_delay_seconds' => 1.0,
+                    'multiplier' => 2.0,
+                    'maximum_delay_seconds' => 60.0,
+                    'jitter_ratio' => 0.0,
+                ],
+                'forward_auth_events' => false,
+            ],
             'notifications' => [
                 'auth' => [
                     'critical_types' => [
@@ -465,6 +515,13 @@ final class FoundationDefaults
                     'options' => [],
                 ],
                 'url_base_uri' => '',
+            ],
+            'responses' => [
+                'json_dispatch' => [
+                    'vendor' => 'infocyph',
+                    'application_version' => '1.0.0',
+                    'tunnel_errors' => false,
+                ],
             ],
             'security' => [
                 'password' => [

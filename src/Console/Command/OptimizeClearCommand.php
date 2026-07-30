@@ -8,6 +8,7 @@ use Infocyph\Console\Command\CommandDefinition;
 use Infocyph\Console\Command\ExitCode;
 use Infocyph\Foundation\Console\Support\CommandCacheManager;
 use Infocyph\Foundation\Console\Support\ConfigCacheManager;
+use Infocyph\Foundation\Console\Support\ModuleManifestManager;
 use Infocyph\Foundation\Console\Support\RouteCacheManager;
 use Infocyph\Foundation\Console\Support\ScheduleManager;
 
@@ -18,6 +19,7 @@ final class OptimizeClearCommand extends AbstractFoundationCommand
         private readonly RouteCacheManager $routes,
         private readonly CommandCacheManager $commands,
         private readonly ScheduleManager $schedule,
+        private readonly ModuleManifestManager $modules,
     ) {}
 
     public static function define(CommandDefinition $command): void
@@ -35,6 +37,7 @@ final class OptimizeClearCommand extends AbstractFoundationCommand
             $this->routes->clear($matcher, $this->routes->cachePath(null), true);
             $this->commands->clear('bootstrap/cache/console/commands.php');
             $this->schedule->clear();
+            $this->modules->clear();
         } catch (\Throwable $exception) {
             $this->io()->error('optimize:clear failed: ' . $exception->getMessage());
 

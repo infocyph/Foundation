@@ -213,8 +213,12 @@ it('lists direct Infocyph modules without running Composer', function (): void {
         'crypto',
         'db',
         'filesystem',
+        'logging',
+        'messaging',
         'otp',
         'passkeys',
+        'resources',
+        'session',
         'validation',
     ])->and($modules['db']['package'])->toBe('infocyph/dblayer')
         ->and($modules['db']['direct'])->toBeFalse()

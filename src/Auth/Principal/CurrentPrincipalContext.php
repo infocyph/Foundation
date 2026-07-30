@@ -8,29 +8,62 @@ use Infocyph\Foundation\Auth\Exception\AuthenticationException;
 
 final class CurrentPrincipalContext implements CurrentPrincipalProviderInterface
 {
-    private ?PrincipalInterface $principal = null;
+    /** @var \WeakMap<object, PrincipalInterface> */
+    private \WeakMap $fiberPrincipals;
+
+    private ?PrincipalInterface $mainPrincipal = null;
+
+    public function __construct()
+    {
+        $this->fiberPrincipals = new \WeakMap();
+    }
 
     public function clear(): void
     {
-        $this->principal = null;
+        $fiber = \Fiber::getCurrent();
+        if ($fiber === null) {
+            $this->mainPrincipal = null;
+
+            return;
+        }
+
+        unset($this->fiberPrincipals[$fiber]);
     }
 
     public function get(): ?PrincipalInterface
     {
-        return $this->principal;
+        $fiber = \Fiber::getCurrent();
+
+        return $fiber === null
+            ? $this->mainPrincipal
+            : ($this->fiberPrincipals[$fiber] ?? null);
     }
 
     public function require(): PrincipalInterface
     {
-        if ($this->principal === null) {
+        $principal = $this->get();
+        if ($principal === null) {
             throw new AuthenticationException('No current principal is available.');
         }
 
-        return $this->principal;
+        return $principal;
     }
 
     public function set(?PrincipalInterface $principal): void
     {
-        $this->principal = $principal;
+        if ($principal === null) {
+            $this->clear();
+
+            return;
+        }
+
+        $fiber = \Fiber::getCurrent();
+        if ($fiber === null) {
+            $this->mainPrincipal = $principal;
+
+            return;
+        }
+
+        $this->fiberPrincipals[$fiber] = $principal;
     }
 }

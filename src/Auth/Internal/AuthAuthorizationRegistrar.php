@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Internal;
 
+use Infocyph\Foundation\Auth\Authorization\Gate\AuditingAuthorizer;
 use Infocyph\Foundation\Auth\Authorization\Gate\AuthorizerInterface;
+use Infocyph\Foundation\Auth\Authorization\Gate\Gate;
 use Infocyph\Foundation\Auth\Authorization\Gate\PermissionAuthorizer;
 use Infocyph\Foundation\Auth\Authorization\Grant\DelegationManager;
 use Infocyph\Foundation\Auth\Authorization\Grant\GrantResolver;
@@ -13,6 +15,7 @@ use Infocyph\Foundation\Auth\Authorization\Permission\PermissionAssignmentStoreI
 use Infocyph\Foundation\Auth\Authorization\Permission\PermissionManager;
 use Infocyph\Foundation\Auth\Authorization\Permission\PermissionResolver;
 use Infocyph\Foundation\Auth\Authorization\Permission\PermissionStoreInterface;
+use Infocyph\Foundation\Auth\Authorization\Policy\PolicyResolverInterface;
 use Infocyph\Foundation\Auth\Authorization\Role\RoleAssignmentStoreInterface;
 use Infocyph\Foundation\Auth\Authorization\Role\RoleManager;
 use Infocyph\Foundation\Auth\Authorization\Role\RolePermissionResolver;
@@ -63,6 +66,18 @@ final readonly class AuthAuthorizationRegistrar extends AbstractAuthRegistrar
             rolePermissions: $this->app->make(RolePermissionResolver::class),
             grants: $this->app->make(GrantResolver::class),
         ));
-        $this->alias(AuthorizerInterface::class, PermissionAuthorizer::class);
+        $this->singleton(Gate::class, fn() => new Gate(
+            policyResolver: $this->container->has(PolicyResolverInterface::class)
+                ? $this->app->make(PolicyResolverInterface::class)
+                : null,
+            fallback: $this->app->make(PermissionAuthorizer::class),
+        ));
+        $this->singleton(AuditingAuthorizer::class, fn() => new AuditingAuthorizer(
+            inner: $this->app->make(Gate::class),
+            audit: $this->app->make(AuditEventStoreInterface::class),
+            ids: $this->app->make(AuthIdGeneratorInterface::class),
+            clock: $this->app->make(ClockInterface::class),
+        ));
+        $this->alias(AuthorizerInterface::class, AuditingAuthorizer::class);
     }
 }

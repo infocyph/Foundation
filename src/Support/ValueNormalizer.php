@@ -37,6 +37,11 @@ final class ValueNormalizer
         };
     }
 
+    public static function float(mixed $value, float $default): float
+    {
+        return is_numeric($value) ? (float) $value : $default;
+    }
+
     public static function int(mixed $value, int $default): int
     {
         return is_numeric($value) ? (int) $value : $default;

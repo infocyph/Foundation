@@ -110,6 +110,7 @@ final readonly class ConfigValidator
         $this->validateDriver($issues, 'auth.drivers.passwords', $this->stringConfig('auth.drivers.passwords', 'native'), AuthPasswordDriver::class);
         $this->validateDriver($issues, 'auth.drivers.storage', $this->stringConfig('auth.drivers.storage', 'memory'), AuthStorageDriver::class);
         $this->validateDriver($issues, 'auth.drivers.tokens', $this->stringConfig('auth.drivers.tokens', 'simple'), AuthTokenDriver::class);
+        $issues = [...$issues, ...new RuntimeConfigValidator($this->config)->validate()];
 
         $storageDriver = $this->stringConfig('auth.drivers.storage', 'memory');
         $cacheDriver = $this->stringConfig('auth.drivers.cache', 'array');

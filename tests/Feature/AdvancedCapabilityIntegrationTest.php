@@ -57,7 +57,7 @@ it('supports secure HOTP and OCRA MFA workflows', function (): void {
         ],
     ])->boot();
 
-    $mfa = $app->auth()->mfa;
+    $mfa = $app->auth()->mfa();
     $hotp = new HOTP('JBSWY3DPEHPK3PXP');
     $hotpEnrollment = $mfa->enrollFactor(
         'account-hotp',

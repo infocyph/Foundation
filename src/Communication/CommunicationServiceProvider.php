@@ -31,7 +31,9 @@ final class CommunicationServiceProvider extends ServiceProvider
             container: $container,
         ), LifetimeEnum::Singleton);
 
-        $this->bindFactory($container, HttpClient::class, fn(): HttpClient => $this->manager($container)->httpClient(), LifetimeEnum::Singleton);
+        if (!$container->has(HttpClient::class)) {
+            $this->bindFactory($container, HttpClient::class, fn(): HttpClient => $this->manager($container)->httpClient(), LifetimeEnum::Singleton);
+        }
         $this->bindFactory($container, WebhookSender::class, fn(): WebhookSender => $this->manager($container)->webhookSender(), LifetimeEnum::Singleton);
         $this->bindFactory($container, WebhookVerifier::class, fn(): WebhookVerifier => $this->manager($container)->webhookVerifier(), LifetimeEnum::Singleton);
         $this->bindFactory($container, WebhookReceiver::class, fn(): WebhookReceiver => $this->manager($container)->webhookReceiver(), LifetimeEnum::Singleton);

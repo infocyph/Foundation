@@ -15,6 +15,7 @@ use Infocyph\Foundation\Config\ConfigLoader;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Config\ConfigValidationResult;
 use Infocyph\Foundation\Config\ConfigValidator;
+use Infocyph\Foundation\Console\Support\ModuleManifestManager;
 use Infocyph\Foundation\Container\ContainerFactory;
 use Infocyph\Foundation\Data\DataManager;
 use Infocyph\Foundation\Database\DatabaseManager;
@@ -22,10 +23,17 @@ use Infocyph\Foundation\Exception\ServiceResolutionException;
 use Infocyph\Foundation\Filesystem\FilesystemManager;
 use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\Foundation\Http\HttpKernel;
+use Infocyph\Foundation\Http\JsonDispatch\JsonDispatchResponseFactory;
 use Infocyph\Foundation\Identifiers\IdentifierManager;
+use Infocyph\Foundation\Messaging\MessagingManager;
 use Infocyph\Foundation\Notifications\NotificationManager;
 use Infocyph\Foundation\Routing\RouterManager;
+use Infocyph\Foundation\Runtime\RuntimeContextResetter;
 use Infocyph\Foundation\Security\SecurityManager;
+use Infocyph\Foundation\Session\BrowserSession;
+use Infocyph\Foundation\Session\SessionDatabaseSchema;
+use Infocyph\Foundation\Session\SessionManager;
+use Infocyph\Foundation\Testing\TestKit;
 use Infocyph\Foundation\Validation\ValidationManager;
 use Infocyph\InterMix\DI\Container;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
@@ -113,6 +121,11 @@ final class Application
     public function bootstrapPath(string $path = ''): string
     {
         return $this->paths()->bootstrap($path);
+    }
+
+    public function browserSession(): BrowserSession
+    {
+        return $this->session()->current();
     }
 
     public function cache(): CacheManager
@@ -236,6 +249,11 @@ final class Application
         }
     }
 
+    public function messaging(): MessagingManager
+    {
+        return $this->boot()->make(MessagingManager::class);
+    }
+
     public function notifications(): NotificationManager
     {
         return $this->boot()->make(NotificationManager::class);
@@ -268,8 +286,15 @@ final class Application
      *   cache: array<string, mixed>,
      *   config: array<string, mixed>,
      *   database: array<string, mixed>,
+     *   logging: array<string, mixed>,
+     *   messaging: array<string, mixed>,
+     *   migrations: array<string, mixed>,
+     *   modules: array<string, mixed>,
      *   notifications: array<string, mixed>,
-     *   paths: array<string, mixed>
+     *   optimization: array<string, mixed>,
+     *   paths: array<string, mixed>,
+     *   resources: array<string, mixed>,
+     *   sessions: array<string, mixed>
      * }
      */
     public function readinessReport(): array
@@ -279,42 +304,32 @@ final class Application
         $usesDatabase = $this->stringConfig('auth.drivers.storage', 'memory') === 'database';
         $databaseConfigured = $this->databaseConfigured();
         $authConnection = $this->authConnectionName();
-        $authSchema = [
-            'installed' => false,
-            'installed_tables' => [],
-            'missing_tables' => [],
-        ];
-        $databaseIssues = [];
+        $authSchema = $this->authSchemaReadiness($databaseConfigured, $authConnection);
+        $databaseIssues = $usesDatabase && $authSchema['installed'] !== true
+            ? ['Auth DB schema is not installed.']
+            : [];
         $cacheWarnings = $this->cacheReadinessWarnings($usesSharedCache);
         $clusterStatus = $this->clusterReadinessStatus();
-
-        if ($databaseConfigured) {
-            try {
-                $authSchema = $this->db()->authSchema()->readiness($authConnection);
-            } catch (\Throwable) {
-                $authSchema = [
-                    'installed' => false,
-                    'installed_tables' => [],
-                    'missing_tables' => [],
-                ];
-            }
-        }
-
-        if ($usesDatabase && $authSchema['installed'] !== true) {
-            $databaseIssues[] = 'Auth DB schema is not installed.';
-        }
 
         $auth = $this->authReadinessReport();
         $pathIssues = $this->pathIssues();
         $notificationsTransport = $this->stringConfig('notifications.auth.transport', 'null');
         $notificationsConfigured = $notificationsTransport !== '' && $notificationsTransport !== 'null' && $notificationsTransport !== 'replace-me';
+        $migrations = $this->migrationReadiness($databaseConfigured);
+        $sessions = $this->sessionReadiness($databaseConfigured);
+        $messaging = $this->messagingReadiness();
 
         return [
-            'production_ready' => !$configResult->fails()
-                && $auth['production_ready'] === true
-                && (!$usesDatabase || $authSchema['installed'] === true)
-                && $databaseIssues === []
-                && (!$this->isProduction() || $pathIssues === []),
+            'production_ready' => $this->productionReady(
+                $configResult,
+                $auth,
+                $usesDatabase,
+                $authSchema,
+                $databaseIssues,
+                $migrations,
+                $sessions,
+                $pathIssues,
+            ),
             'auth' => $auth,
             'cache' => [
                 'configured' => $this->config()->has('cache.stores.' . $this->stringConfig('cache.default', '')),
@@ -334,6 +349,14 @@ final class Application
                 'default' => $this->config()->get('database.default'),
                 'issues' => $databaseIssues,
             ],
+            'logging' => [
+                'configured' => $this->stringConfig('logging.driver', 'null') !== 'null',
+                'driver' => $this->stringConfig('logging.driver', 'null'),
+                'level' => $this->stringConfig('logging.level', 'warning'),
+            ],
+            'messaging' => $messaging,
+            'migrations' => $migrations,
+            'modules' => $this->moduleReadiness(),
             'paths' => $this->paths()->all() + ['issues' => $pathIssues],
             'notifications' => [
                 'configured' => $notificationsConfigured,
@@ -341,6 +364,21 @@ final class Application
                 'fail_silently' => (bool) $this->config()->get('notifications.auth.fail_silently', false),
                 'transport' => $notificationsTransport,
             ],
+            'optimization' => $this->optimizationReadiness(),
+            'resources' => [
+                'application_version' => $this->stringConfig(
+                    'responses.json_dispatch.application_version',
+                    '1.0.0',
+                ),
+                'configured' => is_file($this->configPath('responses.php')),
+                'specification' => JsonDispatchResponseFactory::SPECIFICATION_VERSION,
+                'tunnel_errors' => (bool) $this->config()->get(
+                    'responses.json_dispatch.tunnel_errors',
+                    false,
+                ),
+                'vendor' => $this->stringConfig('responses.json_dispatch.vendor', 'infocyph'),
+            ],
+            'sessions' => $sessions,
         ];
     }
 
@@ -354,6 +392,11 @@ final class Application
     public function resourcesPath(string $path = ''): string
     {
         return $this->paths()->resources($path);
+    }
+
+    public function responses(): JsonDispatchResponseFactory
+    {
+        return $this->boot()->make(JsonDispatchResponseFactory::class);
     }
 
     public function router(): RouterManager
@@ -386,6 +429,11 @@ final class Application
         return $this->boot()->make(SecurityManager::class);
     }
 
+    public function session(): SessionManager
+    {
+        return $this->boot()->make(SessionManager::class);
+    }
+
     public function sessionsPath(string $path = ''): string
     {
         return $this->paths()->sessions($path);
@@ -394,6 +442,11 @@ final class Application
     public function storagePath(string $path = ''): string
     {
         return $this->paths()->storage($path);
+    }
+
+    public function testing(): TestKit
+    {
+        return new TestKit($this);
     }
 
     public function uploadsPath(string $path = ''): string
@@ -442,12 +495,36 @@ final class Application
         }
     }
 
+    /**
+     * @return array{installed:bool,installed_tables:list<string>,missing_tables:list<string>}
+     */
+    private function authSchemaReadiness(bool $databaseConfigured, ?string $connection): array
+    {
+        if ($databaseConfigured) {
+            try {
+                return $this->db()->authSchema()->readiness($connection);
+            } catch (\Throwable) {
+            }
+        }
+
+        return [
+            'installed' => false,
+            'installed_tables' => [],
+            'missing_tables' => [],
+        ];
+    }
+
     private function bindCoreServices(): void
     {
         $this->container->bind(self::class, $this, LifetimeEnum::Singleton);
         $this->container->bind(RuntimeMode::class, $this->runtimeMode, LifetimeEnum::Singleton);
         $this->container->bind(ConfigRepository::class, $this->config, LifetimeEnum::Singleton);
         $this->container->bind(Container::class, $this->container, LifetimeEnum::Singleton);
+        $this->container->bind(
+            RuntimeContextResetter::class,
+            new RuntimeContextResetter($this->container),
+            LifetimeEnum::Singleton,
+        );
     }
 
     /**
@@ -494,6 +571,13 @@ final class Application
         return $statuses;
     }
 
+    private function configuredMapCount(string $key): int
+    {
+        $configured = $this->config()->get($key, []);
+
+        return is_array($configured) ? count($configured) : 0;
+    }
+
     private function databaseConfigured(): bool
     {
         $connection = $this->authConnectionName();
@@ -504,6 +588,87 @@ final class Application
         $configured = $this->config()->get('database.connections.' . $connection);
 
         return is_array($configured) && $configured !== [];
+    }
+
+    /**
+     * @return array{configured:bool,handlers:int,listeners:int,routes:int,scheduled_messages:int}
+     */
+    private function messagingReadiness(): array
+    {
+        $handlers = $this->configuredMapCount('messaging.handlers');
+        $listeners = $this->configuredMapCount('messaging.listeners');
+        $routes = $this->configuredMapCount('messaging.routes');
+        $scheduled = $this->configuredMapCount('messaging.scheduled_messages');
+
+        return [
+            'configured' => $handlers + $listeners + $routes + $scheduled > 0
+                || (bool) $this->config()->get('messaging.forward_auth_events', false),
+            'handlers' => $handlers,
+            'listeners' => $listeners,
+            'routes' => $routes,
+            'scheduled_messages' => $scheduled,
+        ];
+    }
+
+    /**
+     * @return array{configured:bool,count:int,issues:list<string>,pending:list<string>}
+     */
+    private function migrationReadiness(bool $databaseConfigured): array
+    {
+        $configured = $this->config()->get('database.migrations.classes', []);
+        $count = is_array($configured) ? count($configured) : 0;
+        $report = [
+            'configured' => $count > 0,
+            'count' => $count,
+            'issues' => [],
+            'pending' => [],
+        ];
+        if ($count === 0) {
+            return $report;
+        }
+        if (!$databaseConfigured) {
+            $report['issues'][] = 'Migrations are registered without a default database connection.';
+
+            return $report;
+        }
+
+        try {
+            foreach ($this->db()->migrations()->runner()->status() as $migration) {
+                if ($migration['applied'] !== true) {
+                    $report['pending'][] = $migration['id'];
+                }
+            }
+        } catch (\Throwable $exception) {
+            $report['issues'][] = $exception->getPrevious()?->getMessage()
+                ?? $exception->getMessage();
+        }
+
+        return $report;
+    }
+
+    /**
+     * @return array{compiled:bool,count:int,issues:list<string>,path:string}
+     */
+    private function moduleReadiness(): array
+    {
+        $path = $this->basePath('bootstrap/cache/modules.php');
+        $report = [
+            'compiled' => is_file($path),
+            'count' => 0,
+            'issues' => [],
+            'path' => $path,
+        ];
+        if (!$report['compiled']) {
+            return $report;
+        }
+
+        try {
+            $report['count'] = count(new ModuleManifestManager($this)->load());
+        } catch (\Throwable $exception) {
+            $report['issues'][] = $exception->getMessage();
+        }
+
+        return $report;
     }
 
     /**
@@ -529,6 +694,26 @@ final class Application
     }
 
     /**
+     * @return array{
+     *   commands:bool,
+     *   config:bool,
+     *   modules:bool,
+     *   routes:bool,
+     *   schedule:bool
+     * }
+     */
+    private function optimizationReadiness(): array
+    {
+        return [
+            'commands' => is_file($this->basePath('bootstrap/cache/console/commands.php')),
+            'config' => $this->config()->isCompiled(),
+            'modules' => is_file($this->basePath('bootstrap/cache/modules.php')),
+            'routes' => \Infocyph\Foundation\Routing\RouteCachePath::isWarm($this->config()),
+            'schedule' => is_file($this->basePath('bootstrap/cache/console/schedule.php')),
+        ];
+    }
+
+    /**
      * @return list<string>
      */
     private function pathIssues(): array
@@ -548,6 +733,74 @@ final class Application
         }
 
         return $issues;
+    }
+
+    /**
+     * @param array<string, mixed> $auth
+     * @param array<string, mixed> $authSchema
+     * @param list<string> $databaseIssues
+     * @param array<string, mixed> $migrations
+     * @param array<string, mixed> $sessions
+     * @param list<string> $pathIssues
+     */
+    private function productionReady(
+        ConfigValidationResult $config,
+        array $auth,
+        bool $usesDatabase,
+        array $authSchema,
+        array $databaseIssues,
+        array $migrations,
+        array $sessions,
+        array $pathIssues,
+    ): bool {
+        return !$config->fails()
+            && $auth['production_ready'] === true
+            && (!$usesDatabase || $authSchema['installed'] === true)
+            && $databaseIssues === []
+            && $migrations['issues'] === []
+            && $migrations['pending'] === []
+            && $sessions['issues'] === []
+            && (!$this->isProduction() || $pathIssues === []);
+    }
+
+    /**
+     * @return array{
+     *   configured:bool,
+     *   driver:string,
+     *   issues:list<string>,
+     *   schema:array{installed:bool,table:string,connection:string|null}|null
+     * }
+     */
+    private function sessionReadiness(bool $databaseConfigured): array
+    {
+        $driver = $this->stringConfig('session.driver', 'array');
+        $configured = is_file($this->configPath('session.php')) || $driver !== 'array';
+        $report = [
+            'configured' => $configured,
+            'driver' => $driver,
+            'issues' => [],
+            'schema' => null,
+        ];
+        if (!$configured || $driver !== 'database') {
+            return $report;
+        }
+        if (!$databaseConfigured) {
+            $report['issues'][] = 'The database session driver requires a default database connection.';
+
+            return $report;
+        }
+
+        try {
+            $report['schema'] = $this->make(SessionDatabaseSchema::class)->readiness();
+            if ($report['schema']['installed'] !== true) {
+                $report['issues'][] = 'The browser-session database schema is not installed.';
+            }
+        } catch (\Throwable $exception) {
+            $report['issues'][] = $exception->getPrevious()?->getMessage()
+                ?? $exception->getMessage();
+        }
+
+        return $report;
     }
 
     private function stringConfig(string $key, string $default = ''): string

@@ -7,12 +7,14 @@ namespace Infocyph\Foundation\Auth\Internal;
 use Infocyph\Foundation\Auth\Account\AccountManager;
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpProvisioningService;
 use Infocyph\Foundation\Auth\Authentication\EmailVerification\{EmailVerificationManager, EmailVerificationTokenServiceInterface};
+use Infocyph\Foundation\Auth\Authentication\Impersonation\ImpersonationManager;
 use Infocyph\Foundation\Auth\Authentication\Lockout\{LockoutConfig, LockoutManager};
 use Infocyph\Foundation\Auth\Authentication\PasswordChange\PasswordChangeManager;
 use Infocyph\Foundation\Auth\Authentication\Passwordless\{PasswordlessManager, PasswordlessTokenServiceInterface};
 use Infocyph\Foundation\Auth\Authentication\PasswordReset\{PasswordResetManager, PasswordResetTokenServiceInterface};
 use Infocyph\Foundation\Auth\Authentication\RememberMe\{RememberMeManager, RememberTokenServiceInterface};
 use Infocyph\Foundation\Auth\Authentication\Session\{SessionConfig, SessionManager};
+use Infocyph\Foundation\Auth\Authentication\StepUp\StepUpManager;
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\{RefreshTokenServiceInterface, TokenAuthManager};
 use Infocyph\Foundation\Auth\Contract\Cache\{CounterStoreInterface, TtlStoreInterface};
 use Infocyph\Foundation\Auth\Contract\Security\{AccessTokenServiceInterface};
@@ -155,6 +157,17 @@ final readonly class AuthManagerRegistrar extends AbstractAuthRegistrar
         $this->singleton(DeviceManager::class, fn() => new DeviceManager(
             devices: $this->service(DeviceStoreInterface::class),
             ids: $this->idGenerator(),
+            clock: $this->clock(),
+        ));
+
+        $this->singleton(ImpersonationManager::class, fn() => new ImpersonationManager(
+            audit: $this->auditStore(),
+            ids: $this->idGenerator(),
+            clock: $this->clock(),
+        ));
+
+        $this->singleton(StepUpManager::class, fn() => new StepUpManager(
+            ttl: $this->service(TtlStoreInterface::class),
             clock: $this->clock(),
         ));
     }

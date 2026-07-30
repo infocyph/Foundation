@@ -18,13 +18,18 @@ use Infocyph\Foundation\Filesystem\FilesystemServiceProvider;
 use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\Foundation\Filesystem\PathServiceProvider;
 use Infocyph\Foundation\Http\HttpServiceProvider;
+use Infocyph\Foundation\Http\JsonDispatch\JsonDispatchServiceProvider;
 use Infocyph\Foundation\Identifiers\IdentifierServiceProvider;
+use Infocyph\Foundation\Logging\LoggingServiceProvider;
+use Infocyph\Foundation\Messaging\MessagingServiceProvider;
 use Infocyph\Foundation\Notifications\NotificationServiceProvider;
 use Infocyph\Foundation\Routing\RouteCachePath;
 use Infocyph\Foundation\Routing\RouteFileLoader;
 use Infocyph\Foundation\Routing\RoutingServiceProvider;
 use Infocyph\Foundation\Security\SecurityServiceProvider;
+use Infocyph\Foundation\Session\SessionServiceProvider;
 use Infocyph\Foundation\Validation\ValidationServiceProvider;
+use Psr\Log\LoggerInterface;
 
 final class Bootstrapper
 {
@@ -37,6 +42,7 @@ final class Bootstrapper
     private const array WEB_EAGER_PROVIDERS = [
         PathServiceProvider::class,
         RoutingServiceProvider::class,
+        LoggingServiceProvider::class,
         HttpServiceProvider::class,
     ];
 
@@ -225,6 +231,11 @@ final class Bootstrapper
                 'module' => 'db',
                 'package' => 'infocyph/dblayer',
             ],
+            MessagingServiceProvider::class => [
+                'class' => \Infocyph\Omnibus\MessageBus::class,
+                'module' => 'messaging',
+                'package' => 'infocyph/omnibus',
+            ],
             FilesystemServiceProvider::class => [
                 'class' => \Infocyph\Pathwise\PathwiseFacade::class,
                 'module' => 'filesystem',
@@ -291,10 +302,14 @@ final class Bootstrapper
             'foundation.files' => FilesystemServiceProvider::class,
             'foundation.filesystem' => FilesystemServiceProvider::class,
             'foundation.ids' => IdentifierServiceProvider::class,
+            'foundation.logging' => LoggingServiceProvider::class,
+            'foundation.messaging' => MessagingServiceProvider::class,
             'foundation.notifications' => NotificationServiceProvider::class,
             'foundation.paths' => PathServiceProvider::class,
             'foundation.router' => RoutingServiceProvider::class,
+            'foundation.responses' => JsonDispatchServiceProvider::class,
             'foundation.security' => SecurityServiceProvider::class,
+            'foundation.session' => SessionServiceProvider::class,
             'foundation.uid' => IdentifierServiceProvider::class,
             'foundation.validator' => ValidationServiceProvider::class,
         ];
@@ -311,17 +326,24 @@ final class Bootstrapper
             $service === PathServiceProvider::class => PathServiceProvider::class,
             str_starts_with($service, 'Infocyph\\Foundation\\Filesystem\\') => FilesystemServiceProvider::class,
             str_starts_with($service, 'Infocyph\\Foundation\\Identifiers\\') => IdentifierServiceProvider::class,
+            str_starts_with($service, 'Infocyph\\Foundation\\Logging\\'),
+            $service === LoggerInterface::class => LoggingServiceProvider::class,
+            str_starts_with($service, 'Infocyph\\Foundation\\Messaging\\') => MessagingServiceProvider::class,
             str_starts_with($service, 'Infocyph\\Foundation\\Http\\Middleware\\'),
             str_starts_with($service, 'Infocyph\\Foundation\\Http\\Resolver\\') => AuthServiceProvider::class,
+            str_starts_with($service, 'Infocyph\\Foundation\\Http\\JsonDispatch\\'),
+            str_starts_with($service, 'Infocyph\\Foundation\\Http\\Resource\\') => JsonDispatchServiceProvider::class,
             str_starts_with($service, 'Infocyph\\Foundation\\Http\\') => HttpServiceProvider::class,
             str_starts_with($service, 'Infocyph\\Foundation\\Notifications\\') => NotificationServiceProvider::class,
             str_starts_with($service, 'Infocyph\\Foundation\\Routing\\') => RoutingServiceProvider::class,
             str_starts_with($service, 'Infocyph\\Foundation\\Security\\') => SecurityServiceProvider::class,
+            str_starts_with($service, 'Infocyph\\Foundation\\Session\\') => SessionServiceProvider::class,
             str_starts_with($service, 'Infocyph\\Foundation\\Validation\\') => ValidationServiceProvider::class,
             str_starts_with($service, 'Infocyph\\TalkingBytes\\Email\\') => NotificationServiceProvider::class,
             str_starts_with($service, 'Infocyph\\TalkingBytes\\Grpc\\'),
             str_starts_with($service, 'Infocyph\\TalkingBytes\\Http\\'),
             str_starts_with($service, 'Infocyph\\TalkingBytes\\Webhook\\') => CommunicationServiceProvider::class,
+            str_starts_with($service, 'Infocyph\\Omnibus\\') => MessagingServiceProvider::class,
             default => null,
         };
     }

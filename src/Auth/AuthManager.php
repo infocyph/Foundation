@@ -23,12 +23,12 @@ final readonly class AuthManager
 
     public function authenticator(): AuthenticatorInterface
     {
-        return $this->services->authenticator;
+        return $this->services->authenticator();
     }
 
     public function authorizer(): AuthorizerInterface
     {
-        return $this->services->authorizer;
+        return $this->services->authorizer();
     }
 
     public function driver(string $name, ?string $default = null): ?string
@@ -53,7 +53,7 @@ final readonly class AuthManager
 
     public function principal(): CurrentPrincipalContext
     {
-        return $this->services->principals;
+        return $this->services->principals();
     }
 
     /**

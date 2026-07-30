@@ -26,7 +26,9 @@ final readonly class AuthCoreRegistrar
 
     public function register(AuthDriverResolver $drivers): void
     {
-        $this->container->bind(ClockInterface::class, new SystemClock(), LifetimeEnum::Singleton);
+        if (!$this->container->has(ClockInterface::class)) {
+            $this->container->bind(ClockInterface::class, new SystemClock(), LifetimeEnum::Singleton);
+        }
         $this->container->bind(AuthDriverResolver::class, $drivers, LifetimeEnum::Singleton);
         $this->container->factory(AuthIdGeneratorInterface::class, function () use ($drivers): AuthIdGeneratorInterface {
             if ($drivers->ids() !== AuthIdDriver::UID) {

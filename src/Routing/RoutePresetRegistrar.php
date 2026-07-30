@@ -14,7 +14,8 @@ final readonly class RoutePresetRegistrar
         'api-auth' => ['resolve-auth', 'auth'],
         'mfa-auth' => ['resolve-auth', 'auth', 'mfa'],
         'verified-auth' => ['resolve-auth', 'auth', 'verified'],
-        'web-auth' => ['resolve-auth', 'auth'],
+        'web' => ['session', 'csrf'],
+        'web-auth' => ['session', 'csrf', 'resolve-auth', 'auth'],
     ];
 
     private const array GROUP_ALIASES = [

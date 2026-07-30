@@ -52,7 +52,9 @@ final class NotificationServiceProvider extends ServiceProvider
         $container->bind(BounceParser::class, new BounceParser(), LifetimeEnum::Singleton);
         $container->bind(AuthenticationResultsParser::class, new AuthenticationResultsParser(), LifetimeEnum::Singleton);
 
-        $this->bindFactory($container, Emailer::class, fn() => $this->createEmailer($app), LifetimeEnum::Singleton);
+        if (!$container->has(Emailer::class)) {
+            $this->bindFactory($container, Emailer::class, fn() => $this->createEmailer($app), LifetimeEnum::Singleton);
+        }
         $this->bindFactory($container, 'foundation.notifications.emailer', fn() => $container->get(Emailer::class), LifetimeEnum::Singleton);
 
         $this->bindFactory($container, NotificationManager::class, fn() => new NotificationManager(

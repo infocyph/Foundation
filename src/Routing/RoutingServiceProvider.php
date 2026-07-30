@@ -8,6 +8,7 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
+use Psr\Log\LoggerInterface;
 
 final class RoutingServiceProvider extends ServiceProvider
 {
@@ -18,11 +19,13 @@ final class RoutingServiceProvider extends ServiceProvider
         $this->bindFactory($container, WebrickMiddlewareFactory::class, fn() => new WebrickMiddlewareFactory(
             app: $app,
             config: $app->config(),
+            logger: $app->make(LoggerInterface::class),
         ), LifetimeEnum::Singleton);
         $this->bindFactory($container, WebrickRouterFactory::class, fn() => new WebrickRouterFactory(
             $app->config(),
             $app->make(WebrickMiddlewareFactory::class),
             $container,
+            $app->make(LoggerInterface::class),
         ), LifetimeEnum::Singleton);
 
         $this->bindFactory($container, RouteMiddlewareRegistrar::class, fn() => new RouteMiddlewareRegistrar($app), LifetimeEnum::Singleton);

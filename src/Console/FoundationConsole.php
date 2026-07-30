@@ -32,6 +32,13 @@ use Infocyph\Foundation\Console\Command\CreateServiceCommand;
 use Infocyph\Foundation\Console\Command\CreateTestCommand;
 use Infocyph\Foundation\Console\Command\CreateTraitCommand;
 use Infocyph\Foundation\Console\Command\CreateWorkerCommand;
+use Infocyph\Foundation\Console\Command\DatabaseSeedCommand;
+use Infocyph\Foundation\Console\Command\MigrateCommand;
+use Infocyph\Foundation\Console\Command\MigrateFreshCommand;
+use Infocyph\Foundation\Console\Command\MigrateRefreshCommand;
+use Infocyph\Foundation\Console\Command\MigrateResetCommand;
+use Infocyph\Foundation\Console\Command\MigrateRollbackCommand;
+use Infocyph\Foundation\Console\Command\MigrateStatusCommand;
 use Infocyph\Foundation\Console\Command\ModuleInstallCommand;
 use Infocyph\Foundation\Console\Command\ModuleListCommand;
 use Infocyph\Foundation\Console\Command\ModuleRemoveCommand;
@@ -44,11 +51,23 @@ use Infocyph\Foundation\Console\Command\ScheduleClearCommand;
 use Infocyph\Foundation\Console\Command\ScheduleListCommand;
 use Infocyph\Foundation\Console\Command\ScheduleRunCommand;
 use Infocyph\Foundation\Console\Command\ScheduleWorkCommand;
+use Infocyph\Foundation\Console\Command\SessionPruneCommand;
+use Infocyph\Foundation\Console\Command\SessionSchemaInstallCommand;
+use Infocyph\Foundation\Console\Command\SessionSchemaStatusCommand;
 use Infocyph\Foundation\Console\Command\WorkerListCommand;
 use Infocyph\Foundation\Console\Command\WorkerRunCommand;
+use Infocyph\InterMix\DI\Container;
+use Infocyph\Omnibus\Consumer\Command\ConsumerTask;
+use Infocyph\Omnibus\Scheduling\ScheduledMessageDispatcher;
 
 final class FoundationConsole
 {
+    /** @var array<string, class-string<CommandContract>> */
+    private const array MESSAGING_COMMANDS = [
+        'queue:consume' => \Infocyph\Console\Omnibus\ConsumeCommand::class,
+        'schedule:dispatch-message' => \Infocyph\Console\Omnibus\DispatchScheduledMessageCommand::class,
+    ];
+
     /** @var array<string, class-string<CommandContract>> */
     private const array SYSTEM_COMMANDS = [
         'app:ready' => AppReadyCommand::class,
@@ -75,6 +94,13 @@ final class FoundationConsole
         'create:test' => CreateTestCommand::class,
         'create:trait' => CreateTraitCommand::class,
         'create:worker' => CreateWorkerCommand::class,
+        'db:seed' => DatabaseSeedCommand::class,
+        'migrate' => MigrateCommand::class,
+        'migrate:fresh' => MigrateFreshCommand::class,
+        'migrate:refresh' => MigrateRefreshCommand::class,
+        'migrate:reset' => MigrateResetCommand::class,
+        'migrate:rollback' => MigrateRollbackCommand::class,
+        'migrate:status' => MigrateStatusCommand::class,
         'module:install' => ModuleInstallCommand::class,
         'module:list' => ModuleListCommand::class,
         'module:remove' => ModuleRemoveCommand::class,
@@ -87,6 +113,9 @@ final class FoundationConsole
         'schedule:list' => ScheduleListCommand::class,
         'schedule:run' => ScheduleRunCommand::class,
         'schedule:work' => ScheduleWorkCommand::class,
+        'session:prune' => SessionPruneCommand::class,
+        'session:schema:install' => SessionSchemaInstallCommand::class,
+        'session:schema:status' => SessionSchemaStatusCommand::class,
         'worker:list' => WorkerListCommand::class,
         'worker:run' => WorkerRunCommand::class,
     ];
@@ -99,7 +128,7 @@ final class FoundationConsole
      */
     public static function commands(array $applicationCommands): array
     {
-        $commands = self::SYSTEM_COMMANDS;
+        $commands = self::SYSTEM_COMMANDS + self::MESSAGING_COMMANDS;
 
         foreach ($applicationCommands as $name => $command) {
             if (!is_string($name) || $name === '') {
@@ -145,7 +174,22 @@ final class FoundationConsole
             ->commandGroup('System', ...array_keys(self::SYSTEM_COMMANDS))
             ->containerProvider($runtime)
             ->configurationProvider($runtime)
-            ->lockProviderFactory($runtime->lockProvider(...));
+            ->lockProviderFactory($runtime->lockProvider(...))
+            ->configureContainer(static function (Container $container) use ($runtime): void {
+                if (!$container->has(ConsumerTask::class)) {
+                    $container->factory(
+                        ConsumerTask::class,
+                        static fn() => $runtime->application()->make(ConsumerTask::class),
+                    )->singleton();
+                }
+                if (!$container->has(ScheduledMessageDispatcher::class)) {
+                    $container->factory(
+                        ScheduledMessageDispatcher::class,
+                        static fn() => $runtime->application()->make(ScheduledMessageDispatcher::class),
+                    )->singleton();
+                }
+            })
+            ->omnibus();
 
         if ($commandManifest !== null && is_file($commandManifest)) {
             $builder->commandManifest($commandManifest);

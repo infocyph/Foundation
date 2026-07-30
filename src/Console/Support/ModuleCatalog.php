@@ -8,7 +8,8 @@ final class ModuleCatalog
 {
     /**
      * @var array<string, array{
-     *     package: string,
+     *     package: string|null,
+     *     built_in?: bool,
      *     description: string,
      *     aliases: list<string>,
      *     config: list<string>
@@ -45,6 +46,20 @@ final class ModuleCatalog
             'aliases' => ['files', 'pathwise'],
             'config' => ['filesystem.php'],
         ],
+        'logging' => [
+            'package' => null,
+            'built_in' => true,
+            'description' => 'Structured PSR-3 logging and redacted exception reporting.',
+            'aliases' => ['log', 'logs'],
+            'config' => ['logging.php'],
+        ],
+        'messaging' => [
+            'package' => null,
+            'built_in' => true,
+            'description' => 'Omnibus events, queues, scheduled messages, and worker scopes.',
+            'aliases' => ['events', 'omnibus', 'queue', 'queues'],
+            'config' => ['messaging.php'],
+        ],
         'otp' => [
             'package' => 'infocyph/otp',
             'description' => 'One-time passwords and OTP-backed MFA.',
@@ -57,6 +72,20 @@ final class ModuleCatalog
             'aliases' => ['passkey', 'webauthn'],
             'config' => [],
         ],
+        'resources' => [
+            'package' => null,
+            'built_in' => true,
+            'description' => 'JsonDispatch 3.0.0 resources, envelopes, issues, and pagination.',
+            'aliases' => ['json', 'jsondispatch', 'responses'],
+            'config' => ['responses.php'],
+        ],
+        'session' => [
+            'package' => null,
+            'built_in' => true,
+            'description' => 'Route-selected browser sessions, CSRF protection, flash data, and session locking.',
+            'aliases' => ['sessions'],
+            'config' => ['session.php'],
+        ],
         'validation' => [
             'package' => 'infocyph/reqshield',
             'description' => 'Request, command, configuration, and database validation.',
@@ -67,7 +96,8 @@ final class ModuleCatalog
 
     /**
      * @return array<string, array{
-     *     package: string,
+     *     package: string|null,
+     *     built_in?: bool,
      *     description: string,
      *     aliases: list<string>,
      *     config: list<string>
@@ -81,7 +111,8 @@ final class ModuleCatalog
     /**
      * @return array{
      *     name: string,
-     *     package: string,
+     *     package: string|null,
+     *     built_in?: bool,
      *     description: string,
      *     aliases: list<string>,
      *     config: list<string>
@@ -93,7 +124,7 @@ final class ModuleCatalog
 
         foreach (self::MODULES as $name => $definition) {
             if ($normalized === $name
-                || $normalized === $definition['package']
+                || ($definition['package'] !== null && $normalized === $definition['package'])
                 || in_array($normalized, $definition['aliases'], true)
             ) {
                 return ['name' => $name] + $definition;

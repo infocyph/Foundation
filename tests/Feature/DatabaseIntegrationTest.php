@@ -4,6 +4,13 @@ declare(strict_types=1);
 
 use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\Connection\ConnectionConfig;
+use Infocyph\DBLayer\Migration\MigrationRunner;
+use Infocyph\DBLayer\Migration\Migration;
+use Infocyph\DBLayer\Migration\MigrationContext;
+use Infocyph\DBLayer\Migration\SeedContext;
+use Infocyph\DBLayer\Migration\Seeder;
+use Infocyph\DBLayer\Schema\Blueprint;
+use Infocyph\DBLayer\Schema\SchemaManager;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Config\ConfigRuntime;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
@@ -12,17 +19,143 @@ use Infocyph\Foundation\Database\DatabaseConnectionResolver;
 use Infocyph\Foundation\Facades\DB;
 use Infocyph\Foundation\Foundation;
 
-it('keeps auth schema creation and teardown statements stable', function (): void {
+final class FoundationExampleMigration implements Migration
+{
+    public function down(SchemaManager $schema, MigrationContext $context): void
+    {
+        $context->checkpoint();
+        $schema->dropIfExists('foundation_examples');
+    }
+
+    public function id(): string
+    {
+        return '20260730000000_create_foundation_examples';
+    }
+
+    public function up(SchemaManager $schema, MigrationContext $context): void
+    {
+        $context->checkpoint();
+        $schema->create('foundation_examples', static function (Blueprint $table): void {
+            $table->increments();
+            $table->string('name');
+        });
+    }
+}
+
+final class FoundationExampleSeeder implements Seeder
+{
+    public function run(Connection $connection, SeedContext $context): void
+    {
+        expect($context->connection())->toBe($connection);
+        $connection->statement(
+            'INSERT INTO foundation_examples (name) VALUES (?)',
+            ['seeded'],
+        );
+    }
+}
+
+it('runs the auth schema through DBLayer migrations', function (): void {
     $tables = new AuthTables();
     $schema = new AuthSchema($tables);
-    $statements = $schema->statements();
-    $dropStatements = $schema->dropStatements();
+    $connection = new Connection(new ConnectionConfig([
+        'driver' => 'sqlite',
+        'database' => ':memory:',
+    ]));
+    $runner = new MigrationRunner($connection, [$schema]);
 
-    expect($dropStatements)->toHaveCount(count($tables->all()))
-        ->and($dropStatements[0])->toBe('DROP TABLE IF EXISTS auth_lockouts')
-        ->and($dropStatements[array_key_last($dropStatements)])->toBe('DROP TABLE IF EXISTS auth_accounts')
-        ->and($statements)->toContain('CREATE INDEX IF NOT EXISTS auth_grants_resource_idx ON auth_grants (resource_type, resource_id)')
-        ->and($statements)->toContain('CREATE INDEX IF NOT EXISTS auth_refresh_tokens_family_idx ON auth_refresh_tokens (family_id)');
+    expect($runner->run())->toBe([$schema->id()])
+        ->and($runner->status())->toBe([[
+            'id' => $schema->id(),
+            'applied' => true,
+            'batch' => 1,
+        ]]);
+
+    $manager = new SchemaManager($connection);
+    foreach ($tables->all() as $table) {
+        expect($manager->hasTable($table))->toBeTrue();
+    }
+
+    expect($runner->reset(true))->toBe([$schema->id()]);
+    foreach ($tables->all() as $table) {
+        expect($manager->hasTable($table))->toBeFalse();
+    }
+});
+
+it('runs configured DBLayer migrations, seeders, and database test transactions', function (): void {
+    $basePath = sys_get_temp_dir() . '/foundation-migrations-' . bin2hex(random_bytes(6));
+    mkdir($basePath . '/database', 0775, true);
+    $app = Foundation::console([
+        'base_path' => $basePath,
+        'database' => [
+            'default' => 'testing',
+            'connections' => [
+                'testing' => [
+                    'driver' => 'sqlite',
+                    'database' => 'database/testing.sqlite',
+                ],
+            ],
+            'migrations' => [
+                'classes' => [FoundationExampleMigration::class],
+                'table' => 'migrations',
+                'lock_store' => null,
+                'lock_wait_seconds' => 0.0,
+                'lock_lease_seconds' => 30.0,
+            ],
+            'seeders' => [FoundationExampleSeeder::class],
+        ],
+    ]);
+
+    try {
+        $database = $app->db();
+        $runner = $database->migrations()->runner();
+        $readiness = $app->readinessReport();
+
+        expect($readiness['migrations']['pending'])->toBe([
+            '20260730000000_create_foundation_examples',
+        ])->and($runner->status())->toBe([[
+            'id' => '20260730000000_create_foundation_examples',
+            'applied' => false,
+            'batch' => null,
+        ]])->and($runner->run())->toBe(['20260730000000_create_foundation_examples'])
+            ->and($app->readinessReport()['migrations']['pending'])->toBe([])
+            ->and($database->migrations()->seed())->toBe(1)
+            ->and($database->connection()->select(
+                'SELECT name FROM foundation_examples ORDER BY id',
+            ))->toBe([['name' => 'seeded']]);
+
+        $result = $app->testing()->database()->transaction(
+            function () use ($database): string {
+                $database->connection()->statement(
+                    'INSERT INTO foundation_examples (name) VALUES (?)',
+                    ['temporary'],
+                );
+
+                return 'completed';
+            },
+        );
+
+        expect($result)->toBe('completed')
+            ->and($database->connection()->select(
+                'SELECT name FROM foundation_examples ORDER BY id',
+            ))->toBe([['name' => 'seeded']])
+            ->and($app->testing()->database()->refresh())
+            ->toBe(['20260730000000_create_foundation_examples'])
+            ->and($database->connection()->select(
+                'SELECT name FROM foundation_examples ORDER BY id',
+            ))->toBe([]);
+    } finally {
+        $app->db()->purge();
+        $databasePath = $basePath . '/database/testing.sqlite';
+        if (is_file($databasePath)) {
+            unlink($databasePath);
+        }
+        if (is_dir($basePath . '/database')) {
+            rmdir($basePath . '/database');
+        }
+        if (is_dir($basePath)) {
+            rmdir($basePath);
+        }
+    }
 });
 
 it('surfaces DBLayer repositories and query observability through Foundation', function (): void {
@@ -241,7 +374,7 @@ it('publishes the complete DBLayer connection policy for every built-in driver',
         'cursor_signing_key',
     ];
 
-    expect(array_keys($configuration))->toBe(['default', 'pool', 'connections'])
+    expect(array_keys($configuration))->toBe(['default', 'migrations', 'seeders', 'pool', 'connections'])
         ->and(array_keys($connections))->toBe(['mysql', 'pgsql', 'sqlite'])
         ->and(array_keys($configuration['pool']))->toBe([
             'max_connections',

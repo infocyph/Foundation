@@ -19,6 +19,8 @@ use Infocyph\Foundation\Http\Middleware\RoleMiddleware;
 use Infocyph\Foundation\Http\Middleware\VerifiedMiddleware;
 use Infocyph\Foundation\Http\Response\AuthExceptionMapper;
 use Infocyph\Foundation\Http\Response\AuthResponseFactory;
+use Infocyph\Foundation\Session\Middleware\CsrfMiddleware;
+use Infocyph\Foundation\Session\Middleware\SessionMiddleware;
 use Infocyph\Webrick\Router\Dispatch\MiddlewareAliases;
 
 final class RouteMiddlewareRegistrar
@@ -34,6 +36,12 @@ final class RouteMiddlewareRegistrar
         'role' => true,
         'permission' => true,
         'policy' => true,
+    ];
+
+    /** @var array<string, true> */
+    private const array SESSION_ALIASES = [
+        'session' => true,
+        'csrf' => true,
     ];
 
     private bool $registered = false;
@@ -55,6 +63,18 @@ final class RouteMiddlewareRegistrar
                 array_values($parameters),
             ),
             'foundation.auth',
+        );
+        MiddlewareAliases::registerResolver(
+            static fn(string $alias): bool => isset(self::SESSION_ALIASES[$alias]),
+            fn(string $alias): object => match ($alias) {
+                'session' => $this->app->make(SessionMiddleware::class),
+                'csrf' => $this->app->make(CsrfMiddleware::class),
+                default => throw new \LogicException(sprintf(
+                    'Unsupported browser session middleware alias "%s".',
+                    $alias,
+                )),
+            },
+            'foundation.session',
         );
         $this->app->make(WebrickMiddlewareFactory::class)->registerAliases();
 

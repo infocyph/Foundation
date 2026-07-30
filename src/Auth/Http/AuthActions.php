@@ -13,9 +13,6 @@ use Infocyph\Foundation\Auth\Authentication\Passwordless\PasswordlessResult;
 use Infocyph\Foundation\Auth\Authentication\PasswordReset\PasswordResetResult;
 use Infocyph\Foundation\Auth\Authentication\PasswordReset\PasswordResetStatus;
 use Infocyph\Foundation\Auth\AuthServices;
-use Infocyph\Foundation\Auth\Contract\Security\PasswordHasherInterface;
-use Infocyph\Foundation\Auth\Contract\Security\PasswordPolicyInterface;
-use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
 use Infocyph\Foundation\Auth\Mfa\MfaChallengeResult;
 use Infocyph\Foundation\Auth\Mfa\MfaStatus;
 use Infocyph\Foundation\Auth\Passkey\PasskeyAuthenticationOutcome;
@@ -29,9 +26,6 @@ final readonly class AuthActions
 {
     public function __construct(
         private AuthServices $services,
-        private AccountProviderInterface $accounts,
-        private PasswordHasherInterface $passwords,
-        private PasswordPolicyInterface $policy,
     ) {}
 
     /**
@@ -39,7 +33,7 @@ final readonly class AuthActions
      */
     public function finishPasskeyAuthentication(array $payload): PasskeyAuthenticationOutcome
     {
-        return $this->services->passkeys->finishAuthentication(
+        return $this->services->passkeys()->finishAuthentication(
             $this->passkeyAuthenticationResult($payload),
             $this->context($payload),
         );
@@ -59,7 +53,7 @@ final readonly class AuthActions
             );
         }
 
-        return $this->services->passkeys->finishRegistration(
+        return $this->services->passkeys()->finishRegistration(
             $this->passkeyRegistrationResult($payload, $accountId),
             $this->context($payload),
         );
@@ -70,7 +64,7 @@ final readonly class AuthActions
      */
     public function login(array $payload): LoginResult
     {
-        return $this->services->authenticator->login(new LoginRequest(
+        return $this->services->authenticator()->login(new LoginRequest(
             identifier: $this->string($payload, 'identifier', $this->string($payload, 'email')),
             password: $this->string($payload, 'password'),
             rememberMe: $this->bool($payload, 'remember_me', $this->bool($payload, 'rememberMe')),
@@ -80,13 +74,14 @@ final readonly class AuthActions
 
     public function logout(?string $sessionId = null): LogoutResult
     {
-        $principal = $this->services->principals->get();
+        $principals = $this->services->principals();
+        $principal = $principals->get();
         if ($principal === null) {
             return new LogoutResult(false, sessionId: $sessionId, code: 'no_current_principal');
         }
 
-        $this->services->authenticator->logout($principal, $sessionId);
-        $this->services->principals->clear();
+        $this->services->authenticator()->logout($principal, $sessionId);
+        $principals->clear();
 
         return new LogoutResult(
             true,
@@ -112,7 +107,7 @@ final readonly class AuthActions
 
         $email = $this->string($payload, 'email', $account->identifier());
 
-        return $this->services->emailVerification->issue(
+        return $this->services->emailVerification()->issue(
             $account->id(),
             $email,
             $this->context($payload),
@@ -133,7 +128,7 @@ final readonly class AuthActions
             );
         }
 
-        return $this->services->mfa->issueChallenge(
+        return $this->services->mfa()->issueChallenge(
             accountId: $accountId,
             purpose: $this->string($payload, 'purpose', 'login'),
             factorId: $this->nullableString($payload, 'factor_id', $this->nullableString($payload, 'factorId')),
@@ -146,7 +141,7 @@ final readonly class AuthActions
      */
     public function requestPasswordless(array $payload): PasswordlessResult
     {
-        return $this->services->passwordless->issue(
+        return $this->services->passwordless()->issue(
             $this->string($payload, 'identifier', $this->string($payload, 'email')),
             $this->context($payload),
         );
@@ -166,7 +161,7 @@ final readonly class AuthActions
             );
         }
 
-        return $this->services->passwordResets->issue(
+        return $this->services->passwordResets()->issue(
             $account->id(),
             $this->context($payload),
         );
@@ -177,11 +172,11 @@ final readonly class AuthActions
      */
     public function resetPassword(array $payload): PasswordResetResult
     {
-        return $this->services->passwordResets->completeWithPlainPassword(
+        return $this->services->passwordResets()->completeWithPlainPassword(
             token: $this->string($payload, 'token'),
             plainPassword: $this->string($payload, 'password', $this->string($payload, 'new_password')),
-            hasher: $this->passwords,
-            policy: $this->policy,
+            hasher: $this->services->passwordHasher(),
+            policy: $this->services->passwordPolicy(),
             context: $this->context($payload),
         );
     }
@@ -191,7 +186,7 @@ final readonly class AuthActions
      */
     public function startPasskeyAuthentication(array $payload): PasskeyAuthenticationOutcome
     {
-        return $this->services->passkeys->startAuthentication(
+        return $this->services->passkeys()->startAuthentication(
             $this->accountId($payload),
             $this->context($payload),
         );
@@ -211,7 +206,7 @@ final readonly class AuthActions
             );
         }
 
-        return $this->services->passkeys->startRegistration(
+        return $this->services->passkeys()->startRegistration(
             $accountId,
             $this->context($payload),
         );
@@ -222,7 +217,7 @@ final readonly class AuthActions
      */
     public function verifyEmail(array $payload): EmailVerificationResult
     {
-        return $this->services->emailVerification->verify(
+        return $this->services->emailVerification()->verify(
             $this->string($payload, 'token'),
             $this->context($payload),
         );
@@ -237,7 +232,7 @@ final readonly class AuthActions
         $code = $this->string($payload, 'code');
 
         if ($challengeId !== null) {
-            return $this->services->mfa->verifyChallenge(
+            return $this->services->mfa()->verifyChallenge(
                 $challengeId,
                 $code,
                 $this->context($payload),
@@ -253,7 +248,7 @@ final readonly class AuthActions
             );
         }
 
-        return $this->services->mfa->verifyRecoveryCode(
+        return $this->services->mfa()->verifyRecoveryCode(
             $accountId,
             $code,
             $this->context($payload),
@@ -265,7 +260,7 @@ final readonly class AuthActions
      */
     public function verifyPasswordless(array $payload): PasswordlessResult
     {
-        return $this->services->passwordless->verify(
+        return $this->services->passwordless()->verify(
             $this->string($payload, 'token'),
             $this->context($payload),
         );
@@ -355,8 +350,6 @@ final readonly class AuthActions
             $normalized['credential'],
             $normalized['credential_id'],
             $normalized['credentialId'],
-            $normalized['challenge_id'],
-            $normalized['challengeId'],
             $normalized['client_data'],
             $normalized['clientData'],
             $normalized['authenticator_data'],
@@ -435,28 +428,6 @@ final readonly class AuthActions
     /**
      * @param array<string, mixed> $payload
      */
-    private function intValue(array $payload, string $key, int $default = 0): int
-    {
-        $value = $payload[$key] ?? null;
-
-        return is_numeric($value) ? (int) $value : $default;
-    }
-
-    /**
-     * @param array<string, mixed> $payload
-     */
-    private function nullableArrayString(array $payload, string $key, ?string $default = null): ?string
-    {
-        $value = $payload[$key] ?? null;
-
-        return is_string($value) && $value !== ''
-            ? $value
-            : $default;
-    }
-
-    /**
-     * @param array<string, mixed> $payload
-     */
     private function nullableString(array $payload, string $key, ?string $default = null): ?string
     {
         $value = $payload[$key] ?? null;
@@ -474,8 +445,8 @@ final readonly class AuthActions
         $credential = $this->passkeyCredentialPayload($payload);
 
         return new PasskeyAuthenticationResult(
-            challengeId: $this->stringValue($credential, 'challenge_id', $this->stringValue($credential, 'challengeId', $this->string($payload, 'challenge_id', $this->string($payload, 'challengeId')))),
-            credentialId: $this->stringValue($credential, 'id', $this->stringValue($credential, 'credential_id', $this->stringValue($credential, 'credentialId', $this->string($payload, 'credential_id', $this->string($payload, 'credentialId'))))),
+            challengeId: $this->string($credential, 'challenge_id', $this->string($credential, 'challengeId', $this->string($payload, 'challenge_id', $this->string($payload, 'challengeId')))),
+            credentialId: $this->string($credential, 'id', $this->string($credential, 'credential_id', $this->string($credential, 'credentialId', $this->string($payload, 'credential_id', $this->string($payload, 'credentialId'))))),
             clientData: $this->credentialResponseString($credential, 'clientDataJSON', $this->string($payload, 'client_data', $this->string($payload, 'clientData'))),
             authenticatorData: $this->credentialResponseString($credential, 'authenticatorData', $this->string($payload, 'authenticator_data', $this->string($payload, 'authenticatorData'))),
             signature: $this->credentialResponseString($credential, 'signature', $this->string($payload, 'signature')),
@@ -493,23 +464,23 @@ final readonly class AuthActions
         $credential = $this->credentialPayload($payload);
         $response = ValueNormalizer::associativeArray($credential['response'] ?? null);
 
-        $id = $this->stringValue(
+        $id = $this->string(
             $credential,
             'id',
-            $this->stringValue(
+            $this->string(
                 $credential,
                 'credential_id',
-                $this->stringValue(
+                $this->string(
                     $credential,
                     'credentialId',
                     $this->string($payload, 'credential_id', $this->string($payload, 'credentialId')),
                 ),
             ),
         );
-        $rawId = $this->stringValue(
+        $rawId = $this->string(
             $credential,
             'rawId',
-            $this->stringValue(
+            $this->string(
                 $credential,
                 'raw_id',
                 $this->string($payload, 'raw_id', $this->string($payload, 'rawId', $this->base64RawId($id))),
@@ -517,33 +488,33 @@ final readonly class AuthActions
         );
 
         $clientData = $this->string($payload, 'client_data', $this->string($payload, 'clientData'));
-        $clientData = $this->stringValue($credential, 'clientData', $clientData);
-        $clientData = $this->stringValue($credential, 'client_data', $clientData);
-        $clientData = $this->stringValue($credential, 'clientDataJSON', $clientData);
-        $clientData = $this->stringValue($response, 'clientData', $clientData);
-        $clientData = $this->stringValue($response, 'client_data', $clientData);
-        $response['clientDataJSON'] = $this->stringValue($response, 'clientDataJSON', $clientData);
+        $clientData = $this->string($credential, 'clientData', $clientData);
+        $clientData = $this->string($credential, 'client_data', $clientData);
+        $clientData = $this->string($credential, 'clientDataJSON', $clientData);
+        $clientData = $this->string($response, 'clientData', $clientData);
+        $clientData = $this->string($response, 'client_data', $clientData);
+        $response['clientDataJSON'] = $this->string($response, 'clientDataJSON', $clientData);
 
         $authenticatorData = $this->string($payload, 'authenticator_data', $this->string($payload, 'authenticatorData'));
-        $authenticatorData = $this->stringValue($credential, 'authenticator_data', $authenticatorData);
-        $authenticatorData = $this->stringValue($credential, 'authenticatorData', $authenticatorData);
-        $response['authenticatorData'] = $this->stringValue($response, 'authenticatorData', $authenticatorData);
+        $authenticatorData = $this->string($credential, 'authenticator_data', $authenticatorData);
+        $authenticatorData = $this->string($credential, 'authenticatorData', $authenticatorData);
+        $response['authenticatorData'] = $this->string($response, 'authenticatorData', $authenticatorData);
 
         $signature = $this->string($payload, 'signature');
-        $signature = $this->stringValue($credential, 'signature', $signature);
-        $response['signature'] = $this->stringValue($response, 'signature', $signature);
+        $signature = $this->string($credential, 'signature', $signature);
+        $response['signature'] = $this->string($response, 'signature', $signature);
 
         $userHandle = $this->nullableString($payload, 'user_handle', $this->nullableString($payload, 'userHandle'));
-        $userHandle = $this->nullableArrayString($credential, 'user_handle', $userHandle);
-        $userHandle = $this->nullableArrayString($credential, 'userHandle', $userHandle);
-        $userHandle = $this->nullableArrayString($response, 'user_handle', $userHandle);
-        $response['userHandle'] = $this->nullableArrayString($response, 'userHandle', $userHandle);
+        $userHandle = $this->nullableString($credential, 'user_handle', $userHandle);
+        $userHandle = $this->nullableString($credential, 'userHandle', $userHandle);
+        $userHandle = $this->nullableString($response, 'user_handle', $userHandle);
+        $response['userHandle'] = $this->nullableString($response, 'userHandle', $userHandle);
 
         $attestationObject = $this->string($payload, 'attestation_object', $this->string($payload, 'attestationObject'));
-        $attestationObject = $this->stringValue($credential, 'attestation_object', $attestationObject);
-        $attestationObject = $this->stringValue($credential, 'attestationObject', $attestationObject);
-        $attestationObject = $this->stringValue($response, 'attestation_object', $attestationObject);
-        $response['attestationObject'] = $this->stringValue($response, 'attestationObject', $attestationObject);
+        $attestationObject = $this->string($credential, 'attestation_object', $attestationObject);
+        $attestationObject = $this->string($credential, 'attestationObject', $attestationObject);
+        $attestationObject = $this->string($response, 'attestation_object', $attestationObject);
+        $response['attestationObject'] = $this->string($response, 'attestationObject', $attestationObject);
 
         if (!isset($response['transports'])) {
             $response['transports'] = $credential['transports'] ?? $payload['transports'] ?? [];
@@ -551,7 +522,7 @@ final readonly class AuthActions
 
         $credential['id'] = $id;
         $credential['rawId'] = $rawId;
-        $credential['type'] = $this->stringValue($credential, 'type', 'public-key');
+        $credential['type'] = $this->string($credential, 'type', 'public-key');
         $credential['response'] = $response;
 
         return $credential;
@@ -578,12 +549,12 @@ final readonly class AuthActions
         $credential = $this->passkeyCredentialPayload($payload);
 
         return new PasskeyRegistrationResult(
-            challengeId: $this->stringValue($credential, 'challenge_id', $this->stringValue($credential, 'challengeId', $this->string($payload, 'challenge_id', $this->string($payload, 'challengeId')))),
+            challengeId: $this->string($credential, 'challenge_id', $this->string($credential, 'challengeId', $this->string($payload, 'challenge_id', $this->string($payload, 'challengeId')))),
             accountId: $accountId,
-            credentialId: $this->stringValue($credential, 'id', $this->stringValue($credential, 'credential_id', $this->stringValue($credential, 'credentialId', $this->string($payload, 'credential_id', $this->string($payload, 'credentialId'))))),
-            publicKey: $this->stringValue($credential, 'public_key', $this->stringValue($credential, 'publicKey', $this->string($payload, 'public_key', $this->string($payload, 'publicKey')))),
+            credentialId: $this->string($credential, 'id', $this->string($credential, 'credential_id', $this->string($credential, 'credentialId', $this->string($payload, 'credential_id', $this->string($payload, 'credentialId'))))),
+            publicKey: $this->string($credential, 'public_key', $this->string($credential, 'publicKey', $this->string($payload, 'public_key', $this->string($payload, 'publicKey')))),
             transports: $this->credentialResponseStringList($credential, 'transports', ValueNormalizer::stringList($credential['transports'] ?? $payload['transports'] ?? [])),
-            signCount: $this->intValue($credential, 'sign_count', $this->intValue($credential, 'signCount', $this->int($payload, 'sign_count', $this->int($payload, 'signCount', 0)))),
+            signCount: $this->int($credential, 'sign_count', $this->int($credential, 'signCount', $this->int($payload, 'sign_count', $this->int($payload, 'signCount', 0)))),
             metadata: $this->passkeyMetadata($payload, $credential),
         );
     }
@@ -595,13 +566,13 @@ final readonly class AuthActions
     {
         $accountId = $this->nullableString($payload, 'account_id', $this->nullableString($payload, 'accountId'));
         if ($accountId !== null) {
-            return $this->accounts->findById($accountId);
+            return $this->services->accountProvider()->findById($accountId);
         }
 
         $identifier = $this->nullableString($payload, 'identifier', $this->nullableString($payload, 'email'));
 
         return $identifier !== null
-            ? $this->accounts->findByIdentifier($identifier)
+            ? $this->services->accountProvider()->findByIdentifier($identifier)
             : null;
     }
 
@@ -609,16 +580,6 @@ final readonly class AuthActions
      * @param array<string, mixed> $payload
      */
     private function string(array $payload, string $key, string $default = ''): string
-    {
-        $value = $payload[$key] ?? null;
-
-        return is_string($value) ? $value : $default;
-    }
-
-    /**
-     * @param array<string, mixed> $payload
-     */
-    private function stringValue(array $payload, string $key, string $default = ''): string
     {
         $value = $payload[$key] ?? null;
 

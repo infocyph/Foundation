@@ -17,7 +17,7 @@ use Infocyph\Webrick\Router\Matching\MatcherInterface;
 use Infocyph\Webrick\Router\Matching\ShardedMatcher;
 use Infocyph\Webrick\Router\Route\Collection;
 use Infocyph\Webrick\Router\Url\SignedUrlConfig;
-use Psr\Log\NullLogger;
+use Psr\Log\LoggerInterface;
 
 final class WebrickRouterFactory
 {
@@ -31,6 +31,7 @@ final class WebrickRouterFactory
         private readonly ConfigRepository $config,
         private readonly WebrickMiddlewareFactory $middleware,
         private readonly Container $container,
+        private readonly LoggerInterface $logger,
     ) {}
 
     public function kernel(?ErrorHandler $errorHandler = null): RouterKernel
@@ -46,7 +47,7 @@ final class WebrickRouterFactory
             : null;
 
         return $this->kernel = RouterKernel::bootWithRegistrar(
-            log: new NullLogger(),
+            log: $this->logger,
             matcher: $this->matcher(),
             register: function (Registrar $registrar) use ($routes, $aliases): void {
                 if (!$routes instanceof Collection) {

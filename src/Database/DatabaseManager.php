@@ -25,6 +25,7 @@ final readonly class DatabaseManager
         private ConfigRepository $config,
         private DBLayerFactory $factory,
         private AuthSchemaInstaller $authSchemaInstaller,
+        private DatabaseMigrationManager $migrations,
     ) {}
 
     /**
@@ -203,6 +204,11 @@ final readonly class DatabaseManager
         return DBLayer::logging();
     }
 
+    public function migrations(): DatabaseMigrationManager
+    {
+        return $this->migrations;
+    }
+
     public function pdo(?string $name = null): PDO
     {
         return DBLayer::getPdo($this->ensureRegistered($name));
@@ -284,6 +290,21 @@ final readonly class DatabaseManager
     public function resetRuntimeState(bool $disconnectConnections = true): void
     {
         DBLayer::resetRuntimeState($disconnectConnections);
+    }
+
+    public function resetUnitOfWork(): void
+    {
+        foreach (DBLayer::getConnections() as $connection) {
+            try {
+                while ($connection->transactionLevel() > 0) {
+                    $connection->rollbackTransaction();
+                }
+            } catch (\Throwable) {
+                $connection->disconnect();
+            }
+        }
+
+        DBLayer::resetRuntimeState(false);
     }
 
     public function rollback(?string $name = null): void

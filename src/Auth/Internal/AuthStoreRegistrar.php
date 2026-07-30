@@ -21,6 +21,7 @@ use Infocyph\Foundation\Auth\Adapter\DBLayer\{
     DBLayerRoleStore,
     DBLayerSessionStore
 };
+use Infocyph\Foundation\Auth\Audit\AuthEvent;
 use Infocyph\Foundation\Auth\Authorization\Grant\GrantStoreInterface;
 use Infocyph\Foundation\Auth\Authorization\Permission\{PermissionAssignmentStoreInterface, PermissionStoreInterface};
 use Infocyph\Foundation\Auth\Authorization\Role\{RoleAssignmentStoreInterface, RoleStoreInterface};
@@ -41,6 +42,7 @@ use Infocyph\Foundation\Auth\Driver\AuthStorageDriver;
 use Infocyph\Foundation\Auth\Mfa\MfaFactorStoreInterface;
 use Infocyph\Foundation\Auth\Passkey\PasskeyCredentialStoreInterface;
 use Infocyph\Foundation\Auth\Support\{
+    ForwardingAuditEventStore,
     InMemoryAccountStore,
     InMemoryAuditEventStore,
     InMemoryDeviceStore,
@@ -61,6 +63,8 @@ use Infocyph\Foundation\Database\DBLayerFactory;
 
 final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
 {
+    private const string AUDIT_STORAGE = 'foundation.auth.audit.storage';
+
     public function register(AuthStorageDriver $driver): void
     {
         if ($driver === AuthStorageDriver::DATABASE) {
@@ -145,7 +149,7 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
             AccountStoreInterface::class => DBLayerAccountStore::class,
             SessionStoreInterface::class => DBLayerSessionStore::class,
             MfaFactorStoreInterface::class => DBLayerMfaFactorStore::class,
-            AuditEventStoreInterface::class => DBLayerAuditEventStore::class,
+            self::AUDIT_STORAGE => DBLayerAuditEventStore::class,
         ];
     }
 
@@ -166,7 +170,7 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
             RoleStoreInterface::class => InMemoryRoleStore::class,
             PermissionStoreInterface::class => InMemoryPermissionStore::class,
             DeviceStoreInterface::class => InMemoryDeviceStore::class,
-            AuditEventStoreInterface::class => InMemoryAuditEventStore::class,
+            self::AUDIT_STORAGE => InMemoryAuditEventStore::class,
         ];
     }
 
@@ -202,6 +206,22 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
 
     private function registerStoreAliases(): void
     {
+        $this->singleton(AuditEventStoreInterface::class, function (): AuditEventStoreInterface {
+            $storage = $this->container->get(self::AUDIT_STORAGE);
+            if (!$storage instanceof AuditEventStoreInterface) {
+                throw new \LogicException('Configured auth audit storage does not implement its contract.');
+            }
+            if (!$this->boolConfig('messaging.forward_auth_events', false)) {
+                return $storage;
+            }
+
+            return new ForwardingAuditEventStore(
+                $storage,
+                function (AuthEvent $event): void {
+                    $this->app->messaging()->event($event);
+                },
+            );
+        });
         $this->alias(AccountProviderInterface::class, AccountStoreInterface::class);
         $this->alias(RoleAssignmentStoreInterface::class, RoleStoreInterface::class);
         $this->alias(PermissionAssignmentStoreInterface::class, PermissionStoreInterface::class);

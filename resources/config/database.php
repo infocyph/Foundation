@@ -17,6 +17,39 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Migrations and Seeders
+    |--------------------------------------------------------------------------
+    |
+    | "migrations.classes" is an explicit ordered list of classes implementing
+    | DBLayer Migration, for example
+    | `[App\Database\Migration\CreateUsers::class]`. Foundation passes that
+    | list to DBLayer, which sorts by each migration's stable id. No request-
+    | time directory scanning or Foundation-owned SQL grammar is used.
+    |
+    | "table" is the DBLayer ledger table, typically `migrations`.
+    | "lock_store" is null for no cross-process lock, or a configured
+    | CacheLayer store such as `local`, `redis`, `memcached`, or `sqlite`.
+    | Lock wait is a non-negative number of seconds (example `10.0`) and lease
+    | is positive (example `300.0`). Production deployments should configure a
+    | lock store shared by every process that may run migrations.
+    |
+    | "seeders" is an explicit ordered list of classes implementing DBLayer
+    | Seeder or invokable seeder services, for example
+    | `[App\Database\Seeder\ProductionSeeder::class]`. Seeders are never
+    | discovered or executed during a web request.
+    |
+    */
+    'migrations' => [
+        'classes' => [],
+        'table' => env_string('DB_MIGRATION_TABLE', 'migrations'),
+        'lock_store' => env('DB_MIGRATION_LOCK_STORE'),
+        'lock_wait_seconds' => env('DB_MIGRATION_LOCK_WAIT', 10.0),
+        'lock_lease_seconds' => env('DB_MIGRATION_LOCK_LEASE', 300.0),
+    ],
+    'seeders' => [],
+
+    /*
+    |--------------------------------------------------------------------------
     | Long-Running Connection Pool
     |--------------------------------------------------------------------------
     |

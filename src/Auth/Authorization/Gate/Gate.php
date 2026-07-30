@@ -23,6 +23,7 @@ final class Gate implements AuthorizerInterface
 
     public function __construct(
         private readonly ?PolicyResolverInterface $policyResolver = null,
+        private readonly ?AuthorizerInterface $fallback = null,
     ) {}
 
     /**
@@ -128,6 +129,10 @@ final class Gate implements AuthorizerInterface
             return $this->normalizeDecision(
                 $policy->authorize($principal, $ability, $resource, $context),
             );
+        }
+
+        if ($this->fallback !== null) {
+            return $this->fallback->can($principal, $ability, $resource, $context);
         }
 
         return AuthorizationDecision::deny(

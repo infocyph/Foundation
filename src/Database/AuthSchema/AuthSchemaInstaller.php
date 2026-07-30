@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Database\AuthSchema;
 
+use Infocyph\DBLayer\Migration\MigrationRunner;
+use Infocyph\DBLayer\Schema\SchemaManager;
 use Infocyph\Foundation\Database\DBLayerFactory;
 
 final readonly class AuthSchemaInstaller
@@ -16,11 +18,7 @@ final readonly class AuthSchemaInstaller
 
     public function install(?string $connection = null): void
     {
-        $db = $this->factory->connection($connection);
-
-        foreach ($this->schema->statements() as $statement) {
-            $db->statement($statement);
-        }
+        $this->runner($connection)->run();
     }
 
     public function installed(?string $connection = null): bool
@@ -37,15 +35,14 @@ final readonly class AuthSchemaInstaller
      */
     public function readiness(?string $connection = null): array
     {
-        $db = $this->factory->connection($connection);
+        $schema = new SchemaManager($this->factory->connection($connection));
         $installed = [];
         $missing = [];
 
         foreach ($this->tables->all() as $table) {
-            try {
-                $db->select(sprintf('SELECT 1 FROM %s WHERE 1 = 0', $table));
+            if ($schema->hasTable($table)) {
                 $installed[] = $table;
-            } catch (\Throwable) {
+            } else {
                 $missing[] = $table;
             }
         }
@@ -57,12 +54,16 @@ final readonly class AuthSchemaInstaller
         ];
     }
 
+    public function runner(?string $connection = null): MigrationRunner
+    {
+        return new MigrationRunner(
+            $this->factory->connection($connection),
+            [$this->schema],
+        );
+    }
+
     public function uninstall(?string $connection = null): void
     {
-        $db = $this->factory->connection($connection);
-
-        foreach ($this->schema->dropStatements() as $statement) {
-            $db->statement($statement);
-        }
+        $this->runner($connection)->reset(true);
     }
 }

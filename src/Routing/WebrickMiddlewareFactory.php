@@ -27,7 +27,7 @@ use Infocyph\Webrick\Middleware\VaryAccumulatorMiddleware;
 use Infocyph\Webrick\Middleware\VerifySignedUrlMiddleware;
 use Infocyph\Webrick\Router\Dispatch\MiddlewareAliases;
 use Infocyph\Webrick\Router\Url\SignedUrlConfig;
-use Psr\Log\NullLogger;
+use Psr\Log\LoggerInterface;
 
 /**
  * @phpstan-type MiddlewareDefinition array<string, mixed>
@@ -37,6 +37,7 @@ final readonly class WebrickMiddlewareFactory
     public function __construct(
         private Application $app,
         private ConfigRepository $config,
+        private LoggerInterface $logger,
     ) {}
 
     /**
@@ -351,7 +352,7 @@ final readonly class WebrickMiddlewareFactory
                     : false,
             ),
             'telemetry' => new TelemetryMiddleware(
-                log: new NullLogger(),
+                log: $this->logger,
                 addXResponseTime: ValueNormalizer::bool($definition['add_x_response_time'] ?? null, true),
                 addServerTiming: ValueNormalizer::bool($definition['add_server_timing'] ?? null, true),
                 emitRequestId: ValueNormalizer::bool($definition['emit_request_id'] ?? null, true),

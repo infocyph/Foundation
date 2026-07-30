@@ -35,7 +35,7 @@ final class ModuleListCommand extends AbstractFoundationCommand
                 $module['name'],
                 $module['installed'] ? ($module['direct'] ? 'direct' : 'transitive') : 'not installed',
                 $module['version'] ?? '-',
-                $module['package'],
+                $module['package'] ?? 'built-in',
             ];
         }
         $this->io()->table(['Module', 'Status', 'Version', 'Package'], $rows);

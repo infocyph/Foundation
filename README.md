@@ -20,6 +20,7 @@ Install a feature through the Foundation console:
 ```bash
 php infbyte module:install db
 php infbyte module:install cache
+php infbyte module:install session
 php infbyte module:list
 ```
 
@@ -36,8 +37,12 @@ overwritten, and the compiled config cache is invalidated after publication.
 | `crypto` | `infocyph/epicrypt` | `config/security.php` |
 | `db` | `infocyph/dblayer` | `config/database.php` |
 | `filesystem` | `infocyph/pathwise` | `config/filesystem.php` |
+| `logging` | Built into Foundation | `config/logging.php` |
+| `messaging` | Built into Foundation | `config/messaging.php` |
 | `otp` | `infocyph/otp` | None |
 | `passkeys` | `web-auth/webauthn-lib` | None |
+| `resources` | Built into Foundation | `config/responses.php` |
+| `session` | Built into Foundation | `config/session.php` |
 | `validation` | `infocyph/reqshield` | `config/validation.php` |
 
 Cryptographic policy and adapter options live under `security.*`; the
@@ -198,6 +203,12 @@ return [
 ];
 ```
 
+Authentication services are typed and lazy: resolving `$app->auth()` does not
+construct password reset, MFA, passkey, token, authorization, or notification
+graphs until their corresponding accessor is called. See
+[Authentication and authorization](docs/authentication.md) for lifecycle,
+driver, authorization, and persistent-worker guidance.
+
 ## Runtime Modes
 
 Choose the runtime explicitly at the entry point:
@@ -210,7 +221,7 @@ $console = Foundation::console(['base_path' => __DIR__]);
 The mode is not inferred from `PHP_SAPI`, because tests and worker processes can
 legitimately execute web behavior under the CLI SAPI.
 
-The web runtime eagerly registers filesystem, routing, and HTTP services and
+The web runtime eagerly registers paths, routing, logging, and HTTP services and
 loads configured route files when booted. The console runtime eagerly registers
 only filesystem paths. A command activates its optional providers on demand;
 for example, route-cache commands activate routing without registering the HTTP
@@ -244,9 +255,9 @@ scan command directories or register application commands implicitly.
 When the compiled command manifest exists, the CLI entry point does not load
 the project command route file during preflight or dispatch.
 Foundation's operational commands, including `config:*`, `route:*`,
-`schedule:*`, `worker:*`, `create:*`, `module:*`, `auth:schema:*`, and
-`app:ready`, are predefined by Foundation and must not be redeclared in the
-application route map.
+`schedule:*`, `worker:*`, `create:*`, `module:*`, `migrate:*`, `db:*`,
+`queue:*`, `auth:schema:*`, `session:*`, and `app:ready`, are predefined by
+Foundation and must not be redeclared in the application route map.
 `php infbyte list` presents every Foundation-owned command under `System`.
 Application commands are grouped by the first namespace segment in their route
 name, so `reports:daily` appears under `reports`; an unnamespaced application
@@ -276,6 +287,49 @@ php infbyte create:trait FormatsMoney
 php infbyte create:class Services/ReportBuilder
 php infbyte create:test Http/UserAccess
 ```
+
+## Browser Sessions
+
+Browser sessions are built into Foundation but are not enabled globally. First
+publish the documented configuration:
+
+```bash
+php infbyte module:install session
+```
+
+Select the `web` preset for session plus CSRF protection, or add `session`
+alone when CSRF is not applicable:
+
+```php
+use Infocyph\Foundation\Session\BrowserSession;
+use Infocyph\Webrick\Response\Response;
+use Infocyph\Webrick\Router\Facade\Router;
+
+Router::group(
+    middleware: ['session', 'csrf'],
+    callback: static function (): void {
+        Router::post('/preferences', static function (BrowserSession $session): Response {
+            $session->put('theme', 'dark');
+
+            return Response::json(['saved' => true]);
+        });
+    },
+);
+```
+
+The `array`, `file`, `cache`, and `database` stores are supported. Cache-backed
+storage and locking require the CacheLayer module; database storage and schema
+commands require DBLayer:
+
+```bash
+php infbyte session:schema:install
+php infbyte session:schema:status
+php infbyte session:prune --limit=1000
+```
+
+Stateless routes do not construct the session provider, manager, store, lock,
+or CSRF middleware. See [Browser sessions](docs/browser-sessions.md) for the
+security model and full lifecycle.
 
 Names may use `/` or `\` namespace separators. Conventional suffixes are added
 once, so both `User` and `UserController` produce `UserController.php`.
@@ -439,11 +493,24 @@ container registration, facades, and HTTP-aware composition.
 - DBLayer: connections, repositories, execution plans, query-shape telemetry, and auth-schema installation
 - Epicrypt: production password, token, and encryption-backed auth services
 - Intermix: application container, providers, scopes, and invocation
+- Omnibus and Console: events, queues, retries, scheduled messages, commands,
+  schedules, and bounded worker supervision
 - OTP and WebAuthn: TOTP, HOTP, OCRA, recovery codes, MFA, and passkeys
 - Pathwise and Webrick: filesystem operations, uploads, ranged/conditional downloads, HTTP responses, routing, and route caches
 - ReqShield: request schemas and database-backed validation rules
 - TalkingBytes: email, HTTP, gRPC, signatures, inbound processing, and DKIM helpers
 - UID: UUID, ULID, Snowflake, and related identifier generation
+
+## Documentation
+
+Start with the [Foundation documentation index](docs/README.md). The guides
+cover lifecycle and package ownership, configuration, authentication, browser
+sessions, migrations and seeding, Omnibus integration, JsonDispatch resources,
+logging, testing, modules, and deployment operations.
+
+The files under `resources/config/` are the canonical configuration reference:
+every publishable key is documented beside its default with its type,
+predefined values, and an example for open-ended values.
 
 ## Release Process
 

@@ -4,13 +4,36 @@ declare(strict_types=1);
 
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
+use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailVerificationManager;
+use Infocyph\Foundation\Auth\Authentication\Login\Authenticator;
+use Infocyph\Foundation\Auth\Authentication\PasswordReset\PasswordResetManager;
+use Infocyph\Foundation\Auth\Authentication\TokenAuth\TokenAuthManager;
+use Infocyph\Foundation\Auth\Adapter\WebAuthn\WebAuthnRuntime;
 use Infocyph\Foundation\Auth\AuthManager;
+use Infocyph\Foundation\Auth\AuthServices;
+use Infocyph\Foundation\Auth\Contract\Cache\CounterStoreInterface;
+use Infocyph\Foundation\Auth\Contract\Cache\TtlStoreInterface;
+use Infocyph\Foundation\Auth\Contract\Id\AuthIdGeneratorInterface;
+use Infocyph\Foundation\Auth\Contract\Notification\AuthNotifierInterface;
+use Infocyph\Foundation\Auth\Contract\Security\AccessTokenServiceInterface;
+use Infocyph\Foundation\Auth\Contract\Security\PasswordHasherInterface;
+use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
+use Infocyph\Foundation\Auth\Http\AuthActions;
+use Infocyph\Foundation\Auth\Mfa\MfaManager;
+use Infocyph\Foundation\Auth\Mfa\MfaVerifierInterface;
 use Infocyph\Foundation\Auth\Otp\OtpManager;
+use Infocyph\Foundation\Auth\Passkey\PasskeyManager;
+use Infocyph\Foundation\Auth\Passkey\PasskeyServiceInterface;
+use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
+use Infocyph\Foundation\Auth\Principal\Principal;
 use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Database\DatabaseManager;
 use Infocyph\Foundation\Facades\Route;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Http\Middleware\ResolvePrincipalMiddleware;
+use Infocyph\Foundation\Http\Resolver\PrincipalResolverInterface;
+use Infocyph\Foundation\Http\Resolver\RequestPrincipalResolver;
 use Infocyph\Foundation\Routing\RouteCachePath;
 use Infocyph\Foundation\Routing\WebrickMiddlewareFactory;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
@@ -206,6 +229,94 @@ PHP,
     }
 });
 
+it('provides HTTP assertions and clears every activated mutable context between requests', function (): void {
+    $project = foundationIntegrationProject([
+        'routes/web.php' => <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
+use Infocyph\Foundation\Auth\Principal\Principal;
+use Infocyph\Foundation\Facades\App;
+use Infocyph\Webrick\Response\Response;
+use Infocyph\Webrick\Router\Facade\Router;
+
+Router::post('/testing/activate-contexts', static function (): Response {
+    $app = App::instance();
+    $app->make(CurrentPrincipalContext::class)->set(new Principal('principal-1'));
+    $app->session()->enter($app->session()->open(null));
+    $app->db()->beginTransaction();
+    $app->db()->connection()->statement(
+        'INSERT INTO worker_contexts (name) VALUES (?)',
+        ['must-rollback'],
+    );
+
+    return Response::json(['activated' => true], 202, ['X-Test-Context' => 'active']);
+});
+
+Router::get('/testing/context-status', static function (): Response {
+    $app = App::instance();
+    try {
+        $app->session()->current();
+        $sessionActive = true;
+    } catch (LogicException) {
+        $sessionActive = false;
+    }
+
+    return Response::json([
+        'principal' => $app->make(CurrentPrincipalContext::class)->get()?->id(),
+        'session_active' => $sessionActive,
+        'transaction_level' => $app->db()->transactionLevel(),
+        'rows' => $app->db()->connection()->select('SELECT name FROM worker_contexts'),
+    ]);
+});
+PHP,
+    ]);
+
+    try {
+        $app = Foundation::web([
+            'base_path' => $project,
+            'database' => [
+                'default' => 'testing',
+                'connections' => [
+                    'testing' => [
+                        'driver' => 'sqlite',
+                        'database' => ':memory:',
+                    ],
+                ],
+            ],
+            'session' => [
+                'driver' => 'array',
+            ],
+        ]);
+        $app->db()->connection()->statement(
+            'CREATE TABLE worker_contexts (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)',
+        );
+        $client = $app->testing()->http()->withHeaders(['X-Test-Client' => 'foundation']);
+
+        $client->post('/testing/activate-contexts', ['name' => 'request'])
+            ->assertStatus(202)
+            ->assertHeader('X-Test-Context', 'active')
+            ->assertJson(['activated' => true]);
+        $status = $client->get('/testing/context-status')
+            ->assertStatus(200)
+            ->assertJsonPath('principal', null)
+            ->assertJsonPath('session_active', false)
+            ->assertJsonPath('transaction_level', 0)
+            ->assertJsonPath('rows', []);
+
+        expect($status->json())->toMatchArray([
+            'principal' => null,
+            'session_active' => false,
+            'transaction_level' => 0,
+            'rows' => [],
+        ]);
+    } finally {
+        foundationIntegrationRemoveDirectory($project);
+    }
+});
+
 it('keeps optional OTP services unresolved when core auth is requested', function (): void {
     $project = foundationIntegrationProject([]);
 
@@ -222,6 +333,173 @@ it('keeps optional OTP services unresolved when core auth is requested', functio
     } finally {
         foundationIntegrationRemoveDirectory($project);
     }
+});
+
+it('resolves each auth capability only when that capability is requested', function (): void {
+    $project = foundationIntegrationProject([]);
+
+    try {
+        $app = Foundation::web([
+            'base_path' => $project,
+            'auth' => [
+                'drivers' => ['mfa' => 'simple'],
+            ],
+        ]);
+        $repository = $app->container()->getRepository();
+
+        expect($app->authManager())->toBeInstanceOf(AuthManager::class)
+            ->and($repository->hasResolvedSingleton(AuthServices::class))->toBeTrue()
+            ->and($repository->hasResolvedSingleton(Authenticator::class))->toBeFalse()
+            ->and($repository->hasResolvedSingleton(CurrentPrincipalContext::class))->toBeFalse()
+            ->and($repository->hasResolvedSingleton(PasswordResetManager::class))->toBeFalse()
+            ->and($repository->hasResolvedSingleton(EmailVerificationManager::class))->toBeFalse()
+            ->and($repository->hasResolvedSingleton(TokenAuthManager::class))->toBeFalse()
+            ->and($repository->hasResolvedSingleton(MfaManager::class))->toBeFalse()
+            ->and($repository->hasResolvedSingleton(PasskeyManager::class))->toBeFalse();
+
+        expect($app->authActions())->toBeInstanceOf(AuthActions::class)
+            ->and($repository->hasResolvedSingleton(Authenticator::class))->toBeFalse()
+            ->and($repository->hasResolvedSingleton(PasswordResetManager::class))->toBeFalse()
+            ->and($repository->hasResolvedSingleton(MfaManager::class))->toBeFalse()
+            ->and($repository->hasResolvedSingleton(PasskeyManager::class))->toBeFalse();
+
+        expect($app->auth()->mfa())->toBeInstanceOf(MfaManager::class)
+            ->and($repository->hasResolvedSingleton(MfaManager::class))->toBeTrue()
+            ->and($repository->hasResolvedSingleton(Authenticator::class))->toBeFalse()
+            ->and($repository->hasResolvedSingleton(PasskeyManager::class))->toBeFalse();
+    } finally {
+        foundationIntegrationRemoveDirectory($project);
+    }
+});
+
+it('keeps every configured optional auth adapter lazy until its capability is selected', function (): void {
+    $project = foundationIntegrationProject([]);
+
+    try {
+        $app = Foundation::web([
+            'base_path' => $project,
+            'auth' => [
+                'drivers' => [
+                    'cache' => 'cache',
+                    'ids' => 'uid',
+                    'mfa' => 'otp',
+                    'notifications' => 'talkingbytes',
+                    'passkey' => 'webauthn',
+                    'passwords' => 'security',
+                    'storage' => 'database',
+                    'tokens' => 'security',
+                ],
+                'webauthn' => [
+                    'origin' => 'https://example.test',
+                    'rp_id' => 'example.test',
+                ],
+            ],
+        ]);
+        $repository = $app->container()->getRepository();
+
+        expect($app->authManager())->toBeInstanceOf(AuthManager::class);
+
+        foreach ([
+            AccessTokenServiceInterface::class,
+            AccountProviderInterface::class,
+            AuthIdGeneratorInterface::class,
+            AuthNotifierInterface::class,
+            CounterStoreInterface::class,
+            MfaVerifierInterface::class,
+            PasskeyServiceInterface::class,
+            PasswordHasherInterface::class,
+            TtlStoreInterface::class,
+            WebAuthnRuntime::class,
+        ] as $service) {
+            expect($repository->hasResolvedSingleton($service))->toBeFalse();
+        }
+
+        expect($app->auth()->passwordHasher())->toBeInstanceOf(PasswordHasherInterface::class)
+            ->and($repository->hasResolvedSingleton(PasswordHasherInterface::class))->toBeTrue()
+            ->and($repository->hasResolvedSingleton(AccessTokenServiceInterface::class))->toBeFalse()
+            ->and($repository->hasResolvedSingleton(AccountProviderInterface::class))->toBeFalse()
+            ->and($repository->hasResolvedSingleton(AuthIdGeneratorInterface::class))->toBeFalse()
+            ->and($repository->hasResolvedSingleton(AuthNotifierInterface::class))->toBeFalse()
+            ->and($repository->hasResolvedSingleton(CounterStoreInterface::class))->toBeFalse()
+            ->and($repository->hasResolvedSingleton(MfaVerifierInterface::class))->toBeFalse()
+            ->and($repository->hasResolvedSingleton(PasskeyServiceInterface::class))->toBeFalse()
+            ->and($repository->hasResolvedSingleton(TtlStoreInterface::class))->toBeFalse()
+            ->and($repository->hasResolvedSingleton(WebAuthnRuntime::class))->toBeFalse();
+    } finally {
+        foundationIntegrationRemoveDirectory($project);
+    }
+});
+
+it('isolates current principals between concurrent fibers and the main execution path', function (): void {
+    $context = new CurrentPrincipalContext();
+    $context->set(new Principal('main'));
+
+    $first = new Fiber(static function () use ($context): string {
+        $context->set(new Principal('first'));
+        Fiber::suspend($context->require()->id());
+
+        return $context->require()->id();
+    });
+    $second = new Fiber(static function () use ($context): ?string {
+        $context->set(new Principal('second'));
+        Fiber::suspend($context->require()->id());
+        $context->clear();
+
+        return $context->get()?->id();
+    });
+
+    expect($first->start())->toBe('first')
+        ->and($second->start())->toBe('second')
+        ->and($context->require()->id())->toBe('main');
+
+    $first->resume();
+    $second->resume();
+
+    expect($first->getReturn())->toBe('first')
+        ->and($second->getReturn())->toBeNull()
+        ->and($context->require()->id())->toBe('main');
+});
+
+it('restores principal context when authenticated request handling fails', function (): void {
+    $context = new CurrentPrincipalContext();
+    $previous = new Principal('previous', accountId: 'previous');
+    $resolved = new Principal('request', accountId: 'request');
+    $context->set($previous);
+
+    $resolver = new RequestPrincipalResolver(
+        new ConfigRepository(['auth' => ['http' => ['principal_resolvers' => ['test']]]]),
+        [
+            'test' => new readonly class($resolved) implements PrincipalResolverInterface {
+                public function __construct(
+                    private Principal $principal,
+                ) {}
+
+                public function name(): string
+                {
+                    return 'test';
+                }
+
+                public function resolve(Request $_request): Principal
+                {
+                    expect((string) $_request->getUri())->toContain('/auth-failure');
+
+                    return $this->principal;
+                }
+            },
+        ],
+    );
+    $middleware = new ResolvePrincipalMiddleware($context, $resolver);
+
+    expect(fn() => $middleware(
+        foundationRequest('/auth-failure'),
+        static function (Request $_request) use ($context): Response {
+            expect((string) $_request->getUri())->toContain('/auth-failure')
+                ->and($context->require()->id())->toBe('request');
+
+            throw new RuntimeException('handler failed');
+        },
+    ))->toThrow(RuntimeException::class, 'handler failed')
+        ->and($context->require()->id())->toBe('previous');
 });
 
 it('does not build configured middleware aliases until a route uses them', function (): void {

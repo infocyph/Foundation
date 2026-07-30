@@ -123,6 +123,13 @@ final class CacheManager
         );
     }
 
+    public function useStore(CacheInterface $store, ?string $name = null): CacheInterface
+    {
+        $this->stores[$name ?? '__default__'] = $store;
+
+        return $store;
+    }
+
     protected function configSection(): string
     {
         return 'cache';

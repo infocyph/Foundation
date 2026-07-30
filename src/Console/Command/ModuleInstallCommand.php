@@ -18,7 +18,7 @@ final class ModuleInstallCommand extends AbstractFoundationCommand
     {
         $command
             ->name('module:install')
-            ->description('Install an optional Infocyph module as a direct project dependency.')
+            ->description('Install an optional package or publish a built-in Foundation module.')
             ->argument(Argument::required('module')->description(
                 'Module name or package, for example: db, cache, filesystem, or infocyph/otp.',
             ))

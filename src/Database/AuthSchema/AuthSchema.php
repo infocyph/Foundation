@@ -4,245 +4,215 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Database\AuthSchema;
 
-final readonly class AuthSchema
+use Infocyph\DBLayer\Migration\Migration;
+use Infocyph\DBLayer\Migration\MigrationContext;
+use Infocyph\DBLayer\Schema\Blueprint;
+use Infocyph\DBLayer\Schema\SchemaManager;
+
+final readonly class AuthSchema implements Migration
 {
     public function __construct(
         private AuthTables $tables,
     ) {}
 
-    /**
-     * @return list<string>
-     */
-    public function dropStatements(): array
+    public function down(SchemaManager $schema, MigrationContext $context): void
     {
-        return array_map(
-            static fn(string $table): string => sprintf('DROP TABLE IF EXISTS %s', $table),
-            array_reverse($this->tables->all()),
-        );
+        foreach (array_reverse($this->tables->all()) as $table) {
+            $schema->dropIfExists($table);
+            $context->checkpoint();
+        }
     }
 
-    /**
-     * @return list<string>
-     */
-    public function statements(): array
+    public function id(): string
     {
-        $accounts = $this->tables->accounts();
-        $sessions = $this->tables->sessions();
-        $passwordResets = $this->tables->passwordResets();
-        $emailVerifications = $this->tables->emailVerifications();
-        $rememberTokens = $this->tables->rememberTokens();
-        $refreshTokens = $this->tables->refreshTokens();
-        $mfaFactors = $this->tables->mfaFactors();
-        $passkeys = $this->tables->passkeyCredentials();
-        $roles = $this->tables->roles();
-        $permissions = $this->tables->permissions();
-        $accountRoles = $this->tables->accountRoles();
-        $accountPermissions = $this->tables->accountPermissions();
-        $rolePermissions = $this->tables->rolePermissions();
-        $grants = $this->tables->grants();
-        $devices = $this->tables->devices();
-        $auditEvents = $this->tables->auditEvents();
-        $lockouts = $this->tables->lockouts();
-
-        return [
-            "CREATE TABLE IF NOT EXISTS {$accounts} (
-                id TEXT PRIMARY KEY,
-                identifier TEXT NOT NULL UNIQUE,
-                status TEXT NOT NULL,
-                password_hash TEXT NULL,
-                metadata TEXT NULL
-            )",
-            "CREATE TABLE IF NOT EXISTS {$sessions} (
-                id TEXT PRIMARY KEY,
-                account_id TEXT NOT NULL,
-                device_id TEXT NULL,
-                created_at INTEGER NOT NULL,
-                last_seen_at INTEGER NOT NULL,
-                expires_at INTEGER NOT NULL,
-                recent_auth_at INTEGER NULL,
-                metadata TEXT NULL
-            )",
-            "CREATE TABLE IF NOT EXISTS {$passwordResets} (
-                id TEXT PRIMARY KEY,
-                account_id TEXT NOT NULL,
-                requested_at INTEGER NOT NULL,
-                expires_at INTEGER NOT NULL,
-                consumed_at INTEGER NULL,
-                context TEXT NULL
-            )",
-            "CREATE TABLE IF NOT EXISTS {$emailVerifications} (
-                id TEXT PRIMARY KEY,
-                account_id TEXT NOT NULL,
-                email TEXT NOT NULL,
-                requested_at INTEGER NOT NULL,
-                expires_at INTEGER NOT NULL,
-                consumed_at INTEGER NULL,
-                context TEXT NULL
-            )",
-            "CREATE TABLE IF NOT EXISTS {$rememberTokens} (
-                id TEXT PRIMARY KEY,
-                account_id TEXT NOT NULL,
-                device_id TEXT NOT NULL,
-                selector TEXT NOT NULL UNIQUE,
-                verifier_hash TEXT NOT NULL,
-                family_id TEXT NOT NULL,
-                issued_at INTEGER NOT NULL,
-                expires_at INTEGER NOT NULL,
-                last_used_at INTEGER NULL,
-                rotated_at INTEGER NULL,
-                revoked_at INTEGER NULL,
-                metadata TEXT NULL
-            )",
-            "CREATE TABLE IF NOT EXISTS {$refreshTokens} (
-                id TEXT PRIMARY KEY,
-                account_id TEXT NOT NULL,
-                client_id TEXT NULL,
-                device_id TEXT NULL,
-                token_hash TEXT NOT NULL UNIQUE,
-                family_id TEXT NOT NULL,
-                issued_at INTEGER NOT NULL,
-                expires_at INTEGER NOT NULL,
-                rotated_at INTEGER NULL,
-                revoked_at INTEGER NULL,
-                metadata TEXT NULL
-            )",
-            "CREATE TABLE IF NOT EXISTS {$mfaFactors} (
-                id TEXT PRIMARY KEY,
-                account_id TEXT NOT NULL,
-                type TEXT NOT NULL,
-                label TEXT NULL,
-                enabled INTEGER NOT NULL,
-                created_at INTEGER NOT NULL,
-                metadata TEXT NULL
-            )",
-            "CREATE TABLE IF NOT EXISTS {$passkeys} (
-                id TEXT PRIMARY KEY,
-                account_id TEXT NOT NULL,
-                credential_id TEXT NOT NULL UNIQUE,
-                public_key TEXT NOT NULL,
-                sign_count INTEGER NOT NULL,
-                transports TEXT NULL,
-                created_at INTEGER NOT NULL,
-                last_used_at INTEGER NULL,
-                revoked_at INTEGER NULL,
-                metadata TEXT NULL
-            )",
-            "CREATE TABLE IF NOT EXISTS {$roles} (
-                id TEXT PRIMARY KEY,
-                name TEXT NOT NULL UNIQUE,
-                metadata TEXT NULL
-            )",
-            "CREATE TABLE IF NOT EXISTS {$permissions} (
-                id TEXT PRIMARY KEY,
-                name TEXT NOT NULL UNIQUE,
-                metadata TEXT NULL
-            )",
-            "CREATE TABLE IF NOT EXISTS {$accountRoles} (
-                account_id TEXT NOT NULL,
-                role_id TEXT NOT NULL,
-                created_at INTEGER NOT NULL,
-                UNIQUE(account_id, role_id)
-            )",
-            "CREATE TABLE IF NOT EXISTS {$accountPermissions} (
-                account_id TEXT NOT NULL,
-                permission_id TEXT NOT NULL,
-                created_at INTEGER NOT NULL,
-                UNIQUE(account_id, permission_id)
-            )",
-            "CREATE TABLE IF NOT EXISTS {$rolePermissions} (
-                role_id TEXT NOT NULL,
-                permission_id TEXT NOT NULL,
-                created_at INTEGER NOT NULL,
-                UNIQUE(role_id, permission_id)
-            )",
-            "CREATE TABLE IF NOT EXISTS {$grants} (
-                id TEXT PRIMARY KEY,
-                principal_id TEXT NOT NULL,
-                permission TEXT NOT NULL,
-                resource_type TEXT NULL,
-                resource_id TEXT NULL,
-                expires_at INTEGER NULL,
-                revoked_at INTEGER NULL,
-                metadata TEXT NULL
-            )",
-            "CREATE TABLE IF NOT EXISTS {$devices} (
-                id TEXT PRIMARY KEY,
-                account_id TEXT NOT NULL,
-                label TEXT NULL,
-                fingerprint TEXT NULL,
-                trusted INTEGER NOT NULL,
-                created_at INTEGER NOT NULL,
-                last_seen_at INTEGER NULL,
-                revoked_at INTEGER NULL,
-                metadata TEXT NULL
-            )",
-            "CREATE TABLE IF NOT EXISTS {$auditEvents} (
-                id TEXT PRIMARY KEY,
-                type TEXT NOT NULL,
-                severity TEXT NOT NULL,
-                account_id TEXT NULL,
-                actor_id TEXT NULL,
-                session_id TEXT NULL,
-                device_id TEXT NULL,
-                correlation_id TEXT NULL,
-                occurred_at INTEGER NOT NULL,
-                metadata TEXT NULL
-            )",
-            "CREATE TABLE IF NOT EXISTS {$lockouts} (
-                account_id TEXT PRIMARY KEY,
-                reason TEXT NOT NULL,
-                until_at INTEGER NULL
-            )",
-            ...$this->indexStatements([
-                [$accounts, 'status', ['status']],
-                [$sessions, 'account', ['account_id']],
-                [$sessions, 'device', ['device_id']],
-                [$sessions, 'expires', ['expires_at']],
-                [$passwordResets, 'account', ['account_id']],
-                [$passwordResets, 'expires', ['expires_at']],
-                [$emailVerifications, 'account', ['account_id']],
-                [$emailVerifications, 'email', ['email']],
-                [$emailVerifications, 'expires', ['expires_at']],
-                [$rememberTokens, 'account', ['account_id']],
-                [$rememberTokens, 'family', ['family_id']],
-                [$rememberTokens, 'expires', ['expires_at']],
-                [$refreshTokens, 'account', ['account_id']],
-                [$refreshTokens, 'family', ['family_id']],
-                [$refreshTokens, 'expires', ['expires_at']],
-                [$mfaFactors, 'account', ['account_id']],
-                [$mfaFactors, 'type', ['type']],
-                [$passkeys, 'account', ['account_id']],
-                [$accountRoles, 'role', ['role_id']],
-                [$accountPermissions, 'permission', ['permission_id']],
-                [$rolePermissions, 'permission', ['permission_id']],
-                [$grants, 'principal', ['principal_id']],
-                [$grants, 'permission', ['permission']],
-                [$grants, 'resource', ['resource_type', 'resource_id']],
-                [$devices, 'account', ['account_id']],
-                [$devices, 'fingerprint', ['fingerprint']],
-                [$auditEvents, 'account', ['account_id']],
-                [$auditEvents, 'occurred', ['occurred_at']],
-                [$auditEvents, 'type', ['type']],
-                [$lockouts, 'until', ['until_at']],
-            ]),
-        ];
+        return '20260730000000_foundation_auth_schema';
     }
 
-    /**
-     * @param list<array{0: string, 1: string, 2: list<string>}> $definitions
-     * @return list<string>
-     */
-    private function indexStatements(array $definitions): array
+    public function up(SchemaManager $schema, MigrationContext $context): void
     {
-        return array_map(
-            static fn(array $definition): string => sprintf(
-                'CREATE INDEX IF NOT EXISTS %s_%s_idx ON %s (%s)',
-                $definition[0],
-                $definition[1],
-                $definition[0],
-                implode(', ', $definition[2]),
-            ),
-            $definitions,
-        );
+        $this->createAccounts($schema);
+        $this->createSessions($schema);
+        $this->createConsumableRequests($schema);
+        $this->createTokens($schema);
+        $this->createFactorsAndPasskeys($schema);
+        $this->createAuthorization($schema);
+        $this->createDevicesAuditAndLockouts($schema);
+        $context->checkpoint();
+    }
+
+    private function createAccounts(SchemaManager $schema): void
+    {
+        $schema->create($this->tables->accounts(), static function (Blueprint $table): void {
+            $table->string('id', 64)->primary();
+            $table->string('identifier', 255)->unique();
+            $table->string('status', 32)->index();
+            $table->text('password_hash')->nullable();
+            $table->json('metadata')->nullable();
+        });
+    }
+
+    private function createAssignment(
+        SchemaManager $schema,
+        string $name,
+        string $left,
+        string $right,
+    ): void {
+        $schema->create($name, static function (Blueprint $table) use ($left, $right): void {
+            $table->string($left, 64);
+            $table->string($right, 64)->index();
+            $table->bigInteger('created_at');
+            $table->unique([$left, $right]);
+        });
+    }
+
+    private function createAuthorization(SchemaManager $schema): void
+    {
+        $schema->create($this->tables->roles(), static function (Blueprint $table): void {
+            $table->string('id', 64)->primary();
+            $table->string('name', 255)->unique();
+            $table->json('metadata')->nullable();
+        });
+        $schema->create($this->tables->permissions(), static function (Blueprint $table): void {
+            $table->string('id', 64)->primary();
+            $table->string('name', 255)->unique();
+            $table->json('metadata')->nullable();
+        });
+        $this->createAssignment($schema, $this->tables->accountRoles(), 'account_id', 'role_id');
+        $this->createAssignment($schema, $this->tables->accountPermissions(), 'account_id', 'permission_id');
+        $this->createAssignment($schema, $this->tables->rolePermissions(), 'role_id', 'permission_id');
+        $schema->create($this->tables->grants(), static function (Blueprint $table): void {
+            $table->string('id', 64)->primary();
+            $table->string('principal_id', 64)->index();
+            $table->string('permission', 255)->index();
+            $table->string('resource_type', 255)->nullable();
+            $table->string('resource_id', 255)->nullable();
+            $table->bigInteger('expires_at')->nullable();
+            $table->bigInteger('revoked_at')->nullable();
+            $table->json('metadata')->nullable();
+            $table->index(['resource_type', 'resource_id']);
+        });
+    }
+
+    private function createConsumableRequests(SchemaManager $schema): void
+    {
+        $schema->create($this->tables->passwordResets(), static function (Blueprint $table): void {
+            $table->string('id', 64)->primary();
+            $table->string('account_id', 64)->index();
+            $table->bigInteger('requested_at');
+            $table->bigInteger('expires_at')->index();
+            $table->bigInteger('consumed_at')->nullable();
+            $table->json('context')->nullable();
+        });
+        $schema->create($this->tables->emailVerifications(), static function (Blueprint $table): void {
+            $table->string('id', 64)->primary();
+            $table->string('account_id', 64)->index();
+            $table->string('email', 255)->index();
+            $table->bigInteger('requested_at');
+            $table->bigInteger('expires_at')->index();
+            $table->bigInteger('consumed_at')->nullable();
+            $table->json('context')->nullable();
+        });
+    }
+
+    private function createDevicesAuditAndLockouts(SchemaManager $schema): void
+    {
+        $schema->create($this->tables->devices(), static function (Blueprint $table): void {
+            $table->string('id', 64)->primary();
+            $table->string('account_id', 64)->index();
+            $table->string('label', 255)->nullable();
+            $table->string('fingerprint', 255)->nullable()->index();
+            $table->boolean('trusted');
+            $table->bigInteger('created_at');
+            $table->bigInteger('last_seen_at')->nullable();
+            $table->bigInteger('revoked_at')->nullable();
+            $table->json('metadata')->nullable();
+        });
+        $schema->create($this->tables->auditEvents(), static function (Blueprint $table): void {
+            $table->string('id', 64)->primary();
+            $table->string('type', 128)->index();
+            $table->string('severity', 32);
+            $table->string('account_id', 64)->nullable()->index();
+            $table->string('actor_id', 64)->nullable();
+            $table->string('session_id', 64)->nullable();
+            $table->string('device_id', 64)->nullable();
+            $table->string('correlation_id', 64)->nullable();
+            $table->bigInteger('occurred_at')->index();
+            $table->json('metadata')->nullable();
+        });
+        $schema->create($this->tables->lockouts(), static function (Blueprint $table): void {
+            $table->string('account_id', 64)->primary();
+            $table->string('reason', 128);
+            $table->bigInteger('until_at')->nullable()->index();
+        });
+    }
+
+    private function createFactorsAndPasskeys(SchemaManager $schema): void
+    {
+        $schema->create($this->tables->mfaFactors(), static function (Blueprint $table): void {
+            $table->string('id', 64)->primary();
+            $table->string('account_id', 64)->index();
+            $table->string('type', 64)->index();
+            $table->string('label', 255)->nullable();
+            $table->boolean('enabled');
+            $table->bigInteger('created_at');
+            $table->json('metadata')->nullable();
+        });
+        $schema->create($this->tables->passkeyCredentials(), static function (Blueprint $table): void {
+            $table->string('id', 64)->primary();
+            $table->string('account_id', 64)->index();
+            $table->string('credential_id', 1024)->unique();
+            $table->text('public_key');
+            $table->bigInteger('sign_count');
+            $table->json('transports')->nullable();
+            $table->bigInteger('created_at');
+            $table->bigInteger('last_used_at')->nullable();
+            $table->bigInteger('revoked_at')->nullable();
+            $table->json('metadata')->nullable();
+        });
+    }
+
+    private function createSessions(SchemaManager $schema): void
+    {
+        $schema->create($this->tables->sessions(), static function (Blueprint $table): void {
+            $table->string('id', 64)->primary();
+            $table->string('account_id', 64)->index();
+            $table->string('device_id', 64)->nullable()->index();
+            $table->bigInteger('created_at');
+            $table->bigInteger('last_seen_at');
+            $table->bigInteger('expires_at')->index();
+            $table->bigInteger('recent_auth_at')->nullable();
+            $table->json('metadata')->nullable();
+        });
+    }
+
+    private function createTokens(SchemaManager $schema): void
+    {
+        $schema->create($this->tables->rememberTokens(), static function (Blueprint $table): void {
+            $table->string('id', 64)->primary();
+            $table->string('account_id', 64)->index();
+            $table->string('device_id', 64);
+            $table->string('selector', 255)->unique();
+            $table->text('verifier_hash');
+            $table->string('family_id', 64)->index();
+            $table->bigInteger('issued_at');
+            $table->bigInteger('expires_at')->index();
+            $table->bigInteger('last_used_at')->nullable();
+            $table->bigInteger('rotated_at')->nullable();
+            $table->bigInteger('revoked_at')->nullable();
+            $table->json('metadata')->nullable();
+        });
+        $schema->create($this->tables->refreshTokens(), static function (Blueprint $table): void {
+            $table->string('id', 64)->primary();
+            $table->string('account_id', 64)->index();
+            $table->string('client_id', 255)->nullable();
+            $table->string('device_id', 64)->nullable();
+            $table->string('token_hash', 255)->unique();
+            $table->string('family_id', 64)->index();
+            $table->bigInteger('issued_at');
+            $table->bigInteger('expires_at')->index();
+            $table->bigInteger('rotated_at')->nullable();
+            $table->bigInteger('revoked_at')->nullable();
+            $table->json('metadata')->nullable();
+        });
     }
 }

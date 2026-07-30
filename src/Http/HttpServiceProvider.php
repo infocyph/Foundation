@@ -8,12 +8,12 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Http\Response\AuthExceptionMapper;
 use Infocyph\Foundation\Http\Response\AuthResponseFactory;
+use Infocyph\Foundation\Http\Response\ExceptionRenderer;
+use Infocyph\Foundation\Logging\HttpExceptionLogger;
 use Infocyph\Foundation\Routing\RouterManager;
+use Infocyph\Foundation\Runtime\RuntimeContextResetter;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
-use Infocyph\Webrick\Request\Request;
-use Infocyph\Webrick\Response\Response;
 use Infocyph\Webrick\Router\Kernel\ErrorHandler;
-use Psr\Log\NullLogger;
 
 final class HttpServiceProvider extends ServiceProvider
 {
@@ -25,26 +25,22 @@ final class HttpServiceProvider extends ServiceProvider
         $this->bindFactory($container, AuthExceptionMapper::class, fn() => new AuthExceptionMapper(
             $app->make(AuthResponseFactory::class),
         ), LifetimeEnum::Singleton);
+        $this->bindFactory($container, ExceptionRenderer::class, fn() => new ExceptionRenderer(
+            $app->make(AuthExceptionMapper::class),
+        ), LifetimeEnum::Singleton);
 
         $this->bindFactory($container, ErrorHandler::class, fn() => new ErrorHandler(
-            logger: new NullLogger(),
+            logger: $app->make(HttpExceptionLogger::class),
             debug: (bool) $app->config()->get('app.debug', false),
             capturePhpErrors: true,
             requestIdHeader: 'X-Request-Id',
-            responseRenderer: function (Request $request, \Throwable $exception, int $status, array $headers) use ($app): ?Response {
-                unset($status, $headers);
-
-                $mapper = $app->make(AuthExceptionMapper::class);
-
-                return $mapper->supports($exception)
-                    ? $mapper->toResponse($request, $exception)
-                    : null;
-            },
+            responseRenderer: $app->make(ExceptionRenderer::class)->render(...),
         ), LifetimeEnum::Singleton);
 
         $this->bindFactory($container, HttpKernel::class, fn() => new HttpKernel(
             router: $app->make(RouterManager::class),
             errorHandler: $app->make(ErrorHandler::class),
+            contexts: $app->make(RuntimeContextResetter::class),
         ), LifetimeEnum::Singleton);
 
         $this->bindFactory($container, 'foundation.http', fn() => $container->get(HttpKernel::class), LifetimeEnum::Singleton);

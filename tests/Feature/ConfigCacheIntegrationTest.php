@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Infocyph\Foundation\Config\ConfigLoader;
 use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Cache\CacheServiceProvider;
+use Infocyph\Foundation\Config\ConfigLoader;
 use Infocyph\Foundation\Console\Support\ConfigCacheManager;
 use Infocyph\Foundation\Foundation;
 
@@ -236,18 +236,18 @@ it('keeps production requirements limited to the runtime core', function (): voi
     ])->and($composer['require']['infocyph/console'] ?? null)->toBe('dev-main@dev')
         ->and($composer['require']['infocyph/webrick'] ?? null)->toBe('^3.2')
         ->and($composer['require-dev']['infocyph/cachelayer'] ?? null)->toBe('^2.0')
-        ->and($composer['require-dev']['infocyph/dblayer'] ?? null)->toBe('^2.3')
+        ->and($composer['require-dev']['infocyph/dblayer'] ?? null)->toBe('^3.0')
         ->and($composer['require-dev'])->not->toHaveKey('infocyph/uid')
         ->and(array_keys($composer['suggest']))->toContain(
-        'infocyph/cachelayer',
-        'infocyph/dblayer',
-        'infocyph/epicrypt',
-        'infocyph/otp',
-        'infocyph/pathwise',
-        'infocyph/reqshield',
-        'infocyph/talkingbytes',
-        'web-auth/webauthn-lib',
-    );
+            'infocyph/cachelayer',
+            'infocyph/dblayer',
+            'infocyph/epicrypt',
+            'infocyph/otp',
+            'infocyph/pathwise',
+            'infocyph/reqshield',
+            'infocyph/talkingbytes',
+            'web-auth/webauthn-lib',
+        );
 });
 
 /**

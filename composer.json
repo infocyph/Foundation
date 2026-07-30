@@ -10,7 +10,7 @@
     },
     "require-dev": {
         "infocyph/cachelayer": "^2.0",
-        "infocyph/dblayer": "^2.3",
+        "infocyph/dblayer": "^3.0",
         "infocyph/epicrypt": "^1.1",
         "infocyph/otp": "^5.04",
         "infocyph/pathwise": "^2.5.3",
@@ -29,7 +29,7 @@
         "infocyph/talkingbytes": "Adds communication and notification services.",
         "web-auth/webauthn-lib": "Adds WebAuthn passkey authentication."
     },
-    "minimum-stability": "stable",
+    "minimum-stability": "dev",
     "prefer-stable": true,
     "autoload": {
         "psr-4": {

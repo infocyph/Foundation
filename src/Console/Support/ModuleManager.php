@@ -17,12 +17,13 @@ final readonly class ModuleManager
         private Application $application,
         private ModuleCatalog $catalog,
         private ProcessRunner $processes,
+        private ?ModuleManifestManager $manifest = null,
     ) {}
 
     /**
      * @return list<array{
      *     name: string,
-     *     package: string,
+     *     package: string|null,
      *     description: string,
      *     installed: bool,
      *     direct: bool,
@@ -34,16 +35,19 @@ final readonly class ModuleManager
         $direct = $this->directRequirements();
         $modules = [];
 
-        foreach ($this->catalog->all() as $name => $definition) {
-            $package = $definition['package'];
-            $installed = InstalledVersions::isInstalled($package);
+        foreach ($this->definitions() as $name => $definition) {
+            $package = $this->package($definition);
+            $builtIn = ($definition['built_in'] ?? false) === true;
+            $installed = $builtIn || ($package !== null && InstalledVersions::isInstalled($package));
             $modules[] = [
                 'name' => $name,
                 'package' => $package,
-                'description' => $definition['description'],
+                'description' => $this->description($definition),
                 'installed' => $installed,
-                'direct' => isset($direct[$package]),
-                'version' => $installed ? InstalledVersions::getPrettyVersion($package) : null,
+                'direct' => $builtIn || ($package !== null && isset($direct[$package])),
+                'version' => $builtIn
+                    ? InstalledVersions::getPrettyVersion('infocyph/foundation')
+                    : ($installed && $package !== null ? InstalledVersions::getPrettyVersion($package) : null),
             ];
         }
 
@@ -52,11 +56,19 @@ final readonly class ModuleManager
 
     public function install(string $module, bool $dryRun = false): ProcessResult
     {
-        $definition = $this->catalog->resolve($module);
+        $definition = $this->resolve($module);
+        if (($definition['built_in'] ?? false) === true) {
+            return new ProcessResult(0, '', '');
+        }
+
+        $package = $this->package($definition);
+        if ($package === null) {
+            throw new \LogicException(sprintf('Module "%s" has no installable package.', $this->name($definition)));
+        }
         $command = [
             'composer',
             'require',
-            $definition['package'],
+            $package,
             '--with-all-dependencies',
         ];
         if ($dryRun) {
@@ -74,16 +86,14 @@ final readonly class ModuleManager
      */
     public function publishConfig(string $module): array
     {
-        $definition = $this->catalog->resolve($module);
+        $definition = $this->resolve($module);
         $configDirectory = $this->application->configPath();
-        $templateDirectory = dirname(__DIR__, 3) . '/resources/config';
         $published = [];
         $existing = [];
 
         $this->ensureDirectory($configDirectory);
 
-        foreach ($definition['config'] as $filename) {
-            $source = $templateDirectory . DIRECTORY_SEPARATOR . $filename;
+        foreach ($this->configSources($definition) as $filename => $source) {
             $target = $configDirectory . DIRECTORY_SEPARATOR . $filename;
 
             $this->publishFile($source, $target)
@@ -103,11 +113,22 @@ final readonly class ModuleManager
 
     public function remove(string $module, bool $dryRun = false): ProcessResult
     {
-        $definition = $this->catalog->resolve($module);
+        $definition = $this->resolve($module);
+        if (($definition['built_in'] ?? false) === true) {
+            throw new \InvalidArgumentException(sprintf(
+                'Module "%s" is built into Foundation and cannot be removed.',
+                $this->name($definition),
+            ));
+        }
+
+        $package = $this->package($definition);
+        if ($package === null) {
+            throw new \LogicException(sprintf('Module "%s" has no removable package.', $this->name($definition)));
+        }
         $command = [
             'composer',
             'remove',
-            $definition['package'],
+            $package,
             '--with-all-dependencies',
         ];
         if ($dryRun) {
@@ -115,6 +136,56 @@ final readonly class ModuleManager
         }
 
         return $this->run($command);
+    }
+
+    /**
+     * @param array<string,mixed> $definition
+     * @return array<string,string>
+     */
+    private function configSources(array $definition): array
+    {
+        $configured = $definition['config'] ?? [];
+        if (!is_array($configured)) {
+            return [];
+        }
+
+        $sources = [];
+        $root = $definition['root'] ?? null;
+        foreach ($configured as $target => $source) {
+            if (is_int($target) && is_string($source)) {
+                $sources[$source] = dirname(__DIR__, 3) . '/resources/config/' . $source;
+
+                continue;
+            }
+            if (is_string($target) && is_string($source) && is_string($root)) {
+                $sources[$target] = $root . DIRECTORY_SEPARATOR . $source;
+            }
+        }
+
+        return $sources;
+    }
+
+    /**
+     * @return array<string,array<string,mixed>>
+     */
+    private function definitions(): array
+    {
+        $thirdParty = ($this->manifest ?? new ModuleManifestManager($this->application))->load();
+
+        return $this->catalog->all() + $thirdParty;
+    }
+
+    /**
+     * @param array<string,mixed> $definition
+     */
+    private function description(array $definition): string
+    {
+        $description = $definition['description'] ?? null;
+        if (!is_string($description) || $description === '') {
+            throw new \UnexpectedValueException('Foundation module description must be a non-empty string.');
+        }
+
+        return $description;
     }
 
     /**
@@ -168,6 +239,32 @@ final readonly class ModuleManager
         ));
     }
 
+    /**
+     * @param array<string,mixed> $definition
+     */
+    private function name(array $definition): string
+    {
+        $name = $definition['name'] ?? null;
+        if (!is_string($name) || $name === '') {
+            throw new \UnexpectedValueException('Foundation module name must be a non-empty string.');
+        }
+
+        return $name;
+    }
+
+    /**
+     * @param array<string,mixed> $definition
+     */
+    private function package(array $definition): ?string
+    {
+        $package = $definition['package'] ?? null;
+        if ($package !== null && !is_string($package)) {
+            throw new \UnexpectedValueException('Foundation module package must be a string or null.');
+        }
+
+        return $package;
+    }
+
     private function publishFile(string $source, string $target): bool
     {
         if (is_file($target)) {
@@ -212,6 +309,29 @@ final readonly class ModuleManager
         fclose($handle);
 
         return true;
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function resolve(string $module): array
+    {
+        $normalized = strtolower(trim($module));
+        foreach ($this->definitions() as $name => $definition) {
+            $package = $definition['package'] ?? null;
+            $aliases = is_array($definition['aliases'] ?? null) ? $definition['aliases'] : [];
+            if ($normalized === $name
+                || (is_string($package) && $normalized === $package)
+                || in_array($normalized, $aliases, true)
+            ) {
+                return ['name' => $name] + $definition;
+            }
+        }
+
+        throw new \InvalidArgumentException(sprintf(
+            'Unknown module "%s". Run optimize to compile newly installed third-party modules.',
+            $module,
+        ));
     }
 
     /**
