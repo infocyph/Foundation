@@ -5,18 +5,18 @@
     "type": "library",
     "require": {
         "php": ">=8.4",
-        "infocyph/console": "dev-main@dev",
-        "infocyph/webrick": "^3.2"
+        "infocyph/console": "^1.0.0",
+        "infocyph/webrick": "^3.2.1"
     },
     "require-dev": {
         "infocyph/cachelayer": "^2.0",
-        "infocyph/dblayer": "^3.0",
-        "infocyph/epicrypt": "^1.1",
+        "infocyph/dblayer": "^3.0.1",
+        "infocyph/epicrypt": "^1.1.1",
         "infocyph/otp": "^5.04",
         "infocyph/pathwise": "^2.5.3",
         "infocyph/phpforge": "dev-main@dev",
-        "infocyph/reqshield": "^2.4.2",
-        "infocyph/talkingbytes": "^0.2",
+        "infocyph/reqshield": "^2.4.3",
+        "infocyph/talkingbytes": "^1.0.0",
         "web-auth/webauthn-lib": "^5.3.5"
     },
     "suggest": {
@@ -29,7 +29,7 @@
         "infocyph/talkingbytes": "Adds communication and notification services.",
         "web-auth/webauthn-lib": "Adds WebAuthn passkey authentication."
     },
-    "minimum-stability": "dev",
+    "minimum-stability": "stable",
     "prefer-stable": true,
     "autoload": {
         "psr-4": {
@@ -41,7 +41,8 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Infocyph\\Foundation\\Tests\\": "tests/"
+            "Infocyph\\Foundation\\Benchmarks\\": "benchmarks/",
+            "Infocyph\\Foundation\\Tests\\Fixtures\\": "tests/Fixtures/"
         }
     },
     "config": {
@@ -52,5 +53,8 @@
         },
         "optimize-autoloader": true,
         "sort-packages": true
+    },
+    "scripts": {
+        "benchmark:representative": "@php benchmarks/run-representative.php"
     }
 }

@@ -355,11 +355,15 @@ PHP);
             ->and($basePath . '/bootstrap/cache/routes/fused.php')->toBeFile()
             ->and($basePath . '/bootstrap/cache/console/commands.php')->toBeFile()
             ->and($basePath . '/bootstrap/cache/console/schedule.php')->toBeFile()
+            ->and($console->run(['foundation', 'optimize']))->toBe(ExitCode::SUCCESS)
+            ->and($basePath . '/bootstrap/cache/config/__manifest.php')->toBeFile()
+            ->and($basePath . '/bootstrap/cache/routes/fused.php')->toBeFile()
             ->and($console->run(['foundation', 'optimize:clear']))->toBe(ExitCode::SUCCESS)
             ->and($basePath . '/bootstrap/cache/config/__manifest.php')->not->toBeFile()
             ->and($basePath . '/bootstrap/cache/routes/fused.php')->not->toBeFile()
             ->and($basePath . '/bootstrap/cache/console/commands.php')->not->toBeFile()
             ->and($basePath . '/bootstrap/cache/console/schedule.php')->not->toBeFile()
+            ->and($console->run(['foundation', 'optimize:clear']))->toBe(ExitCode::SUCCESS)
             ->and(implode("\n", $io->output()))->toContain('Application caches cleared.');
     } finally {
         foundationConsoleRemoveDirectory($basePath);

@@ -16,3 +16,4 @@ patch.php
 .route-cache-*
 .codex
 .agents
+build/

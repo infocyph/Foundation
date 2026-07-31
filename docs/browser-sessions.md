@@ -100,6 +100,18 @@ lease is refreshed and ownership is checked before persistence. A lost lease
 fails the request rather than overwriting another request's data. Release runs
 in a `finally` boundary.
 
+Foundation's environment-gated integration matrix exercises contention and
+recovery with independent clients for Redis, Valkey, Memcached, MySQL PDO, and
+PostgreSQL PDO. CacheLayer continues to own each lease implementation;
+Foundation verifies that browser-session orchestration times out safely and can
+load the session after the competing lease is released.
+
+Store failures are never treated as an empty or successfully persisted
+session. File permission/write failures and cache write rejection raise a
+controlled runtime exception, while database disconnects retain DBLayer's
+query exception. The integration suite covers those failure paths without
+suppressing them or silently dropping browser state.
+
 ## CSRF policy
 
 The CSRF middleware:

@@ -13,17 +13,24 @@ beforeEach(function (): void {
     }
 });
 
-function foundationFilesystemApp(): Application
+/**
+ * @return array{Application, string}
+ */
+function foundationFilesystemApp(): array
 {
-    return Foundation::web([
-        'base_path' => dirname(__DIR__, 2),
+    $basePath = sys_get_temp_dir() . '/foundation-filesystem-' . bin2hex(random_bytes(5));
+    mkdir($basePath, 0775, true);
+
+    return [Foundation::web([
+        'base_path' => $basePath,
         '_config_cache' => false,
         'router' => ['cache' => false],
-    ]);
+    ]), $basePath];
 }
 
 it('streams download responses with conditional and range handling through foundation', function (): void {
-    $app = foundationFilesystemApp()->boot();
+    [$app, $basePath] = foundationFilesystemApp();
+    $app->boot();
     $files = $app->files();
     $directory = 'tests/http-' . uniqid('', true);
     $relativePath = $directory . '/payload.txt';
@@ -89,11 +96,13 @@ it('streams download responses with conditional and range handling through found
         expect($staleRangeResponse->hasHeader('Content-Range'))->toBeFalse();
     } finally {
         $files->deleteDirectory($directory, 'uploads');
+        foundationFilesystemRemoveDirectory($basePath);
     }
 });
 
 it('handles upload requests, chunked uploads, offload responses, and pathwise utilities through foundation', function (): void {
-    $app = foundationFilesystemApp()->boot();
+    [$app, $basePath] = foundationFilesystemApp();
+    $app->boot();
     $files = $app->files();
     $directory = 'tests/uploads-' . uniqid('', true);
     $queuePath = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR)
@@ -240,5 +249,23 @@ it('handles upload requests, chunked uploads, offload responses, and pathwise ut
         if (is_file($auditPath)) {
             unlink($auditPath);
         }
+
+        foundationFilesystemRemoveDirectory($basePath);
     }
 });
+
+function foundationFilesystemRemoveDirectory(string $directory): void
+{
+    if (!is_dir($directory)) {
+        return;
+    }
+
+    $files = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::CHILD_FIRST,
+    );
+    foreach ($files as $file) {
+        $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
+    }
+    rmdir($directory);
+}

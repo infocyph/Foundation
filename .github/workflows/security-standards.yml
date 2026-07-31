@@ -18,23 +18,28 @@ jobs:
     with:
       php_versions: '["8.4","8.5"]'
       dependency_versions: '["prefer-lowest","prefer-stable"]'
-      php_extensions: ""
+      php_extensions: "pdo, pdo_mysql, pdo_pgsql, pdo_sqlite, redis, memcached"
       composer_flags: ""
       phpstan_memory_limit: "1G"
       psalm_threads: "1"
       run_analysis: true
       run_svg_report: true
-      fail_on_skipped_tests: false
-      enable_redis_service: false
-      enable_valkey_service: false
-      enable_memcached_service: false
-      enable_postgres_service: false
-      enable_mysql_service: false
+      fail_on_skipped_tests: true
+      run_clean_install: true
+      benchmark_composer_script: "benchmark:representative"
+      benchmark_result_file: "build/benchmark-result.json"
+      benchmark_baseline_file: ""
+      benchmark_max_regression_percent: 2
+      benchmark_stable_environment: false
+      enable_redis_service: true
+      enable_valkey_service: true
+      enable_memcached_service: true
+      enable_postgres_service: true
+      enable_mysql_service: true
       enable_scylladb_service: false
       enable_elasticsearch_service: false
       enable_mongodb_service: false
-      service_db_name: "phpforge"
-      service_db_user: "phpforge"
-      service_db_password: "phpforge"
+      service_db_name: "foundation"
+      service_db_user: "foundation"
+      service_db_password: "foundation"
       artifact_retention_days: 61
-
