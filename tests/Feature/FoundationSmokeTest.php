@@ -11,6 +11,7 @@ it('boots the local preset', function (): void {
 
     expect($app->config()->get('app.env'))->toBe('local');
     expect($app->storagePath())->toEndWith('storage');
+    expect($app->config()->has('app.container_alias'))->toBeFalse();
 });
 
 it('boots production when passkey auth is disabled', function (): void {

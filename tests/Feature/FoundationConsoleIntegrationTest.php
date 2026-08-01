@@ -277,10 +277,13 @@ it('clears direct command shards without removing unrelated console cache files'
     $manifest = $cachePath . '/commands.php';
     $entry = $cachePath . '/commands-' . hash('sha256', 'example') . '.php';
     $sentinel = $cachePath . '/.gitignore';
+    $siblingDirectory = $cachePath . '/commands.php.d';
     mkdir($cachePath, 0775, true);
+    mkdir($siblingDirectory, 0775, true);
     file_put_contents($manifest, '<?php return [];');
     file_put_contents($entry, '<?php return [];');
     file_put_contents($sentinel, "*\n!.gitignore\n");
+    file_put_contents($siblingDirectory . '/unrelated.php', '<?php return [];');
 
     try {
         $console = FoundationConsole::create(
@@ -298,7 +301,8 @@ it('clears direct command shards without removing unrelated console cache files'
         ]))->toBe(ExitCode::SUCCESS)
             ->and($manifest)->not->toBeFile()
             ->and($entry)->not->toBeFile()
-            ->and($sentinel)->toBeFile();
+            ->and($sentinel)->toBeFile()
+            ->and($siblingDirectory . '/unrelated.php')->toBeFile();
     } finally {
         foundationConsoleRemoveDirectory($basePath);
     }

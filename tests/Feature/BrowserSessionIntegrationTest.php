@@ -288,7 +288,7 @@ it('reports file session persistence failures without leaking PHP warnings', fun
 
 it('reports cache session persistence failures', function (): void {
     $payload = new \Infocyph\Foundation\Session\SessionPayload(['account' => 7], [], time() + 60);
-    $cache = $this->createMock(CacheInterface::class);
+    $cache = $this->createStub(CacheInterface::class);
     $cache->method('set')->willReturn(false);
     expect(fn() => (new CacheSessionStore($cache))->save(str_repeat('b', 64), $payload))
         ->toThrow(RuntimeException::class, 'Unable to persist the browser session');

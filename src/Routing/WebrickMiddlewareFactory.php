@@ -501,9 +501,9 @@ final readonly class WebrickMiddlewareFactory
         }
 
         if ($generationKey === null && $verificationKeys === []) {
-            $legacyKey = ValueNormalizer::nullableString($this->config->get('router.signed_urls.key'));
-            if ($legacyKey !== null) {
-                $verificationKeys = [$legacyKey];
+            $configuredKey = ValueNormalizer::nullableString($this->config->get('router.signed_urls.key'));
+            if ($configuredKey !== null) {
+                $verificationKeys = [$configuredKey];
             }
         }
 

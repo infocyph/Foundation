@@ -14,7 +14,6 @@ final class FoundationDefaults
         return [
             'app' => [
                 'base_path' => getcwd() ?: '.',
-                'container_alias' => null,
                 'container' => [
                     'alias' => null,
                     'compiled' => null,
