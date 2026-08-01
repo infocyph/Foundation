@@ -27,10 +27,7 @@ final class ContainerFactory
 
     private function alias(ConfigRepository $config): ?string
     {
-        $legacy = ValueNormalizer::nullableString($config->get('app.container_alias'));
-        $configured = ValueNormalizer::nullableString($config->get('app.container.alias'));
-
-        return $configured ?? $legacy;
+        return ValueNormalizer::nullableString($config->get('app.container.alias'));
     }
 
     private function compiledPath(ConfigRepository $config): ?string

@@ -277,10 +277,13 @@ it('clears direct command shards without removing unrelated console cache files'
     $manifest = $cachePath . '/commands.php';
     $entry = $cachePath . '/commands-' . hash('sha256', 'example') . '.php';
     $sentinel = $cachePath . '/.gitignore';
+    $siblingDirectory = $cachePath . '/commands.php.d';
     mkdir($cachePath, 0775, true);
+    mkdir($siblingDirectory, 0775, true);
     file_put_contents($manifest, '<?php return [];');
     file_put_contents($entry, '<?php return [];');
     file_put_contents($sentinel, "*\n!.gitignore\n");
+    file_put_contents($siblingDirectory . '/unrelated.php', '<?php return [];');
 
     try {
         $console = FoundationConsole::create(
@@ -298,7 +301,8 @@ it('clears direct command shards without removing unrelated console cache files'
         ]))->toBe(ExitCode::SUCCESS)
             ->and($manifest)->not->toBeFile()
             ->and($entry)->not->toBeFile()
-            ->and($sentinel)->toBeFile();
+            ->and($sentinel)->toBeFile()
+            ->and($siblingDirectory . '/unrelated.php')->toBeFile();
     } finally {
         foundationConsoleRemoveDirectory($basePath);
     }
@@ -355,11 +359,15 @@ PHP);
             ->and($basePath . '/bootstrap/cache/routes/fused.php')->toBeFile()
             ->and($basePath . '/bootstrap/cache/console/commands.php')->toBeFile()
             ->and($basePath . '/bootstrap/cache/console/schedule.php')->toBeFile()
+            ->and($console->run(['foundation', 'optimize']))->toBe(ExitCode::SUCCESS)
+            ->and($basePath . '/bootstrap/cache/config/__manifest.php')->toBeFile()
+            ->and($basePath . '/bootstrap/cache/routes/fused.php')->toBeFile()
             ->and($console->run(['foundation', 'optimize:clear']))->toBe(ExitCode::SUCCESS)
             ->and($basePath . '/bootstrap/cache/config/__manifest.php')->not->toBeFile()
             ->and($basePath . '/bootstrap/cache/routes/fused.php')->not->toBeFile()
             ->and($basePath . '/bootstrap/cache/console/commands.php')->not->toBeFile()
             ->and($basePath . '/bootstrap/cache/console/schedule.php')->not->toBeFile()
+            ->and($console->run(['foundation', 'optimize:clear']))->toBe(ExitCode::SUCCESS)
             ->and(implode("\n", $io->output()))->toContain('Application caches cleared.');
     } finally {
         foundationConsoleRemoveDirectory($basePath);

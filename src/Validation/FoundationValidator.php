@@ -228,23 +228,8 @@ final readonly class FoundationValidator
      */
     private function options(string $schema): array
     {
-        $legacy = [
+        $base = [
             'fail_fast' => $this->config->get('validation.fail_fast', true),
-            'allow_unknown' => $this->config->get('validation.allow_unknown', true),
-            'strip_unknown' => $this->config->get('validation.strip_unknown', false),
-            'strict' => $this->config->get('validation.strict', false),
-            'nested' => $this->config->get('validation.nested', false),
-            'nested_mode' => $this->config->get('validation.nested_mode', 'all'),
-            'throw_on_failure' => $this->config->get('validation.throw_on_failure', false),
-            'locale' => $this->config->get('validation.locale'),
-            'dto' => $this->config->get('validation.dto'),
-        ];
-        $legacyMaps = [
-            'aliases' => [],
-            'casts' => [],
-            'locale_packs' => [],
-            'messages' => [],
-            'sanitizers' => [],
         ];
 
         $defaults = ValueNormalizer::associativeArray($this->config->get('validation.defaults', []));
@@ -252,11 +237,10 @@ final readonly class FoundationValidator
         $overrides = isset($configuredOverrides[$schema]) && is_array($configuredOverrides[$schema])
             ? ValueNormalizer::associativeArray($configuredOverrides[$schema])
             : [];
-        $options = array_replace($legacy, $defaults, $overrides);
+        $options = array_replace($base, $defaults, $overrides);
 
-        foreach (array_keys($legacyMaps) as $key) {
+        foreach (['aliases', 'casts', 'locale_packs', 'messages', 'sanitizers'] as $key) {
             $options[$key] = array_replace(
-                $legacyMaps[$key],
                 $this->mixedMap($defaults[$key] ?? null),
                 $this->mixedMap($overrides[$key] ?? null),
             );

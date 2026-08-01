@@ -3,8 +3,12 @@
 declare(strict_types=1);
 
 use Infocyph\CacheLayer\Cache\Cache;
+use Infocyph\CacheLayer\Cache\CacheInterface;
 use Infocyph\CacheLayer\Cache\Lock\LockHandle;
 use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
+use Infocyph\DBLayer\Connection\Connection;
+use Infocyph\DBLayer\Connection\ConnectionConfig;
+use Infocyph\DBLayer\Exceptions\QueryException;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Session\BrowserSession;
@@ -261,6 +265,50 @@ it('creates and uses the portable DBLayer session schema on SQLite', function ()
         \Infocyph\DBLayer\DB::purge();
         browserSessionRemoveDirectory($project);
     }
+});
+
+it('reports file session persistence failures without leaking PHP warnings', function (): void {
+    $payload = new \Infocyph\Foundation\Session\SessionPayload(['account' => 7], [], time() + 60);
+    $directory = sys_get_temp_dir() . '/foundation-session-read-only-' . bin2hex(random_bytes(5));
+    mkdir($directory, 0500, true);
+
+    try {
+        if (is_writable($directory)) {
+            chmod($directory, 0700);
+            test()->markTestSkipped('The current user can write to permission-restricted directories.');
+        }
+
+        expect(fn() => (new FileSessionStore($directory))->save(str_repeat('a', 64), $payload))
+            ->toThrow(RuntimeException::class, 'Unable to write session file');
+    } finally {
+        chmod($directory, 0700);
+        browserSessionRemoveDirectory($directory);
+    }
+});
+
+it('reports cache session persistence failures', function (): void {
+    $payload = new \Infocyph\Foundation\Session\SessionPayload(['account' => 7], [], time() + 60);
+    $cache = $this->createStub(CacheInterface::class);
+    $cache->method('set')->willReturn(false);
+    expect(fn() => (new CacheSessionStore($cache))->save(str_repeat('b', 64), $payload))
+        ->toThrow(RuntimeException::class, 'Unable to persist the browser session');
+});
+
+it('reports database session failures after a connection is lost', function (): void {
+    $payload = new \Infocyph\Foundation\Session\SessionPayload(['account' => 7], [], time() + 60);
+    $connection = new Connection(new ConnectionConfig([
+        'driver' => 'sqlite',
+        'database' => ':memory:',
+    ]));
+    $connection->statement(
+        'CREATE TABLE browser_sessions (id VARCHAR(64) PRIMARY KEY, payload TEXT NOT NULL, expires_at BIGINT NOT NULL)',
+    );
+    $database = new DatabaseSessionStore($connection, 'browser_sessions');
+    $database->save(str_repeat('c', 64), $payload);
+    $connection->disconnect();
+
+    expect(fn() => $database->load(str_repeat('c', 64), time()))
+        ->toThrow(QueryException::class);
 });
 
 it('releases CacheLayer session locks when request handling fails', function (): void {

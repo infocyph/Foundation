@@ -19,6 +19,27 @@ final class FoundationValidationUserData
     public array $profile = [];
 }
 
+it('accepts validation policy only from the documented defaults and schema overrides', function (): void {
+    $app = Foundation::web([
+        'validation' => [
+            'allow_unknown' => false,
+            'schemas' => [
+                'users.store' => [
+                    'email' => 'required|email',
+                ],
+            ],
+        ],
+    ])->boot();
+
+    $result = $app->validator()->validate('users.store', [
+        'email' => 'ada@example.com',
+        'extra' => 'retained',
+    ]);
+
+    expect($result->fails())->toBeFalse()
+        ->and($result->errors())->not->toHaveKey('extra');
+});
+
 it('exposes reqshield runtime features through the foundation validator manager', function (): void {
     $app = Foundation::web([
         'validation' => [

@@ -17,11 +17,10 @@ final readonly class CommandCacheManager
         $manifest = $this->path($path);
         $entryPrefix = pathinfo(basename($manifest), PATHINFO_FILENAME) . '-';
         $removed = $this->removeFile($manifest, 'command manifest');
-        $removed = $this->removeEntries(
+
+        return $this->removeEntries(
             dirname($manifest) . DIRECTORY_SEPARATOR . $entryPrefix . '*.php',
         ) || $removed;
-
-        return $this->removeLegacyDirectory($manifest . '.d') || $removed;
     }
 
     public function path(string $path): string
@@ -81,20 +80,6 @@ final readonly class CommandCacheManager
         }
         if (!unlink($path)) {
             throw new \RuntimeException(sprintf('Unable to remove %s "%s".', $type, $path));
-        }
-
-        return true;
-    }
-
-    private function removeLegacyDirectory(string $directory): bool
-    {
-        if (!is_dir($directory)) {
-            return false;
-        }
-
-        $this->removeEntries($directory . DIRECTORY_SEPARATOR . '*.php');
-        if (!rmdir($directory)) {
-            throw new \RuntimeException(sprintf('Unable to remove command manifest directory "%s".', $directory));
         }
 
         return true;

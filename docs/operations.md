@@ -18,6 +18,10 @@ Individual `config:*`, `route:*`, `command:*`, and `schedule:*` commands remain
 available. Compiling may spend more time during deployment to remove discovery,
 parsing, and normalization from requests.
 
+Both aggregate commands are safe to repeat. Foundation's integration suite
+runs each command twice and verifies that a second optimization preserves every
+artifact while a second clear remains a successful no-op.
+
 ## Readiness
 
 `app:ready` reports:
@@ -62,10 +66,32 @@ Before release, run:
 
 ```bash
 composer ic:ci
-composer ic:release:constraints
+composer ic:release:guard
 composer ic:bench:quick
+composer benchmark:representative
+composer ic:benchmark:validate build/benchmark-result.json
 ```
 
-Benchmark comparisons must use equivalent validated responses, the same PHP
-and extension set, warmed production caches, repeated runs, and explicit
-regression budgets.
+The representative benchmark exercises a complete warmed Foundation request
+for a minimal JSON route and a route-selected browser session. It validates the
+exact status and response body and records successful RPM, latency percentiles,
+errors, timeouts, memory, runtime metadata, and repetition spread in PHPForge's
+benchmark-result format.
+
+Ordinary machines and hosted CI declare the result environment as
+``stable=false``. Such results are useful diagnostics and schema-validated
+artifacts, but they must not enforce a release comparison. A controlled runner
+may opt in:
+
+```bash
+FOUNDATION_BENCHMARK_STABLE=1 \
+FOUNDATION_BENCHMARK_FINGERPRINT=foundation-prod-runner-v1 \
+composer benchmark:representative
+```
+
+Only compare baselines from the same explicit fingerprint, PHP and extension
+set, warmed production caches, workload metadata, operation counts, and
+repetition settings. The initial successful-RPM regression budget is two
+percent, with zero permitted operation errors or timeouts. Application-level
+Infbyte comparisons remain the final release gate because they include the
+actual skeleton, server, deployment caches, and production runtime.
