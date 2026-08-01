@@ -8,25 +8,18 @@ use Infocyph\Console\Command\CommandDefinition;
 use Infocyph\Console\Command\ExitCode;
 use Infocyph\Console\Input\Option;
 use Infocyph\Console\Input\ValueType;
-use Infocyph\Foundation\Console\Support\RouteCacheManager;
-use Infocyph\Webrick\Constants\MatcherModeEnum;
 
-final class RouteCacheCommand extends AbstractFoundationCommand
+final class RouteCacheCommand extends AbstractRouteCacheCommand
 {
-    public function __construct(private readonly RouteCacheManager $cache) {}
-
     public static function define(CommandDefinition $command): void
     {
+        self::defineRouteCacheOperation(
+            $command,
+            'route:cache',
+            'Compile project routes for the selected Webrick matcher.',
+        );
+
         $command
-            ->name('route:cache')
-            ->description('Compile project routes for the selected Webrick matcher.')
-            ->option(Option::value('matcher')->description(sprintf(
-                'Matcher mode. Allowed values: %s; defaults to router.matcher.',
-                implode('|', MatcherModeEnum::values()),
-            )))
-            ->option(Option::value('cache')->description(
-                'Cache file or directory, for example: bootstrap/cache/routes/fused.php.',
-            ))
             ->option(Option::value('routes')->description(
                 'Comma-separated route files, for example: web.php,api.php.',
             ))

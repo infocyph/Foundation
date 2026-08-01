@@ -2,17 +2,20 @@
 
 declare(strict_types=1);
 
+use Infocyph\Console\Command\ExitCode;
+use Infocyph\Console\IO\BufferedIO;
 use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\Connection\ConnectionConfig;
-use Infocyph\DBLayer\Migration\MigrationRunner;
 use Infocyph\DBLayer\Migration\Migration;
 use Infocyph\DBLayer\Migration\MigrationContext;
+use Infocyph\DBLayer\Migration\MigrationRunner;
 use Infocyph\DBLayer\Migration\SeedContext;
 use Infocyph\DBLayer\Migration\Seeder;
 use Infocyph\DBLayer\Schema\Blueprint;
 use Infocyph\DBLayer\Schema\SchemaManager;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Config\ConfigRuntime;
+use Infocyph\Foundation\Console\FoundationConsole;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DatabaseConnectionResolver;
@@ -143,6 +146,65 @@ it('runs configured DBLayer migrations, seeders, and database test transactions'
             ->and($database->connection()->select(
                 'SELECT name FROM foundation_examples ORDER BY id',
             ))->toBe([]);
+    } finally {
+        $app->db()->purge();
+        $databasePath = $basePath . '/database/testing.sqlite';
+        if (is_file($databasePath)) {
+            unlink($databasePath);
+        }
+        if (is_dir($basePath . '/database')) {
+            rmdir($basePath . '/database');
+        }
+        if (is_dir($basePath)) {
+            rmdir($basePath);
+        }
+    }
+});
+
+it('runs every destructive migration command through the shared command flow', function (): void {
+    $basePath = sys_get_temp_dir() . '/foundation-migration-commands-' . bin2hex(random_bytes(6));
+    mkdir($basePath . '/database', 0775, true);
+    $app = Foundation::console([
+        'base_path' => $basePath,
+        'database' => [
+            'default' => 'testing',
+            'connections' => [
+                'testing' => [
+                    'driver' => 'sqlite',
+                    'database' => 'database/testing.sqlite',
+                ],
+            ],
+            'migrations' => [
+                'classes' => [FoundationExampleMigration::class],
+                'table' => 'migrations',
+                'lock_store' => null,
+                'lock_wait_seconds' => 0.0,
+                'lock_lease_seconds' => 30.0,
+            ],
+        ],
+    ]);
+    $console = FoundationConsole::create(
+        static function (?string $profile) use ($app) {
+            expect($profile)->toBeNull();
+
+            return $app;
+        },
+        name: 'foundation-test',
+    )->withIO(new BufferedIO());
+    $schema = new SchemaManager($app->db()->connection());
+
+    try {
+        expect($console->run(['foundation-test', 'migrate:fresh']))
+            ->toBe(ExitCode::INVALID_USAGE)
+            ->and($console->run(['foundation-test', 'migrate:fresh', '--force']))
+            ->toBe(ExitCode::SUCCESS)
+            ->and($schema->hasTable('foundation_examples'))->toBeTrue()
+            ->and($console->run(['foundation-test', 'migrate:refresh', '--force']))
+            ->toBe(ExitCode::SUCCESS)
+            ->and($schema->hasTable('foundation_examples'))->toBeTrue()
+            ->and($console->run(['foundation-test', 'migrate:reset', '--force']))
+            ->toBe(ExitCode::SUCCESS)
+            ->and($schema->hasTable('foundation_examples'))->toBeFalse();
     } finally {
         $app->db()->purge();
         $databasePath = $basePath . '/database/testing.sqlite';

@@ -8,25 +8,18 @@ use Infocyph\Console\Command\CommandDefinition;
 use Infocyph\Console\Command\ExitCode;
 use Infocyph\Console\Input\Option;
 use Infocyph\Console\Input\ValueType;
-use Infocyph\Foundation\Console\Support\RouteCacheManager;
-use Infocyph\Webrick\Constants\MatcherModeEnum;
 
-final class RouteClearCommand extends AbstractFoundationCommand
+final class RouteClearCommand extends AbstractRouteCacheCommand
 {
-    public function __construct(private readonly RouteCacheManager $cache) {}
-
     public static function define(CommandDefinition $command): void
     {
+        self::defineRouteCacheOperation(
+            $command,
+            'route:clear',
+            'Remove the selected Webrick route matcher cache.',
+        );
+
         $command
-            ->name('route:clear')
-            ->description('Remove the selected Webrick route matcher cache.')
-            ->option(Option::value('matcher')->description(sprintf(
-                'Matcher mode. Allowed values: %s; defaults to router.matcher.',
-                implode('|', MatcherModeEnum::values()),
-            )))
-            ->option(Option::value('cache')->description(
-                'Cache file or directory, for example: bootstrap/cache/routes/fused.php.',
-            ))
             ->option(
                 Option::value('aggressive')
                     ->type(ValueType::BOOLEAN)

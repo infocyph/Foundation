@@ -36,8 +36,11 @@ final class SessionManager
     {
         $active = $this->active();
 
-        return $active[array_key_last($active)]
-            ?? throw new \LogicException('No browser session is active for the current request.');
+        if ($active === []) {
+            throw new \LogicException('No browser session is active for the current request.');
+        }
+
+        return $active[count($active) - 1];
     }
 
     public function enter(BrowserSession $session): void
