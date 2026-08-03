@@ -234,7 +234,7 @@ it('keeps production requirements limited to the runtime core', function (): voi
         'infocyph/console',
         'infocyph/webrick',
     ])->and($composer['minimum-stability'] ?? null)->toBe('stable')
-        ->and($composer['require']['infocyph/console'] ?? null)->toBe('^1.0.1')
+        ->and($composer['require']['infocyph/console'] ?? null)->toBe('^1.3')
         ->and($composer['require']['infocyph/webrick'] ?? null)->toBe('^3.2.2')
         ->and($composer['require-dev']['infocyph/cachelayer'] ?? null)->toBe('^2.0.1')
         ->and($composer['require-dev']['infocyph/dblayer'] ?? null)->toBe('^3.0.3')

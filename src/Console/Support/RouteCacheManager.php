@@ -14,6 +14,8 @@ use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\Webrick\Constants\MatcherModeEnum;
 use Infocyph\Webrick\Router\Definition\Attribute\AttributeRouteLoader;
 use Infocyph\Webrick\Router\Definition\Registrar;
+use Infocyph\Webrick\Router\Facade\Router;
+use Infocyph\Webrick\Router\Route\Collection;
 use Infocyph\Webrick\Support\RouteCache;
 use Psr\Log\NullLogger;
 
@@ -65,6 +67,22 @@ final readonly class RouteCacheManager
         }
 
         return $matcher;
+    }
+
+    public function routes(?string $routes = null): Collection
+    {
+        $config = $this->application->config();
+        $collection = new Collection();
+        $registrar = new Registrar($collection);
+
+        Router::withScopedInstance(
+            $registrar,
+            function () use ($config, $registrar, $routes): void {
+                $this->loadRoutes($registrar, $config, $this->routeFiles($config, $routes));
+            },
+        );
+
+        return $collection;
     }
 
     public function write(string $matcher, string $cache, ?string $routes = null): string

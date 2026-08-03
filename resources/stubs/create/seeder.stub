@@ -1,0 +1,21 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Infocyph\DBLayer\Connection\Connection;
+use Infocyph\DBLayer\Migration\SeedContext;
+use Infocyph\DBLayer\Migration\Seeder;
+
+final class {{ class }} implements Seeder
+{
+    public function run(Connection $connection, SeedContext $context): void
+    {
+        $timestamp = gmdate('Y-m-d H:i:s');
+        $connection->table('examples')->insert([
+            'created_at' => $timestamp,
+            'updated_at' => $timestamp,
+        ]);
+    }
+}

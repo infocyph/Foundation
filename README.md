@@ -258,7 +258,9 @@ Foundation's operational commands, including `config:*`, `route:*`,
 `schedule:*`, `worker:*`, `create:*`, `module:*`, `migrate:*`, `db:*`,
 `queue:*`, `auth:schema:*`, `session:*`, and `app:ready`, are predefined by
 Foundation and must not be redeclared in the application route map.
-`php infbyte list` presents every Foundation-owned command under `System`.
+`php infbyte list` presents every Foundation-owned command under `System`, with
+module subgroups for database, routing, generators, sessions, workers, and the
+other runtime capabilities.
 Application commands are grouped by the first namespace segment in their route
 name, so `reports:daily` appears under `reports`; an unnamespaced application
 command appears under `Application`. Listing remains a preflight operation and
@@ -273,10 +275,12 @@ php infbyte create:command Reports/Daily
 php infbyte create:service Billing
 php infbyte create:job SendReceipt
 php infbyte create:middleware EnsureTenant
+php infbyte create:migration CreateUsers
 php infbyte create:policy Invoice
 php infbyte create:provider Billing
 php infbyte create:repository User
 php infbyte create:repository Reporting/Person --table=reporting.people
+php infbyte create:seeder Production
 php infbyte create:worker Queue
 php infbyte create:event UserRegistered
 php infbyte create:listener SendWelcomeEmail
@@ -336,7 +340,9 @@ once, so both `User` and `UserController` produce `UserController.php`.
 Repositories extend Foundation's thin DBLayer bridge, infer a plural
 snake_case table (`UserRepository` becomes `users`), and accept `--table` for
 an explicit table or schema-qualified identifier. The DB module must be
-installed before repository generation.
+installed before repository, migration, or seeder generation. Generated
+migrations and seeders remain explicit application classes: add them to
+`database.migrations.classes` and `database.seeders` respectively.
 Jobs and listeners are plain invokable application classes; Foundation does not
 impose a queue backend or event dispatcher on them.
 Generators reject absolute paths and traversal, preserve existing files by
@@ -350,6 +356,29 @@ Scheduled commands are defined only in `routes/schedule.php`, which returns a
 `schedule:list`, `schedule:cache`, and `schedule:clear` are built in.
 `optimize` compiles the schedule when that route file exists, and
 `optimize:clear` removes it.
+
+For local development, `php infbyte serve` runs PHP's built-in server against
+the application's public directory on `127.0.0.1:8000`. The `--host` and
+`--port` options change the bind address; this command is not a production
+server.
+
+Foundation also owns the framework-aware operational commands; standalone
+packages do not need to know the application layout:
+
+```bash
+php infbyte about
+php infbyte env:show
+php infbyte config:show database.connections.sqlite
+php infbyte route:list
+php infbyte cache:clear --store=local
+php infbyte db:show
+php infbyte db:table users
+php infbyte secret:generate
+php infbyte storage:link
+```
+
+Optional database and cache services are resolved only when their commands are
+selected. These commands add no work to the web request path.
 
 ```php
 use Infocyph\Console\Scheduling\Schedule;

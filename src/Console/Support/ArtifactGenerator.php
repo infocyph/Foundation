@@ -79,6 +79,14 @@ final readonly class ArtifactGenerator
             'suffix' => 'Middleware',
             'stub' => 'middleware.stub',
         ],
+        'migration' => [
+            'directory' => 'app/Database/Migration',
+            'namespace' => 'App\\Database\\Migration',
+            'suffix' => 'Migration',
+            'stub' => 'migration.stub',
+            'requires' => \Infocyph\DBLayer\Migration\Migration::class,
+            'install' => 'php infbyte module:install db',
+        ],
         'policy' => [
             'directory' => 'app/Policies',
             'namespace' => 'App\\Policies',
@@ -104,6 +112,14 @@ final readonly class ArtifactGenerator
             'namespace' => 'App\\Services',
             'suffix' => 'Service',
             'stub' => 'service.stub',
+        ],
+        'seeder' => [
+            'directory' => 'app/Database/Seeder',
+            'namespace' => 'App\\Database\\Seeder',
+            'suffix' => 'Seeder',
+            'stub' => 'seeder.stub',
+            'requires' => \Infocyph\DBLayer\Migration\Seeder::class,
+            'install' => 'php infbyte module:install db',
         ],
         'test' => [
             'directory' => 'tests/Feature',
@@ -200,7 +216,7 @@ final readonly class ArtifactGenerator
     private function assertRequirement(string $artifact, array $definition): void
     {
         $required = $definition['requires'] ?? null;
-        if ($required === null || class_exists($required)) {
+        if ($required === null || class_exists($required) || interface_exists($required)) {
             return;
         }
 
@@ -247,6 +263,14 @@ final readonly class ArtifactGenerator
         return $directory;
     }
 
+    private function migrationId(string $class): string
+    {
+        $name = preg_replace('/Migration$/', '', $class) ?? $class;
+        $name = strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $name) ?? $name);
+
+        return gmdate('YmdHis') . '_' . $name;
+    }
+
     /**
      * @param list<string> $parents
      */
@@ -264,12 +288,20 @@ final readonly class ArtifactGenerator
         }
 
         return str_replace(
-            ['{{ namespace }}', '{{ class }}', '{{ command }}', '{{ description }}', '{{ table }}'],
+            [
+                '{{ namespace }}',
+                '{{ class }}',
+                '{{ command }}',
+                '{{ description }}',
+                '{{ migration_id }}',
+                '{{ table }}',
+            ],
             [
                 $namespace,
                 $class,
                 $this->commandName($class, $parents),
                 $this->description($class),
+                $this->migrationId($class),
                 var_export($table ?? '', true),
             ],
             $contents,

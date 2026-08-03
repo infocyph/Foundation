@@ -42,6 +42,21 @@ return [
         ],
     ],
 
+    /**
+     * Public Storage Links
+     *
+     * Each key is a symbolic-link path inside the public directory and each
+     * value is its target inside the storage directory. The storage:link
+     * command validates both boundaries, creates missing target directories,
+     * preserves correct existing links, and rejects conflicting paths.
+     *
+     * Example:
+     * [public_path('storage') => storage_path('app/public')]
+     */
+    'links' => [
+        public_path('storage') => storage_path('app/public'),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Upload Policy
