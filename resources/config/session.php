@@ -76,23 +76,21 @@ return [
         ],
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Concurrent Request Locking
-    |--------------------------------------------------------------------------
-    |
-    | Locking prevents two requests carrying the same session ID from losing
-    | each other's writes. "enabled" accepts `true|false`. When enabled,
-    | CacheLayer must be installed. "store" selects a cache store whose lock
-    | configuration may use `file|redis|valkey|memcache|memcached|pdo`;
-    | examples: `local`, `redis`, `memcached`, `sqlite`, or `database`.
-    |
-    | "wait" is the maximum acquisition wait in seconds, including decimals
-    | such as `2.0`; zero means do not wait. "lease" is a positive lock lease
-    | in seconds, such as `30.0`. Locks are acquired lazily only when a valid
-    | incoming session is first read and are always released after dispatch.
-    |
-    */
+    /**
+     * Concurrent Request Locking
+     *
+     * Locking prevents two requests carrying the same session ID from losing
+     * each other's writes. "enabled" accepts `true|false`. When enabled,
+     * CacheLayer must be installed. "store" selects a cache store whose lock
+     * configuration may use `file|redis|valkey|memcache|memcached|pdo`.
+     *
+     * Examples:
+     * Stores include `local`, `redis`, `memcached`, `sqlite`, and `database`.
+     * "wait" is the maximum acquisition wait in seconds, including decimals
+     * such as `2.0`; zero means do not wait. "lease" is a positive lock lease
+     * in seconds, such as `30.0`. Locks are acquired lazily only when a valid
+     * incoming session is first read and are always released after dispatch.
+     */
     'lock' => [
         'enabled' => env_bool('SESSION_LOCK_ENABLED', false),
         'store' => env('SESSION_LOCK_STORE'),

@@ -37,6 +37,17 @@ final readonly class RouteCacheManager
         ]);
     }
 
+    public function clearAll(): bool
+    {
+        $matcher = $this->matcher(null);
+        $cache = $this->cachePath(null);
+        $directory = $matcher === MatcherModeEnum::SHARDED->value
+            ? rtrim($cache, '/\\')
+            : dirname($cache);
+
+        return $this->clear(MatcherModeEnum::SHARDED->value, $directory, true);
+    }
+
     public function configuredMatcher(): string
     {
         return ValueNormalizer::string($this->application->config()->get('router.matcher'), 'fused');

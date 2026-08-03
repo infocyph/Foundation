@@ -15,30 +15,29 @@ return [
     */
     'default' => env_string('DB_CONNECTION', 'sqlite'),
 
-    /*
-    |--------------------------------------------------------------------------
-    | Migrations and Seeders
-    |--------------------------------------------------------------------------
-    |
-    | "migrations.classes" is an explicit ordered list of classes implementing
-    | DBLayer Migration, for example
-    | `[App\Database\Migration\CreateUsers::class]`. Foundation passes that
-    | list to DBLayer, which sorts by each migration's stable id. No request-
-    | time directory scanning or Foundation-owned SQL grammar is used.
-    |
-    | "table" is the DBLayer ledger table, typically `migrations`.
-    | "lock_store" is null for no cross-process lock, or a configured
-    | CacheLayer store such as `local`, `redis`, `memcached`, or `sqlite`.
-    | Lock wait is a non-negative number of seconds (example `10.0`) and lease
-    | is positive (example `300.0`). Production deployments should configure a
-    | lock store shared by every process that may run migrations.
-    |
-    | "seeders" is an explicit ordered list of classes implementing DBLayer
-    | Seeder or invokable seeder services, for example
-    | `[App\Database\Seeder\ProductionSeeder::class]`. Seeders are never
-    | discovered or executed during a web request.
-    |
-    */
+    /**
+     * Migrations and Seeders
+     *
+     * "migrations.classes" is an explicit ordered list of classes implementing
+     * DBLayer Migration. Foundation passes that list to DBLayer, which sorts by
+     * each migration's stable id. No request-time directory scanning or
+     * Foundation-owned SQL grammar is used.
+     *
+     * "table" is the DBLayer ledger table, typically `migrations`.
+     * "lock_store" is null for no cross-process lock, or a configured
+     * CacheLayer store such as `local`, `redis`, `memcached`, or `sqlite`.
+     * Lock wait is a non-negative number of seconds (example `10.0`) and lease
+     * is positive (example `300.0`). Production deployments should configure a
+     * lock store shared by every process that may run migrations.
+     *
+     * "seeders" is an explicit ordered list of classes implementing DBLayer
+     * Seeder or invokable seeder services. Seeders are never discovered or
+     * executed during a web request.
+     *
+     * Examples:
+     * `[App\Database\Migration\CreateUsers::class]`
+     * `[App\Database\Seeder\ProductionSeeder::class]`
+     */
     'migrations' => [
         'classes' => [],
         'table' => env_string('DB_MIGRATION_TABLE', 'migrations'),
@@ -70,58 +69,58 @@ return [
         'health_check_interval' => env_int('DB_POOL_HEALTH_CHECK_INTERVAL', 30),
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Database Connections
-    |--------------------------------------------------------------------------
-    |
-    | Every connection array is passed to DBLayer's ConnectionConfig, which is
-    | the validation and normalization authority. Foundation only resolves
-    | application-relative SQLite paths. Drivers and aliases:
-    | `mysql|mariadb|pdo_mysql|mysqli`, `pgsql|postgres|postgresql`, and
-    | `sqlite|sqlite3`.
-    |
-    | Core keys: "host" (`db.internal`), "port" (`3306|5432`), "database"
-    | (`acme` or `/srv/acme/database/database.sqlite`), "username"
-    | (`acme_app`), secret "password", "charset" (`utf8mb4|utf8`),
-    | "collation" (`utf8mb4_unicode_ci`), "schema" (`public`), table "prefix"
-    | (`acme_`), PDO "options" (`[PDO::ATTR_TIMEOUT => 5]`), generic "timeout"
-    | seconds (`5`), and "persistent" (`true|false`). MySQL also accepts
-    | "unix_socket", "ssl_ca", "ssl_cert", "ssl_key", and the nullable
-    | boolean "ssl_verify_server_cert";
-    | PostgreSQL "sslmode" accepts `disable|allow|prefer|require|verify-ca|`
-    | `verify-full`.
-    |
-    | "write" and "read" accept one override, a list of overrides, or a host
-    | list. Examples: `['host' => 'writer.internal']`,
-    | `[['host' => 'replica-a'], ['host' => 'replica-b', 'weight' => 2]]`,
-    | or `['host' => ['replica-a', 'replica-b']]`. Replica strategies:
-    | `random|round_robin|least_latency|weighted`; aliases `round-robin`,
-    | `least-latency`, `weighted-random`, and `health-aware` are normalized by
-    | DBLayer. "sticky" preserves read-after-write consistency.
-    |
-    | Replica timing keys are non-negative seconds: "read_health_cooldown"
-    | (`30`) and "read_latency_ttl" (`15`). "read_probe_sample_size" is `0`
-    | for all replicas or a positive sample count. "read_session_read_only"
-    | applies to MySQL and PostgreSQL. "statement_cache_enabled" and
-    | "query_comment_enabled" accept `true|false`; statement cache size is a
-    | non-negative entry count such as `64`. Query comment max length is at
-    | least `32`, commonly `160`, and "query_comment_context" is a
-    | string-keyed map such as `['service' => 'billing']`. Optional
-    | diagnostics remain disabled unless explicitly enabled.
-    |
-    | Security keys: "enabled" and "strict_identifiers" default true;
-    | "max_sql_length", "max_params", and "max_param_bytes" are positive
-    | limits; per-second/per-minute query limits use `0` to disable;
-    | "rate_limit_key" is an identifier such as `tenant:42`; callbacks should
-    | be injected at runtime rather than stored in cached config.
-    | "require_tls" applies to client/server drivers and accepts
-    | `true|false|null`; "allow_insecure" accepts `true|false`;
-    | "raw_sql_policy" accepts `allow|deny|allowlist`; "raw_sql_allowlist" is
-    | a list of approved SQL fingerprints/patterns; and "cursor_signing_key"
-    | is null or a stable secret of at least 32 bytes shared by every node.
-    |
-    */
+    /**
+     * Database Connections
+     *
+     * Every connection array is passed to DBLayer's ConnectionConfig, which is
+     * the validation and normalization authority. Foundation only resolves
+     * application-relative SQLite paths. Drivers and aliases include
+     * `mysql|mariadb|pdo_mysql|mysqli`, `pgsql|postgres|postgresql`, and
+     * `sqlite|sqlite3`.
+     *
+     * Examples:
+     * Core keys include "host" (`db.internal`), "port" (`3306|5432`),
+     * "database" (`acme` or `/srv/acme/database/database.sqlite`), "username"
+     * (`acme_app`), secret "password", "charset" (`utf8mb4|utf8`),
+     * "collation" (`utf8mb4_unicode_ci`), "schema" (`public`), table "prefix"
+     * (`acme_`), PDO "options" (for example, a timeout option of `5`), generic "timeout"
+     * seconds (`5`), and "persistent" (`true|false`). MySQL also accepts
+     * "unix_socket", "ssl_ca", "ssl_cert", "ssl_key", and the nullable
+     * boolean "ssl_verify_server_cert". PostgreSQL "sslmode" accepts
+     * `disable|allow|prefer|require|verify-ca|verify-full`.
+     *
+     * "write" and "read" accept one override, a list of overrides, or a host
+     * list, such as `['host' => 'writer.internal']`, `[['host' =>
+     * 'replica-a'], ['host' => 'replica-b', 'weight' => 2]]`, or `['host' =>
+     * ['replica-a', 'replica-b']]`. Replica strategies are
+     * `random|round_robin|least_latency|weighted`. Aliases `round-robin`,
+     * `least-latency`, `weighted-random`, and `health-aware` are normalized by
+     * DBLayer. "sticky" preserves read-after-write consistency.
+     *
+     * Replica timing keys are non-negative seconds.
+     *
+     * Example:
+     * "read_health_cooldown" (`30`) and "read_latency_ttl" (`15`).
+     * "read_probe_sample_size" is `0` for all replicas or a positive sample
+     * count. "read_session_read_only"
+     * applies to MySQL and PostgreSQL. "statement_cache_enabled" and
+     * "query_comment_enabled" accept `true|false`. Statement cache size is a
+     * non-negative entry count such as `64`. Query comment max length is at
+     * least `32`, commonly `160`, and "query_comment_context" is a
+     * string-keyed map such as `['service' => 'billing']`. Optional
+     * diagnostics remain disabled unless explicitly enabled.
+     *
+     * Connection safeguard keys "enabled" and "strict_identifiers" default true.
+     * "max_sql_length", "max_params", and "max_param_bytes" are positive
+     * limits. Per-second/per-minute query limits use `0` to disable.
+     * "rate_limit_key" is an identifier such as `tenant:42`. Callbacks should
+     * be injected at runtime rather than stored in cached config.
+     * "require_tls" applies to client/server drivers and accepts
+     * `true|false|null`. "allow_insecure" accepts `true|false`.
+     * "raw_sql_policy" accepts `allow|deny|allowlist`. "raw_sql_allowlist" is
+     * a list of approved SQL fingerprints/patterns. "cursor_signing_key"
+     * is null or a stable secret of at least 32 bytes shared by every node.
+     */
     'connections' => [
         /*
         |--------------------------------------------------------------------------

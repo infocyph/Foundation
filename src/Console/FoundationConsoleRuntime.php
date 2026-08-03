@@ -28,7 +28,9 @@ final class FoundationConsoleRuntime implements ConfigurationProvider, Container
      * The factory receives the selected Console profile, or null when none was
      * requested. It is never invoked for help, list, completion, or version.
      *
-     * @param Closure(?string): Application $applicationFactory
+     * @param Closure $applicationFactory Lazily constructs the selected application profile.
+     * @phpstan-param Closure(?string): Application $applicationFactory
+     * @psalm-param Closure(?string): Application $applicationFactory
      */
     public function __construct(private readonly Closure $applicationFactory) {}
 

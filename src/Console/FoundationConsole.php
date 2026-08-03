@@ -157,7 +157,9 @@ final class FoundationConsole
     }
 
     /**
-     * @param Closure(?string): Application $applicationFactory
+     * @param Closure $applicationFactory Lazily constructs the selected application profile.
+     * @phpstan-param Closure(?string): Application $applicationFactory
+     * @psalm-param Closure(?string): Application $applicationFactory
      * @param array<array-key, mixed> $commands
      */
     public static function create(

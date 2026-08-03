@@ -65,17 +65,8 @@ final readonly class ModuleManager
         if ($package === null) {
             throw new \LogicException(sprintf('Module "%s" has no installable package.', $this->name($definition)));
         }
-        $command = [
-            'composer',
-            'require',
-            $package,
-            '--with-all-dependencies',
-        ];
-        if ($dryRun) {
-            $command[] = '--dry-run';
-        }
 
-        return $this->run($command);
+        return $this->runComposerPackageCommand('require', $package, $dryRun);
     }
 
     /**
@@ -125,17 +116,8 @@ final readonly class ModuleManager
         if ($package === null) {
             throw new \LogicException(sprintf('Module "%s" has no removable package.', $this->name($definition)));
         }
-        $command = [
-            'composer',
-            'remove',
-            $package,
-            '--with-all-dependencies',
-        ];
-        if ($dryRun) {
-            $command[] = '--dry-run';
-        }
 
-        return $this->run($command);
+        return $this->runComposerPackageCommand('remove', $package, $dryRun);
     }
 
     /**
@@ -344,6 +326,22 @@ final readonly class ModuleManager
             inheritInput: true,
             mode: ProcessMode::INHERIT,
         ));
+    }
+
+    private function runComposerPackageCommand(string $operation, string $package, bool $dryRun): ProcessResult
+    {
+        $command = [
+            'composer',
+            $operation,
+            $package,
+            '--with-all-dependencies',
+            '--update-no-dev',
+        ];
+        if ($dryRun) {
+            $command[] = '--dry-run';
+        }
+
+        return $this->run($command);
     }
 
     /**

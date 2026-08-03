@@ -55,29 +55,29 @@ return [
         'token',
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Exception Detail
-    |--------------------------------------------------------------------------
-    |
-    | "include_message" and "include_trace" accept `true|false` and default to
-    | false. "include_message"
-    | permits exception messages in operational logs; leave it false when a
-    | message may contain request or database values. "include_trace" records
-    | a stack trace and should normally be enabled only temporarily.
-    |
-    | "ignore" is a list of available Throwable class names, for example
-    | `[App\Exception\ExpectedProbeFailure::class]`; subclasses are ignored.
-    | "sample_rate" accepts a finite number from `0.0` (discard all) through
-    | `1.0` (report all) and defaults to `1.0`.
-    |
-    | "throttle_seconds" is a non-negative integer window in seconds. `0`
-    | disables repeated-exception throttling. "throttle_limit" is the positive
-    | maximum reports for one exception class/file/line/status signature in
-    | that window and defaults to `1`. The per-process signature table is
-    | bounded. HTTP responses remain controlled separately by `app.debug`.
-    |
-    */
+    /**
+     * Exception Detail
+     *
+     * "include_message" and "include_trace" accept `true|false` and default to
+     * false. "include_message" permits exception messages in operational logs.
+     * leave it false when a message may contain request or database values.
+     * "include_trace" records a stack trace and should normally be enabled only
+     * temporarily.
+     *
+     * "ignore" is a list of available Throwable class names; subclasses are
+     * ignored.
+     *
+     * Example:
+     * `[App\Exception\ExpectedProbeFailure::class]`
+     * "sample_rate" accepts a finite number from `0.0` (discard all) through
+     * `1.0` (report all) and defaults to `1.0`.
+     *
+     * "throttle_seconds" is a non-negative integer window in seconds. `0`
+     * disables repeated-exception throttling. "throttle_limit" is the positive
+     * maximum reports for one exception class/file/line/status signature in
+     * that window and defaults to `1`. The per-process signature table is
+     * bounded. HTTP responses remain controlled separately by `app.debug`.
+     */
     'exceptions' => [
         'include_message' => env_bool('LOG_EXCEPTION_MESSAGES', false),
         'include_trace' => env_bool('LOG_EXCEPTION_TRACES', false),

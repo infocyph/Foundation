@@ -100,7 +100,9 @@ final readonly class AuthDriverResolver
      * @template T of BackedEnum
      *
      * @param class-string<T> $enumClass
-     * @return T
+     * @return BackedEnum Resolved enum value.
+     * @phpstan-return T
+     * @psalm-return T
      */
     private static function enumConfig(
         ConfigRepository $config,

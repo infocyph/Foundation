@@ -20,8 +20,7 @@ final class OptimizeClearCommand extends AbstractOptimizeCommand
     {
         try {
             $this->config->clear('bootstrap/cache/config');
-            $matcher = $this->routes->matcher(null);
-            $this->routes->clear($matcher, $this->routes->cachePath(null), true);
+            $this->routes->clearAll();
             $this->commands->clear('bootstrap/cache/console/commands.php');
             $this->schedule->clear();
             $this->modules->clear();

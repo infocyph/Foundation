@@ -110,7 +110,9 @@ abstract readonly class AbstractAuthRegistrar
     /**
      * @template T of object
      * @param class-string<T> $id
-     * @return T
+     * @return object Resolved container service.
+     * @phpstan-return T
+     * @psalm-return T
      */
     protected function service(string $id): object
     {

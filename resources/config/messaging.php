@@ -24,60 +24,53 @@ return [
         'delay_seconds' => 0.0,
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Message Routes and Handlers
-    |--------------------------------------------------------------------------
-    |
-    | "routes" maps each message class to a route array with the three keys
-    | documented above. "handlers" maps each message class to an invokable
-    | service class. Live, uncached configuration may also contain callables,
-    | but class names are required for compiled configuration.
-    |
-    | Example:
-    | App\Message\GenerateReport::class => [
-    |     'transport' => 'memory',
-    |     'queue' => 'reports',
-    |     'delay_seconds' => 0,
-    | ]
-    |
-    | Handler example:
-    | App\Message\GenerateReport::class => App\Handler\GenerateReport::class
-    |
-    */
+    /**
+     * Message Routes and Handlers
+     *
+     * "routes" maps each message class to a route array with the three keys
+     * documented above. "handlers" maps each message class to an invokable
+     * service class. Live, uncached configuration may also contain callables,
+     * but class names are required for compiled configuration.
+     *
+     * Example:
+     * App\Message\GenerateReport::class => [
+     *     'transport' => 'memory',
+     *     'queue' => 'reports',
+     *     'delay_seconds' => 0,
+     * ]
+     *
+     * Example:
+     * App\Message\GenerateReport::class => App\Handler\GenerateReport::class
+     */
     'routes' => [],
     'handlers' => [],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Synchronous Events
-    |--------------------------------------------------------------------------
-    |
-    | "listeners" maps an event class to an ordered list of invokable listener
-    | service classes. Parent classes and implemented interfaces are honored by
-    | Omnibus. A listener implementing Omnibus ShouldQueue is sent through the
-    | message bus; other listeners run synchronously.
-    |
-    | Example:
-    | App\Event\OrderPaid::class => [
-    |     App\Listener\SendReceipt::class,
-    |     App\Listener\UpdateLedger::class,
-    | ]
-    |
-    */
+    /**
+     * Synchronous Events
+     *
+     * "listeners" maps an event class to an ordered list of invokable listener
+     * service classes. Parent classes and implemented interfaces are honored by
+     * Omnibus. A listener implementing Omnibus ShouldQueue is sent through the
+     * message bus; other listeners run synchronously.
+     *
+     * Example:
+     * App\Event\OrderPaid::class => [
+     *     App\Listener\SendReceipt::class,
+     *     App\Listener\UpdateLedger::class,
+     * ]
+     */
     'listeners' => [],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Scheduled Message Factories
-    |--------------------------------------------------------------------------
-    |
-    | "scheduled_messages" maps the key used by Console's
-    | `schedule:dispatch-message` action to an invokable service class that
-    | returns one message object. Example:
-    | `daily-report => App\MessageFactory\DailyReport::class`.
-    |
-    */
+    /**
+     * Scheduled Message Factories
+     *
+     * "scheduled_messages" maps the key used by Console's
+     * `schedule:dispatch-message` action to an invokable service class that
+     * returns one message object.
+     *
+     * Example:
+     * `daily-report => App\MessageFactory\DailyReport::class`.
+     */
     'scheduled_messages' => [],
 
     /*

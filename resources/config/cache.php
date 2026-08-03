@@ -25,25 +25,24 @@ return [
     'default_counter' => env('CACHE_COUNTER'),
     'prefix' => env_string('CACHE_PREFIX', 'infbyte:cache:'),
 
-    /*
-    |--------------------------------------------------------------------------
-    | Shared Lock Provider
-    |--------------------------------------------------------------------------
-    |
-    | Console overlap, scheduling, worker supervision, and cache stampede
-    | protection can share CacheLayer's lock contract. "driver" accepts
-    | `file|redis|valkey|memcache|memcached|pdo` or null to leave cache-store
-    | locking unchanged while Console falls back to file locks. "store" names
-    | a configured cache store used for connection details; example: `redis`,
-    | `memcached`, `sqlite`, or `database`.
-    |
-    | "path" is used by file locks and as the safe fallback for SQLite/PDO;
-    | example: `storage/cache/locks`. "prefix" is an arbitrary namespace such
-    | as `acme:production:lock:`. "retry_sleep_micros" is a positive polling
-    | interval such as `50000`. Redis/Valkey stores use their DSN, Memcached
-    | stores use their server list, and PDO stores use their PDO connection.
-    |
-    */
+    /**
+     * Shared Lock Provider
+     *
+     * Console overlap, scheduling, worker supervision, and cache stampede
+     * protection can share CacheLayer's lock contract. "driver" accepts
+     * `file|redis|valkey|memcache|memcached|pdo` or null to leave cache-store
+     * locking unchanged while Console falls back to file locks. "store" names
+     * a configured cache store used for connection details.
+     *
+     * Examples:
+     * Store names include `redis`, `memcached`, `sqlite`, and `database`.
+     * "path" is used by file locks and as the safe fallback for SQLite/PDO;
+     * for example, `storage/cache/locks`. "prefix" is an arbitrary namespace
+     * such as `acme:production:lock:`. "retry_sleep_micros" is a positive
+     * polling interval such as `50000`. Redis/Valkey stores use their DSN,
+     * Memcached stores use their server list, and PDO stores use their PDO
+     * connection.
+     */
     'lock' => [
         'driver' => env('CACHE_LOCK_DRIVER'),
         'store' => env_string('CACHE_LOCK_STORE', 'local'),
@@ -283,24 +282,21 @@ return [
         ],
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Atomic Counters
-    |--------------------------------------------------------------------------
-    |
-    | Named counters are created only when requested. "driver" accepts
-    | `redis|valkey`; "connection" references the named connection above;
-    | "namespace" is an arbitrary key prefix such as `acme:limits:`.
-    | A direct "dsn" or runtime phpredis "client" may replace "connection".
-    |
-    | Example:
-    | 'rate_limits' => [
-    |     'driver' => 'redis',
-    |     'connection' => 'redis',
-    |     'namespace' => 'acme:limits:',
-    | ],
-    |
-    */
+    /**
+     * Atomic Counters
+     *
+     * Named counters are created only when requested. "driver" accepts
+     * `redis|valkey`. "connection" references the named connection above.
+     * "namespace" is an arbitrary key prefix such as `acme:limits:`.
+     * A direct "dsn" or runtime phpredis "client" may replace "connection".
+     *
+     * Example:
+     * 'rate_limits' => [
+     *     'driver' => 'redis',
+     *     'connection' => 'redis',
+     *     'namespace' => 'acme:limits:',
+     * ],
+     */
     'counters' => [],
 
     /*
@@ -326,27 +322,24 @@ return [
     */
     'transports' => [],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Node Cache Clusters
-    |--------------------------------------------------------------------------
-    |
-    | A cluster references a `node` store and an invalidation transport.
-    | "cluster" is a stable deployment name such as `production-catalog`;
-    | "node_id" must uniquely and stably identify the process host, for example
-    | `web-az1-03`; "consumer_batch_size" is a positive count such as `1000`;
-    | and "invalidate_locally_first" accepts `true|false`.
-    |
-    | Example:
-    | 'catalog' => [
-    |     'store' => 'node',
-    |     'cluster' => 'production-catalog',
-    |     'node_id' => 'web-az1-03',
-    |     'transport' => 'events',
-    |     'consumer_batch_size' => 1000,
-    |     'invalidate_locally_first' => true,
-    | ],
-    |
-    */
+    /**
+     * Node Cache Clusters
+     *
+     * A cluster references a `node` store and an invalidation transport.
+     * "cluster" is a stable deployment name such as `production-catalog`.
+     * "node_id" must uniquely and stably identify the process host, for example
+     * `web-az1-03`. "consumer_batch_size" is a positive count such as `1000`.
+     * and "invalidate_locally_first" accepts `true|false`.
+     *
+     * Example:
+     * 'catalog' => [
+     *     'store' => 'node',
+     *     'cluster' => 'production-catalog',
+     *     'node_id' => 'web-az1-03',
+     *     'transport' => 'events',
+     *     'consumer_batch_size' => 1000,
+     *     'invalidate_locally_first' => true,
+     * ],
+     */
     'clusters' => [],
 ];

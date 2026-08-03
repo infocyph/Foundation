@@ -17,14 +17,6 @@ use Infocyph\Webrick\Router\Route\Collection;
 
 final readonly class RouterManager
 {
-    /** @var array<string, string> */
-    private const array NAMED_PRESETS = [
-        'apiAuth' => 'api-auth',
-        'authMfa' => 'mfa-auth',
-        'authVerified' => 'verified-auth',
-        'authWeb' => 'web-auth',
-    ];
-
     public function __construct(
         private ConfigRepository $config,
         private WebrickRouterFactory $factory,
@@ -36,28 +28,10 @@ final readonly class RouterManager
      */
     public function __call(string $method, array $arguments): mixed
     {
-        if (isset(self::NAMED_PRESETS[$method])) {
-            $callback = $arguments[0] ?? null;
-            if (!$callback instanceof Closure) {
-                throw new \InvalidArgumentException(sprintf('Route preset "%s" requires a closure callback.', $method));
-            }
-
-            if (count($arguments) > 4) {
-                throw new \InvalidArgumentException(sprintf('Route preset "%s" accepts at most four arguments.', $method));
-            }
-
-            $this->groupWithPreset(
-                self::NAMED_PRESETS[$method],
-                $callback,
-                $this->prefixArgument($arguments[1] ?? null),
-                $this->domainArgument($arguments[2] ?? null),
-                $this->namePrefixArgument($arguments[3] ?? null),
-            );
-
+        $router = $this->router();
+        if ($this->presets->invokeNamed($router, $method, $arguments)) {
             return null;
         }
-
-        $router = $this->router();
 
         if (!is_callable([$router, $method])) {
             throw new \BadMethodCallException(sprintf(
@@ -181,39 +155,6 @@ final readonly class RouterManager
     }
 
     /**
-     * @return list<string>|string|Closure|null
-     */
-    private function domainArgument(mixed $value): array|string|Closure|null
-    {
-        if ($value === null || is_string($value) || $value instanceof Closure) {
-            return $value;
-        }
-
-        return $this->stringListArgument($value, 'domain');
-    }
-
-    private function namePrefixArgument(mixed $value): ?string
-    {
-        if ($value === null || is_string($value)) {
-            return $value;
-        }
-
-        throw new \InvalidArgumentException('Route preset name prefix must be a string.');
-    }
-
-    /**
-     * @return list<string>|string|null
-     */
-    private function prefixArgument(mixed $value): array|string|null
-    {
-        if ($value === null || is_string($value)) {
-            return $value;
-        }
-
-        return $this->stringListArgument($value, 'prefix');
-    }
-
-    /**
      * @template TResult
      * @param callable(): TResult $callback
      * @return TResult
@@ -223,26 +164,5 @@ final readonly class RouterManager
         $this->presets->register();
 
         return $callback();
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function stringListArgument(mixed $value, string $argument): array
-    {
-        if (!is_array($value)) {
-            throw new \InvalidArgumentException(sprintf('Route preset %s must be a string or list of strings.', $argument));
-        }
-
-        $items = [];
-        foreach ($value as $item) {
-            if (!is_string($item)) {
-                throw new \InvalidArgumentException(sprintf('Route preset %s must contain only strings.', $argument));
-            }
-
-            $items[] = $item;
-        }
-
-        return $items;
     }
 }

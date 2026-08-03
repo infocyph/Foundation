@@ -31,7 +31,9 @@ abstract readonly class AbstractContainerManager
     /**
      * @template T of object
      * @param class-string<T> $id
-     * @return T
+     * @return object Resolved service with the requested type.
+     * @phpstan-return T
+     * @psalm-return T
      */
     protected function typedService(string $id, string $message): object
     {

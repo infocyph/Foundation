@@ -20,7 +20,9 @@ parsing, and normalization from requests.
 
 Both aggregate commands are safe to repeat. Foundation's integration suite
 runs each command twice and verifies that a second optimization preserves every
-artifact while a second clear remains a successful no-op.
+artifact while a second clear remains a successful no-op. Route clearing also
+removes stale fused, generated, and sharded layouts when the configured matcher
+has changed between deployments.
 
 ## Readiness
 
