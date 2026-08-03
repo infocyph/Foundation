@@ -11,7 +11,9 @@ php infbyte module:remove db
 
 Built-in `logging`, `messaging`, `resources`, and `session` modules publish
 configuration without Composer. Package modules run `composer require` or
-`composer remove`. Configuration files are never overwritten or removed.
+`composer remove` with transitive dependency updates and `--update-no-dev`, so
+production module changes do not resolve or install the application's
+development toolchain. Configuration files are never overwritten or removed.
 
 ## Third-party manifest
 

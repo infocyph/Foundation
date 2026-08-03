@@ -362,9 +362,19 @@ PHP);
             ->and($console->run(['foundation', 'optimize']))->toBe(ExitCode::SUCCESS)
             ->and($basePath . '/bootstrap/cache/config/__manifest.php')->toBeFile()
             ->and($basePath . '/bootstrap/cache/routes/fused.php')->toBeFile()
+            ->and(file_put_contents(
+                $basePath . '/bootstrap/cache/routes/__root.php',
+                '<?php return [];',
+            ))->toBeInt()
+            ->and(file_put_contents(
+                $basePath . '/bootstrap/cache/routes/api.php',
+                '<?php return [];',
+            ))->toBeInt()
             ->and($console->run(['foundation', 'optimize:clear']))->toBe(ExitCode::SUCCESS)
             ->and($basePath . '/bootstrap/cache/config/__manifest.php')->not->toBeFile()
             ->and($basePath . '/bootstrap/cache/routes/fused.php')->not->toBeFile()
+            ->and($basePath . '/bootstrap/cache/routes/__root.php')->not->toBeFile()
+            ->and($basePath . '/bootstrap/cache/routes/api.php')->not->toBeFile()
             ->and($basePath . '/bootstrap/cache/console/commands.php')->not->toBeFile()
             ->and($basePath . '/bootstrap/cache/console/schedule.php')->not->toBeFile()
             ->and($console->run(['foundation', 'optimize:clear']))->toBe(ExitCode::SUCCESS)

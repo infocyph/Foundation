@@ -29,9 +29,6 @@ use Infocyph\Webrick\Router\Dispatch\MiddlewareAliases;
 use Infocyph\Webrick\Router\Url\SignedUrlConfig;
 use Psr\Log\LoggerInterface;
 
-/**
- * @phpstan-type MiddlewareDefinition array<string, mixed>
- */
 final readonly class WebrickMiddlewareFactory
 {
     public function __construct(
@@ -77,7 +74,7 @@ final readonly class WebrickMiddlewareFactory
     }
 
     /**
-     * @param MiddlewareDefinition $definition
+     * @param array<string, mixed> $definition
      */
     private function aliasMiddleware(array $definition, string ...$parameters): object|string
     {
@@ -137,7 +134,7 @@ final readonly class WebrickMiddlewareFactory
     }
 
     /**
-     * @param MiddlewareDefinition $definition
+     * @param array<string, mixed> $definition
      */
     private function cookieEncryption(array $definition): ?CookieEncryptionMiddleware
     {
@@ -168,7 +165,7 @@ final readonly class WebrickMiddlewareFactory
     }
 
     /**
-     * @param MiddlewareDefinition $definition
+     * @param array<string, mixed> $definition
      */
     private function cors(array $definition): CorsAndPoliciesMiddleware
     {
@@ -207,7 +204,7 @@ final readonly class WebrickMiddlewareFactory
     }
 
     /**
-     * @param MiddlewareDefinition $definition
+     * @param array<string, mixed> $definition
      */
     private function enabled(array $definition): bool
     {
@@ -215,7 +212,7 @@ final readonly class WebrickMiddlewareFactory
     }
 
     /**
-     * @param MiddlewareDefinition $definition
+     * @param array<string, mixed> $definition
      */
     private function gatewayHardening(array $definition): GatewayHardeningMiddleware
     {
@@ -259,7 +256,7 @@ final readonly class WebrickMiddlewareFactory
     }
 
     /**
-     * @param MiddlewareDefinition $definition
+     * @param array<string, mixed> $definition
      */
     private function inputSanitizer(array $definition): InputSanitizerMiddleware
     {
@@ -271,7 +268,7 @@ final readonly class WebrickMiddlewareFactory
     }
 
     /**
-     * @param MiddlewareDefinition $definition
+     * @param array<string, mixed> $definition
      */
     private function maintenanceMode(array $definition): MaintenanceModeMiddleware
     {
@@ -283,7 +280,7 @@ final readonly class WebrickMiddlewareFactory
     }
 
     /**
-     * @param MiddlewareDefinition $definition
+     * @param array<string, mixed> $definition
      */
     private function middleware(array $definition): object|string|null
     {
@@ -403,7 +400,7 @@ final readonly class WebrickMiddlewareFactory
     }
 
     /**
-     * @return MiddlewareDefinition|null
+     * @return array<string, mixed>|null
      */
     private function normalizeDefinition(mixed $definition): ?array
     {
@@ -537,7 +534,7 @@ final readonly class WebrickMiddlewareFactory
     }
 
     /**
-     * @param MiddlewareDefinition $definition
+     * @param array<string, mixed> $definition
      */
     private function verifySignedUrl(array $definition): ?VerifySignedUrlMiddleware
     {

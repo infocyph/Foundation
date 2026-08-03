@@ -101,8 +101,12 @@ final readonly class FileSessionStore implements SessionStoreInterface
 
     /**
      * @template TResult
-     * @param Closure():TResult $operation
-     * @return TResult
+     * @param Closure $operation Filesystem operation guarded by the session lock.
+     * @phpstan-param Closure():TResult $operation
+     * @psalm-param Closure():TResult $operation
+     * @return mixed Filesystem operation result.
+     * @phpstan-return TResult
+     * @psalm-return TResult
      */
     private static function filesystem(Closure $operation): mixed
     {

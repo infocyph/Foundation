@@ -43,17 +43,16 @@ return [
         'leeway_seconds' => env_int('SECURITY_JWT_LEEWAY_SECONDS', 0),
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Integrity Hashing
-    |--------------------------------------------------------------------------
-    |
-    | The algorithm is used by Security::fileHasher(), stringHasher(),
-    | hashFile(), and hashString() when no method-level algorithm is supplied.
-    | It may be any algorithm supported by PHP's hash extension. Recommended
-    | examples: `sha256|sha384|sha512`.
-    |
-    */
+    /**
+     * Integrity Hashing
+     *
+     * The algorithm is used by the security manager's fileHasher(), stringHasher(),
+     * hashFile(), and hashString() when no method-level algorithm is supplied.
+     * It may be any algorithm supported by PHP's hash extension.
+     *
+     * Examples:
+     * Recommended values are `sha256|sha384|sha512`.
+     */
     'integrity' => [
         'algorithm' => env_string('SECURITY_INTEGRITY_ALGORITHM', 'sha256'),
     ],

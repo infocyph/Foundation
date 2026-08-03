@@ -187,6 +187,66 @@ it('rejects unsafe third-party module config sources at manifest load time', fun
     }
 });
 
+it('keeps development dependencies out of module composer operations', function (): void {
+    $basePath = sys_get_temp_dir() . '/foundation-module-composer-' . bin2hex(random_bytes(5));
+    $binPath = $basePath . '/bin';
+    $commandLog = $basePath . '/commands.jsonl';
+    $composerPath = $binPath . '/composer';
+    $originalPath = getenv('PATH');
+    $originalLog = getenv('FOUNDATION_MODULE_COMMAND_LOG');
+
+    mkdir($binPath, 0775, true);
+    file_put_contents($basePath . '/composer.json', '{"name":"example/application"}');
+    file_put_contents($composerPath, <<<'PHP'
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+$log = getenv('FOUNDATION_MODULE_COMMAND_LOG');
+if (!is_string($log) || $log === '') {
+    exit(2);
+}
+
+file_put_contents(
+    $log,
+    json_encode(array_slice($argv, 1), JSON_THROW_ON_ERROR) . PHP_EOL,
+    FILE_APPEND,
+);
+PHP);
+    chmod($composerPath, 0755);
+
+    putenv('PATH=' . $binPath . PATH_SEPARATOR . (is_string($originalPath) ? $originalPath : ''));
+    putenv('FOUNDATION_MODULE_COMMAND_LOG=' . $commandLog);
+
+    try {
+        $application = Foundation::console([
+            'base_path' => $basePath,
+            '_config_cache' => false,
+        ]);
+        $manager = new ModuleManager($application, new ModuleCatalog(), new ProcessRunner());
+
+        expect($manager->install('db', true)->successful())->toBeTrue()
+            ->and($manager->remove('db', true)->successful())->toBeTrue();
+
+        $commands = array_map(
+            static fn(string $command): array => json_decode($command, true, flags: JSON_THROW_ON_ERROR),
+            file($commandLog, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [],
+        );
+
+        expect($commands)->toBe([
+            ['require', 'infocyph/dblayer', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
+            ['remove', 'infocyph/dblayer', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
+        ]);
+    } finally {
+        is_string($originalPath) ? putenv('PATH=' . $originalPath) : putenv('PATH');
+        is_string($originalLog)
+            ? putenv('FOUNDATION_MODULE_COMMAND_LOG=' . $originalLog)
+            : putenv('FOUNDATION_MODULE_COMMAND_LOG');
+        moduleConfigRemoveDirectory($basePath);
+    }
+});
+
 function moduleConfigRemoveDirectory(string $directory): void
 {
     if (!is_dir($directory)) {

@@ -344,7 +344,9 @@ final readonly class IdentifierManager
      * @template T of object
      * @param array<string, mixed> $options
      * @param class-string<T> $class
-     * @return ?T
+     * @return object|null Resolved configured option.
+     * @phpstan-return T|null
+     * @psalm-return T|null
      */
     private function configOption(array $options, string $class): ?object
     {
