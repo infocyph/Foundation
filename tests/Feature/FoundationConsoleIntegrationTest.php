@@ -71,10 +71,81 @@ it('lists Foundation commands under System and application commands by namespace
 
     expect($console->run(['foundation-test', 'list']))->toBe(ExitCode::SUCCESS)
         ->and($io->outputText())->toContain(
-            "Available commands:\n\nSystem:\n  app:ready",
+            "Available commands:\n\nSystem:\n  Application:\n    about",
+            "\n\n  Database:\n    db:seed",
+            "\n\n  Generators:\n    create:class",
+            "\n\n  Routing:\n    route:cache",
+            "\n\n  Sessions:\n    session:prune",
+            "\n\n  Workers:\n    worker:list",
             "\n\nreports:\n  reports:daily",
         )
         ->and($created)->toBeFalse();
+});
+
+it('validates the local development server without starting it', function (): void {
+    $created = false;
+    $basePath = sys_get_temp_dir() . '/foundation-serve-' . bin2hex(random_bytes(5));
+    mkdir($basePath . '/public', 0775, true);
+
+    try {
+        $io = new BufferedIO();
+        $console = FoundationConsole::create(
+            static function (?string $profile) use (&$created, $basePath) {
+                $created = true;
+
+                return Foundation::console([
+                    'base_path' => $basePath,
+                    'env' => $profile ?? 'testing',
+                    '_config_cache' => false,
+                    'router' => ['files' => []],
+                ]);
+            },
+            name: 'foundation-test',
+        )->withIO($io);
+
+        expect($console->run([
+            'foundation-test',
+            'serve',
+            '--host=::1',
+            '--port=8080',
+            '--dry-run',
+        ]))->toBe(ExitCode::SUCCESS)
+            ->and($io->outputText())->toContain(
+                'Development server: http://[::1]:8080',
+                $basePath . '/public',
+            )
+            ->and($created)->toBeTrue();
+    } finally {
+        foundationConsoleRemoveDirectory($basePath);
+    }
+});
+
+it('rejects an invalid local development server endpoint', function (): void {
+    $basePath = sys_get_temp_dir() . '/foundation-serve-' . bin2hex(random_bytes(5));
+    mkdir($basePath . '/public', 0775, true);
+
+    try {
+        $io = new BufferedIO();
+        $console = FoundationConsole::create(
+            static fn(?string $profile) => Foundation::console([
+                'base_path' => $basePath,
+                'env' => $profile ?? 'testing',
+                '_config_cache' => false,
+                'router' => ['files' => []],
+            ]),
+            name: 'foundation-test',
+        )->withIO($io);
+
+        expect($console->run([
+            'foundation-test',
+            'serve',
+            '--port=70000',
+            '--dry-run',
+        ]))->toBe(ExitCode::INVALID_USAGE)
+            ->and($io->errorText())->toContain('Port must be between 1 and 65535');
+    } finally {
+        foundationConsoleRemoveDirectory($basePath);
+    }
 });
 
 it('boots preflight commands from a compiled command manifest', function (): void {
@@ -527,9 +598,11 @@ it('creates Foundation application artifacts from safe built-in stubs', function
         ['create:job', 'Billing/SendReceipt', 'app/Jobs/Billing/SendReceiptJob.php', 'final readonly class SendReceiptJob'],
         ['create:listener', 'SendWelcomeEmail', 'app/Listeners/SendWelcomeEmailListener.php', 'public function __invoke(object $event): void'],
         ['create:middleware', 'EnsureTenant', 'app/Http/Middleware/EnsureTenantMiddleware.php', 'final readonly class EnsureTenantMiddleware'],
+        ['create:migration', 'CreateUsers', 'app/Database/Migration/CreateUsersMigration.php', 'implements Migration'],
         ['create:policy', 'Invoice', 'app/Policies/InvoicePolicy.php', 'implements PolicyInterface'],
         ['create:provider', 'Billing', 'app/Providers/BillingServiceProvider.php', 'final class BillingServiceProvider'],
         ['create:repository', 'User', 'app/Repositories/UserRepository.php', "return 'users';"],
+        ['create:seeder', 'Production', 'app/Database/Seeder/ProductionSeeder.php', 'implements Seeder'],
         ['create:service', 'Billing', 'app/Services/BillingService.php', 'final class BillingService'],
         ['create:test', 'Http/UserAccess', 'tests/Feature/Http/UserAccessTest.php', "it('user access')->todo()"],
         ['create:trait', 'FormatsMoney', 'app/Concerns/FormatsMoneyTrait.php', 'trait FormatsMoneyTrait'],
@@ -538,7 +611,10 @@ it('creates Foundation application artifacts from safe built-in stubs', function
 
     try {
         foreach ($artifacts as [$command, $name, $relative, $expected]) {
-            expect($console->run(['foundation', $command, $name]))->toBe(ExitCode::SUCCESS);
+            expect($console->run(['foundation', $command, $name]))->toBe(
+                ExitCode::SUCCESS,
+                $command . ': ' . $io->errorText(),
+            );
             $path = $basePath . '/' . $relative;
             $contents = file_get_contents($path);
             if ($contents === false) {
@@ -552,7 +628,9 @@ it('creates Foundation application artifacts from safe built-in stubs', function
 
         expect(implode("\n", $io->output()))
             ->toContain('Register App\\Console\\Commands\\Reports\\DailyCommand in routes/console.php.')
+            ->toContain('Add App\\Database\\Migration\\CreateUsersMigration to database.migrations.classes.')
             ->toContain('Assign App\\Providers\\BillingServiceProvider to common, web, or console')
+            ->toContain('Add App\\Database\\Seeder\\ProductionSeeder to database.seeders.')
             ->toContain('Map a worker name to App\\Console\\Workers\\QueueWorker in routes/workers.php.');
     } finally {
         foundationConsoleRemoveDirectory($basePath);

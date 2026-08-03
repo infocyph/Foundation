@@ -13,8 +13,9 @@ return [
 ];
 ```
 
-System commands are defined by Foundation. User commands are grouped by the
-namespace before the first colon; Foundation commands appear under `System`.
+System commands are defined by Foundation and appear under `System`, split into
+module headings such as `Database`, `Routing`, `Generators`, `Sessions`, and
+`Workers`. User commands are grouped by the namespace before the first colon.
 Names cannot override a system command.
 
 ## Generated artifacts
@@ -47,4 +48,3 @@ shutdown behavior rather than creating an unbounded application loop.
 
 Locks use Console's cache-layer bridge, so the configured CacheLayer store may
 be file, Redis/Valkey, Memcached, SQLite/PDO, or another supported backend.
-

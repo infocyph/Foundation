@@ -1,5 +1,77 @@
 # Operations
 
+## Local development server
+
+Start PHP's built-in development server from the application root:
+
+```bash
+php infbyte serve
+php infbyte serve --host=localhost --port=8080
+```
+
+The command serves the configured public directory and defaults to
+`127.0.0.1:8000`. Use `--dry-run` to validate and display the resolved endpoint
+and document root without starting the process. This server is intended only
+for local development; use a production web server and process manager for
+deployed applications.
+
+## Runtime inspection
+
+```bash
+php infbyte about
+php infbyte about --json=true
+php infbyte env:show
+php infbyte config:show router.matcher
+php infbyte route:list
+php infbyte route:list --json=true
+```
+
+`about` summarizes runtime, package, cache, matcher, and installed-module
+information. `env:show` reports the active application environment without
+dumping the process environment. `config:show` requires one dot-notation key
+and recursively redacts credentials, passwords, private values, secrets,
+tokens, cookies, authorization values, and keys. `route:list` loads configured
+route files through a temporary CLI registrar and does not construct the HTTP
+kernel.
+
+## Application cache
+
+```bash
+php infbyte cache:clear
+php infbyte cache:clear --store=redis
+```
+
+The command resolves CacheLayer only when selected and clears only the named
+store. Omitting `--store` selects `cache.default`; a backend rejection is
+reported as a failure rather than a successful no-op.
+
+## Secrets and public storage
+
+Generate the Foundation authentication token secret:
+
+```bash
+php infbyte secret:generate
+php infbyte secret:generate --force
+```
+
+The command writes a 32-byte random `AUTH_TOKEN_SECRET` to `.env` through a
+mode-`0600` temporary file and atomic rename. It never prints the secret and
+refuses to replace an existing value unless `--force` is present. The compiled
+configuration cache is cleared before activation so subsequent processes do
+not retain the old value.
+
+After installing the filesystem module, create the links declared by
+`filesystem.links`:
+
+```bash
+php infbyte module:install filesystem
+php infbyte storage:link
+```
+
+Every link path must remain inside the public directory and every target must
+remain inside storage. Correct links are preserved, missing target directories
+are created, and conflicting files or links are rejected.
+
 ## Deployment caches
 
 ```bash

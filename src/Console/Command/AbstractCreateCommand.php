@@ -63,10 +63,12 @@ abstract class AbstractCreateCommand extends AbstractFoundationCommand
     {
         return match ($this->artifact()) {
             'command' => sprintf('Register %s in routes/console.php.', $class),
+            'migration' => sprintf('Add %s to database.migrations.classes.', $class),
             'provider' => sprintf(
                 'Assign %s to common, web, or console in bootstrap/providers.php.',
                 $class,
             ),
+            'seeder' => sprintf('Add %s to database.seeders.', $class),
             'worker' => sprintf('Map a worker name to %s in routes/workers.php.', $class),
             default => null,
         };

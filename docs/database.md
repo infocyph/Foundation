@@ -31,6 +31,20 @@ Register ordered migration classes:
 Classes implement `Infocyph\DBLayer\Migration\Migration` and use DBLayer
 `SchemaManager`/`Blueprint`. Foundation performs no filesystem discovery.
 
+Generate a registered-class starting point without scanning the project:
+
+```bash
+php infbyte create:migration CreateAccounts
+php infbyte create:seeder Production
+```
+
+The commands create `App\Database\Migration\CreateAccountsMigration` and
+`App\Database\Seeder\ProductionSeeder`. Add those classes to
+`database.migrations.classes` and `database.seeders`; generation never edits
+application configuration implicitly. Migration identifiers include a UTC
+timestamp and descriptive suffix, and existing files are preserved unless
+`--force` is supplied.
+
 Available commands:
 
 ```bash
@@ -59,6 +73,22 @@ php infbyte db:seed --transactional=false
 ```
 
 Seed order is the configured order. There is no runtime scanning.
+
+## Database inspection
+
+Inspect the selected connection and its user tables:
+
+```bash
+php infbyte db:show
+php infbyte db:show --connection=reporting --json=true
+php infbyte db:table users
+php infbyte db:table reporting.events --connection=reporting
+```
+
+`db:table` reports columns, indexes, and foreign keys using read-only metadata
+queries for DBLayer's SQLite, MySQL/MariaDB, and PostgreSQL drivers. Identifiers
+are validated before interpolation. These commands connect to the database only
+when selected and do not participate in web bootstrap.
 
 ## Testing
 

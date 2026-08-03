@@ -1,0 +1,33 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Infocyph\DBLayer\Migration\Migration;
+use Infocyph\DBLayer\Migration\MigrationContext;
+use Infocyph\DBLayer\Schema\Blueprint;
+use Infocyph\DBLayer\Schema\SchemaManager;
+
+final class {{ class }} implements Migration
+{
+    public function down(SchemaManager $schema, MigrationContext $context): void
+    {
+        $context->checkpoint();
+        $schema->dropIfExists('examples');
+    }
+
+    public function id(): string
+    {
+        return '{{ migration_id }}';
+    }
+
+    public function up(SchemaManager $schema, MigrationContext $context): void
+    {
+        $context->checkpoint();
+        $schema->create('examples', static function (Blueprint $table): void {
+            $table->id();
+            $table->timestamps();
+        });
+    }
+}
