@@ -256,7 +256,7 @@ When the compiled command manifest exists, the CLI entry point does not load
 the project command route file during preflight or dispatch.
 Foundation's operational commands, including `config:*`, `route:*`,
 `schedule:*`, `worker:*`, `create:*`, `module:*`, `migrate:*`, `db:*`,
-`queue:*`, `auth:schema:*`, `session:*`, and `app:ready`, are predefined by
+`queue:*`, `auth:schema:*`, `session:*`, `app:install`, and `app:ready`, are predefined by
 Foundation and must not be redeclared in the application route map.
 `php infbyte list` presents every Foundation-owned command under `System`, with
 module subgroups for database, routing, generators, sessions, workers, and the
@@ -367,6 +367,7 @@ packages do not need to know the application layout:
 
 ```bash
 php infbyte about
+php infbyte app:install
 php infbyte env:show
 php infbyte config:show database.connections.sqlite
 php infbyte route:list
