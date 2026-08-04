@@ -18,6 +18,10 @@ module headings such as `Database`, `Routing`, `Generators`, `Sessions`, and
 `Workers`. User commands are grouped by the namespace before the first colon.
 Names cannot override a system command.
 
+`app:install` initializes `.env` and its authentication secret after Composer
+creates an application. It performs work only when selected and adds nothing
+to web bootstrap.
+
 ## Generated artifacts
 
 The `create:*` commands generate controllers, repositories, commands, jobs,

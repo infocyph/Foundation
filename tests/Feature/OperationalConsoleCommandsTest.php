@@ -199,6 +199,82 @@ it('rotates the authentication secret atomically without displaying it', functio
     }
 });
 
+it('installs the application environment securely and idempotently', function (): void {
+    $basePath = operationalConsoleDirectory('install');
+    mkdir($basePath . '/bootstrap/cache/config', 0775, true);
+    file_put_contents($basePath . '/bootstrap/cache/config/__manifest.php', '<?php return [];');
+    file_put_contents(
+        $basePath . '/.env.example',
+        "APP_NAME=Example\nAUTH_TOKEN_SECRET=development-placeholder\n",
+    );
+
+    try {
+        $application = Foundation::console([
+            'base_path' => $basePath,
+            '_config_cache' => false,
+            'app' => ['load_env' => false],
+        ]);
+        [$console, $io] = operationalConsole($application);
+
+        expect($console->run(['foundation', 'app:install']))->toBe(ExitCode::SUCCESS)
+            ->and($basePath . '/.env')->toBeFile()
+            ->and($basePath . '/bootstrap/cache/config/__manifest.php')->not->toBeFile()
+            ->and(fileperms($basePath . '/.env') & 0777)->toBe(0600);
+
+        $contents = file_get_contents($basePath . '/.env');
+        expect($contents)->toBeString()
+            ->and($contents)->toMatch('/^AUTH_TOKEN_SECRET=[a-f0-9]{64}$/m')
+            ->and($contents)->not->toContain('development-placeholder');
+
+        $hash = hash_file('sha256', $basePath . '/.env');
+        expect($console->run(['foundation', 'app:install']))->toBe(ExitCode::SUCCESS)
+            ->and(hash_file('sha256', $basePath . '/.env'))->toBe($hash)
+            ->and($io->outputText())->not->toContain('AUTH_TOKEN_SECRET=');
+    } finally {
+        operationalConsoleRemoveDirectory($basePath);
+    }
+});
+
+it('preserves an existing application secret during installation', function (): void {
+    $basePath = operationalConsoleDirectory('install-existing');
+    $secret = str_repeat('a', 64);
+    file_put_contents($basePath . '/.env', "APP_NAME=Example\nAUTH_TOKEN_SECRET={$secret}\n");
+
+    try {
+        $application = Foundation::console([
+            'base_path' => $basePath,
+            '_config_cache' => false,
+            'app' => ['load_env' => false],
+        ]);
+        [$console] = operationalConsole($application);
+
+        expect($console->run(['foundation', 'app:install']))->toBe(ExitCode::SUCCESS)
+            ->and(file_get_contents($basePath . '/.env'))->toContain($secret)
+            ->and(fileperms($basePath . '/.env') & 0777)->toBe(0600);
+    } finally {
+        operationalConsoleRemoveDirectory($basePath);
+    }
+});
+
+it('rejects application installation without an environment source', function (): void {
+    $basePath = operationalConsoleDirectory('install-missing');
+
+    try {
+        $application = Foundation::console([
+            'base_path' => $basePath,
+            '_config_cache' => false,
+            'app' => ['load_env' => false],
+        ]);
+        [$console, $io] = operationalConsole($application);
+
+        expect($console->run(['foundation', 'app:install']))->toBe(ExitCode::INVALID_USAGE)
+            ->and($basePath . '/.env')->not->toBeFile()
+            ->and($io->errorText())->toContain('Unable to read environment example file');
+    } finally {
+        operationalConsoleRemoveDirectory($basePath);
+    }
+});
+
 it('creates configured storage links idempotently and rejects conflicts', function (): void {
     $basePath = operationalConsoleDirectory('storage');
     mkdir($basePath . '/public', 0775, true);

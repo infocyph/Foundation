@@ -9,6 +9,7 @@ use Infocyph\Console\Application as ConsoleApplication;
 use Infocyph\Console\Command\CommandContract;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Console\Command\AboutCommand;
+use Infocyph\Foundation\Console\Command\ApplicationInstallCommand;
 use Infocyph\Foundation\Console\Command\AppReadyCommand;
 use Infocyph\Foundation\Console\Command\AuthSchemaInstallCommand;
 use Infocyph\Foundation\Console\Command\AuthSchemaStatusCommand;
@@ -78,6 +79,7 @@ final class FoundationConsole
     private const array SYSTEM_COMMAND_GROUPS = [
         'Application' => [
             'about' => AboutCommand::class,
+            'app:install' => ApplicationInstallCommand::class,
             'app:ready' => AppReadyCommand::class,
             'env:show' => EnvironmentShowCommand::class,
             'serve' => ServeCommand::class,

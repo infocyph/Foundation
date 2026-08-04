@@ -45,6 +45,20 @@ The command resolves CacheLayer only when selected and clears only the named
 store. Omitting `--store` selects `cache.default`; a backend rejection is
 reported as a failure rather than a successful no-op.
 
+## Application installation
+
+Initialize a newly created application from its project root:
+
+```bash
+php infbyte app:install
+```
+
+The command creates `.env` from `.env.example`, replaces the example token
+secret with 32 random bytes, publishes the file through a mode-`0600` temporary
+file and atomic rename, and clears stale compiled configuration. An existing
+non-empty secret is preserved. The command is idempotent and is suitable for a
+Composer `post-create-project-cmd` hook.
+
 ## Secrets and public storage
 
 Generate the Foundation authentication token secret:
