@@ -31,9 +31,12 @@ use Infocyph\Foundation\Database\DatabaseManager;
 use Infocyph\Foundation\Facades\Route;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Console\Support\RouteCacheManager;
 use Infocyph\Foundation\Http\Middleware\ResolvePrincipalMiddleware;
 use Infocyph\Foundation\Http\Resolver\PrincipalResolverInterface;
 use Infocyph\Foundation\Http\Resolver\RequestPrincipalResolver;
+use Infocyph\Foundation\Http\Response\ExceptionRenderer;
+use Infocyph\Foundation\Logging\HttpExceptionLogger;
 use Infocyph\Foundation\Routing\RouteCachePath;
 use Infocyph\Foundation\Routing\WebrickMiddlewareFactory;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
@@ -41,6 +44,7 @@ use Infocyph\Webrick\Middleware\MaintenanceModeMiddleware;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 use Infocyph\Webrick\Router\Definition\Registrar;
+use Infocyph\Webrick\Router\Dispatch\MiddlewareAliases;
 use Infocyph\Webrick\Support\RouteCache as WebrickRouteCache;
 
 interface FoundationTestGateway
@@ -202,15 +206,18 @@ it('keeps unrelated subsystems deferred for plain routes', function (): void {
         'routes/web.php' => <<<'PHP'
 <?php
 
+use Infocyph\Foundation\Auth\Exception\AuthenticationException;
 use Infocyph\Webrick\Response\Response;
 use Infocyph\Webrick\Router\Facade\Router;
 
 Router::get('/lean', static fn(): Response => Response::json(['ok' => true]));
+Router::get('/auth-error', static fn(): never => throw new AuthenticationException('Authentication required.'));
 PHP,
     ]);
 
     try {
         $app = Foundation::web(['base_path' => $project]);
+        $repository = $app->container()->getRepository();
 
         expect($app->container()->has(AuthManager::class))->toBeFalse()
             ->and($app->container()->has(CacheManager::class))->toBeFalse()
@@ -218,8 +225,17 @@ PHP,
             ->and(foundationJsonResponse($app->handle(foundationRequest('/lean'))))->toBe(['ok' => true])
             ->and($app->container()->has(AuthManager::class))->toBeFalse()
             ->and($app->container()->has(CacheManager::class))->toBeFalse()
+            ->and($repository->hasResolvedSingleton(ExceptionRenderer::class))->toBeFalse()
+            ->and($repository->hasResolvedSingleton(HttpExceptionLogger::class))->toBeFalse()
             ->and(class_exists('Infocyph\Foundation\Console\FoundationConsole', false))->toBe($foundationConsoleLoaded)
             ->and(class_exists('Infocyph\Console\Application', false))->toBe($consoleApplicationLoaded);
+
+        expect($app->handle(foundationRequest('/missing'))->getStatusCode())->toBe(404)
+            ->and($repository->hasResolvedSingleton(ExceptionRenderer::class))->toBeFalse()
+            ->and($repository->hasResolvedSingleton(HttpExceptionLogger::class))->toBeTrue();
+
+        expect($app->handle(foundationRequest('/auth-error'))->getStatusCode())->toBe(401)
+            ->and($repository->hasResolvedSingleton(ExceptionRenderer::class))->toBeTrue();
 
         expect($app->cache())->toBeInstanceOf(CacheManager::class)
             ->and($app->container()->has(CacheManager::class))->toBeTrue()
@@ -572,6 +588,45 @@ PHP,
     }
 });
 
+it('registers only middleware aliases required by a warm route cache', function (): void {
+    $project = foundationIntegrationProject([
+        'routes/web.php' => <<<'PHP'
+<?php
+
+use Infocyph\Webrick\Response\Response;
+use Infocyph\Webrick\Router\Facade\Router;
+
+Router::get('/cached-plain', static fn(): Response => Response::json(['ok' => true]));
+Router::get('/cached-auth', static fn(): Response => Response::json(['ok' => true]), [
+    'middleware' => ['auth'],
+]);
+PHP,
+    ]);
+
+    try {
+        $config = [
+            'base_path' => $project,
+            '_config_cache' => false,
+            'router' => [
+                'matcher' => 'fused',
+                'files' => ['web.php'],
+            ],
+        ];
+        $console = Foundation::console($config);
+        $routes = new RouteCacheManager($console);
+        $routes->write('fused', RouteCachePath::for($console->config()));
+
+        $app = Foundation::web($config);
+        expect(foundationJsonResponse($app->handle(foundationRequest('/cached-plain'))))->toBe(['ok' => true])
+            ->and(MiddlewareAliases::has('auth'))->toBeTrue()
+            ->and(MiddlewareAliases::has('policy'))->toBeFalse()
+            ->and(MiddlewareAliases::has('session'))->toBeFalse()
+            ->and($app->container()->has(AuthManager::class))->toBeFalse();
+    } finally {
+        foundationIntegrationRemoveDirectory($project);
+    }
+});
+
 it('does not consume an existing route cache when routing cache is disabled', function (): void {
     $project = foundationIntegrationProject([
         'bootstrap/cache/routes/fused.php' => "<?php\n\nreturn [];\n",
@@ -829,6 +884,11 @@ function foundationIntegrationRemoveDirectory(string $directory): void
         }
 
         $path = $directory . DIRECTORY_SEPARATOR . $item;
+        if (is_link($path)) {
+            unlink($path);
+
+            continue;
+        }
         if (is_dir($path)) {
             foundationIntegrationRemoveDirectory($path);
 

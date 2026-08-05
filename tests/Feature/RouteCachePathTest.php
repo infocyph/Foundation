@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Routing\RouteCachePath;
+use Infocyph\Webrick\Router\Definition\Registrar;
+use Infocyph\Webrick\Support\RouteCache as WebrickRouteCache;
 
 it('derives route cache locations from the selected matcher', function (): void {
     $basePath = '/tmp/foundation-route-cache';
@@ -50,21 +52,37 @@ it('detects warm generated and sharded route caches', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-route-cache-' . bin2hex(random_bytes(4));
     $directory = $basePath . '/bootstrap/cache/routes';
     mkdir($directory, 0777, true);
-    file_put_contents($directory . '/generated.php', "<?php\n\nreturn [];\n");
-    file_put_contents($directory . '/__root.php', "<?php\n\nreturn [];\n");
 
     try {
+        WebrickRouteCache::build([
+            'cache' => $directory . '/generated.php',
+            'matcher' => 'generated',
+            'register' => static fn(Registrar $router): mixed => $router->get('/generated', static fn(): string => 'ok'),
+        ]);
         expect(RouteCachePath::isWarm(new ConfigRepository([
             'app' => ['base_path' => $basePath],
             'router' => ['matcher' => 'generated'],
-        ])))->toBeTrue()
-            ->and(RouteCachePath::isWarm(new ConfigRepository([
-                'app' => ['base_path' => $basePath],
-                'router' => ['matcher' => 'sharded'],
-            ])))->toBeTrue();
+        ])))->toBeTrue();
+
+        WebrickRouteCache::clear([
+            'cache' => $directory . '/generated.php',
+            'matcher' => 'generated',
+        ]);
+        WebrickRouteCache::build([
+            'cache' => $directory,
+            'matcher' => 'sharded',
+            'register' => static fn(Registrar $router): mixed => $router->get('/sharded', static fn(): string => 'ok'),
+        ]);
+        expect(RouteCachePath::isWarm(new ConfigRepository([
+            'app' => ['base_path' => $basePath],
+            'router' => ['matcher' => 'sharded'],
+        ])))->toBeTrue();
     } finally {
-        unlink($directory . '/generated.php');
-        unlink($directory . '/__root.php');
+        WebrickRouteCache::clear([
+            'cache' => $directory,
+            'matcher' => 'sharded',
+            'aggressive' => true,
+        ]);
         rmdir($directory);
         rmdir(dirname($directory));
         rmdir(dirname(dirname($directory)));

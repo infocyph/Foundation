@@ -93,8 +93,11 @@ php infbyte optimize
 php infbyte app:ready --json=true
 ```
 
-`optimize` builds configuration, route, command, schedule, and third-party
-module manifests. The corresponding clear operation is idempotent:
+`optimize` builds configuration, route, middleware-requirement, command,
+schedule, third-party module, and compiled HTTP-container artifacts. It
+publishes the container fingerprint in `bootstrap/cache/optimize.php` only
+after every build step succeeds. The corresponding clear operation is
+idempotent:
 
 ```bash
 php infbyte optimize:clear
@@ -103,6 +106,13 @@ php infbyte optimize:clear
 Individual `config:*`, `route:*`, `command:*`, and `schedule:*` commands remain
 available. Compiling may spend more time during deployment to remove discovery,
 parsing, and normalization from requests.
+
+Container activation remains `off` by default because loading even a validated
+artifact has a fixed boot cost. Set `app.container.compiled_activation=always`
+only for a measured workload—most commonly a persistent worker that pays that
+cost once. Short request-per-process deployments retain the dynamic resolver.
+Invalid or stale compiled artifacts fail open to that dynamic path, while the
+readiness report exposes the mismatch for deployment gates.
 
 Both aggregate commands are safe to repeat. Foundation's integration suite
 runs each command twice and verifies that a second optimization preserves every
@@ -122,7 +132,7 @@ has changed between deployments.
 - Omnibus map counts;
 - notification transport;
 - compiled module count;
-- cache artifact status;
+- cache and compiled-container artifact status;
 - path writability;
 - JsonDispatch profile;
 - browser-session driver and database schema.

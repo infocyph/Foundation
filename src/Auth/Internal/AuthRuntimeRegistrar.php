@@ -12,12 +12,15 @@ use Infocyph\Foundation\Auth\AuthServices;
 use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
 use Infocyph\Foundation\Auth\Http\AuthActions;
 use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
+use Infocyph\Foundation\Runtime\RuntimeContextTracker;
 
 final readonly class AuthRuntimeRegistrar extends AbstractAuthRegistrar
 {
     public function register(): void
     {
-        $this->singleton(CurrentPrincipalContext::class, fn() => new CurrentPrincipalContext());
+        $this->singleton(CurrentPrincipalContext::class, fn() => new CurrentPrincipalContext(
+            $this->service(RuntimeContextTracker::class),
+        ));
 
         $this->singleton(Authenticator::class, fn() => new Authenticator(
             accounts: $this->accountProvider(),

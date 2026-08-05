@@ -53,16 +53,21 @@ final readonly class WebrickMiddlewareFactory
         return $this->resolveGlobalList('pre');
     }
 
-    public function registerAliases(): void
+    /**
+     * @param list<string>|null $requirements
+     */
+    public function registerAliases(?array $requirements = null): void
     {
         $aliases = array_filter(
             $this->configuredAliases(),
             $this->enabled(...),
         );
-        if ($aliases === []) {
-            return;
+        if ($requirements !== null) {
+            $aliases = array_intersect_key(
+                $aliases,
+                array_fill_keys(array_map(strtolower(...), $requirements), true),
+            );
         }
-
         MiddlewareAliases::registerResolver(
             static fn(string $alias): bool => isset($aliases[$alias]),
             fn(string $alias, string ...$parameters): object|string => $this->aliasMiddleware(

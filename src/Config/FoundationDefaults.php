@@ -16,7 +16,8 @@ final class FoundationDefaults
                 'base_path' => getcwd() ?: '.',
                 'container' => [
                     'alias' => null,
-                    'compiled' => null,
+                    'compiled' => 'bootstrap/cache/container.php',
+                    'compiled_activation' => 'off',
                     'debug_tracing' => [
                         'enabled' => false,
                         'level' => 'node',

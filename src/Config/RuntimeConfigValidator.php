@@ -16,6 +16,7 @@ final readonly class RuntimeConfigValidator
     public function validate(): array
     {
         return [
+            ...$this->container(),
             ...$this->logging(),
             ...$this->migrations(),
             ...$this->messageRoutes(),
@@ -39,6 +40,27 @@ final readonly class RuntimeConfigValidator
                 sprintf('%s must be one of: %s.', $key, implode(', ', $allowed)),
                 $key,
             )];
+    }
+
+    /**
+     * @return list<ConfigIssue>
+     */
+    private function container(): array
+    {
+        $issues = $this->allowedString(
+            'app.container.compiled_activation',
+            $this->config->get('app.container.compiled_activation', 'off'),
+            ['off', 'always'],
+        );
+        $path = $this->config->get('app.container.compiled', 'bootstrap/cache/container.php');
+        if (!is_string($path) || trim($path) === '') {
+            $issues[] = new ConfigIssue(
+                'app.container.compiled must be a non-empty application-owned path.',
+                'app.container.compiled',
+            );
+        }
+
+        return $issues;
     }
 
     /**

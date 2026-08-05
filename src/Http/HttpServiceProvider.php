@@ -13,7 +13,9 @@ use Infocyph\Foundation\Logging\HttpExceptionLogger;
 use Infocyph\Foundation\Routing\RouterManager;
 use Infocyph\Foundation\Runtime\RuntimeContextResetter;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
+use Infocyph\InterMix\DI\Support\ServiceReference;
 use Infocyph\Webrick\Router\Kernel\ErrorHandler;
+use Psr\Log\LoggerInterface;
 
 final class HttpServiceProvider extends ServiceProvider
 {
@@ -21,27 +23,32 @@ final class HttpServiceProvider extends ServiceProvider
     {
         $container = $app->container();
 
-        $this->bindFactory($container, AuthResponseFactory::class, fn() => new AuthResponseFactory(), LifetimeEnum::Singleton);
-        $this->bindFactory($container, AuthExceptionMapper::class, fn() => new AuthExceptionMapper(
-            $app->make(AuthResponseFactory::class),
-        ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, ExceptionRenderer::class, fn() => new ExceptionRenderer(
-            $app->make(AuthExceptionMapper::class),
-        ), LifetimeEnum::Singleton);
+        $this->bindRecipe($container, AuthResponseFactory::class, AuthResponseFactory::class);
+        $this->bindRecipe($container, AuthExceptionMapper::class, AuthExceptionMapper::class, [
+            new ServiceReference(AuthResponseFactory::class),
+        ]);
+        $this->bindRecipe($container, ExceptionRenderer::class, ExceptionRenderer::class, [
+            new ServiceReference(AuthExceptionMapper::class),
+        ]);
 
         $this->bindFactory($container, ErrorHandler::class, fn() => new ErrorHandler(
-            logger: $app->make(HttpExceptionLogger::class),
+            logger: static fn(): LoggerInterface => $app->make(HttpExceptionLogger::class),
             debug: (bool) $app->config()->get('app.debug', false),
             capturePhpErrors: true,
             requestIdHeader: 'X-Request-Id',
-            responseRenderer: $app->make(ExceptionRenderer::class)->render(...),
+            responseRenderer: static fn(
+                \Infocyph\Webrick\Request\Request $request,
+                \Throwable $exception,
+            ): ?\Infocyph\Webrick\Response\Response => ExceptionRenderer::supports($exception)
+                ? $app->make(ExceptionRenderer::class)->render($request, $exception)
+                : null,
         ), LifetimeEnum::Singleton);
 
-        $this->bindFactory($container, HttpKernel::class, fn() => new HttpKernel(
-            router: $app->make(RouterManager::class),
-            errorHandler: $app->make(ErrorHandler::class),
-            contexts: $app->make(RuntimeContextResetter::class),
-        ), LifetimeEnum::Singleton);
+        $this->bindRecipe($container, HttpKernel::class, HttpKernel::class, [
+            new ServiceReference(RouterManager::class),
+            new ServiceReference(ErrorHandler::class),
+            new ServiceReference(RuntimeContextResetter::class),
+        ]);
 
         $this->bindFactory($container, 'foundation.http', fn() => $container->get(HttpKernel::class), LifetimeEnum::Singleton);
     }

@@ -20,30 +20,9 @@ final class ContainerFactory
         return $container;
     }
 
-    private function absolute(string $path): bool
-    {
-        return preg_match('/^(?:[A-Z]:[\\\\\\/]|\\\\\\\\|\/)/i', $path) === 1;
-    }
-
     private function alias(ConfigRepository $config): ?string
     {
         return ValueNormalizer::nullableString($config->get('app.container.alias'));
-    }
-
-    private function compiledPath(ConfigRepository $config): ?string
-    {
-        $configured = ValueNormalizer::nullableString($config->get('app.container.compiled'));
-        if ($configured === null) {
-            return null;
-        }
-
-        if ($this->absolute($configured)) {
-            return $configured;
-        }
-
-        $basePath = ValueNormalizer::string($config->get('app.base_path'), getcwd() ?: '.');
-
-        return rtrim($basePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . ltrim($configured, DIRECTORY_SEPARATOR);
     }
 
     private function configure(Container $container, ConfigRepository $config): void
@@ -67,10 +46,6 @@ final class ContainerFactory
             ));
         }
 
-        $compiledPath = $this->compiledPath($config);
-        if ($compiledPath !== null && is_file($compiledPath)) {
-            $container->useCompiled($compiledPath);
-        }
     }
 
     private function defaultAlias(): string
