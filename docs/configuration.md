@@ -11,6 +11,17 @@ Foundation loads values in this order:
 `app.load_env=false`. Configuration may be cached as `single` or `sharded`;
 sharded caching lazily loads one compiled config group at first access.
 
+Choose the cache layout by workload:
+
+- `sharded` is the default for lean HTTP routes because untouched namespaces
+  remain unloaded;
+- `single` avoids per-namespace file loads when most requests consume much of
+  the application configuration.
+
+Both layouts move normalization to deployment. Benchmark representative
+minimal, authenticated, session, and database routes before changing the
+default; there is no universal fastest layout.
+
 ## Canonical key reference
 
 Every publishable key is documented inline in its canonical template:
@@ -57,3 +68,16 @@ php infbyte config:clear
 Callable values are valid only in live configuration. Cached handler, listener,
 migration, seeder, provider, command, schedule, and worker definitions must use
 class names or serializable scalar/array values.
+
+`app.container.compiled` selects the application-owned resolver artifact path
+and defaults to `bootstrap/cache/container.php`. The
+`app.container.compiled_activation` values are:
+
+- `off` (default): keep request-bound applications on InterMix's dynamic
+  resolver, while still allowing `optimize` to build and validate the artifact;
+- `always`: load the matching deployment-prevalidated artifact during web boot.
+
+Use `always` only after measuring the complete boot plus request cost. It is
+primarily useful when one application instance handles many requests. A
+missing, stale, malformed, or mismatched artifact falls back to the dynamic
+resolver; `app:ready` reports artifact readiness separately.

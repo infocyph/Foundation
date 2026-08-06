@@ -53,7 +53,8 @@ cryptography do not enter a plain route graph.
 ## Persistent processes
 
 Every HTTP request runs inside an InterMix scope. Every consumed Omnibus message
-runs inside a separate `ExecutionScope`. In `finally` blocks Foundation clears:
+runs inside a separate `ExecutionScope`. In `finally` blocks Foundation clears
+only mutable contexts marked dirty during the current request:
 
 - the current principal;
 - active browser sessions and leases;
@@ -73,6 +74,8 @@ Foundation deliberately moves discovery and compilation to deployment:
 - command and schedule maps become Console manifests;
 - installed packages that explicitly expose `foundation-module.php` become one
   module manifest.
+- cache-safe core HTTP recipes become an InterMix resolver whose fingerprint is
+  published in the optimize manifest.
 
 No package, command, listener, migration, route, or provider directory is
 scanned during a request.

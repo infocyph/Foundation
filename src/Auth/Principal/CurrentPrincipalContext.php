@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Auth\Principal;
 
 use Infocyph\Foundation\Auth\Exception\AuthenticationException;
+use Infocyph\Foundation\Runtime\RuntimeContextTracker;
 
 final class CurrentPrincipalContext implements CurrentPrincipalProviderInterface
 {
@@ -13,7 +14,7 @@ final class CurrentPrincipalContext implements CurrentPrincipalProviderInterface
 
     private ?PrincipalInterface $mainPrincipal = null;
 
-    public function __construct()
+    public function __construct(private readonly ?RuntimeContextTracker $contexts = null)
     {
         $this->fiberPrincipals = new \WeakMap();
     }
@@ -56,6 +57,8 @@ final class CurrentPrincipalContext implements CurrentPrincipalProviderInterface
 
             return;
         }
+
+        $this->contexts?->markPrincipal($this);
 
         $fiber = \Fiber::getCurrent();
         if ($fiber === null) {

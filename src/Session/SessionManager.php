@@ -6,6 +6,7 @@ namespace Infocyph\Foundation\Session;
 
 use Closure;
 use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
+use Infocyph\Foundation\Runtime\RuntimeContextTracker;
 
 final class SessionManager
 {
@@ -23,6 +24,7 @@ final class SessionManager
         private readonly Closure $storeFactory,
         /** @var Closure():(LockProviderInterface|null) */
         private readonly Closure $lockFactory,
+        private readonly ?RuntimeContextTracker $contexts = null,
     ) {
         $this->fiberActive = new \WeakMap();
     }
@@ -45,6 +47,7 @@ final class SessionManager
 
     public function enter(BrowserSession $session): void
     {
+        $this->contexts?->markSession($this);
         $active = $this->active();
         $active[] = $session;
         $this->replaceActive($active);

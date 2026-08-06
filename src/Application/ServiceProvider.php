@@ -6,7 +6,9 @@ namespace Infocyph\Foundation\Application;
 
 use Closure;
 use Infocyph\InterMix\DI\Container;
+use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
+use Infocyph\InterMix\DI\Support\ServiceReference;
 
 abstract class ServiceProvider implements ServiceProviderInterface
 {
@@ -15,6 +17,10 @@ abstract class ServiceProvider implements ServiceProviderInterface
     /**
      * Register an explicit factory without requiring closure autowiring.
      *
+     * @param Container $container Target application container.
+     * @param string $id Service identifier.
+     * @param Closure $factory Reflection-free service factory.
+     * @param LifetimeEnum $lifetime Service lifetime.
      * @param array<int, string> $tags
      */
     final protected function bindFactory(
@@ -31,5 +37,31 @@ abstract class ServiceProvider implements ServiceProviderInterface
             LifetimeEnum::Scoped => $binding->scoped($tags),
             LifetimeEnum::Transient => $binding->transient($tags),
         };
+    }
+
+    /**
+     * Register an immutable construction recipe that InterMix may compile.
+     *
+     * @param Container $container Target application container.
+     * @param string $id Service identifier.
+     * @param class-string $class
+     * @param list<scalar|array<array-key, mixed>|ServiceReference|null> $arguments
+     * @param LifetimeEnum $lifetime Service lifetime.
+     * @param array<int, string> $tags
+     */
+    final protected function bindRecipe(
+        Container $container,
+        string $id,
+        string $class,
+        array $arguments = [],
+        LifetimeEnum $lifetime = LifetimeEnum::Singleton,
+        array $tags = [],
+    ): void {
+        $container->bind(
+            $id,
+            FactoryDefinition::construct($class, $arguments),
+            $lifetime,
+            $tags,
+        );
     }
 }

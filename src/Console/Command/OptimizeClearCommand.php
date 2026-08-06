@@ -19,11 +19,7 @@ final class OptimizeClearCommand extends AbstractOptimizeCommand
     protected function handle(): int
     {
         try {
-            $this->config->clear('bootstrap/cache/config');
-            $this->routes->clearAll();
-            $this->commands->clear('bootstrap/cache/console/commands.php');
-            $this->schedule->clear();
-            $this->modules->clear();
+            $this->clearArtifacts();
         } catch (\Throwable $exception) {
             $this->io()->error('optimize:clear failed: ' . $exception->getMessage());
 

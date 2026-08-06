@@ -8,6 +8,7 @@ use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Runtime\RuntimeContextTracker;
 use Infocyph\Foundation\Session\Middleware\CsrfMiddleware;
 use Infocyph\Foundation\Session\Middleware\SessionMiddleware;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
@@ -41,6 +42,7 @@ final class SessionServiceProvider extends ServiceProvider
 
                 return $app->make(CacheLayerFactory::class)->lock($config->lockStore);
             },
+            $app->make(RuntimeContextTracker::class),
         ), LifetimeEnum::Singleton);
         $this->bindFactory($container, SessionMiddleware::class, fn() => new SessionMiddleware(
             $app->make(SessionManager::class),

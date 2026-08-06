@@ -39,8 +39,9 @@ php infbyte optimize
 
 Compiled command metadata lives directly under `bootstrap/cache/console`.
 Schedule and command route files are not loaded when a valid compiled manifest
-is available. `optimize:clear` removes all Foundation-built artifacts
-idempotently.
+is available. The aggregate command also builds route middleware metadata and
+the optional InterMix HTTP resolver, then publishes the optimize manifest last.
+`optimize:clear` removes all Foundation-built artifacts idempotently.
 
 ## Runtime control
 

@@ -39,6 +39,17 @@ final readonly class AuthExceptionMapper
         ];
     }
 
+    public static function supportsDefault(\Throwable $exception): bool
+    {
+        return $exception instanceof AuthenticationException
+            || $exception instanceof AuthorizationException
+            || $exception instanceof SessionException
+            || $exception instanceof TokenAuthException
+            || $exception instanceof MfaException
+            || $exception instanceof PasskeyException
+            || $exception instanceof LockoutException;
+    }
+
     public function supports(\Throwable $exception): bool
     {
         return $this->statusFor($exception) !== null;

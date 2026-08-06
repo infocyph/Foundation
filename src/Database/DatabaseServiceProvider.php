@@ -10,6 +10,7 @@ use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchemaInstaller;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
+use Infocyph\Foundation\Runtime\RuntimeContextTracker;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 
 final class DatabaseServiceProvider extends ServiceProvider
@@ -51,6 +52,7 @@ final class DatabaseServiceProvider extends ServiceProvider
             factory: $app->make(DBLayerFactory::class),
             authSchemaInstaller: $app->make(AuthSchemaInstaller::class),
             migrations: $app->make(DatabaseMigrationManager::class),
+            contexts: $app->make(RuntimeContextTracker::class),
         ), LifetimeEnum::Singleton);
 
         $this->bindFactory($container, 'foundation.db', fn() => $container->get(DatabaseManager::class), LifetimeEnum::Singleton);

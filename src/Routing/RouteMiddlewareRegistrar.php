@@ -44,28 +44,45 @@ final class RouteMiddlewareRegistrar
         'csrf' => true,
     ];
 
-    private bool $registered = false;
+    private bool $fullyRegistered = false;
 
     public function __construct(
         private readonly Application $app,
     ) {}
 
-    public function register(): void
+    /**
+     * Register only middleware families referenced by a warm route cache.
+     *
+     * A null requirement list represents dynamic routes and deliberately keeps
+     * the full discovery path. An empty list is authoritative for a warm cache.
+     *
+     * @param list<string>|null $requirements
+     */
+    public function register(?array $requirements = null): void
     {
-        if ($this->registered) {
+        if ($this->fullyRegistered) {
             return;
         }
 
+        $required = $requirements === null
+            ? null
+            : array_fill_keys(array_map(strtolower(...), $requirements), true);
+
+        $authAliases = $required === null ? self::AUTH_ALIASES : array_intersect_key(self::AUTH_ALIASES, $required);
         MiddlewareAliases::registerResolver(
-            static fn(string $alias): bool => isset(self::AUTH_ALIASES[$alias]),
+            static fn(string $alias): bool => isset($authAliases[$alias]),
             fn(string $alias, string ...$parameters): object => $this->resolveAuthAlias(
                 $alias,
                 array_values($parameters),
             ),
             'foundation.auth',
         );
+
+        $sessionAliases = $required === null
+            ? self::SESSION_ALIASES
+            : array_intersect_key(self::SESSION_ALIASES, $required);
         MiddlewareAliases::registerResolver(
-            static fn(string $alias): bool => isset(self::SESSION_ALIASES[$alias]),
+            static fn(string $alias): bool => isset($sessionAliases[$alias]),
             fn(string $alias): object => match ($alias) {
                 'session' => $this->app->make(SessionMiddleware::class),
                 'csrf' => $this->app->make(CsrfMiddleware::class),
@@ -76,12 +93,14 @@ final class RouteMiddlewareRegistrar
             },
             'foundation.session',
         );
-        $this->app->make(WebrickMiddlewareFactory::class)->registerAliases();
 
-        $this->registered = true;
+        $this->app->make(WebrickMiddlewareFactory::class)->registerAliases($requirements);
+
+        $this->fullyRegistered = $requirements === null;
     }
 
     /**
+     * @param string $alias Registered Foundation auth alias.
      * @param list<string> $parameters
      */
     private function resolveAuthAlias(string $alias, array $parameters): object

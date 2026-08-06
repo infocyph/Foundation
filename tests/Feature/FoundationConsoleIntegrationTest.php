@@ -430,6 +430,8 @@ PHP);
             ->and($basePath . '/bootstrap/cache/routes/fused.php')->toBeFile()
             ->and($basePath . '/bootstrap/cache/console/commands.php')->toBeFile()
             ->and($basePath . '/bootstrap/cache/console/schedule.php')->toBeFile()
+            ->and($basePath . '/bootstrap/cache/container.php')->toBeFile()
+            ->and($basePath . '/bootstrap/cache/optimize.php')->toBeFile()
             ->and($console->run(['foundation', 'optimize']))->toBe(ExitCode::SUCCESS)
             ->and($basePath . '/bootstrap/cache/config/__manifest.php')->toBeFile()
             ->and($basePath . '/bootstrap/cache/routes/fused.php')->toBeFile()
@@ -448,8 +450,48 @@ PHP);
             ->and($basePath . '/bootstrap/cache/routes/api.php')->not->toBeFile()
             ->and($basePath . '/bootstrap/cache/console/commands.php')->not->toBeFile()
             ->and($basePath . '/bootstrap/cache/console/schedule.php')->not->toBeFile()
+            ->and($basePath . '/bootstrap/cache/container.php')->not->toBeFile()
+            ->and($basePath . '/bootstrap/cache/optimize.php')->not->toBeFile()
             ->and($console->run(['foundation', 'optimize:clear']))->toBe(ExitCode::SUCCESS)
             ->and(implode("\n", $io->output()))->toContain('Application caches cleared.');
+    } finally {
+        foundationConsoleRemoveDirectory($basePath);
+    }
+});
+
+it('removes partial artifacts when aggregate optimization fails', function (): void {
+    $basePath = sys_get_temp_dir() . '/foundation-optimize-failure-' . bin2hex(random_bytes(5));
+    mkdir($basePath . '/config', 0775, true);
+    mkdir($basePath . '/routes', 0775, true);
+    file_put_contents($basePath . '/config/router.php', "<?php\n\nreturn ['files' => ['api.php']];\n");
+    file_put_contents($basePath . '/routes/api.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+use Infocyph\Webrick\Router\Facade\Router;
+
+Router::get('/partial', static fn(): array => ['partial' => true]);
+PHP);
+    file_put_contents($basePath . '/routes/console.php', "<?php\n\nreturn 'invalid';\n");
+
+    try {
+        $io = new BufferedIO();
+        $console = FoundationConsole::create(
+            static fn(?string $profile) => Foundation::console([
+                'base_path' => $basePath,
+                'env' => $profile ?? 'testing',
+                '_config_cache' => false,
+            ]),
+        )->withIO($io);
+
+        expect($console->run(['foundation', 'optimize']))->toBe(ExitCode::INVALID_USAGE)
+            ->and($basePath . '/bootstrap/cache/config/__manifest.php')->not->toBeFile()
+            ->and($basePath . '/bootstrap/cache/routes/fused.php')->not->toBeFile()
+            ->and($basePath . '/bootstrap/cache/console/commands.php')->not->toBeFile()
+            ->and($basePath . '/bootstrap/cache/container.php')->not->toBeFile()
+            ->and($basePath . '/bootstrap/cache/optimize.php')->not->toBeFile()
+            ->and($io->errorText())->toContain('optimize failed:');
     } finally {
         foundationConsoleRemoveDirectory($basePath);
     }

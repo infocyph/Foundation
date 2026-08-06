@@ -8,6 +8,7 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
+use Infocyph\InterMix\DI\Support\ServiceReference;
 use Psr\Log\LoggerInterface;
 
 final class RoutingServiceProvider extends ServiceProvider
@@ -21,18 +22,20 @@ final class RoutingServiceProvider extends ServiceProvider
             config: $app->config(),
             logger: $app->make(LoggerInterface::class),
         ), LifetimeEnum::Singleton);
+        $this->bindRecipe($container, RouteMiddlewareRegistrar::class, RouteMiddlewareRegistrar::class, [
+            new ServiceReference(Application::class),
+        ]);
         $this->bindFactory($container, WebrickRouterFactory::class, fn() => new WebrickRouterFactory(
             $app->config(),
             $app->make(WebrickMiddlewareFactory::class),
+            $app->make(RouteMiddlewareRegistrar::class),
             $container,
             $app->make(LoggerInterface::class),
         ), LifetimeEnum::Singleton);
-
-        $this->bindFactory($container, RouteMiddlewareRegistrar::class, fn() => new RouteMiddlewareRegistrar($app), LifetimeEnum::Singleton);
-        $this->bindFactory($container, RoutePresetRegistrar::class, fn() => new RoutePresetRegistrar(
-            $app->make(RouteMiddlewareRegistrar::class),
-            $app->config(),
-        ), LifetimeEnum::Singleton);
+        $this->bindRecipe($container, RoutePresetRegistrar::class, RoutePresetRegistrar::class, [
+            new ServiceReference(RouteMiddlewareRegistrar::class),
+            new ServiceReference(\Infocyph\Foundation\Config\ConfigRepository::class),
+        ]);
         $this->bindFactory($container, RouteFileLoader::class, fn() => new RouteFileLoader(
             paths: $app->make(PathManager::class),
             config: $app->config(),
@@ -40,11 +43,11 @@ final class RoutingServiceProvider extends ServiceProvider
             files: $this->routeFiles($app->config()->get('router.files', ['web.php', 'api.php', 'auth.php'])),
         ), LifetimeEnum::Singleton);
 
-        $this->bindFactory($container, RouterManager::class, fn() => new RouterManager(
-            config: $app->config(),
-            factory: $app->make(WebrickRouterFactory::class),
-            presets: $app->make(RoutePresetRegistrar::class),
-        ), LifetimeEnum::Singleton);
+        $this->bindRecipe($container, RouterManager::class, RouterManager::class, [
+            new ServiceReference(\Infocyph\Foundation\Config\ConfigRepository::class),
+            new ServiceReference(WebrickRouterFactory::class),
+            new ServiceReference(RoutePresetRegistrar::class),
+        ]);
 
         $this->bindFactory($container, 'foundation.router', fn() => $container->get(RouterManager::class), LifetimeEnum::Singleton);
     }

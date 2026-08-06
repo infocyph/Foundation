@@ -16,6 +16,7 @@ use Infocyph\DBLayer\Support\Logger;
 use Infocyph\DBLayer\Support\Profiler;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchemaInstaller;
+use Infocyph\Foundation\Runtime\RuntimeContextTracker;
 use PDO;
 use Psr\Log\LoggerInterface as PsrLoggerInterface;
 
@@ -26,6 +27,7 @@ final readonly class DatabaseManager
         private DBLayerFactory $factory,
         private AuthSchemaInstaller $authSchemaInstaller,
         private DatabaseMigrationManager $migrations,
+        private ?RuntimeContextTracker $contexts = null,
     ) {}
 
     /**
@@ -72,6 +74,8 @@ final readonly class DatabaseManager
 
     public function connection(?string $name = null, bool $fresh = false): Connection
     {
+        $this->contexts?->markDatabase($this);
+
         return $this->factory->connection($name, $fresh);
     }
 

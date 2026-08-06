@@ -13,6 +13,11 @@ final readonly class ExceptionRenderer
         private AuthExceptionMapper $auth,
     ) {}
 
+    public static function supports(\Throwable $exception): bool
+    {
+        return AuthExceptionMapper::supportsDefault($exception);
+    }
+
     public function render(
         Request $request,
         \Throwable $exception,

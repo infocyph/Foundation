@@ -74,7 +74,7 @@ final readonly class RouterManager
 
     public function kernel(?ErrorHandler $errorHandler = null): RouterKernel
     {
-        return $this->registered(fn() => $this->factory->kernel($errorHandler));
+        return $this->factory->kernel($errorHandler);
     }
 
     public function registerAuthMiddleware(): void

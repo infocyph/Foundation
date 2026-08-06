@@ -16,6 +16,7 @@ use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Config\ConfigValidationResult;
 use Infocyph\Foundation\Config\ConfigValidator;
 use Infocyph\Foundation\Console\Support\ModuleManifestManager;
+use Infocyph\Foundation\Container\ContainerCacheManager;
 use Infocyph\Foundation\Container\ContainerFactory;
 use Infocyph\Foundation\Data\DataManager;
 use Infocyph\Foundation\Database\DatabaseManager;
@@ -29,6 +30,7 @@ use Infocyph\Foundation\Messaging\MessagingManager;
 use Infocyph\Foundation\Notifications\NotificationManager;
 use Infocyph\Foundation\Routing\RouterManager;
 use Infocyph\Foundation\Runtime\RuntimeContextResetter;
+use Infocyph\Foundation\Runtime\RuntimeContextTracker;
 use Infocyph\Foundation\Security\SecurityManager;
 use Infocyph\Foundation\Session\BrowserSession;
 use Infocyph\Foundation\Session\SessionDatabaseSchema;
@@ -72,6 +74,13 @@ final class Application
         );
 
         $app->bootstrapper->prepare($app);
+        $compiledActivation = $repository->get('app.container.compiled_activation', 'off');
+        if ($app->runningInWeb()
+            && is_string($compiledActivation)
+            && strtolower($compiledActivation) === 'always'
+        ) {
+            $app->make(ContainerCacheManager::class)->activate();
+        }
 
         return $app;
     }
@@ -521,10 +530,13 @@ final class Application
         $this->container->bind(ConfigRepository::class, $this->config, LifetimeEnum::Singleton);
         $this->container->bind(Container::class, $this->container, LifetimeEnum::Singleton);
         $this->container->bind(
-            RuntimeContextResetter::class,
-            new RuntimeContextResetter($this->container),
+            ContainerCacheManager::class,
+            new ContainerCacheManager($this),
             LifetimeEnum::Singleton,
         );
+        $contexts = new RuntimeContextTracker();
+        $this->container->bind(RuntimeContextTracker::class, $contexts, LifetimeEnum::Singleton);
+        $this->container->bind(RuntimeContextResetter::class, new RuntimeContextResetter($contexts), LifetimeEnum::Singleton);
     }
 
     /**
@@ -696,6 +708,7 @@ final class Application
     /**
      * @return array{
      *   commands:bool,
+     *   container:array{ready:bool,activation:string,compiled:int,path:string},
      *   config:bool,
      *   modules:bool,
      *   routes:bool,
@@ -706,6 +719,7 @@ final class Application
     {
         return [
             'commands' => is_file($this->basePath('bootstrap/cache/console/commands.php')),
+            'container' => $this->make(ContainerCacheManager::class)->status(),
             'config' => $this->config()->isCompiled(),
             'modules' => is_file($this->basePath('bootstrap/cache/modules.php')),
             'routes' => \Infocyph\Foundation\Routing\RouteCachePath::isWarm($this->config()),

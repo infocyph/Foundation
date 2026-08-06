@@ -30,6 +30,7 @@ final class WebrickRouterFactory
     public function __construct(
         private readonly ConfigRepository $config,
         private readonly WebrickMiddlewareFactory $middleware,
+        private readonly RouteMiddlewareRegistrar $middlewareRegistrar,
         private readonly Container $container,
         private readonly LoggerInterface $logger,
     ) {}
@@ -40,15 +41,24 @@ final class WebrickRouterFactory
             return $this->kernel;
         }
 
-        $routes = RouteCachePath::isWarm($this->config) ? null : $this->routes();
-        $aliases = $routes instanceof Collection ? $this->aliasesByRoute($routes) : [];
         $routeCache = RouteCachePath::enabled($this->config)
             ? RouteCachePath::for($this->config)
             : null;
+        $matcher = $this->matcher();
+        $warm = false;
+        if ($routeCache !== null) {
+            $matcher->enableCache($routeCache);
+            $warm = $matcher->canBootFromCache();
+        }
+
+        $this->middlewareRegistrar->register($warm ? $matcher->middlewareRequirements() : null);
+
+        $routes = $warm ? null : $this->routes();
+        $aliases = $routes instanceof Collection ? $this->aliasesByRoute($routes) : [];
 
         return $this->kernel = RouterKernel::bootWithRegistrar(
             log: $this->logger,
-            matcher: $this->matcher(),
+            matcher: $matcher,
             register: function (Registrar $registrar) use ($routes, $aliases): void {
                 if (!$routes instanceof Collection) {
                     return;
