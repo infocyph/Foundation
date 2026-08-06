@@ -83,20 +83,5 @@ return [
     | ],
     |
     */
-    'key_rings' => [
-        // 'customer_data' => [
-        //     'active' => '2026-07',
-        //     'keys' => [
-        //         '2026-07' => [
-        //             'key' => env('DATA_KEY_CURRENT'),
-        //             'status' => 'active',
-        //             'purpose' => 'customer-pii',
-        //         ],
-        //         '2026-01' => [
-        //             'key' => env('DATA_KEY_PREVIOUS'),
-        //             'status' => 'fallback',
-        //         ],
-        //     ],
-        // ],
-    ],
+    'key_rings' => [],
 ];
