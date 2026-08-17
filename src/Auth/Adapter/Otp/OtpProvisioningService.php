@@ -50,7 +50,6 @@ final readonly class OtpProvisioningService
             'payload' => $totp->getEnrollmentPayload(
                 $resolvedLabel,
                 $this->issuer,
-                ['algorithm', 'digits', 'period'],
                 [],
                 $withQrSvg,
             ),
@@ -60,7 +59,11 @@ final readonly class OtpProvisioningService
 
     private function totp(string $secret): TOTP
     {
-        return new TOTP($secret, $this->digits, $this->period)
-            ->setAlgorithm($this->algorithm);
+        return new TOTP(
+            $secret,
+            $this->digits,
+            $this->period,
+            $this->algorithm,
+        );
     }
 }
