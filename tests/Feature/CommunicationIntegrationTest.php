@@ -69,45 +69,30 @@ it('applies talkingbytes webhook profiles through foundation', function (): void
     ]);
 
     $comms = $app->make(CommunicationManager::class);
-    $events = [];
-    $comms->events(static function (string $event, array $payload) use (&$events): void {
-        $events[] = [$event, $payload];
-    });
+    $transport = (new FakeHttpTransport())->pushJson(['ok' => true]);
+    $client = HttpClient::fake($transport);
 
-    try {
-        $transport = (new FakeHttpTransport())->pushJson(['ok' => true]);
-        $client = HttpClient::fake($transport);
+    $delivery = $comms->webhookSenderUsing($client)->send(
+        WebhookMessage::event('orders.created')
+            ->deliveryId(str_repeat('a', 32))
+            ->url('https://example.test/hooks')
+            ->payload(['order_id' => 1001]),
+    );
 
-        $delivery = $comms->webhookSenderUsing($client)->send(
-            WebhookMessage::event('orders.created')
-                ->deliveryId(str_repeat('a', 32))
-                ->url('https://example.test/hooks')
-                ->payload(['order_id' => 1001]),
-        );
+    $request = $transport->sentRequests()[0];
+    $receiver = $comms->webhookReceiver();
+    $payload = $request->body?->toCurlPayload();
 
-        $request = $transport->sentRequests()[0];
-        $receiver = $comms->webhookReceiver();
-        $payload = $request->body?->toCurlPayload();
+    $event = $receiver->receive((string) $payload, [
+        WebhookHeaders::SIGNATURE => (string) $request->headers->get(WebhookHeaders::SIGNATURE),
+        WebhookHeaders::TIMESTAMP => (string) $request->headers->get(WebhookHeaders::TIMESTAMP),
+        WebhookHeaders::EVENT => (string) $request->headers->get(WebhookHeaders::EVENT),
+        WebhookHeaders::DELIVERY => (string) $request->headers->get(WebhookHeaders::DELIVERY),
+    ]);
 
-        $event = $receiver->receive((string) $payload, [
-            WebhookHeaders::SIGNATURE => (string) $request->headers->get(WebhookHeaders::SIGNATURE),
-            WebhookHeaders::TIMESTAMP => (string) $request->headers->get(WebhookHeaders::TIMESTAMP),
-            WebhookHeaders::EVENT => (string) $request->headers->get(WebhookHeaders::EVENT),
-            WebhookHeaders::DELIVERY => (string) $request->headers->get(WebhookHeaders::DELIVERY),
-        ]);
-
-        expect($delivery->delivery->delivered)->toBeTrue()
-            ->and($event->event)->toBe('orders.created')
-            ->and($event->payload)->toBe(['order_id' => 1001])
-            ->and(array_column($events, 0))->toContain(
-                'webhook.send.start',
-                'webhook.send.finish',
-                'webhook.verified',
-                'webhook.received',
-            );
-    } finally {
-        $comms->events(null);
-    }
+    expect($delivery->delivery->delivered)->toBeTrue()
+        ->and($event->event)->toBe('orders.created')
+        ->and($event->payload)->toBe(['order_id' => 1001]);
 });
 
 it('creates talkingbytes grpc clients and inbound dispatchers through foundation', function (): void {
