@@ -279,7 +279,7 @@ final class BrowserSession
         }
 
         $lock = $provider->acquire(
-            'foundation:session:' . $id,
+            hash('sha256', 'foundation-session:' . $id),
             $this->config->lockWaitSeconds,
             $this->config->lockLeaseSeconds,
         );
