@@ -57,18 +57,14 @@ final class MessagingServiceProvider extends ServiceProvider
         $this->bindFactory($container, SyncTransport::class, fn() => new SyncTransport(
             $app->make(HandlerMap::class),
         ), LifetimeEnum::Singleton);
-        if (!$container->has(TransportRegistry::class)) {
-            $this->bindFactory($container, TransportRegistry::class, fn() => new TransportRegistry([
-                'sync' => $app->make(SyncTransport::class),
-                'memory' => $app->make(InMemoryTransport::class),
-            ]), LifetimeEnum::Singleton);
-        }
-        if (!$container->has(MessageBus::class)) {
-            $this->bindFactory($container, MessageBus::class, fn() => new MessageBus(
-                $app->make(RouteMap::class),
-                $app->make(TransportRegistry::class),
-            ), LifetimeEnum::Singleton);
-        }
+        $this->bindFactory($container, TransportRegistry::class, fn() => new TransportRegistry([
+            'sync' => $app->make(SyncTransport::class),
+            'memory' => $app->make(InMemoryTransport::class),
+        ]), LifetimeEnum::Singleton);
+        $this->bindFactory($container, MessageBus::class, fn() => new MessageBus(
+            $app->make(RouteMap::class),
+            $app->make(TransportRegistry::class),
+        ), LifetimeEnum::Singleton);
         $this->bindFactory($container, EventDispatcher::class, fn() => new EventDispatcher(
             $app->make(ListenerProviderInterface::class),
             $app->make(MessageBus::class),
