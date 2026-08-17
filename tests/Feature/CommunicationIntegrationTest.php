@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Infocyph\Foundation\Facades\Comms;
+use Infocyph\Foundation\Communication\CommunicationManager;
 use Infocyph\Foundation\Foundation;
 use Infocyph\TalkingBytes\Grpc\GrpcStatus;
 use Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundResponse;
@@ -35,7 +35,8 @@ it('resolves configured talkingbytes http profiles', function (): void {
         ],
     ]);
 
-    $config = $app->communication()->httpConfig();
+    $comms = $app->make(CommunicationManager::class);
+    $config = $comms->httpConfig();
 
     expect($config->timeoutSeconds)->toBe(15)
         ->and($config->connectTimeoutSeconds)->toBe(5)
@@ -43,8 +44,6 @@ it('resolves configured talkingbytes http profiles', function (): void {
         ->and($config->defaultHeaders)->toBe([
             'X-App' => 'Infbyte',
         ]);
-
-    expect(Comms::httpConfig()->userAgent)->toBe('Infbyte Test Client');
 });
 
 it('applies talkingbytes webhook profiles through foundation', function (): void {
@@ -56,12 +55,12 @@ it('applies talkingbytes webhook profiles through foundation', function (): void
             'webhooks' => [
                 'outbound' => [
                     'default' => [
-                        'signing_secret' => 'top-secret',
+                        'signing_secret' => 'test-webhook-key',
                     ],
                 ],
                 'inbound' => [
                     'default' => [
-                        'secret' => 'top-secret',
+                        'secret' => 'test-webhook-key',
                         'max_age_seconds' => 600,
                     ],
                 ],
@@ -69,8 +68,9 @@ it('applies talkingbytes webhook profiles through foundation', function (): void
         ],
     ]);
 
+    $comms = $app->make(CommunicationManager::class);
     $events = [];
-    $app->communication()->events(static function (string $event, array $payload) use (&$events): void {
+    $comms->events(static function (string $event, array $payload) use (&$events): void {
         $events[] = [$event, $payload];
     });
 
@@ -78,7 +78,7 @@ it('applies talkingbytes webhook profiles through foundation', function (): void
         $transport = (new FakeHttpTransport())->pushJson(['ok' => true]);
         $client = HttpClient::fake($transport);
 
-        $delivery = $app->communication()->webhookSenderUsing($client)->send(
+        $delivery = $comms->webhookSenderUsing($client)->send(
             WebhookMessage::event('orders.created')
                 ->deliveryId(str_repeat('a', 32))
                 ->url('https://example.test/hooks')
@@ -86,7 +86,7 @@ it('applies talkingbytes webhook profiles through foundation', function (): void
         );
 
         $request = $transport->sentRequests()[0];
-        $receiver = Comms::webhookReceiver();
+        $receiver = $comms->webhookReceiver();
         $payload = $request->body?->toCurlPayload();
 
         $event = $receiver->receive((string) $payload, [
@@ -99,13 +99,18 @@ it('applies talkingbytes webhook profiles through foundation', function (): void
         expect($delivery->delivery->delivered)->toBeTrue()
             ->and($event->event)->toBe('orders.created')
             ->and($event->payload)->toBe(['order_id' => 1001])
-            ->and(array_column($events, 0))->toContain('webhook.send.start', 'webhook.send.finish', 'webhook.verified', 'webhook.received');
+            ->and(array_column($events, 0))->toContain(
+                'webhook.send.start',
+                'webhook.send.finish',
+                'webhook.verified',
+                'webhook.received',
+            );
     } finally {
-        $app->communication()->events(null);
+        $comms->events(null);
     }
 });
 
-it('creates talkingbytes grpc clients and servers through foundation', function (): void {
+it('creates talkingbytes grpc clients and inbound dispatchers through foundation', function (): void {
     $app = Foundation::web([
         'app' => [
             'base_path' => dirname(__DIR__, 2),
@@ -125,7 +130,8 @@ it('creates talkingbytes grpc clients and servers through foundation', function 
         ],
     ]);
 
-    $client = $app->communication()->grpcClient(
+    $comms = $app->make(CommunicationManager::class);
+    $client = $comms->grpcClient(
         static fn(GrpcRequest $request): GrpcResponse => new GrpcResponse(
             GrpcStatus::Ok,
             ['echo' => $request->message],
@@ -137,13 +143,13 @@ it('creates talkingbytes grpc clients and servers through foundation', function 
         ['order_id' => 1001],
     ));
 
-    $server = Comms::grpcServer([
+    $dispatcher = $comms->grpcInboundDispatcher([
         '/orders.v1.OrderService/Create' => static fn($request): GrpcInboundResponse => GrpcInboundResponse::ok(
             ['accepted' => $request->message],
         ),
     ]);
 
-    $response = $server->receive('/orders.v1.OrderService/Create', ['order_id' => 1001]);
+    $response = $dispatcher->receive('/orders.v1.OrderService/Create', ['order_id' => 1001]);
 
     expect($result->successful)->toBeTrue()
         ->and($result->response)->toBeInstanceOf(GrpcResponse::class)
