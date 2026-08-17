@@ -158,7 +158,11 @@ final class Application
 
     public function has(string $id): bool
     {
-        return $this->container->has($id) || $this->bootstrapper->canProvide($this, $id);
+        if ($this->bootstrapper->manages($id)) {
+            return $this->bootstrapper->canProvide($this, $id);
+        }
+
+        return $this->container->has($id);
     }
 
     public function http(): HttpKernel
@@ -191,11 +195,17 @@ final class Application
     public function make(string $id): mixed
     {
         try {
-            if (!$this->container->has($id)) {
-                $activated = $this->bootstrapper->activateProviderFor($this, $id);
-                $unavailable = $activated ? null : $this->bootstrapper->unavailableServiceMessage($id);
+            if ($this->bootstrapper->manages($id)) {
+                $unavailable = $this->bootstrapper->unavailableServiceMessage($id);
                 if ($unavailable !== null) {
                     throw new \LogicException($unavailable);
+                }
+                if (!$this->bootstrapper->activateProviderFor($this, $id)) {
+                    throw new \LogicException(sprintf(
+                        'Foundation service "%s" is unavailable in the %s runtime.',
+                        $id,
+                        $this->runtimeMode->value,
+                    ));
                 }
             }
 
