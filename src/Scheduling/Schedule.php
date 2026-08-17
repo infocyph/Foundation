@@ -9,6 +9,12 @@ final class Schedule
     /** @var list<ScheduledCommand> */
     private array $commands = [];
 
+    public function add(ScheduledCommand $command): self
+    {
+        $this->commands[] = $command;
+        return $this;
+    }
+
     public function command(string $command): ScheduledCommand
     {
         $scheduled = new ScheduledCommand($command);
