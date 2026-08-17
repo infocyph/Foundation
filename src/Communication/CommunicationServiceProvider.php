@@ -8,7 +8,7 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\InterMix\DI\Container;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
-use Infocyph\TalkingBytes\Grpc\GrpcServer;
+use Infocyph\TalkingBytes\Grpc\GrpcInboundDispatcher;
 use Infocyph\TalkingBytes\Http\HttpClient;
 use Infocyph\TalkingBytes\Webhook\WebhookReceiver;
 use Infocyph\TalkingBytes\Webhook\WebhookSender;
@@ -32,14 +32,37 @@ final class CommunicationServiceProvider extends ServiceProvider
         ), LifetimeEnum::Singleton);
 
         if (!$container->has(HttpClient::class)) {
-            $this->bindFactory($container, HttpClient::class, fn(): HttpClient => $this->manager($container)->httpClient(), LifetimeEnum::Singleton);
+            $this->bindFactory(
+                $container,
+                HttpClient::class,
+                fn(): HttpClient => $this->manager($container)->httpClient(),
+                LifetimeEnum::Singleton,
+            );
         }
-        $this->bindFactory($container, WebhookSender::class, fn(): WebhookSender => $this->manager($container)->webhookSender(), LifetimeEnum::Singleton);
-        $this->bindFactory($container, WebhookVerifier::class, fn(): WebhookVerifier => $this->manager($container)->webhookVerifier(), LifetimeEnum::Singleton);
-        $this->bindFactory($container, WebhookReceiver::class, fn(): WebhookReceiver => $this->manager($container)->webhookReceiver(), LifetimeEnum::Singleton);
-        $this->bindFactory($container, GrpcServer::class, fn() => GrpcServer::new(), LifetimeEnum::Singleton);
-
-        $this->bindFactory($container, 'foundation.communication', fn() => $container->get(CommunicationManager::class), LifetimeEnum::Singleton);
+        $this->bindFactory(
+            $container,
+            WebhookSender::class,
+            fn(): WebhookSender => $this->manager($container)->webhookSender(),
+            LifetimeEnum::Singleton,
+        );
+        $this->bindFactory(
+            $container,
+            WebhookVerifier::class,
+            fn(): WebhookVerifier => $this->manager($container)->webhookVerifier(),
+            LifetimeEnum::Singleton,
+        );
+        $this->bindFactory(
+            $container,
+            WebhookReceiver::class,
+            fn(): WebhookReceiver => $this->manager($container)->webhookReceiver(),
+            LifetimeEnum::Singleton,
+        );
+        $this->bindFactory(
+            $container,
+            GrpcInboundDispatcher::class,
+            fn(): GrpcInboundDispatcher => $this->manager($container)->grpcInboundDispatcher(),
+            LifetimeEnum::Singleton,
+        );
     }
 
     private function manager(Container $container): CommunicationManager
