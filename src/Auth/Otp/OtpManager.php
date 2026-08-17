@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Otp;
 
-use DateTimeImmutable;
 use Infocyph\CacheLayer\Cache\AuthenticationStateCacheInterface;
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpProvisioningService;
 use Infocyph\Foundation\Auth\Mfa\MfaFactor;
@@ -14,8 +13,6 @@ use Infocyph\Foundation\Auth\Mfa\MfaManager;
 use Infocyph\Foundation\Auth\Mfa\MfaVerificationResult;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Support\ValueNormalizer;
-use Infocyph\OTP\Result\StepUpResult;
-use Infocyph\OTP\Support\StepUp;
 use Infocyph\OTP\TOTP;
 use Infocyph\OTP\ValueObjects\EnrollmentPayload;
 use Infocyph\OTP\ValueObjects\VerificationWindow;
@@ -29,14 +26,6 @@ final readonly class OtpManager
         private OtpProvisioningService $provisioning,
         private AuthenticationStateCacheInterface $stateCache,
     ) {}
-
-    public function assessFreshness(
-        ?DateTimeImmutable $verifiedAt,
-        ?int $seconds = null,
-        ?DateTimeImmutable $now = null,
-    ): StepUpResult {
-        return StepUp::assess($verifiedAt, $seconds ?? $this->freshnessWindow(), $now);
-    }
 
     public function beginEnrollment(
         string $accountId,
@@ -62,6 +51,7 @@ final readonly class OtpManager
         return new OtpEnrollmentResult($enrollment, $payload, $factorMetadata);
     }
 
+    /** @param array<string, mixed> $context */
     public function completeEnrollment(
         string $accountId,
         string $factorId,
@@ -130,14 +120,17 @@ final readonly class OtpManager
         }
 
         try {
-            $result = new TOTP($config['secret'], $config['digits'], $config['period'])
-                ->setAlgorithm($config['algorithm'])
-                ->verifyWithWindow(
-                    $code,
-                    window: VerificationWindow::symmetric($config['window']),
-                    cache: $this->stateCache,
-                    factorId: $this->factorBinding($factor, $config['secret']),
-                );
+            $result = (new TOTP(
+                $config['secret'],
+                $config['digits'],
+                $config['period'],
+                $config['algorithm'],
+            ))->verifyWithWindow(
+                $code,
+                window: VerificationWindow::symmetric($config['window']),
+                cache: $this->stateCache,
+                factorId: $this->factorBinding($factor, $config['secret']),
+            );
         } catch (\Throwable) {
             return new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_factor_invalid_configuration');
         }
@@ -207,14 +200,6 @@ final readonly class OtpManager
         }
 
         return null;
-    }
-
-    private function freshnessWindow(): int
-    {
-        return $this->intValue(
-            $this->config->get('auth.otp.freshness_window'),
-            $this->intValue($this->config->get('auth.mfa_satisfied_ttl'), 900),
-        );
     }
 
     private function intValue(mixed $value, int $default): int
