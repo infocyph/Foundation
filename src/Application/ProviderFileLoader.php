@@ -9,33 +9,32 @@ use Infocyph\Foundation\Filesystem\PathManager;
 
 final readonly class ProviderFileLoader
 {
-    public function __construct(
-        private PathManager $paths,
-    ) {}
+    private const array GROUPS = ['common', 'web', 'cli', 'worker', 'scheduler'];
+
+    public function __construct(private PathManager $paths) {}
 
     /**
-     * @return array{common:list<class-string<ServiceProviderInterface>>,web:list<class-string<ServiceProviderInterface>>,console:list<class-string<ServiceProviderInterface>>}
+     * @return array{common:list<class-string<ServiceProviderInterface>>,web:list<class-string<ServiceProviderInterface>>,cli:list<class-string<ServiceProviderInterface>>,worker:list<class-string<ServiceProviderInterface>>,scheduler:list<class-string<ServiceProviderInterface>>}
      */
     public function groups(): array
     {
-        $empty = ['common' => [], 'web' => [], 'console' => []];
+        $resolved = array_fill_keys(self::GROUPS, []);
         $file = $this->paths->providersFile();
         if (!is_file($file)) {
-            return $empty;
+            return $resolved;
         }
 
         $providers = require $file;
         if (!is_array($providers)) {
-            return $empty;
+            return $resolved;
         }
         if ($providers !== [] && array_is_list($providers)) {
             throw new BootstrapException(
-                'Provider files must define common, web, and console provider groups.',
+                'Provider files must define common, web, cli, worker, and scheduler provider groups.',
             );
         }
 
-        $resolved = $empty;
-        foreach ($resolved as $group => $_providers) {
+        foreach (self::GROUPS as $group) {
             $configured = $providers[$group] ?? [];
             if (!is_array($configured)) {
                 continue;
@@ -56,40 +55,11 @@ final readonly class ProviderFileLoader
         return $resolved;
     }
 
-    /**
-     * @param RuntimeMode $runtimeMode Runtime whose provider groups are selected.
-     * @return list<class-string<ServiceProviderInterface>>
-     */
+    /** @return list<class-string<ServiceProviderInterface>> */
     public function providers(RuntimeMode $runtimeMode): array
     {
-        $providers = $this->forRuntime($this->groups(), $runtimeMode);
-        $resolved = [];
+        $groups = $this->groups();
 
-        foreach ($providers as $provider) {
-            $resolved[] = $provider;
-        }
-
-        return $resolved;
-    }
-
-    /**
-     * @param array{
-     *     common:list<class-string<ServiceProviderInterface>>,
-     *     web:list<class-string<ServiceProviderInterface>>,
-     *     console:list<class-string<ServiceProviderInterface>>
-     * } $providers
-     * @return list<class-string<ServiceProviderInterface>>
-     */
-    private function forRuntime(array $providers, RuntimeMode $runtimeMode): array
-    {
-        $selected = [];
-
-        foreach (['common', $runtimeMode->value] as $group) {
-            foreach ($providers[$group] as $provider) {
-                $selected[] = $provider;
-            }
-        }
-
-        return $selected;
+        return [...$groups['common'], ...$groups[$runtimeMode->value]];
     }
 }
