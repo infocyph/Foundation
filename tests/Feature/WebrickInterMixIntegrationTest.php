@@ -27,16 +27,15 @@ use Infocyph\Foundation\Auth\Passkey\PasskeyServiceInterface;
 use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
 use Infocyph\Foundation\Auth\Principal\Principal;
 use Infocyph\Foundation\Cache\CacheManager;
-use Infocyph\Foundation\Database\DatabaseManager;
-use Infocyph\Foundation\Facades\Route;
-use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Config\ConfigRepository;
-use Infocyph\Foundation\Console\Support\RouteCacheManager;
+use Infocyph\Foundation\Database\DatabaseManager;
+use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Http\Middleware\ResolvePrincipalMiddleware;
 use Infocyph\Foundation\Http\Resolver\PrincipalResolverInterface;
 use Infocyph\Foundation\Http\Resolver\RequestPrincipalResolver;
 use Infocyph\Foundation\Http\Response\ExceptionRenderer;
 use Infocyph\Foundation\Logging\HttpExceptionLogger;
+use Infocyph\Foundation\Routing\RouteCacheManager;
 use Infocyph\Foundation\Routing\RouteCachePath;
 use Infocyph\Foundation\Routing\WebrickMiddlewareFactory;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
@@ -45,6 +44,7 @@ use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 use Infocyph\Webrick\Router\Definition\Registrar;
 use Infocyph\Webrick\Router\Dispatch\MiddlewareAliases;
+use Infocyph\Webrick\Router\Facade\Router as Route;
 use Infocyph\Webrick\Support\RouteCache as WebrickRouteCache;
 
 interface FoundationTestGateway
@@ -115,13 +115,12 @@ it('scopes request-lifetime services through the HTTP kernel', function (): void
 
 declare(strict_types=1);
 
-use Infocyph\Foundation\Facades\App;
+use Infocyph\Foundation\Application\Application;
 use Infocyph\Webrick\Response\Response;
 
 /** @var \Infocyph\Foundation\Routing\RouterManager $router */
 
-$router->router()->get('/scope-check', static function (): Response {
-    $app = App::instance();
+$router->router()->get('/scope-check', static function (Application $app): Response {
     $first = $app->make('scoped.probe');
     $second = $app->make('scoped.probe');
 
@@ -219,12 +218,12 @@ PHP,
         $app = Foundation::web(['base_path' => $project]);
         $repository = $app->container()->getRepository();
 
-        expect($app->container()->has(AuthManager::class))->toBeFalse()
-            ->and($app->container()->has(CacheManager::class))->toBeFalse()
+        expect($repository->hasResolvedSingleton(AuthManager::class))->toBeFalse()
+            ->and($repository->hasResolvedSingleton(CacheManager::class))->toBeFalse()
             ->and($app->has(AuthManager::class))->toBeTrue()
             ->and(foundationJsonResponse($app->handle(foundationRequest('/lean'))))->toBe(['ok' => true])
-            ->and($app->container()->has(AuthManager::class))->toBeFalse()
-            ->and($app->container()->has(CacheManager::class))->toBeFalse()
+            ->and($repository->hasResolvedSingleton(AuthManager::class))->toBeFalse()
+            ->and($repository->hasResolvedSingleton(CacheManager::class))->toBeFalse()
             ->and($repository->hasResolvedSingleton(ExceptionRenderer::class))->toBeFalse()
             ->and($repository->hasResolvedSingleton(HttpExceptionLogger::class))->toBeFalse()
             ->and(class_exists('Infocyph\Foundation\Console\FoundationConsole', false))->toBe($foundationConsoleLoaded)
@@ -237,9 +236,9 @@ PHP,
         expect($app->handle(foundationRequest('/auth-error'))->getStatusCode())->toBe(401)
             ->and($repository->hasResolvedSingleton(ExceptionRenderer::class))->toBeTrue();
 
-        expect($app->cache())->toBeInstanceOf(CacheManager::class)
-            ->and($app->container()->has(CacheManager::class))->toBeTrue()
-            ->and($app->container()->has(DatabaseManager::class))->toBeFalse();
+        expect($app->make(CacheManager::class))->toBeInstanceOf(CacheManager::class)
+            ->and($repository->hasResolvedSingleton(CacheManager::class))->toBeTrue()
+            ->and($repository->hasResolvedSingleton(DatabaseManager::class))->toBeFalse();
     } finally {
         foundationIntegrationRemoveDirectory($project);
     }
@@ -252,18 +251,19 @@ it('provides HTTP assertions and clears every activated mutable context between 
 
 declare(strict_types=1);
 
+use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
 use Infocyph\Foundation\Auth\Principal\Principal;
-use Infocyph\Foundation\Facades\App;
+use Infocyph\Foundation\Database\DatabaseManager;
 use Infocyph\Webrick\Response\Response;
 use Infocyph\Webrick\Router\Facade\Router;
 
-Router::post('/testing/activate-contexts', static function (): Response {
-    $app = App::instance();
+Router::post('/testing/activate-contexts', static function (Application $app): Response {
     $app->make(CurrentPrincipalContext::class)->set(new Principal('principal-1'));
     $app->session()->enter($app->session()->open(null));
-    $app->db()->beginTransaction();
-    $app->db()->connection()->statement(
+    $database = $app->make(DatabaseManager::class);
+    $database->beginTransaction();
+    $database->connection()->statement(
         'INSERT INTO worker_contexts (name) VALUES (?)',
         ['must-rollback'],
     );
@@ -271,8 +271,7 @@ Router::post('/testing/activate-contexts', static function (): Response {
     return Response::json(['activated' => true], 202, ['X-Test-Context' => 'active']);
 });
 
-Router::get('/testing/context-status', static function (): Response {
-    $app = App::instance();
+Router::get('/testing/context-status', static function (Application $app): Response {
     try {
         $app->session()->current();
         $sessionActive = true;
@@ -280,11 +279,13 @@ Router::get('/testing/context-status', static function (): Response {
         $sessionActive = false;
     }
 
+    $database = $app->make(DatabaseManager::class);
+
     return Response::json([
         'principal' => $app->make(CurrentPrincipalContext::class)->get()?->id(),
         'session_active' => $sessionActive,
-        'transaction_level' => $app->db()->transactionLevel(),
-        'rows' => $app->db()->connection()->select('SELECT name FROM worker_contexts'),
+        'transaction_level' => $database->transactionLevel(),
+        'rows' => $database->connection()->select('SELECT name FROM worker_contexts'),
     ]);
 });
 PHP,
@@ -306,7 +307,7 @@ PHP,
                 'driver' => 'array',
             ],
         ]);
-        $app->db()->connection()->statement(
+        $app->make(DatabaseManager::class)->connection()->statement(
             'CREATE TABLE worker_contexts (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)',
         );
         $client = $app->testing()->http()->withHeaders(['X-Test-Client' => 'foundation']);
@@ -548,14 +549,15 @@ PHP,
                 ],
             ],
         ]);
+        $repository = $app->container()->getRepository();
 
         expect(foundationJsonResponse($app->handle(foundationRequest('/without-cookie-middleware'))))
             ->toBe(['ok' => true])
-            ->and($app->container()->has(CacheManager::class))->toBeFalse();
+            ->and($repository->hasResolvedSingleton(CacheManager::class))->toBeFalse();
 
         expect(foundationJsonResponse($app->handle(foundationRequest('/with-cookie-middleware'))))
             ->toBe(['ok' => true])
-            ->and($app->container()->has(CacheManager::class))->toBeTrue();
+            ->and($repository->hasResolvedSingleton(CacheManager::class))->toBeTrue();
     } finally {
         foundationIntegrationRemoveDirectory($project);
     }
@@ -577,12 +579,13 @@ PHP,
 
     try {
         $app = Foundation::web(['base_path' => $project]);
-        expect($app->container()->has(AuthManager::class))->toBeFalse();
+        $repository = $app->container()->getRepository();
+        expect($repository->hasResolvedSingleton(AuthManager::class))->toBeFalse();
 
         $response = $app->handle(foundationRequest('/protected'));
 
         expect($response->getStatusCode())->toBe(401)
-            ->and($app->container()->has(AuthManager::class))->toBeTrue();
+            ->and($repository->hasResolvedSingleton(AuthManager::class))->toBeTrue();
     } finally {
         foundationIntegrationRemoveDirectory($project);
     }
@@ -612,16 +615,17 @@ PHP,
                 'files' => ['web.php'],
             ],
         ];
-        $console = Foundation::console($config);
-        $routes = new RouteCacheManager($console);
-        $routes->write('fused', RouteCachePath::for($console->config()));
+        $cli = Foundation::cli($config);
+        $routes = new RouteCacheManager($cli);
+        $routes->write('fused', RouteCachePath::for($cli->config()));
 
         $app = Foundation::web($config);
+        $repository = $app->container()->getRepository();
         expect(foundationJsonResponse($app->handle(foundationRequest('/cached-plain'))))->toBe(['ok' => true])
             ->and(MiddlewareAliases::has('auth'))->toBeTrue()
             ->and(MiddlewareAliases::has('policy'))->toBeFalse()
             ->and(MiddlewareAliases::has('session'))->toBeFalse()
-            ->and($app->container()->has(AuthManager::class))->toBeFalse();
+            ->and($repository->hasResolvedSingleton(AuthManager::class))->toBeFalse();
     } finally {
         foundationIntegrationRemoveDirectory($project);
     }
