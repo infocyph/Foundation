@@ -68,7 +68,7 @@ final readonly class ScheduleManager
             if ($maxIterations !== null && $iterations >= $maxIterations) {
                 break;
             }
-            sleep($sleepSeconds);
+            time_nanosleep($sleepSeconds, 0);
         }
 
         return 0;
@@ -190,7 +190,7 @@ final readonly class ScheduleManager
         if ($entry->preventsOverlap() || $entry->requiresSingleServer()) {
             $lock = $this->application->make(CacheLayerFactory::class)->lock();
             $handle = $lock->acquire(
-                'foundation:schedule:' . $entry->identity(),
+                'foundation-schedule-' . substr(hash('sha256', $entry->identity()), 0, 44),
                 $entry->overlapWaitSeconds(),
                 $entry->overlapLeaseSeconds(),
             );
