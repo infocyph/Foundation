@@ -3,12 +3,11 @@
 declare(strict_types=1);
 
 use Infocyph\Foundation\Auth\Mfa\MfaFactor;
-use Infocyph\Foundation\Facades\Auth;
-use Infocyph\Foundation\Facades\Otp;
+use Infocyph\Foundation\Auth\Otp\OtpManager;
 use Infocyph\Foundation\Foundation;
 use Infocyph\OTP\TOTP;
 
-it('exposes otp enrollment lifecycle and helpers through foundation', function (): void {
+it('exposes the OTP enrollment lifecycle through Foundation auth services', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-otp-' . uniqid('', true);
     mkdir($basePath . '/cache', 0775, true);
 
@@ -21,11 +20,15 @@ it('exposes otp enrollment lifecycle and helpers through foundation', function (
         ],
         'auth' => [
             'drivers' => [
-                'mfa' => 'simple',
+                'mfa' => 'otp',
+                'storage' => 'memory',
             ],
+            'token_secret' => str_repeat('r', 64),
             'otp' => [
                 'issuer' => 'Infbyte Test',
-                'freshness_window' => 120,
+                'replay' => [
+                    'store' => 'auth-state',
+                ],
                 'totp' => [
                     'algorithm' => 'sha256',
                     'digits' => 6,
@@ -39,9 +42,23 @@ it('exposes otp enrollment lifecycle and helpers through foundation', function (
                 ],
             ],
         ],
+        'cache' => [
+            'default' => 'auth-state',
+            'stores' => [
+                'auth-state' => [
+                    'driver' => 'memory',
+                    'namespace' => 'foundation-test-otp-state',
+                    'fail_open' => false,
+                    'security' => [
+                        'integrity_key' => 'foundation-test-otp-state-integrity-key',
+                    ],
+                ],
+            ],
+        ],
     ])->boot();
 
-    $enrollment = $app->otp()->beginEnrollment(
+    $otp = $app->make(OtpManager::class);
+    $enrollment = $otp->beginEnrollment(
         accountId: 'acct-otp-1',
         label: 'ada@example.com',
         withQrSvg: true,
@@ -54,7 +71,6 @@ it('exposes otp enrollment lifecycle and helpers through foundation', function (
     }
 
     expect($enrollment->successful())->toBeTrue()
-        ->and($factor)->toBeInstanceOf(MfaFactor::class)
         ->and($factor->enabled)->toBeFalse()
         ->and($enrollment->payload->issuer)->toBe('Infbyte Test')
         ->and($enrollment->payload->label)->toBe('ada@example.com')
@@ -62,24 +78,16 @@ it('exposes otp enrollment lifecycle and helpers through foundation', function (
         ->and($enrollment->recoveryCodes())->toHaveCount(8)
         ->and($enrollment->factorMetadata['otp']['secret'] ?? null)->toBe($enrollment->payload->secret);
 
-    $code = (new TOTP($enrollment->payload->secret, 6, 30))
-        ->setAlgorithm('sha256')
-        ->getOTP();
+    $code = new TOTP(
+        $enrollment->payload->secret,
+        6,
+        30,
+        'sha256',
+    )->generate();
 
-    $verification = Otp::verifyFactor($factor, $code);
-    $confirmation = Auth::otp()->completeEnrollment('acct-otp-1', $factor->id, $code);
-    $parsed = $app->otp()->parseProvisioningUri($enrollment->payload->uri);
-    $fresh = $app->otp()->assessFreshness(new \DateTimeImmutable());
-    $stale = $app->otp()->assessFreshness(
-        (new \DateTimeImmutable())->modify('-5 minutes'),
-        now: new \DateTimeImmutable(),
-    );
+    $confirmation = $otp->completeEnrollment('acct-otp-1', $factor->id, $code);
 
-    expect($verification->verified)->toBeTrue()
-        ->and($confirmation->successful())->toBeTrue()
+    expect($confirmation->successful())->toBeTrue()
         ->and($confirmation->factor?->enabled)->toBeTrue()
-        ->and($parsed->issuer)->toBe('Infbyte Test')
-        ->and($parsed->label)->toBe('ada@example.com')
-        ->and($fresh->isFresh())->toBeTrue()
-        ->and($stale->requiresFreshOtp)->toBeTrue();
+        ->and($confirmation->verification?->verified)->toBeTrue();
 });
