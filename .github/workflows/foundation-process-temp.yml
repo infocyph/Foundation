@@ -36,5 +36,5 @@ jobs:
             echo "No fixer changes to commit."
             exit 0
           fi
-          git commit -m "Apply PHPForge process fixes [skip ci]"
+          git commit --no-verify -m "Apply PHPForge process fixes [skip ci]"
           git push origin HEAD:feature/foundation-2.0
