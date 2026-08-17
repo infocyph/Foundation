@@ -60,8 +60,8 @@ it('includes path awareness in the readiness report', function (): void {
         $report = new ReadinessReport($app)->generate();
 
         expect($report['checks'])->toHaveKeys(['base_path', 'storage', 'runtime'])
-            ->and($report['checks']['base_path']['ok'])->toBeTrue()
-            ->and($report['checks']['storage']['ok'])->toBeTrue()
+            ->and($report['checks']['base_path']['ready'])->toBeTrue()
+            ->and($report['checks']['storage']['ready'])->toBeTrue()
             ->and($report['checks']['runtime']['detail'])->toBe('cli');
     } finally {
         foundationSmokeRemoveDirectory($basePath);
