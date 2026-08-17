@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Auth\Internal;
 
 use Infocyph\Epicrypt\Password\Enum\PasswordHashAlgorithm;
+use Infocyph\Epicrypt\Password\PasswordHashOptions;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Support\ValueNormalizer;
 
@@ -14,20 +15,26 @@ final readonly class EpicryptConfigResolver
         private Application $app,
     ) {}
 
-    /**
-     * @return array<string, mixed>
-     */
-    public function passwordOptions(): array
+    public function passwordOptions(): PasswordHashOptions
     {
         $options = ValueNormalizer::associativeArray(
             $this->app->config()->get('security.password', []),
         );
-
-        if (is_string($options['algorithm'] ?? null)) {
-            $options['algorithm'] = PasswordHashAlgorithm::from(strtolower($options['algorithm']));
+        $algorithm = $options['algorithm'] ?? PasswordHashAlgorithm::ARGON2ID;
+        if (is_string($algorithm)) {
+            $algorithm = PasswordHashAlgorithm::from(strtolower($algorithm));
+        }
+        if (!$algorithm instanceof PasswordHashAlgorithm) {
+            $algorithm = PasswordHashAlgorithm::ARGON2ID;
         }
 
-        return $options;
+        return new PasswordHashOptions(
+            algorithm: $algorithm,
+            memoryCost: $this->positiveInt($options['memory_cost'] ?? null, PASSWORD_ARGON2_DEFAULT_MEMORY_COST),
+            timeCost: $this->positiveInt($options['time_cost'] ?? null, PASSWORD_ARGON2_DEFAULT_TIME_COST),
+            threads: $this->positiveInt($options['threads'] ?? null, PASSWORD_ARGON2_DEFAULT_THREADS),
+            bcryptCost: $this->positiveInt($options['cost'] ?? null, 12),
+        );
     }
 
     public function tokenAudience(): ?string
@@ -45,5 +52,12 @@ final readonly class EpicryptConfigResolver
         $value = $this->app->config()->get('security.jwt.leeway_seconds', 0);
 
         return max(0, is_numeric($value) ? (int) $value : 0);
+    }
+
+    private function positiveInt(mixed $value, int $default): int
+    {
+        return is_numeric($value) && (int) $value > 0
+            ? (int) $value
+            : $default;
     }
 }
