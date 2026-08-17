@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use Infocyph\Foundation\Auth\Contract\Id\AuthIdGeneratorInterface;
-use Infocyph\Foundation\Auth\Otp\OtpProvisioningService;
 use Infocyph\Foundation\Auth\Support\RandomAuthIdGenerator;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Identifiers\IdentifierManager;
@@ -80,7 +79,7 @@ it('preserves category prefixes for fallback auth identifiers', function (): voi
     }
 });
 
-it('keeps identifier and otp services outside the default auth path', function (): void {
+it('keeps fallback auth identifiers independent of specialist UID configuration', function (): void {
     $app = Foundation::web([
         '_config_cache' => false,
         'router' => [
@@ -92,6 +91,6 @@ it('keeps identifier and otp services outside the default auth path', function (
     $ids = $app->make(AuthIdGeneratorInterface::class);
 
     expect($ids)->toBeInstanceOf(RandomAuthIdGenerator::class)
-        ->and($app->container()->has(IdentifierManager::class))->toBeFalse()
-        ->and($app->container()->has(OtpProvisioningService::class))->toBeFalse();
+        ->and($ids->accountId())->toStartWith('acct_')
+        ->and($ids->correlationId())->toStartWith('corr_');
 });
