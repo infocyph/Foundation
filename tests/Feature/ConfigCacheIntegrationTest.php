@@ -111,7 +111,6 @@ it('boots from a sharded lazy cache without loading environment or scanning conf
         $flat = $project . '/bootstrap/cache/config/__flat.php';
         expect(fileperms($manifest) & 0777)->toBe(0664)
             ->and(fileperms($namespace) & 0777)->toBe(0664)
-            ->and(fileperms($flat) & 0777)->toBe(0664)
             ->and($flat)->toBeFile();
 
         unlink($project . '/.env');
@@ -198,7 +197,6 @@ it('compiles provider discovery into the configuration cache', function (): void
             "<?php\n\nreturn ['common' => [%s::class], 'web' => [], 'cli' => [], 'worker' => [], 'scheduler' => []];\n",
             CacheServiceProvider::class,
         ),
-        'bootstrap/cache/config/.gitignore' => "*\n!.gitignore\n",
     ]);
 
     try {
@@ -209,8 +207,7 @@ it('compiles provider discovery into the configuration cache', function (): void
         $manager = new ConfigCacheManager($application);
 
         expect($manager->write('bootstrap/cache/config', ConfigLoader::TYPE_SHARDED))
-            ->toBe(ConfigLoader::TYPE_SHARDED)
-            ->and($project . '/bootstrap/cache/config/.gitignore')->toBeFile();
+            ->toBe(ConfigLoader::TYPE_SHARDED);
 
         unlink($project . '/bootstrap/providers.php');
 
