@@ -21,11 +21,12 @@ jobs:
           php-version: '8.4'
           tools: composer:v2
       - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: python tools/foundation-static-batch-2-fix.py
       - run: python tools/foundation-static-batch-2.py
       - run: vendor/bin/pint src/Identifiers/IdentifierManager.php src/Identifiers/IdentifierServiceProvider.php src/Security/SecurityManager.php src/Filesystem/FilesystemResponseFactory.php src/Messaging/MessagingServiceProvider.php src/Generator/ArtifactGenerator.php src/Command/ParsedInput.php src/Command/CommandCatalog.php src/Module/ModuleManager.php src/Validation/ReqShieldDatabaseProvider.php
       - name: Commit real source changes
         run: |
-          rm -f .github/workflows/apply-foundation-static-batch-2.yml
+          rm -f .github/workflows/apply-foundation-static-batch-2.yml tools/foundation-static-batch-2-fix.py
           git config user.name "abmmhasan"
           git config user.email "abmmhasan@users.noreply.github.com"
           git add -A
