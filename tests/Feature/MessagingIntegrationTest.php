@@ -144,12 +144,13 @@ beforeEach(function (): void {
 
 it('keeps Omnibus deferred until messaging is selected', function (): void {
     $app = Foundation::cli();
+    $repository = $app->container()->getRepository();
 
-    expect($app->container()->has(MessagingManager::class))->toBeFalse()
+    expect($repository->hasResolvedSingleton(MessagingManager::class))->toBeFalse()
         ->and($app->has(MessagingManager::class))->toBeTrue()
-        ->and($app->container()->has(MessagingManager::class))->toBeFalse()
+        ->and($repository->hasResolvedSingleton(MessagingManager::class))->toBeFalse()
         ->and($app->make(MessagingManager::class))->toBeInstanceOf(MessagingManager::class)
-        ->and($app->container()->has(MessagingManager::class))->toBeTrue();
+        ->and($repository->hasResolvedSingleton(MessagingManager::class))->toBeTrue();
 });
 
 it('wires explicit event listeners and Foundation messaging fakes', function (): void {
