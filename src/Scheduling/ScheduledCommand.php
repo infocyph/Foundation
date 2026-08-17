@@ -39,24 +39,32 @@ final class ScheduledCommand
     /** @param array<string, mixed> $data */
     public static function fromManifest(array $data): self
     {
-        $command = new self((string) ($data['command'] ?? ''));
-        $command->arguments(is_array($data['arguments'] ?? null) ? $data['arguments'] : []);
-        $command->cron((string) ($data['cron'] ?? '* * * * *'));
-        $command->timezone((string) ($data['timezone'] ?? date_default_timezone_get()));
-        if (is_string($data['key'] ?? null) && $data['key'] !== '') {
-            $command->key($data['key']);
+        $command = new self(self::stringValue($data['command'] ?? null, ''));
+        $command->arguments(self::stringList($data['arguments'] ?? null));
+        $command->cron(self::stringValue($data['cron'] ?? null, '* * * * *'));
+        $command->timezone(self::stringValue($data['timezone'] ?? null, date_default_timezone_get()));
+
+        $key = self::nullableString($data['key'] ?? null);
+        if ($key !== null) {
+            $command->key($key);
         }
+
+        $lease = self::floatValue($data['overlap_lease_seconds'] ?? null, 300.0);
+        $wait = self::floatValue($data['overlap_wait_seconds'] ?? null, 0.0);
         if (($data['without_overlap'] ?? false) === true) {
-            $command->withoutOverlap(true, (float) ($data['overlap_lease_seconds'] ?? 300), (float) ($data['overlap_wait_seconds'] ?? 0));
+            $command->withoutOverlap(true, $lease, $wait);
         }
         if (($data['on_one_server'] ?? false) === true) {
-            $command->onOneServer(true, (float) ($data['overlap_lease_seconds'] ?? 300), (float) ($data['overlap_wait_seconds'] ?? 0));
+            $command->onOneServer(true, $lease, $wait);
         }
-        if (is_numeric($data['timeout_seconds'] ?? null)) {
-            $command->timeout((float) $data['timeout_seconds']);
+
+        $timeout = self::nullableFloat($data['timeout_seconds'] ?? null);
+        if ($timeout !== null) {
+            $command->timeout($timeout);
         }
-        if (is_numeric($data['memory_limit_megabytes'] ?? null)) {
-            $command->memoryLimit((int) $data['memory_limit_megabytes']);
+        $memory = self::nullableInt($data['memory_limit_megabytes'] ?? null);
+        if ($memory !== null) {
+            $command->memoryLimit($memory);
         }
 
         return $command;
@@ -65,7 +73,7 @@ final class ScheduledCommand
     /** @param list<string> $arguments */
     public function arguments(array $arguments): self
     {
-        if (array_any($arguments, static fn(mixed $argument): bool => !is_string($argument) || $argument === '')) {
+        if (array_any($arguments, static fn (string $argument): bool => $argument === '')) {
             throw new \InvalidArgumentException('Scheduled command arguments must be non-empty strings.');
         }
         $this->arguments = $arguments;
@@ -98,12 +106,12 @@ final class ScheduledCommand
         }
         [$hour, $minute] = explode(':', $time);
 
-        return $this->cron((int) $minute . ' ' . (int) $hour . ' * * *');
+        return $this->cron((int) $minute.' '.(int) $hour.' * * *');
     }
 
     public function due(\DateTimeInterface $now): bool
     {
-        return $this->cron->matches(new \DateTimeImmutable('@' . $now->getTimestamp())->setTimezone($this->timezone));
+        return $this->cron->matches(new \DateTimeImmutable('@'.$now->getTimestamp())->setTimezone($this->timezone));
     }
 
     public function everyMinute(): self
@@ -183,7 +191,7 @@ final class ScheduledCommand
 
     public function timeout(float $seconds): self
     {
-        if (!is_finite($seconds) || $seconds <= 0) {
+        if (! is_finite($seconds) || $seconds <= 0) {
             throw new \InvalidArgumentException('Schedule timeout must be positive.');
         }
         $this->timeoutSeconds = $seconds;
@@ -233,8 +241,67 @@ final class ScheduledCommand
 
     private function assertLockTiming(float $leaseSeconds, float $waitSeconds): void
     {
-        if (!is_finite($leaseSeconds) || !is_finite($waitSeconds) || $leaseSeconds <= 0 || $waitSeconds < 0) {
+        if (! is_finite($leaseSeconds) || ! is_finite($waitSeconds) || $leaseSeconds <= 0 || $waitSeconds < 0) {
             throw new \InvalidArgumentException('Schedule lock lease must be positive and wait cannot be negative.');
         }
+    }
+
+    private static function floatValue(mixed $value, float $default): float
+    {
+        return self::nullableFloat($value) ?? $default;
+    }
+
+    private static function nullableFloat(mixed $value): ?float
+    {
+        if (is_float($value)) {
+            return $value;
+        }
+        if (is_int($value)) {
+            return (float) $value;
+        }
+        if (is_string($value) && is_numeric($value)) {
+            return (float) $value;
+        }
+
+        return null;
+    }
+
+    private static function nullableInt(mixed $value): ?int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+        if (is_string($value) && ctype_digit($value)) {
+            return (int) $value;
+        }
+
+        return null;
+    }
+
+    private static function nullableString(mixed $value): ?string
+    {
+        return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    /** @return list<string> */
+    private static function stringList(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+        $list = [];
+        foreach ($value as $entry) {
+            if (! is_string($entry) || $entry === '') {
+                throw new \UnexpectedValueException('Schedule manifest arguments must be non-empty strings.');
+            }
+            $list[] = $entry;
+        }
+
+        return $list;
+    }
+
+    private static function stringValue(mixed $value, string $default): string
+    {
+        return is_string($value) ? $value : $default;
     }
 }

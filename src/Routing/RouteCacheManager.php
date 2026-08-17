@@ -51,7 +51,7 @@ final readonly class RouteCacheManager
     public function matcher(?string $matcher): string
     {
         $matcher = strtolower($matcher ?? $this->configuredMatcher());
-        if (!in_array($matcher, MatcherModeEnum::values(), true)) {
+        if (! in_array($matcher, MatcherModeEnum::values(), true)) {
             throw new \InvalidArgumentException(sprintf(
                 'Invalid matcher "%s". Allowed values: %s.',
                 $matcher,
@@ -65,7 +65,7 @@ final readonly class RouteCacheManager
     public function routes(?string $routes = null): Collection
     {
         $config = $this->application->config();
-        $collection = new Collection();
+        $collection = new Collection;
         $registrar = new Registrar($collection);
         Router::withScopedInstance($registrar, function () use ($config, $registrar, $routes): void {
             $this->loadRoutes($registrar, $config, $this->routeFiles($config, $routes));
@@ -98,7 +98,7 @@ final readonly class RouteCacheManager
             'preGlobal' => $middleware->preGlobal(),
             'postGlobal' => $middleware->postGlobal(),
             'fallbackAliasesFromRegistrar' => true,
-            'logger' => new NullLogger(),
+            'logger' => new NullLogger,
         ]);
     }
 
@@ -123,7 +123,7 @@ final readonly class RouteCacheManager
     private function loadAttributeRoutes(Registrar $registrar, ConfigRepository $config, PathManager $paths): void
     {
         $attributes = ValueNormalizer::associativeArray($config->get('router.attributes', []));
-        if (!ValueNormalizer::bool($attributes['enabled'] ?? false, false)) {
+        if (! ValueNormalizer::bool($attributes['enabled'] ?? false, false)) {
             return;
         }
 
@@ -180,7 +180,10 @@ final readonly class RouteCacheManager
         return ValueNormalizer::stringList($config->get('router.files', ['api.php']));
     }
 
-    /** @param array<string, mixed> $options @return array<string, mixed> */
+    /**
+     * @param  array<string, mixed>  $options
+     * @return array<string, mixed>
+     */
     private function signedUrlOptions(array $options): array
     {
         $normalized = [];

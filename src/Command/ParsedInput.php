@@ -30,28 +30,10 @@ final readonly class ParsedInput
             $token = $tokens[$index];
             if ($token === '--') {
                 $arguments = [...$arguments, ...array_slice($tokens, $index + 1)];
-
                 break;
             }
             if (str_starts_with($token, '--')) {
-                $body = substr($token, 2);
-                if ($body === '') {
-                    continue;
-                }
-                if (str_contains($body, '=')) {
-                    [$name, $value] = explode('=', $body, 2);
-                    self::addOption($options, $name, $value);
-
-                    continue;
-                }
-
-                $next = $tokens[$index + 1] ?? null;
-                if (is_string($next) && $next !== '' && $next[0] !== '-') {
-                    self::addOption($options, $body, $next);
-                    $index++;
-                } else {
-                    self::addOption($options, $body, true);
-                }
+                $index = self::consumeLongOption($tokens, $index, $options);
 
                 continue;
             }
@@ -109,5 +91,34 @@ final readonly class ParsedInput
         $options[$name] = is_array($existing)
             ? [...$existing, (string) $value]
             : [(string) $existing, (string) $value];
+    }
+
+    /**
+     * @param  list<string>  $tokens
+     * @param  array<string, string|bool|list<string>>  $options
+     */
+    private static function consumeLongOption(array $tokens, int $index, array &$options): int
+    {
+        $body = substr($tokens[$index], 2);
+        if ($body === '') {
+            return $index;
+        }
+        if (str_contains($body, '=')) {
+            [$name, $value] = explode('=', $body, 2);
+            self::addOption($options, $name, $value);
+
+            return $index;
+        }
+
+        $next = $tokens[$index + 1] ?? null;
+        if (is_string($next) && $next !== '' && $next[0] !== '-') {
+            self::addOption($options, $body, $next);
+
+            return $index + 1;
+        }
+
+        self::addOption($options, $body, true);
+
+        return $index;
     }
 }
