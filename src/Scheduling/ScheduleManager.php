@@ -46,11 +46,9 @@ final readonly class ScheduleManager
         $now ??= new \DateTimeImmutable();
         $runs = [];
         foreach ($this->load($routes, $manifest)->entries() as $entry) {
-            if (!$entry->due($now)) {
-                continue;
+            if ($entry->due($now)) {
+                $runs[] = $this->runEntry($entry);
             }
-
-            $runs[] = $this->runEntry($entry);
         }
 
         return $runs;
@@ -158,7 +156,9 @@ final readonly class ScheduleManager
         }
 
         $project = $this->application->basePath('infbyte');
-        return is_file($project) ? $project : dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'infbyte';
+        return is_file($project)
+            ? $project
+            : dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'infbyte';
     }
 
     private function load(string $routes, string $manifest): Schedule
@@ -169,14 +169,15 @@ final readonly class ScheduleManager
             if (!is_array($payload)) {
                 throw new \UnexpectedValueException(sprintf('Schedule manifest "%s" is invalid.', $manifestPath));
             }
+
             $schedule = new Schedule();
             foreach ($payload as $entry) {
                 if (!is_array($entry)) {
                     throw new \UnexpectedValueException('Schedule manifest entries must be arrays.');
                 }
-                $scheduled = ScheduledCommand::fromManifest($entry);
-                $this->append($schedule, $scheduled);
+                $schedule->add(ScheduledCommand::fromManifest($entry));
             }
+
             return $schedule;
         }
 
@@ -194,22 +195,11 @@ final readonly class ScheduleManager
                 $routePath,
             ));
         }
+
         $schedule = new Schedule();
         $definition($schedule);
 
         return $schedule;
-    }
-
-    private function append(Schedule $schedule, ScheduledCommand $entry): void
-    {
-        $copy = $schedule->command($entry->command());
-        $data = $entry->toManifest();
-        $copy = ScheduledCommand::fromManifest($data);
-        $property = new \ReflectionProperty(Schedule::class, 'commands');
-        $entries = $property->getValue($schedule);
-        array_pop($entries);
-        $entries[] = $copy;
-        $property->setValue($schedule, $entries);
     }
 
     private function path(string $path): string
