@@ -4,17 +4,18 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Adapter\Epicrypt;
 
-use Infocyph\Epicrypt\Internal\Clock\ClockInterface as EpicryptClockInterface;
+use DateTimeImmutable;
 use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface as AuthClockInterface;
+use Psr\Clock\ClockInterface;
 
-final readonly class EpicryptClockAdapter implements EpicryptClockInterface
+final readonly class EpicryptClockAdapter implements ClockInterface
 {
     public function __construct(
         private AuthClockInterface $clock,
     ) {}
 
-    public function now(): int
+    public function now(): DateTimeImmutable
     {
-        return $this->clock->now();
+        return (new DateTimeImmutable())->setTimestamp($this->clock->now());
     }
 }
