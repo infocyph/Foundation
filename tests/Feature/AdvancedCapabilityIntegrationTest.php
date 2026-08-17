@@ -56,6 +56,23 @@ it('supports secure HOTP and OCRA MFA workflows', function (): void {
                 'mfa' => 'otp',
                 'storage' => 'memory',
             ],
+            'otp' => [
+                'replay' => [
+                    'store' => 'auth-state',
+                ],
+            ],
+        ],
+        'cache' => [
+            'default' => 'auth-state',
+            'stores' => [
+                'auth-state' => [
+                    'driver' => 'memory',
+                    'fail_open' => false,
+                    'security' => [
+                        'integrity_key' => 'foundation-test-auth-state-integrity-key',
+                    ],
+                ],
+            ],
         ],
     ])->boot();
 
