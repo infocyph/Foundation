@@ -77,6 +77,11 @@ final class Bootstrapper
         return $provider !== null && $this->providerAllowed($app, $service, $provider);
     }
 
+    public function manages(string $service): bool
+    {
+        return $this->providerFor($service) !== null;
+    }
+
     public function prepare(Application $app): void
     {
         $eager = self::COMMON_EAGER_PROVIDERS;
