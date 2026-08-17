@@ -134,20 +134,22 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         }
 
         try {
-            $result = new HOTP($config['secret'], $config['digits'])
-                ->setAlgorithm($config['algorithm'])
-                ->verifyWithResult(
-                    $code,
-                    $config['counter'],
-                    $config['look_ahead'],
-                    $this->stateCache,
-                    $this->factorBinding($factor, $config['secret']),
-                );
+            $result = (new HOTP(
+                $config['secret'],
+                $config['digits'],
+                $config['algorithm'],
+            ))->verifyWithResult(
+                $code,
+                $config['counter'],
+                $config['look_ahead'],
+                $this->stateCache,
+                $this->factorBinding($factor, $config['secret']),
+            );
         } catch (\Throwable) {
             return new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_factor_invalid_configuration');
         }
 
-        if (!$result->matched || !is_int($result->matchedCounter)) {
+        if (!$result->matched || $result->matchedCounter === null) {
             return new MfaVerificationResult(
                 false,
                 factorId: $factor->id,
@@ -161,7 +163,6 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         return new MfaVerificationResult(true, factorId: $factor->id, context: [
             'drift_offset' => $result->driftOffset,
             'matched_counter' => $result->matchedCounter,
-            'verified_at' => $result->verifiedAt?->getTimestamp(),
         ]);
     }
 
@@ -208,7 +209,6 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
 
         return new MfaVerificationResult(true, factorId: $factor->id, context: [
             'matched_counter' => $result->matchedCounter,
-            'verified_at' => $result->verifiedAt?->getTimestamp(),
         ]);
     }
 
@@ -220,14 +220,17 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         }
 
         try {
-            $result = new TOTP($config['secret'], $config['digits'], $config['period'])
-                ->setAlgorithm($config['algorithm'])
-                ->verifyWithWindow(
-                    $code,
-                    window: VerificationWindow::symmetric($config['window']),
-                    cache: $this->stateCache,
-                    factorId: $this->factorBinding($factor, $config['secret']),
-                );
+            $result = (new TOTP(
+                $config['secret'],
+                $config['digits'],
+                $config['period'],
+                $config['algorithm'],
+            ))->verifyWithWindow(
+                $code,
+                window: VerificationWindow::symmetric($config['window']),
+                cache: $this->stateCache,
+                factorId: $this->factorBinding($factor, $config['secret']),
+            );
         } catch (\Throwable) {
             return new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_factor_invalid_configuration');
         }
@@ -248,7 +251,6 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         return new MfaVerificationResult(verified: true, factorId: $factor->id, context: [
             'drift_offset' => $result->driftOffset,
             'matched_timestep' => $result->matchedTimestep,
-            'verified_at' => $result->verifiedAt?->getTimestamp(),
         ]);
     }
 }
