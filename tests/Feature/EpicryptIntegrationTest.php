@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\AccessTokenClaims;
+use Infocyph\Foundation\Auth\Contract\Security\PasswordVerifierInterface;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Security\SecurityManager;
 
@@ -17,7 +18,7 @@ it('uses Epicrypt for configured Foundation password security', function (): voi
 
     $services = $app->auth();
     $hash = $services->passwordHasher()->hash('MyStrongPassword!2026');
-    $verification = $services->passwordVerifier()->verify('MyStrongPassword!2026', $hash);
+    $verification = $app->make(PasswordVerifierInterface::class)->verify('MyStrongPassword!2026', $hash);
 
     expect($hash)->not->toBe('')
         ->and($verification->verified)->toBeTrue();
@@ -29,7 +30,7 @@ it('uses Epicrypt for configured Foundation token security', function (): void {
             'drivers' => [
                 'tokens' => 'security',
             ],
-            'token_secret' => str_repeat('k', 32),
+            'token_secret' => str_repeat('k', 64),
         ],
         'security' => [
             'jwt' => [
@@ -61,7 +62,7 @@ it('keeps the Foundation security manager focused on auth security policy', func
     $security = $app->make(SecurityManager::class);
 
     expect($security->passwordHasher())->toBe($app->auth()->passwordHasher())
-        ->and($security->passwordVerifier())->toBe($app->auth()->passwordVerifier())
+        ->and($security->passwordVerifier())->toBe($app->make(PasswordVerifierInterface::class))
         ->and($security->accessTokens())->toBeObject()
         ->and($security->refreshTokens())->toBeObject();
 });
