@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Auth\Otp;
 
 use DateTimeImmutable;
+use Infocyph\CacheLayer\Cache\AuthenticationStateCacheInterface;
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpProvisioningService;
 use Infocyph\Foundation\Auth\Mfa\MfaFactor;
 use Infocyph\Foundation\Auth\Mfa\MfaFactorStoreInterface;
@@ -13,14 +14,10 @@ use Infocyph\Foundation\Auth\Mfa\MfaManager;
 use Infocyph\Foundation\Auth\Mfa\MfaVerificationResult;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Support\ValueNormalizer;
-use Infocyph\OTP\HOTP;
-use Infocyph\OTP\OCRA;
 use Infocyph\OTP\Result\StepUpResult;
-use Infocyph\OTP\Support\SecretUtility;
 use Infocyph\OTP\Support\StepUp;
 use Infocyph\OTP\TOTP;
 use Infocyph\OTP\ValueObjects\EnrollmentPayload;
-use Infocyph\OTP\ValueObjects\ParsedOtpAuthUri;
 use Infocyph\OTP\ValueObjects\VerificationWindow;
 
 final readonly class OtpManager
@@ -30,6 +27,7 @@ final readonly class OtpManager
         private MfaManager $mfa,
         private MfaFactorStoreInterface $factors,
         private OtpProvisioningService $provisioning,
+        private AuthenticationStateCacheInterface $stateCache,
     ) {}
 
     public function assessFreshness(
@@ -64,24 +62,6 @@ final readonly class OtpManager
         return new OtpEnrollmentResult($enrollment, $payload, $factorMetadata);
     }
 
-    public function buildPayload(
-        string $secret,
-        string $label,
-        ?string $issuer = null,
-        bool $withQrSvg = false,
-    ): EnrollmentPayload {
-        return $this->totp($secret)->getEnrollmentPayload(
-            $label,
-            $issuer ?? $this->issuer(),
-            ['algorithm', 'digits', 'period'],
-            [],
-            $withQrSvg,
-        );
-    }
-
-    /**
-     * @param array<string, mixed> $context
-     */
     public function completeEnrollment(
         string $accountId,
         string $factorId,
@@ -97,7 +77,6 @@ final readonly class OtpManager
                 context: $context,
             );
         }
-
         if ($factor->type !== MfaFactorType::TOTP->value) {
             return new OtpEnrollmentConfirmationResult(
                 verified: false,
@@ -119,7 +98,6 @@ final readonly class OtpManager
                 context: $context,
             );
         }
-
         if ($factor->enabled) {
             return new OtpEnrollmentConfirmationResult(
                 verified: true,
@@ -144,39 +122,6 @@ final readonly class OtpManager
         );
     }
 
-    /**
-     * @throws \Exception
-     */
-    public function generateSecret(?int $bytes = null): string
-    {
-        return TOTP::generateSecret($bytes ?? $this->secretBytes());
-    }
-
-    public function hotp(string $secret, int $digits = 6): HOTP
-    {
-        return new HOTP($secret, $digits);
-    }
-
-    public function isValidSecret(string $secret): bool
-    {
-        return SecretUtility::isValidBase32($secret);
-    }
-
-    public function normalizeSecret(string $secret): string
-    {
-        return SecretUtility::normalizeBase32($secret);
-    }
-
-    public function ocra(string $suite, string $sharedKey): OCRA
-    {
-        return new OCRA($suite, $sharedKey);
-    }
-
-    public function parseProvisioningUri(string $uri): ParsedOtpAuthUri
-    {
-        return TOTP::parseProvisioningUri($uri);
-    }
-
     public function verifyFactor(MfaFactor $factor, string $code): MfaVerificationResult
     {
         $config = $this->factorConfig($factor);
@@ -185,22 +130,23 @@ final readonly class OtpManager
         }
 
         try {
-            $totp = new TOTP($config['secret'], $config['digits'], $config['period']);
-            $totp->setAlgorithm($config['algorithm']);
+            $result = (new TOTP($config['secret'], $config['digits'], $config['period']))
+                ->setAlgorithm($config['algorithm'])
+                ->verifyWithWindow(
+                    $code,
+                    window: VerificationWindow::symmetric($config['window']),
+                    cache: $this->stateCache,
+                    factorId: $this->factorBinding($factor, $config['secret']),
+                );
         } catch (\Throwable) {
             return new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_factor_invalid_configuration');
         }
-
-        $result = $totp->verifyWithWindow(
-            $code,
-            window: VerificationWindow::symmetric($config['window']),
-        );
 
         if (!$result->matched) {
             return new MfaVerificationResult(
                 verified: false,
                 factorId: $factor->id,
-                reason: 'mfa_code_invalid',
+                reason: $result->replayDetected ? 'mfa_code_replayed' : 'mfa_code_invalid',
                 context: [
                     'drift_offset' => $result->driftOffset,
                     'matched_timestep' => $result->matchedTimestep,
@@ -220,19 +166,12 @@ final readonly class OtpManager
         );
     }
 
-    private function algorithm(): string
+    private function factorBinding(MfaFactor $factor, string $secret): string
     {
-        return $this->stringValue($this->config->get('auth.otp.totp.algorithm'), 'sha1');
+        return hash('sha256', "foundation:otp-factor:v1\0{$factor->id}\0{$secret}");
     }
 
-    private function digits(): int
-    {
-        return $this->intValue($this->config->get('auth.otp.totp.digits'), 6);
-    }
-
-    /**
-     * @return array{algorithm: string, digits: int, period: int, secret: ?string, window: int}
-     */
+    /** @return array{algorithm:string,digits:int,period:int,secret:?string,window:int} */
     private function factorConfig(MfaFactor $factor): array
     {
         $otp = ValueNormalizer::associativeArray($factor->metadata['otp'] ?? null);
@@ -242,7 +181,7 @@ final readonly class OtpManager
 
         return [
             'algorithm' => $this->stringValue($otp['algorithm'] ?? null, $this->algorithm()),
-            'digits' => max(4, $this->intValue($otp['digits'] ?? null, $this->digits())),
+            'digits' => max(6, $this->intValue($otp['digits'] ?? null, $this->digits())),
             'period' => max(1, $this->intValue($otp['period'] ?? null, $this->period())),
             'secret' => $this->nonEmptyString($otp['secret'] ?? null),
             'window' => max(0, $this->intValue($otp['window'] ?? null, $this->window())),
@@ -260,6 +199,16 @@ final readonly class OtpManager
         return null;
     }
 
+    private function algorithm(): string
+    {
+        return $this->stringValue($this->config->get('auth.otp.totp.algorithm'), 'sha1');
+    }
+
+    private function digits(): int
+    {
+        return $this->intValue($this->config->get('auth.otp.totp.digits'), 6);
+    }
+
     private function freshnessWindow(): int
     {
         return $this->intValue(
@@ -273,11 +222,6 @@ final readonly class OtpManager
         return is_numeric($value) ? (int) $value : $default;
     }
 
-    private function issuer(): string
-    {
-        return $this->stringValue($this->config->get('auth.otp.issuer'), 'Foundation');
-    }
-
     private function nonEmptyString(mixed $value): ?string
     {
         return is_string($value) && $value !== '' ? $value : null;
@@ -288,22 +232,9 @@ final readonly class OtpManager
         return $this->intValue($this->config->get('auth.otp.totp.period'), 30);
     }
 
-    private function secretBytes(): int
-    {
-        return $this->intValue($this->config->get('auth.otp.totp.secret_bytes'), 64);
-    }
-
     private function stringValue(mixed $value, string $default): string
     {
         return is_string($value) && $value !== '' ? $value : $default;
-    }
-
-    private function totp(string $secret): TOTP
-    {
-        $totp = new TOTP($secret, $this->digits(), $this->period());
-        $totp->setAlgorithm($this->algorithm());
-
-        return $totp;
     }
 
     private function window(): int
