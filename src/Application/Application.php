@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Application;
 
+use Infocyph\Foundation\Auth\AuthManager;
 use Infocyph\Foundation\Auth\AuthServices;
+use Infocyph\Foundation\Auth\Http\AuthActions;
 use Infocyph\Foundation\Bootstrap\Bootstrapper;
 use Infocyph\Foundation\Config\ConfigLoader;
 use Infocyph\Foundation\Config\ConfigRepository;
@@ -169,6 +171,16 @@ final class Application
     public function auth(): AuthServices
     {
         return $this->boot()->make(AuthServices::class);
+    }
+
+    public function authManager(): AuthManager
+    {
+        return $this->boot()->make(AuthManager::class);
+    }
+
+    public function authActions(): AuthActions
+    {
+        return $this->boot()->make(AuthActions::class);
     }
 
     public function session(): SessionManager
