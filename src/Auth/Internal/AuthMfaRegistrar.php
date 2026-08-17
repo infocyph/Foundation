@@ -84,7 +84,7 @@ final readonly class AuthMfaRegistrar extends AbstractAuthRegistrar
 
         $this->singleton(RecoveryCodes::class, fn() => new RecoveryCodes(
             new InMemoryRecoveryCodeStore(),
-            hashKey: $this->secrets->tokenSecret(),
+            key: $this->secrets->tokenSecret(),
         ));
 
         $this->singleton(OtpMfaVerifier::class, fn() => new OtpMfaVerifier(
