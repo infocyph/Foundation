@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Cache\CacheServiceProvider;
+use Infocyph\Foundation\Config\ConfigCacheManager;
 use Infocyph\Foundation\Config\ConfigLoader;
-use Infocyph\Foundation\Console\Support\ConfigCacheManager;
 use Infocyph\Foundation\Foundation;
 
 it('loads lazy namespace caches before project config files', function (): void {
@@ -108,9 +108,11 @@ it('boots from a sharded lazy cache without loading environment or scanning conf
 
         $manifest = $project . '/bootstrap/cache/config/__manifest.php';
         $namespace = $project . '/bootstrap/cache/config/app.php';
+        $flat = $project . '/bootstrap/cache/config/__flat.php';
         expect(fileperms($manifest) & 0777)->toBe(0664)
             ->and(fileperms($namespace) & 0777)->toBe(0664)
-            ->and($project . '/bootstrap/cache/config/__flat.php')->not->toBeFile();
+            ->and(fileperms($flat) & 0777)->toBe(0664)
+            ->and($flat)->toBeFile();
 
         unlink($project . '/.env');
         unlink($project . '/config/app.php');
@@ -193,14 +195,14 @@ it('falls back to source config when the cache manifest is invalid', function ()
 it('compiles provider discovery into the configuration cache', function (): void {
     $project = configCacheProject([
         'bootstrap/providers.php' => sprintf(
-            "<?php\n\nreturn ['common' => [%s::class], 'web' => [], 'console' => []];\n",
+            "<?php\n\nreturn ['common' => [%s::class], 'web' => [], 'cli' => [], 'worker' => [], 'scheduler' => []];\n",
             CacheServiceProvider::class,
         ),
         'bootstrap/cache/config/.gitignore' => "*\n!.gitignore\n",
     ]);
 
     try {
-        $application = Foundation::console([
+        $application = Foundation::cli([
             'base_path' => $project,
             '_config_cache' => false,
         ]);
@@ -212,38 +214,44 @@ it('compiles provider discovery into the configuration cache', function (): void
 
         unlink($project . '/bootstrap/providers.php');
 
-        $cached = Foundation::console(['base_path' => $project]);
+        $cached = Foundation::cli(['base_path' => $project]);
 
         expect($cached->config()->isCompiled())->toBeTrue()
             ->and($cached->config()->get('providers.common'))->toBe([CacheServiceProvider::class])
-            ->and($cached->container()->has(CacheManager::class))->toBeTrue();
+            ->and($cached->has(CacheManager::class))->toBeTrue();
     } finally {
         configCacheRemoveDirectory($project);
     }
 });
 
-it('keeps production requirements limited to the runtime core', function (): void {
+it('keeps production requirements limited to the Foundation runtime core', function (): void {
     $composer = json_decode(
         file_get_contents(dirname(__DIR__, 2) . '/composer.json'),
         true,
         flags: JSON_THROW_ON_ERROR,
     );
 
-    expect(array_keys($composer['require']))->toBe([
-        'php',
-        'infocyph/console',
-        'infocyph/webrick',
+    expect($composer['require'])->toBe([
+        'php' => '^8.4',
+        'infocyph/arraykit' => '^5.1',
+        'infocyph/intermix' => '^9.1',
+        'infocyph/uid' => '^5.0',
+        'infocyph/webrick' => '^4.0.1',
+        'psr/log' => '^3.0.2',
     ])->and($composer['minimum-stability'] ?? null)->toBe('stable')
-        ->and($composer['require']['infocyph/console'] ?? null)->toBe('^1.4')
-        ->and($composer['require']['infocyph/webrick'] ?? null)->toBe('^3.3')
-        ->and($composer['require-dev']['infocyph/cachelayer'] ?? null)->toBe('^2.0.1')
-        ->and($composer['require-dev']['infocyph/dblayer'] ?? null)->toBe('^3.0.3')
-        ->and($composer['require-dev']['infocyph/talkingbytes'] ?? null)->toBe('^1.0.0')
-        ->and($composer['require-dev'])->not->toHaveKey('infocyph/uid')
+        ->and($composer['require-dev']['infocyph/cachelayer'] ?? null)->toBe('^3.1.2')
+        ->and($composer['require-dev']['infocyph/dblayer'] ?? null)->toBe('^4.0')
+        ->and($composer['require-dev']['infocyph/epicrypt'] ?? null)->toBe('^2.1')
+        ->and($composer['require-dev']['infocyph/omnibus'] ?? null)->toBe('^2.1.1')
+        ->and($composer['require-dev']['infocyph/otp'] ?? null)->toBe('^6.0')
+        ->and($composer['require-dev']['infocyph/pathwise'] ?? null)->toBe('^3.1')
+        ->and($composer['require-dev']['infocyph/reqshield'] ?? null)->toBe('^3.0')
+        ->and($composer['require-dev']['infocyph/talkingbytes'] ?? null)->toBe('^2.0')
         ->and(array_keys($composer['suggest']))->toContain(
             'infocyph/cachelayer',
             'infocyph/dblayer',
             'infocyph/epicrypt',
+            'infocyph/omnibus',
             'infocyph/otp',
             'infocyph/pathwise',
             'infocyph/reqshield',
