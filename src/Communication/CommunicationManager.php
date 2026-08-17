@@ -13,7 +13,11 @@ use Infocyph\TalkingBytes\Grpc\GrpcInboundDispatcher;
 use Infocyph\TalkingBytes\Grpc\Native\GeneratedStubGrpcInvoker;
 use Infocyph\TalkingBytes\Grpc\Native\NativeGrpcInvoker;
 use Infocyph\TalkingBytes\Grpc\Native\NativeGrpcStreamingInvoker;
+use Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundRequest;
+use Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundResponse;
 use Infocyph\TalkingBytes\Grpc\Retry\GrpcRetryPolicy;
+use Infocyph\TalkingBytes\Grpc\Sender\GrpcRequest;
+use Infocyph\TalkingBytes\Grpc\Sender\GrpcResponse;
 use Infocyph\TalkingBytes\Http\Concurrent\RequestPool;
 use Infocyph\TalkingBytes\Http\Contract\HttpMiddleware;
 use Infocyph\TalkingBytes\Http\Contract\HttpTransport;
@@ -38,7 +42,7 @@ use Infocyph\TalkingBytes\Webhook\WebhookVerifier;
 final readonly class CommunicationManager extends AbstractContainerManager
 {
     /**
-     * @param null|callable(string, array<string, mixed>):void $listener
+     * @param  null|callable(string, array<string, mixed>):void  $listener
      */
     public function events(?callable $listener): void
     {
@@ -56,7 +60,7 @@ final readonly class CommunicationManager extends AbstractContainerManager
     }
 
     /**
-     * @param callable(\Infocyph\TalkingBytes\Grpc\Sender\GrpcRequest):\Infocyph\TalkingBytes\Grpc\Sender\GrpcResponse $caller
+     * @param  callable(GrpcRequest):GrpcResponse  $caller
      */
     public function grpcClient(callable $caller, ?string $profile = null): GrpcClient
     {
@@ -72,7 +76,7 @@ final readonly class CommunicationManager extends AbstractContainerManager
     }
 
     /**
-     * @param array<string, callable(\Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundRequest):\Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundResponse> $handlers
+     * @param  array<string, callable(GrpcInboundRequest):GrpcInboundResponse>  $handlers
      */
     public function grpcInboundDispatcher(array $handlers = []): GrpcInboundDispatcher
     {
@@ -141,7 +145,7 @@ final readonly class CommunicationManager extends AbstractContainerManager
             $this->intValue($config, 'max_age_seconds', 300),
         );
 
-        if (!$replayStore instanceof WebhookReplayStore) {
+        if (! $replayStore instanceof WebhookReplayStore) {
             return $receiver;
         }
 
@@ -203,7 +207,7 @@ final readonly class CommunicationManager extends AbstractContainerManager
     private function applyGrpcProfile(GrpcClient $client, ?string $profile = null): GrpcClient
     {
         $retry = $this->arrayValue($this->grpcProfileConfig($profile), 'retry');
-        if (!$this->boolValue($retry, 'enabled', false)) {
+        if (! $this->boolValue($retry, 'enabled', false)) {
             return $client;
         }
 
@@ -242,7 +246,7 @@ final readonly class CommunicationManager extends AbstractContainerManager
     private function applyHttpCircuitBreaker(HttpClient $client, array $config): HttpClient
     {
         $circuitBreaker = $this->arrayValue($config, 'circuit_breaker');
-        if (!$this->boolValue($circuitBreaker, 'enabled', false)) {
+        if (! $this->boolValue($circuitBreaker, 'enabled', false)) {
             return $client;
         }
 
@@ -258,7 +262,7 @@ final readonly class CommunicationManager extends AbstractContainerManager
         $cookies = $this->arrayValue($config, 'cookies');
 
         return $this->boolValue($cookies, 'enabled', false)
-            ? $client->withCookieJar(new CookieJar())
+            ? $client->withCookieJar(new CookieJar)
             : $client;
     }
 
@@ -278,7 +282,7 @@ final readonly class CommunicationManager extends AbstractContainerManager
     private function applyHttpIdempotency(HttpClient $client, array $config): HttpClient
     {
         $idempotency = $this->arrayValue($config, 'idempotency');
-        if (!$this->boolValue($idempotency, 'enabled', false)) {
+        if (! $this->boolValue($idempotency, 'enabled', false)) {
             return $client;
         }
 
@@ -291,7 +295,7 @@ final readonly class CommunicationManager extends AbstractContainerManager
     private function applyHttpRateLimit(HttpClient $client, array $config): HttpClient
     {
         $rateLimit = $this->arrayValue($config, 'rate_limit');
-        if (!$this->boolValue($rateLimit, 'enabled', false)) {
+        if (! $this->boolValue($rateLimit, 'enabled', false)) {
             return $client;
         }
 
@@ -305,7 +309,7 @@ final readonly class CommunicationManager extends AbstractContainerManager
     private function applyHttpRetry(HttpClient $client, array $config): HttpClient
     {
         $retry = $this->arrayValue($config, 'retry');
-        if (!$this->boolValue($retry, 'enabled', false)) {
+        if (! $this->boolValue($retry, 'enabled', false)) {
             return $client;
         }
 
@@ -316,7 +320,10 @@ final readonly class CommunicationManager extends AbstractContainerManager
         ));
     }
 
-    /** @param array<string, mixed> $config @return array<string, mixed> */
+    /**
+     * @param  array<string, mixed>  $config
+     * @return array<string, mixed>
+     */
     private function arrayValue(array $config, string $key): array
     {
         return ValueNormalizer::associativeArray($config[$key] ?? []);
@@ -351,7 +358,7 @@ final readonly class CommunicationManager extends AbstractContainerManager
         $resolvedProfile = $profile ?? $this->stringConfig('grpc.default_profile', 'default');
 
         return ValueNormalizer::associativeArray(
-            $this->config('grpc.profiles.' . $resolvedProfile, []),
+            $this->config('grpc.profiles.'.$resolvedProfile, []),
         );
     }
 
@@ -361,7 +368,7 @@ final readonly class CommunicationManager extends AbstractContainerManager
         $resolvedProfile = $profile ?? $this->stringConfig('http.default_client', 'default');
 
         return ValueNormalizer::associativeArray(
-            $this->config('http.clients.' . $resolvedProfile, []),
+            $this->config('http.clients.'.$resolvedProfile, []),
         );
     }
 
@@ -420,7 +427,7 @@ final readonly class CommunicationManager extends AbstractContainerManager
         $resolvedProfile = $profile ?? $this->stringConfig('webhooks.default_inbound', 'default');
 
         return ValueNormalizer::associativeArray(
-            $this->config('webhooks.inbound.' . $resolvedProfile, []),
+            $this->config('webhooks.inbound.'.$resolvedProfile, []),
         );
     }
 
@@ -430,7 +437,7 @@ final readonly class CommunicationManager extends AbstractContainerManager
         $resolvedProfile = $profile ?? $this->stringConfig('webhooks.default_outbound', 'default');
 
         return ValueNormalizer::associativeArray(
-            $this->config('webhooks.outbound.' . $resolvedProfile, []),
+            $this->config('webhooks.outbound.'.$resolvedProfile, []),
         );
     }
 }

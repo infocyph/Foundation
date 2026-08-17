@@ -10,6 +10,11 @@ use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\Pathwise\Observability\AuditTrail;
 use Infocyph\Pathwise\PathwiseFacade;
 use Infocyph\Pathwise\Queue\FileJobQueue;
+use Infocyph\Pathwise\Results\ChunkUploadState;
+use Infocyph\Pathwise\Results\DeduplicationResult;
+use Infocyph\Pathwise\Results\RetentionResult;
+use Infocyph\Pathwise\Results\SnapshotDiff;
+use Infocyph\Pathwise\Results\WatchResult;
 use Infocyph\Pathwise\Security\PolicyEngine;
 use Infocyph\Pathwise\StreamHandler\DownloadProcessor;
 use Infocyph\Pathwise\StreamHandler\UploadProcessor;
@@ -69,7 +74,7 @@ final class FilesystemManager
     }
 
     /**
-     * @param array<string, mixed> $config
+     * @param  array<string, mixed>  $config
      */
     public function copy(
         string $source,
@@ -90,10 +95,7 @@ final class FilesystemManager
         return $this->paths->database($path);
     }
 
-    /**
-     * @return array{linked: list<string>, skipped: list<string>}
-     */
-    public function deduplicate(string $directory = '', string $algorithm = 'sha256', ?string $disk = null): array
+    public function deduplicate(string $directory = '', string $algorithm = 'sha256', ?string $disk = null): DeduplicationResult
     {
         return PathwiseFacade::deduplicate($this->path($directory, $disk), $algorithm);
     }
@@ -109,11 +111,10 @@ final class FilesystemManager
     }
 
     /**
-     * @param array<string, array{mtime: int, size: int}> $previousSnapshot
-     * @param array<string, array{mtime: int, size: int}> $currentSnapshot
-     * @return array<string, array<int|string, mixed>>
+     * @param  array<string, array{mtime: int, size: int}>  $previousSnapshot
+     * @param  array<string, array{mtime: int, size: int}>  $currentSnapshot
      */
-    public function diffSnapshots(array $previousSnapshot, array $currentSnapshot): array
+    public function diffSnapshots(array $previousSnapshot, array $currentSnapshot): SnapshotDiff
     {
         return PathwiseFacade::diffSnapshots($previousSnapshot, $currentSnapshot);
     }
@@ -135,8 +136,8 @@ final class FilesystemManager
         $relativePath = trim(str_replace('\\', '/', $path), '/');
 
         return $relativePath === ''
-            ? $resolvedDisk . '://'
-            : $resolvedDisk . '://' . $relativePath;
+            ? $resolvedDisk.'://'
+            : $resolvedDisk.'://'.$relativePath;
     }
 
     public function download(?string $directory = null, ?string $disk = null): DownloadProcessor
@@ -169,7 +170,7 @@ final class FilesystemManager
     }
 
     /**
-     * @param array<string, string|list<string>> $headers
+     * @param  array<string, string|list<string>>  $headers
      */
     public function downloadResponse(
         Request $request,
@@ -222,7 +223,7 @@ final class FilesystemManager
     }
 
     /**
-     * @param array<string, string|list<string>> $headers
+     * @param  array<string, string|list<string>>  $headers
      */
     public function inlineResponse(
         Request $request,
@@ -268,7 +269,7 @@ final class FilesystemManager
     }
 
     /**
-     * @param array<string, mixed> $config
+     * @param  array<string, mixed>  $config
      */
     public function makeDirectory(string $path = '', ?string $disk = null, array $config = []): void
     {
@@ -289,7 +290,7 @@ final class FilesystemManager
     }
 
     /**
-     * @param array<string, mixed> $config
+     * @param  array<string, mixed>  $config
      */
     public function move(
         string $source,
@@ -324,9 +325,6 @@ final class FilesystemManager
         return PathwiseFacade::policy();
     }
 
-    /**
-     * @return array{uploadId: string, receivedChunks: int, totalChunks: int, isComplete: bool}
-     */
     public function processChunkUploadRequest(
         Request $request,
         string $field = 'file',
@@ -336,7 +334,7 @@ final class FilesystemManager
         ?string $originalFilename = null,
         ?string $directory = null,
         ?string $disk = null,
-    ): array {
+    ): ChunkUploadState {
         return $this->uploadRequests()->processChunkUploadRequest(
             $request,
             $field,
@@ -364,7 +362,7 @@ final class FilesystemManager
     }
 
     /**
-     * @param array<string, mixed> $config
+     * @param  array<string, mixed>  $config
      */
     public function publicUrl(string $path, ?string $disk = null, array $config = []): string
     {
@@ -396,16 +394,13 @@ final class FilesystemManager
         return new FilesystemResponseFactory($this);
     }
 
-    /**
-     * @return array{deleted: list<string>, kept: list<string>}
-     */
     public function retain(
         string $directory = '',
         ?int $keepLast = null,
         ?int $maxAgeDays = null,
         string $sortBy = 'mtime',
         ?string $disk = null,
-    ): array {
+    ): RetentionResult {
         return PathwiseFacade::retain(
             $this->path($directory, $disk),
             $keepLast,
@@ -448,7 +443,7 @@ final class FilesystemManager
     }
 
     /**
-     * @param array<string, mixed> $config
+     * @param  array<string, mixed>  $config
      */
     public function temporaryUrl(string $path, DateTimeInterface $expiresAt, ?string $disk = null, array $config = []): string
     {
@@ -514,9 +509,6 @@ final class FilesystemManager
         return FlysystemHelper::visibility($this->path($path, $disk));
     }
 
-    /**
-     * @return array<string, array{mtime: int, size: int}>
-     */
     public function watch(
         string $path,
         callable $onChange,
@@ -524,7 +516,7 @@ final class FilesystemManager
         int $intervalMilliseconds = 500,
         bool $recursive = true,
         ?string $disk = null,
-    ): array {
+    ): WatchResult {
         return PathwiseFacade::watch(
             $this->path($path, $disk),
             $onChange,
@@ -535,7 +527,7 @@ final class FilesystemManager
     }
 
     /**
-     * @param array<string, mixed> $config
+     * @param  array<string, mixed>  $config
      */
     public function write(string $path, string $contents, ?string $disk = null, array $config = []): void
     {
@@ -543,7 +535,7 @@ final class FilesystemManager
     }
 
     /**
-     * @param array<string, mixed> $config
+     * @param  array<string, mixed>  $config
      */
     public function writeStream(string $path, mixed $stream, ?string $disk = null, array $config = []): void
     {
@@ -551,7 +543,7 @@ final class FilesystemManager
     }
 
     /**
-     * @param array<string, string|list<string>> $headers
+     * @param  array<string, string|list<string>>  $headers
      */
     public function xAccelRedirectResponse(
         Request $request,
@@ -576,7 +568,7 @@ final class FilesystemManager
     }
 
     /**
-     * @param array<string, string|list<string>> $headers
+     * @param  array<string, string|list<string>>  $headers
      */
     public function xSendfileResponse(
         Request $request,
@@ -604,7 +596,7 @@ final class FilesystemManager
     private function arrayConfig(string $key): array
     {
         return ValueNormalizer::associativeArray(
-            $this->config->get('filesystem.' . $key, []),
+            $this->config->get('filesystem.'.$key, []),
         );
     }
 
@@ -622,7 +614,7 @@ final class FilesystemManager
     }
 
     /**
-     * @param array<string, mixed> $config
+     * @param  array<string, mixed>  $config
      */
     private function boolArrayValue(array $config, string $key, bool $default): bool
     {
@@ -642,14 +634,14 @@ final class FilesystemManager
     private function configuredFilesystems(): array
     {
         $configured = $this->config->get('filesystem.disks', []);
-        if (!is_array($configured)) {
+        if (! is_array($configured)) {
             return [];
         }
 
         $filesystems = [];
 
         foreach ($configured as $name => $config) {
-            if (!is_string($name) || !is_array($config)) {
+            if (! is_string($name) || ! is_array($config)) {
                 continue;
             }
 
@@ -667,11 +659,11 @@ final class FilesystemManager
     }
 
     /**
-     * @param array<string, mixed> $config
+     * @param  array<string, mixed>  $config
      * @return list<string>
      */
     /**
-     * @param array<string, mixed> $config
+     * @param  array<string, mixed>  $config
      * @return list<string>
      */
     private function downloadAllowedRoots(array $config, string $disk): array
@@ -705,7 +697,7 @@ final class FilesystemManager
     }
 
     /**
-     * @param array<string, mixed> $config
+     * @param  array<string, mixed>  $config
      */
     private function intArrayValue(array $config, string $key, int $default): int
     {
@@ -728,7 +720,7 @@ final class FilesystemManager
         }
 
         $root = $config['root'] ?? null;
-        if (!is_string($root) || $root === '') {
+        if (! is_string($root) || $root === '') {
             return null;
         }
 
@@ -760,7 +752,7 @@ final class FilesystemManager
     }
 
     /**
-     * @param array<string, mixed> $config
+     * @param  array<string, mixed>  $config
      * @return array<string, mixed>
      */
     private function normalizeFilesystemConfig(array $config): array
@@ -769,7 +761,7 @@ final class FilesystemManager
         if (
             is_string($root)
             && $root !== ''
-            && !PathHelper::isAbsolute($root)
+            && ! PathHelper::isAbsolute($root)
             && $this->stringArrayValue($config, 'driver', 'local') === 'local'
         ) {
             $config['root'] = $this->paths->base($root);
@@ -780,7 +772,7 @@ final class FilesystemManager
 
     private function nullableBasePath(mixed $value): ?string
     {
-        if (!is_string($value) || $value === '') {
+        if (! is_string($value) || $value === '') {
             return null;
         }
 
@@ -819,7 +811,7 @@ final class FilesystemManager
 
         foreach ($this->configuredFilesystems() as $config) {
             $root = $config['root'] ?? null;
-            if (!is_string($root) || $root === '') {
+            if (! is_string($root) || $root === '') {
                 continue;
             }
 
@@ -848,7 +840,7 @@ final class FilesystemManager
     }
 
     /**
-     * @param array<string, mixed> $config
+     * @param  array<string, mixed>  $config
      */
     private function stringArrayValue(array $config, string $key, string $default = ''): string
     {
@@ -864,14 +856,14 @@ final class FilesystemManager
      */
     private function stringList(mixed $value): array
     {
-        if (!is_array($value)) {
+        if (! is_array($value)) {
             return [];
         }
 
         $strings = [];
 
         foreach ($value as $item) {
-            if (!is_string($item) || $item === '') {
+            if (! is_string($item) || $item === '') {
                 continue;
             }
 

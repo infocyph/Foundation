@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Module;
 
+/**
+ * @phpstan-type ModuleDefinition array{package:string|null,constraint:string|null,built_in?:bool,description:string,aliases:list<string>,config:list<string>}
+ * @phpstan-type ResolvedModule array{name:string,package:string|null,constraint:string|null,built_in?:bool,description:string,aliases:list<string>,config:list<string>}
+ */
 final class ModuleCatalog
 {
     /** @var array<string, array{package:string|null,constraint:string|null,built_in?:bool,description:string,aliases:list<string>,config:list<string>}> */
@@ -97,13 +101,13 @@ final class ModuleCatalog
         ],
     ];
 
-    /** @return array<string, array<string, mixed>> */
+    /** @return array<string, ModuleDefinition> */
     public function all(): array
     {
         return self::MODULES;
     }
 
-    /** @return array<string, mixed> */
+    /** @return ResolvedModule */
     public function resolve(string $module): array
     {
         $normalized = strtolower(trim($module));

@@ -887,7 +887,7 @@ final readonly class CacheLayerFactory
             return ['127.0.0.1:6379'];
         }
 
-        return array_values(ValueNormalizer::stringList($value));
+        return ValueNormalizer::stringList($value);
     }
 
     /**
@@ -912,7 +912,7 @@ final readonly class CacheLayerFactory
     }
 
     /**
-     * @return array<int, array{0:string,1:int,2:int}>
+     * @return list<array{0:string,1:int,2:int}>
      */
     private function servers(mixed $value): array
     {
@@ -1043,7 +1043,7 @@ final readonly class CacheLayerFactory
             );
         }
 
-        return array_values($descriptors);
+        return $descriptors;
     }
 
     private function transport(string $name): InvalidationTransportInterface

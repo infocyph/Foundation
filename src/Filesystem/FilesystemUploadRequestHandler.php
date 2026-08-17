@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Filesystem;
 
+use Infocyph\Pathwise\Results\ChunkUploadState;
 use Infocyph\Pathwise\StreamHandler\UploadProcessor;
 use Infocyph\Webrick\Request\Core\UploadedFile;
 use Infocyph\Webrick\Request\Request;
@@ -17,9 +18,6 @@ final readonly class FilesystemUploadRequestHandler
         return $this->files->upload($directory, $disk)->finalizeChunkUpload($uploadId);
     }
 
-    /**
-     * @return array{uploadId: string, receivedChunks: int, totalChunks: int, isComplete: bool}
-     */
     public function processChunkUploadRequest(
         Request $request,
         string $field = 'file',
@@ -29,7 +27,7 @@ final readonly class FilesystemUploadRequestHandler
         ?string $originalFilename = null,
         ?string $directory = null,
         ?string $disk = null,
-    ): array {
+    ): ChunkUploadState {
         $processor = $this->files->upload($directory, $disk);
         $file = $this->uploadedFile($request, $field);
         $resolvedUploadId = $this->resolveString(
@@ -91,7 +89,7 @@ final readonly class FilesystemUploadRequestHandler
             return;
         }
 
-        if (!mkdir($directory, 0775, true) && !is_dir($directory)) {
+        if (! mkdir($directory, 0775, true) && ! is_dir($directory)) {
             throw new \RuntimeException(sprintf('Unable to create upload temp directory "%s".', $directory));
         }
     }
@@ -113,12 +111,12 @@ final readonly class FilesystemUploadRequestHandler
         $extension = pathinfo($clientName, PATHINFO_EXTENSION);
         $suffix = $extension === ''
             ? ''
-            : '.' . strtolower(ltrim($extension, '.'));
+            : '.'.strtolower(ltrim($extension, '.'));
         $targetPath = rtrim($tempDirectory, DIRECTORY_SEPARATOR)
-            . DIRECTORY_SEPARATOR
-            . 'foundation-upload-'
-            . bin2hex(random_bytes(8))
-            . $suffix;
+            .DIRECTORY_SEPARATOR
+            .'foundation-upload-'
+            .bin2hex(random_bytes(8))
+            .$suffix;
 
         $this->ensureDirectory($tempDirectory);
         $file->moveTo($targetPath);
@@ -148,7 +146,7 @@ final readonly class FilesystemUploadRequestHandler
     }
 
     /**
-     * @param list<mixed> $candidates
+     * @param  list<mixed>  $candidates
      */
     private function resolveInt(?int $value, array $candidates, string $label): int
     {
@@ -170,7 +168,7 @@ final readonly class FilesystemUploadRequestHandler
     }
 
     /**
-     * @param list<mixed> $candidates
+     * @param  list<mixed>  $candidates
      */
     private function resolveString(?string $value, array $candidates, string $label): string
     {
@@ -203,7 +201,7 @@ final readonly class FilesystemUploadRequestHandler
     {
         $file = $request->file($field);
 
-        if (!$file instanceof UploadedFile) {
+        if (! $file instanceof UploadedFile) {
             throw new \InvalidArgumentException(sprintf('Uploaded file field "%s" is missing or invalid.', $field));
         }
 

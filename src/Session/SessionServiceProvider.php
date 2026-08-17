@@ -8,6 +8,7 @@ use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Database\DatabaseManager;
 use Infocyph\Foundation\Runtime\RuntimeContextTracker;
 use Infocyph\Foundation\Session\Middleware\CsrfMiddleware;
 use Infocyph\Foundation\Session\Middleware\SessionMiddleware;
@@ -19,24 +20,24 @@ final class SessionServiceProvider extends ServiceProvider
     {
         $container = $app->container();
 
-        $this->bindFactory($container, SessionConfig::class, fn() => SessionConfig::fromRepository(
+        $this->bindFactory($container, SessionConfig::class, fn () => SessionConfig::fromRepository(
             $app->config(),
             $app->sessionsPath(),
         ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, SessionStoreFactory::class, fn() => new SessionStoreFactory(
+        $this->bindFactory($container, SessionStoreFactory::class, fn () => new SessionStoreFactory(
             $app,
             $app->make(SessionConfig::class),
         ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, SessionDatabaseSchema::class, fn() => new SessionDatabaseSchema(
+        $this->bindFactory($container, SessionDatabaseSchema::class, fn () => new SessionDatabaseSchema(
             $app->make(SessionConfig::class),
-            fn() => $app->db(),
+            fn (): DatabaseManager => $app->make(DatabaseManager::class),
         ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, SessionManager::class, fn() => new SessionManager(
+        $this->bindFactory($container, SessionManager::class, fn () => new SessionManager(
             $app->make(SessionConfig::class),
-            fn(): SessionStoreInterface => $app->make(SessionStoreFactory::class)->make(),
+            fn (): SessionStoreInterface => $app->make(SessionStoreFactory::class)->make(),
             function () use ($app): ?LockProviderInterface {
                 $config = $app->make(SessionConfig::class);
-                if (!$config->lockEnabled) {
+                if (! $config->lockEnabled) {
                     return null;
                 }
 
@@ -44,14 +45,14 @@ final class SessionServiceProvider extends ServiceProvider
             },
             $app->make(RuntimeContextTracker::class),
         ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, SessionMiddleware::class, fn() => new SessionMiddleware(
+        $this->bindFactory($container, SessionMiddleware::class, fn () => new SessionMiddleware(
             $app->make(SessionManager::class),
             $app->make(SessionConfig::class),
         ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, BrowserSession::class, fn() => $app->make(SessionManager::class)->current(), LifetimeEnum::Scoped);
-        $this->bindFactory($container, CsrfMiddleware::class, fn() => new CsrfMiddleware(
+        $this->bindFactory($container, BrowserSession::class, fn () => $app->make(SessionManager::class)->current(), LifetimeEnum::Scoped);
+        $this->bindFactory($container, CsrfMiddleware::class, fn () => new CsrfMiddleware(
             $app->make(SessionConfig::class),
         ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, 'foundation.session', fn() => $container->get(SessionManager::class), LifetimeEnum::Singleton);
+        $this->bindFactory($container, 'foundation.session', fn () => $container->get(SessionManager::class), LifetimeEnum::Singleton);
     }
 }

@@ -48,7 +48,7 @@ final class AuthServiceProvider extends ServiceProvider
         $secrets = new AuthSecretResolver($app);
         $epicrypt = new EpicryptConfigResolver($app);
 
-        new AuthCoreRegistrar($app, $container)->register($drivers);
+        new AuthCoreRegistrar($container)->register($drivers);
         new AuthProductionGuard($app)->guard($drivers);
         new AuthStoreRegistrar($app, $container)->register($drivers->storage());
         new AuthCacheRegistrar($app, $container)->register($drivers);
@@ -70,23 +70,23 @@ final class AuthServiceProvider extends ServiceProvider
     {
         $container = $app->container();
 
-        $this->bindFactory($container, SessionPrincipalResolver::class, fn() => new SessionPrincipalResolver(
+        $this->bindFactory($container, SessionPrincipalResolver::class, fn () => new SessionPrincipalResolver(
             config: $app->config(),
             sessions: $app->make(SessionStoreInterface::class),
             accounts: $app->make(AccountProviderInterface::class),
             clock: $app->make(ClockInterface::class),
         ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, BearerTokenPrincipalResolver::class, fn() => new BearerTokenPrincipalResolver(
+        $this->bindFactory($container, BearerTokenPrincipalResolver::class, fn () => new BearerTokenPrincipalResolver(
             config: $app->config(),
             tokens: $app->make(AccessTokenServiceInterface::class),
             accounts: $app->make(AccountProviderInterface::class),
         ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, RememberMePrincipalResolver::class, fn() => new RememberMePrincipalResolver(
+        $this->bindFactory($container, RememberMePrincipalResolver::class, fn () => new RememberMePrincipalResolver(
             config: $app->config(),
             rememberMe: $app->make(RememberMeManager::class),
             accounts: $app->make(AccountProviderInterface::class),
         ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, RequestPrincipalResolver::class, fn() => new RequestPrincipalResolver(
+        $this->bindFactory($container, RequestPrincipalResolver::class, fn () => new RequestPrincipalResolver(
             config: $app->config(),
             resolvers: [
                 'session' => $app->make(SessionPrincipalResolver::class),
@@ -94,28 +94,28 @@ final class AuthServiceProvider extends ServiceProvider
                 'remember' => $app->make(RememberMePrincipalResolver::class),
             ],
         ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, ResolvePrincipalMiddleware::class, fn() => new ResolvePrincipalMiddleware(
+        $this->bindFactory($container, ResolvePrincipalMiddleware::class, fn () => new ResolvePrincipalMiddleware(
             principals: $app->authManager()->principal(),
             resolver: $app->make(RequestPrincipalResolver::class),
         ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, AuthMiddleware::class, fn() => new AuthMiddleware(
+        $this->bindFactory($container, AuthMiddleware::class, fn () => new AuthMiddleware(
             $app->authManager()->principal(),
             $app->make(AuthResponseFactory::class),
         ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, GuestMiddleware::class, fn() => new GuestMiddleware(
+        $this->bindFactory($container, GuestMiddleware::class, fn () => new GuestMiddleware(
             $app->authManager()->principal(),
             $app->make(AuthResponseFactory::class),
         ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, VerifiedMiddleware::class, fn() => new VerifiedMiddleware(
+        $this->bindFactory($container, VerifiedMiddleware::class, fn () => new VerifiedMiddleware(
             $app->authManager()->principal(),
             $app->make(AccountProviderInterface::class),
             $app->make(AuthResponseFactory::class),
         ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, MfaRequiredMiddleware::class, fn() => new MfaRequiredMiddleware(
+        $this->bindFactory($container, MfaRequiredMiddleware::class, fn () => new MfaRequiredMiddleware(
             $app->authManager()->principal(),
             $app->make(AuthResponseFactory::class),
         ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, RecentAuthMiddleware::class, fn() => new RecentAuthMiddleware(
+        $this->bindFactory($container, RecentAuthMiddleware::class, fn () => new RecentAuthMiddleware(
             $app->authManager()->principal(),
             $app->make(AuthResponseFactory::class),
         ), LifetimeEnum::Singleton);

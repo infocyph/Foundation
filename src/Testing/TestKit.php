@@ -10,6 +10,7 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Auth\AuthServices;
 use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Cache\CacheManager;
+use Infocyph\Foundation\Database\DatabaseManager;
 use Infocyph\Foundation\Filesystem\FilesystemManager;
 use Infocyph\Foundation\Messaging\MessagingManager;
 use Infocyph\Foundation\Session\SessionManager;
@@ -30,12 +31,12 @@ final readonly class TestKit
 
     public function cache(): CacheManager
     {
-        return $this->application->cache();
+        return $this->application->make(CacheManager::class);
     }
 
     public function database(): DatabaseTestManager
     {
-        return new DatabaseTestManager($this->application->db());
+        return new DatabaseTestManager($this->application->make(DatabaseManager::class));
     }
 
     public function fakeCache(?CacheInterface $store = null, ?string $name = null): CacheInterface
@@ -69,7 +70,7 @@ final readonly class TestKit
 
     public function files(): FilesystemManager
     {
-        return $this->application->files();
+        return $this->application->make(FilesystemManager::class);
     }
 
     public function freezeTime(?int $timestamp = null): FrozenClock
@@ -87,7 +88,7 @@ final readonly class TestKit
 
     public function messaging(): MessagingManager
     {
-        return $this->application->messaging();
+        return $this->application->make(MessagingManager::class);
     }
 
     public function sessions(): SessionManager

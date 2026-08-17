@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Filesystem;
 
+use Infocyph\Pathwise\Results\DownloadPreparation;
+use Infocyph\Pathwise\StreamHandler\DownloadProcessor;
 use Infocyph\Pathwise\Utils\PathHelper;
 use Infocyph\Webrick\Constants\HttpMethodEnum;
 use Infocyph\Webrick\Request\Request;
@@ -16,7 +18,7 @@ final readonly class FilesystemResponseFactory
     public function __construct(private FilesystemManager $files) {}
 
     /**
-     * @param array<string, string|list<string>> $headers
+     * @param  array<string, string|list<string>>  $headers
      */
     public function download(
         Request $request,
@@ -38,7 +40,7 @@ final readonly class FilesystemResponseFactory
     }
 
     /**
-     * @param array<string, string|list<string>> $headers
+     * @param  array<string, string|list<string>>  $headers
      */
     public function inline(
         Request $request,
@@ -60,7 +62,7 @@ final readonly class FilesystemResponseFactory
     }
 
     /**
-     * @param array<string, string|list<string>> $headers
+     * @param  array<string, string|list<string>>  $headers
      */
     public function xAccelRedirect(
         Request $request,
@@ -91,7 +93,7 @@ final readonly class FilesystemResponseFactory
     }
 
     /**
-     * @param array<string, string|list<string>> $headers
+     * @param  array<string, string|list<string>>  $headers
      */
     public function xSendfile(
         Request $request,
@@ -118,12 +120,7 @@ final readonly class FilesystemResponseFactory
     }
 
     /**
-     * @param array{
-     *   etag: string,
-     *   lastModified: int
-     * } $manifest
-     */
-    private function freshRangeHeader(Request $request, array $manifest): ?string
+    private function freshRangeHeader(Request $request, DownloadPreparation $manifest): ?string
     {
         if (!$this->isGetOrHead($request)) {
             return null;
@@ -134,7 +131,7 @@ final readonly class FilesystemResponseFactory
             return null;
         }
 
-        $validator = new ConditionalValidator($manifest['etag'], $manifest['lastModified']);
+        $validator = new ConditionalValidator($manifest->etag, $manifest->lastModified);
 
         return $validator->isRangeFresh($request)
             ? $rangeHeader
@@ -159,7 +156,7 @@ final readonly class FilesystemResponseFactory
     }
 
     /**
-     * @param array<string, string|list<string>> ...$groups
+     * @param  array<string, string|list<string>>  ...$groups
      * @return array<string, string|list<string>>
      */
     private function mergeHeaders(array ...$groups): array
@@ -180,7 +177,7 @@ final readonly class FilesystemResponseFactory
     }
 
     /**
-     * @param array<string, string|list<string>> $headers
+     * @param  array<string, string|list<string>>  $headers
      */
     private function offloadResponse(
         Request $request,
@@ -209,7 +206,7 @@ final readonly class FilesystemResponseFactory
 
         $response = Response::empty(200);
 
-        foreach ($this->mergeHeaders($manifest['headers'], [$headerName => $headerValue], $headers) as $name => $value) {
+        foreach ($this->mergeHeaders($manifest->headers, [$headerName => $headerValue], $headers) as $name => $value) {
             $response = $response->withHeader($name, $value);
         }
 
@@ -217,11 +214,11 @@ final readonly class FilesystemResponseFactory
     }
 
     /**
-     * @param array<string, string|list<string>> $headers
+     * @param  array<string, string|list<string>>  $headers
      * @return array{
-     *   0: \Infocyph\Pathwise\StreamHandler\DownloadProcessor,
+     *   0: DownloadProcessor,
      *   1: string,
-     *   2: array{etag: string, lastModified: int, status: int, headers: array<string, string>},
+     *   2: DownloadPreparation,
      *   3: ?Response
      * }
      */
@@ -241,7 +238,7 @@ final readonly class FilesystemResponseFactory
     }
 
     /**
-     * @return array{0: \Infocyph\Pathwise\StreamHandler\DownloadProcessor, 1: string}
+     * @return array{0: DownloadProcessor, 1: string}
      */
     private function prepareProcessor(
         string $path,
@@ -250,7 +247,7 @@ final readonly class FilesystemResponseFactory
         bool $inline,
     ): array {
         $processor = $this->files->download($directory, $disk);
-        $processor->setForceAttachment(!$inline);
+        $processor->setForceAttachment(! $inline);
 
         return [$processor, $this->resolvedDownloadPath($path, $disk)];
     }
@@ -269,7 +266,7 @@ final readonly class FilesystemResponseFactory
     }
 
     /**
-     * @param array<string, string|list<string>> $headers
+     * @param  array<string, string|list<string>>  $headers
      */
     private function respond(
         Request $request,
@@ -299,7 +296,7 @@ final readonly class FilesystemResponseFactory
         $response = Response::stream(
             producer: function () use ($processor, $resolvedPath, $downloadName, $rangeHeader): string {
                 $output = fopen('php://output', 'wb');
-                if (!is_resource($output)) {
+                if (! is_resource($output)) {
                     throw new \RuntimeException('Unable to open php://output for download streaming.');
                 }
 
@@ -311,32 +308,26 @@ final readonly class FilesystemResponseFactory
 
                 return '';
             },
-            status: $manifest['status'],
+            status: $manifest->status,
         );
 
-        foreach ($this->mergeHeaders($manifest['headers'], $headers) as $name => $value) {
+        foreach ($this->mergeHeaders($manifest->headers, $headers) as $name => $value) {
             $response = $response->withHeader($name, $value);
         }
 
         return $response;
     }
 
-    /**
-     * @param array{
-     *   etag: string,
-     *   lastModified: int
-     * } $manifest
-     * @param array<string, string|list<string>> $headers
-     */
-    private function shortCircuitResponse(Request $request, array $manifest, array $headers): ?Response
+    /** @param array<string, string|list<string>> $headers */
+    private function shortCircuitResponse(Request $request, DownloadPreparation $manifest, array $headers): ?Response
     {
-        $validator = new ConditionalValidator($manifest['etag'], $manifest['lastModified']);
+        $validator = new ConditionalValidator($manifest->etag, $manifest->lastModified);
         $outcome = $validator->evaluate($request);
         if ($outcome->state === Outcome::PASS) {
             return null;
         }
 
-        $status = !$this->isGetOrHead($request) && $outcome->http === 304
+        $status = ! $this->isGetOrHead($request) && $outcome->http === 304
             ? 412
             : $outcome->http;
         $response = Response::empty($status);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Database;
 
+use Infocyph\DBLayer\DB;
 use Infocyph\DBLayer\Query\Repository;
 
 /**
@@ -17,9 +18,8 @@ abstract class DatabaseRepository extends Repository
 
         parent::__construct(
             $connection,
-            $connection->getGrammarInstance(),
             $connection->getExecutorInstance(),
-            \Infocyph\DBLayer\DB::resultProcessor(),
+            DB::resultProcessor(),
         );
     }
 
