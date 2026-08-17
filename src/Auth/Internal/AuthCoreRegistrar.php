@@ -13,6 +13,7 @@ use Infocyph\Foundation\Auth\Driver\AuthIdDriver;
 use Infocyph\Foundation\Auth\Support\AcceptAllPasswordPolicy;
 use Infocyph\Foundation\Auth\Support\RandomAuthIdGenerator;
 use Infocyph\Foundation\Auth\Support\SystemClock;
+use Infocyph\Foundation\Identifiers\IdentifierManager;
 use Infocyph\InterMix\DI\Container;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 
@@ -26,9 +27,10 @@ final readonly class AuthCoreRegistrar
             $this->container->bind(ClockInterface::class, new SystemClock, LifetimeEnum::Singleton);
         }
         $this->container->bind(AuthDriverResolver::class, $drivers, LifetimeEnum::Singleton);
-        $this->container->factory(AuthIdGeneratorInterface::class, static function () use ($drivers): AuthIdGeneratorInterface {
+        $container = $this->container;
+        $this->container->factory(AuthIdGeneratorInterface::class, static function () use ($container, $drivers): AuthIdGeneratorInterface {
             return $drivers->ids() === AuthIdDriver::UID
-                ? new UidAuthIdGenerator
+                ? new UidAuthIdGenerator($container->get(IdentifierManager::class))
                 : new RandomAuthIdGenerator;
         })->singleton();
         $this->container->bind(PasswordPolicyInterface::class, new AcceptAllPasswordPolicy, LifetimeEnum::Singleton);
