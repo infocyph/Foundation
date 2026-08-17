@@ -15,6 +15,8 @@ final readonly class EpicryptPasswordHasher implements PasswordHasherInterface
 
     public function hash(string $plainPassword, array $context = []): string
     {
+        unset($context);
+
         return $this->hasher->hashPassword($plainPassword);
     }
 }
