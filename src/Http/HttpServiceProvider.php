@@ -11,7 +11,7 @@ use Infocyph\Foundation\Http\Response\AuthResponseFactory;
 use Infocyph\Foundation\Http\Response\ExceptionRenderer;
 use Infocyph\Foundation\Logging\HttpExceptionLogger;
 use Infocyph\Foundation\Routing\RouterManager;
-use Infocyph\Foundation\Runtime\RuntimeContextResetter;
+use Infocyph\Foundation\Runtime\ExecutionScope;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\InterMix\DI\Support\ServiceReference;
 use Infocyph\Webrick\Router\Kernel\ErrorHandler;
@@ -47,7 +47,7 @@ final class HttpServiceProvider extends ServiceProvider
         $this->bindRecipe($container, HttpKernel::class, HttpKernel::class, [
             new ServiceReference(RouterManager::class),
             new ServiceReference(ErrorHandler::class),
-            new ServiceReference(RuntimeContextResetter::class),
+            new ServiceReference(ExecutionScope::class),
         ]);
 
         $this->bindFactory($container, 'foundation.http', fn() => $container->get(HttpKernel::class), LifetimeEnum::Singleton);
