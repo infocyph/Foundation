@@ -5,35 +5,27 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Config;
 
 use Infocyph\ArrayKit\Config\LazyFileConfig;
-use Infocyph\Foundation\Support\ValueNormalizer;
 
 final class ConfigLoader
 {
     public const string MANIFEST_FILE = '__manifest.php';
-
     public const string TYPE_SHARDED = 'sharded';
-
     public const string TYPE_SINGLE = 'single';
 
-    private const int CACHE_FORMAT = 2;
+    private const int CACHE_FORMAT = 3;
 
-    /**
-     * @param array<string, mixed> $inline
-     */
+    /** @param array<string, mixed> $inline */
     public function load(array $inline = []): ConfigRepository
     {
         $normalized = $this->normalizeInput($inline);
-        $preset = ValueNormalizer::associativeArray($normalized['_preset'] ?? null);
+        $preset = $this->map($normalized['_preset'] ?? null);
         $cacheControl = $normalized['_config_cache'] ?? null;
-
         unset($normalized['_config_cache'], $normalized['_preset']);
 
         $basePath = $this->basePath($normalized);
         $cacheDirectory = $this->configCacheEnabled($cacheControl)
             ? $this->configuredCachePath($cacheControl, $basePath)
             : null;
-        require_once __DIR__ . '/config_helpers.php';
-        ConfigRuntime::activate($basePath);
 
         $cached = $cacheDirectory === null ? null : $this->loadCacheManifest($cacheDirectory);
         if (($cached['type'] ?? null) === self::TYPE_SINGLE) {
@@ -42,6 +34,7 @@ final class ConfigLoader
                 compiled: true,
             );
         }
+
         if ($cacheDirectory !== null && ($cached['type'] ?? null) === self::TYPE_SHARDED) {
             return ConfigRepository::fromLazyFiles(
                 directory: $cacheDirectory,
@@ -53,7 +46,7 @@ final class ConfigLoader
             );
         }
 
-        new EnvironmentLoader()->load($basePath, $normalized);
+        (new EnvironmentLoader())->load($basePath, $normalized);
         $configDirectory = $this->configPath($basePath, $normalized);
 
         return ConfigRepository::fromLazyFiles(
@@ -78,17 +71,10 @@ final class ConfigLoader
         return $cacheType;
     }
 
-    private function absolute(string $path): bool
+    /** @param array<string, mixed> $input */
+    private function basePath(array $input): string
     {
-        return preg_match('/^(?:[A-Z]:[\\\\\\/]|\\\\\\\\|\/)/i', $path) === 1;
-    }
-
-    /**
-     * @param array<string, mixed> $inline
-     */
-    private function basePath(array $inline): string
-    {
-        $app = ValueNormalizer::associativeArray($inline['app'] ?? null);
+        $app = $this->map($input['app'] ?? null);
         $basePath = $app['base_path'] ?? null;
 
         return is_string($basePath) && $basePath !== ''
@@ -96,59 +82,23 @@ final class ConfigLoader
             : (getcwd() ?: dirname(__DIR__, 2));
     }
 
-    private function cachePath(string $basePath, string $path): string
-    {
-        return $this->absolute($path)
-            ? rtrim($path, DIRECTORY_SEPARATOR)
-            : $basePath . DIRECTORY_SEPARATOR . trim($path, DIRECTORY_SEPARATOR);
-    }
-
     private function cacheType(ConfigRepository $config, ?string $type): string
     {
         $configured = $type ?? $config->getString('app.config_cache.type', self::TYPE_SHARDED);
         $normalized = strtolower(trim($configured ?? self::TYPE_SHARDED));
-
         if (!in_array($normalized, [self::TYPE_SHARDED, self::TYPE_SINGLE], true)) {
-            throw new \InvalidArgumentException(sprintf(
-                'Unsupported config cache type "%s"; expected "%s" or "%s".',
-                $normalized,
-                self::TYPE_SHARDED,
-                self::TYPE_SINGLE,
-            ));
+            throw new \InvalidArgumentException(sprintf('Unsupported config cache type "%s".', $normalized));
         }
 
         return $normalized;
     }
 
-    /**
-     * @param array<string, mixed> $compiled
-     * @return list<string>
-     */
-    private function compiledNamespaces(array $compiled): array
-    {
-        $namespaces = [];
-
-        foreach ($compiled as $namespace => $value) {
-            if (is_array($value) && preg_match('/^[A-Za-z0-9_-]+$/', $namespace) === 1) {
-                $namespaces[] = $namespace;
-            }
-        }
-
-        sort($namespaces);
-
-        return $namespaces;
-    }
-
     private function configCacheEnabled(mixed $control): bool
     {
-        return $control !== false
-            && $control !== '0'
-            && $control !== 'false';
+        return $control !== false && $control !== '0' && $control !== 'false';
     }
 
-    /**
-     * @return list<string>
-     */
+    /** @return list<string> */
     private function configNamespaces(string $directory): array
     {
         if (!is_dir($directory)) {
@@ -158,24 +108,20 @@ final class ConfigLoader
         $namespaces = [];
         foreach (glob($directory . DIRECTORY_SEPARATOR . '*.php') ?: [] as $file) {
             $namespace = pathinfo($file, PATHINFO_FILENAME);
-            if ($namespace !== '') {
+            if ($namespace !== '' && $namespace[0] !== '_') {
                 $namespaces[] = $namespace;
             }
         }
-
         sort($namespaces);
 
         return $namespaces;
     }
 
-    /**
-     * @param array<string, mixed> $inline
-     */
+    /** @param array<string, mixed> $inline */
     private function configPath(string $basePath, array $inline): string
     {
-        $paths = ValueNormalizer::associativeArray($inline['paths'] ?? null);
+        $paths = $this->map($inline['paths'] ?? null);
         $configured = $paths['config'] ?? null;
-
         if (!is_string($configured) || $configured === '') {
             return $basePath . DIRECTORY_SEPARATOR . 'config';
         }
@@ -198,69 +144,81 @@ final class ConfigLoader
             : $basePath . DIRECTORY_SEPARATOR . 'bootstrap/cache/config';
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function defaults(): array
+    private function cachePath(string $basePath, string $path): string
     {
-        return ConfigMerger::mergeMany([
-            FoundationDefaults::all(),
-            AuthDefaults::all(),
-        ]);
+        return $this->absolute($path)
+            ? rtrim($path, DIRECTORY_SEPARATOR)
+            : $basePath . DIRECTORY_SEPARATOR . trim($path, DIRECTORY_SEPARATOR);
     }
 
-    private function ensureCacheDirectory(string $cacheDirectory): void
+    private function absolute(string $path): bool
     {
-        if (!is_dir($cacheDirectory)
-            && !mkdir($cacheDirectory, 0775, true)
-            && !is_dir($cacheDirectory)
-        ) {
-            throw new \RuntimeException(sprintf('Unable to create config cache directory "%s".', $cacheDirectory));
+        return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1;
+    }
+
+    /** @return array<string, mixed> */
+    private function defaults(): array
+    {
+        return ConfigMerger::mergeMany([FoundationDefaults::all(), AuthDefaults::all()]);
+    }
+
+    private function ensureCacheDirectory(string $directory): void
+    {
+        if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
+            throw new \RuntimeException(sprintf('Unable to create config cache directory "%s".', $directory));
         }
     }
 
     /**
      * @return array{type:'single',data:array<string,mixed>}|array{type:'sharded',namespaces:list<string>,complete:bool}|null
      */
-    private function loadCacheManifest(string $cacheDirectory): ?array
+    private function loadCacheManifest(string $directory): ?array
     {
-        $file = rtrim($cacheDirectory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . self::MANIFEST_FILE;
+        $file = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . self::MANIFEST_FILE;
         if (!is_file($file) || !is_readable($file)) {
             return null;
         }
 
-        $payload = $this->requireManifest($file);
-        if ($payload === null || ($payload['_format'] ?? null) !== self::CACHE_FORMAT) {
+        try {
+            $payload = require $file;
+        } catch (\Throwable) {
+            return null;
+        }
+        if (!is_array($payload) || ($payload['_format'] ?? null) !== self::CACHE_FORMAT) {
             return null;
         }
 
-        return match ($payload['_type'] ?? null) {
-            self::TYPE_SINGLE => $this->singleCacheManifest($payload),
-            self::TYPE_SHARDED => $this->shardedCacheManifest($payload),
-            default => null,
-        };
+        if (($payload['_type'] ?? null) === self::TYPE_SINGLE && is_array($payload['_data'] ?? null)) {
+            return ['type' => self::TYPE_SINGLE, 'data' => $payload['_data']];
+        }
+        if (($payload['_type'] ?? null) !== self::TYPE_SHARDED || !is_array($payload['_namespaces'] ?? null)) {
+            return null;
+        }
+
+        $namespaces = [];
+        foreach ($payload['_namespaces'] as $namespace) {
+            if (!is_string($namespace) || preg_match('/^[A-Za-z0-9_-]+$/', $namespace) !== 1) {
+                return null;
+            }
+            $namespaces[$namespace] = true;
+        }
+
+        return [
+            'type' => self::TYPE_SHARDED,
+            'namespaces' => array_keys($namespaces),
+            'complete' => ($payload['_complete'] ?? false) === true,
+        ];
     }
 
-    /**
-     * @param array<string, mixed> $input
-     * @return array<string, mixed>
-     */
+    /** @param array<string, mixed> $input @return array<string, mixed> */
     private function normalizeInput(array $input): array
     {
-        $app = ValueNormalizer::associativeArray($input['app'] ?? null);
-
-        if (isset($input['base_path']) && !isset($app['base_path'])) {
-            $app['base_path'] = $input['base_path'];
+        $app = $this->map($input['app'] ?? null);
+        foreach (['base_path', 'env', 'debug'] as $key) {
+            if (array_key_exists($key, $input) && !array_key_exists($key, $app)) {
+                $app[$key] = $input[$key];
+            }
         }
-
-        if (isset($input['env']) && !isset($app['env'])) {
-            $app['env'] = $input['env'];
-        }
-
-        if (isset($input['debug']) && !isset($app['debug'])) {
-            $app['debug'] = $input['debug'];
-        }
-
         if ($app !== []) {
             $input['app'] = $app;
         }
@@ -268,99 +226,57 @@ final class ConfigLoader
         return $input;
     }
 
-    /** @param list<string> $namespaces */
-    private function removeStaleShards(string $cacheDirectory, array $namespaces): void
+    /** @return array<string, mixed> */
+    private function map(mixed $value): array
     {
-        $keep = array_fill_keys($namespaces, true);
+        if (!is_array($value)) {
+            return [];
+        }
 
-        foreach (glob(rtrim($cacheDirectory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . '*.php') ?: [] as $file) {
-            $namespace = pathinfo($file, PATHINFO_FILENAME);
-            if ($namespace === pathinfo(self::MANIFEST_FILE, PATHINFO_FILENAME) || isset($keep[$namespace])) {
-                continue;
+        $map = [];
+        foreach ($value as $key => $entry) {
+            if (is_string($key)) {
+                $map[$key] = $entry;
             }
+        }
 
-            if (!unlink($file)) {
+        return $map;
+    }
+
+    /** @param list<string> $namespaces */
+    private function removeStaleShards(string $directory, array $namespaces): void
+    {
+        $keep = array_fill_keys([...$namespaces, '__flat', '__manifest'], true);
+        foreach (glob(rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . '*.php') ?: [] as $file) {
+            if (!isset($keep[pathinfo($file, PATHINFO_FILENAME)]) && !unlink($file)) {
                 throw new \RuntimeException(sprintf('Unable to remove stale config cache shard "%s".', $file));
             }
         }
     }
 
-    /**
-     * @return array<string, mixed>|null
-     */
-    private function requireManifest(string $file): ?array
-    {
-        try {
-            $payload = require $file;
-        } catch (\Throwable) {
-            return null;
-        }
-
-        if (!is_array($payload)) {
-            return null;
-        }
-
-        $manifest = [];
-        foreach ($payload as $key => $value) {
-            if (!is_string($key)) {
-                return null;
-            }
-
-            $manifest[$key] = $value;
-        }
-
-        return $manifest;
-    }
-
-    /**
-     * @param array<string, mixed> $payload
-     * @return array{type:'sharded',namespaces:list<string>,complete:bool}|null
-     */
-    private function shardedCacheManifest(array $payload): ?array
-    {
-        if (!is_array($payload['_namespaces'] ?? null)) {
-            return null;
-        }
-
-        $namespaces = [];
-        foreach ($payload['_namespaces'] as $namespace) {
-            if (!is_string($namespace)
-                || $namespace === ''
-                || preg_match('/^[A-Za-z0-9_-]+$/', $namespace) !== 1
-            ) {
-                return null;
-            }
-
-            $namespaces[] = $namespace;
-        }
-
-        return [
-            'type' => self::TYPE_SHARDED,
-            'namespaces' => array_values(array_unique($namespaces)),
-            'complete' => ($payload['_complete'] ?? false) === true,
-        ];
-    }
-
     /** @return array{_format:int,_type:string,_namespaces:list<string>,_complete:bool} */
-    private function shardedCachePayload(ConfigRepository $config, string $cacheDirectory): array
+    private function shardedCachePayload(ConfigRepository $config, string $directory): array
     {
         $compiled = $config->all();
-        $namespaces = $this->compiledNamespaces($compiled);
-        $this->removeStaleShards($cacheDirectory, $namespaces);
-
-        new LazyFileConfig(
-            directory: $cacheDirectory,
-            items: array_intersect_key($compiled, array_fill_keys($namespaces, true)),
-            namespaceCacheDirectory: $cacheDirectory,
-        )->warmNamespaceCache($namespaces);
-
-        $flatIndex = rtrim($cacheDirectory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . '__flat.php';
-        if (is_file($flatIndex) && !unlink($flatIndex)) {
-            throw new \RuntimeException(sprintf('Unable to remove eager config index "%s".', $flatIndex));
+        $namespaces = [];
+        foreach ($compiled as $namespace => $value) {
+            if (is_string($namespace) && is_array($value) && preg_match('/^[A-Za-z0-9_-]+$/', $namespace) === 1) {
+                $namespaces[] = $namespace;
+            }
         }
+        sort($namespaces);
+        $this->removeStaleShards($directory, $namespaces);
 
+        (new LazyFileConfig(
+            directory: $directory,
+            items: array_intersect_key($compiled, array_fill_keys($namespaces, true)),
+            namespaceCacheDirectory: $directory,
+        ))->warmNamespaceCache($namespaces);
+
+        // ArrayKit intentionally generates __flat.php here. Keep it: scalar/null leaf
+        // lookups can use the flat index without loading an entire namespace shard.
         foreach ($namespaces as $namespace) {
-            $file = rtrim($cacheDirectory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $namespace . '.php';
+            $file = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $namespace . '.php';
             if (!is_file($file) || !chmod($file, 0664)) {
                 throw new \RuntimeException(sprintf('Unable to finalize lazy config cache "%s".', $file));
             }
@@ -374,60 +290,29 @@ final class ConfigLoader
         ];
     }
 
-    /**
-     * @param array<string, mixed> $payload
-     * @return array{type:'single',data:array<string,mixed>}|null
-     */
-    private function singleCacheManifest(array $payload): ?array
+    /** @return array{_format:int,_type:string,_data:array<string,mixed>} */
+    private function singleCachePayload(ConfigRepository $config, string $directory): array
     {
-        if (!is_array($payload['_data'] ?? null)) {
-            return null;
-        }
+        $this->removeStaleShards($directory, []);
 
-        $data = [];
-        foreach ($payload['_data'] as $key => $value) {
-            if (is_string($key)) {
-                $data[$key] = $value;
-            }
-        }
-
-        return ['type' => self::TYPE_SINGLE, 'data' => $data];
+        return ['_format' => self::CACHE_FORMAT, '_type' => self::TYPE_SINGLE, '_data' => $config->all()];
     }
 
-    /**
-     * @return array{_format:int,_type:string,_data:array<string,mixed>}
-     */
-    private function singleCachePayload(ConfigRepository $config, string $cacheDirectory): array
+    /** @param array<string, mixed> $payload */
+    private function writeManifest(string $directory, array $payload): void
     {
-        $this->removeStaleShards($cacheDirectory, []);
-
-        return [
-            '_format' => self::CACHE_FORMAT,
-            '_type' => self::TYPE_SINGLE,
-            '_data' => $config->all(),
-        ];
-    }
-
-    /**
-     * @param array<string, mixed> $payload
-     */
-    private function writeManifest(string $cacheDirectory, array $payload): void
-    {
-        $target = rtrim($cacheDirectory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . self::MANIFEST_FILE;
-        $temporary = tempnam($cacheDirectory, '.manifest-');
+        $target = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . self::MANIFEST_FILE;
+        $temporary = tempnam($directory, '.manifest-');
         if ($temporary === false) {
-            throw new \RuntimeException(sprintf('Unable to create a temporary config cache in "%s".', $cacheDirectory));
+            throw new \RuntimeException('Unable to create temporary config manifest.');
         }
-
-        $contents = "<?php\n\ndeclare(strict_types=1);\n\nreturn " . var_export($payload, true) . ";\n";
 
         try {
-            if (file_put_contents($temporary, $contents, LOCK_EX) === false
-                || !chmod($temporary, 0664)
-                || !rename($temporary, $target)
-            ) {
-                throw new \RuntimeException(sprintf('Unable to write config cache manifest "%s".', $target));
+            $content = "<?php\n\nreturn " . var_export($payload, true) . ";\n";
+            if (file_put_contents($temporary, $content, LOCK_EX) === false || !rename($temporary, $target)) {
+                throw new \RuntimeException(sprintf('Unable to publish config cache manifest "%s".', $target));
             }
+            chmod($target, 0664);
         } finally {
             if (is_file($temporary)) {
                 unlink($temporary);
