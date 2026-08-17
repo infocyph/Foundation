@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Internal;
 
+use Infocyph\CacheLayer\Cache\AuthenticationStateCacheInterface;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpMfaVerifier;
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpProvisioningService;
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpRecoveryCodeService;
-use Infocyph\Foundation\Auth\Adapter\Otp\OtpReplayStore;
-use Infocyph\Foundation\Auth\Contract\Cache\TtlStoreInterface;
 use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
 use Infocyph\Foundation\Auth\Driver\AuthMfaDriver;
 use Infocyph\Foundation\Auth\Mfa\MfaFactorStoreInterface;
@@ -17,7 +16,7 @@ use Infocyph\Foundation\Auth\Mfa\MfaVerifierInterface;
 use Infocyph\Foundation\Auth\Mfa\RecoveryCodeServiceInterface;
 use Infocyph\Foundation\Auth\Support\InMemoryRecoveryCodeService;
 use Infocyph\Foundation\Auth\Support\SimpleMfaVerifier;
-use Infocyph\OTP\Contracts\ReplayStoreInterface;
+use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\OTP\RecoveryCodes;
 use Infocyph\OTP\Stores\InMemoryRecoveryCodeStore;
 use Infocyph\OTP\TOTP;
@@ -35,7 +34,6 @@ final readonly class AuthMfaRegistrar extends AbstractAuthRegistrar
     public function register(AuthDriverResolver $drivers): void
     {
         $driver = $drivers->mfa();
-
         if ($driver === AuthMfaDriver::OTP) {
             $this->requirePackage(TOTP::class, 'infocyph/otp', 'otp');
             $this->registerOtpSupport();
@@ -52,10 +50,29 @@ final readonly class AuthMfaRegistrar extends AbstractAuthRegistrar
 
     public function registerOtpSupport(): void
     {
-        $this->singleton(ReplayStoreInterface::class, fn() => new OtpReplayStore(
-            $this->app->make(TtlStoreInterface::class),
-            max(1, $this->intConfig('auth.otp.replay.ttl', 90)),
-        ));
+        if (!$this->container->has(AuthenticationStateCacheInterface::class)) {
+            $this->singleton(AuthenticationStateCacheInterface::class, function (): AuthenticationStateCacheInterface {
+                $configured = $this->app->config()->get('auth.otp.replay.store');
+                $storeName = is_string($configured) && $configured !== '' ? $configured : null;
+                $store = $this->app->make(CacheManager::class)->store($storeName);
+                if (!$store instanceof AuthenticationStateCacheInterface) {
+                    throw new \LogicException(
+                        'OTP replay protection requires a CacheLayer AuthenticationStateCacheInterface store.',
+                    );
+                }
+                if (!$store->isAuthoritative()
+                    || $store->isFailOpen()
+                    || !$store->hasPayloadIntegrity()
+                    || $store->authenticationStateLock() === null
+                ) {
+                    throw new \LogicException(
+                        'OTP replay protection requires an authoritative, fail-closed, integrity-protected CacheLayer store with locking.',
+                    );
+                }
+
+                return $store;
+            });
+        }
 
         $this->singleton(OtpProvisioningService::class, fn() => new OtpProvisioningService(
             issuer: $this->stringConfig('auth.otp.issuer', 'Foundation'),
@@ -72,10 +89,9 @@ final readonly class AuthMfaRegistrar extends AbstractAuthRegistrar
 
         $this->singleton(OtpMfaVerifier::class, fn() => new OtpMfaVerifier(
             factors: $this->app->make(MfaFactorStoreInterface::class),
-            replayStore: $this->boolConfig('auth.otp.replay.enabled', true)
-                ? $this->app->make(ReplayStoreInterface::class)
-                : null,
+            stateCache: $this->app->make(AuthenticationStateCacheInterface::class),
             window: $this->intConfig('auth.otp.totp.window', 1),
+            ocraReplayTtl: max(1, $this->intConfig('auth.otp.replay.ttl', 90)),
         ));
 
         $this->singleton(OtpRecoveryCodeService::class, fn() => new OtpRecoveryCodeService(
