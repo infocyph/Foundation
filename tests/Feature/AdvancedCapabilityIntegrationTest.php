@@ -67,6 +67,7 @@ it('supports secure HOTP and OCRA MFA workflows', function (): void {
             'stores' => [
                 'auth-state' => [
                     'driver' => 'memory',
+                    'namespace' => 'foundation-test-auth-state',
                     'fail_open' => false,
                     'security' => [
                         'integrity_key' => 'foundation-test-auth-state-integrity-key',
