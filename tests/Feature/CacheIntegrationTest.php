@@ -6,6 +6,7 @@ use Infocyph\CacheLayer\Cache\Adapter\ChainCacheAdapter;
 use Infocyph\CacheLayer\Cache\Lock\FileLockProvider;
 use Infocyph\CacheLayer\Cache\Lock\PdoLockProvider;
 use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Cache\RedisConnectionFactory;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Foundation;
@@ -56,7 +57,7 @@ it('creates sqlite cache stores from database connections and applies strict ser
         ],
     ]);
 
-    $cache = $app->cache()->store();
+    $cache = $app->make(CacheManager::class)->store();
 
     try {
         expect($cache->set('name', 'Ada'))->toBeTrue()
@@ -70,10 +71,6 @@ it('creates sqlite cache stores from database connections and applies strict ser
         test()->fail('Expected object cache payloads to be blocked by strict serialization policy.');
     } catch (\InvalidArgumentException $e) {
         expect($e->getMessage())->toContain('Object payload');
-    } finally {
-        $cache->configurePayloadCompression(null);
-        $cache->configurePayloadSecurity(null, 8_388_608);
-        $cache->configureSerializationSecurity(true, true);
     }
 });
 
@@ -88,7 +85,7 @@ it('builds tiered cache stores from named store descriptors and applies file loc
         ],
         'cache' => [
             'default' => 'tiered',
-            'prefix' => 'suite:',
+            'prefix' => 'suite-',
             'stores' => [
                 'memory' => [
                     'driver' => 'memory',
@@ -112,7 +109,7 @@ it('builds tiered cache stores from named store descriptors and applies file loc
         ],
     ]);
 
-    $cache = $app->cache()->store();
+    $cache = $app->make(CacheManager::class)->store();
 
     expect($cache->set('framework', 'Infbyte'))->toBeTrue()
         ->and($cache->get('framework'))->toBe('Infbyte')
@@ -135,7 +132,7 @@ it('builds tiered cache stores from named store descriptors and applies file loc
     expect($pools)->toHaveCount(2);
 });
 
-it('shares the configured CacheLayer lock store with cache and console consumers', function (): void {
+it('shares the configured CacheLayer lock store with Foundation consumers', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-cache-lock-' . uniqid('', true);
     mkdir($basePath . '/storage/cache', 0775, true);
     mkdir($basePath . '/database', 0775, true);
@@ -172,7 +169,7 @@ it('shares the configured CacheLayer lock store with cache and console consumers
         ],
     ]);
 
-    $cache = $app->cache()->store();
+    $cache = $app->make(CacheManager::class)->store();
     $lockProperty = new \ReflectionProperty($cache, 'lockProvider');
     $cacheLock = $lockProperty->getValue($cache);
     $sharedLock = $app->boot()->make(CacheLayerFactory::class)->lock();
