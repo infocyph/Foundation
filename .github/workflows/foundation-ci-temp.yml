@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/foundation-ci-temp.yml'
 
+# Final Foundation 2.0 validation; remove this temporary workflow after the run.
 jobs:
   ci:
     runs-on: ubuntu-24.04
