@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Infocyph\Foundation\Foundation;
+use Infocyph\Foundation\Validation\ValidationManager;
 use Infocyph\ReqShield\Support\ValidationContext;
 use Infocyph\ReqShield\Validator as ReqShieldValidator;
 use Infocyph\Webrick\Request\Request;
@@ -31,7 +32,7 @@ it('accepts validation policy only from the documented defaults and schema overr
         ],
     ])->boot();
 
-    $result = $app->validator()->validate('users.store', [
+    $result = $app->make(ValidationManager::class)->validate('users.store', [
         'email' => 'ada@example.com',
         'extra' => 'retained',
     ]);
@@ -90,7 +91,7 @@ it('exposes reqshield runtime features through the foundation validator manager'
         ],
     ])->boot();
 
-    $manager = $app->validator();
+    $manager = $app->make(ValidationManager::class);
     $request = Request::fake(
         post: [
             'email' => '  ADA@EXAMPLE.COM  ',
