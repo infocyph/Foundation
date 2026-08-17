@@ -11,7 +11,7 @@ use Infocyph\TalkingBytes\Http\HttpClient;
 use Infocyph\TalkingBytes\Http\Testing\FakeHttpTransport;
 
 it('composes package fakes without replacing their implementations', function (): void {
-    $app = Foundation::console([
+    $app = Foundation::cli([
         'cache' => [
             'default' => 'array',
             'stores' => [
@@ -33,7 +33,7 @@ it('composes package fakes without replacing their implementations', function ()
     $notifications->assertable()->assertNothingSent();
 
     expect($cache)->toBeInstanceOf(CacheInterface::class)
-        ->and($app->cache()->store())->toBe($cache)
+        ->and($app->testing()->cache()->store())->toBe($cache)
         ->and($cache->get('answer'))->toBe(42)
         ->and($app->make(HttpClient::class))->toBe($http)
         ->and($result->successful)->toBeTrue()
@@ -44,11 +44,11 @@ it('composes package fakes without replacing their implementations', function ()
 
 it('exposes the configured filesystem through the testing boundary', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-files-' . bin2hex(random_bytes(6));
-    $app = Foundation::console([
+    $app = Foundation::cli([
         'app' => ['base_path' => $basePath],
     ]);
 
     expect($app->testing()->files())->toBeInstanceOf(FilesystemManager::class)
-        ->and($app->testing()->files())->toBe($app->files())
+        ->and($app->testing()->files())->toBe($app->make(FilesystemManager::class))
         ->and($app->testing()->files()->base())->toBe($basePath);
 });
