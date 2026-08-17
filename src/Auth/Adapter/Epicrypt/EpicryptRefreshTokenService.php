@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Adapter\Epicrypt;
 
+use Infocyph\Epicrypt\Token\Jwt\JwtClaims;
+use Infocyph\Epicrypt\Token\Jwt\JwtFailureReason;
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\IssuedRefreshToken;
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\RefreshTokenClaims;
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\RefreshTokenServiceInterface;
@@ -11,26 +13,31 @@ use Infocyph\Foundation\Auth\Contract\Security\TokenVerificationResult;
 
 final readonly class EpicryptRefreshTokenService implements RefreshTokenServiceInterface
 {
+    private const string TYPE = 'foundation-refresh+jwt';
+
     public function __construct(
         private EpicryptTokenFactory $factory,
     ) {}
 
     public function issue(RefreshTokenClaims $claims): IssuedRefreshToken
     {
-        $token = $this->factory->jwt(true)->encode([
-            'aid' => $claims->accountId,
-            'aud' => $this->factory->audience(),
-            'cid' => $claims->clientId,
-            'did' => $claims->deviceId,
-            'exp' => $claims->expiresAt,
-            'fam' => $claims->familyId,
-            'iss' => $this->factory->issuer(),
-            'jti' => $claims->tokenId,
-            'metadata' => $claims->metadata,
-            'nbf' => $claims->issuedAt,
-            'pur' => 'refresh',
-            'sub' => $claims->accountId,
-        ], $this->factory->key());
+        $token = $this->factory->jwtIssuer(self::TYPE)->issue(new JwtClaims(
+            issuer: $this->factory->issuer(),
+            subject: $claims->accountId,
+            audiences: [$this->factory->audience()],
+            expiresAt: $claims->expiresAt,
+            notBefore: $claims->issuedAt,
+            issuedAt: $claims->issuedAt,
+            jwtId: $claims->tokenId,
+            custom: [
+                'aid' => $claims->accountId,
+                'cid' => $claims->clientId,
+                'did' => $claims->deviceId,
+                'fam' => $claims->familyId,
+                'metadata' => $claims->metadata,
+                'pur' => 'refresh',
+            ],
+        ));
 
         return new IssuedRefreshToken(
             value: $token,
@@ -43,11 +50,13 @@ final readonly class EpicryptRefreshTokenService implements RefreshTokenServiceI
 
     public function verify(string $token): TokenVerificationResult
     {
-        $result = $this->factory->jwt(true)->verifyResult($token, $this->factory->key());
-        if (!$result->verified) {
+        $result = $this->factory->jwtVerifier(self::TYPE)->verifyResult($token);
+        if (!$result->valid) {
             return new TokenVerificationResult(
                 false,
-                failureReason: $result->expired ? 'expired_token' : 'invalid_token',
+                failureReason: $result->failureReason === JwtFailureReason::EXPIRED
+                    ? 'expired_token'
+                    : 'invalid_token',
             );
         }
 
