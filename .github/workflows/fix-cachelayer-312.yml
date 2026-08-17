@@ -18,7 +18,7 @@ jobs:
           fetch-depth: 0
 
       - name: Align CacheLayerFactory with 3.1.2
-        shell: python
+        shell: python {0}
         run: |
           from pathlib import Path
 
@@ -37,129 +37,129 @@ jobs:
           start = source.index('    private function applyCacheConfiguration(')
           end = source.index('    /**\n     * @param array<string, mixed> $store\n     */\n    private function applyLockConfiguration(', start)
           source = source[:start] + '''    private function applyCacheConfiguration(CacheInterface $cache, array $store, CacheDriver $driver): CacheInterface
-    {
-        return $this->applyLockConfiguration($cache, $store, $driver);
-    }
+          {
+              return $this->applyLockConfiguration($cache, $store, $driver);
+          }
 
-''' + source[end:]
+          ''' + source[end:]
 
           marker = '    /**\n     * @param array<string, mixed> $store\n     * @return array{threshold_bytes:?int,level:int}\n     */\n    private function compressionConfig(array $store): array\n'
           insert = '''    /** @param array<string, mixed> $store */
-    private function cacheOptions(array $store): CacheOptions
-    {
-        $compression = $this->compressionConfig($store);
-        $security = $this->securityConfig($store);
-        $serialization = $this->serializationConfig($store);
+          private function cacheOptions(array $store): CacheOptions
+          {
+              $compression = $this->compressionConfig($store);
+              $security = $this->securityConfig($store);
+              $serialization = $this->serializationConfig($store);
 
-        return new CacheOptions(
-            integrityKey: $security['integrity_key'],
-            maxPayloadBytes: $security['max_payload_bytes'],
-            compressionThreshold: $compression['threshold_bytes'],
-            compressionLevel: $compression['level'],
-            allowClosures: $serialization['allow_closure_payloads'],
-            allowObjects: $serialization['allow_object_payloads'],
-            failOpen: ValueNormalizer::bool($store['fail_open'] ?? null, true),
-        );
-    }
+              return new CacheOptions(
+                  integrityKey: $security['integrity_key'],
+                  maxPayloadBytes: $security['max_payload_bytes'],
+                  compressionThreshold: $compression['threshold_bytes'],
+                  compressionLevel: $compression['level'],
+                  allowClosures: $serialization['allow_closure_payloads'],
+                  allowObjects: $serialization['allow_object_payloads'],
+                  failOpen: ValueNormalizer::bool($store['fail_open'] ?? null, true),
+              );
+          }
 
-'''
+          '''
           source = source.replace(marker, insert + marker)
 
           start = source.index('    private function createCache(')
           end = source.index('    /**\n     * @param array<string, array<string, mixed>> $stores', start)
           create_cache = '''    private function createCache(string $name, array $store, CacheDriver $driver): CacheInterface
-    {
-        $namespace = $this->namespace($name, $store);
-        $options = $this->cacheOptions($store);
+          {
+              $namespace = $this->namespace($name, $store);
+              $options = $this->cacheOptions($store);
 
-        return match ($driver) {
-            CacheDriver::APCU => Cache::apcu($namespace, $options),
-            CacheDriver::FILE => Cache::file(
-                $namespace,
-                $this->directoryFrom($store, 'path', 'dir', 'directory'),
-                $options,
-            ),
-            CacheDriver::LOCAL => $this->localCache($namespace, $store, $options),
-            CacheDriver::MEMCACHE => Cache::memcached(
-                namespace: $namespace,
-                servers: $this->servers($store['servers'] ?? null),
-                options: $options,
-            ),
-            CacheDriver::MEMORY => Cache::memory($namespace, $options),
-            CacheDriver::MONGODB => Cache::mongodb(
-                namespace: $namespace,
-                collection: is_object($store['collection'] ?? null) ? $store['collection'] : null,
-                client: is_object($store['client'] ?? null) ? $store['client'] : null,
-                database: ValueNormalizer::string($store['database'] ?? null, 'cachelayer'),
-                collectionName: ValueNormalizer::string($store['collection_name'] ?? null, 'entries'),
-                uri: ValueNormalizer::string($store['uri'] ?? null, 'mongodb://127.0.0.1:27017'),
-                options: $options,
-            ),
-            CacheDriver::NODE => NodeCache::create($this->nodeConfig($name, $store)),
-            CacheDriver::NULL_STORE => Cache::nullStore($options),
-            CacheDriver::PDO => $this->pdoCache($namespace, $store, $options),
-            CacheDriver::PHP_FILES => Cache::phpFiles(
-                $namespace,
-                $this->directoryFrom($store, 'path', 'dir', 'directory'),
-                $options,
-            ),
-            CacheDriver::REDIS => $this->redisCache($namespace, $store, 'redis', $options),
-            CacheDriver::REDIS_CLUSTER => Cache::redisCluster(
-                namespace: $namespace,
-                seeds: $this->seeds($store['seeds'] ?? null),
-                timeout: $this->floatValue($store['timeout'] ?? null, 1.0),
-                readTimeout: $this->floatValue($store['read_timeout'] ?? null, 1.0),
-                persistent: ValueNormalizer::bool($store['persistent'] ?? null, false),
-                client: is_object($store['client'] ?? null) ? $store['client'] : null,
-                options: $options,
-            ),
-            CacheDriver::SCYLLADB => Cache::scylla(
-                namespace: $namespace,
-                session: $this->scyllaSession($store),
-                keyspace: ValueNormalizer::string($store['keyspace'] ?? null, 'cachelayer'),
-                table: ValueNormalizer::string($store['table'] ?? null, 'cachelayer_entries'),
-                options: $options,
-            ),
-            CacheDriver::SHARED_MEMORY => Cache::sharedMemory(
-                $namespace,
-                ValueNormalizer::int($store['segment_size'] ?? null, 16_777_216),
-                $options,
-            ),
-            CacheDriver::SQLITE => Cache::sqlite(
-                $namespace,
-                $this->sqliteFile($store),
-                $options,
-            ),
-            CacheDriver::TIERED => Cache::tiered(
-                tiers: $this->tiers($name, $store),
-                writeToL1: ValueNormalizer::bool($store['write_to_l1'] ?? null, true),
-                options: $options,
-                namespace: $namespace,
-            ),
-            CacheDriver::VALKEY => $this->redisCache($namespace, $store, 'valkey', $options),
-            CacheDriver::WEAK_MAP => Cache::weakMap($namespace, $options),
-        };
-    }
+              return match ($driver) {
+                  CacheDriver::APCU => Cache::apcu($namespace, $options),
+                  CacheDriver::FILE => Cache::file(
+                      $namespace,
+                      $this->directoryFrom($store, 'path', 'dir', 'directory'),
+                      $options,
+                  ),
+                  CacheDriver::LOCAL => $this->localCache($namespace, $store, $options),
+                  CacheDriver::MEMCACHE => Cache::memcached(
+                      namespace: $namespace,
+                      servers: $this->servers($store['servers'] ?? null),
+                      options: $options,
+                  ),
+                  CacheDriver::MEMORY => Cache::memory($namespace, $options),
+                  CacheDriver::MONGODB => Cache::mongodb(
+                      namespace: $namespace,
+                      collection: is_object($store['collection'] ?? null) ? $store['collection'] : null,
+                      client: is_object($store['client'] ?? null) ? $store['client'] : null,
+                      database: ValueNormalizer::string($store['database'] ?? null, 'cachelayer'),
+                      collectionName: ValueNormalizer::string($store['collection_name'] ?? null, 'entries'),
+                      uri: ValueNormalizer::string($store['uri'] ?? null, 'mongodb://127.0.0.1:27017'),
+                      options: $options,
+                  ),
+                  CacheDriver::NODE => NodeCache::create($this->nodeConfig($name, $store)),
+                  CacheDriver::NULL_STORE => Cache::nullStore($options),
+                  CacheDriver::PDO => $this->pdoCache($namespace, $store, $options),
+                  CacheDriver::PHP_FILES => Cache::phpFiles(
+                      $namespace,
+                      $this->directoryFrom($store, 'path', 'dir', 'directory'),
+                      $options,
+                  ),
+                  CacheDriver::REDIS => $this->redisCache($namespace, $store, 'redis', $options),
+                  CacheDriver::REDIS_CLUSTER => Cache::redisCluster(
+                      namespace: $namespace,
+                      seeds: $this->seeds($store['seeds'] ?? null),
+                      timeout: $this->floatValue($store['timeout'] ?? null, 1.0),
+                      readTimeout: $this->floatValue($store['read_timeout'] ?? null, 1.0),
+                      persistent: ValueNormalizer::bool($store['persistent'] ?? null, false),
+                      client: is_object($store['client'] ?? null) ? $store['client'] : null,
+                      options: $options,
+                  ),
+                  CacheDriver::SCYLLADB => Cache::scylla(
+                      namespace: $namespace,
+                      session: $this->scyllaSession($store),
+                      keyspace: ValueNormalizer::string($store['keyspace'] ?? null, 'cachelayer'),
+                      table: ValueNormalizer::string($store['table'] ?? null, 'cachelayer_entries'),
+                      options: $options,
+                  ),
+                  CacheDriver::SHARED_MEMORY => Cache::sharedMemory(
+                      $namespace,
+                      ValueNormalizer::int($store['segment_size'] ?? null, 16_777_216),
+                      $options,
+                  ),
+                  CacheDriver::SQLITE => Cache::sqlite(
+                      $namespace,
+                      $this->sqliteFile($store),
+                      $options,
+                  ),
+                  CacheDriver::TIERED => Cache::tiered(
+                      tiers: $this->tiers($name, $store),
+                      writeToL1: ValueNormalizer::bool($store['write_to_l1'] ?? null, true),
+                      options: $options,
+                      namespace: $namespace,
+                  ),
+                  CacheDriver::VALKEY => $this->redisCache($namespace, $store, 'valkey', $options),
+                  CacheDriver::WEAK_MAP => Cache::weakMap($namespace, $options),
+              };
+          }
 
-'''
+          '''
           source = source[:start] + create_cache + source[end:]
 
           local_marker = '    /**\n     * @param array<string, mixed> $store\n     * @param array<string, mixed> $lock\n     */\n    private function lockProviderFromConfig('
           local_method = '''    /** @param array<string, mixed> $store */
-    private function localCache(string $namespace, array $store, CacheOptions $options): CacheInterface
-    {
-        if (extension_loaded('apcu') && function_exists('apcu_enabled') && apcu_enabled()) {
-            return Cache::apcu($namespace, $options);
-        }
+          private function localCache(string $namespace, array $store, CacheOptions $options): CacheInterface
+          {
+              if (extension_loaded('apcu') && function_exists('apcu_enabled') && apcu_enabled()) {
+                  return Cache::apcu($namespace, $options);
+              }
 
-        return Cache::file(
-            $namespace,
-            $this->directoryFrom($store, 'path', 'dir', 'directory'),
-            $options,
-        );
-    }
+              return Cache::file(
+                  $namespace,
+                  $this->directoryFrom($store, 'path', 'dir', 'directory'),
+                  $options,
+              );
+          }
 
-'''
+          '''
           source = source.replace(local_marker, local_method + local_marker)
 
           source = source.replace(
