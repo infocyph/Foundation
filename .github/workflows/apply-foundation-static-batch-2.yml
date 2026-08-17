@@ -1,0 +1,34 @@
+name: Apply Foundation static batch 2
+
+on:
+  push:
+    branches: [feature/foundation-2.0]
+    paths: [.github/workflows/apply-foundation-static-batch-2.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/foundation-2.0
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: python tools/foundation-static-batch-2.py
+      - run: vendor/bin/pint src/Identifiers/IdentifierManager.php src/Identifiers/IdentifierServiceProvider.php src/Security/SecurityManager.php src/Filesystem/FilesystemResponseFactory.php src/Messaging/MessagingServiceProvider.php src/Generator/ArtifactGenerator.php src/Command/ParsedInput.php src/Command/CommandCatalog.php src/Module/ModuleManager.php src/Validation/ReqShieldDatabaseProvider.php
+      - name: Commit real source changes
+        run: |
+          rm -f .github/workflows/apply-foundation-static-batch-2.yml
+          git config user.name "abmmhasan"
+          git config user.email "abmmhasan@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit --no-verify -m "Reduce Foundation specialist wrappers"
+          git push origin HEAD:feature/foundation-2.0
