@@ -72,10 +72,16 @@ final readonly class ContainerCacheManager
         $config['app'] = $appConfig;
         $config['_config_cache'] = false;
 
+        $artifact = $this->artifactPath($runtime);
+        $directory = dirname($artifact);
+        if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
+            throw new \RuntimeException(sprintf('Unable to create container cache directory "%s".', $directory));
+        }
+
         $target = Application::create($config, $runtime);
 
         try {
-            $target->container()->compileTo($this->artifactPath($runtime));
+            $target->container()->compileTo($artifact);
             $report = $target->container()->compilationReport();
         } finally {
             $target->container()->unset();
