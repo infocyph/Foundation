@@ -10,6 +10,7 @@ use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\Connection\ConnectionConfig;
 use Infocyph\DBLayer\Exceptions\QueryException;
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Database\DatabaseManager;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Session\BrowserSession;
 use Infocyph\Foundation\Session\Middleware\CsrfMiddleware;
@@ -173,14 +174,15 @@ PHP,
             'base_path' => $project,
             'session' => ['driver' => 'array'],
         ]);
+        $repository = $app->container()->getRepository();
 
-        expect($app->container()->has(SessionManager::class))->toBeFalse();
+        expect($repository->hasResolvedSingleton(SessionManager::class))->toBeFalse();
         $leanResponse = $app->handle(Request::fake(
             headers: ['Host' => 'example.test'],
             uri: 'https://example.test/lean',
         ));
         expect($leanResponse->getStatusCode())->toBe(200)
-            ->and($app->container()->has(SessionManager::class))->toBeFalse();
+            ->and($repository->hasResolvedSingleton(SessionManager::class))->toBeFalse();
 
         $stateResponse = $app->handle(Request::fake(
             headers: ['Host' => 'example.test'],
@@ -188,7 +190,7 @@ PHP,
         ));
         expect($stateResponse->getStatusCode())->toBe(200)
             ->and(browserSessionJson($stateResponse))->toBe(['has' => true])
-            ->and($app->container()->has(SessionManager::class))->toBeTrue();
+            ->and($repository->hasResolvedSingleton(SessionManager::class))->toBeTrue();
     } finally {
         browserSessionRemoveDirectory($project);
     }
@@ -227,7 +229,7 @@ it('creates and uses the portable DBLayer session schema on SQLite', function ()
     mkdir($project . '/database', 0775, true);
 
     try {
-        $app = Foundation::console([
+        $app = Foundation::cli([
             'base_path' => $project,
             'session' => [
                 'driver' => 'database',
@@ -250,7 +252,7 @@ it('creates and uses the portable DBLayer session schema on SQLite', function ()
         ]);
         $schema = $app->make(\Infocyph\Foundation\Session\SessionDatabaseSchema::class);
         $schema->install();
-        $connection = $app->db()->connection('session');
+        $connection = $app->make(DatabaseManager::class)->connection('session');
         $store = new DatabaseSessionStore($connection, 'browser_sessions');
         $id = str_repeat('d', 64);
         $payload = new \Infocyph\Foundation\Session\SessionPayload(['role' => 'admin'], [], time() + 60);
