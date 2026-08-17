@@ -2,10 +2,9 @@
 
 declare(strict_types=1);
 
+use Infocyph\ArrayKit\ArrayKit;
 use Infocyph\ArrayKit\DTO\Concerns\DTOTrait;
 use Infocyph\Foundation\Config\ConfigRepository;
-use Infocyph\Foundation\Facades\Data;
-use Infocyph\Foundation\Foundation;
 
 final class ArrayKitProfileAddressDto
 {
@@ -53,7 +52,7 @@ it('extends foundation config repository with arraykit config capabilities', fun
         ->and($cached->getString('app.name'))->toBe('Infbyte');
 });
 
-it('exposes arraykit collections dto hydration and lazy config caching through foundation', function (): void {
+it('uses arraykit collections dto hydration and lazy config caching directly', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-arraykit-' . uniqid('', true);
     mkdir($basePath . '/config', 0775, true);
     mkdir($basePath . '/cache', 0775, true);
@@ -69,21 +68,10 @@ return [
 ];
 PHP);
 
-    $app = Foundation::web([
-        'app' => [
-            'base_path' => $basePath,
-        ],
-        'paths' => [
-            'cache' => 'cache',
-            'config' => 'config',
-        ],
-    ])->boot();
-
-    $collection = $app->data()
-        ->collection([
-            ['name' => 'Ada', 'score' => 10],
-            ['name' => 'Linus', 'score' => 25],
-        ])
+    $collection = ArrayKit::collection([
+        ['name' => 'Ada', 'score' => 10],
+        ['name' => 'Linus', 'score' => 25],
+    ])
         ->process()
         ->where('score', '>=', 20)
         ->values()
@@ -93,7 +81,7 @@ PHP);
         ['name' => 'Linus', 'score' => 25],
     ]);
 
-    $dto = $app->data()->dto(
+    $dto = (new ArrayKitProfileDto())->hydrateNested(
         values: [
             'name' => 'Ada',
             'age' => '36',
@@ -101,8 +89,6 @@ PHP);
                 'city' => 'Dhaka',
             ],
         ],
-        class: ArrayKitProfileDto::class,
-        nested: true,
         coerce: true,
     );
 
@@ -110,13 +96,16 @@ PHP);
         ->and($dto->age)->toBe(36)
         ->and($dto->address->city)->toBe('Dhaka');
 
-    expect(Data::dot()->get([
+    expect(ArrayKit::dot()->get([
         'profile' => [
             'name' => 'Ada',
         ],
     ], 'profile.name'))->toBe('Ada');
 
-    $lazyConfig = Data::lazyConfig();
+    $lazyConfig = ArrayKit::lazyConfig(
+        directory: $basePath . '/config',
+        namespaceCacheDirectory: $basePath . '/cache/config',
+    );
     $lazyConfig->warmNamespaceCache('data');
 
     expect($lazyConfig->get('data.answer'))->toBe(42)
