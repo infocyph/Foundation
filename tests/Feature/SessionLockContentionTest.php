@@ -21,7 +21,7 @@ it('enforces browser-session contention through every configured shared lock bac
 
     [$holder, $contender] = $pair;
     $id = bin2hex(random_bytes(32));
-    $key = 'foundation:session:' . $id;
+    $key = hash('sha256', 'foundation-session:' . $id);
     $held = $holder->acquire($key, 0.0, 5.0);
     expect($held)->not->toBeNull();
 
