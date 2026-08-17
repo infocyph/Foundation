@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Filesystem\FilesystemManager;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Pathwise\PathwiseFacade;
 use Infocyph\Webrick\Request\Request;
@@ -31,7 +32,7 @@ function foundationFilesystemApp(): array
 it('streams download responses with conditional and range handling through foundation', function (): void {
     [$app, $basePath] = foundationFilesystemApp();
     $app->boot();
-    $files = $app->files();
+    $files = $app->make(FilesystemManager::class);
     $directory = 'tests/http-' . uniqid('', true);
     $relativePath = $directory . '/payload.txt';
     $contents = 'Foundation ranged download bridge';
@@ -103,7 +104,7 @@ it('streams download responses with conditional and range handling through found
 it('handles upload requests, chunked uploads, offload responses, and pathwise utilities through foundation', function (): void {
     [$app, $basePath] = foundationFilesystemApp();
     $app->boot();
-    $files = $app->files();
+    $files = $app->make(FilesystemManager::class);
     $directory = 'tests/uploads-' . uniqid('', true);
     $queuePath = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR)
         . '/foundation-files-queue-' . bin2hex(random_bytes(5)) . '.json';
