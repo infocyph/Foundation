@@ -7,6 +7,7 @@ namespace Infocyph\Foundation\Cache;
 use Closure;
 use Infocyph\CacheLayer\Cache\Cache;
 use Infocyph\CacheLayer\Cache\CacheInterface;
+use Infocyph\CacheLayer\Cache\CacheOptions;
 use Infocyph\CacheLayer\Cache\Lock\FileLockProvider;
 use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
 use Infocyph\CacheLayer\Cache\Lock\MemcachedLockProvider;
@@ -65,8 +66,6 @@ final readonly class CacheLayerFactory
             ),
             $this->transport($this->requiredString($cluster, 'transport', 'cache.clusters.' . $name)),
         );
-
-        $this->applyCacheConfiguration($runtime->cache(), $store, CacheDriver::NODE);
 
         return $runtime;
     }
@@ -168,27 +167,9 @@ final readonly class CacheLayerFactory
      * @param array<string, mixed> $store
      */
     private function applyCacheConfiguration(CacheInterface $cache, array $store, CacheDriver $driver): CacheInterface
-    {
-        $compression = $this->compressionConfig($store);
-        $cache->configurePayloadCompression(
-            $compression['threshold_bytes'],
-            $compression['level'],
-        );
-
-        $security = $this->securityConfig($store);
-        $cache->configurePayloadSecurity(
-            $security['integrity_key'],
-            $security['max_payload_bytes'],
-        );
-
-        $serialization = $this->serializationConfig($store);
-        $cache->configureSerializationSecurity(
-            $serialization['allow_closure_payloads'],
-            $serialization['allow_object_payloads'],
-        );
-
-        return $this->applyLockConfiguration($cache, $store, $driver);
-    }
+{
+    return $this->applyLockConfiguration($cache, $store, $driver);
+}
 
     /**
      * @param array<string, mixed> $store
@@ -240,6 +221,24 @@ final readonly class CacheLayerFactory
         return $this->namedConfiguration('cache.clusters');
     }
 
+    /** @param array<string, mixed> $store */
+private function cacheOptions(array $store): CacheOptions
+{
+    $compression = $this->compressionConfig($store);
+    $security = $this->securityConfig($store);
+    $serialization = $this->serializationConfig($store);
+
+    return new CacheOptions(
+        integrityKey: $security['integrity_key'],
+        maxPayloadBytes: $security['max_payload_bytes'],
+        compressionThreshold: $compression['threshold_bytes'],
+        compressionLevel: $compression['level'],
+        allowClosures: $serialization['allow_closure_payloads'],
+        allowObjects: $serialization['allow_object_payloads'],
+        failOpen: ValueNormalizer::bool($store['fail_open'] ?? null, true),
+    );
+}
+
     /**
      * @param array<string, mixed> $store
      * @return array{threshold_bytes:?int,level:int}
@@ -269,58 +268,78 @@ final readonly class CacheLayerFactory
      * @param array<string, mixed> $store
      */
     private function createCache(string $name, array $store, CacheDriver $driver): CacheInterface
-    {
-        $namespace = $this->namespace($name, $store);
+{
+    $namespace = $this->namespace($name, $store);
+    $options = $this->cacheOptions($store);
 
-        return match ($driver) {
-            CacheDriver::APCU => Cache::apcu($namespace),
-            CacheDriver::FILE => Cache::file($namespace, $this->directoryFrom($store, 'path', 'dir', 'directory')),
-            CacheDriver::LOCAL => Cache::local($namespace, $this->directoryFrom($store, 'path', 'dir', 'directory')),
-            CacheDriver::MEMCACHE => Cache::memcache($namespace, $this->servers($store['servers'] ?? null)),
-            CacheDriver::MEMORY => Cache::memory($namespace),
-            CacheDriver::MONGODB => Cache::mongodb(
-                namespace: $namespace,
-                collection: is_object($store['collection'] ?? null) ? $store['collection'] : null,
-                client: is_object($store['client'] ?? null) ? $store['client'] : null,
-                database: ValueNormalizer::string($store['database'] ?? null, 'cachelayer'),
-                collectionName: ValueNormalizer::string($store['collection_name'] ?? null, 'entries'),
-                uri: ValueNormalizer::string($store['uri'] ?? null, 'mongodb://127.0.0.1:27017'),
-            ),
-            CacheDriver::NODE => NodeCache::create($this->nodeConfig($name, $store)),
-            CacheDriver::NULL_STORE => Cache::nullStore(),
-            CacheDriver::PDO => $this->pdoCache($namespace, $store),
-            CacheDriver::PHP_FILES => Cache::phpFiles($namespace, $this->directoryFrom($store, 'path', 'dir', 'directory')),
-            CacheDriver::REDIS => $this->redisCache($namespace, $store, 'redis'),
-            CacheDriver::REDIS_CLUSTER => Cache::redisCluster(
-                namespace: $namespace,
-                seeds: $this->seeds($store['seeds'] ?? null),
-                timeout: $this->floatValue($store['timeout'] ?? null, 1.0),
-                readTimeout: $this->floatValue($store['read_timeout'] ?? null, 1.0),
-                persistent: ValueNormalizer::bool($store['persistent'] ?? null, false),
-                client: is_object($store['client'] ?? null) ? $store['client'] : null,
-            ),
-            CacheDriver::SCYLLADB => Cache::scyllaDb(
-                namespace: $namespace,
-                session: $this->scyllaSession($store),
-                keyspace: ValueNormalizer::string($store['keyspace'] ?? null, 'cachelayer'),
-                table: ValueNormalizer::string($store['table'] ?? null, 'cachelayer_entries'),
-            ),
-            CacheDriver::SHARED_MEMORY => Cache::sharedMemory(
-                $namespace,
-                ValueNormalizer::int($store['segment_size'] ?? null, 16_777_216),
-            ),
-            CacheDriver::SQLITE => Cache::sqlite(
-                $namespace,
-                $this->sqliteFile($store),
-            ),
-            CacheDriver::TIERED => Cache::tiered(
-                $this->tiers($name, $store),
-                ValueNormalizer::bool($store['write_to_l1'] ?? null, true),
-            ),
-            CacheDriver::VALKEY => $this->redisCache($namespace, $store, 'valkey'),
-            CacheDriver::WEAK_MAP => Cache::weakMap($namespace),
-        };
-    }
+    return match ($driver) {
+        CacheDriver::APCU => Cache::apcu($namespace, $options),
+        CacheDriver::FILE => Cache::file(
+            $namespace,
+            $this->directoryFrom($store, 'path', 'dir', 'directory'),
+            $options,
+        ),
+        CacheDriver::LOCAL => $this->localCache($namespace, $store, $options),
+        CacheDriver::MEMCACHE => Cache::memcached(
+            namespace: $namespace,
+            servers: $this->servers($store['servers'] ?? null),
+            options: $options,
+        ),
+        CacheDriver::MEMORY => Cache::memory($namespace, $options),
+        CacheDriver::MONGODB => Cache::mongodb(
+            namespace: $namespace,
+            collection: is_object($store['collection'] ?? null) ? $store['collection'] : null,
+            client: is_object($store['client'] ?? null) ? $store['client'] : null,
+            database: ValueNormalizer::string($store['database'] ?? null, 'cachelayer'),
+            collectionName: ValueNormalizer::string($store['collection_name'] ?? null, 'entries'),
+            uri: ValueNormalizer::string($store['uri'] ?? null, 'mongodb://127.0.0.1:27017'),
+            options: $options,
+        ),
+        CacheDriver::NODE => NodeCache::create($this->nodeConfig($name, $store)),
+        CacheDriver::NULL_STORE => Cache::nullStore($options),
+        CacheDriver::PDO => $this->pdoCache($namespace, $store, $options),
+        CacheDriver::PHP_FILES => Cache::phpFiles(
+            $namespace,
+            $this->directoryFrom($store, 'path', 'dir', 'directory'),
+            $options,
+        ),
+        CacheDriver::REDIS => $this->redisCache($namespace, $store, 'redis', $options),
+        CacheDriver::REDIS_CLUSTER => Cache::redisCluster(
+            namespace: $namespace,
+            seeds: $this->seeds($store['seeds'] ?? null),
+            timeout: $this->floatValue($store['timeout'] ?? null, 1.0),
+            readTimeout: $this->floatValue($store['read_timeout'] ?? null, 1.0),
+            persistent: ValueNormalizer::bool($store['persistent'] ?? null, false),
+            client: is_object($store['client'] ?? null) ? $store['client'] : null,
+            options: $options,
+        ),
+        CacheDriver::SCYLLADB => Cache::scylla(
+            namespace: $namespace,
+            session: $this->scyllaSession($store),
+            keyspace: ValueNormalizer::string($store['keyspace'] ?? null, 'cachelayer'),
+            table: ValueNormalizer::string($store['table'] ?? null, 'cachelayer_entries'),
+            options: $options,
+        ),
+        CacheDriver::SHARED_MEMORY => Cache::sharedMemory(
+            $namespace,
+            ValueNormalizer::int($store['segment_size'] ?? null, 16_777_216),
+            $options,
+        ),
+        CacheDriver::SQLITE => Cache::sqlite(
+            $namespace,
+            $this->sqliteFile($store),
+            $options,
+        ),
+        CacheDriver::TIERED => Cache::tiered(
+            tiers: $this->tiers($name, $store),
+            writeToL1: ValueNormalizer::bool($store['write_to_l1'] ?? null, true),
+            options: $options,
+            namespace: $namespace,
+        ),
+        CacheDriver::VALKEY => $this->redisCache($namespace, $store, 'valkey', $options),
+        CacheDriver::WEAK_MAP => Cache::weakMap($namespace, $options),
+    };
+}
 
     /**
      * @param array<string, array<string, mixed>> $stores
@@ -433,6 +452,20 @@ final readonly class CacheLayerFactory
 
         return $default;
     }
+
+    /** @param array<string, mixed> $store */
+private function localCache(string $namespace, array $store, CacheOptions $options): CacheInterface
+{
+    if (extension_loaded('apcu') && function_exists('apcu_enabled') && apcu_enabled()) {
+        return Cache::apcu($namespace, $options);
+    }
+
+    return Cache::file(
+        $namespace,
+        $this->directoryFrom($store, 'path', 'dir', 'directory'),
+        $options,
+    );
+}
 
     /**
      * @param array<string, mixed> $store
@@ -617,7 +650,7 @@ final readonly class CacheLayerFactory
     /**
      * @param array<string, mixed> $store
      */
-    private function pdoCache(string $namespace, array $store): CacheInterface
+    private function pdoCache(string $namespace, array $store, CacheOptions $options): CacheInterface
     {
         $runtime = $this->pdoRuntimeConfig($store);
 
@@ -628,6 +661,7 @@ final readonly class CacheLayerFactory
             password: $runtime['password'],
             pdo: $runtime['client'],
             table: ValueNormalizer::string($store['table'] ?? null, 'cachelayer_entries'),
+            options: $options,
         );
     }
 
@@ -721,13 +755,13 @@ final readonly class CacheLayerFactory
     /**
      * @param array<string, mixed> $store
      */
-    private function redisCache(string $namespace, array $store, string $driver): CacheInterface
+    private function redisCache(string $namespace, array $store, string $driver, CacheOptions $options): CacheInterface
     {
         $connection = $this->redis->connection($store + ['driver' => $driver]);
 
         return $driver === 'valkey'
-            ? Cache::valkey($namespace, $connection['dsn'], $connection['client'])
-            : Cache::redis($namespace, $connection['dsn'], $connection['client']);
+            ? Cache::valkey($namespace, $connection['dsn'], $connection['client'], $options)
+            : Cache::redis($namespace, $connection['dsn'], $connection['client'], $options);
     }
 
     /**
@@ -845,7 +879,7 @@ final readonly class CacheLayerFactory
     }
 
     /**
-     * @return array<int, string>
+     * @return list<string>
      */
     private function seeds(mixed $value): array
     {
@@ -853,7 +887,7 @@ final readonly class CacheLayerFactory
             return ['127.0.0.1:6379'];
         }
 
-        return ValueNormalizer::stringList($value);
+        return array_values(ValueNormalizer::stringList($value));
     }
 
     /**
@@ -960,7 +994,7 @@ final readonly class CacheLayerFactory
 
     /**
      * @param array<string, mixed> $store
-     * @return array<int, array<string, mixed>>
+     * @return list<array<string, mixed>>
      */
     private function tiers(string $name, array $store): array
     {
@@ -1009,7 +1043,7 @@ final readonly class CacheLayerFactory
             );
         }
 
-        return $descriptors;
+        return array_values($descriptors);
     }
 
     private function transport(string $name): InvalidationTransportInterface
