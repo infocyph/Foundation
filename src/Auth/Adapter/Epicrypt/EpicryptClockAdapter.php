@@ -16,6 +16,6 @@ final readonly class EpicryptClockAdapter implements ClockInterface
 
     public function now(): DateTimeImmutable
     {
-        return (new DateTimeImmutable())->setTimestamp($this->clock->now());
+        return new DateTimeImmutable()->setTimestamp($this->clock->now());
     }
 }

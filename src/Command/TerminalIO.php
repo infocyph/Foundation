@@ -6,6 +6,11 @@ namespace Infocyph\Foundation\Command;
 
 final readonly class TerminalIO implements CommandIO
 {
+    public function error(string $message): void
+    {
+        fwrite(STDERR, $message . PHP_EOL);
+    }
+
     public function write(string $message): void
     {
         fwrite(STDOUT, $message);
@@ -14,10 +19,5 @@ final readonly class TerminalIO implements CommandIO
     public function writeln(string $message = ''): void
     {
         fwrite(STDOUT, $message . PHP_EOL);
-    }
-
-    public function error(string $message): void
-    {
-        fwrite(STDERR, $message . PHP_EOL);
     }
 }

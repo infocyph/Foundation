@@ -12,6 +12,7 @@ final class Schedule
     public function add(ScheduledCommand $command): self
     {
         $this->commands[] = $command;
+
         return $this;
     }
 

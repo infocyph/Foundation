@@ -90,6 +90,7 @@ final readonly class ScheduleManager
         if ($temporary === false) {
             throw new \RuntimeException('Unable to create schedule manifest staging file.');
         }
+
         try {
             $contents = "<?php\n\ndeclare(strict_types=1);\n\nreturn " . var_export($payload, true) . ";\n";
             if (file_put_contents($temporary, $contents, LOCK_EX) === false || !rename($temporary, $path)) {
@@ -104,50 +105,6 @@ final readonly class ScheduleManager
         return $path;
     }
 
-    private function runEntry(ScheduledCommand $entry): ScheduleRun
-    {
-        $lock = null;
-        $handle = null;
-        if ($entry->preventsOverlap() || $entry->requiresSingleServer()) {
-            $lock = $this->application->make(CacheLayerFactory::class)->lock();
-            $handle = $lock->acquire(
-                'foundation:schedule:' . $entry->identity(),
-                $entry->overlapWaitSeconds(),
-                $entry->overlapLeaseSeconds(),
-            );
-            if ($handle === null) {
-                return new ScheduleRun($entry, 0, locked: true);
-            }
-        }
-
-        try {
-            $process = [PHP_BINARY];
-            if ($entry->memoryLimitMegabytes() !== null) {
-                $process[] = '-d';
-                $process[] = 'memory_limit=' . $entry->memoryLimitMegabytes() . 'M';
-            }
-            $process[] = $this->executable();
-            $process[] = $entry->command();
-            array_push($process, ...$entry->commandArguments());
-
-            $exitCode = (new SchedulerRuntime($this->application))->execute(
-                fn() => (new ProcessRunner())->run(
-                    $process,
-                    new ProcessOptions(
-                        cwd: $this->application->basePath(),
-                        timeoutSeconds: $entry->timeoutSeconds(),
-                        interactive: true,
-                    ),
-                )->exitCode,
-                [ScheduledCommand::class => $entry],
-            );
-
-            return new ScheduleRun($entry, $exitCode);
-        } finally {
-            $lock?->release($handle);
-        }
-    }
-
     private function executable(): string
     {
         $configured = $this->application->config()->get('command.executable');
@@ -156,6 +113,7 @@ final readonly class ScheduleManager
         }
 
         $project = $this->application->basePath('infbyte');
+
         return is_file($project)
             ? $project
             : dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'infbyte';
@@ -207,5 +165,49 @@ final readonly class ScheduleManager
         return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1
             ? $path
             : $this->application->basePath(trim($path, DIRECTORY_SEPARATOR));
+    }
+
+    private function runEntry(ScheduledCommand $entry): ScheduleRun
+    {
+        $lock = null;
+        $handle = null;
+        if ($entry->preventsOverlap() || $entry->requiresSingleServer()) {
+            $lock = $this->application->make(CacheLayerFactory::class)->lock();
+            $handle = $lock->acquire(
+                'foundation:schedule:' . $entry->identity(),
+                $entry->overlapWaitSeconds(),
+                $entry->overlapLeaseSeconds(),
+            );
+            if ($handle === null) {
+                return new ScheduleRun($entry, 0, locked: true);
+            }
+        }
+
+        try {
+            $process = [PHP_BINARY];
+            if ($entry->memoryLimitMegabytes() !== null) {
+                $process[] = '-d';
+                $process[] = 'memory_limit=' . $entry->memoryLimitMegabytes() . 'M';
+            }
+            $process[] = $this->executable();
+            $process[] = $entry->command();
+            array_push($process, ...$entry->commandArguments());
+
+            $exitCode = new SchedulerRuntime($this->application)->execute(
+                fn() => new ProcessRunner()->run(
+                    $process,
+                    new ProcessOptions(
+                        cwd: $this->application->basePath(),
+                        timeoutSeconds: $entry->timeoutSeconds(),
+                        interactive: true,
+                    ),
+                )->exitCode,
+                [ScheduledCommand::class => $entry],
+            );
+
+            return new ScheduleRun($entry, $exitCode);
+        } finally {
+            $lock?->release($handle);
+        }
     }
 }

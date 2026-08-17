@@ -44,8 +44,8 @@ final class Application
     /** @param array<string, mixed> $config */
     public static function create(array $config, RuntimeMode $runtimeMode): self
     {
-        $repository = (new ConfigLoader())->load($config);
-        $container = (new ContainerFactory())->create($repository);
+        $repository = new ConfigLoader()->load($config);
+        $container = new ContainerFactory()->create($repository);
         $app = new self(
             config: $repository,
             container: $container,
@@ -64,6 +64,31 @@ final class Application
         return $app;
     }
 
+    public function appPath(string $path = ''): string
+    {
+        return $this->paths()->app($path);
+    }
+
+    public function auth(): AuthServices
+    {
+        return $this->boot()->make(AuthServices::class);
+    }
+
+    public function authActions(): AuthActions
+    {
+        return $this->boot()->make(AuthActions::class);
+    }
+
+    public function authManager(): AuthManager
+    {
+        return $this->boot()->make(AuthManager::class);
+    }
+
+    public function basePath(string $path = ''): string
+    {
+        return $this->paths()->base($path);
+    }
+
     public function boot(): self
     {
         if (!$this->booted) {
@@ -79,9 +104,29 @@ final class Application
         return $this->booted;
     }
 
+    public function bootstrapPath(string $path = ''): string
+    {
+        return $this->paths()->bootstrap($path);
+    }
+
+    public function browserSession(): BrowserSession
+    {
+        return $this->session()->current();
+    }
+
+    public function cachePath(string $path = ''): string
+    {
+        return $this->paths()->cache($path);
+    }
+
     public function config(): ConfigRepository
     {
         return $this->config;
+    }
+
+    public function configPath(string $path = ''): string
+    {
+        return $this->paths()->config($path);
     }
 
     public function container(): Container
@@ -89,46 +134,53 @@ final class Application
         return $this->container;
     }
 
-    public function runtimeMode(): RuntimeMode
+    public function databasePath(string $path = ''): string
     {
-        return $this->runtimeMode;
+        return $this->paths()->database($path);
     }
 
-    public function runningInWeb(): bool
+    public function environment(): ?string
     {
-        return $this->runtimeMode === RuntimeMode::Web;
+        $environment = $this->config->get('app.env');
+
+        return is_string($environment) && $environment !== '' ? $environment : null;
     }
 
-    public function runningInCli(): bool
+    public function execution(): ExecutionScope
     {
-        return $this->runtimeMode === RuntimeMode::Cli;
+        return $this->make(ExecutionScope::class);
     }
 
-    public function runningInWorker(): bool
+    public function handle(Request $request): Response
     {
-        return $this->runtimeMode === RuntimeMode::Worker;
-    }
-
-    public function runningInScheduler(): bool
-    {
-        return $this->runtimeMode === RuntimeMode::Scheduler;
-    }
-
-    public function providers(): ServiceRegistry
-    {
-        return $this->providers;
-    }
-
-    public function register(ServiceProviderInterface $provider): self
-    {
-        $this->providers->add($provider);
-
-        return $this;
+        return $this->http()->handle($request);
     }
 
     public function has(string $id): bool
     {
         return $this->container->has($id) || $this->bootstrapper->canProvide($this, $id);
+    }
+
+    public function http(): HttpKernel
+    {
+        if (!$this->runningInWeb()) {
+            throw new \LogicException(sprintf(
+                'The HTTP kernel is unavailable in the %s runtime.',
+                $this->runtimeMode->value,
+            ));
+        }
+
+        return $this->boot()->make(HttpKernel::class);
+    }
+
+    public function isProduction(): bool
+    {
+        return $this->config->isProduction();
+    }
+
+    public function logsPath(string $path = ''): string
+    {
+        return $this->paths()->logs($path);
     }
 
     /**
@@ -158,118 +210,14 @@ final class Application
         }
     }
 
-    public function execution(): ExecutionScope
-    {
-        return $this->make(ExecutionScope::class);
-    }
-
     public function paths(): PathManager
     {
         return $this->make(PathManager::class);
     }
 
-    public function auth(): AuthServices
+    public function providers(): ServiceRegistry
     {
-        return $this->boot()->make(AuthServices::class);
-    }
-
-    public function authManager(): AuthManager
-    {
-        return $this->boot()->make(AuthManager::class);
-    }
-
-    public function authActions(): AuthActions
-    {
-        return $this->boot()->make(AuthActions::class);
-    }
-
-    public function session(): SessionManager
-    {
-        return $this->boot()->make(SessionManager::class);
-    }
-
-    public function browserSession(): BrowserSession
-    {
-        return $this->session()->current();
-    }
-
-    public function http(): HttpKernel
-    {
-        if (!$this->runningInWeb()) {
-            throw new \LogicException(sprintf(
-                'The HTTP kernel is unavailable in the %s runtime.',
-                $this->runtimeMode->value,
-            ));
-        }
-
-        return $this->boot()->make(HttpKernel::class);
-    }
-
-    public function handle(Request $request): Response
-    {
-        return $this->http()->handle($request);
-    }
-
-    public function router(): RouterManager
-    {
-        return $this->boot()->make(RouterManager::class);
-    }
-
-    public function responses(): JsonDispatchResponseFactory
-    {
-        return $this->boot()->make(JsonDispatchResponseFactory::class);
-    }
-
-    public function environment(): ?string
-    {
-        $environment = $this->config->get('app.env');
-
-        return is_string($environment) && $environment !== '' ? $environment : null;
-    }
-
-    public function isProduction(): bool
-    {
-        return $this->config->isProduction();
-    }
-
-    public function testing(): TestKit
-    {
-        return new TestKit($this);
-    }
-
-    public function basePath(string $path = ''): string
-    {
-        return $this->paths()->base($path);
-    }
-
-    public function appPath(string $path = ''): string
-    {
-        return $this->paths()->app($path);
-    }
-
-    public function bootstrapPath(string $path = ''): string
-    {
-        return $this->paths()->bootstrap($path);
-    }
-
-    public function cachePath(string $path = ''): string
-    {
-        return $this->paths()->cache($path);
-    }
-
-    public function configPath(string $path = ''): string
-    {
-        return $this->paths()->config($path);
-    }
-
-    public function databasePath(string $path = ''): string
-    {
-        return $this->paths()->database($path);
-    }
-
-    public function logsPath(string $path = ''): string
-    {
-        return $this->paths()->logs($path);
+        return $this->providers;
     }
 
     public function publicPath(string $path = ''): string
@@ -277,14 +225,61 @@ final class Application
         return $this->paths()->public($path);
     }
 
+    public function register(ServiceProviderInterface $provider): self
+    {
+        $this->providers->add($provider);
+
+        return $this;
+    }
+
     public function resourcesPath(string $path = ''): string
     {
         return $this->paths()->resources($path);
     }
 
+    public function responses(): JsonDispatchResponseFactory
+    {
+        return $this->boot()->make(JsonDispatchResponseFactory::class);
+    }
+
+    public function router(): RouterManager
+    {
+        return $this->boot()->make(RouterManager::class);
+    }
+
     public function routesPath(string $path = ''): string
     {
         return $this->paths()->routes($path);
+    }
+
+    public function runningInCli(): bool
+    {
+        return $this->runtimeMode === RuntimeMode::Cli;
+    }
+
+    public function runningInScheduler(): bool
+    {
+        return $this->runtimeMode === RuntimeMode::Scheduler;
+    }
+
+    public function runningInWeb(): bool
+    {
+        return $this->runtimeMode === RuntimeMode::Web;
+    }
+
+    public function runningInWorker(): bool
+    {
+        return $this->runtimeMode === RuntimeMode::Worker;
+    }
+
+    public function runtimeMode(): RuntimeMode
+    {
+        return $this->runtimeMode;
+    }
+
+    public function session(): SessionManager
+    {
+        return $this->boot()->make(SessionManager::class);
     }
 
     public function sessionsPath(string $path = ''): string
@@ -295,6 +290,11 @@ final class Application
     public function storagePath(string $path = ''): string
     {
         return $this->paths()->storage($path);
+    }
+
+    public function testing(): TestKit
+    {
+        return new TestKit($this);
     }
 
     public function uploadsPath(string $path = ''): string

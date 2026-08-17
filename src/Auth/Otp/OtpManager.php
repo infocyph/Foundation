@@ -130,7 +130,7 @@ final readonly class OtpManager
         }
 
         try {
-            $result = (new TOTP($config['secret'], $config['digits'], $config['period']))
+            $result = new TOTP($config['secret'], $config['digits'], $config['period'])
                 ->setAlgorithm($config['algorithm'])
                 ->verifyWithWindow(
                     $code,
@@ -166,6 +166,16 @@ final readonly class OtpManager
         );
     }
 
+    private function algorithm(): string
+    {
+        return $this->stringValue($this->config->get('auth.otp.totp.algorithm'), 'sha1');
+    }
+
+    private function digits(): int
+    {
+        return $this->intValue($this->config->get('auth.otp.totp.digits'), 6);
+    }
+
     private function factorBinding(MfaFactor $factor, string $secret): string
     {
         return hash('sha256', "foundation:otp-factor:v1\0{$factor->id}\0{$secret}");
@@ -197,16 +207,6 @@ final readonly class OtpManager
         }
 
         return null;
-    }
-
-    private function algorithm(): string
-    {
-        return $this->stringValue($this->config->get('auth.otp.totp.algorithm'), 'sha1');
-    }
-
-    private function digits(): int
-    {
-        return $this->intValue($this->config->get('auth.otp.totp.digits'), 6);
     }
 
     private function freshnessWindow(): int

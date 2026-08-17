@@ -61,6 +61,7 @@ final class ProcessRunner
                 ) {
                     $timedOut = true;
                     proc_terminate($process);
+
                     break;
                 }
 
@@ -119,6 +120,7 @@ final class ProcessRunner
             ) {
                 $timedOut = true;
                 proc_terminate($process);
+
                 break;
             }
             usleep(10_000);

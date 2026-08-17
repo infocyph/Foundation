@@ -9,7 +9,9 @@ use Infocyph\ArrayKit\Config\LazyFileConfig;
 final class ConfigLoader
 {
     public const string MANIFEST_FILE = '__manifest.php';
+
     public const string TYPE_SHARDED = 'sharded';
+
     public const string TYPE_SINGLE = 'single';
 
     private const int CACHE_FORMAT = 3;
@@ -46,7 +48,7 @@ final class ConfigLoader
             );
         }
 
-        (new EnvironmentLoader())->load($basePath, $normalized);
+        new EnvironmentLoader()->load($basePath, $normalized);
         $configDirectory = $this->configPath($basePath, $normalized);
 
         return ConfigRepository::fromLazyFiles(
@@ -71,6 +73,11 @@ final class ConfigLoader
         return $cacheType;
     }
 
+    private function absolute(string $path): bool
+    {
+        return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1;
+    }
+
     /** @param array<string, mixed> $input */
     private function basePath(array $input): string
     {
@@ -80,6 +87,13 @@ final class ConfigLoader
         return is_string($basePath) && $basePath !== ''
             ? rtrim($basePath, DIRECTORY_SEPARATOR)
             : (getcwd() ?: dirname(__DIR__, 2));
+    }
+
+    private function cachePath(string $basePath, string $path): string
+    {
+        return $this->absolute($path)
+            ? rtrim($path, DIRECTORY_SEPARATOR)
+            : $basePath . DIRECTORY_SEPARATOR . trim($path, DIRECTORY_SEPARATOR);
     }
 
     private function cacheType(ConfigRepository $config, ?string $type): string
@@ -144,18 +158,6 @@ final class ConfigLoader
             : $basePath . DIRECTORY_SEPARATOR . 'bootstrap/cache/config';
     }
 
-    private function cachePath(string $basePath, string $path): string
-    {
-        return $this->absolute($path)
-            ? rtrim($path, DIRECTORY_SEPARATOR)
-            : $basePath . DIRECTORY_SEPARATOR . trim($path, DIRECTORY_SEPARATOR);
-    }
-
-    private function absolute(string $path): bool
-    {
-        return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1;
-    }
-
     /** @return array<string, mixed> */
     private function defaults(): array
     {
@@ -210,22 +212,6 @@ final class ConfigLoader
         ];
     }
 
-    /** @param array<string, mixed> $input @return array<string, mixed> */
-    private function normalizeInput(array $input): array
-    {
-        $app = $this->map($input['app'] ?? null);
-        foreach (['base_path', 'env', 'debug'] as $key) {
-            if (array_key_exists($key, $input) && !array_key_exists($key, $app)) {
-                $app[$key] = $input[$key];
-            }
-        }
-        if ($app !== []) {
-            $input['app'] = $app;
-        }
-
-        return $input;
-    }
-
     /** @return array<string, mixed> */
     private function map(mixed $value): array
     {
@@ -241,6 +227,22 @@ final class ConfigLoader
         }
 
         return $map;
+    }
+
+    /** @param array<string, mixed> $input @return array<string, mixed> */
+    private function normalizeInput(array $input): array
+    {
+        $app = $this->map($input['app'] ?? null);
+        foreach (['base_path', 'env', 'debug'] as $key) {
+            if (array_key_exists($key, $input) && !array_key_exists($key, $app)) {
+                $app[$key] = $input[$key];
+            }
+        }
+        if ($app !== []) {
+            $input['app'] = $app;
+        }
+
+        return $input;
     }
 
     /** @param list<string> $namespaces */
@@ -267,11 +269,11 @@ final class ConfigLoader
         sort($namespaces);
         $this->removeStaleShards($directory, $namespaces);
 
-        (new LazyFileConfig(
+        new LazyFileConfig(
             directory: $directory,
             items: array_intersect_key($compiled, array_fill_keys($namespaces, true)),
             namespaceCacheDirectory: $directory,
-        ))->warmNamespaceCache($namespaces);
+        )->warmNamespaceCache($namespaces);
 
         // ArrayKit intentionally generates __flat.php here. Keep it: scalar/null leaf
         // lookups can use the flat index without loading an entire namespace shard.

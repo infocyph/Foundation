@@ -55,7 +55,7 @@ final readonly class ConfigCacheManager
         $compiled = $config->all();
         $compiled['providers'] = $this->compiledProviders(
             is_array($compiled['providers'] ?? null) ? $compiled['providers'] : [],
-            (new ProviderFileLoader($this->application->paths()))->groups(),
+            new ProviderFileLoader($this->application->paths())->groups(),
         );
 
         $staging = $directory . '.building.' . bin2hex(random_bytes(6));

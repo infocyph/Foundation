@@ -73,6 +73,7 @@ final readonly class ContainerCacheManager
         $config['_config_cache'] = false;
 
         $target = Application::create($config, $runtime);
+
         try {
             $target->container()->compileTo($this->artifactPath($runtime));
             $report = $target->container()->compilationReport();
@@ -154,6 +155,11 @@ final readonly class ContainerCacheManager
         ];
     }
 
+    private function absolute(string $path): bool
+    {
+        return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1;
+    }
+
     private function activationMode(): string
     {
         return strtolower(ValueNormalizer::string(
@@ -184,17 +190,13 @@ final readonly class ContainerCacheManager
         return str_replace('{runtime}', $runtime->value, $configured);
     }
 
-    private function absolute(string $path): bool
-    {
-        return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1;
-    }
-
     /** @return array{path:string,fingerprint:string,compiled:int}|null */
     private function manifestContainer(RuntimeMode $runtime): ?array
     {
         if (!is_file($this->manifestPath())) {
             return null;
         }
+
         try {
             $manifest = require $this->manifestPath();
         } catch (\Throwable) {

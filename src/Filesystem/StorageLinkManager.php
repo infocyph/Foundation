@@ -66,6 +66,7 @@ final readonly class StorageLinkManager
             if (realpath($link) !== $target) {
                 throw new \RuntimeException(sprintf('A different symbolic link already exists at "%s".', $link));
             }
+
             return ['link' => $link, 'target' => $target, 'created' => false];
         }
         if (file_exists($link)) {
@@ -76,6 +77,7 @@ final readonly class StorageLinkManager
         if (!symlink($target, $temporary)) {
             throw new \RuntimeException(sprintf('Unable to create symbolic link "%s".', $link));
         }
+
         try {
             if (!rename($temporary, $link)) {
                 throw new \RuntimeException(sprintf('Unable to activate symbolic link "%s".', $link));

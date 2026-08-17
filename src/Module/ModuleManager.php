@@ -94,6 +94,7 @@ final readonly class ModuleManager
             $target = $directory . DIRECTORY_SEPARATOR . $filename;
             if (is_file($target)) {
                 $existing[] = $target;
+
                 continue;
             }
 
@@ -106,7 +107,7 @@ final readonly class ModuleManager
         }
 
         if ($published !== []) {
-            (new ConfigCacheManager($this->application))->clear();
+            new ConfigCacheManager($this->application)->clear();
         }
 
         return ['published' => $published, 'existing' => $existing];

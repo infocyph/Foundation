@@ -6,13 +6,13 @@ namespace Infocyph\Foundation\Application;
 
 enum RuntimeMode: string
 {
-    case Web = 'web';
-
     case Cli = 'cli';
 
-    case Worker = 'worker';
-
     case Scheduler = 'scheduler';
+
+    case Web = 'web';
+
+    case Worker = 'worker';
 
     public function isPersistent(): bool
     {

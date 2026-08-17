@@ -33,7 +33,7 @@ final readonly class ReadinessReport
             ],
         ];
 
-        foreach ((new ModuleCatalog())->all() as $name => $module) {
+        foreach (new ModuleCatalog()->all() as $name => $module) {
             if (($module['built_in'] ?? false) === true || $module['package'] === null) {
                 continue;
             }

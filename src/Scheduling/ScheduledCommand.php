@@ -8,15 +8,24 @@ final class ScheduledCommand
 {
     /** @var list<string> */
     private array $arguments = [];
+
     private CronExpression $cron;
+
     private ?string $key = null;
-    private bool $onOneServer = false;
-    private bool $withoutOverlap = false;
-    private float $overlapLeaseSeconds = 300.0;
-    private float $overlapWaitSeconds = 0.0;
-    private ?float $timeoutSeconds = null;
+
     private ?int $memoryLimitMegabytes = null;
+
+    private bool $onOneServer = false;
+
+    private float $overlapLeaseSeconds = 300.0;
+
+    private float $overlapWaitSeconds = 0.0;
+
+    private ?float $timeoutSeconds = null;
+
     private \DateTimeZone $timezone;
+
+    private bool $withoutOverlap = false;
 
     public function __construct(private readonly string $command)
     {
@@ -27,6 +36,32 @@ final class ScheduledCommand
         $this->timezone = new \DateTimeZone(date_default_timezone_get());
     }
 
+    /** @param array<string, mixed> $data */
+    public static function fromManifest(array $data): self
+    {
+        $command = new self((string) ($data['command'] ?? ''));
+        $command->arguments(is_array($data['arguments'] ?? null) ? $data['arguments'] : []);
+        $command->cron((string) ($data['cron'] ?? '* * * * *'));
+        $command->timezone((string) ($data['timezone'] ?? date_default_timezone_get()));
+        if (is_string($data['key'] ?? null) && $data['key'] !== '') {
+            $command->key($data['key']);
+        }
+        if (($data['without_overlap'] ?? false) === true) {
+            $command->withoutOverlap(true, (float) ($data['overlap_lease_seconds'] ?? 300), (float) ($data['overlap_wait_seconds'] ?? 0));
+        }
+        if (($data['on_one_server'] ?? false) === true) {
+            $command->onOneServer(true, (float) ($data['overlap_lease_seconds'] ?? 300), (float) ($data['overlap_wait_seconds'] ?? 0));
+        }
+        if (is_numeric($data['timeout_seconds'] ?? null)) {
+            $command->timeout((float) $data['timeout_seconds']);
+        }
+        if (is_numeric($data['memory_limit_megabytes'] ?? null)) {
+            $command->memoryLimit((int) $data['memory_limit_megabytes']);
+        }
+
+        return $command;
+    }
+
     /** @param list<string> $arguments */
     public function arguments(array $arguments): self
     {
@@ -34,21 +69,35 @@ final class ScheduledCommand
             throw new \InvalidArgumentException('Scheduled command arguments must be non-empty strings.');
         }
         $this->arguments = $arguments;
+
         return $this;
     }
 
-    public function command(): string { return $this->command; }
+    public function command(): string
+    {
+        return $this->command;
+    }
+
     /** @return list<string> */
-    public function commandArguments(): array { return $this->arguments; }
-    public function cron(string $expression): self { $this->cron = new CronExpression($expression); return $this; }
-    public function everyMinute(): self { return $this->cron('* * * * *'); }
-    public function hourly(): self { return $this->cron('0 * * * *'); }
+    public function commandArguments(): array
+    {
+        return $this->arguments;
+    }
+
+    public function cron(string $expression): self
+    {
+        $this->cron = new CronExpression($expression);
+
+        return $this;
+    }
+
     public function dailyAt(string $time): self
     {
         if (preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $time) !== 1) {
             throw new \InvalidArgumentException('Daily schedule times must use HH:MM format.');
         }
         [$hour, $minute] = explode(':', $time);
+
         return $this->cron((int) $minute . ' ' . (int) $hour . ' * * *');
     }
 
@@ -57,13 +106,14 @@ final class ScheduledCommand
         return $this->cron->matches(new \DateTimeImmutable('@' . $now->getTimestamp())->setTimezone($this->timezone));
     }
 
-    public function key(string $key): self
+    public function everyMinute(): self
     {
-        if ($key === '' || strlen($key) > 128 || preg_match('/^[A-Za-z0-9._:-]+$/D', $key) !== 1) {
-            throw new \InvalidArgumentException('Schedule keys must be safe identifiers of at most 128 bytes.');
-        }
-        $this->key = $key;
-        return $this;
+        return $this->cron('* * * * *');
+    }
+
+    public function hourly(): self
+    {
+        return $this->cron('0 * * * *');
     }
 
     public function identity(): string
@@ -76,30 +126,13 @@ final class ScheduledCommand
         ], JSON_THROW_ON_ERROR));
     }
 
-    public function withoutOverlap(bool $enabled = true, float $leaseSeconds = 300.0, float $waitSeconds = 0.0): self
+    public function key(string $key): self
     {
-        $this->assertLockTiming($leaseSeconds, $waitSeconds);
-        $this->withoutOverlap = $enabled;
-        $this->overlapLeaseSeconds = $leaseSeconds;
-        $this->overlapWaitSeconds = $waitSeconds;
-        return $this;
-    }
-
-    public function onOneServer(bool $enabled = true, float $leaseSeconds = 300.0, float $waitSeconds = 0.0): self
-    {
-        $this->assertLockTiming($leaseSeconds, $waitSeconds);
-        $this->onOneServer = $enabled;
-        $this->overlapLeaseSeconds = $leaseSeconds;
-        $this->overlapWaitSeconds = $waitSeconds;
-        return $this;
-    }
-
-    public function timeout(float $seconds): self
-    {
-        if (!is_finite($seconds) || $seconds <= 0) {
-            throw new \InvalidArgumentException('Schedule timeout must be positive.');
+        if ($key === '' || strlen($key) > 128 || preg_match('/^[A-Za-z0-9._:-]+$/D', $key) !== 1) {
+            throw new \InvalidArgumentException('Schedule keys must be safe identifiers of at most 128 bytes.');
         }
-        $this->timeoutSeconds = $seconds;
+        $this->key = $key;
+
         return $this;
     }
 
@@ -109,21 +142,66 @@ final class ScheduledCommand
             throw new \InvalidArgumentException('Schedule memory limit must be positive.');
         }
         $this->memoryLimitMegabytes = $megabytes;
+
         return $this;
+    }
+
+    public function memoryLimitMegabytes(): ?int
+    {
+        return $this->memoryLimitMegabytes;
+    }
+
+    public function onOneServer(bool $enabled = true, float $leaseSeconds = 300.0, float $waitSeconds = 0.0): self
+    {
+        $this->assertLockTiming($leaseSeconds, $waitSeconds);
+        $this->onOneServer = $enabled;
+        $this->overlapLeaseSeconds = $leaseSeconds;
+        $this->overlapWaitSeconds = $waitSeconds;
+
+        return $this;
+    }
+
+    public function overlapLeaseSeconds(): float
+    {
+        return $this->overlapLeaseSeconds;
+    }
+
+    public function overlapWaitSeconds(): float
+    {
+        return $this->overlapWaitSeconds;
+    }
+
+    public function preventsOverlap(): bool
+    {
+        return $this->withoutOverlap;
+    }
+
+    public function requiresSingleServer(): bool
+    {
+        return $this->onOneServer;
+    }
+
+    public function timeout(float $seconds): self
+    {
+        if (!is_finite($seconds) || $seconds <= 0) {
+            throw new \InvalidArgumentException('Schedule timeout must be positive.');
+        }
+        $this->timeoutSeconds = $seconds;
+
+        return $this;
+    }
+
+    public function timeoutSeconds(): ?float
+    {
+        return $this->timeoutSeconds;
     }
 
     public function timezone(string|\DateTimeZone $timezone): self
     {
         $this->timezone = is_string($timezone) ? new \DateTimeZone($timezone) : $timezone;
+
         return $this;
     }
-
-    public function preventsOverlap(): bool { return $this->withoutOverlap; }
-    public function requiresSingleServer(): bool { return $this->onOneServer; }
-    public function overlapLeaseSeconds(): float { return $this->overlapLeaseSeconds; }
-    public function overlapWaitSeconds(): float { return $this->overlapWaitSeconds; }
-    public function timeoutSeconds(): ?float { return $this->timeoutSeconds; }
-    public function memoryLimitMegabytes(): ?int { return $this->memoryLimitMegabytes; }
 
     /** @return array<string, mixed> */
     public function toManifest(): array
@@ -143,23 +221,14 @@ final class ScheduledCommand
         ];
     }
 
-    /** @param array<string, mixed> $data */
-    public static function fromManifest(array $data): self
+    public function withoutOverlap(bool $enabled = true, float $leaseSeconds = 300.0, float $waitSeconds = 0.0): self
     {
-        $command = new self((string) ($data['command'] ?? ''));
-        $command->arguments(is_array($data['arguments'] ?? null) ? $data['arguments'] : []);
-        $command->cron((string) ($data['cron'] ?? '* * * * *'));
-        $command->timezone((string) ($data['timezone'] ?? date_default_timezone_get()));
-        if (is_string($data['key'] ?? null) && $data['key'] !== '') { $command->key($data['key']); }
-        if (($data['without_overlap'] ?? false) === true) {
-            $command->withoutOverlap(true, (float) ($data['overlap_lease_seconds'] ?? 300), (float) ($data['overlap_wait_seconds'] ?? 0));
-        }
-        if (($data['on_one_server'] ?? false) === true) {
-            $command->onOneServer(true, (float) ($data['overlap_lease_seconds'] ?? 300), (float) ($data['overlap_wait_seconds'] ?? 0));
-        }
-        if (is_numeric($data['timeout_seconds'] ?? null)) { $command->timeout((float) $data['timeout_seconds']); }
-        if (is_numeric($data['memory_limit_megabytes'] ?? null)) { $command->memoryLimit((int) $data['memory_limit_megabytes']); }
-        return $command;
+        $this->assertLockTiming($leaseSeconds, $waitSeconds);
+        $this->withoutOverlap = $enabled;
+        $this->overlapLeaseSeconds = $leaseSeconds;
+        $this->overlapWaitSeconds = $waitSeconds;
+
+        return $this;
     }
 
     private function assertLockTiming(float $leaseSeconds, float $waitSeconds): void

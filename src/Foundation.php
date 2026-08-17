@@ -11,27 +11,9 @@ use Infocyph\Foundation\Config\FoundationPreset;
 final class Foundation
 {
     /** @param array<string, mixed> $config */
-    public static function web(array $config = []): Application
-    {
-        return self::createFor(RuntimeMode::Web, $config);
-    }
-
-    /** @param array<string, mixed> $config */
     public static function cli(array $config = []): Application
     {
         return self::createFor(RuntimeMode::Cli, $config);
-    }
-
-    /** @param array<string, mixed> $config */
-    public static function worker(array $config = []): Application
-    {
-        return self::createFor(RuntimeMode::Worker, $config);
-    }
-
-    /** @param array<string, mixed> $config */
-    public static function scheduler(array $config = []): Application
-    {
-        return self::createFor(RuntimeMode::Scheduler, $config);
     }
 
     /**
@@ -44,6 +26,24 @@ final class Foundation
         $config['_preset'] = $preset->config();
 
         return self::createFor($runtime, $config);
+    }
+
+    /** @param array<string, mixed> $config */
+    public static function scheduler(array $config = []): Application
+    {
+        return self::createFor(RuntimeMode::Scheduler, $config);
+    }
+
+    /** @param array<string, mixed> $config */
+    public static function web(array $config = []): Application
+    {
+        return self::createFor(RuntimeMode::Web, $config);
+    }
+
+    /** @param array<string, mixed> $config */
+    public static function worker(array $config = []): Application
+    {
+        return self::createFor(RuntimeMode::Worker, $config);
     }
 
     /** @param array<string, mixed> $config */

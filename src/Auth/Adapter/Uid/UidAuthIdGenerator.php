@@ -15,7 +15,7 @@ final readonly class UidAuthIdGenerator implements AuthIdGeneratorInterface
     use GeneratesAuthIds;
 
     public function __construct(
-        private readonly ?IdentifierManager $ids = null,
+        private ?IdentifierManager $ids = null,
     ) {}
 
     protected function generate(string $key): string

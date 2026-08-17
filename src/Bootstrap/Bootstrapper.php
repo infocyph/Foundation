@@ -224,7 +224,7 @@ final class Bootstrapper
         }
 
         $providers = [];
-        foreach ((new ProviderFileLoader($app->make(PathManager::class)))->providers($app->runtimeMode()) as $provider) {
+        foreach (new ProviderFileLoader($app->make(PathManager::class))->providers($app->runtimeMode()) as $provider) {
             $instance = $this->instantiateProvider($provider);
             $providers[$instance::class] = $instance;
         }

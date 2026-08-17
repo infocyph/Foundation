@@ -22,6 +22,7 @@ final readonly class CommandCacheManager
         if (!unlink($path)) {
             throw new \RuntimeException(sprintf('Unable to remove command cache "%s".', $path));
         }
+
         return true;
     }
 
@@ -46,13 +47,16 @@ final readonly class CommandCacheManager
         if ($temporary === false) {
             throw new \RuntimeException('Unable to create command cache staging file.');
         }
+
         try {
             $contents = "<?php\n\ndeclare(strict_types=1);\n\nreturn " . var_export($payload, true) . ";\n";
             if (file_put_contents($temporary, $contents, LOCK_EX) === false || !rename($temporary, $path)) {
                 throw new \RuntimeException(sprintf('Unable to publish command cache "%s".', $path));
             }
         } finally {
-            if (is_file($temporary)) { unlink($temporary); }
+            if (is_file($temporary)) {
+                unlink($temporary);
+            }
         }
 
         return $path;

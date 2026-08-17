@@ -48,9 +48,9 @@ final readonly class DatabaseManager
         DBLayer::beginTransaction($this->ensureRegistered($name));
     }
 
-    public function cache(?CacheInterface $cache = null): CacheInterface
+    public function cache(): CacheInterface
     {
-        return DBLayer::cache($cache);
+        return DBLayer::cache();
     }
 
     public function capabilities(?string $name = null): Capabilities

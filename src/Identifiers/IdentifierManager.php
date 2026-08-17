@@ -180,7 +180,7 @@ final readonly class IdentifierManager
         };
     }
 
-    public function randflake(?RandflakeConfig $config = null): int|string
+    public function randflake(?RandflakeConfig $config = null): string
     {
         return Id::randflake($config ?? $this->randflakeConfig());
     }
@@ -211,12 +211,12 @@ final readonly class IdentifierManager
         };
     }
 
-    public function snowflake(?SnowflakeConfig $config = null): int|string
+    public function snowflake(?SnowflakeConfig $config = null): string
     {
         return Id::snowflake($config ?? $this->snowflakeConfig());
     }
 
-    public function sonyflake(?SonyflakeConfig $config = null): int|string
+    public function sonyflake(?SonyflakeConfig $config = null): string
     {
         return Id::sonyflake($config ?? $this->sonyflakeConfig());
     }
@@ -230,7 +230,7 @@ final readonly class IdentifierManager
         return IdComparator::sort($ids);
     }
 
-    public function tbsl(?TBSLConfig $config = null): int|string
+    public function tbsl(?TBSLConfig $config = null): string
     {
         return Id::tbsl($config ?? $this->tbslConfig());
     }
@@ -243,9 +243,9 @@ final readonly class IdentifierManager
         );
     }
 
-    public function uuid(?DateTimeInterface $dateTime = null, ?string $node = null): string
+    public function uuid(?DateTimeInterface $dateTime = null): string
     {
-        return Id::uuid($dateTime, $node);
+        return Id::uuid($dateTime);
     }
 
     public function uuid1(?string $node = null): string
@@ -273,9 +273,9 @@ final readonly class IdentifierManager
         return Id::uuid6($node);
     }
 
-    public function uuid7(?DateTimeInterface $dateTime = null, ?string $node = null): string
+    public function uuid7(?DateTimeInterface $dateTime = null): string
     {
-        return Id::uuid7($dateTime, $node);
+        return Id::uuid7($dateTime);
     }
 
     public function uuid8(?string $node = null): string

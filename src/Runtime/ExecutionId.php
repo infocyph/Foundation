@@ -13,13 +13,13 @@ final readonly class ExecutionId implements \Stringable
         }
     }
 
-    public static function generate(): self
-    {
-        return new self(bin2hex(random_bytes(16)));
-    }
-
     public function __toString(): string
     {
         return $this->value;
+    }
+
+    public static function generate(): self
+    {
+        return new self(bin2hex(random_bytes(16)));
     }
 }

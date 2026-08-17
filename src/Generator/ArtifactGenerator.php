@@ -65,6 +65,7 @@ final readonly class ArtifactGenerator
         if ($required === null || class_exists($required) || interface_exists($required)) {
             return;
         }
+
         throw new \LogicException(sprintf(
             'Creating a %s requires its optional module; run "%s".',
             $artifact,
@@ -76,6 +77,7 @@ final readonly class ArtifactGenerator
     private function commandName(string $class, array $parents): string
     {
         $class = preg_replace('/Command$/', '', $class) ?? $class;
+
         return implode(':', array_map(
             static fn(string $segment): string => strtolower(preg_replace('/(?<!^)[A-Z]/', '-$0', $segment) ?? $segment),
             [...$parents, $class],
@@ -85,6 +87,7 @@ final readonly class ArtifactGenerator
     private function description(string $class): string
     {
         $name = preg_replace('/(?<!^)[A-Z]/', ' $0', preg_replace('/Test$/', '', $class) ?? $class);
+
         return strtolower($name ?? $class);
     }
 
@@ -92,6 +95,7 @@ final readonly class ArtifactGenerator
     {
         $name = preg_replace('/Migration$/', '', $class) ?? $class;
         $name = strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $name) ?? $name);
+
         return gmdate('YmdHis') . '_' . $name;
     }
 
@@ -140,12 +144,18 @@ final readonly class ArtifactGenerator
             if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$/D', $configured) !== 1) {
                 throw new \InvalidArgumentException('Repository tables must be valid identifiers.');
             }
+
             return $configured;
         }
         $name = preg_replace('/Repository$/', '', $class) ?? $class;
         $name = strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $name) ?? $name);
-        if (preg_match('/[^aeiou]y$/', $name) === 1) { return substr($name, 0, -1) . 'ies'; }
-        if (preg_match('/(?:s|x|z|ch|sh)$/', $name) === 1) { return $name . 'es'; }
+        if (preg_match('/[^aeiou]y$/', $name) === 1) {
+            return substr($name, 0, -1) . 'ies';
+        }
+        if (preg_match('/(?:s|x|z|ch|sh)$/', $name) === 1) {
+            return $name . 'es';
+        }
+
         return $name . 's';
     }
 
@@ -168,12 +178,15 @@ final readonly class ArtifactGenerator
         if (file_put_contents($temporary, $contents, LOCK_EX) === false) {
             throw new \RuntimeException(sprintf('Unable to write temporary artifact "%s".', $temporary));
         }
+
         try {
             if (!rename($temporary, $path)) {
                 throw new \RuntimeException(sprintf('Unable to activate generated artifact "%s".', $path));
             }
         } finally {
-            if (is_file($temporary)) { unlink($temporary); }
+            if (is_file($temporary)) {
+                unlink($temporary);
+            }
         }
     }
 }

@@ -501,7 +501,7 @@ final readonly class SecurityManager extends AbstractContainerManager
 
     public function unwrapSecret(string $wrappedSecret, string $masterSecret, bool $masterSecretIsBinary = false): string
     {
-        return $this->wrappedSecrets()->unwrap($wrappedSecret, $masterSecret, $masterSecretIsBinary);
+        return $this->wrappedSecrets()->unwrap($wrappedSecret, $masterSecret);
     }
 
     public function unwrapSecretWithKeyRing(
@@ -512,7 +512,6 @@ final readonly class SecurityManager extends AbstractContainerManager
         return $this->wrappedSecrets()->unwrapWithKeyRing(
             $wrappedSecret,
             $this->resolveKeyRing($keyRing),
-            $masterSecretsAreBinary,
         );
     }
 
@@ -540,7 +539,7 @@ final readonly class SecurityManager extends AbstractContainerManager
         bool $masterSecretIsBinary = false,
         ?string $keyId = null,
     ): string {
-        return $this->wrappedSecrets()->wrap($secret, $masterSecret, $masterSecretIsBinary, $keyId);
+        return $this->wrappedSecrets()->wrap($secret, $masterSecret, $masterSecretIsBinary);
     }
 
     public function wrapSecretWithKeyRing(string $secret, KeyRing|string $keyRing, bool $masterSecretIsBinary = false): string
@@ -548,7 +547,6 @@ final readonly class SecurityManager extends AbstractContainerManager
         return $this->wrappedSecrets()->wrapWithKeyRing(
             $secret,
             $this->resolveKeyRing($keyRing),
-            $masterSecretIsBinary,
         );
     }
 

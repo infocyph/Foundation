@@ -30,6 +30,7 @@ final readonly class ParsedInput
             $token = $tokens[$index];
             if ($token === '--') {
                 $arguments = [...$arguments, ...array_slice($tokens, $index + 1)];
+
                 break;
             }
             if (str_starts_with($token, '--')) {
@@ -40,6 +41,7 @@ final readonly class ParsedInput
                 if (str_contains($body, '=')) {
                     [$name, $value] = explode('=', $body, 2);
                     self::addOption($options, $name, $value);
+
                     continue;
                 }
 
@@ -50,10 +52,12 @@ final readonly class ParsedInput
                 } else {
                     self::addOption($options, $body, true);
                 }
+
                 continue;
             }
             if ($command === '' && !str_starts_with($token, '-')) {
                 $command = $token;
+
                 continue;
             }
             $arguments[] = $token;
@@ -82,6 +86,7 @@ final readonly class ParsedInput
         }
         if (is_array($value)) {
             $last = end($value);
+
             return is_string($last) ? $last : $default;
         }
 
@@ -96,6 +101,7 @@ final readonly class ParsedInput
         }
         if (!array_key_exists($name, $options)) {
             $options[$name] = $value;
+
             return;
         }
 

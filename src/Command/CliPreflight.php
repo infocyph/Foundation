@@ -21,11 +21,13 @@ final readonly class CliPreflight
         $input = ParsedInput::fromArgv($argv);
         if ($input->flag('version') || in_array('-V', $input->raw, true)) {
             $io->writeln('Foundation ' . $this->version());
+
             return 0;
         }
 
         if ($input->command === '' || $input->command === 'list') {
             $this->renderList($io);
+
             return 0;
         }
 
@@ -34,6 +36,7 @@ final readonly class CliPreflight
             $definition = $name === null ? null : $this->catalog->find($name);
             if ($definition === null) {
                 $this->renderList($io);
+
                 return $name === null ? 0 : 1;
             }
             $io->writeln($definition->name . ' - ' . $definition->description);
@@ -41,6 +44,7 @@ final readonly class CliPreflight
             if ($definition->capabilities !== []) {
                 $io->writeln('Capabilities: ' . implode(', ', $definition->capabilities));
             }
+
             return 0;
         }
 
@@ -48,6 +52,7 @@ final readonly class CliPreflight
             foreach (array_keys($this->catalog->all()) as $name) {
                 $io->writeln($name);
             }
+
             return 0;
         }
 

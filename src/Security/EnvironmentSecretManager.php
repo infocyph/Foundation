@@ -92,6 +92,7 @@ final readonly class EnvironmentSecretManager
             if (!is_string($updated) || $replacements !== 1) {
                 throw new \RuntimeException('Unable to replace the authentication token secret.');
             }
+
             return $updated;
         }
 
