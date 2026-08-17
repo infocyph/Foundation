@@ -25,7 +25,7 @@ final readonly class AuthNotificationRegistrar extends AbstractAuthRegistrar
             ));
 
             $this->singleton(AuthNotifierInterface::class, fn() => new TalkingBytesAuthNotifier(
-                emailer: $this->app->notifications()->emailer(),
+                emailer: $this->app->make(Emailer::class),
                 mapper: $this->app->make(AuthNotificationMapper::class),
                 accounts: $this->app->make(AccountProviderInterface::class),
                 criticalTypes: $this->criticalTypes(),
