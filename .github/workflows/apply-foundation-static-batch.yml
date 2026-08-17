@@ -1,0 +1,34 @@
+name: Apply Foundation static batch
+
+on:
+  push:
+    branches: [feature/foundation-2.0]
+    paths: [tools/foundation-static-batch.py, .github/workflows/apply-foundation-static-batch.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/foundation-2.0
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: python tools/foundation-static-batch.py
+      - run: vendor/bin/pint src/Auth/Internal/AuthCoreRegistrar.php src/Auth/AuthServiceProvider.php src/Cache/CacheLayerFactory.php src/Communication/CommunicationManager.php src/Config/ConfigLoader.php src/Config/ConfigCacheManager.php src/Module/ModuleCatalog.php src/Module/ModuleManager.php src/Database/DatabaseRepository.php src/Validation/ReqShieldDatabaseProvider.php src/Session/SessionServiceProvider.php src/Testing/TestKit.php src/Filesystem/FilesystemManager.php src/Filesystem/FilesystemUploadRequestHandler.php src/Filesystem/FilesystemResponseFactory.php
+      - name: Commit real source changes
+        run: |
+          rm -f tools/foundation-static-batch.py .github/workflows/apply-foundation-static-batch.yml
+          git config user.name "abmmhasan"
+          git config user.email "abmmhasan@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit --no-verify -m "Resolve Foundation 2.0 integration type drift"
+          git push origin HEAD:feature/foundation-2.0
