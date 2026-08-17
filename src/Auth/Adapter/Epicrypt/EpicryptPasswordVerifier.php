@@ -10,17 +10,13 @@ use Infocyph\Foundation\Auth\Contract\Security\PasswordVerifierInterface;
 
 final readonly class EpicryptPasswordVerifier implements PasswordVerifierInterface
 {
-    /**
-     * @param array<string, mixed> $options
-     */
     public function __construct(
         private PasswordHasher $hasher,
-        private array $options = [],
     ) {}
 
     public function verify(string $plainPassword, string $storedHash): PasswordVerificationResult
     {
-        $result = $this->hasher->verifyAndRehash($plainPassword, $storedHash, $this->options);
+        $result = $this->hasher->verifyAndRehash($plainPassword, $storedHash);
 
         return new PasswordVerificationResult(
             verified: $result->verified,
