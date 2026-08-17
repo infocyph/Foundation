@@ -119,10 +119,9 @@ final readonly class FilesystemResponseFactory
         );
     }
 
-    /**
     private function freshRangeHeader(Request $request, DownloadPreparation $manifest): ?string
     {
-        if (!$this->isGetOrHead($request)) {
+        if (! $this->isGetOrHead($request)) {
             return null;
         }
 

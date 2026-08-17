@@ -107,6 +107,6 @@ final class CommandCatalog
 
     public function runtimeFor(string $name): RuntimeMode
     {
-        return $this->find($name)?->runtime ?? RuntimeMode::Cli;
+        return $this->find($name)->runtime ?? RuntimeMode::Cli;
     }
 }

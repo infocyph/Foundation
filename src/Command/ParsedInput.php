@@ -7,9 +7,9 @@ namespace Infocyph\Foundation\Command;
 final readonly class ParsedInput
 {
     /**
-     * @param list<string> $arguments
-     * @param array<string, string|bool|list<string>> $options
-     * @param list<string> $raw
+     * @param  list<string>  $arguments
+     * @param  array<string, string|bool|list<string>>  $options
+     * @param  list<string>  $raw
      */
     public function __construct(
         public string $command,
@@ -21,7 +21,7 @@ final readonly class ParsedInput
     /** @param list<string> $argv */
     public static function fromArgv(array $argv): self
     {
-        $tokens = array_values(array_slice($argv, 1));
+        $tokens = array_slice($argv, 1);
         $command = '';
         $arguments = [];
         $options = [];
@@ -55,7 +55,7 @@ final readonly class ParsedInput
 
                 continue;
             }
-            if ($command === '' && !str_starts_with($token, '-')) {
+            if ($command === '' && ! str_starts_with($token, '-')) {
                 $command = $token;
 
                 continue;
@@ -99,7 +99,7 @@ final readonly class ParsedInput
         if ($name === '') {
             return;
         }
-        if (!array_key_exists($name, $options)) {
+        if (! array_key_exists($name, $options)) {
             $options[$name] = $value;
 
             return;

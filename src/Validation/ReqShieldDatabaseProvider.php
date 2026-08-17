@@ -27,16 +27,14 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
         $grouped = [];
 
         foreach ($checks as $key => $check) {
-            $column = is_array($check) ? $this->stringValue($check['column'] ?? null) : $this->stringValue($key);
+            $column = $this->stringValue($check['column'] ?? null);
             if ($column === '') {
                 continue;
             }
 
-            $value = is_array($check) ? ($check['value'] ?? null) : $check;
+            $value = $check['value'] ?? null;
             $grouped[$column][] = [
-                'identifier' => is_array($check)
-                    ? $this->identifier($check['field'] ?? $value, $key)
-                    : $this->identifier($value, $key),
+                'identifier' => $this->identifier($check['field'] ?? $value, $key),
                 'value' => $value,
             ];
         }

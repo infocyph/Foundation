@@ -7,7 +7,6 @@ namespace Infocyph\Foundation\Identifiers;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Config\ConfigRepository;
-use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 
 final class IdentifierServiceProvider extends ServiceProvider
@@ -18,22 +17,16 @@ final class IdentifierServiceProvider extends ServiceProvider
 
         $this->bindFactory($container, IdentifierManager::class, function () use ($container): IdentifierManager {
             $config = $container->get(ConfigRepository::class);
-            $paths = $container->get(PathManager::class);
-
-            if (!$config instanceof ConfigRepository) {
+            if (! $config instanceof ConfigRepository) {
                 throw new \RuntimeException('Identifier config service must resolve to ConfigRepository.');
             }
 
-            if (!$paths instanceof PathManager) {
-                throw new \RuntimeException('Identifier paths service must resolve to PathManager.');
-            }
-
-            return new IdentifierManager($config, $paths);
+            return new IdentifierManager($config);
         }, LifetimeEnum::Singleton);
 
         $this->bindFactory($container, 'foundation.ids', function () use ($container): IdentifierManager {
             $manager = $container->get(IdentifierManager::class);
-            if (!$manager instanceof IdentifierManager) {
+            if (! $manager instanceof IdentifierManager) {
                 throw new \RuntimeException('Foundation ids service must resolve to IdentifierManager.');
             }
 
@@ -42,7 +35,7 @@ final class IdentifierServiceProvider extends ServiceProvider
 
         $this->bindFactory($container, 'foundation.uid', function () use ($container): IdentifierManager {
             $manager = $container->get(IdentifierManager::class);
-            if (!$manager instanceof IdentifierManager) {
+            if (! $manager instanceof IdentifierManager) {
                 throw new \RuntimeException('Foundation uid service must resolve to IdentifierManager.');
             }
 

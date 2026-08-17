@@ -59,7 +59,7 @@ final readonly class ModuleManager
         }
 
         $requirement = $package.':'.$constraint;
-        $command = ['composer', 'require', $requirement, '--with-all-dependencies'];
+        $command = ['composer', 'require', $requirement, '--with-all-dependencies', '--update-no-dev'];
         if ($dryRun) {
             $command[] = '--dry-run';
         }
@@ -74,8 +74,8 @@ final readonly class ModuleManager
     public function publishConfig(string $module): array
     {
         $definition = $this->catalog->resolve($module);
-        $configured = $definition['config'] ?? [];
-        if (! is_array($configured) || $configured === []) {
+        $configured = $definition['config'];
+        if ($configured === []) {
             return ['published' => [], 'existing' => []];
         }
 
@@ -87,7 +87,7 @@ final readonly class ModuleManager
         $published = [];
         $existing = [];
         foreach ($configured as $filename) {
-            if (! is_string($filename) || $filename === '' || basename($filename) !== $filename) {
+            if ($filename === '' || basename($filename) !== $filename) {
                 continue;
             }
 
@@ -125,7 +125,7 @@ final readonly class ModuleManager
             throw new \LogicException(sprintf('Module "%s" has no removable package.', $module));
         }
 
-        $command = ['composer', 'remove', $package, '--with-all-dependencies'];
+        $command = ['composer', 'remove', $package, '--with-all-dependencies', '--update-no-dev'];
         if ($dryRun) {
             $command[] = '--dry-run';
         }
