@@ -14,7 +14,6 @@ final class ContainerFactory
     public function create(ConfigRepository $config): Container
     {
         $container = new Container($this->alias($config) ?? $this->defaultAlias());
-
         $this->configure($container, $config);
 
         return $container;
@@ -35,17 +34,17 @@ final class ContainerFactory
             $options->setEnvironment($environment);
         }
 
-        if (ValueNormalizer::bool($config->get('app.container.lazy_loading'), false)) {
+        // Foundation 2.0 is singleton-first and lazy by default. Eager loading is an
+        // explicit opt-in because unused runtime/capability graphs must stay cold.
+        if (!ValueNormalizer::bool($config->get('app.container.eager_loading'), false)) {
             $options->enableLazyLoading();
         }
 
-        $traceEnabled = ValueNormalizer::bool($config->get('app.container.debug_tracing.enabled'), false);
-        if ($traceEnabled) {
+        if (ValueNormalizer::bool($config->get('app.container.debug_tracing.enabled'), false)) {
             $options->enableDebugTracing(true, $this->traceLevel(
                 ValueNormalizer::string($config->get('app.container.debug_tracing.level'), 'node'),
             ));
         }
-
     }
 
     private function defaultAlias(): string
