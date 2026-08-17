@@ -6,28 +6,28 @@ namespace Infocyph\Foundation\Communication;
 
 use Infocyph\Foundation\Support\AbstractContainerManager;
 use Infocyph\Foundation\Support\ValueNormalizer;
-use Infocyph\TalkingBytes\Core\Contract\MiddlewareInterface;
-use Infocyph\TalkingBytes\Core\Contract\TransportInterface;
 use Infocyph\TalkingBytes\Core\Event\CommunicationEventBus;
 use Infocyph\TalkingBytes\Core\Event\EventDispatcher;
-use Infocyph\TalkingBytes\Core\Pipeline\MiddlewarePipeline;
 use Infocyph\TalkingBytes\Grpc\GrpcClient;
-use Infocyph\TalkingBytes\Grpc\GrpcServer;
+use Infocyph\TalkingBytes\Grpc\GrpcInboundDispatcher;
 use Infocyph\TalkingBytes\Grpc\Native\GeneratedStubGrpcInvoker;
 use Infocyph\TalkingBytes\Grpc\Native\NativeGrpcInvoker;
 use Infocyph\TalkingBytes\Grpc\Native\NativeGrpcStreamingInvoker;
 use Infocyph\TalkingBytes\Grpc\Retry\GrpcRetryPolicy;
 use Infocyph\TalkingBytes\Http\Concurrent\RequestPool;
+use Infocyph\TalkingBytes\Http\Contract\HttpMiddleware;
+use Infocyph\TalkingBytes\Http\Contract\HttpTransport;
 use Infocyph\TalkingBytes\Http\Cookie\CookieJar;
 use Infocyph\TalkingBytes\Http\HttpClient;
 use Infocyph\TalkingBytes\Http\HttpClientConfig;
+use Infocyph\TalkingBytes\Http\HttpPipeline;
 use Infocyph\TalkingBytes\Http\Retry\HttpRetryPolicy;
+use Infocyph\TalkingBytes\Http\Signing\HmacSha256Signer;
+use Infocyph\TalkingBytes\Http\Signing\RequestSigner;
+use Infocyph\TalkingBytes\Http\Signing\SignatureVerifier;
 use Infocyph\TalkingBytes\Http\Testing\FakeHttpTransport;
 use Infocyph\TalkingBytes\Resilience\CircuitBreaker;
 use Infocyph\TalkingBytes\Resilience\RateLimiter;
-use Infocyph\TalkingBytes\Signing\HmacSha256Signer;
-use Infocyph\TalkingBytes\Signing\RequestSignerInterface;
-use Infocyph\TalkingBytes\Signing\SignatureVerifier;
 use Infocyph\TalkingBytes\Webhook\Contracts\WebhookReplayStore;
 use Infocyph\TalkingBytes\Webhook\Testing\FakeWebhookSender;
 use Infocyph\TalkingBytes\Webhook\Webhook;
@@ -71,6 +71,14 @@ final readonly class CommunicationManager extends AbstractContainerManager
         return $this->grpcNativeClient($invoker, $invoker, $profile);
     }
 
+    /**
+     * @param array<string, callable(\Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundRequest):\Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundResponse> $handlers
+     */
+    public function grpcInboundDispatcher(array $handlers = []): GrpcInboundDispatcher
+    {
+        return new GrpcInboundDispatcher($handlers);
+    }
+
     public function grpcNativeClient(
         NativeGrpcInvoker $invoker,
         ?NativeGrpcStreamingInvoker $streamingInvoker = null,
@@ -81,14 +89,6 @@ final readonly class CommunicationManager extends AbstractContainerManager
             : GrpcClient::usingNative($invoker);
 
         return $this->applyGrpcProfile($client, $profile);
-    }
-
-    /**
-     * @param array<string, callable(\Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundRequest):\Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundResponse> $handlers
-     */
-    public function grpcServer(array $handlers = []): GrpcServer
-    {
-        return new GrpcServer($handlers);
     }
 
     public function hmacSigner(string $secret): HmacSha256Signer
@@ -109,18 +109,18 @@ final readonly class CommunicationManager extends AbstractContainerManager
         return HttpClientConfig::fromArray($this->httpProfileConfig($profile));
     }
 
+    /** @param list<HttpMiddleware> $middlewares */
+    public function httpPipeline(HttpTransport $transport, array $middlewares = []): HttpPipeline
+    {
+        return new HttpPipeline($transport, $middlewares);
+    }
+
     public function httpPool(int $maxConcurrency = 10): RequestPool
     {
         return HttpClient::multi($maxConcurrency);
     }
 
-    /** @param list<MiddlewareInterface> $middlewares */
-    public function pipeline(TransportInterface $transport, array $middlewares = []): MiddlewarePipeline
-    {
-        return new MiddlewarePipeline($transport, $middlewares);
-    }
-
-    public function signatureVerifier(RequestSignerInterface $signer): SignatureVerifier
+    public function signatureVerifier(RequestSigner $signer): SignatureVerifier
     {
         return new SignatureVerifier($signer);
     }
@@ -215,9 +215,7 @@ final readonly class CommunicationManager extends AbstractContainerManager
         ));
     }
 
-    /**
-     * @param array<string, mixed> $config
-     */
+    /** @param array<string, mixed> $config */
     private function applyHttpAuth(HttpClient $client, array $config): HttpClient
     {
         $auth = $this->arrayValue($config, 'auth');
@@ -240,9 +238,7 @@ final readonly class CommunicationManager extends AbstractContainerManager
         };
     }
 
-    /**
-     * @param array<string, mixed> $config
-     */
+    /** @param array<string, mixed> $config */
     private function applyHttpCircuitBreaker(HttpClient $client, array $config): HttpClient
     {
         $circuitBreaker = $this->arrayValue($config, 'circuit_breaker');
@@ -256,9 +252,7 @@ final readonly class CommunicationManager extends AbstractContainerManager
         ));
     }
 
-    /**
-     * @param array<string, mixed> $config
-     */
+    /** @param array<string, mixed> $config */
     private function applyHttpCookies(HttpClient $client, array $config): HttpClient
     {
         $cookies = $this->arrayValue($config, 'cookies');
@@ -268,9 +262,7 @@ final readonly class CommunicationManager extends AbstractContainerManager
             : $client;
     }
 
-    /**
-     * @param array<string, mixed> $config
-     */
+    /** @param array<string, mixed> $config */
     private function applyHttpDecorators(HttpClient $client, array $config): HttpClient
     {
         $client = $this->applyHttpAuth($client, $config);
@@ -282,9 +274,7 @@ final readonly class CommunicationManager extends AbstractContainerManager
         return $this->applyHttpIdempotency($client, $config);
     }
 
-    /**
-     * @param array<string, mixed> $config
-     */
+    /** @param array<string, mixed> $config */
     private function applyHttpIdempotency(HttpClient $client, array $config): HttpClient
     {
         $idempotency = $this->arrayValue($config, 'idempotency');
@@ -297,9 +287,7 @@ final readonly class CommunicationManager extends AbstractContainerManager
         );
     }
 
-    /**
-     * @param array<string, mixed> $config
-     */
+    /** @param array<string, mixed> $config */
     private function applyHttpRateLimit(HttpClient $client, array $config): HttpClient
     {
         $rateLimit = $this->arrayValue($config, 'rate_limit');
@@ -313,9 +301,7 @@ final readonly class CommunicationManager extends AbstractContainerManager
         ));
     }
 
-    /**
-     * @param array<string, mixed> $config
-     */
+    /** @param array<string, mixed> $config */
     private function applyHttpRetry(HttpClient $client, array $config): HttpClient
     {
         $retry = $this->arrayValue($config, 'retry');
@@ -330,18 +316,13 @@ final readonly class CommunicationManager extends AbstractContainerManager
         ));
     }
 
-    /**
-     * @param array<string, mixed> $config
-     * @return array<string, mixed>
-     */
+    /** @param array<string, mixed> $config @return array<string, mixed> */
     private function arrayValue(array $config, string $key): array
     {
         return ValueNormalizer::associativeArray($config[$key] ?? []);
     }
 
-    /**
-     * @param array<string, mixed> $config
-     */
+    /** @param array<string, mixed> $config */
     private function boolValue(array $config, string $key, bool $default): bool
     {
         $value = $config[$key] ?? $default;
@@ -354,9 +335,7 @@ final readonly class CommunicationManager extends AbstractContainerManager
         };
     }
 
-    /**
-     * @param array<string, mixed> $config
-     */
+    /** @param array<string, mixed> $config */
     private function floatValue(array $config, string $key, float $default): float
     {
         $value = $config[$key] ?? $default;
@@ -366,9 +345,7 @@ final readonly class CommunicationManager extends AbstractContainerManager
             : $default;
     }
 
-    /**
-     * @return array<string, mixed>
-     */
+    /** @return array<string, mixed> */
     private function grpcProfileConfig(?string $profile = null): array
     {
         $resolvedProfile = $profile ?? $this->stringConfig('grpc.default_profile', 'default');
@@ -378,9 +355,7 @@ final readonly class CommunicationManager extends AbstractContainerManager
         );
     }
 
-    /**
-     * @return array<string, mixed>
-     */
+    /** @return array<string, mixed> */
     private function httpProfileConfig(?string $profile = null): array
     {
         $resolvedProfile = $profile ?? $this->stringConfig('http.default_client', 'default');
@@ -390,9 +365,7 @@ final readonly class CommunicationManager extends AbstractContainerManager
         );
     }
 
-    /**
-     * @param array<string, mixed> $config
-     */
+    /** @param array<string, mixed> $config */
     private function intValue(array $config, string $key, int $default): int
     {
         $value = $config[$key] ?? $default;
@@ -402,9 +375,7 @@ final readonly class CommunicationManager extends AbstractContainerManager
             : $default;
     }
 
-    /**
-     * @param array<string, mixed> $config
-     */
+    /** @param array<string, mixed> $config */
     private function nullableIntValue(array $config, string $key): ?int
     {
         $value = $config[$key] ?? null;
@@ -414,9 +385,7 @@ final readonly class CommunicationManager extends AbstractContainerManager
             : null;
     }
 
-    /**
-     * @param array<string, mixed> $config
-     */
+    /** @param array<string, mixed> $config */
     private function nullableStringValue(array $config, string $key): ?string
     {
         $value = $config[$key] ?? null;
@@ -435,9 +404,7 @@ final readonly class CommunicationManager extends AbstractContainerManager
             : $default;
     }
 
-    /**
-     * @param array<string, mixed> $config
-     */
+    /** @param array<string, mixed> $config */
     private function stringValue(array $config, string $key, string $default = ''): string
     {
         $value = $config[$key] ?? $default;
@@ -447,9 +414,7 @@ final readonly class CommunicationManager extends AbstractContainerManager
             : $default;
     }
 
-    /**
-     * @return array<string, mixed>
-     */
+    /** @return array<string, mixed> */
     private function webhookInboundProfileConfig(?string $profile = null): array
     {
         $resolvedProfile = $profile ?? $this->stringConfig('webhooks.default_inbound', 'default');
@@ -459,9 +424,7 @@ final readonly class CommunicationManager extends AbstractContainerManager
         );
     }
 
-    /**
-     * @return array<string, mixed>
-     */
+    /** @return array<string, mixed> */
     private function webhookOutboundProfileConfig(?string $profile = null): array
     {
         $resolvedProfile = $profile ?? $this->stringConfig('webhooks.default_outbound', 'default');
