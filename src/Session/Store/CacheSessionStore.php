@@ -51,6 +51,6 @@ final readonly class CacheSessionStore implements SessionStoreInterface
 
     private function key(string $id): string
     {
-        return $this->prefix . $id;
+        return hash('sha256', $this->prefix . $id);
     }
 }
