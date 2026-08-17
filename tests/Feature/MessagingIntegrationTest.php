@@ -108,8 +108,8 @@ function foundationMessagingApplication(array $messaging = []): Application
         }
     };
 
-    return Foundation::console([
-        'providers' => ['console' => [$provider]],
+    return Foundation::cli([
+        'providers' => ['cli' => [$provider]],
         'messaging' => array_replace_recursive([
             'handlers' => [
                 FoundationMessage::class => FoundationMessageHandler::class,
@@ -143,46 +143,48 @@ beforeEach(function (): void {
 });
 
 it('keeps Omnibus deferred until messaging is selected', function (): void {
-    $app = Foundation::console();
+    $app = Foundation::cli();
 
     expect($app->container()->has(MessagingManager::class))->toBeFalse()
         ->and($app->has(MessagingManager::class))->toBeTrue()
         ->and($app->container()->has(MessagingManager::class))->toBeFalse()
-        ->and($app->messaging())->toBeInstanceOf(MessagingManager::class)
+        ->and($app->make(MessagingManager::class))->toBeInstanceOf(MessagingManager::class)
         ->and($app->container()->has(MessagingManager::class))->toBeTrue();
 });
 
 it('wires explicit event listeners and Foundation messaging fakes', function (): void {
     $app = foundationMessagingApplication();
+    $messaging = $app->make(MessagingManager::class);
 
-    expect($app->messaging()->event(new FoundationEvent('created')))
+    expect($messaging->event(new FoundationEvent('created')))
         ->toBeInstanceOf(FoundationEvent::class)
         ->and(FoundationEventListener::$events)->toBe(['created']);
 
     $recording = $app->testing()->fakeMessaging();
-    $app->messaging()->dispatch(new FoundationMessage('fake'));
-    $app->messaging()->dispatchNotification(new FoundationMessage('notification'));
-    $app->messaging()->event(new FoundationEvent('fake-event'));
+    $messaging->dispatch(new FoundationMessage('fake'));
+    $messaging->dispatchNotification(new FoundationMessage('notification'));
+    $messaging->event(new FoundationEvent('fake-event'));
 
     expect($recording->count(FoundationMessage::class))->toBe(2)
         ->and($recording->count(FoundationEvent::class))->toBe(1)
         ->and(array_column($recording->sent(), 'queue'))->toBe(['default', 'default', 'events']);
 
-    $app->messaging()->restore();
-    expect($app->messaging()->isFaking())->toBeFalse();
+    $messaging->restore();
+    expect($messaging->isFaking())->toBeFalse();
 });
 
 it('creates a fresh InterMix scope after successful and failed message handling', function (): void {
     $app = foundationMessagingApplication();
+    $messaging = $app->make(MessagingManager::class);
     $task = $app->make(ConsumerTask::class);
 
-    $app->messaging()->dispatch(new FoundationMessage('first'));
+    $messaging->dispatch(new FoundationMessage('first'));
     $first = $task->run(new ConsumeRequest(limit: 1));
 
-    $app->messaging()->dispatch(new FoundationFailingMessage('failure'));
+    $messaging->dispatch(new FoundationFailingMessage('failure'));
     $failure = $task->run(new ConsumeRequest(limit: 1));
 
-    $app->messaging()->dispatch(new FoundationMessage('second'));
+    $messaging->dispatch(new FoundationMessage('second'));
     $second = $task->run(new ConsumeRequest(limit: 1));
 
     expect($first->succeeded)->toBe(1)
