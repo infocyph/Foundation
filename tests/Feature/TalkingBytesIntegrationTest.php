@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Infocyph\Foundation\Foundation;
+use Infocyph\Foundation\Notifications\NotificationManager;
 use Infocyph\TalkingBytes\Email\EmailMessage;
 use Infocyph\TalkingBytes\Email\Enum\BounceType;
 use Infocyph\TalkingBytes\Email\Mailbox\Mailbox;
@@ -78,7 +79,7 @@ MAIL;
                             'port' => 993,
                             'security' => 'ssl',
                             'username' => 'demo@example.test',
-                            'password' => 'secret',
+                            'password' => 'test-password',
                             'timeoutSeconds' => 10,
                             'defaultFolder' => 'INBOX',
                         ],
@@ -89,7 +90,7 @@ MAIL;
                             'port' => 995,
                             'security' => 'ssl',
                             'username' => 'demo@example.test',
-                            'password' => 'secret',
+                            'password' => 'test-password',
                             'timeoutSeconds' => 10,
                         ],
                     ],
@@ -98,7 +99,7 @@ MAIL;
         ],
     ])->boot();
 
-    $notifications = $app->notifications();
+    $notifications = $app->make(NotificationManager::class);
     $events = [];
     $notifications->emailEvents(static function (string $event, array $payload) use (&$events): void {
         $events[] = [$event, $payload];
@@ -147,7 +148,13 @@ MAIL;
         expect($notifications->senderFactory())->toBeObject();
         expect($notifications->imapMailbox())->toBeInstanceOf(Mailbox::class);
         expect($notifications->pop3Mailbox())->toBeInstanceOf(Pop3Mailbox::class);
-        expect(array_column($events, 0))->toContain('email.send.start', 'email.send.finish', 'email.receive.start', 'email.receive.finish', 'bounce.detected');
+        expect(array_column($events, 0))->toContain(
+            'email.send.start',
+            'email.send.finish',
+            'email.receive.start',
+            'email.receive.finish',
+            'bounce.detected',
+        );
     } finally {
         $notifications->emailEvents(null);
         talkingBytesRemoveDirectory($temporaryRoot);
@@ -171,10 +178,8 @@ function talkingBytesRemoveDirectory(string $directory): void
         }
 
         $path = $directory . DIRECTORY_SEPARATOR . $item;
-
         if (is_dir($path)) {
             talkingBytesRemoveDirectory($path);
-
             continue;
         }
 
