@@ -38,7 +38,7 @@ final class FoundationDefaults
             'cache' => [
                 'default' => 'memory',
                 'default_counter' => null,
-                'prefix' => 'foundation:',
+                'prefix' => 'foundation-',
                 'stores' => [
                     'file' => [
                         'driver' => 'file',
@@ -479,7 +479,9 @@ final class FoundationDefaults
             'providers' => [
                 'common' => [],
                 'web' => [],
-                'console' => [],
+                'cli' => [],
+                'worker' => [],
+                'scheduler' => [],
             ],
             'router' => [
                 'auto_slash_redirect' => false,
