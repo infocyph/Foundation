@@ -30,14 +30,10 @@ final readonly class AuthCoreRegistrar
             $this->container->bind(ClockInterface::class, new SystemClock(), LifetimeEnum::Singleton);
         }
         $this->container->bind(AuthDriverResolver::class, $drivers, LifetimeEnum::Singleton);
-        $this->container->factory(AuthIdGeneratorInterface::class, function () use ($drivers): AuthIdGeneratorInterface {
-            if ($drivers->ids() !== AuthIdDriver::UID) {
-                return new RandomAuthIdGenerator();
-            }
-
-            $ids = $this->app->ids();
-
-            return new UidAuthIdGenerator($ids);
+        $this->container->factory(AuthIdGeneratorInterface::class, static function () use ($drivers): AuthIdGeneratorInterface {
+            return $drivers->ids() === AuthIdDriver::UID
+                ? new UidAuthIdGenerator()
+                : new RandomAuthIdGenerator();
         })->singleton();
         $this->container->bind(PasswordPolicyInterface::class, new AcceptAllPasswordPolicy(), LifetimeEnum::Singleton);
     }
