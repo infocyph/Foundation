@@ -30,16 +30,19 @@ return [
     | JSON Web Tokens
     |--------------------------------------------------------------------------
     |
-    | These claim-validation values are read only when auth.drivers.tokens is
-    | `security`. "issuer" and "audience" are optional claim strings, for
-    | example `https://identity.example.com` and `acme-api`. "leeway_seconds"
-    | is a non-negative clock-skew allowance, commonly `0..60`. Signing uses
-    | auth.token_secret; this section does not introduce another secret.
+    | These values are read only when auth.drivers.tokens is `security`.
+    | Epicrypt 2.1 requires explicit non-empty issuer and audience policy values;
+    | Foundation therefore fails closed when either value is missing. The maximum
+    | lifetime is the longest JWT the verifier will accept and defaults to the
+    | framework's 14-day refresh-token lifetime. Increase it explicitly only when
+    | the application intentionally issues longer-lived JWTs. Signing continues to
+    | use auth.token_secret; this section does not introduce another secret.
     |
     */
     'jwt' => [
         'audience' => env('SECURITY_JWT_AUDIENCE'),
         'issuer' => env('SECURITY_JWT_ISSUER'),
+        'maximum_lifetime_seconds' => env_int('SECURITY_JWT_MAXIMUM_LIFETIME_SECONDS', 1209600),
         'leeway_seconds' => env_int('SECURITY_JWT_LEEWAY_SECONDS', 0),
     ],
 
