@@ -149,7 +149,7 @@ it('resolves relative log paths from the application and includes exception deta
 });
 
 it('keeps CLI logging deferred until a logging dependent service is selected', function (): void {
-    $app = Foundation::console();
+    $app = Foundation::cli();
 
     expect($app->container()->has(LoggerInterface::class))->toBeFalse()
         ->and($app->has(LoggerInterface::class))->toBeTrue()
