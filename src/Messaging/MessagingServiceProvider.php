@@ -8,7 +8,6 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Runtime\RuntimeContextResetter;
 use Infocyph\Foundation\Support\ValueNormalizer;
-use Infocyph\InterMix\DI\Invoker\InjectedCall;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Omnibus\Clock\SystemClock;
 use Infocyph\Omnibus\Consumer\Command\ConsumerTask;
@@ -44,7 +43,7 @@ final class MessagingServiceProvider extends ServiceProvider
         $this->bindFactory($container, ListenerMap::class, fn() => new ListenerMap(
             $this->listeners($app, $app->config()->get('messaging.listeners', [])),
         ), LifetimeEnum::Singleton);
-        if (!$container->has(ListenerProviderInterface::class)) {
+        if (!$this->hasExplicitBinding($container, ListenerProviderInterface::class)) {
             $this->bindFactory($container, ListenerProviderInterface::class, fn() => $app->make(ListenerMap::class), LifetimeEnum::Singleton);
         }
         $this->bindFactory($container, RouteMap::class, fn() => new RouteMap(
@@ -57,13 +56,13 @@ final class MessagingServiceProvider extends ServiceProvider
         $this->bindFactory($container, SyncTransport::class, fn() => new SyncTransport(
             $app->make(HandlerMap::class),
         ), LifetimeEnum::Singleton);
-        if (!$container->has(TransportRegistry::class)) {
+        if (!$this->hasExplicitBinding($container, TransportRegistry::class)) {
             $this->bindFactory($container, TransportRegistry::class, fn() => new TransportRegistry([
                 'sync' => $app->make(SyncTransport::class),
                 'memory' => $app->make(InMemoryTransport::class),
             ]), LifetimeEnum::Singleton);
         }
-        if (!$container->has(MessageBus::class)) {
+        if (!$this->hasExplicitBinding($container, MessageBus::class)) {
             $this->bindFactory($container, MessageBus::class, fn() => new MessageBus(
                 $app->make(RouteMap::class),
                 $app->make(TransportRegistry::class),
@@ -73,10 +72,10 @@ final class MessagingServiceProvider extends ServiceProvider
             $app->make(ListenerProviderInterface::class),
             $app->make(MessageBus::class),
         ), LifetimeEnum::Singleton);
-        if (!$container->has(EventDispatcherInterface::class)) {
+        if (!$this->hasExplicitBinding($container, EventDispatcherInterface::class)) {
             $this->bindFactory($container, EventDispatcherInterface::class, fn() => $app->make(EventDispatcher::class), LifetimeEnum::Singleton);
         }
-        if (!$container->has(FailureStore::class)) {
+        if (!$this->hasExplicitBinding($container, FailureStore::class)) {
             $this->bindFactory($container, FailureStore::class, static fn() => new InMemoryFailureStore(), LifetimeEnum::Singleton);
         }
         $this->bindFactory($container, InterMixExecutionScope::class, fn() => new InterMixExecutionScope(
@@ -123,7 +122,7 @@ final class MessagingServiceProvider extends ServiceProvider
             throw new \InvalidArgumentException('Messaging definitions must be callables or service class names.');
         }
 
-        $service = $app->container()->has($definition)
+        $service = $this->hasExplicitBinding($app->container(), $definition)
             ? $app->make($definition)
             : $this->constructInvokable($app, $definition);
         if (!is_callable($service)) {
@@ -136,9 +135,7 @@ final class MessagingServiceProvider extends ServiceProvider
     private function constructInvokable(Application $app, string $class): object
     {
         $resolver = $app->container()->getCurrentResolver();
-        $resolved = $resolver instanceof InjectedCall
-            ? $resolver->classSettler($class, '__foundation_construct_only__', true)
-            : $resolver->classSettler($class, '__foundation_construct_only__');
+        $resolved = $resolver->classSettler($class, false, true);
 
         return $resolved->instance;
     }

@@ -8,6 +8,8 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
+use Infocyph\TalkingBytes\Core\Event\CallableEventDispatcher;
+use Infocyph\TalkingBytes\Core\Event\CommunicationEventBus;
 use Infocyph\TalkingBytes\Email\Config\DkimConfig;
 use Infocyph\TalkingBytes\Email\Config\EmailLimits;
 use Infocyph\TalkingBytes\Email\Config\LogEmailConfig;
@@ -52,7 +54,7 @@ final class NotificationServiceProvider extends ServiceProvider
         $container->bind(BounceParser::class, new BounceParser(), LifetimeEnum::Singleton);
         $container->bind(AuthenticationResultsParser::class, new AuthenticationResultsParser(), LifetimeEnum::Singleton);
 
-        if (!$container->has(Emailer::class)) {
+        if (!$this->hasExplicitBinding($container, Emailer::class)) {
             $this->bindFactory($container, Emailer::class, fn() => $this->createEmailer($app), LifetimeEnum::Singleton);
         }
         $this->bindFactory($container, 'foundation.notifications.emailer', fn() => $container->get(Emailer::class), LifetimeEnum::Singleton);
@@ -173,9 +175,18 @@ final class NotificationServiceProvider extends ServiceProvider
 
     private function createEmailer(Application $app): Emailer
     {
+        $emailer = $this->baseEmailer(
+            $app,
+            $this->stringConfig($app, 'notifications.auth.transport', 'null'),
+        );
+        $emailer = new Emailer(
+            $emailer->transport(),
+            new CallableEventDispatcher(CommunicationEventBus::dispatch(...)),
+        );
+
         return $this->decorateEmailer(
             $app,
-            $this->baseEmailer($app, $this->stringConfig($app, 'notifications.auth.transport', 'null')),
+            $emailer,
         );
     }
 

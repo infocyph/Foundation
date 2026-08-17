@@ -801,6 +801,7 @@ PHP,
             ],
         ]);
 
+        $app->boot();
         $signedUrl = Route::signedUrlFor('signed.files.show', ['file' => 'report.pdf']);
         $parts = parse_url($signedUrl);
         parse_str($parts['query'] ?? '', $query);

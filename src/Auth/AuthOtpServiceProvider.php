@@ -15,7 +15,7 @@ final class AuthOtpServiceProvider extends ServiceProvider
 {
     public function register(Application $app): void
     {
-        if ($app->container()->has(OtpProvisioningService::class)) {
+        if ($this->hasExplicitBinding($app->container(), OtpProvisioningService::class)) {
             return;
         }
         if (!class_exists(TOTP::class)) {

@@ -2,10 +2,9 @@
 
 declare(strict_types=1);
 
-use Infocyph\Console\Command\ExitCode;
-use Infocyph\Console\IO\BufferedIO;
 use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\Connection\ConnectionConfig;
+use Infocyph\DBLayer\Exceptions\MigrationException;
 use Infocyph\DBLayer\Migration\Migration;
 use Infocyph\DBLayer\Migration\MigrationContext;
 use Infocyph\DBLayer\Migration\MigrationRunner;
@@ -14,12 +13,10 @@ use Infocyph\DBLayer\Migration\Seeder;
 use Infocyph\DBLayer\Schema\Blueprint;
 use Infocyph\DBLayer\Schema\SchemaManager;
 use Infocyph\Foundation\Config\ConfigRepository;
-use Infocyph\Foundation\Config\ConfigRuntime;
-use Infocyph\Foundation\Console\FoundationConsole;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DatabaseConnectionResolver;
-use Infocyph\Foundation\Facades\DB;
+use Infocyph\Foundation\Database\DatabaseManager;
 use Infocyph\Foundation\Foundation;
 
 final class FoundationExampleMigration implements Migration
@@ -87,7 +84,7 @@ it('runs the auth schema through DBLayer migrations', function (): void {
 it('runs configured DBLayer migrations, seeders, and database test transactions', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-migrations-' . bin2hex(random_bytes(6));
     mkdir($basePath . '/database', 0775, true);
-    $app = Foundation::console([
+    $app = Foundation::cli([
         'base_path' => $basePath,
         'database' => [
             'default' => 'testing',
@@ -109,18 +106,19 @@ it('runs configured DBLayer migrations, seeders, and database test transactions'
     ]);
 
     try {
-        $database = $app->db();
+        $database = $app->make(DatabaseManager::class);
         $runner = $database->migrations()->runner();
-        $readiness = $app->readinessReport();
 
-        expect($readiness['migrations']['pending'])->toBe([
-            '20260730000000_create_foundation_examples',
-        ])->and($runner->status())->toBe([[
+        expect($runner->status())->toBe([[
             'id' => '20260730000000_create_foundation_examples',
             'applied' => false,
             'batch' => null,
         ]])->and($runner->run())->toBe(['20260730000000_create_foundation_examples'])
-            ->and($app->readinessReport()['migrations']['pending'])->toBe([])
+            ->and($runner->status())->toBe([[
+                'id' => '20260730000000_create_foundation_examples',
+                'applied' => true,
+                'batch' => 1,
+            ]])
             ->and($database->migrations()->seed())->toBe(1)
             ->and($database->connection()->select(
                 'SELECT name FROM foundation_examples ORDER BY id',
@@ -147,7 +145,7 @@ it('runs configured DBLayer migrations, seeders, and database test transactions'
                 'SELECT name FROM foundation_examples ORDER BY id',
             ))->toBe([]);
     } finally {
-        $app->db()->purge();
+        $app->make(DatabaseManager::class)->purge();
         $databasePath = $basePath . '/database/testing.sqlite';
         if (is_file($databasePath)) {
             unlink($databasePath);
@@ -161,10 +159,10 @@ it('runs configured DBLayer migrations, seeders, and database test transactions'
     }
 });
 
-it('runs every destructive migration command through the shared command flow', function (): void {
+it('requires explicit authorization for every destructive migration operation', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-migration-commands-' . bin2hex(random_bytes(6));
     mkdir($basePath . '/database', 0775, true);
-    $app = Foundation::console([
+    $app = Foundation::cli([
         'base_path' => $basePath,
         'database' => [
             'default' => 'testing',
@@ -183,30 +181,28 @@ it('runs every destructive migration command through the shared command flow', f
             ],
         ],
     ]);
-    $console = FoundationConsole::create(
-        static function (?string $profile) use ($app) {
-            expect($profile)->toBeNull();
-
-            return $app;
-        },
-        name: 'foundation-test',
-    )->withIO(new BufferedIO());
-    $schema = new SchemaManager($app->db()->connection());
+    $database = $app->make(DatabaseManager::class);
+    $runner = $database->migrations()->runner();
+    $schema = new SchemaManager($database->connection());
 
     try {
-        expect($console->run(['foundation-test', 'migrate:fresh']))
-            ->toBe(ExitCode::INVALID_USAGE)
-            ->and($console->run(['foundation-test', 'migrate:fresh', '--force']))
-            ->toBe(ExitCode::SUCCESS)
+        expect(fn() => $runner->fresh())
+            ->toThrow(MigrationException::class, 'requires explicit authorization')
+            ->and($runner->fresh(true))
+            ->toBe(['20260730000000_create_foundation_examples'])
             ->and($schema->hasTable('foundation_examples'))->toBeTrue()
-            ->and($console->run(['foundation-test', 'migrate:refresh', '--force']))
-            ->toBe(ExitCode::SUCCESS)
+            ->and(fn() => $runner->refresh())
+            ->toThrow(MigrationException::class, 'requires explicit authorization')
+            ->and($runner->refresh(true))
+            ->toBe(['20260730000000_create_foundation_examples'])
             ->and($schema->hasTable('foundation_examples'))->toBeTrue()
-            ->and($console->run(['foundation-test', 'migrate:reset', '--force']))
-            ->toBe(ExitCode::SUCCESS)
+            ->and(fn() => $runner->reset())
+            ->toThrow(MigrationException::class, 'requires explicit authorization')
+            ->and($runner->reset(true))
+            ->toBe(['20260730000000_create_foundation_examples'])
             ->and($schema->hasTable('foundation_examples'))->toBeFalse();
     } finally {
-        $app->db()->purge();
+        $database->purge();
         $databasePath = $basePath . '/database/testing.sqlite';
         if (is_file($databasePath)) {
             unlink($databasePath);
@@ -227,7 +223,7 @@ it('surfaces DBLayer repositories and query observability through Foundation', f
 
     $events = [];
 
-    Foundation::web([
+    $app = Foundation::web([
         'app' => [
             'base_path' => $basePath,
         ],
@@ -248,53 +244,55 @@ it('surfaces DBLayer repositories and query observability through Foundation', f
         ],
     ]);
 
+    $database = $app->make(DatabaseManager::class);
+
     try {
-        expect(DB::freshConnection())->toBeInstanceOf(Connection::class);
-        expect(DB::pool()->getConfig())->toMatchArray([
+        expect($database->freshConnection())->toBeInstanceOf(Connection::class);
+        expect($database->pool()->getConfig())->toMatchArray([
             'max_connections' => 3,
             'idle_timeout' => 15,
             'max_lifetime' => 300,
             'health_check_interval' => 10,
         ]);
 
-        DB::enableQueryLog();
-        DB::enableTelemetry();
-        DB::setTelemetryBufferLimits(32, 32);
-        DB::listen(static function (array $event) use (&$events): void {
+        $database->enableQueryLog();
+        $database->enableTelemetry();
+        $database->setTelemetryBufferLimits(32, 32);
+        $database->listen(static function (array $event) use (&$events): void {
             $events[] = $event;
         });
 
-        DB::pdo()->exec('CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT NOT NULL)');
+        $database->pdo()->exec('CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT NOT NULL)');
 
-        $created = DB::repository('users')->create([
+        $created = $database->repository('users')->create([
             'name' => 'Ada Lovelace',
             'email' => 'ada@example.test',
         ]);
 
-        $fetched = DB::withQueryTimeout(1_000, static fn(): mixed => DB::repository('users')->find($created['id']));
+        $fetched = $database->withQueryTimeout(1_000, static fn(): mixed => $database->repository('users')->find($created['id']));
 
-        DB::beginTransaction();
-        expect(DB::transactionLevel())->toBe(1);
-        DB::rollback();
+        $database->beginTransaction();
+        expect($database->transactionLevel())->toBe(1);
+        $database->rollback();
 
-        DB::disconnect();
-        expect(DB::reconnect())->toBeInstanceOf(Connection::class);
+        $database->disconnect();
+        expect($database->reconnect())->toBeInstanceOf(Connection::class);
 
-        $count = DB::withQueryCancellation(
+        $count = $database->withQueryCancellation(
             static fn(): bool => false,
-            static fn(): int => DB::table('users')->count(),
+            static fn(): int => $database->table('users')->count(),
         );
-        $plan = DB::explain('SELECT * FROM users WHERE id = ?', [$created['id']]);
-        $queryShapes = DB::queryShapeReport();
+        $plan = $database->explain('SELECT * FROM users WHERE id = ?', [$created['id']]);
+        $queryShapes = $database->queryShapeReport();
 
-        $ping = DB::ping();
-        $driverName = DB::driverName();
-        $databaseName = DB::databaseName();
-        $stats = DB::stats();
-        $queryLog = DB::queryLog();
-        $telemetry = DB::telemetry();
-        $flushed = DB::flushTelemetry();
-        $telemetryAfterFlush = DB::telemetry();
+        $ping = $database->ping();
+        $driverName = $database->driverName();
+        $databaseName = $database->databaseName();
+        $stats = $database->stats();
+        $queryLog = $database->queryLog();
+        $telemetry = $database->telemetry();
+        $flushed = $database->flushTelemetry();
+        $telemetryAfterFlush = $database->telemetry();
 
         expect($created['name'])->toBe('Ada Lovelace')
             ->and($fetched)->toBeArray()
@@ -314,10 +312,10 @@ it('surfaces DBLayer repositories and query observability through Foundation', f
             ->and($flushed['queries'])->not->toBeEmpty()
             ->and($telemetryAfterFlush['queries'])->toBeEmpty();
     } finally {
-        DB::disableTelemetry();
-        DB::disableQueryLog();
-        DB::flushQueryLog();
-        DB::purge();
+        $database->disableTelemetry();
+        $database->disableQueryLog();
+        $database->flushQueryLog();
+        $database->purge();
     }
 });
 
@@ -382,9 +380,6 @@ it('passes advanced connection configuration through to DBLayer unchanged', func
 });
 
 it('publishes the complete DBLayer connection policy for every built-in driver', function (): void {
-    require_once dirname(__DIR__, 2) . '/src/Config/config_helpers.php';
-    ConfigRuntime::activate(dirname(__DIR__, 2));
-
     /**
      * @var array{
      *   default:mixed,

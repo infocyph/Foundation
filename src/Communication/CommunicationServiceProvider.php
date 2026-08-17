@@ -31,7 +31,7 @@ final class CommunicationServiceProvider extends ServiceProvider
             container: $container,
         ), LifetimeEnum::Singleton);
 
-        if (!$container->has(HttpClient::class)) {
+        if (!$this->hasExplicitBinding($container, HttpClient::class)) {
             $this->bindFactory(
                 $container,
                 HttpClient::class,

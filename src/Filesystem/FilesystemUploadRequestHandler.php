@@ -80,7 +80,7 @@ final readonly class FilesystemUploadRequestHandler
             $file->getClientFilename() ?? $field,
         );
 
-        return $processor->processUpload($payload);
+        return $processor->ingestFile($payload);
     }
 
     private function ensureDirectory(string $directory): void

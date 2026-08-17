@@ -29,7 +29,7 @@ it('uses Epicrypt for configured Foundation token security', function (): void {
             'drivers' => [
                 'tokens' => 'security',
             ],
-            'token_secret' => str_repeat('k', 32),
+            'token_secret' => str_repeat('k', 64),
         ],
         'security' => [
             'jwt' => [

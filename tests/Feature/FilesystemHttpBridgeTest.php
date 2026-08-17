@@ -74,14 +74,14 @@ it('streams download responses with conditional and range handling through found
         $notModifiedRequest = Request::fake(
             headers: [
                 'Host' => 'localhost',
-                'If-None-Match' => $manifest['etag'],
+                'If-None-Match' => $manifest->etag,
             ],
             uri: 'http://localhost/download',
         );
         $notModifiedResponse = $files->downloadResponse($notModifiedRequest, $relativePath, directory: $directory, disk: 'uploads');
 
         expect($notModifiedResponse->getStatusCode())->toBe(304);
-        expect($notModifiedResponse->getHeaderLine('ETag'))->toBe($manifest['etag']);
+        expect($notModifiedResponse->getHeaderLine('ETag'))->toBe($manifest->etag);
 
         $staleRangeRequest = Request::fake(
             headers: [
@@ -183,8 +183,8 @@ it('handles upload requests, chunked uploads, offload responses, and pathwise ut
         $secondChunk = $files->processChunkUploadRequest($chunkRequestTwo, directory: $directory, disk: 'uploads');
         $finalizedPath = $files->finalizeChunkUpload('bridge-upload', $directory, 'uploads');
 
-        expect($firstChunk['isComplete'])->toBeFalse();
-        expect($secondChunk['isComplete'])->toBeTrue();
+        expect($firstChunk->complete)->toBeFalse();
+        expect($secondChunk->complete)->toBeTrue();
         expect(file_get_contents($finalizedPath))->toBe('chunk-one-chunk-two');
 
         $sourceRelativePath = $directory . '/offload.txt';
@@ -221,7 +221,7 @@ it('handles upload requests, chunked uploads, offload responses, and pathwise ut
         $auditTrail = $files->audit($auditPath);
         $policy = $files->policy();
 
-        expect($files->diffSnapshots($snapshotBefore, $snapshotAfter)['created'])->not->toBeEmpty();
+        expect($files->diffSnapshots($snapshotBefore, $snapshotAfter)->created)->not->toBeEmpty();
         expect($duplicates)->not->toBeEmpty();
         expect($index)->not->toBeEmpty();
         expect($queue->stats()['pending'])->toBe(1);

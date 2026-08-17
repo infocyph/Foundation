@@ -92,10 +92,10 @@ it('supports secure HOTP and OCRA MFA workflows', function (): void {
     expect($hotpFactorId)->toBeString()->not->toBeEmpty();
 
     $firstChallenge = $mfa->issueChallenge('account-hotp', factorId: $hotpFactorId);
-    $firstVerification = $mfa->verifyChallenge((string) $firstChallenge->challenge?->id, $hotp->getOTP(0));
+    $firstVerification = $mfa->verifyChallenge((string) $firstChallenge->challenge?->id, $hotp->generate(0));
     $replayedChallenge = $mfa->issueChallenge('account-hotp', factorId: $hotpFactorId);
-    $replayedVerification = $mfa->verifyChallenge((string) $replayedChallenge->challenge?->id, $hotp->getOTP(0));
-    $secondVerification = $mfa->verifyChallenge((string) $replayedChallenge->challenge?->id, $hotp->getOTP(1));
+    $replayedVerification = $mfa->verifyChallenge((string) $replayedChallenge->challenge?->id, $hotp->generate(0));
+    $secondVerification = $mfa->verifyChallenge((string) $replayedChallenge->challenge?->id, $hotp->generate(1));
 
     expect($firstVerification->successful())->toBeTrue()
         ->and($replayedVerification->successful())->toBeFalse()

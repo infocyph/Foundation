@@ -181,11 +181,12 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
             if ($ocra->getSuite()->counterEnabled && !$this->factors instanceof MfaFactorCompareAndSwapStoreInterface) {
                 return new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_atomic_counter_store_required');
             }
+            $counter = $ocra->getSuite()->counterEnabled ? $config['counter'] : null;
 
             $result = $ocra->verifyWithResult(
                 $code,
                 $challengeValue,
-                $config['counter'],
+                $counter,
                 $pin,
                 $session,
                 cache: $this->stateCache,

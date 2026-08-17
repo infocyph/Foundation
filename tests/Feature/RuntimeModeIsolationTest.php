@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Infocyph\Foundation\Application\ProviderFileLoader;
 use Infocyph\Foundation\Application\RuntimeMode;
+use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Cache\CacheServiceProvider;
 use Infocyph\Foundation\Exception\BootstrapException;
 use Infocyph\Foundation\Filesystem\FilesystemServiceProvider;
@@ -14,7 +15,7 @@ use Infocyph\Foundation\Http\Middleware\AuthMiddleware;
 use Infocyph\Foundation\Http\HttpServiceProvider;
 use Infocyph\Foundation\Routing\RouteFileLoader;
 
-it('keeps console and web boot graphs isolated', function (): void {
+it('keeps CLI and web boot graphs isolated', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-runtime-' . bin2hex(random_bytes(5));
     $routesPath = $basePath . '/routes';
     $sentinel = $basePath . '/web-route-loaded';
@@ -32,39 +33,47 @@ it('keeps console and web boot graphs isolated', function (): void {
             'files' => ['api.php'],
         ],
     ];
+    $explicitlyBound = static function (Application $app, string $id): bool {
+        $repository = $app->container()->getRepository();
+
+        return $repository->hasFunctionReference($id)
+            || $repository->hasClosureResource($id)
+            || $repository->hasResolved($id)
+            || $repository->hasResolvedDefinition($id);
+    };
 
     try {
-        $console = Foundation::console($options);
+        $cli = Foundation::cli($options);
 
-        expect($console->runtimeMode())->toBe(RuntimeMode::Console)
-            ->and($console->runningInConsole())->toBeTrue()
-            ->and($console->booted())->toBeFalse()
-            ->and($console->basePath())->toBe($basePath)
-            ->and($console->booted())->toBeFalse()
-            ->and($console->container()->has(PathManager::class))->toBeTrue()
-            ->and($console->container()->has(RouteFileLoader::class))->toBeFalse()
-            ->and($console->container()->has(HttpKernel::class))->toBeFalse()
-            ->and($console->has(HttpKernel::class))->toBeFalse()
-            ->and($console->make(RuntimeMode::class))->toBe(RuntimeMode::Console);
+        expect($cli->runtimeMode())->toBe(RuntimeMode::Cli)
+            ->and($cli->runningInCli())->toBeTrue()
+            ->and($cli->booted())->toBeFalse()
+            ->and($cli->basePath())->toBe($basePath)
+            ->and($cli->booted())->toBeFalse()
+            ->and($cli->container()->has(PathManager::class))->toBeTrue()
+            ->and($explicitlyBound($cli, RouteFileLoader::class))->toBeFalse()
+            ->and($explicitlyBound($cli, HttpKernel::class))->toBeFalse()
+            ->and($cli->has(HttpKernel::class))->toBeFalse()
+            ->and($cli->make(RuntimeMode::class))->toBe(RuntimeMode::Cli);
 
-        $console->boot();
+        $cli->boot();
 
         expect(is_file($sentinel))->toBeFalse()
-            ->and($console->container()->has(RouteFileLoader::class))->toBeFalse()
-            ->and($console->container()->has(HttpKernel::class))->toBeFalse()
-            ->and(fn() => $console->http())
+            ->and($explicitlyBound($cli, RouteFileLoader::class))->toBeFalse()
+            ->and($explicitlyBound($cli, HttpKernel::class))->toBeFalse()
+            ->and(fn() => $cli->http())
             ->toThrow(LogicException::class, 'HTTP kernel is unavailable');
 
-        $console->authManager();
+        $cli->authManager();
 
-        expect($console->container()->has(AuthMiddleware::class))->toBeFalse();
+        expect($explicitlyBound($cli, AuthMiddleware::class))->toBeFalse();
 
         $web = Foundation::web($options);
 
         expect($web->runtimeMode())->toBe(RuntimeMode::Web)
             ->and($web->runningInWeb())->toBeTrue()
-            ->and($web->container()->has(RouteFileLoader::class))->toBeTrue()
-            ->and($web->container()->has(HttpKernel::class))->toBeTrue()
+            ->and($explicitlyBound($web, RouteFileLoader::class))->toBeTrue()
+            ->and($explicitlyBound($web, HttpKernel::class))->toBeTrue()
             ->and($web->make(RuntimeMode::class))->toBe(RuntimeMode::Web);
 
         $web->boot();
@@ -83,7 +92,7 @@ it('selects only providers assigned to the active runtime', function (): void {
         "<?php\n\nreturn [\n"
         . "    'common' => [%s::class],\n"
         . "    'web' => [%s::class],\n"
-        . "    'console' => [%s::class],\n"
+        . "    'cli' => [%s::class],\n"
         . "];\n",
         CacheServiceProvider::class,
         HttpServiceProvider::class,
@@ -99,13 +108,15 @@ it('selects only providers assigned to the active runtime', function (): void {
         expect($loader->providers(RuntimeMode::Web))->toBe([
             CacheServiceProvider::class,
             HttpServiceProvider::class,
-        ])->and($loader->providers(RuntimeMode::Console))->toBe([
+        ])->and($loader->providers(RuntimeMode::Cli))->toBe([
             CacheServiceProvider::class,
             FilesystemServiceProvider::class,
         ])->and($loader->groups())->toBe([
             'common' => [CacheServiceProvider::class],
             'web' => [HttpServiceProvider::class],
-            'console' => [FilesystemServiceProvider::class],
+            'cli' => [FilesystemServiceProvider::class],
+            'worker' => [],
+            'scheduler' => [],
         ]);
 
         file_put_contents(
@@ -114,7 +125,7 @@ it('selects only providers assigned to the active runtime', function (): void {
         );
 
         expect(fn() => $loader->providers(RuntimeMode::Web))
-            ->toThrow(BootstrapException::class, 'must define common, web, and console');
+            ->toThrow(BootstrapException::class, 'must define common, web, cli, worker, and scheduler');
     } finally {
         runtimeModeRemoveDirectory($basePath);
     }

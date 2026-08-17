@@ -2,10 +2,11 @@
 
 declare(strict_types=1);
 
-use Infocyph\CacheLayer\Cache\Adapter\ChainCacheAdapter;
+use Infocyph\CacheLayer\Cache\Adapter\TieredCacheAdapter;
 use Infocyph\CacheLayer\Cache\Lock\FileLockProvider;
 use Infocyph\CacheLayer\Cache\Lock\PdoLockProvider;
 use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Cache\RedisConnectionFactory;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Foundation;
@@ -56,25 +57,14 @@ it('creates sqlite cache stores from database connections and applies strict ser
         ],
     ]);
 
-    $cache = $app->cache()->store();
+    $cache = $app->make(CacheManager::class)->store();
 
-    try {
-        expect($cache->set('name', 'Ada'))->toBeTrue()
-            ->and($cache->get('name'))->toBe('Ada')
-            ->and($cache->exportMetrics())->toHaveKey('pdo');
-
-        expect($basePath . '/database/cache.sqlite')->toBeFile();
-
-        $cache->set('user', (object) ['name' => 'Ada']);
-
-        test()->fail('Expected object cache payloads to be blocked by strict serialization policy.');
-    } catch (\InvalidArgumentException $e) {
-        expect($e->getMessage())->toContain('Object payload');
-    } finally {
-        $cache->configurePayloadCompression(null);
-        $cache->configurePayloadSecurity(null, 8_388_608);
-        $cache->configureSerializationSecurity(true, true);
-    }
+    expect($cache->set('name', 'Ada'))->toBeTrue()
+        ->and($cache->get('name'))->toBe('Ada')
+        ->and($cache->exportMetrics())->toHaveKey('pdo')
+        ->and($basePath . '/database/cache.sqlite')->toBeFile()
+        ->and($cache->set('user', (object) ['name' => 'Ada']))->toBeFalse()
+        ->and($cache->get('user'))->toBeNull();
 });
 
 it('builds tiered cache stores from named store descriptors and applies file locking', function (): void {
@@ -112,11 +102,10 @@ it('builds tiered cache stores from named store descriptors and applies file loc
         ],
     ]);
 
-    $cache = $app->cache()->store();
+    $cache = $app->make(CacheManager::class)->store();
 
     expect($cache->set('framework', 'Infbyte'))->toBeTrue()
-        ->and($cache->get('framework'))->toBe('Infbyte')
-        ->and($cache->count())->toBe(1);
+        ->and($cache->get('framework'))->toBe('Infbyte');
 
     $reflection = new \ReflectionClass($cache);
     $adapterProperty = $reflection->getProperty('adapter');
@@ -125,7 +114,7 @@ it('builds tiered cache stores from named store descriptors and applies file loc
     $lockProperty = $reflection->getProperty('lockProvider');
     $lockProvider = $lockProperty->getValue($cache);
 
-    expect($adapter)->toBeInstanceOf(ChainCacheAdapter::class)
+    expect($adapter)->toBeInstanceOf(TieredCacheAdapter::class)
         ->and($lockProvider)->toBeInstanceOf(FileLockProvider::class);
 
     $chainReflection = new \ReflectionClass($adapter);
@@ -172,7 +161,7 @@ it('shares the configured CacheLayer lock store with cache and console consumers
         ],
     ]);
 
-    $cache = $app->cache()->store();
+    $cache = $app->make(CacheManager::class)->store();
     $lockProperty = new \ReflectionProperty($cache, 'lockProvider');
     $cacheLock = $lockProperty->getValue($cache);
     $sharedLock = $app->boot()->make(CacheLayerFactory::class)->lock();

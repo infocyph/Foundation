@@ -5,16 +5,20 @@ declare(strict_types=1);
 use Infocyph\CacheLayer\Counter\AtomicCounterStoreInterface;
 use Infocyph\CacheLayer\Counter\AtomicCounterValue;
 use Infocyph\Foundation\Auth\Adapter\CacheLayer\AtomicCounterStore;
+use Infocyph\Foundation\Cache\CacheManager;
+use Infocyph\Foundation\Config\ConfigValidator;
+use Infocyph\Foundation\Database\DatabaseManager;
 use Infocyph\Foundation\Foundation;
 use Infocyph\DBLayer\Exceptions\TransactionException;
 
 it('creates node cache stores and reports configured cluster status', function (): void {
     $app = foundationClusterCacheApplication();
 
-    $cache = $app->cache()->store('catalog');
+    $manager = $app->make(CacheManager::class);
+    $cache = $manager->store('catalog');
     $cache->set('product.42', 'cached');
 
-    $status = $app->cache()->clusterStatus('catalog');
+    $status = $manager->clusterStatus('catalog');
 
     expect($cache->get('product.42'))->toBe('cached')
         ->and($status->cluster)->toBe('catalog')
@@ -24,12 +28,14 @@ it('creates node cache stores and reports configured cluster status', function (
 it('publishes cache invalidations through the transactional outbox only after commit', function (): void {
     $app = foundationClusterCacheApplication();
     $table = 'products_' . str_replace('.', '', uniqid('', true));
-    $app->db()->connection()->statement('CREATE TABLE ' . $table . ' (id INTEGER PRIMARY KEY, name TEXT NOT NULL)');
+    $database = $app->make(DatabaseManager::class);
+    $cache = $app->make(CacheManager::class);
+    $database->connection()->statement('CREATE TABLE ' . $table . ' (id INTEGER PRIMARY KEY, name TEXT NOT NULL)');
 
-    $cluster = $app->cache()->cluster('catalog');
+    $cluster = $cache->cluster('catalog');
     $cluster->cache()->set('product.42', 'cached');
 
-    $app->cache()->transactionalInvalidation(
+    $cache->transactionalInvalidation(
         'catalog',
         static function ($connection, $outbox) use ($table): void {
             $connection->table($table)->insert(['id' => 42, 'name' => 'Ada']);
@@ -38,17 +44,18 @@ it('publishes cache invalidations through the transactional outbox only after co
     );
 
     expect($cluster->cache()->get('product.42'))->toBeNull()
-        ->and($app->db()->table($table)->count())->toBe(1)
+        ->and($database->table($table)->count())->toBe(1)
         ->and($cluster->status()->pendingEventCount)->toBe(1);
 });
 
 it('rolls back transactional outbox events without invalidating the local cache', function (): void {
     $app = foundationClusterCacheApplication();
-    $cluster = $app->cache()->cluster('catalog');
+    $cache = $app->make(CacheManager::class);
+    $cluster = $cache->cluster('catalog');
     $cluster->cache()->set('product.42', 'cached');
 
-    expect(static function () use ($app): mixed {
-        return $app->cache()->transactionalInvalidation(
+    expect(static function () use ($cache): mixed {
+        return $cache->transactionalInvalidation(
             'catalog',
             static function ($connection, $outbox): void {
                 expect($connection->getPdo()->inTransaction())->toBeTrue();
@@ -93,7 +100,7 @@ it('rejects unsafe cluster topology and non-atomic counter configuration', funct
         ],
     ]);
 
-    $validation = $app->validateConfiguration();
+    $validation = $app->make(ConfigValidator::class)->validate();
 
     expect($validation->fails())->toBeTrue()
         ->and($validation->messages())->toContain('cache.clusters.auth.node_id must be a stable explicit instance identity.')

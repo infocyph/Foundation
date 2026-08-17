@@ -34,7 +34,7 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
 
             $value = $check['value'] ?? null;
             $grouped[$column][] = [
-                'identifier' => $this->identifier($check['field'] ?? $value, $key),
+                'identifier' => $this->identifier($check['id'] ?? $check['field'] ?? $value, $key),
                 'value' => $value,
             ];
         }
@@ -317,10 +317,10 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
         return [
             $this->stringValue($check['column'] ?? null),
             $value,
-            $this->identifier($check['field'] ?? $value, $key),
-            $this->intValue($check['ignore_id'] ?? null),
+            $this->identifier($check['id'] ?? $check['field'] ?? $value, $key),
+            $this->intValue($check['ignore'] ?? null),
             $this->stringValue($check['id_column'] ?? 'id') ?: 'id',
-            $check['with_trashed'] === true,
+            ($check['include_trashed'] ?? true) === true,
             $this->stringValue($check['soft_delete_column'] ?? 'deleted_at') ?: 'deleted_at',
         ];
     }

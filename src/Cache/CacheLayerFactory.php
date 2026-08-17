@@ -576,7 +576,10 @@ final readonly class CacheLayerFactory
             return $configured;
         }
 
-        return $this->stringConfig('cache.prefix', 'foundation:') . $name;
+        return CacheNamespace::derive(
+            $this->stringConfig('cache.prefix', 'foundation:'),
+            $name,
+        );
     }
 
     /**
