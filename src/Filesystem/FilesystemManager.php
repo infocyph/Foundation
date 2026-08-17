@@ -74,7 +74,7 @@ final class FilesystemManager
     }
 
     /**
-     * @param  array<string, mixed>  $config
+     * @param array<string, mixed> $config
      */
     public function copy(
         string $source,
@@ -111,8 +111,8 @@ final class FilesystemManager
     }
 
     /**
-     * @param  array<string, array{mtime: int, size: int}>  $previousSnapshot
-     * @param  array<string, array{mtime: int, size: int}>  $currentSnapshot
+     * @param array<string, array{mtime: int, size: int}> $previousSnapshot
+     * @param array<string, array{mtime: int, size: int}> $currentSnapshot
      */
     public function diffSnapshots(array $previousSnapshot, array $currentSnapshot): SnapshotDiff
     {
@@ -136,8 +136,8 @@ final class FilesystemManager
         $relativePath = trim(str_replace('\\', '/', $path), '/');
 
         return $relativePath === ''
-            ? $resolvedDisk.'://'
-            : $resolvedDisk.'://'.$relativePath;
+            ? $resolvedDisk . '://'
+            : $resolvedDisk . '://' . $relativePath;
     }
 
     public function download(?string $directory = null, ?string $disk = null): DownloadProcessor
@@ -170,7 +170,7 @@ final class FilesystemManager
     }
 
     /**
-     * @param  array<string, string|list<string>>  $headers
+     * @param array<string, string|list<string>> $headers
      */
     public function downloadResponse(
         Request $request,
@@ -223,7 +223,7 @@ final class FilesystemManager
     }
 
     /**
-     * @param  array<string, string|list<string>>  $headers
+     * @param array<string, string|list<string>> $headers
      */
     public function inlineResponse(
         Request $request,
@@ -269,7 +269,7 @@ final class FilesystemManager
     }
 
     /**
-     * @param  array<string, mixed>  $config
+     * @param array<string, mixed> $config
      */
     public function makeDirectory(string $path = '', ?string $disk = null, array $config = []): void
     {
@@ -290,7 +290,7 @@ final class FilesystemManager
     }
 
     /**
-     * @param  array<string, mixed>  $config
+     * @param array<string, mixed> $config
      */
     public function move(
         string $source,
@@ -362,7 +362,7 @@ final class FilesystemManager
     }
 
     /**
-     * @param  array<string, mixed>  $config
+     * @param array<string, mixed> $config
      */
     public function publicUrl(string $path, ?string $disk = null, array $config = []): string
     {
@@ -443,7 +443,7 @@ final class FilesystemManager
     }
 
     /**
-     * @param  array<string, mixed>  $config
+     * @param array<string, mixed> $config
      */
     public function temporaryUrl(string $path, DateTimeInterface $expiresAt, ?string $disk = null, array $config = []): string
     {
@@ -527,7 +527,7 @@ final class FilesystemManager
     }
 
     /**
-     * @param  array<string, mixed>  $config
+     * @param array<string, mixed> $config
      */
     public function write(string $path, string $contents, ?string $disk = null, array $config = []): void
     {
@@ -535,7 +535,7 @@ final class FilesystemManager
     }
 
     /**
-     * @param  array<string, mixed>  $config
+     * @param array<string, mixed> $config
      */
     public function writeStream(string $path, mixed $stream, ?string $disk = null, array $config = []): void
     {
@@ -543,7 +543,7 @@ final class FilesystemManager
     }
 
     /**
-     * @param  array<string, string|list<string>>  $headers
+     * @param array<string, string|list<string>> $headers
      */
     public function xAccelRedirectResponse(
         Request $request,
@@ -568,7 +568,7 @@ final class FilesystemManager
     }
 
     /**
-     * @param  array<string, string|list<string>>  $headers
+     * @param array<string, string|list<string>> $headers
      */
     public function xSendfileResponse(
         Request $request,
@@ -596,7 +596,7 @@ final class FilesystemManager
     private function arrayConfig(string $key): array
     {
         return ValueNormalizer::associativeArray(
-            $this->config->get('filesystem.'.$key, []),
+            $this->config->get('filesystem.' . $key, []),
         );
     }
 
@@ -614,7 +614,7 @@ final class FilesystemManager
     }
 
     /**
-     * @param  array<string, mixed>  $config
+     * @param array<string, mixed> $config
      */
     private function boolArrayValue(array $config, string $key, bool $default): bool
     {
@@ -634,14 +634,14 @@ final class FilesystemManager
     private function configuredFilesystems(): array
     {
         $configured = $this->config->get('filesystem.disks', []);
-        if (! is_array($configured)) {
+        if (!is_array($configured)) {
             return [];
         }
 
         $filesystems = [];
 
         foreach ($configured as $name => $config) {
-            if (! is_string($name) || ! is_array($config)) {
+            if (!is_string($name) || !is_array($config)) {
                 continue;
             }
 
@@ -659,11 +659,11 @@ final class FilesystemManager
     }
 
     /**
-     * @param  array<string, mixed>  $config
+     * @param array<string, mixed> $config
      * @return list<string>
      */
     /**
-     * @param  array<string, mixed>  $config
+     * @param array<string, mixed> $config
      * @return list<string>
      */
     private function downloadAllowedRoots(array $config, string $disk): array
@@ -697,7 +697,7 @@ final class FilesystemManager
     }
 
     /**
-     * @param  array<string, mixed>  $config
+     * @param array<string, mixed> $config
      */
     private function intArrayValue(array $config, string $key, int $default): int
     {
@@ -720,7 +720,7 @@ final class FilesystemManager
         }
 
         $root = $config['root'] ?? null;
-        if (! is_string($root) || $root === '') {
+        if (!is_string($root) || $root === '') {
             return null;
         }
 
@@ -752,7 +752,7 @@ final class FilesystemManager
     }
 
     /**
-     * @param  array<string, mixed>  $config
+     * @param array<string, mixed> $config
      * @return array<string, mixed>
      */
     private function normalizeFilesystemConfig(array $config): array
@@ -761,7 +761,7 @@ final class FilesystemManager
         if (
             is_string($root)
             && $root !== ''
-            && ! PathHelper::isAbsolute($root)
+            && !PathHelper::isAbsolute($root)
             && $this->stringArrayValue($config, 'driver', 'local') === 'local'
         ) {
             $config['root'] = $this->paths->base($root);
@@ -772,7 +772,7 @@ final class FilesystemManager
 
     private function nullableBasePath(mixed $value): ?string
     {
-        if (! is_string($value) || $value === '') {
+        if (!is_string($value) || $value === '') {
             return null;
         }
 
@@ -811,7 +811,7 @@ final class FilesystemManager
 
         foreach ($this->configuredFilesystems() as $config) {
             $root = $config['root'] ?? null;
-            if (! is_string($root) || $root === '') {
+            if (!is_string($root) || $root === '') {
                 continue;
             }
 
@@ -840,7 +840,7 @@ final class FilesystemManager
     }
 
     /**
-     * @param  array<string, mixed>  $config
+     * @param array<string, mixed> $config
      */
     private function stringArrayValue(array $config, string $key, string $default = ''): string
     {
@@ -856,14 +856,14 @@ final class FilesystemManager
      */
     private function stringList(mixed $value): array
     {
-        if (! is_array($value)) {
+        if (!is_array($value)) {
             return [];
         }
 
         $strings = [];
 
         foreach ($value as $item) {
-            if (! is_string($item) || $item === '') {
+            if (!is_string($item) || $item === '') {
                 continue;
             }
 

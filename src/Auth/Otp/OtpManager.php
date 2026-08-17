@@ -120,12 +120,12 @@ final readonly class OtpManager
         }
 
         try {
-            $result = (new TOTP(
+            $result = new TOTP(
                 $config['secret'],
                 $config['digits'],
                 $config['period'],
                 $config['algorithm'],
-            ))->verifyWithWindow(
+            )->verifyWithWindow(
                 $code,
                 window: VerificationWindow::symmetric($config['window']),
                 cache: $this->stateCache,

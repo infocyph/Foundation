@@ -7,9 +7,9 @@ namespace Infocyph\Foundation\Command;
 final readonly class ParsedInput
 {
     /**
-     * @param  list<string>  $arguments
-     * @param  array<string, string|bool|list<string>>  $options
-     * @param  list<string>  $raw
+     * @param list<string> $arguments
+     * @param array<string, string|bool|list<string>> $options
+     * @param list<string> $raw
      */
     public function __construct(
         public string $command,
@@ -30,6 +30,7 @@ final readonly class ParsedInput
             $token = $tokens[$index];
             if ($token === '--') {
                 $arguments = [...$arguments, ...array_slice($tokens, $index + 1)];
+
                 break;
             }
             if (str_starts_with($token, '--')) {
@@ -37,7 +38,7 @@ final readonly class ParsedInput
 
                 continue;
             }
-            if ($command === '' && ! str_starts_with($token, '-')) {
+            if ($command === '' && !str_starts_with($token, '-')) {
                 $command = $token;
 
                 continue;
@@ -81,7 +82,7 @@ final readonly class ParsedInput
         if ($name === '') {
             return;
         }
-        if (! array_key_exists($name, $options)) {
+        if (!array_key_exists($name, $options)) {
             $options[$name] = $value;
 
             return;
@@ -94,8 +95,8 @@ final readonly class ParsedInput
     }
 
     /**
-     * @param  list<string>  $tokens
-     * @param  array<string, string|bool|list<string>>  $options
+     * @param list<string> $tokens
+     * @param array<string, string|bool|list<string>> $options
      */
     private static function consumeLongOption(array $tokens, int $index, array &$options): int
     {

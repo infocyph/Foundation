@@ -93,14 +93,14 @@ final class ConfigLoader
     {
         return $this->absolute($path)
             ? rtrim($path, DIRECTORY_SEPARATOR)
-            : $basePath.DIRECTORY_SEPARATOR.trim($path, DIRECTORY_SEPARATOR);
+            : $basePath . DIRECTORY_SEPARATOR . trim($path, DIRECTORY_SEPARATOR);
     }
 
     private function cacheType(ConfigRepository $config, ?string $type): string
     {
         $configured = $type ?? $config->getString('app.config_cache.type', self::TYPE_SHARDED);
         $normalized = strtolower(trim($configured ?? self::TYPE_SHARDED));
-        if (! in_array($normalized, [self::TYPE_SHARDED, self::TYPE_SINGLE], true)) {
+        if (!in_array($normalized, [self::TYPE_SHARDED, self::TYPE_SINGLE], true)) {
             throw new \InvalidArgumentException(sprintf('Unsupported config cache type "%s".', $normalized));
         }
 
@@ -115,12 +115,12 @@ final class ConfigLoader
     /** @return list<string> */
     private function configNamespaces(string $directory): array
     {
-        if (! is_dir($directory)) {
+        if (!is_dir($directory)) {
             return [];
         }
 
         $namespaces = [];
-        foreach (glob($directory.DIRECTORY_SEPARATOR.'*.php') ?: [] as $file) {
+        foreach (glob($directory . DIRECTORY_SEPARATOR . '*.php') ?: [] as $file) {
             $namespace = pathinfo($file, PATHINFO_FILENAME);
             if ($namespace !== '' && $namespace[0] !== '_') {
                 $namespaces[] = $namespace;
@@ -136,13 +136,13 @@ final class ConfigLoader
     {
         $paths = $this->map($inline['paths'] ?? null);
         $configured = $paths['config'] ?? null;
-        if (! is_string($configured) || $configured === '') {
-            return $basePath.DIRECTORY_SEPARATOR.'config';
+        if (!is_string($configured) || $configured === '') {
+            return $basePath . DIRECTORY_SEPARATOR . 'config';
         }
 
         return $this->absolute($configured)
             ? rtrim($configured, DIRECTORY_SEPARATOR)
-            : $basePath.DIRECTORY_SEPARATOR.trim($configured, DIRECTORY_SEPARATOR);
+            : $basePath . DIRECTORY_SEPARATOR . trim($configured, DIRECTORY_SEPARATOR);
     }
 
     private function configuredCachePath(mixed $control, string $basePath): string
@@ -155,7 +155,7 @@ final class ConfigLoader
 
         return is_string($configured) && $this->configCacheEnabled($configured) && $configured !== ''
             ? $this->cachePath($basePath, $configured)
-            : $basePath.DIRECTORY_SEPARATOR.'bootstrap/cache/config';
+            : $basePath . DIRECTORY_SEPARATOR . 'bootstrap/cache/config';
     }
 
     /** @return array<string, mixed> */
@@ -166,7 +166,7 @@ final class ConfigLoader
 
     private function ensureCacheDirectory(string $directory): void
     {
-        if (! is_dir($directory) && ! mkdir($directory, 0775, true) && ! is_dir($directory)) {
+        if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
             throw new \RuntimeException(sprintf('Unable to create config cache directory "%s".', $directory));
         }
     }
@@ -176,8 +176,8 @@ final class ConfigLoader
      */
     private function loadCacheManifest(string $directory): ?array
     {
-        $file = rtrim($directory, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.self::MANIFEST_FILE;
-        if (! is_file($file) || ! is_readable($file)) {
+        $file = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . self::MANIFEST_FILE;
+        if (!is_file($file) || !is_readable($file)) {
             return null;
         }
 
@@ -186,20 +186,20 @@ final class ConfigLoader
         } catch (\Throwable) {
             return null;
         }
-        if (! is_array($payload) || ($payload['_format'] ?? null) !== self::CACHE_FORMAT) {
+        if (!is_array($payload) || ($payload['_format'] ?? null) !== self::CACHE_FORMAT) {
             return null;
         }
 
         if (($payload['_type'] ?? null) === self::TYPE_SINGLE && is_array($payload['_data'] ?? null)) {
             return ['type' => self::TYPE_SINGLE, 'data' => $this->map($payload['_data'])];
         }
-        if (($payload['_type'] ?? null) !== self::TYPE_SHARDED || ! is_array($payload['_namespaces'] ?? null)) {
+        if (($payload['_type'] ?? null) !== self::TYPE_SHARDED || !is_array($payload['_namespaces'] ?? null)) {
             return null;
         }
 
         $namespaces = [];
         foreach ($payload['_namespaces'] as $namespace) {
-            if (! is_string($namespace) || preg_match('/^[A-Za-z0-9_-]+$/', $namespace) !== 1) {
+            if (!is_string($namespace) || preg_match('/^[A-Za-z0-9_-]+$/', $namespace) !== 1) {
                 return null;
             }
             $namespaces[$namespace] = true;
@@ -215,7 +215,7 @@ final class ConfigLoader
     /** @return array<string, mixed> */
     private function map(mixed $value): array
     {
-        if (! is_array($value)) {
+        if (!is_array($value)) {
             return [];
         }
 
@@ -230,14 +230,14 @@ final class ConfigLoader
     }
 
     /**
-     * @param  array<string, mixed>  $input
+     * @param array<string, mixed> $input
      * @return array<string, mixed>
      */
     private function normalizeInput(array $input): array
     {
         $app = $this->map($input['app'] ?? null);
         foreach (['base_path', 'env', 'debug'] as $key) {
-            if (array_key_exists($key, $input) && ! array_key_exists($key, $app)) {
+            if (array_key_exists($key, $input) && !array_key_exists($key, $app)) {
                 $app[$key] = $input[$key];
             }
         }
@@ -252,8 +252,8 @@ final class ConfigLoader
     private function removeStaleShards(string $directory, array $namespaces): void
     {
         $keep = array_fill_keys([...$namespaces, '__flat', '__manifest'], true);
-        foreach (glob(rtrim($directory, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.'*.php') ?: [] as $file) {
-            if (! isset($keep[pathinfo($file, PATHINFO_FILENAME)]) && ! unlink($file)) {
+        foreach (glob(rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . '*.php') ?: [] as $file) {
+            if (!isset($keep[pathinfo($file, PATHINFO_FILENAME)]) && !unlink($file)) {
                 throw new \RuntimeException(sprintf('Unable to remove stale config cache shard "%s".', $file));
             }
         }
@@ -281,8 +281,8 @@ final class ConfigLoader
         // ArrayKit intentionally generates __flat.php here. Keep it: scalar/null leaf
         // lookups can use the flat index without loading an entire namespace shard.
         foreach ($namespaces as $namespace) {
-            $file = rtrim($directory, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.$namespace.'.php';
-            if (! is_file($file) || ! chmod($file, 0664)) {
+            $file = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $namespace . '.php';
+            if (!is_file($file) || !chmod($file, 0664)) {
                 throw new \RuntimeException(sprintf('Unable to finalize lazy config cache "%s".', $file));
             }
         }
@@ -306,15 +306,15 @@ final class ConfigLoader
     /** @param array<string, mixed> $payload */
     private function writeManifest(string $directory, array $payload): void
     {
-        $target = rtrim($directory, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.self::MANIFEST_FILE;
+        $target = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . self::MANIFEST_FILE;
         $temporary = tempnam($directory, '.manifest-');
         if ($temporary === false) {
             throw new \RuntimeException('Unable to create temporary config manifest.');
         }
 
         try {
-            $content = "<?php\n\nreturn ".var_export($payload, true).";\n";
-            if (file_put_contents($temporary, $content, LOCK_EX) === false || ! rename($temporary, $target)) {
+            $content = "<?php\n\nreturn " . var_export($payload, true) . ";\n";
+            if (file_put_contents($temporary, $content, LOCK_EX) === false || !rename($temporary, $target)) {
                 throw new \RuntimeException(sprintf('Unable to publish config cache manifest "%s".', $target));
             }
             chmod($target, 0664);

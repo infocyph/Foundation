@@ -54,11 +54,11 @@ final readonly class ModuleManager
 
         $package = $definition['package'] ?? null;
         $constraint = $definition['constraint'] ?? null;
-        if (! is_string($package) || $package === '' || ! is_string($constraint) || $constraint === '') {
+        if (!is_string($package) || $package === '' || !is_string($constraint) || $constraint === '') {
             throw new \LogicException(sprintf('Module "%s" has no installable package constraint.', $module));
         }
 
-        $requirement = $package.':'.$constraint;
+        $requirement = $package . ':' . $constraint;
         $command = ['composer', 'require', $requirement, '--with-all-dependencies', '--update-no-dev'];
         if ($dryRun) {
             $command[] = '--dry-run';
@@ -80,7 +80,7 @@ final readonly class ModuleManager
         }
 
         $directory = $this->application->configPath();
-        if (! is_dir($directory) && ! mkdir($directory, 0775, true) && ! is_dir($directory)) {
+        if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
             throw new \RuntimeException(sprintf('Unable to create project config directory "%s".', $directory));
         }
 
@@ -91,16 +91,16 @@ final readonly class ModuleManager
                 continue;
             }
 
-            $target = $directory.DIRECTORY_SEPARATOR.$filename;
+            $target = $directory . DIRECTORY_SEPARATOR . $filename;
             if (is_file($target)) {
                 $existing[] = $target;
 
                 continue;
             }
 
-            $source = dirname(__DIR__, 2).DIRECTORY_SEPARATOR.'resources'.DIRECTORY_SEPARATOR.'config'
-                .DIRECTORY_SEPARATOR.$filename;
-            if (! is_file($source) || ! copy($source, $target)) {
+            $source = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'resources' . DIRECTORY_SEPARATOR . 'config'
+                . DIRECTORY_SEPARATOR . $filename;
+            if (!is_file($source) || !copy($source, $target)) {
                 throw new \RuntimeException(sprintf('Unable to publish config template "%s".', $filename));
             }
             $published[] = $target;
@@ -121,7 +121,7 @@ final readonly class ModuleManager
         }
 
         $package = $definition['package'] ?? null;
-        if (! is_string($package) || $package === '') {
+        if (!is_string($package) || $package === '') {
             throw new \LogicException(sprintf('Module "%s" has no removable package.', $module));
         }
 
@@ -141,7 +141,7 @@ final readonly class ModuleManager
     {
         $path = $this->application->basePath('composer.json');
         $contents = is_file($path) ? file_get_contents($path) : false;
-        if (! is_string($contents)) {
+        if (!is_string($contents)) {
             return [];
         }
 
@@ -150,7 +150,7 @@ final readonly class ModuleManager
         } catch (\JsonException) {
             return [];
         }
-        if (! is_array($composer) || ! is_array($composer['require'] ?? null)) {
+        if (!is_array($composer) || !is_array($composer['require'] ?? null)) {
             return [];
         }
 

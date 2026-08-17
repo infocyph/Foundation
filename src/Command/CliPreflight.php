@@ -8,19 +8,19 @@ use Composer\InstalledVersions;
 
 final readonly class CliPreflight
 {
-    public function __construct(private CommandCatalog $catalog = new CommandCatalog) {}
+    public function __construct(private CommandCatalog $catalog = new CommandCatalog()) {}
 
     /**
      * Handle metadata-only invocations without constructing Foundation Application.
      * Returns an exit code when handled, otherwise null to continue to command execution.
      *
-     * @param  list<string>  $argv
+     * @param list<string> $argv
      */
     public function handle(array $argv, CommandIO $io): ?int
     {
         $input = ParsedInput::fromArgv($argv);
         if ($input->flag('version') || in_array('-V', $input->raw, true)) {
-            $io->writeln('Foundation '.$this->version());
+            $io->writeln('Foundation ' . $this->version());
 
             return 0;
         }
@@ -52,10 +52,10 @@ final readonly class CliPreflight
             return $name === null ? 0 : 1;
         }
 
-        $io->writeln($definition->name.' - '.$definition->description);
-        $io->writeln('Runtime: '.$definition->runtime->value);
+        $io->writeln($definition->name . ' - ' . $definition->description);
+        $io->writeln('Runtime: ' . $definition->runtime->value);
         if ($definition->capabilities !== []) {
-            $io->writeln('Capabilities: '.implode(', ', $definition->capabilities));
+            $io->writeln('Capabilities: ' . implode(', ', $definition->capabilities));
         }
 
         return 0;
@@ -76,7 +76,7 @@ final readonly class CliPreflight
         }
 
         foreach ($groups as $group => $definitions) {
-            $io->writeln($group.':');
+            $io->writeln($group . ':');
             foreach ($definitions as $definition) {
                 $io->writeln(sprintf('  %-28s %s', $definition->name, $definition->description));
             }

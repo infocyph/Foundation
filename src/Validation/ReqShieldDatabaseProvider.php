@@ -18,7 +18,7 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
     ) {}
 
     /**
-     * @param  list<array<string, mixed>>  $checks
+     * @param list<array<string, mixed>> $checks
      * @return list<int|string>
      */
     public function batchExists(string $table, array $checks): array
@@ -65,7 +65,7 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
     }
 
     /**
-     * @param  list<array<string, mixed>>  $checks
+     * @param list<array<string, mixed>> $checks
      * @return list<int|string>
      */
     public function batchUnique(string $table, array $checks): array
@@ -84,7 +84,7 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
                 ->from($table)
                 ->select($this->column($group['column']));
 
-            if (! $group['with_trashed']) {
+            if (!$group['with_trashed']) {
                 $query->whereNull($group['soft_delete_column']);
             }
 
@@ -99,7 +99,7 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
             );
 
             foreach ($group['checks'] as $index => $entry) {
-                if (! isset($matched[$index])) {
+                if (!isset($matched[$index])) {
                     continue;
                 }
 
@@ -131,7 +131,7 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
             $query->where('id', '!=', $ignoreId);
         }
 
-        return ! $query->exists();
+        return !$query->exists();
     }
 
     public function exists(string $table, string $column, mixed $value, ?int $ignoreId = null): bool
@@ -153,7 +153,7 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
     }
 
     /**
-     * @param  array<int, mixed>  $params
+     * @param array<int, mixed> $params
      * @return array<int, array<string, mixed>>
      */
     public function query(string $query, array $params = []): array
@@ -162,7 +162,7 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
     }
 
     /**
-     * @param  array<string, array{checks:list<array{identifier:int|string,value:mixed}>,column:string,id_column:string,ignore_id:?int,soft_delete_column:string,with_trashed:bool}>  $grouped
+     * @param array<string, array{checks:list<array{identifier:int|string,value:mixed}>,column:string,id_column:string,ignore_id:?int,soft_delete_column:string,with_trashed:bool}> $grouped
      */
     private function addUniqueCheck(array &$grouped, int|string $key, mixed $check): void
     {
@@ -199,12 +199,12 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
     }
 
     /**
-     * @param  list<array{identifier:int|string,value:mixed}>  $entries
+     * @param list<array{identifier:int|string,value:mixed}> $entries
      * @return list<mixed>
      */
     private function entryValues(array $entries): array
     {
-        return array_map(static fn (array $entry): mixed => $entry['value'], $entries);
+        return array_map(static fn(array $entry): mixed => $entry['value'], $entries);
     }
 
     private function identifier(mixed $value, int|string $fallback): int|string
@@ -234,8 +234,8 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
     }
 
     /**
-     * @param  list<array{identifier:int|string,value:mixed}>  $entries
-     * @param  list<array<string, mixed>>  $rows
+     * @param list<array{identifier:int|string,value:mixed}> $entries
+     * @param list<array<string, mixed>> $rows
      * @return array<int, true>
      */
     private function matchedEntries(array $rows, string $column, array $entries): array
@@ -244,7 +244,7 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
 
         foreach ($entries as $index => $entry) {
             foreach ($rows as $row) {
-                if (! array_key_exists($column, $row) || ! $this->sameDatabaseValue($row[$column], $entry['value'])) {
+                if (!array_key_exists($column, $row) || !$this->sameDatabaseValue($row[$column], $entry['value'])) {
                     continue;
                 }
 
@@ -258,19 +258,19 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
     }
 
     /**
-     * @param  list<mixed>  $values
+     * @param list<mixed> $values
      * @return list<array<string, mixed>>
      */
     private function rowsForValues(QueryBuilder $query, string $column, array $values): array
     {
         $rows = [];
-        $nonNullValues = array_values(array_filter($values, static fn (mixed $value): bool => $value !== null));
+        $nonNullValues = array_values(array_filter($values, static fn(mixed $value): bool => $value !== null));
 
         if ($nonNullValues !== []) {
             $rows = $query->cloneBuilder()->whereIn($column, $nonNullValues)->get();
         }
 
-        if (! in_array(null, $values, true)) {
+        if (!in_array(null, $values, true)) {
             return $rows;
         }
 
@@ -308,7 +308,7 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
      */
     private function uniqueCheck(int|string $key, mixed $check): array
     {
-        if (! is_array($check)) {
+        if (!is_array($check)) {
             return [$this->stringValue($key), $check, $this->identifier($check, $key), null, 'id', true, 'deleted_at'];
         }
 

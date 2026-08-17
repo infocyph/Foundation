@@ -17,7 +17,7 @@ final class IdentifierServiceProvider extends ServiceProvider
 
         $this->bindFactory($container, IdentifierManager::class, function () use ($container): IdentifierManager {
             $config = $container->get(ConfigRepository::class);
-            if (! $config instanceof ConfigRepository) {
+            if (!$config instanceof ConfigRepository) {
                 throw new \RuntimeException('Identifier config service must resolve to ConfigRepository.');
             }
 
@@ -26,7 +26,7 @@ final class IdentifierServiceProvider extends ServiceProvider
 
         $this->bindFactory($container, 'foundation.ids', function () use ($container): IdentifierManager {
             $manager = $container->get(IdentifierManager::class);
-            if (! $manager instanceof IdentifierManager) {
+            if (!$manager instanceof IdentifierManager) {
                 throw new \RuntimeException('Foundation ids service must resolve to IdentifierManager.');
             }
 
@@ -35,7 +35,7 @@ final class IdentifierServiceProvider extends ServiceProvider
 
         $this->bindFactory($container, 'foundation.uid', function () use ($container): IdentifierManager {
             $manager = $container->get(IdentifierManager::class);
-            if (! $manager instanceof IdentifierManager) {
+            if (!$manager instanceof IdentifierManager) {
                 throw new \RuntimeException('Foundation uid service must resolve to IdentifierManager.');
             }
 

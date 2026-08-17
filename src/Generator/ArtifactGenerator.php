@@ -42,13 +42,13 @@ final readonly class ArtifactGenerator
         $definition = self::ARTIFACTS[$artifact] ?? throw new \InvalidArgumentException(sprintf('Unknown artifact type "%s".', $artifact));
         $this->assertRequirement($artifact, $definition);
         $segments = $this->segments($name);
-        $class = array_pop($segments).$definition['suffix'];
-        if ($definition['suffix'] !== '' && str_ends_with($class, $definition['suffix'].$definition['suffix'])) {
+        $class = array_pop($segments) . $definition['suffix'];
+        if ($definition['suffix'] !== '' && str_ends_with($class, $definition['suffix'] . $definition['suffix'])) {
             $class = substr($class, 0, -strlen($definition['suffix']));
         }
         $namespace = implode('\\', array_filter([$definition['namespace'], implode('\\', $segments)]));
         $directory = implode('/', array_filter([$definition['directory'], implode('/', $segments)]));
-        $path = $this->application->basePath($directory.'/'.$class.'.php');
+        $path = $this->application->basePath($directory . '/' . $class . '.php');
         $contents = $this->render(
             $definition['stub'],
             $namespace,
@@ -82,7 +82,7 @@ final readonly class ArtifactGenerator
         $class = preg_replace('/Command$/', '', $class) ?? $class;
 
         return implode(':', array_map(
-            static fn (string $segment): string => strtolower(preg_replace('/(?<!^)[A-Z]/', '-$0', $segment) ?? $segment),
+            static fn(string $segment): string => strtolower(preg_replace('/(?<!^)[A-Z]/', '-$0', $segment) ?? $segment),
             [...$parents, $class],
         ));
     }
@@ -99,15 +99,15 @@ final readonly class ArtifactGenerator
         $name = preg_replace('/Migration$/', '', $class) ?? $class;
         $name = strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $name) ?? $name);
 
-        return gmdate('YmdHis').'_'.$name;
+        return gmdate('YmdHis') . '_' . $name;
     }
 
     /** @param list<string> $parents */
     private function render(string $stub, string $namespace, string $class, array $parents, ?string $table): string
     {
-        $path = dirname(__DIR__, 2).'/resources/stubs/create/'.$stub;
+        $path = dirname(__DIR__, 2) . '/resources/stubs/create/' . $stub;
         $contents = file_get_contents($path);
-        if (! is_string($contents)) {
+        if (!is_string($contents)) {
             throw new \RuntimeException(sprintf('Unable to read generator stub "%s".', $path));
         }
 
@@ -153,37 +153,37 @@ final readonly class ArtifactGenerator
         $name = preg_replace('/Repository$/', '', $class) ?? $class;
         $name = strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $name) ?? $name);
         if (preg_match('/[^aeiou]y$/', $name) === 1) {
-            return substr($name, 0, -1).'ies';
+            return substr($name, 0, -1) . 'ies';
         }
         if (preg_match('/(?:s|x|z|ch|sh)$/', $name) === 1) {
-            return $name.'es';
+            return $name . 'es';
         }
 
-        return $name.'s';
+        return $name . 's';
     }
 
     private function write(string $path, string $contents, bool $force): void
     {
-        if ((is_file($path) || is_link($path)) && ! $force) {
+        if ((is_file($path) || is_link($path)) && !$force) {
             throw new \RuntimeException(sprintf('Artifact already exists at "%s".', $path));
         }
         $base = realpath($this->application->basePath());
         $directory = dirname($path);
-        if (! is_dir($directory) && ! mkdir($directory, 0775, true) && ! is_dir($directory)) {
+        if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
             throw new \RuntimeException(sprintf('Unable to create artifact directory "%s".', $directory));
         }
         $resolved = realpath($directory);
-        if ($base === false || $resolved === false || ($resolved !== $base && ! str_starts_with($resolved, $base.DIRECTORY_SEPARATOR))) {
+        if ($base === false || $resolved === false || ($resolved !== $base && !str_starts_with($resolved, $base . DIRECTORY_SEPARATOR))) {
             throw new \RuntimeException('Generated artifacts must remain inside the application base path.');
         }
 
-        $temporary = $path.'.'.bin2hex(random_bytes(6)).'.tmp';
+        $temporary = $path . '.' . bin2hex(random_bytes(6)) . '.tmp';
         if (file_put_contents($temporary, $contents, LOCK_EX) === false) {
             throw new \RuntimeException(sprintf('Unable to write temporary artifact "%s".', $temporary));
         }
 
         try {
-            if (! rename($temporary, $path)) {
+            if (!rename($temporary, $path)) {
                 throw new \RuntimeException(sprintf('Unable to activate generated artifact "%s".', $path));
             }
         } finally {

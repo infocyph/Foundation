@@ -15,22 +15,22 @@ final readonly class WorkerManager
     public function all(string $routes = 'routes/workers.php'): array
     {
         $path = $this->path($routes);
-        if (! is_file($path)) {
+        if (!is_file($path)) {
             return [];
         }
 
         $definitions = require $path;
-        if (! is_array($definitions)) {
+        if (!is_array($definitions)) {
             throw new \UnexpectedValueException(sprintf('Worker route file "%s" must return a class map.', $path));
         }
 
         $workers = [];
         foreach ($definitions as $name => $provider) {
-            if (! is_string($name)
+            if (!is_string($name)
                 || $name === ''
-                || ! is_string($provider)
+                || !is_string($provider)
                 || $provider === ''
-                || ! is_a($provider, WorkerProvider::class, true)
+                || !is_a($provider, WorkerProvider::class, true)
             ) {
                 throw new \UnexpectedValueException(sprintf(
                     'Worker definitions must map non-empty names to %s implementations.',
@@ -54,7 +54,7 @@ final readonly class WorkerManager
         $runtime = new WorkerRuntime($this->application);
         $leaseSeconds = max(30.0, $this->leaseSeconds());
         $lock = $this->application->make(CacheLayerFactory::class)->lock();
-        $handle = $lock->acquire('foundation:worker:'.$name, 0.0, $leaseSeconds);
+        $handle = $lock->acquire('foundation:worker:' . $name, 0.0, $leaseSeconds);
         if ($handle === null) {
             return null;
         }

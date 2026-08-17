@@ -73,7 +73,7 @@ final class ScheduledCommand
     /** @param list<string> $arguments */
     public function arguments(array $arguments): self
     {
-        if (array_any($arguments, static fn (string $argument): bool => $argument === '')) {
+        if (array_any($arguments, static fn(string $argument): bool => $argument === '')) {
             throw new \InvalidArgumentException('Scheduled command arguments must be non-empty strings.');
         }
         $this->arguments = $arguments;
@@ -106,12 +106,12 @@ final class ScheduledCommand
         }
         [$hour, $minute] = explode(':', $time);
 
-        return $this->cron((int) $minute.' '.(int) $hour.' * * *');
+        return $this->cron((int) $minute . ' ' . (int) $hour . ' * * *');
     }
 
     public function due(\DateTimeInterface $now): bool
     {
-        return $this->cron->matches(new \DateTimeImmutable('@'.$now->getTimestamp())->setTimezone($this->timezone));
+        return $this->cron->matches(new \DateTimeImmutable('@' . $now->getTimestamp())->setTimezone($this->timezone));
     }
 
     public function everyMinute(): self
@@ -191,7 +191,7 @@ final class ScheduledCommand
 
     public function timeout(float $seconds): self
     {
-        if (! is_finite($seconds) || $seconds <= 0) {
+        if (!is_finite($seconds) || $seconds <= 0) {
             throw new \InvalidArgumentException('Schedule timeout must be positive.');
         }
         $this->timeoutSeconds = $seconds;
@@ -239,13 +239,6 @@ final class ScheduledCommand
         return $this;
     }
 
-    private function assertLockTiming(float $leaseSeconds, float $waitSeconds): void
-    {
-        if (! is_finite($leaseSeconds) || ! is_finite($waitSeconds) || $leaseSeconds <= 0 || $waitSeconds < 0) {
-            throw new \InvalidArgumentException('Schedule lock lease must be positive and wait cannot be negative.');
-        }
-    }
-
     private static function floatValue(mixed $value, float $default): float
     {
         return self::nullableFloat($value) ?? $default;
@@ -286,12 +279,12 @@ final class ScheduledCommand
     /** @return list<string> */
     private static function stringList(mixed $value): array
     {
-        if (! is_array($value)) {
+        if (!is_array($value)) {
             return [];
         }
         $list = [];
         foreach ($value as $entry) {
-            if (! is_string($entry) || $entry === '') {
+            if (!is_string($entry) || $entry === '') {
                 throw new \UnexpectedValueException('Schedule manifest arguments must be non-empty strings.');
             }
             $list[] = $entry;
@@ -303,5 +296,12 @@ final class ScheduledCommand
     private static function stringValue(mixed $value, string $default): string
     {
         return is_string($value) ? $value : $default;
+    }
+
+    private function assertLockTiming(float $leaseSeconds, float $waitSeconds): void
+    {
+        if (!is_finite($leaseSeconds) || !is_finite($waitSeconds) || $leaseSeconds <= 0 || $waitSeconds < 0) {
+            throw new \InvalidArgumentException('Schedule lock lease must be positive and wait cannot be negative.');
+        }
     }
 }

@@ -44,7 +44,7 @@ final readonly class IdentifierManager
 
     public function generateForAuth(string $purpose): string
     {
-        return $this->generate($this->stringConfig('ids.auth.'.$purpose, $this->defaultAuthDriver($purpose)));
+        return $this->generate($this->stringConfig('ids.auth.' . $purpose, $this->defaultAuthDriver($purpose)));
     }
 
     private function defaultAuthDriver(string $purpose): string

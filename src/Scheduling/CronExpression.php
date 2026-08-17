@@ -12,7 +12,7 @@ final readonly class CronExpression
     public function __construct(string $expression)
     {
         $parts = preg_split('/\s+/', trim($expression));
-        if (! is_array($parts) || count($parts) !== 5) {
+        if (!is_array($parts) || count($parts) !== 5) {
             throw new \InvalidArgumentException('Cron expressions must contain five fields.');
         }
         $this->parts = $parts;
@@ -36,7 +36,7 @@ final readonly class CronExpression
             (int) $dateTime->format('w'),
         ];
         foreach ([0, 1, 3] as $index) {
-            if (! $this->matchesPart($this->parts[$index], $values[$index], $this->range($index))) {
+            if (!$this->matchesPart($this->parts[$index], $values[$index], $this->range($index))) {
                 return false;
             }
         }
@@ -51,7 +51,7 @@ final readonly class CronExpression
     }
 
     /**
-     * @param  array{int,int}  $range
+     * @param array{int,int} $range
      * @return list<int>
      */
     private function candidateValues(int $value, array $range): array
@@ -64,7 +64,7 @@ final readonly class CronExpression
     {
         return array_any(
             explode(',', $part),
-            fn (string $segment): bool => $this->matchesSegment($segment, $value, $range),
+            fn(string $segment): bool => $this->matchesSegment($segment, $value, $range),
         );
     }
 
@@ -85,7 +85,7 @@ final readonly class CronExpression
 
         return array_any(
             $this->candidateValues($value, $range),
-            static fn (int $candidate): bool => $candidate >= $start
+            static fn(int $candidate): bool => $candidate >= $start
                 && $candidate <= $end
                 && ($candidate - $start) % $step === 0,
         );
@@ -107,7 +107,7 @@ final readonly class CronExpression
     /** @return array{int,int} */
     private function segmentRange(string $base): array
     {
-        if (! str_contains($base, '-')) {
+        if (!str_contains($base, '-')) {
             $value = (int) $base;
 
             return [$value, $value];
@@ -125,6 +125,17 @@ final readonly class CronExpression
         }
     }
 
+    private function validateRangeOrder(string $base): void
+    {
+        if (!str_contains($base, '-')) {
+            return;
+        }
+        [$start, $end] = $this->segmentRange($base);
+        if ($start > $end) {
+            throw new \InvalidArgumentException('Cron ranges must be ascending.');
+        }
+    }
+
     /** @param array{int,int} $range */
     private function validateSegment(string $segment, array $range): void
     {
@@ -138,17 +149,6 @@ final readonly class CronExpression
         $this->validateStep($step);
         $this->validateRangeOrder($base);
         $this->validateValues($segment, $range);
-    }
-
-    private function validateRangeOrder(string $base): void
-    {
-        if (! str_contains($base, '-')) {
-            return;
-        }
-        [$start, $end] = $this->segmentRange($base);
-        if ($start > $end) {
-            throw new \InvalidArgumentException('Cron ranges must be ascending.');
-        }
     }
 
     private function validateStep(?string $step): void

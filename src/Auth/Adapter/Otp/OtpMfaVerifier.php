@@ -134,11 +134,11 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         }
 
         try {
-            $result = (new HOTP(
+            $result = new HOTP(
                 $config['secret'],
                 $config['digits'],
                 $config['algorithm'],
-            ))->verifyWithResult(
+            )->verifyWithResult(
                 $code,
                 $config['counter'],
                 $config['look_ahead'],
@@ -220,12 +220,12 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         }
 
         try {
-            $result = (new TOTP(
+            $result = new TOTP(
                 $config['secret'],
                 $config['digits'],
                 $config['period'],
                 $config['algorithm'],
-            ))->verifyWithWindow(
+            )->verifyWithWindow(
                 $code,
                 window: VerificationWindow::symmetric($config['window']),
                 cache: $this->stateCache,

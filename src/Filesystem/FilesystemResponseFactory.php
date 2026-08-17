@@ -18,7 +18,7 @@ final readonly class FilesystemResponseFactory
     public function __construct(private FilesystemManager $files) {}
 
     /**
-     * @param  array<string, string|list<string>>  $headers
+     * @param array<string, string|list<string>> $headers
      */
     public function download(
         Request $request,
@@ -40,7 +40,7 @@ final readonly class FilesystemResponseFactory
     }
 
     /**
-     * @param  array<string, string|list<string>>  $headers
+     * @param array<string, string|list<string>> $headers
      */
     public function inline(
         Request $request,
@@ -62,7 +62,7 @@ final readonly class FilesystemResponseFactory
     }
 
     /**
-     * @param  array<string, string|list<string>>  $headers
+     * @param array<string, string|list<string>> $headers
      */
     public function xAccelRedirect(
         Request $request,
@@ -93,7 +93,7 @@ final readonly class FilesystemResponseFactory
     }
 
     /**
-     * @param  array<string, string|list<string>>  $headers
+     * @param array<string, string|list<string>> $headers
      */
     public function xSendfile(
         Request $request,
@@ -121,7 +121,7 @@ final readonly class FilesystemResponseFactory
 
     private function freshRangeHeader(Request $request, DownloadPreparation $manifest): ?string
     {
-        if (! $this->isGetOrHead($request)) {
+        if (!$this->isGetOrHead($request)) {
             return null;
         }
 
@@ -155,7 +155,7 @@ final readonly class FilesystemResponseFactory
     }
 
     /**
-     * @param  array<string, string|list<string>>  ...$groups
+     * @param array<string, string|list<string>> ...$groups
      * @return array<string, string|list<string>>
      */
     private function mergeHeaders(array ...$groups): array
@@ -176,7 +176,7 @@ final readonly class FilesystemResponseFactory
     }
 
     /**
-     * @param  array<string, string|list<string>>  $headers
+     * @param array<string, string|list<string>> $headers
      */
     private function offloadResponse(
         Request $request,
@@ -213,7 +213,7 @@ final readonly class FilesystemResponseFactory
     }
 
     /**
-     * @param  array<string, string|list<string>>  $headers
+     * @param array<string, string|list<string>> $headers
      * @return array{
      *   0: DownloadProcessor,
      *   1: string,
@@ -246,7 +246,7 @@ final readonly class FilesystemResponseFactory
         bool $inline,
     ): array {
         $processor = $this->files->download($directory, $disk);
-        $processor->setForceAttachment(! $inline);
+        $processor->setForceAttachment(!$inline);
 
         return [$processor, $this->resolvedDownloadPath($path, $disk)];
     }
@@ -265,7 +265,7 @@ final readonly class FilesystemResponseFactory
     }
 
     /**
-     * @param  array<string, string|list<string>>  $headers
+     * @param array<string, string|list<string>> $headers
      */
     private function respond(
         Request $request,
@@ -295,7 +295,7 @@ final readonly class FilesystemResponseFactory
         $response = Response::stream(
             producer: function () use ($processor, $resolvedPath, $downloadName, $rangeHeader): string {
                 $output = fopen('php://output', 'wb');
-                if (! is_resource($output)) {
+                if (!is_resource($output)) {
                     throw new \RuntimeException('Unable to open php://output for download streaming.');
                 }
 
@@ -326,7 +326,7 @@ final readonly class FilesystemResponseFactory
             return null;
         }
 
-        $status = ! $this->isGetOrHead($request) && $outcome->http === 304
+        $status = !$this->isGetOrHead($request) && $outcome->http === 304
             ? 412
             : $outcome->http;
         $response = Response::empty($status);

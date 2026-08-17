@@ -9,7 +9,7 @@ final class ProcessRunner
     /** @param list<string>|string $command Prefer an argument list to bypass the shell. */
     public function run(array|string $command, ?ProcessOptions $options = null): ProcessResult
     {
-        $options ??= new ProcessOptions;
+        $options ??= new ProcessOptions();
         $this->assertCommand($command);
 
         if ($options->interactive) {
@@ -24,7 +24,7 @@ final class ProcessRunner
             $this->environment($options),
             ['bypass_shell' => is_array($command)],
         );
-        if (! is_resource($process)) {
+        if (!is_resource($process)) {
             throw new \RuntimeException('Unable to start process.');
         }
 
@@ -42,17 +42,17 @@ final class ProcessRunner
     /** @param list<string>|string $command */
     private function assertCommand(array|string $command): void
     {
-        if (! is_array($command)) {
+        if (!is_array($command)) {
             return;
         }
-        if ($command === [] || array_any($command, static fn (string $part): bool => $part === '')) {
+        if ($command === [] || array_any($command, static fn(string $part): bool => $part === '')) {
             throw new \InvalidArgumentException('Process command arguments must be non-empty strings.');
         }
     }
 
     /**
-     * @param  resource  $process
-     * @param  array<int, resource>  $pipes
+     * @param resource $process
+     * @param array<int, resource> $pipes
      */
     private function capture($process, array $pipes, ProcessOptions $options): ProcessResult
     {
@@ -72,6 +72,7 @@ final class ProcessRunner
             if ($this->timeoutReached($startedAt, $options->timeoutSeconds)) {
                 $timedOut = true;
                 proc_terminate($process);
+
                 break;
             }
             usleep(10_000);
@@ -116,12 +117,6 @@ final class ProcessRunner
         return $environment;
     }
 
-    /** @param resource $process */
-    private function running($process): bool
-    {
-        return proc_get_status($process)['running'];
-    }
-
     /** @param list<string>|string $command */
     private function runInteractive(array|string $command, ProcessOptions $options): ProcessResult
     {
@@ -133,7 +128,7 @@ final class ProcessRunner
             $this->environment($options),
             ['bypass_shell' => is_array($command)],
         );
-        if (! is_resource($process)) {
+        if (!is_resource($process)) {
             throw new \RuntimeException('Unable to start interactive process.');
         }
 
@@ -143,6 +138,7 @@ final class ProcessRunner
             if ($this->timeoutReached($startedAt, $options->timeoutSeconds)) {
                 $timedOut = true;
                 proc_terminate($process);
+
                 break;
             }
             usleep(10_000);
@@ -151,6 +147,12 @@ final class ProcessRunner
         $exitCode = proc_close($process);
 
         return new ProcessResult($timedOut ? 124 : $exitCode, timedOut: $timedOut);
+    }
+
+    /** @param resource $process */
+    private function running($process): bool
+    {
+        return proc_get_status($process)['running'];
     }
 
     private function timeoutReached(int $startedAt, ?float $timeoutSeconds): bool

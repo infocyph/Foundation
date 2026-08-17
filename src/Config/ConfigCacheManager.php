@@ -15,20 +15,20 @@ final readonly class ConfigCacheManager
     public function clear(string $path = 'bootstrap/cache/config'): bool
     {
         $directory = $this->path($path);
-        if (! is_dir($directory)) {
+        if (!is_dir($directory)) {
             return false;
         }
 
-        $files = glob($directory.DIRECTORY_SEPARATOR.'*.php');
+        $files = glob($directory . DIRECTORY_SEPARATOR . '*.php');
         if ($files === false || $files === []) {
             return false;
         }
-        if (! is_writable($directory)) {
+        if (!is_writable($directory)) {
             throw new \RuntimeException(sprintf('Config cache directory "%s" is not writable.', $directory));
         }
 
         foreach ($files as $file) {
-            if (! unlink($file)) {
+            if (!unlink($file)) {
                 throw new \RuntimeException(sprintf('Unable to remove config cache file "%s".', $file));
             }
         }
@@ -48,7 +48,7 @@ final readonly class ConfigCacheManager
     public function write(string $path = 'bootstrap/cache/config', ?string $type = null): string
     {
         $directory = $this->path($path);
-        $loader = new ConfigLoader;
+        $loader = new ConfigLoader();
         $config = $loader->load([
             'base_path' => $this->application->basePath(),
             '_config_cache' => false,
@@ -59,8 +59,8 @@ final readonly class ConfigCacheManager
             new ProviderFileLoader($this->application->paths())->groups(),
         );
 
-        $staging = $directory.'.building.'.bin2hex(random_bytes(6));
-        $backup = $directory.'.previous.'.bin2hex(random_bytes(6));
+        $staging = $directory . '.building.' . bin2hex(random_bytes(6));
+        $backup = $directory . '.previous.' . bin2hex(random_bytes(6));
 
         try {
             $cacheType = $loader->writeCache(new ConfigRepository($compiled), $staging, $type);
@@ -79,8 +79,8 @@ final readonly class ConfigCacheManager
     }
 
     /**
-     * @param  array<array-key, mixed>  $configured
-     * @param  array{common:list<class-string<ServiceProviderInterface>>,web:list<class-string<ServiceProviderInterface>>,cli:list<class-string<ServiceProviderInterface>>,worker:list<class-string<ServiceProviderInterface>>,scheduler:list<class-string<ServiceProviderInterface>>}  $fromFile
+     * @param array<array-key, mixed> $configured
+     * @param array{common:list<class-string<ServiceProviderInterface>>,web:list<class-string<ServiceProviderInterface>>,cli:list<class-string<ServiceProviderInterface>>,worker:list<class-string<ServiceProviderInterface>>,scheduler:list<class-string<ServiceProviderInterface>>} $fromFile
      * @return array{common:list<class-string<ServiceProviderInterface>>,web:list<class-string<ServiceProviderInterface>>,cli:list<class-string<ServiceProviderInterface>>,worker:list<class-string<ServiceProviderInterface>>,scheduler:list<class-string<ServiceProviderInterface>>}
      */
     private function compiledProviders(array $configured, array $fromFile): array
@@ -109,12 +109,12 @@ final readonly class ConfigCacheManager
     private function publish(string $directory, string $staging, string $backup): void
     {
         $parent = dirname($directory);
-        if (! is_dir($parent) && ! mkdir($parent, 0775, true) && ! is_dir($parent)) {
+        if (!is_dir($parent) && !mkdir($parent, 0775, true) && !is_dir($parent)) {
             throw new \RuntimeException(sprintf('Unable to create config cache parent "%s".', $parent));
         }
 
         $hadCurrent = is_dir($directory);
-        if ($hadCurrent && ! rename($directory, $backup)) {
+        if ($hadCurrent && !rename($directory, $backup)) {
             throw new \RuntimeException(sprintf('Unable to stage current config cache "%s".', $directory));
         }
         if (rename($staging, $directory)) {
@@ -129,14 +129,14 @@ final readonly class ConfigCacheManager
 
     private function removeDirectory(string $directory): void
     {
-        if (! is_dir($directory)) {
+        if (!is_dir($directory)) {
             return;
         }
         foreach (scandir($directory) ?: [] as $entry) {
             if ($entry === '.' || $entry === '..') {
                 continue;
             }
-            $path = $directory.DIRECTORY_SEPARATOR.$entry;
+            $path = $directory . DIRECTORY_SEPARATOR . $entry;
             is_dir($path) ? $this->removeDirectory($path) : unlink($path);
         }
         rmdir($directory);
