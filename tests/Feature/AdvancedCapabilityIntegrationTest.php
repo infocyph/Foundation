@@ -7,13 +7,15 @@ use Infocyph\Foundation\Auth\Adapter\WebAuthn\WebAuthnAttestationPolicyInterface
 use Infocyph\Foundation\Auth\Adapter\WebAuthn\WebAuthnConfig;
 use Infocyph\Foundation\Auth\Adapter\WebAuthn\WebAuthnRuntime;
 use Infocyph\Foundation\Auth\Mfa\MfaFactorType;
+use Infocyph\Foundation\Communication\CommunicationManager;
 use Infocyph\Foundation\Exception\ConfigurationException;
 use Infocyph\Foundation\Foundation;
+use Infocyph\Foundation\Notifications\NotificationManager;
 use Infocyph\OTP\HOTP;
 use Infocyph\OTP\OCRA;
-use Infocyph\TalkingBytes\Core\Contract\TransportInterface;
-use Infocyph\TalkingBytes\Core\Message\CommunicationRequest;
 use Infocyph\TalkingBytes\Core\Result\CommunicationResult;
+use Infocyph\TalkingBytes\Http\Contract\HttpTransport;
+use Infocyph\TalkingBytes\Http\HttpRequest;
 use Webauthn\AttestationStatement\AttestationStatementSupportManager;
 use Webauthn\AttestationStatement\NoneAttestationStatementSupport;
 use Webauthn\CeremonyStep\CeremonyStepManagerFactory;
@@ -39,11 +41,11 @@ final class FoundationDirectAttestationPolicy implements WebAuthnAttestationPoli
     }
 }
 
-final class FoundationPipelineTransport implements TransportInterface
+final class FoundationPipelineTransport implements HttpTransport
 {
-    public function send(CommunicationRequest $request): CommunicationResult
+    public function send(HttpRequest $request): CommunicationResult
     {
-        return CommunicationResult::success(200, $request->transport);
+        return CommunicationResult::success(200, $request->url);
     }
 }
 
@@ -58,12 +60,13 @@ it('supports secure HOTP and OCRA MFA workflows', function (): void {
     ])->boot();
 
     $mfa = $app->auth()->mfa();
-    $hotp = new HOTP('JBSWY3DPEHPK3PXP');
+    $hotpSecret = 'JBSWY3DPEHPK3PXP';
+    $hotp = new HOTP($hotpSecret);
     $hotpEnrollment = $mfa->enrollFactor(
         'account-hotp',
         MfaFactorType::HOTP,
         'Hardware token',
-        ['otp' => ['algorithm' => 'sha1', 'counter' => 0, 'digits' => 6, 'secret' => 'JBSWY3DPEHPK3PXP']],
+        ['otp' => ['algorithm' => 'sha1', 'counter' => 0, 'digits' => 6, 'secret' => $hotpSecret]],
         enabled: true,
     );
 
@@ -81,12 +84,13 @@ it('supports secure HOTP and OCRA MFA workflows', function (): void {
         ->and($replayedVerification->code)->toBe('mfa_code_invalid')
         ->and($secondVerification->successful())->toBeTrue();
 
-    $ocra = new OCRA('OCRA-1:HOTP-SHA1-6:QN08', '12345678901234567890');
+    $ocraKey = '12345678901234567890';
+    $ocra = new OCRA('OCRA-1:HOTP-SHA1-6:QN08', $ocraKey);
     $ocraEnrollment = $mfa->enrollFactor(
         'account-ocra',
         MfaFactorType::OCRA,
         'Challenge token',
-        ['otp' => ['shared_key' => '12345678901234567890', 'suite' => 'OCRA-1:HOTP-SHA1-6:QN08']],
+        ['otp' => ['shared_key' => $ocraKey, 'suite' => 'OCRA-1:HOTP-SHA1-6:QN08']],
         enabled: true,
     );
     $ocraFactorId = $ocraEnrollment->factor?->id;
@@ -124,11 +128,12 @@ it('keeps direct WebAuthn attestation fail-closed until a policy is registered',
 
 it('exposes lean TalkingBytes composition helpers', function (): void {
     $app = Foundation::web()->boot();
-    $comms = $app->communication();
-    $signer = $comms->hmacSigner('secret');
-    $pipeline = $comms->pipeline(new FoundationPipelineTransport());
+    $comms = $app->make(CommunicationManager::class);
+    $notifications = $app->make(NotificationManager::class);
+    $signer = $comms->hmacSigner('test-signing-key');
+    $pipeline = $comms->httpPipeline(new FoundationPipelineTransport());
 
     expect($comms->signatureVerifier($signer)->verify('payload', $signer->sign('payload')))->toBeTrue()
-        ->and($pipeline->send(new CommunicationRequest('GET', '/health'))->successful)->toBeTrue()
-        ->and($app->notifications()->dkimVerifier())->toBeObject();
+        ->and($pipeline->send(HttpRequest::get('https://example.test/health'))->successful)->toBeTrue()
+        ->and($notifications->dkimVerifier())->toBeObject();
 });
