@@ -6,18 +6,366 @@ namespace Infocyph\Foundation\Command;
 
 use Infocyph\Foundation\Application\RuntimeMode;
 
-final readonly class CommandDefinition
+final class CommandDefinition
 {
+    /** @var list<string> */
+    private array $aliases = [];
+
+    /** @var list<array{name:string,description:string,required:bool,variadic:bool}> */
+    private array $arguments = [];
+
+    /** @var list<string> */
+    private array $capabilities = [];
+
+    private string $description = '';
+
+    private string $group = 'Application';
+
+    private bool $hidden = false;
+
+    private string $name = '';
+
+    /** @var array<string, array{name:string,description:string,short:?string,accepts_value:bool,multiple:bool,negatable:bool}> */
+    private array $options = [];
+
+    private RuntimeMode $runtime = RuntimeMode::Cli;
+
     /** @param list<string> $capabilities */
     public function __construct(
-        public string $name,
-        public string $description,
-        public string $group,
-        public RuntimeMode $runtime = RuntimeMode::Cli,
-        public array $capabilities = [],
+        string $name = '',
+        string $description = '',
+        string $group = 'Application',
+        RuntimeMode $runtime = RuntimeMode::Cli,
+        array $capabilities = [],
     ) {
-        if ($name === '' || preg_match('/^[a-z][a-z0-9:_-]*$/', $name) !== 1) {
-            throw new \InvalidArgumentException(sprintf('Invalid command name "%s".', $name));
+        if ($name !== '') {
+            $this->name($name);
         }
+        $this->description($description);
+        $this->group($group);
+        $this->runtime($runtime);
+        foreach ($capabilities as $capability) {
+            $this->capability($capability);
+        }
+    }
+
+    public function alias(string $alias): self
+    {
+        $this->assertCommandName($alias, 'alias');
+        if ($alias === $this->name) {
+            throw new \InvalidArgumentException('A command alias cannot equal its canonical name.');
+        }
+        if (!in_array($alias, $this->aliases, true)) {
+            $this->aliases[] = $alias;
+        }
+
+        return $this;
+    }
+
+    public function argument(
+        string $name,
+        string $description = '',
+        bool $required = false,
+        bool $variadic = false,
+    ): self {
+        if (preg_match('/^[a-z][a-z0-9_-]*$/D', $name) !== 1) {
+            throw new \InvalidArgumentException(sprintf('Invalid command argument name "%s".', $name));
+        }
+        if (array_any($this->arguments, static fn(array $argument): bool => $argument['name'] === $name)) {
+            throw new \InvalidArgumentException(sprintf('Command argument "%s" is already defined.', $name));
+        }
+        if (array_any($this->arguments, static fn(array $argument): bool => $argument['variadic'])) {
+            throw new \LogicException('A variadic command argument must be the final argument.');
+        }
+        if (!$required && array_any($this->arguments, static fn(array $argument): bool => $argument['required'])) {
+            // Optional arguments may follow required arguments. The inverse is rejected below.
+        } elseif ($required && array_any($this->arguments, static fn(array $argument): bool => !$argument['required'])) {
+            throw new \LogicException('Required command arguments cannot follow optional arguments.');
+        }
+
+        $this->arguments[] = [
+            'name' => $name,
+            'description' => trim($description),
+            'required' => $required,
+            'variadic' => $variadic,
+        ];
+
+        return $this;
+    }
+
+    public function capability(string $capability): self
+    {
+        $capability = trim($capability);
+        if ($capability === '' || preg_match('/^[a-z][a-z0-9_-]*$/D', $capability) !== 1) {
+            throw new \InvalidArgumentException(sprintf('Invalid command capability "%s".', $capability));
+        }
+        if (!in_array($capability, $this->capabilities, true)) {
+            $this->capabilities[] = $capability;
+        }
+
+        return $this;
+    }
+
+    public function description(string $description): self
+    {
+        $this->description = trim($description);
+
+        return $this;
+    }
+
+    public function group(string $group): self
+    {
+        $group = trim($group);
+        if ($group === '') {
+            throw new \InvalidArgumentException('Command group cannot be empty.');
+        }
+        $this->group = $group;
+
+        return $this;
+    }
+
+    public function hidden(bool $hidden = true): self
+    {
+        $this->hidden = $hidden;
+
+        return $this;
+    }
+
+    public function name(string $name): self
+    {
+        $this->assertCommandName($name, 'name');
+        $this->name = $name;
+
+        return $this;
+    }
+
+    public function option(
+        string $name,
+        string $description = '',
+        ?string $short = null,
+        bool $acceptsValue = false,
+        bool $multiple = false,
+        bool $negatable = false,
+    ): self {
+        if (preg_match('/^[a-z][a-z0-9_-]*$/D', $name) !== 1) {
+            throw new \InvalidArgumentException(sprintf('Invalid command option name "%s".', $name));
+        }
+        if ($short !== null && preg_match('/^[A-Za-z0-9]$/D', $short) !== 1) {
+            throw new \InvalidArgumentException('Command option shortcuts must be one alphanumeric character.');
+        }
+        if ($multiple && !$acceptsValue) {
+            throw new \LogicException('Only value options may accept multiple values.');
+        }
+        if ($negatable && $acceptsValue) {
+            throw new \LogicException('Only flag options may be negatable.');
+        }
+        if (isset($this->options[$name])) {
+            throw new \InvalidArgumentException(sprintf('Command option "%s" is already defined.', $name));
+        }
+        if ($short !== null && array_any(
+            $this->options,
+            static fn(array $option): bool => $option['short'] === $short,
+        )) {
+            throw new \InvalidArgumentException(sprintf('Command option shortcut "-%s" is already defined.', $short));
+        }
+
+        $this->options[$name] = [
+            'name' => $name,
+            'description' => trim($description),
+            'short' => $short,
+            'accepts_value' => $acceptsValue,
+            'multiple' => $multiple,
+            'negatable' => $negatable,
+        ];
+
+        return $this;
+    }
+
+    public function runtime(RuntimeMode $runtime): self
+    {
+        $this->runtime = $runtime;
+
+        return $this;
+    }
+
+    /** @return list<string> */
+    public function aliases(): array
+    {
+        return $this->aliases;
+    }
+
+    /** @return list<array{name:string,description:string,required:bool,variadic:bool}> */
+    public function arguments(): array
+    {
+        return $this->arguments;
+    }
+
+    /** @return list<string> */
+    public function capabilities(): array
+    {
+        return $this->capabilities;
+    }
+
+    public function commandDescription(): string
+    {
+        return $this->description;
+    }
+
+    public function commandGroup(): string
+    {
+        return $this->group;
+    }
+
+    public function commandName(): string
+    {
+        return $this->name;
+    }
+
+    public function commandRuntime(): RuntimeMode
+    {
+        return $this->runtime;
+    }
+
+    public function isHidden(): bool
+    {
+        return $this->hidden;
+    }
+
+    /** @return array<string, array{name:string,description:string,short:?string,accepts_value:bool,multiple:bool,negatable:bool}> */
+    public function options(): array
+    {
+        return $this->options;
+    }
+
+    /** @return array{name:string,description:string,short:?string,accepts_value:bool,multiple:bool,negatable:bool}|null */
+    public function optionByShort(string $short): ?array
+    {
+        foreach ($this->options as $option) {
+            if ($option['short'] === $short) {
+                return $option;
+            }
+        }
+
+        return null;
+    }
+
+    public function assertComplete(): void
+    {
+        if ($this->name === '') {
+            throw new \LogicException('Command definition must declare a name.');
+        }
+    }
+
+    /** @return array<string, mixed> */
+    public function toManifest(): array
+    {
+        $this->assertComplete();
+
+        return [
+            'name' => $this->name,
+            'description' => $this->description,
+            'group' => $this->group,
+            'runtime' => $this->runtime->value,
+            'capabilities' => $this->capabilities,
+            'aliases' => $this->aliases,
+            'hidden' => $this->hidden,
+            'arguments' => $this->arguments,
+            'options' => array_values($this->options),
+        ];
+    }
+
+    /** @param array<string, mixed> $manifest */
+    public static function fromManifest(array $manifest): self
+    {
+        $name = $manifest['name'] ?? null;
+        $description = $manifest['description'] ?? '';
+        $group = $manifest['group'] ?? 'Application';
+        $runtime = $manifest['runtime'] ?? RuntimeMode::Cli->value;
+        if (!is_string($name) || !is_string($description) || !is_string($group) || !is_string($runtime)) {
+            throw new \UnexpectedValueException('Compiled command metadata contains invalid scalar fields.');
+        }
+
+        try {
+            $definition = new self($name, $description, $group, RuntimeMode::from($runtime));
+        } catch (\ValueError $exception) {
+            throw new \UnexpectedValueException(sprintf('Invalid compiled command runtime "%s".', $runtime), previous: $exception);
+        }
+
+        foreach (self::stringList($manifest['capabilities'] ?? [], 'capabilities') as $capability) {
+            $definition->capability($capability);
+        }
+        foreach (self::stringList($manifest['aliases'] ?? [], 'aliases') as $alias) {
+            $definition->alias($alias);
+        }
+        $hidden = $manifest['hidden'] ?? false;
+        if (!is_bool($hidden)) {
+            throw new \UnexpectedValueException('Compiled command hidden metadata must be boolean.');
+        }
+        $definition->hidden($hidden);
+
+        $arguments = $manifest['arguments'] ?? [];
+        if (!is_array($arguments)) {
+            throw new \UnexpectedValueException('Compiled command arguments metadata must be a list.');
+        }
+        foreach ($arguments as $argument) {
+            if (!is_array($argument)
+                || !is_string($argument['name'] ?? null)
+                || !is_string($argument['description'] ?? null)
+                || !is_bool($argument['required'] ?? null)
+                || !is_bool($argument['variadic'] ?? null)
+            ) {
+                throw new \UnexpectedValueException('Compiled command argument metadata is invalid.');
+            }
+            $definition->argument(
+                $argument['name'],
+                $argument['description'],
+                $argument['required'],
+                $argument['variadic'],
+            );
+        }
+
+        $options = $manifest['options'] ?? [];
+        if (!is_array($options)) {
+            throw new \UnexpectedValueException('Compiled command options metadata must be a list.');
+        }
+        foreach ($options as $option) {
+            if (!is_array($option)
+                || !is_string($option['name'] ?? null)
+                || !is_string($option['description'] ?? null)
+                || !(is_string($option['short'] ?? null) || ($option['short'] ?? null) === null)
+                || !is_bool($option['accepts_value'] ?? null)
+                || !is_bool($option['multiple'] ?? null)
+                || !is_bool($option['negatable'] ?? null)
+            ) {
+                throw new \UnexpectedValueException('Compiled command option metadata is invalid.');
+            }
+            $definition->option(
+                $option['name'],
+                $option['description'],
+                $option['short'],
+                $option['accepts_value'],
+                $option['multiple'],
+                $option['negatable'],
+            );
+        }
+
+        return $definition;
+    }
+
+    private function assertCommandName(string $name, string $field): void
+    {
+        if ($name === '' || preg_match('/^[a-z][a-z0-9:_-]*$/D', $name) !== 1) {
+            throw new \InvalidArgumentException(sprintf('Invalid command %s "%s".', $field, $name));
+        }
+    }
+
+    /** @return list<string> */
+    private static function stringList(mixed $value, string $field): array
+    {
+        if (!is_array($value) || array_any($value, static fn(mixed $item): bool => !is_string($item))) {
+            throw new \UnexpectedValueException(sprintf('Compiled command %s metadata must be a string list.', $field));
+        }
+
+        return array_values($value);
     }
 }
