@@ -75,12 +75,13 @@ final readonly class CommunicationProfiles
 
     public function http(?string $profile = null): HttpClient
     {
-        $config = $this->httpConfig($profile);
+        $array = $this->httpConfigArray($profile);
+        $config = HttpClientConfig::fromArray($array);
         if ($this->config->isProduction() && (!$config->verifyPeer || !$config->verifyHost)) {
             throw new \LogicException('Production HTTP profiles must verify both TLS peers and hosts.');
         }
 
-        return $this->decorateHttp(HttpClient::fromConfig($config), $this->httpConfigArray($profile));
+        return $this->decorateHttp(HttpClient::fromConfig($config), $array);
     }
 
     public function httpConfig(?string $profile = null): HttpClientConfig
@@ -268,7 +269,7 @@ final readonly class CommunicationProfiles
             throw new \InvalidArgumentException(sprintf('Communication profile key "%s" must be non-empty.', $key));
         }
 
-        return $value;
+        return trim($value);
     }
 
     /** @return array<string, mixed> */
@@ -286,16 +287,19 @@ final readonly class CommunicationProfiles
     /** @return string|list<string> */
     private function webhookSecret(mixed $secret): string|array
     {
-        $secrets = is_string($secret) ? [$secret] : (is_array($secret) ? array_values($secret) : []);
-        if ($secrets === [] || array_any($secrets, static fn(mixed $value): bool => !is_string($value) || trim($value) === '')) {
+        $secrets = is_string($secret) ? [trim($secret)] : (is_array($secret) ? array_map(
+            static fn(mixed $value): mixed => is_string($value) ? trim($value) : $value,
+            array_values($secret),
+        ) : []);
+        if ($secrets === [] || array_any($secrets, static fn(mixed $value): bool => !is_string($value) || $value === '')) {
             throw new \InvalidArgumentException('Inbound webhook secret must contain one or more non-empty strings.');
         }
         if ($this->config->isProduction()
-            && array_any($secrets, static fn(string $value): bool => hash_equals('change-me', trim($value)))
+            && array_any($secrets, static fn(string $value): bool => hash_equals('change-me', $value))
         ) {
             throw new \LogicException('Production inbound webhook profiles must replace the default secret.');
         }
 
-        return is_string($secret) ? $secret : $secrets;
+        return is_string($secret) ? $secrets[0] : $secrets;
     }
 }
