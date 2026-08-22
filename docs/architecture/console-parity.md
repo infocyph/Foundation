@@ -70,15 +70,16 @@ No Console capability may disappear implicitly.
 
 | Console capability | Foundation 2.0 owner | State |
 | --- | --- | --- |
-| Worker definitions/routes | Foundation `Worker` | MIGRATED |
-| Worker runtime | Foundation `WorkerRuntime` | PARTIAL |
+| Maintenance-worker definitions/routes | Foundation `Worker` | MIGRATED |
+| Maintenance-worker runtime/execution scopes | Foundation `WorkerRuntime` + `ExecutionScope` | MIGRATED |
 | Single-process message worker | Omnibus `Worker` + Foundation composition | DELEGATED |
-| Parallel process worker | Omnibus `WorkerPool` + Foundation child bootstrap | DELEGATED |
+| Parallel process worker | Omnibus `WorkerPool` + Foundation post-fork child bootstrap | DELEGATED |
 | Queue consumer | Omnibus `Consumer` | DELEGATED |
 | Retry/failure store | Omnibus | DELEGATED |
 | Message uniqueness/overlap | Omnibus + CacheLayer | DELEGATED |
-| Generic singleton maintenance-worker lock | Foundation + CacheLayer | PARTIAL |
+| Singleton maintenance-worker lock/heartbeat | Foundation + CacheLayer | MIGRATED |
 | Worker process supervision | Omnibus WorkerPool or external supervisor | DELEGATED |
+| Per-message runtime isolation/reset | Foundation canonical `ExecutionScope` | MIGRATED |
 
 ## Scheduling
 
@@ -155,6 +156,8 @@ This includes, at minimum:
 - serve
 - secret generation
 - artifact generation commands
+
+Generated artifacts are also part of the boundary: Foundation stubs must not reintroduce `Infocyph\Console\*` or `Infocyph\Foundation\Console\*` dependencies.
 
 ## Release rule
 
