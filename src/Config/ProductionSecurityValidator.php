@@ -20,6 +20,14 @@ final readonly class ProductionSecurityValidator
     ];
 
     /** @var list<string> */
+    private const array DISTRIBUTED_LOCK_DRIVERS = [
+        'memcache',
+        'pdo',
+        'redis',
+        'valkey',
+    ];
+
+    /** @var list<string> */
     private const array UNSAFE_PRODUCTION_CACHE_DRIVERS = [
         'memory',
         'null_store',
@@ -35,6 +43,7 @@ final readonly class ProductionSecurityValidator
         $topology = $this->topology($issues);
         $this->validatePasswordPolicy($issues);
         $this->validateAuthState($issues, $topology);
+        $this->validateLockTopology($issues, $topology);
 
         return $issues;
     }
@@ -125,12 +134,12 @@ final readonly class ProductionSecurityValidator
             );
         }
 
-        $this->validateAtomicCounter($issues, $topology);
+        $this->validateAtomicCounter($issues);
         $this->validateOtpReplayStore($issues, $topology, $default);
     }
 
     /** @param list<ConfigIssue> $issues */
-    private function validateAtomicCounter(array &$issues, DeploymentTopology $topology): void
+    private function validateAtomicCounter(array &$issues): void
     {
         $counter = $this->string($this->config->get('cache.default_counter'));
         if ($counter === null) {
@@ -150,8 +159,6 @@ final readonly class ProductionSecurityValidator
                 'cache.counters.' . $counter,
             );
         }
-
-        unset($topology);
     }
 
     /** @param list<ConfigIssue> $issues */
@@ -177,6 +184,22 @@ final readonly class ProductionSecurityValidator
             $issues[] = new ConfigIssue(
                 sprintf('OTP replay store "%s" is node-local; distributed MFA requires shared replay state.', $store),
                 'auth.otp.replay.store',
+            );
+        }
+    }
+
+    /** @param list<ConfigIssue> $issues */
+    private function validateLockTopology(array &$issues, DeploymentTopology $topology): void
+    {
+        if ($topology !== DeploymentTopology::DISTRIBUTED) {
+            return;
+        }
+
+        $driver = $this->normalizeDriver($this->config->get('cache.lock.driver'));
+        if ($driver === null || !in_array($driver, self::DISTRIBUTED_LOCK_DRIVERS, true)) {
+            $issues[] = new ConfigIssue(
+                'Distributed topology requires cache.lock.driver to use Redis, Valkey, Memcached, or PDO; file locks are node-local.',
+                'cache.lock.driver',
             );
         }
     }
