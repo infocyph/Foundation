@@ -24,19 +24,22 @@ final readonly class AuthNotificationRegistrar extends AbstractAuthRegistrar
                 $this->app->make(NotificationTemplateRegistry::class),
             ));
 
-            $this->singleton(AuthNotifierInterface::class, fn() => new TalkingBytesAuthNotifier(
+            $this->container->factory(AuthNotifierInterface::class, fn() => new TalkingBytesAuthNotifier(
                 emailer: $this->app->make(Emailer::class),
                 mapper: $this->app->make(AuthNotificationMapper::class),
                 accounts: $this->app->make(AccountProviderInterface::class),
                 criticalTypes: $this->criticalTypes(),
                 failSilently: $this->boolConfig('notifications.auth.fail_silently', false),
                 from: $this->nullableString($this->app->config()->get('notifications.auth.from')),
-            ));
+            ))->scoped();
 
             return;
         }
 
-        $this->singleton(AuthNotifierInterface::class, fn() => new CollectingAuthNotifier());
+        $this->container->factory(
+            AuthNotifierInterface::class,
+            static fn() => new CollectingAuthNotifier(),
+        )->scoped();
     }
 
     /**
