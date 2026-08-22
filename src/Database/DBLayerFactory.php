@@ -7,6 +7,7 @@ namespace Infocyph\Foundation\Database;
 use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\Connection\ConnectionConfig;
 use Infocyph\DBLayer\DB;
+use Infocyph\Foundation\Runtime\RuntimeContextTracker;
 
 final class DBLayerFactory
 {
@@ -18,6 +19,7 @@ final class DBLayerFactory
 
     public function __construct(
         private readonly DatabaseConnectionResolver $resolver,
+        private readonly RuntimeContextTracker $contexts,
     ) {}
 
     public function connection(?string $name = null, bool $fresh = false): Connection
@@ -33,6 +35,8 @@ final class DBLayerFactory
             DB::addConnection($config, $name);
             $this->registered[$name] = true;
         }
+
+        $this->contexts->markDatabase();
 
         return DB::connection($name, $fresh);
     }
