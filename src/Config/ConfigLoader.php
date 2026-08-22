@@ -31,7 +31,7 @@ final class ConfigLoader
         new EnvironmentLoader()->load($basePath, $normalized);
 
         $configDirectory = $this->configPath($basePath, $normalized);
-        $sourceFingerprint = $this->sourceFingerprint($configDirectory);
+        $sourceFingerprint = $this->sourceFingerprint($configDirectory, $basePath);
         $cacheDirectory = $this->configCacheEnabled($cacheControl)
             ? $this->configuredCachePath($cacheControl, $basePath)
             : null;
@@ -77,7 +77,10 @@ final class ConfigLoader
         $this->ensureCacheDirectory($cacheDirectory);
         $cacheType = $this->cacheType($config, $type);
         $sourceBasePath = $basePath ?? $this->basePath($config->all());
-        $sourceFingerprint = $this->sourceFingerprint($this->configPath($sourceBasePath, $config->all()));
+        $sourceFingerprint = $this->sourceFingerprint(
+            $this->configPath($sourceBasePath, $config->all()),
+            $sourceBasePath,
+        );
         $payload = $cacheType === self::TYPE_SINGLE
             ? $this->singleCachePayload($config, $cacheDirectory, $sourceFingerprint)
             : $this->shardedCachePayload($config, $cacheDirectory, $sourceFingerprint);
@@ -369,22 +372,29 @@ final class ConfigLoader
         ];
     }
 
-    private function sourceFingerprint(string $directory): string
+    private function sourceFingerprint(string $directory, string $basePath): string
     {
-        if (!is_dir($directory)) {
-            return hash('sha256', 'missing-config-directory');
+        $files = is_dir($directory)
+            ? (glob(rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . '*.php') ?: [])
+            : [];
+        $providers = rtrim($basePath, DIRECTORY_SEPARATOR)
+            . DIRECTORY_SEPARATOR . 'bootstrap'
+            . DIRECTORY_SEPARATOR . 'providers.php';
+        if (is_file($providers)) {
+            $files[] = $providers;
         }
-
-        $files = glob(rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . '*.php') ?: [];
         sort($files, SORT_STRING);
-        $metadata = [];
+
+        $metadata = [is_dir($directory) ? 'config:present' : 'config:missing'];
         foreach ($files as $file) {
             $stat = stat($file);
             if (!is_array($stat)) {
-                return hash('sha256', 'unreadable:' . basename($file));
+                return hash('sha256', 'unreadable:' . $file);
             }
             $metadata[] = implode(':', [
-                basename($file),
+                str_starts_with($file, rtrim($basePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR)
+                    ? substr($file, strlen(rtrim($basePath, DIRECTORY_SEPARATOR)) + 1)
+                    : $file,
                 (string) ($stat['size'] ?? 0),
                 (string) ($stat['mtime'] ?? 0),
                 (string) ($stat['ctime'] ?? 0),
