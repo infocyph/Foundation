@@ -2,43 +2,11 @@
 
 declare(strict_types=1);
 
-$env = static function (string $key, mixed $default = null): mixed {
-    $value = $_ENV[$key] ?? $_SERVER[$key] ?? getenv($key);
-
-    return $value === false || $value === null ? $default : $value;
-};
-
-$envString = static function (string $key, string $default) use ($env): string {
-    $value = $env($key);
-
-    return is_string($value) && $value !== '' ? $value : $default;
-};
-
-$envInt = static function (string $key, int $default) use ($env): int {
-    $value = $env($key);
-
-    return is_numeric($value) ? (int) $value : $default;
-};
-
-$envFloat = static function (string $key, float $default) use ($env): float {
-    $value = $env($key);
+$envFloat = static function (string $key, float $default): float {
+    $value = env($key);
 
     return is_numeric($value) ? (float) $value : $default;
 };
-
-$envBool = static function (string $key, bool $default) use ($env): bool {
-    $value = $env($key);
-    if (is_bool($value)) {
-        return $value;
-    }
-    if (!is_string($value) && !is_int($value)) {
-        return $default;
-    }
-
-    return filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? $default;
-};
-
-$basePath = dirname(__DIR__);
 
 return [
     /*
@@ -58,9 +26,9 @@ return [
     | `65536` (64 KiB) or `262144` (256 KiB).
     |
     */
-    'driver' => $envString('SESSION_DRIVER', 'file'),
-    'lifetime' => $envInt('SESSION_LIFETIME', 7_200),
-    'max_payload_bytes' => $envInt('SESSION_MAX_PAYLOAD_BYTES', 65_536),
+    'driver' => env_string('SESSION_DRIVER', 'file'),
+    'lifetime' => env_int('SESSION_LIFETIME', 7_200),
+    'max_payload_bytes' => env_int('SESSION_MAX_PAYLOAD_BYTES', 65_536),
 
     /*
     |--------------------------------------------------------------------------
@@ -76,12 +44,12 @@ return [
     |
     */
     'cookie' => [
-        'name' => $envString('SESSION_COOKIE', 'infbyte_session'),
-        'path' => $envString('SESSION_COOKIE_PATH', '/'),
-        'domain' => $env('SESSION_COOKIE_DOMAIN'),
-        'secure' => $envBool('SESSION_COOKIE_SECURE', true),
-        'http_only' => $envBool('SESSION_COOKIE_HTTP_ONLY', true),
-        'same_site' => $envString('SESSION_COOKIE_SAME_SITE', 'Lax'),
+        'name' => env_string('SESSION_COOKIE', 'infbyte_session'),
+        'path' => env_string('SESSION_COOKIE_PATH', '/'),
+        'domain' => env('SESSION_COOKIE_DOMAIN'),
+        'secure' => env_bool('SESSION_COOKIE_SECURE', true),
+        'http_only' => env_bool('SESSION_COOKIE_HTTP_ONLY', true),
+        'same_site' => env_string('SESSION_COOKIE_SAME_SITE', 'Lax'),
     ],
 
     /*
@@ -89,12 +57,12 @@ return [
     | Store Settings
     |--------------------------------------------------------------------------
     |
-    | File "path" is an absolute or application-resolved directory, for
-    | example `storage/sessions`. Cache "store" is null for the default cache
-    | store or a configured name such as `redis`, `memcached`, or `sqlite`.
-    | Database "connection" is null for the default DBLayer connection or a
-    | name such as `mysql`, `pgsql`, or `sqlite`; "table" is a portable SQL
-    | identifier such as `sessions`.
+    | File "path" is an absolute or application-relative directory, for example
+    | `storage/sessions`. Cache "store" is null for the default cache store or
+    | a configured name such as `redis`, `memcached`, or `sqlite`. Database
+    | "connection" is null for the default DBLayer connection or a name such as
+    | `mysql`, `pgsql`, or `sqlite`; "table" is a portable SQL identifier such
+    | as `sessions`.
     |
     | Stored values must be JSON-serializable PHP scalars/arrays. Cache
     | backends expire records themselves. File and database stores are pruned
@@ -103,14 +71,14 @@ return [
     */
     'stores' => [
         'file' => [
-            'path' => $envString('SESSION_FILE_PATH', $basePath . '/storage/sessions'),
+            'path' => env_string('SESSION_FILE_PATH', 'storage/sessions'),
         ],
         'cache' => [
-            'store' => $env('SESSION_CACHE_STORE'),
+            'store' => env('SESSION_CACHE_STORE'),
         ],
         'database' => [
-            'connection' => $env('SESSION_DB_CONNECTION'),
-            'table' => $envString('SESSION_DB_TABLE', 'sessions'),
+            'connection' => env('SESSION_DB_CONNECTION'),
+            'table' => env_string('SESSION_DB_TABLE', 'sessions'),
         ],
     ],
 
@@ -130,8 +98,8 @@ return [
      * incoming session is first read and are always released after dispatch.
      */
     'lock' => [
-        'enabled' => $envBool('SESSION_LOCK_ENABLED', false),
-        'store' => $env('SESSION_LOCK_STORE'),
+        'enabled' => env_bool('SESSION_LOCK_ENABLED', false),
+        'store' => env('SESSION_LOCK_STORE'),
         'wait' => $envFloat('SESSION_LOCK_WAIT', 2.0),
         'lease' => $envFloat('SESSION_LOCK_LEASE', 30.0),
     ],
@@ -151,9 +119,9 @@ return [
     |
     */
     'csrf' => [
-        'header' => $envString('SESSION_CSRF_HEADER', 'X-CSRF-Token'),
-        'field' => $envString('SESSION_CSRF_FIELD', '_token'),
-        'check_origin' => $envBool('SESSION_CSRF_CHECK_ORIGIN', true),
-        'origin' => $env('SESSION_CSRF_ORIGIN'),
+        'header' => env_string('SESSION_CSRF_HEADER', 'X-CSRF-Token'),
+        'field' => env_string('SESSION_CSRF_FIELD', '_token'),
+        'check_origin' => env_bool('SESSION_CSRF_CHECK_ORIGIN', true),
+        'origin' => env('SESSION_CSRF_ORIGIN'),
     ],
 ];
