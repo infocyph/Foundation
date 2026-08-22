@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+$envFloat = static function (string $key, float $default): float {
+    $value = env($key);
+
+    return is_numeric($value) ? (float) $value : $default;
+};
+
 $envNullableBool = static function (string $key): ?bool {
     $value = env($key);
     if ($value === null) {
@@ -105,8 +111,8 @@ return [
         'classes' => [],
         'table' => env_string('DB_MIGRATION_TABLE', 'migrations'),
         'lock_store' => env('DB_MIGRATION_LOCK_STORE'),
-        'lock_wait_seconds' => env('DB_MIGRATION_LOCK_WAIT', 10.0),
-        'lock_lease_seconds' => env('DB_MIGRATION_LOCK_LEASE', 300.0),
+        'lock_wait_seconds' => $envFloat('DB_MIGRATION_LOCK_WAIT', 10.0),
+        'lock_lease_seconds' => $envFloat('DB_MIGRATION_LOCK_LEASE', 300.0),
     ],
     'seeders' => [],
 
