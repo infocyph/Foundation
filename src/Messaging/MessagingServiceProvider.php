@@ -128,7 +128,7 @@ final class MessagingServiceProvider extends ServiceProvider
         ), LifetimeEnum::Singleton);
         $this->bindFactory($container, OmnibusWorkerFactory::class, fn() => new OmnibusWorkerFactory(
             $app->config(),
-            $app->make(ConsumerFactory::class),
+            fn() => $app->make(ConsumerFactory::class),
         ), LifetimeEnum::Singleton);
 
         $this->bindFactory($container, MessageFactoryMap::class, fn() => new MessageFactoryMap(
