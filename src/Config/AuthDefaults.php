@@ -27,7 +27,11 @@ final class AuthDefaults
                 'http' => [
                     'bearer_header' => 'Authorization',
                     'bearer_prefix' => 'Bearer ',
-                    'principal_resolvers' => ['session', 'bearer', 'remember'],
+                    'principal_resolvers' => [
+                        'session',
+                        'bearer',
+                        'remember',
+                    ],
                     'remember_cookie' => 'foundation_remember',
                     'remember_header' => 'X-Remember-Token',
                     'session_cookie' => 'foundation_session',
@@ -60,7 +64,10 @@ final class AuthDefaults
                     ],
                 ],
                 'webauthn' => [
-                    'algorithms' => ['ES256', 'RS256'],
+                    'algorithms' => [
+                        'ES256',
+                        'RS256',
+                    ],
                     'attestation' => 'none',
                     'challenge_ttl' => 300,
                     'origin' => null,
@@ -68,7 +75,13 @@ final class AuthDefaults
                     'rp_id' => null,
                     'rp_name' => 'Foundation',
                     'timeout' => 60000,
-                    'transports' => ['internal', 'hybrid', 'usb', 'nfc', 'ble'],
+                    'transports' => [
+                        'internal',
+                        'hybrid',
+                        'usb',
+                        'nfc',
+                        'ble',
+                    ],
                     'user_verification' => 'preferred',
                 ],
                 'mfa_challenge_ttl' => 300,
