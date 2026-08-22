@@ -11,6 +11,7 @@ their domain behavior.
 - [Authentication and authorization](authentication.md)
 - [Browser sessions and CSRF](browser-sessions.md)
 - [Database migrations and seeding](database.md)
+- [Filesystem and storage](filesystem.md)
 - [Events, queues, and scheduled messages](messaging.md)
 - [JSON resources and JsonDispatch](json-responses.md)
 - [Structured logging](logging.md)
