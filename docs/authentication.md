@@ -110,6 +110,17 @@ remains in its owning file:
 - `collect` records notifications in memory; `talkingbytes` maps auth events to
   TalkingBytes email and selects the sender named by `notifications.auth.sender`.
 
+When the password driver is `security`, Foundation adapts the same native
+Epicrypt `PasswordHasher` exposed by the crypto module; it does not construct a
+second hashing engine. `security.password.*` selects the Epicrypt hash options.
+
+When the token driver is `security`, Foundation owns auth claim/purpose mapping
+and Epicrypt owns JWT signing and verification. `security.jwt.algorithm`
+explicitly selects `HS256`, `HS384`, or `HS512`; corresponding raw
+`auth.token_secret` minima are 32, 48, and 64 bytes. Issuer and audience are
+required. See [Security boundaries](security.md) for the complete crypto
+ownership model.
+
 TalkingBytes email transport definitions and reusable sender policies live under
 `notifications.email.*`; authentication does not own an SMTP/spool transport
 stack. In production, a TalkingBytes auth sender may deliver through SMTP,
