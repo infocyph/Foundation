@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Database;
 
+use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\DB;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
@@ -32,6 +33,13 @@ final class DatabaseServiceProvider extends ServiceProvider
         $this->bindFactory($container, DBLayerFactory::class, fn() => new DBLayerFactory(
             $app->make(DatabaseConnectionResolver::class),
         ), LifetimeEnum::Singleton);
+
+        $this->bindFactory(
+            $container,
+            Connection::class,
+            fn() => $app->make(DBLayerFactory::class)->connection(),
+            LifetimeEnum::Singleton,
+        );
 
         $container->bind(AuthTables::class, new AuthTables(), LifetimeEnum::Singleton);
         $this->bindFactory($container, AuthSchema::class, fn() => new AuthSchema(
