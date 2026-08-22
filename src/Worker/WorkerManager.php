@@ -276,9 +276,14 @@ final readonly class WorkerManager
 
         $repository = $this->application->container()->getRepository();
         foreach ([
+            'Infocyph\\Foundation\\Cache\\CacheManager',
             'Infocyph\\CacheLayer\\Cache\\CacheInterface',
+            'Infocyph\\CacheLayer\\Cache\\Cache',
+            'Infocyph\\CacheLayer\\Cache\\Lock\\LockProviderInterface',
+            'Infocyph\\CacheLayer\\Counter\\AtomicCounterStoreInterface',
             'Infocyph\\DBLayer\\Connection\\Connection',
             'Infocyph\\Omnibus\\Consumer\\Consumer',
+            'Infocyph\\Omnibus\\Failure\\FailureStore',
             'Infocyph\\Omnibus\\Transport\\TransportRegistry',
             'Infocyph\\TalkingBytes\\Http\\HttpClient',
         ] as $service) {
