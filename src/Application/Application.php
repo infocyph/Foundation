@@ -16,6 +16,7 @@ use Infocyph\Foundation\Exception\ServiceResolutionException;
 use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\Foundation\Http\HttpKernel;
 use Infocyph\Foundation\Http\JsonDispatch\JsonDispatchResponseFactory;
+use Infocyph\Foundation\Routing\WebrickRouterFactory;
 use Infocyph\Foundation\Runtime\ExecutionScope;
 use Infocyph\Foundation\Runtime\RuntimeContextTracker;
 use Infocyph\Foundation\Session\BrowserSession;
@@ -254,7 +255,9 @@ final class Application
 
     public function router(): Registrar
     {
-        return $this->boot()->make(Registrar::class);
+        $this->boot();
+
+        return $this->make(WebrickRouterFactory::class)->router();
     }
 
     public function routesPath(string $path = ''): string
