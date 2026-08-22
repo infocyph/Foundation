@@ -44,10 +44,24 @@ final readonly class DBLayerMfaFactorStore extends DBLayerStore implements MfaFa
         }
 
         return $this->connection()->update(
-            sprintf('UPDATE %s SET metadata = ? WHERE id = ? AND metadata = ?', $this->table('mfaFactors')),
+            sprintf(
+                'UPDATE %s SET account_id = ?, type = ?, label = ?, enabled = ?, created_at = ?, metadata = ? '
+                . 'WHERE id = ? AND account_id = ? AND type = ? AND label = ? AND enabled = ? AND created_at = ? AND metadata = ?',
+                $this->table('mfaFactors'),
+            ),
             [
+                $updated->accountId,
+                $updated->type,
+                $updated->label,
+                $updated->enabled ? 1 : 0,
+                $updated->createdAt,
                 DBLayerJson::encode($updated->metadata),
                 $expected->id,
+                $expected->accountId,
+                $expected->type,
+                $expected->label,
+                $expected->enabled ? 1 : 0,
+                $expected->createdAt,
                 DBLayerJson::encode($expected->metadata),
             ],
         ) === 1;
