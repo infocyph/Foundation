@@ -16,7 +16,6 @@ use Infocyph\Foundation\Exception\ServiceResolutionException;
 use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\Foundation\Http\HttpKernel;
 use Infocyph\Foundation\Http\JsonDispatch\JsonDispatchResponseFactory;
-use Infocyph\Foundation\Routing\RouterManager;
 use Infocyph\Foundation\Runtime\ExecutionScope;
 use Infocyph\Foundation\Runtime\RuntimeContextTracker;
 use Infocyph\Foundation\Session\BrowserSession;
@@ -26,6 +25,7 @@ use Infocyph\InterMix\DI\Container;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
+use Infocyph\Webrick\Router\Definition\Registrar;
 
 final class Application
 {
@@ -252,9 +252,9 @@ final class Application
         return $this->boot()->make(JsonDispatchResponseFactory::class);
     }
 
-    public function router(): RouterManager
+    public function router(): Registrar
     {
-        return $this->boot()->make(RouterManager::class);
+        return $this->boot()->make(Registrar::class);
     }
 
     public function routesPath(string $path = ''): string
