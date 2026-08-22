@@ -268,6 +268,12 @@ final readonly class WorkerManager
 
     private function assertPoolParentClean(): void
     {
+        if ($this->application->booted()) {
+            throw new \LogicException(
+                'Pooled workers must fork before booting the parent Foundation application.',
+            );
+        }
+
         $repository = $this->application->container()->getRepository();
         foreach ([
             'Infocyph\\CacheLayer\\Cache\\CacheInterface',
