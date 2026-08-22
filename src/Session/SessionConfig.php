@@ -51,7 +51,7 @@ final readonly class SessionConfig
             cookieSecure: $secure,
             cookieHttpOnly: self::bool($config->get('session.cookie.http_only', true), 'session.cookie.http_only'),
             cookieSameSite: $sameSite,
-            filePath: self::nonEmptyString($config->get('session.stores.file.path', $defaultFilePath), 'session.stores.file.path'),
+            filePath: self::filePath($config, $defaultFilePath),
             cacheStore: self::nullableString($config->get('session.stores.cache.store')),
             databaseConnection: self::nullableString($config->get('session.stores.database.connection')),
             databaseTable: self::identifier($config->get('session.stores.database.table', 'sessions'), 'session.stores.database.table'),
@@ -66,6 +66,11 @@ final readonly class SessionConfig
         );
     }
 
+    private static function absolute(string $path): bool
+    {
+        return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1;
+    }
+
     private static function bool(mixed $value, string $key): bool
     {
         if (!is_bool($value)) {
@@ -73,6 +78,23 @@ final readonly class SessionConfig
         }
 
         return $value;
+    }
+
+    private static function filePath(ConfigRepository $config, string $default): string
+    {
+        $configured = self::nullableString($config->get('session.stores.file.path'));
+        if ($configured === null) {
+            return $default;
+        }
+        if (self::absolute($configured)) {
+            return rtrim($configured, DIRECTORY_SEPARATOR);
+        }
+
+        $base = self::nullableString($config->get('app.base_path')) ?? (getcwd() ?: '.');
+
+        return rtrim($base, DIRECTORY_SEPARATOR)
+            . DIRECTORY_SEPARATOR
+            . trim($configured, '/\\');
     }
 
     private static function identifier(mixed $value, string $key): string
@@ -108,9 +130,7 @@ final readonly class SessionConfig
         return is_string($value) && $value !== '' ? $value : null;
     }
 
-    /**
-     * @param list<string> $allowed
-     */
+    /** @param list<string> $allowed */
     private static function oneOf(mixed $value, array $allowed, string $key): string
     {
         $value = self::nonEmptyString($value, $key);
