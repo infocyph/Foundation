@@ -42,7 +42,10 @@
     "autoload": {
         "psr-4": {
             "Infocyph\\Foundation\\": "src/"
-        }
+        },
+        "files": [
+            "src/Config/helpers.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {
