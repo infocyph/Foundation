@@ -56,6 +56,16 @@ abstract readonly class AbstractAuthRegistrar
         return $this->service(ClockInterface::class);
     }
 
+    protected function hasExplicitBinding(string $id): bool
+    {
+        $repository = $this->container->getRepository();
+
+        return $repository->hasFunctionReference($id)
+            || $repository->hasClosureResource($id)
+            || $repository->hasResolved($id)
+            || $repository->hasResolvedDefinition($id);
+    }
+
     protected function idGenerator(): AuthIdGeneratorInterface
     {
         return $this->service(AuthIdGeneratorInterface::class);
