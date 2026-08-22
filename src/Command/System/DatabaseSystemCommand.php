@@ -7,13 +7,17 @@ namespace Infocyph\Foundation\Command\System;
 use Infocyph\DBLayer\Schema\SchemaManager;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Command\ExitCode;
-use Infocyph\Foundation\Database\DatabaseManager;
+use Infocyph\Foundation\Database\AuthSchema\AuthSchemaInstaller;
+use Infocyph\Foundation\Database\DatabaseMigrationManager;
+use Infocyph\Foundation\Database\DBLayerFactory;
 
 final class DatabaseSystemCommand extends SystemCommand
 {
     public function __construct(
         private readonly Application $application,
-        private readonly DatabaseManager $database,
+        private readonly AuthSchemaInstaller $authSchema,
+        private readonly DatabaseMigrationManager $migrations,
+        private readonly DBLayerFactory $database,
     ) {}
 
     protected function handle(): int
@@ -37,17 +41,17 @@ final class DatabaseSystemCommand extends SystemCommand
     private function authSchemaInstall(): int
     {
         $connection = $this->connectionName();
-        $this->database->authSchema()->install($connection);
+        $this->authSchema->install($connection);
 
         return $this->emit(
-            $this->database->authSchema()->readiness($connection),
+            $this->authSchema->readiness($connection),
             'Authentication schema is installed.',
         );
     }
 
     private function authSchemaStatus(): int
     {
-        $status = $this->database->authSchema()->readiness($this->connectionName());
+        $status = $this->authSchema->readiness($this->connectionName());
         if ($this->io()->machineReadable()) {
             return $this->emit($status);
         }
@@ -77,7 +81,7 @@ final class DatabaseSystemCommand extends SystemCommand
             return ExitCode::FAILURE;
         }
 
-        $runner = $this->database->migrations()->runner($this->connectionName());
+        $runner = $this->migrations->runner($this->connectionName());
         $migrations = match ($operation) {
             'fresh' => $runner->fresh(true),
             'refresh' => $runner->refresh(true),
@@ -90,7 +94,7 @@ final class DatabaseSystemCommand extends SystemCommand
 
     private function migrate(): int
     {
-        $migrations = $this->database->migrations()
+        $migrations = $this->migrations
             ->runner($this->connectionName())
             ->run($this->flag('step'));
 
@@ -117,7 +121,7 @@ final class DatabaseSystemCommand extends SystemCommand
 
     private function migrationStatus(): int
     {
-        $status = $this->database->migrations()->runner($this->connectionName())->status();
+        $status = $this->migrations->runner($this->connectionName())->status();
         if ($this->io()->machineReadable()) {
             return $this->emit($status);
         }
@@ -138,7 +142,7 @@ final class DatabaseSystemCommand extends SystemCommand
     private function rollback(): int
     {
         $batches = $this->positiveIntOption('batches', 1);
-        $migrations = $this->database->migrations()
+        $migrations = $this->migrations
             ->runner($this->connectionName())
             ->rollback($batches);
 
@@ -148,7 +152,7 @@ final class DatabaseSystemCommand extends SystemCommand
     private function seed(): int
     {
         $transactional = !$this->input()->hasOption('transaction') || $this->flag('transaction');
-        $count = $this->database->migrations()->seed($this->connectionName(), $transactional);
+        $count = $this->migrations->seed($this->connectionName(), $transactional);
 
         return $this->emit(['seeded' => $count], sprintf('Ran %d database seeder(s).', $count));
     }
