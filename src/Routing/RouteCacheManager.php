@@ -79,7 +79,7 @@ final readonly class RouteCacheManager
         $config = $this->application->config();
         $middleware = $this->application->make(WebrickMiddlewareFactory::class);
 
-        return RouteCache::build([
+        $path = RouteCache::build([
             'matcher' => $this->matcher($matcher),
             'cache' => $cache,
             'register' => function (Registrar $registrar) use ($config, $routes): void {
@@ -100,6 +100,9 @@ final readonly class RouteCacheManager
             'fallbackAliasesFromRegistrar' => true,
             'logger' => new NullLogger(),
         ]);
+        RouteCachePath::markFresh($config);
+
+        return $path;
     }
 
     private function absolute(string $path): bool
