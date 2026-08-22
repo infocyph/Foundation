@@ -48,7 +48,7 @@ final class WebrickRouterFactory
         $warm = false;
         if ($routeCache !== null) {
             $matcher->enableCache($routeCache);
-            $warm = $matcher->canBootFromCache();
+            $warm = RouteCachePath::isSourceFresh($this->config) && $matcher->canBootFromCache();
         }
 
         $this->middlewareRegistrar->register($warm ? $matcher->middlewareRequirements() : null);
@@ -56,7 +56,7 @@ final class WebrickRouterFactory
         $routes = $warm ? null : $this->routes();
         $aliases = $routes instanceof Collection ? $this->aliasesByRoute($routes) : [];
 
-        return $this->kernel = RouterKernel::bootWithRegistrar(
+        $kernel = RouterKernel::bootWithRegistrar(
             log: $this->logger,
             matcher: $matcher,
             register: function (Registrar $registrar) use ($routes, $aliases): void {
@@ -85,9 +85,16 @@ final class WebrickRouterFactory
             postGlobal: $this->middleware->postGlobal(),
             errorHandler: $errorHandler,
             fallbackAliasesFromRegistrar: false,
-            requestScopeEnabled: (bool) $this->config->get('app.container.request_scope', true),
+            // HttpKernel already owns the canonical InterMix execution scope.
+            requestScopeEnabled: false,
             container: $this->container,
         );
+
+        if ($routeCache !== null && !$warm && $matcher->canBootFromCache()) {
+            RouteCachePath::markFresh($this->config);
+        }
+
+        return $this->kernel = $kernel;
     }
 
     public function router(): Registrar
@@ -125,9 +132,7 @@ final class WebrickRouterFactory
         return $this->routes ??= new Collection();
     }
 
-    /**
-     * @return array<int, list<string>>
-     */
+    /** @return array<int, list<string>> */
     private function aliasesByRoute(Collection $routes): array
     {
         $aliases = [];
@@ -196,9 +201,7 @@ final class WebrickRouterFactory
         };
     }
 
-    /**
-     * @return array<string, mixed>
-     */
+    /** @return array<string, mixed> */
     private function normalizeSignedUrlOptions(mixed $signedOptions): array
     {
         if (!is_array($signedOptions)) {
@@ -245,9 +248,7 @@ final class WebrickRouterFactory
             : null;
     }
 
-    /**
-     * @param list<string> $aliases
-     */
+    /** @param list<string> $aliases */
     private function replayRoute(Registrar $registrar, RouteInterface $route, array $aliases): void
     {
         $register = function (Registrar $target) use ($route, $aliases): void {
@@ -295,9 +296,7 @@ final class WebrickRouterFactory
             : null;
     }
 
-    /**
-     * @return array<string, mixed>|null
-     */
+    /** @return array<string, mixed>|null */
     private function signedUrlOptions(): ?array
     {
         $signedOptions = $this->normalizeSignedUrlOptions(
