@@ -69,7 +69,8 @@ final class CommandDispatcher
     /** @param list<string> $argv */
     public function run(array $argv, ?CommandIO $io = null): int
     {
-        $io ??= new TerminalIO();
+        $coarse = ParsedInput::fromArgv($argv);
+        $io ??= TerminalIO::fromInput($coarse);
         $preflight = new CliPreflight($this->registry);
 
         try {
@@ -83,7 +84,6 @@ final class CommandDispatcher
             return $handled;
         }
 
-        $coarse = ParsedInput::fromArgv($argv);
         $descriptor = $this->registry->find($coarse->command);
         if ($descriptor === null || $descriptor->definition->isHidden()) {
             $io->error(sprintf('Command "%s" is not defined.', $coarse->command));
