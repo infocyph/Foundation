@@ -11,6 +11,7 @@ use Infocyph\Foundation\Auth\Driver\AuthNotificationDriver;
 use Infocyph\Foundation\Auth\Driver\AuthPasskeyDriver;
 use Infocyph\Foundation\Auth\Driver\AuthStorageDriver;
 use Infocyph\Foundation\Auth\Driver\AuthTokenDriver;
+use Infocyph\Foundation\Config\ProductionSecurityValidator;
 use Infocyph\Foundation\Exception\ConfigurationException;
 
 final readonly class AuthProductionGuard
@@ -23,6 +24,14 @@ final readonly class AuthProductionGuard
     {
         if (!$this->app->config()->isProduction()) {
             return;
+        }
+
+        $securityIssues = (new ProductionSecurityValidator($this->app->config()))->validate();
+        if ($securityIssues !== []) {
+            throw new ConfigurationException(implode('; ', array_map(
+                static fn($issue): string => $issue->message,
+                $securityIssues,
+            )));
         }
 
         if ($drivers->tokens() === AuthTokenDriver::SIMPLE) {
