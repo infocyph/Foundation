@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 use Infocyph\CacheLayer\Counter\AtomicCounterStoreInterface;
 use Infocyph\CacheLayer\Counter\AtomicCounterValue;
+use Infocyph\DBLayer\Exceptions\TransactionException;
 use Infocyph\Foundation\Auth\Adapter\CacheLayer\AtomicCounterStore;
 use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Config\ConfigValidator;
 use Infocyph\Foundation\Database\DatabaseManager;
 use Infocyph\Foundation\Foundation;
-use Infocyph\DBLayer\Exceptions\TransactionException;
 
 it('creates node cache stores and reports configured cluster status', function (): void {
     $app = foundationClusterCacheApplication();
@@ -18,7 +18,7 @@ it('creates node cache stores and reports configured cluster status', function (
     $cache = $manager->store('catalog');
     $cache->set('product.42', 'cached');
 
-    $status = $manager->clusterStatus('catalog');
+    $status = $manager->cluster('catalog')->status();
 
     expect($cache->get('product.42'))->toBe('cached')
         ->and($status->cluster)->toBe('catalog')
@@ -44,7 +44,7 @@ it('publishes cache invalidations through the transactional outbox only after co
     );
 
     expect($cluster->cache()->get('product.42'))->toBeNull()
-        ->and($database->table($table)->count())->toBe(1)
+        ->and($database->connection()->table($table)->count())->toBe(1)
         ->and($cluster->status()->pendingEventCount)->toBe(1);
 });
 
