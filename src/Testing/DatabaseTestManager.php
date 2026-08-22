@@ -12,12 +12,10 @@ final readonly class DatabaseTestManager
 
     public function begin(?string $connection = null): void
     {
-        $this->database->beginTransaction($connection);
+        $this->database->connection($connection)->begin();
     }
 
-    /**
-     * @return list<string>
-     */
+    /** @return list<string> */
     public function refresh(?string $connection = null): array
     {
         return $this->database->migrations()->runner($connection)->refresh(true);
@@ -25,8 +23,10 @@ final readonly class DatabaseTestManager
 
     public function rollback(?string $connection = null): void
     {
-        while ($this->database->transactionLevel($connection) > 0) {
-            $this->database->rollback($connection);
+        $database = $this->database->connection($connection);
+
+        while ($database->transactionLevel() > 0) {
+            $database->rollbackTransaction();
         }
     }
 
