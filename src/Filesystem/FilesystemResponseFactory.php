@@ -15,11 +15,12 @@ use Infocyph\Webrick\Response\Response;
 
 final readonly class FilesystemResponseFactory
 {
-    public function __construct(private FilesystemManager $files) {}
+    public function __construct(
+        private FilesystemTransferFactory $transfers,
+        private StorageRegistry $storage,
+    ) {}
 
-    /**
-     * @param array<string, string|list<string>> $headers
-     */
+    /** @param array<string, string|list<string>> $headers */
     public function download(
         Request $request,
         string $path,
@@ -39,9 +40,7 @@ final readonly class FilesystemResponseFactory
         );
     }
 
-    /**
-     * @param array<string, string|list<string>> $headers
-     */
+    /** @param array<string, string|list<string>> $headers */
     public function inline(
         Request $request,
         string $path,
@@ -61,9 +60,7 @@ final readonly class FilesystemResponseFactory
         );
     }
 
-    /**
-     * @param array<string, string|list<string>> $headers
-     */
+    /** @param array<string, string|list<string>> $headers */
     public function xAccelRedirect(
         Request $request,
         string $internalPath,
@@ -92,9 +89,7 @@ final readonly class FilesystemResponseFactory
         );
     }
 
-    /**
-     * @param array<string, string|list<string>> $headers
-     */
+    /** @param array<string, string|list<string>> $headers */
     public function xSendfile(
         Request $request,
         string $path,
@@ -132,9 +127,7 @@ final readonly class FilesystemResponseFactory
 
         $validator = new ConditionalValidator($manifest->etag, $manifest->lastModified);
 
-        return $validator->isRangeFresh($request)
-            ? $rangeHeader
-            : null;
+        return $validator->isRangeFresh($request) ? $rangeHeader : null;
     }
 
     private function isGetOrHead(Request $request): bool
@@ -151,7 +144,7 @@ final readonly class FilesystemResponseFactory
             return PathHelper::normalize($path);
         }
 
-        return $this->files->localPath($path, $disk);
+        return $this->storage->localPath($path, $disk);
     }
 
     /**
@@ -161,23 +154,18 @@ final readonly class FilesystemResponseFactory
     private function mergeHeaders(array ...$groups): array
     {
         $merged = [];
-
         foreach ($groups as $group) {
             foreach ($group as $name => $value) {
-                if ($name === '') {
-                    continue;
+                if ($name !== '') {
+                    $merged[$name] = $value;
                 }
-
-                $merged[$name] = $value;
             }
         }
 
         return $merged;
     }
 
-    /**
-     * @param array<string, string|list<string>> $headers
-     */
+    /** @param array<string, string|list<string>> $headers */
     private function offloadResponse(
         Request $request,
         string $path,
@@ -204,7 +192,6 @@ final readonly class FilesystemResponseFactory
         }
 
         $response = Response::empty(200);
-
         foreach ($this->mergeHeaders($manifest->headers, [$headerName => $headerValue], $headers) as $name => $value) {
             $response = $response->withHeader($name, $value);
         }
@@ -214,12 +201,7 @@ final readonly class FilesystemResponseFactory
 
     /**
      * @param array<string, string|list<string>> $headers
-     * @return array{
-     *   0: DownloadProcessor,
-     *   1: string,
-     *   2: DownloadPreparation,
-     *   3: ?Response
-     * }
+     * @return array{0:DownloadProcessor,1:string,2:DownloadPreparation,3:?Response}
      */
     private function prepareInitialDownload(
         Request $request,
@@ -236,16 +218,14 @@ final readonly class FilesystemResponseFactory
         return [$processor, $resolvedPath, $manifest, $this->shortCircuitResponse($request, $manifest, $headers)];
     }
 
-    /**
-     * @return array{0: DownloadProcessor, 1: string}
-     */
+    /** @return array{0:DownloadProcessor,1:string} */
     private function prepareProcessor(
         string $path,
         ?string $directory,
         ?string $disk,
         bool $inline,
     ): array {
-        $processor = $this->files->download($directory, $disk);
+        $processor = $this->transfers->download($directory, $disk);
         $processor->setForceAttachment(!$inline);
 
         return [$processor, $this->resolvedDownloadPath($path, $disk)];
@@ -258,15 +238,13 @@ final readonly class FilesystemResponseFactory
         }
 
         try {
-            return $this->files->localPath($path, $disk);
+            return $this->storage->localPath($path, $disk);
         } catch (\InvalidArgumentException) {
-            return $this->files->path($path, $disk);
+            return $this->storage->path($path, $disk);
         }
     }
 
-    /**
-     * @param array<string, string|list<string>> $headers
-     */
+    /** @param array<string, string|list<string>> $headers */
     private function respond(
         Request $request,
         string $path,
@@ -326,11 +304,8 @@ final readonly class FilesystemResponseFactory
             return null;
         }
 
-        $status = !$this->isGetOrHead($request) && $outcome->http === 304
-            ? 412
-            : $outcome->http;
+        $status = !$this->isGetOrHead($request) && $outcome->http === 304 ? 412 : $outcome->http;
         $response = Response::empty($status);
-
         foreach ($this->mergeHeaders($outcome->headers, $headers) as $name => $value) {
             $response = $response->withHeader($name, $value);
         }
