@@ -100,11 +100,23 @@ final class RuntimeContextTracker
             return;
         }
 
+        $failure = null;
         foreach (DB::getConnections() as $connection) {
-            $this->resetConnection($connection);
+            try {
+                while ($connection->transactionLevel() > 0) {
+                    $connection->rollbackTransaction();
+                }
+            } catch (\Throwable $exception) {
+                $connection->disconnect();
+                $failure ??= $exception;
+            }
         }
 
         DB::resetRuntimeState(false);
+
+        if ($failure !== null) {
+            throw $failure;
+        }
     }
 
     private function resetConnection(Connection $connection): void
