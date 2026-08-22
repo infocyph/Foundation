@@ -34,9 +34,9 @@ final class ContainerFactory
             $options->setEnvironment($environment);
         }
 
-        // Foundation 2.0 is singleton-first and lazy by default. Eager loading is an
-        // explicit opt-in because unused runtime/capability graphs must stay cold.
-        if (!ValueNormalizer::bool($config->get('app.container.eager_loading'), false)) {
+        // Foundation keeps unused capability graphs cold by default. Lazy loading is
+        // the single public switch; there is no inverse eager-loading configuration.
+        if (ValueNormalizer::bool($config->get('app.container.lazy_loading'), true)) {
             $options->enableLazyLoading();
         }
 
