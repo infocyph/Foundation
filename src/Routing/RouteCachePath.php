@@ -11,7 +11,7 @@ use Infocyph\Webrick\Router\Matching\ShardedMatcher;
 
 final class RouteCachePath
 {
-    private const int MANIFEST_VERSION = 1;
+    private const int MANIFEST_VERSION = 2;
 
     /** @var \WeakMap<ConfigRepository, bool>|null */
     private static ?\WeakMap $warm = null;
@@ -33,6 +33,11 @@ final class RouteCachePath
         };
     }
 
+    /**
+     * Determine whether the deployment-built route artifact matches the active
+     * routing configuration. Route/controller source freshness is owned by the
+     * deployment route:cache/optimize step and is not rescanned at runtime.
+     */
     public static function isSourceFresh(ConfigRepository $config): bool
     {
         if (!self::enabled($config)) {
@@ -44,11 +49,11 @@ final class RouteCachePath
             return false;
         }
 
-        $fingerprint = $manifest['fingerprint'] ?? null;
+        $fingerprint = $manifest['configuration'] ?? null;
 
         return is_string($fingerprint)
             && preg_match('/^[a-f0-9]{64}$/D', $fingerprint) === 1
-            && hash_equals($fingerprint, self::sourceFingerprint($config));
+            && hash_equals($fingerprint, self::configurationFingerprint($config));
     }
 
     public static function isWarm(ConfigRepository $config): bool
@@ -94,7 +99,7 @@ final class RouteCachePath
 
         $payload = [
             'version' => self::MANIFEST_VERSION,
-            'fingerprint' => self::sourceFingerprint($config),
+            'configuration' => self::configurationFingerprint($config),
         ];
         $temporary = tempnam($directory, '.routes-');
         if ($temporary === false) {
@@ -124,6 +129,20 @@ final class RouteCachePath
         );
     }
 
+    private static function configurationFingerprint(ConfigRepository $config): string
+    {
+        return hash('sha256', serialize([
+            'matcher' => $config->get('router.matcher', 'fused'),
+            'auto_slash_redirect' => $config->get('router.auto_slash_redirect', false),
+            'expose_url_services' => $config->get('router.expose_url_services', false),
+            'signed_urls' => $config->get('router.signed_urls', []),
+            'url_base_uri' => $config->get('router.url_base_uri', ''),
+            'middleware' => $config->get('router.middleware', []),
+            'attributes' => $config->get('router.attributes', []),
+            'files' => $config->get('router.files', ['web.php', 'api.php', 'auth.php']),
+        ]));
+    }
+
     private static function manifestPath(ConfigRepository $config): string
     {
         $cache = self::for($config);
@@ -148,162 +167,5 @@ final class RouteCachePath
         }
 
         return is_array($payload) ? $payload : null;
-    }
-
-    private static function sourceFingerprint(ConfigRepository $config): string
-    {
-        $basePath = self::basePath($config);
-        $routing = [
-            'matcher' => $config->get('router.matcher', 'fused'),
-            'auto_slash_redirect' => $config->get('router.auto_slash_redirect', false),
-            'expose_url_services' => $config->get('router.expose_url_services', false),
-            'signed_urls' => $config->get('router.signed_urls', []),
-            'url_base_uri' => $config->get('router.url_base_uri', ''),
-            'middleware' => $config->get('router.middleware', []),
-            'attributes' => $config->get('router.attributes', []),
-            'files' => $config->get('router.files', ['web.php', 'api.php', 'auth.php']),
-        ];
-
-        $sources = [];
-        foreach (self::routeFiles($config, $basePath) as $file) {
-            $sources[$file] = self::fileFingerprint($file);
-        }
-        foreach (self::attributeSourceFiles($config, $basePath) as $file) {
-            $sources[$file] = self::fileFingerprint($file);
-        }
-        ksort($sources, SORT_STRING);
-
-        return hash('sha256', serialize([$routing, $sources]));
-    }
-
-    /** @return list<string> */
-    private static function routeFiles(ConfigRepository $config, string $basePath): array
-    {
-        $routesPath = $config->getString('paths.routes', 'routes') ?? 'routes';
-        $routesPath = self::absolute($routesPath)
-            ? rtrim($routesPath, DIRECTORY_SEPARATOR)
-            : $basePath . DIRECTORY_SEPARATOR . trim($routesPath, DIRECTORY_SEPARATOR);
-        $configured = $config->get('router.files', ['web.php', 'api.php', 'auth.php']);
-        if (!is_array($configured)) {
-            $configured = ['web.php', 'api.php', 'auth.php'];
-        }
-
-        $files = [];
-        foreach ($configured as $file) {
-            if (is_string($file) && $file !== '') {
-                $files[] = self::absolute($file)
-                    ? $file
-                    : $routesPath . DIRECTORY_SEPARATOR . ltrim($file, DIRECTORY_SEPARATOR);
-            }
-        }
-
-        return $files;
-    }
-
-    /** @return list<string> */
-    private static function attributeSourceFiles(ConfigRepository $config, string $basePath): array
-    {
-        $attributes = $config->get('router.attributes', []);
-        if (!is_array($attributes) || ($attributes['enabled'] ?? false) !== true) {
-            return [];
-        }
-
-        $files = [];
-        $directories = $attributes['directories'] ?? [];
-        if (!is_array($directories) || $directories === []) {
-            $appPath = $config->getString('paths.app', 'app') ?? 'app';
-            $directories = ['App\\Http\\Controllers\\' => self::absolute($appPath)
-                ? rtrim($appPath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'Http/Controllers'
-                : $basePath . DIRECTORY_SEPARATOR . trim($appPath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'Http/Controllers'];
-        }
-        foreach ($directories as $directory) {
-            if (!is_string($directory) || $directory === '') {
-                continue;
-            }
-            $resolved = self::absolute($directory)
-                ? $directory
-                : $basePath . DIRECTORY_SEPARATOR . trim($directory, DIRECTORY_SEPARATOR);
-            array_push($files, ...self::phpFiles($resolved));
-        }
-
-        $classes = $attributes['classes'] ?? [];
-        if (is_array($classes)) {
-            foreach ($classes as $class) {
-                if (!is_string($class) || $class === '') {
-                    continue;
-                }
-                $file = self::autoloadFile($class);
-                if ($file !== null) {
-                    $files[] = $file;
-                } else {
-                    // Still invalidate when the explicit class list itself changes.
-                    $files[] = 'class://' . $class;
-                }
-            }
-        }
-
-        $files = array_values(array_unique($files));
-        sort($files, SORT_STRING);
-
-        return $files;
-    }
-
-    private static function autoloadFile(string $class): ?string
-    {
-        foreach (spl_autoload_functions() as $loader) {
-            if (!is_array($loader) || !is_object($loader[0] ?? null) || !method_exists($loader[0], 'findFile')) {
-                continue;
-            }
-            try {
-                $file = $loader[0]->findFile($class);
-            } catch (\Throwable) {
-                continue;
-            }
-            if (is_string($file) && $file !== '') {
-                return $file;
-            }
-        }
-
-        return null;
-    }
-
-    /** @return list<string> */
-    private static function phpFiles(string $directory): array
-    {
-        if (!is_dir($directory)) {
-            return [];
-        }
-
-        $files = [];
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS),
-        );
-        foreach ($iterator as $file) {
-            if ($file instanceof \SplFileInfo && $file->isFile() && strtolower($file->getExtension()) === 'php') {
-                $files[] = $file->getPathname();
-            }
-        }
-        sort($files, SORT_STRING);
-
-        return $files;
-    }
-
-    private static function fileFingerprint(string $file): string
-    {
-        if (str_starts_with($file, 'class://')) {
-            return $file;
-        }
-        if (!is_file($file)) {
-            return 'missing';
-        }
-
-        $hash = hash_file('sha256', $file);
-
-        return is_string($hash) ? $hash : 'unreadable';
-    }
-
-    private static function absolute(string $path): bool
-    {
-        return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1;
     }
 }
