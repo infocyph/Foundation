@@ -90,7 +90,7 @@ final class ProcessRunner
 
         $stdout = '';
         $stderr = '';
-        $capturedBytes = 0;
+        $observedBytes = 0;
         $startedAt = hrtime(true);
         $lastActivityAt = $startedAt;
         $reason = null;
@@ -169,25 +169,9 @@ final class ProcessRunner
 
                     $lastActivityAt = hrtime(true);
                     $index = $stream === ($pipes[1] ?? null) ? 1 : 2;
-                    $allowed = $this->allowedChunk($chunk, $capturedBytes, $options->maxOutputBytes);
-                    if ($index === 1) {
-                        $stdout .= $allowed;
-                        if ($options->passthrough && $allowed !== '') {
-                            fwrite(STDOUT, $allowed);
-                        }
-                        if ($options->onStdout !== null && $allowed !== '') {
-                            ($options->onStdout)($allowed);
-                        }
-                    } else {
-                        $stderr .= $allowed;
-                        if ($options->passthrough && $allowed !== '') {
-                            fwrite(STDERR, $allowed);
-                        }
-                        if ($options->onStderr !== null && $allowed !== '') {
-                            ($options->onStderr)($allowed);
-                        }
-                    }
-                    $capturedBytes += strlen($allowed);
+                    $allowed = $this->allowedChunk($chunk, $observedBytes, $options->maxOutputBytes);
+                    $this->emit($index, $allowed, $stdout, $stderr, $options);
+                    $observedBytes += strlen($allowed);
                     if ($options->maxOutputBytes !== null && strlen($allowed) < strlen($chunk)) {
                         $reason = ProcessTerminationReason::OutputLimit;
 
@@ -200,7 +184,10 @@ final class ProcessRunner
                 $this->terminate($process, $options->terminationGraceSeconds);
             }
 
-            $this->drain($pipes, $stdout, $stderr, $capturedBytes, $options);
+            $overflowed = $this->drain($pipes, $stdout, $stderr, $observedBytes, $options);
+            if ($reason === null && $overflowed) {
+                $reason = ProcessTerminationReason::OutputLimit;
+            }
             $lastStatus = proc_get_status($process);
         } finally {
             $this->restoreSignals($signalState);
@@ -231,13 +218,13 @@ final class ProcessRunner
         );
     }
 
-    private function allowedChunk(string $chunk, int $capturedBytes, ?int $limit): string
+    private function allowedChunk(string $chunk, int $observedBytes, ?int $limit): string
     {
         if ($limit === null) {
             return $chunk;
         }
 
-        $remaining = $limit - $capturedBytes;
+        $remaining = $limit - $observedBytes;
         if ($remaining <= 0) {
             return '';
         }
@@ -267,9 +254,10 @@ final class ProcessRunner
         array $pipes,
         string &$stdout,
         string &$stderr,
-        int &$capturedBytes,
+        int &$observedBytes,
         ProcessOptions $options,
-    ): void {
+    ): bool {
+        $overflowed = false;
         foreach ([1, 2] as $index) {
             $stream = $pipes[$index] ?? null;
             if (!is_resource($stream)) {
@@ -279,25 +267,50 @@ final class ProcessRunner
             if (!is_string($chunk) || $chunk === '') {
                 continue;
             }
-            $allowed = $this->allowedChunk($chunk, $capturedBytes, $options->maxOutputBytes);
-            $capturedBytes += strlen($allowed);
-            if ($index === 1) {
-                $stdout .= $allowed;
-                if ($options->passthrough && $allowed !== '') {
-                    fwrite(STDOUT, $allowed);
-                }
-                if ($options->onStdout !== null && $allowed !== '') {
-                    ($options->onStdout)($allowed);
-                }
-            } else {
-                $stderr .= $allowed;
-                if ($options->passthrough && $allowed !== '') {
-                    fwrite(STDERR, $allowed);
-                }
-                if ($options->onStderr !== null && $allowed !== '') {
-                    ($options->onStderr)($allowed);
-                }
+            $allowed = $this->allowedChunk($chunk, $observedBytes, $options->maxOutputBytes);
+            $observedBytes += strlen($allowed);
+            $this->emit($index, $allowed, $stdout, $stderr, $options);
+            if ($options->maxOutputBytes !== null && strlen($allowed) < strlen($chunk)) {
+                $overflowed = true;
             }
+        }
+
+        return $overflowed;
+    }
+
+    private function emit(
+        int $index,
+        string $chunk,
+        string &$stdout,
+        string &$stderr,
+        ProcessOptions $options,
+    ): void {
+        if ($chunk === '') {
+            return;
+        }
+
+        if ($index === 1) {
+            if ($options->captureOutput) {
+                $stdout .= $chunk;
+            }
+            if ($options->passthrough) {
+                fwrite(STDOUT, $chunk);
+            }
+            if ($options->onStdout !== null) {
+                ($options->onStdout)($chunk);
+            }
+
+            return;
+        }
+
+        if ($options->captureOutput) {
+            $stderr .= $chunk;
+        }
+        if ($options->passthrough) {
+            fwrite(STDERR, $chunk);
+        }
+        if ($options->onStderr !== null) {
+            ($options->onStderr)($chunk);
         }
     }
 
