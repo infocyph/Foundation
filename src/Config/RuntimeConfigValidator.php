@@ -43,6 +43,26 @@ final readonly class RuntimeConfigValidator
             )];
     }
 
+    private function callableDefinition(mixed $definition): bool
+    {
+        if (is_string($definition)) {
+            return trim($definition) !== '';
+        }
+        if ($definition instanceof \Closure) {
+            return true;
+        }
+        if (!is_array($definition) || count($definition) !== 2) {
+            return false;
+        }
+
+        $target = $definition[0] ?? null;
+        $method = $definition[1] ?? null;
+
+        return (is_string($target) || is_object($target))
+            && is_string($method)
+            && trim($method) !== '';
+    }
+
     /** @return list<ConfigIssue> */
     private function container(): array
     {
@@ -179,16 +199,14 @@ final readonly class RuntimeConfigValidator
 
                 continue;
             }
-            if (array_any(
-                $value,
-                static fn(mixed $definition, mixed $name): bool => !is_string($name)
-                    || $name === ''
-                    || (!is_string($definition) && !is_callable($definition)),
-            )) {
-                $issues[] = new ConfigIssue(
-                    sprintf('%s must map non-empty keys to callable definitions.', $key),
-                    $key,
-                );
+            foreach ($value as $name => $definition) {
+                if (!is_string($name) || $name === '' || !$this->callableDefinition($definition)) {
+                    $issues[] = new ConfigIssue(
+                        sprintf('%s must map non-empty keys to callable definitions.', $key),
+                        $key,
+                    );
+                    break;
+                }
             }
         }
 
@@ -207,21 +225,20 @@ final readonly class RuntimeConfigValidator
         }
 
         foreach ($listeners as $event => $definitions) {
-            if (is_string($event)
-                && trim($event) !== ''
-                && is_array($definitions)
-                && !array_any(
-                    $definitions,
-                    static fn(mixed $definition): bool => !is_string($definition) && !is_callable($definition),
-                )
-            ) {
-                continue;
+            if (!is_string($event) || trim($event) === '' || !is_array($definitions)) {
+                return [new ConfigIssue(
+                    'messaging.listeners must map non-empty event class names to callable definition lists.',
+                    'messaging.listeners',
+                )];
             }
-
-            return [new ConfigIssue(
-                'messaging.listeners must map non-empty event class names to callable definition lists.',
-                'messaging.listeners',
-            )];
+            foreach ($definitions as $definition) {
+                if (!$this->callableDefinition($definition)) {
+                    return [new ConfigIssue(
+                        'messaging.listeners must map non-empty event class names to callable definition lists.',
+                        'messaging.listeners',
+                    )];
+                }
+            }
         }
 
         return [];
