@@ -206,7 +206,7 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         $session = $this->stringOption($challenge->metadata, 'ocra_session');
         $counter = $suite->counterEnabled ? $config['counter'] : null;
         $timestamp = $suite->usesTime() ? time() : null;
-        $window = $suite->usesTime()
+        $window = $suite->usesTime() && !$suite->counterEnabled
             ? VerificationWindow::symmetric($config['window'])
             : new VerificationWindow();
 
@@ -241,6 +241,7 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
             'otp_reason' => $result->reason->value,
             'drift_offset' => $result->driftOffset,
             'matched_counter' => $result->matchedCounter,
+            'matched_timestep' => $result->matchedTimestep,
             'next_counter' => $result->nextCounter,
         ]);
     }
