@@ -53,12 +53,13 @@ final class DatabaseSystemCommand extends SystemCommand
         }
 
         $this->io()->table(
-            ['State', 'Tables'],
+            ['State', 'Tables', 'Columns'],
             [[
                 $status['installed'] ? 'installed' : 'missing',
                 $status['installed']
                     ? implode(', ', $status['installed_tables'])
                     : implode(', ', $status['missing_tables']),
+                implode(', ', $status['missing_columns']),
             ]],
         );
 
