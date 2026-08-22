@@ -75,19 +75,31 @@ final class SecurityServiceProvider extends ServiceProvider
 
         return new PasswordHashOptions(
             algorithm: $algorithm,
-            memoryCost: $this->positiveInt($config['memory_cost'] ?? null, PASSWORD_ARGON2_DEFAULT_MEMORY_COST),
-            timeCost: $this->positiveInt($config['time_cost'] ?? null, PASSWORD_ARGON2_DEFAULT_TIME_COST),
-            threads: $this->positiveInt($config['threads'] ?? null, PASSWORD_ARGON2_DEFAULT_THREADS),
-            bcryptCost: $this->positiveInt($config['cost'] ?? null, 12),
+            memoryCost: $this->positiveInt($config, 'memory_cost', PASSWORD_ARGON2_DEFAULT_MEMORY_COST),
+            timeCost: $this->positiveInt($config, 'time_cost', PASSWORD_ARGON2_DEFAULT_TIME_COST),
+            threads: $this->positiveInt($config, 'threads', PASSWORD_ARGON2_DEFAULT_THREADS),
+            bcryptCost: $this->positiveInt($config, 'cost', 12),
         );
     }
 
-    private function positiveInt(mixed $value, int $default): int
+    /** @param array<string, mixed> $config */
+    private function positiveInt(array $config, string $key, int $default): int
     {
-        if (!is_numeric($value) || (int) $value < 1) {
+        if (!array_key_exists($key, $config)) {
             return $default;
         }
 
-        return (int) $value;
+        $value = $config[$key];
+        if (is_int($value) && $value > 0) {
+            return $value;
+        }
+        if (is_string($value) && preg_match('/^[1-9]\d*$/D', $value) === 1) {
+            return (int) $value;
+        }
+
+        throw new \InvalidArgumentException(sprintf(
+            'security.password.%s must be a positive integer.',
+            $key,
+        ));
     }
 }
