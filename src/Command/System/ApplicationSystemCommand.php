@@ -18,6 +18,7 @@ use Infocyph\Foundation\Module\ModuleCatalog;
 use Infocyph\Foundation\Process\ProcessOptions;
 use Infocyph\Foundation\Process\ProcessRunner;
 use Infocyph\Foundation\Routing\RouteCacheManager;
+use Infocyph\Foundation\Routing\RouteCachePath;
 use Infocyph\Foundation\Scheduling\ScheduleManager;
 use Infocyph\Foundation\Security\EnvironmentSecretManager;
 
@@ -235,6 +236,7 @@ final class ApplicationSystemCommand extends SystemCommand
         }
         $data = [
             'config' => is_dir($this->application->bootstrapPath('cache/config')),
+            'routes' => RouteCachePath::isWarm($this->application->config()),
             'commands' => is_file($this->application->bootstrapPath('cache/commands.php')),
             'schedule' => is_file($this->application->bootstrapPath('cache/schedule.php')),
             'optimize_manifest' => is_file($this->application->bootstrapPath('cache/optimize.php')),
@@ -248,6 +250,7 @@ final class ApplicationSystemCommand extends SystemCommand
             ['Artifact', 'Ready'],
             [
                 ['config', $data['config']],
+                ['routes', $data['routes']],
                 ['commands', $data['commands']],
                 ['schedule', $data['schedule']],
                 ['optimize manifest', $data['optimize_manifest']],
