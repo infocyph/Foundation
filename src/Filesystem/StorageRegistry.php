@@ -16,7 +16,7 @@ use League\Flysystem\FilesystemOperator;
  *
  * Pathwise/Flysystem own filesystem operations. This registry only turns the
  * application's filesystem.disks configuration into named native filesystems
- * and resolves application-relative paths to those mounts.
+ * and resolves application-relative paths to isolated Pathwise mounts.
  */
 final class StorageRegistry
 {
@@ -24,6 +24,8 @@ final class StorageRegistry
     private readonly array $configurations;
 
     private readonly string $defaultDisk;
+
+    private readonly string $mountScope;
 
     /** @var array<string, FilesystemOperator> */
     private array $filesystems = [];
@@ -39,6 +41,7 @@ final class StorageRegistry
         $this->defaultDisk = is_string($configured) && trim($configured) !== ''
             ? $this->normalizeDiskName($configured)
             : 'local';
+        $this->mountScope = 'foundation-' . substr(hash('sha256', $paths->base()), 0, 12);
 
         if (!isset($this->configurations[$this->defaultDisk])) {
             throw new \InvalidArgumentException(sprintf(
@@ -95,9 +98,8 @@ final class StorageRegistry
         }
 
         foreach ($prepared as $disk => $filesystem) {
-            FlysystemHelper::replaceMount($disk, $filesystem);
+            FlysystemHelper::replaceMount($this->mountName($disk), $filesystem);
         }
-        FlysystemHelper::setDefaultFilesystem($prepared[$this->defaultDisk]);
 
         $this->filesystems = $prepared;
         $this->initialized = true;
@@ -145,18 +147,12 @@ final class StorageRegistry
 
         $this->initialize();
         $resolved = $this->resolveDisk($disk);
-        if (!isset($this->filesystems[$resolved])) {
-            throw new \InvalidArgumentException(sprintf(
-                'Filesystem disk "%s" is not configured.',
-                $resolved,
-            ));
-        }
-
+        $mount = $this->mountName($resolved);
         $relative = trim(str_replace('\\', '/', $path), '/');
 
         return $relative === ''
-            ? $resolved . '://'
-            : $resolved . '://' . $relative;
+            ? $mount . '://'
+            : $mount . '://' . $relative;
     }
 
     public function resolveDisk(?string $name): string
@@ -205,6 +201,11 @@ final class StorageRegistry
         }
 
         return $filesystems;
+    }
+
+    private function mountName(string $disk): string
+    {
+        return $this->mountScope . '-' . $disk;
     }
 
     /** @param array<string, mixed> $configuration @return array<string, mixed> */
