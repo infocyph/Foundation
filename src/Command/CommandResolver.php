@@ -1,0 +1,78 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Infocyph\Foundation\Command;
+
+use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Runtime\ExecutionId;
+
+final readonly class CommandResolver
+{
+    public function __construct(private Application $application) {}
+
+    public function run(CommandDescriptor $descriptor, ParsedInput $input, CommandIO $io): int
+    {
+        $definition = $descriptor->definition;
+        if ($definition->commandRuntime() !== $this->application->runtimeMode()) {
+            throw new \LogicException(sprintf(
+                'Command "%s" requires the %s runtime; current runtime is %s.',
+                $definition->commandName(),
+                $definition->commandRuntime()->value,
+                $this->application->runtimeMode()->value,
+            ));
+        }
+        if ($descriptor->handler === null) {
+            throw new \LogicException(sprintf(
+                'System command "%s" has not yet been bound to a Foundation handler.',
+                $definition->commandName(),
+            ));
+        }
+
+        $executionId = ExecutionId::generate();
+        $context = new CommandContext($input, $io, $executionId);
+
+        return $this->application->execution()->run(
+            function () use ($descriptor, $context): int {
+                $command = $this->resolve($descriptor->handler);
+                $exitCode = $command->run($context);
+                if ($exitCode < 0 || $exitCode > 255) {
+                    throw new \UnexpectedValueException(sprintf(
+                        'Command "%s" returned invalid exit code %d.',
+                        $descriptor->definition->commandName(),
+                        $exitCode,
+                    ));
+                }
+
+                return $exitCode;
+            },
+            [
+                ParsedInput::class => $input,
+                CommandIO::class => $io,
+                CommandContext::class => $context,
+                CommandDescriptor::class => $descriptor,
+                CommandDefinition::class => $definition,
+            ],
+            $executionId,
+        );
+    }
+
+    /** @param class-string<CommandHandlerInterface> $handler */
+    private function resolve(string $handler): CommandHandlerInterface
+    {
+        $resolved = $this->application->container()
+            ->getCurrentResolver()
+            ->classSettler($handler, false, true)
+            ->instance;
+
+        if (!$resolved instanceof CommandHandlerInterface) {
+            throw new \LogicException(sprintf(
+                'Resolved command "%s" must implement %s.',
+                $handler,
+                CommandHandlerInterface::class,
+            ));
+        }
+
+        return $resolved;
+    }
+}
