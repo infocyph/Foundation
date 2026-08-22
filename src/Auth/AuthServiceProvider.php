@@ -25,7 +25,7 @@ use Infocyph\Foundation\Auth\Internal\AuthRuntimeRegistrar;
 use Infocyph\Foundation\Auth\Internal\AuthSecretResolver;
 use Infocyph\Foundation\Auth\Internal\AuthStoreRegistrar;
 use Infocyph\Foundation\Auth\Internal\AuthTokenRegistrar;
-use Infocyph\Foundation\Auth\Internal\EpicryptConfigResolver;
+use Infocyph\Foundation\Auth\Internal\EpicryptTokenPolicyResolver;
 use Infocyph\Foundation\Http\Middleware\AuthMiddleware;
 use Infocyph\Foundation\Http\Middleware\GuestMiddleware;
 use Infocyph\Foundation\Http\Middleware\MfaRequiredMiddleware;
@@ -46,14 +46,14 @@ final class AuthServiceProvider extends ServiceProvider
         $container = $app->container();
         $drivers = new AuthDriverResolver($app->config());
         $secrets = new AuthSecretResolver($app);
-        $epicrypt = new EpicryptConfigResolver($app);
+        $epicryptTokens = new EpicryptTokenPolicyResolver($app);
 
         new AuthCoreRegistrar($container)->register($drivers);
         new AuthProductionGuard($app)->guard($drivers);
         new AuthStoreRegistrar($app, $container)->register($drivers->storage());
         new AuthCacheRegistrar($app, $container)->register($drivers);
-        new AuthPasswordRegistrar($app, $container, $epicrypt)->register($drivers);
-        new AuthTokenRegistrar($app, $container, $secrets, $epicrypt)->register($drivers);
+        new AuthPasswordRegistrar($app, $container)->register($drivers);
+        new AuthTokenRegistrar($app, $container, $secrets, $epicryptTokens)->register($drivers);
         new AuthMfaRegistrar($app, $container, $secrets)->register($drivers);
         new AuthPasskeyRegistrar($app, $container)->register($drivers);
         new AuthNotificationRegistrar($app, $container)->register($drivers);
