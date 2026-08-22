@@ -153,6 +153,14 @@ final class CommandDispatcher
     /** @param array<string, mixed> $manifest */
     private static function manifestFresh(array $manifest, string $routesPath): bool
     {
+        $framework = $manifest['foundation_sha256'] ?? null;
+        if (!is_string($framework)
+            || preg_match('/^[a-f0-9]{64}$/D', $framework) !== 1
+            || !hash_equals($framework, CommandCacheManager::frameworkFingerprint())
+        ) {
+            return false;
+        }
+
         $source = $manifest['source'] ?? null;
         if (!is_array($source) || !is_bool($source['exists'] ?? null)) {
             return false;
