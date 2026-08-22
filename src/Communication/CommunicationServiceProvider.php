@@ -6,10 +6,10 @@ namespace Infocyph\Foundation\Communication;
 
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
-use Infocyph\InterMix\DI\Container;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\TalkingBytes\Grpc\GrpcInboundDispatcher;
 use Infocyph\TalkingBytes\Http\HttpClient;
+use Infocyph\TalkingBytes\Http\HttpClientConfig;
 use Infocyph\TalkingBytes\Webhook\WebhookReceiver;
 use Infocyph\TalkingBytes\Webhook\WebhookSender;
 use Infocyph\TalkingBytes\Webhook\WebhookVerifier;
@@ -25,53 +25,67 @@ final class CommunicationServiceProvider extends ServiceProvider
         }
 
         $container = $app->container();
+        $this->bindFactory(
+            $container,
+            CommunicationProfiles::class,
+            fn() => new CommunicationProfiles($app->config()),
+            LifetimeEnum::Singleton,
+        );
 
-        $this->bindFactory($container, CommunicationManager::class, fn() => new CommunicationManager(
-            config: $app->config(),
-            container: $container,
-        ), LifetimeEnum::Singleton);
-
+        if (!$this->hasExplicitBinding($container, HttpClientConfig::class)) {
+            $this->bindFactory(
+                $container,
+                HttpClientConfig::class,
+                fn(): HttpClientConfig => $app->make(CommunicationProfiles::class)->httpConfig(),
+                LifetimeEnum::Singleton,
+            );
+        }
         if (!$this->hasExplicitBinding($container, HttpClient::class)) {
             $this->bindFactory(
                 $container,
                 HttpClient::class,
-                fn(): HttpClient => $this->manager($container)->httpClient(),
+                fn(): HttpClient => $app->make(CommunicationProfiles::class)->http(),
+                LifetimeEnum::Scoped,
+            );
+        }
+        if (!$this->hasExplicitBinding($container, WebhookSender::class)) {
+            $this->bindFactory(
+                $container,
+                WebhookSender::class,
+                fn(): WebhookSender => $app->make(CommunicationProfiles::class)->webhookSender(),
+                LifetimeEnum::Scoped,
+            );
+        }
+        if (!$this->hasExplicitBinding($container, WebhookVerifier::class)) {
+            $this->bindFactory(
+                $container,
+                WebhookVerifier::class,
+                fn(): WebhookVerifier => $app->make(CommunicationProfiles::class)->webhookVerifier(),
                 LifetimeEnum::Singleton,
             );
         }
-        $this->bindFactory(
-            $container,
-            WebhookSender::class,
-            fn(): WebhookSender => $this->manager($container)->webhookSender(),
-            LifetimeEnum::Singleton,
-        );
-        $this->bindFactory(
-            $container,
-            WebhookVerifier::class,
-            fn(): WebhookVerifier => $this->manager($container)->webhookVerifier(),
-            LifetimeEnum::Singleton,
-        );
-        $this->bindFactory(
-            $container,
-            WebhookReceiver::class,
-            fn(): WebhookReceiver => $this->manager($container)->webhookReceiver(),
-            LifetimeEnum::Singleton,
-        );
-        $this->bindFactory(
-            $container,
-            GrpcInboundDispatcher::class,
-            fn(): GrpcInboundDispatcher => $this->manager($container)->grpcInboundDispatcher(),
-            LifetimeEnum::Singleton,
-        );
-    }
-
-    private function manager(Container $container): CommunicationManager
-    {
-        $manager = $container->get(CommunicationManager::class);
-        if (!$manager instanceof CommunicationManager) {
-            throw new \RuntimeException('Communication manager must resolve to CommunicationManager.');
+        if (!$this->hasExplicitBinding($container, WebhookReceiver::class)) {
+            $this->bindFactory(
+                $container,
+                WebhookReceiver::class,
+                fn(): WebhookReceiver => $app->make(CommunicationProfiles::class)->webhookReceiver(),
+                LifetimeEnum::Singleton,
+            );
+        }
+        if (!$this->hasExplicitBinding($container, GrpcInboundDispatcher::class)) {
+            $this->bindFactory(
+                $container,
+                GrpcInboundDispatcher::class,
+                fn(): GrpcInboundDispatcher => $app->make(CommunicationProfiles::class)->grpcInbound(),
+                LifetimeEnum::Singleton,
+            );
         }
 
-        return $manager;
+        $this->bindFactory(
+            $container,
+            'foundation.communication',
+            fn() => $app->make(CommunicationProfiles::class),
+            LifetimeEnum::Singleton,
+        );
     }
 }
