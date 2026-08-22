@@ -22,9 +22,12 @@ final class DBLayerFactory
 
     public function connection(?string $name = null, bool $fresh = false): Connection
     {
+        $default = $this->resolver->connectionName();
         $name = $this->resolver->connectionName($name);
         $config = $this->configurations[$name]
             ??= ConnectionConfig::fromArray($this->resolver->configuration($name));
+
+        DB::setDefaultConnection($default);
 
         if (!isset($this->registered[$name]) || !DB::hasConnection($name)) {
             DB::addConnection($config, $name);
