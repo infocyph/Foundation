@@ -8,20 +8,20 @@ use Infocyph\CacheLayer\Cache\AuthenticationStateCacheInterface;
 use Infocyph\Foundation\Auth\Mfa\MfaChallenge;
 use Infocyph\Foundation\Auth\Mfa\MfaFactor;
 use Infocyph\Foundation\Auth\Mfa\MfaFactorCompareAndSwapStoreInterface;
-use Infocyph\Foundation\Auth\Mfa\MfaFactorStoreInterface;
 use Infocyph\Foundation\Auth\Mfa\MfaFactorType;
 use Infocyph\Foundation\Auth\Mfa\MfaVerificationResult;
 use Infocyph\Foundation\Auth\Mfa\MfaVerifierInterface;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\OTP\HOTP;
 use Infocyph\OTP\OCRA;
+use Infocyph\OTP\Result\VerificationResult;
 use Infocyph\OTP\TOTP;
 use Infocyph\OTP\ValueObjects\VerificationWindow;
 
 final readonly class OtpMfaVerifier implements MfaVerifierInterface
 {
     public function __construct(
-        private MfaFactorStoreInterface $factors,
+        private MfaFactorCompareAndSwapStoreInterface $factors,
         private AuthenticationStateCacheInterface $stateCache,
         private int $window = 1,
         private int $ocraReplayTtl = 90,
@@ -41,27 +41,24 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
             return new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_factor_disabled');
         }
 
-        return match ($factor->type) {
-            MfaFactorType::TOTP->value => $this->verifyTotp($factor, $code),
-            MfaFactorType::HOTP->value => $this->verifyHotp($factor, $code),
-            MfaFactorType::OCRA->value => $this->verifyOcra($challenge, $factor, $code),
-            default => new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_factor_unsupported'),
-        };
+        try {
+            return match ($factor->type) {
+                MfaFactorType::TOTP->value => $this->verifyTotp($factor, $code),
+                MfaFactorType::HOTP->value => $this->verifyHotp($factor, $code),
+                MfaFactorType::OCRA->value => $this->verifyOcra($challenge, $factor, $code),
+                default => new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_factor_unsupported'),
+            };
+        } catch (\Throwable) {
+            return new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_factor_invalid_configuration');
+        }
     }
 
     private function advanceCounter(MfaFactor $factor, int $counter): bool
     {
-        if (!$this->factors instanceof MfaFactorCompareAndSwapStoreInterface) {
-            return false;
-        }
-
         $metadata = $factor->metadata;
         $otp = ValueNormalizer::associativeArray($metadata['otp'] ?? null);
         if ($otp === []) {
-            $otp = $metadata;
-            $otp['counter'] = $counter;
-
-            return $this->factors->compareAndSwap($factor, $factor->withMetadata($otp));
+            return false;
         }
 
         $otp['counter'] = $counter;
@@ -89,38 +86,73 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
     /** @param array<string, mixed> $config */
     private function integerOption(array $config, string $key, int $default): int
     {
-        $value = $config[$key] ?? null;
+        if (!array_key_exists($key, $config)) {
+            return $default;
+        }
 
-        return is_numeric($value) ? (int) $value : $default;
+        $value = $config[$key];
+        if (is_int($value)) {
+            return $value;
+        }
+        if (is_string($value) && preg_match('/^-?(?:0|[1-9]\d*)$/D', $value) === 1) {
+            $validated = filter_var($value, FILTER_VALIDATE_INT);
+            if (is_int($validated)) {
+                return $validated;
+            }
+        }
+
+        throw new \InvalidArgumentException(sprintf('OTP factor option "%s" must be an integer.', $key));
     }
 
-    /** @return array{algorithm:string,counter:int,digits:int,look_ahead:int,period:int,secret:?string,shared_key:?string,suite:?string,window:int} */
+    /** @return array{algorithm:string,counter:int,digits:int,look_ahead:int,period:int,secret:?string,suite:?string,window:int} */
     private function otpConfig(MfaFactor $factor): array
     {
         $otp = ValueNormalizer::associativeArray($factor->metadata['otp'] ?? null);
         if ($otp === []) {
-            $otp = $factor->metadata;
+            throw new \InvalidArgumentException('OTP factors require nested otp metadata.');
         }
 
         return [
             'algorithm' => $this->stringOption($otp, 'algorithm') ?? 'sha1',
-            'counter' => max(0, $this->integerOption($otp, 'counter', 0)),
-            'digits' => max(6, $this->integerOption($otp, 'digits', 6)),
-            'look_ahead' => max(0, $this->integerOption($otp, 'look_ahead', 5)),
-            'period' => max(1, $this->integerOption($otp, 'period', 30)),
+            'counter' => $this->integerOption($otp, 'counter', 0),
+            'digits' => $this->integerOption($otp, 'digits', 6),
+            'look_ahead' => $this->integerOption($otp, 'look_ahead', 5),
+            'period' => $this->integerOption($otp, 'period', 30),
             'secret' => $this->stringOption($otp, 'secret'),
-            'shared_key' => $this->stringOption($otp, 'shared_key'),
             'suite' => $this->stringOption($otp, 'suite'),
-            'window' => max(0, $this->integerOption($otp, 'window', $this->window)),
+            'window' => $this->integerOption($otp, 'window', $this->window),
         ];
+    }
+
+    private function resultFailure(MfaFactor $factor, VerificationResult $result): MfaVerificationResult
+    {
+        return new MfaVerificationResult(
+            verified: false,
+            factorId: $factor->id,
+            reason: $result->replayDetected ? 'mfa_code_replayed' : 'mfa_code_invalid',
+            context: [
+                'otp_reason' => $result->reason->value,
+                'drift_offset' => $result->driftOffset,
+                'matched_counter' => $result->matchedCounter,
+                'matched_timestep' => $result->matchedTimestep,
+                'replay_detected' => $result->replayDetected,
+            ],
+        );
     }
 
     /** @param array<string, mixed> $config */
     private function stringOption(array $config, string $key): ?string
     {
-        $value = $config[$key] ?? null;
+        if (!array_key_exists($key, $config) || $config[$key] === null) {
+            return null;
+        }
 
-        return is_string($value) && $value !== '' ? $value : null;
+        $value = $config[$key];
+        if (!is_string($value) || trim($value) === '') {
+            throw new \InvalidArgumentException(sprintf('OTP factor option "%s" must be a non-empty string.', $key));
+        }
+
+        return trim($value);
     }
 
     private function verifyHotp(MfaFactor $factor, string $code): MfaVerificationResult
@@ -129,40 +161,34 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         if ($config['secret'] === null) {
             return new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_secret_missing');
         }
-        if (!$this->factors instanceof MfaFactorCompareAndSwapStoreInterface) {
-            return new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_atomic_counter_store_required');
-        }
 
-        try {
-            $result = new HOTP(
-                $config['secret'],
-                $config['digits'],
-                $config['algorithm'],
-            )->verifyWithResult(
-                $code,
-                $config['counter'],
-                $config['look_ahead'],
-                $this->stateCache,
-                $this->factorBinding($factor, $config['secret']),
-            );
-        } catch (\Throwable) {
-            return new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_factor_invalid_configuration');
-        }
+        $result = new HOTP(
+            $config['secret'],
+            $config['digits'],
+            $config['algorithm'],
+        )->verifyWithResult(
+            $code,
+            $config['counter'],
+            $config['look_ahead'],
+        );
 
-        if (!$result->matched || $result->matchedCounter === null) {
+        if (!$result->matched) {
+            return $this->resultFailure($factor, $result);
+        }
+        if ($result->nextCounter === null || !$this->advanceCounter($factor, $result->nextCounter)) {
             return new MfaVerificationResult(
                 false,
                 factorId: $factor->id,
-                reason: $result->replayDetected ? 'mfa_code_replayed' : 'mfa_code_invalid',
+                reason: 'mfa_code_replayed',
+                context: ['otp_reason' => $result->reason->value],
             );
-        }
-        if (!$this->advanceCounter($factor, $result->matchedCounter + 1)) {
-            return new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_code_replayed');
         }
 
         return new MfaVerificationResult(true, factorId: $factor->id, context: [
+            'otp_reason' => $result->reason->value,
             'drift_offset' => $result->driftOffset,
             'matched_counter' => $result->matchedCounter,
+            'next_counter' => $result->nextCounter,
         ]);
     }
 
@@ -170,46 +196,52 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
     {
         $config = $this->otpConfig($factor);
         $challengeValue = $this->stringOption($challenge->metadata, 'ocra_challenge');
-        if ($challengeValue === null || $config['suite'] === null || $config['shared_key'] === null) {
+        if ($challengeValue === null || $config['suite'] === null || $config['secret'] === null) {
             return new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_factor_invalid_configuration');
         }
 
-        try {
-            $ocra = new OCRA($config['suite'], $config['shared_key']);
-            $pin = $this->stringOption($challenge->metadata, 'ocra_pin');
-            $session = $this->stringOption($challenge->metadata, 'ocra_session');
-            if ($ocra->getSuite()->counterEnabled && !$this->factors instanceof MfaFactorCompareAndSwapStoreInterface) {
-                return new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_atomic_counter_store_required');
-            }
-            $counter = $ocra->getSuite()->counterEnabled ? $config['counter'] : null;
+        $ocra = OCRA::fromBase32($config['suite'], $config['secret']);
+        $suite = $ocra->getSuite();
+        $pin = $this->stringOption($challenge->metadata, 'ocra_pin');
+        $session = $this->stringOption($challenge->metadata, 'ocra_session');
+        $counter = $suite->counterEnabled ? $config['counter'] : null;
+        $timestamp = $suite->usesTime() ? time() : null;
+        $window = $suite->usesTime()
+            ? VerificationWindow::symmetric($config['window'])
+            : new VerificationWindow();
 
-            $result = $ocra->verifyWithResult(
-                $code,
-                $challengeValue,
-                $counter,
-                $pin,
-                $session,
-                cache: $this->stateCache,
-                factorId: $this->factorBinding($factor, $config['shared_key']),
-                replayTtl: max(1, $this->ocraReplayTtl),
-            );
-        } catch (\Throwable) {
-            return new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_factor_invalid_configuration');
-        }
+        $result = $ocra->verifyWithResult(
+            $code,
+            $challengeValue,
+            $counter,
+            $pin,
+            $session,
+            $timestamp,
+            $window,
+            cache: $suite->counterEnabled ? null : $this->stateCache,
+            factorId: $suite->counterEnabled ? null : $this->factorBinding($factor, $config['secret']),
+            replayTtl: $suite->counterEnabled ? null : $this->ocraReplayTtl,
+        );
 
         if (!$result->matched) {
-            return new MfaVerificationResult(
-                false,
-                factorId: $factor->id,
-                reason: $result->replayDetected ? 'mfa_code_replayed' : 'mfa_code_invalid',
-            );
+            return $this->resultFailure($factor, $result);
         }
-        if ($ocra->getSuite()->counterEnabled && !$this->advanceCounter($factor, $config['counter'] + 1)) {
-            return new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_code_replayed');
+        if ($suite->counterEnabled) {
+            if ($result->nextCounter === null || !$this->advanceCounter($factor, $result->nextCounter)) {
+                return new MfaVerificationResult(
+                    false,
+                    factorId: $factor->id,
+                    reason: 'mfa_code_replayed',
+                    context: ['otp_reason' => $result->reason->value],
+                );
+            }
         }
 
         return new MfaVerificationResult(true, factorId: $factor->id, context: [
+            'otp_reason' => $result->reason->value,
+            'drift_offset' => $result->driftOffset,
             'matched_counter' => $result->matchedCounter,
+            'next_counter' => $result->nextCounter,
         ]);
     }
 
@@ -220,36 +252,24 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
             return new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_secret_missing');
         }
 
-        try {
-            $result = new TOTP(
-                $config['secret'],
-                $config['digits'],
-                $config['period'],
-                $config['algorithm'],
-            )->verifyWithWindow(
-                $code,
-                window: VerificationWindow::symmetric($config['window']),
-                cache: $this->stateCache,
-                factorId: $this->factorBinding($factor, $config['secret']),
-            );
-        } catch (\Throwable) {
-            return new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_factor_invalid_configuration');
-        }
+        $result = new TOTP(
+            $config['secret'],
+            $config['digits'],
+            $config['period'],
+            $config['algorithm'],
+        )->verifyWithWindow(
+            $code,
+            window: VerificationWindow::symmetric($config['window']),
+            cache: $this->stateCache,
+            factorId: $this->factorBinding($factor, $config['secret']),
+        );
 
         if (!$result->matched) {
-            return new MfaVerificationResult(
-                verified: false,
-                factorId: $factor->id,
-                reason: $result->replayDetected ? 'mfa_code_replayed' : 'mfa_code_invalid',
-                context: [
-                    'drift_offset' => $result->driftOffset,
-                    'matched_timestep' => $result->matchedTimestep,
-                    'replay_detected' => $result->replayDetected,
-                ],
-            );
+            return $this->resultFailure($factor, $result);
         }
 
         return new MfaVerificationResult(verified: true, factorId: $factor->id, context: [
+            'otp_reason' => $result->reason->value,
             'drift_offset' => $result->driftOffset,
             'matched_timestep' => $result->matchedTimestep,
         ]);
