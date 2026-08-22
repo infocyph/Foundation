@@ -6,8 +6,8 @@ namespace Infocyph\Foundation\Runtime;
 
 use Infocyph\CacheLayer\Memoize\Memoizer;
 use Infocyph\CacheLayer\Memoize\OnceMemoizer;
+use Infocyph\DBLayer\DB;
 use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
-use Infocyph\Foundation\Database\DatabaseManager;
 use Infocyph\Foundation\Session\SessionManager;
 
 /**
@@ -18,9 +18,11 @@ final class RuntimeContextTracker
     /** @var array<class-string, object> */
     private array $dirty = [];
 
-    public function markDatabase(DatabaseManager $database): void
+    private bool $databaseTouched = false;
+
+    public function markDatabase(): void
     {
-        $this->dirty[DatabaseManager::class] = $database;
+        $this->databaseTouched = true;
     }
 
     public function markPrincipal(CurrentPrincipalContext $principal): void
@@ -36,7 +38,9 @@ final class RuntimeContextTracker
     public function reset(): void
     {
         $dirty = $this->dirty;
+        $databaseTouched = $this->databaseTouched;
         $this->dirty = [];
+        $this->databaseTouched = false;
         $failure = null;
 
         foreach ($dirty as $context) {
@@ -44,9 +48,16 @@ final class RuntimeContextTracker
                 match (true) {
                     $context instanceof CurrentPrincipalContext => $context->clear(),
                     $context instanceof SessionManager => $context->resetContext(),
-                    $context instanceof DatabaseManager => $context->resetUnitOfWork(),
                     default => null,
                 };
+            } catch (\Throwable $exception) {
+                $failure ??= $exception;
+            }
+        }
+
+        if ($databaseTouched) {
+            try {
+                $this->resetDatabaseRuntime();
             } catch (\Throwable $exception) {
                 $failure ??= $exception;
             }
@@ -63,11 +74,29 @@ final class RuntimeContextTracker
         }
     }
 
+    private function resetDatabaseRuntime(): void
+    {
+        if (!class_exists(DB::class, false)) {
+            return;
+        }
+
+        foreach (DB::getConnections() as $connection) {
+            try {
+                while ($connection->transactionLevel() > 0) {
+                    $connection->rollbackTransaction();
+                }
+            } catch (\Throwable) {
+                $connection->disconnect();
+            }
+        }
+
+        DB::resetRuntimeState(false);
+    }
+
     private function flushProcessLocalMemoizers(): void
     {
-        // Do not autoload an optional cache package solely for cleanup. If it is
-        // already active, per-process memoized values must not cross execution
-        // boundaries in persistent Webrick, worker, or scheduler processes.
+        // Do not autoload optional packages solely for cleanup. When active,
+        // process-local memoized values must never cross execution boundaries.
         if (class_exists(Memoizer::class, false)) {
             Memoizer::instance()->flush();
         }
