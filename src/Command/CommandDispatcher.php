@@ -162,7 +162,10 @@ final class CommandDispatcher
         }
 
         $source = $manifest['source'] ?? null;
-        if (!is_array($source) || !is_bool($source['exists'] ?? null)) {
+        if (!is_array($source)
+            || !is_bool($source['exists'] ?? null)
+            || !self::handlersFresh($manifest, $source['handlers'] ?? null)
+        ) {
             return false;
         }
 
@@ -182,5 +185,44 @@ final class CommandDispatcher
         $actual = hash_file('sha256', $routesPath);
 
         return is_string($actual) && hash_equals($expected, $actual);
+    }
+
+    /** @param array<string, mixed> $manifest */
+    private static function handlersFresh(array $manifest, mixed $fingerprints): bool
+    {
+        if (!is_array($fingerprints)) {
+            return false;
+        }
+
+        $expected = [];
+        foreach ($manifest['commands'] ?? [] as $metadata) {
+            if (!is_array($metadata) || ($metadata['system'] ?? false) === true) {
+                continue;
+            }
+            $handler = $metadata['handler'] ?? null;
+            if (!is_string($handler) || $handler === '') {
+                return false;
+            }
+            $expected[$handler] = true;
+        }
+
+        if (array_diff_key($expected, $fingerprints) !== [] || array_diff_key($fingerprints, $expected) !== []) {
+            return false;
+        }
+
+        foreach ($fingerprints as $handler => $hash) {
+            if (!is_string($handler)
+                || !is_string($hash)
+                || preg_match('/^[a-f0-9]{64}$/D', $hash) !== 1
+            ) {
+                return false;
+            }
+            $actual = CommandCacheManager::handlerFingerprint($handler);
+            if ($actual === null || !hash_equals($hash, $actual)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
