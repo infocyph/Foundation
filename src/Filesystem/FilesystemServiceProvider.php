@@ -44,6 +44,7 @@ final class FilesystemServiceProvider extends ServiceProvider
             $app->make(FilesystemTransferFactory::class),
         ), LifetimeEnum::Singleton);
         $this->bindFactory($container, FilesystemResponseFactory::class, fn() => new FilesystemResponseFactory(
+            config: $app->config(),
             transfers: $app->make(FilesystemTransferFactory::class),
             storage: $app->make(StorageRegistry::class),
         ), LifetimeEnum::Singleton);
