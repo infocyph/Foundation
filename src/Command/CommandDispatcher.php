@@ -18,7 +18,8 @@ final class CommandDispatcher
 
     /**
      * Build the CLI surface without constructing Foundation Application.
-     * A compiled scalar command manifest wins over routes/console.php.
+     * A valid, fresh scalar command manifest wins over routes/console.php.
+     * Invalid or stale manifests fall back to the source route file.
      *
      * @param array<string, mixed> $config
      */
@@ -34,19 +35,18 @@ final class CommandDispatcher
         $config['base_path'] = $basePath;
 
         $manifestPath ??= $basePath . '/bootstrap/cache/commands.php';
+        $routesPath ??= $basePath . '/routes/console.php';
         if (is_file($manifestPath)) {
-            $manifest = require $manifestPath;
-            if (!is_array($manifest)) {
-                throw new \UnexpectedValueException(sprintf(
-                    'Compiled command manifest "%s" must return an array.',
-                    $manifestPath,
-                ));
+            try {
+                $manifest = require $manifestPath;
+                if (is_array($manifest) && self::manifestFresh($manifest, $routesPath)) {
+                    return new self($config, CommandRegistry::fromManifest($manifest));
+                }
+            } catch (\Throwable) {
+                // A command cache is an optimization. Source routes remain authoritative.
             }
-
-            return new self($config, CommandRegistry::fromManifest($manifest));
         }
 
-        $routesPath ??= $basePath . '/routes/console.php';
         $commands = [];
         if (is_file($routesPath)) {
             $commands = require $routesPath;
@@ -147,5 +147,31 @@ final class CommandDispatcher
             RuntimeMode::Web => Foundation::web($config),
             RuntimeMode::Worker => Foundation::worker($config),
         };
+    }
+
+    /** @param array<string, mixed> $manifest */
+    private static function manifestFresh(array $manifest, string $routesPath): bool
+    {
+        $source = $manifest['source'] ?? null;
+        if (!is_array($source) || !is_bool($source['exists'] ?? null)) {
+            return false;
+        }
+
+        $exists = is_file($routesPath);
+        if ($source['exists'] !== $exists) {
+            return false;
+        }
+        if (!$exists) {
+            return ($source['sha256'] ?? null) === null;
+        }
+
+        $expected = $source['sha256'] ?? null;
+        if (!is_string($expected) || preg_match('/^[a-f0-9]{64}$/D', $expected) !== 1) {
+            return false;
+        }
+
+        $actual = hash_file('sha256', $routesPath);
+
+        return is_string($actual) && hash_equals($expected, $actual);
     }
 }
