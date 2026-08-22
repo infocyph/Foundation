@@ -36,9 +36,14 @@ final class DBLayerFactory
             $this->registered[$name] = true;
         }
 
-        $this->contexts->markDatabase();
+        $connection = DB::connection($name, $fresh);
+        if ($fresh) {
+            $this->contexts->markFreshDatabaseConnection($connection);
+        } else {
+            $this->contexts->markDatabase();
+        }
 
-        return DB::connection($name, $fresh);
+        return $connection;
     }
 
     public function resolver(): DatabaseConnectionResolver
