@@ -35,7 +35,7 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
         Application $app,
         \Infocyph\InterMix\DI\Container $container,
         private AuthSecretResolver $secrets,
-        private EpicryptConfigResolver $epicrypt,
+        private EpicryptTokenPolicyResolver $epicrypt,
     ) {
         parent::__construct($app, $container);
     }
@@ -130,10 +130,10 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
         $this->singleton(EpicryptTokenFactory::class, fn() => new EpicryptTokenFactory(
             key: $this->secrets->tokenSecret(),
             clock: $this->clock(),
-            issuer: $this->epicrypt->tokenIssuer(),
-            audience: $this->epicrypt->tokenAudience(),
-            maximumLifetimeSeconds: $this->epicrypt->tokenMaximumLifetime(),
-            leewaySeconds: $this->epicrypt->tokenLeeway(),
+            issuer: $this->epicrypt->issuer(),
+            audience: $this->epicrypt->audience(),
+            maximumLifetimeSeconds: $this->epicrypt->maximumLifetimeSeconds(),
+            leewaySeconds: $this->epicrypt->leewaySeconds(),
         ));
 
         $this->bindSingleDependencyToken(AccessTokenServiceInterface::class, EpicryptAccessTokenService::class, EpicryptTokenFactory::class);
