@@ -10,6 +10,7 @@ their domain behavior.
 - [Communication and email](communication.md)
 - [Console, schedules, and workers](console.md)
 - [Authentication and authorization](authentication.md)
+- [OTP-backed MFA](otp.md)
 - [Browser sessions and CSRF](browser-sessions.md)
 - [Database migrations and seeding](database.md)
 - [Filesystem and storage](filesystem.md)
