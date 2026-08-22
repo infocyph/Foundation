@@ -52,6 +52,15 @@ final readonly class EpicryptTokenPolicyResolver
             : 1209600;
     }
 
+    public function minimumKeyBytes(): int
+    {
+        return match ($this->algorithm()) {
+            SymmetricJwtAlgorithm::HS256 => 32,
+            SymmetricJwtAlgorithm::HS384 => 48,
+            SymmetricJwtAlgorithm::HS512 => 64,
+        };
+    }
+
     private function requiredValue(string $key): string
     {
         $value = ValueNormalizer::nullableString($this->app->config()->get('security.jwt.' . $key));
