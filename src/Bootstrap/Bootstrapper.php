@@ -202,7 +202,14 @@ final class Bootstrapper
         }
 
         return $app->runningInWeb()
-            && ($service === 'foundation.http' || str_starts_with($service, 'Infocyph\\Foundation\\Http\\'));
+            && (
+                $service === 'foundation.http'
+                || str_starts_with($service, 'Infocyph\\Foundation\\Http\\')
+                || in_array($service, [
+                    \Infocyph\Webrick\Router\Kernel\ErrorHandler::class,
+                    \Infocyph\Webrick\Router\Kernel\RouterKernel::class,
+                ], true)
+            );
     }
 
     /**
@@ -352,9 +359,17 @@ final class Bootstrapper
             str_starts_with($service, 'Infocyph\\Foundation\\Http\\Resource\\') => JsonDispatchServiceProvider::class,
             str_starts_with($service, 'Infocyph\\Foundation\\Http\\Middleware\\'),
             str_starts_with($service, 'Infocyph\\Foundation\\Http\\Resolver\\') => AuthServiceProvider::class,
-            str_starts_with($service, 'Infocyph\\Foundation\\Http\\') => HttpServiceProvider::class,
+            str_starts_with($service, 'Infocyph\\Foundation\\Http\\'),
+            in_array($service, [
+                \Infocyph\Webrick\Router\Kernel\ErrorHandler::class,
+                \Infocyph\Webrick\Router\Kernel\RouterKernel::class,
+            ], true) => HttpServiceProvider::class,
 
-            str_starts_with($service, 'Infocyph\\Foundation\\Routing\\') => RoutingServiceProvider::class,
+            str_starts_with($service, 'Infocyph\\Foundation\\Routing\\'),
+            in_array($service, [
+                \Infocyph\Webrick\Router\Definition\Registrar::class,
+                \Infocyph\Webrick\Router\Route\Collection::class,
+            ], true) => RoutingServiceProvider::class,
 
             str_starts_with($service, 'Infocyph\\Foundation\\Security\\'),
             in_array($service, [
