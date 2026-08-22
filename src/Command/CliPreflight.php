@@ -19,31 +19,44 @@ final readonly class CliPreflight
     public function handle(array $argv, CommandIO $io): ?int
     {
         $input = ParsedInput::fromArgv($argv);
-        if ($input->flag('version') || $input->flag('V')) {
+        if ($input->flag('version')) {
             $io->writeln('Foundation ' . $this->version());
 
             return ExitCode::SUCCESS;
         }
 
-        if ($input->flag('help') || $input->flag('h')) {
+        if ($input->flag('help')) {
             return $input->command === '' ? $this->list($io) : $this->helpName($input->command, $io);
         }
 
         return match ($input->command) {
             '', 'list' => $this->list($io),
             'help' => $this->help($input, $io),
-            'completion' => $this->completion($io),
+            'completion' => $this->completion($input, $io, $argv[0] ?? 'infbyte'),
             default => null,
         };
     }
 
-    private function completion(CommandIO $io): int
+    private function completion(ParsedInput $input, CommandIO $io, string $executable): int
     {
-        foreach ($this->registry->visible() as $descriptor) {
-            $io->writeln($descriptor->definition->commandName());
-            foreach ($descriptor->definition->aliases() as $alias) {
-                $io->writeln($alias);
+        $shell = $input->argument(0);
+        if ($shell === null) {
+            foreach ($this->registry->visible() as $descriptor) {
+                $io->writeln($descriptor->definition->commandName());
+                foreach ($descriptor->definition->aliases() as $alias) {
+                    $io->writeln($alias);
+                }
             }
+
+            return ExitCode::SUCCESS;
+        }
+
+        try {
+            $io->write(new CompletionGenerator($this->registry)->generate($shell, basename($executable)));
+        } catch (\InvalidArgumentException $exception) {
+            $io->error($exception->getMessage());
+
+            return ExitCode::INVALID_USAGE;
         }
 
         return ExitCode::SUCCESS;
