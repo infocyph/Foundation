@@ -33,10 +33,13 @@ final class ProductionPreset implements FoundationPreset
                     'auth' => [
                         'driver' => 'local',
                         'namespace' => 'foundation-auth',
+                        'path' => 'storage/cache/auth',
                     ],
                 ],
             ],
             'database' => [
+                // Deliberately unresolved by the preset: production applications
+                // must configure the actual primary connection explicitly.
                 'default' => 'primary',
             ],
             'logging' => [
@@ -44,6 +47,7 @@ final class ProductionPreset implements FoundationPreset
                 'level' => 'warning',
             ],
             'notifications' => [
+                // Readiness fails until this names an application sender profile.
                 'auth' => [
                     'sender' => 'replace-me',
                 ],
