@@ -30,8 +30,8 @@ use Infocyph\TalkingBytes\Retry\FixedDelayRetryPolicy;
 /**
  * Maps Foundation application email profiles to native TalkingBytes objects.
  *
- * TalkingBytes owns email transport, parsing, receiving and mailbox behavior.
- * Foundation owns application profile selection and path resolution.
+ * TalkingBytes owns transport, parsing, receiving and mailbox behavior.
+ * Foundation owns named sender/profile selection and application path policy.
  */
 final readonly class EmailProfiles
 {
@@ -46,10 +46,12 @@ final readonly class EmailProfiles
 
     public function authEmailer(): Emailer
     {
-        $transport = $this->stringConfig('notifications.auth.transport', 'null');
-        $emailer = $this->decorate($this->emailerFor($transport), includeFallback: true);
+        $profile = $this->stringConfig(
+            'notifications.auth.sender',
+            $this->defaultSender(),
+        );
 
-        return $emailer;
+        return $this->sender($profile);
     }
 
     public function imapMailbox(string $profile = 'default'): Mailbox
@@ -64,6 +66,31 @@ final readonly class EmailProfiles
         return $this->mailboxes->usingPop3(Pop3Config::fromArray(
             $this->profile('notifications.email.mailboxes.pop3', $profile),
         ));
+    }
+
+    public function sender(?string $profile = null): Emailer
+    {
+        $config = $this->senderProfile($profile);
+        $primary = $this->requiredString($config, 'transport');
+        $emailer = $this->emailerForTransport($primary);
+
+        $fallback = ValueNormalizer::associativeArray($config['fallback'] ?? []);
+        $fallbacks = [];
+        foreach (ValueNormalizer::stringList($fallback['transports'] ?? []) as $transport) {
+            if ($transport === $primary) {
+                continue;
+            }
+
+            $fallbacks[] = $this->emailerForTransport($transport)->transport();
+        }
+        if ($fallbacks !== []) {
+            $emailer = $emailer->withFallback($fallbacks);
+        }
+
+        $emailer = $this->applyRetry($emailer, ValueNormalizer::associativeArray($config['retry'] ?? []));
+        $emailer = $this->applyRateLimit($emailer, ValueNormalizer::associativeArray($config['rate_limit'] ?? []));
+
+        return $this->applyDkim($emailer, ValueNormalizer::associativeArray($config['dkim'] ?? []));
     }
 
     public function spoolReceiver(string $profile = 'default'): SpoolEmailReceiver
@@ -81,9 +108,9 @@ final readonly class EmailProfiles
         );
     }
 
-    private function applyDkim(Emailer $emailer): Emailer
+    /** @param array<string, mixed> $config */
+    private function applyDkim(Emailer $emailer, array $config): Emailer
     {
-        $config = $this->section('notifications.auth.dkim');
         if (!ValueNormalizer::bool($config['enabled'] ?? false, false)) {
             return $emailer;
         }
@@ -97,7 +124,7 @@ final readonly class EmailProfiles
         $privateKey = $this->nullableString($config['private_key'] ?? null);
 
         if ($privateKeyPath !== null && $privateKey !== null) {
-            throw new \InvalidArgumentException('Configure either notifications.auth.dkim.private_key or private_key_path, not both.');
+            throw new \InvalidArgumentException('Configure either a DKIM private_key or private_key_path, not both.');
         }
         if ($privateKeyPath === null && $privateKey === null) {
             throw new \InvalidArgumentException('DKIM signing requires a private key or private key path.');
@@ -116,9 +143,9 @@ final readonly class EmailProfiles
         return $emailer->withDkim($dkim);
     }
 
-    private function applyRateLimit(Emailer $emailer): Emailer
+    /** @param array<string, mixed> $config */
+    private function applyRateLimit(Emailer $emailer, array $config): Emailer
     {
-        $config = $this->section('notifications.auth.rate_limit');
         if (!ValueNormalizer::bool($config['enabled'] ?? false, false)) {
             return $emailer;
         }
@@ -129,9 +156,9 @@ final readonly class EmailProfiles
         ));
     }
 
-    private function applyRetry(Emailer $emailer): Emailer
+    /** @param array<string, mixed> $config */
+    private function applyRetry(Emailer $emailer, array $config): Emailer
     {
-        $config = $this->section('notifications.auth.retry');
         if (!ValueNormalizer::bool($config['enabled'] ?? false, false)) {
             return $emailer;
         }
@@ -141,42 +168,28 @@ final readonly class EmailProfiles
         $policy = match ($config['policy'] ?? 'fixed') {
             'backoff', 'exponential' => new ExponentialBackoffRetryPolicy($attempts, $delay),
             'fixed' => new FixedDelayRetryPolicy($attempts, $delay),
-            default => throw new \InvalidArgumentException('Unsupported notification retry policy.'),
+            default => throw new \InvalidArgumentException('Unsupported email retry policy.'),
         };
 
         return $emailer->withRetry($policy);
     }
 
-    private function decorate(Emailer $emailer, bool $includeFallback): Emailer
+    private function defaultSender(): string
     {
-        $emailer = $this->applyDkim($this->applyRateLimit($this->applyRetry($emailer)));
-        if (!$includeFallback) {
-            return $emailer;
-        }
-
-        $primary = $this->stringConfig('notifications.auth.transport', 'null');
-        $fallbacks = [];
-        foreach (ValueNormalizer::stringList($this->config->get('notifications.auth.fallback.transports', [])) as $transport) {
-            if ($transport === $primary) {
-                continue;
-            }
-
-            $fallbacks[] = $this->decorate($this->emailerFor($transport), false)->transport();
-        }
-
-        return $fallbacks === [] ? $emailer : $emailer->withFallback($fallbacks);
+        return $this->stringConfig('notifications.email.default_sender', 'default');
     }
 
-    private function emailerFor(string $transport): Emailer
+    private function emailerForTransport(string $transport): Emailer
     {
         $config = $this->transportConfig($transport);
+        $driver = $this->string($config, 'driver', $transport);
 
-        return match ($transport) {
+        return match ($driver) {
             'fake' => $this->senders->fake(),
             'log' => $this->senders->usingLog(LogEmailConfig::fromArray([
                 'dailyFiles' => ValueNormalizer::bool($config['dailyFiles'] ?? true, true),
                 'directory' => $this->logDirectory($config),
-                'filenamePrefix' => $this->string($config, 'filenamePrefix', 'auth'),
+                'filenamePrefix' => $this->string($config, 'filenamePrefix', 'email'),
                 'maxMessageBytes' => $config['maxMessageBytes'] ?? null,
             ])),
             'mail' => $this->senders->usingMailFunction(),
@@ -184,7 +197,11 @@ final readonly class EmailProfiles
             'sendmail' => $this->senders->usingSendmail(SendmailConfig::fromArray($config)),
             'smtp' => $this->senders->usingSmtp(SmtpConfig::fromArray($config)),
             'spool' => $this->senders->usingSpool(SpoolConfig::fromArray($this->resolveSpoolPaths($config))),
-            default => throw new \InvalidArgumentException(sprintf('Unsupported notification email transport "%s".', $transport)),
+            default => throw new \InvalidArgumentException(sprintf(
+                'Unsupported email transport driver "%s" for profile "%s".',
+                $driver,
+                $transport,
+            )),
         };
     }
 
@@ -198,9 +215,10 @@ final readonly class EmailProfiles
         return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1;
     }
 
+    /** @param array<string, mixed> $config */
     private function logDirectory(array $config): string
     {
-        $configured = $config['directory'] ?? $this->config->get('notifications.auth.log.directory');
+        $configured = $config['directory'] ?? null;
         if (is_string($configured) && trim($configured) !== '') {
             return $this->absolutePath($configured);
         }
@@ -237,7 +255,7 @@ final readonly class EmailProfiles
     {
         $value = $config[$key] ?? null;
         if (!is_string($value) || trim($value) === '') {
-            throw new \InvalidArgumentException(sprintf('Notification profile key "%s" must be non-empty.', $key));
+            throw new \InvalidArgumentException(sprintf('Email profile key "%s" must be non-empty.', $key));
         }
 
         return trim($value);
@@ -257,9 +275,11 @@ final readonly class EmailProfiles
     }
 
     /** @return array<string, mixed> */
-    private function section(string $key): array
+    private function senderProfile(?string $profile): array
     {
-        return ValueNormalizer::associativeArray($this->config->get($key, []));
+        $name = is_string($profile) && trim($profile) !== '' ? trim($profile) : $this->defaultSender();
+
+        return $this->profile('notifications.email.senders', $name);
     }
 
     /** @param array<string, mixed> $config */
@@ -267,7 +287,7 @@ final readonly class EmailProfiles
     {
         $value = $config[$key] ?? $default;
 
-        return is_string($value) ? $value : $default;
+        return is_string($value) ? trim($value) : $default;
     }
 
     private function stringConfig(string $key, string $default): string
@@ -280,14 +300,6 @@ final readonly class EmailProfiles
     /** @return array<string, mixed> */
     private function transportConfig(string $transport): array
     {
-        $config = $this->config->get('notifications.auth.transports.' . $transport, []);
-        if (!is_array($config)) {
-            throw new \InvalidArgumentException(sprintf(
-                'Notification transport "%s" must be configured as an array.',
-                $transport,
-            ));
-        }
-
-        return ValueNormalizer::associativeArray($config);
+        return $this->profile('notifications.email.transports', $transport);
     }
 }
