@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 return [
@@ -40,9 +39,14 @@ return [
         'max_payload_bytes' => env_int('CACHE_MAX_PAYLOAD_BYTES', 8_388_608),
     ],
 
+    /*
+    | PHP object and closure payloads expand the deserialization/trust surface.
+    | Foundation keeps both disabled unless an application explicitly opts in;
+    | CacheLayer still owns the serializer and integrity implementation.
+    */
     'serialization' => [
-        'allow_closure_payloads' => env_bool('CACHE_ALLOW_CLOSURE_PAYLOADS', true),
-        'allow_object_payloads' => env_bool('CACHE_ALLOW_OBJECT_PAYLOADS', true),
+        'allow_closure_payloads' => env_bool('CACHE_ALLOW_CLOSURE_PAYLOADS', false),
+        'allow_object_payloads' => env_bool('CACHE_ALLOW_OBJECT_PAYLOADS', false),
     ],
 
     /*
