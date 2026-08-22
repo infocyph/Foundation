@@ -33,17 +33,18 @@ final class ProcessRunner
             $pipes,
             $options->cwd,
             $this->environment($options),
-            ['bypass_shell' => is_array($command)],
+            $this->procOptions($command),
         );
         if (!is_resource($process)) {
             throw new \RuntimeException('Unable to start process.');
         }
+        $tree = $this->prepareProcessTree($process, interactive: false);
 
         try {
-            return $this->capture($process, $pipes, $options);
+            return $this->capture($process, $pipes, $options, $tree);
         } catch (\Throwable $exception) {
             $this->closePipes($pipes);
-            $this->terminate($process, $options->terminationGraceSeconds);
+            $this->terminate($process, $options->terminationGraceSeconds, $tree);
             proc_close($process);
 
             throw $exception;
@@ -71,8 +72,9 @@ final class ProcessRunner
     /**
      * @param resource $process
      * @param array<int, resource> $pipes
+     * @param array{pid:?int,group:bool} $tree
      */
-    private function capture($process, array $pipes, ProcessOptions $options): ProcessResult
+    private function capture($process, array $pipes, ProcessOptions $options, array $tree): ProcessResult
     {
         if (isset($pipes[0]) && is_resource($pipes[0])) {
             if ($options->input !== null && $options->input !== '') {
@@ -181,7 +183,7 @@ final class ProcessRunner
             }
 
             if ($reason !== null) {
-                $this->terminate($process, $options->terminationGraceSeconds);
+                $this->terminate($process, $options->terminationGraceSeconds, $tree);
             }
 
             $overflowed = $this->drain($pipes, $stdout, $stderr, $observedBytes, $options);
@@ -357,6 +359,42 @@ final class ProcessRunner
         };
     }
 
+    /** @param list<string>|string $command @return array<string, bool> */
+    private function procOptions(array|string $command): array
+    {
+        $options = ['bypass_shell' => is_array($command)];
+        if (PHP_OS_FAMILY === 'Windows') {
+            $options['create_process_group'] = true;
+        }
+
+        return $options;
+    }
+
+    /**
+     * Non-interactive Unix children are moved into their own process group so
+     * timeout/cancellation cleanup also owns descendants. Interactive children
+     * retain the terminal's foreground process group and therefore use the
+     * direct-child fallback.
+     *
+     * @param resource $process
+     * @return array{pid:?int,group:bool}
+     */
+    private function prepareProcessTree($process, bool $interactive): array
+    {
+        $status = proc_get_status($process);
+        $pid = is_int($status['pid'] ?? null) && $status['pid'] > 0 ? $status['pid'] : null;
+        if ($pid === null || $interactive || PHP_OS_FAMILY === 'Windows') {
+            return ['pid' => $pid, 'group' => false];
+        }
+        if (!function_exists('posix_setpgid') || !function_exists('posix_getpgid') || !function_exists('posix_kill')) {
+            return ['pid' => $pid, 'group' => false];
+        }
+
+        $group = @posix_setpgid($pid, $pid) || @posix_getpgid($pid) === $pid;
+
+        return ['pid' => $pid, 'group' => $group];
+    }
+
     /** @param array<int, resource> $pipes @return list<resource> */
     private function readablePipes(array $pipes): array
     {
@@ -421,11 +459,12 @@ final class ProcessRunner
             $pipes,
             $options->cwd,
             $this->environment($options),
-            ['bypass_shell' => is_array($command)],
+            $this->procOptions($command),
         );
         if (!is_resource($process)) {
             throw new \RuntimeException('Unable to start interactive process.');
         }
+        $tree = $this->prepareProcessTree($process, interactive: true);
 
         $startedAt = hrtime(true);
         $reason = null;
@@ -464,7 +503,7 @@ final class ProcessRunner
             }
 
             if ($reason !== null) {
-                $this->terminate($process, $options->terminationGraceSeconds);
+                $this->terminate($process, $options->terminationGraceSeconds, $tree);
             }
             $status = proc_get_status($process);
         } finally {
@@ -486,22 +525,89 @@ final class ProcessRunner
         );
     }
 
-    /** @param resource $process */
-    private function terminate($process, float $graceSeconds): void
+    /**
+     * @param resource $process
+     * @param array{pid:?int,group:bool} $tree
+     */
+    private function terminate($process, float $graceSeconds, array $tree): void
     {
         $status = proc_get_status($process);
-        if (!$status['running']) {
+        if (!$status['running'] && !$this->treeAlive($tree)) {
             return;
         }
 
-        @proc_terminate($process, self::SIGNAL_TERMINATE);
+        $this->signalTree($process, $tree, self::SIGNAL_TERMINATE, force: false);
         $deadline = hrtime(true) + (int) round($graceSeconds * 1_000_000_000);
-        while (proc_get_status($process)['running'] && hrtime(true) < $deadline) {
+        while ($this->treeRunning($process, $tree) && hrtime(true) < $deadline) {
             usleep(10_000);
         }
-        if (proc_get_status($process)['running']) {
-            @proc_terminate($process, self::SIGNAL_KILL);
+        if ($this->treeRunning($process, $tree)) {
+            $this->signalTree($process, $tree, self::SIGNAL_KILL, force: true);
         }
+    }
+
+    /**
+     * @param resource $process
+     * @param array{pid:?int,group:bool} $tree
+     */
+    private function signalTree($process, array $tree, int $signal, bool $force): void
+    {
+        $pid = $tree['pid'];
+        if (PHP_OS_FAMILY === 'Windows' && $pid !== null) {
+            if ($this->windowsTerminateTree($pid, $force)) {
+                return;
+            }
+        }
+        if ($tree['group'] && $pid !== null && function_exists('posix_kill')) {
+            @posix_kill(-$pid, $signal);
+
+            return;
+        }
+
+        @proc_terminate($process, $signal);
+    }
+
+    /** @param array{pid:?int,group:bool} $tree */
+    private function treeAlive(array $tree): bool
+    {
+        $pid = $tree['pid'];
+        return $tree['group']
+            && $pid !== null
+            && function_exists('posix_kill')
+            && @posix_kill(-$pid, 0);
+    }
+
+    /** @param resource $process @param array{pid:?int,group:bool} $tree */
+    private function treeRunning($process, array $tree): bool
+    {
+        return $this->treeAlive($tree) || (proc_get_status($process)['running'] ?? false);
+    }
+
+    private function windowsTerminateTree(int $pid, bool $force): bool
+    {
+        $command = ['taskkill', '/PID', (string) $pid, '/T'];
+        if ($force) {
+            $command[] = '/F';
+        }
+
+        $process = @proc_open(
+            $command,
+            [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+            $pipes,
+            null,
+            null,
+            ['bypass_shell' => true, 'create_process_group' => true],
+        );
+        if (!is_resource($process)) {
+            return false;
+        }
+        foreach ($pipes as $pipe) {
+            if (is_resource($pipe)) {
+                fclose($pipe);
+            }
+        }
+
+        return proc_close($process) === 0;
     }
 
     /** @param resource $stdin */
