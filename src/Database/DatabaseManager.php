@@ -12,7 +12,6 @@ use Infocyph\DBLayer\Query\QueryBuilder;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchemaInstaller;
 use Infocyph\Foundation\Runtime\RuntimeContextTracker;
-use PDO;
 
 /**
  * Foundation-owned database composition and lifecycle policy.
@@ -62,17 +61,13 @@ final readonly class DatabaseManager
         return $this->migrations;
     }
 
-    /**
-     * @param array<string, int>|null $poolConfig
-     */
+    /** @param array<string, int>|null $poolConfig */
     public function pool(?array $poolConfig = null): Pool
     {
         return DB::pool($poolConfig ?? $this->poolConfiguration());
     }
 
-    /**
-     * @param array<string, int>|null $poolConfig
-     */
+    /** @param array<string, int>|null $poolConfig */
     public function poolManager(?array $poolConfig = null): PoolManager
     {
         return DB::poolManager($poolConfig ?? $this->poolConfiguration());
@@ -102,34 +97,21 @@ final readonly class DatabaseManager
         DB::resetRuntimeState(false);
     }
 
-    /**
-     * Transitional composition helper for Foundation adapters that require PDO.
-     * Generic application code should resolve DBLayer Connection directly.
-     */
-    public function pdo(?string $name = null): PDO
-    {
-        return $this->connection($name)->getPdo();
-    }
-
-    /** Transitional composition helper for Foundation adapters. */
+    /** Transitional composition helper for ReqShield integration. */
     public function query(?string $name = null): QueryBuilder
     {
         return $this->connection($name)->query();
     }
 
     /**
+     * Transitional composition helper for ReqShield integration.
+     *
      * @param array<int, mixed> $bindings
      * @return list<array<string, mixed>>
      */
     public function select(string $query, array $bindings = [], ?string $name = null): array
     {
         return $this->connection($name)->select($query, $bindings);
-    }
-
-    /** Transitional composition helper for Foundation-owned adapters. */
-    public function transaction(callable $callback, ?string $name = null, int $attempts = 1): mixed
-    {
-        return $this->connection($name)->transaction($callback, $attempts);
     }
 
     public function withPooledConnection(callable $callback, ?string $name = null): mixed
