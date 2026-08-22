@@ -166,7 +166,7 @@ final readonly class CacheLayerFactory
             CacheDriver::MEMCACHE => Cache::memcached(
                 namespace: $namespace,
                 servers: $this->servers($store['servers'] ?? null),
-                client: $store['client'] instanceof \Memcached ? $store['client'] : null,
+                client: ($store['client'] ?? null) instanceof \Memcached ? $store['client'] : null,
                 options: $options,
             ),
             CacheDriver::MEMORY => Cache::memory($namespace, $options),
