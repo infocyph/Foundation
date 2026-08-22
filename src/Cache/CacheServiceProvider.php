@@ -39,7 +39,6 @@ final class CacheServiceProvider extends ServiceProvider
         ), LifetimeEnum::Singleton);
 
         $this->bindFactory($container, CacheManager::class, fn() => new CacheManager(
-            config: $app->config(),
             factory: $app->make(CacheLayerFactory::class),
             database: $database,
         ), LifetimeEnum::Singleton);
@@ -77,7 +76,7 @@ final class CacheServiceProvider extends ServiceProvider
         $this->bindFactory(
             $container,
             LockProviderInterface::class,
-            fn() => $app->make(CacheManager::class)->lock(),
+            fn() => $app->make(CacheLayerFactory::class)->lock(),
             LifetimeEnum::Singleton,
         );
         $this->bindFactory(
@@ -98,7 +97,7 @@ final class CacheServiceProvider extends ServiceProvider
             $this->bindFactory(
                 $container,
                 AtomicCounterStoreInterface::class,
-                fn() => $app->make(CacheManager::class)->counters($counter),
+                fn() => $app->make(CacheLayerFactory::class)->counters($counter),
                 LifetimeEnum::Singleton,
             );
         }
