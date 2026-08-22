@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Config;
 
+use Infocyph\ArrayKit\Config\Support\Environment;
 use Infocyph\Foundation\Auth\Driver\AuthCacheDriver;
 use Infocyph\Foundation\Auth\Driver\AuthMfaDriver;
 use Infocyph\Foundation\Auth\Driver\AuthNotificationDriver;
@@ -116,10 +117,16 @@ final readonly class ConfigValidator
         $cacheDriver = $this->stringConfig('auth.drivers.cache', 'array');
         $notificationDriver = $this->stringConfig('auth.drivers.notifications', 'collect');
         $passkeyDriver = $this->stringConfig('auth.drivers.passkey', 'memory');
+        $tokenDriver = $this->stringConfig('auth.drivers.tokens', 'simple');
 
         if ($assumeProduction) {
             $this->validateProductionDrivers($issues, $storageDriver);
-            $this->validateTokenSecret($issues);
+        }
+
+        if ($tokenDriver === AuthTokenDriver::SECURITY->value) {
+            $this->validateSecurityTokenPolicy($issues, $assumeProduction);
+        } elseif ($assumeProduction) {
+            $this->validateTokenSecret($issues, 32);
         }
 
         if ($storageDriver === AuthStorageDriver::DATABASE->value) {
@@ -133,7 +140,7 @@ final readonly class ConfigValidator
         $this->validateCacheLayerTopology($issues);
 
         if ($notificationDriver === AuthNotificationDriver::TALKINGBYTES->value) {
-            $this->validateNotificationTransport($issues);
+            $this->validateNotificationSender($issues, $assumeProduction);
         }
 
         if ($passkeyDriver === AuthPasskeyDriver::WEBAUTHN->value) {
@@ -375,34 +382,71 @@ final readonly class ConfigValidator
         }
     }
 
+    /** @return array<string, mixed>|null */
+    private function notificationSenderProfile(): ?array
+    {
+        $sender = $this->config->get('notifications.auth.sender');
+        if (!is_string($sender) || trim($sender) === '') {
+            $sender = $this->config->get('notifications.email.default_sender', 'default');
+        }
+        if (!is_string($sender) || trim($sender) === '') {
+            return null;
+        }
+
+        $profile = $this->config->get('notifications.email.senders.' . trim($sender));
+
+        return is_array($profile) ? $profile : null;
+    }
+
     /**
      * @param list<ConfigIssue> $issues
      */
-    private function validateNotificationTransport(array &$issues): void
+    private function validateNotificationSender(array &$issues, bool $assumeProduction): void
     {
-        $transport = $this->config->get('notifications.auth.transport');
-        if (!is_string($transport) || $transport === '') {
+        $profile = $this->notificationSenderProfile();
+        if ($profile === null) {
             $issues[] = new ConfigIssue(
-                'notifications.auth.transport must be configured when auth.drivers.notifications uses talkingbytes.',
-                'notifications.auth.transport',
+                'notifications.auth.sender must reference a configured notifications.email.senders profile.',
+                'notifications.auth.sender',
             );
 
             return;
         }
 
-        if (!in_array($transport, ['fake', 'log', 'mail', 'null', 'replace-me', 'sendmail', 'smtp', 'spool'], true)) {
+        $transport = $profile['transport'] ?? null;
+        if (!is_string($transport) || trim($transport) === '') {
             $issues[] = new ConfigIssue(
-                sprintf('notifications.auth.transport "%s" is not supported.', $transport),
-                'notifications.auth.transport',
+                'The auth email sender must select a configured transport.',
+                'notifications.auth.sender',
             );
 
             return;
         }
 
-        if (in_array($transport, ['null', 'replace-me'], true)) {
+        $transportConfig = $this->config->get('notifications.email.transports.' . trim($transport));
+        if (!is_array($transportConfig)) {
             $issues[] = new ConfigIssue(
-                'notifications.auth.transport must be configured when auth.drivers.notifications uses talkingbytes.',
-                'notifications.auth.transport',
+                sprintf('Email transport "%s" selected by the auth sender is not configured.', $transport),
+                'notifications.email.transports.' . trim($transport),
+            );
+
+            return;
+        }
+
+        $driver = $transportConfig['driver'] ?? $transport;
+        if (!is_string($driver) || !in_array($driver, ['fake', 'log', 'mail', 'null', 'sendmail', 'smtp', 'spool'], true)) {
+            $issues[] = new ConfigIssue(
+                sprintf('Email transport "%s" uses an unsupported driver.', $transport),
+                'notifications.email.transports.' . trim($transport) . '.driver',
+            );
+
+            return;
+        }
+
+        if ($assumeProduction && in_array($driver, ['fake', 'null'], true)) {
+            $issues[] = new ConfigIssue(
+                sprintf('The TalkingBytes auth sender must not use the "%s" transport driver in production.', $driver),
+                'notifications.auth.sender',
             );
         }
     }
@@ -436,21 +480,106 @@ final readonly class ConfigValidator
     /**
      * @param list<ConfigIssue> $issues
      */
-    private function validateTokenSecret(array &$issues): void
+    private function validateSecurityTokenPolicy(array &$issues, bool $assumeProduction): void
     {
-        $secret = $this->config->get('auth.token_secret');
-        if (
-            !is_string($secret)
-            || $secret === ''
-            || $secret === 'foundation-dev-secret'
-        ) {
-            $issues[] = new ConfigIssue('auth.token_secret must be configured for production.', 'auth.token_secret');
+        $algorithm = $this->config->get('security.jwt.algorithm', 'HS256');
+        $normalized = is_string($algorithm) ? strtoupper(trim($algorithm)) : '';
+        $minimumBytes = match ($normalized) {
+            'HS256' => 32,
+            'HS384' => 48,
+            'HS512' => 64,
+            default => 0,
+        };
+        if ($minimumBytes === 0) {
+            $issues[] = new ConfigIssue(
+                'security.jwt.algorithm must be one of: HS256, HS384, HS512.',
+                'security.jwt.algorithm',
+            );
+        }
+
+        foreach (['issuer', 'audience'] as $key) {
+            $value = $this->config->get('security.jwt.' . $key);
+            if (!is_string($value) || trim($value) === '') {
+                $issues[] = new ConfigIssue(
+                    sprintf('security.jwt.%s must be configured when auth.drivers.tokens uses security.', $key),
+                    'security.jwt.' . $key,
+                );
+            }
+        }
+
+        $maximumLifetime = $this->config->get('security.jwt.maximum_lifetime_seconds', 1209600);
+        if (!$this->isPositiveInteger($maximumLifetime)) {
+            $issues[] = new ConfigIssue(
+                'security.jwt.maximum_lifetime_seconds must be a positive integer.',
+                'security.jwt.maximum_lifetime_seconds',
+            );
+        }
+
+        $leeway = $this->config->get('security.jwt.leeway_seconds', 0);
+        if (!$this->isNonNegativeInteger($leeway)) {
+            $issues[] = new ConfigIssue(
+                'security.jwt.leeway_seconds must be a non-negative integer.',
+                'security.jwt.leeway_seconds',
+            );
+        }
+
+        if ($minimumBytes > 0) {
+            $this->validateTokenSecret($issues, $minimumBytes, $assumeProduction);
+        }
+    }
+
+    private function isNonNegativeInteger(mixed $value): bool
+    {
+        return (is_int($value) && $value >= 0)
+            || (is_string($value) && preg_match('/^(?:0|[1-9]\d*)$/D', $value) === 1);
+    }
+
+    private function isPositiveInteger(mixed $value): bool
+    {
+        return (is_int($value) && $value > 0)
+            || (is_string($value) && preg_match('/^[1-9]\d*$/D', $value) === 1);
+    }
+
+    private function resolvedTokenSecret(): ?string
+    {
+        $configured = $this->config->get('auth.token_secret');
+        if (is_string($configured) && $configured !== '') {
+            return $configured;
+        }
+
+        $environment = Environment::get('AUTH_TOKEN_SECRET');
+
+        return is_string($environment) && $environment !== '' ? $environment : null;
+    }
+
+    /**
+     * @param list<ConfigIssue> $issues
+     */
+    private function validateTokenSecret(array &$issues, int $minimumBytes, bool $required = true): void
+    {
+        $secret = $this->resolvedTokenSecret();
+        if ($secret === null) {
+            if ($required) {
+                $issues[] = new ConfigIssue(
+                    'AUTH_TOKEN_SECRET or auth.token_secret must be configured for the selected production token policy.',
+                    'auth.token_secret',
+                );
+            }
 
             return;
         }
 
-        if (strlen($secret) < 32) {
-            $issues[] = new ConfigIssue('auth.token_secret must be at least 32 bytes for production.', 'auth.token_secret');
+        if (in_array($secret, ['foundation-dev-secret', 'foundation-development-token-secret-change-me'], true)) {
+            $issues[] = new ConfigIssue('The authentication token secret must not use a development placeholder.', 'auth.token_secret');
+
+            return;
+        }
+
+        if (strlen($secret) < $minimumBytes) {
+            $issues[] = new ConfigIssue(
+                sprintf('Authentication token secret must be at least %d bytes for the selected token policy.', $minimumBytes),
+                'auth.token_secret',
+            );
         }
     }
 
