@@ -13,7 +13,7 @@ use Infocyph\Foundation\Auth\Driver\AuthIdDriver;
 use Infocyph\Foundation\Auth\Support\AcceptAllPasswordPolicy;
 use Infocyph\Foundation\Auth\Support\RandomAuthIdGenerator;
 use Infocyph\Foundation\Auth\Support\SystemClock;
-use Infocyph\Foundation\Identifiers\IdentifierManager;
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\InterMix\DI\Container;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 
@@ -33,10 +33,12 @@ final readonly class AuthCoreRegistrar
                 return new RandomAuthIdGenerator();
             }
 
-            /** @var IdentifierManager $ids */
-            $ids = $container->get(IdentifierManager::class);
+            $config = $container->get(ConfigRepository::class);
+            if (!$config instanceof ConfigRepository) {
+                throw new \RuntimeException('Auth ID configuration must resolve to ConfigRepository.');
+            }
 
-            return new UidAuthIdGenerator($ids);
+            return new UidAuthIdGenerator($config);
         })->singleton();
         $this->container->bind(PasswordPolicyInterface::class, new AcceptAllPasswordPolicy(), LifetimeEnum::Singleton);
     }
