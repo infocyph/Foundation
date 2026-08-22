@@ -30,7 +30,7 @@ final readonly class CommandResolver
         }
 
         $executionId = ExecutionId::generate();
-        $context = new CommandContext($input, $io, $executionId);
+        $context = new CommandContext($input, $io, $executionId, $descriptor);
 
         return $this->application->execution()->run(
             function () use ($descriptor, $context): int {
