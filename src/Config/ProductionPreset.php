@@ -11,6 +11,7 @@ final class ProductionPreset implements FoundationPreset
         return [
             'app' => [
                 'env' => 'production',
+                'topology' => DeploymentTopology::SINGLE_NODE->value,
             ],
             'auth' => [
                 'drivers' => [
@@ -24,6 +25,9 @@ final class ProductionPreset implements FoundationPreset
                 ],
             ],
             'cache' => [
+                // `local` is deliberately a single-node cache. Distributed
+                // deployments must replace it with a shared backend and select
+                // an atomic Redis/Valkey counter for auth lockouts.
                 'default' => 'auth',
                 'stores' => [
                     'auth' => [
@@ -41,7 +45,7 @@ final class ProductionPreset implements FoundationPreset
             ],
             'notifications' => [
                 'auth' => [
-                    'transport' => 'replace-me',
+                    'sender' => 'replace-me',
                 ],
             ],
         ];
