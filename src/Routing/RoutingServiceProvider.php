@@ -15,6 +15,8 @@ final class RoutingServiceProvider extends ServiceProvider
 {
     public function register(Application $app): void
     {
+        new MiddlewareConfigValidator($app->config())->validate();
+
         $container = $app->container();
 
         $this->bindFactory($container, WebrickMiddlewareFactory::class, fn() => new WebrickMiddlewareFactory(
