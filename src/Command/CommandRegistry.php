@@ -18,9 +18,12 @@ final class CommandRegistry
     public function __construct(
         array $applicationCommands = [],
         ?CommandCatalog $catalog = null,
+        bool $includeSystem = true,
     ) {
-        foreach (($catalog ?? new CommandCatalog())->descriptors() as $descriptor) {
-            $this->register($descriptor);
+        if ($includeSystem) {
+            foreach (($catalog ?? new CommandCatalog())->descriptors() as $descriptor) {
+                $this->register($descriptor);
+            }
         }
 
         foreach ($applicationCommands as $route => $handler) {
@@ -134,14 +137,7 @@ final class CommandRegistry
             throw new \UnexpectedValueException('Compiled command manifest has an unsupported format.');
         }
 
-        $registry = new self([], new class extends CommandCatalog {
-            /** @return array<string, CommandDescriptor> */
-            public function descriptors(): array
-            {
-                return [];
-            }
-        });
-
+        $registry = new self(includeSystem: false);
         foreach ($commands as $name => $metadata) {
             if (!is_string($name) || !is_array($metadata)) {
                 throw new \UnexpectedValueException('Compiled command manifest contains an invalid command entry.');
