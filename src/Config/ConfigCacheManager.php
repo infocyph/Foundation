@@ -58,12 +58,18 @@ final readonly class ConfigCacheManager
             is_array($compiled['providers'] ?? null) ? $compiled['providers'] : [],
             new ProviderFileLoader($this->application->paths())->groups(),
         );
+        ConfigExportValidator::assertExportable($compiled);
 
         $staging = $directory . '.building.' . bin2hex(random_bytes(6));
         $backup = $directory . '.previous.' . bin2hex(random_bytes(6));
 
         try {
-            $cacheType = $loader->writeCache(new ConfigRepository($compiled), $staging, $type);
+            $cacheType = $loader->writeCache(
+                new ConfigRepository($compiled),
+                $staging,
+                $type,
+                $this->application->basePath(),
+            );
             $this->publish($directory, $staging, $backup);
 
             return $cacheType;
@@ -89,16 +95,32 @@ final readonly class ConfigCacheManager
         foreach (['common', 'web', 'cli', 'worker', 'scheduler'] as $group) {
             $groupProviders = [];
             $providers = $configured[$group] ?? [];
-            $providers = is_array($providers) ? $providers : [];
-            foreach ([...$providers, ...$fromFile[$group]] as $provider) {
-                if (
-                    is_string($provider)
-                    && $provider !== ''
-                    && is_subclass_of($provider, ServiceProviderInterface::class)
-                ) {
-                    /** @var class-string<ServiceProviderInterface> $provider */
-                    $groupProviders[$provider] = $provider;
+            if (!is_array($providers)) {
+                throw new \RuntimeException(sprintf(
+                    'Configuration value "providers.%s" must be an array of service-provider class strings.',
+                    $group,
+                ));
+            }
+
+            foreach ([...$providers, ...$fromFile[$group]] as $index => $provider) {
+                $path = sprintf('providers.%s.%s', $group, (string) $index);
+                if (!is_string($provider) || trim($provider) === '') {
+                    throw new \RuntimeException(sprintf(
+                        'Configuration value "%s" must be a non-empty service-provider class string.',
+                        $path,
+                    ));
                 }
+                if (!class_exists($provider) || !is_subclass_of($provider, ServiceProviderInterface::class)) {
+                    throw new \RuntimeException(sprintf(
+                        'Configuration value "%s" must reference a loadable %s implementation; "%s" is invalid.',
+                        $path,
+                        ServiceProviderInterface::class,
+                        $provider,
+                    ));
+                }
+
+                /** @var class-string<ServiceProviderInterface> $provider */
+                $groupProviders[$provider] = $provider;
             }
             $compiled[$group] = array_values($groupProviders);
         }
