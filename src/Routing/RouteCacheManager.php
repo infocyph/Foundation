@@ -86,7 +86,7 @@ final readonly class RouteCacheManager
                 $this->loadRoutes($registrar, $config, $this->routeFiles($config, $routes));
             },
             'signKey' => ValueNormalizer::nullableString($config->get('router.signed_urls.key')),
-            'signedDefaultTtl' => ValueNormalizer::int($config->get('router.signed_urls.default_ttl'), 900),
+            'signedDefaultTtl' => $this->optionalInt($config->get('router.signed_urls.default_ttl')),
             'signedUrlConfig' => $this->signedUrlOptions(
                 ValueNormalizer::associativeArray($config->get('router.signed_urls.options', [])),
             ),
@@ -170,6 +170,17 @@ final readonly class RouteCacheManager
         $this->loadAttributeRoutes($registrar, $config, $paths);
     }
 
+    private function optionalInt(mixed $value): ?int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+
+        return is_string($value) && $value !== '' && preg_match('/^-?(?:0|[1-9]\d*)$/D', $value) === 1
+            ? (int) $value
+            : null;
+    }
+
     /** @return list<string> */
     private function routeFiles(ConfigRepository $config, ?string $routes): array
     {
@@ -177,7 +188,7 @@ final readonly class RouteCacheManager
             return array_values(array_filter(array_map(trim(...), explode(',', $routes))));
         }
 
-        return ValueNormalizer::stringList($config->get('router.files', ['api.php']));
+        return ValueNormalizer::stringList($config->get('router.files', ['web.php', 'api.php', 'auth.php']));
     }
 
     /**
