@@ -44,6 +44,18 @@ final readonly class CommandCacheManager
         return hash('sha256', implode('|', $hashes));
     }
 
+    public static function handlerFingerprint(string $handler): ?string
+    {
+        $file = self::autoloadFile($handler);
+        if ($file === null || !is_file($file)) {
+            return null;
+        }
+
+        $hash = hash_file('sha256', $file);
+
+        return is_string($hash) ? $hash : null;
+    }
+
     public function write(
         string $path = 'bootstrap/cache/commands.php',
         ?CommandRegistry $registry = null,
@@ -55,8 +67,9 @@ final readonly class CommandCacheManager
         }
 
         $source = $this->application->routesPath('console.php');
-        $payload = ($registry ?? $this->registry())->toManifest();
-        $payload['source'] = $this->sourceMetadata($source);
+        $registry ??= $this->registry();
+        $payload = $registry->toManifest();
+        $payload['source'] = $this->sourceMetadata($source, $registry);
         $payload['foundation_sha256'] = self::frameworkFingerprint();
         $temporary = tempnam($directory, '.commands-');
         if ($temporary === false) {
@@ -84,6 +97,49 @@ final readonly class CommandCacheManager
             : $this->application->basePath(trim($path, DIRECTORY_SEPARATOR));
     }
 
+    private static function autoloadFile(string $class): ?string
+    {
+        foreach (spl_autoload_functions() as $loader) {
+            if (!is_array($loader) || !is_object($loader[0] ?? null) || !method_exists($loader[0], 'findFile')) {
+                continue;
+            }
+
+            try {
+                $file = $loader[0]->findFile($class);
+            } catch (\Throwable) {
+                continue;
+            }
+            if (is_string($file) && $file !== '') {
+                return $file;
+            }
+        }
+
+        return null;
+    }
+
+    /** @return array<string, string> */
+    private function handlerFingerprints(CommandRegistry $registry): array
+    {
+        $hashes = [];
+        foreach ($registry->all() as $descriptor) {
+            if ($descriptor->system || $descriptor->handler === null) {
+                continue;
+            }
+
+            $hash = self::handlerFingerprint($descriptor->handler);
+            if ($hash === null) {
+                throw new \RuntimeException(sprintf(
+                    'Unable to fingerprint application command handler "%s".',
+                    $descriptor->handler,
+                ));
+            }
+            $hashes[$descriptor->handler] = $hash;
+        }
+        ksort($hashes, SORT_STRING);
+
+        return $hashes;
+    }
+
     private function registry(): CommandRegistry
     {
         $path = $this->application->routesPath('console.php');
@@ -102,8 +158,8 @@ final readonly class CommandCacheManager
         return new CommandRegistry($commands);
     }
 
-    /** @return array{exists:bool,path:string,sha256:?string} */
-    private function sourceMetadata(string $path): array
+    /** @return array{exists:bool,path:string,sha256:?string,handlers:array<string,string>} */
+    private function sourceMetadata(string $path, CommandRegistry $registry): array
     {
         $exists = is_file($path);
         $hash = $exists ? hash_file('sha256', $path) : null;
@@ -115,6 +171,7 @@ final readonly class CommandCacheManager
             'exists' => $exists,
             'path' => 'routes/console.php',
             'sha256' => $hash,
+            'handlers' => $this->handlerFingerprints($registry),
         ];
     }
 }
