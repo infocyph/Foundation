@@ -1,0 +1,378 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Infocyph\Foundation\Command\System;
+
+use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Command\ExitCode;
+use Infocyph\Foundation\Filesystem\StorageLinkManager;
+use Infocyph\Foundation\Messaging\ConsumerFactory;
+use Infocyph\Foundation\Routing\RouteCacheManager;
+use Infocyph\Foundation\Scheduling\ScheduleManager;
+use Infocyph\Foundation\Session\SessionDatabaseSchema;
+use Infocyph\Foundation\Session\SessionManager;
+use Infocyph\Foundation\Worker\WorkerManager;
+use Infocyph\Omnibus\Consumer\Command\ConsumeRequest;
+use Infocyph\Omnibus\Consumer\Command\ConsumerTask;
+use Infocyph\Omnibus\Scheduling\ScheduledMessageDispatcher;
+
+final class RuntimeSystemCommand extends SystemCommand
+{
+    public function __construct(private readonly Application $application) {}
+
+    protected function handle(): int
+    {
+        return match ($this->canonicalName()) {
+            'queue:consume' => $this->consume(),
+            'route:cache' => $this->routeCache(),
+            'route:clear' => $this->routeClear(),
+            'route:list' => $this->routeList(),
+            'schedule:cache' => $this->scheduleCache(),
+            'schedule:clear' => $this->scheduleClear(),
+            'schedule:dispatch-message' => $this->dispatchScheduledMessage(),
+            'schedule:list' => $this->scheduleList(),
+            'schedule:run' => $this->scheduleRun(),
+            'schedule:work' => $this->scheduleWork(),
+            'session:prune' => $this->sessionPrune(),
+            'session:schema:install' => $this->sessionSchemaInstall(),
+            'session:schema:status' => $this->sessionSchemaStatus(),
+            'storage:link' => $this->storageLink(),
+            'worker:list' => $this->workerList(),
+            'worker:run' => $this->workerRun(),
+            default => throw new \LogicException('Unsupported runtime system command.'),
+        };
+    }
+
+    private function consume(): int
+    {
+        $queue = $this->option('queue', 'default') ?? 'default';
+        $limit = $this->positiveIntOption('limit', 1, 1_000);
+        $visibility = $this->positiveFloatOption('visibility', 60.0);
+        $request = new ConsumeRequest($queue, $limit, $visibility);
+        $transport = $this->option('transport');
+
+        $result = $transport === null
+            ? $this->application->make(ConsumerTask::class)->run($request)
+            : $this->application->make(ConsumerFactory::class)
+                ->make($transport)
+                ->run($request->queue, $request->limit, $request->visibilitySeconds);
+
+        $data = [
+            'received' => $result->received,
+            'succeeded' => $result->succeeded,
+            'released' => $result->released,
+            'failed' => $result->failed,
+        ];
+        if ($this->io()->machineReadable()) {
+            $this->io()->json($data);
+        } else {
+            $this->io()->table(
+                ['Received', 'Succeeded', 'Released', 'Failed'],
+                [[$result->received, $result->succeeded, $result->released, $result->failed]],
+            );
+        }
+
+        return $result->failed === 0 ? ExitCode::SUCCESS : ExitCode::FAILURE;
+    }
+
+    private function dispatchScheduledMessage(): int
+    {
+        $name = $this->argument(0)
+            ?? throw new \LogicException('Validated scheduled-message name is unavailable.');
+        $envelope = $this->application->make(ScheduledMessageDispatcher::class)->dispatch($name);
+
+        return $this->emit(
+            ['name' => $name, 'message' => $envelope->message::class],
+            sprintf('Scheduled message "%s" dispatched.', $name),
+        );
+    }
+
+    private function routeCache(): int
+    {
+        $manager = new RouteCacheManager($this->application);
+        $matcher = $this->option('matcher', $manager->configuredMatcher()) ?? $manager->configuredMatcher();
+        $cache = $this->option('cache', $manager->cachePath(null)) ?? $manager->cachePath(null);
+        $path = $manager->write($matcher, $cache, $this->option('routes'));
+
+        return $this->emit(
+            ['matcher' => $matcher, 'path' => $path],
+            sprintf('Routes cached using %s matcher at %s.', $matcher, $path),
+        );
+    }
+
+    private function routeClear(): int
+    {
+        $removed = (new RouteCacheManager($this->application))->clearAll();
+
+        return $this->emit(
+            ['removed' => $removed],
+            $removed ? 'Route cache cleared.' : 'Route cache is already clear.',
+        );
+    }
+
+    private function routeList(): int
+    {
+        $routes = (new RouteCacheManager($this->application))->routes($this->option('routes'))->all();
+        $data = array_map(
+            static fn($route): array => [
+                'method' => $route->getMethod(),
+                'path' => $route->getPath(),
+                'name' => $route->getName(),
+                'domain' => $route->getDomain(),
+                'handler' => $route->getHandlerId(),
+                'middleware' => count($route->getMiddlewares()),
+            ],
+            $routes,
+        );
+
+        if ($this->io()->machineReadable()) {
+            $this->io()->json($data);
+        } else {
+            $this->io()->table(
+                ['Method', 'Path', 'Name', 'Domain', 'Handler', 'Middleware'],
+                array_map(
+                    static fn(array $route): array => [
+                        $route['method'],
+                        $route['path'],
+                        $route['name'] ?? '',
+                        $route['domain'] ?? '',
+                        $route['handler'],
+                        $route['middleware'],
+                    ],
+                    $data,
+                ),
+            );
+        }
+
+        return ExitCode::SUCCESS;
+    }
+
+    private function scheduleCache(): int
+    {
+        $path = (new ScheduleManager($this->application))->write();
+
+        return $this->emit(['path' => $path], 'Schedule manifest cached: ' . $path);
+    }
+
+    private function scheduleClear(): int
+    {
+        $removed = (new ScheduleManager($this->application))->clear();
+
+        return $this->emit(
+            ['removed' => $removed],
+            $removed ? 'Schedule manifest cleared.' : 'Schedule manifest is already clear.',
+        );
+    }
+
+    private function scheduleList(): int
+    {
+        $entries = (new ScheduleManager($this->application))->entries();
+        $data = array_map(static fn($entry): array => $entry->toManifest(), $entries);
+        if ($this->io()->machineReadable()) {
+            $this->io()->json($data);
+
+            return ExitCode::SUCCESS;
+        }
+
+        $this->io()->table(
+            ['Key', 'Command', 'Cron', 'Timezone', 'Overlap', 'One Server'],
+            array_map(
+                static fn(array $entry): array => [
+                    $entry['key'] ?? '',
+                    $entry['command'],
+                    $entry['cron'],
+                    $entry['timezone'],
+                    $entry['without_overlap'],
+                    $entry['on_one_server'],
+                ],
+                $data,
+            ),
+        );
+
+        return ExitCode::SUCCESS;
+    }
+
+    private function scheduleRun(): int
+    {
+        $runs = (new ScheduleManager($this->application))->runDue();
+        $data = array_map(
+            static fn($run): array => [
+                'command' => $run->entry->command(),
+                'identity' => $run->entry->identity(),
+                'exit_code' => $run->exitCode,
+                'locked' => $run->locked,
+                'successful' => $run->successful(),
+            ],
+            $runs,
+        );
+        if ($this->io()->machineReadable()) {
+            $this->io()->json($data);
+        } else {
+            $this->io()->table(
+                ['Command', 'Exit', 'Locked', 'Successful'],
+                array_map(
+                    static fn(array $run): array => [
+                        $run['command'],
+                        $run['exit_code'],
+                        $run['locked'],
+                        $run['successful'],
+                    ],
+                    $data,
+                ),
+            );
+        }
+
+        return array_any($runs, static fn($run): bool => !$run->locked && !$run->successful())
+            ? ExitCode::FAILURE
+            : ExitCode::SUCCESS;
+    }
+
+    private function scheduleWork(): int
+    {
+        $sleep = $this->positiveIntOption('sleep', 60);
+        $iterations = $this->nullablePositiveIntOption('max-iterations');
+
+        return (new ScheduleManager($this->application))->work(
+            sleepSeconds: $sleep,
+            maxIterations: $iterations,
+        );
+    }
+
+    private function sessionPrune(): int
+    {
+        $limit = $this->positiveIntOption('limit', 1_000);
+        $count = $this->application->make(SessionManager::class)->prune($limit);
+
+        return $this->emit(['pruned' => $count], sprintf('Pruned %d expired session(s).', $count));
+    }
+
+    private function sessionSchemaInstall(): int
+    {
+        $schema = $this->application->make(SessionDatabaseSchema::class);
+        $connection = $this->option('connection');
+        $schema->install($connection);
+
+        return $this->emit($schema->readiness($connection), 'Session schema is installed.');
+    }
+
+    private function sessionSchemaStatus(): int
+    {
+        $status = $this->application->make(SessionDatabaseSchema::class)
+            ->readiness($this->option('connection'));
+        if ($this->io()->machineReadable()) {
+            $this->io()->json($status);
+        } else {
+            $this->io()->table(
+                ['Installed', 'Table', 'Connection'],
+                [[$status['installed'], $status['table'], $status['connection'] ?? 'default']],
+            );
+        }
+
+        return $status['installed'] ? ExitCode::SUCCESS : ExitCode::FAILURE;
+    }
+
+    private function storageLink(): int
+    {
+        $links = $this->application->make(StorageLinkManager::class)->create();
+        if ($this->io()->machineReadable()) {
+            $this->io()->json($links);
+        } else {
+            $this->io()->table(
+                ['Link', 'Target', 'Created'],
+                array_map(
+                    static fn(array $link): array => [$link['link'], $link['target'], $link['created']],
+                    $links,
+                ),
+            );
+        }
+
+        return ExitCode::SUCCESS;
+    }
+
+    private function workerList(): int
+    {
+        $workers = (new WorkerManager($this->application))->all();
+        if ($this->io()->machineReadable()) {
+            $this->io()->json($workers);
+
+            return ExitCode::SUCCESS;
+        }
+
+        $rows = [];
+        foreach ($workers as $name => $worker) {
+            $rows[] = [
+                $name,
+                $worker['type'] ?? '',
+                $worker['queue'] ?? '',
+                $worker['transport'] ?? '',
+                $worker['singleton'] ?? false,
+                $worker['pool'] ?? false,
+                $worker['concurrency'] ?? '',
+            ];
+        }
+        $this->io()->table(
+            ['Worker', 'Type', 'Queue', 'Transport', 'Singleton', 'Pool', 'Concurrency'],
+            $rows,
+        );
+
+        return ExitCode::SUCCESS;
+    }
+
+    private function workerRun(): int
+    {
+        $name = $this->argument(0)
+            ?? throw new \LogicException('Validated worker name is unavailable.');
+        $exit = (new WorkerManager($this->application))->run($name);
+        if ($exit === null) {
+            $this->io()->note(sprintf('Worker "%s" is already owned by another singleton process.', $name));
+
+            return ExitCode::SUCCESS;
+        }
+
+        return $exit;
+    }
+
+    private function nullablePositiveIntOption(string $name): ?int
+    {
+        $value = $this->option($name);
+        if ($value === null) {
+            return null;
+        }
+
+        return $this->positiveInt($name, $value);
+    }
+
+    private function positiveFloatOption(string $name, float $default): float
+    {
+        $value = $this->option($name);
+        if ($value === null) {
+            return $default;
+        }
+        if (!is_numeric($value) || !is_finite((float) $value) || (float) $value <= 0.0) {
+            throw new \InvalidArgumentException(sprintf('--%s must be a positive finite number.', $name));
+        }
+
+        return (float) $value;
+    }
+
+    private function positiveInt(string $name, string $value, ?int $maximum = null): int
+    {
+        if (preg_match('/^\d+$/D', $value) !== 1 || (int) $value < 1) {
+            throw new \InvalidArgumentException(sprintf('--%s must be a positive integer.', $name));
+        }
+        $resolved = (int) $value;
+        if ($maximum !== null && $resolved > $maximum) {
+            throw new \InvalidArgumentException(sprintf('--%s must not exceed %d.', $name, $maximum));
+        }
+
+        return $resolved;
+    }
+
+    private function positiveIntOption(string $name, int $default, ?int $maximum = null): int
+    {
+        $value = $this->option($name);
+
+        return $value === null ? $default : $this->positiveInt($name, $value, $maximum);
+    }
+}
