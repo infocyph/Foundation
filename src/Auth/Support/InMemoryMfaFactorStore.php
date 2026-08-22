@@ -14,8 +14,18 @@ final class InMemoryMfaFactorStore implements MfaFactorCompareAndSwapStoreInterf
      */
     private array $factors = [];
 
-    public function compareAndSwap(MfaFactor $expected, MfaFactor $updated): bool
+    public function compareAndSwap(?MfaFactor $expected, MfaFactor $updated): bool
     {
+        if ($expected === null) {
+            if (isset($this->factors[$updated->id])) {
+                return false;
+            }
+
+            $this->factors[$updated->id] = $updated;
+
+            return true;
+        }
+
         if (($this->factors[$expected->id] ?? null) != $expected || $updated->id !== $expected->id) {
             return false;
         }
