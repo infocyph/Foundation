@@ -156,22 +156,6 @@ return [
     ],
     'seeders' => [],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Long-Running Connection Pool
-    |--------------------------------------------------------------------------
-    |
-    | These values are consumed only when Foundation initializes DBLayer's pool.
-    | Ordinary one-shot PHP requests do not create a pool implicitly.
-    |
-    */
-    'pool' => [
-        'max_connections' => $envInt('DB_POOL_MAX_CONNECTIONS', 10),
-        'idle_timeout' => $envInt('DB_POOL_IDLE_TIMEOUT', 60),
-        'max_lifetime' => $envInt('DB_POOL_MAX_LIFETIME', 3_600),
-        'health_check_interval' => $envInt('DB_POOL_HEALTH_CHECK_INTERVAL', 30),
-    ],
-
     /**
      * Database Connections
      *
