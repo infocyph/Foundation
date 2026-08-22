@@ -6,37 +6,23 @@ namespace Infocyph\Foundation\Cache;
 
 use Closure;
 use Infocyph\CacheLayer\Cache\CacheInterface;
-use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
-use Infocyph\CacheLayer\Cluster\ClusterRuntime;
 use Infocyph\CacheLayer\Cluster\Outbox\ClusterOutbox;
-use Infocyph\CacheLayer\Counter\AtomicCounterStoreInterface;
-use Infocyph\CacheLayer\Node\Maintenance\NodeCacheMaintenance;
 use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\DB;
-use Infocyph\Foundation\Config\ConfigRepository;
-use Infocyph\Foundation\Support\HasConfigSection;
 
 /**
- * Foundation application topology for named CacheLayer resources.
+ * Foundation application topology for named CacheLayer stores.
  *
- * Cache operations themselves remain native CacheLayer APIs. This manager only
- * resolves named application resources and coordinates cross-package workflows.
+ * Generic cache, locking, counter, node and cluster operations remain native
+ * CacheLayer APIs. This component keeps application store identity, wires the
+ * default store into DBLayer, and owns the DB/cache invalidation workflow.
  */
 final class CacheManager
 {
-    use HasConfigSection;
-
-    /** @var array<string, ClusterRuntime> */
-    private array $clusters = [];
-
-    /** @var array<string, AtomicCounterStoreInterface> */
-    private array $counters = [];
-
     /** @var array<string, CacheInterface> */
     private array $stores = [];
 
     public function __construct(
-        private ConfigRepository $config,
         private CacheLayerFactory $factory,
         /** @var Closure(?string):Connection */
         private Closure $database,
@@ -70,31 +56,6 @@ final class CacheManager
         return $store;
     }
 
-    public function lock(?string $store = null): LockProviderInterface
-    {
-        return $this->factory->lock($store);
-    }
-
-    public function counters(string $name): AtomicCounterStoreInterface
-    {
-        return $this->counters[$name] ??= $this->factory->counters($name);
-    }
-
-    public function cluster(string $name): ClusterRuntime
-    {
-        return $this->clusters[$name] ??= $this->factory->cluster($name);
-    }
-
-    public function nodeMaintenance(string $name): NodeCacheMaintenance
-    {
-        return $this->factory->nodeMaintenance($name);
-    }
-
-    public function pruneCluster(string $name, int $retentionSeconds, int $limit = 5_000): int
-    {
-        return $this->factory->pruneCluster($name, $retentionSeconds, $limit);
-    }
-
     /**
      * Couple a DB transaction with CacheLayer's cluster invalidation outbox.
      *
@@ -106,7 +67,7 @@ final class CacheManager
         ?string $connection = null,
         int $attempts = 1,
     ): mixed {
-        $runtime = $this->cluster($cluster);
+        $runtime = $this->factory->cluster($cluster);
         $database = ($this->database)($connection);
 
         return $database->transaction(
@@ -119,11 +80,6 @@ final class CacheManager
             },
             $attempts,
         );
-    }
-
-    protected function configSection(): string
-    {
-        return 'cache';
     }
 
     private function wireDatabaseCache(CacheInterface $store): void
