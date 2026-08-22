@@ -46,11 +46,53 @@ final readonly class OmnibusWorkerFactory
 
     public function make(string $name): Worker
     {
-        $definition = $this->definition($name);
-
         return new Worker(
             ($this->consumers)()->make($this->transport($name)),
-            $this->options($definition, $name),
+            $this->options($name),
+        );
+    }
+
+    public function options(string $name): WorkerOptions
+    {
+        $definition = $this->definition($name);
+
+        return new WorkerOptions(
+            queue: ValueNormalizer::string($definition['queue'] ?? null, 'default'),
+            prefetch: $this->intValue($definition['prefetch'] ?? null, 1, $name . '.prefetch'),
+            visibilitySeconds: $this->floatValue(
+                $definition['visibility_seconds'] ?? null,
+                60.0,
+                $name . '.visibility_seconds',
+            ),
+            idleSleepSeconds: $this->floatValue(
+                $definition['idle_sleep_seconds'] ?? null,
+                0.05,
+                $name . '.idle_sleep_seconds',
+            ),
+            maxIdleSleepSeconds: $this->floatValue(
+                $definition['max_idle_sleep_seconds'] ?? null,
+                1.0,
+                $name . '.max_idle_sleep_seconds',
+            ),
+            idleJitterRatio: $this->floatValue(
+                $definition['idle_jitter_ratio'] ?? null,
+                0.20,
+                $name . '.idle_jitter_ratio',
+            ),
+            maxMessages: $this->nullableInt($definition['max_messages'] ?? null, $name . '.max_messages'),
+            maxRuntimeSeconds: $this->nullableFloat(
+                $definition['max_runtime_seconds'] ?? null,
+                $name . '.max_runtime_seconds',
+            ),
+            memoryLimitBytes: $this->nullableInt(
+                $definition['memory_limit_bytes'] ?? null,
+                $name . '.memory_limit_bytes',
+            ),
+            maxMemoryGrowthBytes: $this->nullableInt(
+                $definition['max_memory_growth_bytes'] ?? null,
+                $name . '.max_memory_growth_bytes',
+            ),
+            handleSignals: ValueNormalizer::bool($definition['handle_signals'] ?? null, true),
         );
     }
 
@@ -106,49 +148,6 @@ final readonly class OmnibusWorkerFactory
             'Messaging worker "%s" is not configured.',
             $name,
         ));
-    }
-
-    /** @param array<string, mixed> $definition */
-    private function options(array $definition, string $name): WorkerOptions
-    {
-        return new WorkerOptions(
-            queue: ValueNormalizer::string($definition['queue'] ?? null, 'default'),
-            prefetch: $this->intValue($definition['prefetch'] ?? null, 1, $name . '.prefetch'),
-            visibilitySeconds: $this->floatValue(
-                $definition['visibility_seconds'] ?? null,
-                60.0,
-                $name . '.visibility_seconds',
-            ),
-            idleSleepSeconds: $this->floatValue(
-                $definition['idle_sleep_seconds'] ?? null,
-                0.05,
-                $name . '.idle_sleep_seconds',
-            ),
-            maxIdleSleepSeconds: $this->floatValue(
-                $definition['max_idle_sleep_seconds'] ?? null,
-                1.0,
-                $name . '.max_idle_sleep_seconds',
-            ),
-            idleJitterRatio: $this->floatValue(
-                $definition['idle_jitter_ratio'] ?? null,
-                0.20,
-                $name . '.idle_jitter_ratio',
-            ),
-            maxMessages: $this->nullableInt($definition['max_messages'] ?? null, $name . '.max_messages'),
-            maxRuntimeSeconds: $this->nullableFloat(
-                $definition['max_runtime_seconds'] ?? null,
-                $name . '.max_runtime_seconds',
-            ),
-            memoryLimitBytes: $this->nullableInt(
-                $definition['memory_limit_bytes'] ?? null,
-                $name . '.memory_limit_bytes',
-            ),
-            maxMemoryGrowthBytes: $this->nullableInt(
-                $definition['max_memory_growth_bytes'] ?? null,
-                $name . '.max_memory_growth_bytes',
-            ),
-            handleSignals: ValueNormalizer::bool($definition['handle_signals'] ?? null, true),
-        );
     }
 
     private function intValue(mixed $value, int $default, string $key): int
