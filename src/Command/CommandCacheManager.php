@@ -33,7 +33,9 @@ final readonly class CommandCacheManager
             throw new \RuntimeException(sprintf('Unable to create command cache directory "%s".', $directory));
         }
 
+        $source = $this->application->routesPath('console.php');
         $payload = ($registry ?? $this->registry())->toManifest();
+        $payload['source'] = $this->sourceMetadata($source);
         $temporary = tempnam($directory, '.commands-');
         if ($temporary === false) {
             throw new \RuntimeException('Unable to create command cache staging file.');
@@ -76,5 +78,21 @@ final readonly class CommandCacheManager
         }
 
         return new CommandRegistry($commands);
+    }
+
+    /** @return array{exists:bool,path:string,sha256:?string} */
+    private function sourceMetadata(string $path): array
+    {
+        $exists = is_file($path);
+        $hash = $exists ? hash_file('sha256', $path) : null;
+        if ($exists && !is_string($hash)) {
+            throw new \RuntimeException(sprintf('Unable to hash command route file "%s".', $path));
+        }
+
+        return [
+            'exists' => $exists,
+            'path' => 'routes/console.php',
+            'sha256' => $hash,
+        ];
     }
 }
