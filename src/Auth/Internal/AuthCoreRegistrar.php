@@ -9,9 +9,7 @@ use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Auth\Contract\Id\AuthIdGeneratorInterface;
 use Infocyph\Foundation\Auth\Contract\Security\PasswordPolicyInterface;
 use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
-use Infocyph\Foundation\Auth\Driver\AuthIdDriver;
-use Infocyph\Foundation\Auth\Support\AcceptAllPasswordPolicy;
-use Infocyph\Foundation\Auth\Support\RandomAuthIdGenerator;
+use Infocyph\Foundation\Auth\Support\BaselinePasswordPolicy;
 use Infocyph\Foundation\Auth\Support\SystemClock;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\InterMix\DI\Container;
@@ -27,12 +25,9 @@ final readonly class AuthCoreRegistrar
             $this->container->bind(ClockInterface::class, new SystemClock(), LifetimeEnum::Singleton);
         }
         $this->container->bind(AuthDriverResolver::class, $drivers, LifetimeEnum::Singleton);
-        $container = $this->container;
-        $this->container->factory(AuthIdGeneratorInterface::class, static function () use ($container, $drivers): AuthIdGeneratorInterface {
-            if ($drivers->ids() !== AuthIdDriver::UID) {
-                return new RandomAuthIdGenerator();
-            }
 
+        $container = $this->container;
+        $this->container->factory(AuthIdGeneratorInterface::class, static function () use ($container): AuthIdGeneratorInterface {
             $config = $container->get(ConfigRepository::class);
             if (!$config instanceof ConfigRepository) {
                 throw new \RuntimeException('Auth ID configuration must resolve to ConfigRepository.');
@@ -40,6 +35,19 @@ final readonly class AuthCoreRegistrar
 
             return new UidAuthIdGenerator($config);
         })->singleton();
-        $this->container->bind(PasswordPolicyInterface::class, new AcceptAllPasswordPolicy(), LifetimeEnum::Singleton);
+
+        if (!$this->container->has(PasswordPolicyInterface::class)) {
+            $this->container->factory(PasswordPolicyInterface::class, static function () use ($container): PasswordPolicyInterface {
+                $config = $container->get(ConfigRepository::class);
+                if (!$config instanceof ConfigRepository) {
+                    throw new \RuntimeException('Password policy configuration must resolve to ConfigRepository.');
+                }
+
+                return new BaselinePasswordPolicy(
+                    minimumLength: $config->getInt('auth.password_policy.min_length', 12) ?? 12,
+                    maximumLength: $config->getInt('auth.password_policy.max_length', 1024) ?? 1024,
+                );
+            })->singleton();
+        }
     }
 }
