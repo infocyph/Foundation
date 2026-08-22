@@ -274,7 +274,7 @@ final readonly class WorkerManager
             );
         }
 
-        $repository = $this->application->container()->getRepository();
+        $container = $this->application->container();
         foreach ([
             'Infocyph\\Foundation\\Cache\\CacheManager',
             'Infocyph\\CacheLayer\\Cache\\CacheInterface',
@@ -287,7 +287,7 @@ final readonly class WorkerManager
             'Infocyph\\Omnibus\\Transport\\TransportRegistry',
             'Infocyph\\TalkingBytes\\Http\\HttpClient',
         ] as $service) {
-            if ($repository->hasResolved($service)) {
+            if ($container->isResolved($service)) {
                 throw new \LogicException(sprintf(
                     'Pooled workers must fork before resolving process-bound service "%s".',
                     $service,
