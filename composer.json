@@ -36,6 +36,9 @@
     },
     "minimum-stability": "stable",
     "prefer-stable": true,
+    "bin": [
+        "bin/infbyte"
+    ],
     "autoload": {
         "psr-4": {
             "Infocyph\\Foundation\\": "src/"
