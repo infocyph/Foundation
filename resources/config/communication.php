@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 return [
@@ -12,7 +11,6 @@ return [
     | client profile may define total and connection timeouts in seconds,
     | redirect handling, TLS verification, an optional CA bundle and proxy,
     | proxy credentials, User-Agent, maximum response bytes, and default headers.
-    |
     | Keep "verifyPeer" and "verifyHost" enabled outside controlled tests.
     | "maxResponseBytes" may be null for the library default; set a bounded
     | value before processing responses from untrusted or variable-size sources.
@@ -78,8 +76,10 @@ return [
     |
     | Outbound profiles select an HTTP profile, optional signing secret, and
     | retry policy. Inbound profiles select one secret (or a secret list in
-    | application config) and a maximum accepted signature age. Replace the
-    | development placeholder before accepting production webhooks.
+    | application config) and a maximum accepted signature age. Replay state is
+    | composed through CacheLayer when enabled; production WebhookReceiver
+    | activation requires replay protection even if this development default is
+    | false. Replace the development secret before accepting production traffic.
     |
     */
     'webhooks' => [
@@ -101,6 +101,11 @@ return [
             'default' => [
                 'secret' => env('COMMUNICATION_WEBHOOK_SECRET', 'change-me'),
                 'max_age_seconds' => env('COMMUNICATION_WEBHOOK_MAX_AGE_SECONDS', 300),
+                'replay' => [
+                    'enabled' => env_bool('COMMUNICATION_WEBHOOK_REPLAY_ENABLED', false),
+                    'store' => env('COMMUNICATION_WEBHOOK_REPLAY_STORE'),
+                    'ttl_seconds' => env_int('COMMUNICATION_WEBHOOK_REPLAY_TTL_SECONDS', 86_400),
+                ],
             ],
         ],
     ],
