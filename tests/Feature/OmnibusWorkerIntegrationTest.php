@@ -137,6 +137,27 @@ it('rejects process-local memory transport before starting an Omnibus worker poo
         ->toThrow(LogicException::class, 'process-local');
 });
 
+it('rejects an already booted parent before starting a worker pool', function (): void {
+    $app = Foundation::worker([
+        'messaging' => [
+            'workers' => [
+                'parallel' => [
+                    'transport' => 'shared',
+                    'queue' => 'default',
+                    'pool' => [
+                        'enabled' => true,
+                        'concurrency' => 2,
+                    ],
+                ],
+            ],
+        ],
+    ]);
+    $app->boot();
+
+    expect(fn() => new WorkerManager($app)->run('parallel'))
+        ->toThrow(LogicException::class, 'before booting the parent');
+});
+
 it('reports process-local pool transport as invalid configuration', function (): void {
     $app = Foundation::worker([
         'messaging' => [
