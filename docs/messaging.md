@@ -117,7 +117,15 @@ On Unix-like systems with `pcntl` and `posix`, Foundation can compose Omnibus
 The parent validates worker options without constructing a receiver. Each child
 then creates and boots a new Foundation worker application after `fork()`, and
 only there resolves the transport, Consumer, DBLayer connections, CacheLayer
-clients, and other process-bound services.
+clients, and other process-bound services. Pool startup is rejected if the
+parent Foundation application has already been booted.
+
+Foundation provider registration happens while the parent application is being
+constructed, so custom providers intended for pool mode must keep `register()`
+resource-free: register factories, class names, and immutable descriptors only.
+Do not open PDO connections, Redis/Valkey clients, brokers, HTTP clients, files,
+or other process-bound resources from provider registration. Resolve those
+services lazily in the child after fork.
 
 Pool mode rejects the built-in `memory` transport because its queue is
 process-local. `sync` cannot be consumed. Application-supplied pooled transports
@@ -125,8 +133,10 @@ must be shared/durable. Pool configuration must contain scalars/arrays rather
 than runtime objects, resources, or closures.
 
 A pool is intentionally optional rather than the default supervisor. It has
-fixed concurrency and a bounded per-slot restart budget; external supervisors
-remain preferable when orchestration already exists.
+fixed concurrency and a bounded per-slot crash-restart budget. Clean worker
+recycling caused by message/runtime/memory limits respawns the slot without
+consuming that crash budget. External supervisors remain preferable when
+orchestration already exists.
 
 ## Maintenance workers
 
