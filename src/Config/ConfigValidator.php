@@ -29,9 +29,7 @@ final readonly class ConfigValidator
         return $this->runChecks(true);
     }
 
-    /**
-     * @return array<string, mixed>
-     */
+    /** @return array<string, mixed> */
     private function cacheDefinitions(string $key): array
     {
         $definitions = $this->config->get($key, []);
@@ -63,9 +61,7 @@ final readonly class ConfigValidator
 
         $first = array_key_first($connections);
 
-        return is_string($first) && $first !== ''
-            ? $first
-            : null;
+        return is_string($first) && $first !== '' ? $first : null;
     }
 
     private function isAbsolutePath(string $path): bool
@@ -234,10 +230,7 @@ final readonly class ConfigValidator
         }
     }
 
-    /**
-     * @param list<ConfigIssue> $issues
-     * @param array<string, mixed> $counters
-     */
+    /** @param list<ConfigIssue> $issues @param array<string, mixed> $counters */
     private function validateCacheCounters(array &$issues, array $counters): void
     {
         foreach ($counters as $name => $counter) {
@@ -250,9 +243,7 @@ final readonly class ConfigValidator
         }
     }
 
-    /**
-     * @param list<ConfigIssue> $issues
-     */
+    /** @param list<ConfigIssue> $issues */
     private function validateCacheLayerTopology(array &$issues): void
     {
         $stores = $this->cacheDefinitions('cache.stores');
@@ -265,9 +256,7 @@ final readonly class ConfigValidator
         $this->validateCacheCounters($issues, $this->cacheDefinitions('cache.counters'));
     }
 
-    /**
-     * @param list<ConfigIssue> $issues
-     */
+    /** @param list<ConfigIssue> $issues */
     private function validateCacheStore(array &$issues): void
     {
         $store = $this->stringConfig('cache.default', '');
@@ -297,10 +286,7 @@ final readonly class ConfigValidator
         }
     }
 
-    /**
-     * @param list<ConfigIssue> $issues
-     * @param array<string, mixed> $transports
-     */
+    /** @param list<ConfigIssue> $issues @param array<string, mixed> $transports */
     private function validateCacheTransports(array &$issues, array $transports): void
     {
         foreach ($transports as $name => $transport) {
@@ -321,9 +307,7 @@ final readonly class ConfigValidator
         }
     }
 
-    /**
-     * @param list<ConfigIssue> $issues
-     */
+    /** @param list<ConfigIssue> $issues */
     private function validateDatabaseStorage(array &$issues): void
     {
         $connectionName = $this->databaseDefault();
@@ -345,10 +329,7 @@ final readonly class ConfigValidator
         }
     }
 
-    /**
-     * @param list<ConfigIssue> $issues
-     * @param class-string<\BackedEnum> $enumClass
-     */
+    /** @param list<ConfigIssue> $issues @param class-string<\BackedEnum> $enumClass */
     private function validateDriver(array &$issues, string $key, string $value, string $enumClass): void
     {
         if ($enumClass::tryFrom($value) !== null) {
@@ -361,10 +342,7 @@ final readonly class ConfigValidator
         );
     }
 
-    /**
-     * @param list<ConfigIssue> $issues
-     * @param array<string, mixed> $stores
-     */
+    /** @param list<ConfigIssue> $issues @param array<string, mixed> $stores */
     private function validateNodeCacheStores(array &$issues, array $stores): void
     {
         foreach ($stores as $name => $store) {
@@ -398,9 +376,7 @@ final readonly class ConfigValidator
         return is_array($profile) ? $profile : null;
     }
 
-    /**
-     * @param list<ConfigIssue> $issues
-     */
+    /** @param list<ConfigIssue> $issues */
     private function validateNotificationSender(array &$issues, bool $assumeProduction): void
     {
         $profile = $this->notificationSenderProfile();
@@ -451,9 +427,7 @@ final readonly class ConfigValidator
         }
     }
 
-    /**
-     * @param list<ConfigIssue> $issues
-     */
+    /** @param list<ConfigIssue> $issues */
     private function validateProductionDrivers(array &$issues, string $storageDriver): void
     {
         if ($this->stringConfig('auth.drivers.tokens', 'simple') === AuthTokenDriver::SIMPLE->value) {
@@ -477,9 +451,7 @@ final readonly class ConfigValidator
         }
     }
 
-    /**
-     * @param list<ConfigIssue> $issues
-     */
+    /** @param list<ConfigIssue> $issues */
     private function validateSecurityTokenPolicy(array &$issues, bool $assumeProduction): void
     {
         $algorithm = $this->config->get('security.jwt.algorithm', 'HS256');
@@ -548,24 +520,11 @@ final readonly class ConfigValidator
         }
 
         $environment = Environment::get('AUTH_TOKEN_SECRET');
-        if (is_string($environment) && $environment !== '') {
-            return $environment;
-        }
-
-        new EnvironmentLoader()->load($this->stringConfig('app.base_path', getcwd() ?: '.'), [
-            'app' => [
-                'load_env' => $this->config->get('app.load_env', true),
-                'env_files' => $this->config->get('app.env_files', ['.env', '.env.local']),
-            ],
-        ]);
-        $environment = Environment::get('AUTH_TOKEN_SECRET');
 
         return is_string($environment) && $environment !== '' ? $environment : null;
     }
 
-    /**
-     * @param list<ConfigIssue> $issues
-     */
+    /** @param list<ConfigIssue> $issues */
     private function validateTokenSecret(array &$issues, int $minimumBytes, bool $required = true): void
     {
         $secret = $this->resolvedTokenSecret();
@@ -598,9 +557,7 @@ final readonly class ConfigValidator
         }
     }
 
-    /**
-     * @param list<ConfigIssue> $issues
-     */
+    /** @param list<ConfigIssue> $issues */
     private function validateWebAuthn(array &$issues, bool $assumeProduction): void
     {
         $rpId = $this->config->get('auth.webauthn.rp_id');
