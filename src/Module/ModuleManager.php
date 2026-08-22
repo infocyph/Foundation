@@ -193,6 +193,13 @@ final readonly class ModuleManager
             }
 
             foreach ($staged as $target => $temporary) {
+                if (@link($temporary, $target)) {
+                    unlink($temporary);
+                    unset($staged[$target]);
+                    $published[] = $target;
+
+                    continue;
+                }
                 if (is_file($target)) {
                     $existing[] = $target;
                     unlink($temporary);
@@ -200,11 +207,8 @@ final readonly class ModuleManager
 
                     continue;
                 }
-                if (!rename($temporary, $target)) {
-                    throw new \RuntimeException(sprintf('Unable to publish config template "%s".', basename($target)));
-                }
-                unset($staged[$target]);
-                $published[] = $target;
+
+                throw new \RuntimeException(sprintf('Unable to publish config template "%s".', basename($target)));
             }
         } catch (\Throwable $failure) {
             foreach ($staged as $temporary) {
