@@ -67,15 +67,16 @@ abstract class ServiceProvider implements ServiceProviderInterface
 
     /**
      * Determine whether an entry was explicitly registered rather than merely
-     * being autowireable by class name.
+     * being autowireable or previously resolved by class name.
+     *
+     * TODO InterMix: replace this internal repository read with
+     * $container->definitions()->has($id) once the public API is released.
      */
     final protected function hasExplicitBinding(Container $container, string $id): bool
     {
         $repository = $container->getRepository();
 
         return $repository->hasFunctionReference($id)
-            || $repository->hasClosureResource($id)
-            || $repository->hasResolved($id)
-            || $repository->hasResolvedDefinition($id);
+            || $repository->hasClosureResource($id);
     }
 }
