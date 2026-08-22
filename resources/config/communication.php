@@ -17,13 +17,6 @@ return [
     | "maxResponseBytes" may be null for the library default; set a bounded
     | value before processing responses from untrusted or variable-size sources.
     |
-    | A profile may be named `default`. Typical total timeout, connection timeout,
-    | and redirect limit values are 10, 10, and 5. Booleans accept `true|false`.
-    | Example CA and proxy locations are `/etc/ssl/cacert.pem` and
-    | `http://proxy.internal:8080`. A user agent may be `Acme/1.0`; a response
-    | limit may be 10485760 bytes; a default Accept header may use
-    | `application/json`.
-    |
     */
     'http' => [
         'default_client' => env('COMMUNICATION_HTTP_DEFAULT_CLIENT', 'default'),
@@ -42,23 +35,6 @@ return [
                 'userAgent' => env('COMMUNICATION_HTTP_USER_AGENT', 'Infbyte/1.0'),
                 'maxResponseBytes' => env('COMMUNICATION_HTTP_MAX_RESPONSE_BYTES'),
                 'defaultHeaders' => [],
-
-                /*
-                |------------------------------------------------------------------
-                | HTTP Authentication
-                |------------------------------------------------------------------
-                |
-                | "driver" selects none, header/API-key, query-key, bearer-token,
-                | or basic authentication as supported by TalkingBytes. "header"
-                | and "value" configure header credentials; "query_key" names the
-                | query parameter; "token" supplies bearer credentials; and
-                | "username"/"password" supply basic credentials.
-                |
-                | Drivers: `none|api_key|api_key_header|api-key-header|header|`
-                | `api_key_query|api-key-query|query|basic|bearer`. Header example:
-                | `X-Api-Key`; query key: `api_key`; credential values are secrets.
-                |
-                */
                 'auth' => [
                     'driver' => env('COMMUNICATION_HTTP_AUTH_DRIVER', 'none'),
                     'header' => env('COMMUNICATION_HTTP_AUTH_HEADER', 'X-Api-Key'),
@@ -68,82 +44,25 @@ return [
                     'username' => env('COMMUNICATION_HTTP_AUTH_USERNAME'),
                     'password' => env('COMMUNICATION_HTTP_AUTH_PASSWORD'),
                 ],
-
-                /*
-                |------------------------------------------------------------------
-                | HTTP Cookies
-                |------------------------------------------------------------------
-                |
-                | "enabled" allows the client profile to retain and send cookies.
-                | Leave it disabled for stateless integrations. Values: `true|false`.
-                |
-                */
                 'cookies' => [
                     'enabled' => env('COMMUNICATION_HTTP_COOKIES_ENABLED', false),
                 ],
-
-                /*
-                |------------------------------------------------------------------
-                | HTTP Retry Policy
-                |------------------------------------------------------------------
-                |
-                | "enabled" activates bounded retries, "attempts" limits total
-                | tries, "base_delay_ms" controls the initial delay, and
-                | "max_retry_after_seconds" caps a remote Retry-After instruction.
-                | Only retry operations that are safe or explicitly idempotent.
-                | Enabled is `true|false`; numeric examples: `3`, `250`, and `30`.
-                |
-                */
                 'retry' => [
                     'enabled' => env('COMMUNICATION_HTTP_RETRY_ENABLED', false),
                     'attempts' => env('COMMUNICATION_HTTP_RETRY_ATTEMPTS', 3),
                     'base_delay_ms' => env('COMMUNICATION_HTTP_RETRY_BASE_DELAY_MS', 250),
                     'max_retry_after_seconds' => env('COMMUNICATION_HTTP_RETRY_MAX_RETRY_AFTER_SECONDS', 30),
                 ],
-
-                /*
-                |------------------------------------------------------------------
-                | Client-Side Rate Limit
-                |------------------------------------------------------------------
-                |
-                | When "enabled", permit at most "max_requests" during each
-                | "per_seconds" window for this client profile. Enabled accepts
-                | `true|false`; positive integer example: `60` requests per `60` seconds.
-                |
-                */
                 'rate_limit' => [
                     'enabled' => env('COMMUNICATION_HTTP_RATE_LIMIT_ENABLED', false),
                     'max_requests' => env('COMMUNICATION_HTTP_RATE_LIMIT_MAX_REQUESTS', 60),
                     'per_seconds' => env('COMMUNICATION_HTTP_RATE_LIMIT_PER_SECONDS', 60),
                 ],
-
-                /*
-                |------------------------------------------------------------------
-                | Circuit Breaker
-                |------------------------------------------------------------------
-                |
-                | `failure_threshold` opens the breaker after consecutive failures.
-                | "cool_down_seconds" controls when recovery may be attempted.
-                | The policy is inactive while "enabled" is false. Enabled accepts
-                | `true|false`; examples: threshold `5`, cool-down `30` seconds.
-                |
-                */
                 'circuit_breaker' => [
                     'enabled' => env('COMMUNICATION_HTTP_CIRCUIT_BREAKER_ENABLED', false),
                     'failure_threshold' => env('COMMUNICATION_HTTP_CIRCUIT_BREAKER_FAILURE_THRESHOLD', 5),
                     'cool_down_seconds' => env('COMMUNICATION_HTTP_CIRCUIT_BREAKER_COOL_DOWN_SECONDS', 30),
                 ],
-
-                /*
-                |------------------------------------------------------------------
-                | Idempotency
-                |------------------------------------------------------------------
-                |
-                | "enabled" adds an idempotency key to supported requests and
-                | "header" selects the outbound header name. Enabled accepts
-                | `true|false`; header example: `Idempotency-Key`.
-                |
-                */
                 'idempotency' => [
                     'enabled' => env('COMMUNICATION_HTTP_IDEMPOTENCY_ENABLED', false),
                     'header' => env('COMMUNICATION_HTTP_IDEMPOTENCY_HEADER', 'Idempotency-Key'),
@@ -157,18 +76,10 @@ return [
     | Webhooks
     |--------------------------------------------------------------------------
     |
-    | "default_outbound" and "default_inbound" select named profiles. Outbound
-    | profiles name an "http_client", provide a "signing_secret", and may use
-    | bounded retry keys: "enabled", "attempts", "base_delay_ms", and
-    | "max_retry_after_seconds". Use a unique secret per integration.
-    |
-    | Inbound profiles use "secret" to verify signatures and
-    | "max_age_seconds" to reject stale deliveries and limit replay exposure.
-    | Replace the development placeholder before accepting production webhooks.
-    | A profile and client may be named `default`; secrets are random high-entropy
-    | strings. Enabled accepts `true|false`. Typical retry settings are 3 attempts,
-    | a 250 millisecond base delay, and a 30 second Retry-After ceiling. An inbound
-    | maximum age may be 300 seconds.
+    | Outbound profiles select an HTTP profile, optional signing secret, and
+    | retry policy. Inbound profiles select one secret (or a secret list in
+    | application config) and a maximum accepted signature age. Replace the
+    | development placeholder before accepting production webhooks.
     |
     */
     'webhooks' => [
@@ -196,15 +107,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | gRPC Profiles
+    | gRPC
     |--------------------------------------------------------------------------
     |
-    | "default_profile" selects the profile used implicitly. Each retry policy
-    | has an "enabled" switch, bounded "attempts", an initial "base_delay_ms",
-    | optional "max_delay_ms", and a 0-to-1 "jitter_ratio" used to distribute
-    | concurrent retries. Retry only idempotent gRPC operations. Profile example:
-    | `default`; enabled is `true|false`; attempts/delays example: `3`, `100`,
-    | `5000` milliseconds; jitter is a decimal from `0.0` to `1.0`.
+    | Outbound profiles configure TalkingBytes retry behavior. Foundation does
+    | not own a gRPC transport: callers supply a native/generated invoker or a
+    | callable and receive a native TalkingBytes GrpcClient.
+    |
+    | "inbound.handlers" is an application composition map. Keys are normalized
+    | gRPC method names such as `/billing.Invoice/Get`; values are InterMix
+    | service identifiers. Resolved services must be callable or implement
+    | TalkingBytes GrpcInboundHandlerInterface. Keep this map scalar/class-string
+    | based so configuration remains cache- and fork-safe.
     |
     */
     'grpc' => [
@@ -219,6 +133,9 @@ return [
                     'jitter_ratio' => env('COMMUNICATION_GRPC_RETRY_JITTER_RATIO', 0.0),
                 ],
             ],
+        ],
+        'inbound' => [
+            'handlers' => [],
         ],
     ],
 ];
