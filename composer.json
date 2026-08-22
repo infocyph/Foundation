@@ -15,7 +15,7 @@
         "infocyph/cachelayer": "^3.1.3",
         "infocyph/dblayer": "^4.1",
         "infocyph/epicrypt": "^2.1",
-        "infocyph/omnibus": "dev-main@dev",
+        "infocyph/omnibus": "^2.2",
         "infocyph/otp": "^6.0",
         "infocyph/pathwise": "^3.1",
         "infocyph/phpforge": "dev-main@dev",
