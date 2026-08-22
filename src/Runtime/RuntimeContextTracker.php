@@ -6,6 +6,7 @@ namespace Infocyph\Foundation\Runtime;
 
 use Infocyph\CacheLayer\Memoize\Memoizer;
 use Infocyph\CacheLayer\Memoize\OnceMemoizer;
+use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\DB;
 use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
 use Infocyph\Foundation\Session\SessionManager;
@@ -20,9 +21,17 @@ final class RuntimeContextTracker
 
     private bool $databaseTouched = false;
 
+    /** @var array<int, Connection> */
+    private array $freshDatabaseConnections = [];
+
     public function markDatabase(): void
     {
         $this->databaseTouched = true;
+    }
+
+    public function markFreshDatabaseConnection(Connection $connection): void
+    {
+        $this->freshDatabaseConnections[spl_object_id($connection)] = $connection;
     }
 
     public function markPrincipal(CurrentPrincipalContext $principal): void
@@ -39,8 +48,10 @@ final class RuntimeContextTracker
     {
         $dirty = $this->dirty;
         $databaseTouched = $this->databaseTouched;
+        $freshConnections = $this->freshDatabaseConnections;
         $this->dirty = [];
         $this->databaseTouched = false;
+        $this->freshDatabaseConnections = [];
         $failure = null;
 
         foreach ($dirty as $context) {
@@ -55,9 +66,18 @@ final class RuntimeContextTracker
             }
         }
 
+        foreach ($freshConnections as $connection) {
+            try {
+                $this->resetConnection($connection);
+            } catch (\Throwable $exception) {
+                $connection->disconnect();
+                $failure ??= $exception;
+            }
+        }
+
         if ($databaseTouched) {
             try {
-                $this->resetDatabaseRuntime();
+                $this->resetSharedDatabaseRuntime();
             } catch (\Throwable $exception) {
                 $failure ??= $exception;
             }
@@ -74,23 +94,28 @@ final class RuntimeContextTracker
         }
     }
 
-    private function resetDatabaseRuntime(): void
+    private function resetSharedDatabaseRuntime(): void
     {
         if (!class_exists(DB::class, false)) {
             return;
         }
 
         foreach (DB::getConnections() as $connection) {
-            try {
-                while ($connection->transactionLevel() > 0) {
-                    $connection->rollbackTransaction();
-                }
-            } catch (\Throwable) {
-                $connection->disconnect();
-            }
+            $this->resetConnection($connection);
         }
 
         DB::resetRuntimeState(false);
+    }
+
+    private function resetConnection(Connection $connection): void
+    {
+        while ($connection->transactionLevel() > 0) {
+            $connection->rollbackTransaction();
+        }
+
+        if (!$connection->resetRuntimeStateForReuse()) {
+            $connection->disconnect();
+        }
     }
 
     private function flushProcessLocalMemoizers(): void
