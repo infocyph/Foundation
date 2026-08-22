@@ -11,14 +11,12 @@ use Infocyph\DBLayer\DB;
 use Infocyph\DBLayer\Query\QueryBuilder;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchemaInstaller;
-use Infocyph\Foundation\Runtime\RuntimeContextTracker;
 
 /**
- * Foundation-owned database composition and lifecycle policy.
+ * Foundation-owned database composition and application policy.
  *
  * Query building, repositories, transactions, observability, capabilities and
- * other database operations remain DBLayer APIs and are intentionally not
- * mirrored here.
+ * runtime state remain DBLayer APIs and are intentionally not mirrored here.
  */
 final readonly class DatabaseManager
 {
@@ -27,7 +25,6 @@ final readonly class DatabaseManager
         private DBLayerFactory $factory,
         private AuthSchemaInstaller $authSchemaInstaller,
         private DatabaseMigrationManager $migrations,
-        private ?RuntimeContextTracker $contexts = null,
     ) {}
 
     public function authSchema(): AuthSchemaInstaller
@@ -46,8 +43,6 @@ final readonly class DatabaseManager
 
     public function connection(?string $name = null, bool $fresh = false): Connection
     {
-        $this->contexts?->markDatabase($this);
-
         return $this->factory->connection($name, $fresh);
     }
 
@@ -76,25 +71,6 @@ final readonly class DatabaseManager
     public function resetRuntimeState(bool $disconnectConnections = true): void
     {
         DB::resetRuntimeState($disconnectConnections);
-    }
-
-    /**
-     * Reset mutable per-execution database state while preserving reusable
-     * connection registrations for persistent runtimes.
-     */
-    public function resetUnitOfWork(): void
-    {
-        foreach (DB::getConnections() as $connection) {
-            try {
-                while ($connection->transactionLevel() > 0) {
-                    $connection->rollbackTransaction();
-                }
-            } catch (\Throwable) {
-                $connection->disconnect();
-            }
-        }
-
-        DB::resetRuntimeState(false);
     }
 
     /** Transitional composition helper for ReqShield integration. */
