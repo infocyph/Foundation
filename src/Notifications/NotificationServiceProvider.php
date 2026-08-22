@@ -93,7 +93,7 @@ final class NotificationServiceProvider extends ServiceProvider
             $this->bindFactory(
                 $container,
                 Emailer::class,
-                fn(): Emailer => $app->make(EmailProfiles::class)->authEmailer(),
+                fn(): Emailer => $app->make(EmailProfiles::class)->sender(),
                 LifetimeEnum::Scoped,
             );
         }
