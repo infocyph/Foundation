@@ -8,7 +8,7 @@ use Composer\InstalledVersions;
 
 final readonly class CliPreflight
 {
-    public function __construct(private CommandCatalog $catalog = new CommandCatalog()) {}
+    public function __construct(private CommandRegistry $registry = new CommandRegistry()) {}
 
     /**
      * Handle metadata-only invocations without constructing Foundation Application.
@@ -19,10 +19,14 @@ final readonly class CliPreflight
     public function handle(array $argv, CommandIO $io): ?int
     {
         $input = ParsedInput::fromArgv($argv);
-        if ($input->flag('version') || in_array('-V', $input->raw, true)) {
+        if ($input->flag('version') || $input->flag('V')) {
             $io->writeln('Foundation ' . $this->version());
 
-            return 0;
+            return ExitCode::SUCCESS;
+        }
+
+        if ($input->flag('help') || $input->flag('h')) {
+            return $input->command === '' ? $this->list($io) : $this->helpName($input->command, $io);
         }
 
         return match ($input->command) {
@@ -35,53 +39,132 @@ final readonly class CliPreflight
 
     private function completion(CommandIO $io): int
     {
-        foreach (array_keys($this->catalog->all()) as $name) {
-            $io->writeln($name);
+        foreach ($this->registry->visible() as $descriptor) {
+            $io->writeln($descriptor->definition->commandName());
+            foreach ($descriptor->definition->aliases() as $alias) {
+                $io->writeln($alias);
+            }
         }
 
-        return 0;
+        return ExitCode::SUCCESS;
     }
 
     private function help(ParsedInput $input, CommandIO $io): int
     {
         $name = $input->argument(0);
-        $definition = $name === null ? null : $this->catalog->find($name);
-        if ($definition === null) {
-            $this->renderList($io);
-
-            return $name === null ? 0 : 1;
+        if ($name === null) {
+            return $this->list($io);
         }
 
-        $io->writeln($definition->name . ' - ' . $definition->description);
-        $io->writeln('Runtime: ' . $definition->runtime->value);
-        if ($definition->capabilities !== []) {
-            $io->writeln('Capabilities: ' . implode(', ', $definition->capabilities));
+        return $this->helpName($name, $io);
+    }
+
+    private function helpName(string $name, CommandIO $io): int
+    {
+        $descriptor = $this->registry->find($name);
+        if ($descriptor === null || $descriptor->definition->isHidden()) {
+            $io->error(sprintf('Command "%s" is not defined.', $name));
+            $this->suggest($name, $io);
+
+            return ExitCode::COMMAND_NOT_FOUND;
         }
 
-        return 0;
+        $definition = $descriptor->definition;
+        $io->writeln($definition->commandName() . ' - ' . $definition->commandDescription());
+        $io->writeln('Usage: ' . $this->usage($definition));
+        $io->writeln('Runtime: ' . $definition->commandRuntime()->value);
+        if ($definition->aliases() !== []) {
+            $io->writeln('Aliases: ' . implode(', ', $definition->aliases()));
+        }
+        if ($definition->capabilities() !== []) {
+            $io->writeln('Capabilities: ' . implode(', ', $definition->capabilities()));
+        }
+
+        $arguments = $definition->arguments();
+        if ($arguments !== []) {
+            $io->writeln();
+            $io->writeln('Arguments:');
+            foreach ($arguments as $argument) {
+                $io->writeln(sprintf(
+                    '  %-24s %s',
+                    $argument['name'],
+                    $argument['description'],
+                ));
+            }
+        }
+
+        $options = $definition->options();
+        if ($options !== []) {
+            $io->writeln();
+            $io->writeln('Options:');
+            foreach ($options as $option) {
+                $signature = '--' . $option['name'];
+                if ($option['negatable']) {
+                    $signature .= '/--no-' . $option['name'];
+                }
+                if ($option['accepts_value']) {
+                    $signature .= '=VALUE';
+                }
+                if ($option['short'] !== null) {
+                    $signature = '-' . $option['short'] . ', ' . $signature;
+                }
+                $io->writeln(sprintf('  %-24s %s', $signature, $option['description']));
+            }
+        }
+
+        return ExitCode::SUCCESS;
     }
 
     private function list(CommandIO $io): int
     {
-        $this->renderList($io);
-
-        return 0;
-    }
-
-    private function renderList(CommandIO $io): void
-    {
         $groups = [];
-        foreach ($this->catalog->all() as $definition) {
-            $groups[$definition->group][] = $definition;
+        foreach ($this->registry->visible() as $descriptor) {
+            $definition = $descriptor->definition;
+            $groups[$definition->commandGroup()][] = $definition;
         }
+        ksort($groups);
 
         foreach ($groups as $group => $definitions) {
+            usort(
+                $definitions,
+                static fn(CommandDefinition $left, CommandDefinition $right): int => $left->commandName()
+                    <=> $right->commandName(),
+            );
             $io->writeln($group . ':');
             foreach ($definitions as $definition) {
-                $io->writeln(sprintf('  %-28s %s', $definition->name, $definition->description));
+                $io->writeln(sprintf(
+                    '  %-28s %s',
+                    $definition->commandName(),
+                    $definition->commandDescription(),
+                ));
             }
             $io->writeln();
         }
+
+        return ExitCode::SUCCESS;
+    }
+
+    private function suggest(string $name, CommandIO $io): void
+    {
+        $suggestions = $this->registry->suggestions($name);
+        if ($suggestions !== []) {
+            $io->error('Did you mean: ' . implode(', ', $suggestions) . '?');
+        }
+    }
+
+    private function usage(CommandDefinition $definition): string
+    {
+        $parts = ['php infbyte', $definition->commandName()];
+        if ($definition->options() !== []) {
+            $parts[] = '[options]';
+        }
+
+        foreach ($definition->arguments() as $argument) {
+            $name = $argument['name'] . ($argument['variadic'] ? '...' : '');
+            $parts[] = $argument['required'] ? '<' . $name . '>' : '[' . $name . ']';
+        }
+
+        return implode(' ', $parts);
     }
 
     private function version(): string
