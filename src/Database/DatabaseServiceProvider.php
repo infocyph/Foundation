@@ -61,17 +61,10 @@ final class DatabaseServiceProvider extends ServiceProvider
             $app->make(DBLayerFactory::class),
         ), LifetimeEnum::Singleton);
 
-        $this->bindFactory($container, DatabaseManager::class, fn() => new DatabaseManager(
-            config: $app->config(),
-            factory: $app->make(DBLayerFactory::class),
-            authSchemaInstaller: $app->make(AuthSchemaInstaller::class),
-            migrations: $app->make(DatabaseMigrationManager::class),
-        ), LifetimeEnum::Singleton);
-
         $this->bindFactory(
             $container,
             'foundation.db',
-            fn() => $container->get(DatabaseManager::class),
+            fn() => $container->get(Connection::class),
             LifetimeEnum::Singleton,
         );
     }
