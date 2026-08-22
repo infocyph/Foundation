@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Adapter\Epicrypt;
 
+use Infocyph\Epicrypt\Token\Jwt\Enum\SymmetricJwtAlgorithm;
 use Infocyph\Epicrypt\Token\Jwt\JwtPolicy;
 use Infocyph\Epicrypt\Token\Jwt\SymmetricJwt;
 use Infocyph\Epicrypt\Token\Payload\SignedPayload;
@@ -16,6 +17,7 @@ final readonly class EpicryptTokenFactory
         private AuthClockInterface $clock,
         private string $issuer,
         private string $audience,
+        private SymmetricJwtAlgorithm $algorithm = SymmetricJwtAlgorithm::HS256,
         private int $maximumLifetimeSeconds = 1209600,
         private int $leewaySeconds = 0,
     ) {}
@@ -35,6 +37,7 @@ final readonly class EpicryptTokenFactory
         return SymmetricJwt::issuer(
             key: $this->key,
             type: $type,
+            algorithm: $this->algorithm,
             clock: new EpicryptClockAdapter($this->clock),
         );
     }
@@ -50,6 +53,7 @@ final readonly class EpicryptTokenFactory
                 maximumLifetimeSeconds: $this->maximumLifetimeSeconds,
                 leewaySeconds: $this->leewaySeconds,
             ),
+            algorithm: $this->algorithm,
             clock: new EpicryptClockAdapter($this->clock),
         );
     }
