@@ -156,6 +156,7 @@ final readonly class AuthSchema implements Migration
             $table->boolean('enabled');
             $table->bigInteger('created_at');
             $table->json('metadata')->nullable();
+            $table->bigInteger('revision')->default(0);
         });
         $schema->create($this->tables->passkeyCredentials(), static function (Blueprint $table): void {
             $table->string('id', 64)->primary();
