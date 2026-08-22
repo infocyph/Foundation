@@ -134,8 +134,10 @@ final class CommandExecutionCoordinator
         if ($this->locks !== null) {
             return $this->locks;
         }
-        if (!class_exists(CacheLayerFactory::class)) {
-            throw new \LogicException('Command overlap policy requires infocyph/cachelayer.');
+        if (!interface_exists(LockProviderInterface::class)) {
+            throw new \LogicException(
+                'Command overlap policy requires infocyph/cachelayer; install the cache module before using skip/wait overlap policies.',
+            );
         }
 
         return $this->locks = $this->application->make(CacheLayerFactory::class)->lock();
