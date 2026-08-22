@@ -153,10 +153,31 @@ process created root-owned artifacts.
 
 ## Workers
 
-HTTP and queue workers may reuse an application. Set bounded limits for time,
-memory, message/request count, retry, queue depth, database connections, and
-locks. Use Console supervision and Omnibus delivery controls rather than adding
-unbounded loops in Foundation.
+Queue workers use Omnibus `Worker`; Foundation supplies configuration and a
+fresh execution scope for every delivered message. Run one configured process
+with:
+
+```bash
+php infbyte worker:run reports
+```
+
+Normally scale that process with Supervisor, systemd, Docker, Kubernetes, or
+another external supervisor. Keep bounded message-count, runtime, and memory
+limits so persistent workers recycle without carrying application-local state
+forever.
+
+On Unix-like systems, `messaging.workers.<name>.pool.enabled=true` opts into
+Omnibus `WorkerPool`. Foundation validates fork-safe declarative configuration,
+avoids resolving known process-bound services in the parent, and constructs a
+fresh worker application in each child after fork. The process-local `memory`
+transport cannot be used with the pool; pooled transports must be shared or
+durable.
+
+`routes/workers.php` is reserved for non-message maintenance providers and is
+not a second queue engine. Provider workers are unlocked by default. Only an
+explicit `singleton=true` definition acquires a CacheLayer lock; the
+`WorkerRuntime` refreshes that ownership before bounded `execute()` units and
+also exposes `heartbeat()` for longer units.
 
 ## Release checks
 
