@@ -107,8 +107,14 @@ remains in its owning file:
 - `simple` MFA is intended for controlled development/testing.
 - `otp` MFA uses the OTP module.
 - `memory`, `disabled`, and `webauthn` select the passkey implementation.
-- `collect` records notifications in memory; `talkingbytes` delivers through
-  the configured notification transport.
+- `collect` records notifications in memory; `talkingbytes` maps auth events to
+  TalkingBytes email and selects the sender named by `notifications.auth.sender`.
+
+TalkingBytes email transport definitions and reusable sender policies live under
+`notifications.email.*`; authentication does not own an SMTP/spool transport
+stack. In production, a TalkingBytes auth sender may deliver through SMTP,
+sendmail, spool, PHP mail, or deliberately log, but it may not resolve to the
+`null` or `fake` transport drivers.
 
 Production validation rejects development-only driver combinations. Optional
 packages are installed through `module:install` and remain outside unrelated
