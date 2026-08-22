@@ -1,0 +1,36 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Infocyph\Foundation\Command\CommandDispatcher;
+
+$autoloadCandidates = [
+    $GLOBALS['_composer_autoload_path'] ?? null,
+    dirname(__DIR__) . '/vendor/autoload.php',
+    dirname(__DIR__, 3) . '/autoload.php',
+];
+
+$autoloaded = false;
+foreach ($autoloadCandidates as $autoload) {
+    if (!is_string($autoload) || $autoload === '' || !is_file($autoload)) {
+        continue;
+    }
+
+    require_once $autoload;
+    $autoloaded = true;
+    break;
+}
+
+if (!$autoloaded) {
+    fwrite(STDERR, "Unable to locate Composer autoload.php for infocyph/foundation.\n");
+    exit(1);
+}
+
+$basePath = getcwd();
+if (!is_string($basePath) || $basePath === '') {
+    fwrite(STDERR, "Unable to resolve the application working directory.\n");
+    exit(1);
+}
+
+exit(CommandDispatcher::project(['base_path' => $basePath])->run($argv));
