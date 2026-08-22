@@ -47,7 +47,7 @@ final class FoundationDefaults
                 'prefix' => 'infbyte:cache:',
                 'lock' => [
                     'driver' => null,
-                    'store' => 'local',
+                    'store' => null,
                     'path' => 'storage/cache/locks',
                     'prefix' => 'infbyte:cache:lock:',
                     'retry_sleep_micros' => 50_000,
