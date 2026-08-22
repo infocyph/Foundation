@@ -548,6 +548,17 @@ final readonly class ConfigValidator
         }
 
         $environment = Environment::get('AUTH_TOKEN_SECRET');
+        if (is_string($environment) && $environment !== '') {
+            return $environment;
+        }
+
+        new EnvironmentLoader()->load($this->stringConfig('app.base_path', getcwd() ?: '.'), [
+            'app' => [
+                'load_env' => $this->config->get('app.load_env', true),
+                'env_files' => $this->config->get('app.env_files', ['.env', '.env.local']),
+            ],
+        ]);
+        $environment = Environment::get('AUTH_TOKEN_SECRET');
 
         return is_string($environment) && $environment !== '' ? $environment : null;
     }
@@ -569,7 +580,11 @@ final readonly class ConfigValidator
             return;
         }
 
-        if (in_array($secret, ['foundation-dev-secret', 'foundation-development-token-secret-change-me'], true)) {
+        if (in_array($secret, [
+            'foundation-dev-secret',
+            'foundation-development-token-secret-change-me',
+            'foundation-development-token-secret-change-me-000000000000000000000000',
+        ], true)) {
             $issues[] = new ConfigIssue('The authentication token secret must not use a development placeholder.', 'auth.token_secret');
 
             return;
