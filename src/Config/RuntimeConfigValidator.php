@@ -24,6 +24,7 @@ final readonly class RuntimeConfigValidator
             ...$this->messageListeners(),
             ...$this->messageSettings(),
             ...$this->messageRetry(),
+            ...$this->messageWorkers(),
             ...$this->responses(),
         ];
     }
@@ -331,6 +332,116 @@ final readonly class RuntimeConfigValidator
         }
 
         return $issues;
+    }
+
+    /**
+     * Validate only Foundation-owned worker topology. Omnibus validates worker
+     * lifecycle and pool numeric bounds when those objects are constructed.
+     *
+     * @return list<ConfigIssue>
+     */
+    private function messageWorkers(): array
+    {
+        $workers = $this->config->get('messaging.workers', []);
+        if (!is_array($workers)) {
+            return [new ConfigIssue(
+                'messaging.workers must be an associative worker map.',
+                'messaging.workers',
+            )];
+        }
+
+        $issues = [];
+        $pooled = [];
+        foreach ($workers as $name => $definition) {
+            if (!is_string($name) || $name === '' || !is_array($definition)) {
+                $issues[] = new ConfigIssue(
+                    'messaging.workers must map non-empty worker names to configuration arrays.',
+                    'messaging.workers',
+                );
+
+                continue;
+            }
+
+            $key = 'messaging.workers.' . $name;
+            foreach (['transport', 'queue'] as $field) {
+                $value = $definition[$field] ?? ($field === 'transport'
+                    ? $this->config->get('messaging.consumer.transport')
+                    : 'default');
+                if (!is_string($value) || $value === '') {
+                    $issues[] = new ConfigIssue(
+                        $key . '.' . $field . ' must be a non-empty string.',
+                        $key . '.' . $field,
+                    );
+                }
+            }
+
+            $pool = $definition['pool'] ?? [];
+            if (!is_array($pool)) {
+                $issues[] = new ConfigIssue($key . '.pool must be an array.', $key . '.pool');
+
+                continue;
+            }
+            $enabled = $pool['enabled'] ?? false;
+            if (!is_bool($enabled)) {
+                $issues[] = new ConfigIssue(
+                    $key . '.pool.enabled must be true or false.',
+                    $key . '.pool.enabled',
+                );
+
+                continue;
+            }
+            if (!$enabled) {
+                continue;
+            }
+
+            $pooled[] = $key;
+            $transport = $definition['transport'] ?? $this->config->get('messaging.consumer.transport');
+            if ($transport === 'memory') {
+                $issues[] = new ConfigIssue(
+                    $key . '.pool cannot use the process-local memory transport.',
+                    $key . '.transport',
+                );
+            } elseif ($transport === 'sync') {
+                $issues[] = new ConfigIssue(
+                    $key . '.pool requires a receiving transport; sync cannot receive messages.',
+                    $key . '.transport',
+                );
+            }
+        }
+
+        if ($pooled !== []) {
+            $unsafe = $this->forkUnsafePath($this->config->all(), 'config');
+            if ($unsafe !== null) {
+                $issues[] = new ConfigIssue(
+                    sprintf(
+                        'Pooled messaging workers require scalar/array declarative configuration; %s contains runtime state.',
+                        $unsafe,
+                    ),
+                    $pooled[0] . '.pool',
+                );
+            }
+        }
+
+        return $issues;
+    }
+
+    private function forkUnsafePath(mixed $value, string $path): ?string
+    {
+        if ($value === null || is_scalar($value)) {
+            return null;
+        }
+        if (!is_array($value)) {
+            return $path . ' (' . get_debug_type($value) . ')';
+        }
+
+        foreach ($value as $key => $child) {
+            $unsafe = $this->forkUnsafePath($child, $path . '.' . (string) $key);
+            if ($unsafe !== null) {
+                return $unsafe;
+            }
+        }
+
+        return null;
     }
 
     /**
