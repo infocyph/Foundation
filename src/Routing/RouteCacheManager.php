@@ -154,7 +154,7 @@ final readonly class RouteCacheManager
         $paths = $this->application->make(PathManager::class);
         $presets = $this->application->make(RoutePresetRegistrar::class);
         $presets->register();
-        $router = new RouteCacheRouter($registrar, $presets, $config);
+        $router = $registrar;
 
         foreach ($files as $file) {
             $path = match (true) {
