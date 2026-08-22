@@ -8,10 +8,7 @@ use Infocyph\Foundation\Application\Application;
 
 final readonly class CommandCacheManager
 {
-    public function __construct(
-        private Application $application,
-        private CommandCatalog $catalog = new CommandCatalog(),
-    ) {}
+    public function __construct(private Application $application) {}
 
     public function clear(string $path = 'bootstrap/cache/commands.php'): bool
     {
@@ -26,23 +23,17 @@ final readonly class CommandCacheManager
         return true;
     }
 
-    public function write(string $path = 'bootstrap/cache/commands.php'): string
-    {
+    public function write(
+        string $path = 'bootstrap/cache/commands.php',
+        ?CommandRegistry $registry = null,
+    ): string {
         $path = $this->absolute($path);
         $directory = dirname($path);
         if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
             throw new \RuntimeException(sprintf('Unable to create command cache directory "%s".', $directory));
         }
 
-        $payload = [];
-        foreach ($this->catalog->all() as $name => $definition) {
-            $payload[$name] = [
-                'description' => $definition->description,
-                'group' => $definition->group,
-                'runtime' => $definition->runtime->value,
-                'capabilities' => $definition->capabilities,
-            ];
-        }
+        $payload = ($registry ?? $this->registry())->toManifest();
         $temporary = tempnam($directory, '.commands-');
         if ($temporary === false) {
             throw new \RuntimeException('Unable to create command cache staging file.');
@@ -67,5 +58,23 @@ final readonly class CommandCacheManager
         return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1
             ? $path
             : $this->application->basePath(trim($path, DIRECTORY_SEPARATOR));
+    }
+
+    private function registry(): CommandRegistry
+    {
+        $path = $this->application->routesPath('console.php');
+        if (!is_file($path)) {
+            return new CommandRegistry();
+        }
+
+        $commands = require $path;
+        if (!is_array($commands)) {
+            throw new \UnexpectedValueException(sprintf(
+                'Command route file "%s" must return a command map.',
+                $path,
+            ));
+        }
+
+        return new CommandRegistry($commands);
     }
 }
