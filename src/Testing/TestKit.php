@@ -10,7 +10,8 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Auth\AuthServices;
 use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Cache\CacheManager;
-use Infocyph\Foundation\Database\DatabaseManager;
+use Infocyph\Foundation\Database\DatabaseMigrationManager;
+use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Session\SessionManager;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Omnibus\Event\EventDispatcher;
@@ -41,7 +42,10 @@ final readonly class TestKit
 
     public function database(): DatabaseTestManager
     {
-        return new DatabaseTestManager($this->application->make(DatabaseManager::class));
+        return new DatabaseTestManager(
+            $this->application->make(DBLayerFactory::class),
+            $this->application->make(DatabaseMigrationManager::class),
+        );
     }
 
     public function fakeCache(?CacheInterface $store = null, ?string $name = null): CacheInterface
