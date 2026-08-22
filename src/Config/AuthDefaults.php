@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Config;
 
+use Infocyph\ArrayKit\Config\Support\Environment;
+
 final class AuthDefaults
 {
     /**
@@ -94,7 +96,7 @@ final class AuthDefaults
                 'refresh_token_ttl' => 1209600,
                 'remember_me_ttl' => 2592000,
                 'session_ttl' => 3600,
-                'token_secret' => null,
+                'token_secret' => Environment::get('AUTH_TOKEN_SECRET'),
             ],
         ];
     }
