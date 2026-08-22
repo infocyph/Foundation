@@ -283,7 +283,9 @@ final readonly class ScheduleManager
                     new ProcessOptions(
                         cwd: $this->application->basePath(),
                         timeoutSeconds: $entry->timeoutSeconds(),
-                        interactive: true,
+                        interactive: false,
+                        captureOutput: false,
+                        passthrough: true,
                     ),
                 ),
                 [ScheduledCommand::class => $entry],
