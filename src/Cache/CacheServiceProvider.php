@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Cache;
 
+use Infocyph\CacheLayer\Cache\AuthenticationStateCacheInterface;
 use Infocyph\CacheLayer\Cache\Cache;
 use Infocyph\CacheLayer\Cache\CacheInterface;
 use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
@@ -47,6 +48,18 @@ final class CacheServiceProvider extends ServiceProvider
             $container,
             CacheInterface::class,
             fn() => $app->make(CacheManager::class)->store(),
+            LifetimeEnum::Singleton,
+        );
+        $this->bindFactory(
+            $container,
+            Cache::class,
+            fn() => $app->make(CacheInterface::class),
+            LifetimeEnum::Singleton,
+        );
+        $this->bindFactory(
+            $container,
+            AuthenticationStateCacheInterface::class,
+            fn() => $app->make(CacheInterface::class),
             LifetimeEnum::Singleton,
         );
         $this->bindFactory(
