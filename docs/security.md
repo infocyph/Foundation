@@ -106,6 +106,15 @@ application filesystem/configuration workflow. It creates or rotates
 restricted temporary file, atomically renames it, applies `0600` permissions,
 and invalidates the compiled configuration cache.
 
+`auth.token_secret` remains an explicit application override, but Foundation
+does not copy `AUTH_TOKEN_SECRET` into its default or compiled configuration.
+The auth secret resolver reads the process environment when the token service
+is actually resolved. If a compiled configuration skipped normal `.env`
+hydration, it lazily invokes Foundation's ArrayKit-backed `EnvironmentLoader`
+at that point. Production readiness uses the same lookup rule. Consequently,
+config caches do not contain the token secret and unrelated cached requests do
+not pay for an additional environment-file parse.
+
 The random-byte primitive used to generate the secret is native PHP; no wrapper
 is introduced solely to call `random_bytes()`.
 
