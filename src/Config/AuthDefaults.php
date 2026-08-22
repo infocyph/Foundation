@@ -45,7 +45,6 @@ final class AuthDefaults
                     'window_seconds' => 900,
                 ],
                 'otp' => [
-                    'freshness_window' => 900,
                     'issuer' => 'Foundation',
                     'hotp' => [
                         'look_ahead' => 5,
