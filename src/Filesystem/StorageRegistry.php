@@ -110,6 +110,9 @@ final class StorageRegistry
 
     public function localPath(string $path = '', ?string $disk = null): string
     {
+        if ($path !== '' && PathHelper::hasScheme($path)) {
+            throw new \InvalidArgumentException('A local filesystem path cannot use a mounted filesystem scheme.');
+        }
         if ($path !== '' && PathHelper::isAbsolute($path)) {
             return PathHelper::normalize($path);
         }
