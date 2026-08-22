@@ -17,6 +17,32 @@ receive Foundation's configured default DBLayer connection directly. Use
 `Infocyph\DBLayer\DB` or the connection's native query/repository APIs rather
 than a second Foundation database facade.
 
+## Foundation authentication schema
+
+Foundation authentication owns a small built-in DBLayer migration manifest for
+its optional durable auth stores:
+
+```bash
+php infbyte auth:schema:install
+php infbyte auth:schema:status
+```
+
+Foundation 2.0 MFA factors include a scalar `revision` column used for portable
+compare-and-swap updates. Fresh auth schemas create the column with revision
+zero. Existing auth schemas are upgraded by:
+
+```text
+20260822000000_foundation_auth_mfa_revision
+```
+
+The revision is the synchronization token for HOTP/OCRA counters and OTP
+recovery-code state. JSON metadata remains payload and is never compared in SQL,
+so the concurrency path is portable across MySQL, MariaDB, PostgreSQL, SQL
+Server, and SQLite.
+
+`auth:schema:status` reports both missing tables and required columns. An older
+auth schema without `mfa_factors.revision` is therefore not reported as ready.
+
 ## Explicit migration manifest
 
 Register ordered migration classes:
