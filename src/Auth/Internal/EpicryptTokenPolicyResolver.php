@@ -7,7 +7,6 @@ namespace Infocyph\Foundation\Auth\Internal;
 use Infocyph\Epicrypt\Token\Jwt\Enum\SymmetricJwtAlgorithm;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Exception\ConfigurationException;
-use Infocyph\Foundation\Support\ValueNormalizer;
 
 final readonly class EpicryptTokenPolicyResolver
 {
@@ -38,18 +37,12 @@ final readonly class EpicryptTokenPolicyResolver
 
     public function leewaySeconds(): int
     {
-        $value = $this->app->config()->get('security.jwt.leeway_seconds', 0);
-
-        return max(0, is_numeric($value) ? (int) $value : 0);
+        return $this->nonNegativeInt('leeway_seconds', 0);
     }
 
     public function maximumLifetimeSeconds(): int
     {
-        $value = $this->app->config()->get('security.jwt.maximum_lifetime_seconds', 1209600);
-
-        return is_numeric($value) && (int) $value > 0
-            ? (int) $value
-            : 1209600;
+        return $this->positiveInt('maximum_lifetime_seconds', 1209600);
     }
 
     public function minimumKeyBytes(): int
@@ -61,16 +54,42 @@ final readonly class EpicryptTokenPolicyResolver
         };
     }
 
+    private function nonNegativeInt(string $key, int $default): int
+    {
+        $value = $this->app->config()->get('security.jwt.' . $key, $default);
+        if (is_int($value) && $value >= 0) {
+            return $value;
+        }
+        if (is_string($value) && preg_match('/^(?:0|[1-9]\d*)$/D', $value) === 1) {
+            return (int) $value;
+        }
+
+        throw new ConfigurationException(sprintf('security.jwt.%s must be a non-negative integer.', $key));
+    }
+
+    private function positiveInt(string $key, int $default): int
+    {
+        $value = $this->app->config()->get('security.jwt.' . $key, $default);
+        if (is_int($value) && $value > 0) {
+            return $value;
+        }
+        if (is_string($value) && preg_match('/^[1-9]\d*$/D', $value) === 1) {
+            return (int) $value;
+        }
+
+        throw new ConfigurationException(sprintf('security.jwt.%s must be a positive integer.', $key));
+    }
+
     private function requiredValue(string $key): string
     {
-        $value = ValueNormalizer::nullableString($this->app->config()->get('security.jwt.' . $key));
-        if ($value === null) {
+        $value = $this->app->config()->get('security.jwt.' . $key);
+        if (!is_string($value) || trim($value) === '') {
             throw new ConfigurationException(sprintf(
                 'security.jwt.%s must be configured when auth.drivers.tokens is "security".',
                 $key,
             ));
         }
 
-        return $value;
+        return trim($value);
     }
 }
