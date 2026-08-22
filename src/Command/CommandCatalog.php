@@ -158,7 +158,7 @@ final class CommandCatalog
             $connection(new CommandDefinition('session:schema:install', 'Install session persistence schema.', 'Sessions', capabilities: ['db'])),
             $connection(new CommandDefinition('session:schema:status', 'Show session schema status.', 'Sessions', capabilities: ['db'])),
 
-            new CommandDefinition('storage:link', 'Create configured public storage links.', 'Storage'),
+            new CommandDefinition('storage:link', 'Create configured public storage links.', 'Storage', capabilities: ['filesystem']),
 
             new CommandDefinition('worker:list', 'List configured workers.', 'Workers'),
             (new CommandDefinition('worker:run', 'Run a persistent worker.', 'Workers', RuntimeMode::Worker))
