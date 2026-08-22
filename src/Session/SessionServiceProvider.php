@@ -20,10 +20,12 @@ final class SessionServiceProvider extends ServiceProvider
     {
         $container = $app->container();
 
-        $this->bindFactory($container, SessionConfig::class, fn() => SessionConfig::fromRepository(
-            $app->config(),
-            $app->sessionsPath(),
-        ), LifetimeEnum::Singleton);
+        $this->bindFactory($container, SessionConfig::class, function () use ($app): SessionConfig {
+            $config = SessionConfig::fromRepository($app->config(), $app->sessionsPath());
+            new SessionTopologyGuard($app->config())->assert($config);
+
+            return $config;
+        }, LifetimeEnum::Singleton);
         $this->bindFactory($container, SessionStoreFactory::class, fn() => new SessionStoreFactory(
             $app,
             $app->make(SessionConfig::class),
