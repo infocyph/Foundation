@@ -47,12 +47,15 @@ return [
     |--------------------------------------------------------------------------
     |
     | These values are consumed only when auth.drivers.tokens is "security".
-    | Epicrypt owns JWT encoding, signing, parsing, validation, clocks, and
-    | cryptographic primitives. Foundation supplies application issuer/audience
-    | policy and converts verified claims to its authentication contracts.
+    | Algorithm accepts HS256, HS384, or HS512. HS256 is the default so the
+    | Foundation production minimum of a 32-byte auth token secret is valid.
+    | HS384 and HS512 require correspondingly larger raw secrets as enforced by
+    | Epicrypt. Foundation supplies issuer/audience/lifetime policy while
+    | Epicrypt owns JWT encoding, signing, parsing, and verification.
     |
     */
     'jwt' => [
+        'algorithm' => $envString('SECURITY_JWT_ALGORITHM', 'HS256'),
         'audience' => $env('SECURITY_JWT_AUDIENCE'),
         'issuer' => $env('SECURITY_JWT_ISSUER'),
         'maximum_lifetime_seconds' => $envInt('SECURITY_JWT_MAXIMUM_LIFETIME_SECONDS', 1209600),
