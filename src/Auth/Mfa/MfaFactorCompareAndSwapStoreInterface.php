@@ -7,11 +7,12 @@ namespace Infocyph\Foundation\Auth\Mfa;
 interface MfaFactorCompareAndSwapStoreInterface extends MfaFactorStoreInterface
 {
     /**
-     * Atomically create or update a factor.
+     * Atomically create or replace one factor.
      *
-     * A null expected value means create only when the factor ID does not
-     * already exist. A non-null expected value means replace only when the
-     * persisted state still equals that exact expected factor.
+     * A null expected value creates only when the factor ID is absent and the
+     * new factor has revision zero. A non-null expected value replaces only
+     * when the persisted factor still has the expected revision; the updated
+     * factor must carry exactly the next revision.
      */
     public function compareAndSwap(?MfaFactor $expected, MfaFactor $updated): bool;
 }
