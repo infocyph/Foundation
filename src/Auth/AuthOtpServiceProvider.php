@@ -6,7 +6,6 @@ namespace Infocyph\Foundation\Auth;
 
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
-use Infocyph\Foundation\Auth\Adapter\Otp\OtpProvisioningService;
 use Infocyph\Foundation\Auth\Internal\AuthMfaRegistrar;
 use Infocyph\Foundation\Auth\Internal\AuthSecretResolver;
 use Infocyph\OTP\TOTP;
@@ -15,9 +14,6 @@ final class AuthOtpServiceProvider extends ServiceProvider
 {
     public function register(Application $app): void
     {
-        if ($this->hasExplicitBinding($app->container(), OtpProvisioningService::class)) {
-            return;
-        }
         if (!class_exists(TOTP::class)) {
             throw new \LogicException(
                 'Foundation OTP services require infocyph/otp; run "php infbyte module:install otp".',
