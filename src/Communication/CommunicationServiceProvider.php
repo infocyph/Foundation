@@ -8,6 +8,7 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\TalkingBytes\Grpc\GrpcInboundDispatcher;
+use Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundHandlerInterface;
 use Infocyph\TalkingBytes\Http\HttpClient;
 use Infocyph\TalkingBytes\Http\HttpClientConfig;
 use Infocyph\TalkingBytes\Webhook\WebhookReceiver;
@@ -76,8 +77,8 @@ final class CommunicationServiceProvider extends ServiceProvider
             $this->bindFactory(
                 $container,
                 GrpcInboundDispatcher::class,
-                fn(): GrpcInboundDispatcher => $app->make(CommunicationProfiles::class)->grpcInbound(),
-                LifetimeEnum::Singleton,
+                fn(): GrpcInboundDispatcher => $this->grpcInboundDispatcher($app),
+                LifetimeEnum::Scoped,
             );
         }
 
@@ -87,5 +88,44 @@ final class CommunicationServiceProvider extends ServiceProvider
             fn() => $app->make(CommunicationProfiles::class),
             LifetimeEnum::Singleton,
         );
+    }
+
+    private function grpcInboundDispatcher(Application $app): GrpcInboundDispatcher
+    {
+        $configured = $app->config()->get('communication.grpc.inbound.handlers', []);
+        if (!is_array($configured)) {
+            throw new \InvalidArgumentException(
+                'communication.grpc.inbound.handlers must be a method-to-service map.',
+            );
+        }
+
+        $handlers = [];
+        foreach ($configured as $method => $service) {
+            if (!is_string($method) || trim($method) === '' || !is_string($service) || trim($service) === '') {
+                throw new \InvalidArgumentException(
+                    'communication.grpc.inbound.handlers must map non-empty method names to service identifiers.',
+                );
+            }
+
+            $handler = $app->make($service);
+            if ($handler instanceof GrpcInboundHandlerInterface) {
+                $handlers[$method] = $handler->handle(...);
+
+                continue;
+            }
+            if (is_callable($handler)) {
+                $handlers[$method] = $handler;
+
+                continue;
+            }
+
+            throw new \InvalidArgumentException(sprintf(
+                'Configured gRPC handler service "%s" must be callable or implement %s.',
+                $service,
+                GrpcInboundHandlerInterface::class,
+            ));
+        }
+
+        return $app->make(CommunicationProfiles::class)->grpcInbound($handlers);
     }
 }
