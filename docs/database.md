@@ -6,10 +6,16 @@ Install DBLayer and publish `config/database.php`:
 php infbyte module:install db
 ```
 
-The template contains separate MySQL/MariaDB, PostgreSQL, and SQLite examples
-using only keys supported by that driver. Foundation passes the selected
-connection policy to DBLayer; it does not normalize SQL or maintain a second
-schema grammar.
+The template publishes first-class MySQL, MariaDB, PostgreSQL, Microsoft SQL
+Server, and SQLite connection examples using only settings supported by each
+DBLayer 4.1 driver. Foundation selects application connection names and resolves
+application-relative SQLite paths; DBLayer owns connection validation, SQL,
+replicas, pooling, transactions, query caching, telemetry, and schema behavior.
+
+Application services may type-hint `Infocyph\DBLayer\Connection\Connection` to
+receive Foundation's configured default DBLayer connection directly. Use
+`Infocyph\DBLayer\DB` or the connection's native query/repository APIs rather
+than a second Foundation database facade.
 
 ## Explicit migration manifest
 
@@ -59,8 +65,8 @@ php infbyte migrate:fresh --force=true
 
 Destructive operations require explicit `--force=true`. If `lock_store` is
 null, no distributed lock is used. Otherwise Foundation requests the named
-CacheLayer lock provider; the backend may be file, Redis, Valkey, Memcached,
-PDO, or SQLite according to CacheLayer configuration.
+CacheLayer lock provider; the backend may be file, Redis, Valkey, Memcached, or
+PDO according to CacheLayer configuration.
 
 ## Seeders
 
@@ -85,18 +91,20 @@ php infbyte db:table users
 php infbyte db:table reporting.events --connection=reporting
 ```
 
-`db:table` reports columns, indexes, and foreign keys using read-only metadata
-queries for DBLayer's SQLite, MySQL/MariaDB, and PostgreSQL drivers. Identifiers
-are validated before interpolation. These commands connect to the database only
-when selected and do not participate in web bootstrap.
+Inspection commands are Foundation application tooling; actual connection and
+schema operations are delegated to DBLayer. These commands connect only when
+selected and do not participate in web bootstrap.
 
 ## Testing
 
 ```php
-$db = $app->testing()->database();
+use Infocyph\DBLayer\Connection\Connection;
 
-$result = $db->transaction(function () use ($app) {
-    return $app->db()->repository('accounts')->create([...]);
+$db = $app->testing()->database();
+$connection = $app->make(Connection::class);
+
+$result = $db->transaction(function () use ($connection) {
+    return $connection->table('accounts')->insert([...]);
 });
 
 $db->refresh();
@@ -104,3 +112,8 @@ $db->refresh();
 
 `transaction()` always rolls back in `finally`. `refresh()` explicitly
 authorizes DBLayer's destructive refresh and reruns the registered migrations.
+
+In persistent web, worker, or scheduler runtimes, every DBLayer connection
+resolved by Foundation participates in the execution boundary cleanup. Shared
+connections are sanitized for reuse, while `fresh=true` connections are tracked
+and reset independently.
