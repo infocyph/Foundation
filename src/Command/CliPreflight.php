@@ -8,6 +8,13 @@ use Composer\InstalledVersions;
 
 final readonly class CliPreflight
 {
+    /** @var array<string, string> */
+    private const array SPECIAL_COMMANDS = [
+        'list' => 'List available commands.',
+        'help' => 'Show help for a command.',
+        'completion' => 'Generate Bash, Zsh, or Fish completion output.',
+    ];
+
     public function __construct(private CommandRegistry $registry = new CommandRegistry()) {}
 
     /**
@@ -74,6 +81,10 @@ final readonly class CliPreflight
 
     private function helpName(string $name, CommandIO $io): int
     {
+        if (isset(self::SPECIAL_COMMANDS[$name])) {
+            return $this->specialHelp($name, $io);
+        }
+
         $descriptor = $this->registry->find($name);
         if ($descriptor === null || $descriptor->definition->isHidden()) {
             $io->error(sprintf('Command "%s" is not defined.', $name));
@@ -130,6 +141,12 @@ final readonly class CliPreflight
 
     private function list(CommandIO $io): int
     {
+        $io->writeln('Meta:');
+        foreach (self::SPECIAL_COMMANDS as $name => $description) {
+            $io->writeln(sprintf('  %-28s %s', $name, $description));
+        }
+        $io->writeln();
+
         $groups = [];
         foreach ($this->registry->visible() as $descriptor) {
             $definition = $descriptor->definition;
@@ -157,17 +174,37 @@ final readonly class CliPreflight
         return ExitCode::SUCCESS;
     }
 
+    private function specialHelp(string $name, CommandIO $io): int
+    {
+        $io->writeln($name . ' - ' . self::SPECIAL_COMMANDS[$name]);
+        $io->writeln('Runtime: preflight (no application boot)');
+        $usage = match ($name) {
+            'list' => 'infbyte list',
+            'help' => 'infbyte help [command]',
+            'completion' => 'infbyte completion [bash|zsh|fish]',
+        };
+        $io->writeln('Usage: ' . $usage);
+
+        return ExitCode::SUCCESS;
+    }
+
     private function suggest(string $name, CommandIO $io): void
     {
         $suggestions = $this->registry->suggestions($name);
+        foreach (array_keys(self::SPECIAL_COMMANDS) as $special) {
+            if (levenshtein(strtolower($name), $special) <= 2) {
+                $suggestions[] = $special;
+            }
+        }
+        $suggestions = array_values(array_unique($suggestions));
         if ($suggestions !== []) {
-            $io->error('Did you mean: ' . implode(', ', $suggestions) . '?');
+            $io->error('Did you mean: ' . implode(', ', array_slice($suggestions, 0, 3)) . '?');
         }
     }
 
     private function usage(CommandDefinition $definition): string
     {
-        $parts = ['php infbyte', $definition->commandName()];
+        $parts = ['infbyte', $definition->commandName()];
         if ($definition->options() !== []) {
             $parts[] = '[options]';
         }
