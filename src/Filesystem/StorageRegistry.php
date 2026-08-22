@@ -20,31 +20,37 @@ use League\Flysystem\FilesystemOperator;
  */
 final class StorageRegistry
 {
+    /** @var array<string, array<string, mixed>> */
+    private readonly array $configurations;
+
+    private readonly string $defaultDisk;
+
     /** @var array<string, FilesystemOperator> */
     private array $filesystems = [];
 
     private bool $initialized = false;
 
     public function __construct(
-        private readonly ConfigRepository $config,
+        ConfigRepository $config,
         private readonly PathManager $paths,
-    ) {}
-
-    public function defaultDisk(): string
-    {
-        $configured = $this->config->get('filesystem.default', 'local');
-        $disk = is_string($configured) && trim($configured) !== ''
+    ) {
+        $this->configurations = $this->loadConfigurations($config);
+        $configured = $config->get('filesystem.default', 'local');
+        $this->defaultDisk = is_string($configured) && trim($configured) !== ''
             ? $this->normalizeDiskName($configured)
             : 'local';
 
-        if (!array_key_exists($disk, $this->configurations())) {
+        if (!isset($this->configurations[$this->defaultDisk])) {
             throw new \InvalidArgumentException(sprintf(
                 'Default filesystem disk "%s" is not configured.',
-                $disk,
+                $this->defaultDisk,
             ));
         }
+    }
 
-        return $disk;
+    public function defaultDisk(): string
+    {
+        return $this->defaultDisk;
     }
 
     public function disk(?string $name = null): FilesystemOperator
@@ -61,7 +67,7 @@ final class StorageRegistry
     /** @return list<string> */
     public function disks(): array
     {
-        return array_keys($this->configurations());
+        return array_keys($this->configurations);
     }
 
     /** @return array<string, mixed> */
@@ -69,7 +75,7 @@ final class StorageRegistry
     {
         $disk = $this->resolveDisk($name);
 
-        return $this->configurations()[$disk] ?? throw new \InvalidArgumentException(sprintf(
+        return $this->configurations[$disk] ?? throw new \InvalidArgumentException(sprintf(
             'Filesystem disk "%s" is not configured.',
             $disk,
         ));
@@ -82,27 +88,16 @@ final class StorageRegistry
         }
 
         $prepared = [];
-        foreach ($this->configurations() as $disk => $configuration) {
+        foreach ($this->configurations as $disk => $configuration) {
             $prepared[$disk] = PathwiseFacade::createFilesystem(
                 $this->normalizeFilesystemConfig($configuration),
             );
         }
 
-        $default = $this->defaultDisk();
-        if (!isset($prepared[$default])) {
-            throw new \InvalidArgumentException(sprintf(
-                'Default filesystem disk "%s" is not configured.',
-                $default,
-            ));
-        }
-
-        // Replace only Foundation-owned mount names. Do not reset Pathwise's
-        // process-wide registry because applications may register independent
-        // Pathwise mounts outside Foundation.
         foreach ($prepared as $disk => $filesystem) {
             FlysystemHelper::replaceMount($disk, $filesystem);
         }
-        FlysystemHelper::setDefaultFilesystem($prepared[$default]);
+        FlysystemHelper::setDefaultFilesystem($prepared[$this->defaultDisk]);
 
         $this->filesystems = $prepared;
         $this->initialized = true;
@@ -167,14 +162,22 @@ final class StorageRegistry
     public function resolveDisk(?string $name): string
     {
         $candidate = trim($name ?? '');
+        $disk = $candidate === '' ? $this->defaultDisk : $this->normalizeDiskName($candidate);
 
-        return $candidate === '' ? $this->defaultDisk() : $this->normalizeDiskName($candidate);
+        if (!isset($this->configurations[$disk])) {
+            throw new \InvalidArgumentException(sprintf(
+                'Filesystem disk "%s" is not configured.',
+                $disk,
+            ));
+        }
+
+        return $disk;
     }
 
     /** @return array<string, array<string, mixed>> */
-    private function configurations(): array
+    private function loadConfigurations(ConfigRepository $config): array
     {
-        $configured = $this->config->get('filesystem.disks', []);
+        $configured = $config->get('filesystem.disks', []);
         if (!is_array($configured)) {
             throw new \InvalidArgumentException('filesystem.disks must be an associative disk map.');
         }
