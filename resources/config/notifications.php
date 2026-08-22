@@ -146,7 +146,7 @@ return [
             ],
             'spool' => [
                 'driver' => 'spool',
-                'directory' => env('NOTIFICATIONS_EMAIL_OUTBOUND_SPOOL_DIRECTORY', storage_path('mail/outbound')),
+                'directory' => env('NOTIFICATIONS_EMAIL_OUTBOUND_SPOOL_DIRECTORY', 'storage/mail/outbound'),
                 'processingDirectory' => env('NOTIFICATIONS_EMAIL_OUTBOUND_SPOOL_PROCESSING_DIRECTORY'),
                 'writeMetadata' => env('NOTIFICATIONS_EMAIL_OUTBOUND_SPOOL_WRITE_METADATA', true),
                 'extension' => env('NOTIFICATIONS_EMAIL_OUTBOUND_SPOOL_EXTENSION', 'eml'),
@@ -184,8 +184,8 @@ return [
         'receivers' => [
             'spool' => [
                 'default' => [
-                    'directory' => env('NOTIFICATIONS_EMAIL_SPOOL_DIRECTORY', storage_path('mail/inbound')),
-                    'processingDirectory' => env('NOTIFICATIONS_EMAIL_SPOOL_PROCESSING_DIRECTORY', storage_path('mail/processing')),
+                    'directory' => env('NOTIFICATIONS_EMAIL_SPOOL_DIRECTORY', 'storage/mail/inbound'),
+                    'processingDirectory' => env('NOTIFICATIONS_EMAIL_SPOOL_PROCESSING_DIRECTORY', 'storage/mail/processing'),
                     'writeMetadata' => env('NOTIFICATIONS_EMAIL_SPOOL_WRITE_METADATA', true),
                     'extension' => env('NOTIFICATIONS_EMAIL_SPOOL_EXTENSION', 'eml'),
                     'lockBeforeRead' => env('NOTIFICATIONS_EMAIL_SPOOL_LOCK_BEFORE_READ', false),
@@ -194,8 +194,8 @@ return [
                     'newerThanSeconds' => env('NOTIFICATIONS_EMAIL_SPOOL_NEWER_THAN_SECONDS'),
                     'maxMessageBytes' => env('NOTIFICATIONS_EMAIL_SPOOL_MAX_MESSAGE_BYTES'),
                     'deleteAfterRead' => env('NOTIFICATIONS_EMAIL_SPOOL_DELETE_AFTER_READ', false),
-                    'moveAfterRead' => env('NOTIFICATIONS_EMAIL_SPOOL_MOVE_AFTER_READ', storage_path('mail/processed')),
-                    'failedDirectory' => env('NOTIFICATIONS_EMAIL_SPOOL_FAILED_DIRECTORY', storage_path('mail/failed')),
+                    'moveAfterRead' => env('NOTIFICATIONS_EMAIL_SPOOL_MOVE_AFTER_READ', 'storage/mail/processed'),
+                    'failedDirectory' => env('NOTIFICATIONS_EMAIL_SPOOL_FAILED_DIRECTORY', 'storage/mail/failed'),
                 ],
             ],
         ],
