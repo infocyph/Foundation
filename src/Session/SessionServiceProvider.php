@@ -8,7 +8,7 @@ use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Cache\CacheLayerFactory;
-use Infocyph\Foundation\Database\DatabaseManager;
+use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Runtime\RuntimeContextTracker;
 use Infocyph\Foundation\Session\Middleware\CsrfMiddleware;
 use Infocyph\Foundation\Session\Middleware\SessionMiddleware;
@@ -32,7 +32,7 @@ final class SessionServiceProvider extends ServiceProvider
         ), LifetimeEnum::Singleton);
         $this->bindFactory($container, SessionDatabaseSchema::class, fn() => new SessionDatabaseSchema(
             $app->make(SessionConfig::class),
-            fn(): DatabaseManager => $app->make(DatabaseManager::class),
+            $app->make(DBLayerFactory::class),
         ), LifetimeEnum::Singleton);
         $this->bindFactory($container, SessionManager::class, fn() => new SessionManager(
             $app->make(SessionConfig::class),
