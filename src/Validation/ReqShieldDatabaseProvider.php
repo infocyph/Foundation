@@ -67,7 +67,7 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
      */
     public function batchUnique(string $table, array $checks): array
     {
-        /** @var array<string, array{checks:list<array{identifier:int|string,value:mixed}>,column:string,id_column:string,ignore_id:?int,soft_delete_column:string,with_trashed:bool}> $grouped */
+        /** @var array<string, array{checks:list<array{identifier:int|string,value:mixed}>,column:string,id_column:string,ignore_id:int|string|null,soft_delete_column:string,with_trashed:bool}> $grouped */
         $grouped = [];
         foreach ($checks as $key => $check) {
             $this->addUniqueCheck($grouped, $key, $check);
@@ -104,7 +104,7 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
     }
 
     /**
-     * @param array<string, array{checks:list<array{identifier:int|string,value:mixed}>,column:string,id_column:string,ignore_id:?int,soft_delete_column:string,with_trashed:bool}> $grouped
+     * @param array<string, array{checks:list<array{identifier:int|string,value:mixed}>,column:string,id_column:string,ignore_id:int|string|null,soft_delete_column:string,with_trashed:bool}> $grouped
      */
     private function addUniqueCheck(array &$grouped, int|string $key, mixed $check): void
     {
@@ -143,6 +143,11 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
 
     private function identifier(mixed $value, int|string $fallback): int|string
     {
+        return $this->databaseIdentifier($value) ?? $fallback;
+    }
+
+    private function databaseIdentifier(mixed $value): int|string|null
+    {
         if (is_int($value) || is_string($value)) {
             return $value;
         }
@@ -153,16 +158,7 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
             return (string) $value;
         }
 
-        return $fallback;
-    }
-
-    private function intValue(mixed $value): ?int
-    {
-        if (is_int($value)) {
-            return $value;
-        }
-
-        return is_numeric($value) ? (int) $value : null;
+        return null;
     }
 
     /**
@@ -232,7 +228,7 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
         return '';
     }
 
-    /** @return array{0:string,1:mixed,2:int|string,3:?int,4:string,5:bool,6:string} */
+    /** @return array{0:string,1:mixed,2:int|string,3:int|string|null,4:string,5:bool,6:string} */
     private function uniqueCheck(int|string $key, mixed $check): array
     {
         if (!is_array($check)) {
@@ -245,7 +241,7 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
             $this->stringValue($check['column'] ?? null),
             $value,
             $this->identifier($check['id'] ?? $check['field'] ?? $value, $key),
-            $this->intValue($check['ignore'] ?? null),
+            $this->databaseIdentifier($check['ignore'] ?? null),
             $this->stringValue($check['id_column'] ?? 'id') ?: 'id',
             ($check['include_trashed'] ?? true) === true,
             $this->stringValue($check['soft_delete_column'] ?? 'deleted_at') ?: 'deleted_at',
