@@ -19,8 +19,8 @@ final class CommandDispatcher
 
     /**
      * Build the CLI surface without constructing Foundation Application.
-     * A valid, fresh scalar command manifest wins over routes/console.php.
-     * Invalid or stale manifests fall back to the source route file.
+     * A valid scalar command manifest wins over routes/console.php. Invalid or
+     * incompatible manifests fall back to the source route file.
      *
      * @param array<string, mixed> $config
      */
@@ -40,7 +40,7 @@ final class CommandDispatcher
         if (is_file($manifestPath)) {
             try {
                 $manifest = require $manifestPath;
-                if (is_array($manifest) && self::manifestFresh($manifest, $routesPath)) {
+                if (is_array($manifest)) {
                     return new self($config, CommandRegistry::fromManifest($manifest));
                 }
             } catch (\Throwable) {
@@ -148,81 +148,5 @@ final class CommandDispatcher
             RuntimeMode::Web => Foundation::web($config),
             RuntimeMode::Worker => Foundation::worker($config),
         };
-    }
-
-    /** @param array<string, mixed> $manifest */
-    private static function manifestFresh(array $manifest, string $routesPath): bool
-    {
-        $framework = $manifest['foundation_sha256'] ?? null;
-        if (!is_string($framework)
-            || preg_match('/^[a-f0-9]{64}$/D', $framework) !== 1
-            || !hash_equals($framework, CommandCacheManager::frameworkFingerprint())
-        ) {
-            return false;
-        }
-
-        $source = $manifest['source'] ?? null;
-        if (!is_array($source)
-            || !is_bool($source['exists'] ?? null)
-            || !self::handlersFresh($manifest, $source['handlers'] ?? null)
-        ) {
-            return false;
-        }
-
-        $exists = is_file($routesPath);
-        if ($source['exists'] !== $exists) {
-            return false;
-        }
-        if (!$exists) {
-            return ($source['sha256'] ?? null) === null;
-        }
-
-        $expected = $source['sha256'] ?? null;
-        if (!is_string($expected) || preg_match('/^[a-f0-9]{64}$/D', $expected) !== 1) {
-            return false;
-        }
-
-        $actual = hash_file('sha256', $routesPath);
-
-        return is_string($actual) && hash_equals($expected, $actual);
-    }
-
-    /** @param array<string, mixed> $manifest */
-    private static function handlersFresh(array $manifest, mixed $fingerprints): bool
-    {
-        if (!is_array($fingerprints)) {
-            return false;
-        }
-
-        $expected = [];
-        foreach ($manifest['commands'] ?? [] as $metadata) {
-            if (!is_array($metadata) || ($metadata['system'] ?? false) === true) {
-                continue;
-            }
-            $handler = $metadata['handler'] ?? null;
-            if (!is_string($handler) || $handler === '') {
-                return false;
-            }
-            $expected[$handler] = true;
-        }
-
-        if (array_diff_key($expected, $fingerprints) !== [] || array_diff_key($fingerprints, $expected) !== []) {
-            return false;
-        }
-
-        foreach ($fingerprints as $handler => $hash) {
-            if (!is_string($handler)
-                || !is_string($hash)
-                || preg_match('/^[a-f0-9]{64}$/D', $hash) !== 1
-            ) {
-                return false;
-            }
-            $actual = CommandCacheManager::handlerFingerprint($handler);
-            if ($actual === null || !hash_equals($hash, $actual)) {
-                return false;
-            }
-        }
-
-        return true;
     }
 }
