@@ -5,17 +5,17 @@
     "type": "library",
     "require": {
         "php": "^8.4",
-        "infocyph/arraykit": "^5.1",
+        "infocyph/arraykit": "^5.1.1",
         "infocyph/intermix": "^9.1",
         "infocyph/uid": "^5.0",
         "infocyph/webrick": "^4.0.1",
         "psr/log": "^3.0.2"
     },
     "require-dev": {
-        "infocyph/cachelayer": "^3.1.2",
-        "infocyph/dblayer": "^4.0",
+        "infocyph/cachelayer": "^3.1.3",
+        "infocyph/dblayer": "^4.1",
         "infocyph/epicrypt": "^2.1",
-        "infocyph/omnibus": "^2.1.1",
+        "infocyph/omnibus": "dev-main@dev",
         "infocyph/otp": "^6.0",
         "infocyph/pathwise": "^3.1",
         "infocyph/phpforge": "dev-main@dev",
@@ -24,14 +24,14 @@
         "web-auth/webauthn-lib": "^5.3.5"
     },
     "suggest": {
-        "infocyph/cachelayer": "Adds cache stores, locks, counters, and CacheLayer-backed authentication state.",
-        "infocyph/dblayer": "Adds database services, persistence, migrations, and database-backed authentication.",
+        "infocyph/cachelayer": "Adds cache stores, native bulk paths, locks, counters, node/cluster cache, and shared authentication/runtime state.",
+        "infocyph/dblayer": "Adds database services, persistence, migrations, query caching, replicas, and MySQL/MariaDB/PostgreSQL/SQLite/SQL Server support.",
         "infocyph/epicrypt": "Adds cryptography, secrets, password, token, and key security services.",
-        "infocyph/omnibus": "Adds events, messages, queues, retries, workflows, and scheduled-message dispatch.",
-        "infocyph/otp": "Adds OTP-backed multi-factor authentication with replay-safe state integration.",
-        "infocyph/pathwise": "Adds filesystem, storage, upload, download, archive, and sync capabilities.",
-        "infocyph/reqshield": "Adds request, command, configuration, and database validation services.",
-        "infocyph/talkingbytes": "Adds HTTP, email, webhook, and gRPC communication services.",
+        "infocyph/omnibus": "Adds events, messages, durable queues, workers, optional process pools, retries, workflows, and scheduled-message dispatch.",
+        "infocyph/otp": "Adds OTP-backed multi-factor authentication with atomic replay-safe state integration.",
+        "infocyph/pathwise": "Adds filesystem, storage, upload, download, archive, sync, retention, and storage capability enforcement.",
+        "infocyph/reqshield": "Adds request, command, configuration, schema, sanitization, typed input, and database validation services.",
+        "infocyph/talkingbytes": "Adds HTTP, inbound/outbound email, webhook, and gRPC communication services.",
         "web-auth/webauthn-lib": "Adds WebAuthn passkey authentication."
     },
     "minimum-stability": "stable",
