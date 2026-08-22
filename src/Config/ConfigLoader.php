@@ -31,7 +31,6 @@ final class ConfigLoader
         new EnvironmentLoader()->load($basePath, $normalized);
 
         $configDirectory = $this->configPath($basePath, $normalized);
-        $sourceFingerprint = $this->sourceFingerprint($configDirectory, $basePath);
         $cacheDirectory = $this->configCacheEnabled($cacheControl)
             ? $this->configuredCachePath($cacheControl, $basePath)
             : null;
@@ -39,7 +38,7 @@ final class ConfigLoader
 
         $cached = $cacheDirectory === null
             ? null
-            : $this->loadCacheManifest($cacheDirectory, $sourceFingerprint);
+            : $this->loadCacheManifest($cacheDirectory);
         if (($cached['type'] ?? null) === self::TYPE_SINGLE) {
             return new ConfigRepository(
                 ConfigMerger::mergeMany([$cached['data'], $overrides]),
@@ -191,7 +190,7 @@ final class ConfigLoader
     /**
      * @return array{type:'single',data:array<string,mixed>}|array{type:'sharded',namespaces:list<string>,complete:bool}|null
      */
-    private function loadCacheManifest(string $directory, string $sourceFingerprint): ?array
+    private function loadCacheManifest(string $directory): ?array
     {
         $file = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . self::MANIFEST_FILE;
         if (!is_file($file) || !is_readable($file)) {
@@ -207,7 +206,6 @@ final class ConfigLoader
             !is_array($payload)
             || ($payload['_format'] ?? null) !== self::CACHE_FORMAT
             || !hash_equals($this->schemaFingerprint(), (string) ($payload['_schema'] ?? ''))
-            || !hash_equals($sourceFingerprint, (string) ($payload['_source'] ?? ''))
         ) {
             return null;
         }
