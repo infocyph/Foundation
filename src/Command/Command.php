@@ -94,6 +94,20 @@ abstract class Command implements CommandHandlerInterface
         return $this->io()->password($question);
     }
 
+    /**
+     * Process an iterable with progress feedback. Pass null total for spinner-style feedback.
+     *
+     * @param iterable<mixed> $items
+     */
+    final protected function progress(
+        iterable $items,
+        callable $handler,
+        ?int $total = null,
+        string $label = 'Working',
+    ): int {
+        return new ProgressIndicator($this->io())->iterate($items, $handler, $total, $label);
+    }
+
     final protected function read(string $question, ?string $default = null): string
     {
         return $this->io()->read($question, $default);
@@ -108,6 +122,16 @@ abstract class Command implements CommandHandlerInterface
     final protected function table(array $headers, array $rows): void
     {
         $this->io()->table($headers, $rows);
+    }
+
+    /**
+     * @template T
+     * @param callable():T $task
+     * @return T
+     */
+    final protected function task(string $label, callable $task): mixed
+    {
+        return new ProgressIndicator($this->io())->task($label, $task);
     }
 
     /** @return list<string> */
