@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Cache;
 
 use Closure;
+use Infocyph\CacheLayer\Cache\AuthenticationStateCacheInterface;
 use Infocyph\CacheLayer\Cache\Cache;
 use Infocyph\CacheLayer\Cache\CacheInterface;
 use Infocyph\CacheLayer\Cache\CacheOptions;
@@ -67,12 +68,22 @@ final readonly class CacheLayerFactory
         $store = $this->stores()[$storeName] ?? ['driver' => $storeName];
         $driver = $this->driver($storeName, $store);
 
-        if ($this->stringOrNull($lock['driver'] ?? null) === null) {
-            $lock['driver'] = 'file';
-            $lock['path'] ??= $this->paths->cache('locks');
+        if ($this->stringOrNull($lock['driver'] ?? null) !== null) {
+            return $this->lockProvider($store, $lock, $driver);
         }
 
-        return $this->lockProvider($store, $lock, $driver);
+        $cache = $this->make($storeName);
+        if ($cache instanceof AuthenticationStateCacheInterface) {
+            $native = $cache->authenticationStateLock();
+            if ($native instanceof LockProviderInterface) {
+                return $native;
+            }
+        }
+
+        throw new ConfigurationException(sprintf(
+            'Cache store "%s" does not expose a native coordination lock; configure cache.lock.driver explicitly.',
+            $storeName,
+        ));
     }
 
     public function counters(string $name): AtomicCounterStoreInterface
