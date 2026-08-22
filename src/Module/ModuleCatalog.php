@@ -57,7 +57,7 @@ final class ModuleCatalog
         ],
         'messaging' => [
             'package' => 'infocyph/omnibus',
-            'constraint' => 'dev-main@dev',
+            'constraint' => '^2.2',
             'description' => 'Events, messages, queues, retries, workers, optional process pools, workflows, and scheduled-message dispatch.',
             'aliases' => ['events', 'omnibus', 'queue', 'queues'],
             'config' => ['messaging.php'],
