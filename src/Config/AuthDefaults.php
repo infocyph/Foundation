@@ -15,7 +15,6 @@ final class AuthDefaults
             'auth' => [
                 'drivers' => [
                     'cache' => 'array',
-                    'ids' => 'random',
                     'mfa' => 'simple',
                     'notifications' => 'collect',
                     'passkey' => 'memory',
@@ -64,6 +63,10 @@ final class AuthDefaults
                         'store' => null,
                         'ttl' => 90,
                     ],
+                ],
+                'password_policy' => [
+                    'min_length' => 12,
+                    'max_length' => 1024,
                 ],
                 'webauthn' => [
                     'algorithms' => [
