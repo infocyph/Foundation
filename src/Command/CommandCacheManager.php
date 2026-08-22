@@ -23,46 +23,6 @@ final readonly class CommandCacheManager
         return true;
     }
 
-    public static function frameworkFingerprint(): string
-    {
-        $files = [
-            __FILE__,
-            __DIR__ . '/CommandCatalog.php',
-            __DIR__ . '/CommandDefinition.php',
-            __DIR__ . '/CommandDescriptor.php',
-            __DIR__ . '/CommandRegistry.php',
-        ];
-        $hashes = [];
-        foreach ($files as $file) {
-            $hash = is_file($file) ? hash_file('sha256', $file) : false;
-            if (!is_string($hash)) {
-                throw new \RuntimeException(sprintf('Unable to fingerprint command metadata source "%s".', $file));
-            }
-            $hashes[] = $hash;
-        }
-
-        return hash('sha256', implode('|', $hashes));
-    }
-
-    public static function handlerFingerprint(string $handler): ?string
-    {
-        $file = self::autoloadFile($handler);
-        if ($file === null || !is_file($file)) {
-            return null;
-        }
-
-        $stat = stat($file);
-        if (!is_array($stat)) {
-            return null;
-        }
-
-        return hash('sha256', implode(':', [
-            (string) ($stat['size'] ?? 0),
-            (string) ($stat['mtime'] ?? 0),
-            (string) ($stat['ctime'] ?? 0),
-        ]));
-    }
-
     public function write(
         string $path = 'bootstrap/cache/commands.php',
         ?CommandRegistry $registry = null,
@@ -73,11 +33,8 @@ final readonly class CommandCacheManager
             throw new \RuntimeException(sprintf('Unable to create command cache directory "%s".', $directory));
         }
 
-        $source = $this->application->routesPath('console.php');
         $registry ??= $this->registry();
         $payload = $registry->toManifest();
-        $payload['source'] = $this->sourceMetadata($source, $registry);
-        $payload['foundation_sha256'] = self::frameworkFingerprint();
         $temporary = tempnam($directory, '.commands-');
         if ($temporary === false) {
             throw new \RuntimeException('Unable to create command cache staging file.');
@@ -104,49 +61,6 @@ final readonly class CommandCacheManager
             : $this->application->basePath(trim($path, DIRECTORY_SEPARATOR));
     }
 
-    private static function autoloadFile(string $class): ?string
-    {
-        foreach (spl_autoload_functions() as $loader) {
-            if (!is_array($loader) || !is_object($loader[0] ?? null) || !method_exists($loader[0], 'findFile')) {
-                continue;
-            }
-
-            try {
-                $file = $loader[0]->findFile($class);
-            } catch (\Throwable) {
-                continue;
-            }
-            if (is_string($file) && $file !== '') {
-                return $file;
-            }
-        }
-
-        return null;
-    }
-
-    /** @return array<string, string> */
-    private function handlerFingerprints(CommandRegistry $registry): array
-    {
-        $hashes = [];
-        foreach ($registry->all() as $descriptor) {
-            if ($descriptor->system || $descriptor->handler === null) {
-                continue;
-            }
-
-            $hash = self::handlerFingerprint($descriptor->handler);
-            if ($hash === null) {
-                throw new \RuntimeException(sprintf(
-                    'Unable to fingerprint application command handler "%s".',
-                    $descriptor->handler,
-                ));
-            }
-            $hashes[$descriptor->handler] = $hash;
-        }
-        ksort($hashes, SORT_STRING);
-
-        return $hashes;
-    }
-
     private function registry(): CommandRegistry
     {
         $path = $this->application->routesPath('console.php');
@@ -163,22 +77,5 @@ final readonly class CommandCacheManager
         }
 
         return new CommandRegistry($commands);
-    }
-
-    /** @return array{exists:bool,path:string,sha256:?string,handlers:array<string,string>} */
-    private function sourceMetadata(string $path, CommandRegistry $registry): array
-    {
-        $exists = is_file($path);
-        $hash = $exists ? hash_file('sha256', $path) : null;
-        if ($exists && !is_string($hash)) {
-            throw new \RuntimeException(sprintf('Unable to hash command route file "%s".', $path));
-        }
-
-        return [
-            'exists' => $exists,
-            'path' => 'routes/console.php',
-            'sha256' => $hash,
-            'handlers' => $this->handlerFingerprints($registry),
-        ];
     }
 }
