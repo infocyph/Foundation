@@ -91,7 +91,7 @@ final readonly class FilesystemTransferFactory
         $processor->setNamingStrategy($this->string($config, 'naming_strategy', 'hash'));
         $processor->setRequireMalwareScan($this->bool($config, 'require_malware_scan', false));
         $processor->setStrictContentTypeValidation(
-            $this->bool($config, 'strict_content_type_validation', false),
+            $this->bool($config, 'strict_content_type_validation', true),
         );
 
         return $processor;
