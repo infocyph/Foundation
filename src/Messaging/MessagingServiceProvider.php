@@ -138,14 +138,10 @@ final class MessagingServiceProvider extends ServiceProvider
             $app->make(MessageFactoryMap::class),
             $app->make(MessageBus::class),
         ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, MessagingManager::class, fn() => new MessagingManager(
-            $app->make(MessageBus::class),
-            $app->make(EventDispatcher::class),
-        ), LifetimeEnum::Singleton);
         $this->bindFactory(
             $container,
             'foundation.messaging',
-            fn() => $app->make(MessagingManager::class),
+            fn() => $app->make(MessageBus::class),
             LifetimeEnum::Singleton,
         );
     }
