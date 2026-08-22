@@ -42,19 +42,16 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
 
     public function register(AuthDriverResolver $drivers): void
     {
-        $driver = $drivers->tokens();
-
-        $this->singleton(HmacTokenCodec::class, fn() => new HmacTokenCodec(
-            $this->secrets->tokenSecret(),
-        ));
-
-        if ($driver === AuthTokenDriver::SECURITY) {
+        if ($drivers->tokens() === AuthTokenDriver::SECURITY) {
             $this->requirePackage(SymmetricJwt::class, 'infocyph/epicrypt', 'crypto');
             $this->registerEpicryptTokens();
 
             return;
         }
 
+        $this->singleton(HmacTokenCodec::class, fn() => new HmacTokenCodec(
+            $this->secrets->tokenSecret(),
+        ));
         $this->registerSimpleTokens();
     }
 
@@ -128,7 +125,7 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
     private function registerEpicryptTokens(): void
     {
         $this->singleton(EpicryptTokenFactory::class, fn() => new EpicryptTokenFactory(
-            key: $this->secrets->tokenSecret(),
+            key: $this->secrets->tokenSecret($this->epicrypt->minimumKeyBytes()),
             clock: $this->clock(),
             issuer: $this->epicrypt->issuer(),
             audience: $this->epicrypt->audience(),
