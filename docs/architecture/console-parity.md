@@ -131,7 +131,8 @@ Decorative box rendering is retired deliberately: it adds terminal-specific surf
 | Foundation DB configuration conventions | Foundation `Database` | MIGRATED |
 | Database/auth-schema/migration/seeding CLI | Foundation `Command` + DBLayer | MIGRATED |
 | Validation/sanitization/schema compilation | ReqShield | DELEGATED |
-| Foundation validation adapters | Foundation `Validation` | PARTIAL |
+| Named application schemas and ReqShield profile composition | `ValidationSchemaRegistry` + `ValidatorFactory` | MIGRATED |
+| ReqShield database rules | ReqShield `DatabaseProvider` + direct DBLayer connection | DELEGATED |
 | Cryptography/password/token primitives | Epicrypt | DELEGATED |
 | OTP math/replay primitives | OTP | DELEGATED |
 | Authentication workflows | Foundation `Auth` | MIGRATED |
@@ -179,8 +180,6 @@ The absorbed Console surface is now narrowed to these genuine remaining source c
 3. terminal width/ANSI capability handling;
 4. process-group/descendant cleanup plus final Windows capability policy;
 5. final canonical runtime reset audit across the remaining optional integrations.
-
-Validation integration remains a broader Foundation package-integration task rather than a Console implementation concern, but it is still a Foundation 2.0 release blocker while marked `PARTIAL` above.
 
 ## Release rule
 
