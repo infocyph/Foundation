@@ -37,15 +37,15 @@ return [
     'disks' => [
         'local' => [
             'driver' => 'local',
-            'root' => storage_path('app'),
+            'root' => 'storage/app',
         ],
         'public' => [
             'driver' => 'local',
-            'root' => storage_path('app/public'),
+            'root' => 'storage/app/public',
         ],
         'uploads' => [
             'driver' => 'local',
-            'root' => storage_path('uploads'),
+            'root' => 'storage/uploads',
         ],
     ],
 
@@ -54,19 +54,13 @@ return [
     | Public Storage Links
     |--------------------------------------------------------------------------
     |
-    | Each key is a symbolic-link path inside the public directory and each
-    | value is its target inside the storage directory. This is Foundation
-    | application policy rather than a generic Pathwise filesystem operation.
-    |
-    | The storage:link command validates both boundaries, creates missing target
-    | directories, preserves correct existing links, and rejects conflicts.
-    |
-    | Example:
-    | [public_path('storage') => storage_path('app/public')]
+    | Each key is an application-relative link path and each value is its
+    | application-relative target. StorageLinkManager resolves both through the
+    | active application's PathManager, then enforces public/storage boundaries.
     |
     */
     'links' => [
-        public_path('storage') => storage_path('app/public'),
+        'public/storage' => 'storage/app/public',
     ],
 
     /*
