@@ -14,7 +14,7 @@ final class ConfigLoader
 
     public const string TYPE_SINGLE = 'single';
 
-    private const int CACHE_FORMAT = 4;
+    private const int CACHE_FORMAT = 5;
 
     /** @param array<string, mixed> $inline */
     public function load(array $inline = []): ConfigRepository
@@ -35,7 +35,7 @@ final class ConfigLoader
         $cacheDirectory = $this->configCacheEnabled($cacheControl)
             ? $this->configuredCachePath($cacheControl, $basePath)
             : null;
-        $overrides = ConfigMerger::mergeMany([$preset, $normalized, $this->runtimeInvariants()]);
+        $overrides = ConfigMerger::mergeMany([$preset, $normalized]);
 
         $cached = $cacheDirectory === null
             ? null
@@ -178,15 +178,7 @@ final class ConfigLoader
     /** @return array<string, mixed> */
     private function defaults(): array
     {
-        $defaults = ConfigMerger::mergeMany([FoundationDefaults::all(), AuthDefaults::all()]);
-
-        // Keep runtime fallback semantics aligned with the published Foundation 2.0
-        // contract until the obsolete request-scope key is fully removed.
-        $defaults['app']['container']['lazy_loading'] = true;
-        $defaults['app']['container']['request_scope'] = false;
-        $defaults['filesystem']['uploads']['strict_content_type_validation'] = true;
-
-        return $defaults;
+        return ConfigMerger::mergeMany([FoundationDefaults::all(), AuthDefaults::all()]);
     }
 
     private function ensureCacheDirectory(string $directory): void
@@ -287,19 +279,6 @@ final class ConfigLoader
                 throw new \RuntimeException(sprintf('Unable to remove stale config cache shard "%s".', $file));
             }
         }
-    }
-
-    /** @return array<string, mixed> */
-    private function runtimeInvariants(): array
-    {
-        return [
-            'app' => [
-                'container' => [
-                    // Foundation's HttpKernel owns the request execution scope.
-                    'request_scope' => false,
-                ],
-            ],
-        ];
     }
 
     private function schemaFingerprint(): string
