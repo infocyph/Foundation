@@ -84,8 +84,8 @@ final readonly class ModuleManager
             throw new \RuntimeException(sprintf('Unable to create project config directory "%s".', $directory));
         }
 
-        $published = [];
         $existing = [];
+        $sources = [];
         foreach ($configured as $filename) {
             if ($filename === '' || basename($filename) !== $filename) {
                 continue;
@@ -100,12 +100,13 @@ final readonly class ModuleManager
 
             $source = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'resources' . DIRECTORY_SEPARATOR . 'config'
                 . DIRECTORY_SEPARATOR . $filename;
-            if (!is_file($source) || !copy($source, $target)) {
-                throw new \RuntimeException(sprintf('Unable to publish config template "%s".', $filename));
+            if (!is_file($source) || !is_readable($source)) {
+                throw new \RuntimeException(sprintf('Config template "%s" is unavailable.', $filename));
             }
-            $published[] = $target;
+            $sources[$target] = $source;
         }
 
+        $published = $this->publishConfigFiles($directory, $sources, $existing);
         if ($published !== []) {
             new ConfigCacheManager($this->application)->clear();
         }
@@ -162,5 +163,64 @@ final readonly class ModuleManager
         }
 
         return $requirements;
+    }
+
+    /**
+     * @param array<string, string> $sources target => source
+     * @param list<string> $existing
+     * @return list<string>
+     */
+    private function publishConfigFiles(string $directory, array $sources, array &$existing): array
+    {
+        if ($sources === []) {
+            return [];
+        }
+
+        $staged = [];
+        $published = [];
+
+        try {
+            foreach ($sources as $target => $source) {
+                $temporary = tempnam($directory, '.foundation-config-');
+                if ($temporary === false) {
+                    throw new \RuntimeException(sprintf('Unable to stage config template "%s".', basename($target)));
+                }
+                $staged[$target] = $temporary;
+
+                if (!copy($source, $temporary) || !chmod($temporary, 0664)) {
+                    throw new \RuntimeException(sprintf('Unable to stage config template "%s".', basename($target)));
+                }
+            }
+
+            foreach ($staged as $target => $temporary) {
+                if (is_file($target)) {
+                    $existing[] = $target;
+                    unlink($temporary);
+                    unset($staged[$target]);
+
+                    continue;
+                }
+                if (!rename($temporary, $target)) {
+                    throw new \RuntimeException(sprintf('Unable to publish config template "%s".', basename($target)));
+                }
+                unset($staged[$target]);
+                $published[] = $target;
+            }
+        } catch (\Throwable $failure) {
+            foreach ($staged as $temporary) {
+                if (is_file($temporary)) {
+                    unlink($temporary);
+                }
+            }
+            foreach ($published as $target) {
+                if (is_file($target)) {
+                    unlink($target);
+                }
+            }
+
+            throw $failure;
+        }
+
+        return $published;
     }
 }
