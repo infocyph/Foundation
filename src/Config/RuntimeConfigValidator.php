@@ -10,14 +10,14 @@ final readonly class RuntimeConfigValidator
 {
     public function __construct(private ConfigRepository $config) {}
 
-    /**
-     * @return list<ConfigIssue>
-     */
+    /** @return list<ConfigIssue> */
     public function validate(): array
     {
         return [
+            ...$this->topology(),
             ...$this->container(),
             ...$this->logging(),
+            ...$this->operations(),
             ...$this->migrations(),
             ...$this->messageRoutes(),
             ...$this->messageCallableMaps(),
@@ -43,9 +43,7 @@ final readonly class RuntimeConfigValidator
             )];
     }
 
-    /**
-     * @return list<ConfigIssue>
-     */
+    /** @return list<ConfigIssue> */
     private function container(): array
     {
         $issues = $this->allowedString(
@@ -60,13 +58,17 @@ final readonly class RuntimeConfigValidator
                 'app.container.compiled',
             );
         }
+        if (!is_bool($this->config->get('app.container.lazy_loading', true))) {
+            $issues[] = new ConfigIssue(
+                'app.container.lazy_loading must be true or false.',
+                'app.container.lazy_loading',
+            );
+        }
 
         return $issues;
     }
 
-    /**
-     * @return list<ConfigIssue>
-     */
+    /** @return list<ConfigIssue> */
     private function finiteNumber(string $key, float $minimum, ?float $maximum = null): array
     {
         $value = $this->config->get($key);
@@ -81,9 +83,7 @@ final readonly class RuntimeConfigValidator
             : [new ConfigIssue($key . ' is outside its supported range.', $key)];
     }
 
-    /**
-     * @return list<ConfigIssue>
-     */
+    /** @return list<ConfigIssue> */
     private function logging(): array
     {
         $issues = [
@@ -118,9 +118,7 @@ final readonly class RuntimeConfigValidator
         return [...$issues, ...$this->loggingCollections(), ...$this->loggingLimits()];
     }
 
-    /**
-     * @return list<ConfigIssue>
-     */
+    /** @return list<ConfigIssue> */
     private function loggingCollections(): array
     {
         $issues = [];
@@ -136,11 +134,10 @@ final readonly class RuntimeConfigValidator
 
         $ignored = $this->config->get('logging.exceptions.ignore', []);
         if (!is_array($ignored)
-            || array_any($ignored, static fn(mixed $class): bool => !is_string($class)
-                || !is_a($class, \Throwable::class, true))
+            || array_any($ignored, static fn(mixed $class): bool => !is_string($class) || trim($class) === '')
         ) {
             $issues[] = new ConfigIssue(
-                'logging.exceptions.ignore must be a list of available Throwable classes.',
+                'logging.exceptions.ignore must be a list of non-empty Throwable class names.',
                 'logging.exceptions.ignore',
             );
         }
@@ -148,9 +145,7 @@ final readonly class RuntimeConfigValidator
         return $issues;
     }
 
-    /**
-     * @return list<ConfigIssue>
-     */
+    /** @return list<ConfigIssue> */
     private function loggingLimits(): array
     {
         $issues = [
@@ -172,9 +167,7 @@ final readonly class RuntimeConfigValidator
         return $issues;
     }
 
-    /**
-     * @return list<ConfigIssue>
-     */
+    /** @return list<ConfigIssue> */
     private function messageCallableMaps(): array
     {
         $issues = [];
@@ -202,9 +195,7 @@ final readonly class RuntimeConfigValidator
         return $issues;
     }
 
-    /**
-     * @return list<ConfigIssue>
-     */
+    /** @return list<ConfigIssue> */
     private function messageListeners(): array
     {
         $listeners = $this->config->get('messaging.listeners', []);
@@ -217,7 +208,7 @@ final readonly class RuntimeConfigValidator
 
         foreach ($listeners as $event => $definitions) {
             if (is_string($event)
-                && (class_exists($event) || interface_exists($event))
+                && trim($event) !== ''
                 && is_array($definitions)
                 && !array_any(
                     $definitions,
@@ -228,7 +219,7 @@ final readonly class RuntimeConfigValidator
             }
 
             return [new ConfigIssue(
-                'messaging.listeners must map available event classes to callable definition lists.',
+                'messaging.listeners must map non-empty event class names to callable definition lists.',
                 'messaging.listeners',
             )];
         }
@@ -236,9 +227,7 @@ final readonly class RuntimeConfigValidator
         return [];
     }
 
-    /**
-     * @return list<ConfigIssue>
-     */
+    /** @return list<ConfigIssue> */
     private function messageRetry(): array
     {
         return [
@@ -250,9 +239,7 @@ final readonly class RuntimeConfigValidator
         ];
     }
 
-    /**
-     * @return list<ConfigIssue>
-     */
+    /** @return list<ConfigIssue> */
     private function messageRoute(string $key, mixed $route): array
     {
         if (!is_array($route)) {
@@ -279,9 +266,7 @@ final readonly class RuntimeConfigValidator
         return $issues;
     }
 
-    /**
-     * @return list<ConfigIssue>
-     */
+    /** @return list<ConfigIssue> */
     private function messageRoutes(): array
     {
         $issues = $this->messageRoute(
@@ -297,9 +282,9 @@ final readonly class RuntimeConfigValidator
         }
 
         foreach ($routes as $message => $route) {
-            if (!is_string($message) || (!class_exists($message) && !interface_exists($message))) {
+            if (!is_string($message) || trim($message) === '') {
                 $issues[] = new ConfigIssue(
-                    'messaging.routes keys must be available message classes.',
+                    'messaging.routes keys must be non-empty message class names.',
                     'messaging.routes',
                 );
 
@@ -311,9 +296,7 @@ final readonly class RuntimeConfigValidator
         return $issues;
     }
 
-    /**
-     * @return list<ConfigIssue>
-     */
+    /** @return list<ConfigIssue> */
     private function messageSettings(): array
     {
         $issues = [];
@@ -444,9 +427,7 @@ final readonly class RuntimeConfigValidator
         return null;
     }
 
-    /**
-     * @return list<ConfigIssue>
-     */
+    /** @return list<ConfigIssue> */
     private function migrations(): array
     {
         $issues = [];
@@ -454,18 +435,16 @@ final readonly class RuntimeConfigValidator
             $definitions = $this->config->get($key, []);
             if (!is_array($definitions)
                 || array_any($definitions, static fn(mixed $definition): bool => !is_string($definition)
-                    || (!class_exists($definition) && !interface_exists($definition)))
+                    || trim($definition) === '')
             ) {
-                $issues[] = new ConfigIssue($key . ' must be a list of available classes.', $key);
+                $issues[] = new ConfigIssue($key . ' must be a list of non-empty class names.', $key);
             }
         }
 
         return [...$issues, ...$this->migrationSettings()];
     }
 
-    /**
-     * @return list<ConfigIssue>
-     */
+    /** @return list<ConfigIssue> */
     private function migrationSettings(): array
     {
         $issues = [];
@@ -491,9 +470,42 @@ final readonly class RuntimeConfigValidator
         ];
     }
 
-    /**
-     * @return list<ConfigIssue>
-     */
+    /** @return list<ConfigIssue> */
+    private function operations(): array
+    {
+        $issues = [];
+        if (!is_bool($this->config->get('operations.history.enabled', false))) {
+            $issues[] = new ConfigIssue(
+                'operations.history.enabled must be true or false.',
+                'operations.history.enabled',
+            );
+        }
+
+        $path = $this->config->get('operations.history.path', 'storage/logs/executions.jsonl');
+        if (!is_string($path) || trim($path) === '') {
+            $issues[] = new ConfigIssue(
+                'operations.history.path must be a non-empty file path.',
+                'operations.history.path',
+            );
+        }
+
+        $issues = [
+            ...$issues,
+            ...$this->positiveInteger('operations.history.max_bytes', 1),
+            ...$this->positiveInteger('operations.history.retained_files', 0),
+        ];
+        $retained = $this->config->get('operations.history.retained_files', 7);
+        if (is_int($retained) && $retained > 100) {
+            $issues[] = new ConfigIssue(
+                'operations.history.retained_files cannot exceed 100.',
+                'operations.history.retained_files',
+            );
+        }
+
+        return $issues;
+    }
+
+    /** @return list<ConfigIssue> */
     private function positiveInteger(string $key, int $minimum): array
     {
         $value = $this->config->get($key);
@@ -506,9 +518,7 @@ final readonly class RuntimeConfigValidator
             )];
     }
 
-    /**
-     * @return list<ConfigIssue>
-     */
+    /** @return list<ConfigIssue> */
     private function responses(): array
     {
         $issues = [];
@@ -534,5 +544,15 @@ final readonly class RuntimeConfigValidator
         }
 
         return $issues;
+    }
+
+    /** @return list<ConfigIssue> */
+    private function topology(): array
+    {
+        return $this->allowedString(
+            'app.topology',
+            $this->config->get('app.topology', DeploymentTopology::SINGLE_NODE->value),
+            array_map(static fn(DeploymentTopology $topology): string => $topology->value, DeploymentTopology::cases()),
+        );
     }
 }
