@@ -19,11 +19,13 @@ return [
     /*
     | A shared lock provider may be reused by command overlap, scheduling,
     | worker singleton policies, cache stampede protection and other Foundation
-    | coordination. Supported drivers are CacheLayer lock drivers.
+    | coordination. If driver is null, Foundation inherits the selected store's
+    | native CacheLayer lock. Set store only when coordination should use a
+    | different cache store; otherwise the default cache store is used.
     */
     'lock' => [
         'driver' => env('CACHE_LOCK_DRIVER'),
-        'store' => env_string('CACHE_LOCK_STORE', 'local'),
+        'store' => env('CACHE_LOCK_STORE'),
         'path' => env_string('CACHE_LOCK_PATH', 'storage/cache/locks'),
         'prefix' => env_string('CACHE_LOCK_PREFIX', 'infbyte:cache:lock:'),
         'retry_sleep_micros' => env_int('CACHE_LOCK_RETRY_SLEEP_MICROS', 50_000),
