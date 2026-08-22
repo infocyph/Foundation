@@ -5,6 +5,7 @@
     "type": "library",
     "require": {
         "php": "^8.4",
+        "composer-runtime-api": "^2.0",
         "infocyph/arraykit": "^5.1.1",
         "infocyph/intermix": "^9.1.1",
         "infocyph/uid": "^5.0",
