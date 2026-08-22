@@ -150,7 +150,8 @@ PHP);
         $manager = new ModuleManager($application, new ModuleCatalog(), new ProcessRunner());
 
         expect($manager->install('db', true)->successful())->toBeTrue()
-            ->and($manager->remove('db', true)->successful())->toBeTrue();
+            ->and($manager->remove('db', true)->successful())->toBeTrue()
+            ->and($manager->install('messaging', true)->successful())->toBeTrue();
 
         $commands = array_map(
             static fn(string $command): array => json_decode($command, true, flags: JSON_THROW_ON_ERROR),
@@ -158,8 +159,9 @@ PHP);
         );
 
         expect($commands)->toBe([
-            ['require', 'infocyph/dblayer:^4.0', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
+            ['require', 'infocyph/dblayer:^4.1', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
             ['remove', 'infocyph/dblayer', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
+            ['require', 'infocyph/omnibus:dev-main@dev', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
         ]);
     } finally {
         is_string($originalPath) ? putenv('PATH=' . $originalPath) : putenv('PATH');
