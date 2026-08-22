@@ -26,7 +26,10 @@ final readonly class ProviderFileLoader
 
         $providers = require $file;
         if (!is_array($providers)) {
-            return $resolved;
+            throw new BootstrapException(sprintf(
+                'Provider file "%s" must return a grouped provider array.',
+                $file,
+            ));
         }
         if ($providers !== [] && array_is_list($providers)) {
             throw new BootstrapException(
@@ -34,22 +37,54 @@ final readonly class ProviderFileLoader
             );
         }
 
-        foreach (self::GROUPS as $group) {
-            $configured = $providers[$group] ?? [];
-            if (!is_array($configured)) {
-                continue;
+        foreach ($providers as $group => $configured) {
+            if (!is_string($group) || !in_array($group, self::GROUPS, true)) {
+                throw new BootstrapException(sprintf(
+                    'Provider file "%s" contains unsupported provider group "%s".',
+                    $file,
+                    is_scalar($group) ? (string) $group : get_debug_type($group),
+                ));
             }
+            if (!is_array($configured)) {
+                throw new BootstrapException(sprintf(
+                    'Provider group "%s" in "%s" must be a provider list.',
+                    $group,
+                    $file,
+                ));
+            }
+        }
 
-            foreach ($configured as $provider) {
-                if (!is_string($provider)
-                    || !class_exists($provider)
-                    || !is_subclass_of($provider, ServiceProviderInterface::class)
-                ) {
-                    continue;
+        foreach (self::GROUPS as $group) {
+            foreach ($providers[$group] ?? [] as $index => $provider) {
+                if (!is_string($provider) || trim($provider) === '') {
+                    throw new BootstrapException(sprintf(
+                        'Provider group "%s" entry %s in "%s" must be a non-empty provider class name.',
+                        $group,
+                        (string) $index,
+                        $file,
+                    ));
+                }
+                if (!class_exists($provider)) {
+                    throw new BootstrapException(sprintf(
+                        'Configured provider "%s" in group "%s" does not exist.',
+                        $provider,
+                        $group,
+                    ));
+                }
+                if (!is_subclass_of($provider, ServiceProviderInterface::class)) {
+                    throw new BootstrapException(sprintf(
+                        'Configured provider "%s" in group "%s" must implement %s.',
+                        $provider,
+                        $group,
+                        ServiceProviderInterface::class,
+                    ));
                 }
 
+                /** @var class-string<ServiceProviderInterface> $provider */
                 $resolved[$group][] = $provider;
             }
+
+            $resolved[$group] = array_values(array_unique($resolved[$group]));
         }
 
         return $resolved;
@@ -60,6 +95,9 @@ final readonly class ProviderFileLoader
     {
         $groups = $this->groups();
 
-        return [...$groups['common'], ...$groups[$runtimeMode->value]];
+        return array_values(array_unique([
+            ...$groups['common'],
+            ...$groups[$runtimeMode->value],
+        ]));
     }
 }
