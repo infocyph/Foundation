@@ -25,8 +25,11 @@ final readonly class SchedulerRuntime
      * @param array<string, mixed> $context
      * @return T
      */
-    public function execute(callable $handler, array $context = []): mixed
-    {
-        return $this->application->execution()->run($handler, $context);
+    public function execute(
+        callable $handler,
+        array $context = [],
+        ?ExecutionId $executionId = null,
+    ): mixed {
+        return $this->application->execution()->run($handler, $context, $executionId);
     }
 }
