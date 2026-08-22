@@ -11,8 +11,12 @@ final readonly class CommandResolver
 {
     public function __construct(private Application $application) {}
 
-    public function run(CommandDescriptor $descriptor, ParsedInput $input, CommandIO $io): int
-    {
+    public function run(
+        CommandDescriptor $descriptor,
+        ParsedInput $input,
+        CommandIO $io,
+        ?ExecutionId $executionId = null,
+    ): int {
         $definition = $descriptor->definition;
         if ($definition->commandRuntime() !== $this->application->runtimeMode()) {
             throw new \LogicException(sprintf(
@@ -29,7 +33,7 @@ final readonly class CommandResolver
             ));
         }
 
-        $executionId = ExecutionId::generate();
+        $executionId ??= ExecutionId::generate();
         $context = new CommandContext($input, $io, $executionId, $descriptor);
 
         return $this->application->execution()->run(
