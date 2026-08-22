@@ -187,12 +187,28 @@ development choice. Foundation's production auth policy requires durable
 storage; the DBLayer MFA store implements the same CAS contract across
 workers/processes.
 
-The DBLayer CAS operation compares the complete expected factor state before
-committing a replacement. This prevents concurrent activation, removal, or
-counter changes from being overwritten by OTP verification.
+Every `MfaFactor` carries a non-negative `revision`. New factors start at zero;
+Foundation mutations such as activation or metadata/counter updates advance it
+by exactly one. The CAS contract is therefore:
+
+- create only when the factor ID is absent and the new revision is `0`;
+- update only when the persisted `id + revision` still match the expected
+  factor and the replacement carries `expected revision + 1`.
+
+DBLayer uses that scalar revision as the synchronization token. JSON metadata is
+payload only and is never compared in SQL, which keeps the CAS path portable
+across MySQL, MariaDB, PostgreSQL, SQL Server, and SQLite.
+
+Fresh Foundation auth schemas create the `mfa_factors.revision` column with a
+zero default. Existing auth schemas receive it through the dedicated
+`20260822000000_foundation_auth_mfa_revision` migration. `auth:schema:status`
+reports the schema as incomplete until the required revision column exists.
+
+This prevents concurrent activation, removal, counter advancement, or recovery
+state changes from overwriting one another.
 
 Custom MFA factor stores used with the OTP driver must implement
-`MfaFactorCompareAndSwapStoreInterface`.
+`MfaFactorCompareAndSwapStoreInterface` and honor the same revision semantics.
 
 ## Persistent workers
 
