@@ -5,20 +5,14 @@ declare(strict_types=1);
 return [
     /*
     |--------------------------------------------------------------------------
-    | Default Notification Channel
-    |--------------------------------------------------------------------------
-    */
-    'default_channel' => env('NOTIFICATIONS_DEFAULT_CHANNEL', 'email'),
-
-    /*
-    |--------------------------------------------------------------------------
     | Authentication Notification Policy
     |--------------------------------------------------------------------------
     |
     | Authentication owns notification semantics, not email transport. "sender"
     | selects one named profile from email.senders. "from" may override the
     | mapped message sender and "fail_silently" controls non-critical failures.
-    | Critical types may be listed by AuthNotificationType value.
+    | Critical types may be listed by AuthNotificationType value. "templates"
+    | may override the built-in subject/text/html mapping per notification type.
     |
     */
     'auth' => [
@@ -26,6 +20,7 @@ return [
         'from' => env('NOTIFICATIONS_AUTH_FROM'),
         'sender' => env('NOTIFICATIONS_AUTH_SENDER', 'auth'),
         'critical_types' => [],
+        'templates' => [],
     ],
 
     'email' => [
