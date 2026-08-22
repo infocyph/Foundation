@@ -17,7 +17,7 @@ final class CommandDispatcher
     ) {}
 
     /**
-     * Build the CLI surface without constructing a Foundation Application.
+     * Build the CLI surface without constructing Foundation Application.
      * A compiled scalar command manifest wins over routes/console.php.
      *
      * @param array<string, mixed> $config
@@ -113,9 +113,14 @@ final class CommandDispatcher
         }
 
         try {
-            $application = $this->application($descriptor->definition->commandRuntime(), $input)->boot();
+            $application = $this->application($descriptor->definition->commandRuntime(), $input);
+            $inline = static fn(): int => new CommandResolver($application->boot())
+                ->run($descriptor, $input, $io);
 
-            return new CommandResolver($application)->run($descriptor, $input, $io);
+            return new CommandExecutionCoordinator(
+                $application,
+                executable: $argv[0] ?? null,
+            )->run($descriptor, $argv, $inline, $io);
         } catch (\Throwable $exception) {
             $io->error($exception->getMessage() !== '' ? $exception->getMessage() : $exception::class);
 
