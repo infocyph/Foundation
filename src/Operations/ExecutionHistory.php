@@ -8,6 +8,10 @@ use Infocyph\Foundation\Application\Application;
 
 final readonly class ExecutionHistory
 {
+    private const int DEFAULT_MAX_BYTES = 16_777_216;
+
+    private const int DEFAULT_RETAINED_FILES = 7;
+
     public function __construct(private Application $application) {}
 
     public function enabled(): bool
@@ -15,9 +19,7 @@ final readonly class ExecutionHistory
         return $this->application->config()->getBool('operations.history.enabled', false) ?? false;
     }
 
-    /**
-     * @param array<string, scalar|null> $metadata
-     */
+    /** @param array<string, scalar|null> $metadata */
     public function record(
         string $kind,
         string $executionId,
@@ -35,12 +37,6 @@ final readonly class ExecutionHistory
             }
         }
 
-        $path = $this->path();
-        $directory = dirname($path);
-        if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
-            throw new \RuntimeException(sprintf('Unable to create execution history directory "%s".', $directory));
-        }
-
         $payload = [
             'recorded_at' => microtime(true),
             'kind' => $kind,
@@ -55,83 +51,87 @@ final readonly class ExecutionHistory
             JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
         ) . "\n";
 
-        $stream = fopen($path, 'ab');
-        if (!is_resource($stream)) {
-            throw new \RuntimeException(sprintf('Unable to open execution history "%s".', $path));
-        }
+        $this->withLock(LOCK_EX, function () use ($line): void {
+            $path = $this->path();
+            $size = is_file($path) ? filesize($path) : 0;
+            if (is_int($size) && $size > 0 && $size + strlen($line) > $this->maxBytes()) {
+                $this->rotate();
+            }
 
-        try {
-            if (!flock($stream, LOCK_EX)) {
-                throw new \RuntimeException(sprintf('Unable to lock execution history "%s".', $path));
+            $stream = fopen($path, 'ab');
+            if (!is_resource($stream)) {
+                throw new \RuntimeException(sprintf('Unable to open execution history "%s".', $path));
             }
-            if (fwrite($stream, $line) !== strlen($line) || !fflush($stream)) {
-                throw new \RuntimeException(sprintf('Unable to append execution history "%s".', $path));
+
+            try {
+                if (fwrite($stream, $line) !== strlen($line) || !fflush($stream)) {
+                    throw new \RuntimeException(sprintf('Unable to append execution history "%s".', $path));
+                }
+            } finally {
+                fclose($stream);
             }
-        } finally {
-            flock($stream, LOCK_UN);
-            fclose($stream);
-        }
+        });
     }
 
-    /**
-     * Stream the history file and retain only the newest matching records.
-     *
-     * @return list<array<string, mixed>>
-     */
+    /** @return list<array<string, mixed>> */
     public function recent(int $limit = 100, ?string $kind = null, ?string $name = null): array
     {
         if ($limit < 1 || $limit > 1000) {
             throw new \InvalidArgumentException('Execution history limit must be between 1 and 1000.');
         }
 
-        $path = $this->path();
-        if (!is_file($path) || !is_readable($path)) {
-            return [];
-        }
+        return $this->withLock(LOCK_SH, function () use ($limit, $kind, $name): array {
+            $records = [];
+            foreach ($this->historyFilesOldestFirst() as $path) {
+                $stream = fopen($path, 'rb');
+                if (!is_resource($stream)) {
+                    continue;
+                }
 
-        $records = [];
-        $stream = fopen($path, 'rb');
-        if (!is_resource($stream)) {
-            return [];
-        }
-
-        try {
-            while (($line = fgets($stream)) !== false) {
                 try {
-                    $record = json_decode($line, true, 32, JSON_THROW_ON_ERROR);
-                } catch (\JsonException) {
-                    continue;
-                }
-                if (!is_array($record)) {
-                    continue;
-                }
-                if ($kind !== null && ($record['kind'] ?? null) !== $kind) {
-                    continue;
-                }
-                if ($name !== null && ($record['name'] ?? null) !== $name) {
-                    continue;
-                }
+                    while (($line = fgets($stream)) !== false) {
+                        try {
+                            $record = json_decode($line, true, 32, JSON_THROW_ON_ERROR);
+                        } catch (\JsonException) {
+                            continue;
+                        }
+                        if (!is_array($record)) {
+                            continue;
+                        }
+                        if ($kind !== null && ($record['kind'] ?? null) !== $kind) {
+                            continue;
+                        }
+                        if ($name !== null && ($record['name'] ?? null) !== $name) {
+                            continue;
+                        }
 
-                $records[] = $record;
-                if (count($records) > $limit) {
-                    array_shift($records);
+                        $records[] = $record;
+                        if (count($records) > $limit) {
+                            array_shift($records);
+                        }
+                    }
+                } finally {
+                    fclose($stream);
                 }
             }
-        } finally {
-            fclose($stream);
-        }
 
-        return array_reverse($records);
+            return array_reverse($records);
+        });
     }
 
     public function clear(): bool
     {
-        $path = $this->path();
-        if (!is_file($path)) {
-            return false;
-        }
+        return $this->withLock(LOCK_EX, function (): bool {
+            $removed = false;
+            foreach ($this->historyFilesOldestFirst() as $path) {
+                if (is_file($path) && !unlink($path)) {
+                    throw new \RuntimeException(sprintf('Unable to remove execution history "%s".', $path));
+                }
+                $removed = true;
+            }
 
-        return unlink($path);
+            return $removed;
+        });
     }
 
     public function path(): string
@@ -144,5 +144,90 @@ final readonly class ExecutionHistory
         return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $configured) === 1
             ? $configured
             : $this->application->basePath(trim($configured, DIRECTORY_SEPARATOR));
+    }
+
+    private function maxBytes(): int
+    {
+        $value = $this->application->config()->getInt('operations.history.max_bytes', self::DEFAULT_MAX_BYTES);
+
+        return is_int($value) && $value > 0 ? $value : self::DEFAULT_MAX_BYTES;
+    }
+
+    private function retainedFiles(): int
+    {
+        $value = $this->application->config()->getInt('operations.history.retained_files', self::DEFAULT_RETAINED_FILES);
+
+        return is_int($value) && $value >= 0 ? min(100, $value) : self::DEFAULT_RETAINED_FILES;
+    }
+
+    /** @return list<string> */
+    private function historyFilesOldestFirst(): array
+    {
+        $path = $this->path();
+        $files = [];
+        for ($index = $this->retainedFiles(); $index >= 1; --$index) {
+            $rotated = $path . '.' . $index;
+            if (is_file($rotated) && is_readable($rotated)) {
+                $files[] = $rotated;
+            }
+        }
+        if (is_file($path) && is_readable($path)) {
+            $files[] = $path;
+        }
+
+        return $files;
+    }
+
+    private function rotate(): void
+    {
+        $path = $this->path();
+        $retained = $this->retainedFiles();
+        if ($retained === 0) {
+            if (is_file($path) && !unlink($path)) {
+                throw new \RuntimeException(sprintf('Unable to truncate execution history "%s".', $path));
+            }
+
+            return;
+        }
+
+        $oldest = $path . '.' . $retained;
+        if (is_file($oldest) && !unlink($oldest)) {
+            throw new \RuntimeException(sprintf('Unable to remove old execution history "%s".', $oldest));
+        }
+        for ($index = $retained - 1; $index >= 1; --$index) {
+            $source = $path . '.' . $index;
+            if (is_file($source) && !rename($source, $path . '.' . ($index + 1))) {
+                throw new \RuntimeException(sprintf('Unable to rotate execution history "%s".', $source));
+            }
+        }
+        if (is_file($path) && !rename($path, $path . '.1')) {
+            throw new \RuntimeException(sprintf('Unable to rotate execution history "%s".', $path));
+        }
+    }
+
+    /** @template T @param callable():T $callback @return T */
+    private function withLock(int $operation, callable $callback): mixed
+    {
+        $path = $this->path();
+        $directory = dirname($path);
+        if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
+            throw new \RuntimeException(sprintf('Unable to create execution history directory "%s".', $directory));
+        }
+
+        $lock = fopen($path . '.lock', 'c+b');
+        if (!is_resource($lock)) {
+            throw new \RuntimeException(sprintf('Unable to open execution history lock "%s".', $path . '.lock'));
+        }
+
+        try {
+            if (!flock($lock, $operation)) {
+                throw new \RuntimeException(sprintf('Unable to lock execution history "%s".', $path));
+            }
+
+            return $callback();
+        } finally {
+            flock($lock, LOCK_UN);
+            fclose($lock);
+        }
     }
 }
