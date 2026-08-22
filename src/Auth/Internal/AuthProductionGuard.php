@@ -42,16 +42,50 @@ final readonly class AuthProductionGuard
         }
 
         if ($drivers->notifications() === AuthNotificationDriver::TALKINGBYTES) {
-            $transport = $this->app->config()->get('notifications.auth.transport', 'null');
-            if (!is_string($transport) || in_array(strtolower(trim($transport)), ['null', 'fake'], true)) {
-                throw new ConfigurationException(
-                    'notifications.auth.transport must deliver or deliberately log notifications in production.',
-                );
-            }
+            $this->guardTalkingBytesNotifications();
         }
 
         if ($drivers->passkey() === AuthPasskeyDriver::MEMORY) {
             throw new ConfigurationException('auth.drivers.passkey must not be "memory" in production.');
+        }
+    }
+
+    private function guardTalkingBytesNotifications(): void
+    {
+        $sender = $this->app->config()->get('notifications.auth.sender', 'auth');
+        if (!is_string($sender) || trim($sender) === '') {
+            throw new ConfigurationException('notifications.auth.sender must select an email sender profile.');
+        }
+        $sender = trim($sender);
+        $profile = $this->app->config()->get('notifications.email.senders.' . $sender);
+        if (!is_array($profile)) {
+            throw new ConfigurationException(sprintf(
+                'Auth notification email sender profile "%s" is not configured.',
+                $sender,
+            ));
+        }
+
+        $transport = $profile['transport'] ?? null;
+        if (!is_string($transport) || trim($transport) === '') {
+            throw new ConfigurationException(sprintf(
+                'Auth notification email sender "%s" must select a transport.',
+                $sender,
+            ));
+        }
+        $transport = trim($transport);
+        $transportConfig = $this->app->config()->get('notifications.email.transports.' . $transport);
+        if (!is_array($transportConfig)) {
+            throw new ConfigurationException(sprintf(
+                'Auth notification email transport "%s" is not configured.',
+                $transport,
+            ));
+        }
+
+        $driver = $transportConfig['driver'] ?? $transport;
+        if (!is_string($driver) || in_array(strtolower(trim($driver)), ['null', 'fake'], true)) {
+            throw new ConfigurationException(
+                'Authentication notifications must deliver or deliberately log email in production.',
+            );
         }
     }
 }
