@@ -13,10 +13,10 @@ final readonly class OtpRecoveryCodeService implements RecoveryCodeServiceInterf
     public function __construct(
         private RecoveryCodes $recoveryCodes,
         private int $defaultCount = 10,
-        private int $codeLength = 10,
+        private int $codeLength = 12,
     ) {}
 
-    public function generate(string $accountId, int $count = 10): array
+    public function generate(string $accountId, int $count = 0): array
     {
         $result = $this->recoveryCodes->generate(
             $this->binding($accountId),
