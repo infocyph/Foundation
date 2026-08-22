@@ -13,9 +13,7 @@ final readonly class DatabaseConnectionResolver
         private ConfigRepository $config,
     ) {}
 
-    /**
-     * @return array<string, mixed>
-     */
+    /** @return array<string, mixed> */
     public function configuration(?string $name = null): array
     {
         $name = $this->connectionName($name);
@@ -50,9 +48,7 @@ final readonly class DatabaseConnectionResolver
         throw new ConfigurationException('No database.default connection has been configured.');
     }
 
-    /**
-     * @return array<string, array<string, mixed>>
-     */
+    /** @return array<string, array<string, mixed>> */
     public function connections(): array
     {
         $connections = $this->config->get('database.connections', []);
@@ -75,7 +71,7 @@ final readonly class DatabaseConnectionResolver
 
     private function absolute(string $path): bool
     {
-        return preg_match('/^(?:[A-Z]:[\\\\\\/]|\\\\\\\\|\/)/i', $path) === 1;
+        return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1;
     }
 
     private function basePath(): string
@@ -96,11 +92,9 @@ final readonly class DatabaseConnectionResolver
         $normalized = [];
 
         foreach ($value as $key => $item) {
-            if (!is_string($key)) {
-                continue;
+            if (is_string($key)) {
+                $normalized[$key] = $item;
             }
-
-            $normalized[$key] = $item;
         }
 
         return $normalized;
@@ -114,9 +108,11 @@ final readonly class DatabaseConnectionResolver
     {
         $driver = $config['driver'] ?? null;
         $database = $config['database'] ?? null;
+        $sqlite = is_string($driver)
+            && in_array(strtolower(trim($driver)), ['sqlite', 'sqlite3', 'pdo_sqlite'], true);
 
         if (
-            $driver === 'sqlite'
+            $sqlite
             && is_string($database)
             && $database !== ''
             && $database !== ':memory:'
