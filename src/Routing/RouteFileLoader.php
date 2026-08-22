@@ -8,6 +8,7 @@ use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\Webrick\Router\Definition\Attribute\AttributeRouteLoader;
+use Infocyph\Webrick\Router\Definition\Registrar;
 
 final readonly class RouteFileLoader
 {
@@ -17,14 +18,14 @@ final readonly class RouteFileLoader
     public function __construct(
         private PathManager $paths,
         private ConfigRepository $config,
-        private RouterManager $router,
+        private Registrar $router,
+        private RoutePresetRegistrar $presets,
         private array $files = ['web.php', 'api.php', 'auth.php'],
     ) {}
 
     public function load(): void
     {
-        // Bind Webrick's Route facade before application route files are evaluated.
-        $this->router->router();
+        $this->presets->register();
 
         foreach ($this->files as $file) {
             $path = $this->paths->routes($file);
@@ -34,6 +35,7 @@ final readonly class RouteFileLoader
             }
 
             $router = $this->router;
+            $presets = $this->presets;
 
             require $path;
         }
@@ -89,11 +91,10 @@ final readonly class RouteFileLoader
             return;
         }
 
-        $registrar = $this->router->router();
         $classes = $this->attributeClasses($attributes['classes'] ?? []);
 
         if ($classes !== []) {
-            AttributeRouteLoader::register($registrar, $classes);
+            AttributeRouteLoader::register($this->router, $classes);
         }
 
         $directories = $this->attributeDirectories($attributes['directories'] ?? []);
@@ -107,6 +108,6 @@ final readonly class RouteFileLoader
             ? AttributeRouteLoader::controllerFileFilter()
             : null;
 
-        AttributeRouteLoader::registerFromDirs($registrar, $directories, $filter);
+        AttributeRouteLoader::registerFromDirs($this->router, $directories, $filter);
     }
 }
