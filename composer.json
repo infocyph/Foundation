@@ -6,7 +6,7 @@
     "require": {
         "php": "^8.4",
         "infocyph/arraykit": "^5.1.1",
-        "infocyph/intermix": "^9.1",
+        "infocyph/intermix": "^9.1.1",
         "infocyph/uid": "^5.0",
         "infocyph/webrick": "^4.0.1",
         "psr/log": "^3.0.2"
