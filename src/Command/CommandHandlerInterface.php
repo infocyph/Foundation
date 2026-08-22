@@ -6,5 +6,7 @@ namespace Infocyph\Foundation\Command;
 
 interface CommandHandlerInterface
 {
-    public function execute(ParsedInput $input, CommandIO $io): int;
+    public static function define(CommandDefinition $command): void;
+
+    public function run(CommandContext $context): int;
 }
