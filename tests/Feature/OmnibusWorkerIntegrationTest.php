@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Infocyph\DBLayer\DB;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
+use Infocyph\Foundation\Config\ConfigValidator;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Messaging\MessagingManager;
 use Infocyph\Foundation\Messaging\OmnibusWorkerFactory;
@@ -136,6 +137,29 @@ it('rejects process-local memory transport before starting an Omnibus worker poo
         ->toThrow(LogicException::class, 'process-local');
 });
 
+it('reports process-local pool transport as invalid configuration', function (): void {
+    $app = Foundation::worker([
+        'messaging' => [
+            'workers' => [
+                'parallel' => [
+                    'transport' => 'memory',
+                    'queue' => 'default',
+                    'pool' => [
+                        'enabled' => true,
+                        'concurrency' => 2,
+                    ],
+                ],
+            ],
+        ],
+    ]);
+
+    $messages = $app->make(ConfigValidator::class)->validate()->messages();
+
+    expect($messages)->toContain(
+        'messaging.workers.parallel.pool cannot use the process-local memory transport.',
+    );
+});
+
 it('requires declarative fork-safe configuration before starting a worker pool', function (): void {
     if (class_exists(DB::class)) {
         DB::purge();
@@ -157,6 +181,11 @@ it('requires declarative fork-safe configuration before starting a worker pool',
         ],
     ]);
 
-    expect(fn() => new WorkerManager($app)->run('parallel'))
+    $messages = $app->make(ConfigValidator::class)->validate()->messages();
+
+    expect($messages)->toContain(
+        'Pooled messaging workers require scalar/array declarative configuration; config.messaging.handlers.'
+        . FoundationWorkerMessage::class . ' (Closure) contains runtime state.',
+    )->and(fn() => new WorkerManager($app)->run('parallel'))
         ->toThrow(LogicException::class, 'scalar/array configuration');
 });
