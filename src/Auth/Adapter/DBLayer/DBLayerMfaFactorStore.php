@@ -12,9 +12,13 @@ final readonly class DBLayerMfaFactorStore extends DBLayerStore implements MfaFa
     public function compareAndSwap(?MfaFactor $expected, MfaFactor $updated): bool
     {
         if ($expected === null) {
+            if ($updated->revision !== 0) {
+                return false;
+            }
+
             try {
                 $this->execute(
-                    sprintf('INSERT INTO %s (id, account_id, type, label, enabled, created_at, metadata) VALUES (?, ?, ?, ?, ?, ?, ?)', $this->table('mfaFactors')),
+                    sprintf('INSERT INTO %s (id, account_id, type, label, enabled, created_at, metadata, revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', $this->table('mfaFactors')),
                     [
                         $updated->id,
                         $updated->accountId,
@@ -23,6 +27,7 @@ final readonly class DBLayerMfaFactorStore extends DBLayerStore implements MfaFa
                         $updated->enabled ? 1 : 0,
                         $updated->createdAt,
                         DBLayerJson::encode($updated->metadata),
+                        $updated->revision,
                     ],
                 );
 
@@ -39,14 +44,14 @@ final readonly class DBLayerMfaFactorStore extends DBLayerStore implements MfaFa
             }
         }
 
-        if ($updated->id !== $expected->id) {
+        if ($updated->id !== $expected->id || $updated->revision !== $expected->revision + 1) {
             return false;
         }
 
         return $this->connection()->update(
             sprintf(
-                'UPDATE %s SET account_id = ?, type = ?, label = ?, enabled = ?, created_at = ?, metadata = ? '
-                . 'WHERE id = ? AND account_id = ? AND type = ? AND label = ? AND enabled = ? AND created_at = ? AND metadata = ?',
+                'UPDATE %s SET account_id = ?, type = ?, label = ?, enabled = ?, created_at = ?, metadata = ?, revision = ? '
+                . 'WHERE id = ? AND revision = ?',
                 $this->table('mfaFactors'),
             ),
             [
@@ -56,13 +61,9 @@ final readonly class DBLayerMfaFactorStore extends DBLayerStore implements MfaFa
                 $updated->enabled ? 1 : 0,
                 $updated->createdAt,
                 DBLayerJson::encode($updated->metadata),
+                $updated->revision,
                 $expected->id,
-                $expected->accountId,
-                $expected->type,
-                $expected->label,
-                $expected->enabled ? 1 : 0,
-                $expected->createdAt,
-                DBLayerJson::encode($expected->metadata),
+                $expected->revision,
             ],
         ) === 1;
     }
@@ -93,7 +94,7 @@ final readonly class DBLayerMfaFactorStore extends DBLayerStore implements MfaFa
             [$factor->id],
         ) !== null) {
             $this->execute(
-                sprintf('UPDATE %s SET account_id = ?, type = ?, label = ?, enabled = ?, created_at = ?, metadata = ? WHERE id = ?', $this->table('mfaFactors')),
+                sprintf('UPDATE %s SET account_id = ?, type = ?, label = ?, enabled = ?, created_at = ?, metadata = ?, revision = ? WHERE id = ?', $this->table('mfaFactors')),
                 [
                     $factor->accountId,
                     $factor->type,
@@ -101,6 +102,7 @@ final readonly class DBLayerMfaFactorStore extends DBLayerStore implements MfaFa
                     $factor->enabled ? 1 : 0,
                     $factor->createdAt,
                     DBLayerJson::encode($factor->metadata),
+                    $factor->revision,
                     $factor->id,
                 ],
             );
@@ -109,7 +111,7 @@ final readonly class DBLayerMfaFactorStore extends DBLayerStore implements MfaFa
         }
 
         $this->execute(
-            sprintf('INSERT INTO %s (id, account_id, type, label, enabled, created_at, metadata) VALUES (?, ?, ?, ?, ?, ?, ?)', $this->table('mfaFactors')),
+            sprintf('INSERT INTO %s (id, account_id, type, label, enabled, created_at, metadata, revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', $this->table('mfaFactors')),
             [
                 $factor->id,
                 $factor->accountId,
@@ -118,13 +120,12 @@ final readonly class DBLayerMfaFactorStore extends DBLayerStore implements MfaFa
                 $factor->enabled ? 1 : 0,
                 $factor->createdAt,
                 DBLayerJson::encode($factor->metadata),
+                $factor->revision,
             ],
         );
     }
 
-    /**
-     * @param array<string, mixed> $row
-     */
+    /** @param array<string, mixed> $row */
     private function mapFactor(array $row): MfaFactor
     {
         return new MfaFactor(
@@ -135,6 +136,7 @@ final readonly class DBLayerMfaFactorStore extends DBLayerStore implements MfaFa
             enabled: $this->truthy($row['enabled'] ?? false),
             createdAt: $this->int($row['created_at'] ?? 0),
             metadata: DBLayerJson::decode($row['metadata'] ?? null),
+            revision: $this->int($row['revision'] ?? 0),
         );
     }
 }
