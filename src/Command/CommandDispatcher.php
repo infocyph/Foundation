@@ -7,6 +7,7 @@ namespace Infocyph\Foundation\Command;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Foundation;
+use Infocyph\Foundation\Runtime\ExecutionId;
 
 final class CommandDispatcher
 {
@@ -114,8 +115,8 @@ final class CommandDispatcher
 
         try {
             $application = $this->application($descriptor->definition->commandRuntime(), $input);
-            $inline = static fn(): int => new CommandResolver($application->boot())
-                ->run($descriptor, $input, $io);
+            $inline = static fn(ExecutionId $executionId): int => new CommandResolver($application->boot())
+                ->run($descriptor, $input, $io, $executionId);
 
             return new CommandExecutionCoordinator(
                 $application,
