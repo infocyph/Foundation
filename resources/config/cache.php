@@ -24,7 +24,7 @@ return [
     'lock' => [
         'driver' => env('CACHE_LOCK_DRIVER'),
         'store' => env_string('CACHE_LOCK_STORE', 'local'),
-        'path' => env_string('CACHE_LOCK_PATH', storage_path('cache/locks')),
+        'path' => env_string('CACHE_LOCK_PATH', 'storage/cache/locks'),
         'prefix' => env_string('CACHE_LOCK_PREFIX', 'infbyte:cache:lock:'),
         'retry_sleep_micros' => env_int('CACHE_LOCK_RETRY_SLEEP_MICROS', 50_000),
     ],
@@ -84,15 +84,15 @@ return [
         ],
         'auth' => [
             'driver' => 'local',
-            'path' => storage_path('cache/auth'),
+            'path' => 'storage/cache/auth',
         ],
         'file' => [
             'driver' => 'file',
-            'path' => storage_path('cache/file'),
+            'path' => 'storage/cache/file',
         ],
         'local' => [
             'driver' => 'local',
-            'path' => storage_path('cache/local'),
+            'path' => 'storage/cache/local',
         ],
         'memory' => [
             'driver' => 'memory',
@@ -102,11 +102,11 @@ return [
         ],
         'php_files' => [
             'driver' => 'php_files',
-            'path' => storage_path('cache/php-files'),
+            'path' => 'storage/cache/php-files',
         ],
         'sqlite' => [
             'driver' => 'sqlite',
-            'path' => env_string('CACHE_SQLITE_PATH', storage_path('cache/cachelayer.sqlite')),
+            'path' => env_string('CACHE_SQLITE_PATH', 'storage/cache/cachelayer.sqlite'),
             'lock' => [
                 'driver' => 'pdo',
                 'prefix' => env_string('CACHE_LOCK_PREFIX', 'infbyte:cache:lock:'),
@@ -164,8 +164,8 @@ return [
         ],
         'node' => [
             'driver' => 'node',
-            'sqlite_file' => env_string('CACHE_NODE_SQLITE_FILE', storage_path('cache/node.sqlite')),
-            'lock_directory' => env_string('CACHE_NODE_LOCK_DIRECTORY', storage_path('cache/locks')),
+            'sqlite_file' => env_string('CACHE_NODE_SQLITE_FILE', 'storage/cache/node.sqlite'),
+            'lock_directory' => env_string('CACHE_NODE_LOCK_DIRECTORY', 'storage/cache/locks'),
             'busy_timeout_ms' => env_int('CACHE_NODE_BUSY_TIMEOUT_MS', 1_000),
             'apcu_enabled' => env_bool('CACHE_NODE_APCU_ENABLED', true),
             'fail_open' => env_bool('CACHE_NODE_FAIL_OPEN', true),
@@ -185,12 +185,12 @@ return [
                 ],
                 [
                     'driver' => 'sqlite',
-                    'file' => env_string('CACHE_TIERED_SQLITE_FILE', storage_path('cache/tiered.sqlite')),
+                    'file' => env_string('CACHE_TIERED_SQLITE_FILE', 'storage/cache/tiered.sqlite'),
                 ],
             ],
             'lock' => [
                 'driver' => 'file',
-                'path' => storage_path('cache/locks'),
+                'path' => 'storage/cache/locks',
                 'retry_sleep_micros' => env_int('CACHE_LOCK_RETRY_SLEEP_MICROS', 50_000),
             ],
         ],
