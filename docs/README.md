@@ -7,6 +7,7 @@ their domain behavior.
 - [Architecture and lifecycle](architecture.md)
 - [Configuration](configuration.md)
 - [HTTP and optional capabilities](http-and-capabilities.md)
+- [Communication and email](communication.md)
 - [Console, schedules, and workers](console.md)
 - [Authentication and authorization](authentication.md)
 - [Browser sessions and CSRF](browser-sessions.md)
