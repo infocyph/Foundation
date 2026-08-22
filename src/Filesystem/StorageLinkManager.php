@@ -4,16 +4,19 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Filesystem;
 
-use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Config\ConfigRepository;
 
 final readonly class StorageLinkManager
 {
-    public function __construct(private Application $application) {}
+    public function __construct(
+        private ConfigRepository $config,
+        private PathManager $paths,
+    ) {}
 
     /** @return list<array{link:string,target:string,created:bool}> */
     public function create(): array
     {
-        $configured = $this->application->config()->get('filesystem.links', []);
+        $configured = $this->config->get('filesystem.links', []);
         if (!is_array($configured) || $configured === []) {
             throw new \RuntimeException('No filesystem.links are configured.');
         }
@@ -33,7 +36,7 @@ final readonly class StorageLinkManager
     {
         return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1
             ? rtrim($path, DIRECTORY_SEPARATOR)
-            : $this->application->basePath(trim($path, '/\\'));
+            : $this->paths->base(trim($path, '/\\'));
     }
 
     private function assertInside(string $path, string $root, string $label): void
@@ -50,8 +53,8 @@ final readonly class StorageLinkManager
     /** @return array{link:string,target:string,created:bool} */
     private function link(string $link, string $target): array
     {
-        $storage = realpath($this->application->storagePath());
-        $public = realpath($this->application->publicPath());
+        $storage = realpath($this->paths->storage());
+        $public = realpath($this->paths->public());
         if ($storage === false || $public === false) {
             throw new \RuntimeException('The configured storage and public directories must exist.');
         }
