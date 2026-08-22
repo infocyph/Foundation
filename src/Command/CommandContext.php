@@ -12,7 +12,18 @@ final readonly class CommandContext
         private ParsedInput $input,
         private CommandIO $io,
         private ExecutionId $executionId,
+        private CommandDescriptor $descriptor,
     ) {}
+
+    public function definition(): CommandDefinition
+    {
+        return $this->descriptor->definition;
+    }
+
+    public function descriptor(): CommandDescriptor
+    {
+        return $this->descriptor;
+    }
 
     public function executionId(): ExecutionId
     {
