@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Communication;
 
+use Infocyph\CacheLayer\Cache\Cache;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
+use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\TalkingBytes\Grpc\GrpcInboundDispatcher;
 use Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundHandlerInterface;
@@ -69,7 +72,7 @@ final class CommunicationServiceProvider extends ServiceProvider
             $this->bindFactory(
                 $container,
                 WebhookReceiver::class,
-                fn(): WebhookReceiver => $app->make(CommunicationProfiles::class)->webhookReceiver(),
+                fn(): WebhookReceiver => $this->webhookReceiver($app),
                 LifetimeEnum::Singleton,
             );
         }
@@ -127,5 +130,46 @@ final class CommunicationServiceProvider extends ServiceProvider
         }
 
         return $app->make(CommunicationProfiles::class)->grpcInbound($handlers);
+    }
+
+    private function webhookReceiver(Application $app): WebhookReceiver
+    {
+        $profile = $app->config()->get('communication.webhooks.default_inbound', 'default');
+        $profile = is_string($profile) && trim($profile) !== '' ? trim($profile) : 'default';
+        $configured = $app->config()->get('communication.webhooks.inbound.' . $profile, []);
+        $configured = is_array($configured) ? $configured : [];
+        $replay = ValueNormalizer::associativeArray($configured['replay'] ?? []);
+        $enabled = ValueNormalizer::bool($replay['enabled'] ?? null, $app->config()->isProduction());
+
+        if ($app->config()->isProduction() && !$enabled) {
+            throw new \LogicException('Production WebhookReceiver requires replay protection.');
+        }
+        if (!$enabled) {
+            return $app->make(CommunicationProfiles::class)->webhookReceiver($profile);
+        }
+        if (!class_exists(Cache::class)) {
+            throw new \LogicException(
+                'Webhook replay protection requires infocyph/cachelayer; install the cache module or bind a custom WebhookReceiver.',
+            );
+        }
+
+        $store = $replay['store'] ?? $app->config()->get('cache.default');
+        $store = is_string($store) && trim($store) !== '' ? trim($store) : null;
+        if ($store === null) {
+            throw new \LogicException('Webhook replay protection requires a configured CacheLayer store.');
+        }
+
+        $factory = $app->make(CacheLayerFactory::class);
+        if (!$factory instanceof CacheLayerFactory) {
+            throw new \RuntimeException('CacheLayerFactory did not resolve for webhook replay protection.');
+        }
+
+        $ttl = max(1, ValueNormalizer::int($replay['ttl_seconds'] ?? null, 86_400));
+        $replayStore = new CacheLayerWebhookReplayStore(
+            $factory->make($store),
+            $factory->lock($store),
+        );
+
+        return $app->make(CommunicationProfiles::class)->webhookReceiver($profile, $replayStore, $ttl);
     }
 }
