@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Filesystem;
 
+use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\Pathwise\Results\DownloadPreparation;
 use Infocyph\Pathwise\StreamHandler\DownloadProcessor;
 use Infocyph\Pathwise\Utils\PathHelper;
@@ -16,6 +18,7 @@ use Infocyph\Webrick\Response\Response;
 final readonly class FilesystemResponseFactory
 {
     public function __construct(
+        private ConfigRepository $config,
         private FilesystemTransferFactory $transfers,
         private StorageRegistry $storage,
     ) {}
@@ -71,6 +74,7 @@ final readonly class FilesystemResponseFactory
         array $headers = [],
         bool $inline = false,
     ): Response {
+        $this->assertOffloadEnabled('x_accel_redirect', 'X-Accel-Redirect');
         $resolvedInternalPath = trim($internalPath);
         if ($resolvedInternalPath === '') {
             throw new \InvalidArgumentException('The X-Accel-Redirect internal path must be non-empty.');
@@ -99,6 +103,7 @@ final readonly class FilesystemResponseFactory
         array $headers = [],
         bool $inline = false,
     ): Response {
+        $this->assertOffloadEnabled('x_sendfile', 'X-Sendfile');
         $resolvedPath = $this->localPath($path, $disk);
 
         return $this->offloadResponse(
@@ -112,6 +117,22 @@ final readonly class FilesystemResponseFactory
             headers: $headers,
             inline: $inline,
         );
+    }
+
+    private function assertOffloadEnabled(string $driver, string $label): void
+    {
+        if (ValueNormalizer::bool(
+            $this->config->get('filesystem.offload.' . $driver . '.enabled', false),
+            false,
+        )) {
+            return;
+        }
+
+        throw new \LogicException(sprintf(
+            '%s responses are disabled by filesystem.offload.%s.enabled.',
+            $label,
+            $driver,
+        ));
     }
 
     private function freshRangeHeader(Request $request, DownloadPreparation $manifest): ?string
@@ -140,6 +161,9 @@ final readonly class FilesystemResponseFactory
 
     private function localPath(string $path, ?string $disk): string
     {
+        if ($path !== '' && PathHelper::hasScheme($path)) {
+            throw new \InvalidArgumentException('X-Sendfile requires a local filesystem path.');
+        }
         if ($path !== '' && PathHelper::isAbsolute($path)) {
             return PathHelper::normalize($path);
         }
