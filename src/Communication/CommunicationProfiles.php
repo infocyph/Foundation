@@ -75,10 +75,12 @@ final readonly class CommunicationProfiles
 
     public function http(?string $profile = null): HttpClient
     {
-        $config = $this->httpConfigArray($profile);
-        $client = HttpClient::fromConfig(HttpClientConfig::fromArray($config));
+        $config = $this->httpConfig($profile);
+        if ($this->config->isProduction() && (!$config->verifyPeer || !$config->verifyHost)) {
+            throw new \LogicException('Production HTTP profiles must verify both TLS peers and hosts.');
+        }
 
-        return $this->decorateHttp($client, $config);
+        return $this->decorateHttp(HttpClient::fromConfig($config), $this->httpConfigArray($profile));
     }
 
     public function httpConfig(?string $profile = null): HttpClientConfig
@@ -92,13 +94,8 @@ final readonly class CommunicationProfiles
         ?int $replayTtlSeconds = null,
     ): WebhookReceiver {
         $config = $this->webhookInboundConfig($profile);
-        $secret = $config['secret'] ?? null;
-        if (!is_string($secret) && !is_array($secret)) {
-            throw new \InvalidArgumentException('Inbound webhook secret must be a string or secret list.');
-        }
-
         $receiver = Webhook::receiver(
-            $secret,
+            $this->webhookSecret($config['secret'] ?? null),
             ValueNormalizer::int($config['max_age_seconds'] ?? 300, 300),
         );
 
@@ -139,13 +136,9 @@ final readonly class CommunicationProfiles
         ?int $maxAgeSeconds = null,
     ): WebhookVerifier {
         $config = $this->webhookInboundConfig($profile);
-        $resolvedSecret = $secret ?? ($config['secret'] ?? null);
-        if (!is_string($resolvedSecret) && !is_array($resolvedSecret)) {
-            throw new \InvalidArgumentException('Inbound webhook secret must be a string or secret list.');
-        }
 
         return Webhook::verifier(
-            $resolvedSecret,
+            $this->webhookSecret($secret ?? ($config['secret'] ?? null)),
             $maxAgeSeconds ?? ValueNormalizer::int($config['max_age_seconds'] ?? 300, 300),
         );
     }
@@ -288,5 +281,21 @@ final readonly class CommunicationProfiles
     private function webhookOutboundConfig(?string $profile): array
     {
         return $this->profile('webhooks.outbound', 'webhooks.default_outbound', $profile);
+    }
+
+    /** @return string|list<string> */
+    private function webhookSecret(mixed $secret): string|array
+    {
+        $secrets = is_string($secret) ? [$secret] : (is_array($secret) ? array_values($secret) : []);
+        if ($secrets === [] || array_any($secrets, static fn(mixed $value): bool => !is_string($value) || trim($value) === '')) {
+            throw new \InvalidArgumentException('Inbound webhook secret must contain one or more non-empty strings.');
+        }
+        if ($this->config->isProduction()
+            && array_any($secrets, static fn(string $value): bool => hash_equals('change-me', trim($value)))
+        ) {
+            throw new \LogicException('Production inbound webhook profiles must replace the default secret.');
+        }
+
+        return is_string($secret) ? $secret : $secrets;
     }
 }
