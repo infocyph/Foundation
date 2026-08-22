@@ -6,7 +6,6 @@ namespace Infocyph\Foundation\Auth\Internal;
 
 use Infocyph\ArrayKit\Config\Support\Environment;
 use Infocyph\Foundation\Application\Application;
-use Infocyph\Foundation\Config\EnvironmentLoader;
 use Infocyph\Foundation\Exception\ConfigurationException;
 
 final readonly class AuthSecretResolver
@@ -22,7 +21,7 @@ final readonly class AuthSecretResolver
         $configured = $this->app->config()->get('auth.token_secret');
         $secret = is_string($configured) && $configured !== ''
             ? $configured
-            : $this->environmentSecret();
+            : Environment::get('AUTH_TOKEN_SECRET');
         $resolved = is_string($secret) && $secret !== ''
             ? $secret
             : self::DEVELOPMENT_SECRET;
@@ -40,23 +39,6 @@ final readonly class AuthSecretResolver
         }
 
         return $resolved;
-    }
-
-    private function environmentSecret(): mixed
-    {
-        $secret = Environment::get('AUTH_TOKEN_SECRET');
-        if (is_string($secret) && $secret !== '') {
-            return $secret;
-        }
-
-        new EnvironmentLoader()->load($this->app->basePath(), [
-            'app' => [
-                'load_env' => $this->app->config()->get('app.load_env', true),
-                'env_files' => $this->app->config()->get('app.env_files', ['.env', '.env.local']),
-            ],
-        ]);
-
-        return Environment::get('AUTH_TOKEN_SECRET');
     }
 
     private function isInvalidProductionSecret(string $secret): bool
