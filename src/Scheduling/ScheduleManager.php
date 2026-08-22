@@ -85,7 +85,6 @@ final readonly class ScheduleManager
     public function write(string $routes = 'routes/schedule.php', string $manifest = 'bootstrap/cache/schedule.php'): string
     {
         $path = $this->path($manifest);
-        $routePath = $this->path($routes);
         $directory = dirname($path);
         if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
             throw new \RuntimeException(sprintf('Unable to create schedule cache directory "%s".', $directory));
@@ -93,7 +92,6 @@ final readonly class ScheduleManager
 
         $payload = [
             'version' => self::MANIFEST_VERSION,
-            'source' => $this->sourceMetadata($routePath),
             'entries' => array_map(
                 static fn(ScheduledCommand $entry): array => $entry->toManifest(),
                 $this->load($routes, '')->entries(),
@@ -139,7 +137,7 @@ final readonly class ScheduleManager
         if ($manifestPath !== '' && is_file($manifestPath)) {
             try {
                 $payload = require $manifestPath;
-                if (is_array($payload) && $this->manifestFresh($payload, $routePath)) {
+                if (is_array($payload) && ($payload['version'] ?? null) === self::MANIFEST_VERSION) {
                     $entries = $payload['entries'] ?? null;
                     if (!is_array($entries)) {
                         throw new \UnexpectedValueException('Schedule manifest entries must be an array.');
@@ -156,7 +154,7 @@ final readonly class ScheduleManager
                     return $schedule;
                 }
             } catch (\Throwable) {
-                // Cached schedule metadata is optional; source remains authoritative.
+                // A schedule cache is an optimization. Source routes remain authoritative.
             }
         }
 
@@ -194,34 +192,6 @@ final readonly class ScheduleManager
         }
 
         return $normalized;
-    }
-
-    /** @param array<string, mixed> $manifest */
-    private function manifestFresh(array $manifest, string $routePath): bool
-    {
-        if (($manifest['version'] ?? null) !== self::MANIFEST_VERSION) {
-            return false;
-        }
-        $source = $manifest['source'] ?? null;
-        if (!is_array($source) || !is_bool($source['exists'] ?? null)) {
-            return false;
-        }
-
-        $exists = is_file($routePath);
-        if ($source['exists'] !== $exists) {
-            return false;
-        }
-        if (!$exists) {
-            return ($source['sha256'] ?? null) === null;
-        }
-
-        $expected = $source['sha256'] ?? null;
-        if (!is_string($expected) || preg_match('/^[a-f0-9]{64}$/D', $expected) !== 1) {
-            return false;
-        }
-        $actual = hash_file('sha256', $routePath);
-
-        return is_string($actual) && hash_equals($expected, $actual);
     }
 
     private function path(string $path): string
@@ -336,22 +306,6 @@ final readonly class ScheduleManager
             exitCode: $exitCode,
             metadata: $metadata,
         );
-    }
-
-    /** @return array{exists:bool,path:string,sha256:?string} */
-    private function sourceMetadata(string $routePath): array
-    {
-        $exists = is_file($routePath);
-        $hash = $exists ? hash_file('sha256', $routePath) : null;
-        if ($exists && !is_string($hash)) {
-            throw new \RuntimeException(sprintf('Unable to hash schedule route file "%s".', $routePath));
-        }
-
-        return [
-            'exists' => $exists,
-            'path' => 'routes/schedule.php',
-            'sha256' => $hash,
-        ];
     }
 
     private function status(ProcessResult $result): CommandStatus
