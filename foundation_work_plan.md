@@ -22,10 +22,21 @@ After every completed implementation/review batch:
 ## Current checkpoint
 
 - Date: 2026-08-23
-- Latest Foundation code commit: `b4fe4a41f53d7e0332dba8611c0325a12c08b219`
-- Latest completed phase: InterMix 9.1.1 public-introspection integration.
+- Latest Foundation code commit: `f3230553720dcfc44e6c3ad185a789ce200a8bc2`
+- Latest completed phases: InterMix 9.1.1 integration, UID canonicalization, Foundation env helpers, declarative config paths, CacheLayer lock topology, DB/cache activation-order cleanup.
 - Foundation branch: `feature/foundation-2.0`.
-- Full tests/release matrix: intentionally deferred.
+- Full tests/release matrix: still deferred until the final source/runtime sweep is complete.
+
+## Framework boundary
+
+Foundation and Infbyte now have an explicit relationship:
+
+- **Foundation** is the reusable framework/runtime layer, analogous to Illuminate.
+- **Infbyte** (`infocyph/Infbyte`) is the opinionated application/project skeleton that assembles Foundation, analogous to Laravel's application layer.
+- Foundation owns reusable runtime, application composition primitives, configuration engine, CLI/runtime support, common framework integration policy, and specialist-library bridges.
+- Infbyte owns project defaults, published application config, routes, application code, bootstrap entry files, deployment conventions, and the final opinionated framework experience.
+- Do not move reusable runtime machinery into Infbyte merely to keep Foundation smaller.
+- Do not make Foundation depend on Infbyte.
 
 ## Current dependency baseline
 
@@ -51,7 +62,7 @@ Optional/integration:
 - `infocyph/talkingbytes` `^2.0`
 - `web-auth/webauthn-lib` `^5.3.5`
 
-Do not modify attached libraries merely for churn. InterMix was the only upstream prerequisite identified by the latest whole-codebase review, and that prerequisite is now complete in 9.1.1.
+No attached-library update is currently required beyond the completed InterMix 9.1.1 prerequisite.
 
 # Completed
 
@@ -61,197 +72,193 @@ Do not modify attached libraries merely for churn. InterMix was the only upstrea
 - Broad static/pass-through facade direction removed.
 - Broad `Application::*()` specialist-manager accessors removed and must stay removed.
 - `DatabaseManager`, `RouterManager`, `RouteCacheRouter`, generic `FilesystemManager`, generic Data proxy layer and obsolete manager support abstractions removed/reduced.
-- Specialist libraries own their engines; Foundation keeps only application/runtime/integration policy.
+- Specialist libraries own their engines; Foundation keeps application/runtime/integration policy.
 - Pathwise/filesystem cleanup completed.
-- Communication/notification and messaging surfaces reduced to focused Foundation integration instead of broad specialist-library mirrors.
+- Communication/notification and messaging surfaces reduced to focused Foundation integration.
 - Config/default ownership consolidated around `FoundationDefaults` and `ConfigRepository`.
 - Runtime provider groups use `common`, `web`, `cli`, `worker`, `scheduler`.
 - Runtime validation remains declarative/resolution-free.
 - `bin/infbyte` is package-owned and executable.
-- Module install/remove already use `--update-no-dev`.
-- Module config publication is already staged/rollback-safe.
-- Logger contracts are already PSR-3 typed.
+- Module install/remove use `--update-no-dev`.
+- Module config publication is staged/rollback-safe.
+- Logger contracts are PSR-3 typed.
 
 ## InterMix 9.1.1 integration — complete
 
-InterMix 9.1.1 now provides the two distinct public semantics Foundation required:
+Foundation now uses the public InterMix distinctions correctly:
 
-- `Container::definitions()->has($id)` — explicit registration only;
-- `Container::isResolved($id)` — successful resolution history;
-- `Container::has($id)` remains the broad PSR-style resolvability check.
+- `Container::definitions()->has($id)` for explicit registration;
+- `Container::isResolved($id)` for successful resolution history;
+- `Container::has($id)` only for broad PSR-style resolvability.
 
-Foundation changes completed:
+Completed:
 
-- bumped minimum InterMix constraint from `^9.1` to `^9.1.1`;
-- auth override/default-registration logic now uses `definitions()->has()`;
-- pooled-worker parent cleanliness now uses `Container::isResolved()`;
-- removed the known Foundation `getRepository()` coupling covered by these semantics;
-- do not replace either check with broad `Container::has()`.
+- minimum InterMix constraint bumped to `^9.1.1`;
+- auth override/default-registration uses `definitions()->has()`;
+- pooled-worker parent cleanliness uses `isResolved()`;
+- internal `getRepository()` coupling covered by these APIs removed.
+
+## UID v5 canonical ID integration — complete
+
+- `infocyph/uid` remains core/mandatory.
+- `ExecutionId::generate()` now uses UID UUIDv7.
+- Auth ID generation remains UID-backed.
+- deterministic schedule/cache keys remain deterministic hashes where identity generation would be wrong;
+- cryptographic secrets/nonces/temp suffixes remain cryptographic randomness where that is the correct semantic.
+- no generic `IdentifierManager`/UID facade was reintroduced.
+
+## Foundation environment helper contract — complete
+
+Foundation now deliberately owns only the global environment helper surface required by application config:
+
+- `env()`;
+- `env_bool()`;
+- `env_int()`;
+- `env_string()`.
+
+Implementation rules now fixed:
+
+- helpers are Composer-loaded from one small Foundation helper file;
+- environment lookup uses ArrayKit's hydrated environment state;
+- Foundation does not duplicate ArrayKit's `.env` parser;
+- no service locator or application singleton is exposed through helpers;
+- path helpers were **not** restored globally because lazy config may be evaluated for multiple applications in one process and a static current application path would be unsafe.
+
+Published Foundation config paths are therefore declarative/application-relative and resolved later by `PathManager`/the owning integration factory. Cache, filesystem and notification spool defaults have been migrated away from `storage_path()`/`public_path()` dependencies.
+
+## CacheLayer lock topology — complete
+
+Foundation no longer silently converts an unspecified coordination lock into an unrelated file lock.
+
+Current behavior:
+
+- an explicit `cache.lock.driver` wins;
+- otherwise `CacheLayerFactory::lock()` resolves the selected/default cache store and inherits its native `AuthenticationStateCacheInterface::authenticationStateLock()` capability;
+- `cache.lock.store` is optional and defaults to the application's default cache store instead of hard-coded `local`;
+- stores without a native coordination lock fail clearly when a coordination feature requests one;
+- explicit local file locking remains available when deliberately configured;
+- store-local CacheLayer lock configuration remains respected by normal cache construction.
+
+This applies to scheduler overlap/single-server, singleton workers, webhook replay, auth/session coordination and other Foundation mutex consumers through the shared factory path.
+
+## CacheManager / DBLayer activation-order coupling — complete
+
+- resolving CacheManager no longer autoloads DBLayer merely because DBLayer is installed;
+- CacheManager wires DBLayer only when DBLayer is already active/loaded;
+- DatabaseServiceProvider detects an already-resolved CacheManager and completes the cache bridge when DB activates later;
+- behavior is therefore independent of whether cache or database capability resolves first;
+- optional package presence remains distinct from capability activation.
 
 # Architecture decisions fixed
-
-## UID is the canonical Foundation ID provider
-
-`infocyph/uid` is core/mandatory and should generate Foundation-owned application/runtime identifiers.
-
-- Auth already uses UID v5, primarily UUIDv7 and ULID.
-- Do not add an `IdentifierManager` or pass-through UID facade.
-- Use native randomness only for entropy/secret material, not Foundation identity values.
-
-## Environment helper ownership stays in Foundation
-
-Foundation owns its application-facing global config helper contract.
-
-- Keep `env()`, `env_bool()`, `env_int()`, `env_string()` in Foundation.
-- Keep Foundation path helpers used by published config templates in Foundation.
-- ArrayKit remains the parser/config/environment engine underneath where appropriate.
-- Do not duplicate ArrayKit's `.env` parser.
-- Do not request an ArrayKit upstream change for these helpers.
 
 ## Specialist package ownership
 
 Do not duplicate engines already owned by CacheLayer, DBLayer, Epicrypt, Omnibus, OTP, Pathwise, ReqShield, TalkingBytes, UID, Webrick or InterMix.
 
-Foundation integration code is justified only when it adds application configuration, runtime policy, security policy, lifecycle composition, named profiles, or cross-package orchestration.
+Foundation integration code is justified only when it adds reusable framework configuration, runtime policy, security policy, lifecycle composition, named profiles, or cross-package orchestration.
 
-# Immediate next work — UID v5 canonical ID integration
+## Config paths stay declarative
 
-This is the next source phase.
+- Global path helpers are not part of Foundation 2.0's config contract.
+- Published reusable config should prefer application-relative paths.
+- `PathManager` and the integration that owns a path resolve it against the current application.
+- This preserves multiple-application/process safety and keeps lazy config free of mutable global application state.
 
-## 1. Replace runtime `ExecutionId` ad-hoc generation
+# Immediate next work — optimized artifact trust/freshness
 
-- Replace native random-hex generation in `ExecutionId::generate()` with UID v5.
-- Prefer UUIDv7 for execution identity unless source semantics show a better UID primitive.
-- Preserve `ExecutionId` as a small Foundation value object; do not expose UID internals through it.
+The final known performance issue before the closing source sweep is repeated source filesystem validation on optimized startup/preflight paths.
 
-## 2. Scan all Foundation-owned identifier generation
+## Scope
 
-Audit the whole source for identifiers created with:
+Audit and align:
 
-- `random_bytes()` / random hex;
-- `uniqid()`;
-- manual timestamp/random concatenation;
-- direct UUID/ULID generation outside the established UID integration;
-- hashes being used as identity where they are not actually content-derived keys.
+- config cache;
+- command manifest/cache;
+- schedule manifest/cache;
+- route cache;
+- compiled container metadata where applicable.
 
-Classify each finding:
+## Target production policy
 
-- **identity** → use UID v5;
-- **deterministic/content-derived key** → hash/deterministic ID may remain appropriate;
-- **secret/nonce/token entropy** → keep cryptographically secure random generation or Epicrypt as appropriate;
-- **cache/lock namespace key** → keep deterministic derivation where identity generation would be wrong.
+When a deployment has deliberately generated optimized artifacts, runtime startup should trust compatible artifacts without repeatedly scanning/hash/stat-ing all source files.
 
-## 3. Keep ID semantics purpose-driven
+Required design:
 
-Default direction:
+1. source mode remains authoritative when the artifact is absent;
+2. optimize/build/deployment commands own artifact generation and invalidation;
+3. artifacts carry a cheap format/schema/framework/build compatibility identity;
+4. optimized production reads validate only the artifact itself and cheap compatibility metadata;
+5. do not hash/stat every config/route/command/schedule source file on every startup/preflight;
+6. development/source-freshness checking may remain available as an explicit mode if useful, but it must not be the production optimized default;
+7. corrupt/incompatible artifacts fall back safely to source where fallback is semantically valid;
+8. `optimize:clear`, module/config publication and other mutating commands invalidate the affected artifacts explicitly.
 
-- runtime execution IDs → UUIDv7;
-- auth/application entity IDs → existing UID-backed policy;
-- correlation IDs → ULID where ordering/readability is useful;
-- deterministic IDs → UID deterministic API only when deterministic identity is the actual semantic requirement.
+## Specific current hotspots
 
-Do not force all IDs into one algorithm blindly.
-
-## UID phase completion gate
-
-Before moving on:
-
-- no Foundation identity path should bypass UID without an explicit reason;
-- no new generic ID facade/manager should be introduced;
-- deterministic hashes and cryptographic secrets must not be incorrectly converted into UUIDs;
-- update this plan with the new code checkpoint and next phase.
+- `ConfigLoader` computes the complete config/provider source fingerprint before attempting to load the config manifest.
+- `CommandCacheManager`/CLI preflight recompute hashes/stat application command sources before trusting the command cache.
+- schedule cache checks schedule source freshness at runtime.
+- route cache behavior must be reviewed against the same contract so all artifact types follow one model.
 
 # Remaining source queue
 
-## Phase after UID — repair Foundation helper contract
+## Final source/runtime integration sweep
 
-Published config templates still depend on Foundation-style global helpers after the old helper autoload removal.
-
-- define one canonical Foundation helper file/owner;
-- deliberately load the required helper surface;
-- provide `env()`, `env_bool()`, `env_int()`, `env_string()`;
-- provide the path helpers actually used by Foundation config templates;
-- route environment reads through the current Foundation/ArrayKit environment state;
-- ensure path helpers use the current application base/path policy and do not retain stale process-global application state;
-- scan every `resources/config/*.php` file and remove undefined helper usage;
-- keep helpers thin and avoid rebuilding service/facade APIs globally.
-
-## Then — correct CacheLayer lock topology
-
-Current concern: an unspecified lock driver can silently become a node-local file lock even when the feature requires shared coordination.
-
-Target behavior:
-
-- explicit configured lock provider wins;
-- otherwise use the selected CacheLayer store's native coordination lock when available;
-- never silently downgrade distributed/shared semantics to an unrelated local file lock;
-- fail clearly when a coordination feature requires a lock topology the selected store cannot provide;
-- retain explicitly local locking for intentional single-node use.
-
-Audit:
-
-- scheduler overlap/single-server;
-- singleton workers;
-- webhook replay;
-- browser/auth state/session locking;
-- migrations and other mutex users.
-
-No CacheLayer upstream change is currently required; use 3.1.3 public capabilities.
-
-## Then — remove CacheManager / DBLayer resolution-order coupling
-
-- resolving cache must not autoload DBLayer merely because DBLayer is installed;
-- DB integration should own DBLayer-specific cache wiring, or use an explicit bridge activated only when both capabilities are active;
-- behavior must not depend on whether cache or database resolved first;
-- preserve DBLayer query-cache integration when both capabilities are active.
-
-## Then — optimize compiled artifact trust/freshness
-
-Current optimized paths still do source filesystem validation work:
-
-- config cache scans/stats config/provider source files;
-- command preflight hashes framework metadata, command route files and application handler files;
-- schedule cache hashes schedule source;
-- route cache must be reviewed under the same policy.
-
-Design one consistent performance-first policy:
-
-- source remains authoritative when no artifact exists;
-- optimize/build/deployment commands generate and invalidate artifacts;
-- artifacts carry format/schema/build identity;
-- production optimized startup should not continuously scan/hash source files;
-- a development freshness mode may validate source more aggressively;
-- corrupt/incompatible artifacts fall back safely where source fallback is semantically valid.
-
-## Then — final source/runtime integration sweep
-
-Re-scan the complete branch for:
+After artifact policy is corrected, re-scan the complete branch for:
 
 - Web/CLI/Worker/Scheduler boot isolation;
 - optional package autoload leaks;
 - package-present vs module-configured/activated semantics;
+- stale `class_exists()` checks that accidentally activate optional packages;
 - dead wrappers and one-use abstractions;
 - stale service IDs, aliases, imports and config keys;
 - obsolete Console-era compatibility remnants;
 - specialist APIs unnecessarily mirrored by Foundation;
-- process/fork/runtime lifecycle defects.
+- process/fork/runtime lifecycle defects;
+- remaining path-helper calls or global application state;
+- remaining ad-hoc Foundation identity generation;
+- any stale references to InterMix internals.
 
 Keep `RuntimeContextTracker`'s touched-state cleanup model unless a concrete defect appears; do not replace it with a broad global reset registry.
 
-# Deferred documentation and release gate
+# Documentation and release gate
 
-Only after the remaining source phases are complete:
+Once the source sweep is complete, source work is frozen and the project enters finalization:
 
-1. freeze README/docs against the actual Foundation 2.0 public surface;
-2. remove stale references to deleted APIs/configs/Console ownership;
-3. run the full test and integration matrix;
-4. run static analysis and PHPForge gates;
-5. verify core-only and optional-module installation matrices;
-6. verify Web/CLI/Worker/Scheduler isolation;
-7. run persistent worker/scheduler scope-reset and soak checks;
-8. benchmark startup, optimized artifact paths, memory and representative throughput;
-9. run final dead-symbol/config/doc scan;
-10. perform Foundation 2.0 release-readiness review.
+1. update README/docs against the actual Foundation 2.0 public surface;
+2. remove stale references to deleted APIs/configs/Console ownership/path helpers;
+3. document Foundation vs Infbyte ownership clearly;
+4. run Composer validation and dependency checks;
+5. run static analysis and PHPForge gates;
+6. run the complete PHPUnit/integration suite;
+7. verify core-only installation/runtime without optional packages;
+8. verify optional-module combinations;
+9. verify Web/CLI/Worker/Scheduler load isolation;
+10. verify persistent worker/scheduler scope reset and fork safety;
+11. verify scheduler/cache coordination topology;
+12. benchmark startup, optimized artifact paths, memory and representative throughput;
+13. run dead-symbol/config/doc scans;
+14. verify a clean archive/consumer install;
+15. perform final Foundation 2.0 release-readiness review.
+
+# Deferred Infbyte follow-up — do after Foundation 2.0 is frozen
+
+Do **not** modify `infocyph/Infbyte` during the current Foundation finalization. Track the required application-skeleton migration here and execute it after Foundation 2.0's public surface is frozen.
+
+Current Infbyte follow-up list:
+
+1. bump `infocyph/foundation` from the current `^1.3` constraint to the final Foundation `^2.0` release;
+2. update Infbyte config files to the final Foundation 2.0 config schema/defaults and remove stale 1.x keys such as old container/request-scope settings;
+3. remove the old `config/ids.php`/IdentifierManager-era surface if it is still present, because UID is now a core Foundation provider and generic Foundation ID facades/managers are gone;
+4. align Infbyte's root `infbyte` launcher with the final package-owned `vendor/bin/infbyte`/Foundation CLI delegation model, keeping the project root script tiny;
+5. verify `bootstrap/app.php` and runtime entrypoints select the correct `Foundation::web()`, `cli()`, `worker()`, and `scheduler()` modes without rebuilding runtime ownership in the skeleton;
+6. republish/refresh module config from Foundation 2.0 as appropriate rather than preserving stale application copies;
+7. update `.env.example` for the final Foundation 2.0 environment names/defaults, including the new lock-store inheritance behavior;
+8. update deployment flow so optimized Foundation artifacts are built during deployment and not source-revalidated on every request/process start;
+9. update Infbyte README/docs to present Infbyte as the opinionated application framework built on Foundation;
+10. run Infbyte's own clean-install/application smoke tests against the released Foundation 2.0 package.
+
+The Infbyte repo remains untouched until this Foundation plan reaches the release-frozen state.
 
 # Do not regress
 
@@ -259,7 +266,8 @@ Only after the remaining source phases are complete:
 - Do not restore the static global facade/application-state architecture.
 - Do not restore generic Foundation Data/ArrayKit proxy APIs.
 - Do not restore the deleted generic `FilesystemManager`.
+- Do not restore global application path helpers for lazy config.
 - Do not use `Container::has()` where explicit registration or resolution-history semantics are required.
 - Do not access InterMix `getRepository()` when a public API exists.
 - Do not duplicate specialist engines in Foundation.
-- Do not begin the full test/release matrix before the remaining source work is complete, except for narrow checks necessary to validate a specific implementation change.
+- Do not move reusable Foundation runtime ownership into Infbyte.
