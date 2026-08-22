@@ -74,6 +74,12 @@ final readonly class ParsedInput
         return $this->arguments[$index] ?? $default;
     }
 
+    /** @return list<string> */
+    public function arguments(): array
+    {
+        return $this->arguments;
+    }
+
     public function flag(string $name): bool
     {
         $value = $this->options[$name] ?? false;
@@ -326,7 +332,7 @@ final readonly class ParsedInput
         $declared = $definition->arguments();
         $required = count(array_filter($declared, static fn(array $argument): bool => $argument['required']));
         if (count($input->arguments) < $required) {
-            $missing = $declared[count($input->arguments())]['name'] ?? 'argument';
+            $missing = $declared[count($input->arguments)]['name'] ?? 'argument';
             throw new \InvalidArgumentException(sprintf('Missing required argument "%s".', $missing));
         }
 
