@@ -8,7 +8,6 @@ use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\Connection\Pool;
 use Infocyph\DBLayer\Connection\PoolManager;
 use Infocyph\DBLayer\DB;
-use Infocyph\DBLayer\Query\QueryBuilder;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchemaInstaller;
 
@@ -71,23 +70,6 @@ final readonly class DatabaseManager
     public function resetRuntimeState(bool $disconnectConnections = true): void
     {
         DB::resetRuntimeState($disconnectConnections);
-    }
-
-    /** Transitional composition helper for ReqShield integration. */
-    public function query(?string $name = null): QueryBuilder
-    {
-        return $this->connection($name)->query();
-    }
-
-    /**
-     * Transitional composition helper for ReqShield integration.
-     *
-     * @param array<int, mixed> $bindings
-     * @return list<array<string, mixed>>
-     */
-    public function select(string $query, array $bindings = [], ?string $name = null): array
-    {
-        return $this->connection($name)->select($query, $bindings);
     }
 
     public function withPooledConnection(callable $callback, ?string $name = null): mixed
