@@ -5,16 +5,18 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Validation;
 
 use Closure;
+use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\Query\QueryBuilder;
-use Infocyph\Foundation\Database\DatabaseManager;
 use Infocyph\ReqShield\Contracts\DatabaseProvider;
 
+/**
+ * Adapts ReqShield's batched database rules to the configured DBLayer connection.
+ */
 final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
 {
     public function __construct(
-        /** @var Closure():DatabaseManager */
-        private Closure $database,
-        private ?string $connection = null,
+        /** @var Closure():Connection */
+        private Closure $connection,
     ) {}
 
     /**
@@ -25,13 +27,11 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
     {
         /** @var array<string, list<array{identifier:int|string,value:mixed}>> $grouped */
         $grouped = [];
-
         foreach ($checks as $key => $check) {
             $column = $this->stringValue($check['column'] ?? null);
             if ($column === '') {
                 continue;
             }
-
             $value = $check['value'] ?? null;
             $grouped[$column][] = [
                 'identifier' => $this->identifier($check['id'] ?? $check['field'] ?? $value, $key),
@@ -40,11 +40,10 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
         }
 
         $missing = [];
-
         foreach ($grouped as $column => $entries) {
             $matched = $this->matchedEntries(
                 $this->rowsForValues(
-                    $this->database()->query($this->connection)->from($table)->select($this->column($column)),
+                    $this->query($table)->select($this->column($column)),
                     $this->column($column),
                     $this->entryValues($entries),
                 ),
@@ -53,11 +52,9 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
             );
 
             foreach ($entries as $index => $entry) {
-                if (isset($matched[$index])) {
-                    continue;
+                if (!isset($matched[$index])) {
+                    $missing[] = $entry['identifier'];
                 }
-
-                $missing[] = $entry['identifier'];
             }
         }
 
@@ -72,93 +69,38 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
     {
         /** @var array<string, array{checks:list<array{identifier:int|string,value:mixed}>,column:string,id_column:string,ignore_id:?int,soft_delete_column:string,with_trashed:bool}> $grouped */
         $grouped = [];
-
         foreach ($checks as $key => $check) {
             $this->addUniqueCheck($grouped, $key, $check);
         }
 
         $nonUnique = [];
-
         foreach ($grouped as $group) {
-            $query = $this->database()->query($this->connection)
-                ->from($table)
-                ->select($this->column($group['column']));
-
+            $query = $this->query($table)->select($this->column($group['column']));
             if (!$group['with_trashed']) {
-                $query->whereNull($group['soft_delete_column']);
+                $query->whereNull($this->column($group['soft_delete_column']));
             }
-
             if ($group['ignore_id'] !== null) {
                 $query->where($this->column($group['id_column']), '!=', $group['ignore_id']);
             }
 
             $matched = $this->matchedEntries(
-                $this->rowsForValues($query, $this->column($group['column']), $this->entryValues($group['checks'])),
+                $this->rowsForValues(
+                    $query,
+                    $this->column($group['column']),
+                    $this->entryValues($group['checks']),
+                ),
                 $group['column'],
                 $group['checks'],
             );
 
             foreach ($group['checks'] as $index => $entry) {
-                if (!isset($matched[$index])) {
-                    continue;
+                if (isset($matched[$index])) {
+                    $nonUnique[] = $entry['identifier'];
                 }
-
-                $nonUnique[] = $entry['identifier'];
             }
         }
 
         return $nonUnique;
-    }
-
-    /** @param array<string, mixed> $columns */
-    public function compositeUnique(string $table, array $columns, ?int $ignoreId = null): bool
-    {
-        $query = $this->database()->query($this->connection)->from($table);
-
-        foreach ($columns as $column => $value) {
-            $column = $this->column($column);
-
-            if ($value === null) {
-                $query->whereNull($column);
-
-                continue;
-            }
-
-            $query->where($column, $value);
-        }
-
-        if ($ignoreId !== null) {
-            $query->where('id', '!=', $ignoreId);
-        }
-
-        return !$query->exists();
-    }
-
-    public function exists(string $table, string $column, mixed $value, ?int $ignoreId = null): bool
-    {
-        $column = $this->column($column);
-        $query = $this->database()->query($this->connection)->from($table);
-
-        if ($value === null) {
-            $query->whereNull($column);
-        } else {
-            $query->where($column, $value);
-        }
-
-        if ($ignoreId !== null) {
-            $query->where('id', '!=', $ignoreId);
-        }
-
-        return $query->exists();
-    }
-
-    /**
-     * @param array<int, mixed> $params
-     * @return array<int, array<string, mixed>>
-     */
-    public function query(string $query, array $params = []): array
-    {
-        return $this->database()->select($query, $params, $this->connection);
     }
 
     /**
@@ -193,15 +135,7 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
         return $column;
     }
 
-    private function database(): DatabaseManager
-    {
-        return ($this->database)();
-    }
-
-    /**
-     * @param list<array{identifier:int|string,value:mixed}> $entries
-     * @return list<mixed>
-     */
+    /** @param list<array{identifier:int|string,value:mixed}> $entries @return list<mixed> */
     private function entryValues(array $entries): array
     {
         return array_map(static fn(array $entry): mixed => $entry['value'], $entries);
@@ -212,11 +146,9 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
         if (is_int($value) || is_string($value)) {
             return $value;
         }
-
         if (is_float($value) || is_bool($value)) {
             return (string) $value;
         }
-
         if (is_object($value) && method_exists($value, '__toString')) {
             return (string) $value;
         }
@@ -241,13 +173,12 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
     private function matchedEntries(array $rows, string $column, array $entries): array
     {
         $matched = [];
-
         foreach ($entries as $index => $entry) {
             foreach ($rows as $row) {
-                if (!array_key_exists($column, $row) || !$this->sameDatabaseValue($row[$column], $entry['value'])) {
+                if (!array_key_exists($column, $row)
+                    || !$this->sameDatabaseValue($row[$column], $entry['value'])) {
                     continue;
                 }
-
                 $matched[$index] = true;
 
                 break;
@@ -257,19 +188,19 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
         return $matched;
     }
 
-    /**
-     * @param list<mixed> $values
-     * @return list<array<string, mixed>>
-     */
+    private function query(string $table): QueryBuilder
+    {
+        return ($this->connection)()->query()->from($table);
+    }
+
+    /** @param list<mixed> $values @return list<array<string, mixed>> */
     private function rowsForValues(QueryBuilder $query, string $column, array $values): array
     {
         $rows = [];
         $nonNullValues = array_values(array_filter($values, static fn(mixed $value): bool => $value !== null));
-
         if ($nonNullValues !== []) {
             $rows = $query->cloneBuilder()->whereIn($column, $nonNullValues)->get();
         }
-
         if (!in_array(null, $values, true)) {
             return $rows;
         }
@@ -291,11 +222,9 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
         if (is_string($value)) {
             return $value;
         }
-
         if (is_int($value) || is_float($value) || is_bool($value)) {
             return (string) $value;
         }
-
         if (is_object($value) && method_exists($value, '__toString')) {
             return (string) $value;
         }
@@ -303,9 +232,7 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
         return '';
     }
 
-    /**
-     * @return array{0:string,1:mixed,2:int|string,3:?int,4:string,5:bool,6:string}
-     */
+    /** @return array{0:string,1:mixed,2:int|string,3:?int,4:string,5:bool,6:string} */
     private function uniqueCheck(int|string $key, mixed $check): array
     {
         if (!is_array($check)) {
