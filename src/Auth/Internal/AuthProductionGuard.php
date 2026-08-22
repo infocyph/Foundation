@@ -41,6 +41,15 @@ final readonly class AuthProductionGuard
             throw new ConfigurationException('auth.drivers.notifications must not be "collect" in production.');
         }
 
+        if ($drivers->notifications() === AuthNotificationDriver::TALKINGBYTES) {
+            $transport = $this->app->config()->get('notifications.auth.transport', 'null');
+            if (!is_string($transport) || in_array(strtolower(trim($transport)), ['null', 'fake'], true)) {
+                throw new ConfigurationException(
+                    'notifications.auth.transport must deliver or deliberately log notifications in production.',
+                );
+            }
+        }
+
         if ($drivers->passkey() === AuthPasskeyDriver::MEMORY) {
             throw new ConfigurationException('auth.drivers.passkey must not be "memory" in production.');
         }
