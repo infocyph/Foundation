@@ -8,14 +8,14 @@ use Closure;
 use Infocyph\CacheLayer\Cache\CacheInterface;
 use Infocyph\CacheLayer\Cluster\Outbox\ClusterOutbox;
 use Infocyph\DBLayer\Connection\Connection;
-use Infocyph\DBLayer\DB;
 
 /**
  * Foundation application topology for named CacheLayer stores.
  *
  * Generic cache, locking, counter, node and cluster operations remain native
  * CacheLayer APIs. This component keeps application store identity, wires the
- * default store into DBLayer, and owns the DB/cache invalidation workflow.
+ * default store into an already-active DBLayer runtime, and owns the DB/cache
+ * invalidation workflow.
  */
 final class CacheManager
 {
@@ -84,8 +84,9 @@ final class CacheManager
 
     private function wireDatabaseCache(CacheInterface $store): void
     {
-        if (class_exists(DB::class)) {
-            DB::setCache($store);
+        $db = 'Infocyph\\DBLayer\\DB';
+        if (class_exists($db, false)) {
+            $db::setCache($store);
         }
     }
 }
