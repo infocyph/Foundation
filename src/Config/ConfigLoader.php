@@ -14,7 +14,7 @@ final class ConfigLoader
 
     public const string TYPE_SINGLE = 'single';
 
-    private const int CACHE_FORMAT = 3;
+    private const int CACHE_FORMAT = 4;
 
     /** @param array<string, mixed> $inline */
     public function load(array $inline = []): ConfigRepository
@@ -25,14 +25,24 @@ final class ConfigLoader
         unset($normalized['_config_cache'], $normalized['_preset']);
 
         $basePath = $this->basePath($normalized);
+
+        // Environment hydration is a bootstrap concern and must not depend on whether
+        // a compiled config cache happens to exist.
+        new EnvironmentLoader()->load($basePath, $normalized);
+
+        $configDirectory = $this->configPath($basePath, $normalized);
+        $sourceFingerprint = $this->sourceFingerprint($configDirectory);
         $cacheDirectory = $this->configCacheEnabled($cacheControl)
             ? $this->configuredCachePath($cacheControl, $basePath)
             : null;
+        $overrides = ConfigMerger::mergeMany([$preset, $normalized, $this->runtimeInvariants()]);
 
-        $cached = $cacheDirectory === null ? null : $this->loadCacheManifest($cacheDirectory);
+        $cached = $cacheDirectory === null
+            ? null
+            : $this->loadCacheManifest($cacheDirectory, $sourceFingerprint);
         if (($cached['type'] ?? null) === self::TYPE_SINGLE) {
             return new ConfigRepository(
-                ConfigMerger::mergeMany([$cached['data'], $preset, $normalized]),
+                ConfigMerger::mergeMany([$cached['data'], $overrides]),
                 compiled: true,
             );
         }
@@ -42,31 +52,35 @@ final class ConfigLoader
                 directory: $cacheDirectory,
                 cacheDirectory: $cacheDirectory,
                 fallback: $cached['complete'] ? [] : $this->defaults(),
-                overrides: ConfigMerger::mergeMany([$preset, $normalized]),
+                overrides: $overrides,
                 namespaces: $cached['namespaces'],
                 compiled: true,
             );
         }
 
-        new EnvironmentLoader()->load($basePath, $normalized);
-        $configDirectory = $this->configPath($basePath, $normalized);
-
         return ConfigRepository::fromLazyFiles(
             directory: $configDirectory,
             cacheDirectory: $cacheDirectory,
             fallback: $this->defaults(),
-            overrides: ConfigMerger::mergeMany([$preset, $normalized]),
+            overrides: $overrides,
             namespaces: $this->configNamespaces($configDirectory),
         );
     }
 
-    public function writeCache(ConfigRepository $config, string $cacheDirectory, ?string $type = null): string
-    {
+    public function writeCache(
+        ConfigRepository $config,
+        string $cacheDirectory,
+        ?string $type = null,
+        ?string $basePath = null,
+    ): string {
+        ConfigExportValidator::assertExportable($config->all());
         $this->ensureCacheDirectory($cacheDirectory);
         $cacheType = $this->cacheType($config, $type);
+        $sourceBasePath = $basePath ?? $this->basePath($config->all());
+        $sourceFingerprint = $this->sourceFingerprint($this->configPath($sourceBasePath, $config->all()));
         $payload = $cacheType === self::TYPE_SINGLE
-            ? $this->singleCachePayload($config, $cacheDirectory)
-            : $this->shardedCachePayload($config, $cacheDirectory);
+            ? $this->singleCachePayload($config, $cacheDirectory, $sourceFingerprint)
+            : $this->shardedCachePayload($config, $cacheDirectory, $sourceFingerprint);
 
         $this->writeManifest($cacheDirectory, $payload);
 
@@ -161,7 +175,15 @@ final class ConfigLoader
     /** @return array<string, mixed> */
     private function defaults(): array
     {
-        return ConfigMerger::mergeMany([FoundationDefaults::all(), AuthDefaults::all()]);
+        $defaults = ConfigMerger::mergeMany([FoundationDefaults::all(), AuthDefaults::all()]);
+
+        // Keep runtime fallback semantics aligned with the published Foundation 2.0
+        // contract until the obsolete request-scope key is fully removed.
+        $defaults['app']['container']['lazy_loading'] = true;
+        $defaults['app']['container']['request_scope'] = false;
+        $defaults['filesystem']['uploads']['strict_content_type_validation'] = true;
+
+        return $defaults;
     }
 
     private function ensureCacheDirectory(string $directory): void
@@ -174,7 +196,7 @@ final class ConfigLoader
     /**
      * @return array{type:'single',data:array<string,mixed>}|array{type:'sharded',namespaces:list<string>,complete:bool}|null
      */
-    private function loadCacheManifest(string $directory): ?array
+    private function loadCacheManifest(string $directory, string $sourceFingerprint): ?array
     {
         $file = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . self::MANIFEST_FILE;
         if (!is_file($file) || !is_readable($file)) {
@@ -186,7 +208,12 @@ final class ConfigLoader
         } catch (\Throwable) {
             return null;
         }
-        if (!is_array($payload) || ($payload['_format'] ?? null) !== self::CACHE_FORMAT) {
+        if (
+            !is_array($payload)
+            || ($payload['_format'] ?? null) !== self::CACHE_FORMAT
+            || !hash_equals($this->schemaFingerprint(), (string) ($payload['_schema'] ?? ''))
+            || !hash_equals($sourceFingerprint, (string) ($payload['_source'] ?? ''))
+        ) {
             return null;
         }
 
@@ -259,9 +286,35 @@ final class ConfigLoader
         }
     }
 
-    /** @return array{_format:int,_type:string,_namespaces:list<string>,_complete:bool} */
-    private function shardedCachePayload(ConfigRepository $config, string $directory): array
+    /** @return array<string, mixed> */
+    private function runtimeInvariants(): array
     {
+        return [
+            'app' => [
+                'container' => [
+                    // Foundation's HttpKernel owns the request execution scope.
+                    'request_scope' => false,
+                ],
+            ],
+        ];
+    }
+
+    private function schemaFingerprint(): string
+    {
+        $defaults = $this->defaults();
+        $defaults['app']['base_path'] = '<application-base>';
+
+        return hash('sha256', serialize($defaults));
+    }
+
+    /**
+     * @return array{_format:int,_schema:string,_source:string,_type:string,_namespaces:list<string>,_complete:bool}
+     */
+    private function shardedCachePayload(
+        ConfigRepository $config,
+        string $directory,
+        string $sourceFingerprint,
+    ): array {
         $compiled = $config->all();
         $namespaces = [];
         foreach ($compiled as $namespace => $value) {
@@ -289,18 +342,56 @@ final class ConfigLoader
 
         return [
             '_format' => self::CACHE_FORMAT,
+            '_schema' => $this->schemaFingerprint(),
+            '_source' => $sourceFingerprint,
             '_type' => self::TYPE_SHARDED,
             '_namespaces' => $namespaces,
             '_complete' => true,
         ];
     }
 
-    /** @return array{_format:int,_type:string,_data:array<string,mixed>} */
-    private function singleCachePayload(ConfigRepository $config, string $directory): array
-    {
+    /**
+     * @return array{_format:int,_schema:string,_source:string,_type:string,_data:array<string,mixed>}
+     */
+    private function singleCachePayload(
+        ConfigRepository $config,
+        string $directory,
+        string $sourceFingerprint,
+    ): array {
         $this->removeStaleShards($directory, []);
 
-        return ['_format' => self::CACHE_FORMAT, '_type' => self::TYPE_SINGLE, '_data' => $config->all()];
+        return [
+            '_format' => self::CACHE_FORMAT,
+            '_schema' => $this->schemaFingerprint(),
+            '_source' => $sourceFingerprint,
+            '_type' => self::TYPE_SINGLE,
+            '_data' => $config->all(),
+        ];
+    }
+
+    private function sourceFingerprint(string $directory): string
+    {
+        if (!is_dir($directory)) {
+            return hash('sha256', 'missing-config-directory');
+        }
+
+        $files = glob(rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . '*.php') ?: [];
+        sort($files, SORT_STRING);
+        $metadata = [];
+        foreach ($files as $file) {
+            $stat = stat($file);
+            if (!is_array($stat)) {
+                return hash('sha256', 'unreadable:' . basename($file));
+            }
+            $metadata[] = implode(':', [
+                basename($file),
+                (string) ($stat['size'] ?? 0),
+                (string) ($stat['mtime'] ?? 0),
+                (string) ($stat['ctime'] ?? 0),
+            ]);
+        }
+
+        return hash('sha256', implode('|', $metadata));
     }
 
     /** @param array<string, mixed> $payload */
