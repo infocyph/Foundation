@@ -13,13 +13,6 @@ final readonly class CommandDescriptor
         public bool $system = false,
     ) {
         $definition->assertComplete();
-        if ($handler !== null && !is_a($handler, CommandHandlerInterface::class, true)) {
-            throw new \InvalidArgumentException(sprintf(
-                'Command handler "%s" must implement %s.',
-                $handler,
-                CommandHandlerInterface::class,
-            ));
-        }
     }
 
     /**
@@ -77,6 +70,7 @@ final readonly class CommandDescriptor
             throw new \UnexpectedValueException('Compiled command descriptor metadata is invalid.');
         }
 
+        /** @var class-string<CommandHandlerInterface>|null $handler */
         return new self(CommandDefinition::fromManifest($definition), $handler, $system);
     }
 }
