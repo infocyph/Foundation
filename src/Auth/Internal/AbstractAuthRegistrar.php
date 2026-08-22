@@ -56,16 +56,9 @@ abstract readonly class AbstractAuthRegistrar
         return $this->service(ClockInterface::class);
     }
 
-    /**
-     * TODO InterMix: replace this internal repository read with
-     * $this->container->definitions()->has($id) once the public API is released.
-     */
     protected function hasExplicitBinding(string $id): bool
     {
-        $repository = $this->container->getRepository();
-
-        return $repository->hasFunctionReference($id)
-            || $repository->hasClosureResource($id);
+        return $this->container->definitions()->has($id);
     }
 
     protected function idGenerator(): AuthIdGeneratorInterface
