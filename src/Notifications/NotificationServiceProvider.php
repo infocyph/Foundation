@@ -112,12 +112,14 @@ final class NotificationServiceProvider extends ServiceProvider
             fn() => $app->make(Emailer::class),
             LifetimeEnum::Scoped,
         );
-        $this->bindFactory(
-            $container,
-            'foundation.notifications',
-            fn() => $app->make(EmailProfiles::class),
-            LifetimeEnum::Singleton,
-        );
+        foreach (['foundation.email', 'foundation.notifications'] as $id) {
+            $this->bindFactory(
+                $container,
+                $id,
+                fn() => $app->make(EmailProfiles::class),
+                LifetimeEnum::Singleton,
+            );
+        }
     }
 
     private function emailLimits(Application $app): EmailLimits
