@@ -23,6 +23,27 @@ final readonly class CommandCacheManager
         return true;
     }
 
+    public static function frameworkFingerprint(): string
+    {
+        $files = [
+            __FILE__,
+            __DIR__ . '/CommandCatalog.php',
+            __DIR__ . '/CommandDefinition.php',
+            __DIR__ . '/CommandDescriptor.php',
+            __DIR__ . '/CommandRegistry.php',
+        ];
+        $hashes = [];
+        foreach ($files as $file) {
+            $hash = is_file($file) ? hash_file('sha256', $file) : false;
+            if (!is_string($hash)) {
+                throw new \RuntimeException(sprintf('Unable to fingerprint command metadata source "%s".', $file));
+            }
+            $hashes[] = $hash;
+        }
+
+        return hash('sha256', implode('|', $hashes));
+    }
+
     public function write(
         string $path = 'bootstrap/cache/commands.php',
         ?CommandRegistry $registry = null,
@@ -36,6 +57,7 @@ final readonly class CommandCacheManager
         $source = $this->application->routesPath('console.php');
         $payload = ($registry ?? $this->registry())->toManifest();
         $payload['source'] = $this->sourceMetadata($source);
+        $payload['foundation_sha256'] = self::frameworkFingerprint();
         $temporary = tempnam($directory, '.commands-');
         if ($temporary === false) {
             throw new \RuntimeException('Unable to create command cache staging file.');
