@@ -9,8 +9,36 @@ use Infocyph\Foundation\Auth\Mfa\MfaFactorCompareAndSwapStoreInterface;
 
 final readonly class DBLayerMfaFactorStore extends DBLayerStore implements MfaFactorCompareAndSwapStoreInterface
 {
-    public function compareAndSwap(MfaFactor $expected, MfaFactor $updated): bool
+    public function compareAndSwap(?MfaFactor $expected, MfaFactor $updated): bool
     {
+        if ($expected === null) {
+            try {
+                $this->execute(
+                    sprintf('INSERT INTO %s (id, account_id, type, label, enabled, created_at, metadata) VALUES (?, ?, ?, ?, ?, ?, ?)', $this->table('mfaFactors')),
+                    [
+                        $updated->id,
+                        $updated->accountId,
+                        $updated->type,
+                        $updated->label,
+                        $updated->enabled ? 1 : 0,
+                        $updated->createdAt,
+                        DBLayerJson::encode($updated->metadata),
+                    ],
+                );
+
+                return true;
+            } catch (\Throwable $failure) {
+                if ($this->first(
+                    sprintf('SELECT id FROM %s WHERE id = ?', $this->table('mfaFactors')),
+                    [$updated->id],
+                ) !== null) {
+                    return false;
+                }
+
+                throw $failure;
+            }
+        }
+
         if ($updated->id !== $expected->id) {
             return false;
         }
