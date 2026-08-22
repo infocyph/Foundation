@@ -38,12 +38,8 @@ response without reparsing the issue list. See
 ## Cache
 
 CacheLayer owns stores, tags, tiers, locks, counters, memoization, invalidation,
-and cluster behavior:
-
-```php
-$cache = $app->cache()->store();
-$value = $cache->remember('reports:today', $loader, 300);
-```
+and cluster behavior. Foundation owns application cache-store selection and the
+few cross-package workflows that genuinely require it.
 
 `resources/config/cache.php` documents each driver and its effective keys.
 Database-backed stores activate DBLayer only when selected. Cache topology and
@@ -51,30 +47,35 @@ unsafe cluster uses appear in `app:ready`.
 
 ## Files
 
-Pathwise owns filesystem adapters, uploads, downloads, security policy, and
-file operations:
+Pathwise owns filesystem adapters, file operations, uploads, downloads,
+security policy, archives, indexing and retention. Foundation owns application
+disk configuration, transfer policy, paths and the Webrick bridge.
 
-```php
-$files = $app->files();
-$files->write('reports/today.json', $payload, 'local');
+Install with:
+
+```bash
+php infbyte module:install filesystem
 ```
 
-Install with `php infbyte module:install filesystem`. Configured disks are
-mounted only when the filesystem manager is resolved. See
-`resources/config/filesystem.php` for disks, paths, and upload/download policy.
+Use native Flysystem/Pathwise operations rather than a Foundation filesystem
+facade. See [Filesystem and storage](filesystem.md).
 
-## Outbound communication and notifications
+## Communication and notifications
 
-TalkingBytes owns HTTP, email, webhook, gRPC, retry, signing, and protocol
-fakes. Install it with:
+TalkingBytes owns HTTP, email, webhook, gRPC, retry, signing, parsing, protocol
+fakes and protocol transport behavior. Install it with:
 
 ```bash
 php infbyte module:install communication
 ```
 
-Foundation composes configured clients and auth notifications; Omnibus may
-queue an application message that eventually calls them, but neither
-Foundation nor Omnibus duplicates protocol transports. Canonical settings live
-in `resources/config/communication.php` and
-`resources/config/notifications.php`.
+Foundation provides narrow named-profile composers and application integration
+only. The default configured HTTP client and email sender are native
+TalkingBytes objects, inbound email uses native TalkingBytes receivers and
+mailboxes, and configured inbound gRPC handlers resolve through InterMix into a
+native TalkingBytes dispatcher.
 
+Canonical settings live in `resources/config/communication.php` and
+`resources/config/notifications.php`. See [Communication and email](communication.md)
+for the ownership boundary, direct native bindings, persistent-runtime
+lifetimes and gRPC/email examples.
