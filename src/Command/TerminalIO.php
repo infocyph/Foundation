@@ -76,6 +76,16 @@ final readonly class TerminalIO implements CommandIO
 
     public function error(string $message): void
     {
+        if ($this->jsonMode) {
+            $encoded = json_encode(
+                ['level' => 'error', 'message' => $message],
+                JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
+            );
+            fwrite(STDERR, $encoded . PHP_EOL);
+
+            return;
+        }
+
         fwrite(STDERR, $message . PHP_EOL);
     }
 
@@ -180,14 +190,14 @@ final readonly class TerminalIO implements CommandIO
         $widths = array_fill(0, count($headers), 0);
         foreach ($rendered as $row) {
             foreach ($row as $index => $value) {
-                $widths[$index] = max($widths[$index], strlen($value));
+                $widths[$index] = max($widths[$index], self::displayWidth($value));
             }
         }
 
         foreach ($rendered as $index => $row) {
             $cells = [];
             foreach ($row as $column => $value) {
-                $cells[] = str_pad($value, $widths[$column]);
+                $cells[] = self::padDisplay($value, $widths[$column]);
             }
             $this->writeln(implode('  ', $cells));
             if ($index === 0) {
@@ -222,11 +232,32 @@ final readonly class TerminalIO implements CommandIO
         }
     }
 
+    private static function displayWidth(string $value): int
+    {
+        $plain = preg_replace('/\x1B\[[0-?]*[ -\/]*[@-~]/', '', $value) ?? $value;
+        if (function_exists('mb_strwidth')) {
+            return mb_strwidth($plain, 'UTF-8');
+        }
+        if (function_exists('grapheme_strlen')) {
+            $length = grapheme_strlen($plain);
+            if (is_int($length)) {
+                return $length;
+            }
+        }
+
+        return strlen($plain);
+    }
+
     private static function isTty(mixed $stream): bool
     {
         return is_resource($stream)
             && function_exists('stream_isatty')
             && stream_isatty($stream);
+    }
+
+    private static function padDisplay(string $value, int $width): string
+    {
+        return $value . str_repeat(' ', max(0, $width - self::displayWidth($value)));
     }
 
     private function readRaw(string $prompt): string
