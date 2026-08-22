@@ -35,6 +35,8 @@ final class Bootstrapper
     /** @var list<class-string<ServiceProviderInterface>> */
     private const array COMMON_EAGER_PROVIDERS = [PathServiceProvider::class];
 
+    private const array PROVIDER_GROUPS = ['common', 'web', 'cli', 'worker', 'scheduler'];
+
     /** @var list<class-string<ServiceProviderInterface>> */
     private const array WEB_EAGER_PROVIDERS = [
         RoutingServiceProvider::class,
@@ -135,7 +137,7 @@ final class Bootstrapper
     {
         $configured = $app->config()->get('providers', []);
         if (!is_array($configured)) {
-            return [];
+            throw new BootstrapException('Configured providers must be a grouped provider array.');
         }
         if ($configured !== [] && array_is_list($configured)) {
             throw new BootstrapException(
@@ -143,13 +145,24 @@ final class Bootstrapper
             );
         }
 
+        foreach ($configured as $group => $entries) {
+            if (!is_string($group) || !in_array($group, self::PROVIDER_GROUPS, true)) {
+                throw new BootstrapException(sprintf(
+                    'Configured providers contain unsupported group "%s".',
+                    is_scalar($group) ? (string) $group : get_debug_type($group),
+                ));
+            }
+            if (!is_array($entries)) {
+                throw new BootstrapException(sprintf(
+                    'Configured provider group "%s" must be a provider list.',
+                    $group,
+                ));
+            }
+        }
+
         $providers = [];
         foreach (['common', $app->runtimeMode()->value] as $group) {
-            $entries = $configured[$group] ?? [];
-            if (!is_array($entries)) {
-                continue;
-            }
-            foreach ($entries as $provider) {
+            foreach ($configured[$group] ?? [] as $provider) {
                 $instance = $this->instantiateProvider($provider);
                 $providers[$instance::class] = $instance;
             }
@@ -264,35 +277,97 @@ final class Bootstrapper
             str_starts_with($service, 'Infocyph\\Foundation\\Auth\\Otp\\'),
             $service === \Infocyph\OTP\RecoveryCodes::class,
             $service === \Infocyph\OTP\Contracts\RecoveryCodeStoreInterface::class => AuthOtpServiceProvider::class,
+
             str_starts_with($service, 'Infocyph\\Foundation\\Auth\\') => AuthServiceProvider::class,
-            str_starts_with($service, 'Infocyph\\Foundation\\Cache\\') => CacheServiceProvider::class,
-            str_starts_with($service, 'Infocyph\\Foundation\\Communication\\') => CommunicationServiceProvider::class,
-            str_starts_with($service, 'Infocyph\\Foundation\\Database\\') => DatabaseServiceProvider::class,
+
+            str_starts_with($service, 'Infocyph\\Foundation\\Cache\\'),
+            in_array($service, [
+                \Infocyph\CacheLayer\Cache\Cache::class,
+                \Infocyph\CacheLayer\Cache\CacheInterface::class,
+                \Infocyph\CacheLayer\Cache\AuthenticationStateCacheInterface::class,
+                \Infocyph\CacheLayer\Cache\Lock\LockProviderInterface::class,
+                \Infocyph\CacheLayer\Counter\AtomicCounterStoreInterface::class,
+                \Infocyph\CacheLayer\Memoize\Memoizer::class,
+                \Infocyph\CacheLayer\Memoize\OnceMemoizer::class,
+            ], true) => CacheServiceProvider::class,
+
+            str_starts_with($service, 'Infocyph\\Foundation\\Communication\\'),
+            in_array($service, [
+                \Infocyph\TalkingBytes\Http\HttpClient::class,
+                \Infocyph\TalkingBytes\Http\HttpClientConfig::class,
+                \Infocyph\TalkingBytes\Webhook\WebhookSender::class,
+                \Infocyph\TalkingBytes\Webhook\WebhookVerifier::class,
+                \Infocyph\TalkingBytes\Webhook\WebhookReceiver::class,
+                \Infocyph\TalkingBytes\Grpc\GrpcInboundDispatcher::class,
+            ], true) => CommunicationServiceProvider::class,
+
+            str_starts_with($service, 'Infocyph\\Foundation\\Database\\'),
+            $service === \Infocyph\DBLayer\Connection\Connection::class => DatabaseServiceProvider::class,
+
             $service === PathManager::class,
             $service === PathServiceProvider::class => PathServiceProvider::class,
             str_starts_with($service, 'Infocyph\\Foundation\\Filesystem\\'),
             $service === \League\Flysystem\FilesystemOperator::class,
             $service === \Infocyph\Pathwise\StreamHandler\UploadProcessor::class,
             $service === \Infocyph\Pathwise\StreamHandler\DownloadProcessor::class => FilesystemServiceProvider::class,
+
             str_starts_with($service, 'Infocyph\\Foundation\\Logging\\'),
             $service === LoggerInterface::class => LoggingServiceProvider::class,
+
             str_starts_with($service, 'Infocyph\\Foundation\\Messaging\\'),
-            str_starts_with($service, 'Infocyph\\Omnibus\\') => MessagingServiceProvider::class,
+            in_array($service, [
+                \Infocyph\Omnibus\Clock\SystemClock::class,
+                \Infocyph\Omnibus\Handler\HandlerMap::class,
+                \Infocyph\Omnibus\Event\ListenerMap::class,
+                \Infocyph\Omnibus\Routing\RouteMap::class,
+                \Infocyph\Omnibus\Transport\InMemoryTransport::class,
+                \Infocyph\Omnibus\Transport\SyncTransport::class,
+                \Infocyph\Omnibus\Transport\TransportRegistry::class,
+                \Infocyph\Omnibus\MessageBus::class,
+                \Infocyph\Omnibus\Event\EventDispatcher::class,
+                \Infocyph\Omnibus\Failure\FailureStore::class,
+                \Infocyph\Omnibus\Consumer\ExecutionScope::class,
+                \Infocyph\Omnibus\Consumer\Consumer::class,
+                \Infocyph\Omnibus\Consumer\Command\ConsumerTask::class,
+                \Infocyph\Omnibus\Scheduling\MessageFactoryMap::class,
+                \Infocyph\Omnibus\Scheduling\ScheduledMessageDispatcher::class,
+            ], true) => MessagingServiceProvider::class,
+
             str_starts_with($service, 'Infocyph\\Foundation\\Notifications\\'),
-            str_starts_with($service, 'Infocyph\\TalkingBytes\\Email\\') => NotificationServiceProvider::class,
+            in_array($service, [
+                \Infocyph\TalkingBytes\Email\Emailer::class,
+                \Infocyph\TalkingBytes\Email\EmailSenderFactory::class,
+                \Infocyph\TalkingBytes\Email\EmailReceiverFactory::class,
+                \Infocyph\TalkingBytes\Email\EmailMailboxFactory::class,
+                \Infocyph\TalkingBytes\Email\Config\EmailLimits::class,
+                \Infocyph\TalkingBytes\Email\Parser\RawEmailParser::class,
+                \Infocyph\TalkingBytes\Email\Parser\BounceParser::class,
+                \Infocyph\TalkingBytes\Email\Parser\AuthenticationResultsParser::class,
+                \Infocyph\TalkingBytes\Email\Dkim\DkimPublicKeyResolver::class,
+                \Infocyph\TalkingBytes\Email\Dkim\DkimVerifier::class,
+                \Infocyph\TalkingBytes\Email\Receiver\SpoolEmailReceiver::class,
+            ], true) => NotificationServiceProvider::class,
+
             str_starts_with($service, 'Infocyph\\Foundation\\Http\\JsonDispatch\\'),
             str_starts_with($service, 'Infocyph\\Foundation\\Http\\Resource\\') => JsonDispatchServiceProvider::class,
             str_starts_with($service, 'Infocyph\\Foundation\\Http\\Middleware\\'),
             str_starts_with($service, 'Infocyph\\Foundation\\Http\\Resolver\\') => AuthServiceProvider::class,
             str_starts_with($service, 'Infocyph\\Foundation\\Http\\') => HttpServiceProvider::class,
+
             str_starts_with($service, 'Infocyph\\Foundation\\Routing\\') => RoutingServiceProvider::class,
+
             str_starts_with($service, 'Infocyph\\Foundation\\Security\\'),
-            str_starts_with($service, 'Infocyph\\Epicrypt\\') => SecurityServiceProvider::class,
+            in_array($service, [
+                \Infocyph\Epicrypt\Password\PasswordHashOptions::class,
+                \Infocyph\Epicrypt\Password\PasswordHasher::class,
+                \Infocyph\Epicrypt\Crypto\AeadCipher::class,
+            ], true) => SecurityServiceProvider::class,
+
             str_starts_with($service, 'Infocyph\\Foundation\\Session\\') => SessionServiceProvider::class,
-            str_starts_with($service, 'Infocyph\\Foundation\\Validation\\') => ValidationServiceProvider::class,
-            str_starts_with($service, 'Infocyph\\TalkingBytes\\Grpc\\'),
-            str_starts_with($service, 'Infocyph\\TalkingBytes\\Http\\'),
-            str_starts_with($service, 'Infocyph\\TalkingBytes\\Webhook\\') => CommunicationServiceProvider::class,
+
+            str_starts_with($service, 'Infocyph\\Foundation\\Validation\\'),
+            $service === \Infocyph\ReqShield\Contracts\DatabaseProvider::class => ValidationServiceProvider::class,
+
             default => null,
         };
     }
