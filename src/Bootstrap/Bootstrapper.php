@@ -19,7 +19,6 @@ use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\Foundation\Filesystem\PathServiceProvider;
 use Infocyph\Foundation\Http\HttpServiceProvider;
 use Infocyph\Foundation\Http\JsonDispatch\JsonDispatchServiceProvider;
-use Infocyph\Foundation\Identifiers\IdentifierServiceProvider;
 use Infocyph\Foundation\Logging\LoggingServiceProvider;
 use Infocyph\Foundation\Messaging\MessagingServiceProvider;
 use Infocyph\Foundation\Notifications\NotificationServiceProvider;
@@ -249,7 +248,6 @@ final class Bootstrapper
             'foundation.email' => NotificationServiceProvider::class,
             'foundation.files' => FilesystemServiceProvider::class,
             'foundation.filesystem' => FilesystemServiceProvider::class,
-            'foundation.ids' => IdentifierServiceProvider::class,
             'foundation.logging' => LoggingServiceProvider::class,
             'foundation.messaging' => MessagingServiceProvider::class,
             'foundation.notifications' => NotificationServiceProvider::class,
@@ -258,7 +256,6 @@ final class Bootstrapper
             'foundation.responses' => JsonDispatchServiceProvider::class,
             'foundation.security' => SecurityServiceProvider::class,
             'foundation.session' => SessionServiceProvider::class,
-            'foundation.uid' => IdentifierServiceProvider::class,
             'foundation.validator' => ValidationServiceProvider::class,
         ];
 
@@ -277,7 +274,6 @@ final class Bootstrapper
             $service === \League\Flysystem\FilesystemOperator::class,
             $service === \Infocyph\Pathwise\StreamHandler\UploadProcessor::class,
             $service === \Infocyph\Pathwise\StreamHandler\DownloadProcessor::class => FilesystemServiceProvider::class,
-            str_starts_with($service, 'Infocyph\\Foundation\\Identifiers\\') => IdentifierServiceProvider::class,
             str_starts_with($service, 'Infocyph\\Foundation\\Logging\\'),
             $service === LoggerInterface::class => LoggingServiceProvider::class,
             str_starts_with($service, 'Infocyph\\Foundation\\Messaging\\'),
