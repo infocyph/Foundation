@@ -34,6 +34,7 @@ final readonly class CommandResolver
 
         return $this->application->execution()->run(
             function () use ($descriptor, $context): int {
+                $this->activateCapabilities($descriptor->definition);
                 $command = $this->resolve($descriptor->handler);
                 $exitCode = $command->run($context);
                 if ($exitCode < 0 || $exitCode > 255) {
@@ -55,6 +56,24 @@ final readonly class CommandResolver
             ],
             $executionId,
         );
+    }
+
+    private function activateCapabilities(CommandDefinition $definition): void
+    {
+        foreach ($definition->capabilities() as $capability) {
+            $service = match ($capability) {
+                'cache' => 'foundation.cache',
+                'crypto' => 'foundation.security',
+                'db' => 'foundation.db',
+                'filesystem' => 'foundation.filesystem',
+                'messaging' => 'foundation.messaging',
+                'web' => 'foundation.router',
+                default => null,
+            };
+            if ($service !== null) {
+                $this->application->make($service);
+            }
+        }
     }
 
     /** @param class-string<CommandHandlerInterface> $handler */
