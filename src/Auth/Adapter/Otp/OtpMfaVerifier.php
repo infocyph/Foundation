@@ -53,6 +53,25 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         }
     }
 
+    /**
+     * Verify the initial code for a disabled TOTP factor before activation.
+     *
+     * Enrollment verification deliberately uses the same canonical parser,
+     * validation window and replay protection as normal OTP verification.
+     */
+    public function verifyEnrollment(MfaFactor $factor, string $code): MfaVerificationResult
+    {
+        if ($factor->type !== MfaFactorType::TOTP->value) {
+            return new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_factor_unsupported');
+        }
+
+        try {
+            return $this->verifyTotp($factor, $code);
+        } catch (\Throwable) {
+            return new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_factor_invalid_configuration');
+        }
+    }
+
     private function advanceCounter(MfaFactor $factor, int $counter): bool
     {
         $metadata = $factor->metadata;
