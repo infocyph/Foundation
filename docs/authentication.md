@@ -121,6 +121,15 @@ explicitly selects `HS256`, `HS384`, or `HS512`; corresponding raw
 required. See [Security boundaries](security.md) for the complete crypto
 ownership model.
 
+When the MFA driver is `otp`, Foundation owns factor/challenge persistence and
+OTP owns TOTP, HOTP, OCRA, provisioning payloads, verification semantics, and
+recovery-code mechanics. TOTP and counterless OCRA use a secure CacheLayer
+authentication-state store for replay claims; HOTP and counter-bearing OCRA use
+atomic persisted-factor counter advancement. Recovery-code digests are stored
+through the same durable MFA factor persistence boundary rather than an OTP
+process-local store. See [OTP-backed MFA](otp.md) for configuration,
+provisioning, replay, concurrency, and recovery-code details.
+
 TalkingBytes email transport definitions and reusable sender policies live under
 `notifications.email.*`; authentication does not own an SMTP/spool transport
 stack. In production, a TalkingBytes auth sender may deliver through SMTP,
