@@ -51,9 +51,16 @@ final readonly class CommandCacheManager
             return null;
         }
 
-        $hash = hash_file('sha256', $file);
+        $stat = stat($file);
+        if (!is_array($stat)) {
+            return null;
+        }
 
-        return is_string($hash) ? $hash : null;
+        return hash('sha256', implode(':', [
+            (string) ($stat['size'] ?? 0),
+            (string) ($stat['mtime'] ?? 0),
+            (string) ($stat['ctime'] ?? 0),
+        ]));
     }
 
     public function write(
