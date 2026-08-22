@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Runtime;
 
+use Infocyph\CacheLayer\Memoize\Memoizer;
+use Infocyph\CacheLayer\Memoize\OnceMemoizer;
 use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
 use Infocyph\Foundation\Database\DatabaseManager;
 use Infocyph\Foundation\Session\SessionManager;
 
 /**
- * Tracks mutable contexts touched by the current request.
+ * Tracks mutable external/package state touched by the current execution unit.
  */
 final class RuntimeContextTracker
 {
@@ -50,8 +52,28 @@ final class RuntimeContextTracker
             }
         }
 
+        try {
+            $this->flushProcessLocalMemoizers();
+        } catch (\Throwable $exception) {
+            $failure ??= $exception;
+        }
+
         if ($failure !== null) {
             throw $failure;
+        }
+    }
+
+    private function flushProcessLocalMemoizers(): void
+    {
+        // Do not autoload an optional cache package solely for cleanup. If it is
+        // already active, per-process memoized values must not cross execution
+        // boundaries in persistent Webrick, worker, or scheduler processes.
+        if (class_exists(Memoizer::class, false)) {
+            Memoizer::instance()->flush();
+        }
+
+        if (class_exists(OnceMemoizer::class, false)) {
+            OnceMemoizer::instance()->flush();
         }
     }
 }
