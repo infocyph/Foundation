@@ -50,14 +50,26 @@ final readonly class SessionTopologyGuard
             default => null,
         };
 
+        $lockStore = $session->lockStore
+            ?? $this->string($this->config->get('cache.lock.store'))
+            ?? $this->string($this->config->get('cache.default'));
         $lockDriver = $this->normalizeDriver($this->config->get('cache.lock.driver'));
+        if ($lockDriver === null) {
+            if ($lockStore === null) {
+                throw new ConfigurationException(
+                    'Distributed browser sessions require a shared CacheLayer lock store.',
+                );
+            }
+            $this->assertDistributedCacheStore($lockStore);
+            $lockDriver = $this->nativeLockDriver($lockStore);
+        } elseif ($lockStore !== null) {
+            $this->assertDistributedCacheStore($lockStore);
+        }
+
         if (!in_array($lockDriver, self::DISTRIBUTED_LOCK_DRIVERS, true)) {
             throw new ConfigurationException(
-                'Distributed browser sessions require a Redis, Valkey, Memcached, or PDO cache lock driver.',
+                'Distributed browser sessions require a Redis, Valkey, Memcached, or shared PDO coordination lock.',
             );
-        }
-        if ($session->lockStore !== null) {
-            $this->assertDistributedCacheStore($session->lockStore);
         }
     }
 
@@ -72,8 +84,7 @@ final readonly class SessionTopologyGuard
             throw new ConfigurationException('Distributed session cache/lock state requires a configured shared CacheLayer store.');
         }
 
-        $definition = $this->config->get('cache.stores.' . $store);
-        $driver = is_array($definition) ? $this->normalizeDriver($definition['driver'] ?? $store) : null;
+        $driver = $this->storeDriver($store);
         if (!in_array($driver, self::DISTRIBUTED_CACHE_DRIVERS, true)) {
             throw new ConfigurationException(sprintf(
                 'Session cache store "%s" is not shared across distributed nodes.',
@@ -102,6 +113,26 @@ final readonly class SessionTopologyGuard
         }
     }
 
+    private function nativeLockDriver(string $store): ?string
+    {
+        return match ($this->storeDriver($store)) {
+            'memcache' => 'memcache',
+            'pdo' => 'pdo',
+            'redis' => 'redis',
+            'valkey' => 'valkey',
+            default => null,
+        };
+    }
+
+    private function storeDriver(string $store): ?string
+    {
+        $definition = $this->config->get('cache.stores.' . $store);
+
+        return is_array($definition)
+            ? $this->normalizeDriver($definition['driver'] ?? $store)
+            : null;
+    }
+
     private function normalizeDriver(mixed $driver): ?string
     {
         if (!is_string($driver) || trim($driver) === '') {
@@ -109,9 +140,16 @@ final readonly class SessionTopologyGuard
         }
 
         return match (strtolower(trim($driver))) {
+            'array' => 'memory',
             'memcached' => 'memcache',
+            'null' => 'null_store',
             'scylla' => 'scylladb',
             default => strtolower(trim($driver)),
         };
+    }
+
+    private function string(mixed $value): ?string
+    {
+        return is_string($value) && trim($value) !== '' ? trim($value) : null;
     }
 }
