@@ -264,7 +264,9 @@ final class Bootstrapper
 
         return $aliases[$service] ?? match (true) {
             str_starts_with($service, 'Infocyph\\Foundation\\Auth\\Adapter\\Otp\\'),
-            str_starts_with($service, 'Infocyph\\Foundation\\Auth\\Otp\\') => AuthOtpServiceProvider::class,
+            str_starts_with($service, 'Infocyph\\Foundation\\Auth\\Otp\\'),
+            $service === \Infocyph\OTP\RecoveryCodes::class,
+            $service === \Infocyph\OTP\Contracts\RecoveryCodeStoreInterface::class => AuthOtpServiceProvider::class,
             str_starts_with($service, 'Infocyph\\Foundation\\Auth\\') => AuthServiceProvider::class,
             str_starts_with($service, 'Infocyph\\Foundation\\Cache\\') => CacheServiceProvider::class,
             str_starts_with($service, 'Infocyph\\Foundation\\Communication\\') => CommunicationServiceProvider::class,
