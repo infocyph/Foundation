@@ -13,6 +13,7 @@ final readonly class AuthSchemaInstaller
     public function __construct(
         private DBLayerFactory $factory,
         private AuthSchema $schema,
+        private AuthMfaRevisionSchema $mfaRevisionSchema,
         private AuthTables $tables,
     ) {}
 
@@ -23,14 +24,15 @@ final readonly class AuthSchemaInstaller
 
     public function installed(?string $connection = null): bool
     {
-        return $this->readiness($connection)['missing_tables'] === [];
+        return $this->readiness($connection)['installed'];
     }
 
     /**
      * @return array{
      *   installed: bool,
      *   installed_tables: list<string>,
-     *   missing_tables: list<string>
+     *   missing_tables: list<string>,
+     *   missing_columns: list<string>
      * }
      */
     public function readiness(?string $connection = null): array
@@ -47,10 +49,17 @@ final readonly class AuthSchemaInstaller
             }
         }
 
+        $missingColumns = [];
+        $mfaFactors = $this->tables->mfaFactors();
+        if ($schema->hasTable($mfaFactors) && !$schema->hasColumn($mfaFactors, 'revision')) {
+            $missingColumns[] = $mfaFactors . '.revision';
+        }
+
         return [
-            'installed' => $missing === [],
+            'installed' => $missing === [] && $missingColumns === [],
             'installed_tables' => $installed,
             'missing_tables' => $missing,
+            'missing_columns' => $missingColumns,
         ];
     }
 
@@ -58,7 +67,7 @@ final readonly class AuthSchemaInstaller
     {
         return new MigrationRunner(
             $this->factory->connection($connection),
-            [$this->schema],
+            [$this->schema, $this->mfaRevisionSchema],
         );
     }
 
