@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Internal;
 
+use Infocyph\Epicrypt\Token\Jwt\Enum\SymmetricJwtAlgorithm;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Exception\ConfigurationException;
 use Infocyph\Foundation\Support\ValueNormalizer;
@@ -13,6 +14,17 @@ final readonly class EpicryptTokenPolicyResolver
     public function __construct(
         private Application $app,
     ) {}
+
+    public function algorithm(): SymmetricJwtAlgorithm
+    {
+        $configured = $this->app->config()->get('security.jwt.algorithm', SymmetricJwtAlgorithm::HS256->value);
+        if (!is_string($configured)) {
+            throw new ConfigurationException('security.jwt.algorithm must be HS256, HS384, or HS512.');
+        }
+
+        return SymmetricJwtAlgorithm::tryFrom(strtoupper(trim($configured)))
+            ?? throw new ConfigurationException('security.jwt.algorithm must be HS256, HS384, or HS512.');
+    }
 
     public function audience(): string
     {
