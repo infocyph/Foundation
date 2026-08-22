@@ -64,7 +64,7 @@ $storage = $app->make(StorageRegistry::class);
 $files = PathwiseFacade::at($storage->path('exports', 'public'));
 ```
 
-Disk initialization is lazy. Foundation replaces only the mount names declared by `filesystem.disks`; it does not reset Pathwise's process-wide mount registry, so independent Pathwise mounts are not discarded when the Foundation filesystem capability activates.
+Disk initialization is lazy. Foundation registers application-scoped internal mount names derived from the application base path rather than claiming generic names such as `public` or `uploads`. It does not reset Pathwise's mount registry or replace Pathwise's global default filesystem, so independent Pathwise configuration remains independent.
 
 ## Uploads
 
@@ -120,4 +120,4 @@ Every configured link must remain inside the public directory and every target m
 
 ## Persistent runtimes and fork safety
 
-Resolving `StorageRegistry` itself does not open configured storage backends. Native Flysystem operators are created when a disk is first needed. Custom service providers intended for pooled worker mode should therefore keep filesystem resolution out of `register()` just as they avoid opening database, cache, HTTP, or message-broker connections before fork.
+Resolving `StorageRegistry` validates and caches disk topology but does not construct configured storage backends. Native Flysystem operators are created when a disk is first needed. Custom service providers intended for pooled worker mode should therefore keep filesystem resolution out of `register()` just as they avoid opening database, cache, HTTP, or message-broker connections before fork.
