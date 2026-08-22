@@ -19,6 +19,8 @@ final class CommandDefinition
 
     private string $description = '';
 
+    private CommandExecutionPolicy $execution;
+
     private string $group = 'Application';
 
     private bool $hidden = false;
@@ -38,6 +40,7 @@ final class CommandDefinition
         RuntimeMode $runtime = RuntimeMode::Cli,
         array $capabilities = [],
     ) {
+        $this->execution = new CommandExecutionPolicy();
         if ($name !== '') {
             $this->name($name);
         }
@@ -77,9 +80,7 @@ final class CommandDefinition
         if (array_any($this->arguments, static fn(array $argument): bool => $argument['variadic'])) {
             throw new \LogicException('A variadic command argument must be the final argument.');
         }
-        if (!$required && array_any($this->arguments, static fn(array $argument): bool => $argument['required'])) {
-            // Optional arguments may follow required arguments. The inverse is rejected below.
-        } elseif ($required && array_any($this->arguments, static fn(array $argument): bool => !$argument['required'])) {
+        if ($required && array_any($this->arguments, static fn(array $argument): bool => !$argument['required'])) {
             throw new \LogicException('Required command arguments cannot follow optional arguments.');
         }
 
@@ -109,6 +110,13 @@ final class CommandDefinition
     public function description(string $description): self
     {
         $this->description = trim($description);
+
+        return $this;
+    }
+
+    public function execution(CommandExecutionPolicy $policy): self
+    {
+        $this->execution = $policy;
 
         return $this;
     }
@@ -226,6 +234,11 @@ final class CommandDefinition
         return $this->runtime;
     }
 
+    public function executionPolicy(): CommandExecutionPolicy
+    {
+        return $this->execution;
+    }
+
     public function isHidden(): bool
     {
         return $this->hidden;
@@ -271,6 +284,7 @@ final class CommandDefinition
             'hidden' => $this->hidden,
             'arguments' => $this->arguments,
             'options' => array_values($this->options),
+            'execution' => $this->execution->toManifest(),
         ];
     }
 
@@ -348,6 +362,12 @@ final class CommandDefinition
                 $option['negatable'],
             );
         }
+
+        $execution = $manifest['execution'] ?? [];
+        if (!is_array($execution)) {
+            throw new \UnexpectedValueException('Compiled command execution metadata must be an array.');
+        }
+        $definition->execution(CommandExecutionPolicy::fromManifest($execution));
 
         return $definition;
     }
