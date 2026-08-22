@@ -6,7 +6,7 @@ Foundation 2.0 must not ship until every capability previously owned by `infocyp
 - **DELEGATED** — a specialist Infocyph library now owns the engine and Foundation only composes it.
 - **RETIRED** — the capability is intentionally removed because it is redundant, obsolete, or contrary to the Foundation 2.0 architecture.
 
-No Console capability may disappear implicitly.
+No Console capability may disappear implicitly. `PENDING` and `PARTIAL` remain release blockers unless they are deliberately reclassified.
 
 ## Application and bootstrap
 
@@ -21,50 +21,61 @@ No Console capability may disappear implicitly.
 
 | Console capability | Foundation 2.0 owner | State |
 | --- | --- | --- |
-| Command contract/base command | `Command` | PENDING |
-| Command definition | `Command` | MIGRATED |
-| Command descriptor/help metadata | `Command` | PENDING |
-| Command registry | `Command` | PENDING |
-| Command resolver | `Command` | PENDING |
-| Command routes/aliases | `Command` | PENDING |
-| Command execution coordinator | `Command` + `Runtime` | PENDING |
-| Command execution policy | `Command` | PENDING |
-| Command capability metadata | `Command` | PENDING |
-| Command context | `Command` + `ExecutionScope` | PENDING |
-| Exit-code model | `Command` | PENDING |
-| Argument/option parsing | `Command` | PARTIAL |
-| Command list/help presentation | `Command` | PENDING |
-| Command manifest/cache | `CommandCacheManager` + compiled command metadata | PARTIAL |
-| Command mutex/overlap | CacheLayer + Foundation command policy | PENDING |
-| Command execution history/state | Foundation operational adapter | PENDING |
+| Command contract/base command | `Command`, `CommandHandlerInterface` | MIGRATED |
+| Command definition | `CommandDefinition` | MIGRATED |
+| Command descriptor/help metadata | `CommandDescriptor`, `CliPreflight` | MIGRATED |
+| Command registry | `CommandRegistry` | MIGRATED |
+| Command resolver | `CommandResolver` + InterMix | MIGRATED |
+| Command routes/aliases | `routes/console.php` + `CommandRegistry` | MIGRATED |
+| Command execution coordinator | `CommandExecutionCoordinator` + `ProcessRunner` | MIGRATED |
+| Command execution policy | `CommandExecutionPolicy` | MIGRATED |
+| Command capability metadata | `CommandDefinition` + lazy provider activation | MIGRATED |
+| Command context | `CommandContext` + canonical `ExecutionScope` | MIGRATED |
+| Exit-code model | `ExitCode` | MIGRATED |
+| Argument/option parsing | `ParsedInput` + definition-aware metadata | MIGRATED |
+| Command list/help presentation | `CliPreflight` | MIGRATED |
+| Command manifest/cache | `CommandCacheManager` + scalar command manifests | MIGRATED |
+| Command mutex/overlap | CacheLayer + `CommandExecutionCoordinator` | MIGRATED |
+| Command lifecycle state model | `CommandStatus` | MIGRATED |
+| Command execution history persistence | Foundation operational adapter | PENDING |
+
+System commands are grouped into internal Foundation handlers by application domain rather than one class per command. The catalog owns their definitions and maps every advertised built-in command to a real handler. Optional package providers are activated from command capability metadata before the handler is resolved.
 
 ## Terminal and interaction
 
 | Console capability | Foundation 2.0 owner | State |
 | --- | --- | --- |
-| Terminal input/output | `Command` IO | PARTIAL |
-| Non-interactive/quiet modes | `Command` IO | PENDING |
-| Prompt/confirm/choice/password | `Command` prompt layer | PENDING |
-| Tables/lists/messages/boxes | `Command` component layer | PENDING |
-| Progress bars/spinners/tasks | `Command` component layer | PENDING |
-| Width/ANSI capability handling | `Command` IO | PENDING |
-| JSON/machine-readable output | `Command` IO | PENDING |
-| Shell completion manifest | `Command` completion | PENDING |
-| Bash/Zsh/Fish completion generation | `Command` completion | PENDING |
+| Terminal input/output | `CommandIO`, `TerminalIO` | MIGRATED |
+| Non-interactive/quiet modes | `TerminalIO` + global CLI options | MIGRATED |
+| Prompt/confirm/choice/password | `CommandIO`, `TerminalIO`, `Command` helpers | MIGRATED |
+| Tables and semantic messages | `CommandIO`, `TerminalIO` | MIGRATED |
+| Decorative boxes | Plain semantic/table output | RETIRED |
+| Progress bars/spinners/tasks | Foundation command component layer | PENDING |
+| Width/ANSI capability handling | `TerminalIO` | PENDING |
+| JSON/machine-readable output | `TerminalIO` + global `--json` | MIGRATED |
+| Shell completion manifest | compiled command manifest | MIGRATED |
+| Bash/Zsh/Fish completion generation | `CompletionGenerator` | MIGRATED |
+
+Decorative box rendering is retired deliberately: it adds terminal-specific surface without improving application semantics. Rich progress/task feedback remains a separate capability because it is useful for genuinely long-running interactive commands.
 
 ## Processes
 
 | Console capability | Foundation 2.0 owner | State |
 | --- | --- | --- |
-| Subprocess execution | `ProcessRunner` | PARTIAL |
-| cwd/environment control | `ProcessRunner` | PARTIAL |
-| stdout/stderr capture | `ProcessRunner` | PARTIAL |
-| streaming output | `ProcessRunner` | PENDING |
-| timeout | `ProcessRunner` | PARTIAL |
-| cancellation/termination | `ProcessRunner` + `Runtime` | PENDING |
-| signal/exit metadata | `ProcessResult` | PENDING |
-| process-group cleanup | `ProcessRunner` | PENDING |
-| cross-platform capability guards | `ProcessRunner` | PENDING |
+| Subprocess execution | `ProcessRunner` | MIGRATED |
+| Argument-array/no-shell default | `ProcessRunner` | MIGRATED |
+| cwd/environment control | `ProcessOptions`, `ProcessRunner` | MIGRATED |
+| stdout/stderr capture | `ProcessRunner` | MIGRATED |
+| streaming output/callbacks | `ProcessRunner` | MIGRATED |
+| bounded output | `ProcessOptions`, `ProcessRunner` | MIGRATED |
+| timeout/idle-timeout | `ProcessRunner` | MIGRATED |
+| cancellation/heartbeat termination | `ProcessRunner` | MIGRATED |
+| signal/exit/termination metadata | `ProcessResult`, `ProcessTerminationReason` | MIGRATED |
+| graceful TERM-to-KILL cleanup | `ProcessRunner` | MIGRATED |
+| process-group/descendant cleanup | `ProcessRunner` | PENDING |
+| cross-platform capability guards | `ProcessRunner` | PARTIAL |
+
+`pcntl` signal handling is optional and feature-detected. The remaining process work is specifically descendant/process-group ownership and documenting/guarding the best achievable behavior on Windows rather than creating another generic process framework.
 
 ## Workers and messaging
 
@@ -80,6 +91,7 @@ No Console capability may disappear implicitly.
 | Singleton maintenance-worker lock/heartbeat | Foundation + CacheLayer | MIGRATED |
 | Worker process supervision | Omnibus WorkerPool or external supervisor | DELEGATED |
 | Per-message runtime isolation/reset | Foundation canonical `ExecutionScope` | MIGRATED |
+| Worker CLI list/run/consume commands | Foundation `Command` + Omnibus | MIGRATED |
 
 ## Scheduling
 
@@ -87,12 +99,13 @@ No Console capability may disappear implicitly.
 | --- | --- | --- |
 | Application schedule definitions | `Scheduling` | MIGRATED |
 | Cron parsing | `CronExpression` | MIGRATED |
-| Schedule run/work loop | `Scheduling` | PARTIAL |
-| Schedule overlap locks | Foundation + CacheLayer | PARTIAL |
+| Schedule run/work loop | `ScheduleManager` | MIGRATED |
+| Schedule overlap locks | Foundation + CacheLayer | MIGRATED |
 | Scheduled message dispatch | Omnibus | DELEGATED |
 | Durable schedule/message semantics | Omnibus/DBLayer where configured | DELEGATED |
-| Schedule cache/manifest | `Scheduling` | PENDING |
-| Schedule execution history/status | Foundation operational adapter | PENDING |
+| Schedule cache/manifest | `ScheduleManager` | MIGRATED |
+| Schedule CLI list/run/work/cache/clear | Foundation `Command` | MIGRATED |
+| Schedule execution history/status persistence | Foundation operational adapter | PENDING |
 
 ## Configuration and container
 
@@ -116,6 +129,7 @@ No Console capability may disappear implicitly.
 | Node/cluster cache | CacheLayer | DELEGATED |
 | Database connection/query/schema/migration engine | DBLayer | DELEGATED |
 | Foundation DB configuration conventions | Foundation `Database` | MIGRATED |
+| Database/auth-schema/migration/seeding CLI | Foundation `Command` + DBLayer | MIGRATED |
 | Validation/sanitization/schema compilation | ReqShield | DELEGATED |
 | Foundation validation adapters | Foundation `Validation` | PARTIAL |
 | Cryptography/password/token primitives | Epicrypt | DELEGATED |
@@ -142,22 +156,31 @@ Every command removed from the old `src/Console/Command` tree must be represente
 2. delegated to a current package operation through a thin Foundation command handler; or
 3. explicitly retired with a documented replacement.
 
-This includes, at minimum:
+The current catalog has real handlers for:
 
-- about/readiness/install
-- cache/config/container/route/command optimization commands
-- database/migration/seeding commands
-- module install/list/remove
-- schedule list/run/work/cache/clear
-- worker list/run
-- session/schema/prune
-- auth schema/status
-- storage link
-- serve
-- secret generation
-- artifact generation commands
+- about/readiness/install/environment/serve/secret generation;
+- cache/config/command/container/route/schedule optimization operations;
+- database/migration/seeding/auth-schema commands;
+- module install/list/remove;
+- artifact generation commands;
+- schedule list/run/work/cache/clear and durable scheduled-message dispatch;
+- worker list/run and bounded queue consume;
+- session schema/prune;
+- storage links.
 
 Generated artifacts are also part of the boundary: Foundation stubs must not reintroduce `Infocyph\Console\*` or `Infocyph\Foundation\Console\*` dependencies.
+
+## Remaining Console-parity blockers
+
+The absorbed Console surface is now narrowed to these genuine remaining source capabilities:
+
+1. command/schedule execution history persistence and query/reporting adapter;
+2. progress/spinner/task UI for long-running interactive commands;
+3. terminal width/ANSI capability handling;
+4. process-group/descendant cleanup plus final Windows capability policy;
+5. final canonical runtime reset audit across the remaining optional integrations.
+
+Validation integration remains a broader Foundation package-integration task rather than a Console implementation concern, but it is still a Foundation 2.0 release blocker while marked `PARTIAL` above.
 
 ## Release rule
 
