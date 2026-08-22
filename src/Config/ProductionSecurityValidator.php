@@ -195,13 +195,35 @@ final readonly class ProductionSecurityValidator
             return;
         }
 
-        $driver = $this->normalizeDriver($this->config->get('cache.lock.driver'));
-        if ($driver === null || !in_array($driver, self::DISTRIBUTED_LOCK_DRIVERS, true)) {
+        $driver = $this->effectiveLockDriver();
+        if (!in_array($driver, self::DISTRIBUTED_LOCK_DRIVERS, true)) {
             $issues[] = new ConfigIssue(
-                'Distributed topology requires cache.lock.driver to use Redis, Valkey, Memcached, or PDO; file locks are node-local.',
-                'cache.lock.driver',
+                'Distributed topology requires a Redis, Valkey, Memcached, or shared PDO coordination lock, either explicitly or through the selected CacheLayer store.',
+                'cache.lock',
             );
         }
+    }
+
+    private function effectiveLockDriver(): ?string
+    {
+        $explicit = $this->normalizeDriver($this->config->get('cache.lock.driver'));
+        if ($explicit !== null) {
+            return $explicit;
+        }
+
+        $store = $this->string($this->config->get('cache.lock.store'))
+            ?? $this->string($this->config->get('cache.default'));
+        if ($store === null) {
+            return null;
+        }
+
+        return match ($this->storeDriver($store)) {
+            'memcache' => 'memcache',
+            'pdo' => 'pdo',
+            'redis' => 'redis',
+            'valkey' => 'valkey',
+            default => null,
+        };
     }
 
     private function storeDriver(string $name): ?string
