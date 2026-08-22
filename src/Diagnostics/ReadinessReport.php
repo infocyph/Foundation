@@ -7,6 +7,7 @@ namespace Infocyph\Foundation\Diagnostics;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Config\ConfigValidator;
 use Infocyph\Foundation\Config\OtpConfigValidator;
+use Infocyph\Foundation\Config\ProductionSecurityValidator;
 use Infocyph\Foundation\Module\ModuleCatalog;
 
 final readonly class ReadinessReport
@@ -37,6 +38,13 @@ final readonly class ReadinessReport
 
         $validation = (new ConfigValidator($this->application->config()))->validateForProduction();
         $messages = $validation->messages();
+        $messages = [
+            ...$messages,
+            ...array_map(
+                static fn($issue): string => $issue->message,
+                (new ProductionSecurityValidator($this->application->config()))->validate(),
+            ),
+        ];
         if ($this->application->config()->get('auth.drivers.mfa', 'simple') === 'otp') {
             $messages = [
                 ...$messages,
