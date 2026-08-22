@@ -14,7 +14,7 @@ final class ModuleCatalog
     private const array MODULES = [
         'cache' => [
             'package' => 'infocyph/cachelayer',
-            'constraint' => '^3.1.2',
+            'constraint' => '^3.1.3',
             'description' => 'Cache stores, locks, counters, response caching, and authentication state.',
             'aliases' => ['cachelayer'],
             'config' => ['cache.php'],
@@ -35,7 +35,7 @@ final class ModuleCatalog
         ],
         'db' => [
             'package' => 'infocyph/dblayer',
-            'constraint' => '^4.0',
+            'constraint' => '^4.1',
             'description' => 'Database connections, queries, repositories, schema, migrations, and persistence.',
             'aliases' => ['database', 'dblayer'],
             'config' => ['database.php'],
@@ -57,8 +57,8 @@ final class ModuleCatalog
         ],
         'messaging' => [
             'package' => 'infocyph/omnibus',
-            'constraint' => '^2.1.1',
-            'description' => 'Events, messages, queues, retries, workflows, and scheduled-message dispatch.',
+            'constraint' => 'dev-main@dev',
+            'description' => 'Events, messages, queues, retries, workers, optional process pools, workflows, and scheduled-message dispatch.',
             'aliases' => ['events', 'omnibus', 'queue', 'queues'],
             'config' => ['messaging.php'],
         ],
