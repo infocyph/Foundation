@@ -11,6 +11,7 @@ use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
 use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
 use Infocyph\Foundation\Auth\Driver\AuthNotificationDriver;
 use Infocyph\Foundation\Auth\Support\CollectingAuthNotifier;
+use Infocyph\Foundation\Notifications\EmailProfiles;
 use Infocyph\Foundation\Notifications\NotificationTemplateRegistry;
 use Infocyph\TalkingBytes\Email\Emailer;
 
@@ -25,7 +26,7 @@ final readonly class AuthNotificationRegistrar extends AbstractAuthRegistrar
             ));
 
             $this->container->factory(AuthNotifierInterface::class, fn() => new TalkingBytesAuthNotifier(
-                emailer: $this->app->make(Emailer::class),
+                emailer: $this->app->make(EmailProfiles::class)->authEmailer(),
                 mapper: $this->app->make(AuthNotificationMapper::class),
                 accounts: $this->app->make(AccountProviderInterface::class),
                 criticalTypes: $this->criticalTypes(),
