@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use Infocyph\CacheLayer\Cache\Adapter\TieredCacheAdapter;
+use Infocyph\CacheLayer\Cache\AuthenticationStateCacheInterface;
+use Infocyph\CacheLayer\Cache\Cache;
 use Infocyph\CacheLayer\Cache\CacheInterface;
 use Infocyph\CacheLayer\Cache\Lock\FileLockProvider;
 use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
@@ -61,7 +63,10 @@ it('exposes one native CacheLayer store through Foundation PSR and DBLayer bindi
     try {
         $cache = $app->make(CacheInterface::class);
 
-        expect($app->make(SimpleCacheInterface::class))->toBe($cache)
+        expect($cache)->toBeInstanceOf(Cache::class)
+            ->and($app->make(Cache::class))->toBe($cache)
+            ->and($app->make(AuthenticationStateCacheInterface::class))->toBe($cache)
+            ->and($app->make(SimpleCacheInterface::class))->toBe($cache)
             ->and($app->make(CacheItemPoolInterface::class))->toBe($cache)
             ->and($app->make('foundation.cache'))->toBe($cache)
             ->and(DB::cache())->toBe($cache)
@@ -170,7 +175,7 @@ it('exposes the configured CacheLayer lock provider directly', function (): void
     $sharedLock->release($handle);
 });
 
-it('flushes CacheLayer process-local memoizers between execution units', function (): void {
+it('flushes process-local memoizers without clearing the shared cache between execution units', function (): void {
     $app = Foundation::web([
         'cache' => [
             'default' => 'memory',
@@ -180,6 +185,7 @@ it('flushes CacheLayer process-local memoizers between execution units', functio
         ],
     ]);
 
+    $cache = $app->make(CacheInterface::class);
     $memoizer = $app->make(Memoizer::class);
     $once = $app->make(OnceMemoizer::class);
     $memoCalls = 0;
@@ -187,6 +193,8 @@ it('flushes CacheLayer process-local memoizers between execution units', functio
     $resolver = static function () use (&$memoCalls): int {
         return ++$memoCalls;
     };
+
+    $cache->set('persistent', 'shared');
 
     $first = $app->execution()->run(static function () use ($memoizer, $once, $resolver, &$onceCalls): array {
         return [
@@ -207,7 +215,8 @@ it('flushes CacheLayer process-local memoizers between execution units', functio
     });
 
     expect($first)->toBe([1, 1, 1, 1])
-        ->and($second)->toBe([2, 2, 2, 2]);
+        ->and($second)->toBe([2, 2, 2, 2])
+        ->and($cache->get('persistent'))->toBe('shared');
 });
 
 function foundationCacheOnceValue(OnceMemoizer $memoizer, int &$calls): int
