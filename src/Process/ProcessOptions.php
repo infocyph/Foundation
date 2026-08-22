@@ -31,6 +31,7 @@ final readonly class ProcessOptions
         public bool $interactive = false,
         public ?float $idleTimeoutSeconds = null,
         public ?int $maxOutputBytes = 16_777_216,
+        public bool $captureOutput = true,
         public bool $passthrough = false,
         public bool $inheritInput = false,
         ?callable $cancelled = null,
