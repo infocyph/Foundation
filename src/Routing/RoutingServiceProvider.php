@@ -6,6 +6,7 @@ namespace Infocyph\Foundation\Routing;
 
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
+use Infocyph\Foundation\Exception\ConfigurationException;
 use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\InterMix\DI\Support\ServiceReference;
@@ -54,25 +55,25 @@ final class RoutingServiceProvider extends ServiceProvider
         $this->bindFactory($container, 'foundation.router', fn() => $container->get(RouterManager::class), LifetimeEnum::Singleton);
     }
 
-    /**
-     * @return list<string>
-     */
+    /** @return list<string> */
     private function routeFiles(mixed $value): array
     {
         if (!is_array($value)) {
-            return ['web.php', 'api.php', 'auth.php'];
+            throw new ConfigurationException('router.files must be a list of route filenames.');
         }
 
         $files = [];
-
-        foreach ($value as $file) {
-            if (!is_string($file) || $file === '') {
-                continue;
+        foreach ($value as $index => $file) {
+            if (!is_string($file) || trim($file) === '') {
+                throw new ConfigurationException(sprintf(
+                    'router.files.%s must be a non-empty route filename.',
+                    (string) $index,
+                ));
             }
 
             $files[] = $file;
         }
 
-        return $files === [] ? ['web.php', 'api.php', 'auth.php'] : $files;
+        return array_values(array_unique($files));
     }
 }
