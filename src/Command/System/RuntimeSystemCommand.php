@@ -8,6 +8,7 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Command\ExitCode;
 use Infocyph\Foundation\Filesystem\StorageLinkManager;
 use Infocyph\Foundation\Messaging\ConsumerFactory;
+use Infocyph\Foundation\Operations\ExecutionHistory;
 use Infocyph\Foundation\Routing\RouteCacheManager;
 use Infocyph\Foundation\Scheduling\ScheduleManager;
 use Infocyph\Foundation\Session\SessionManager;
@@ -32,9 +33,12 @@ final class RuntimeSystemCommand extends SystemCommand
             'schedule:dispatch-message' => $this->dispatchScheduledMessage(),
             'schedule:list' => $this->scheduleList(),
             'schedule:run' => $this->scheduleRun(),
+            'schedule:test' => $this->scheduleTest(),
             'schedule:work' => $this->scheduleWork(),
             'session:prune' => $this->sessionPrune(),
             'storage:link' => $this->storageLink(),
+            'storage:status' => $this->storageStatus(),
+            'storage:unlink' => $this->storageUnlink(),
             'worker:list' => $this->workerList(),
             'worker:run' => $this->workerRun(),
             default => throw new \LogicException('Unsupported runtime system command.'),
@@ -80,7 +84,7 @@ final class RuntimeSystemCommand extends SystemCommand
         $envelope = $this->application->make(ScheduledMessageDispatcher::class)->dispatch($name);
 
         return $this->emit(
-            ['name' => $name, 'message' => $envelope->message::class],
+            ['name' => $name, 'message' => get_debug_type($envelope->message)],
             sprintf('Scheduled message "%s" dispatched.', $name),
         );
     }
@@ -165,7 +169,15 @@ final class RuntimeSystemCommand extends SystemCommand
     private function scheduleList(): int
     {
         $entries = (new ScheduleManager($this->application))->entries();
-        $data = array_map(static fn($entry): array => $entry->toManifest(), $entries);
+        $history = new ExecutionHistory($this->application);
+        $data = array_map(static function ($entry) use ($history): array {
+            $manifest = $entry->toManifest();
+            $last = $history->latest('schedule', $entry->command());
+            $manifest['last_status'] = $last['status'] ?? null;
+            $manifest['last_recorded_at'] = isset($last['recorded_at']) ? (float) $last['recorded_at'] : null;
+
+            return $manifest;
+        }, $entries);
         if ($this->io()->machineReadable()) {
             $this->io()->json($data);
 
@@ -173,7 +185,7 @@ final class RuntimeSystemCommand extends SystemCommand
         }
 
         $this->io()->table(
-            ['Key', 'Command', 'Cron', 'Timezone', 'Overlap', 'One Server'],
+            ['Key', 'Command', 'Cron', 'Timezone', 'Overlap', 'One Server', 'Last Status'],
             array_map(
                 static fn(array $entry): array => [
                     $entry['key'] ?? '',
@@ -182,6 +194,7 @@ final class RuntimeSystemCommand extends SystemCommand
                     $entry['timezone'],
                     $entry['without_overlap'],
                     $entry['on_one_server'],
+                    $entry['last_status'] ?? '',
                 ],
                 $data,
             ),
@@ -193,16 +206,7 @@ final class RuntimeSystemCommand extends SystemCommand
     private function scheduleRun(): int
     {
         $runs = (new ScheduleManager($this->application))->runDue();
-        $data = array_map(
-            static fn($run): array => [
-                'command' => $run->entry->command(),
-                'identity' => $run->entry->identity(),
-                'exit_code' => $run->exitCode,
-                'locked' => $run->locked,
-                'successful' => $run->successful(),
-            ],
-            $runs,
-        );
+        $data = array_map($this->scheduleRunData(...), $runs);
         if ($this->io()->machineReadable()) {
             $this->io()->json($data);
         } else {
@@ -223,6 +227,31 @@ final class RuntimeSystemCommand extends SystemCommand
         return array_any($runs, static fn($run): bool => !$run->locked && !$run->successful())
             ? ExitCode::FAILURE
             : ExitCode::SUCCESS;
+    }
+
+    private function scheduleTest(): int
+    {
+        $name = $this->argument(0)
+            ?? throw new \LogicException('Validated scheduled entry name is unavailable.');
+        $run = (new ScheduleManager($this->application))->runNamed($name);
+        $data = $this->scheduleRunData($run);
+
+        return $this->emit(
+            $data,
+            sprintf('Scheduled entry "%s" completed with exit code %d.', $name, $run->exitCode),
+        );
+    }
+
+    /** @return array{command:string,identity:string,exit_code:int,locked:bool,successful:bool} */
+    private function scheduleRunData($run): array
+    {
+        return [
+            'command' => $run->entry->command(),
+            'identity' => $run->entry->identity(),
+            'exit_code' => $run->exitCode,
+            'locked' => $run->locked,
+            'successful' => $run->successful(),
+        ];
     }
 
     private function scheduleWork(): int
@@ -247,13 +276,51 @@ final class RuntimeSystemCommand extends SystemCommand
     private function storageLink(): int
     {
         $links = $this->application->make(StorageLinkManager::class)->create();
+
+        return $this->renderStorage($links, 'Created');
+    }
+
+    private function storageStatus(): int
+    {
+        $links = $this->application->make(StorageLinkManager::class)->status();
         if ($this->io()->machineReadable()) {
             $this->io()->json($links);
         } else {
             $this->io()->table(
-                ['Link', 'Target', 'Created'],
+                ['Link', 'Target', 'Exists', 'Linked', 'Matches'],
+                array_map(static fn(array $link): array => [
+                    $link['link'],
+                    $link['target'],
+                    $link['exists'],
+                    $link['linked'],
+                    $link['matches'],
+                ], $links),
+            );
+        }
+
+        return array_any($links, static fn(array $link): bool => !$link['matches'])
+            ? ExitCode::FAILURE
+            : ExitCode::SUCCESS;
+    }
+
+    private function storageUnlink(): int
+    {
+        $links = $this->application->make(StorageLinkManager::class)->remove();
+
+        return $this->renderStorage($links, 'Removed');
+    }
+
+    /** @param list<array<string,mixed>> $links */
+    private function renderStorage(array $links, string $state): int
+    {
+        if ($this->io()->machineReadable()) {
+            $this->io()->json($links);
+        } else {
+            $key = strtolower($state);
+            $this->io()->table(
+                ['Link', 'Target', $state],
                 array_map(
-                    static fn(array $link): array => [$link['link'], $link['target'], $link['created']],
+                    static fn(array $link): array => [$link['link'], $link['target'], $link[$key] ?? false],
                     $links,
                 ),
             );
