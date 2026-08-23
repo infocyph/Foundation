@@ -1,53 +1,104 @@
 # Events, queues, workers, and scheduled messages
 
-Foundation composes Omnibus through `config/messaging.php`. Omnibus owns message
-delivery, receiving, retries, failure handling, worker loops, and the optional
-Unix process pool. Foundation owns configuration, application handler mapping,
-InterMix execution scopes, lifecycle cleanup, and runtime composition.
+Foundation composes Omnibus 2.4 through the purpose-first `messaging` module.
+Omnibus owns message delivery, receiving, retries, failure storage, handler
+execution, worker loops, and the optional Unix process pool. Foundation owns
+application configuration, DI composition, job middleware adaptation,
+execution-scope cleanup, and persistent-runtime control.
 
-Registering no messaging services leaves the optional package graph dormant.
+Install and publish messaging configuration with:
+
+```bash
+php infbyte module:install messaging
+```
+
+Foundation defaults `messaging.workers` to an empty map. Merely having Omnibus
+installed does not activate queue or worker infrastructure.
 
 ## Explicit maps
 
 ```php
 return [
     'handlers' => [
-        App\Message\GenerateReport::class => App\Handler\GenerateReport::class,
+        App\Jobs\GenerateReportJob::class => App\Messaging\Handlers\GenerateReportHandler::class,
     ],
+
+    'handler_middleware' => [],
+    'job_middleware' => [
+        App\Jobs\Middleware\AuditJobMiddleware::class,
+    ],
+
     'routes' => [
-        App\Message\GenerateReport::class => [
+        App\Jobs\GenerateReportJob::class => [
             'transport' => 'redis',
             'queue' => 'reports',
             'delay_seconds' => 0.0,
         ],
     ],
+
     'listeners' => [
-        App\Event\OrderPaid::class => [
-            App\Listener\SendReceipt::class,
+        App\Events\OrderPaidEvent::class => [
+            App\Listeners\SendReceiptListener::class,
         ],
     ],
+
     'scheduled_messages' => [
         'reports.daily' => App\MessageFactory\DailyReport::class,
     ],
 ];
 ```
 
-Invokable class names are resolved through InterMix only when dispatched. Live
-configuration may contain callables for single-process use. Pooled workers
-require declarative scalar/array configuration and class names because each
-child reconstructs a fresh Foundation application after fork.
+Invokable class names are resolved through InterMix only when required. Pooled
+workers require declarative scalar/array configuration because each child
+constructs a fresh Foundation worker application after fork.
 
-## Dispatch
+## Native Omnibus dispatch
+
+Foundation does not expose a second messaging manager. Resolve the native
+Omnibus APIs directly:
 
 ```php
-$envelope = $app->messaging()->dispatch(new GenerateReport($id));
-$app->messaging()->event(new OrderPaid($orderId));
+use Infocyph\Omnibus\Event\EventDispatcher;
+use Infocyph\Omnibus\MessageBus;
+
+$bus = $app->make(MessageBus::class);
+$events = $app->make(EventDispatcher::class);
+
+$envelope = $bus->dispatch(new App\Jobs\GenerateReportJob($id));
+$events->dispatch(new App\Events\OrderPaidEvent($orderId));
 ```
 
-The native Omnibus `MessageBus`, `EventDispatcher`, transport registry, consumer,
-and scheduled-message dispatcher are also available from the container. Queued
-listeners and messages follow Omnibus routing, retry, failure, serialization,
-and transport contracts.
+The same native `HandlerInvoker` executes handlers for sync and queued delivery.
+Transport, retry, serialization, failure, acknowledgment, and release semantics
+remain Omnibus responsibilities.
+
+## Handler middleware and Foundation JobMiddleware
+
+Omnibus 2.4 supplies the framework-neutral handler pipeline:
+
+```text
+ExecutionScope
+  Omnibus handler middleware
+    Foundation JobMiddleware adapter (for Foundation Job messages only)
+      handler
+```
+
+`messaging.handler_middleware` applies to all Omnibus message handlers.
+`messaging.job_middleware` is Foundation's application-facing layer and is
+entered only when the message implements `Infocyph\Foundation\Messaging\Job`.
+
+Foundation `JobMiddleware` receives a `JobContext` containing the queue, attempt,
+and asynchronous flag; it does not expose Omnibus `Envelope` or
+`HandlerContext`. Jobs remain data objects and handlers remain explicit through
+`messaging.handlers`.
+
+Generate the corresponding application starting points with:
+
+```bash
+php infbyte create:job GenerateReport
+php infbyte create:handler GenerateReport
+php infbyte create:job-middleware AuditJob
+```
 
 ## Bounded consumption
 
@@ -55,17 +106,41 @@ Use `queue:consume` for one bounded receive operation:
 
 ```bash
 php infbyte queue:consume
-php infbyte queue:consume --queue=reports --limit=100
+php infbyte queue:consume --transport=redis --queue=reports --limit=100 --visibility=60
 ```
 
-`Consumer::run()` performs one receive batch. Every successfully decoded
-delivery enters Foundation's canonical `ExecutionScope`, so the message,
-Envelope, ExecutionId, scoped services, DBLayer runtime state, principal/session
-state, and process-local memoizers are isolated from the next delivery.
+The command runs in the Worker runtime. Every successfully decoded delivery
+enters Foundation's canonical execution scope, so scoped services and tracked
+external state are cleaned before the next message.
 
-## Persistent workers
+## Failed-message operations
 
-Declare persistent Omnibus workers under `messaging.workers`:
+Foundation exposes Omnibus failure-store operations without implementing a
+second failure engine:
+
+```bash
+php infbyte queue:failed
+php infbyte queue:failed --limit=100
+php infbyte queue:failed:show <id>
+php infbyte queue:retry <id>
+php infbyte queue:retry <id> --transport=redis --queue=reports
+php infbyte queue:forget <id>
+php infbyte queue:prune-failed --hours=168
+php infbyte queue:flush --force
+```
+
+`queue:flush` clears the **failed-message store**. It is not a live-queue purge
+command.
+
+Inspect a receiver's current queue size when the transport supports it:
+
+```bash
+php infbyte queue:monitor --transport=redis --queue=reports
+```
+
+## Persistent messaging workers
+
+Declare workers under `messaging.workers`:
 
 ```php
 'workers' => [
@@ -74,9 +149,14 @@ Declare persistent Omnibus workers under `messaging.workers`:
         'queue' => 'reports',
         'prefetch' => 4,
         'visibility_seconds' => 60.0,
+        'idle_sleep_seconds' => 0.05,
+        'max_idle_sleep_seconds' => 1.0,
+        'idle_jitter_ratio' => 0.20,
         'max_messages' => 1000,
         'max_runtime_seconds' => 3600.0,
+        'memory_limit_bytes' => null,
         'max_memory_growth_bytes' => 134217728,
+        'handle_signals' => true,
         'pool' => [
             'enabled' => false,
         ],
@@ -84,20 +164,40 @@ Declare persistent Omnibus workers under `messaging.workers`:
 ],
 ```
 
-Run one worker process with:
+Run/list workers with:
 
 ```bash
+php infbyte worker:list
 php infbyte worker:run reports
 ```
 
 Omnibus `Worker` owns idle backoff, signal handling, receive batching, runtime,
-message-count, absolute-memory, and memory-growth limits. `prefetch` controls a
-single process's receive batch and is independent of process concurrency.
+message-count, absolute-memory, and memory-growth limits. Foundation supplies an
+Omnibus 2.4 `WorkerLifecycle` implementation that updates process visibility and
+checks Foundation runtime/worker generation tokens.
 
-The normal production model keeps `pool.enabled=false` and lets
-Supervisor, systemd, Docker, Kubernetes, or another external supervisor run the
-desired number of worker processes. Bounded worker limits then provide routine
-process recycling.
+That means single messaging workers can observe:
+
+```bash
+php infbyte runtime:reload
+php infbyte worker:restart
+php infbyte worker:restart reports
+```
+
+without Foundation requiring `pcntl` merely for polling. Omnibus performs the
+actual graceful stop. An external process manager remains responsible for
+starting replacement processes.
+
+Inspect visible workers with:
+
+```bash
+php infbyte worker:status
+php infbyte worker:status reports
+```
+
+Process-registry state is heartbeat-based observability, not supervisor truth.
+`operations.runtime_registry.visibility=host` reports this host only;
+`shared` intentionally aggregates records from a shared registry directory.
 
 ## Optional process pool
 
@@ -114,35 +214,22 @@ On Unix-like systems with `pcntl` and `posix`, Foundation can compose Omnibus
 ],
 ```
 
-The parent validates worker options without constructing a receiver. Each child
-then creates and boots a new Foundation worker application after `fork()`, and
-only there resolves the transport, Consumer, DBLayer connections, CacheLayer
-clients, and other process-bound services. Pool startup is rejected if the
-parent Foundation application has already been booted.
+Pool mode itself is an upstream Unix/process-fork feature, so Foundation retains
+its lightweight Unix watchdog for propagating runtime generation changes to the
+pool. Each child creates and boots a fresh Foundation application after fork.
+Known process-bound services must not be resolved in the parent.
 
-Foundation provider registration happens while the parent application is being
-constructed, so custom providers intended for pool mode must keep `register()`
-resource-free: register factories, class names, and immutable descriptors only.
-Do not open PDO connections, Redis/Valkey clients, brokers, HTTP clients, files,
-or other process-bound resources from provider registration. Resolve those
-services lazily in the child after fork.
+The process-local `memory` transport cannot be pooled, and `sync` is not a
+receiver. Pooled application configuration must contain only scalar/array
+values; runtime objects, resources, and closures are rejected before fork.
 
-Pool mode rejects the built-in `memory` transport because its queue is
-process-local. `sync` cannot be consumed. Application-supplied pooled transports
-must be shared/durable. Pool configuration must contain scalars/arrays rather
-than runtime objects, resources, or closures.
-
-A pool is intentionally optional rather than the default supervisor. It has
-fixed concurrency and a bounded per-slot crash-restart budget. Clean worker
-recycling caused by message/runtime/memory limits respawns the slot without
-consuming that crash budget. External supervisors remain preferable when
-orchestration already exists.
+External Supervisor/systemd/Docker/Kubernetes process management remains the
+preferred deployment model when already available.
 
 ## Maintenance workers
 
-`routes/workers.php` is for application-specific maintenance workers implementing
-`Infocyph\Foundation\Worker\WorkerProvider`; it is not a second queue engine.
-Provider workers are unlocked by default:
+`routes/workers.php` is reserved for non-message application workers implementing
+`Infocyph\Foundation\Worker\WorkerProvider`. It is not a second queue engine.
 
 ```php
 return [
@@ -156,35 +243,26 @@ return [
 ];
 ```
 
-Only explicit singleton providers acquire a CacheLayer lock. Their
-`WorkerRuntime` refreshes ownership before each `execute()` unit; providers with
-long individual units may call `heartbeat()` themselves. The configured lease
-must exceed the maximum interval between heartbeats.
+Only explicit singleton providers obtain CacheLayer ownership. `WorkerRuntime`
+exposes `heartbeat()` so a long-running provider can refresh ownership and
+observe graceful restart requests. Losing singleton ownership is an execution
+failure, not permission to continue unowned.
 
 ## Scheduled messages
 
-Foundation schedules application operations. Omnibus owns scheduled-message
-creation and dispatch:
+Foundation schedules application operations while Omnibus owns message creation
+and dispatch:
 
 ```bash
 php infbyte schedule:dispatch-message reports.daily
 ```
 
-This separation keeps the Foundation scheduler from becoming a second durable
-message scheduler.
+This keeps Foundation's scheduler from becoming a second durable message
+scheduler.
 
-## Authentication forwarding
+## Authentication event forwarding
 
 `messaging.forward_auth_events=false` is the default. When enabled, Foundation
-first persists an auth audit event and then forwards it to Omnibus. Messaging
-failure never replaces the canonical audit store.
-
-## Testing
-
-```php
-$recording = $app->testing()->fakeMessaging();
-$app->messaging()->dispatch(new GenerateReport('42'));
-
-assert($recording->count(GenerateReport::class) === 1);
-$app->messaging()->restore();
-```
+forwards configured authentication events into Omnibus after the Foundation
+auth workflow has performed its own canonical state/audit work. Messaging
+failure does not redefine authentication persistence semantics.
