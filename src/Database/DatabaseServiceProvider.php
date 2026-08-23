@@ -22,7 +22,7 @@ final class DatabaseServiceProvider extends ServiceProvider
     {
         if (!class_exists(DB::class)) {
             throw new \LogicException(
-                'Foundation database services require infocyph/dblayer; run "php infbyte module:install db".',
+                'Foundation database services require infocyph/dblayer; run "php infbyte module:install database".',
             );
         }
 
