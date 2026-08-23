@@ -124,6 +124,18 @@ final readonly class ModuleManager
             }
 
             $target = $directory . DIRECTORY_SEPARATOR . $filename;
+            if (is_link($target)) {
+                if (!$force) {
+                    $existing[] = $target;
+
+                    continue;
+                }
+
+                throw new \RuntimeException(sprintf(
+                    'Refusing to force-publish config through symbolic link "%s".',
+                    $target,
+                ));
+            }
             if (is_file($target) && !$force) {
                 $existing[] = $target;
 
@@ -230,10 +242,24 @@ final readonly class ModuleManager
             }
 
             foreach ($staged as $target => $temporary) {
+                if (is_link($target)) {
+                    if (!$force) {
+                        $existing[] = $target;
+                        $this->unlink($temporary, 'staged config');
+                        unset($staged[$target]);
+
+                        continue;
+                    }
+
+                    throw new \RuntimeException(sprintf(
+                        'Refusing to force-publish config through symbolic link "%s".',
+                        $target,
+                    ));
+                }
                 if (is_file($target)) {
                     if (!$force) {
                         $existing[] = $target;
-                        unlink($temporary);
+                        $this->unlink($temporary, 'staged config');
                         unset($staged[$target]);
 
                         continue;
@@ -255,29 +281,45 @@ final readonly class ModuleManager
 
             foreach ($backups as $backup) {
                 if (is_file($backup)) {
-                    unlink($backup);
+                    $this->unlink($backup, 'config backup');
                 }
             }
         } catch (\Throwable $failure) {
+            $rollback = [];
             foreach ($staged as $temporary) {
-                if (is_file($temporary)) {
-                    unlink($temporary);
+                if (is_file($temporary) && !unlink($temporary)) {
+                    $rollback[] = 'unable to remove staged file ' . $temporary;
                 }
             }
             foreach ($published as $target) {
-                if (is_file($target)) {
-                    unlink($target);
+                if (is_file($target) && !unlink($target)) {
+                    $rollback[] = 'unable to remove published file ' . $target;
                 }
             }
             foreach ($backups as $target => $backup) {
-                if (is_file($backup)) {
-                    rename($backup, $target);
+                if (is_file($backup) && !rename($backup, $target)) {
+                    $rollback[] = 'unable to restore backup ' . $backup;
                 }
+            }
+
+            if ($rollback !== []) {
+                throw new \RuntimeException(
+                    'Module config publication failed and rollback was incomplete: ' . implode('; ', $rollback),
+                    0,
+                    $failure,
+                );
             }
 
             throw $failure;
         }
 
         return $published;
+    }
+
+    private function unlink(string $path, string $kind): void
+    {
+        if (is_file($path) && !unlink($path)) {
+            throw new \RuntimeException(sprintf('Unable to remove %s "%s".', $kind, $path));
+        }
     }
 }
