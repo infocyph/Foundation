@@ -23,10 +23,10 @@ After each joint batch:
 # Current checkpoint
 
 - Date: 2026-08-23
-- Foundation source checkpoint: `3d8b2350094fbf8b031290b17a4085643234b563`
+- Foundation source checkpoint: `17a3a19cf27ba2d2c39b5722be3cc1d37f8a6eb5`
 - Infbyte source checkpoint: `56cb73e18eab07f34242a929eccbc9e6572d9971`
-- Current phase: **pre-documentation cleanup pass complete for modules, schemas, CLI, and operational runtime surfaces**.
-- Latest completed cleanup: **capability-driven CLI expansion + built-in operations lifecycle**.
+- Current phase: **pre-documentation application-contract cleanup**.
+- Latest completed cleanup: **Omnibus 2.3 handler middleware integration + Foundation Job/JobMiddleware application layer**.
 - Full PHPUnit/static-analysis/PHPForge/release matrix: not run yet.
 
 # Fixed architecture
@@ -77,7 +77,7 @@ A Foundation module represents an **application purpose/capability**, not a Comp
 | `database` | `infocyph/dblayer ^4.1` |
 | `filesystem` | `infocyph/pathwise ^3.1` |
 | `logging` | built into Foundation |
-| `messaging` | `infocyph/omnibus ^2.2` |
+| `messaging` | `infocyph/omnibus ^2.3` |
 | `operations` | built into Foundation |
 | `resources` | built into Foundation |
 | `security` | `infocyph/epicrypt ^2.1` |
@@ -212,9 +212,41 @@ Added/expanded surfaces:
 The public generator set now includes:
 
 - `create:config` for application-owned config files;
-- `create:resource` for Foundation `JsonResource` subclasses.
+- `create:resource` for Foundation `JsonResource` subclasses;
+- `create:job` for Foundation job data messages;
+- `create:handler` for explicit messaging handlers;
+- `create:job-middleware` for Foundation job middleware.
 
-Foundation deliberately does **not** invent `create:request`, `create:rule`, `create:mail`, or `create:notification` until corresponding application-level framework contracts actually exist. Generator names never justify creating artificial abstractions.
+Foundation still does **not** invent `create:request`, `create:rule`, `create:mail`, or `create:notification` until the remaining application-level framework contracts are reviewed and implemented. Generator names never justify artificial abstractions.
+
+# Completed cleanup — Omnibus 2.3 + Foundation job execution
+
+Omnibus 2.3 is now the messaging baseline because Foundation relies on its public `HandlerInvoker`, `HandlerMiddleware`, and `HandlerContext` execution primitives.
+
+Foundation composition rules:
+
+- one shared Omnibus `HandlerInvoker` is constructed by `MessagingServiceProvider`;
+- the same invoker is used by `SyncTransport` and queued `Consumer` execution;
+- `messaging.handler_middleware` is the ordered low-level Omnibus middleware surface and surrounds every message handler;
+- `messaging.job_middleware` is the ordered Foundation application middleware surface and runs only for messages implementing Foundation `Job`;
+- raw Omnibus middleware wraps the single Foundation job-middleware adapter, which then wraps the terminal handler;
+- ordinary synchronous PSR event listeners are not routed through handler/job middleware; queued listeners naturally enter the handler pipeline when consumed.
+
+Foundation application contracts added:
+
+- `Infocyph\Foundation\Messaging\Job` — semantic data-message marker;
+- `JobContext` — immutable `queue`, `attempt`, and `asynchronous` execution metadata;
+- `JobMiddleware` — application-facing middleware contract with a no-argument continuation;
+- internal/public adapter `JobMiddlewarePipeline` — bridges Foundation job middleware to Omnibus `HandlerMiddleware` without exposing Envelope/HandlerContext details to application middleware.
+
+Jobs remain data objects. Handler resolution stays explicit through `messaging.handlers`; Foundation does not hide service resolution inside the job object or introduce a second messaging engine.
+
+Configuration/readiness alignment:
+
+- Foundation `require-dev` and the messaging module both require `infocyph/omnibus ^2.3`;
+- Bootstrapper probes the Omnibus 2.3-specific `HandlerInvoker` capability, so an older Omnibus installation fails through the canonical messaging-module diagnostic rather than later class loading;
+- `FoundationDefaults`, publishable `messaging.php`, `RuntimeConfigValidator`, and `messaging:list` all include the new handler/job middleware surfaces;
+- pooled workers continue to require declarative scalar/array configuration, so middleware instances are rejected by the existing fork-safety validation when pool mode is enabled.
 
 # Completed cleanup — operations runtime
 
@@ -292,37 +324,39 @@ A source-level consistency pass was completed across the expanded catalog and it
 Confirmed:
 
 - every newly exposed command is routed to a concrete handler;
-- `create:config` and `create:resource` are publicly registered;
 - module `--force` publication is transactional;
 - worker messaging activation remains lazy through Bootstrapper-managed services;
 - storage unlink refuses normal files/directories and mismatched symlink targets;
 - maintenance keys, runtime-control keys and runtime-registry keys consistently use `operations.*`;
-- Foundation defaults, publishable operations config and runtime validation agree;
+- Foundation defaults, publishable operations/messaging config and runtime validation agree;
 - environment replacement is staged/rollback-safe;
-- no new InterMix internal-resolver dependency was introduced; the stale messaging resolver usage discovered in this cleanup was replaced with public container `make()`.
+- Omnibus 2.3 `HandlerInvoker` is the one shared sync/async handler execution composition point;
+- Foundation job middleware is an adapter over Omnibus and does not duplicate retry/failure/transport/worker machinery;
+- no new InterMix internal-resolver dependency was introduced.
 
 This was a source/config audit only. The deferred PHPUnit/static/PHPForge/runtime matrix has **not** been run.
 
 # Infbyte alignment for this batch
 
-No Infbyte source/config mutation was required after Foundation's CLI/operations implementation.
+No Infbyte source/config mutation was required for the Omnibus 2.3/Foundation job integration.
 
 That is intentional:
 
-- root `infbyte` already delegates to `CommandDispatcher`, so the new commands arrive automatically;
-- `operations.php` remains an optional publishable built-in-module config rather than another checked-in skeleton config;
-- `.env.example` remains lean and does not advertise inactive optional-module variables;
-- environment encryption key material stays external to `.env`/`.env.example`.
+- root `infbyte` already delegates to `CommandDispatcher`, so the new generators arrive automatically;
+- `messaging.php` remains optional module-published configuration rather than another checked-in skeleton config;
+- the Foundation messaging module owns the Omnibus constraint/config lifecycle;
+- Infbyte does not duplicate messaging/job runtime machinery.
 
 # Immediate next work
 
-The module/schema/CLI/operations cleanup pass is now ready to move into **joint Foundation/Infbyte documentation reconciliation** unless another public-surface cleanup topic is intentionally opened first.
+Continue the **Foundation application-contract cleanup** before documentation freeze. The remaining candidate families are validation/request and notification/mail abstractions; each should be added only where it provides real application-level value over ReqShield/TalkingBytes primitives.
 
-Documentation reconciliation should then be followed by:
+After the application-contract review is complete:
 
-1. public command/module/config-name freeze;
-2. deferred test/release matrix;
-3. final Foundation 2.0 / Infbyte compatibility and release review.
+1. joint Foundation/Infbyte documentation reconciliation;
+2. public command/module/config-name freeze;
+3. deferred test/release matrix;
+4. final Foundation 2.0 / Infbyte compatibility and release review.
 
 # Deferred test/release matrix
 
@@ -341,6 +375,9 @@ When explicitly started:
 - maintenance file/cache modes;
 - worker/scheduler reload and heartbeat/process visibility;
 - queue failed-message/monitoring commands across supported transports;
+- Omnibus handler middleware parity across sync/consumer execution;
+- Foundation JobMiddleware ordering, short-circuit/result propagation and sync/async JobContext;
+- pooled-worker middleware configuration/fork-safety behavior;
 - DB monitor/pretend/wipe/rollback-batch behavior;
 - env encrypt/decrypt success, force, failure and rollback cases;
 - storage link/status/unlink safety cases;
@@ -359,6 +396,8 @@ When explicitly started:
 - no copied CacheLayer/internal specialist SQL in Foundation;
 - no fake generators without real framework contracts;
 - no Foundation-owned duplicate DB/queue/cache/crypto engines;
+- no second messaging/retry/failure/worker engine above Omnibus;
+- no Foundation job middleware leaking Omnibus Envelope/HandlerContext APIs;
 - no `FoundationConsole`, `Foundation::console()`, or second CLI hierarchy;
 - no broad specialist Application manager/facade proxies;
 - no static global application state;
