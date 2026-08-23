@@ -14,7 +14,7 @@ return [
     */
     'default' => env('CACHE_STORE', 'local'),
     'default_counter' => env('CACHE_COUNTER'),
-    'prefix' => env_string('CACHE_PREFIX', 'infbyte:cache:'),
+    'prefix' => env_string('CACHE_PREFIX', 'foundation:cache:'),
 
     /*
     | A shared lock provider may be reused by command overlap, scheduling,
@@ -27,7 +27,7 @@ return [
         'driver' => env('CACHE_LOCK_DRIVER'),
         'store' => env('CACHE_LOCK_STORE'),
         'path' => env_string('CACHE_LOCK_PATH', 'storage/cache/locks'),
-        'prefix' => env_string('CACHE_LOCK_PREFIX', 'infbyte:cache:lock:'),
+        'prefix' => env_string('CACHE_LOCK_PREFIX', 'foundation:cache:lock:'),
         'retry_sleep_micros' => env_int('CACHE_LOCK_RETRY_SLEEP_MICROS', 50_000),
     ],
 
@@ -111,7 +111,7 @@ return [
             'path' => env_string('CACHE_SQLITE_PATH', 'storage/cache/cachelayer.sqlite'),
             'lock' => [
                 'driver' => 'pdo',
-                'prefix' => env_string('CACHE_LOCK_PREFIX', 'infbyte:cache:lock:'),
+                'prefix' => env_string('CACHE_LOCK_PREFIX', 'foundation:cache:lock:'),
             ],
         ],
         'database' => [
@@ -120,7 +120,7 @@ return [
             'table' => env_string('CACHE_TABLE', 'cachelayer_entries'),
             'lock' => [
                 'driver' => 'pdo',
-                'prefix' => env_string('CACHE_LOCK_PREFIX', 'infbyte:cache:lock:'),
+                'prefix' => env_string('CACHE_LOCK_PREFIX', 'foundation:cache:lock:'),
             ],
         ],
         'redis' => [
