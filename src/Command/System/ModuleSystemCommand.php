@@ -20,12 +20,14 @@ final class ModuleSystemCommand extends SystemCommand
     protected function handle(): int
     {
         return match ($this->canonicalName()) {
+            'module:config:publish' => $this->publishConfig(),
             'module:install' => $this->install(),
             'module:list' => $this->listing(),
             'module:remove' => $this->remove(),
             'module:schema:install' => $this->schemaInstall(),
             'module:schema:status' => $this->schemaStatus(),
             'module:schema:sync' => $this->schemaSync(),
+            'module:show' => $this->show(),
             default => throw new \LogicException('Unsupported module system command.'),
         };
     }
@@ -138,6 +140,34 @@ final class ModuleSystemCommand extends SystemCommand
         return implode(', ', $summary);
     }
 
+    private function publishConfig(): int
+    {
+        $requested = $this->module();
+        $module = $this->catalog()->resolve($requested)['name'];
+        $result = $this->manager()->publishConfig($module, $this->flag('force'));
+        if ($result['published'] !== []) {
+            $this->invalidateCompiledRuntime();
+        }
+
+        if ($this->io()->machineReadable()) {
+            $this->io()->json(['module' => $module, 'requested' => $requested, ...$result]);
+
+            return ExitCode::SUCCESS;
+        }
+
+        foreach ($result['published'] as $path) {
+            $this->io()->success('Published ' . $path);
+        }
+        foreach ($result['existing'] as $path) {
+            $this->io()->note('Already exists: ' . $path);
+        }
+        if ($result['published'] === [] && $result['existing'] === []) {
+            $this->io()->note(sprintf('Module "%s" owns no publishable config.', $module));
+        }
+
+        return ExitCode::SUCCESS;
+    }
+
     private function remove(): int
     {
         $requested = $this->module();
@@ -192,6 +222,80 @@ final class ModuleSystemCommand extends SystemCommand
     private function schemas(): ModuleSchemaManager
     {
         return new ModuleSchemaManager($this->application, $this->catalog());
+    }
+
+    private function show(): int
+    {
+        $requested = $this->module();
+        $definition = $this->catalog()->resolve($requested);
+        $module = null;
+        foreach ($this->manager()->all() as $candidate) {
+            if ($candidate['name'] === $definition['name']) {
+                $module = $candidate;
+                break;
+            }
+        }
+        if (!is_array($module)) {
+            throw new \LogicException(sprintf('Module "%s" is missing from the module registry.', $definition['name']));
+        }
+
+        $config = [];
+        foreach ($definition['config'] as $filename) {
+            $path = $this->application->configPath($filename);
+            $config[] = [
+                'file' => $filename,
+                'path' => $path,
+                'published' => is_file($path),
+            ];
+        }
+        $schemas = $this->schemas()->status($definition['name'], $this->option('connection'));
+        $data = [
+            ...$module,
+            'requested' => $requested,
+            'config' => $config,
+            'schema_status' => $schemas,
+        ];
+
+        if ($this->io()->machineReadable()) {
+            $this->io()->json($data);
+
+            return ExitCode::SUCCESS;
+        }
+
+        $this->io()->table(
+            ['Module', 'Status', 'Built-in', 'Direct', 'Purpose'],
+            [[$module['name'], $module['status'], $module['built_in'], $module['direct'], $module['description']]],
+        );
+        $this->io()->writeln();
+        $this->io()->table(
+            ['Package', 'Constraint', 'Installed', 'Direct', 'Version'],
+            $module['packages'] === []
+                ? [['Foundation', '', true, true, 'built-in']]
+                : array_map(
+                    static fn(string $package, array $state): array => [
+                        $package,
+                        $state['constraint'],
+                        $state['installed'],
+                        $state['direct'],
+                        $state['version'] ?? '',
+                    ],
+                    array_keys($module['packages']),
+                    array_values($module['packages']),
+                ),
+        );
+        if ($config !== []) {
+            $this->io()->writeln();
+            $this->io()->table(
+                ['Config', 'Published', 'Path'],
+                array_map(static fn(array $entry): array => [$entry['file'], $entry['published'], $entry['path']], $config),
+            );
+        }
+        if ($schemas !== []) {
+            $this->io()->writeln();
+            $this->renderSchemas($schemas);
+        }
+
+        return ExitCode::SUCCESS;
     }
 
     /**
