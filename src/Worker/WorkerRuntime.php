@@ -11,10 +11,14 @@ use Infocyph\Foundation\Runtime\ExecutionId;
 
 final readonly class WorkerRuntime
 {
-    /** @param null|Closure():void $heartbeat */
+    /**
+     * @param null|Closure():void $heartbeat
+     * @param null|Closure():bool $stopRequested
+     */
     public function __construct(
         private Application $application,
         private ?Closure $heartbeat = null,
+        private ?Closure $stopRequested = null,
     ) {
         if ($application->runtimeMode() !== RuntimeMode::Worker) {
             throw new \LogicException('WorkerRuntime requires a worker Foundation application.');
@@ -37,10 +41,19 @@ final readonly class WorkerRuntime
     }
 
     /**
-     * Refresh provider-level singleton ownership during long-running maintenance work.
+     * Refresh provider-level singleton ownership during long-running work and
+     * terminate cleanly when Foundation has requested a runtime/worker reload.
      */
     public function heartbeat(): void
     {
+        if ($this->stopRequested()) {
+            throw new WorkerRestartRequested('Worker restart requested.');
+        }
         ($this->heartbeat ?? static fn(): null => null)();
+    }
+
+    public function stopRequested(): bool
+    {
+        return ($this->stopRequested ?? static fn(): bool => false)();
     }
 }
