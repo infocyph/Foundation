@@ -53,12 +53,14 @@ return [
     ],
 
     /*
-    | Runtime process records are heartbeat-based visibility metadata. A record
-    | older than stale_seconds is reported as not running; process managers remain
-    | the authority for process supervision and replacement.
+    | Runtime process records are heartbeat-based visibility metadata. `host`
+    | reports records written by this host only. `shared` reports all records in
+    | a deliberately shared registry directory. Heartbeats are observational;
+    | process managers remain the authority for supervision and replacement.
     */
     'runtime_registry' => [
         'path' => env_string('OPERATIONS_RUNTIME_REGISTRY_PATH', 'storage/framework/runtime'),
+        'visibility' => env_string('OPERATIONS_RUNTIME_REGISTRY_VISIBILITY', 'host'),
         'stale_seconds' => env_int('OPERATIONS_RUNTIME_REGISTRY_STALE_SECONDS', 15),
     ],
 ];
