@@ -27,7 +27,8 @@ final class ModuleSystemCommand extends SystemCommand
 
     private function install(): int
     {
-        $module = $this->module();
+        $requested = $this->module();
+        $module = $this->catalog()->resolve($requested)['name'];
         $manager = $this->manager();
         $dryRun = $this->flag('dry-run');
         $result = $manager->install($module, $dryRun);
@@ -45,11 +46,12 @@ final class ModuleSystemCommand extends SystemCommand
         if ($this->io()->machineReadable()) {
             $this->io()->json([
                 'module' => $module,
+                'requested' => $requested,
                 'exit_code' => $result->exitCode,
                 ...$published,
             ]);
         } else {
-            $this->io()->success(sprintf('Module "%s" installed.', $module));
+            $this->io()->success(sprintf('Module "%s" is ready.', $module));
             foreach ($published['published'] as $path) {
                 $this->io()->info('Published ' . $path);
             }
@@ -73,14 +75,13 @@ final class ModuleSystemCommand extends SystemCommand
         }
 
         $this->io()->table(
-            ['Module', 'Installed', 'Direct', 'Version', 'Package'],
+            ['Module', 'Status', 'Packages', 'Purpose'],
             array_map(
-                static fn(array $module): array => [
+                fn(array $module): array => [
                     $module['name'],
-                    $module['installed'],
-                    $module['direct'],
-                    $module['version'] ?? '',
-                    $module['package'] ?? 'built-in',
+                    $module['status'],
+                    $this->packageSummary($module['packages']),
+                    $module['description'],
                 ],
                 $modules,
             ),
@@ -91,7 +92,12 @@ final class ModuleSystemCommand extends SystemCommand
 
     private function manager(): ModuleManager
     {
-        return new ModuleManager($this->application, new ModuleCatalog(), new ProcessRunner());
+        return new ModuleManager($this->application, $this->catalog(), new ProcessRunner());
+    }
+
+    private function catalog(): ModuleCatalog
+    {
+        return new ModuleCatalog();
     }
 
     private function module(): string
@@ -99,9 +105,25 @@ final class ModuleSystemCommand extends SystemCommand
         return $this->argument(0) ?? throw new \LogicException('Validated module argument is unavailable.');
     }
 
+    /** @param array<string,array{constraint:string,installed:bool,direct:bool,version:?string}> $packages */
+    private function packageSummary(array $packages): string
+    {
+        if ($packages === []) {
+            return 'Foundation';
+        }
+
+        $summary = [];
+        foreach ($packages as $package => $state) {
+            $summary[] = $package . ' ' . ($state['version'] ?? $state['constraint']);
+        }
+
+        return implode(', ', $summary);
+    }
+
     private function remove(): int
     {
-        $module = $this->module();
+        $requested = $this->module();
+        $module = $this->catalog()->resolve($requested)['name'];
         $dryRun = $this->flag('dry-run');
         $result = $this->manager()->remove($module, $dryRun);
         if ($result->successful() && !$dryRun) {
@@ -109,7 +131,11 @@ final class ModuleSystemCommand extends SystemCommand
         }
 
         if ($this->io()->machineReadable()) {
-            $this->io()->json(['module' => $module, 'exit_code' => $result->exitCode]);
+            $this->io()->json([
+                'module' => $module,
+                'requested' => $requested,
+                'exit_code' => $result->exitCode,
+            ]);
         } elseif ($result->successful()) {
             $this->io()->success(sprintf('Module "%s" removed.', $module));
         }
