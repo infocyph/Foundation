@@ -11,7 +11,7 @@ final readonly class NotificationChannelRegistry
     /** @param \Closure(string):mixed $resolver */
     public function __construct(
         private ConfigRepository $config,
-        private NotificationChannel $mail,
+        private ?NotificationChannel $mail,
         private \Closure $resolver,
     ) {}
 
@@ -36,7 +36,9 @@ final readonly class NotificationChannelRegistry
             return $this->normalize($name, $configured[$name]);
         }
         if ($name === 'mail') {
-            return $this->mail;
+            return $this->mail ?? throw new \LogicException(
+                'The mail notification channel requires the communication module; run "php infbyte module:install communication".',
+            );
         }
 
         throw new \InvalidArgumentException(sprintf(
