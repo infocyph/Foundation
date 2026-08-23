@@ -64,10 +64,7 @@ final readonly class LogTailer
             throw new \RuntimeException(sprintf('Log file "%s" is not readable.', $path));
         }
 
-        $stream = fopen($path, 'rb');
-        if (!is_resource($stream)) {
-            throw new \RuntimeException(sprintf('Unable to open log file "%s".', $path));
-        }
+        $stream = $this->open($path);
         fseek($stream, 0, SEEK_END);
 
         try {
@@ -77,11 +74,58 @@ final readonly class LogTailer
                     $consumer(rtrim($line, "\r\n"));
                     continue;
                 }
+
                 clearstatcache(true, $path);
+                $position = ftell($stream);
+                $streamStat = fstat($stream);
+                $pathStat = is_file($path) ? @stat($path) : false;
+
+                if (is_int($position) && is_array($streamStat) && is_array($pathStat)) {
+                    $replaced = $this->identityChanged($streamStat, $pathStat);
+                    $truncated = is_int($pathStat['size'] ?? null) && $pathStat['size'] < $position;
+                    if ($replaced) {
+                        fclose($stream);
+                        $stream = $this->open($path);
+                        continue;
+                    }
+                    if ($truncated) {
+                        rewind($stream);
+                        continue;
+                    }
+                }
+
                 usleep($sleepMicros);
             }
         } finally {
-            fclose($stream);
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
         }
+    }
+
+    /** @param array<string|int,mixed> $streamStat @param array<string|int,mixed> $pathStat */
+    private function identityChanged(array $streamStat, array $pathStat): bool
+    {
+        $streamInode = $streamStat['ino'] ?? null;
+        $pathInode = $pathStat['ino'] ?? null;
+        $streamDevice = $streamStat['dev'] ?? null;
+        $pathDevice = $pathStat['dev'] ?? null;
+
+        return is_int($streamInode)
+            && is_int($pathInode)
+            && $streamInode !== 0
+            && $pathInode !== 0
+            && ($streamInode !== $pathInode || $streamDevice !== $pathDevice);
+    }
+
+    /** @return resource */
+    private function open(string $path)
+    {
+        $stream = fopen($path, 'rb');
+        if (!is_resource($stream)) {
+            throw new \RuntimeException(sprintf('Unable to open log file "%s".', $path));
+        }
+
+        return $stream;
     }
 }
