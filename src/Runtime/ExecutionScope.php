@@ -19,6 +19,10 @@ final readonly class ExecutionScope
      * Run one request, command, job, or scheduled execution in an isolated InterMix scope.
      * Ready contextual values are seeded directly; reusable services stay lazy singletons.
      *
+     * The primary application failure always wins over cleanup failures. Cleanup
+     * still runs fully; when the callback succeeds, the first cleanup failure is
+     * surfaced to the caller.
+     *
      * @template T
      * @param callable(ExecutionId):T $callback
      * @param array<string, mixed> $seeds
@@ -33,26 +37,34 @@ final readonly class ExecutionScope
 
         $this->container->enterScope($scope, $seeds);
 
+        $result = null;
+        $primaryFailure = null;
         try {
-            return $callback($executionId);
-        } finally {
-            $failure = null;
-
-            try {
-                $this->externalState->reset();
-            } catch (\Throwable $exception) {
-                $failure = $exception;
-            }
-
-            try {
-                $this->container->leaveScope();
-            } catch (\Throwable $exception) {
-                $failure ??= $exception;
-            }
-
-            if ($failure !== null) {
-                throw $failure;
-            }
+            $result = $callback($executionId);
+        } catch (\Throwable $exception) {
+            $primaryFailure = $exception;
         }
+
+        $cleanupFailure = null;
+        try {
+            $this->externalState->reset();
+        } catch (\Throwable $exception) {
+            $cleanupFailure = $exception;
+        }
+
+        try {
+            $this->container->leaveScope();
+        } catch (\Throwable $exception) {
+            $cleanupFailure ??= $exception;
+        }
+
+        if ($primaryFailure !== null) {
+            throw $primaryFailure;
+        }
+        if ($cleanupFailure !== null) {
+            throw $cleanupFailure;
+        }
+
+        return $result;
     }
 }
