@@ -44,12 +44,12 @@ final class FoundationDefaults
             'cache' => [
                 'default' => 'local',
                 'default_counter' => null,
-                'prefix' => 'infbyte:cache:',
+                'prefix' => 'foundation:cache:',
                 'lock' => [
                     'driver' => null,
                     'store' => null,
                     'path' => 'storage/cache/locks',
-                    'prefix' => 'infbyte:cache:lock:',
+                    'prefix' => 'foundation:cache:lock:',
                     'retry_sleep_micros' => 50_000,
                 ],
                 'compression' => [
@@ -538,7 +538,7 @@ final class FoundationDefaults
                 'lifetime' => 7_200,
                 'max_payload_bytes' => 65_536,
                 'cookie' => [
-                    'name' => 'infbyte_session',
+                    'name' => 'foundation_session',
                     'path' => '/',
                     'domain' => null,
                     'secure' => true,
