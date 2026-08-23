@@ -75,6 +75,12 @@ return [
     | `connection` on PDO/Redis/Valkey stores is only a Foundation composition
     | reference; the resulting native client is passed to CacheLayer.
     |
+    | Database-backed PDO/SQLite stores use CacheLayer-owned schema installers.
+    | `module:install cache` synchronizes schemas required by the active
+    | configuration; `module:schema:install cache` can provision configured
+    | database-backed cache resources explicitly. Foundation never copies the
+    | CacheLayer SQL grammar.
+    |
     | Tiered stores are different: every entry under `tiers` is deliberately a
     | CacheLayer-native TieredPoolFactory descriptor. Foundation only resolves
     | relative paths and optional named DB/Redis connection references there.
@@ -208,7 +214,9 @@ return [
     /*
     | Cluster invalidation transports are created only when a configured
     | cluster is requested. PDO transports may name a Foundation DB connection;
-    | Redis/Valkey streams may name a connection above.
+    | Redis/Valkey streams may name a connection above. Active PDO invalidation
+    | transports are included in the cache module schema synchronization and
+    | use CacheLayer's native PdoInvalidationSchema installer.
     */
     'transports' => [],
 
