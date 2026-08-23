@@ -8,6 +8,7 @@ use Infocyph\DBLayer\Migration\Migration;
 use Infocyph\DBLayer\Migration\Seeder;
 use Infocyph\DBLayer\Query\Repository;
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Http\Resource\JsonResource;
 
 final readonly class ArtifactGenerator
 {
@@ -23,12 +24,13 @@ final readonly class ArtifactGenerator
         'job' => ['directory' => 'app/Jobs', 'namespace' => 'App\\Jobs', 'suffix' => 'Job', 'stub' => 'job.stub'],
         'listener' => ['directory' => 'app/Listeners', 'namespace' => 'App\\Listeners', 'suffix' => 'Listener', 'stub' => 'listener.stub'],
         'middleware' => ['directory' => 'app/Http/Middleware', 'namespace' => 'App\\Http\\Middleware', 'suffix' => 'Middleware', 'stub' => 'middleware.stub'],
-        'migration' => ['directory' => 'app/Database/Migration', 'namespace' => 'App\\Database\\Migration', 'suffix' => 'Migration', 'stub' => 'migration.stub', 'requires' => Migration::class, 'install' => 'php infbyte module:install db'],
+        'migration' => ['directory' => 'app/Database/Migration', 'namespace' => 'App\\Database\\Migration', 'suffix' => 'Migration', 'stub' => 'migration.stub', 'requires' => Migration::class, 'install' => 'php infbyte module:install database'],
         'policy' => ['directory' => 'app/Policies', 'namespace' => 'App\\Policies', 'suffix' => 'Policy', 'stub' => 'policy.stub'],
         'provider' => ['directory' => 'app/Providers', 'namespace' => 'App\\Providers', 'suffix' => 'ServiceProvider', 'stub' => 'provider.stub'],
-        'repository' => ['directory' => 'app/Repositories', 'namespace' => 'App\\Repositories', 'suffix' => 'Repository', 'stub' => 'repository.stub', 'requires' => Repository::class, 'install' => 'php infbyte module:install db'],
+        'repository' => ['directory' => 'app/Repositories', 'namespace' => 'App\\Repositories', 'suffix' => 'Repository', 'stub' => 'repository.stub', 'requires' => Repository::class, 'install' => 'php infbyte module:install database'],
+        'resource' => ['directory' => 'app/Http/Resources', 'namespace' => 'App\\Http\\Resources', 'suffix' => 'Resource', 'stub' => 'resource.stub', 'requires' => JsonResource::class, 'install' => 'Foundation resources are built in'],
         'service' => ['directory' => 'app/Services', 'namespace' => 'App\\Services', 'suffix' => 'Service', 'stub' => 'service.stub'],
-        'seeder' => ['directory' => 'app/Database/Seeder', 'namespace' => 'App\\Database\\Seeder', 'suffix' => 'Seeder', 'stub' => 'seeder.stub', 'requires' => Seeder::class, 'install' => 'php infbyte module:install db'],
+        'seeder' => ['directory' => 'app/Database/Seeder', 'namespace' => 'App\\Database\\Seeder', 'suffix' => 'Seeder', 'stub' => 'seeder.stub', 'requires' => Seeder::class, 'install' => 'php infbyte module:install database'],
         'test' => ['directory' => 'tests/Feature', 'namespace' => 'Tests\\Feature', 'suffix' => 'Test', 'stub' => 'test.stub'],
         'trait' => ['directory' => 'app/Concerns', 'namespace' => 'App\\Concerns', 'suffix' => 'Trait', 'stub' => 'trait.stub'],
         'worker' => ['directory' => 'app/Worker', 'namespace' => 'App\\Worker', 'suffix' => 'Worker', 'stub' => 'worker.stub'],
@@ -39,6 +41,10 @@ final readonly class ArtifactGenerator
     /** @return array{class:string,path:string} */
     public function create(string $artifact, string $name, bool $force = false, ?string $table = null): array
     {
+        if ($artifact === 'config') {
+            return $this->createConfig($name, $force);
+        }
+
         $definition = self::ARTIFACTS[$artifact] ?? throw new \InvalidArgumentException(sprintf('Unknown artifact type "%s".', $artifact));
         $this->assertRequirement($artifact, $definition);
         $segments = $this->segments($name);
@@ -59,6 +65,37 @@ final readonly class ArtifactGenerator
         $this->write($path, $contents, $force);
 
         return ['class' => implode('\\', array_filter([$namespace, $class])), 'path' => $path];
+    }
+
+    /** @return array{class:string,path:string} */
+    private function createConfig(string $name, bool $force): array
+    {
+        $name = trim(str_replace('\\', '/', $name), '/');
+        if ($name === '' || str_contains($name, "\0") || str_contains($name, '..')) {
+            throw new \InvalidArgumentException('Config names must be non-empty application-relative names.');
+        }
+        $segments = explode('/', $name);
+        foreach ($segments as $segment) {
+            if (preg_match('/^[A-Za-z_][A-Za-z0-9_.-]*$/D', $segment) !== 1) {
+                throw new \InvalidArgumentException(sprintf('Config segment "%s" is invalid.', $segment));
+            }
+        }
+        $filename = array_pop($segments);
+        if (str_ends_with($filename, '.php')) {
+            $filename = substr($filename, 0, -4);
+        }
+        if ($filename === '') {
+            throw new \InvalidArgumentException('Config filename cannot be empty.');
+        }
+        $directory = implode('/', array_filter(['config', implode('/', $segments)]));
+        $path = $this->application->basePath($directory . '/' . $filename . '.php');
+        $contents = file_get_contents(dirname(__DIR__, 2) . '/resources/stubs/create/config.stub');
+        if (!is_string($contents)) {
+            throw new \RuntimeException('Unable to read config generator stub.');
+        }
+        $this->write($path, $contents, $force);
+
+        return ['class' => 'config/' . implode('/', [...$segments, $filename]), 'path' => $path];
     }
 
     /** @param array{directory:string,namespace:string,suffix:string,stub:string,requires?:class-string,install?:string} $definition */
@@ -166,6 +203,9 @@ final readonly class ArtifactGenerator
     {
         if ((is_file($path) || is_link($path)) && !$force) {
             throw new \RuntimeException(sprintf('Artifact already exists at "%s".', $path));
+        }
+        if (is_link($path)) {
+            throw new \RuntimeException(sprintf('Refusing to replace symbolic-link artifact "%s".', $path));
         }
         $base = realpath($this->application->basePath());
         $directory = dirname($path);
