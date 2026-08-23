@@ -6,5 +6,5 @@ namespace Infocyph\Foundation\Notifications;
 
 interface NotificationRecipient
 {
-    public function routeNotificationFor(string $channel): mixed;
+    public function routeNotificationFor(string $channel, Notification $notification): mixed;
 }
