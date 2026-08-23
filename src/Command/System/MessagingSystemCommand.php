@@ -84,7 +84,7 @@ final class MessagingSystemCommand extends SystemCommand
             'reason' => $failure->reason,
             'decoded' => $failure->envelope !== null,
             'payload_truncated' => $failure->payloadTruncated,
-            'message' => $failure->envelope?->message::class,
+            'message' => $failure->envelope === null ? null : get_debug_type($failure->envelope->message),
         ];
     }
 
@@ -195,7 +195,7 @@ final class MessagingSystemCommand extends SystemCommand
             'id' => $id,
             'transport' => $this->transportName(),
             'queue' => $queue,
-            'message' => $sent->message::class,
+            'message' => get_debug_type($sent->message),
         ], sprintf('Retried failed message "%s".', $id));
     }
 
