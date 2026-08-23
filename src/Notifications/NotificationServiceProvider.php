@@ -33,6 +33,8 @@ final class NotificationServiceProvider extends ServiceProvider
 
         if (class_exists(Emailer::class)) {
             $this->registerMail($app);
+        } else {
+            $this->registerUnavailableMail($app);
         }
 
         $this->bindFactory($container, NotificationChannelRegistry::class, fn() => new NotificationChannelRegistry(
@@ -144,6 +146,19 @@ final class NotificationServiceProvider extends ServiceProvider
             fn() => $app->make(Mailer::class),
             LifetimeEnum::Singleton,
         );
+    }
+
+    private function registerUnavailableMail(Application $app): void
+    {
+        $unavailable = static function (): never {
+            throw new \LogicException(
+                'Foundation mail services require infocyph/talkingbytes; run "php infbyte module:install communication".',
+            );
+        };
+        $container = $app->container();
+        $this->bindFactory($container, Mailer::class, $unavailable, LifetimeEnum::Singleton);
+        $this->bindFactory($container, 'foundation.email', $unavailable, LifetimeEnum::Singleton);
+        $this->bindFactory($container, 'foundation.notifications.emailer', $unavailable, LifetimeEnum::Scoped);
     }
 
     private function emailLimits(Application $app): EmailLimits
