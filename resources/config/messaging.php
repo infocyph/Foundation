@@ -24,15 +24,19 @@ return [
     ],
 
     /**
-     * Message Routes and Handlers
+     * Message Routes, Handlers, and Handler Middleware
      *
      * "routes" maps each message class to an Omnibus route. "handlers" maps
-     * each message class to an invokable service class. Live configuration may
-     * contain callables, but pooled workers require class-name/declarative
+     * each message class to an invokable service class. "handler_middleware"
+     * is an ordered list of service classes implementing Omnibus
+     * HandlerMiddleware; the same middleware pipeline surrounds synchronous
+     * and queued handler execution. Live configuration may contain callables or
+     * middleware instances, but pooled workers require class-name/declarative
      * configuration so the post-fork application can be reconstructed safely.
      */
     'routes' => [],
     'handlers' => [],
+    'handler_middleware' => [],
 
     /**
      * Synchronous Events
@@ -40,7 +44,9 @@ return [
      * "listeners" maps an event class to an ordered list of invokable listener
      * service classes. Parent classes and implemented interfaces are honored by
      * Omnibus. A listener implementing Omnibus ShouldQueue is sent through the
-     * message bus; other listeners run synchronously.
+     * message bus; other listeners run synchronously. Handler middleware does
+     * not wrap ordinary synchronous event listeners; queued listeners naturally
+     * enter the message-handler pipeline when consumed.
      */
     'listeners' => [],
 
