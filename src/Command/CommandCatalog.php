@@ -125,13 +125,32 @@ final class CommandCatalog
                 ['messaging'],
             ))->argument('name', 'Scheduled message name.', required: true),
 
-            (new CommandDefinition('module:install', 'Install an optional Foundation module.', 'Modules'))
-                ->argument('module', 'Module name.', required: true)
-                ->option('dry-run', 'Preview Composer changes without modifying the project.'),
+            $connection(
+                (new CommandDefinition(
+                    'module:install',
+                    'Install a Foundation module, publish config, and provision applicable schemas.',
+                    'Modules',
+                ))
+                    ->argument('module', 'Module name.', required: true)
+                    ->option('dry-run', 'Preview Composer changes without modifying the project.'),
+            ),
             new CommandDefinition('module:list', 'List Foundation modules.', 'Modules'),
             (new CommandDefinition('module:remove', 'Remove an optional Foundation module.', 'Modules'))
                 ->argument('module', 'Module name.', required: true)
                 ->option('dry-run', 'Preview Composer changes without modifying the project.'),
+            $connection(
+                (new CommandDefinition('module:schema:install', 'Provision database schemas owned by a module.', 'Modules'))
+                    ->argument('module', 'Module name.', required: true),
+            ),
+            $connection(
+                (new CommandDefinition('module:schema:status', 'Show database schema readiness for a module.', 'Modules'))
+                    ->argument('module', 'Module name.', required: true),
+            ),
+            $connection(new CommandDefinition(
+                'module:schema:sync',
+                'Provision all module schemas required by current configuration.',
+                'Modules',
+            )),
 
             new CommandDefinition('optimize', 'Compile supported runtime artifacts.', 'Optimization'),
             new CommandDefinition('optimize:clear', 'Clear compiled runtime artifacts.', 'Optimization'),
