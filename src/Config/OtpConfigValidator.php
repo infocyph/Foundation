@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Config;
 
+use Infocyph\Foundation\Exception\ConfigurationException;
+
 /**
  * Validate only Foundation's application policy around OTP 6.0.
  *
@@ -17,7 +19,7 @@ final readonly class OtpConfigValidator
     ) {}
 
     /** @return list<ConfigIssue> */
-    public function validate(): array
+    public function validate(bool $assumeProduction = false): array
     {
         $issues = [];
 
@@ -57,7 +59,27 @@ final readonly class OtpConfigValidator
             );
         }
 
+        if ($assumeProduction || $this->config->isProduction()) {
+            $this->validateReplayTopology($issues, is_string($store) && trim($store) !== '' ? trim($store) : null);
+        }
+
         return $issues;
+    }
+
+    /** @param list<ConfigIssue> $issues */
+    private function validateReplayTopology(array &$issues, ?string $store): void
+    {
+        try {
+            $topology = new SharedStateTopology($this->config);
+            $topology->assertCacheStore(
+                $store,
+                'OTP replay protection',
+                $topology->requiredSecurityScope(),
+                true,
+            );
+        } catch (ConfigurationException $exception) {
+            $issues[] = new ConfigIssue($exception->getMessage(), 'auth.otp.replay.store');
+        }
     }
 
     /** @param list<ConfigIssue> $issues */
