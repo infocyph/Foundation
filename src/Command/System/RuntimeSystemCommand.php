@@ -10,7 +10,6 @@ use Infocyph\Foundation\Filesystem\StorageLinkManager;
 use Infocyph\Foundation\Messaging\ConsumerFactory;
 use Infocyph\Foundation\Routing\RouteCacheManager;
 use Infocyph\Foundation\Scheduling\ScheduleManager;
-use Infocyph\Foundation\Session\SessionDatabaseSchema;
 use Infocyph\Foundation\Session\SessionManager;
 use Infocyph\Foundation\Worker\WorkerManager;
 use Infocyph\Omnibus\Consumer\Command\ConsumeRequest;
@@ -35,8 +34,6 @@ final class RuntimeSystemCommand extends SystemCommand
             'schedule:run' => $this->scheduleRun(),
             'schedule:work' => $this->scheduleWork(),
             'session:prune' => $this->sessionPrune(),
-            'session:schema:install' => $this->sessionSchemaInstall(),
-            'session:schema:status' => $this->sessionSchemaStatus(),
             'storage:link' => $this->storageLink(),
             'worker:list' => $this->workerList(),
             'worker:run' => $this->workerRun(),
@@ -245,31 +242,6 @@ final class RuntimeSystemCommand extends SystemCommand
         $count = $this->application->make(SessionManager::class)->prune($limit);
 
         return $this->emit(['pruned' => $count], sprintf('Pruned %d expired session(s).', $count));
-    }
-
-    private function sessionSchemaInstall(): int
-    {
-        $schema = $this->application->make(SessionDatabaseSchema::class);
-        $connection = $this->option('connection');
-        $schema->install($connection);
-
-        return $this->emit($schema->readiness($connection), 'Session schema is installed.');
-    }
-
-    private function sessionSchemaStatus(): int
-    {
-        $status = $this->application->make(SessionDatabaseSchema::class)
-            ->readiness($this->option('connection'));
-        if ($this->io()->machineReadable()) {
-            $this->io()->json($status);
-        } else {
-            $this->io()->table(
-                ['Installed', 'Table', 'Connection'],
-                [[$status['installed'], $status['table'], $status['connection'] ?? 'default']],
-            );
-        }
-
-        return $status['installed'] ? ExitCode::SUCCESS : ExitCode::FAILURE;
     }
 
     private function storageLink(): int
