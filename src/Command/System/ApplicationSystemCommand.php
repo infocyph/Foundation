@@ -15,6 +15,7 @@ use Infocyph\Foundation\Config\ConfigurationRedactor;
 use Infocyph\Foundation\Container\ContainerCacheManager;
 use Infocyph\Foundation\Diagnostics\ReadinessReport;
 use Infocyph\Foundation\Module\ModuleCatalog;
+use Infocyph\Foundation\Module\ModuleManager;
 use Infocyph\Foundation\Process\ProcessOptions;
 use Infocyph\Foundation\Process\ProcessRunner;
 use Infocyph\Foundation\Routing\RouteCacheManager;
@@ -51,17 +52,12 @@ final class ApplicationSystemCommand extends SystemCommand
     private function about(): int
     {
         $modules = [];
-        foreach ((new ModuleCatalog())->all() as $name => $module) {
-            $package = $module['package'];
-            $modules[$name] = [
-                'package' => $package,
-                'installed' => ($module['built_in'] ?? false) === true
-                    || $package === null
-                    || InstalledVersions::isInstalled($package),
-                'version' => is_string($package) && InstalledVersions::isInstalled($package)
-                    ? InstalledVersions::getPrettyVersion($package)
-                    : null,
-            ];
+        foreach ((new ModuleManager(
+            $this->application,
+            new ModuleCatalog(),
+            new ProcessRunner(),
+        ))->all() as $module) {
+            $modules[$module['name']] = $module;
         }
 
         $data = [
@@ -84,10 +80,18 @@ final class ApplicationSystemCommand extends SystemCommand
         );
         $rows = [];
         foreach ($modules as $name => $module) {
-            $rows[] = [$name, $module['installed'], $module['version'] ?? ''];
+            $packages = [];
+            foreach ($module['packages'] as $package => $state) {
+                $packages[] = $package . ' ' . ($state['version'] ?? $state['constraint']);
+            }
+            $rows[] = [
+                $name,
+                $module['status'],
+                $packages === [] ? 'Foundation' : implode(', ', $packages),
+            ];
         }
         $this->io()->writeln();
-        $this->io()->table(['Module', 'Installed', 'Version'], $rows);
+        $this->io()->table(['Module', 'Status', 'Packages'], $rows);
 
         return ExitCode::SUCCESS;
     }
