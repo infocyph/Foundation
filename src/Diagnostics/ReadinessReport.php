@@ -59,17 +59,10 @@ final readonly class ReadinessReport
             'detail' => $messages === [] ? 'valid for production' : implode('; ', array_values(array_unique($messages))),
         ];
 
-        $catalog = new ModuleCatalog();
-        foreach ($this->requiredModules() as $name) {
-            $module = $catalog->resolve($name);
-            $package = $module['package'];
-            if (($module['built_in'] ?? false) === true || $package === null) {
-                continue;
-            }
-
+        foreach ($this->requiredPackages() as $name => $requirement) {
             $checks['module:' . $name] = [
-                'ready' => \Composer\InstalledVersions::isInstalled($package),
-                'detail' => $package . ' ' . ($module['constraint'] ?? ''),
+                'ready' => \Composer\InstalledVersions::isInstalled($requirement['package']),
+                'detail' => $requirement['package'] . ' ' . $requirement['constraint'],
             ];
         }
 
@@ -79,52 +72,81 @@ final readonly class ReadinessReport
         ];
     }
 
-    /** @return list<string> */
-    private function requiredModules(): array
+    /** @return array<string,array{package:string,constraint:string}> */
+    private function requiredPackages(): array
     {
         $config = $this->application->config();
+        $catalog = new ModuleCatalog();
         $required = [];
-        $select = static function (array &$modules, string $module): void {
-            $modules[$module] = true;
+        $select = static function (
+            array &$requirements,
+            ModuleCatalog $modules,
+            string $module,
+            ?string $package = null,
+            ?string $label = null,
+        ): void {
+            $definition = $modules->resolve($module);
+            $packages = $definition['packages'];
+
+            if ($package !== null) {
+                $constraint = $packages[$package] ?? throw new \LogicException(sprintf(
+                    'Module "%s" does not provide package "%s".',
+                    $definition['name'],
+                    $package,
+                ));
+                $requirements[$label ?? $definition['name']] = [
+                    'package' => $package,
+                    'constraint' => $constraint,
+                ];
+
+                return;
+            }
+
+            foreach ($packages as $dependency => $constraint) {
+                $requirements[$label ?? $definition['name']] = [
+                    'package' => $dependency,
+                    'constraint' => $constraint,
+                ];
+            }
         };
 
         if ($config->get('auth.drivers.cache', 'array') === 'cache') {
-            $select($required, 'cache');
+            $select($required, $catalog, 'cache');
         }
         if ($config->get('auth.drivers.storage', 'memory') === 'database') {
-            $select($required, 'db');
+            $select($required, $catalog, 'database');
         }
         if ($config->get('auth.drivers.mfa', 'simple') === 'otp') {
-            $select($required, 'otp');
-            $select($required, 'cache');
+            $select($required, $catalog, 'auth', 'infocyph/otp', 'auth:otp');
+            $select($required, $catalog, 'cache');
         }
         if ($config->get('auth.drivers.notifications', 'collect') === 'talkingbytes') {
-            $select($required, 'communication');
+            $select($required, $catalog, 'communication');
         }
         if ($config->get('auth.drivers.passwords', 'native') === 'security'
             || $config->get('auth.drivers.tokens', 'simple') === 'security'
         ) {
-            $select($required, 'crypto');
+            $select($required, $catalog, 'security');
         }
         if ($config->get('auth.drivers.passkey', 'memory') === 'webauthn') {
-            $select($required, 'passkeys');
+            $select($required, $catalog, 'auth', 'web-auth/webauthn-lib', 'auth:passkeys');
         }
 
         $sessionDriver = $config->get('session.driver', 'file');
         if ($sessionDriver === 'cache') {
-            $select($required, 'cache');
+            $select($required, $catalog, 'cache');
         } elseif ($sessionDriver === 'database') {
-            $select($required, 'db');
+            $select($required, $catalog, 'database');
         }
 
         if ($this->messagingConfigured()) {
-            $select($required, 'messaging');
+            $select($required, $catalog, 'messaging');
         }
         if ($this->validationConfigured()) {
-            $select($required, 'validation');
+            $select($required, $catalog, 'validation');
         }
 
-        return array_keys($required);
+        return $required;
     }
 
     private function messagingConfigured(): bool
