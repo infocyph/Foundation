@@ -9,6 +9,7 @@ use Infocyph\DBLayer\Migration\Seeder;
 use Infocyph\DBLayer\Query\Repository;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Http\Resource\JsonResource;
+use Infocyph\Foundation\Notifications\NotificationChannel;
 use Infocyph\Omnibus\MessageBus;
 use Infocyph\ReqShield\Contracts\Rule;
 use Infocyph\ReqShield\Validator;
@@ -33,7 +34,7 @@ final readonly class ArtifactGenerator
         'middleware' => ['directory' => 'app/Http/Middleware', 'namespace' => 'App\\Http\\Middleware', 'suffix' => 'Middleware', 'stub' => 'middleware.stub'],
         'migration' => ['directory' => 'app/Database/Migration', 'namespace' => 'App\\Database\\Migration', 'suffix' => 'Migration', 'stub' => 'migration.stub', 'requires' => Migration::class, 'install' => 'php infbyte module:install database'],
         'notification' => ['directory' => 'app/Notifications', 'namespace' => 'App\\Notifications', 'suffix' => 'Notification', 'stub' => 'notification.stub', 'requires' => Emailer::class, 'install' => 'php infbyte module:install communication'],
-        'notification-channel' => ['directory' => 'app/Notifications/Channels', 'namespace' => 'App\\Notifications\\Channels', 'suffix' => 'Channel', 'stub' => 'notification-channel.stub', 'requires' => Emailer::class, 'install' => 'php infbyte module:install communication'],
+        'notification-channel' => ['directory' => 'app/Notifications/Channels', 'namespace' => 'App\\Notifications\\Channels', 'suffix' => 'Channel', 'stub' => 'notification-channel.stub', 'requires' => NotificationChannel::class, 'install' => 'Foundation notification channels are built in'],
         'policy' => ['directory' => 'app/Policies', 'namespace' => 'App\\Policies', 'suffix' => 'Policy', 'stub' => 'policy.stub'],
         'provider' => ['directory' => 'app/Providers', 'namespace' => 'App\\Providers', 'suffix' => 'ServiceProvider', 'stub' => 'provider.stub'],
         'repository' => ['directory' => 'app/Repositories', 'namespace' => 'App\\Repositories', 'suffix' => 'Repository', 'stub' => 'repository.stub', 'requires' => Repository::class, 'install' => 'php infbyte module:install database'],
