@@ -31,7 +31,7 @@ final readonly class AuthNotificationRegistrar extends AbstractAuthRegistrar
                 accounts: $this->app->make(AccountProviderInterface::class),
                 criticalTypes: $this->criticalTypes(),
                 failSilently: $this->boolConfig('notifications.auth.fail_silently', false),
-                from: $this->nullableString($this->app->config()->get('notifications.auth.from')),
+                from: $this->notificationFrom(),
             ))->scoped();
 
             return;
@@ -43,11 +43,15 @@ final readonly class AuthNotificationRegistrar extends AbstractAuthRegistrar
         )->scoped();
     }
 
-    /**
-     * @return list<string>
-     */
+    /** @return list<string> */
     private function criticalTypes(): array
     {
         return $this->stringList($this->app->config()->get('notifications.auth.critical_types', []));
+    }
+
+    private function notificationFrom(): ?string
+    {
+        return $this->nullableString($this->app->config()->get('notifications.auth.from'))
+            ?? $this->nullableString($this->app->config()->get('notifications.email.default_from'));
     }
 }
