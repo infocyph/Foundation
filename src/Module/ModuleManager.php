@@ -278,12 +278,6 @@ final readonly class ModuleManager
                 unset($staged[$target]);
                 $published[] = $target;
             }
-
-            foreach ($backups as $backup) {
-                if (is_file($backup)) {
-                    $this->unlink($backup, 'config backup');
-                }
-            }
         } catch (\Throwable $failure) {
             $rollback = [];
             foreach ($staged as $temporary) {
@@ -311,6 +305,15 @@ final readonly class ModuleManager
             }
 
             throw $failure;
+        }
+
+        // Publication has committed at this point. Backup cleanup is finalization,
+        // not part of the transaction: a stale backup is safer than rolling back
+        // successfully published configs after other backups may already be gone.
+        foreach ($backups as $backup) {
+            if (is_file($backup)) {
+                @unlink($backup);
+            }
         }
 
         return $published;
