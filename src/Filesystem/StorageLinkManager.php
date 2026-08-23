@@ -16,9 +16,82 @@ final readonly class StorageLinkManager
     /** @return list<array{link:string,target:string,created:bool}> */
     public function create(): array
     {
+        $links = [];
+        foreach ($this->configured() as $mapping) {
+            $links[] = $this->link($mapping['link'], $mapping['target']);
+        }
+
+        return $links;
+    }
+
+    /** @return list<array{link:string,target:string,exists:bool,linked:bool,matches:bool}> */
+    public function status(): array
+    {
+        $status = [];
+        foreach ($this->configured() as $mapping) {
+            $link = $mapping['link'];
+            $target = $mapping['target'];
+            $linked = is_link($link);
+            $resolved = $linked ? realpath($link) : false;
+            $status[] = [
+                'link' => $link,
+                'target' => $target,
+                'exists' => $linked || file_exists($link),
+                'linked' => $linked,
+                'matches' => $linked && $resolved !== false && $resolved === realpath($target),
+            ];
+        }
+
+        return $status;
+    }
+
+    /** @return list<array{link:string,target:string,removed:bool}> */
+    public function remove(): array
+    {
+        $removed = [];
+        foreach ($this->configured() as $mapping) {
+            $link = $mapping['link'];
+            $target = $mapping['target'];
+            if (!is_link($link)) {
+                if (file_exists($link)) {
+                    throw new \RuntimeException(sprintf(
+                        'Refusing to remove non-symbolic path "%s".',
+                        $link,
+                    ));
+                }
+                $removed[] = ['link' => $link, 'target' => $target, 'removed' => false];
+
+                continue;
+            }
+            $resolved = realpath($link);
+            $expected = realpath($target);
+            if ($resolved === false || $expected === false || $resolved !== $expected) {
+                throw new \RuntimeException(sprintf(
+                    'Refusing to remove storage link "%s" because its current target does not match configuration.',
+                    $link,
+                ));
+            }
+            if (!unlink($link)) {
+                throw new \RuntimeException(sprintf('Unable to remove symbolic link "%s".', $link));
+            }
+            $removed[] = ['link' => $link, 'target' => $target, 'removed' => true];
+        }
+
+        return $removed;
+    }
+
+    /** @return list<array{link:string,target:string}> */
+    private function configured(): array
+    {
         $configured = $this->config->get('filesystem.links', []);
         if (!is_array($configured) || $configured === []) {
             throw new \RuntimeException('No filesystem.links are configured.');
+        }
+
+        $storage = realpath($this->paths->storage());
+        $public = realpath($this->paths->public());
+        if ($storage === false || $public === false) {
+            throw new \RuntimeException('The configured storage and public directories must exist.');
         }
 
         $links = [];
@@ -26,7 +99,11 @@ final readonly class StorageLinkManager
             if (!is_string($link) || $link === '' || !is_string($target) || $target === '') {
                 throw new \InvalidArgumentException('filesystem.links must map link paths to target paths.');
             }
-            $links[] = $this->link($this->absolute($link), $this->absolute($target));
+            $link = $this->absolute($link);
+            $target = $this->absolute($target);
+            $this->assertInside($target, $storage, 'Storage-link target');
+            $this->assertInside($link, $public, 'Storage-link path');
+            $links[] = ['link' => $link, 'target' => $target];
         }
 
         return $links;
