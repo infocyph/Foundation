@@ -103,7 +103,7 @@ final readonly class ModuleManager
     }
 
     /** @return array{published:list<string>,existing:list<string>} */
-    public function publishConfig(string $module): array
+    public function publishConfig(string $module, bool $force = false): array
     {
         $definition = $this->catalog->resolve($module);
         $configured = $definition['config'];
@@ -124,7 +124,7 @@ final readonly class ModuleManager
             }
 
             $target = $directory . DIRECTORY_SEPARATOR . $filename;
-            if (is_file($target)) {
+            if (is_file($target) && !$force) {
                 $existing[] = $target;
 
                 continue;
@@ -138,7 +138,7 @@ final readonly class ModuleManager
             $sources[$target] = $source;
         }
 
-        $published = $this->publishConfigFiles($directory, $sources, $existing);
+        $published = $this->publishConfigFiles($directory, $sources, $existing, $force);
         if ($published !== []) {
             new ConfigCacheManager($this->application)->clear();
         }
@@ -206,13 +206,14 @@ final readonly class ModuleManager
      * @param list<string> $existing
      * @return list<string>
      */
-    private function publishConfigFiles(string $directory, array $sources, array &$existing): array
+    private function publishConfigFiles(string $directory, array $sources, array &$existing, bool $force): array
     {
         if ($sources === []) {
             return [];
         }
 
         $staged = [];
+        $backups = [];
         $published = [];
 
         try {
@@ -229,22 +230,33 @@ final readonly class ModuleManager
             }
 
             foreach ($staged as $target => $temporary) {
-                if (@link($temporary, $target)) {
-                    unlink($temporary);
-                    unset($staged[$target]);
-                    $published[] = $target;
-
-                    continue;
-                }
                 if (is_file($target)) {
-                    $existing[] = $target;
-                    unlink($temporary);
-                    unset($staged[$target]);
+                    if (!$force) {
+                        $existing[] = $target;
+                        unlink($temporary);
+                        unset($staged[$target]);
 
-                    continue;
+                        continue;
+                    }
+
+                    $backup = $target . '.foundation-' . bin2hex(random_bytes(6)) . '.bak';
+                    if (!rename($target, $backup)) {
+                        throw new \RuntimeException(sprintf('Unable to stage existing config "%s".', basename($target)));
+                    }
+                    $backups[$target] = $backup;
                 }
 
-                throw new \RuntimeException(sprintf('Unable to publish config template "%s".', basename($target)));
+                if (!rename($temporary, $target)) {
+                    throw new \RuntimeException(sprintf('Unable to publish config template "%s".', basename($target)));
+                }
+                unset($staged[$target]);
+                $published[] = $target;
+            }
+
+            foreach ($backups as $backup) {
+                if (is_file($backup)) {
+                    unlink($backup);
+                }
             }
         } catch (\Throwable $failure) {
             foreach ($staged as $temporary) {
@@ -255,6 +267,11 @@ final readonly class ModuleManager
             foreach ($published as $target) {
                 if (is_file($target)) {
                     unlink($target);
+                }
+            }
+            foreach ($backups as $target => $backup) {
+                if (is_file($backup)) {
+                    rename($backup, $target);
                 }
             }
 
