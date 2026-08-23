@@ -51,7 +51,7 @@ final readonly class ReadinessReport
                 ...$messages,
                 ...array_map(
                     static fn($issue): string => $issue->message,
-                    (new OtpConfigValidator($this->application->config()))->validate(),
+                    (new OtpConfigValidator($this->application->config()))->validate(true),
                 ),
             ];
         }
@@ -117,8 +117,12 @@ final readonly class ReadinessReport
                 return;
             }
 
+            $multiple = count($packages) > 1;
             foreach ($packages as $dependency => $constraint) {
-                $requirements[$label ?? $definition['name']] = [
+                $key = $label ?? ($multiple
+                    ? $definition['name'] . ':' . str_replace(['infocyph/', 'web-auth/'], '', $dependency)
+                    : $definition['name']);
+                $requirements[$key] = [
                     'package' => $dependency,
                     'constraint' => $constraint,
                 ];
@@ -145,6 +149,7 @@ final readonly class ReadinessReport
         }
         if ($config->get('auth.drivers.passkey', 'memory') === 'webauthn') {
             $select($required, $catalog, 'auth', 'web-auth/webauthn-lib', 'auth:passkeys');
+            $select($required, $catalog, 'cache');
         }
 
         $sessionDriver = $config->get('session.driver', 'file');
