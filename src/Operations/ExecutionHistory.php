@@ -83,40 +83,50 @@ final readonly class ExecutionHistory
         return $this->withLock(LOCK_SH, function () use ($limit, $kind, $name): array {
             $records = [];
             foreach ($this->historyFilesOldestFirst() as $path) {
-                $stream = fopen($path, 'rb');
-                if (!is_resource($stream)) {
-                    continue;
-                }
-
-                try {
-                    while (($line = fgets($stream)) !== false) {
-                        try {
-                            $record = json_decode($line, true, 32, JSON_THROW_ON_ERROR);
-                        } catch (\JsonException) {
-                            continue;
-                        }
-                        if (!is_array($record)) {
-                            continue;
-                        }
-                        if ($kind !== null && ($record['kind'] ?? null) !== $kind) {
-                            continue;
-                        }
-                        if ($name !== null && ($record['name'] ?? null) !== $name) {
-                            continue;
-                        }
-
-                        $records[] = $record;
-                        if (count($records) > $limit) {
-                            array_shift($records);
-                        }
+                foreach ($this->records($path) as $record) {
+                    if ($kind !== null && ($record['kind'] ?? null) !== $kind) {
+                        continue;
                     }
-                } finally {
-                    fclose($stream);
+                    if ($name !== null && ($record['name'] ?? null) !== $name) {
+                        continue;
+                    }
+
+                    $records[] = $record;
+                    if (count($records) > $limit) {
+                        array_shift($records);
+                    }
                 }
             }
 
             return array_reverse($records);
         });
+    }
+
+    /** @return list<array<string,mixed>> */
+    public function find(string $executionId): array
+    {
+        if ($executionId === '') {
+            throw new \InvalidArgumentException('Execution id cannot be empty.');
+        }
+
+        return $this->withLock(LOCK_SH, function () use ($executionId): array {
+            $records = [];
+            foreach ($this->historyFilesOldestFirst() as $path) {
+                foreach ($this->records($path) as $record) {
+                    if (($record['execution_id'] ?? null) === $executionId) {
+                        $records[] = $record;
+                    }
+                }
+            }
+
+            return $records;
+        });
+    }
+
+    /** @return array<string,mixed>|null */
+    public function latest(?string $kind = null, ?string $name = null): ?array
+    {
+        return $this->recent(1, $kind, $name)[0] ?? null;
     }
 
     public function clear(): bool
@@ -176,6 +186,30 @@ final readonly class ExecutionHistory
         }
 
         return $files;
+    }
+
+    /** @return iterable<array<string,mixed>> */
+    private function records(string $path): iterable
+    {
+        $stream = fopen($path, 'rb');
+        if (!is_resource($stream)) {
+            return;
+        }
+
+        try {
+            while (($line = fgets($stream)) !== false) {
+                try {
+                    $record = json_decode($line, true, 32, JSON_THROW_ON_ERROR);
+                } catch (\JsonException) {
+                    continue;
+                }
+                if (is_array($record)) {
+                    yield $record;
+                }
+            }
+        } finally {
+            fclose($stream);
+        }
     }
 
     private function rotate(): void
