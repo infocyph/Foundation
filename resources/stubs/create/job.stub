@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace {{ namespace }};
 
-final readonly class {{ class }}
+use Infocyph\Foundation\Messaging\Job;
+
+final readonly class {{ class }} implements Job
 {
-    public function __invoke(): void
-    {
-    }
 }
