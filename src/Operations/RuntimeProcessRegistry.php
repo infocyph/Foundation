@@ -61,7 +61,7 @@ final readonly class RuntimeProcessRegistry
             if ($name !== null && $record['name'] !== $name) {
                 continue;
             }
-            $records[] = [...$record, 'running' => $this->running($record['pid'], $record['host'])];
+            $records[] = [...$record, 'running' => $this->heartbeatFresh($record['heartbeat_at'])];
         }
 
         usort($records, static fn(array $left, array $right): int => $right['started_at'] <=> $left['started_at']);
@@ -133,16 +133,16 @@ final readonly class RuntimeProcessRegistry
         return $record;
     }
 
-    private function running(int $pid, string $host): ?bool
+    private function heartbeatFresh(string $heartbeatAt): bool
     {
-        if ($host !== (gethostname() ?: 'unknown')) {
-            return null;
+        $timestamp = strtotime($heartbeatAt);
+        if (!is_int($timestamp)) {
+            return false;
         }
-        if (PHP_OS_FAMILY !== 'Windows' && function_exists('posix_kill')) {
-            return @posix_kill($pid, 0);
-        }
+        $configured = $this->application->config()->get('operations.runtime_registry.stale_seconds', 15);
+        $staleSeconds = is_int($configured) && $configured > 0 ? $configured : 15;
 
-        return null;
+        return time() - $timestamp <= $staleSeconds;
     }
 
     private function assertIdentity(string $kind, string $name): void
@@ -158,7 +158,7 @@ final readonly class RuntimeProcessRegistry
     private function directory(): string
     {
         $configured = $this->application->config()->get(
-            'runtime.registry.path',
+            'operations.runtime_registry.path',
             'storage/framework/runtime',
         );
         $configured = is_string($configured) && $configured !== ''
