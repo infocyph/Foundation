@@ -8,7 +8,6 @@ use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\DB;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
-use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Database\AuthSchema\AuthMfaRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchemaInstaller;
@@ -68,11 +67,5 @@ final class DatabaseServiceProvider extends ServiceProvider
             fn() => $container->get(Connection::class),
             LifetimeEnum::Singleton,
         );
-
-        if ($container->isResolved(CacheManager::class)) {
-            /** @var CacheManager $cache */
-            $cache = $container->get(CacheManager::class);
-            $cache->store();
-        }
     }
 }
