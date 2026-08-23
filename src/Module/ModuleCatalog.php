@@ -24,7 +24,7 @@ final class ModuleCatalog
         ],
         'cache' => [
             'packages' => [
-                'infocyph/cachelayer' => '^3.1.3',
+                'infocyph/cachelayer' => '^3.2',
             ],
             'description' => 'Cache stores, locks, counters, response caching, and shared authentication/runtime state.',
             'aliases' => ['cachelayer'],
@@ -68,7 +68,7 @@ final class ModuleCatalog
         ],
         'messaging' => [
             'packages' => [
-                'infocyph/omnibus' => '^2.3',
+                'infocyph/omnibus' => '^2.4',
             ],
             'description' => 'Events, messages, queues, handler middleware, retries, workers, optional process pools, workflows, and scheduled-message dispatch.',
             'aliases' => ['events', 'omnibus', 'queue', 'queues'],
