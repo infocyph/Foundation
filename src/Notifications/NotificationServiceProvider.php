@@ -106,20 +106,40 @@ final class NotificationServiceProvider extends ServiceProvider
             );
         }
 
+        $this->bindFactory($container, Mailer::class, fn() => new Mailer(
+            $app->make(EmailProfiles::class),
+            $app->config(),
+        ), LifetimeEnum::Singleton);
+        $this->bindFactory($container, MailNotificationChannel::class, fn() => new MailNotificationChannel(
+            $app->make(Mailer::class),
+        ), LifetimeEnum::Singleton);
+        $this->bindFactory($container, NotificationChannelRegistry::class, fn() => new NotificationChannelRegistry(
+            config: $app->config(),
+            mail: $app->make(MailNotificationChannel::class),
+            resolver: fn(string $service): mixed => $app->container()->make($service),
+        ), LifetimeEnum::Singleton);
+        $this->bindFactory($container, NotificationDispatcher::class, fn() => new NotificationDispatcher(
+            $app->make(NotificationChannelRegistry::class),
+        ), LifetimeEnum::Singleton);
+
         $this->bindFactory(
             $container,
             'foundation.notifications.emailer',
             fn() => $app->make(Emailer::class),
             LifetimeEnum::Scoped,
         );
-        foreach (['foundation.email', 'foundation.notifications'] as $id) {
-            $this->bindFactory(
-                $container,
-                $id,
-                fn() => $app->make(EmailProfiles::class),
-                LifetimeEnum::Singleton,
-            );
-        }
+        $this->bindFactory(
+            $container,
+            'foundation.email',
+            fn() => $app->make(Mailer::class),
+            LifetimeEnum::Singleton,
+        );
+        $this->bindFactory(
+            $container,
+            'foundation.notifications',
+            fn() => $app->make(NotificationDispatcher::class),
+            LifetimeEnum::Singleton,
+        );
     }
 
     private function emailLimits(Application $app): EmailLimits
