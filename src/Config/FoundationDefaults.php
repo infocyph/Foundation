@@ -473,6 +473,7 @@ final class FoundationDefaults
                 ],
                 'runtime_registry' => [
                     'path' => 'storage/framework/runtime',
+                    'visibility' => 'host',
                     'stale_seconds' => 15,
                 ],
             ],
