@@ -49,10 +49,6 @@ final readonly class ValidatorFactory
      */
     public function makeRules(array $rules, array $overrides = []): Validator
     {
-        if ($rules === []) {
-            throw new ConfigurationException('Application validation rules cannot be empty.');
-        }
-
         return $this->configure(
             Validator::make($rules, $this->database),
             $this->optionSet($overrides),
