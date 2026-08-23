@@ -9,6 +9,7 @@ use Infocyph\DBLayer\Migration\Seeder;
 use Infocyph\DBLayer\Query\Repository;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Http\Resource\JsonResource;
+use Infocyph\Omnibus\MessageBus;
 
 final readonly class ArtifactGenerator
 {
@@ -20,8 +21,10 @@ final readonly class ArtifactGenerator
         'enum' => ['directory' => 'app/Enums', 'namespace' => 'App\\Enums', 'suffix' => '', 'stub' => 'enum.stub'],
         'event' => ['directory' => 'app/Events', 'namespace' => 'App\\Events', 'suffix' => 'Event', 'stub' => 'event.stub'],
         'exception' => ['directory' => 'app/Exceptions', 'namespace' => 'App\\Exceptions', 'suffix' => 'Exception', 'stub' => 'exception.stub'],
+        'handler' => ['directory' => 'app/Messaging/Handlers', 'namespace' => 'App\\Messaging\\Handlers', 'suffix' => 'Handler', 'stub' => 'handler.stub', 'requires' => MessageBus::class, 'install' => 'php infbyte module:install messaging'],
         'interface' => ['directory' => 'app/Contracts', 'namespace' => 'App\\Contracts', 'suffix' => 'Interface', 'stub' => 'interface.stub'],
-        'job' => ['directory' => 'app/Jobs', 'namespace' => 'App\\Jobs', 'suffix' => 'Job', 'stub' => 'job.stub'],
+        'job' => ['directory' => 'app/Jobs', 'namespace' => 'App\\Jobs', 'suffix' => 'Job', 'stub' => 'job.stub', 'requires' => MessageBus::class, 'install' => 'php infbyte module:install messaging'],
+        'job-middleware' => ['directory' => 'app/Jobs/Middleware', 'namespace' => 'App\\Jobs\\Middleware', 'suffix' => 'Middleware', 'stub' => 'job-middleware.stub', 'requires' => MessageBus::class, 'install' => 'php infbyte module:install messaging'],
         'listener' => ['directory' => 'app/Listeners', 'namespace' => 'App\\Listeners', 'suffix' => 'Listener', 'stub' => 'listener.stub'],
         'middleware' => ['directory' => 'app/Http/Middleware', 'namespace' => 'App\\Http\\Middleware', 'suffix' => 'Middleware', 'stub' => 'middleware.stub'],
         'migration' => ['directory' => 'app/Database/Migration', 'namespace' => 'App\\Database\\Migration', 'suffix' => 'Migration', 'stub' => 'migration.stub', 'requires' => Migration::class, 'install' => 'php infbyte module:install database'],
