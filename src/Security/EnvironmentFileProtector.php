@@ -23,22 +23,14 @@ final readonly class EnvironmentFileProtector
         string $keyEnvironment = 'ENV_ENCRYPTION_KEY',
         bool $force = false,
     ): string {
-        $this->assertAvailable();
-        $source = $this->path($input ?? '.env.encrypted');
-        $target = $this->path($output ?? '.env');
-        $this->assertSource($source);
-        $this->assertTarget($target, $force);
-
-        new FileProtector()->unprotect(
-            $source,
-            $target,
-            $this->key($keyFile, $keyEnvironment),
-            new ProtectionOptions(self::PURPOSE, self::AAD),
+        return $this->transform(
+            protect: false,
+            input: $input ?? '.env.encrypted',
+            output: $output ?? '.env',
+            keyFile: $keyFile,
+            keyEnvironment: $keyEnvironment,
+            force: $force,
         );
-
-        @chmod($target, 0600);
-
-        return $target;
     }
 
     public function encrypt(
@@ -48,22 +40,14 @@ final readonly class EnvironmentFileProtector
         string $keyEnvironment = 'ENV_ENCRYPTION_KEY',
         bool $force = false,
     ): string {
-        $this->assertAvailable();
-        $source = $this->path($input ?? '.env');
-        $target = $this->path($output ?? '.env.encrypted');
-        $this->assertSource($source);
-        $this->assertTarget($target, $force);
-
-        new FileProtector()->protect(
-            $source,
-            $target,
-            $this->key($keyFile, $keyEnvironment),
-            new ProtectionOptions(self::PURPOSE, self::AAD),
+        return $this->transform(
+            protect: true,
+            input: $input ?? '.env',
+            output: $output ?? '.env.encrypted',
+            keyFile: $keyFile,
+            keyEnvironment: $keyEnvironment,
+            force: $force,
         );
-
-        @chmod($target, 0600);
-
-        return $target;
     }
 
     private function assertAvailable(): void
@@ -82,16 +66,13 @@ final readonly class EnvironmentFileProtector
         }
     }
 
-    private function assertTarget(string $path, bool $force): void
+    private function prepareTarget(string $path, bool $force): void
     {
-        if ((is_file($path) || is_link($path)) && !$force) {
-            throw new \RuntimeException(sprintf('Environment target "%s" already exists; use --force to replace it.', $path));
-        }
         if (is_link($path)) {
             throw new \RuntimeException('Environment protection refuses to replace symbolic-link targets.');
         }
-        if (is_file($path) && $force && !unlink($path)) {
-            throw new \RuntimeException(sprintf('Unable to replace environment target "%s".', $path));
+        if (is_file($path) && !$force) {
+            throw new \RuntimeException(sprintf('Environment target "%s" already exists; use --force to replace it.', $path));
         }
         $directory = dirname($path);
         if (!is_dir($directory) && !mkdir($directory, 0700, true) && !is_dir($directory)) {
@@ -131,5 +112,59 @@ final readonly class EnvironmentFileProtector
         return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1
             ? $path
             : $this->application->basePath(trim($path, DIRECTORY_SEPARATOR));
+    }
+
+    private function transform(
+        bool $protect,
+        string $input,
+        string $output,
+        ?string $keyFile,
+        string $keyEnvironment,
+        bool $force,
+    ): string {
+        $this->assertAvailable();
+        $source = $this->path($input);
+        $target = $this->path($output);
+        $this->assertSource($source);
+        $this->prepareTarget($target, $force);
+
+        $temporary = $target . '.' . bin2hex(random_bytes(8)) . '.tmp';
+        $backup = null;
+        $protector = new FileProtector();
+        $options = new ProtectionOptions(self::PURPOSE, self::AAD);
+        $key = $this->key($keyFile, $keyEnvironment);
+
+        try {
+            if ($protect) {
+                $protector->protect($source, $temporary, $key, $options);
+            } else {
+                $protector->unprotect($source, $temporary, $key, $options);
+            }
+            @chmod($temporary, 0600);
+
+            if (is_file($target)) {
+                $backup = $target . '.' . bin2hex(random_bytes(8)) . '.bak';
+                if (!rename($target, $backup)) {
+                    throw new \RuntimeException(sprintf('Unable to stage existing environment target "%s".', $target));
+                }
+            }
+            if (!rename($temporary, $target)) {
+                throw new \RuntimeException(sprintf('Unable to publish environment target "%s".', $target));
+            }
+            if ($backup !== null && is_file($backup) && !unlink($backup)) {
+                throw new \RuntimeException(sprintf('Unable to remove environment target backup "%s".', $backup));
+            }
+
+            return $target;
+        } catch (\Throwable $failure) {
+            if (is_file($temporary)) {
+                unlink($temporary);
+            }
+            if ($backup !== null && is_file($backup) && !is_file($target)) {
+                rename($backup, $target);
+            }
+
+            throw $failure;
+        }
     }
 }
