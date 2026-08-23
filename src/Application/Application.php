@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Application;
 
-use Infocyph\Foundation\Auth\AuthManager;
-use Infocyph\Foundation\Auth\AuthServices;
-use Infocyph\Foundation\Auth\Http\AuthActions;
 use Infocyph\Foundation\Bootstrap\Bootstrapper;
 use Infocyph\Foundation\Config\ConfigLoader;
 use Infocyph\Foundation\Config\ConfigRepository;
@@ -15,18 +12,12 @@ use Infocyph\Foundation\Container\ContainerFactory;
 use Infocyph\Foundation\Exception\ServiceResolutionException;
 use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\Foundation\Http\HttpKernel;
-use Infocyph\Foundation\Http\JsonDispatch\JsonDispatchResponseFactory;
-use Infocyph\Foundation\Routing\WebrickRouterFactory;
 use Infocyph\Foundation\Runtime\ExecutionScope;
 use Infocyph\Foundation\Runtime\RuntimeContextTracker;
-use Infocyph\Foundation\Session\BrowserSession;
-use Infocyph\Foundation\Session\SessionManager;
-use Infocyph\Foundation\Testing\TestKit;
 use Infocyph\InterMix\DI\Container;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
-use Infocyph\Webrick\Router\Definition\Registrar;
 
 final class Application
 {
@@ -73,21 +64,6 @@ final class Application
         return $this->paths()->app($path);
     }
 
-    public function auth(): AuthServices
-    {
-        return $this->boot()->make(AuthServices::class);
-    }
-
-    public function authActions(): AuthActions
-    {
-        return $this->boot()->make(AuthActions::class);
-    }
-
-    public function authManager(): AuthManager
-    {
-        return $this->boot()->make(AuthManager::class);
-    }
-
     public function basePath(string $path = ''): string
     {
         return $this->paths()->base($path);
@@ -111,11 +87,6 @@ final class Application
     public function bootstrapPath(string $path = ''): string
     {
         return $this->paths()->bootstrap($path);
-    }
-
-    public function browserSession(): BrowserSession
-    {
-        return $this->session()->current();
     }
 
     public function cachePath(string $path = ''): string
@@ -239,18 +210,6 @@ final class Application
         return $this->paths()->resources($path);
     }
 
-    public function responses(): JsonDispatchResponseFactory
-    {
-        return $this->boot()->make(JsonDispatchResponseFactory::class);
-    }
-
-    public function router(): Registrar
-    {
-        $this->boot();
-
-        return $this->make(WebrickRouterFactory::class)->router();
-    }
-
     public function routesPath(string $path = ''): string
     {
         return $this->paths()->routes($path);
@@ -281,11 +240,6 @@ final class Application
         return $this->runtimeMode;
     }
 
-    public function session(): SessionManager
-    {
-        return $this->boot()->make(SessionManager::class);
-    }
-
     public function sessionsPath(string $path = ''): string
     {
         return $this->paths()->sessions($path);
@@ -294,11 +248,6 @@ final class Application
     public function storagePath(string $path = ''): string
     {
         return $this->paths()->storage($path);
-    }
-
-    public function testing(): TestKit
-    {
-        return new TestKit($this);
     }
 
     public function uploadsPath(string $path = ''): string
