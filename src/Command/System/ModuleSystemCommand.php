@@ -33,7 +33,8 @@ final class ModuleSystemCommand extends SystemCommand
     private function install(): int
     {
         $requested = $this->module();
-        $module = $this->catalog()->resolve($requested)['name'];
+        $definition = $this->catalog()->resolve($requested);
+        $module = $definition['name'];
         $manager = $this->manager();
         $dryRun = $this->flag('dry-run');
         $result = $manager->install($module, $dryRun);
@@ -58,6 +59,7 @@ final class ModuleSystemCommand extends SystemCommand
                 'requested' => $requested,
                 'exit_code' => $schemaExit,
                 ...$published,
+                'owned_schemas' => $definition['schemas'],
                 'schemas' => $schemas,
             ]);
         } else {
@@ -65,7 +67,11 @@ final class ModuleSystemCommand extends SystemCommand
             foreach ($published['published'] as $path) {
                 $this->io()->info('Published ' . $path);
             }
-            $this->renderSchemas($schemas);
+            if ($schemas === [] && $definition['schemas'] !== []) {
+                $this->io()->info('No module database schema is required by the current configuration.');
+            } else {
+                $this->renderSchemas($schemas);
+            }
         }
 
         return $schemaExit;
