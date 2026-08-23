@@ -34,7 +34,7 @@ final readonly class MailNotificationChannel implements NotificationChannel
             throw new \LogicException('Mail notification recipient has no mail route.');
         }
 
-        return $this->mailer->sendEmail($message->to(...$recipients), $profile);
+        return $this->mailer->sendEmail($message->withTo(...$recipients), $profile);
     }
 
     /** @return list<string> */
