@@ -30,7 +30,7 @@ return [
                 'proxy' => env('COMMUNICATION_HTTP_PROXY'),
                 'proxyUsername' => env('COMMUNICATION_HTTP_PROXY_USERNAME'),
                 'proxyPassword' => env('COMMUNICATION_HTTP_PROXY_PASSWORD'),
-                'userAgent' => env('COMMUNICATION_HTTP_USER_AGENT', 'Infbyte/1.0'),
+                'userAgent' => env('COMMUNICATION_HTTP_USER_AGENT'),
                 'maxResponseBytes' => env('COMMUNICATION_HTTP_MAX_RESPONSE_BYTES'),
                 'defaultHeaders' => [],
                 'auth' => [
