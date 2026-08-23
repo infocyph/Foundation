@@ -53,11 +53,12 @@ return [
     ],
 
     /*
-    | Runtime process records are local process visibility metadata. A remote
-    | process may be visible on shared storage while its OS liveness remains
-    | unknown to the current host.
+    | Runtime process records are heartbeat-based visibility metadata. A record
+    | older than stale_seconds is reported as not running; process managers remain
+    | the authority for process supervision and replacement.
     */
     'runtime_registry' => [
         'path' => env_string('OPERATIONS_RUNTIME_REGISTRY_PATH', 'storage/framework/runtime'),
+        'stale_seconds' => env_int('OPERATIONS_RUNTIME_REGISTRY_STALE_SECONDS', 15),
     ],
 ];
