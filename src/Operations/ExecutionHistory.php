@@ -129,6 +129,31 @@ final readonly class ExecutionHistory
         return $this->recent(1, $kind, $name)[0] ?? null;
     }
 
+    /** @return array<string,mixed>|null */
+    public function latestByMetadata(string $kind, string $key, string $value): ?array
+    {
+        if ($kind === '' || $key === '' || $value === '') {
+            throw new \InvalidArgumentException('Execution history metadata lookup fields cannot be empty.');
+        }
+
+        return $this->withLock(LOCK_SH, function () use ($kind, $key, $value): ?array {
+            $latest = null;
+            foreach ($this->historyFilesOldestFirst() as $path) {
+                foreach ($this->records($path) as $record) {
+                    if (($record['kind'] ?? null) !== $kind) {
+                        continue;
+                    }
+                    $metadata = $record['metadata'] ?? null;
+                    if (is_array($metadata) && ($metadata[$key] ?? null) === $value) {
+                        $latest = $record;
+                    }
+                }
+            }
+
+            return $latest;
+        });
+    }
+
     public function clear(): bool
     {
         return $this->withLock(LOCK_EX, function (): bool {
