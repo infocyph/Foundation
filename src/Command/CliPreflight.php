@@ -15,7 +15,14 @@ final readonly class CliPreflight
         'completion' => 'Generate Bash, Zsh, or Fish completion output.',
     ];
 
-    public function __construct(private CommandRegistry $registry = new CommandRegistry()) {}
+    public function __construct(
+        private CommandRegistry $registry = new CommandRegistry(),
+        private string $displayName = 'Foundation',
+    ) {
+        if (trim($this->displayName) === '') {
+            throw new \InvalidArgumentException('CLI display name must be non-empty.');
+        }
+    }
 
     /**
      * Handle metadata-only invocations without constructing Foundation Application.
@@ -27,7 +34,7 @@ final readonly class CliPreflight
     {
         $input = ParsedInput::fromArgv($argv);
         if ($input->flag('version')) {
-            $io->writeln('Foundation ' . $this->version());
+            $io->writeln($this->displayName . ' ' . $this->version());
 
             return ExitCode::SUCCESS;
         }
