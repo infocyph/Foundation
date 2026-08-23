@@ -127,7 +127,7 @@ final readonly class MaintenanceManager
                 'Cache-backed maintenance mode requires the cache module; run "php infbyte module:install cache".',
             );
         }
-        $store = $this->application->config()->get('maintenance.store');
+        $store = $this->application->config()->get('operations.maintenance.store');
 
         return $this->application->make(CacheManager::class)->store(
             is_string($store) && $store !== '' ? $store : null,
@@ -136,16 +136,16 @@ final readonly class MaintenanceManager
 
     private function cacheKey(): string
     {
-        $key = $this->application->config()->get('maintenance.key', 'foundation:maintenance');
+        $key = $this->application->config()->get('operations.maintenance.key', 'foundation:maintenance');
 
         return is_string($key) && $key !== '' ? $key : 'foundation:maintenance';
     }
 
     private function driver(): string
     {
-        $driver = strtolower((string) $this->application->config()->get('maintenance.driver', 'file'));
+        $driver = strtolower((string) $this->application->config()->get('operations.maintenance.driver', 'file'));
         if (!in_array($driver, ['file', 'cache'], true)) {
-            throw new \UnexpectedValueException('maintenance.driver must be file or cache.');
+            throw new \UnexpectedValueException('operations.maintenance.driver must be file or cache.');
         }
 
         return $driver;
@@ -153,7 +153,10 @@ final readonly class MaintenanceManager
 
     private function path(): string
     {
-        $configured = $this->application->config()->get('maintenance.path', 'storage/framework/maintenance.json');
+        $configured = $this->application->config()->get(
+            'operations.maintenance.path',
+            'storage/framework/maintenance.json',
+        );
         $configured = is_string($configured) && $configured !== '' ? $configured : 'storage/framework/maintenance.json';
 
         return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $configured) === 1
