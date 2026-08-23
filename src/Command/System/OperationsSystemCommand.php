@@ -72,7 +72,10 @@ final class OperationsSystemCommand extends SystemCommand
         $issues = $result->issues();
 
         if ($this->application->config()->get('auth.drivers.mfa', 'simple') === 'otp') {
-            $issues = [...$issues, ...(new OtpConfigValidator($this->application->config()))->validate()];
+            $issues = [
+                ...$issues,
+                ...(new OtpConfigValidator($this->application->config()))->validate($production),
+            ];
         }
         if ($production) {
             $issues = [...$issues, ...(new ProductionSecurityValidator($this->application->config()))->validate()];
@@ -283,10 +286,12 @@ final class OperationsSystemCommand extends SystemCommand
         if ($name !== null && !isset($configured[$name])) {
             throw new \InvalidArgumentException(sprintf('Worker "%s" is not configured.', $name));
         }
-        $processes = (new RuntimeProcessRegistry($this->application))->all('worker', $name);
+        $registry = new RuntimeProcessRegistry($this->application);
+        $processes = $registry->all('worker', $name);
         $data = [
             'worker' => $name,
             'configured' => $name === null ? $configured : [$name => $configured[$name]],
+            'registry_visibility' => $registry->visibility(),
             'processes' => $processes,
             'control' => $this->control()->status(),
         ];
@@ -294,7 +299,10 @@ final class OperationsSystemCommand extends SystemCommand
             return $this->emit($data);
         }
         if ($processes === []) {
-            $this->io()->note('No registered worker process is visible on this application storage.');
+            $this->io()->note(sprintf(
+                'No registered worker process is visible in the %s runtime registry.',
+                $data['registry_visibility'],
+            ));
 
             return ExitCode::SUCCESS;
         }
