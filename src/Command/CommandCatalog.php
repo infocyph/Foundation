@@ -116,6 +116,7 @@ final class CommandCatalog
 
             $this->generator('class', 'Create a class.'),
             $this->generator('command', 'Create a command.'),
+            $this->generator('config', 'Create an application configuration file.'),
             $this->generator('controller', 'Create a controller.'),
             $this->generator('enum', 'Create an enum.'),
             $this->generator('event', 'Create an event.'),
@@ -128,6 +129,7 @@ final class CommandCatalog
             $this->generator('policy', 'Create an authorization policy.'),
             $this->generator('provider', 'Create a service provider.'),
             $this->generator('repository', 'Create a repository.', ['db']),
+            $this->generator('resource', 'Create a JSON resource.'),
             $this->generator('seeder', 'Create a database seeder.', ['db']),
             $this->generator('service', 'Create an application service.'),
             $this->generator('test', 'Create a test.'),
