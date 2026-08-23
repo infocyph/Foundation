@@ -172,7 +172,7 @@ final class RuntimeSystemCommand extends SystemCommand
         $history = new ExecutionHistory($this->application);
         $data = array_map(static function ($entry) use ($history): array {
             $manifest = $entry->toManifest();
-            $last = $history->latest('schedule', $entry->command());
+            $last = $history->latestByMetadata('schedule', 'schedule_identity', $entry->identity());
             $manifest['last_status'] = $last['status'] ?? null;
             $manifest['last_recorded_at'] = isset($last['recorded_at']) ? (float) $last['recorded_at'] : null;
 
