@@ -219,14 +219,14 @@ final class Bootstrapper
     private function providerDependency(string $provider): ?array
     {
         return match ($provider) {
-            AuthOtpServiceProvider::class => ['class' => \Infocyph\OTP\TOTP::class, 'module' => 'otp', 'package' => 'infocyph/otp'],
+            AuthOtpServiceProvider::class => ['class' => \Infocyph\OTP\TOTP::class, 'module' => 'auth', 'package' => 'infocyph/otp'],
             CacheServiceProvider::class => ['class' => \Infocyph\CacheLayer\Cache\Cache::class, 'module' => 'cache', 'package' => 'infocyph/cachelayer'],
             CommunicationServiceProvider::class => ['class' => \Infocyph\TalkingBytes\Http\HttpClient::class, 'module' => 'communication', 'package' => 'infocyph/talkingbytes'],
             NotificationServiceProvider::class => ['class' => \Infocyph\TalkingBytes\Email\Emailer::class, 'module' => 'communication', 'package' => 'infocyph/talkingbytes'],
-            DatabaseServiceProvider::class => ['class' => \Infocyph\DBLayer\DB::class, 'module' => 'db', 'package' => 'infocyph/dblayer'],
+            DatabaseServiceProvider::class => ['class' => \Infocyph\DBLayer\DB::class, 'module' => 'database', 'package' => 'infocyph/dblayer'],
             MessagingServiceProvider::class => ['class' => \Infocyph\Omnibus\MessageBus::class, 'module' => 'messaging', 'package' => 'infocyph/omnibus'],
             FilesystemServiceProvider::class => ['class' => \Infocyph\Pathwise\PathwiseFacade::class, 'module' => 'filesystem', 'package' => 'infocyph/pathwise'],
-            SecurityServiceProvider::class => ['class' => \Infocyph\Epicrypt\Crypto\AeadCipher::class, 'module' => 'crypto', 'package' => 'infocyph/epicrypt'],
+            SecurityServiceProvider::class => ['class' => \Infocyph\Epicrypt\Crypto\AeadCipher::class, 'module' => 'security', 'package' => 'infocyph/epicrypt'],
             ValidationServiceProvider::class => ['class' => \Infocyph\ReqShield\Validator::class, 'module' => 'validation', 'package' => 'infocyph/reqshield'],
             default => null,
         };
