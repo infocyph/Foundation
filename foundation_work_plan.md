@@ -3,42 +3,60 @@
 > Maintained execution tracker for Foundation 2.0.
 > `foundation_plan.md` is historical architecture/reference material only and is not the current TODO source.
 
-## Working branch
+## Working branches
 
-`feature/foundation-2.0`
+- Foundation: `feature/foundation-2.0`
+- Infbyte: `feature/foundation-2.0`
+
+Foundation and Infbyte are now being finalized together. Foundation remains the reusable runtime/framework layer; Infbyte is the opinionated application skeleton built on top of it.
 
 ## Maintenance rule
 
-After every completed implementation/review batch:
+After every completed joint implementation/review batch:
 
-1. update this file before starting the next batch;
-2. record the latest Foundation **code** checkpoint separately from tracker-only commits;
+1. update this file and Infbyte's `infbyte_work_plan.md`;
+2. record source-code checkpoints separately from tracker-only commits;
 3. move finished work into **Completed**;
-4. keep **Immediate next work** limited to the next concrete phase;
-5. keep later work ordered under the remaining queue;
-6. do not reopen completed cleanup without new source evidence;
-7. do not modify Infbyte while Foundation 2.0 is still being finalized;
-8. keep the full test/release matrix deferred until the user explicitly moves to that phase.
+4. keep **Immediate next work** limited to the next concrete cross-repo phase;
+5. do not reopen completed Foundation cleanup without new source/integration evidence;
+6. fix framework defects in Foundation rather than working around them in Infbyte;
+7. keep specialist-library engines in their owning packages;
+8. keep the full test/release matrix deferred until implementation/config/docs are stable.
 
 # Current checkpoint
 
 - Date: 2026-08-23
-- Latest Foundation source-code commit: `9d37e2b5e05629a7fd735a379aed70546f458127`
-- Latest source phase: **final Foundation 2.0 source/runtime integration sweep — complete**.
-- Source status: **freeze source architecture unless documentation or later test evidence exposes a concrete defect**.
-- Foundation branch: `feature/foundation-2.0`.
-- Full PHPUnit/static-analysis/PHPForge/release matrix: **not run yet; intentionally deferred**.
+- Latest Foundation source-code commit: `7601aa0803e997ce4e960ce367cd0530b9b10dc3`
+- Latest Infbyte source-code commit: `456482094f98d82b5f89c37ebac57a11477d2d5e`
+- Foundation branch: `feature/foundation-2.0`
+- Infbyte branch: `feature/foundation-2.0`, created from `main` at `47fb985f266c977504c3dca6bd13e85c9a1b73dc`.
+- Current phase: **joint Foundation 2.0 / Infbyte application-surface reconciliation**.
+- Full PHPUnit/static-analysis/PHPForge/release matrix: not run yet; intentionally deferred.
 
-## Framework boundary
+# Fixed framework boundary
 
-Foundation and Infbyte have a fixed dependency direction:
+## Foundation owns
 
-- **Foundation** is the reusable framework/runtime layer, analogous to Illuminate.
-- **Infbyte** (`infocyph/Infbyte`) is the opinionated application/project skeleton built on Foundation, analogous to Laravel's application layer.
-- Foundation owns reusable runtime, composition primitives, configuration/bootstrap machinery, CLI/runtime support, common framework integration policy, and specialist-library bridges.
-- Infbyte owns project/application defaults, project entry files, routes, application code, deployment conventions, and the final opinionated application experience.
-- Foundation must not depend on Infbyte.
-- Reusable runtime machinery must not be pushed into Infbyte merely to make Foundation smaller.
+- `Application`, runtime modes and lifecycle;
+- Web, CLI, Worker and Scheduler composition;
+- InterMix DI/container/scopes;
+- CLI parsing/preflight/dispatch/execution;
+- configuration loading/cache and optimized artifacts;
+- reusable module integration and publication machinery;
+- reusable framework defaults and specialist-package bridges.
+
+## Infbyte owns
+
+- project/application bootstrap files;
+- application-facing config overrides;
+- provider lists;
+- routes/application code;
+- root `infbyte` convenience launcher;
+- deployment conventions;
+- application branding/default namespace choices;
+- final skeleton documentation/developer experience.
+
+Foundation must not depend on Infbyte. Infbyte must not rebuild Foundation runtime machinery.
 
 # Current dependency baseline
 
@@ -65,295 +83,178 @@ Optional/integration:
 - `infocyph/talkingbytes` `^2.0`
 - `web-auth/webauthn-lib` `^5.3.5`
 
-No attached-library change is currently required. InterMix 9.1.1 was the upstream prerequisite identified by the Foundation review and is already integrated.
+# Completed Foundation work
 
-# Completed
+## Structural/runtime cleanup
 
-## 1. Foundation 2.0 structural ownership cleanup
+- Console ownership merged into Foundation; no compatibility hierarchy remains in the target architecture.
+- broad static/pass-through facades and specialist `Application::*()` manager accessors removed;
+- `DatabaseManager`, `RouterManager`, `RouteCacheRouter`, generic `FilesystemManager`, generic Data proxy layer and obsolete support wrappers removed/reduced;
+- runtime provider groups are exactly `common`, `web`, `cli`, `worker`, `scheduler`;
+- Pathwise/filesystem, CacheLayer, DBLayer, TalkingBytes, Omnibus, ReqShield, OTP, Epicrypt, UID, Webrick and InterMix ownership boundaries aligned;
+- logger contracts are PSR-3 typed;
+- runtime/config validation is declarative and resolution-free.
 
-- Console ownership merged into Foundation; no compatibility hierarchy should be restored.
-- No `Infocyph\\Console`, `Infocyph\\Foundation\\Console`, `src/Console`, Console bridge, compatibility proxy, Composer replacement, or dual CLI hierarchy remains part of the target architecture.
-- Broad static/pass-through facade direction removed.
-- Broad specialist `Application::*()` manager accessors such as cache/db/files/messaging/communication/validator were removed and must stay removed.
-- `DatabaseManager`, `RouterManager`, `RouteCacheRouter`, generic `FilesystemManager`, generic Data proxy layer, and obsolete manager support abstractions removed/reduced.
-- Specialist libraries own their engines; Foundation keeps reusable application/runtime/integration policy only.
-- Pathwise/filesystem ownership cleanup complete.
-- Communication/notification and messaging surfaces reduced to focused integration rather than specialist-library mirrors.
-- Config/default ownership consolidated around `FoundationDefaults` and `ConfigRepository`.
-- Runtime provider groups are `common`, `web`, `cli`, `worker`, `scheduler` only.
-- `bin/infbyte` is the canonical executable package binary.
-- Module install/remove use `--update-no-dev`.
-- Module config publication is staged/rollback-safe and does not overwrite existing host config.
-- Logger contracts are PSR-3 typed.
+## InterMix / UID integration
 
-## 2. InterMix 9.1.1 public API integration
+- Foundation requires InterMix `^9.1.1`;
+- explicit definitions use `Container::definitions()->has()`;
+- resolution history uses `Container::isResolved()`;
+- command resolution uses public `Container::make()`;
+- known repository/current-resolver internal coupling removed;
+- runtime `ExecutionId` and default container identity use UID UUIDv7;
+- deterministic hashes and cryptographic randomness remain where those semantics are correct.
 
-Foundation now uses the three InterMix semantics deliberately:
+## Runtime/default/config cleanup
 
-- `Container::definitions()->has($id)` — explicit registration;
-- `Container::isResolved($id)` — successful-resolution history;
-- `Container::has($id)` — broad PSR-style resolvability only.
+- canonical `FoundationDefaults` established;
+- `app.container.request_scope` removed;
+- lazy loading defaults to true;
+- cache object/closure payloads disabled by default;
+- dead database/notification/security keys removed;
+- env hydration has one owner;
+- config paths remain declarative/application-relative;
+- Foundation global helpers are limited to `env()`, `env_bool()`, `env_int()`, `env_string()`;
+- Foundation defaults are neutral rather than Infbyte-branded:
+  - nullable HTTP User-Agent;
+  - `foundation:cache:`;
+  - `foundation:cache:lock:`;
+  - `foundation_session`.
 
-Completed:
+## Cache/database/runtime lifecycle
 
-- minimum InterMix version is `^9.1.1`;
-- auth override/default registration uses public explicit-definition inspection;
-- pooled-worker parent cleanliness uses public resolution history;
-- `ServiceProvider::hasExplicitBinding()` uses `definitions()->has()`;
-- command handlers resolve through public `Container::make()`;
-- known `getRepository()` / current-resolver coupling has been removed from the Foundation source paths reviewed in the final sweep.
-
-Do not reintroduce repository/resolver internals when a public InterMix API exists.
-
-## 3. UID v5 canonical Foundation identity
-
-- `infocyph/uid` remains core/mandatory.
-- runtime `ExecutionId` uses UUIDv7.
-- the default InterMix container alias now uses UID UUIDv7 rather than random hex.
-- auth/application identity remains UID-backed with purpose-specific UUIDv7/ULID policy.
-- deterministic cache/lock/schedule keys remain deterministic hashes where identity generation would be semantically wrong.
-- secrets/nonces/temp staging suffixes remain cryptographic randomness where entropy is the real requirement.
-- no generic `IdentifierManager` or UID pass-through facade exists.
-
-## 4. Foundation environment/config path contract
-
-Foundation deliberately owns only the small global environment helper surface required by reusable config templates:
-
-- `env()`;
-- `env_bool()`;
-- `env_int()`;
-- `env_string()`.
-
-Rules now fixed:
-
-- helpers are Composer-loaded from one Foundation helper file;
-- reads use ArrayKit's hydrated environment state;
-- Foundation does not duplicate ArrayKit's `.env` parser;
-- no global service locator/current-application singleton is exposed;
-- global `storage_path()`/`public_path()`-style application path state was not restored;
-- published paths are application-relative/declarative and resolved later by `PathManager` or the owning integration.
-
-Cache/filesystem/notification spool and related templates have been migrated to this model.
-
-## 5. CacheLayer lock topology
-
-Foundation no longer silently replaces unspecified shared coordination with an unrelated file lock.
-
-Current model:
-
-- explicit `cache.lock.driver` wins;
-- otherwise the selected/default CacheLayer store provides its native authentication/coordination lock when available;
-- `cache.lock.store` is optional and inherits the default cache store;
-- stores without an appropriate native lock fail clearly when a coordination feature requests one;
-- deliberate local file locking remains available explicitly;
-- production/session topology validators evaluate the effective inherited lock topology rather than requiring redundant explicit lock configuration.
-
-This shared path covers scheduler overlap/single-server, singleton workers, webhook replay, auth/session coordination, migrations and other Foundation mutex consumers.
-
-## 6. CacheManager / DBLayer activation-order cleanup
-
-- resolving cache no longer autoloads DBLayer merely because DBLayer is installed;
-- CacheManager wires DBLayer only when DBLayer is already active/loaded;
-- DatabaseServiceProvider completes the cache bridge when DB activates later and CacheManager is already resolved;
-- behavior is independent of cache-vs-database resolution order;
-- optional package presence remains distinct from capability activation.
-
-## 7. Optimized artifact trust model
-
-Config, command, schedule, route, and compiled-container paths now follow one deployment-owned optimization policy.
-
-### Config
-
-- source remains authoritative when no compatible artifact exists;
-- cache build records provenance/format/schema data;
-- optimized runtime does not scan/stat the whole config/provider source tree before using a compatible compiled artifact;
-- config cache build folds `bootstrap/providers.php` into compiled provider groups, so compiled boot may safely skip that source file.
-
-### Command
-
-- command manifests use explicit manifest format/version metadata;
-- CLI preflight no longer hashes Foundation command metadata, command route source, and every application handler before trusting the artifact;
-- invalid/unsupported manifests fall back to source command registration.
-
-### Schedule
-
-- schedule manifests use explicit format/version metadata;
-- scheduler runtime no longer hashes the schedule source on each load before using a built artifact;
-- invalid artifacts fall back to source.
-
-### Routes
-
-- `route:cache`/build owns Webrick route artifact generation and the Foundation compatibility marker;
-- runtime checks cheap routing-configuration compatibility and Webrick cache bootability;
-- normal source web boot no longer writes, generates, or "blesses" route cache state;
-- recursive route/controller source hashing was removed from optimized startup.
-
-### Container
-
-- runtime-specific InterMix compiled artifacts remain deployment-generated and activated through the Foundation optimize manifest.
-
-General rule: runtime consumes compatible optimized artifacts; build/deployment commands generate/invalidate them.
-
-## 8. Final source/runtime integration sweep — complete
-
-The final branch-native sweep covered Application/bootstrap, container, config, command/CLI, ProcessRunner, routes, Web/HTTP, worker, scheduler, session, validation, module/readiness, logging/security, optional-package bridges, and runtime reset behavior.
-
-Concrete fixes completed:
-
-- fixed ServiceRegistry activation so an added-but-unregistered provider is registered before use;
-- duplicate provider adds no longer replace a live registered provider while retaining stale state;
-- deferred-provider activation restores deferred state if activation fails;
-- removed remaining command resolver-internal coupling in favor of public `Container::make()`;
-- removed the stale `ServiceProvider::getRepository()` explicit-binding check;
-- dependency-free `messaging.workers` is now empty, so a core-only application does not falsely activate/require Omnibus;
-- default InterMix container identity now uses UID UUIDv7;
-- route runtime no longer generates optimization artifacts during normal requests;
-- Foundation reusable runtime defaults no longer advertise Infbyte application identity:
-  - HTTP User-Agent defaults to null;
-  - cache prefix defaults to `foundation:cache:`;
-  - lock prefix defaults to `foundation:cache:lock:`;
-  - browser-session cookie defaults to `foundation_session`.
-
-Verified without further source changes:
-
-- ProcessRunner defaults to argv/no-shell, keeps shell execution explicit, bounds output, propagates env/cwd, maps termination deterministically, and handles Unix/Windows process-tree termination;
+- unspecified shared coordination inherits the selected CacheLayer store's native lock rather than silently becoming an unrelated file lock;
+- CacheManager/DBLayer bridges no longer make optional package presence equal activation;
+- ProcessRunner defaults to argv/no-shell with explicit shell opt-in, bounded output and deterministic termination mapping;
 - `ExecutionScope` owns one InterMix scope per execution unit;
-- `RuntimeContextTracker` resets only touched external/static/process-local state and does not autoload optional packages merely for cleanup;
-- Web requests, commands, scheduler entries, and worker jobs use execution scopes;
-- file/array sessions stay independent of CacheLayer/DBLayer until a selected backend requires them;
-- ReqShield database access remains lazy behind actual DB validation use;
-- worker pools reject process-local transports and check parent process cleanliness;
-- Auth HTTP-specific services remain Web-only;
-- no `src/Console` runtime hierarchy remains;
-- no global application path helper state was restored;
-- no new broad reset registry or generic specialist proxy was introduced.
+- `RuntimeContextTracker` resets only touched external/static/process-local state;
+- session/validation optional backends stay lazy;
+- worker/fork parent-state checks and process-local transport restrictions are retained.
 
-### Source freeze rule
+## Optimized artifact policy
 
-Do not continue speculative refactoring now. Reopen Foundation source architecture only if documentation review, static analysis, tests, benchmarks, or release checks expose a concrete defect.
+- config, command, schedule, route and compiled-container artifacts are deployment-owned;
+- compatible optimized runtime paths do not repeatedly hash/stat all source files;
+- normal route source boot no longer generates/blesses route cache artifacts;
+- compiled config folds `bootstrap/providers.php` into provider groups;
+- module/config publication invalidates affected artifacts explicitly;
+- `optimize`/`optimize:clear` remain the aggregate deployment operations.
 
-# Architecture decisions fixed
+# Completed joint Foundation/Infbyte batch
 
-## Specialist package ownership
+The first Infbyte migration exposed one legitimate Foundation support gap and otherwise confirmed the 2.0 ownership direction.
 
-Do not duplicate engines already owned by CacheLayer, DBLayer, Epicrypt, Omnibus, OTP, Pathwise, ReqShield, TalkingBytes, UID, Webrick or InterMix.
+## Foundation change
 
-Foundation integration is justified only for reusable framework configuration, runtime/security/lifecycle policy, named application profiles, or cross-package composition.
+- `CliPreflight` now accepts a lightweight display name;
+- `CommandDispatcher::project()` carries that name through preflight;
+- package-owned `bin/infbyte` still defaults to `Foundation`;
+- Infbyte can report `Infbyte <foundation-version>` without environment loading, Application construction, or a second Console object.
 
-## Config/runtime identity stays Foundation-neutral
+## Infbyte migration baseline
 
-Foundation defaults must describe Foundation, not the Infbyte application skeleton.
+- created `feature/foundation-2.0` from current `main`;
+- development Composer constraint targets `dev-feature/foundation-2.0 as 2.0.x-dev`;
+- root `infbyte` delegates to Foundation `CommandDispatcher`;
+- `bootstrap/console.php` removed and `bootstrap/cli.php` added;
+- provider groups aligned to `common|web|cli|worker|scheduler`;
+- `app.container.request_scope` removed and lazy loading defaults to true;
+- `config/ids.php`, `AUTH_IDS`, and `auth.drivers.ids` removed;
+- auth/OTP application overrides aligned to current Foundation schema;
+- `.env.example` no longer preserves a weak committed token secret;
+- deployment no longer creates `bootstrap/cache/console`;
+- generated Foundation artifacts under `bootstrap/cache` are ignored and the directory is retained with its own `.gitignore`.
 
-- Framework-owned defaults may use `foundation:*`/`foundation_*` identity where a neutral default is required.
-- Host applications may override these values.
-- Infbyte-specific branding belongs in the Infbyte application skeleton, not Foundation source defaults.
+# Immediate next work — cross-repo surface reconciliation
 
-## Config paths stay declarative
+## 1. Infbyte application entrypoints/routes
 
-- no mutable global current-application path state;
-- reusable config templates use application-relative paths;
-- `PathManager`/the owning integration resolves paths for the current Application.
+Review against actual Foundation 2.0 behavior:
 
-## Runtime reset stays targeted
+- `public/index.php`;
+- `bootstrap/app.php`;
+- `bootstrap/cli.php`;
+- whether any dedicated worker/scheduler entry files are genuinely needed;
+- `routes/web.php`, `routes/api.php`, `routes/console.php`;
+- generated command/controller/provider namespace examples.
 
-Keep `RuntimeContextTracker`'s touched-state cleanup model. Do not replace it with a global reset registry unless a concrete external/static lifetime defect requires one.
+Do not add duplicate runtime bootstrap files merely for symmetry when Foundation command dispatch already owns the runtime transition.
 
-# Immediate next work — documentation freeze
+## 2. Module/config publication model
 
-Source/runtime architecture is now frozen. The next phase is to make documentation describe the actual Foundation 2.0 implementation rather than historical/1.x/Console-era behavior.
+Reconcile Infbyte's checked-in config with Foundation `ModuleCatalog` and publication behavior:
 
-## Documentation sweep
+- decide which config belongs in a fresh core-only skeleton;
+- optional module config should normally appear only when intentionally installed/published;
+- ensure module installation is the authoritative path for CacheLayer, DBLayer, Epicrypt, OTP, Pathwise, ReqShield, TalkingBytes, Omnibus and WebAuthn integration;
+- remove stale application copies rather than maintain divergent Foundation templates;
+- verify package presence vs configured vs activated semantics end to end.
 
-Review and update:
+Any publication/install defect discovered here belongs in Foundation.
 
-- root `README.md`;
-- `docs/README.md`;
-- architecture/runtime documentation;
-- configuration docs;
-- CLI/console documentation;
-- cache/database/filesystem/security/auth/session/communication/messaging/validation docs;
-- module/install/config publication docs;
-- optimization/deployment docs;
-- examples and code snippets.
+## 3. Infbyte application branding
 
-Required outcomes:
+Now that Foundation is neutral, decide application-owned defaults deliberately, including where relevant:
 
-1. remove stale deleted-manager/facade/Console compatibility references;
-2. document exactly four runtime modes: Web, CLI, Worker, Scheduler;
-3. distinguish runtime mode from optional capability/module;
-4. document Foundation vs Infbyte ownership clearly;
-5. document InterMix lazy/scoped composition and execution lifetime accurately;
-6. document optional package presence vs actual configured/activated capability;
-7. document native CacheLayer lock inheritance and distributed topology requirements;
-8. document deployment-owned optimized artifacts and explicit invalidation/build commands;
-9. update neutral Foundation runtime defaults (`foundation:*`, `foundation_session`, nullable HTTP User-Agent);
-10. ensure docs match current module constraints/config names/public classes;
-11. remove stale `storage_path()`/global application-helper assumptions;
-12. freeze public names/config shapes after documentation matches implementation.
+- HTTP User-Agent;
+- cache namespace;
+- coordination-lock namespace;
+- browser-session cookie;
+- remember-me cookie;
+- response/application metadata.
 
-Documentation work may correct documentation only. If it reveals a real implementation defect, record the evidence here before reopening source.
+Do not force optional modules into core solely to apply branding; keep those overrides with the module/application config that owns them.
 
-# After documentation — deferred test/release matrix
+## 4. Install/deployment lifecycle
 
-The full test/release phase remains deferred until explicitly started.
+Verify source behavior for:
 
-When started, run:
+- `post-create-project-cmd`;
+- `.env` creation and secret generation;
+- runtime directory creation;
+- `module:install` / `module:remove`;
+- config publication rollback/invalidation;
+- `optimize` and `optimize:clear`;
+- final change from the Infbyte development Foundation constraint to `^2.0` before release.
 
-1. Composer validation and dependency checks;
+## 5. Documentation in parallel
+
+Foundation documentation freeze remains active, but application-facing docs should now be updated together with Infbyte so examples are not immediately stale.
+
+# After implementation/config/docs — deferred test/release matrix
+
+When explicitly started, run both repositories through:
+
+1. Composer validation/dependency checks;
 2. static analysis;
 3. PHPForge quality/security/release gates;
-4. complete PHPUnit/integration suite;
-5. core-only install/runtime matrix with optional packages absent;
-6. optional-module install/config/activation combinations;
-7. Web/CLI/Worker/Scheduler load-isolation checks;
-8. persistent request/worker/scheduler execution-scope reset/soak checks;
-9. fork/process-pool parent and child isolation checks;
-10. scheduler/session/auth/webhook locking topology checks;
-11. config/command/schedule/route/container optimized-artifact tests;
-12. ProcessRunner Unix/Windows behavior where CI platforms permit;
-13. startup/steady-state/memory/representative throughput benchmarks;
-14. final stale-symbol/config/doc scan;
-15. clean archive/consumer installation test;
-16. final Foundation 2.0 release-readiness review.
-
-No test success should be inferred from the source review alone.
-
-# Deferred Infbyte follow-up — execute only after Foundation 2.0 freeze/release surface
-
-Do **not** modify `infocyph/Infbyte` during Foundation finalization. Track application-skeleton work here for later.
-
-Current Infbyte follow-up list:
-
-1. bump `infocyph/foundation` from the current 1.x constraint to the final `^2.0` release;
-2. update Infbyte config to the final Foundation 2.0 schema and remove stale 1.x/container/request-scope keys;
-3. remove old `config/ids.php` / IdentifierManager-era configuration if still present; generic Foundation ID manager/facade APIs are gone;
-4. keep the root `infbyte` launcher a tiny delegator to the package-owned Foundation CLI binary/runtime;
-5. align project entrypoints with `Foundation::web()`, `Foundation::cli()`, `Foundation::worker()`, and `Foundation::scheduler()` without rebuilding runtime ownership in the skeleton;
-6. refresh/publish module config from the finalized Foundation 2.0 templates rather than carrying stale application copies;
-7. update `.env.example` for final 2.0 environment names and native/default lock inheritance;
-8. decide Infbyte application branding explicitly now that Foundation defaults are neutral:
-   - set `COMMUNICATION_HTTP_USER_AGENT` to an Infbyte/application-specific value if desired;
-   - set `CACHE_PREFIX=infbyte:cache:` if that application namespace is desired;
-   - set `CACHE_LOCK_PREFIX=infbyte:cache:lock:` if desired;
-   - set `SESSION_COOKIE=infbyte_session` if desired;
-9. update deployment flow so Foundation optimized artifacts are generated during deployment and not source-revalidated on each request/process start;
-10. update Infbyte README/docs to present Infbyte as the opinionated application framework/skeleton built on Foundation;
-11. run Infbyte clean-install/application smoke tests against the released Foundation 2.0 package.
-
-The Infbyte repository remains untouched until Foundation reaches its frozen/release-ready state.
+4. PHPUnit/integration suites;
+5. clean Infbyte create-project/install;
+6. core-only Foundation/Infbyte runtime without optional packages;
+7. optional module install/remove/config publication matrix;
+8. CLI version/list/help/completion preflight;
+9. Web/CLI/Worker/Scheduler load isolation;
+10. persistent request/worker/scheduler scope reset and soak;
+11. fork/process-pool isolation;
+12. cache/session/scheduler/webhook locking topology;
+13. config/command/schedule/route/container optimized-artifact behavior;
+14. Unix/Windows ProcessRunner checks where CI permits;
+15. startup/memory/throughput benchmarks;
+16. stale-symbol/config/doc scan;
+17. clean archive/consumer installation;
+18. final Foundation 2.0 + Infbyte compatibility/release-readiness review.
 
 # Do not regress
 
-- Do not restore broad `Application::cache()`, `db()`, `files()`, `communication()`, `messaging()`, `validator()`, etc.
-- Do not restore static global facade/application-state architecture.
-- Do not restore generic Foundation Data/ArrayKit proxy APIs.
-- Do not restore the deleted generic `FilesystemManager`.
-- Do not restore global application path helpers for lazy config.
-- Do not use `Container::has()` where explicit registration or resolution-history semantics are required.
-- Do not access InterMix repository/current-resolver internals when a public API exists.
-- Do not duplicate specialist engines in Foundation.
-- Do not make Foundation depend on Infbyte.
-- Do not reintroduce Infbyte-branded runtime defaults into Foundation.
-- Do not make optional package installation itself equal capability activation.
-- Do not create runtime optimization artifacts during normal Web/CLI/Worker/Scheduler execution.
-- Do not reopen frozen source architecture without concrete evidence from docs/tests/benchmarks/release checks.
+- no `FoundationConsole`, `Foundation::console()`, or `src/Console` compatibility hierarchy;
+- no broad `Application::cache()`, `db()`, `files()`, `communication()`, `messaging()`, `validator()` proxy surface;
+- no static global application/facade state;
+- no generic Foundation Data/ArrayKit proxy layer;
+- no generic `FilesystemManager`;
+- no global current-application path helpers;
+- no `auth.drivers.ids` or generic IdentifierManager surface;
+- no `app.container.request_scope`;
+- no InterMix repository/resolver internals when public APIs exist;
+- no duplicated specialist-library engines;
+- no generated optimized artifacts committed to Infbyte;
+- no Infbyte workaround when the underlying defect belongs in Foundation.
