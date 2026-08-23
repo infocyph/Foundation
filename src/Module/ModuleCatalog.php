@@ -75,6 +75,14 @@ final class ModuleCatalog
             'config' => ['messaging.php'],
             'schemas' => [],
         ],
+        'operations' => [
+            'packages' => [],
+            'built_in' => true,
+            'description' => 'Maintenance state, execution history, persistent-runtime control, process visibility, and operational diagnostics.',
+            'aliases' => ['ops', 'runtime'],
+            'config' => ['operations.php'],
+            'schemas' => [],
+        ],
         'resources' => [
             'packages' => [],
             'built_in' => true,
