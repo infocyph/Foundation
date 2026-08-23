@@ -24,19 +24,28 @@ return [
     ],
 
     /**
-     * Message Routes, Handlers, and Handler Middleware
+     * Message Routes, Handlers, and Middleware
      *
      * "routes" maps each message class to an Omnibus route. "handlers" maps
-     * each message class to an invokable service class. "handler_middleware"
-     * is an ordered list of service classes implementing Omnibus
-     * HandlerMiddleware; the same middleware pipeline surrounds synchronous
-     * and queued handler execution. Live configuration may contain callables or
-     * middleware instances, but pooled workers require class-name/declarative
-     * configuration so the post-fork application can be reconstructed safely.
+     * each message class to an invokable service class.
+     *
+     * "handler_middleware" is a low-level ordered list of service classes
+     * implementing Omnibus HandlerMiddleware. It surrounds every message
+     * handler, synchronously and asynchronously.
+     *
+     * "job_middleware" is an ordered list of service classes implementing
+     * Foundation JobMiddleware. It runs only when the handled message implements
+     * Foundation Job and exposes Foundation JobContext instead of Omnibus
+     * Envelope/HandlerContext details.
+     *
+     * Live configuration may contain callables or middleware instances, but
+     * pooled workers require class-name/declarative configuration so the
+     * post-fork application can be reconstructed safely.
      */
     'routes' => [],
     'handlers' => [],
     'handler_middleware' => [],
+    'job_middleware' => [],
 
     /**
      * Synchronous Events
@@ -44,7 +53,7 @@ return [
      * "listeners" maps an event class to an ordered list of invokable listener
      * service classes. Parent classes and implemented interfaces are honored by
      * Omnibus. A listener implementing Omnibus ShouldQueue is sent through the
-     * message bus; other listeners run synchronously. Handler middleware does
+     * message bus; other listeners run synchronously. Handler/job middleware do
      * not wrap ordinary synchronous event listeners; queued listeners naturally
      * enter the message-handler pipeline when consumed.
      */
@@ -125,7 +134,7 @@ return [
                 'concurrency' => env_int('MESSAGING_WORKER_POOL_CONCURRENCY', 2),
                 'maximum_restarts' => env_int('MESSAGING_WORKER_POOL_MAXIMUM_RESTARTS', 5),
                 'restart_backoff_seconds' => env('MESSAGING_WORKER_POOL_RESTART_BACKOFF_SECONDS', 0.25),
-                'shutdown_grace_seconds' => env('MESSAGING_WORKER_POOL_SHUTDOWN_GRACE_SECONDS', 30.0),
+                'shutdown_grace_seconds' => env('MESSAGING_WORKER_SHUTDOWN_GRACE_SECONDS', 30.0),
             ],
         ],
     ],
