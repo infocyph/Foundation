@@ -8,6 +8,7 @@ use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\InterMix\DI\Container;
 use Infocyph\InterMix\DI\Support\TraceLevelEnum;
+use Infocyph\UID\Id;
 
 final class ContainerFactory
 {
@@ -49,7 +50,7 @@ final class ContainerFactory
 
     private function defaultAlias(): string
     {
-        return 'foundation.' . bin2hex(random_bytes(8));
+        return 'foundation.' . Id::uuid7();
     }
 
     private function traceLevel(string $value): TraceLevelEnum
