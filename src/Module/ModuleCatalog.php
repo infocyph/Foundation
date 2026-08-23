@@ -5,97 +5,96 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Module;
 
 /**
- * @phpstan-type ModuleDefinition array{package:string|null,constraint:string|null,built_in?:bool,description:string,aliases:list<string>,config:list<string>}
- * @phpstan-type ResolvedModule array{name:string,package:string|null,constraint:string|null,built_in?:bool,description:string,aliases:list<string>,config:list<string>}
+ * @phpstan-type ModuleDefinition array{packages:array<string,string>,built_in?:bool,description:string,aliases:list<string>,config:list<string>}
+ * @phpstan-type ResolvedModule array{name:string,packages:array<string,string>,built_in?:bool,description:string,aliases:list<string>,config:list<string>}
  */
 final class ModuleCatalog
 {
-    /** @var array<string, array{package:string|null,constraint:string|null,built_in?:bool,description:string,aliases:list<string>,config:list<string>}> */
+    /** @var array<string, ModuleDefinition> */
     private const array MODULES = [
+        'auth' => [
+            'packages' => [
+                'infocyph/otp' => '^6.0',
+                'web-auth/webauthn-lib' => '^5.3.5',
+            ],
+            'description' => 'Extended authentication with OTP-backed MFA, recovery codes, replay protection, and WebAuthn passkeys.',
+            'aliases' => ['mfa', 'otp', 'passkey', 'passkeys', 'webauthn'],
+            'config' => [],
+        ],
         'cache' => [
-            'package' => 'infocyph/cachelayer',
-            'constraint' => '^3.1.3',
-            'description' => 'Cache stores, locks, counters, response caching, and authentication state.',
+            'packages' => [
+                'infocyph/cachelayer' => '^3.1.3',
+            ],
+            'description' => 'Cache stores, locks, counters, response caching, and shared authentication/runtime state.',
             'aliases' => ['cachelayer'],
             'config' => ['cache.php'],
         ],
         'communication' => [
-            'package' => 'infocyph/talkingbytes',
-            'constraint' => '^2.0',
-            'description' => 'HTTP, email, webhook, and gRPC communication.',
+            'packages' => [
+                'infocyph/talkingbytes' => '^2.0',
+            ],
+            'description' => 'HTTP, inbound/outbound email, webhook, and gRPC communication.',
             'aliases' => ['notifications', 'talkingbytes'],
             'config' => ['communication.php', 'notifications.php'],
         ],
-        'crypto' => [
-            'package' => 'infocyph/epicrypt',
-            'constraint' => '^2.1',
-            'description' => 'Cryptography, secrets, passwords, tokens, and key security.',
-            'aliases' => ['epicrypt', 'security'],
-            'config' => ['security.php'],
-        ],
-        'db' => [
-            'package' => 'infocyph/dblayer',
-            'constraint' => '^4.1',
+        'database' => [
+            'packages' => [
+                'infocyph/dblayer' => '^4.1',
+            ],
             'description' => 'Database connections, queries, repositories, schema, migrations, and persistence.',
-            'aliases' => ['database', 'dblayer'],
+            'aliases' => ['db', 'dblayer'],
             'config' => ['database.php'],
         ],
         'filesystem' => [
-            'package' => 'infocyph/pathwise',
-            'constraint' => '^3.1',
-            'description' => 'Filesystem, storage, uploads, downloads, archives, and sync.',
-            'aliases' => ['files', 'pathwise'],
+            'packages' => [
+                'infocyph/pathwise' => '^3.1',
+            ],
+            'description' => 'Filesystem, storage, uploads, downloads, archives, sync, and retention.',
+            'aliases' => ['files', 'pathwise', 'storage'],
             'config' => ['filesystem.php'],
         ],
         'logging' => [
-            'package' => null,
-            'constraint' => null,
+            'packages' => [],
             'built_in' => true,
             'description' => 'Structured PSR-3 logging and redacted exception reporting.',
             'aliases' => ['log', 'logs'],
             'config' => ['logging.php'],
         ],
         'messaging' => [
-            'package' => 'infocyph/omnibus',
-            'constraint' => '^2.2',
+            'packages' => [
+                'infocyph/omnibus' => '^2.2',
+            ],
             'description' => 'Events, messages, queues, retries, workers, optional process pools, workflows, and scheduled-message dispatch.',
             'aliases' => ['events', 'omnibus', 'queue', 'queues'],
             'config' => ['messaging.php'],
         ],
-        'otp' => [
-            'package' => 'infocyph/otp',
-            'constraint' => '^6.0',
-            'description' => 'OTP-backed MFA, recovery codes, and replay-safe verification.',
-            'aliases' => ['mfa'],
-            'config' => [],
-        ],
-        'passkeys' => [
-            'package' => 'web-auth/webauthn-lib',
-            'constraint' => '^5.3.5',
-            'description' => 'WebAuthn passkey registration and authentication.',
-            'aliases' => ['passkey', 'webauthn'],
-            'config' => [],
-        ],
         'resources' => [
-            'package' => null,
-            'constraint' => null,
+            'packages' => [],
             'built_in' => true,
             'description' => 'JsonDispatch application response resources and envelopes.',
             'aliases' => ['json', 'jsondispatch', 'responses'],
             'config' => ['responses.php'],
         ],
+        'security' => [
+            'packages' => [
+                'infocyph/epicrypt' => '^2.1',
+            ],
+            'description' => 'Cryptography, secrets, password/token security, and key management.',
+            'aliases' => ['crypto', 'epicrypt'],
+            'config' => ['security.php'],
+        ],
         'session' => [
-            'package' => null,
-            'constraint' => null,
+            'packages' => [],
             'built_in' => true,
             'description' => 'Browser sessions, CSRF protection, flash data, and session locking.',
             'aliases' => ['sessions'],
             'config' => ['session.php'],
         ],
         'validation' => [
-            'package' => 'infocyph/reqshield',
-            'constraint' => '^3.0',
-            'description' => 'Request, command, configuration, and database validation.',
+            'packages' => [
+                'infocyph/reqshield' => '^3.0',
+            ],
+            'description' => 'Request, command, configuration, schema, sanitization, and database validation.',
             'aliases' => ['reqshield', 'validator'],
             'config' => ['validation.php'],
         ],
@@ -111,9 +110,10 @@ final class ModuleCatalog
     public function resolve(string $module): array
     {
         $normalized = strtolower(trim($module));
+
         foreach (self::MODULES as $name => $definition) {
             if ($normalized === $name
-                || ($definition['package'] !== null && $normalized === $definition['package'])
+                || isset($definition['packages'][$normalized])
                 || in_array($normalized, $definition['aliases'], true)
             ) {
                 return ['name' => $name] + $definition;
