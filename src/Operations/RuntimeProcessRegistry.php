@@ -26,7 +26,7 @@ final readonly class RuntimeProcessRegistry
             'pid' => $pid,
             'started_at' => gmdate(DATE_ATOM),
             'heartbeat_at' => gmdate(DATE_ATOM),
-            'host' => gethostname() ?: 'unknown',
+            'host' => $this->host(),
         ];
         $this->write($record);
 
@@ -49,10 +49,16 @@ final readonly class RuntimeProcessRegistry
         if (!is_dir($directory)) {
             return [];
         }
+
+        $visibility = $this->visibility();
+        $host = $this->host();
         $records = [];
         foreach (glob($directory . DIRECTORY_SEPARATOR . '*.json') ?: [] as $path) {
             $record = $this->read($path);
             if ($record === null) {
+                continue;
+            }
+            if ($visibility === 'host' && !hash_equals($host, $record['host'])) {
                 continue;
             }
             if ($kind !== null && $record['kind'] !== $kind) {
@@ -80,6 +86,21 @@ final readonly class RuntimeProcessRegistry
         if (is_file($path) && !unlink($path)) {
             throw new \RuntimeException(sprintf('Unable to remove runtime process record "%s".', $path));
         }
+    }
+
+    public function visibility(): string
+    {
+        $visibility = strtolower((string) $this->application->config()->get(
+            'operations.runtime_registry.visibility',
+            'host',
+        ));
+        if (!in_array($visibility, ['host', 'shared'], true)) {
+            throw new \UnexpectedValueException(
+                'operations.runtime_registry.visibility must be host or shared.',
+            );
+        }
+
+        return $visibility;
     }
 
     /** @param array{id:string,kind:string,name:string,pid:int,started_at:string,heartbeat_at:string,host:string} $record */
@@ -168,5 +189,12 @@ final readonly class RuntimeProcessRegistry
         return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $configured) === 1
             ? rtrim($configured, DIRECTORY_SEPARATOR)
             : $this->application->basePath(trim($configured, DIRECTORY_SEPARATOR));
+    }
+
+    private function host(): string
+    {
+        $host = gethostname();
+
+        return is_string($host) && $host !== '' ? $host : 'unknown';
     }
 }
