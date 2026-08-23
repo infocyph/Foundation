@@ -270,9 +270,8 @@ final readonly class ScheduleManager
         $executionId = ExecutionId::generate();
         $history = new ExecutionHistory($this->application);
         $name = $entry->command();
-        $this->record($history, $executionId, $name, CommandStatus::Pending, metadata: [
-            'schedule_identity' => $entry->identity(),
-        ]);
+        $identity = ['schedule_identity' => $entry->identity()];
+        $this->record($history, $executionId, $name, CommandStatus::Pending, metadata: $identity);
 
         $lock = null;
         $handle = null;
@@ -284,7 +283,7 @@ final readonly class ScheduleManager
                     );
                 }
                 if ($entry->overlapWaitSeconds() > 0.0) {
-                    $this->record($history, $executionId, $name, CommandStatus::Waiting);
+                    $this->record($history, $executionId, $name, CommandStatus::Waiting, metadata: $identity);
                 }
                 $lock = $this->application->make(CacheLayerFactory::class)->lock();
                 $handle = $lock->acquire(
@@ -293,7 +292,7 @@ final readonly class ScheduleManager
                     $entry->overlapLeaseSeconds(),
                 );
                 if ($handle === null) {
-                    $this->record($history, $executionId, $name, CommandStatus::Cancelled, 0, [
+                    $this->record($history, $executionId, $name, CommandStatus::Cancelled, 0, $identity + [
                         'reason' => 'overlap',
                     ]);
 
@@ -339,7 +338,7 @@ final readonly class ScheduleManager
                 };
             }
 
-            $this->record($history, $executionId, $name, CommandStatus::Running);
+            $this->record($history, $executionId, $name, CommandStatus::Running, metadata: $identity);
             $result = new SchedulerRuntime($this->application)->execute(
                 fn(): ProcessResult => new ProcessRunner()->run(
                     $process,
@@ -365,7 +364,7 @@ final readonly class ScheduleManager
                 $name,
                 $this->status($result),
                 $result->exitCode,
-                [
+                $identity + [
                     'reason' => $result->reason->value,
                     'signal' => $result->signal,
                     'duration_ns' => $result->durationNanoseconds,
@@ -374,7 +373,7 @@ final readonly class ScheduleManager
 
             return new ScheduleRun($entry, $result->exitCode);
         } catch (\Throwable $exception) {
-            $this->record($history, $executionId, $name, CommandStatus::Failed, metadata: [
+            $this->record($history, $executionId, $name, CommandStatus::Failed, metadata: $identity + [
                 'exception' => $exception::class,
             ]);
             throw $exception;
