@@ -8,6 +8,8 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Cache\CacheLayerFactory;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Messaging\OmnibusWorkerFactory;
+use Infocyph\Foundation\Operations\RuntimeControl;
+use Infocyph\Foundation\Operations\RuntimeProcessRegistry;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\Omnibus\Consumer\Worker;
 use Infocyph\Omnibus\Consumer\WorkerPool;
@@ -16,9 +18,7 @@ final readonly class WorkerManager
 {
     public function __construct(private Application $application) {}
 
-    /**
-     * @return array<string, array<string, mixed>>
-     */
+    /** @return array<string, array<string, mixed>> */
     public function all(string $routes = 'routes/workers.php'): array
     {
         $providers = $this->providerDefinitions($routes);
@@ -63,22 +63,48 @@ final readonly class WorkerManager
         $providers = $this->providerDefinitions($routes);
         $messaging = $this->messagingDefinitions();
         $this->assertDistinctNames($providers, $messaging);
-
-        if (isset($providers[$name])) {
-            return $this->runProvider($name, $providers[$name]);
-        }
-        if (isset($messaging[$name])) {
-            return $this->runMessaging($name);
+        if (!isset($providers[$name]) && !isset($messaging[$name])) {
+            throw new \InvalidArgumentException(sprintf('Worker "%s" is not defined.', $name));
         }
 
-        throw new \InvalidArgumentException(sprintf('Worker "%s" is not defined.', $name));
+        $control = new RuntimeControl($this->application);
+        $runtimeToken = $control->token('runtime');
+        $workerToken = $control->token('worker');
+        $namedToken = $control->token('worker', $name);
+        $stopRequested = static fn(): bool => $control->changed('runtime', null, $runtimeToken)
+            || $control->changed('worker', null, $workerToken)
+            || $control->changed('worker', $name, $namedToken);
+
+        $registry = new RuntimeProcessRegistry($this->application);
+        $process = $registry->register('worker', $name);
+        $heartbeat = static function () use ($registry, &$process): void {
+            $process = $registry->heartbeat($process);
+        };
+
+        try {
+            if (isset($providers[$name])) {
+                return $this->runProvider($name, $providers[$name], $stopRequested, $heartbeat);
+            }
+
+            return $this->runMessaging($name, $stopRequested, $heartbeat);
+        } catch (WorkerRestartRequested) {
+            return 0;
+        } finally {
+            $registry->unregister($process);
+        }
     }
 
     /**
      * @param array{provider:class-string<WorkerProvider>,singleton:bool,lock_wait_seconds:float,lock_lease_seconds:float} $definition
+     * @param callable():bool $stopRequested
+     * @param callable():void $processHeartbeat
      */
-    private function runProvider(string $name, array $definition): ?int
-    {
+    private function runProvider(
+        string $name,
+        array $definition,
+        callable $stopRequested,
+        callable $processHeartbeat,
+    ): ?int {
         $app = $this->application->boot();
         $provider = $app->make($definition['provider']);
         if (!$provider instanceof WorkerProvider) {
@@ -90,7 +116,11 @@ final readonly class WorkerManager
         }
 
         if (!$definition['singleton']) {
-            return $provider->run(new WorkerRuntime($app));
+            return $provider->run(new WorkerRuntime(
+                $app,
+                \Closure::fromCallable($processHeartbeat),
+                \Closure::fromCallable($stopRequested),
+            ));
         }
 
         $lock = $app->make(CacheLayerFactory::class)->lock();
@@ -103,7 +133,8 @@ final readonly class WorkerManager
             return null;
         }
 
-        $heartbeat = static function () use ($lock, $handle, $definition, $name): void {
+        $heartbeat = static function () use ($lock, $handle, $definition, $name, $processHeartbeat): void {
+            $processHeartbeat();
             if (!$lock->refresh($handle, $definition['lock_lease_seconds'])) {
                 throw new \RuntimeException(sprintf(
                     'Singleton worker "%s" lost its CacheLayer lock lease.',
@@ -113,18 +144,21 @@ final readonly class WorkerManager
         };
 
         try {
-            return $provider->run(new WorkerRuntime($app, $heartbeat));
+            return $provider->run(new WorkerRuntime(
+                $app,
+                $heartbeat(...),
+                \Closure::fromCallable($stopRequested),
+            ));
         } finally {
             $lock->release($handle);
         }
     }
 
-    private function runMessaging(string $name): int
+    /** @param callable():bool $stopRequested @param callable():void $processHeartbeat */
+    private function runMessaging(string $name, callable $stopRequested, callable $processHeartbeat): int
     {
         if (!class_exists(Worker::class)) {
-            throw new \LogicException(
-                'Messaging workers require the current infocyph/omnibus package.',
-            );
+            throw new \LogicException('Messaging workers require the current infocyph/omnibus package.');
         }
 
         /** @var OmnibusWorkerFactory $factory */
@@ -134,22 +168,24 @@ final readonly class WorkerManager
 
         if (!$pool['enabled']) {
             $this->application->boot();
-            $factory->make($name)->run();
+            $worker = $factory->make($name);
+            $this->watch(
+                $worker,
+                $stopRequested,
+                $processHeartbeat,
+                static fn() => $worker->run(),
+            );
 
             return 0;
         }
 
         if (!class_exists(WorkerPool::class)) {
-            throw new \LogicException(
-                'Pooled messaging workers require an Omnibus release that provides WorkerPool.',
-            );
+            throw new \LogicException('Pooled messaging workers require an Omnibus release that provides WorkerPool.');
         }
 
         $transport = $factory->transport($name);
         if ($transport === 'memory') {
-            throw new \LogicException(
-                'Pooled workers cannot use Omnibus memory transport because it is process-local.',
-            );
+            throw new \LogicException('Pooled workers cannot use Omnibus memory transport because it is process-local.');
         }
         if ($transport === 'sync') {
             throw new \LogicException('Pooled workers require a receiving transport; sync cannot receive messages.');
@@ -171,9 +207,64 @@ final readonly class WorkerManager
             restartBackoffSeconds: $pool['restart_backoff_seconds'],
             shutdownGraceSeconds: $pool['shutdown_grace_seconds'],
         );
-        $workerPool->run();
+        $this->watch(
+            $workerPool,
+            $stopRequested,
+            $processHeartbeat,
+            static fn() => $workerPool->run(),
+        );
 
         return 0;
+    }
+
+    /**
+     * Translate Foundation generation changes into Omnibus' native graceful
+     * requestStop() lifecycle without adding an upstream polling dependency.
+     *
+     * On platforms without pcntl, configured worker lifecycle limits and normal
+     * process-manager signals remain the fallback; provider workers can still
+     * observe stop state through WorkerRuntime::heartbeat().
+     *
+     * @param object{requestStop():void} $target
+     * @param callable():bool $stopRequested
+     * @param callable():void $heartbeat
+     * @param callable():void $run
+     */
+    private function watch(object $target, callable $stopRequested, callable $heartbeat, callable $run): void
+    {
+        if (!defined('SIGALRM')
+            || !function_exists('pcntl_alarm')
+            || !function_exists('pcntl_async_signals')
+            || !function_exists('pcntl_signal')
+            || !function_exists('pcntl_signal_get_handler')
+        ) {
+            $run();
+
+            return;
+        }
+
+        $signal = constant('SIGALRM');
+        $previousHandler = pcntl_signal_get_handler($signal);
+        $previousAsync = pcntl_async_signals();
+        pcntl_async_signals(true);
+        pcntl_signal($signal, static function () use ($target, $stopRequested, $heartbeat): void {
+            $heartbeat();
+            if ($stopRequested()) {
+                $target->requestStop();
+
+                return;
+            }
+            pcntl_alarm(1);
+        });
+        pcntl_alarm(1);
+
+        try {
+            $run();
+        } finally {
+            pcntl_alarm(0);
+            pcntl_signal($signal, $previousHandler);
+            pcntl_async_signals($previousAsync);
+        }
     }
 
     /**
@@ -199,10 +290,7 @@ final readonly class WorkerManager
 
             $options = is_array($definition) ? $definition : ['provider' => $definition];
             $provider = $options['provider'] ?? null;
-            if (!is_string($provider)
-                || $provider === ''
-                || !is_a($provider, WorkerProvider::class, true)
-            ) {
+            if (!is_string($provider) || $provider === '' || !is_a($provider, WorkerProvider::class, true)) {
                 throw new \UnexpectedValueException(sprintf(
                     'Worker "%s" must define a %s provider.',
                     $name,
@@ -251,10 +339,7 @@ final readonly class WorkerManager
         return $workers;
     }
 
-    /**
-     * @param array<string, mixed> $providers
-     * @param array<string, mixed> $messaging
-     */
+    /** @param array<string, mixed> $providers @param array<string, mixed> $messaging */
     private function assertDistinctNames(array $providers, array $messaging): void
     {
         $collision = array_key_first(array_intersect_key($providers, $messaging));
@@ -269,9 +354,7 @@ final readonly class WorkerManager
     private function assertPoolParentClean(): void
     {
         if ($this->application->booted()) {
-            throw new \LogicException(
-                'Pooled workers must fork before booting the parent Foundation application.',
-            );
+            throw new \LogicException('Pooled workers must fork before booting the parent Foundation application.');
         }
 
         $container = $this->application->container();
