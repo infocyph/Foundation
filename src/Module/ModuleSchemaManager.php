@@ -121,12 +121,13 @@ final readonly class ModuleSchemaManager
         $results = [];
         foreach ($resources as $resource) {
             if (!$resource['pdo'] instanceof PDO) {
+                $state = is_string($resource['state'] ?? null) ? $resource['state'] : 'unavailable';
                 $results[] = $this->result(
                     $resource['name'],
                     $module,
                     true,
                     false,
-                    'unavailable',
+                    $afterInstall && $state === 'pending' ? 'missing' : $state,
                     $resource['detail'],
                 );
 
@@ -162,9 +163,9 @@ final readonly class ModuleSchemaManager
     }
 
     /**
-     * @return list<array{name:string,table:string,pdo:?PDO,detail:string,type:string,allow_sqlite_for_testing?:bool}>
+     * @return list<array{name:string,table:string,pdo:?PDO,detail:string,type:string,state?:string,allow_sqlite_for_testing?:bool}>
      */
-    private function activeCacheDatabaseResources(?string $connection): array
+    private function activeCacheDatabaseResources(?string $connection, bool $forInstall = false): array
     {
         $stores = $this->associative($this->application->config()->get('cache.stores', []));
         $resources = [];
@@ -179,13 +180,14 @@ final readonly class ModuleSchemaManager
             $table = is_string($store['table'] ?? null) && $store['table'] !== ''
                 ? $store['table']
                 : 'cachelayer_entries';
-            $resolved = $this->cachePdo($store, $driver, $connection);
+            $resolved = $this->cachePdo($store, $driver, $connection, $forInstall);
             $resources[] = [
                 'name' => 'cache:store:' . $name,
                 'table' => $table,
                 'pdo' => $resolved['pdo'],
                 'detail' => $resolved['detail'],
                 'type' => 'cache',
+                'state' => $resolved['state'] ?? null,
             ];
         }
 
@@ -201,6 +203,7 @@ final readonly class ModuleSchemaManager
                 'pdo' => $resolved['pdo'],
                 'detail' => $resolved['detail'],
                 'type' => 'invalidation',
+                'state' => $resolved['state'] ?? null,
                 'allow_sqlite_for_testing' => ($transport['allow_sqlite_for_testing'] ?? false) === true,
             ];
         }
@@ -255,8 +258,8 @@ final readonly class ModuleSchemaManager
         return array_keys($active);
     }
 
-    /** @param array<string,mixed> $store @return array{pdo:?PDO,detail:string} */
-    private function cachePdo(array $store, string $driver, ?string $connection): array
+    /** @param array<string,mixed> $store @return array{pdo:?PDO,detail:string,state?:string} */
+    private function cachePdo(array $store, string $driver, ?string $connection, bool $forInstall): array
     {
         if (($store['client'] ?? null) instanceof PDO) {
             return ['pdo' => $store['client'], 'detail' => 'Configured PDO client.'];
@@ -273,9 +276,19 @@ final readonly class ModuleSchemaManager
                 return ['pdo' => null, 'detail' => 'SQLite cache store has no configured path.'];
             }
             $path = $this->absolute($path) ? $path : $this->application->basePath($path);
-            $directory = dirname($path);
-            if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
-                throw new \RuntimeException(sprintf('Unable to create cache schema directory "%s".', $directory));
+            if (!$forInstall && !is_file($path)) {
+                return [
+                    'pdo' => null,
+                    'detail' => 'SQLite cache database ' . $path . ' does not exist.',
+                    'state' => 'pending',
+                ];
+            }
+
+            if ($forInstall) {
+                $directory = dirname($path);
+                if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
+                    throw new \RuntimeException(sprintf('Unable to create cache schema directory "%s".', $directory));
+                }
             }
 
             return ['pdo' => new PDO('sqlite:' . $path), 'detail' => 'SQLite cache database ' . $path . '.'];
@@ -296,7 +309,7 @@ final readonly class ModuleSchemaManager
         ];
     }
 
-    /** @return array{pdo:?PDO,detail:string} */
+    /** @return array{pdo:?PDO,detail:string,state?:string} */
     private function databasePdo(?string $connection): array
     {
         if (!class_exists(\Infocyph\DBLayer\Connection\Connection::class)) {
@@ -401,7 +414,7 @@ final readonly class ModuleSchemaManager
 
     private function installCacheSchemas(?string $connection): void
     {
-        foreach ($this->activeCacheDatabaseResources($connection) as $resource) {
+        foreach ($this->activeCacheDatabaseResources($connection, true) as $resource) {
             $pdo = $resource['pdo'];
             if (!$pdo instanceof PDO) {
                 continue;
