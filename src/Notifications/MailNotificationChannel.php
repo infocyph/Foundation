@@ -29,7 +29,7 @@ final readonly class MailNotificationChannel implements NotificationChannel
             ));
         }
 
-        $recipients = $this->recipients($recipient->routeNotificationFor('mail'));
+        $recipients = $this->recipients($recipient->routeNotificationFor('mail', $notification));
         if ($recipients === []) {
             throw new \LogicException('Mail notification recipient has no mail route.');
         }
