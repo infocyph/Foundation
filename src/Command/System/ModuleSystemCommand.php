@@ -164,7 +164,7 @@ final class ModuleSystemCommand extends SystemCommand
         $module = $this->catalog()->resolve($requested)['name'];
         $schemas = $this->schemas()->install($module, $this->option('connection'));
 
-        return $this->schemaResponse($schemas, $module, $requested);
+        return $this->schemaResponse($schemas, $module, $requested, true);
     }
 
     private function schemaStatus(): int
@@ -173,7 +173,7 @@ final class ModuleSystemCommand extends SystemCommand
         $module = $this->catalog()->resolve($requested)['name'];
         $schemas = $this->schemas()->status($module, $this->option('connection'));
 
-        return $this->schemaResponse($schemas, $module, $requested);
+        return $this->schemaResponse($schemas, $module, $requested, true);
     }
 
     private function schemaSync(): int
@@ -191,11 +191,15 @@ final class ModuleSystemCommand extends SystemCommand
     /**
      * @param list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}> $schemas
      */
-    private function schemaResponse(array $schemas, ?string $module = null, ?string $requested = null): int
-    {
+    private function schemaResponse(
+        array $schemas,
+        ?string $module = null,
+        ?string $requested = null,
+        bool $strict = false,
+    ): int {
         $failed = array_any(
             $schemas,
-            static fn(array $schema): bool => $schema['applicable'] && !$schema['installed'],
+            static fn(array $schema): bool => !$schema['installed'] && ($strict || $schema['applicable']),
         );
         $payload = ['schemas' => $schemas];
         if ($module !== null) {
