@@ -67,10 +67,12 @@ final readonly class CommandResolver
         foreach ($definition->capabilities() as $capability) {
             $service = match ($capability) {
                 'cache' => 'foundation.cache',
+                'communication' => 'foundation.notifications',
                 'crypto' => 'foundation.security',
                 'db' => 'foundation.db',
                 'filesystem' => 'foundation.filesystem',
                 'messaging' => 'foundation.messaging',
+                'validation' => 'foundation.validator',
                 'web' => 'foundation.router',
                 default => null,
             };
