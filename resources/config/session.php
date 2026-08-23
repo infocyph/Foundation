@@ -16,9 +16,14 @@ return [
     |
     | "driver" accepts `array|file|cache|database`. The `array` store is
     | process-local and intended for tests. `file` is the dependency-free
-    | default. `cache` requires the CacheLayer module and `database` requires
-    | the DBLayer module. Session services remain unloaded until a route uses
-    | the `session` or `csrf` middleware.
+    | default. `cache` requires the cache module and `database` requires the
+    | database module. Session services remain unloaded until a route uses the
+    | `session` or `csrf` middleware.
+    |
+    | Database-backed sessions use the session module schema. Module installation
+    | synchronizes it when SESSION_DRIVER=database; prepare it explicitly with
+    | `module:schema:install session` or inspect it with
+    | `module:schema:status session`.
     |
     | "lifetime" is the idle lifetime in seconds and must be a positive
     | integer; examples: `7200` (two hours) or `1209600` (fourteen days).
