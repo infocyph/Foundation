@@ -11,6 +11,9 @@ final readonly class ParsedInput
         'help' => ['name' => 'help', 'short' => 'h', 'accepts_value' => false, 'multiple' => false, 'negatable' => false],
         'version' => ['name' => 'version', 'short' => 'V', 'accepts_value' => false, 'multiple' => false, 'negatable' => false],
         'quiet' => ['name' => 'quiet', 'short' => 'q', 'accepts_value' => false, 'multiple' => false, 'negatable' => false],
+        'silent' => ['name' => 'silent', 'short' => null, 'accepts_value' => false, 'multiple' => false, 'negatable' => false],
+        'verbose' => ['name' => 'verbose', 'short' => 'v', 'accepts_value' => false, 'multiple' => true, 'negatable' => false],
+        'profile' => ['name' => 'profile', 'short' => null, 'accepts_value' => false, 'multiple' => false, 'negatable' => false],
         'no-interaction' => ['name' => 'no-interaction', 'short' => 'n', 'accepts_value' => false, 'multiple' => false, 'negatable' => false],
         'json' => ['name' => 'json', 'short' => null, 'accepts_value' => false, 'multiple' => false, 'negatable' => false],
         'env' => ['name' => 'env', 'short' => null, 'accepts_value' => true, 'multiple' => false, 'negatable' => false],
@@ -124,6 +127,16 @@ final readonly class ParsedInput
         return [];
     }
 
+    public function verbosity(): int
+    {
+        $value = $this->options['verbose'] ?? null;
+        if (is_array($value)) {
+            return min(3, count($value));
+        }
+
+        return $value === true || $value === '1' || $value === 'true' ? 1 : 0;
+    }
+
     /** @param array<string, string|bool|list<string>> $options */
     private static function addOption(array &$options, string $name, string|bool $value, bool $multiple): void
     {
@@ -147,9 +160,7 @@ final readonly class ParsedInput
             : [(string) $existing, (string) $value];
     }
 
-    /**
-     * @return array{name:string,short:?string,accepts_value:bool,multiple:bool,negatable:bool}|null
-     */
+    /** @return array{name:string,short:?string,accepts_value:bool,multiple:bool,negatable:bool}|null */
     private static function longMetadata(string $name, ?CommandDefinition $definition): ?array
     {
         $option = $definition?->options()[$name] ?? null;
@@ -166,9 +177,7 @@ final readonly class ParsedInput
         return self::GLOBAL_OPTIONS[$name] ?? null;
     }
 
-    /**
-     * @return array{name:string,short:?string,accepts_value:bool,multiple:bool,negatable:bool}|null
-     */
+    /** @return array{name:string,short:?string,accepts_value:bool,multiple:bool,negatable:bool}|null */
     private static function shortMetadata(string $short, ?CommandDefinition $definition): ?array
     {
         $option = $definition?->optionByShort($short);
