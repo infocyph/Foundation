@@ -16,17 +16,17 @@ After each joint batch:
 
 1. record Foundation and Infbyte source checkpoints separately from tracker-only commits;
 2. fix framework defects in Foundation rather than working around them in Infbyte;
-3. keep specialist engines in their owning packages;
+3. keep specialist engines and schema grammar in their owning packages;
 4. keep public framework modules purpose-oriented rather than package-oriented;
 5. keep full tests/release gates deferred until implementation/config/docs are stable.
 
 # Current checkpoint
 
 - Date: 2026-08-23
-- Foundation source checkpoint: `11801b097f93b593df98e5a3c3d3fdca702166f1`
-- Infbyte source checkpoint: `8e5e9443be1a40a770fc80b4ffaf22322dc08de9`
+- Foundation source checkpoint: `b81f508c2d14f1b7bb6a4dc63982ba19cde7fb81`
+- Infbyte source checkpoint: `56cb73e18eab07f34242a929eccbc9e6572d9971`
 - Current phase: **pre-documentation cleanup pass**.
-- Latest completed cleanup: **purpose-first module architecture**.
+- Latest completed cleanup: **purpose-first modules + module-owned schema lifecycle**.
 - Full PHPUnit/static-analysis/PHPForge/release matrix: not run yet.
 
 # Fixed architecture
@@ -38,7 +38,7 @@ After each joint batch:
 - InterMix owns DI/container mechanics; Foundation owns runtime composition/lifecycle policy;
 - UID is the canonical generated-ID provider;
 - config/command/schedule/route/container optimized artifacts are deployment-owned;
-- specialist libraries retain their own engines and public implementation APIs;
+- specialist libraries retain their own engines, schema implementations, and public implementation APIs;
 - Infbyte does not rebuild Foundation runtime machinery.
 
 ## Configuration/runtime lifecycle
@@ -67,11 +67,7 @@ After each joint batch:
 
 # Completed cleanup — purpose-first modules
 
-## Public rule
-
 A Foundation module represents an **application purpose/capability**, not a Composer package.
-
-Current canonical modules:
 
 | Module | Backing packages |
 |---|---|
@@ -87,63 +83,95 @@ Current canonical modules:
 | `session` | built into Foundation |
 | `validation` | `infocyph/reqshield ^3.0` |
 
-### Naming/alias decisions
+Naming rules:
 
-- `database` is canonical; `db` and `dblayer` remain aliases.
-- `security` is canonical; `crypto` and `epicrypt` remain aliases.
-- standalone `otp` and `passkeys` modules are removed.
-- `otp`, `mfa`, `passkey`, `passkeys`, `webauthn`, and the corresponding package names resolve to `auth`.
+- `database` is canonical; `db` and `dblayer` are aliases;
+- `security` is canonical; `crypto` and `epicrypt` are aliases;
+- standalone `otp` and `passkeys` modules are gone;
+- `otp|mfa|passkey|passkeys|webauthn` resolve to `auth`;
+- provider dependency errors use canonical `auth|database|security` names.
 
-## Multi-package module behavior
+`ModuleManager` supports multi-package bundles, per-package state, module status `built-in|installed|partial|available`, grouped Composer install, and removal of direct application requirements only.
 
-`ModuleCatalog` now stores `packages` as `package => constraint` instead of singular `package`/`constraint` fields.
+Runtime readiness remains implementation-exact: enabling OTP does not require WebAuthn at runtime and vice versa.
 
-`ModuleManager` now:
+# Completed cleanup — module-owned schema lifecycle
 
-- installs all dependencies in a module bundle in one Composer operation;
-- removes only module packages that are direct application requirements;
-- reports per-package installed/direct/version state;
-- reports module status as `built-in`, `installed`, `partial`, or `available`;
-- keeps built-in module config publication working without Composer installation.
+## Public rule
 
-`module:list` now presents:
+A module may declare database schemas that belong to its capability. Foundation orchestrates those schemas but **does not copy specialist-package SQL or privately reimplement it**.
 
-- module;
-- status;
-- backing packages;
-- purpose/description.
+Current schema ownership:
 
-Alias input is normalized back to the canonical module name in install/remove output.
+| Module | Schema | Native owner |
+|---|---|---|
+| `auth` | authentication/accounts/tokens/MFA/passkeys/authorization | Foundation `AuthSchemaInstaller` |
+| `cache` | PDO/SQLite cache entries | CacheLayer `PdoCacheSchema` |
+| `cache` | PDO cluster invalidation events | CacheLayer `PdoInvalidationSchema` |
+| `session` | database session store | Foundation `SessionDatabaseSchema` |
 
-## Runtime readiness stays exact
+Other modules currently declare no application database schema. The `database` module owns DB/migration infrastructure rather than an application schema of its own.
 
-Purpose-level installation does **not** make runtime readiness coarse.
+CacheLayer node/tiered SQLite internals remain CacheLayer-owned self-initializing implementation details because CacheLayer exposes no public schema provisioner for them. Foundation does not duplicate their private SQL.
 
-Examples:
+## Module schema metadata
 
-- `AUTH_MFA=otp` requires the OTP implementation package and cache coordination, not unused WebAuthn runtime state;
-- `AUTH_PASSKEY=webauthn` checks the WebAuthn package;
-- database-backed auth/session checks the `database` module package;
-- Epicrypt-backed passwords/tokens check the `security` module package.
+`ModuleCatalog` now includes `schemas` alongside packages/config. `ModuleManager::all()` exposes that metadata and `module:list` shows:
 
-This preserves the distinction between:
+- Module;
+- Status;
+- Packages;
+- Schemas;
+- Purpose.
 
-1. module bundle installation;
-2. package availability;
-3. application configuration;
-4. runtime capability activation.
+## Public schema commands
 
-## Infbyte config alignment
+Canonical schema lifecycle:
 
-`config/auth.php` now exposes only capability choices and documents their purpose-level module requirements:
+- `module:schema:status <module> [--connection=...]`;
+- `module:schema:install <module> [--connection=...]`;
+- `module:schema:sync [--connection=...]`.
 
-- database storage → `module:install database`;
-- cache-backed auth state → `module:install cache`;
-- Epicrypt password/token drivers → `module:install security`;
-- OTP or WebAuthn → `module:install auth`;
-- TalkingBytes notifications → `module:install communication`.
+The duplicate specialized public commands `auth:schema:*` and `session:schema:*` were removed. Their schema classes remain native implementation details behind the module lifecycle.
 
-OTP and WebAuthn remain independently selectable even though they share the same installation module.
+## Install behavior
+
+`module:install <module>` now performs one application-level operation:
+
+1. install the module's Composer package bundle when required;
+2. publish that module's config without overwriting host config;
+3. invalidate compiled container/optimize state after package/config mutation;
+4. invoke `module:schema:sync` in a **fresh PHP process** so newly installed Composer namespaces are visible;
+5. provision only database schemas required by the active configuration;
+6. return schema state in machine-readable output and fail if a configured required schema cannot be made ready.
+
+Fresh-process sync is intentional; Foundation does not mutate Composer's active autoloader after `composer require`.
+
+Install ordering is safe: installing `database` later synchronizes already-configured database-backed auth/session/cache capabilities.
+
+Explicit `module:schema:install` can provision a module-owned schema ahead of activation where the native backend is available.
+
+## Data safety
+
+`module:remove` **never drops schemas or application data**. Package removal and destructive schema teardown are deliberately separate concerns.
+
+## Readiness integration
+
+`app:ready` now checks both:
+
+- exact implementation packages required by configured capabilities;
+- applicable module-owned database schemas.
+
+A package being installed is no longer sufficient to declare a configured persistence capability ready when its required schema is missing.
+
+## Config alignment
+
+Foundation cache/session templates and Infbyte auth config now document the module schema lifecycle:
+
+- database auth storage → auth schema;
+- database sessions → session schema;
+- active PDO/SQLite CacheLayer resources → CacheLayer native schema provisioners;
+- active PDO invalidation transports → CacheLayer native invalidation schema.
 
 # Immediate next work — continue cleanup pass
 
@@ -166,7 +194,9 @@ When explicitly started:
 - PHPUnit/integration suites;
 - clean Infbyte create-project/install;
 - core-only runtime without optional packages;
-- purpose-module install/remove/publication matrix, including partial auth bundle state;
+- purpose-module install/remove/config/schema matrix, including partial auth bundle state;
+- module schema status/install/sync behavior and install-order combinations;
+- app:ready missing-schema diagnostics;
 - CLI preflight and Web/CLI/Worker/Scheduler isolation;
 - optimize/optimize:clear/deploy behavior;
 - persistent execution/fork/locking checks;
@@ -178,6 +208,9 @@ When explicitly started:
 
 - no package-per-module public model;
 - no standalone OTP/passkeys modules;
+- no duplicated public auth/session schema command families;
+- no automatic schema drop during module removal;
+- no copied CacheLayer/internal specialist SQL in Foundation;
 - no `FoundationConsole`, `Foundation::console()`, or second CLI hierarchy;
 - no broad specialist Application manager/facade proxies;
 - no static global application state;
