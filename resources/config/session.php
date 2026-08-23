@@ -35,7 +35,7 @@ return [
     | Session Cookie
     |--------------------------------------------------------------------------
     |
-    | "name" is an RFC 6265 cookie name, for example `infbyte_session`.
+    | "name" is an RFC 6265 cookie name, for example `foundation_session`.
     | "path" is normally `/`. "domain" is null for a host-only cookie or a
     | domain such as `.example.com`. "secure" and "http_only" accept
     | `true|false`. "same_site" accepts `Lax|Strict|None`; `None` requires
@@ -44,7 +44,7 @@ return [
     |
     */
     'cookie' => [
-        'name' => env_string('SESSION_COOKIE', 'infbyte_session'),
+        'name' => env_string('SESSION_COOKIE', 'foundation_session'),
         'path' => env_string('SESSION_COOKIE_PATH', '/'),
         'domain' => env('SESSION_COOKIE_DOMAIN'),
         'secure' => env_bool('SESSION_COOKIE_SECURE', true),
