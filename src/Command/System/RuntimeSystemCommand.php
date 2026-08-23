@@ -235,11 +235,12 @@ final class RuntimeSystemCommand extends SystemCommand
             ?? throw new \LogicException('Validated scheduled entry name is unavailable.');
         $run = (new ScheduleManager($this->application))->runNamed($name);
         $data = $this->scheduleRunData($run);
+        $message = $run->locked
+            ? sprintf('Scheduled entry "%s" was not run because its ownership lock is unavailable.', $name)
+            : sprintf('Scheduled entry "%s" completed with exit code %d.', $name, $run->exitCode);
+        $this->emit($data, $message);
 
-        return $this->emit(
-            $data,
-            sprintf('Scheduled entry "%s" completed with exit code %d.', $name, $run->exitCode),
-        );
+        return $run->successful() ? ExitCode::SUCCESS : ExitCode::FAILURE;
     }
 
     /** @return array{command:string,identity:string,exit_code:int,locked:bool,successful:bool} */
