@@ -27,7 +27,7 @@ final readonly class SharedStateTopology
 
     public function requiredSecurityScope(): string
     {
-        return DeploymentTopology::fromConfig($this->config->get('app.topology'))->isDistributed()
+        return DeploymentTopology::resolve($this->config) === DeploymentTopology::DISTRIBUTED
             ? self::CLUSTER
             : self::HOST;
     }
