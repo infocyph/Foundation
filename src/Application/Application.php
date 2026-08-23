@@ -40,6 +40,9 @@ final class Application
         private readonly RuntimeMode $runtimeMode,
     ) {
         $this->bindCoreServices();
+        $this->container->onMissing(function (string $id): void {
+            $this->activateManagedService($id);
+        });
     }
 
     /** @param array<string, mixed> $config */
@@ -196,19 +199,7 @@ final class Application
     public function make(string $id): mixed
     {
         try {
-            if ($this->bootstrapper->manages($id)) {
-                $unavailable = $this->bootstrapper->unavailableServiceMessage($id);
-                if ($unavailable !== null) {
-                    throw new \LogicException($unavailable);
-                }
-                if (!$this->bootstrapper->activateProviderFor($this, $id)) {
-                    throw new \LogicException(sprintf(
-                        'Foundation service "%s" is unavailable in the %s runtime.',
-                        $id,
-                        $this->runtimeMode->value,
-                    ));
-                }
-            }
+            $this->activateManagedService($id);
 
             return $this->container->get($id);
         } catch (\Throwable $exception) {
@@ -313,6 +304,25 @@ final class Application
     public function uploadsPath(string $path = ''): string
     {
         return $this->paths()->uploads($path);
+    }
+
+    private function activateManagedService(string $id): void
+    {
+        if (!$this->bootstrapper->manages($id)) {
+            return;
+        }
+
+        $unavailable = $this->bootstrapper->unavailableServiceMessage($id);
+        if ($unavailable !== null) {
+            throw new \LogicException($unavailable);
+        }
+        if (!$this->bootstrapper->activateProviderFor($this, $id)) {
+            throw new \LogicException(sprintf(
+                'Foundation service "%s" is unavailable in the %s runtime.',
+                $id,
+                $this->runtimeMode->value,
+            ));
+        }
     }
 
     private function bindCoreServices(): void
