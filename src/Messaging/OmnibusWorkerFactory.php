@@ -8,6 +8,7 @@ use Closure;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\Omnibus\Consumer\Worker;
+use Infocyph\Omnibus\Consumer\WorkerLifecycle;
 use Infocyph\Omnibus\Consumer\WorkerOptions;
 
 final readonly class OmnibusWorkerFactory
@@ -44,11 +45,12 @@ final readonly class OmnibusWorkerFactory
         return isset($this->all()[$name]);
     }
 
-    public function make(string $name): Worker
+    public function make(string $name, ?WorkerLifecycle $lifecycle = null): Worker
     {
         return new Worker(
             ($this->consumers)()->make($this->transport($name)),
             $this->options($name),
+            $lifecycle,
         );
     }
 
