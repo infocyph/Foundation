@@ -46,9 +46,9 @@ final class WebrickRouterFactory
             : null;
         $matcher = $this->matcher();
         $warm = false;
-        if ($routeCache !== null) {
+        if ($routeCache !== null && RouteCachePath::isSourceFresh($this->config)) {
             $matcher->enableCache($routeCache);
-            $warm = RouteCachePath::isSourceFresh($this->config) && $matcher->canBootFromCache();
+            $warm = $matcher->canBootFromCache();
         }
 
         $this->middlewareRegistrar->register($warm ? $matcher->middlewareRequirements() : null);
@@ -56,7 +56,7 @@ final class WebrickRouterFactory
         $routes = $warm ? null : $this->routes();
         $aliases = $routes instanceof Collection ? $this->aliasesByRoute($routes) : [];
 
-        $kernel = RouterKernel::bootWithRegistrar(
+        return $this->kernel = RouterKernel::bootWithRegistrar(
             log: $this->logger,
             matcher: $matcher,
             register: function (Registrar $registrar) use ($routes, $aliases): void {
@@ -72,7 +72,7 @@ final class WebrickRouterFactory
                     );
                 }
             },
-            routeCache: $routeCache,
+            routeCache: $warm ? $routeCache : null,
             registrarOptions: [
                 'autoSlashRedirect' => (bool) $this->config->get('router.auto_slash_redirect', false),
                 'exposeUrlServices' => (bool) $this->config->get('router.expose_url_services', false),
@@ -89,12 +89,6 @@ final class WebrickRouterFactory
             requestScopeEnabled: false,
             container: $this->container,
         );
-
-        if ($routeCache !== null && !$warm && $matcher->canBootFromCache()) {
-            RouteCachePath::markFresh($this->config);
-        }
-
-        return $this->kernel = $kernel;
     }
 
     public function router(): Registrar
