@@ -328,6 +328,7 @@ final class FoundationDefaults
                 'forward_auth_events' => false,
             ],
             'notifications' => [
+                'channels' => [],
                 'auth' => [
                     'critical_types' => [],
                     'fail_silently' => false,
@@ -337,6 +338,7 @@ final class FoundationDefaults
                 ],
                 'email' => [
                     'default_sender' => 'default',
+                    'default_from' => null,
                     'senders' => [
                         'default' => self::emailSenderDefaults('null'),
                         'auth' => self::emailSenderDefaults('null'),
