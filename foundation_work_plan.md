@@ -1,6 +1,6 @@
 # Foundation 2.0 — Live Work Plan
 
-> `foundation_plan.md` is historical architecture/reference material. This file tracks the current implementation state.
+> `foundation_plan.md` is historical architecture/reference material. This file tracks the current implementation/release state.
 
 ## Working branches
 
@@ -13,14 +13,17 @@ Foundation is the reusable framework/runtime layer. Infbyte is the opinionated a
 
 - Date: 2026-08-24
 - Foundation source checkpoint: `493c39a7a06bac0455397556254f0f8e7e25f973`
+- Foundation documentation checkpoint: `944220490e1c28e9945fd398265dc9d072eb4c93`
 - Infbyte source checkpoint: `56cb73e18eab07f34242a929eccbc9e6572d9971`
-- Current phase: **documentation reconciliation + public-name/config freeze**.
-- Application-contract/API cleanup: **complete**.
+- Infbyte documentation checkpoint: `26a35da0926285119c31ed880bf1f5aa06f3cf19`
+- Current phase: **public-name/config freeze complete; ready for deferred verification matrix**.
+- Application-contract/API cleanup: complete.
+- Documentation reconciliation: complete for the public architecture/module/runtime/operations/auth/database/messaging/application-contract surfaces.
 - Full PHPUnit/static-analysis/PHPForge/runtime/release matrix: **not run yet**.
 
-## Dependency baseline
+# Dependency baseline
 
-### Core
+## Core
 
 - PHP `^8.4`
 - `composer-runtime-api ^2.0`
@@ -30,7 +33,7 @@ Foundation is the reusable framework/runtime layer. Infbyte is the opinionated a
 - `infocyph/webrick ^4.0.2`
 - `psr/log ^3.0.2`
 
-### Optional/dev capabilities
+## Optional/dev capabilities
 
 - `infocyph/cachelayer ^3.2.0`
 - `infocyph/dblayer ^4.1`
@@ -43,55 +46,57 @@ Foundation is the reusable framework/runtime layer. Infbyte is the opinionated a
 - `infocyph/talkingbytes ^2.0`
 - `web-auth/webauthn-lib ^5.3.5`
 
-`ModuleCatalog` constraints must remain aligned with these package baselines where the package backs a public module.
+`ModuleCatalog` constraints stay aligned with this baseline.
 
-# Fixed architecture
+# Frozen architecture
 
-## Runtime boundary
+## Runtimes
 
-- exactly four runtimes: Web, CLI, Worker, Scheduler;
-- no retired Console hierarchy or compatibility layer;
-- root executable remains `infbyte`;
-- InterMix owns DI/container mechanics;
-- Foundation owns runtime composition, provider activation, configuration and lifecycle policy;
-- UID is the canonical generated-ID provider;
-- optimized config/command/schedule/route/container artifacts are deployment-owned;
-- specialist packages retain their engines, public implementation APIs and schema grammar;
-- Infbyte never rebuilds Foundation runtime machinery.
+Exactly four Foundation runtimes exist:
+
+- Web
+- CLI
+- Worker
+- Scheduler
+
+No `FoundationConsole`, `Foundation::console()`, `src/Console` hierarchy, runtime inference from `PHP_SAPI`, static global application state, generic IdentifierManager, or `app.container.request_scope` compatibility layer is permitted.
 
 ## Application surface
 
-`Application` is intentionally narrow. It owns:
+`Application` is intentionally a narrow runtime/composition object. Its stable categories are:
 
 - boot/runtime state;
-- config/container/provider access;
-- service resolution through `make()` / `has()`;
-- execution scope;
-- Foundation application paths;
-- canonical Web entry through `handle()` / `http()`.
+- `config()` / `container()` / `providers()`;
+- generic DI resolution through `make()` / `has()`;
+- `execution()`;
+- canonical Web entry through `handle()` / `http()`;
+- Foundation application path methods.
 
-Removed service-shortcut proxies include auth/auth-actions/auth-manager, browser-session/session, router, response and testing conveniences. Consumers resolve real services through DI instead of turning `Application` into another facade.
+Auth, session, router, response and testing convenience proxies are removed. Consumers resolve concrete services through DI. Do not add broad cache/database/filesystem/messaging/security/application facades.
 
-Do not add generic cache/database/filesystem/messaging/security forwarding managers to `Application`.
+## Specialist ownership
 
-## Configuration lifecycle
+- InterMix owns DI/lifetimes/scopes.
+- Webrick owns HTTP/router/request/response/emission engines.
+- UID owns identifier algorithms.
+- DBLayer owns DB/query/schema/migration engines.
+- CacheLayer owns cache/lock/counter/node/cluster engines.
+- Omnibus owns message transport/handlers/retry/failure/workers/pools.
+- TalkingBytes owns HTTP/email/webhook/gRPC protocol engines.
+- ReqShield owns validation mechanics.
+- Epicrypt owns cryptographic primitives.
+- Pathwise/Flysystem own generic filesystem/storage behavior.
+- OTP owns OTP algorithms/replay primitives.
+- WebAuthn library owns WebAuthn protocol validation.
 
-- no `app.container.request_scope`;
-- lazy loading is normal/default;
-- global helpers are only `env()`, `env_bool()`, `env_int()`, `env_string()`;
-- paths are declarative, not global state;
-- package presence is distinct from configured/activated capability;
-- one InterMix execution scope exists per execution unit;
-- external runtime cleanup stays targeted through `RuntimeContextTracker`.
+Foundation adds application policy/composition only where it owns a real framework responsibility.
 
-# Purpose-first modules
-
-A public module represents an application purpose, not a Composer package.
+# Frozen purpose-first modules
 
 | Module | Backing package(s) |
 |---|---|
 | `auth` | `infocyph/otp ^6.0`, `web-auth/webauthn-lib ^5.3.5` |
-| `cache` | `infocyph/cachelayer ^3.2.0` |
+| `cache` | `infocyph/cachelayer ^3.2` |
 | `communication` | `infocyph/talkingbytes ^2.0` |
 | `database` | `infocyph/dblayer ^4.1` |
 | `filesystem` | `infocyph/pathwise ^3.1` |
@@ -101,285 +106,230 @@ A public module represents an application purpose, not a Composer package.
 | `resources` | built in |
 | `security` | `infocyph/epicrypt ^2.1` |
 | `session` | built in |
-| `validation` | `infocyph/reqshield ^3.0.1` |
+| `validation` | `infocyph/reqshield ^3.0` |
 
-Naming rules:
+Canonical aliases:
 
-- `database` canonical; aliases `db`, `dblayer`;
-- `security` canonical; aliases `crypto`, `epicrypt`;
-- no standalone OTP/passkey module;
-- `otp|mfa|passkey|passkeys|webauthn` resolve to `auth`;
-- `ops|runtime` resolve to `operations`;
-- `notifications` remains an alias of communication for TalkingBytes-backed communication configuration, while Foundation's core notification routing contracts themselves are framework-owned.
+- `db|dblayer -> database`
+- `crypto|epicrypt -> security`
+- `otp|mfa|passkey|passkeys|webauthn -> auth`
+- `notifications|talkingbytes -> communication`
+- `events|omnibus|queue|queues -> messaging`
+- `files|pathwise|storage -> filesystem`
+- `reqshield|validator -> validation`
+- `ops|runtime -> operations`
 
-`ModuleManager` reports `built-in|installed|partial|available`, supports multi-package bundles, installs a bundle in one Composer operation, and removes only direct application requirements.
+No standalone OTP/passkey public modules.
 
-# Module config + schema lifecycle
+# Frozen config/schema lifecycle
 
-## Config publication
+Public module operations:
 
-- `module:config:publish <module>` never overwrites existing host config;
-- `--force` stages replacements and previous files transactionally;
-- symbolic-link targets are never replaced;
-- staging/backup cleanup failures are checked;
-- rollback failures are surfaced explicitly rather than silently leaving partial state;
-- successful publication clears config cache/compiled runtime state where needed.
-
-## Schema ownership
-
-| Module | Schema | Native owner |
-|---|---|---|
-| `auth` | accounts/tokens/MFA/passkeys/authorization | Foundation `AuthSchemaInstaller` |
-| `cache` | PDO/SQLite cache entries | CacheLayer `PdoCacheSchema` |
-| `cache` | PDO invalidation events | CacheLayer `PdoInvalidationSchema` |
-| `session` | database sessions | Foundation `SessionDatabaseSchema` |
-
-Other modules currently own no application database schema. `database` owns DB/migration infrastructure, not application tables.
-
-CacheLayer node/tiered SQLite internals remain CacheLayer-owned self-initializing details; Foundation does not copy their private SQL.
-
-Schema status/readiness is read-only. A missing SQLite cache database is reported as `pending`; only explicit schema installation may create its directory/database/schema.
-
-Canonical commands:
-
+- `module:list`
+- `module:show <module>`
+- `module:install <module>`
+- `module:remove <module>`
+- `module:config:publish <module> [--force]`
 - `module:schema:status <module> [--connection=...]`
 - `module:schema:install <module> [--connection=...]`
 - `module:schema:sync [--connection=...]`
 
-No duplicate `auth:schema:*` or `session:schema:*` public families.
+Schema owners:
 
-`module:install` performs package installation, safe config publication, compiled-state invalidation and fresh-process schema synchronization. `module:remove` never drops schema/data.
+- `auth` -> Foundation auth schema;
+- `cache` -> CacheLayer public PDO/SQLite/invalidation schema provisioners;
+- `session` -> Foundation database-session schema.
 
-# Application contracts
+`database` owns DB/migration infrastructure, not arbitrary application tables. `module:remove` never drops schema/data. Schema status is observational and must not create a missing SQLite cache DB.
 
-## Validation / requests
+Force config publication stages replacement/backup transactionally, refuses symlink targets, and treats post-commit backup cleanup as best-effort finalization rather than a reason to destructively roll back a successful publication.
 
-- `FormRequest` is the Foundation request-to-ReqShield composition point;
-- validation mechanics remain ReqShield-owned;
-- custom rules implement ReqShield `Contracts\Rule` directly—Foundation does not wrap it;
-- `create:request` generates `FormRequest` subclasses;
-- `create:rule` generates native ReqShield rules.
+# Frozen application contracts
 
-## Notifications / mail
+## Validation
 
-Foundation owns application notification routing:
+- Foundation `FormRequest` composes Webrick request input into ReqShield.
+- Custom validation rules implement ReqShield `Contracts\Rule` directly.
+- Generators: `create:request`, `create:rule`.
 
-- `Notification`;
-- `NotificationRecipient`;
-- `NotificationChannel`;
-- `NotificationChannelRegistry`;
-- `NotificationDispatcher`.
+## Notifications/mail
 
-Core notification routing works without TalkingBytes. Custom channels therefore do not require the communication module.
+Foundation application routing contracts:
 
-TalkingBytes remains optional implementation infrastructure for email:
+- `Notification`
+- `NotificationRecipient`
+- `NotificationChannel`
+- `NotificationChannelRegistry`
+- `NotificationDispatcher`
 
-- `MailMessage` adds only application sender-profile selection over TalkingBytes `EmailMessage`;
-- `Mailer` delegates to TalkingBytes email sender profiles;
-- `MailNotificationChannel` adapts mail to Foundation notification routing;
-- missing mail capability reports the canonical `module:install communication` diagnostic.
+TalkingBytes-backed mail integration:
 
-Generator behavior:
+- `MailMessage`
+- `Mailer`
+- `MailNotificationChannel`
 
-- `create:mail` requires communication;
-- `create:notification` currently generates a mail notification and therefore requires communication;
-- `create:notification-channel` is package-neutral and uses Foundation's built-in channel contract.
+Generators: `create:mail`, `create:notification`, `create:notification-channel`.
 
-## Messaging / jobs
+## Messaging/jobs
 
-Omnibus owns message transport, handlers, retries, failures, workers and process pools.
+- `Job`
+- `JobContext`
+- `JobMiddleware`
+- `JobMiddlewarePipeline`
 
-Foundation adds only application composition:
+Omnibus `HandlerInvoker` remains the single sync/async handler execution point. Generators: `create:job`, `create:handler`, `create:job-middleware`.
 
-- `Job` semantic data-message marker;
-- immutable `JobContext`;
-- `JobMiddleware`;
-- `JobMiddlewarePipeline` adapter to Omnibus handler middleware.
+## Resources/testing
 
-`create:job`, `create:handler`, `create:job-middleware` use these real contracts.
+- `JsonResource::resolve(): mixed` is the application resource contract.
+- `create:resource` targets that contract.
+- `TestKit` is resolved through DI; there is no `Application::testing()` facade.
+- JsonDispatch response factory is resolved through DI; there is no `Application::responses()` facade.
+- `AuthServices` is resolved through DI; there is no `Application::auth()` facade.
 
-## Resources
+# Runtime correctness completed before freeze
 
-- `JsonResource` is the minimal Foundation application-resource contract;
-- `create:resource` generates the current `resolve(): mixed` API correctly.
+## Execution cleanup
 
-No generator should exist merely to imitate Laravel terminology without a real Foundation contract.
+- one InterMix execution scope per execution unit;
+- targeted `RuntimeContextTracker` cleanup;
+- original application exception remains primary if cleanup also fails;
+- reset and scope-leave are both attempted.
 
-# Omnibus 2.4 integration
+## Scheduling
 
-- one shared Omnibus `HandlerInvoker` is used for synchronous and queued handler execution;
-- `messaging.handler_middleware` is low-level Omnibus middleware;
-- `messaging.job_middleware` is Foundation job-only middleware;
-- ordinary synchronous PSR event listeners stay outside handler middleware;
-- queued listeners naturally enter the handler pipeline.
+- overlap/single-server lease refresh continues during child execution;
+- lost lease -> heartbeat loss -> terminate child -> failed run;
+- `schedule:test` returns real failure status;
+- every schedule history transition carries stable `schedule_identity`;
+- `schedule:list` resolves last state by identity, not only command text.
 
-Worker lifecycle:
+## Workers / Omnibus 2.4
 
-- Bootstrapper probes Omnibus 2.4 `WorkerLifecycle`;
-- single messaging workers use native lifecycle heartbeat/stop callbacks, including runtimes without `pcntl`;
-- `WorkerPool` retains Foundation's Unix watchdog because the upstream pool itself is Unix/pcntl-based;
-- provider-only workers do not activate Omnibus;
-- pooled workers require scalar/array declarative config before fork.
+- Bootstrapper probes `WorkerLifecycle` as the Omnibus 2.4 capability boundary;
+- single messaging workers use native Omnibus lifecycle heartbeat/stop callbacks and do not require `pcntl` solely for generation polling;
+- Omnibus `WorkerPool` remains Unix/pcntl/posix based and retains the Unix watchdog;
+- provider-only workers remain messaging-lazy;
+- provider singleton workers refresh CacheLayer ownership through `WorkerRuntime::heartbeat()`.
 
-# Operations/runtime correctness
+## Runtime control/process registry
 
-`operations` owns:
+- file runtime-control state uses stable lock + atomic replacement;
+- cache runtime-control state uses CacheLayer coordination for one read/modify/write transaction;
+- concurrent generation signals cannot silently overwrite one another;
+- runtime registry visibility is `host|shared`, default `host`;
+- registry records are heartbeat observability, not supervisor truth;
+- `worker:status` reports registry visibility.
 
-```text
-operations.history.*
-operations.maintenance.*
-operations.runtime_control.*
-operations.runtime_registry.*
-```
+## Other correctness work
 
-`FoundationDefaults`, publishable `operations.php` and `RuntimeConfigValidator` are aligned.
-
-## Runtime control
-
-- file driver serializes read/modify/write with a stable lock and atomic replacement;
-- cache driver coordinates the state mutation through CacheLayer locks;
-- concurrent runtime/worker/scheduler generation signals cannot silently overwrite each other;
-- cache-backed runtime control validates deployment visibility and atomic coordination.
-
-## Runtime registry
-
-- heartbeat records are observability metadata, never supervision authority;
-- `operations.runtime_registry.visibility` is `host|shared`, default `host`;
-- host mode ignores records from other hosts;
-- shared mode intentionally aggregates a shared directory;
-- `worker:status` reports the selected visibility.
-
-## Execution scope
-
-- application exceptions remain primary;
-- `RuntimeContextTracker::reset()` and InterMix `leaveScope()` both run;
-- cleanup failure is thrown only when no application failure already exists.
-
-# Scheduling correctness
-
-- overlap/single-server leases refresh while child processes run;
-- lease refresh failure becomes `heartbeat_lost`, terminates the child and fails the run;
-- `schedule:test` returns failure for command failure or unavailable ownership;
-- every scheduler history transition carries `schedule_identity`;
-- `schedule:list` resolves last state by schedule identity rather than command text;
-- duplicate scheduled command strings therefore do not share status accidentally.
-
-# CLI / process behavior
-
-Global controls include:
-
-- `-q|--quiet`
-- `--silent`
-- `-v|-vv|-vvv`
-- `--profile`
-- `--json`
-- `--env`
-- `-n|--no-interaction`
-- help/version/completion
-
-Supervised child commands suppress duplicate profile output; the parent owns command-level `--profile` diagnostics.
-
-Other completed correctness work:
-
-- `schedule:test` exit status fixed;
-- `log:tail --follow` handles truncation and file replacement/rotation;
+- DB provider activation no longer wakes CacheLayer accidentally;
+- supervised child `--profile` output is suppressed so only parent profiles;
+- `config:validate --production` passes production intent into OTP topology checks;
+- Cache schema readiness is read-only for missing SQLite files;
+- `log:tail --follow` handles truncation and replacement/rotation;
+- `AuthPruner` matches the current auth schema;
+- DBLayer 4.1 `MigrationRunner::pretend()` return shape is used directly;
 - storage unlink remains symlink/target safe;
-- environment replacement remains staged/rollback-safe;
-- no environment-encryption key is stored in `.env`/`.env.example`.
+- environment encryption uses external key material and rollback-safe publication.
 
-# Config/readiness alignment
+# Frozen CLI families
 
-- `config:validate --production` passes production intent into OTP replay topology validation;
-- runtime-registry visibility validates `host|shared`;
-- cache-backed maintenance/runtime-control verifies configured store existence and required visibility;
-- runtime control additionally requires atomic coordination;
-- `app:ready` requires CacheLayer for session locks, migration locks and cache-backed operations state;
-- explicit validation DB connections require DBLayer;
-- multi-package auth readiness checks only the package actually activated by configuration;
-- applicable auth/cache/session schemas remain part of readiness.
+Current public command families are source-of-truth in `CommandCatalog` and documentation. Major surfaces:
 
-Verified source contracts:
+- application: `about`, `app:install`, `app:ready`, `env:show`, `serve`
+- config/cache: `config:*`, `cache:*`, `command:*`
+- database: `db:*`, `migrate*`
+- modules: `module:*`
+- operations: `execution:*`, `maintenance:*`, `runtime:reload`, `log:tail`, env protect
+- messaging: `messaging:list`, `queue:*`, `schedule:dispatch-message`
+- scheduling: `schedule:*`
+- workers: `worker:list|run|restart|status`
+- storage/session/auth operational commands
+- optimization: `optimize`, `optimize:clear`, `optimize:report`
+- `create:*` generators backed by real framework/package contracts.
 
-- DBLayer 4.1 `MigrationRunner::pretend()` returns migration => ordered `{sql,bindings}` statements and Foundation renders that exact shape;
-- `AuthPruner` matches the current auth schema and prunes disposable expired/consumed/revoked state without deleting durable account/authorization/audit data;
-- Database provider activation does not wake CacheLayer merely because CacheManager was previously resolved.
+Do not add command-for-command Laravel parity or commands that duplicate specialist engines.
 
-# Public CLI surface
+# Documentation reconciliation completed
 
-Major capability-oriented commands include:
+Updated/reconciled public docs include:
 
-- config/application: `config:validate`, cache/config/optimize/application commands;
-- database: `db:monitor`, `db:wipe`, migration preview/rollback/status/fresh/refresh/reset, seed/show/table;
-- messaging: `messaging:list`, queue consume/failure/retry/forget/flush/prune/monitor;
-- scheduling: `schedule:list`, `schedule:run`, `schedule:test`, `schedule:work`, cache/clear/interrupt;
-- operations: execution history, maintenance, runtime reload, worker restart/status, env protect, log tail;
-- storage/session/auth operational commands;
-- purpose-module list/show/install/remove/config/schema lifecycle;
-- generators for class/command/controller/enum/event/exception/handler/interface/job/job-middleware/listener/mail/middleware/migration/notification/notification-channel/policy/provider/repository/request/resource/rule/service/seeder/test/trait/worker/config.
+- root `README.md`;
+- architecture/runtime ownership;
+- retired Console parity closure record;
+- modules/configuration;
+- CLI/scheduler/workers;
+- operations/runtime control;
+- database/migrations/schema lifecycle;
+- messaging/Omnibus 2.4;
+- authentication/OTP/browser sessions;
+- security;
+- HTTP/capability ownership;
+- testing/resource DI examples;
+- Infbyte skeleton README.
 
-Do not add commands that duplicate specialist engines or unsupported Laravel features.
+Important removed stale references:
 
-# Infbyte alignment
+- `Foundation::console()` / Console-owned runtime architecture;
+- arbitrary `foundation-module.php` package discovery;
+- standalone OTP/passkey public modules;
+- `auth:schema:*` / `session:schema:*` command families;
+- `$app->auth()` / `$app->responses()` / `$app->testing()` convenience proxies;
+- `$app->messaging()` forwarding manager;
+- nonexistent generic Composer release/test scripts;
+- old Omnibus 2.3 / CacheLayer 3.1 dependency wording;
+- old `router.route_files` key.
 
-No Infbyte application source/config mutation was required by these cleanup batches.
+# Infbyte boundary
 
-Intentional skeleton rules remain:
+Infbyte remains intentionally lean:
 
-- root CLI delegates directly to `CommandDispatcher`;
-- web bootstrap delegates to one `Foundation::web()` application;
+- root `infbyte` delegates directly to Foundation `CommandDispatcher`;
+- Web bootstrap is one `Foundation::web()` call;
 - checked-in config remains only `app.php`, `auth.php`, `router.php`;
-- optional module configs remain publish-on-demand;
-- `.env.example` stays lean;
-- route files use the scoped Webrick registrar;
-- no runtime/messaging/notification/validation/schema engine is duplicated in Infbyte.
+- optional capability config is publish-on-demand;
+- no Foundation runtime/messaging/notification/validation/schema engine is copied into Infbyte;
+- `.env.example` contains no environment-encryption key;
+- generated optimized artifacts are not committed.
 
 # Verification status
 
-Completed work is a **source/config/API audit**, not the release verification pass.
+The public names/config/application contracts are now frozen for verification. The full verification matrix is still intentionally **not run**.
 
-The following full gates remain deliberately deferred until documentation/public names are frozen:
+Next phase:
 
-- PHPUnit matrix;
-- static analysis;
-- PHPForge;
-- core-only and optional-module combinations;
-- partial auth bundle states;
-- module install ordering;
-- CLI global control matrix;
-- maintenance/runtime reload/worker/scheduler behavior;
-- fork/process-pool safety;
-- queue failure/retry lifecycle;
-- destructive operation safeguards;
-- optimization artifacts;
-- performance/soak checks.
-
-# Immediate next work
-
-Proceed with **documentation reconciliation + public-name/config freeze**:
-
-1. reconcile root README and `docs/*` against the source checkpoint above;
-2. remove stale Console/facade/manager/module/version references;
-3. document current request/rule/notification/mail/job/resource contracts and generators;
-4. document CacheLayer 3.2 / Omnibus 2.4 runtime semantics;
-5. reconcile Infbyte docs/examples without copying optional config into the skeleton;
-6. freeze public command/module/config/class names;
-7. then run the deferred full verification matrix;
-8. fix verification defects, perform performance/soak review, and prepare Foundation 2.0 release.
+1. Composer validation/dependency consistency;
+2. PHPForge/static analysis;
+3. PHPUnit/unit/integration suites;
+4. core-only runtime without optional packages;
+5. module install/remove/config/schema matrix, including partial auth bundle state and install ordering;
+6. `app:ready` / `config:validate --production` diagnostics;
+7. CLI/global-option/help/completion matrix;
+8. Web/CLI/Worker/Scheduler execution isolation;
+9. maintenance/runtime reload/worker/scheduler lifecycle;
+10. Omnibus handler/job middleware and failure/retry paths;
+11. pool/fork/process safety;
+12. DB pretend/monitor/wipe/rollback-batch behavior;
+13. env/storage/destructive-operation rollback/safety cases;
+14. optimize/deploy artifact matrix;
+15. performance/soak/benchmark review;
+16. fix verification defects and prepare Foundation 2.0 + Infbyte stable release alignment.
 
 # Do not regress
 
 - no package-per-module public model;
 - no standalone OTP/passkey modules;
-- no duplicated schema command families;
+- no duplicate specialist schema command families;
 - no schema/data deletion during module removal;
-- no copied specialist SQL/transport/retry/cache/database engine;
+- no copied specialist SQL/transport/retry/cache/database engines;
 - no unsafe lock fallback;
 - no broad `Application` service facade;
-- no second messaging worker/retry engine above Omnibus;
-- no Omnibus `Envelope`/`HandlerContext` leakage into Foundation `JobMiddleware`;
+- no second messaging/retry/failure/worker engine above Omnibus;
+- no Omnibus Envelope/HandlerContext leakage into Foundation JobMiddleware;
 - no retired Console runtime hierarchy;
 - no static global application state;
-- no generic ID-driver/request-scope compatibility;
+- no generic IdentifierManager/request scope;
 - no bulk optional-config copy into Infbyte;
-- no environment encryption key in `.env` or `.env.example`;
+- no environment-protection key inside `.env`/`.env.example`;
 - no generated optimized artifacts committed.
