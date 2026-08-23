@@ -1,29 +1,32 @@
 # OTP-backed MFA
 
-Foundation composes `infocyph/otp` into application MFA without copying OTP
-algorithms or replay logic into the framework.
+Foundation composes `infocyph/otp ^6.0` into application MFA without copying
+OTP algorithms or replay mechanics into the framework.
+
+OTP is an implementation inside Foundation's canonical `auth` module; there is
+no standalone public OTP module.
 
 ## Ownership
 
-Foundation owns:
+Foundation owns application concerns:
 
-- account MFA factors and challenge lifecycle;
-- enrollment policy and application labels;
-- durable factor persistence;
-- challenge satisfaction, notifications, and audit events;
+- account MFA-factor/challenge lifecycle;
+- enrollment policy/application labels;
+- factor persistence and CAS integration;
+- challenge satisfaction, notification, and audit mapping;
 - mapping OTP verification results into Foundation MFA results.
 
-OTP owns:
+OTP owns specialist behavior:
 
 - TOTP, HOTP, and OCRA algorithms;
-- Base32 secret generation and validation;
-- provisioning URIs and enrollment payloads;
-- verification windows and drift results;
+- Base32 secret generation/validation;
+- provisioning URIs/enrollment payloads;
+- verification windows/drift results;
 - recovery-code generation, normalization, keyed hashing, and consumption
   semantics;
-- CacheLayer-backed replay protection.
+- native replay-protection integration.
 
-Select the driver with:
+Select OTP MFA with:
 
 ```php
 'auth' => [
@@ -33,17 +36,20 @@ Select the driver with:
 ],
 ```
 
-Install the optional package with:
+Install the `auth` capability when the optional implementation is not already
+available:
 
 ```bash
-php infbyte module:install otp
+php infbyte module:install auth
 ```
 
-The module targets `infocyph/otp ^6.0`.
+The auth module also contains the optional WebAuthn package. Runtime readiness is
+implementation-specific: OTP MFA requires OTP, not WebAuthn, unless passkeys are
+also configured.
 
 ## Configuration
 
-Foundation's OTP application policy lives under `auth.otp`:
+Foundation OTP application policy lives under `auth.otp`:
 
 ```php
 'otp' => [
@@ -69,59 +75,46 @@ Foundation's OTP application policy lives under `auth.otp`:
 ],
 ```
 
-A null replay store selects `cache.default`. An explicit value names a
+A null replay store selects `cache.default`; an explicit value names a
 `cache.stores.*` entry.
 
-Foundation validates this application policy when the OTP provider activates.
-OTP continues to validate algorithm availability, Base32 secrets, OCRA suites,
-verification inputs, and replay-store security capabilities.
+Foundation validates application ranges and deployment policy. OTP remains the
+owner of algorithm availability, Base32/OCRA input validation, verification
+semantics, and native replay primitives.
 
-## Replay state
+## Replay/state models
 
-Replay state has two different ownership paths because the algorithms have
-different state models.
+OTP modes have different authoritative state, so Foundation does not force them
+into one generic counter/replay abstraction.
 
 ### TOTP
 
-TOTP verification passes Foundation's selected
-`AuthenticationStateCacheInterface` directly to OTP 6.0. OTP performs the
-atomic timestep claim and rejects replayed codes.
+Foundation passes the selected CacheLayer authentication-state store to OTP.
+OTP performs the atomic timestep claim and rejects replayed codes.
 
-The selected cache must satisfy OTP's authentication-state contract:
-
-- authoritative direct backend;
-- fail closed;
-- payload integrity enabled;
-- coordinated lock capability.
-
-Foundation does not duplicate those checks or implement a second OTP replay
-protocol.
+Production configuration must provide state visibility and coordination suitable
+for the deployment topology. `config:validate --production` and `app:ready`
+check Foundation's application/deployment policy around that store.
 
 ### HOTP
 
-HOTP's authoritative state is the factor's persisted counter. OTP finds the
-matching counter and returns `nextCounter`; Foundation atomically commits that
-next counter through `MfaFactorCompareAndSwapStoreInterface`.
+HOTP's authoritative state is the persisted factor counter. OTP returns the
+matching/next counter; Foundation commits the transition atomically through
+`MfaFactorCompareAndSwapStoreInterface`.
 
-A concurrent verifier that loses the compare-and-swap is treated as a replay.
-There is therefore no second CacheLayer counter for HOTP.
+A verifier that loses the compare-and-swap cannot overwrite newer counter state.
+Foundation does not maintain a second CacheLayer counter for HOTP.
 
 ### OCRA
 
-Counter-bearing OCRA uses the same persisted-factor CAS model as HOTP. The
-counter is authoritative and does not expire.
-
-Counterless OCRA uses OTP's CacheLayer replay protection. Time-based
-counterless suites may use the configured Foundation drift window; replay TTL
-must remain long enough for OTP to cover the accepted time window.
-
-Counter-bearing suites use exact-time verification so their successful result
-continues to carry the next durable counter.
+Counter-bearing OCRA uses the same durable factor-CAS model as HOTP.
+Counterless OCRA uses OTP replay protection; time-based accepted windows require
+replay TTL sufficient for the accepted time range.
 
 ## Provisioning
 
-`OtpProvisioningService` is a narrow Foundation adapter around OTP's native
-enrollment payloads.
+`OtpProvisioningService` is Foundation's narrow application adapter over OTP's
+native enrollment payloads:
 
 ```php
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpProvisioningService;
@@ -137,101 +130,80 @@ $ocra = $otp->provisionOcra(
 );
 ```
 
-Each method returns:
-
-- the native OTP `EnrollmentPayload`;
-- canonical Foundation factor metadata suitable for `MfaManager::enrollFactor`.
-
-`provision()` remains the default TOTP convenience entry point.
-
-Foundation persists OCRA secrets as canonical Base32 strings, not raw binary
-keys.
+The adapter returns native OTP enrollment information plus Foundation factor
+metadata suitable for the application MFA workflow. Foundation persists OCRA
+secrets in its canonical encoded form rather than creating another OTP secret
+format.
 
 ## Recovery codes
 
-Recovery codes use OTP's native `RecoveryCodes` service. OTP owns:
+Recovery-code cryptography stays in OTP. Foundation supplies
+`OtpRecoveryCodeStore`, an implementation of OTP's native recovery-code storage
+contract backed by the Foundation MFA factor store.
 
-- random code generation;
-- formatting and normalization;
-- entropy requirements;
-- keyed SHA-256 digests;
-- single-use consumption results.
+Only digests are persisted. Plain recovery codes are returned to the enrollment
+caller and must not be written into application persistence/logging.
 
-Foundation supplies `OtpRecoveryCodeStore`, an implementation of OTP's native
-`RecoveryCodeStoreInterface` backed by the existing MFA factor store.
+Recovery-code state uses the same factor CAS boundary so regeneration and
+single-use consumption cannot silently overwrite concurrent factor updates.
 
-Only keyed digests are persisted. Plain recovery codes are returned once to the
-enrollment caller and are never written to the factor store.
+## Durable factor CAS
 
-The hidden persistence record:
+Every `MfaFactor` carries a non-negative scalar `revision`. The portable CAS
+contract is:
 
-- uses factor type `recovery_code`;
-- is disabled;
-- cannot be enrolled, activated, removed, or challenged as a normal factor;
-- uses atomic create/update/consume operations through the MFA factor CAS
-  contract.
+- create only when the factor ID is absent and the new revision is zero;
+- update only when persisted `id + revision` match the expected factor;
+- replacement carries exactly the next revision.
 
-Recovery codes are accepted only while the account still has an enabled real
-MFA factor.
+DBLayer uses that scalar revision as synchronization state. JSON metadata remains
+payload and is never the SQL CAS token, keeping the persistence model portable
+across supported SQL drivers.
 
-Regenerating recovery codes atomically replaces the previous batch.
+When durable auth storage is selected, inspect/install the current Foundation
+auth schema through the canonical schema commands:
 
-The recovery-code HMAC key is domain-separated from `AUTH_TOKEN_SECRET`.
-Rotating the application token secret therefore deliberately invalidates all
-previous recovery codes; regenerate recovery codes after such a rotation.
+```bash
+php infbyte module:schema:status auth
+php infbyte module:schema:install auth
+```
 
-## Persistence and production
+`module:schema:sync` also provisions it when current configuration requires the
+auth schema. Readiness reports a missing required MFA revision column as not
+ready.
 
-The official memory MFA store supports CAS but is process-local and remains a
-development choice. Foundation's production auth policy requires durable
-storage; the DBLayer MFA store implements the same CAS contract across
-workers/processes.
+Custom factor stores used with OTP must honor the same
+`MfaFactorCompareAndSwapStoreInterface` semantics.
 
-Every `MfaFactor` carries a non-negative `revision`. New factors start at zero;
-Foundation mutations such as activation or metadata/counter updates advance it
-by exactly one. The CAS contract is therefore:
+## Persistent runtimes
 
-- create only when the factor ID is absent and the new revision is `0`;
-- update only when the persisted `id + revision` still match the expected
-  factor and the replacement carries `expected revision + 1`.
+Foundation's OTP composition does not keep account/challenge mutable state in
+singleton service properties. Mutable state lives in explicit stores:
 
-DBLayer uses that scalar revision as the synchronization token. JSON metadata is
-payload only and is never compared in SQL, which keeps the CAS path portable
-across MySQL, MariaDB, PostgreSQL, SQL Server, and SQLite.
+- factor persistence for HOTP/OCRA counters and recovery-code state;
+- CacheLayer for TOTP/counterless-OCRA replay claims;
+- Foundation challenge/satisfaction stores for application MFA lifecycle.
 
-Fresh Foundation auth schemas create the `mfa_factors.revision` column with a
-zero default. Existing auth schemas receive it through the dedicated
-`20260822000000_foundation_auth_mfa_revision` migration. `auth:schema:status`
-reports the schema as incomplete until the required revision column exists.
-
-This prevents concurrent activation, removal, counter advancement, or recovery
-state changes from overwriting one another.
-
-Custom MFA factor stores used with the OTP driver must implement
-`MfaFactorCompareAndSwapStoreInterface` and honor the same revision semantics.
-
-## Persistent workers
-
-The Foundation OTP integration keeps no request-, account-, or challenge-state
-inside singleton service properties. OTP services are immutable/stateless;
-durable mutable state lives in:
-
-- the MFA factor store for HOTP/OCRA counters and recovery-code digests;
-- CacheLayer for TOTP and counterless OCRA replay state;
-- Foundation's normal challenge/satisfaction stores for application MFA
-  lifecycle.
-
-This makes the integration safe for persistent Web, Worker, CLI, and Scheduler
-runtimes when the selected backing stores themselves are appropriate for those
-runtimes.
+This is the required model for reusable Web/Worker/CLI/Scheduler application
+instances: execution-specific state remains scoped or durable, not ambient
+process state.
 
 ## Direct OTP use
 
-Foundation does not globally construct `TOTP`, `HOTP`, or `OCRA` because each
-instance requires factor-specific secret material. Applications needing OTP
-outside Foundation authentication should instantiate those native OTP classes
-directly.
+Applications needing OTP outside Foundation authentication should use OTP's
+native `TOTP`, `HOTP`, `OCRA`, provisioning, and recovery-code APIs directly.
+Foundation does not add a generic OTP facade or duplicate those algorithms.
 
-Foundation only exposes the configured native `RecoveryCodes` service and its
-store contract through lazy OTP-provider activation because those objects are
-application-level services rather than per-factor algorithm instances.
+## Production checks
+
+Use:
+
+```bash
+php infbyte config:validate --production
+php infbyte app:ready
+```
+
+These validate Foundation application/deployment policy around OTP state in
+addition to OTP's own specialist input/algorithm validation. Full concurrency,
+backend, persistent-worker, and failure-path verification remains part of the
+dedicated release matrix rather than an implied documentation guarantee.
