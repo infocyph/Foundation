@@ -325,6 +325,7 @@ final class Bootstrapper
             in_array($service, [
                 \Infocyph\Omnibus\Clock\SystemClock::class,
                 \Infocyph\Omnibus\Handler\HandlerMap::class,
+                \Infocyph\Omnibus\Handler\HandlerInvoker::class,
                 \Infocyph\Omnibus\Event\ListenerMap::class,
                 \Infocyph\Omnibus\Routing\RouteMap::class,
                 \Infocyph\Omnibus\Transport\InMemoryTransport::class,
