@@ -1,0 +1,16 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Infocyph\Foundation\Validation\FormRequest;
+use Infocyph\Webrick\Request\Request;
+
+final class {{ class }} extends FormRequest
+{
+    protected function rules(Request $request): array
+    {
+        return [];
+    }
+}
