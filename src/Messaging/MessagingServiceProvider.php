@@ -16,7 +16,9 @@ use Infocyph\Omnibus\Event\EventDispatcher;
 use Infocyph\Omnibus\Event\ListenerMap;
 use Infocyph\Omnibus\Failure\FailureStore;
 use Infocyph\Omnibus\Failure\InMemoryFailureStore;
+use Infocyph\Omnibus\Handler\HandlerInvoker;
 use Infocyph\Omnibus\Handler\HandlerMap;
+use Infocyph\Omnibus\Handler\HandlerMiddleware;
 use Infocyph\Omnibus\MessageBus;
 use Infocyph\Omnibus\Routing\Route;
 use Infocyph\Omnibus\Routing\RouteMap;
@@ -38,6 +40,12 @@ final class MessagingServiceProvider extends ServiceProvider
         $this->bindFactory($container, HandlerMap::class, fn() => new HandlerMap(
             $this->handlers($app, $app->config()->get('messaging.handlers', [])),
         ), LifetimeEnum::Singleton);
+        if (!$this->hasExplicitBinding($container, HandlerInvoker::class)) {
+            $this->bindFactory($container, HandlerInvoker::class, fn() => new HandlerInvoker(
+                $app->make(HandlerMap::class),
+                $this->handlerMiddleware($app, $app->config()->get('messaging.handler_middleware', [])),
+            ), LifetimeEnum::Singleton);
+        }
         $this->bindFactory($container, ListenerMap::class, fn() => new ListenerMap(
             $this->listeners($app, $app->config()->get('messaging.listeners', [])),
         ), LifetimeEnum::Singleton);
@@ -58,7 +66,7 @@ final class MessagingServiceProvider extends ServiceProvider
             $app->make(SystemClock::class),
         ), LifetimeEnum::Singleton);
         $this->bindFactory($container, SyncTransport::class, fn() => new SyncTransport(
-            $app->make(HandlerMap::class),
+            $app->make(HandlerInvoker::class),
         ), LifetimeEnum::Singleton);
         if (!$this->hasExplicitBinding($container, TransportRegistry::class)) {
             $this->bindFactory($container, TransportRegistry::class, fn() => new TransportRegistry([
@@ -112,7 +120,7 @@ final class MessagingServiceProvider extends ServiceProvider
         $this->bindFactory($container, ConsumerFactory::class, fn() => new ConsumerFactory(
             config: $app->config(),
             transports: $app->make(TransportRegistry::class),
-            handlers: $app->make(HandlerMap::class),
+            invoker: $app->make(HandlerInvoker::class),
             failures: $app->make(FailureStore::class),
             clock: $app->make(SystemClock::class),
             scope: $app->make(ExecutionScope::class),
@@ -180,6 +188,40 @@ final class MessagingServiceProvider extends ServiceProvider
         }
 
         return $handlers;
+    }
+
+    /** @return list<HandlerMiddleware> */
+    private function handlerMiddleware(Application $app, mixed $configured): array
+    {
+        if (!is_array($configured)) {
+            throw new \InvalidArgumentException('messaging.handler_middleware must be an ordered middleware list.');
+        }
+
+        $middleware = [];
+        foreach ($configured as $definition) {
+            if ($definition instanceof HandlerMiddleware) {
+                $middleware[] = $definition;
+
+                continue;
+            }
+            if (!is_string($definition) || $definition === '') {
+                throw new \InvalidArgumentException(
+                    'Messaging handler middleware must be service class names or HandlerMiddleware instances.',
+                );
+            }
+
+            $resolved = $app->container()->make($definition);
+            if (!$resolved instanceof HandlerMiddleware) {
+                throw new \InvalidArgumentException(sprintf(
+                    'Messaging handler middleware "%s" must implement %s.',
+                    $definition,
+                    HandlerMiddleware::class,
+                ));
+            }
+            $middleware[] = $resolved;
+        }
+
+        return $middleware;
     }
 
     /** @return array<class-string, list<callable>> */
