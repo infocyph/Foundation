@@ -9,6 +9,8 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Cache\CacheLayerFactory;
 use Infocyph\Foundation\Command\CommandStatus;
 use Infocyph\Foundation\Operations\ExecutionHistory;
+use Infocyph\Foundation\Operations\RuntimeControl;
+use Infocyph\Foundation\Operations\RuntimeProcessRegistry;
 use Infocyph\Foundation\Process\ProcessOptions;
 use Infocyph\Foundation\Process\ProcessResult;
 use Infocyph\Foundation\Process\ProcessRunner;
@@ -62,6 +64,42 @@ final readonly class ScheduleManager
         return $runs;
     }
 
+    public function runNamed(
+        string $name,
+        string $routes = 'routes/schedule.php',
+        string $manifest = 'bootstrap/cache/schedule.php',
+    ): ScheduleRun {
+        $name = trim($name);
+        if ($name === '') {
+            throw new \InvalidArgumentException('Scheduled entry name cannot be empty.');
+        }
+
+        $entries = $this->load($routes, $manifest)->entries();
+        $identityMatches = array_values(array_filter(
+            $entries,
+            static fn(ScheduledCommand $entry): bool => $entry->identity() === $name,
+        ));
+        if (count($identityMatches) === 1) {
+            return $this->runEntry($identityMatches[0]);
+        }
+
+        $commandMatches = array_values(array_filter(
+            $entries,
+            static fn(ScheduledCommand $entry): bool => $entry->command() === $name,
+        ));
+        if (count($commandMatches) === 1) {
+            return $this->runEntry($commandMatches[0]);
+        }
+        if (count($commandMatches) > 1) {
+            throw new \InvalidArgumentException(sprintf(
+                'Scheduled command "%s" is ambiguous; assign/use a unique schedule key.',
+                $name,
+            ));
+        }
+
+        throw new \InvalidArgumentException(sprintf('Scheduled entry "%s" is not defined.', $name));
+    }
+
     public function work(
         int $sleepSeconds = 60,
         string $routes = 'routes/schedule.php',
@@ -70,16 +108,42 @@ final readonly class ScheduleManager
     ): int {
         $sleepSeconds = max(1, $sleepSeconds);
         $iterations = 0;
-        while ($maxIterations === null || $iterations < $maxIterations) {
-            $this->runDue($routes, $manifest);
-            $iterations++;
-            if ($maxIterations !== null && $iterations >= $maxIterations) {
-                break;
-            }
-            time_nanosleep($sleepSeconds, 0);
-        }
+        $control = new RuntimeControl($this->application);
+        $registry = new RuntimeProcessRegistry($this->application);
+        $runtimeToken = $control->token('runtime');
+        $scheduleToken = $control->token('schedule');
+        $process = $registry->register('schedule', 'default');
 
-        return 0;
+        try {
+            while ($maxIterations === null || $iterations < $maxIterations) {
+                if ($control->changed('runtime', null, $runtimeToken)
+                    || $control->changed('schedule', null, $scheduleToken)
+                ) {
+                    return 0;
+                }
+
+                $this->runDue($routes, $manifest);
+                $iterations++;
+                $process = $registry->heartbeat($process);
+                if ($maxIterations !== null && $iterations >= $maxIterations) {
+                    break;
+                }
+
+                $remaining = $sleepSeconds;
+                while ($remaining-- > 0) {
+                    if ($control->changed('runtime', null, $runtimeToken)
+                        || $control->changed('schedule', null, $scheduleToken)
+                    ) {
+                        return 0;
+                    }
+                    sleep(1);
+                }
+            }
+
+            return 0;
+        } finally {
+            $registry->unregister($process);
+        }
     }
 
     public function write(string $routes = 'routes/schedule.php', string $manifest = 'bootstrap/cache/schedule.php'): string
