@@ -11,6 +11,8 @@ use Infocyph\Foundation\Runtime\ExecutionId;
 
 final class CommandDispatcher
 {
+    private const string SUPERVISED_ENV = 'INFOCYPH_FOUNDATION_SUPERVISED';
+
     /** @param array<string, mixed> $config */
     public function __construct(
         private array $config,
@@ -73,7 +75,9 @@ final class CommandDispatcher
     public function run(array $argv, ?CommandIO $io = null): int
     {
         $coarse = ParsedInput::fromArgv($argv);
-        $profile = $coarse->flag('profile') && !$coarse->flag('silent');
+        $profile = $coarse->flag('profile')
+            && !$coarse->flag('silent')
+            && getenv(self::SUPERVISED_ENV) !== '1';
         $startedAt = $profile ? hrtime(true) : 0;
         $baselinePeak = $profile ? memory_get_peak_usage(true) : 0;
         $io ??= TerminalIO::fromInput($coarse);
