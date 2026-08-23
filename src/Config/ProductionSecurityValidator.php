@@ -5,51 +5,32 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Config;
 
 use Infocyph\Foundation\Auth\Driver\AuthCacheDriver;
+use Infocyph\Foundation\Exception\ConfigurationException;
 
 final readonly class ProductionSecurityValidator
 {
-    /** @var list<string> */
-    private const array DISTRIBUTED_CACHE_DRIVERS = [
-        'memcache',
-        'mongodb',
-        'pdo',
-        'redis',
-        'redis_cluster',
-        'scylladb',
-        'valkey',
-    ];
+    private SharedStateTopology $state;
 
-    /** @var list<string> */
-    private const array DISTRIBUTED_LOCK_DRIVERS = [
-        'memcache',
-        'pdo',
-        'redis',
-        'valkey',
-    ];
-
-    /** @var list<string> */
-    private const array UNSAFE_PRODUCTION_CACHE_DRIVERS = [
-        'memory',
-        'null_store',
-        'weak_map',
-    ];
-
-    public function __construct(private ConfigRepository $config) {}
+    public function __construct(private ConfigRepository $config)
+    {
+        $this->state = new SharedStateTopology($config);
+    }
 
     /** @return list<ConfigIssue> */
     public function validate(): array
     {
         $issues = [];
-        $topology = $this->topology($issues);
+        $this->validateTopology($issues);
         $this->validatePasswordPolicy($issues);
-        $this->validateAuthState($issues, $topology);
-        $this->validateLockTopology($issues, $topology);
+        $this->validateAuthState($issues);
+        $this->validateAtomicCounter($issues);
+        $this->validateLockTopology($issues);
 
         return $issues;
     }
 
     /** @param list<ConfigIssue> $issues */
-    private function topology(array &$issues): DeploymentTopology
+    private function validateTopology(array &$issues): void
     {
         $configured = $this->config->get('app.topology', DeploymentTopology::SINGLE_NODE->value);
         if (!is_string($configured) || DeploymentTopology::tryFrom(strtolower(trim($configured))) === null) {
@@ -57,11 +38,7 @@ final readonly class ProductionSecurityValidator
                 'app.topology must be one of: single_node, distributed.',
                 'app.topology',
             );
-
-            return DeploymentTopology::SINGLE_NODE;
         }
-
-        return DeploymentTopology::from(strtolower(trim($configured)));
     }
 
     /** @param list<ConfigIssue> $issues */
@@ -91,7 +68,7 @@ final readonly class ProductionSecurityValidator
     }
 
     /** @param list<ConfigIssue> $issues */
-    private function validateAuthState(array &$issues, DeploymentTopology $topology): void
+    private function validateAuthState(array &$issues): void
     {
         $cacheDriver = $this->config->get('auth.drivers.cache', AuthCacheDriver::ARRAY->value);
         if ($cacheDriver === AuthCacheDriver::ARRAY->value) {
@@ -107,35 +84,26 @@ final readonly class ProductionSecurityValidator
         }
 
         $default = $this->string($this->config->get('cache.default'));
-        if ($default === null) {
+        if ($default === null || !$this->config->has('cache.stores.' . $default)) {
             $issues[] = new ConfigIssue(
-                'cache.default must select a CacheLayer store for production authentication state.',
-                'cache.default',
+                $default === null
+                    ? 'cache.default must select a CacheLayer store for production authentication state.'
+                    : sprintf('cache.stores.%s must be configured for production authentication state.', $default),
+                $default === null ? 'cache.default' : 'cache.stores.' . $default,
             );
 
             return;
         }
 
-        $driver = $this->storeDriver($default);
-        if ($driver === null) {
-            $issues[] = new ConfigIssue(
-                sprintf('cache.stores.%s must be configured for production authentication state.', $default),
-                'cache.stores.' . $default,
+        try {
+            $this->state->assertCacheStore(
+                $default,
+                'Production authentication state and WebAuthn challenges',
+                $this->state->requiredSecurityScope(),
             );
-        } elseif (in_array($driver, self::UNSAFE_PRODUCTION_CACHE_DRIVERS, true)) {
-            $issues[] = new ConfigIssue(
-                sprintf('cache.stores.%s uses "%s", which cannot preserve production authentication state across requests.', $default, $driver),
-                'cache.stores.' . $default . '.driver',
-            );
-        } elseif ($topology === DeploymentTopology::DISTRIBUTED && !in_array($driver, self::DISTRIBUTED_CACHE_DRIVERS, true)) {
-            $issues[] = new ConfigIssue(
-                sprintf('cache.stores.%s uses node-local driver "%s"; distributed authentication requires a shared cache store.', $default, $driver),
-                'cache.stores.' . $default . '.driver',
-            );
+        } catch (ConfigurationException $exception) {
+            $issues[] = new ConfigIssue($exception->getMessage(), 'cache.stores.' . $default);
         }
-
-        $this->validateAtomicCounter($issues);
-        $this->validateOtpReplayStore($issues, $topology, $default);
     }
 
     /** @param list<ConfigIssue> $issues */
@@ -162,78 +130,22 @@ final readonly class ProductionSecurityValidator
     }
 
     /** @param list<ConfigIssue> $issues */
-    private function validateOtpReplayStore(array &$issues, DeploymentTopology $topology, string $default): void
+    private function validateLockTopology(array &$issues): void
     {
-        if ($this->config->get('auth.drivers.mfa', 'simple') !== 'otp') {
+        if (DeploymentTopology::resolve($this->config) !== DeploymentTopology::DISTRIBUTED) {
             return;
         }
 
-        $configured = $this->string($this->config->get('auth.otp.replay.store'));
-        $store = $configured ?? $default;
-        $driver = $this->storeDriver($store);
-        if ($driver === null) {
-            return;
-        }
-
-        if (in_array($driver, self::UNSAFE_PRODUCTION_CACHE_DRIVERS, true)) {
+        $scope = $this->state->cacheStoreCoordinationScope();
+        if (!$this->state->satisfies($scope, SharedStateTopology::CLUSTER)) {
             $issues[] = new ConfigIssue(
-                sprintf('OTP replay store "%s" uses "%s", which is not durable production replay state.', $store, $driver),
-                'auth.otp.replay.store',
-            );
-        } elseif ($topology === DeploymentTopology::DISTRIBUTED && !in_array($driver, self::DISTRIBUTED_CACHE_DRIVERS, true)) {
-            $issues[] = new ConfigIssue(
-                sprintf('OTP replay store "%s" is node-local; distributed MFA requires shared replay state.', $store),
-                'auth.otp.replay.store',
-            );
-        }
-    }
-
-    /** @param list<ConfigIssue> $issues */
-    private function validateLockTopology(array &$issues, DeploymentTopology $topology): void
-    {
-        if ($topology !== DeploymentTopology::DISTRIBUTED) {
-            return;
-        }
-
-        $driver = $this->effectiveLockDriver();
-        if (!in_array($driver, self::DISTRIBUTED_LOCK_DRIVERS, true)) {
-            $issues[] = new ConfigIssue(
-                'Distributed topology requires a Redis, Valkey, Memcached, or shared PDO coordination lock, either explicitly or through the selected CacheLayer store.',
+                sprintf(
+                    'Distributed topology requires cluster-visible cache coordination; configured coordination is %s-visible.',
+                    $scope,
+                ),
                 'cache.lock',
             );
         }
-    }
-
-    private function effectiveLockDriver(): ?string
-    {
-        $explicit = $this->normalizeDriver($this->config->get('cache.lock.driver'));
-        if ($explicit !== null) {
-            return $explicit;
-        }
-
-        $store = $this->string($this->config->get('cache.lock.store'))
-            ?? $this->string($this->config->get('cache.default'));
-        if ($store === null) {
-            return null;
-        }
-
-        return match ($this->storeDriver($store)) {
-            'memcache' => 'memcache',
-            'pdo' => 'pdo',
-            'redis' => 'redis',
-            'valkey' => 'valkey',
-            default => null,
-        };
-    }
-
-    private function storeDriver(string $name): ?string
-    {
-        $definition = $this->config->get('cache.stores.' . $name);
-        if (!is_array($definition)) {
-            return null;
-        }
-
-        return $this->normalizeDriver($definition['driver'] ?? $name);
     }
 
     private function normalizeDriver(mixed $driver): ?string
