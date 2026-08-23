@@ -155,22 +155,12 @@ final class MessagingServiceProvider extends ServiceProvider
             throw new \InvalidArgumentException('Messaging definitions must be callables or service class names.');
         }
 
-        $service = $this->hasExplicitBinding($app->container(), $definition)
-            ? $app->make($definition)
-            : $this->constructInvokable($app, $definition);
+        $service = $app->container()->make($definition);
         if (!is_callable($service)) {
             throw new \InvalidArgumentException(sprintf('Messaging service "%s" is not callable.', $definition));
         }
 
         return $service;
-    }
-
-    private function constructInvokable(Application $app, string $class): object
-    {
-        $resolver = $app->container()->getCurrentResolver();
-        $resolved = $resolver->classSettler($class, false, true);
-
-        return $resolved->instance;
     }
 
     private function float(mixed $value, float $default): float
