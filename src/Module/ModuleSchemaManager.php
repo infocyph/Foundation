@@ -30,7 +30,11 @@ final readonly class ModuleSchemaManager
         $results = [];
 
         foreach (array_keys($this->catalog->all()) as $module) {
-            array_push($results, ...$this->install($module, $connection, true));
+            foreach ($this->install($module, $connection, true) as $schema) {
+                if ($schema['applicable']) {
+                    $results[] = $schema;
+                }
+            }
         }
 
         return $results;
@@ -189,7 +193,7 @@ final readonly class ModuleSchemaManager
         foreach ($this->activePdoTransportNames() as $name) {
             $transport = $this->associative($transports[$name] ?? []);
             $resolved = $this->databasePdo(
-                $connection ?? $this->nullableString($transport['connection'] ?? null),
+                $this->nullableString($transport['connection'] ?? null) ?? $connection,
             );
             $resources[] = [
                 'name' => 'cache:transport:' . $name,
@@ -258,7 +262,7 @@ final readonly class ModuleSchemaManager
             return ['pdo' => $store['client'], 'detail' => 'Configured PDO client.'];
         }
 
-        $named = $connection ?? $this->nullableString($store['connection'] ?? null);
+        $named = $this->nullableString($store['connection'] ?? null) ?? $connection;
         if ($named !== null) {
             return $this->databasePdo($named);
         }
