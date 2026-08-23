@@ -17,6 +17,7 @@ final readonly class RuntimeConfigValidator
             ...$this->topology(),
             ...$this->container(),
             ...$this->logging(),
+            ...$this->notifications(),
             ...$this->operations(),
             ...$this->migrations(),
             ...$this->messageRoutes(),
@@ -512,6 +513,50 @@ final readonly class RuntimeConfigValidator
             ...$this->finiteNumber('database.migrations.lock_wait_seconds', 0.0),
             ...$this->finiteNumber('database.migrations.lock_lease_seconds', PHP_FLOAT_MIN),
         ];
+    }
+
+    /** @return list<ConfigIssue> */
+    private function notifications(): array
+    {
+        $issues = [];
+        $channels = $this->config->get('notifications.channels', []);
+        if (!is_array($channels)) {
+            $issues[] = new ConfigIssue(
+                'notifications.channels must be a channel service map.',
+                'notifications.channels',
+            );
+        } else {
+            foreach ($channels as $name => $definition) {
+                if (!is_string($name)
+                    || trim($name) === ''
+                    || ((!is_string($definition) || trim($definition) === '') && !is_object($definition))
+                ) {
+                    $issues[] = new ConfigIssue(
+                        'notifications.channels must map non-empty names to service class names or channel instances.',
+                        'notifications.channels',
+                    );
+                    break;
+                }
+            }
+        }
+
+        $sender = $this->config->get('notifications.email.default_sender', 'default');
+        if (!is_string($sender) || trim($sender) === '') {
+            $issues[] = new ConfigIssue(
+                'notifications.email.default_sender must be a non-empty sender profile name.',
+                'notifications.email.default_sender',
+            );
+        }
+
+        $from = $this->config->get('notifications.email.default_from');
+        if ($from !== null && (!is_string($from) || trim($from) === '')) {
+            $issues[] = new ConfigIssue(
+                'notifications.email.default_from must be null or a non-empty mailbox string.',
+                'notifications.email.default_from',
+            );
+        }
+
+        return $issues;
     }
 
     /** @return list<ConfigIssue> */
