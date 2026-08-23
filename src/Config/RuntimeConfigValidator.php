@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Config;
 
+use Infocyph\Foundation\Exception\ConfigurationException;
 use Psr\Log\LogLevel;
 
 final readonly class RuntimeConfigValidator
@@ -608,7 +609,20 @@ final readonly class RuntimeConfigValidator
                     $prefix . '.store',
                 );
             }
+
+            if ($this->config->get($prefix . '.driver', 'file') === 'cache') {
+                array_push($issues, ...$this->operationalCacheState($surface, $store));
+            }
         }
+
+        array_push(
+            $issues,
+            ...$this->allowedString(
+                'operations.runtime_registry.visibility',
+                $this->config->get('operations.runtime_registry.visibility', 'host'),
+                ['host', 'shared'],
+            ),
+        );
 
         $maxBytes = $this->config->get('operations.history.max_bytes', 16_777_216);
         if (!is_int($maxBytes) || $maxBytes < 1) {
@@ -635,6 +649,46 @@ final readonly class RuntimeConfigValidator
         }
 
         return $issues;
+    }
+
+    /** @return list<ConfigIssue> */
+    private function operationalCacheState(string $surface, mixed $configuredStore): array
+    {
+        $store = is_string($configuredStore) && trim($configuredStore) !== ''
+            ? trim($configuredStore)
+            : $this->config->get('cache.default');
+        $key = 'operations.' . $surface . '.store';
+        if (!is_string($store) || trim($store) === '') {
+            return [new ConfigIssue(
+                sprintf('%s requires a configured cache store.', 'operations.' . $surface),
+                $key,
+            )];
+        }
+        $store = trim($store);
+        if (!$this->config->has('cache.stores.' . $store)) {
+            return [new ConfigIssue(
+                sprintf('cache.stores.%s must exist for cache-backed %s.', $store, str_replace('_', ' ', $surface)),
+                'cache.stores.' . $store,
+            )];
+        }
+
+        $topology = new SharedStateTopology($this->config);
+        $required = DeploymentTopology::resolve($this->config) === DeploymentTopology::DISTRIBUTED
+            ? SharedStateTopology::CLUSTER
+            : SharedStateTopology::HOST;
+
+        try {
+            $topology->assertCacheStore(
+                $store,
+                $surface === 'runtime_control' ? 'Runtime control' : 'Maintenance state',
+                $required,
+                $surface === 'runtime_control',
+            );
+        } catch (ConfigurationException $exception) {
+            return [new ConfigIssue($exception->getMessage(), 'cache.stores.' . $store)];
+        }
+
+        return [];
     }
 
     /** @return list<ConfigIssue> */
