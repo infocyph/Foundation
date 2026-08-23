@@ -15,6 +15,7 @@ final class CommandDispatcher
     public function __construct(
         private array $config,
         private CommandRegistry $registry,
+        private string $displayName = 'Foundation',
     ) {}
 
     /**
@@ -28,6 +29,7 @@ final class CommandDispatcher
         array $config = [],
         ?string $manifestPath = null,
         ?string $routesPath = null,
+        string $displayName = 'Foundation',
     ): self {
         $basePath = $config['base_path'] ?? getcwd();
         if (!is_string($basePath) || $basePath === '') {
@@ -41,7 +43,7 @@ final class CommandDispatcher
             try {
                 $manifest = require $manifestPath;
                 if (is_array($manifest)) {
-                    return new self($config, CommandRegistry::fromManifest($manifest));
+                    return new self($config, CommandRegistry::fromManifest($manifest), $displayName);
                 }
             } catch (\Throwable) {
                 // A command cache is an optimization. Source routes remain authoritative.
@@ -59,7 +61,7 @@ final class CommandDispatcher
             }
         }
 
-        return new self($config, new CommandRegistry($commands));
+        return new self($config, new CommandRegistry($commands), $displayName);
     }
 
     public function registry(): CommandRegistry
@@ -72,7 +74,7 @@ final class CommandDispatcher
     {
         $coarse = ParsedInput::fromArgv($argv);
         $io ??= TerminalIO::fromInput($coarse);
-        $preflight = new CliPreflight($this->registry);
+        $preflight = new CliPreflight($this->registry, $this->displayName);
 
         try {
             $handled = $preflight->handle($argv, $io);
