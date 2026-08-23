@@ -5,6 +5,19 @@ declare(strict_types=1);
 return [
     /*
     |--------------------------------------------------------------------------
+    | Application Notification Channels
+    |--------------------------------------------------------------------------
+    |
+    | `mail` is built into Foundation and delegates delivery to TalkingBytes.
+    | Additional entries map an application channel name to a service class
+    | implementing Foundation NotificationChannel. Class-name configuration is
+    | recommended for persistent and pooled runtimes.
+    |
+    */
+    'channels' => [],
+
+    /*
+    |--------------------------------------------------------------------------
     | Authentication Notification Policy
     |--------------------------------------------------------------------------
     |
@@ -29,13 +42,17 @@ return [
         | Outbound Sender Profiles
         |--------------------------------------------------------------------------
         |
-        | "default_sender" is injected as TalkingBytes Emailer when no profile is
-        | selected. A sender chooses one transport and may wrap it with fallback,
-        | retry, rate limiting and DKIM policy. Fallback entries name transports,
-        | not sender profiles.
+        | "default_sender" selects the Foundation sender profile used when a
+        | MailMessage does not select one. "default_from" is applied only when
+        | the native TalkingBytes EmailMessage does not already define From.
+        |
+        | A sender chooses one transport and may wrap it with fallback, retry,
+        | rate limiting and DKIM policy. Fallback entries name transports, not
+        | sender profiles.
         |
         */
         'default_sender' => env('NOTIFICATIONS_EMAIL_DEFAULT_SENDER', 'default'),
+        'default_from' => env('NOTIFICATIONS_EMAIL_DEFAULT_FROM'),
         'senders' => [
             'default' => [
                 'transport' => env('NOTIFICATIONS_EMAIL_TRANSPORT', 'null'),
