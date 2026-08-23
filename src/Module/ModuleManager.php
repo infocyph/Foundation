@@ -19,26 +19,58 @@ final readonly class ModuleManager
         private ProcessRunner $processes,
     ) {}
 
-    /** @return list<array{name:string,package:?string,constraint:?string,description:string,installed:bool,direct:bool,version:?string}> */
+    /**
+     * @return list<array{
+     *     name:string,
+     *     description:string,
+     *     built_in:bool,
+     *     status:string,
+     *     installed:bool,
+     *     direct:bool,
+     *     packages:array<string,array{constraint:string,installed:bool,direct:bool,version:?string}>
+     * }>
+     */
     public function all(): array
     {
         $direct = $this->directRequirements();
         $modules = [];
 
         foreach ($this->catalog->all() as $name => $definition) {
-            $package = $definition['package'];
             $builtIn = ($definition['built_in'] ?? false) === true;
-            $installed = $builtIn || ($package !== null && InstalledVersions::isInstalled($package));
+            $packages = [];
+            $installedCount = 0;
+            $directCount = 0;
+
+            foreach ($definition['packages'] as $package => $constraint) {
+                $installed = InstalledVersions::isInstalled($package);
+                $isDirect = isset($direct[$package]);
+                $installedCount += $installed ? 1 : 0;
+                $directCount += $isDirect ? 1 : 0;
+                $packages[$package] = [
+                    'constraint' => $constraint,
+                    'installed' => $installed,
+                    'direct' => $isDirect,
+                    'version' => $installed ? InstalledVersions::getPrettyVersion($package) : null,
+                ];
+            }
+
+            $packageCount = count($packages);
+            $installed = $builtIn || ($packageCount > 0 && $installedCount === $packageCount);
+            $status = match (true) {
+                $builtIn => 'built-in',
+                $installed => 'installed',
+                $installedCount > 0 => 'partial',
+                default => 'available',
+            };
+
             $modules[] = [
                 'name' => $name,
-                'package' => $package,
-                'constraint' => $definition['constraint'],
                 'description' => $definition['description'],
+                'built_in' => $builtIn,
+                'status' => $status,
                 'installed' => $installed,
-                'direct' => $builtIn || ($package !== null && isset($direct[$package])),
-                'version' => $builtIn
-                    ? InstalledVersions::getPrettyVersion('infocyph/foundation')
-                    : ($installed && $package !== null ? InstalledVersions::getPrettyVersion($package) : null),
+                'direct' => $builtIn || ($packageCount > 0 && $directCount === $packageCount),
+                'packages' => $packages,
             ];
         }
 
@@ -48,18 +80,16 @@ final readonly class ModuleManager
     public function install(string $module, bool $dryRun = false): ProcessResult
     {
         $definition = $this->catalog->resolve($module);
-        if (($definition['built_in'] ?? false) === true) {
+        if (($definition['built_in'] ?? false) === true || $definition['packages'] === []) {
             return new ProcessResult(0);
         }
 
-        $package = $definition['package'] ?? null;
-        $constraint = $definition['constraint'] ?? null;
-        if (!is_string($package) || $package === '' || !is_string($constraint) || $constraint === '') {
-            throw new \LogicException(sprintf('Module "%s" has no installable package constraint.', $module));
+        $command = ['composer', 'require'];
+        foreach ($definition['packages'] as $package => $constraint) {
+            $command[] = $package . ':' . $constraint;
         }
-
-        $requirement = $package . ':' . $constraint;
-        $command = ['composer', 'require', $requirement, '--with-all-dependencies', '--update-no-dev'];
+        $command[] = '--with-all-dependencies';
+        $command[] = '--update-no-dev';
         if ($dryRun) {
             $command[] = '--dry-run';
         }
@@ -118,15 +148,19 @@ final readonly class ModuleManager
     {
         $definition = $this->catalog->resolve($module);
         if (($definition['built_in'] ?? false) === true) {
-            throw new \InvalidArgumentException(sprintf('Module "%s" is built into Foundation.', $module));
+            throw new \InvalidArgumentException(sprintf('Module "%s" is built into Foundation.', $definition['name']));
         }
 
-        $package = $definition['package'] ?? null;
-        if (!is_string($package) || $package === '') {
-            throw new \LogicException(sprintf('Module "%s" has no removable package.', $module));
+        $direct = $this->directRequirements();
+        $packages = array_values(array_filter(
+            array_keys($definition['packages']),
+            static fn(string $package): bool => isset($direct[$package]),
+        ));
+        if ($packages === []) {
+            return new ProcessResult(0);
         }
 
-        $command = ['composer', 'remove', $package, '--with-all-dependencies', '--update-no-dev'];
+        $command = ['composer', 'remove', ...$packages, '--with-all-dependencies', '--update-no-dev'];
         if ($dryRun) {
             $command[] = '--dry-run';
         }
