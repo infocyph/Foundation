@@ -8,7 +8,7 @@ their domain behavior.
 - [Configuration](configuration.md)
 - [HTTP and optional capabilities](http-and-capabilities.md)
 - [Communication and email](communication.md)
-- [Console, schedules, and workers](console.md)
+- [CLI, schedules, and workers](console.md)
 - [Authentication and authorization](authentication.md)
 - [OTP-backed MFA](otp.md)
 - [Browser sessions and CSRF](browser-sessions.md)
@@ -23,5 +23,6 @@ their domain behavior.
 - [Security boundaries](security.md)
 
 The configuration templates under `resources/config/` are the canonical
-key-by-key reference. Each template documents types, defaults, predefined
-values, and examples next to the value that is published into an application.
+key-by-key reference for publishable configuration. Runtime behavior and public
+command/module names in these guides follow the Foundation 2.0 source on the
+current branch; full release verification is a separate phase.
