@@ -21,6 +21,7 @@ final readonly class RuntimeConfigValidator
             ...$this->migrations(),
             ...$this->messageRoutes(),
             ...$this->messageCallableMaps(),
+            ...$this->messageMiddleware(),
             ...$this->messageListeners(),
             ...$this->messageSettings(),
             ...$this->messageRetry(),
@@ -203,6 +204,32 @@ final readonly class RuntimeConfigValidator
                 if (!is_string($name) || $name === '' || !$this->callableDefinition($definition)) {
                     $issues[] = new ConfigIssue(
                         sprintf('%s must map non-empty keys to callable definitions.', $key),
+                        $key,
+                    );
+                    break;
+                }
+            }
+        }
+
+        return $issues;
+    }
+
+    /** @return list<ConfigIssue> */
+    private function messageMiddleware(): array
+    {
+        $issues = [];
+        foreach (['handler_middleware', 'job_middleware'] as $surface) {
+            $key = 'messaging.' . $surface;
+            $definitions = $this->config->get($key, []);
+            if (!is_array($definitions) || !array_is_list($definitions)) {
+                $issues[] = new ConfigIssue($key . ' must be an ordered middleware list.', $key);
+
+                continue;
+            }
+            foreach ($definitions as $definition) {
+                if ((!is_string($definition) || trim($definition) === '') && !is_object($definition)) {
+                    $issues[] = new ConfigIssue(
+                        $key . ' entries must be non-empty service class names or middleware instances.',
                         $key,
                     );
                     break;
