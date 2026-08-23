@@ -498,24 +498,67 @@ final readonly class RuntimeConfigValidator
             );
         }
 
-        $path = $this->config->get('operations.history.path', 'storage/logs/executions.jsonl');
-        if (!is_string($path) || trim($path) === '') {
+        foreach ([
+            'operations.history.path' => 'storage/logs/executions.jsonl',
+            'operations.maintenance.path' => 'storage/framework/maintenance.json',
+            'operations.runtime_control.path' => 'storage/framework/runtime-control.json',
+            'operations.runtime_registry.path' => 'storage/framework/runtime',
+        ] as $key => $default) {
+            $value = $this->config->get($key, $default);
+            if (!is_string($value) || trim($value) === '') {
+                $issues[] = new ConfigIssue($key . ' must be a non-empty application path.', $key);
+            }
+        }
+
+        foreach (['maintenance', 'runtime_control'] as $surface) {
+            $prefix = 'operations.' . $surface;
+            $issues = [
+                ...$issues,
+                ...$this->allowedString(
+                    $prefix . '.driver',
+                    $this->config->get($prefix . '.driver', 'file'),
+                    ['file', 'cache'],
+                ),
+            ];
+
+            $key = $this->config->get(
+                $prefix . '.key',
+                $surface === 'maintenance' ? 'foundation:maintenance' : 'foundation:runtime-control',
+            );
+            if (!is_string($key) || trim($key) === '') {
+                $issues[] = new ConfigIssue($prefix . '.key must be a non-empty cache key.', $prefix . '.key');
+            }
+
+            $store = $this->config->get($prefix . '.store');
+            if ($store !== null && (!is_string($store) || trim($store) === '')) {
+                $issues[] = new ConfigIssue(
+                    $prefix . '.store must be null or a non-empty configured cache store name.',
+                    $prefix . '.store',
+                );
+            }
+        }
+
+        $maxBytes = $this->config->get('operations.history.max_bytes', 16_777_216);
+        if (!is_int($maxBytes) || $maxBytes < 1) {
             $issues[] = new ConfigIssue(
-                'operations.history.path must be a non-empty file path.',
-                'operations.history.path',
+                'operations.history.max_bytes must be an integer of at least 1.',
+                'operations.history.max_bytes',
             );
         }
 
-        $issues = [
-            ...$issues,
-            ...$this->positiveInteger('operations.history.max_bytes', 1),
-            ...$this->positiveInteger('operations.history.retained_files', 0),
-        ];
         $retained = $this->config->get('operations.history.retained_files', 7);
-        if (is_int($retained) && $retained > 100) {
+        if (!is_int($retained) || $retained < 0 || $retained > 100) {
             $issues[] = new ConfigIssue(
-                'operations.history.retained_files cannot exceed 100.',
+                'operations.history.retained_files must be an integer between 0 and 100.',
                 'operations.history.retained_files',
+            );
+        }
+
+        $stale = $this->config->get('operations.runtime_registry.stale_seconds', 15);
+        if (!is_int($stale) || $stale < 1 || $stale > 3_600) {
+            $issues[] = new ConfigIssue(
+                'operations.runtime_registry.stale_seconds must be an integer between 1 and 3600.',
+                'operations.runtime_registry.stale_seconds',
             );
         }
 
