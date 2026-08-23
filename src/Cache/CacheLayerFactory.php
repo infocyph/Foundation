@@ -304,11 +304,10 @@ final readonly class CacheLayerFactory
                 $prefix,
                 $retry,
             ),
-            'pdo' => new PdoLockProvider(
+            'pdo' => PdoLockProvider::strict(
                 $this->pdoClient(array_replace($store, $lock), $storeDriver),
                 $prefix,
                 $retry,
-                new FileLockProvider($this->fallbackLockDirectory($lock), $retry),
             ),
             'redis', 'valkey' => new RedisLockProvider(
                 $this->redisClient(array_replace($store, $lock), $driver),
@@ -671,13 +670,6 @@ final readonly class CacheLayerFactory
     private function basePath(): string
     {
         return $this->stringConfig('app.base_path', getcwd() ?: '.');
-    }
-
-    private function fallbackLockDirectory(array $lock): string
-    {
-        $fallback = ValueNormalizer::associativeArray($lock['fallback'] ?? []);
-
-        return $this->directory($fallback) ?? $this->paths->cache('locks');
     }
 
     /** @param array<string, mixed> $store */
