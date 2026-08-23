@@ -12,16 +12,20 @@ final readonly class TerminalIO implements CommandIO
         private bool $quietMode = false,
         bool $interactive = true,
         private bool $jsonMode = false,
+        private bool $silentMode = false,
     ) {
-        $this->interactiveMode = $interactive && self::isTty(STDIN);
+        $this->interactiveMode = $interactive && !$silentMode && self::isTty(STDIN);
     }
 
     public static function fromInput(ParsedInput $input): self
     {
+        $silent = $input->flag('silent');
+
         return new self(
-            quietMode: $input->flag('quiet'),
-            interactive: !$input->flag('no-interaction'),
+            quietMode: $input->flag('quiet') || $silent,
+            interactive: !$input->flag('no-interaction') && !$silent,
             jsonMode: $input->flag('json'),
+            silentMode: $silent,
         );
     }
 
@@ -76,6 +80,9 @@ final readonly class TerminalIO implements CommandIO
 
     public function error(string $message): void
     {
+        if ($this->silentMode) {
+            return;
+        }
         if ($this->jsonMode) {
             $encoded = json_encode(
                 ['level' => 'error', 'message' => $message],
@@ -101,7 +108,7 @@ final readonly class TerminalIO implements CommandIO
 
     public function json(mixed $value): void
     {
-        if ($this->quietMode) {
+        if ($this->quietMode || $this->silentMode) {
             return;
         }
 
@@ -162,7 +169,7 @@ final readonly class TerminalIO implements CommandIO
 
     public function table(array $headers, array $rows): void
     {
-        if ($this->quietMode) {
+        if ($this->quietMode || $this->silentMode) {
             return;
         }
         if ($headers === [] || array_any($headers, static fn(mixed $header): bool => !is_string($header))) {
@@ -213,14 +220,14 @@ final readonly class TerminalIO implements CommandIO
 
     public function write(string $message): void
     {
-        if (!$this->quietMode) {
+        if (!$this->quietMode && !$this->silentMode) {
             fwrite(STDOUT, $message);
         }
     }
 
     public function writeln(string $message = ''): void
     {
-        if (!$this->quietMode) {
+        if (!$this->quietMode && !$this->silentMode) {
             fwrite(STDOUT, $message . PHP_EOL);
         }
     }
@@ -284,7 +291,7 @@ final readonly class TerminalIO implements CommandIO
 
     private function semantic(string $role, string $message): void
     {
-        if ($this->quietMode) {
+        if ($this->quietMode || $this->silentMode) {
             return;
         }
         if ($this->jsonMode) {
