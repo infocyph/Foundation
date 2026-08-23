@@ -3,31 +3,31 @@
 `infocyph/foundation` is the performance-first application composition layer for
 the Infocyph PHP ecosystem.
 
-Foundation owns application bootstrap, runtime selection, application paths,
-provider activation, authentication workflows, sessions, scheduling, command
-orchestration, worker composition, operational policy, and HTTP-aware bridges.
-It does **not** copy the engines provided by specialist packages.
+Foundation owns application bootstrap, explicit runtime selection, application
+paths, provider activation, authentication/session workflows, command and
+scheduler orchestration, worker composition, operational policy, HTTP-aware
+bridges, and purpose-first optional modules. Specialist libraries retain their
+own engines and public APIs.
 
 ## Requirements
 
-- PHP 8.4+
-- Composer
+Core runtime dependencies:
 
-Core dependencies are intentionally small:
-
-- `infocyph/arraykit ^5.1.1` — configuration/environment mechanics
-- `infocyph/intermix ^9.1` — dependency injection, lifetimes, and execution scopes
-- `infocyph/uid ^5.0` — identifier algorithms
-- `infocyph/webrick ^4.0.1` — request/response/routing engine
+- PHP `^8.4`
+- `composer-runtime-api ^2.0`
+- `infocyph/arraykit ^5.1.1`
+- `infocyph/intermix ^9.2`
+- `infocyph/uid ^5.0`
+- `infocyph/webrick ^4.0.2`
 - `psr/log ^3.0.2`
 
-Install Foundation with:
+Install with Composer:
 
 ```bash
 composer require infocyph/foundation
 ```
 
-Foundation installs a Composer binary named `infbyte`:
+Foundation exposes the `infbyte` Composer binary:
 
 ```bash
 vendor/bin/infbyte list
@@ -35,13 +35,12 @@ vendor/bin/infbyte --version
 vendor/bin/infbyte help route:list
 ```
 
-The binary treats the current working directory as the host application root.
-Metadata-only commands such as list/help/version/completion execute without
-booting an application.
+Metadata-only list/help/version/completion operations do not need to boot an
+application.
 
 ## Runtime model
 
-Foundation 2.0 has four explicit runtimes:
+Foundation has exactly four explicit runtimes:
 
 ```php
 use Infocyph\Foundation\Foundation;
@@ -52,28 +51,24 @@ $worker = Foundation::worker(['base_path' => dirname(__DIR__)]);
 $scheduler = Foundation::scheduler(['base_path' => dirname(__DIR__)]);
 ```
 
-Runtime mode is never inferred from `PHP_SAPI`. Tests, workers, schedulers, and
-web applications may all execute under the CLI SAPI, so the host selects the
-runtime deliberately.
+Runtime mode is never inferred from `PHP_SAPI`. Web requests, CLI commands,
+worker messages/units, and scheduler executions each run inside a fresh InterMix
+execution scope with a Foundation execution ID and targeted external-state
+cleanup.
 
-Every Web request, CLI command, worker unit, and scheduler unit executes inside
-a fresh InterMix scope. Foundation assigns an execution ID, seeds runtime
-context, performs the unit, resets touched external/static state, and leaves the
-scope in `finally`.
+## Application shape
 
-## Project shape
-
-A conventional host application looks like:
+A conventional application may contain:
 
 ```text
 project-root/
   app/
   bootstrap/
+    cache/
     providers.php
   config/
     app.php
     auth.php
-    ids.php
     router.php
   database/
   public/
@@ -93,482 +88,362 @@ project-root/
     uploads/
   tests/
   composer.json
+  infbyte
 ```
 
-Foundation knows the standard application, bootstrap, config, database, public,
-resources, routes, storage, cache, logs, sessions, and uploads paths. Override
-only application-specific differences.
+Optional module configuration is published only when required; applications do
+not need to check every Foundation config template into source control.
 
 ## Web bootstrap
 
-`public/index.php` can be as small as:
+A host selects the Web runtime explicitly:
 
 ```php
-<?php
-
-declare(strict_types=1);
-
 use Infocyph\Foundation\Foundation;
-
-require dirname(__DIR__) . '/vendor/autoload.php';
 
 $app = Foundation::web([
     'base_path' => dirname(__DIR__),
 ]);
-
-// Convert the server request to Webrick Request and hand it to $app->handle().
 ```
 
-The Web runtime eagerly prepares only the services required to receive HTTP
-traffic. Optional package providers remain lazy until a configured capability is
-actually resolved.
+The host converts the incoming request to Webrick's `Request` and calls
+`$app->handle($request)`. Optional package providers remain lazy until a
+configured capability is resolved.
 
-## Configuration and environment
+## Configuration
 
-Foundation delegates configuration mechanics to ArrayKit. Configuration loads
-in this order:
+ArrayKit owns dotenv/config mechanics. Foundation owns application file ordering,
+paths, cache conventions, and runtime policy.
 
-1. Foundation application defaults
-2. optional Foundation preset
-3. host `config/*.php`
-4. inline configuration passed to the runtime entry point
-
-Environment files are loaded before host config evaluation. By default:
-
-1. `.env`
-2. `.env.local`
-
-ArrayKit owns dotenv parsing, reference expansion, lazy config mechanics, and
-dot access. Foundation owns only application file ordering, host paths, config
-cache conventions, and process-environment hydration policy.
-
-Example:
+Global configuration helpers are deliberately limited to:
 
 ```php
-Foundation::web([
-    'base_path' => dirname(__DIR__),
-    'app' => [
-        'load_env' => true,
-        'env_files' => ['.env', '.env.production'],
-    ],
-]);
+env('KEY');
+env_bool('KEY', false);
+env_int('KEY', 10);
+env_string('KEY', 'default');
 ```
+
+Application paths remain declarative; Foundation does not introduce global path
+helpers or static application state.
 
 ## Dependency injection
 
-InterMix is the sole DI/lifetime/scope engine. Foundation constructs and
-configures an InterMix container; it does not implement a parallel container.
-Compiled-container artifacts are InterMix artifacts stored using Foundation's
-application cache conventions.
+InterMix is the sole DI/lifetime/scope engine. Foundation composes and activates
+providers over the public InterMix container APIs; it does not maintain a second
+container implementation.
 
-Application providers are grouped explicitly in `bootstrap/providers.php`:
+Application providers are grouped explicitly:
 
 ```php
-<?php
-
 return [
-    'common' => [
-        App\Providers\SharedServiceProvider::class,
-    ],
-    'web' => [
-        App\Providers\WebServiceProvider::class,
-    ],
-    'cli' => [
-        App\Providers\CliServiceProvider::class,
-    ],
-    'worker' => [
-        App\Providers\WorkerServiceProvider::class,
-    ],
-    'scheduler' => [
-        App\Providers\SchedulerServiceProvider::class,
-    ],
+    'common' => [],
+    'web' => [],
+    'cli' => [],
+    'worker' => [],
+    'scheduler' => [],
 ];
 ```
 
-Custom providers used by forked worker pools must keep `register()` resource
-free. Database connections, network clients, queue receivers, sockets, and
-similar process-bound resources must be created lazily after fork.
+Pooled worker parents must remain resource-free before fork. Resolve PDO,
+Redis/Valkey, brokers, sockets, HTTP clients, and other process-bound services
+lazily in the child.
 
-## Optional modules
+## Purpose-first modules
 
-Specialist packages are optional host dependencies. Install them directly or
-through Foundation's module command when you also want canonical config
-published:
+A Foundation module represents an application capability, not a package name.
+
+| Module | Backing packages |
+| --- | --- |
+| `auth` | `infocyph/otp ^6.0`, `web-auth/webauthn-lib ^5.3.5` |
+| `cache` | `infocyph/cachelayer ^3.2` |
+| `communication` | `infocyph/talkingbytes ^2.0` |
+| `database` | `infocyph/dblayer ^4.1` |
+| `filesystem` | `infocyph/pathwise ^3.1` |
+| `logging` | built into Foundation |
+| `messaging` | `infocyph/omnibus ^2.4` |
+| `operations` | built into Foundation |
+| `resources` | built into Foundation |
+| `security` | `infocyph/epicrypt ^2.1` |
+| `session` | built into Foundation |
+| `validation` | `infocyph/reqshield ^3.0` |
+
+Common aliases remain accepted (`db` -> `database`, `crypto` -> `security`,
+`otp|mfa|passkeys|webauthn` -> `auth`), but canonical documentation uses the
+purpose names.
 
 ```bash
-vendor/bin/infbyte module:install cache
-vendor/bin/infbyte module:install db
-vendor/bin/infbyte module:install filesystem
-vendor/bin/infbyte module:install communication
-vendor/bin/infbyte module:install messaging
-vendor/bin/infbyte module:list
+php infbyte module:list
+php infbyte module:show database
+php infbyte module:install database
+php infbyte module:config:publish messaging
+php infbyte module:remove database --dry-run
 ```
 
-| Module | Package | Foundation role |
-| --- | --- | --- |
-| `cache` | `infocyph/cachelayer ^3.1.3` | store/lock/counter composition |
-| `db` | `infocyph/dblayer ^4.1` | connection and migration composition |
-| `crypto` | `infocyph/epicrypt ^2.1` | application security policy/auth adapters |
-| `filesystem` | `infocyph/pathwise ^3.1` | application storage/HTTP bridges |
-| `validation` | `infocyph/reqshield ^3.0` | named schema/profile composition |
-| `communication` | `infocyph/talkingbytes ^2.0` | configured HTTP/email/webhook/gRPC services |
-| `messaging` | `infocyph/omnibus dev-main@dev` | queue/event/worker composition |
-| `otp` | `infocyph/otp ^6.0` | MFA factor mapping and durable state bridge |
-| `passkeys` | `web-auth/webauthn-lib ^5.3.5` | WebAuthn application workflow |
-| `logging` | built in | PSR-3 application logging policy |
-| `resources` | built in | JsonDispatch application resources |
-| `session` | built in | browser session/CSRF application lifecycle |
+Package presence is distinct from configured activation. A multi-package module
+may be partially installed; readiness requires only the implementations selected
+by active configuration.
 
-Package presence, module configuration, and a live capability are separate
-states. Installing a package never opens a database/network/cache connection by
-itself.
+## Module-owned schema lifecycle
 
-## Native package ownership
+Foundation exposes one schema command family:
 
-Foundation intentionally avoids generic forwarding managers.
-
-- Use `Infocyph\UID\Id` directly for UUID/ULID/NanoID/CUID2/Snowflake/etc.
-- Use native DBLayer connection/query/repository APIs for database work.
-- Use native CacheLayer cache/lock/counter APIs for generic cache work.
-- Use native Pathwise/Flysystem services for generic filesystem work.
-- Use native ReqShield validators returned by Foundation's named-schema factory.
-- Use native TalkingBytes clients/services for communication operations.
-- Use native Epicrypt primitives for cryptographic operations.
-- Use native Omnibus `MessageBus`, `EventDispatcher`, `Consumer`, `Worker`, and
-  `WorkerPool` services for messaging.
-- Use native OTP algorithms for non-Foundation OTP use.
-
-Foundation keeps only application-specific policy and workflows around those
-engines.
-
-## Identifier policy
-
-UID 5.0 is a core dependency. Foundation does not expose an identifier facade.
-Application code calls UID directly:
-
-```php
-use Infocyph\UID\Id;
-
-$id = Id::uuid7();
-$correlation = Id::ulid();
+```bash
+php infbyte module:schema:status auth
+php infbyte module:schema:install auth
+php infbyte module:schema:status cache
+php infbyte module:schema:install session
+php infbyte module:schema:sync
 ```
 
-Foundation authentication has one narrow policy map under `ids.auth`: durable
-auth entities default to `uuid7`, while correlation IDs default to `ulid`.
-Those are the only UID choices Foundation needs to understand.
+Schema ownership remains with the capability:
+
+- `auth` -> Foundation authentication schema
+- `cache` -> CacheLayer public PDO/SQLite/invalidation schema provisioners
+- `session` -> Foundation database-session schema
+
+The `database` module owns migration/database infrastructure, not arbitrary
+application schema. `module:remove` never drops schemas or application data.
+
+Schema status is observational; for example, checking a missing SQLite cache
+database does not create the database file.
+
+## Native specialist ownership
+
+Foundation intentionally avoids generic forwarding facades/managers:
+
+- use `Infocyph\UID\Id` for generated identifiers;
+- use native DBLayer APIs for queries/transactions/schema;
+- use native CacheLayer APIs for generic cache/lock/counter operations;
+- use Pathwise/Flysystem for generic filesystem behavior;
+- use ReqShield validation primitives directly;
+- use TalkingBytes for HTTP/email/webhook/gRPC mechanics;
+- use Epicrypt primitives directly for cryptographic operations;
+- use Omnibus `MessageBus`, `EventDispatcher`, `Consumer`, and worker APIs for
+  messaging.
+
+Foundation adds application-specific policy/composition only where it has a
+real framework responsibility.
+
+## Application contracts and generators
+
+Foundation provides application-level contracts where they add value over the
+specialist package:
+
+- `Validation\FormRequest` composes Webrick request input with ReqShield;
+- custom validation rules implement ReqShield's native `Contracts\Rule`;
+- `Messaging\Job`, `JobContext`, and `JobMiddleware` adapt application jobs to
+  Omnibus handler execution;
+- `Notifications\Notification`, `NotificationRecipient`, and
+  `NotificationChannel` provide application notification routing;
+- `Notifications\MailMessage` adds sender-profile selection over TalkingBytes
+  `EmailMessage`;
+- `Http\Resource\JsonResource` is the application JSON-resource contract.
+
+Available generators include:
+
+```bash
+php infbyte create:class Support/Clock
+php infbyte create:controller Admin/User
+php infbyte create:command Reports/Daily
+php infbyte create:config billing
+php infbyte create:job GenerateReport
+php infbyte create:handler GenerateReport
+php infbyte create:job-middleware AuditJob
+php infbyte create:request StoreUser
+php infbyte create:rule ValidVatNumber
+php infbyte create:mail Welcome
+php infbyte create:notification PasswordChanged
+php infbyte create:notification-channel Sms
+php infbyte create:resource User
+php infbyte create:migration CreateUsers
+php infbyte create:repository User
+php infbyte create:seeder Production
+php infbyte create:worker Metrics
+```
+
+Generators create starting points only; they do not scan the application or
+silently edit configuration/registration maps.
 
 ## Commands
 
-Application commands are registered explicitly in `routes/console.php`; no
+Application commands are registered explicitly in `routes/console.php`. No
 command-directory scanning occurs.
 
-```php
-<?php
+Core command families include:
 
-return [
-    App\Command\ReportsDaily::class,
-    'billing:reconcile' => App\Command\ReconcileBilling::class,
-];
+```text
+about | app:install | app:ready | serve
+config:* | command:* | route:*
+cache:*
+db:* | migrate*
+module:*
+execution:* | maintenance:*
+runtime:reload | worker:* | schedule:*
+queue:* | messaging:list
+storage:* | session:prune | auth:prune
+log:tail
+env:show | env:encrypt | env:decrypt
+optimize | optimize:clear | optimize:report
+create:*
 ```
 
-Foundation owns its command contract, parser, help/list/completion preflight,
-execution policy, overlap coordination, subprocess supervision, and application
-capability activation. Commands execute through the canonical execution scope.
+Global CLI controls include `--json`, `-q|--quiet`, `--silent`,
+`-v|-vv|-vvv`, `--profile`, `--env`, and `-n|--no-interaction`.
 
-Common operations include:
-
-```bash
-vendor/bin/infbyte about
-vendor/bin/infbyte app:ready
-vendor/bin/infbyte config:show app
-vendor/bin/infbyte command:cache
-vendor/bin/infbyte command:clear
-vendor/bin/infbyte route:list
-vendor/bin/infbyte route:cache
-vendor/bin/infbyte cache:clear
-vendor/bin/infbyte db:show
-vendor/bin/infbyte migrate
-vendor/bin/infbyte schedule:list
-vendor/bin/infbyte schedule:run
-vendor/bin/infbyte worker:list
-vendor/bin/infbyte queue:consume
-vendor/bin/infbyte storage:link
-```
-
-Command cache is a scalar metadata optimization at
-`bootstrap/cache/commands.php`. The cache includes a SHA-256 fingerprint of
-`routes/console.php`; malformed or stale cache is ignored and source routes are
-used instead.
-
-`help`, `list`, `--version`, and completion generation are bootless preflight
-operations:
-
-```bash
-vendor/bin/infbyte help
-vendor/bin/infbyte help migrate
-vendor/bin/infbyte completion bash
-vendor/bin/infbyte completion zsh
-vendor/bin/infbyte completion fish
-```
-
-### Command interaction
-
-The base `Command` provides prompts, password input, semantic messages, tables,
-progress/task helpers, arguments/options, and machine-readable output.
-
-`progress()` renders a progress bar for known totals and spinner-style feedback
-for unknown totals. `task()` reports success/failure around a callable. Both
-avoid decorative terminal updates in quiet, JSON, and non-interactive modes.
-
-Terminal tables ignore ANSI escape sequences when calculating width and use
-Unicode display width when `mb_strwidth()` is available. `--json` keeps normal
-output on stdout and emits structured error objects on stderr.
-
-## Command execution policy and processes
-
-Command execution can request isolation, timeout/idle-timeout, memory limits,
-mutexes, and overlap behavior (`allow`, `skip`, or `wait`). CacheLayer is loaded
-only when an overlap policy actually requires a distributed lock.
-
-Foundation subprocesses default to argument arrays with shell bypass. The
-process runner supports:
-
-- working directory and environment overrides
-- stdout/stderr capture or passthrough
-- bounded output
-- wall and idle timeouts
-- cancellation/heartbeat checks
-- signal metadata
-- graceful TERM-to-KILL cleanup
-
-Non-interactive Unix subprocesses are moved into a dedicated process group when
-POSIX process-group APIs are available, so cancellation/timeout also terminates
-descendants. Windows uses process-group creation plus `taskkill /T`, with forced
-fallback. Truly interactive Unix subprocesses retain foreground-terminal
-ownership and therefore use direct-child termination rather than being moved to
-a background process group.
-
-## Operational execution history
-
-Command and scheduler lifecycle history is available without introducing a
-database dependency. It is disabled by default to keep the hot path free of
-extra I/O:
-
-```php
-'operations' => [
-    'history' => [
-        'enabled' => true,
-        'path' => 'storage/logs/executions.jsonl',
-    ],
-],
-```
-
-When enabled, Foundation writes atomic JSONL state transitions for pending,
-waiting, running, succeeded, failed, cancelled, and timed-out executions. The
-same execution ID follows a supervised command into its child process and its
-InterMix scope.
-
-`Infocyph\Foundation\Operations\ExecutionHistory` exposes bounded streaming
-`recent()` queries and `clear()`; querying does not load the entire history file
-into memory.
-
-## Scheduling
-
-Schedules live only in `routes/schedule.php`:
-
-```php
-<?php
-
-use Infocyph\Foundation\Scheduling\Schedule;
-
-return static function (Schedule $schedule): void {
-    $schedule
-        ->command('reports:daily')
-        ->arguments(['--tenant=acme'])
-        ->dailyAt('02:00')
-        ->onOneServer(leaseSeconds: 180)
-        ->withoutOverlap(leaseSeconds: 180)
-        ->timeout(120)
-        ->memoryLimit(256);
-};
-```
-
-Available operations include:
-
-```bash
-vendor/bin/infbyte schedule:list
-vendor/bin/infbyte schedule:run
-vendor/bin/infbyte schedule:work
-vendor/bin/infbyte schedule:cache
-vendor/bin/infbyte schedule:clear
-```
-
-The compiled schedule manifest fingerprints `routes/schedule.php`; stale or
-invalid cache falls back to the source definition.
-
-## Workers and messaging
-
-Foundation distinguishes application maintenance workers from queue workers.
-
-- Foundation `Worker`/`WorkerRuntime` own maintenance-worker application loops.
-- Omnibus `Consumer`, `Worker`, and `WorkerPool` own messaging consumption and
-  queue concurrency.
-- Foundation supplies post-fork application composition and the canonical
-  execution scope around each message/unit.
-
-`foundation.messaging` resolves the native Omnibus `MessageBus`; there is no
-Foundation messaging forwarding manager.
-
-## Filesystem
-
-Pathwise owns generic storage operations, uploads/downloads, archives,
-copy/move/delete, synchronization, retention, and storage capability mechanics.
-Foundation keeps only application path policy, storage registry composition,
-public/storage linking, and HTTP upload/download response bridges.
-
-Application code may resolve native `League\Flysystem\FilesystemOperator` or
-Pathwise services directly.
+`--profile` writes command diagnostics to STDERR. Supervised child commands do
+not duplicate profile output; the parent owns command-level profiling.
 
 ## Database
 
-DBLayer owns database engines, query building, transactions, schema, migrations,
-replicas, pooling, query cache, and telemetry. Foundation owns connection-name
-configuration, application migration manifests, auth-schema composition, and
-runtime cleanup.
-
-Install the optional database module and auth schema with:
+Install DBLayer through the canonical capability:
 
 ```bash
-vendor/bin/infbyte module:install db
-vendor/bin/infbyte auth:schema:install
-vendor/bin/infbyte auth:schema:status
+php infbyte module:install database
+php infbyte migrate
+php infbyte migrate --pretend
+php infbyte migrate:status
+php infbyte db:monitor --section=status
 ```
 
-Foundation 2.0 MFA storage includes a scalar `revision` column used for portable
-compare-and-swap updates across MySQL, MariaDB, PostgreSQL, SQL Server, and
-SQLite. JSON metadata is payload, never the CAS token.
+`migrate --pretend` renders DBLayer 4.1's native pending SQL/bindings preview.
+Foundation does not implement another migration SQL compiler.
 
 See [Database migrations and seeding](docs/database.md).
 
-## Validation
+## Cache and coordination
 
-ReqShield owns schema compilation, validation, sanitization, casts, nested
-handling, request extraction, limits, and database batching. Foundation keeps
-only named application schema registration/profile composition and a direct
-DBLayer adapter for ReqShield's database contract.
+CacheLayer 3.2 provides cache stores, native locks, counters, node/cluster cache,
+and shared coordination.
 
-There is no Foundation validator facade or validation forwarding manager.
+Foundation coordination policy is explicit:
 
-## Security and MFA
+1. an explicitly configured lock driver wins;
+2. otherwise Foundation uses the selected store's native lock when available;
+3. there is no unsafe implicit fallback to an unrelated file lock.
 
-Epicrypt owns cryptographic primitives and secure key/cipher/password/token
-operations. Foundation owns application security policy and authentication
-workflow composition.
+Optional package presence does not force cache or DB activation.
 
-OTP 6.0 owns TOTP, HOTP, OCRA, Base32 provisioning, recovery-code cryptography,
-and replay mechanics. Foundation maps those results to durable MFA factor state.
-TOTP/counterless OCRA replay state uses CacheLayer; HOTP/counter-bearing OCRA
-counter transitions and recovery-code consumption use the MFA factor revision
-CAS contract.
+## Messaging and workers
 
-See [OTP-backed MFA](docs/otp.md) and
-[Authentication and authorization](docs/authentication.md).
+Omnibus 2.4 is the messaging baseline. Foundation uses one native Omnibus
+`HandlerInvoker` for sync and queued handlers. `messaging.handler_middleware`
+applies to all handlers; Foundation `messaging.job_middleware` runs only for
+messages implementing Foundation `Job`.
 
-## Communication
+Resolve native Omnibus services through DI:
 
-TalkingBytes owns HTTP, inbound/outbound email, webhooks, and gRPC request/
-response mechanics. Foundation only builds configured application profiles and
-application notification/auth bridges. Generic communication work should use
-native TalkingBytes services.
+```php
+use Infocyph\Omnibus\MessageBus;
 
-## Browser sessions
-
-Browser sessions are built into Foundation but activated only when configured.
-Session storage can use array/file storage or optional CacheLayer/DBLayer
-backends. Session and current-principal state are reset at every persistent
-execution boundary.
-
-```bash
-vendor/bin/infbyte module:install session
-vendor/bin/infbyte session:schema:install
-vendor/bin/infbyte session:schema:status
-vendor/bin/infbyte session:prune --limit=1000
+$bus = $app->make(MessageBus::class);
+$bus->dispatch(new App\Jobs\GenerateReportJob());
 ```
 
-See [Browser sessions](docs/browser-sessions.md).
-
-## Artifact generation
-
-Foundation generators create application starting points without scanning or
-silently editing application composition:
+Persistent single messaging workers use Omnibus 2.4 `WorkerLifecycle` callbacks
+for Foundation heartbeat/reload checks. Unix `WorkerPool` remains optional and
+requires `pcntl`/`posix`.
 
 ```bash
-vendor/bin/infbyte create:controller Admin/User
-vendor/bin/infbyte create:command Reports/Daily
-vendor/bin/infbyte create:service Billing
-vendor/bin/infbyte create:job SendReceipt
-vendor/bin/infbyte create:middleware EnsureTenant
-vendor/bin/infbyte create:migration CreateUsers
-vendor/bin/infbyte create:provider Billing
-vendor/bin/infbyte create:repository User
-vendor/bin/infbyte create:seeder Production
-vendor/bin/infbyte create:worker Queue
-vendor/bin/infbyte create:event UserRegistered
-vendor/bin/infbyte create:listener SendWelcomeEmail
-vendor/bin/infbyte create:test Http/UserAccess
+php infbyte worker:list
+php infbyte worker:run reports
+php infbyte worker:status reports
+php infbyte worker:restart reports
+php infbyte queue:failed
+php infbyte queue:retry <id>
 ```
 
-Commands, providers, schedules, and workers remain explicit registrations.
-Generators never modify those registration files implicitly.
+`queue:flush` clears the failed-message store; it is not a live queue purge.
 
-## Persistent-runtime cleanup
+See [Events, queues, workers, and scheduled messages](docs/messaging.md).
 
-Foundation resets only mutable state that actually exists:
+## Scheduling
 
-- InterMix opens/closes the execution scope.
-- current principal and browser session contexts are cleared.
-- fresh DBLayer connections are reset/disconnected.
-- shared DBLayer connections are rolled back/sanitized for reuse.
-- CacheLayer process-local memoizers are flushed when loaded.
+Schedules are declared explicitly in `routes/schedule.php`.
 
-OTP, Epicrypt, Pathwise, TalkingBytes, and Foundation's Omnibus composition keep
-no request/account-specific singleton state requiring an additional reset hook.
-Network/database/queue resources remain lazily constructed according to their
-own package lifetimes.
+```bash
+php infbyte schedule:list
+php infbyte schedule:run
+php infbyte schedule:test reports:daily
+php infbyte schedule:work
+php infbyte schedule:interrupt
+```
 
-## Production guidance
+Overlap/single-server ownership uses CacheLayer. Long child executions refresh
+their lock lease through process heartbeats; loss of ownership terminates the
+child rather than allowing unowned continuation. Last-run status is keyed by
+schedule identity, not only command text.
 
-- use durable authentication/session/MFA stores where persistence is required;
-- configure a real CacheLayer backend before relying on distributed locks or
-  replay state;
-- configure DBLayer before enabling database-backed services;
-- set a unique `auth.token_secret` of at least 32 bytes;
-- configure real notification transports before production auth delivery;
-- install/upgrade the Foundation auth schema when using DBLayer-backed auth;
-- compile config/container/route/command/schedule artifacts during deployment
-  when those optimizations fit the application;
-- run `vendor/bin/infbyte app:ready` as a deployment readiness check.
+## Operations
+
+Built-in operational surfaces include:
+
+```bash
+php infbyte config:validate --production
+php infbyte execution:list
+php infbyte maintenance:enable --retry=60
+php infbyte runtime:reload
+php infbyte worker:status
+php infbyte log:tail --follow
+php infbyte storage:status
+php infbyte optimize:report
+```
+
+Runtime-control mutations are serialized. File mode uses a stable file lock and
+atomic replacement; cache mode uses CacheLayer coordination. Runtime process
+records are heartbeat-based visibility metadata with explicit `host|shared`
+registry visibility; Foundation is not a process supervisor.
+
+See [Operations](docs/operations.md).
+
+## Environment protection
+
+With the `security` module installed:
+
+```bash
+php infbyte env:encrypt --key-file=/secure/env.key
+php infbyte env:decrypt --key-file=/secure/env.key
+```
+
+Key material must remain external to the protected `.env`. Foundation does not
+expose a literal command-line `--key=<secret>` option.
+
+## Deployment optimization
+
+Deployment may compile supported artifacts:
+
+```bash
+php infbyte optimize
+php infbyte optimize:report
+php infbyte app:ready
+```
+
+Clear them with:
+
+```bash
+php infbyte optimize:clear
+```
+
+Config, route, command, schedule, and container artifacts are deployment-owned
+and should not be committed.
 
 ## Documentation
 
-Start with [docs/README.md](docs/README.md). The documentation covers lifecycle,
-configuration, modules, authentication, OTP, sessions, database migrations,
-Omnibus integration, filesystem/communication ownership, logging, testing,
-operations, and the Console migration parity gate.
+See [docs/README.md](docs/README.md) for focused guides covering architecture,
+configuration, authentication, sessions, database, filesystem, communication,
+messaging, resources, logging, operations, security, modules, and testing.
 
-The old `infocyph/console` package is **not** part of Foundation 2.0. Its useful
-application/runtime capabilities are absorbed into Foundation or delegated to
-the specialist libraries listed above; redundant Console-specific abstraction
-layers are retired explicitly.
+## Verification status
 
-## Release
+Source/config/documentation reconciliation is separate from the final release
+gates. The full Composer/PHPForge/static-analysis/PHPUnit/integration/runtime and
+performance matrix should be run only in the dedicated verification phase.
 
-Foundation 2.0 is a major architecture release. Backward compatibility with the
-old Console/Foundation bridge surface is intentionally not retained. The
-release gate is defined in
-[docs/architecture/console-parity.md](docs/architecture/console-parity.md).
+The repository currently exposes the representative benchmark script:
 
-The remaining test/release matrix is intentionally separate from the main
-source architecture: package combinations, databases, cache backends,
-persistent-runtime soak/isolation, fork behavior, CLI/process behavior, and
-performance regression checks must pass before the final tag.
+```bash
+composer benchmark:representative
+```
+
+Do not infer that deferred release verification has run merely because the
+Foundation 2.0 source and documentation have been reconciled.
