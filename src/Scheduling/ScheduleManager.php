@@ -310,6 +310,35 @@ final readonly class ScheduleManager
             $process[] = $entry->command();
             array_push($process, ...$entry->commandArguments());
 
+            $heartbeat = null;
+            if ($lock !== null && $handle !== null) {
+                $leaseSeconds = $entry->overlapLeaseSeconds();
+                $refreshIntervalNs = max(
+                    1,
+                    (int) floor(min($leaseSeconds / 3.0, 5.0) * 1_000_000_000),
+                );
+                $nextRefreshAt = hrtime(true) + $refreshIntervalNs;
+                $heartbeat = static function () use (
+                    $lock,
+                    $handle,
+                    $leaseSeconds,
+                    $refreshIntervalNs,
+                    &$nextRefreshAt,
+                ): bool {
+                    $now = hrtime(true);
+                    if ($now < $nextRefreshAt) {
+                        return true;
+                    }
+                    if (!$lock->refresh($handle, $leaseSeconds)) {
+                        return false;
+                    }
+
+                    $nextRefreshAt = $now + $refreshIntervalNs;
+
+                    return true;
+                };
+            }
+
             $this->record($history, $executionId, $name, CommandStatus::Running);
             $result = new SchedulerRuntime($this->application)->execute(
                 fn(): ProcessResult => new ProcessRunner()->run(
@@ -320,6 +349,7 @@ final readonly class ScheduleManager
                         interactive: false,
                         captureOutput: false,
                         passthrough: true,
+                        heartbeat: $heartbeat,
                     ),
                 ),
                 [ScheduledCommand::class => $entry],
