@@ -10,6 +10,9 @@ use Infocyph\DBLayer\Query\Repository;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Http\Resource\JsonResource;
 use Infocyph\Omnibus\MessageBus;
+use Infocyph\ReqShield\Contracts\Rule;
+use Infocyph\ReqShield\Validator;
+use Infocyph\TalkingBytes\Email\Emailer;
 
 final readonly class ArtifactGenerator
 {
@@ -26,12 +29,17 @@ final readonly class ArtifactGenerator
         'job' => ['directory' => 'app/Jobs', 'namespace' => 'App\\Jobs', 'suffix' => 'Job', 'stub' => 'job.stub', 'requires' => MessageBus::class, 'install' => 'php infbyte module:install messaging'],
         'job-middleware' => ['directory' => 'app/Jobs/Middleware', 'namespace' => 'App\\Jobs\\Middleware', 'suffix' => 'Middleware', 'stub' => 'job-middleware.stub', 'requires' => MessageBus::class, 'install' => 'php infbyte module:install messaging'],
         'listener' => ['directory' => 'app/Listeners', 'namespace' => 'App\\Listeners', 'suffix' => 'Listener', 'stub' => 'listener.stub'],
+        'mail' => ['directory' => 'app/Mail', 'namespace' => 'App\\Mail', 'suffix' => 'Mail', 'stub' => 'mail.stub', 'requires' => Emailer::class, 'install' => 'php infbyte module:install communication'],
         'middleware' => ['directory' => 'app/Http/Middleware', 'namespace' => 'App\\Http\\Middleware', 'suffix' => 'Middleware', 'stub' => 'middleware.stub'],
         'migration' => ['directory' => 'app/Database/Migration', 'namespace' => 'App\\Database\\Migration', 'suffix' => 'Migration', 'stub' => 'migration.stub', 'requires' => Migration::class, 'install' => 'php infbyte module:install database'],
+        'notification' => ['directory' => 'app/Notifications', 'namespace' => 'App\\Notifications', 'suffix' => 'Notification', 'stub' => 'notification.stub', 'requires' => Emailer::class, 'install' => 'php infbyte module:install communication'],
+        'notification-channel' => ['directory' => 'app/Notifications/Channels', 'namespace' => 'App\\Notifications\\Channels', 'suffix' => 'Channel', 'stub' => 'notification-channel.stub', 'requires' => Emailer::class, 'install' => 'php infbyte module:install communication'],
         'policy' => ['directory' => 'app/Policies', 'namespace' => 'App\\Policies', 'suffix' => 'Policy', 'stub' => 'policy.stub'],
         'provider' => ['directory' => 'app/Providers', 'namespace' => 'App\\Providers', 'suffix' => 'ServiceProvider', 'stub' => 'provider.stub'],
         'repository' => ['directory' => 'app/Repositories', 'namespace' => 'App\\Repositories', 'suffix' => 'Repository', 'stub' => 'repository.stub', 'requires' => Repository::class, 'install' => 'php infbyte module:install database'],
+        'request' => ['directory' => 'app/Http/Requests', 'namespace' => 'App\\Http\\Requests', 'suffix' => 'Request', 'stub' => 'request.stub', 'requires' => Validator::class, 'install' => 'php infbyte module:install validation'],
         'resource' => ['directory' => 'app/Http/Resources', 'namespace' => 'App\\Http\\Resources', 'suffix' => 'Resource', 'stub' => 'resource.stub', 'requires' => JsonResource::class, 'install' => 'Foundation resources are built in'],
+        'rule' => ['directory' => 'app/Validation/Rules', 'namespace' => 'App\\Validation\\Rules', 'suffix' => 'Rule', 'stub' => 'rule.stub', 'requires' => Rule::class, 'install' => 'php infbyte module:install validation'],
         'service' => ['directory' => 'app/Services', 'namespace' => 'App\\Services', 'suffix' => 'Service', 'stub' => 'service.stub'],
         'seeder' => ['directory' => 'app/Database/Seeder', 'namespace' => 'App\\Database\\Seeder', 'suffix' => 'Seeder', 'stub' => 'seeder.stub', 'requires' => Seeder::class, 'install' => 'php infbyte module:install database'],
         'test' => ['directory' => 'tests/Feature', 'namespace' => 'Tests\\Feature', 'suffix' => 'Test', 'stub' => 'test.stub'],
