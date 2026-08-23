@@ -1,12 +1,16 @@
 # JSON resources and JsonDispatch
 
-Foundation pins its envelope boundary to JsonDispatch `3.0.0`.
+Foundation's built-in JsonDispatch response boundary currently advertises
+specification version `3.0.0` through
+`JsonDispatchResponseFactory::SPECIFICATION_VERSION`.
 
 ## Resources
 
-Extend `JsonResource` for one representation:
+Extend `JsonResource` for one application representation:
 
 ```php
+use Infocyph\Foundation\Http\Resource\JsonResource;
+
 final class AccountResource extends JsonResource
 {
     public function resolve(): array
@@ -19,35 +23,47 @@ final class AccountResource extends JsonResource
 }
 ```
 
-`ResourceCollection` transforms an iterable without requiring a model or
-Active Record layer.
+Generate the same contract with:
+
+```bash
+php infbyte create:resource Account
+```
+
+`ResourceCollection` transforms iterables without requiring an Active Record
+model layer.
 
 ## Responses
 
-```php
-return $app->responses()->success(new AccountResource($account));
+`Application` does not expose a response facade. Resolve the concrete Foundation
+factory through DI:
 
-return $app->responses()->fail([
+```php
+use Infocyph\Foundation\Http\JsonDispatch\Issue;
+use Infocyph\Foundation\Http\JsonDispatch\JsonDispatchResponseFactory;
+
+$responses = $app->make(JsonDispatchResponseFactory::class);
+
+return $responses->success(new AccountResource($account));
+
+return $responses->fail([
     new Issue('ACCOUNT_INVALID', 'Invalid account'),
 ], 422);
 ```
 
-Responses use `application/vnd.<vendor>.jd.v3+json`,
-`X-Api-Version-Selected`, and `Vary: Accept, X-Api-Version`.
+Responses use the configured JsonDispatch vendor/application-version policy and
+Foundation's current v3 media-type boundary.
 
-Native mode preserves semantic `4xx` and `5xx` statuses. The explicitly enabled
-restricted-transport profile returns HTTP 200 while preserving `status_code`
-and adding `X-JD-Status-Code` plus `Cache-Control: no-store`. Success responses
-are never tunneled.
+Native mode preserves semantic `4xx`/`5xx` statuses. When the explicitly
+configured error-tunneling policy is enabled, error/failure responses may retain
+semantic status inside the envelope while using the transport status configured
+by the JsonDispatch boundary. Successful responses are not treated as errors.
 
 ## Validation and pagination
 
-`failureFromValidation()` maps ReqShield error paths directly to JSON Pointer
-sources. It does not revalidate or renormalize the validation result.
+`failureFromValidation()` maps ReqShield validation issues into JsonDispatch
+issues; it does not rerun validation.
 
-`paginated()` maps DBLayer offset and cursor paginator metadata. Cursor strings
-remain opaque; Foundation only URL-encodes them when constructing navigation
-links and replaces an existing cursor query parameter rather than duplicating
-it.
+`paginated()` maps DBLayer paginator metadata. Cursor strings remain opaque;
+Foundation only places them into navigation links.
 
-See `resources/config/responses.php` for all response keys and valid values.
+See `resources/config/responses.php` for publishable response policy.
