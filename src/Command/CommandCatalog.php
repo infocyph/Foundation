@@ -121,8 +121,10 @@ final class CommandCatalog
             $this->generator('enum', 'Create an enum.'),
             $this->generator('event', 'Create an event.'),
             $this->generator('exception', 'Create an exception.'),
+            $this->generator('handler', 'Create a messaging handler.', ['messaging']),
             $this->generator('interface', 'Create an interface.'),
-            $this->generator('job', 'Create a job.'),
+            $this->generator('job', 'Create a job message.', ['messaging']),
+            $this->generator('job-middleware', 'Create job middleware.', ['messaging']),
             $this->generator('listener', 'Create a listener.'),
             $this->generator('migration', 'Create a migration.', ['db']),
             $this->generator('middleware', 'Create middleware.'),
@@ -146,7 +148,7 @@ final class CommandCatalog
             new CommandDefinition('maintenance:disable', 'Disable application maintenance mode.', 'Maintenance'),
             new CommandDefinition('maintenance:status', 'Show application maintenance state.', 'Maintenance'),
 
-            new CommandDefinition('messaging:list', 'Inspect configured messaging routes, handlers, listeners and workers.', 'Messaging', capabilities: ['messaging']),
+            new CommandDefinition('messaging:list', 'Inspect configured messaging routes, handlers, middleware, listeners and workers.', 'Messaging', capabilities: ['messaging']),
             (new CommandDefinition(
                 'queue:consume',
                 'Consume queued messages.',
