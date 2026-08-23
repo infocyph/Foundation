@@ -158,12 +158,30 @@ final readonly class ReadinessReport
         } elseif ($sessionDriver === 'database') {
             $select($required, $catalog, 'database');
         }
+        if ($config->get('session.lock.enabled', false) === true) {
+            $select($required, $catalog, 'cache');
+        }
+
+        $migrationLock = $config->get('database.migrations.lock_store');
+        if (is_string($migrationLock) && trim($migrationLock) !== '') {
+            $select($required, $catalog, 'cache');
+        }
+
+        foreach (['maintenance', 'runtime_control'] as $surface) {
+            if ($config->get('operations.' . $surface . '.driver', 'file') === 'cache') {
+                $select($required, $catalog, 'cache');
+            }
+        }
 
         if ($this->messagingConfigured()) {
             $select($required, $catalog, 'messaging');
         }
         if ($this->validationConfigured()) {
             $select($required, $catalog, 'validation');
+        }
+        $validationConnection = $config->get('validation.database_connection');
+        if (is_string($validationConnection) && trim($validationConnection) !== '') {
+            $select($required, $catalog, 'database');
         }
 
         return $required;
