@@ -21,11 +21,13 @@ execution's principal into the next.
 
 ## Typed lazy services
 
-`Application::auth()` returns the typed `AuthServices` gateway. Resolving the
-gateway does not construct every authentication capability:
+`Application` remains a runtime/composition object rather than an auth facade.
+Resolve the typed `AuthServices` gateway through DI:
 
 ```php
-$auth = $app->auth();
+use Infocyph\Foundation\Auth\AuthServices;
+
+$auth = $app->make(AuthServices::class);
 
 $accounts = $auth->accounts();
 $login = $auth->authenticator();
@@ -36,17 +38,18 @@ $passkeys = $auth->passkeys();
 $authorizer = $auth->authorizer();
 ```
 
-Additional accessors cover password reset/change/passwordless flows, email
-verification, remember tokens, roles, permissions, delegation, devices,
-impersonation, step-up checks, password services, and the application gate. One
-accessor does not intentionally resolve unrelated siblings.
+Resolving the gateway does not intentionally construct every authentication
+capability. Additional accessors cover password reset/change/passwordless flows,
+email verification, remember tokens, roles, permissions, delegation, devices,
+impersonation, step-up checks, password services, and the application gate.
 
 ## Accounts and login
 
 ```php
+use Infocyph\Foundation\Auth\AuthServices;
 use Infocyph\Foundation\Auth\Authentication\Login\LoginRequest;
 
-$auth = $app->auth();
+$auth = $app->make(AuthServices::class);
 $hash = $auth->passwordHasher()->hash($plainPassword);
 $created = $auth->accounts()->create($email, $hash);
 
