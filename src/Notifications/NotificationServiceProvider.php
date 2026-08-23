@@ -156,9 +156,25 @@ final class NotificationServiceProvider extends ServiceProvider
             );
         };
         $container = $app->container();
-        $this->bindFactory($container, Mailer::class, $unavailable, LifetimeEnum::Singleton);
-        $this->bindFactory($container, 'foundation.email', $unavailable, LifetimeEnum::Singleton);
-        $this->bindFactory($container, 'foundation.notifications.emailer', $unavailable, LifetimeEnum::Scoped);
+        foreach ([
+            Mailer::class,
+            MailNotificationChannel::class,
+            Emailer::class,
+            EmailSenderFactory::class,
+            EmailReceiverFactory::class,
+            EmailMailboxFactory::class,
+            EmailLimits::class,
+            RawEmailParser::class,
+            BounceParser::class,
+            AuthenticationResultsParser::class,
+            DkimPublicKeyResolver::class,
+            DkimVerifier::class,
+            SpoolEmailReceiver::class,
+            'foundation.email',
+            'foundation.notifications.emailer',
+        ] as $service) {
+            $this->bindFactory($container, $service, $unavailable, LifetimeEnum::Singleton);
+        }
     }
 
     private function emailLimits(Application $app): EmailLimits
