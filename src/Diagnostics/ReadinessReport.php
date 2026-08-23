@@ -9,6 +9,7 @@ use Infocyph\Foundation\Config\ConfigValidator;
 use Infocyph\Foundation\Config\OtpConfigValidator;
 use Infocyph\Foundation\Config\ProductionSecurityValidator;
 use Infocyph\Foundation\Module\ModuleCatalog;
+use Infocyph\Foundation\Module\ModuleSchemaManager;
 
 final readonly class ReadinessReport
 {
@@ -64,6 +65,20 @@ final readonly class ReadinessReport
                 'ready' => \Composer\InstalledVersions::isInstalled($requirement['package']),
                 'detail' => $requirement['package'] . ' ' . $requirement['constraint'],
             ];
+        }
+
+        $catalog = new ModuleCatalog();
+        $schemas = new ModuleSchemaManager($this->application, $catalog);
+        foreach (['auth', 'cache', 'session'] as $module) {
+            foreach ($schemas->status($module) as $schema) {
+                if (!$schema['applicable']) {
+                    continue;
+                }
+                $checks['schema:' . $schema['name']] = [
+                    'ready' => $schema['installed'],
+                    'detail' => $schema['state'] . ': ' . $schema['detail'],
+                ];
+            }
         }
 
         return [
