@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Command\System;
 
+use Infocyph\DBLayer\Monitoring\DatabaseMonitor;
 use Infocyph\DBLayer\Schema\SchemaManager;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Command\ExitCode;
@@ -21,9 +22,11 @@ final class DatabaseSystemCommand extends SystemCommand
     protected function handle(): int
     {
         return match ($this->canonicalName()) {
+            'db:monitor' => $this->monitor(),
             'db:seed' => $this->seed(),
             'db:show' => $this->showDatabase(),
             'db:table' => $this->showTable(),
+            'db:wipe' => $this->wipe(),
             'migrate' => $this->migrate(),
             'migrate:fresh' => $this->destructiveMigration('fresh'),
             'migrate:refresh' => $this->destructiveMigration('refresh'),
@@ -41,7 +44,7 @@ final class DatabaseSystemCommand extends SystemCommand
 
     private function destructiveMigration(string $operation): int
     {
-        if (!$this->authorizeDestructive($operation)) {
+        if (!$this->authorizeDestructive('migrate:' . $operation)) {
             return ExitCode::FAILURE;
         }
 
@@ -58,9 +61,31 @@ final class DatabaseSystemCommand extends SystemCommand
 
     private function migrate(): int
     {
-        $migrations = $this->migrations
-            ->runner($this->connectionName())
-            ->run($this->flag('step'));
+        $runner = $this->migrations->runner($this->connectionName());
+        if ($this->flag('pretend')) {
+            $preview = $runner->pretend();
+            if ($this->io()->machineReadable()) {
+                return $this->emit(['migrations' => $preview, 'pretend' => true]);
+            }
+            if ($preview === []) {
+                $this->io()->info('No pending migration SQL.');
+
+                return ExitCode::SUCCESS;
+            }
+            foreach ($preview as $migration => $statements) {
+                $this->io()->writeln($migration . ':');
+                foreach ($statements as $statement) {
+                    $this->io()->writeln('  ' . $statement['sql']);
+                    if (($statement['bindings'] ?? []) !== []) {
+                        $this->io()->writeln('    bindings=' . json_encode($statement['bindings'], JSON_THROW_ON_ERROR));
+                    }
+                }
+            }
+
+            return ExitCode::SUCCESS;
+        }
+
+        $migrations = $runner->run($this->flag('step'));
 
         return $this->migrationResult($migrations, 'Migrations completed.');
     }
@@ -103,12 +128,66 @@ final class DatabaseSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
+    private function monitor(): int
+    {
+        $connection = $this->database->connection($this->connectionName());
+        $monitor = new DatabaseMonitor($connection);
+        $section = strtolower($this->option('section', 'snapshot') ?? 'snapshot');
+        $seconds = $this->positiveIntOption('seconds', 10);
+        $data = match ($section) {
+            'snapshot' => $monitor->snapshot($seconds, $this->flag('maintenance')),
+            'status' => $monitor->status(),
+            'sessions' => $monitor->sessions(),
+            'queries', 'long-running', 'long_running_queries' => $monitor->longRunningQueries($seconds),
+            'locks' => $monitor->locks(),
+            'tables', 'table-metrics' => $monitor->tableMetrics(),
+            'indexes', 'index-metrics' => $monitor->indexMetrics(),
+            'replication' => $monitor->replication(),
+            'maintenance' => $monitor->maintenance(),
+            default => throw new \InvalidArgumentException(
+                '--section must be snapshot|status|sessions|queries|locks|tables|indexes|replication|maintenance.',
+            ),
+        };
+
+        if ($this->io()->machineReadable()) {
+            return $this->emit($data);
+        }
+        if (is_array($data) && array_is_list($data)) {
+            if ($data === []) {
+                $this->io()->info('No records returned.');
+
+                return ExitCode::SUCCESS;
+            }
+            $headers = array_values(array_unique(array_merge(...array_map(
+                static fn(array $row): array => array_keys($row),
+                array_filter($data, is_array(...)),
+            ))));
+            if ($headers !== []) {
+                $rows = array_map(
+                    static fn(array $row): array => array_map(
+                        static fn(string $key): mixed => is_scalar($row[$key] ?? null) || ($row[$key] ?? null) === null
+                            ? ($row[$key] ?? '')
+                            : json_encode($row[$key], JSON_THROW_ON_ERROR),
+                        $headers,
+                    ),
+                    $data,
+                );
+                $this->io()->table($headers, $rows);
+
+                return ExitCode::SUCCESS;
+            }
+        }
+
+        return $this->emit($data);
+    }
+
     private function rollback(): int
     {
-        $batches = $this->positiveIntOption('batches', 1);
-        $migrations = $this->migrations
-            ->runner($this->connectionName())
-            ->rollback($batches);
+        $runner = $this->migrations->runner($this->connectionName());
+        $batch = $this->option('batch');
+        $migrations = $batch !== null
+            ? $runner->rollbackBatch($this->positiveInt('batch', $batch))
+            : $runner->rollback($this->positiveIntOption('batches', 1));
 
         return $this->migrationResult($migrations, 'Rollback completed.');
     }
@@ -170,6 +249,23 @@ final class DatabaseSystemCommand extends SystemCommand
         return $exists ? ExitCode::SUCCESS : ExitCode::FAILURE;
     }
 
+    private function wipe(): int
+    {
+        if (!$this->authorizeDestructive('db:wipe')) {
+            return ExitCode::FAILURE;
+        }
+
+        $connection = $this->database->connection($this->connectionName());
+        $schema = new SchemaManager($connection);
+        $before = $schema->tables();
+        $schema->dropAllTables(true);
+
+        return $this->emit(
+            ['dropped' => $before, 'count' => count($before)],
+            sprintf('Dropped %d database table(s).', count($before)),
+        );
+    }
+
     private function authorizeDestructive(string $operation): bool
     {
         if ($this->flag('force')) {
@@ -177,31 +273,34 @@ final class DatabaseSystemCommand extends SystemCommand
         }
         if ($this->application->isProduction()) {
             $this->io()->error(sprintf(
-                'migrate:%s is destructive in production; rerun with --force after explicit approval.',
+                '%s is destructive in production; rerun with --force after explicit approval.',
                 $operation,
             ));
 
             return false;
         }
         if (!$this->io()->interactive()) {
-            $this->io()->error(sprintf('migrate:%s requires --force in non-interactive mode.', $operation));
+            $this->io()->error(sprintf('%s requires --force in non-interactive mode.', $operation));
 
             return false;
         }
 
-        return $this->io()->confirm(sprintf('Run destructive migrate:%s?', $operation), false);
+        return $this->io()->confirm(sprintf('Run destructive %s?', $operation), false);
     }
 
-    private function positiveIntOption(string $name, int $default): int
+    private function positiveInt(string $name, string $value): int
     {
-        $value = $this->option($name);
-        if ($value === null) {
-            return $default;
-        }
         if (preg_match('/^\d+$/D', $value) !== 1 || (int) $value < 1) {
             throw new \InvalidArgumentException(sprintf('--%s must be a positive integer.', $name));
         }
 
         return (int) $value;
+    }
+
+    private function positiveIntOption(string $name, int $default): int
+    {
+        $value = $this->option($name);
+
+        return $value === null ? $default : $this->positiveInt($name, $value);
     }
 }
