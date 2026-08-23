@@ -24,7 +24,7 @@ final class ModuleCatalog
         ],
         'cache' => [
             'packages' => [
-                'infocyph/cachelayer' => '^3.2',
+                'infocyph/cachelayer' => '^3.2.0',
             ],
             'description' => 'Cache stores, locks, counters, response caching, and shared authentication/runtime state.',
             'aliases' => ['cachelayer'],
@@ -110,7 +110,7 @@ final class ModuleCatalog
         ],
         'validation' => [
             'packages' => [
-                'infocyph/reqshield' => '^3.0',
+                'infocyph/reqshield' => '^3.0.1',
             ],
             'description' => 'Request, command, configuration, schema, sanitization, and database validation.',
             'aliases' => ['reqshield', 'validator'],
