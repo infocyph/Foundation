@@ -45,23 +45,21 @@ final readonly class ModuleSchemaManager
         $results = [];
 
         foreach ($definition['schemas'] as $schema) {
-            $status = $this->schemaStatus($definition['name'], $schema, $connection);
-            if ($applicableOnly && !$status['applicable']) {
-                $results[] = $status;
+            $before = $this->schemaStatuses($definition['name'], $schema, $connection);
+            $applicable = array_any($before, static fn(array $status): bool => $status['applicable']);
+            $available = array_any($before, static fn(array $status): bool => $status['state'] !== 'unavailable');
 
-                continue;
-            }
-            if ($status['state'] === 'unavailable') {
-                $results[] = $status;
+            if (($applicableOnly && !$applicable) || !$available) {
+                array_push($results, ...$before);
 
                 continue;
             }
 
             $this->installSchema($schema, $connection);
-            $results = [
-                ...$results,
+            array_push(
+                $results,
                 ...$this->schemaStatuses($definition['name'], $schema, $connection, true),
-            ];
+            );
         }
 
         return $results;
@@ -92,20 +90,28 @@ final readonly class ModuleSchemaManager
      */
     private function cacheStatuses(string $module, ?string $connection, bool $afterInstall = false): array
     {
+        $applicable = $this->cacheDatabaseConfigured();
         if (!class_exists(PdoCacheSchema::class)) {
             return [$this->result(
                 'cache',
                 $module,
-                $this->cacheApplicable(),
+                $applicable,
                 false,
                 'unavailable',
-                'Requires the cache module.',
+                'Requires the cache module; run "php infbyte module:install cache".',
             )];
         }
 
         $resources = $this->activeCacheDatabaseResources($connection);
         if ($resources === []) {
-            return [$this->result('cache', $module, false, true, 'not-applicable', 'No active database-backed cache resource.')];
+            return [$this->result(
+                'cache',
+                $module,
+                false,
+                true,
+                'not-applicable',
+                'No active database-backed cache store or PDO invalidation transport.',
+            )];
         }
 
         $results = [];
@@ -137,9 +143,18 @@ final readonly class ModuleSchemaManager
         return $results;
     }
 
-    private function cacheApplicable(): bool
+    private function cacheDatabaseConfigured(): bool
     {
-        return $this->activeCacheStoreNames() !== [] || $this->activePdoTransportNames() !== [];
+        $stores = $this->associative($this->application->config()->get('cache.stores', []));
+        foreach ($this->activeCacheStoreNames() as $name) {
+            $store = $this->associative($stores[$name] ?? []);
+            $driver = strtolower(is_string($store['driver'] ?? null) ? $store['driver'] : $name);
+            if (in_array($driver, ['pdo', 'sqlite'], true)) {
+                return true;
+            }
+        }
+
+        return $this->activePdoTransportNames() !== [];
     }
 
     /**
@@ -192,10 +207,6 @@ final readonly class ModuleSchemaManager
     /** @return list<string> */
     private function activeCacheStoreNames(): array
     {
-        if (!class_exists(PdoCacheSchema::class)) {
-            return [];
-        }
-
         $config = $this->application->config();
         $default = $config->get('cache.default', 'memory');
         $default = is_string($default) && $default !== '' ? $default : 'memory';
@@ -318,15 +329,6 @@ final readonly class ModuleSchemaManager
     }
 
     /**
-     * @return array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}
-     */
-    private function schemaStatus(string $module, string $schema, ?string $connection): array
-    {
-        return $this->schemaStatuses($module, $schema, $connection)[0]
-            ?? $this->result($schema, $module, false, true, 'not-applicable', 'No schema required.');
-    }
-
-    /**
      * @return list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}>
      */
     private function schemaStatuses(
@@ -380,12 +382,17 @@ final readonly class ModuleSchemaManager
 
     private function installSchema(string $schema, ?string $connection): void
     {
-        match ($schema) {
-            'auth' => $this->application->make(AuthSchemaInstaller::class)->install($connection),
-            'cache' => $this->installCacheSchemas($connection),
-            'session' => $this->application->make(SessionDatabaseSchema::class)->install($connection),
-            default => null,
-        };
+        switch ($schema) {
+            case 'auth':
+                $this->application->make(AuthSchemaInstaller::class)->install($connection);
+                break;
+            case 'cache':
+                $this->installCacheSchemas($connection);
+                break;
+            case 'session':
+                $this->application->make(SessionDatabaseSchema::class)->install($connection);
+                break;
+        }
     }
 
     private function installCacheSchemas(?string $connection): void
@@ -470,9 +477,7 @@ final readonly class ModuleSchemaManager
         }
 
         try {
-            $statement = $pdo->query('SELECT 1 FROM ' . $table . ' WHERE 1 = 0');
-
-            return $statement !== false;
+            return $pdo->query('SELECT 1 FROM ' . $table . ' WHERE 1 = 0') !== false;
         } catch (PDOException) {
             return false;
         }
