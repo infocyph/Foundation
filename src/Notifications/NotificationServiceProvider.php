@@ -25,17 +25,35 @@ final class NotificationServiceProvider extends ServiceProvider
 {
     public function register(Application $app): void
     {
-        if (!class_exists(Emailer::class)) {
-            throw new \LogicException(
-                'Foundation notification services require infocyph/talkingbytes; run "php infbyte module:install communication".',
-            );
-        }
-
         $container = $app->container();
 
         $this->bindFactory($container, NotificationTemplateRegistry::class, fn() => new NotificationTemplateRegistry(
             $app->config(),
         ), LifetimeEnum::Singleton);
+
+        if (class_exists(Emailer::class)) {
+            $this->registerMail($app);
+        }
+
+        $this->bindFactory($container, NotificationChannelRegistry::class, fn() => new NotificationChannelRegistry(
+            config: $app->config(),
+            mail: class_exists(Emailer::class) ? $app->make(MailNotificationChannel::class) : null,
+            resolver: fn(string $service): mixed => $app->make($service),
+        ), LifetimeEnum::Singleton);
+        $this->bindFactory($container, NotificationDispatcher::class, fn() => new NotificationDispatcher(
+            $app->make(NotificationChannelRegistry::class),
+        ), LifetimeEnum::Singleton);
+        $this->bindFactory(
+            $container,
+            'foundation.notifications',
+            fn() => $app->make(NotificationDispatcher::class),
+            LifetimeEnum::Singleton,
+        );
+    }
+
+    private function registerMail(Application $app): void
+    {
+        $container = $app->container();
 
         if (!$this->hasExplicitBinding($container, EmailSenderFactory::class)) {
             $container->bind(EmailSenderFactory::class, new EmailSenderFactory(), LifetimeEnum::Singleton);
@@ -113,14 +131,6 @@ final class NotificationServiceProvider extends ServiceProvider
         $this->bindFactory($container, MailNotificationChannel::class, fn() => new MailNotificationChannel(
             $app->make(Mailer::class),
         ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, NotificationChannelRegistry::class, fn() => new NotificationChannelRegistry(
-            config: $app->config(),
-            mail: $app->make(MailNotificationChannel::class),
-            resolver: fn(string $service): mixed => $app->container()->make($service),
-        ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, NotificationDispatcher::class, fn() => new NotificationDispatcher(
-            $app->make(NotificationChannelRegistry::class),
-        ), LifetimeEnum::Singleton);
 
         $this->bindFactory(
             $container,
@@ -132,12 +142,6 @@ final class NotificationServiceProvider extends ServiceProvider
             $container,
             'foundation.email',
             fn() => $app->make(Mailer::class),
-            LifetimeEnum::Singleton,
-        );
-        $this->bindFactory(
-            $container,
-            'foundation.notifications',
-            fn() => $app->make(NotificationDispatcher::class),
             LifetimeEnum::Singleton,
         );
     }
