@@ -39,17 +39,18 @@ final readonly class JobMiddlewarePipeline implements HandlerMiddleware
             return $next($message, $envelope, $context);
         }
 
+        $job = $message;
         $jobContext = new JobContext(
             queue: $context->queue,
             attempt: $context->attempt,
             asynchronous: $context->asynchronous,
         );
-        $terminal = static fn(): mixed => $next($message, $envelope, $context);
+        $terminal = static fn(): mixed => $next($job, $envelope, $context);
 
         for ($index = count($this->middleware) - 1; $index >= 0; $index--) {
             $middleware = $this->middleware[$index];
             $nextJob = $terminal;
-            $terminal = static fn(): mixed => $middleware->process($message, $jobContext, $nextJob);
+            $terminal = static fn(): mixed => $middleware->process($job, $jobContext, $nextJob);
         }
 
         return $terminal();
