@@ -7,8 +7,11 @@ namespace Infocyph\Foundation\Command;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Command\System\ApplicationSystemCommand;
 use Infocyph\Foundation\Command\System\ArtifactSystemCommand;
+use Infocyph\Foundation\Command\System\CacheSystemCommand;
 use Infocyph\Foundation\Command\System\DatabaseSystemCommand;
+use Infocyph\Foundation\Command\System\MessagingSystemCommand;
 use Infocyph\Foundation\Command\System\ModuleSystemCommand;
+use Infocyph\Foundation\Command\System\OperationsSystemCommand;
 use Infocyph\Foundation\Command\System\RuntimeSystemCommand;
 
 final class CommandCatalog
@@ -20,6 +23,8 @@ final class CommandCatalog
             ->option('connection', 'Configured database connection name.', acceptsValue: true);
         $destructive = static fn(CommandDefinition $command): CommandDefinition => $connection($command)
             ->option('force', 'Authorize the destructive operation without prompting.');
+        $transport = static fn(CommandDefinition $command): CommandDefinition => $command
+            ->option('transport', 'Configured messaging transport name.', acceptsValue: true);
 
         $definitions = [
             new CommandDefinition('about', 'Show application and runtime information.', 'Application'),
@@ -31,6 +36,9 @@ final class CommandCatalog
                 ->option('port', 'Bind port.', acceptsValue: true)
                 ->option('dry-run', 'Validate the server configuration without starting it.'),
 
+            (new CommandDefinition('auth:prune', 'Prune expired and retained-revoked authentication records.', 'Authentication & Security', capabilities: ['db']))
+                ->option('connection', 'Configured database connection name.', acceptsValue: true)
+                ->option('retention-hours', 'Hours to retain revoked token/grant records.', acceptsValue: true),
             (new CommandDefinition(
                 'secret:generate',
                 'Generate secure application secret material.',
@@ -39,40 +47,72 @@ final class CommandCatalog
 
             (new CommandDefinition('cache:clear', 'Clear a configured cache store.', 'Cache', capabilities: ['cache']))
                 ->option('store', 'Configured cache store name.', acceptsValue: true),
+            (new CommandDefinition('cache:forget', 'Forget one cache item.', 'Cache', capabilities: ['cache']))
+                ->argument('key', 'Cache key.', required: true)
+                ->option('store', 'Configured cache store name.', acceptsValue: true),
 
             new CommandDefinition('config:cache', 'Compile application configuration.', 'Configuration'),
             new CommandDefinition('config:clear', 'Clear compiled configuration.', 'Configuration'),
             (new CommandDefinition('config:show', 'Show resolved configuration.', 'Configuration'))
                 ->argument('key', 'Dot-notation configuration key.', required: true),
+            (new CommandDefinition('config:validate', 'Validate application configuration.', 'Configuration'))
+                ->option('production', 'Validate using production requirements regardless of current environment.'),
 
             new CommandDefinition('command:cache', 'Compile command metadata.', 'Commands'),
             new CommandDefinition('command:clear', 'Clear compiled command metadata.', 'Commands'),
 
             $connection(
+                (new CommandDefinition('db:monitor', 'Inspect database operational health and metrics.', 'Database', capabilities: ['db']))
+                    ->option('section', 'snapshot|status|sessions|queries|locks|tables|indexes|replication|maintenance.', acceptsValue: true)
+                    ->option('seconds', 'Long-running query threshold in seconds.', acceptsValue: true)
+                    ->option('maintenance', 'Include expensive maintenance information in full snapshots.'),
+            ),
+            $connection(
                 (new CommandDefinition('db:seed', 'Run database seeders.', 'Database', capabilities: ['db']))
-                    ->option(
-                        'transaction',
-                        'Run seeders transactionally.',
-                        negatable: true,
-                    ),
+                    ->option('transaction', 'Run seeders transactionally.', negatable: true),
             ),
             $connection(new CommandDefinition('db:show', 'Show database information.', 'Database', capabilities: ['db'])),
             $connection(
                 (new CommandDefinition('db:table', 'Show database table information.', 'Database', capabilities: ['db']))
                     ->argument('table', 'Database table name.', required: true),
             ),
+            $destructive(new CommandDefinition('db:wipe', 'Drop all user tables.', 'Database', capabilities: ['db'])),
             $connection(
                 (new CommandDefinition('migrate', 'Run pending migrations.', 'Database', capabilities: ['db']))
-                    ->option('step', 'Create a new migration batch for each migration.'),
+                    ->option('step', 'Create a new migration batch for each migration.')
+                    ->option('pretend', 'Compile and display pending SQL without executing it.'),
             ),
             $destructive(new CommandDefinition('migrate:fresh', 'Drop schema and rerun migrations.', 'Database', capabilities: ['db'])),
             $destructive(new CommandDefinition('migrate:refresh', 'Rollback and rerun migrations.', 'Database', capabilities: ['db'])),
             $destructive(new CommandDefinition('migrate:reset', 'Rollback all migrations.', 'Database', capabilities: ['db'])),
             $connection(
-                (new CommandDefinition('migrate:rollback', 'Rollback the latest migration batch.', 'Database', capabilities: ['db']))
-                    ->option('batches', 'Number of latest migration batches to roll back.', acceptsValue: true),
+                (new CommandDefinition('migrate:rollback', 'Rollback migration batches.', 'Database', capabilities: ['db']))
+                    ->option('batches', 'Number of latest migration batches to roll back.', acceptsValue: true)
+                    ->option('batch', 'Exact migration batch number to roll back.', acceptsValue: true),
             ),
             $connection(new CommandDefinition('migrate:status', 'Show migration status.', 'Database', capabilities: ['db'])),
+
+            (new CommandDefinition('env:encrypt', 'Encrypt an environment file using Epicrypt.', 'Environment', capabilities: ['crypto']))
+                ->option('input', 'Source environment file.', acceptsValue: true)
+                ->option('output', 'Encrypted destination file.', acceptsValue: true)
+                ->option('key-file', 'File containing environment protection key material.', acceptsValue: true)
+                ->option('key-env', 'Environment variable containing protection key material.', acceptsValue: true)
+                ->option('force', 'Replace an existing destination file.'),
+            (new CommandDefinition('env:decrypt', 'Decrypt an Epicrypt-protected environment file.', 'Environment', capabilities: ['crypto']))
+                ->option('input', 'Encrypted source file.', acceptsValue: true)
+                ->option('output', 'Decrypted destination file.', acceptsValue: true)
+                ->option('key-file', 'File containing environment protection key material.', acceptsValue: true)
+                ->option('key-env', 'Environment variable containing protection key material.', acceptsValue: true)
+                ->option('force', 'Replace an existing destination file.'),
+
+            (new CommandDefinition('execution:list', 'List Foundation execution history.', 'Operations'))
+                ->option('limit', 'Maximum history records.', acceptsValue: true)
+                ->option('kind', 'Filter by execution kind.', acceptsValue: true)
+                ->option('name', 'Filter by execution name.', acceptsValue: true),
+            (new CommandDefinition('execution:show', 'Show state transitions for one execution.', 'Operations'))
+                ->argument('id', 'Execution identifier.', required: true),
+            (new CommandDefinition('execution:clear', 'Clear Foundation execution history.', 'Operations'))
+                ->option('force', 'Clear without prompting.'),
 
             $this->generator('class', 'Create a class.'),
             $this->generator('command', 'Create a command.'),
@@ -94,6 +134,17 @@ final class CommandCatalog
             $this->generator('trait', 'Create a trait.'),
             $this->generator('worker', 'Create a worker.'),
 
+            (new CommandDefinition('log:tail', 'Tail the built-in structured file log.', 'Logging'))
+                ->option('lines', 'Initial number of lines.', acceptsValue: true)
+                ->option('follow', 'Continue following appended log records.'),
+
+            (new CommandDefinition('maintenance:enable', 'Enable application maintenance mode.', 'Maintenance'))
+                ->option('retry', 'Retry-After value in seconds.', acceptsValue: true)
+                ->option('message', 'Maintenance response message.', acceptsValue: true),
+            new CommandDefinition('maintenance:disable', 'Disable application maintenance mode.', 'Maintenance'),
+            new CommandDefinition('maintenance:status', 'Show application maintenance state.', 'Maintenance'),
+
+            new CommandDefinition('messaging:list', 'Inspect configured messaging routes, handlers, listeners and workers.', 'Messaging', capabilities: ['messaging']),
             (new CommandDefinition(
                 'queue:consume',
                 'Consume queued messages.',
@@ -105,6 +156,25 @@ final class CommandCatalog
                 ->option('queue', 'Queue name.', acceptsValue: true)
                 ->option('limit', 'Maximum messages for this receive.', acceptsValue: true)
                 ->option('visibility', 'Visibility timeout in seconds.', acceptsValue: true),
+            (new CommandDefinition('queue:failed', 'List failed messages.', 'Messaging', capabilities: ['messaging']))
+                ->option('limit', 'Maximum failed messages.', acceptsValue: true),
+            (new CommandDefinition('queue:failed:show', 'Show one failed message.', 'Messaging', capabilities: ['messaging']))
+                ->argument('id', 'Failed-message identifier.', required: true),
+            (new CommandDefinition('queue:forget', 'Forget one failed message.', 'Messaging', capabilities: ['messaging']))
+                ->argument('id', 'Failed-message identifier.', required: true),
+            (new CommandDefinition('queue:flush', 'Flush all failed messages.', 'Messaging', capabilities: ['messaging']))
+                ->option('force', 'Flush without prompting.'),
+            $transport(
+                (new CommandDefinition('queue:monitor', 'Show the size of a receiving queue.', 'Messaging', capabilities: ['messaging']))
+                    ->option('queue', 'Queue name.', acceptsValue: true),
+            ),
+            (new CommandDefinition('queue:prune-failed', 'Prune old failed messages.', 'Messaging', capabilities: ['messaging']))
+                ->option('hours', 'Prune failures older than this many hours.', acceptsValue: true),
+            $transport(
+                (new CommandDefinition('queue:retry', 'Retry one failed message.', 'Messaging', capabilities: ['messaging']))
+                    ->argument('id', 'Failed-message identifier.', required: true)
+                    ->option('queue', 'Override retry queue.', acceptsValue: true),
+            ),
             (new CommandDefinition(
                 'schedule:dispatch-message',
                 'Dispatch a configured scheduled message.',
@@ -123,6 +193,12 @@ final class CommandCatalog
                     ->option('dry-run', 'Preview Composer changes without modifying the project.'),
             ),
             new CommandDefinition('module:list', 'List Foundation modules.', 'Modules'),
+            (new CommandDefinition('module:show', 'Show detailed module package/config/schema state.', 'Modules'))
+                ->argument('module', 'Module name.', required: true)
+                ->option('connection', 'Database connection for schema inspection.', acceptsValue: true),
+            (new CommandDefinition('module:config:publish', 'Publish config owned by a Foundation module.', 'Modules'))
+                ->argument('module', 'Module name.', required: true)
+                ->option('force', 'Replace existing module config.'),
             (new CommandDefinition('module:remove', 'Remove an optional Foundation module.', 'Modules'))
                 ->argument('module', 'Module name.', required: true)
                 ->option('dry-run', 'Preview Composer changes without modifying the project.'),
@@ -144,6 +220,8 @@ final class CommandCatalog
             new CommandDefinition('optimize:clear', 'Clear compiled runtime artifacts.', 'Optimization'),
             new CommandDefinition('optimize:report', 'Report optimization artifact state.', 'Optimization'),
 
+            new CommandDefinition('runtime:reload', 'Request graceful reload of persistent Foundation runtimes.', 'Operations'),
+
             (new CommandDefinition('route:cache', 'Compile application routes.', 'Routing', capabilities: ['web']))
                 ->option('matcher', 'Webrick matcher strategy.', acceptsValue: true)
                 ->option('cache', 'Compiled route cache path.', acceptsValue: true)
@@ -154,8 +232,11 @@ final class CommandCatalog
 
             new CommandDefinition('schedule:cache', 'Compile scheduler metadata.', 'Scheduling'),
             new CommandDefinition('schedule:clear', 'Clear compiled scheduler metadata.', 'Scheduling'),
+            new CommandDefinition('schedule:interrupt', 'Request graceful interruption of persistent scheduler loops.', 'Scheduling'),
             new CommandDefinition('schedule:list', 'List scheduled work.', 'Scheduling'),
             new CommandDefinition('schedule:run', 'Run due scheduled work once.', 'Scheduling', RuntimeMode::Scheduler),
+            (new CommandDefinition('schedule:test', 'Run one scheduled entry regardless of due state.', 'Scheduling', RuntimeMode::Scheduler))
+                ->argument('name', 'Schedule key or unique command name.', required: true),
             (new CommandDefinition('schedule:work', 'Run the persistent scheduler loop.', 'Scheduling', RuntimeMode::Scheduler))
                 ->option('sleep', 'Seconds between scheduler iterations.', acceptsValue: true)
                 ->option('max-iterations', 'Stop after the given number of scheduler iterations.', acceptsValue: true),
@@ -164,8 +245,14 @@ final class CommandCatalog
                 ->option('limit', 'Maximum sessions to prune.', acceptsValue: true),
 
             new CommandDefinition('storage:link', 'Create configured public storage links.', 'Storage', capabilities: ['filesystem']),
+            new CommandDefinition('storage:status', 'Inspect configured public storage links.', 'Storage', capabilities: ['filesystem']),
+            new CommandDefinition('storage:unlink', 'Remove configured public storage links safely.', 'Storage', capabilities: ['filesystem']),
 
             new CommandDefinition('worker:list', 'List configured workers.', 'Workers'),
+            (new CommandDefinition('worker:restart', 'Request graceful worker restart.', 'Workers'))
+                ->argument('name', 'Optional configured worker name.'),
+            (new CommandDefinition('worker:status', 'Show configured/running worker state.', 'Workers'))
+                ->argument('name', 'Optional configured worker name.'),
             (new CommandDefinition('worker:run', 'Run a persistent worker.', 'Workers', RuntimeMode::Worker))
                 ->argument('name', 'Configured worker name.', required: true),
         ];
@@ -224,14 +311,32 @@ final class CommandCatalog
         return match (true) {
             str_starts_with($name, 'create:') => ArtifactSystemCommand::class,
             str_starts_with($name, 'module:') => ModuleSystemCommand::class,
+            $name === 'cache:forget' => CacheSystemCommand::class,
             str_starts_with($name, 'db:'),
             str_starts_with($name, 'migrate') => DatabaseSystemCommand::class,
+            $name === 'messaging:list',
+            str_starts_with($name, 'queue:failed'),
+            in_array($name, ['queue:flush', 'queue:forget', 'queue:monitor', 'queue:prune-failed', 'queue:retry'], true)
+                => MessagingSystemCommand::class,
+            str_starts_with($name, 'execution:'),
+            str_starts_with($name, 'maintenance:'),
+            in_array($name, [
+                'auth:prune',
+                'config:validate',
+                'env:decrypt',
+                'env:encrypt',
+                'log:tail',
+                'runtime:reload',
+                'schedule:interrupt',
+                'worker:restart',
+                'worker:status',
+            ], true) => OperationsSystemCommand::class,
             str_starts_with($name, 'route:'),
             str_starts_with($name, 'schedule:'),
             str_starts_with($name, 'session:'),
             str_starts_with($name, 'worker:'),
             $name === 'queue:consume',
-            $name === 'storage:link' => RuntimeSystemCommand::class,
+            str_starts_with($name, 'storage:') => RuntimeSystemCommand::class,
             default => ApplicationSystemCommand::class,
         };
     }
