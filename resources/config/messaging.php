@@ -134,7 +134,7 @@ return [
                 'concurrency' => env_int('MESSAGING_WORKER_POOL_CONCURRENCY', 2),
                 'maximum_restarts' => env_int('MESSAGING_WORKER_POOL_MAXIMUM_RESTARTS', 5),
                 'restart_backoff_seconds' => env('MESSAGING_WORKER_POOL_RESTART_BACKOFF_SECONDS', 0.25),
-                'shutdown_grace_seconds' => env('MESSAGING_WORKER_SHUTDOWN_GRACE_SECONDS', 30.0),
+                'shutdown_grace_seconds' => env('MESSAGING_WORKER_POOL_SHUTDOWN_GRACE_SECONDS', 30.0),
             ],
         ],
     ],
