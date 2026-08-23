@@ -31,18 +31,6 @@ final class CommandCatalog
                 ->option('port', 'Bind port.', acceptsValue: true)
                 ->option('dry-run', 'Validate the server configuration without starting it.'),
 
-            $connection(new CommandDefinition(
-                'auth:schema:status',
-                'Show authentication schema status.',
-                'Authentication & Security',
-                capabilities: ['db'],
-            )),
-            $connection(new CommandDefinition(
-                'auth:schema:install',
-                'Install authentication schema.',
-                'Authentication & Security',
-                capabilities: ['db'],
-            )),
             (new CommandDefinition(
                 'secret:generate',
                 'Generate secure application secret material.',
@@ -174,8 +162,6 @@ final class CommandCatalog
 
             (new CommandDefinition('session:prune', 'Prune expired sessions.', 'Sessions'))
                 ->option('limit', 'Maximum sessions to prune.', acceptsValue: true),
-            $connection(new CommandDefinition('session:schema:install', 'Install session persistence schema.', 'Sessions', capabilities: ['db'])),
-            $connection(new CommandDefinition('session:schema:status', 'Show session schema status.', 'Sessions', capabilities: ['db'])),
 
             new CommandDefinition('storage:link', 'Create configured public storage links.', 'Storage', capabilities: ['filesystem']),
 
@@ -239,8 +225,7 @@ final class CommandCatalog
             str_starts_with($name, 'create:') => ArtifactSystemCommand::class,
             str_starts_with($name, 'module:') => ModuleSystemCommand::class,
             str_starts_with($name, 'db:'),
-            str_starts_with($name, 'migrate'),
-            str_starts_with($name, 'auth:schema:') => DatabaseSystemCommand::class,
+            str_starts_with($name, 'migrate') => DatabaseSystemCommand::class,
             str_starts_with($name, 'route:'),
             str_starts_with($name, 'schedule:'),
             str_starts_with($name, 'session:'),
