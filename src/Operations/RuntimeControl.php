@@ -124,7 +124,7 @@ final readonly class RuntimeControl
                 'Cache-backed runtime control requires the cache module; run "php infbyte module:install cache".',
             );
         }
-        $store = $this->application->config()->get('runtime.control.store');
+        $store = $this->application->config()->get('operations.runtime_control.store');
 
         return $this->application->make(CacheManager::class)->store(
             is_string($store) && $store !== '' ? $store : null,
@@ -133,16 +133,16 @@ final readonly class RuntimeControl
 
     private function cacheKey(): string
     {
-        $key = $this->application->config()->get('runtime.control.key', 'foundation:runtime-control');
+        $key = $this->application->config()->get('operations.runtime_control.key', 'foundation:runtime-control');
 
         return is_string($key) && $key !== '' ? $key : 'foundation:runtime-control';
     }
 
     private function driver(): string
     {
-        $driver = strtolower((string) $this->application->config()->get('runtime.control.driver', 'file'));
+        $driver = strtolower((string) $this->application->config()->get('operations.runtime_control.driver', 'file'));
         if (!in_array($driver, ['file', 'cache'], true)) {
-            throw new \UnexpectedValueException('runtime.control.driver must be file or cache.');
+            throw new \UnexpectedValueException('operations.runtime_control.driver must be file or cache.');
         }
 
         return $driver;
@@ -167,7 +167,7 @@ final readonly class RuntimeControl
     private function path(): string
     {
         $configured = $this->application->config()->get(
-            'runtime.control.path',
+            'operations.runtime_control.path',
             'storage/framework/runtime-control.json',
         );
         $configured = is_string($configured) && $configured !== ''
