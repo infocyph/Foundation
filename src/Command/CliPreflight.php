@@ -15,6 +15,19 @@ final readonly class CliPreflight
         'completion' => 'Generate Bash, Zsh, or Fish completion output.',
     ];
 
+    /** @var array<string, string> */
+    private const array GLOBAL_OPTIONS = [
+        '-h, --help' => 'Show command help.',
+        '-V, --version' => 'Show the Foundation/application CLI version.',
+        '-q, --quiet' => 'Suppress normal command output while preserving errors.',
+        '--silent' => 'Suppress all command output and disable interactive prompts.',
+        '-v, -vv, -vvv' => 'Set verbosity level for diagnostics and profiling.',
+        '--profile' => 'Write execution duration and peak-memory diagnostics to STDERR.',
+        '-n, --no-interaction' => 'Disable interactive prompts.',
+        '--json' => 'Emit machine-readable command output where supported.',
+        '--env=ENV' => 'Override the application environment for this invocation.',
+    ];
+
     public function __construct(
         private CommandRegistry $registry = new CommandRegistry(),
         private string $displayName = 'Foundation',
@@ -143,11 +156,15 @@ final readonly class CliPreflight
             }
         }
 
+        $this->globalOptions($io);
+
         return ExitCode::SUCCESS;
     }
 
     private function list(CommandIO $io): int
     {
+        $this->globalOptions($io, false);
+        $io->writeln();
         $io->writeln('Meta:');
         foreach (self::SPECIAL_COMMANDS as $name => $description) {
             $io->writeln(sprintf('  %-28s %s', $name, $description));
@@ -181,6 +198,17 @@ final readonly class CliPreflight
         return ExitCode::SUCCESS;
     }
 
+    private function globalOptions(CommandIO $io, bool $leadingBlank = true): void
+    {
+        if ($leadingBlank) {
+            $io->writeln();
+        }
+        $io->writeln('Global options:');
+        foreach (self::GLOBAL_OPTIONS as $signature => $description) {
+            $io->writeln(sprintf('  %-24s %s', $signature, $description));
+        }
+    }
+
     private function specialHelp(string $name, CommandIO $io): int
     {
         $io->writeln($name . ' - ' . self::SPECIAL_COMMANDS[$name]);
@@ -191,6 +219,7 @@ final readonly class CliPreflight
             'completion' => 'infbyte completion [bash|zsh|fish]',
         };
         $io->writeln('Usage: ' . $usage);
+        $this->globalOptions($io);
 
         return ExitCode::SUCCESS;
     }
@@ -211,7 +240,7 @@ final readonly class CliPreflight
 
     private function usage(CommandDefinition $definition): string
     {
-        $parts = ['infbyte', $definition->commandName()];
+        $parts = ['infbyte', $definition->commandName(), '[global options]'];
         if ($definition->options() !== []) {
             $parts[] = '[options]';
         }
