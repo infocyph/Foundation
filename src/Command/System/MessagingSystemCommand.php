@@ -130,6 +130,7 @@ final class MessagingSystemCommand extends SystemCommand
             'consumer_transport' => $config->get('messaging.consumer.transport', 'memory'),
             'routes' => $this->map($config->get('messaging.routes', [])),
             'handlers' => $this->map($config->get('messaging.handlers', [])),
+            'handler_middleware' => $this->map($config->get('messaging.handler_middleware', [])),
             'listeners' => $this->map($config->get('messaging.listeners', [])),
             'scheduled_messages' => $this->map($config->get('messaging.scheduled_messages', [])),
             'workers' => $this->map($config->get('messaging.workers', [])),
@@ -144,6 +145,7 @@ final class MessagingSystemCommand extends SystemCommand
             [
                 ['Routes', count($data['routes'])],
                 ['Handlers', count($data['handlers'])],
+                ['Handler middleware', count($data['handler_middleware'])],
                 ['Listener groups', count($data['listeners'])],
                 ['Scheduled messages', count($data['scheduled_messages'])],
                 ['Workers', count($data['workers'])],
