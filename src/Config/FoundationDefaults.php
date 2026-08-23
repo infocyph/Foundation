@@ -310,6 +310,8 @@ final class FoundationDefaults
                 ],
                 'routes' => [],
                 'handlers' => [],
+                'handler_middleware' => [],
+                'job_middleware' => [],
                 'listeners' => [],
                 'scheduled_messages' => [],
                 'consumer' => [
