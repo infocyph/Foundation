@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Operations;
 
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Cache\CacheLayerFactory;
 use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\UID\Id;
 
@@ -20,13 +21,16 @@ final readonly class RuntimeControl
     public function signal(string $scope, ?string $name = null): string
     {
         $scope = $this->key($scope, $name);
-        $state = $this->read();
         $token = Id::uuid7();
-        $state[$scope] = [
-            'token' => $token,
-            'signaled_at' => gmdate(DATE_ATOM),
-        ];
-        $this->write($state);
+
+        $this->mutate(static function (array $state) use ($scope, $token): array {
+            $state[$scope] = [
+                'token' => $token,
+                'signaled_at' => gmdate(DATE_ATOM),
+            ];
+
+            return $state;
+        });
 
         return $token;
     }
@@ -57,6 +61,57 @@ final readonly class RuntimeControl
         return is_array($entry) && is_string($entry['token'] ?? null)
             ? $entry['token']
             : '';
+    }
+
+    /** @param callable(array<string,mixed>):array<string,mixed> $mutation */
+    private function mutate(callable $mutation): void
+    {
+        if ($this->driver() === 'cache') {
+            if (!class_exists(\Infocyph\CacheLayer\Cache\Cache::class)) {
+                throw new \LogicException(
+                    'Cache-backed runtime control requires the cache module; run "php infbyte module:install cache".',
+                );
+            }
+
+            $lock = $this->application->make(CacheLayerFactory::class)->lock();
+            $handle = $lock->acquire(
+                'foundation:runtime-control:' . substr(hash('sha256', $this->cacheKey()), 0, 48),
+                5.0,
+                15.0,
+            );
+            if ($handle === null) {
+                throw new \RuntimeException('Unable to acquire the runtime-control update lock.');
+            }
+
+            try {
+                $this->write($mutation($this->read()));
+            } finally {
+                $lock->release($handle);
+            }
+
+            return;
+        }
+
+        $path = $this->path();
+        $this->ensureDirectory($path);
+        $lockPath = $path . '.lock';
+        if (is_link($lockPath)) {
+            throw new \RuntimeException(sprintf('Runtime-control lock path "%s" must not be a symbolic link.', $lockPath));
+        }
+        $stream = fopen($lockPath, 'c+b');
+        if (!is_resource($stream)) {
+            throw new \RuntimeException(sprintf('Unable to open runtime-control lock "%s".', $lockPath));
+        }
+
+        try {
+            if (!flock($stream, LOCK_EX)) {
+                throw new \RuntimeException(sprintf('Unable to lock runtime-control state "%s".', $path));
+            }
+            $this->write($mutation($this->read()));
+        } finally {
+            flock($stream, LOCK_UN);
+            fclose($stream);
+        }
     }
 
     /** @return array<string,mixed> */
@@ -97,10 +152,7 @@ final readonly class RuntimeControl
         }
 
         $path = $this->path();
-        $directory = dirname($path);
-        if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
-            throw new \RuntimeException(sprintf('Unable to create runtime-control directory "%s".', $directory));
-        }
+        $this->ensureDirectory($path);
         $temporary = $path . '.' . bin2hex(random_bytes(6)) . '.tmp';
         $payload = json_encode($state, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
         if (file_put_contents($temporary, $payload, LOCK_EX) === false) {
@@ -124,11 +176,8 @@ final readonly class RuntimeControl
                 'Cache-backed runtime control requires the cache module; run "php infbyte module:install cache".',
             );
         }
-        $store = $this->application->config()->get('operations.runtime_control.store');
 
-        return $this->application->make(CacheManager::class)->store(
-            is_string($store) && $store !== '' ? $store : null,
-        );
+        return $this->application->make(CacheManager::class)->store($this->cacheStore());
     }
 
     private function cacheKey(): string
@@ -136,6 +185,13 @@ final readonly class RuntimeControl
         $key = $this->application->config()->get('operations.runtime_control.key', 'foundation:runtime-control');
 
         return is_string($key) && $key !== '' ? $key : 'foundation:runtime-control';
+    }
+
+    private function cacheStore(): ?string
+    {
+        $store = $this->application->config()->get('operations.runtime_control.store');
+
+        return is_string($store) && $store !== '' ? $store : null;
     }
 
     private function driver(): string
@@ -146,6 +202,14 @@ final readonly class RuntimeControl
         }
 
         return $driver;
+    }
+
+    private function ensureDirectory(string $path): void
+    {
+        $directory = dirname($path);
+        if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
+            throw new \RuntimeException(sprintf('Unable to create runtime-control directory "%s".', $directory));
+        }
     }
 
     private function key(string $scope, ?string $name): string
