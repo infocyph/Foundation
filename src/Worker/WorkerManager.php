@@ -12,6 +12,7 @@ use Infocyph\Foundation\Operations\RuntimeControl;
 use Infocyph\Foundation\Operations\RuntimeProcessRegistry;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\Omnibus\Consumer\Worker;
+use Infocyph\Omnibus\Consumer\WorkerLifecycle;
 use Infocyph\Omnibus\Consumer\WorkerPool;
 
 final readonly class WorkerManager
@@ -157,8 +158,8 @@ final readonly class WorkerManager
     /** @param callable():bool $stopRequested @param callable():void $processHeartbeat */
     private function runMessaging(string $name, callable $stopRequested, callable $processHeartbeat): int
     {
-        if (!class_exists(Worker::class)) {
-            throw new \LogicException('Messaging workers require the current infocyph/omnibus package.');
+        if (!class_exists(Worker::class) || !interface_exists(WorkerLifecycle::class)) {
+            throw new \LogicException('Messaging workers require infocyph/omnibus ^2.4.');
         }
 
         /** @var OmnibusWorkerFactory $factory */
@@ -168,13 +169,29 @@ final readonly class WorkerManager
 
         if (!$pool['enabled']) {
             $this->application->boot();
-            $worker = $factory->make($name);
-            $this->watch(
-                $worker,
-                $stopRequested,
-                $processHeartbeat,
-                static fn() => $worker->run(),
-            );
+            $lifecycle = new class($processHeartbeat, $stopRequested) implements WorkerLifecycle {
+                private readonly \Closure $heartbeatCallback;
+
+                private readonly \Closure $stopCallback;
+
+                public function __construct(callable $heartbeat, callable $stopRequested)
+                {
+                    $this->heartbeatCallback = \Closure::fromCallable($heartbeat);
+                    $this->stopCallback = \Closure::fromCallable($stopRequested);
+                }
+
+                public function heartbeat(): void
+                {
+                    ($this->heartbeatCallback)();
+                }
+
+                public function stopRequested(): bool
+                {
+                    return ($this->stopCallback)();
+                }
+            };
+
+            $factory->make($name, $lifecycle)->run();
 
             return 0;
         }
@@ -207,7 +224,7 @@ final readonly class WorkerManager
             restartBackoffSeconds: $pool['restart_backoff_seconds'],
             shutdownGraceSeconds: $pool['shutdown_grace_seconds'],
         );
-        $this->watch(
+        $this->watchPool(
             $workerPool,
             $stopRequested,
             $processHeartbeat,
@@ -218,19 +235,16 @@ final readonly class WorkerManager
     }
 
     /**
-     * Translate Foundation generation changes into Omnibus' native graceful
-     * requestStop() lifecycle without adding an upstream polling dependency.
-     *
-     * On platforms without pcntl, configured worker lifecycle limits and normal
-     * process-manager signals remain the fallback; provider workers can still
-     * observe stop state through WorkerRuntime::heartbeat().
+     * WorkerPool is Unix/pcntl-only upstream, so its parent process still uses
+     * a small signal watchdog. Single Omnibus workers use WorkerLifecycle and
+     * therefore need no Foundation signal polling.
      *
      * @param object{requestStop():void} $target
      * @param callable():bool $stopRequested
      * @param callable():void $heartbeat
      * @param callable():void $run
      */
-    private function watch(object $target, callable $stopRequested, callable $heartbeat, callable $run): void
+    private function watchPool(object $target, callable $stopRequested, callable $heartbeat, callable $run): void
     {
         if (!defined('SIGALRM')
             || !function_exists('pcntl_alarm')
