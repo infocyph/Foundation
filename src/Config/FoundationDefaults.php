@@ -109,7 +109,7 @@ final class FoundationDefaults
                             'proxy' => null,
                             'proxyUsername' => null,
                             'proxyPassword' => null,
-                            'userAgent' => 'Infbyte/1.0',
+                            'userAgent' => null,
                             'maxResponseBytes' => null,
                             'defaultHeaders' => [],
                             'auth' => [
