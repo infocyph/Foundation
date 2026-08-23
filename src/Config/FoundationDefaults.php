@@ -455,6 +455,22 @@ final class FoundationDefaults
                     'max_bytes' => 16_777_216,
                     'retained_files' => 7,
                 ],
+                'maintenance' => [
+                    'driver' => 'file',
+                    'path' => 'storage/framework/maintenance.json',
+                    'store' => null,
+                    'key' => 'foundation:maintenance',
+                ],
+                'runtime_control' => [
+                    'driver' => 'file',
+                    'path' => 'storage/framework/runtime-control.json',
+                    'store' => null,
+                    'key' => 'foundation:runtime-control',
+                ],
+                'runtime_registry' => [
+                    'path' => 'storage/framework/runtime',
+                    'stale_seconds' => 15,
+                ],
             ],
             'paths' => [
                 'app' => 'app',
