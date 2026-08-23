@@ -8,6 +8,8 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Auth\AuthPruner;
 use Infocyph\Foundation\Command\ExitCode;
 use Infocyph\Foundation\Config\ConfigValidator;
+use Infocyph\Foundation\Config\OtpConfigValidator;
+use Infocyph\Foundation\Config\ProductionSecurityValidator;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchemaInstaller;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DBLayerFactory;
@@ -64,13 +66,31 @@ final class OperationsSystemCommand extends SystemCommand
 
     private function configValidate(): int
     {
+        $production = $this->flag('production') || $this->application->isProduction();
         $validator = new ConfigValidator($this->application->config());
-        $result = $this->flag('production') ? $validator->validateForProduction() : $validator->validate();
-        $data = $result->toArray();
+        $result = $production ? $validator->validateForProduction() : $validator->validate();
+        $issues = $result->issues();
+
+        if ($this->application->config()->get('auth.drivers.mfa', 'simple') === 'otp') {
+            $issues = [...$issues, ...(new OtpConfigValidator($this->application->config()))->validate()];
+        }
+        if ($production) {
+            $issues = [...$issues, ...(new ProductionSecurityValidator($this->application->config()))->validate()];
+        }
+
+        $data = [
+            'valid' => $issues === [],
+            'production' => $production,
+            'issues' => array_map(static fn($issue): array => [
+                'message' => $issue->message,
+                'key' => $issue->key,
+                'severity' => $issue->severity,
+            ], $issues),
+        ];
         if ($this->io()->machineReadable()) {
             $this->io()->json($data);
-        } elseif ($result->passes()) {
-            $this->io()->success($this->flag('production')
+        } elseif ($data['valid']) {
+            $this->io()->success($production
                 ? 'Configuration is valid for production.'
                 : 'Configuration is valid.');
         } else {
@@ -83,7 +103,7 @@ final class OperationsSystemCommand extends SystemCommand
             );
         }
 
-        return $result->passes() ? ExitCode::SUCCESS : ExitCode::FAILURE;
+        return $data['valid'] ? ExitCode::SUCCESS : ExitCode::FAILURE;
     }
 
     private function environment(bool $encrypt): int
@@ -179,7 +199,7 @@ final class OperationsSystemCommand extends SystemCommand
             $this->io()->writeln($line);
         }
         if ($this->flag('follow')) {
-            $tailer->follow($path, $this->io()->writeln(...));
+            $tailer->follow($path, fn(string $line): void => $this->io()->writeln($line));
         }
 
         return ExitCode::SUCCESS;
