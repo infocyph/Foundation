@@ -10,7 +10,7 @@ use Infocyph\Omnibus\Clock\SystemClock;
 use Infocyph\Omnibus\Consumer\Consumer;
 use Infocyph\Omnibus\Consumer\ExecutionScope;
 use Infocyph\Omnibus\Failure\FailureStore;
-use Infocyph\Omnibus\Handler\HandlerMap;
+use Infocyph\Omnibus\Handler\HandlerInvoker;
 use Infocyph\Omnibus\Retry\ExponentialRetryStrategy;
 use Infocyph\Omnibus\Transport\Receiver;
 use Infocyph\Omnibus\Transport\TransportRegistry;
@@ -20,7 +20,7 @@ final readonly class ConsumerFactory
     public function __construct(
         private ConfigRepository $config,
         private TransportRegistry $transports,
-        private HandlerMap $handlers,
+        private HandlerInvoker $invoker,
         private FailureStore $failures,
         private SystemClock $clock,
         private ExecutionScope $scope,
@@ -42,7 +42,7 @@ final readonly class ConsumerFactory
 
         return new Consumer(
             receiver: $receiver,
-            handlers: $this->handlers,
+            invoker: $this->invoker,
             retry: new ExponentialRetryStrategy(
                 maximumAttempts: ValueNormalizer::int(
                     $this->config->get('messaging.retry.maximum_attempts'),
