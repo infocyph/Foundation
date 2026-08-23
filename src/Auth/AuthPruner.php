@@ -71,8 +71,7 @@ final readonly class AuthPruner
 
     private function table(\Infocyph\DBLayer\Connection\Connection $connection, string $table): string
     {
-        $prefix = $connection->getConfig()->get('prefix');
-        $prefix = is_string($prefix) ? $prefix : '';
+        $prefix = $connection->getTablePrefix();
         $physical = $prefix !== '' && !str_starts_with($table, $prefix) ? $prefix . $table : $table;
         if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/D', $physical) !== 1) {
             throw new \RuntimeException(sprintf('Unsafe authentication table identifier "%s".', $physical));
