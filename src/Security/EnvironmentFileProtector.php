@@ -71,6 +71,9 @@ final readonly class EnvironmentFileProtector
         if (is_link($path)) {
             throw new \RuntimeException('Environment protection refuses to replace symbolic-link targets.');
         }
+        if (file_exists($path) && !is_file($path)) {
+            throw new \RuntimeException(sprintf('Environment target "%s" must be a regular file path.', $path));
+        }
         if (is_file($path) && !$force) {
             throw new \RuntimeException(sprintf('Environment target "%s" already exists; use --force to replace it.', $path));
         }
@@ -151,8 +154,12 @@ final readonly class EnvironmentFileProtector
             if (!rename($temporary, $target)) {
                 throw new \RuntimeException(sprintf('Unable to publish environment target "%s".', $target));
             }
+
             if ($backup !== null && is_file($backup) && !unlink($backup)) {
-                throw new \RuntimeException(sprintf('Unable to remove environment target backup "%s".', $backup));
+                $restored = is_file($target) && unlink($target) && rename($backup, $target);
+                throw new \RuntimeException($restored
+                    ? sprintf('Unable to finalize environment target "%s"; the previous file was restored.', $target)
+                    : sprintf('Unable to remove environment target backup "%s"; manual recovery may be required.', $backup));
             }
 
             return $target;
