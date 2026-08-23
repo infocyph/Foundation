@@ -9,6 +9,7 @@ use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Http\Response\AuthExceptionMapper;
 use Infocyph\Foundation\Http\Response\AuthResponseFactory;
 use Infocyph\Foundation\Http\Response\ExceptionRenderer;
+use Infocyph\Foundation\Http\Response\ValidationExceptionMapper;
 use Infocyph\Foundation\Logging\HttpExceptionLogger;
 use Infocyph\Foundation\Operations\MaintenanceManager;
 use Infocyph\Foundation\Routing\WebrickRouterFactory;
@@ -29,8 +30,10 @@ final class HttpServiceProvider extends ServiceProvider
         $this->bindRecipe($container, AuthExceptionMapper::class, AuthExceptionMapper::class, [
             new ServiceReference(AuthResponseFactory::class),
         ]);
+        $this->bindRecipe($container, ValidationExceptionMapper::class, ValidationExceptionMapper::class);
         $this->bindRecipe($container, ExceptionRenderer::class, ExceptionRenderer::class, [
             new ServiceReference(AuthExceptionMapper::class),
+            new ServiceReference(ValidationExceptionMapper::class),
         ]);
         $this->bindFactory(
             $container,
