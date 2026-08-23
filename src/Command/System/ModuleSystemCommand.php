@@ -6,6 +6,7 @@ namespace Infocyph\Foundation\Command\System;
 
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Command\ExitCode;
+use Infocyph\Foundation\Container\ContainerCacheManager;
 use Infocyph\Foundation\Module\ModuleCatalog;
 use Infocyph\Foundation\Module\ModuleManager;
 use Infocyph\Foundation\Process\ProcessRunner;
@@ -28,14 +29,19 @@ final class ModuleSystemCommand extends SystemCommand
     {
         $module = $this->module();
         $manager = $this->manager();
-        $result = $manager->install($module, $this->flag('dry-run'));
+        $dryRun = $this->flag('dry-run');
+        $result = $manager->install($module, $dryRun);
         if (!$result->successful()) {
             return $result->exitCode;
         }
 
-        $published = $this->flag('dry-run')
+        $published = $dryRun
             ? ['published' => [], 'existing' => []]
             : $manager->publishConfig($module);
+        if (!$dryRun) {
+            $this->invalidateCompiledRuntime();
+        }
+
         if ($this->io()->machineReadable()) {
             $this->io()->json([
                 'module' => $module,
@@ -50,6 +56,11 @@ final class ModuleSystemCommand extends SystemCommand
         }
 
         return ExitCode::SUCCESS;
+    }
+
+    private function invalidateCompiledRuntime(): void
+    {
+        $this->application->make(ContainerCacheManager::class)->clear();
     }
 
     private function listing(): int
@@ -91,7 +102,12 @@ final class ModuleSystemCommand extends SystemCommand
     private function remove(): int
     {
         $module = $this->module();
-        $result = $this->manager()->remove($module, $this->flag('dry-run'));
+        $dryRun = $this->flag('dry-run');
+        $result = $this->manager()->remove($module, $dryRun);
+        if ($result->successful() && !$dryRun) {
+            $this->invalidateCompiledRuntime();
+        }
+
         if ($this->io()->machineReadable()) {
             $this->io()->json(['module' => $module, 'exit_code' => $result->exitCode]);
         } elseif ($result->successful()) {
