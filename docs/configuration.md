@@ -2,7 +2,7 @@
 
 Foundation loads values in this order:
 
-1. framework defaults;
+1. Foundation defaults;
 2. the selected preset;
 3. project `config/*.php` files;
 4. inline bootstrap values.
@@ -11,73 +11,111 @@ Foundation loads values in this order:
 `app.load_env=false`. Configuration may be cached as `single` or `sharded`;
 sharded caching lazily loads one compiled config group at first access.
 
-Choose the cache layout by workload:
+Choose the cache layout by measured workload:
 
-- `sharded` is the default for lean HTTP routes because untouched namespaces
-  remain unloaded;
-- `single` avoids per-namespace file loads when most requests consume much of
-  the application configuration.
+- `sharded` is the default for lean routes because untouched namespaces remain
+  unloaded;
+- `single` can reduce per-namespace file loads when most executions consume much
+  of the configuration graph.
 
-Both layouts move normalization to deployment. Benchmark representative
-minimal, authenticated, session, and database routes before changing the
-default; there is no universal fastest layout.
+There is no universal fastest layout; benchmark representative application
+workloads before changing the default.
 
 ## Canonical key reference
 
-Every publishable key is documented inline in its canonical template:
+Every publishable key is documented inline in its Foundation template:
 
-| Configuration | Template | Published by |
+| Configuration | Template | Canonical module |
 | --- | --- | --- |
-| CacheLayer stores, counters, locks, clusters | `resources/config/cache.php` | `module:install cache` |
-| HTTP, webhook, gRPC | `resources/config/communication.php` | `module:install communication` |
-| DBLayer connections, pool, migrations, seeders | `resources/config/database.php` | `module:install db` |
-| Pathwise disks, upload/download policy | `resources/config/filesystem.php` | `module:install filesystem` |
-| PSR-3 logging and exception detail | `resources/config/logging.php` | `module:install logging` |
-| Omnibus routes, handlers, listeners, retry | `resources/config/messaging.php` | `module:install messaging` |
-| Email and auth notifications | `resources/config/notifications.php` | `module:install communication` |
-| JsonDispatch response profile | `resources/config/responses.php` | `module:install resources` |
-| Epicrypt application security policy | `resources/config/security.php` | `module:install crypto` |
-| Browser sessions and CSRF | `resources/config/session.php` | `module:install session` |
-| ReqShield validation | `resources/config/validation.php` | `module:install validation` |
+| CacheLayer stores/counters/locks/clusters | `resources/config/cache.php` | `cache` |
+| HTTP/webhook/gRPC profiles | `resources/config/communication.php` | `communication` |
+| DBLayer connections/migrations/seeders | `resources/config/database.php` | `database` |
+| Pathwise disks/upload/download policy | `resources/config/filesystem.php` | `filesystem` |
+| PSR-3 logging/exception policy | `resources/config/logging.php` | `logging` |
+| Omnibus routes/handlers/middleware/retry/workers | `resources/config/messaging.php` | `messaging` |
+| Email and application notifications | `resources/config/notifications.php` | `communication` |
+| Runtime operations/history/maintenance | `resources/config/operations.php` | `operations` |
+| JsonDispatch response profile | `resources/config/responses.php` | `resources` |
+| Epicrypt application security policy | `resources/config/security.php` | `security` |
+| Browser sessions/CSRF | `resources/config/session.php` | `session` |
+| ReqShield validation | `resources/config/validation.php` | `validation` |
 
-Each template states the key type, default, all predefined values, and an
-example for open-ended strings, class maps, paths, durations, or identifiers.
+Publish without overwriting host config:
+
+```bash
+php infbyte module:config:publish database
+php infbyte module:config:publish operations
+```
+
+Explicit replacement requires `--force`:
+
+```bash
+php infbyte module:config:publish cache --force
+```
+
+`module:install <module>` also publishes missing config as part of installation,
+but never silently overwrites existing application config.
+
 Infrastructure values remain in their owning config; auth does not duplicate
-database, cache, cryptography, or notification settings.
+database/cache/security/communication settings.
 
 ## Validation
 
-Run:
+Run normal configuration validation with:
 
 ```bash
-php infbyte app:ready --json=true
+php infbyte config:validate
 ```
 
-Foundation validates driver names, logging levels and redaction, DB migration
-classes and lock bounds, Omnibus maps and retry ranges, JsonDispatch media
-tokens, CacheLayer topology, WebAuthn policy, and production auth requirements
-before resolving the corresponding runtime graph.
+Apply production requirements explicitly with:
 
-## Caching
+```bash
+php infbyte config:validate --production
+php infbyte app:ready
+```
+
+Runtime validation covers Foundation-owned structure/ranges and the application
+policy needed to compose selected specialist capabilities. Production checks add
+security/shared-state requirements such as OTP replay coordination when OTP MFA
+is active.
+
+Package presence is not activation. `app:ready` adds exact package/schema checks
+for capabilities selected by the resolved configuration.
+
+## Configuration caching
 
 ```bash
 php infbyte config:cache
 php infbyte config:clear
 ```
 
-Callable values are valid only in live configuration. Cached handler, listener,
-migration, seeder, provider, command, schedule, and worker definitions must use
-class names or serializable scalar/array values.
+Callable/runtime-object values may be useful in live single-process config, but
+deployment caches and pooled-worker reconstruction require serializable explicit
+class/scalar/array definitions where the corresponding surface is compiled or
+forked.
 
-`app.container.compiled` selects the application-owned resolver artifact path
-and defaults to `bootstrap/cache/container.php`. The
-`app.container.compiled_activation` values are:
+`app.container.compiled` selects the application-owned InterMix resolver artifact
+path and defaults to `bootstrap/cache/container.php`.
+`app.container.compiled_activation` supports:
 
-- `off` (default): keep request-bound applications on InterMix's dynamic
-  resolver, while still allowing `optimize` to build and validate the artifact;
-- `always`: load the matching deployment-prevalidated artifact during web boot.
+- `off` (default) — use normal dynamic/lazy resolution while still allowing
+  deployment optimization to build/inspect an artifact;
+- `always` — activate the matching compiled resolver artifact at application
+  construction.
 
-Use `always` only after measuring the complete boot plus request cost. It is
-primarily useful when one application instance handles many requests. A
-missing, stale, malformed, or mismatched artifact falls back to the dynamic
-resolver; `app:ready` reports artifact readiness separately.
+Choose `always` only after measuring the complete workload. Optimized artifacts
+are deployment-owned and should not be committed.
+
+## Environment helpers
+
+Foundation's global config helper surface is intentionally limited to:
+
+```php
+env('KEY');
+env_bool('KEY', false);
+env_int('KEY', 10);
+env_string('KEY', 'default');
+```
+
+Application paths remain declarative and are not exposed as global helper
+functions.
