@@ -7,7 +7,6 @@ namespace Infocyph\Foundation\Command\System;
 use Infocyph\DBLayer\Schema\SchemaManager;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Command\ExitCode;
-use Infocyph\Foundation\Database\AuthSchema\AuthSchemaInstaller;
 use Infocyph\Foundation\Database\DatabaseMigrationManager;
 use Infocyph\Foundation\Database\DBLayerFactory;
 
@@ -15,7 +14,6 @@ final class DatabaseSystemCommand extends SystemCommand
 {
     public function __construct(
         private readonly Application $application,
-        private readonly AuthSchemaInstaller $authSchema,
         private readonly DatabaseMigrationManager $migrations,
         private readonly DBLayerFactory $database,
     ) {}
@@ -23,8 +21,6 @@ final class DatabaseSystemCommand extends SystemCommand
     protected function handle(): int
     {
         return match ($this->canonicalName()) {
-            'auth:schema:install' => $this->authSchemaInstall(),
-            'auth:schema:status' => $this->authSchemaStatus(),
             'db:seed' => $this->seed(),
             'db:show' => $this->showDatabase(),
             'db:table' => $this->showTable(),
@@ -36,38 +32,6 @@ final class DatabaseSystemCommand extends SystemCommand
             'migrate:status' => $this->migrationStatus(),
             default => throw new \LogicException('Unsupported database system command.'),
         };
-    }
-
-    private function authSchemaInstall(): int
-    {
-        $connection = $this->connectionName();
-        $this->authSchema->install($connection);
-
-        return $this->emit(
-            $this->authSchema->readiness($connection),
-            'Authentication schema is installed.',
-        );
-    }
-
-    private function authSchemaStatus(): int
-    {
-        $status = $this->authSchema->readiness($this->connectionName());
-        if ($this->io()->machineReadable()) {
-            return $this->emit($status);
-        }
-
-        $this->io()->table(
-            ['State', 'Tables', 'Columns'],
-            [[
-                $status['installed'] ? 'installed' : 'missing',
-                $status['installed']
-                    ? implode(', ', $status['installed_tables'])
-                    : implode(', ', $status['missing_tables']),
-                implode(', ', $status['missing_columns']),
-            ]],
-        );
-
-        return $status['installed'] ? ExitCode::SUCCESS : ExitCode::FAILURE;
     }
 
     private function connectionName(): ?string
