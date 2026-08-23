@@ -43,7 +43,11 @@ final class MessagingServiceProvider extends ServiceProvider
         if (!$this->hasExplicitBinding($container, HandlerInvoker::class)) {
             $this->bindFactory($container, HandlerInvoker::class, fn() => new HandlerInvoker(
                 $app->make(HandlerMap::class),
-                $this->handlerMiddleware($app, $app->config()->get('messaging.handler_middleware', [])),
+                $this->handlerMiddleware(
+                    $app,
+                    $app->config()->get('messaging.handler_middleware', []),
+                    $app->config()->get('messaging.job_middleware', []),
+                ),
             ), LifetimeEnum::Singleton);
         }
         $this->bindFactory($container, ListenerMap::class, fn() => new ListenerMap(
@@ -191,7 +195,7 @@ final class MessagingServiceProvider extends ServiceProvider
     }
 
     /** @return list<HandlerMiddleware> */
-    private function handlerMiddleware(Application $app, mixed $configured): array
+    private function handlerMiddleware(Application $app, mixed $configured, mixed $configuredJobs): array
     {
         if (!is_array($configured)) {
             throw new \InvalidArgumentException('messaging.handler_middleware must be an ordered middleware list.');
@@ -216,6 +220,45 @@ final class MessagingServiceProvider extends ServiceProvider
                     'Messaging handler middleware "%s" must implement %s.',
                     $definition,
                     HandlerMiddleware::class,
+                ));
+            }
+            $middleware[] = $resolved;
+        }
+
+        $jobs = $this->jobMiddleware($app, $configuredJobs);
+        if ($jobs !== []) {
+            $middleware[] = new JobMiddlewarePipeline($jobs);
+        }
+
+        return $middleware;
+    }
+
+    /** @return list<JobMiddleware> */
+    private function jobMiddleware(Application $app, mixed $configured): array
+    {
+        if (!is_array($configured)) {
+            throw new \InvalidArgumentException('messaging.job_middleware must be an ordered middleware list.');
+        }
+
+        $middleware = [];
+        foreach ($configured as $definition) {
+            if ($definition instanceof JobMiddleware) {
+                $middleware[] = $definition;
+
+                continue;
+            }
+            if (!is_string($definition) || $definition === '') {
+                throw new \InvalidArgumentException(
+                    'Messaging job middleware must be service class names or JobMiddleware instances.',
+                );
+            }
+
+            $resolved = $app->container()->make($definition);
+            if (!$resolved instanceof JobMiddleware) {
+                throw new \InvalidArgumentException(sprintf(
+                    'Messaging job middleware "%s" must implement %s.',
+                    $definition,
+                    JobMiddleware::class,
                 ));
             }
             $middleware[] = $resolved;
