@@ -17,9 +17,9 @@ final readonly class AuthPruner
     ) {}
 
     /** @return array<string,int> */
-    public function prune(?string $connection = null, int $revokedRetentionHours = 24): array
+    public function prune(?string $connection = null, int $retentionHours = 24): array
     {
-        if ($revokedRetentionHours < 0) {
+        if ($retentionHours < 0) {
             throw new \InvalidArgumentException('Auth prune retention hours cannot be negative.');
         }
         $readiness = $this->schema->readiness($connection);
@@ -31,7 +31,7 @@ final readonly class AuthPruner
 
         $db = $this->database->connection($connection);
         $now = time();
-        $revokedBefore = $now - ($revokedRetentionHours * 3600);
+        $retainedBefore = $now - ($retentionHours * 3600);
         $table = fn(string $name): string => $this->table($db, $name);
 
         return [
@@ -40,27 +40,39 @@ final readonly class AuthPruner
                 [$now],
             ),
             'password_resets' => $db->delete(
-                'DELETE FROM ' . $table($this->tables->passwordResets()) . ' WHERE expires_at < ?',
-                [$now],
+                'DELETE FROM ' . $table($this->tables->passwordResets())
+                . ' WHERE expires_at < ? OR (consumed_at IS NOT NULL AND consumed_at < ?)',
+                [$now, $retainedBefore],
             ),
             'email_verifications' => $db->delete(
-                'DELETE FROM ' . $table($this->tables->emailVerifications()) . ' WHERE expires_at < ?',
-                [$now],
+                'DELETE FROM ' . $table($this->tables->emailVerifications())
+                . ' WHERE expires_at < ? OR (consumed_at IS NOT NULL AND consumed_at < ?)',
+                [$now, $retainedBefore],
             ),
             'remember_tokens' => $db->delete(
                 'DELETE FROM ' . $table($this->tables->rememberTokens())
                 . ' WHERE expires_at < ? OR (revoked_at IS NOT NULL AND revoked_at < ?)',
-                [$now, $revokedBefore],
+                [$now, $retainedBefore],
             ),
             'refresh_tokens' => $db->delete(
                 'DELETE FROM ' . $table($this->tables->refreshTokens())
                 . ' WHERE expires_at < ? OR (revoked_at IS NOT NULL AND revoked_at < ?)',
-                [$now, $revokedBefore],
+                [$now, $retainedBefore],
             ),
             'grants' => $db->delete(
                 'DELETE FROM ' . $table($this->tables->grants())
                 . ' WHERE (expires_at IS NOT NULL AND expires_at < ?) OR (revoked_at IS NOT NULL AND revoked_at < ?)',
-                [$now, $revokedBefore],
+                [$now, $retainedBefore],
+            ),
+            'passkeys' => $db->delete(
+                'DELETE FROM ' . $table($this->tables->passkeyCredentials())
+                . ' WHERE revoked_at IS NOT NULL AND revoked_at < ?',
+                [$retainedBefore],
+            ),
+            'devices' => $db->delete(
+                'DELETE FROM ' . $table($this->tables->devices())
+                . ' WHERE revoked_at IS NOT NULL AND revoked_at < ?',
+                [$retainedBefore],
             ),
             'lockouts' => $db->delete(
                 'DELETE FROM ' . $table($this->tables->lockouts()) . ' WHERE until_at IS NOT NULL AND until_at < ?',
