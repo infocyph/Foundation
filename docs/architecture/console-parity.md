@@ -1,186 +1,168 @@
-# Console Migration Parity Gate
+# Retired Console migration parity record
 
-Foundation 2.0 must not ship until every capability previously owned by `infocyph/console` is explicitly resolved as one of:
+Foundation 2.0 no longer depends on or contains the former
+`infocyph/console`/`Infocyph\Foundation\Console` architecture. This document is
+the closure record for that migration, not a second live implementation plan.
 
-- **MIGRATED** — Foundation owns the application/runtime capability directly.
-- **DELEGATED** — a specialist Infocyph library now owns the engine and Foundation only composes it.
-- **RETIRED** — the capability is intentionally removed because it is redundant, obsolete, or contrary to the Foundation 2.0 architecture.
+The authoritative current tracker is `foundation_work_plan.md`.
 
-No Console capability may disappear implicitly. `PENDING` and `PARTIAL` remain release blockers unless they are deliberately reclassified.
+## Migration rule
 
-## Application and bootstrap
+Every useful old Console capability was resolved as one of:
 
-| Console capability | Foundation 2.0 owner | State |
+- **MIGRATED** — Foundation now owns the application/runtime capability;
+- **DELEGATED** — a specialist package owns the engine and Foundation composes
+  it;
+- **RETIRED** — the old surface was intentionally removed because it duplicated
+  another engine or contradicted Foundation 2.0 architecture.
+
+There are no remaining Console-parity blockers.
+
+## Application and CLI
+
+| Former capability | Foundation 2.0 result | State |
 | --- | --- | --- |
-| Application runtime | `Application`, `Bootstrap`, runtime entry points | MIGRATED |
-| Application builder | Foundation bootstrap/composition root | MIGRATED |
-| Application metadata | Foundation application/config metadata | MIGRATED |
-| Console-specific container/bootstrap | ArrayKit + InterMix + Foundation bootstrap | RETIRED |
+| Console application/bootstrap | Four explicit Foundation runtimes + `CommandDispatcher` | MIGRATED |
+| Console-specific DI/bootstrap | InterMix + Foundation runtime composition | RETIRED |
+| Command base/contract | `Command`, `CommandHandlerInterface` | MIGRATED |
+| Definitions/descriptors/registry | `CommandDefinition`, `CommandDescriptor`, `CommandRegistry` | MIGRATED |
+| Argument/option parsing | `ParsedInput` | MIGRATED |
+| Help/list/completion preflight | `CliPreflight`, `CompletionGenerator` | MIGRATED |
+| Command resolution | `CommandResolver` + InterMix | MIGRATED |
+| Execution policy/supervision | `CommandExecutionPolicy`, `CommandExecutionCoordinator`, `ProcessRunner` | MIGRATED |
+| Command cache | `CommandCacheManager` -> `bootstrap/cache/commands.php` | MIGRATED |
+| Overlap/mutex | CacheLayer coordination | DELEGATED |
+| Execution lifecycle/history | `CommandStatus`, `ExecutionHistory` | MIGRATED |
 
-## Commands
-
-| Console capability | Foundation 2.0 owner | State |
-| --- | --- | --- |
-| Command contract/base command | `Command`, `CommandHandlerInterface` | MIGRATED |
-| Command definition | `CommandDefinition` | MIGRATED |
-| Command descriptor/help metadata | `CommandDescriptor`, `CliPreflight` | MIGRATED |
-| Command registry | `CommandRegistry` | MIGRATED |
-| Command resolver | `CommandResolver` + InterMix | MIGRATED |
-| Command routes/aliases | `routes/console.php` + `CommandRegistry` | MIGRATED |
-| Command execution coordinator | `CommandExecutionCoordinator` + `ProcessRunner` | MIGRATED |
-| Command execution policy | `CommandExecutionPolicy` | MIGRATED |
-| Command capability metadata | `CommandDefinition` + lazy provider activation | MIGRATED |
-| Command context | `CommandContext` + canonical `ExecutionScope` | MIGRATED |
-| Exit-code model | `ExitCode` | MIGRATED |
-| Argument/option parsing | `ParsedInput` + definition-aware metadata | MIGRATED |
-| Command list/help presentation | `CliPreflight` | MIGRATED |
-| Command manifest/cache | `CommandCacheManager` + scalar command manifests | MIGRATED |
-| Command mutex/overlap | CacheLayer + `CommandExecutionCoordinator` | MIGRATED |
-| Command lifecycle state model | `CommandStatus` | MIGRATED |
-| Command execution history persistence | Foundation operational adapter | PENDING |
-
-System commands are grouped into internal Foundation handlers by application domain rather than one class per command. The catalog owns their definitions and maps every advertised built-in command to a real handler. Optional package providers are activated from command capability metadata before the handler is resolved.
+There is no `FoundationConsole`, `Foundation::console()`, or `src/Console`
+compatibility hierarchy.
 
 ## Terminal and interaction
 
-| Console capability | Foundation 2.0 owner | State |
+| Former capability | Foundation 2.0 result | State |
 | --- | --- | --- |
-| Terminal input/output | `CommandIO`, `TerminalIO` | MIGRATED |
-| Non-interactive/quiet modes | `TerminalIO` + global CLI options | MIGRATED |
-| Prompt/confirm/choice/password | `CommandIO`, `TerminalIO`, `Command` helpers | MIGRATED |
-| Tables and semantic messages | `CommandIO`, `TerminalIO` | MIGRATED |
-| Decorative boxes | Plain semantic/table output | RETIRED |
-| Progress bars/spinners/tasks | Foundation command component layer | PENDING |
-| Width/ANSI capability handling | `TerminalIO` | PENDING |
-| JSON/machine-readable output | `TerminalIO` + global `--json` | MIGRATED |
-| Shell completion manifest | compiled command manifest | MIGRATED |
-| Bash/Zsh/Fish completion generation | `CompletionGenerator` | MIGRATED |
+| Terminal IO | `CommandIO`, `TerminalIO` | MIGRATED |
+| Quiet/silent/non-interactive | global CLI parsing + `TerminalIO` | MIGRATED |
+| Prompts/confirm/password/choice | Foundation command helpers | MIGRATED |
+| Tables/semantic output | `TerminalIO` | MIGRATED |
+| Progress/spinner/task feedback | `ProgressIndicator`/command helpers | MIGRATED |
+| Width-aware rendering | `TerminalIO` | MIGRATED |
+| JSON machine output | global `--json` | MIGRATED |
+| Decorative Console box API | intentionally omitted | RETIRED |
+| ANSI enable/disable switches without ANSI rendering | intentionally omitted | RETIRED |
 
-Decorative box rendering is retired deliberately: it adds terminal-specific surface without improving application semantics. Rich progress/task feedback remains a separate capability because it is useful for genuinely long-running interactive commands.
+Foundation keeps terminal UX proportional to actual CLI behavior rather than
+recreating the old decorative surface.
 
 ## Processes
 
-| Console capability | Foundation 2.0 owner | State |
+| Former capability | Foundation 2.0 result | State |
 | --- | --- | --- |
 | Subprocess execution | `ProcessRunner` | MIGRATED |
 | Argument-array/no-shell default | `ProcessRunner` | MIGRATED |
-| cwd/environment control | `ProcessOptions`, `ProcessRunner` | MIGRATED |
-| stdout/stderr capture | `ProcessRunner` | MIGRATED |
-| streaming output/callbacks | `ProcessRunner` | MIGRATED |
-| bounded output | `ProcessOptions`, `ProcessRunner` | MIGRATED |
-| timeout/idle-timeout | `ProcessRunner` | MIGRATED |
-| cancellation/heartbeat termination | `ProcessRunner` | MIGRATED |
-| signal/exit/termination metadata | `ProcessResult`, `ProcessTerminationReason` | MIGRATED |
-| graceful TERM-to-KILL cleanup | `ProcessRunner` | MIGRATED |
-| process-group/descendant cleanup | `ProcessRunner` | PENDING |
-| cross-platform capability guards | `ProcessRunner` | PARTIAL |
+| cwd/environment | `ProcessOptions` | MIGRATED |
+| capture/passthrough/bounded output | `ProcessRunner` | MIGRATED |
+| wall/idle timeouts | `ProcessRunner` | MIGRATED |
+| cancellation/heartbeat | `ProcessRunner` | MIGRATED |
+| signal/termination metadata | `ProcessResult`, `ProcessTerminationReason` | MIGRATED |
+| TERM -> KILL cleanup | `ProcessRunner` | MIGRATED |
+| descendant/process-group cleanup | platform-aware `ProcessRunner` policy | MIGRATED |
 
-`pcntl` signal handling is optional and feature-detected. The remaining process work is specifically descendant/process-group ownership and documenting/guarding the best achievable behavior on Windows rather than creating another generic process framework.
-
-## Workers and messaging
-
-| Console capability | Foundation 2.0 owner | State |
-| --- | --- | --- |
-| Maintenance-worker definitions/routes | Foundation `Worker` | MIGRATED |
-| Maintenance-worker runtime/execution scopes | Foundation `WorkerRuntime` + `ExecutionScope` | MIGRATED |
-| Single-process message worker | Omnibus `Worker` + Foundation composition | DELEGATED |
-| Parallel process worker | Omnibus `WorkerPool` + Foundation post-fork child bootstrap | DELEGATED |
-| Queue consumer | Omnibus `Consumer` | DELEGATED |
-| Retry/failure store | Omnibus | DELEGATED |
-| Message uniqueness/overlap | Omnibus + CacheLayer | DELEGATED |
-| Singleton maintenance-worker lock/heartbeat | Foundation + CacheLayer | MIGRATED |
-| Worker process supervision | Omnibus WorkerPool or external supervisor | DELEGATED |
-| Per-message runtime isolation/reset | Foundation canonical `ExecutionScope` | MIGRATED |
-| Worker CLI list/run/consume commands | Foundation `Command` + Omnibus | MIGRATED |
+Unix process groups are used where safe/available; Windows uses its supported
+process-tree termination strategy. Foundation feature-detects platform
+capabilities rather than pretending every OS has POSIX semantics.
 
 ## Scheduling
 
-| Console capability | Foundation 2.0 owner | State |
+| Former capability | Foundation 2.0 result | State |
 | --- | --- | --- |
-| Application schedule definitions | `Scheduling` | MIGRATED |
-| Cron parsing | `CronExpression` | MIGRATED |
-| Schedule run/work loop | `ScheduleManager` | MIGRATED |
-| Schedule overlap locks | Foundation + CacheLayer | MIGRATED |
-| Scheduled message dispatch | Omnibus | DELEGATED |
-| Durable schedule/message semantics | Omnibus/DBLayer where configured | DELEGATED |
-| Schedule cache/manifest | `ScheduleManager` | MIGRATED |
-| Schedule CLI list/run/work/cache/clear | Foundation `Command` | MIGRATED |
-| Schedule execution history/status persistence | Foundation operational adapter | PENDING |
+| Schedule definitions/cron | Foundation `Scheduling` | MIGRATED |
+| run/work loop | `ScheduleManager` | MIGRATED |
+| overlap/single-server ownership | Foundation + CacheLayer | MIGRATED/DELEGATED |
+| long-run lease refresh | `ProcessRunner` heartbeat + CacheLayer refresh | MIGRATED |
+| schedule cache | `bootstrap/cache/schedule.php` | MIGRATED |
+| schedule execution history | `ExecutionHistory` with `schedule_identity` | MIGRATED |
+| scheduled message dispatch | Omnibus | DELEGATED |
+| graceful scheduler interrupt | persistent runtime-control generation | MIGRATED |
+
+## Workers and messaging
+
+| Former capability | Foundation 2.0 result | State |
+| --- | --- | --- |
+| Maintenance worker routes | `routes/workers.php` + `WorkerProvider` | MIGRATED |
+| Maintenance worker runtime | `WorkerRuntime` | MIGRATED |
+| Singleton worker ownership | Foundation + CacheLayer | MIGRATED/DELEGATED |
+| Queue consumer | Omnibus `Consumer` | DELEGATED |
+| Single message worker | Omnibus 2.4 `Worker` | DELEGATED |
+| Worker lifecycle callback | Omnibus 2.4 `WorkerLifecycle` + Foundation adapter | DELEGATED/MIGRATED |
+| Process pool | Omnibus `WorkerPool` | DELEGATED |
+| Retry/failure store | Omnibus | DELEGATED |
+| Per-message execution isolation | Foundation execution scope | MIGRATED |
+| Worker list/run/restart/status | Foundation commands | MIGRATED |
+
+Foundation does not own a second queue/retry/failure/worker engine. External
+Supervisor/systemd/Docker/Kubernetes remains responsible for daemon scaling and
+replacement.
 
 ## Configuration and container
 
-| Console capability | Foundation 2.0 owner | State |
+| Former capability | Foundation 2.0 result | State |
 | --- | --- | --- |
-| Dot/config mechanics | ArrayKit | DELEGATED |
-| Dotenv parsing/environment expansion | ArrayKit | DELEGATED |
-| Lazy config loading | ArrayKit | DELEGATED |
-| Compiled config | ArrayKit + Foundation cache conventions | DELEGATED |
+| Dot/config/env parsing | ArrayKit | DELEGATED |
+| Config file ordering/cache conventions | Foundation | MIGRATED |
 | DI/scoped services | InterMix | DELEGATED |
-| Compiled container | InterMix + Foundation cache conventions | DELEGATED |
-| Runtime scope reset | InterMix + Foundation external reset tracker | PARTIAL |
+| Compiled resolver | InterMix + Foundation artifact convention | DELEGATED/MIGRATED |
+| Runtime cleanup | InterMix scope + `RuntimeContextTracker` | MIGRATED |
 
-## Cache, database, validation and security
+Global Foundation helpers are intentionally limited to `env()`, `env_bool()`,
+`env_int()`, and `env_string()`.
 
-| Console capability | Foundation 2.0 owner | State |
+## Specialist capability ownership
+
+| Capability | Owner | Foundation role |
 | --- | --- | --- |
-| Cache stores | CacheLayer | DELEGATED |
-| Locks/mutexes | CacheLayer | DELEGATED |
-| Atomic counters | CacheLayer | DELEGATED |
-| Node/cluster cache | CacheLayer | DELEGATED |
-| Database connection/query/schema/migration engine | DBLayer | DELEGATED |
-| Foundation DB configuration conventions | Foundation `Database` | MIGRATED |
-| Database/auth-schema/migration/seeding CLI | Foundation `Command` + DBLayer | MIGRATED |
-| Validation/sanitization/schema compilation | ReqShield | DELEGATED |
-| Named application schemas and ReqShield profile composition | `ValidationSchemaRegistry` + `ValidatorFactory` | MIGRATED |
-| ReqShield database rules | ReqShield `DatabaseProvider` + direct DBLayer connection | DELEGATED |
-| Cryptography/password/token primitives | Epicrypt | DELEGATED |
-| OTP math/replay primitives | OTP | DELEGATED |
-| Authentication workflows | Foundation `Auth` | MIGRATED |
+| Cache/locks/counters/node+cluster cache | CacheLayer | application selection/policy |
+| Database/query/schema/migration engine | DBLayer | application connection/migration orchestration |
+| Validation | ReqShield | request/profile composition |
+| Cryptography | Epicrypt | application auth/security policy |
+| OTP algorithms/replay primitives | OTP | MFA application mapping |
+| Filesystem/storage engine | Pathwise/Flysystem | application disks/HTTP bridges |
+| HTTP/email/webhook/gRPC | TalkingBytes | named application profiles/notifications |
+| Events/messages/retry/failure/workers | Omnibus | application handler/job/runtime composition |
+| IDs | UID | direct native use + narrow auth ID policy |
 
-## Filesystem and communication
+No broad specialist Foundation facade/manager layer was retained.
 
-| Console capability | Foundation 2.0 owner | State |
-| --- | --- | --- |
-| Application paths | Foundation `PathManager` | MIGRATED |
-| Generic filesystem/storage workflows | Pathwise | DELEGATED |
-| Storage-link/application HTTP bridges | Foundation `Filesystem` | MIGRATED |
-| HTTP client | TalkingBytes | DELEGATED |
-| Outbound/inbound email | TalkingBytes | DELEGATED |
-| Webhook protocol | TalkingBytes | DELEGATED |
-| gRPC client/server dispatch | TalkingBytes | DELEGATED |
+## Module/schema migration
 
-## Operational commands
+The old package-oriented module model was retired. Foundation modules are now
+purpose-first (`database`, `security`, `auth`, etc.).
 
-Every command removed from the old `src/Console/Command` tree must be represented in the Foundation command catalog and have one of these outcomes:
+Public schema lifecycle is unified:
 
-1. implemented as a Foundation command handler;
-2. delegated to a current package operation through a thin Foundation command handler; or
-3. explicitly retired with a documented replacement.
+```text
+module:schema:status
+module:schema:install
+module:schema:sync
+```
 
-The current catalog has real handlers for:
+Specialized duplicate `auth:schema:*` and `session:schema:*` command families
+were retired. Module removal never drops schema/data.
 
-- about/readiness/install/environment/serve/secret generation;
-- cache/config/command/container/route/schedule optimization operations;
-- database/migration/seeding/auth-schema commands;
-- module install/list/remove;
-- artifact generation commands;
-- schedule list/run/work/cache/clear and durable scheduled-message dispatch;
-- worker list/run and bounded queue consume;
-- session schema/prune;
-- storage links.
+## Operational capability closure
 
-Generated artifacts are also part of the boundary: Foundation stubs must not reintroduce `Infocyph\Console\*` or `Infocyph\Foundation\Console\*` dependencies.
+The current Foundation command catalog includes real handlers for application
+inspection/install/readiness; configuration/cache/optimization; DB/migrations;
+module config/schema lifecycle; scheduling; workers; queue failure operations;
+maintenance/runtime control; execution history; environment protection;
+storage; logging; auth pruning; and application generators.
 
-## Remaining Console-parity blockers
+Removed old command names are not preserved merely for command-count parity when
+a current canonical capability supersedes them.
 
-The absorbed Console surface is now narrowed to these genuine remaining source capabilities:
+## Release status
 
-1. command/schedule execution history persistence and query/reporting adapter;
-2. progress/spinner/task UI for long-running interactive commands;
-3. terminal width/ANSI capability handling;
-4. process-group/descendant cleanup plus final Windows capability policy;
-5. final canonical runtime reset audit across the remaining optional integrations.
-
-## Release rule
-
-Foundation 2.0 release is blocked while any row above is `PENDING` or `PARTIAL`, unless that row is deliberately reclassified as `RETIRED` with an explicit rationale and replacement where applicable.
+Console migration parity is **closed**. Remaining Foundation 2.0 work is not a
+Console-migration blocker; it is the normal documentation/public-surface freeze
+and then the explicitly deferred Composer/PHPForge/static/PHPUnit/integration/
+performance release verification matrix.
