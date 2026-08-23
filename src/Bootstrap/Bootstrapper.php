@@ -222,7 +222,6 @@ final class Bootstrapper
             AuthOtpServiceProvider::class => ['class' => \Infocyph\OTP\TOTP::class, 'module' => 'auth', 'package' => 'infocyph/otp'],
             CacheServiceProvider::class => ['class' => \Infocyph\CacheLayer\Cache\Cache::class, 'module' => 'cache', 'package' => 'infocyph/cachelayer'],
             CommunicationServiceProvider::class => ['class' => \Infocyph\TalkingBytes\Http\HttpClient::class, 'module' => 'communication', 'package' => 'infocyph/talkingbytes'],
-            NotificationServiceProvider::class => ['class' => \Infocyph\TalkingBytes\Email\Emailer::class, 'module' => 'communication', 'package' => 'infocyph/talkingbytes'],
             DatabaseServiceProvider::class => ['class' => \Infocyph\DBLayer\DB::class, 'module' => 'database', 'package' => 'infocyph/dblayer'],
             MessagingServiceProvider::class => ['class' => \Infocyph\Omnibus\Consumer\WorkerLifecycle::class, 'module' => 'messaging', 'package' => 'infocyph/omnibus ^2.4'],
             FilesystemServiceProvider::class => ['class' => \Infocyph\Pathwise\PathwiseFacade::class, 'module' => 'filesystem', 'package' => 'infocyph/pathwise'],
