@@ -6,16 +6,13 @@ namespace Infocyph\Foundation\Notifications;
 
 use Infocyph\Foundation\Config\ConfigRepository;
 
-final class NotificationChannelRegistry
+final readonly class NotificationChannelRegistry
 {
-    /** @var array<string,NotificationChannel> */
-    private array $resolved = [];
-
     /** @param \Closure(string):mixed $resolver */
     public function __construct(
-        private readonly ConfigRepository $config,
-        private readonly NotificationChannel $mail,
-        private readonly \Closure $resolver,
+        private ConfigRepository $config,
+        private NotificationChannel $mail,
+        private \Closure $resolver,
     ) {}
 
     public function channel(string $name): NotificationChannel
@@ -25,7 +22,7 @@ final class NotificationChannelRegistry
             throw new \InvalidArgumentException('Notification channel name must be non-empty.');
         }
 
-        return $this->resolved[$name] ??= $this->resolve($name);
+        return $this->resolve($name);
     }
 
     private function resolve(string $name): NotificationChannel
