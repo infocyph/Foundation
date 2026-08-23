@@ -12,7 +12,8 @@ use Infocyph\ReqShield\Contracts\DatabaseProvider;
 use Infocyph\ReqShield\Validator;
 
 /**
- * Creates native ReqShield validators from Foundation-owned named schemas.
+ * Creates native ReqShield validators from Foundation-owned named schemas or
+ * application-owned rule arrays.
  *
  * Rule execution, sanitization, casting, schema compilation and validation
  * semantics remain ReqShield responsibilities. Foundation only resolves the
@@ -33,9 +34,34 @@ final readonly class ValidatorFactory
 
     public function make(string $schema): Validator
     {
-        $validator = Validator::make($this->rules($schema), $this->database);
-        $options = $this->options($schema);
+        return $this->configure(
+            Validator::make($this->rules($schema), $this->database),
+            $this->options($schema),
+        );
+    }
 
+    /**
+     * Create a ReqShield validator from application-owned rules while retaining
+     * Foundation validation.defaults and optional per-request overrides.
+     *
+     * @param array<string,mixed> $rules
+     * @param array<string,mixed> $overrides
+     */
+    public function makeRules(array $rules, array $overrides = []): Validator
+    {
+        if ($rules === []) {
+            throw new ConfigurationException('Application validation rules cannot be empty.');
+        }
+
+        return $this->configure(
+            Validator::make($rules, $this->database),
+            $this->optionSet($overrides),
+        );
+    }
+
+    /** @param array<string,mixed> $options */
+    private function configure(Validator $validator, array $options): Validator
+    {
         $validator->setFailFast(ValueNormalizer::bool($options['fail_fast'] ?? true, true));
 
         $aliases = $this->stringMap($options['aliases'] ?? null);
@@ -133,12 +159,21 @@ final readonly class ValidatorFactory
     /** @return array<string, mixed> */
     private function options(string $schema): array
     {
-        $defaults = ValueNormalizer::associativeArray($this->config->get('validation.defaults', []));
         $configuredOverrides = ValueNormalizer::associativeArray($this->config->get('validation.overrides', []));
         $overrides = isset($configuredOverrides[$schema]) && is_array($configuredOverrides[$schema])
             ? ValueNormalizer::associativeArray($configuredOverrides[$schema])
             : [];
 
+        return $this->optionSet($overrides);
+    }
+
+    /**
+     * @param array<string,mixed> $overrides
+     * @return array<string,mixed>
+     */
+    private function optionSet(array $overrides): array
+    {
+        $defaults = ValueNormalizer::associativeArray($this->config->get('validation.defaults', []));
         $options = array_replace([
             'fail_fast' => $this->config->get('validation.fail_fast', true),
         ], $defaults, $overrides);
