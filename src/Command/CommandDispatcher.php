@@ -73,6 +73,9 @@ final class CommandDispatcher
     public function run(array $argv, ?CommandIO $io = null): int
     {
         $coarse = ParsedInput::fromArgv($argv);
+        $profile = $coarse->flag('profile') && !$coarse->flag('silent');
+        $startedAt = $profile ? hrtime(true) : 0;
+        $baselinePeak = $profile ? memory_get_peak_usage(true) : 0;
         $io ??= TerminalIO::fromInput($coarse);
         $preflight = new CliPreflight($this->registry, $this->displayName);
 
@@ -80,10 +83,13 @@ final class CommandDispatcher
             $handled = $preflight->handle($argv, $io);
         } catch (\InvalidArgumentException $exception) {
             $io->error($exception->getMessage());
+            $this->profile($coarse, $profile, $startedAt, $baselinePeak);
 
             return ExitCode::INVALID_USAGE;
         }
         if ($handled !== null) {
+            $this->profile($coarse, $profile, $startedAt, $baselinePeak);
+
             return $handled;
         }
 
@@ -94,6 +100,7 @@ final class CommandDispatcher
             if ($suggestions !== []) {
                 $io->error('Did you mean: ' . implode(', ', $suggestions) . '?');
             }
+            $this->profile($coarse, $profile, $startedAt, $baselinePeak);
 
             return ExitCode::COMMAND_NOT_FOUND;
         }
@@ -102,6 +109,7 @@ final class CommandDispatcher
             $input = ParsedInput::fromArgv($argv, $descriptor->definition);
         } catch (\InvalidArgumentException $exception) {
             $io->error($exception->getMessage());
+            $this->profile($coarse, $profile, $startedAt, $baselinePeak);
 
             return ExitCode::INVALID_USAGE;
         }
@@ -111,6 +119,7 @@ final class CommandDispatcher
                 'System command "%s" is not yet bound to a Foundation handler.',
                 $descriptor->definition->commandName(),
             ));
+            $this->profile($coarse, $profile, $startedAt, $baselinePeak);
 
             return ExitCode::CANNOT_EXECUTE;
         }
@@ -120,12 +129,16 @@ final class CommandDispatcher
             $inline = static fn(ExecutionId $executionId): int => new CommandResolver($application->boot())
                 ->run($descriptor, $input, $io, $executionId);
 
-            return new CommandExecutionCoordinator(
+            $exit = new CommandExecutionCoordinator(
                 $application,
                 executable: $argv[0] ?? null,
             )->run($descriptor, $argv, $inline, $io);
+            $this->profile($input, $profile, $startedAt, $baselinePeak);
+
+            return $exit;
         } catch (\Throwable $exception) {
             $io->error($exception->getMessage() !== '' ? $exception->getMessage() : $exception::class);
+            $this->profile($coarse, $profile, $startedAt, $baselinePeak);
 
             return ExitCode::FAILURE;
         }
@@ -150,5 +163,36 @@ final class CommandDispatcher
             RuntimeMode::Web => Foundation::web($config),
             RuntimeMode::Worker => Foundation::worker($config),
         };
+    }
+
+    private function profile(ParsedInput $input, bool $enabled, int $startedAt, int $baselinePeak): void
+    {
+        if (!$enabled) {
+            return;
+        }
+
+        $profile = [
+            'duration_ms' => round((hrtime(true) - $startedAt) / 1_000_000, 3),
+            'peak_memory_bytes' => memory_get_peak_usage(true),
+            'peak_memory_growth_bytes' => max(0, memory_get_peak_usage(true) - $baselinePeak),
+            'verbosity' => $input->verbosity(),
+        ];
+        if ($input->flag('json')) {
+            fwrite(STDERR, json_encode(
+                ['profile' => $profile],
+                JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
+            ) . PHP_EOL);
+
+            return;
+        }
+
+        fwrite(STDERR, sprintf(
+            "Profile: %.3f ms; peak %.2f MiB; growth %.2f MiB; verbosity %d%s",
+            $profile['duration_ms'],
+            $profile['peak_memory_bytes'] / 1_048_576,
+            $profile['peak_memory_growth_bytes'] / 1_048_576,
+            $profile['verbosity'],
+            PHP_EOL,
+        ));
     }
 }
