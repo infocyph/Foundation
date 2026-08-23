@@ -27,6 +27,7 @@ final readonly class ModuleManager
      *     status:string,
      *     installed:bool,
      *     direct:bool,
+     *     schemas:list<string>,
      *     packages:array<string,array{constraint:string,installed:bool,direct:bool,version:?string}>
      * }>
      */
@@ -70,6 +71,7 @@ final readonly class ModuleManager
                 'status' => $status,
                 'installed' => $installed,
                 'direct' => $builtIn || ($packageCount > 0 && $directCount === $packageCount),
+                'schemas' => $definition['schemas'],
                 'packages' => $packages,
             ];
         }
