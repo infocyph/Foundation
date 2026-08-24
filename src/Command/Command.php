@@ -118,7 +118,10 @@ abstract class Command implements CommandHandlerInterface
         $this->io()->success($message);
     }
 
-    /** @param list<string> $headers @param list<list<scalar|null>> $rows */
+    /**
+     * @param list<string> $headers
+     * @param list<list<scalar|null>> $rows
+     */
     final protected function table(array $headers, array $rows): void
     {
         $this->io()->table($headers, $rows);
