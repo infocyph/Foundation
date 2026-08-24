@@ -105,11 +105,12 @@ final readonly class ModuleConfigPublisher
             return [];
         }
 
-        $staged = $this->stage($directory, $sources);
+        $staged = [];
         $backups = [];
         $published = [];
 
         try {
+            $this->stage($directory, $sources, $staged);
             $this->publishStaged($staged, $backups, $published, $existing, $force);
         } catch (\Throwable $failure) {
             $rollback = $this->rollback($staged, $published, $backups);
@@ -225,11 +226,10 @@ final readonly class ModuleConfigPublisher
 
     /**
      * @param array<string,string> $sources
-     * @return array<string,string>
+     * @param array<string,string> $staged
      */
-    private function stage(string $directory, array $sources): array
+    private function stage(string $directory, array $sources, array &$staged): void
     {
-        $staged = [];
         foreach ($sources as $target => $source) {
             $temporary = tempnam($directory, '.foundation-config-');
             if ($temporary === false) {
@@ -240,8 +240,6 @@ final readonly class ModuleConfigPublisher
                 throw new \RuntimeException(sprintf('Unable to stage config template "%s".', basename($target)));
             }
         }
-
-        return $staged;
     }
 
     /** @param list<string> $existing */
