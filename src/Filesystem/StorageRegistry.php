@@ -208,7 +208,10 @@ final class StorageRegistry
         return $this->mountScope . '-' . $disk;
     }
 
-    /** @param array<string, mixed> $configuration @return array<string, mixed> */
+    /**
+     * @param array<string, mixed> $configuration
+     * @return array<string, mixed>
+     */
     private function normalizeFilesystemConfig(array $configuration): array
     {
         $root = $configuration['root'] ?? null;
