@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Operations;
 
 use Infocyph\Foundation\Application\Application;
-use Infocyph\Foundation\Support\ValueNormalizer;
+use Infocyph\Foundation\Operations\Internal\ExecutionHistoryStorage;
 
 final readonly class ExecutionHistory
 {
@@ -19,7 +19,7 @@ final readonly class ExecutionHistory
     {
         return $this->withLock(true, function (): bool {
             $removed = false;
-            foreach ($this->historyFilesOldestFirst() as $path) {
+            foreach ($this->storage()->filesOldestFirst() as $path) {
                 if (is_file($path) && !unlink($path)) {
                     throw new \RuntimeException(sprintf('Unable to remove execution history "%s".', $path));
                 }
@@ -44,8 +44,9 @@ final readonly class ExecutionHistory
 
         return $this->withLock(false, function () use ($executionId): array {
             $records = [];
-            foreach ($this->historyFilesOldestFirst() as $path) {
-                foreach ($this->records($path) as $record) {
+            $storage = $this->storage();
+            foreach ($storage->filesOldestFirst() as $path) {
+                foreach ($storage->records($path) as $record) {
                     if (($record['execution_id'] ?? null) === $executionId) {
                         $records[] = $record;
                     }
@@ -71,8 +72,9 @@ final readonly class ExecutionHistory
 
         return $this->withLock(false, function () use ($kind, $key, $value): ?array {
             $latest = null;
-            foreach ($this->historyFilesOldestFirst() as $path) {
-                foreach ($this->records($path) as $record) {
+            $storage = $this->storage();
+            foreach ($storage->filesOldestFirst() as $path) {
+                foreach ($storage->records($path) as $record) {
                     if (($record['kind'] ?? null) !== $kind) {
                         continue;
                     }
@@ -108,8 +110,9 @@ final readonly class ExecutionHistory
 
         return $this->withLock(false, function () use ($limit, $kind, $name): array {
             $records = [];
-            foreach ($this->historyFilesOldestFirst() as $path) {
-                foreach ($this->records($path) as $record) {
+            $storage = $this->storage();
+            foreach ($storage->filesOldestFirst() as $path) {
+                foreach ($storage->records($path) as $record) {
                     if (!$this->matches($record, $kind, $name)) {
                         continue;
                     }
@@ -182,24 +185,6 @@ final readonly class ExecutionHistory
         }
     }
 
-    /** @return list<string> */
-    private function historyFilesOldestFirst(): array
-    {
-        $path = $this->path();
-        $files = [];
-        for ($index = $this->retainedFiles(); $index >= 1; --$index) {
-            $rotated = $path . '.' . $index;
-            if (is_file($rotated) && is_readable($rotated)) {
-                $files[] = $rotated;
-            }
-        }
-        if (is_file($path) && is_readable($path)) {
-            $files[] = $path;
-        }
-
-        return $files;
-    }
-
     /** @param array<string,mixed> $record */
     private function matches(array $record, ?string $kind, ?string $name): bool
     {
@@ -212,30 +197,6 @@ final readonly class ExecutionHistory
         $value = $this->application->config()->getInt('operations.history.max_bytes', self::DEFAULT_MAX_BYTES);
 
         return is_int($value) && $value > 0 ? $value : self::DEFAULT_MAX_BYTES;
-    }
-
-    /** @return iterable<array<string,mixed>> */
-    private function records(string $path): iterable
-    {
-        $stream = fopen($path, 'rb');
-        if (!is_resource($stream)) {
-            return;
-        }
-
-        try {
-            while (($line = fgets($stream)) !== false) {
-                try {
-                    $record = json_decode($line, true, 32, JSON_THROW_ON_ERROR);
-                } catch (\JsonException) {
-                    continue;
-                }
-                if (is_array($record)) {
-                    yield ValueNormalizer::associativeArray($record);
-                }
-            }
-        } finally {
-            fclose($stream);
-        }
     }
 
     private function retainedFiles(): int
@@ -285,6 +246,11 @@ final readonly class ExecutionHistory
                 throw new \RuntimeException(sprintf('Unable to rotate execution history "%s".', $source));
             }
         }
+    }
+
+    private function storage(): ExecutionHistoryStorage
+    {
+        return new ExecutionHistoryStorage($this->application);
     }
 
     /**
