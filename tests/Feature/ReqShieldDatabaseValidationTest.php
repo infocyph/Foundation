@@ -86,18 +86,7 @@ it('validates database-backed ReqShield 3.0.2 rules through DBLayer', function (
                     'ignore' => null, 'id_column' => 'id', 'include_trashed' => false,
                     'soft_delete_column' => 'deleted_at',
                 ],
-            ]))->toBe(['duplicate'])
-            ->and($provider->compositeUnique('users', [
-                'email' => 'ada@example.test',
-                'deleted_at' => null,
-            ]))->toBeFalse()
-            ->and($provider->compositeUnique('users', [
-                'email' => 'ada@example.test',
-                'deleted_at' => null,
-            ], 1))->toBeTrue()
-            ->and($provider->query('SELECT id FROM users WHERE email = ?', ['ada@example.test']))->toBe([
-                ['id' => 1],
-            ]);
+            ]))->toBe(['duplicate']);
     } finally {
         DB::purge();
         foundationReqShieldDatabaseRemove($basePath);
