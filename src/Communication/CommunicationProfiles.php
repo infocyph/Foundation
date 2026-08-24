@@ -131,6 +131,7 @@ final readonly class CommunicationProfiles
         return $sender;
     }
 
+    /** @param list<string>|string|null $secret */
     public function webhookVerifier(
         ?string $profile = null,
         string|array|null $secret = null,
@@ -180,7 +181,7 @@ final readonly class CommunicationProfiles
                 $this->requiredString($auth, 'password'),
             ),
             'bearer' => $client->withBearerToken($this->requiredString($auth, 'token')),
-            'none', null => $client,
+            'none' => $client,
             default => throw new \InvalidArgumentException('Unsupported communication HTTP auth driver.'),
         };
 
@@ -287,11 +288,16 @@ final readonly class CommunicationProfiles
     /** @return string|list<string> */
     private function webhookSecret(mixed $secret): string|array
     {
-        $secrets = is_string($secret) ? [trim($secret)] : (is_array($secret) ? array_map(
-            static fn(mixed $value): mixed => is_string($value) ? trim($value) : $value,
-            array_values($secret),
-        ) : []);
-        if ($secrets === [] || array_any($secrets, static fn(mixed $value): bool => !is_string($value) || $value === '')) {
+        $single = is_string($secret);
+        $values = $single ? [$secret] : (is_array($secret) ? array_values($secret) : []);
+        $secrets = [];
+        foreach ($values as $value) {
+            if (!is_string($value) || trim($value) === '') {
+                throw new \InvalidArgumentException('Inbound webhook secret must contain one or more non-empty strings.');
+            }
+            $secrets[] = trim($value);
+        }
+        if ($secrets === []) {
             throw new \InvalidArgumentException('Inbound webhook secret must contain one or more non-empty strings.');
         }
         if ($this->config->isProduction()
@@ -300,6 +306,6 @@ final readonly class CommunicationProfiles
             throw new \LogicException('Production inbound webhook profiles must replace the default secret.');
         }
 
-        return is_string($secret) ? $secrets[0] : $secrets;
+        return $single ? $secrets[0] : $secrets;
     }
 }
