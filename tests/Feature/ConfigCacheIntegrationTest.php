@@ -230,19 +230,20 @@ it('keeps production requirements limited to the Foundation runtime core', funct
 
     expect($composer['require'])->toBe([
         'php' => '^8.4',
-        'infocyph/arraykit' => '^5.1',
-        'infocyph/intermix' => '^9.1',
+        'composer-runtime-api' => '^2.0',
+        'infocyph/arraykit' => '^5.1.1',
+        'infocyph/intermix' => '^9.2',
         'infocyph/uid' => '^5.0',
-        'infocyph/webrick' => '^4.0.1',
+        'infocyph/webrick' => '^4.0.2',
         'psr/log' => '^3.0.2',
     ])->and($composer['minimum-stability'] ?? null)->toBe('stable')
-        ->and($composer['require-dev']['infocyph/cachelayer'] ?? null)->toBe('^3.1.2')
-        ->and($composer['require-dev']['infocyph/dblayer'] ?? null)->toBe('^4.0')
+        ->and($composer['require-dev']['infocyph/cachelayer'] ?? null)->toBe('^3.2.0')
+        ->and($composer['require-dev']['infocyph/dblayer'] ?? null)->toBe('^4.1')
         ->and($composer['require-dev']['infocyph/epicrypt'] ?? null)->toBe('^2.1')
-        ->and($composer['require-dev']['infocyph/omnibus'] ?? null)->toBe('^2.1.1')
+        ->and($composer['require-dev']['infocyph/omnibus'] ?? null)->toBe('^2.4')
         ->and($composer['require-dev']['infocyph/otp'] ?? null)->toBe('^6.0')
         ->and($composer['require-dev']['infocyph/pathwise'] ?? null)->toBe('^3.1')
-        ->and($composer['require-dev']['infocyph/reqshield'] ?? null)->toBe('^3.0')
+        ->and($composer['require-dev']['infocyph/reqshield'] ?? null)->toBe('^3.0.2')
         ->and($composer['require-dev']['infocyph/talkingbytes'] ?? null)->toBe('^2.0')
         ->and(array_keys($composer['suggest']))->toContain(
             'infocyph/cachelayer',
