@@ -22,54 +22,22 @@ final readonly class ProgressIndicator
         ?int $total = null,
         string $label = 'Working',
     ): int {
-        if ($total !== null && $total < 0) {
-            throw new \InvalidArgumentException('Progress total cannot be negative.');
-        }
-
-        $count = 0;
+        $this->assertTotal($total);
         $render = $this->renderable();
         if ($render) {
             $this->render($label, 0, $total);
         }
 
         try {
-            foreach ($items as $item) {
-                $handler($item, $count);
-                $count++;
-                if ($total !== null && $count > $total) {
-                    throw new \UnexpectedValueException('Progress iterable exceeded its declared total.');
-                }
-                if ($render) {
-                    $this->render($label, $count, $total);
-                }
-            }
+            $count = $this->consume($items, $handler, $total, $label, $render);
         } catch (\Throwable $exception) {
-            if ($render) {
-                $this->io->writeln();
-            }
-            $this->io->error(sprintf('%s failed: %s', $label, $exception->getMessage()));
+            $this->reportFailure($label, $render, $exception);
 
             throw $exception;
         }
 
-        if ($total !== null && $count !== $total) {
-            if ($render) {
-                $this->io->writeln();
-            }
-
-            throw new \UnexpectedValueException(sprintf(
-                'Progress iterable produced %d item(s), expected %d.',
-                $count,
-                $total,
-            ));
-        }
-
-        if ($render) {
-            $this->io->writeln();
-        }
-        if (!$this->io->quiet() && !$this->io->machineReadable()) {
-            $this->io->success(sprintf('%s completed (%d).', $label, $count));
-        }
+        $this->assertProducedTotal($count, $total, $render);
+        $this->finish($label, $count, $render);
 
         return $count;
     }
@@ -103,6 +71,62 @@ final readonly class ProgressIndicator
         return $result;
     }
 
+    private function assertProducedTotal(int $count, ?int $total, bool $render): void
+    {
+        if ($total === null || $count === $total) {
+            return;
+        }
+        if ($render) {
+            $this->io->writeln();
+        }
+
+        throw new \UnexpectedValueException(sprintf(
+            'Progress iterable produced %d item(s), expected %d.',
+            $count,
+            $total,
+        ));
+    }
+
+    private function assertTotal(?int $total): void
+    {
+        if ($total !== null && $total < 0) {
+            throw new \InvalidArgumentException('Progress total cannot be negative.');
+        }
+    }
+
+    /** @param iterable<mixed> $items */
+    private function consume(
+        iterable $items,
+        callable $handler,
+        ?int $total,
+        string $label,
+        bool $render,
+    ): int {
+        $count = 0;
+        foreach ($items as $item) {
+            $handler($item, $count);
+            $count++;
+            if ($total !== null && $count > $total) {
+                throw new \UnexpectedValueException('Progress iterable exceeded its declared total.');
+            }
+            if ($render) {
+                $this->render($label, $count, $total);
+            }
+        }
+
+        return $count;
+    }
+
+    private function finish(string $label, int $count, bool $render): void
+    {
+        if ($render) {
+            $this->io->writeln();
+        }
+        if (!$this->io->quiet() && !$this->io->machineReadable()) {
+            $this->io->success(sprintf('%s completed (%d).', $label, $count));
+        }
+    }
+
     private function render(string $label, int $current, ?int $total): void
     {
         if ($total === null) {
@@ -125,5 +149,13 @@ final readonly class ProgressIndicator
         return !$this->io->quiet()
             && !$this->io->machineReadable()
             && $this->io->interactive();
+    }
+
+    private function reportFailure(string $label, bool $render, \Throwable $exception): void
+    {
+        if ($render) {
+            $this->io->writeln();
+        }
+        $this->io->error(sprintf('%s failed: %s', $label, $exception->getMessage()));
     }
 }
