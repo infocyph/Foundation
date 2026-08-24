@@ -305,7 +305,7 @@ final readonly class TerminalIO implements CommandIO
 
     private function stty(string $mode): bool
     {
-        $process = @proc_open(['stty', $mode], [STDIN, STDOUT, STDERR], $pipes, null, null, ['bypass_shell' => true]);
+        $process = proc_open(['stty', $mode], [STDIN, STDOUT, STDERR], $pipes, null, null, ['bypass_shell' => true]);
         if (!is_resource($process)) {
             return false;
         }
