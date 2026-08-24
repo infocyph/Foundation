@@ -223,7 +223,7 @@ final class Bootstrapper
             CacheServiceProvider::class => ['class' => \Infocyph\CacheLayer\Cache\Cache::class, 'module' => 'cache', 'package' => 'infocyph/cachelayer'],
             CommunicationServiceProvider::class => ['class' => \Infocyph\TalkingBytes\Http\HttpClient::class, 'module' => 'communication', 'package' => 'infocyph/talkingbytes'],
             DatabaseServiceProvider::class => ['class' => \Infocyph\DBLayer\DB::class, 'module' => 'database', 'package' => 'infocyph/dblayer'],
-            MessagingServiceProvider::class => ['class' => \Infocyph\Omnibus\Consumer\WorkerLifecycle::class, 'module' => 'messaging', 'package' => 'infocyph/omnibus ^2.4'],
+            MessagingServiceProvider::class => ['class' => \Infocyph\Omnibus\MessageBus::class, 'module' => 'messaging', 'package' => 'infocyph/omnibus ^2.4'],
             FilesystemServiceProvider::class => ['class' => \Infocyph\Pathwise\PathwiseFacade::class, 'module' => 'filesystem', 'package' => 'infocyph/pathwise'],
             SecurityServiceProvider::class => ['class' => \Infocyph\Epicrypt\Crypto\AeadCipher::class, 'module' => 'security', 'package' => 'infocyph/epicrypt'],
             ValidationServiceProvider::class => ['class' => \Infocyph\ReqShield\Validator::class, 'module' => 'validation', 'package' => 'infocyph/reqshield'],
@@ -338,6 +338,8 @@ final class Bootstrapper
                 \Infocyph\Omnibus\Consumer\Command\ConsumerTask::class,
                 \Infocyph\Omnibus\Scheduling\MessageFactoryMap::class,
                 \Infocyph\Omnibus\Scheduling\ScheduledMessageDispatcher::class,
+                \Psr\EventDispatcher\EventDispatcherInterface::class,
+                \Psr\EventDispatcher\ListenerProviderInterface::class,
             ], true) => MessagingServiceProvider::class,
 
             str_starts_with($service, 'Infocyph\\Foundation\\Notifications\\'),
