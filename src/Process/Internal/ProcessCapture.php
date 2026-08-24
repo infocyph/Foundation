@@ -333,7 +333,10 @@ final readonly class ProcessCapture
         }
     }
 
-    /** @return list<resource> */
+    /**
+     * @param array<int, resource> $pipes
+     * @return list<resource>
+     */
     private function readablePipes(array $pipes): array
     {
         $read = [];
