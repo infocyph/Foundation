@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Operations;
 
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\UID\Id;
 
 final readonly class RuntimeProcessRegistry
 {
     public function __construct(private Application $application) {}
 
-    /** @return array{id:string,kind:string,name:string,pid:int,started_at:string,heartbeat_at:string,host:string,running:?bool} */
+    /** @return array{id:string,kind:string,name:string,pid:int,started_at:string,heartbeat_at:string,host:string,running:true} */
     public function register(string $kind, string $name): array
     {
         $this->assertIdentity($kind, $name);
@@ -33,16 +34,24 @@ final readonly class RuntimeProcessRegistry
         return [...$record, 'running' => true];
     }
 
-    /** @param array{id:string,kind:string,name:string,pid:int,started_at:string,heartbeat_at:string,host:string} $record */
+    /**
+     * @param array<int|string, mixed> $record
+     * @return array{id:string,kind:string,name:string,pid:int,started_at:string,heartbeat_at:string,host:string,running:true}
+     */
     public function heartbeat(array $record): array
     {
-        $record['heartbeat_at'] = gmdate(DATE_ATOM);
-        $this->write($record);
+        $normalized = $this->normalizeRecord($record);
+        if ($normalized === null) {
+            throw new \InvalidArgumentException('Runtime process record is invalid.');
+        }
 
-        return [...$record, 'running' => true];
+        $normalized['heartbeat_at'] = gmdate(DATE_ATOM);
+        $this->write($normalized);
+
+        return [...$normalized, 'running' => true];
     }
 
-    /** @return list<array{id:string,kind:string,name:string,pid:int,started_at:string,heartbeat_at:string,host:string,running:?bool}> */
+    /** @return list<array{id:string,kind:string,name:string,pid:int,started_at:string,heartbeat_at:string,host:string,running:bool}> */
     public function all(?string $kind = null, ?string $name = null): array
     {
         $directory = $this->directory();
@@ -75,7 +84,7 @@ final readonly class RuntimeProcessRegistry
         return $records;
     }
 
-    /** @param array{id:string} $record */
+    /** @param array<int|string, mixed> $record */
     public function unregister(array $record): void
     {
         $id = $record['id'] ?? null;
@@ -90,8 +99,8 @@ final readonly class RuntimeProcessRegistry
 
     public function visibility(): string
     {
-        $visibility = strtolower((string) $this->application->config()->get(
-            'operations.runtime_registry.visibility',
+        $visibility = strtolower(ValueNormalizer::string(
+            $this->application->config()->get('operations.runtime_registry.visibility', 'host'),
             'host',
         ));
         if (!in_array($visibility, ['host', 'shared'], true)) {
@@ -139,19 +148,43 @@ final readonly class RuntimeProcessRegistry
         } catch (\JsonException) {
             return null;
         }
-        if (!is_array($record)
-            || !is_string($record['id'] ?? null)
-            || !is_string($record['kind'] ?? null)
-            || !is_string($record['name'] ?? null)
-            || !is_int($record['pid'] ?? null)
-            || !is_string($record['started_at'] ?? null)
-            || !is_string($record['heartbeat_at'] ?? null)
-            || !is_string($record['host'] ?? null)
+
+        return is_array($record) ? $this->normalizeRecord($record) : null;
+    }
+
+    /**
+     * @param array<int|string, mixed> $record
+     * @return array{id:string,kind:string,name:string,pid:int,started_at:string,heartbeat_at:string,host:string}|null
+     */
+    private function normalizeRecord(array $record): ?array
+    {
+        $id = $record['id'] ?? null;
+        $kind = $record['kind'] ?? null;
+        $name = $record['name'] ?? null;
+        $pid = $record['pid'] ?? null;
+        $startedAt = $record['started_at'] ?? null;
+        $heartbeatAt = $record['heartbeat_at'] ?? null;
+        $host = $record['host'] ?? null;
+        if (!is_string($id)
+            || !is_string($kind)
+            || !is_string($name)
+            || !is_int($pid)
+            || !is_string($startedAt)
+            || !is_string($heartbeatAt)
+            || !is_string($host)
         ) {
             return null;
         }
 
-        return $record;
+        return [
+            'id' => $id,
+            'kind' => $kind,
+            'name' => $name,
+            'pid' => $pid,
+            'started_at' => $startedAt,
+            'heartbeat_at' => $heartbeatAt,
+            'host' => $host,
+        ];
     }
 
     private function heartbeatFresh(string $heartbeatAt): bool
