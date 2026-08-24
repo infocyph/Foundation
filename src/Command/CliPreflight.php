@@ -125,48 +125,9 @@ final readonly class CliPreflight
         }
 
         $definition = $descriptor->definition;
-        $io->writeln($definition->commandName() . ' - ' . $definition->commandDescription());
-        $io->writeln('Usage: ' . $this->usage($definition));
-        $io->writeln('Runtime: ' . $definition->commandRuntime()->value);
-        if ($definition->aliases() !== []) {
-            $io->writeln('Aliases: ' . implode(', ', $definition->aliases()));
-        }
-        if ($definition->capabilities() !== []) {
-            $io->writeln('Capabilities: ' . implode(', ', $definition->capabilities()));
-        }
-
-        $arguments = $definition->arguments();
-        if ($arguments !== []) {
-            $io->writeln();
-            $io->writeln('Arguments:');
-            foreach ($arguments as $argument) {
-                $io->writeln(sprintf(
-                    '  %-24s %s',
-                    $argument['name'],
-                    $argument['description'],
-                ));
-            }
-        }
-
-        $options = $definition->options();
-        if ($options !== []) {
-            $io->writeln();
-            $io->writeln('Options:');
-            foreach ($options as $option) {
-                $signature = '--' . $option['name'];
-                if ($option['negatable']) {
-                    $signature .= '/--no-' . $option['name'];
-                }
-                if ($option['accepts_value']) {
-                    $signature .= '=VALUE';
-                }
-                if ($option['short'] !== null) {
-                    $signature = '-' . $option['short'] . ', ' . $signature;
-                }
-                $io->writeln(sprintf('  %-24s %s', $signature, $option['description']));
-            }
-        }
-
+        $this->writeDefinitionMetadata($definition, $io);
+        $this->writeArguments($definition, $io);
+        $this->writeOptions($definition, $io);
         $this->globalOptions($io);
 
         return ExitCode::SUCCESS;
@@ -217,6 +178,7 @@ final readonly class CliPreflight
             'list' => 'infbyte list',
             'help' => 'infbyte help [command]',
             'completion' => 'infbyte completion [bash|zsh|fish]',
+            default => throw new \LogicException(sprintf('Unsupported preflight command "%s".', $name)),
         };
         $io->writeln('Usage: ' . $usage);
         $this->globalOptions($io);
@@ -258,5 +220,61 @@ final readonly class CliPreflight
         return InstalledVersions::isInstalled('infocyph/foundation')
             ? (InstalledVersions::getPrettyVersion('infocyph/foundation') ?? 'dev')
             : 'dev';
+    }
+
+    private function writeArguments(CommandDefinition $definition, CommandIO $io): void
+    {
+        $arguments = $definition->arguments();
+        if ($arguments === []) {
+            return;
+        }
+
+        $io->writeln();
+        $io->writeln('Arguments:');
+        foreach ($arguments as $argument) {
+            $io->writeln(sprintf(
+                '  %-24s %s',
+                $argument['name'],
+                $argument['description'],
+            ));
+        }
+    }
+
+    private function writeDefinitionMetadata(CommandDefinition $definition, CommandIO $io): void
+    {
+        $io->writeln($definition->commandName() . ' - ' . $definition->commandDescription());
+        $io->writeln('Usage: ' . $this->usage($definition));
+        $io->writeln('Runtime: ' . $definition->commandRuntime()->value);
+
+        if ($definition->aliases() !== []) {
+            $io->writeln('Aliases: ' . implode(', ', $definition->aliases()));
+        }
+        if ($definition->capabilities() !== []) {
+            $io->writeln('Capabilities: ' . implode(', ', $definition->capabilities()));
+        }
+    }
+
+    private function writeOptions(CommandDefinition $definition, CommandIO $io): void
+    {
+        $options = $definition->options();
+        if ($options === []) {
+            return;
+        }
+
+        $io->writeln();
+        $io->writeln('Options:');
+        foreach ($options as $option) {
+            $signature = '--' . $option['name'];
+            if ($option['negatable']) {
+                $signature .= '/--no-' . $option['name'];
+            }
+            if ($option['accepts_value']) {
+                $signature .= '=VALUE';
+            }
+            if ($option['short'] !== null) {
+                $signature = '-' . $option['short'] . ', ' . $signature;
+            }
+            $io->writeln(sprintf('  %-24s %s', $signature, $option['description']));
+        }
     }
 }
