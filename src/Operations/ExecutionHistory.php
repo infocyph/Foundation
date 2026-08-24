@@ -157,26 +157,29 @@ final readonly class ExecutionHistory
             JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
         ) . "\n";
 
-        $this->withLock(true, function () use ($line): void {
-            $path = $this->path();
-            $size = is_file($path) ? filesize($path) : 0;
-            if (is_int($size) && $size > 0 && $size + strlen($line) > $this->maxBytes()) {
-                $this->rotate();
-            }
+        $this->withLock(true, fn() => $this->append($line));
+    }
 
-            $stream = fopen($path, 'ab');
-            if (!is_resource($stream)) {
-                throw new \RuntimeException(sprintf('Unable to open execution history "%s".', $path));
-            }
+    private function append(string $line): void
+    {
+        $path = $this->path();
+        $size = is_file($path) ? filesize($path) : 0;
+        if (is_int($size) && $size > 0 && $size + strlen($line) > $this->maxBytes()) {
+            $this->rotate();
+        }
 
-            try {
-                if (fwrite($stream, $line) !== strlen($line) || !fflush($stream)) {
-                    throw new \RuntimeException(sprintf('Unable to append execution history "%s".', $path));
-                }
-            } finally {
-                fclose($stream);
+        $stream = fopen($path, 'ab');
+        if (!is_resource($stream)) {
+            throw new \RuntimeException(sprintf('Unable to open execution history "%s".', $path));
+        }
+
+        try {
+            if (fwrite($stream, $line) !== strlen($line) || !fflush($stream)) {
+                throw new \RuntimeException(sprintf('Unable to append execution history "%s".', $path));
             }
-        });
+        } finally {
+            fclose($stream);
+        }
     }
 
     /** @return list<string> */
@@ -247,25 +250,40 @@ final readonly class ExecutionHistory
         $path = $this->path();
         $retained = $this->retainedFiles();
         if ($retained === 0) {
-            if (is_file($path) && !unlink($path)) {
-                throw new \RuntimeException(sprintf('Unable to truncate execution history "%s".', $path));
-            }
+            $this->removeCurrentHistory($path);
 
             return;
         }
 
+        $this->removeOldestHistory($path, $retained);
+        $this->shiftRotatedHistory($path, $retained);
+        if (is_file($path) && !rename($path, $path . '.1')) {
+            throw new \RuntimeException(sprintf('Unable to rotate execution history "%s".', $path));
+        }
+    }
+
+    private function removeCurrentHistory(string $path): void
+    {
+        if (is_file($path) && !unlink($path)) {
+            throw new \RuntimeException(sprintf('Unable to truncate execution history "%s".', $path));
+        }
+    }
+
+    private function removeOldestHistory(string $path, int $retained): void
+    {
         $oldest = $path . '.' . $retained;
         if (is_file($oldest) && !unlink($oldest)) {
             throw new \RuntimeException(sprintf('Unable to remove old execution history "%s".', $oldest));
         }
+    }
+
+    private function shiftRotatedHistory(string $path, int $retained): void
+    {
         for ($index = $retained - 1; $index >= 1; --$index) {
             $source = $path . '.' . $index;
             if (is_file($source) && !rename($source, $path . '.' . ($index + 1))) {
                 throw new \RuntimeException(sprintf('Unable to rotate execution history "%s".', $source));
             }
-        }
-        if (is_file($path) && !rename($path, $path . '.1')) {
-            throw new \RuntimeException(sprintf('Unable to rotate execution history "%s".', $path));
         }
     }
 
