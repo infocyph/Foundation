@@ -17,8 +17,10 @@ use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DatabaseConnectionResolver;
-use Infocyph\Foundation\Database\DatabaseManager;
+use Infocyph\Foundation\Database\DatabaseMigrationManager;
+use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Foundation;
+use Infocyph\Foundation\Testing\TestKit;
 
 final class FoundationExampleMigration implements Migration
 {
@@ -83,7 +85,7 @@ it('runs configured migrations seeders and database test transactions', function
     $basePath = sys_get_temp_dir() . '/foundation-migrations-' . bin2hex(random_bytes(6));
     mkdir($basePath . '/database', 0775, true);
     $app = Foundation::cli([
-        'base_path' => $basePath,
+        'app' => ['base_path' => $basePath],
         'database' => [
             'default' => 'testing',
             'connections' => [
@@ -104,17 +106,20 @@ it('runs configured migrations seeders and database test transactions', function
     ]);
 
     try {
-        $database = $app->make(DatabaseManager::class);
-        $runner = $database->migrations()->runner();
+        $factory = $app->make(DBLayerFactory::class);
+        $migrations = $app->make(DatabaseMigrationManager::class);
+        $connection = $factory->connection();
+        $runner = $migrations->runner();
+        $testing = $app->make(TestKit::class);
 
         expect($runner->run())->toBe(['20260730000000_create_foundation_examples'])
-            ->and($database->migrations()->seed())->toBe(1)
-            ->and($database->connection()->select('SELECT name FROM foundation_examples ORDER BY id'))
+            ->and($migrations->seed())->toBe(1)
+            ->and($connection->select('SELECT name FROM foundation_examples ORDER BY id'))
             ->toBe([['name' => 'seeded']]);
 
-        $result = $app->testing()->database()->transaction(
-            function () use ($database): string {
-                $database->connection()->statement(
+        $result = $testing->database()->transaction(
+            function () use ($connection): string {
+                $connection->statement(
                     'INSERT INTO foundation_examples (name) VALUES (?)',
                     ['temporary'],
                 );
@@ -124,9 +129,9 @@ it('runs configured migrations seeders and database test transactions', function
         );
 
         expect($result)->toBe('completed')
-            ->and($database->connection()->select('SELECT name FROM foundation_examples ORDER BY id'))
+            ->and($connection->select('SELECT name FROM foundation_examples ORDER BY id'))
             ->toBe([['name' => 'seeded']])
-            ->and($app->testing()->database()->refresh())
+            ->and($testing->database()->refresh())
             ->toBe(['20260730000000_create_foundation_examples']);
     } finally {
         DB::purge();
@@ -134,51 +139,48 @@ it('runs configured migrations seeders and database test transactions', function
     }
 });
 
-it('requires explicit authorization for destructive migration operations', function (): void {
-    $basePath = sys_get_temp_dir() . '/foundation-migration-commands-' . bin2hex(random_bytes(6));
-    mkdir($basePath . '/database', 0775, true);
-    $app = Foundation::cli([
-        'base_path' => $basePath,
-        'database' => [
-            'default' => 'testing',
-            'connections' => [
-                'testing' => [
-                    'driver' => 'sqlite',
-                    'database' => 'database/testing.sqlite',
-                ],
-            ],
-            'migrations' => [
-                'classes' => [FoundationExampleMigration::class],
-                'table' => 'migrations',
-                'lock_store' => null,
-                'lock_wait_seconds' => 0.0,
-                'lock_lease_seconds' => 30.0,
-            ],
-        ],
-    ]);
-    $database = $app->make(DatabaseManager::class);
-    $runner = $database->migrations()->runner();
-    $schema = new SchemaManager($database->connection());
+it('uses DBLayer 4.1 pretend output without mutating schema and rolls back exact batches', function (): void {
+    $connection = new Connection(new ConnectionConfig([
+        'driver' => 'sqlite',
+        'database' => ':memory:',
+    ]));
+    $runner = new MigrationRunner($connection, [new FoundationExampleMigration()]);
+    $schema = new SchemaManager($connection);
 
-    try {
-        expect(fn() => $runner->fresh())
-            ->toThrow(MigrationException::class, 'requires explicit authorization')
-            ->and($runner->fresh(true))->toBe(['20260730000000_create_foundation_examples'])
-            ->and($schema->hasTable('foundation_examples'))->toBeTrue()
-            ->and(fn() => $runner->refresh())
-            ->toThrow(MigrationException::class, 'requires explicit authorization')
-            ->and($runner->refresh(true))->toBe(['20260730000000_create_foundation_examples'])
-            ->and(fn() => $runner->reset())
-            ->toThrow(MigrationException::class, 'requires explicit authorization')
-            ->and($runner->reset(true))->toBe(['20260730000000_create_foundation_examples'])
-            ->and($schema->hasTable('foundation_examples'))->toBeFalse();
-    } finally {
-        DB::purge();
-        foundationDatabaseRemove($basePath);
-    }
+    $preview = $runner->pretend();
+
+    expect($preview)->toHaveKey('20260730000000_create_foundation_examples')
+        ->and($preview['20260730000000_create_foundation_examples'])->not->toBeEmpty()
+        ->and($preview['20260730000000_create_foundation_examples'][0])->toHaveKeys(['sql', 'bindings'])
+        ->and($schema->hasTable('foundation_examples'))->toBeFalse()
+        ->and($runner->run(step: true))->toBe(['20260730000000_create_foundation_examples'])
+        ->and($runner->status()[0]['batch'])->toBe(1)
+        ->and($runner->rollbackBatch(1))->toBe(['20260730000000_create_foundation_examples'])
+        ->and($schema->hasTable('foundation_examples'))->toBeFalse();
 });
 
-it('exposes DBLayer directly while Foundation keeps composition policy', function (): void {
+it('requires explicit authorization for destructive migration operations', function (): void {
+    $connection = new Connection(new ConnectionConfig([
+        'driver' => 'sqlite',
+        'database' => ':memory:',
+    ]));
+    $runner = new MigrationRunner($connection, [new FoundationExampleMigration()]);
+    $schema = new SchemaManager($connection);
+
+    expect(fn() => $runner->fresh())
+        ->toThrow(MigrationException::class, 'requires explicit authorization')
+        ->and($runner->fresh(true))->toBe(['20260730000000_create_foundation_examples'])
+        ->and($schema->hasTable('foundation_examples'))->toBeTrue()
+        ->and(fn() => $runner->refresh())
+        ->toThrow(MigrationException::class, 'requires explicit authorization')
+        ->and($runner->refresh(true))->toBe(['20260730000000_create_foundation_examples'])
+        ->and(fn() => $runner->reset())
+        ->toThrow(MigrationException::class, 'requires explicit authorization')
+        ->and($runner->reset(true))->toBe(['20260730000000_create_foundation_examples'])
+        ->and($schema->hasTable('foundation_examples'))->toBeFalse();
+});
+
+it('exposes DBLayer directly while Foundation keeps connection composition policy', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-db-' . bin2hex(random_bytes(6));
     mkdir($basePath . '/database', 0775, true);
 
@@ -186,12 +188,6 @@ it('exposes DBLayer directly while Foundation keeps composition policy', functio
         'app' => ['base_path' => $basePath],
         'database' => [
             'default' => 'main',
-            'pool' => [
-                'max_connections' => 3,
-                'idle_timeout' => 15,
-                'max_lifetime' => 300,
-                'health_check_interval' => 10,
-            ],
             'connections' => [
                 'main' => [
                     'driver' => 'sqlite',
@@ -201,18 +197,11 @@ it('exposes DBLayer directly while Foundation keeps composition policy', functio
         ],
     ]);
 
-    $database = $app->make(DatabaseManager::class);
     $connection = $app->make(Connection::class);
     $events = [];
 
     try {
-        expect($connection)->toBe($database->connection())
-            ->and($database->pool()->getConfig())->toMatchArray([
-                'max_connections' => 3,
-                'idle_timeout' => 15,
-                'max_lifetime' => 300,
-                'health_check_interval' => 10,
-            ]);
+        expect($connection)->toBe($app->make(DBLayerFactory::class)->connection());
 
         DB::enableQueryLog();
         DB::enableTelemetry();
