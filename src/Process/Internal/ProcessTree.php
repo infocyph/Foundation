@@ -115,6 +115,7 @@ final class ProcessTree
             $command[] = '/F';
         }
 
+        $pipes = [];
         $process = $this->openWindowsTerminator($command, $pipes);
         if (!is_resource($process)) {
             return false;
@@ -133,7 +134,7 @@ final class ProcessTree
      * @param array<int, resource> $pipes
      * @return resource|false
      */
-    private function openWindowsTerminator(array $command, ?array &$pipes)
+    private function openWindowsTerminator(array $command, array &$pipes)
     {
         set_error_handler(static fn(int $severity): bool => $severity === E_WARNING);
         try {
