@@ -95,7 +95,10 @@ final readonly class WorkerManager
         }
     }
 
-    /** @param array<string, mixed> $providers @param array<string, mixed> $messaging */
+    /**
+     * @param array<string, array<string, mixed>> $providers
+     * @param array<string, array<string, mixed>> $messaging
+     */
     private function assertDistinctNames(array $providers, array $messaging): void
     {
         $collision = array_key_first(array_intersect_key($providers, $messaging));
@@ -195,7 +198,7 @@ final readonly class WorkerManager
                     'messaging.workers must map non-empty worker names to configuration arrays.',
                 );
             }
-            $workers[$name] = $definition;
+            $workers[$name] = ValueNormalizer::associativeArray($definition);
         }
 
         return $workers;
@@ -279,7 +282,10 @@ final readonly class WorkerManager
         return $workers;
     }
 
-    /** @param callable():bool $stopRequested @param callable():void $processHeartbeat */
+    /**
+     * @param callable():bool $stopRequested
+     * @param callable():void $processHeartbeat
+     */
     private function runMessaging(string $name, callable $stopRequested, callable $processHeartbeat): int
     {
         if (!class_exists(Worker::class) || !interface_exists(WorkerLifecycle::class)) {
@@ -311,7 +317,7 @@ final readonly class WorkerManager
 
                 public function stopRequested(): bool
                 {
-                    return ($this->stopCallback)();
+                    return (bool) ($this->stopCallback)();
                 }
             };
 
@@ -338,6 +344,7 @@ final readonly class WorkerManager
 
         $workerPool = new WorkerPool(
             workerFactory: static function (int $_slot) use ($config, $name): Worker {
+                unset($_slot);
                 $child = Foundation::worker($config);
                 $child->boot();
 
@@ -371,13 +378,6 @@ final readonly class WorkerManager
     ): ?int {
         $app = $this->application->boot();
         $provider = $app->make($definition['provider']);
-        if (!$provider instanceof WorkerProvider) {
-            throw new \LogicException(sprintf(
-                'Worker provider "%s" must implement %s.',
-                $definition['provider'],
-                WorkerProvider::class,
-            ));
-        }
 
         if (!$definition['singleton']) {
             return $provider->run(new WorkerRuntime(
@@ -423,13 +423,16 @@ final readonly class WorkerManager
      * a small signal watchdog. Single Omnibus workers use WorkerLifecycle and
      * therefore need no Foundation signal polling.
      *
-     * @param object{requestStop():void} $target
      * @param callable():bool $stopRequested
      * @param callable():void $heartbeat
      * @param callable():void $run
      */
-    private function watchPool(object $target, callable $stopRequested, callable $heartbeat, callable $run): void
-    {
+    private function watchPool(
+        WorkerPool $target,
+        callable $stopRequested,
+        callable $heartbeat,
+        callable $run,
+    ): void {
         if (!defined('SIGALRM')
             || !function_exists('pcntl_alarm')
             || !function_exists('pcntl_async_signals')
