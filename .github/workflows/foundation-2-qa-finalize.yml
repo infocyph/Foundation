@@ -1,0 +1,84 @@
+name: Foundation 2 QA Finalize
+
+on:
+  push:
+    branches: [feature/foundation-2.0]
+    paths: [.github/workflows/foundation-2-qa-finalize.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/foundation-2.0
+          fetch-depth: 0
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Apply deterministic QA fixes
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              if old not in text:
+                  print(f"skip {path}: pattern already absent")
+                  return
+              p.write_text(text.replace(old, new))
+              print(f"patched {path}")
+
+          # Expected OS/process failures are represented by return values; do not
+          # hide them with PHP's error-suppression operator.
+          p = Path('src/Process/ProcessRunner.php')
+          text = p.read_text()
+          for call in ('stream_select', 'posix_setpgid', 'posix_getpgid', 'posix_kill', 'proc_terminate', 'proc_open'):
+              text = text.replace('@' + call + '(', call + '(')
+          p.write_text(text)
+
+          replace(
+              'src/Worker/WorkerManager.php',
+              'workerFactory: static function (int $_slot) use ($config, $name): Worker {\n                $child = Foundation::worker($config);',
+              'workerFactory: static function (int $slot) use ($config, $name): Worker {\n                unset($slot);\n\n                $child = Foundation::worker($config);',
+          )
+
+          replace(
+              'src/Module/ModuleSchemaManager.php',
+              "return compact('name', 'module', 'applicable', 'installed', 'state', 'detail');",
+              "return [\n            'name' => $name,\n            'module' => $module,\n            'applicable' => $applicable,\n            'installed' => $installed,\n            'state' => $state,\n            'detail' => $detail,\n        ];",
+          )
+
+          # Backup cleanup is intentionally non-transactional, but a cleanup
+          # failure should be visible rather than hidden.
+          replace('src/Module/ModuleManager.php', '@unlink($backup);', 'unlink($backup);')
+          PY
+
+      - name: Apply PHPForge mechanical processing
+        run: composer ic:process
+
+      - name: Record remaining sniff diagnostics
+        run: composer ic:test:sniff || true
+
+      - name: Commit fixes and remove one-shot workflow
+        run: |
+          git rm .github/workflows/foundation-2-qa-finalize.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "Finalize Foundation PHPForge QA cleanup"
+          git push origin HEAD:feature/foundation-2.0
