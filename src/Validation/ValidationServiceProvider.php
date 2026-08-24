@@ -34,20 +34,20 @@ final class ValidationServiceProvider extends ServiceProvider
         $this->bindFactory(
             $container,
             DatabaseProvider::class,
-            fn() => $container->get(ReqShieldDatabaseProvider::class),
+            fn() => $app->make(ReqShieldDatabaseProvider::class),
             LifetimeEnum::Singleton,
         );
 
         $this->bindFactory($container, ValidatorFactory::class, fn() => new ValidatorFactory(
             config: $app->config(),
-            schemas: $container->get(ValidationSchemaRegistry::class),
-            database: $container->get(DatabaseProvider::class),
+            schemas: $app->make(ValidationSchemaRegistry::class),
+            database: $app->make(DatabaseProvider::class),
         ), LifetimeEnum::Singleton);
 
         $this->bindFactory(
             $container,
             'foundation.validator',
-            fn() => $container->get(ValidatorFactory::class),
+            fn() => $app->make(ValidatorFactory::class),
             LifetimeEnum::Singleton,
         );
     }
