@@ -180,7 +180,10 @@ final readonly class CacheTierDescriptorResolver
         return is_string($value) ? $value : $default;
     }
 
-    /** @param array<array-key,mixed> $value @return array<string,mixed> */
+    /**
+     * @param array<array-key,mixed> $value
+     * @return array<string,mixed>
+     */
     private function stringKeyed(array $value): array
     {
         $resolved = [];
