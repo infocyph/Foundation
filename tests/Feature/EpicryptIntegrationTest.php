@@ -3,9 +3,11 @@
 declare(strict_types=1);
 
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\AccessTokenClaims;
+use Infocyph\Foundation\Auth\AuthServices;
+use Infocyph\Foundation\Auth\Contract\Security\AccessTokenServiceInterface;
+use Infocyph\Foundation\Auth\Contract\Security\PasswordHasherInterface;
 use Infocyph\Foundation\Auth\Contract\Security\PasswordVerifierInterface;
 use Infocyph\Foundation\Foundation;
-use Infocyph\Foundation\Security\SecurityManager;
 
 it('uses Epicrypt for configured Foundation password security', function (): void {
     $app = Foundation::web([
@@ -16,11 +18,12 @@ it('uses Epicrypt for configured Foundation password security', function (): voi
         ],
     ]);
 
-    $services = $app->auth();
+    $services = $app->make(AuthServices::class);
     $hash = $services->passwordHasher()->hash('MyStrongPassword!2026');
     $verification = $app->make(PasswordVerifierInterface::class)->verify('MyStrongPassword!2026', $hash);
 
     expect($hash)->not->toBe('')
+        ->and($services->passwordHasher())->toBe($app->make(PasswordHasherInterface::class))
         ->and($verification->verified)->toBeTrue();
 });
 
@@ -42,7 +45,7 @@ it('uses Epicrypt for configured Foundation token security', function (): void {
         ],
     ]);
 
-    $services = $app->auth();
+    $services = $app->make(AuthServices::class);
     $now = time();
     $issued = $services->tokens()->issueAccessToken(new AccessTokenClaims(
         subjectId: 'account-1',
@@ -52,17 +55,7 @@ it('uses Epicrypt for configured Foundation token security', function (): void {
         scopes: ['profile.read'],
     ));
 
-    expect($issued->token)->not->toBeNull()
+    expect($services->tokens())->toBe($app->make(AccessTokenServiceInterface::class))
+        ->and($issued->token)->not->toBeNull()
         ->and($services->tokens()->verifyAccessToken($issued->token ?? '')->successful())->toBeTrue();
-});
-
-it('keeps the Foundation security manager focused on auth security policy', function (): void {
-    $app = Foundation::web();
-    $app->auth();
-    $security = $app->make(SecurityManager::class);
-
-    expect($security->passwordHasher())->toBe($app->auth()->passwordHasher())
-        ->and($security->passwordVerifier())->toBe($app->make(PasswordVerifierInterface::class))
-        ->and($security->accessTokens())->toBeObject()
-        ->and($security->refreshTokens())->toBeObject();
 });
