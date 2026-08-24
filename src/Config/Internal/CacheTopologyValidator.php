@@ -18,12 +18,12 @@ final readonly class CacheTopologyValidator
         $clusters = $this->definitions('cache.clusters');
         $transports = $this->definitions('cache.transports');
 
-        return [
-            ...$this->validateNodeStores($stores),
-            ...$this->validateClusters($clusters, $stores, $transports),
-            ...$this->validateTransports($transports),
-            ...$this->validateCounters($this->definitions('cache.counters')),
-        ];
+        $issues = $this->validateNodeStores($stores);
+        array_push($issues, ...$this->validateClusters($clusters, $stores, $transports));
+        array_push($issues, ...$this->validateTransports($transports));
+        array_push($issues, ...$this->validateCounters($this->definitions('cache.counters')));
+
+        return $issues;
     }
 
     /** @return array<string,mixed> */
@@ -119,7 +119,10 @@ final readonly class CacheTopologyValidator
         return $issues;
     }
 
-    /** @param array<string,mixed> $counters @return list<ConfigIssue> */
+    /**
+     * @param array<string,mixed> $counters
+     * @return list<ConfigIssue>
+     */
     private function validateCounters(array $counters): array
     {
         $issues = [];
@@ -135,7 +138,10 @@ final readonly class CacheTopologyValidator
         return $issues;
     }
 
-    /** @param array<string,mixed> $stores @return list<ConfigIssue> */
+    /**
+     * @param array<string,mixed> $stores
+     * @return list<ConfigIssue>
+     */
     private function validateNodeStores(array $stores): array
     {
         $issues = [];
@@ -156,7 +162,10 @@ final readonly class CacheTopologyValidator
         return $issues;
     }
 
-    /** @param array<string,mixed> $transports @return list<ConfigIssue> */
+    /**
+     * @param array<string,mixed> $transports
+     * @return list<ConfigIssue>
+     */
     private function validateTransports(array $transports): array
     {
         $issues = [];
