@@ -47,17 +47,53 @@ final readonly class CacheLayerFactory
         private Closure $database,
     ) {}
 
-    public function make(?string $name = null): CacheInterface
+    public function cluster(string $name): ClusterRuntime
     {
-        $name ??= $this->stringConfig('cache.default', 'memory');
-        $store = $this->stores()[$name] ?? ['driver' => $name];
-        $driver = $this->driver($name, $store);
+        $cluster = $this->named('cache.clusters')[$name] ?? null;
+        if ($cluster === null) {
+            throw new ConfigurationException(sprintf('Cache cluster "%s" is not configured.', $name));
+        }
 
-        return $this->applyLock(
-            $this->createCache($name, $store, $driver),
-            $store,
-            $driver,
+        $storeName = $this->requiredString($cluster, 'store', 'cache.clusters.' . $name);
+        $store = $this->stores()[$storeName] ?? null;
+        if ($store === null || $this->driver($storeName, $store) !== CacheDriver::NODE) {
+            throw new ConfigurationException(sprintf(
+                'Cache cluster "%s" must reference a configured node cache store.',
+                $name,
+            ));
+        }
+
+        return ClusterCache::create(
+            $this->nodeConfig($storeName, $store),
+            new ClusterCacheConfig(
+                cluster: $this->requiredString($cluster, 'cluster', 'cache.clusters.' . $name),
+                nodeId: $this->requiredString($cluster, 'node_id', 'cache.clusters.' . $name),
+                consumerBatchSize: max(1, ValueNormalizer::int($cluster['consumer_batch_size'] ?? null, 1_000)),
+                invalidateLocallyFirst: ValueNormalizer::bool($cluster['invalidate_locally_first'] ?? null, true),
+            ),
+            $this->transport($this->requiredString($cluster, 'transport', 'cache.clusters.' . $name)),
         );
+    }
+
+    public function counters(string $name): AtomicCounterStoreInterface
+    {
+        $counter = $this->named('cache.counters')[$name] ?? null;
+        if ($counter === null) {
+            throw new ConfigurationException(sprintf('Cache counter "%s" is not configured.', $name));
+        }
+
+        $driver = strtolower($this->requiredString($counter, 'driver', 'cache.counters.' . $name));
+        $connection = $this->redisConnection($counter, $driver);
+        $namespace = ValueNormalizer::string($counter['namespace'] ?? null, $name);
+
+        return match ($driver) {
+            'redis' => AtomicCounters::redis($namespace, $connection['dsn'], $connection['client']),
+            'valkey' => AtomicCounters::valkey($namespace, $connection['dsn'], $connection['client']),
+            default => throw new ConfigurationException(sprintf(
+                'Cache counter "%s" must use Redis or Valkey.',
+                $name,
+            )),
+        };
     }
 
     public function lock(?string $storeName = null): LockProviderInterface
@@ -86,52 +122,16 @@ final readonly class CacheLayerFactory
         ));
     }
 
-    public function counters(string $name): AtomicCounterStoreInterface
+    public function make(?string $name = null): CacheInterface
     {
-        $counter = $this->named('cache.counters')[$name] ?? null;
-        if ($counter === null) {
-            throw new ConfigurationException(sprintf('Cache counter "%s" is not configured.', $name));
-        }
+        $name ??= $this->stringConfig('cache.default', 'memory');
+        $store = $this->stores()[$name] ?? ['driver' => $name];
+        $driver = $this->driver($name, $store);
 
-        $driver = strtolower($this->requiredString($counter, 'driver', 'cache.counters.' . $name));
-        $connection = $this->redisConnection($counter, $driver);
-        $namespace = ValueNormalizer::string($counter['namespace'] ?? null, $name);
-
-        return match ($driver) {
-            'redis' => AtomicCounters::redis($namespace, $connection['dsn'], $connection['client']),
-            'valkey' => AtomicCounters::valkey($namespace, $connection['dsn'], $connection['client']),
-            default => throw new ConfigurationException(sprintf(
-                'Cache counter "%s" must use Redis or Valkey.',
-                $name,
-            )),
-        };
-    }
-
-    public function cluster(string $name): ClusterRuntime
-    {
-        $cluster = $this->named('cache.clusters')[$name] ?? null;
-        if ($cluster === null) {
-            throw new ConfigurationException(sprintf('Cache cluster "%s" is not configured.', $name));
-        }
-
-        $storeName = $this->requiredString($cluster, 'store', 'cache.clusters.' . $name);
-        $store = $this->stores()[$storeName] ?? null;
-        if ($store === null || $this->driver($storeName, $store) !== CacheDriver::NODE) {
-            throw new ConfigurationException(sprintf(
-                'Cache cluster "%s" must reference a configured node cache store.',
-                $name,
-            ));
-        }
-
-        return ClusterCache::create(
-            $this->nodeConfig($storeName, $store),
-            new ClusterCacheConfig(
-                cluster: $this->requiredString($cluster, 'cluster', 'cache.clusters.' . $name),
-                nodeId: $this->requiredString($cluster, 'node_id', 'cache.clusters.' . $name),
-                consumerBatchSize: max(1, ValueNormalizer::int($cluster['consumer_batch_size'] ?? null, 1_000)),
-                invalidateLocallyFirst: ValueNormalizer::bool($cluster['invalidate_locally_first'] ?? null, true),
-            ),
-            $this->transport($this->requiredString($cluster, 'transport', 'cache.clusters.' . $name)),
+        return $this->applyLock(
+            $this->createCache($name, $store, $driver),
+            $store,
+            $driver,
         );
     }
 
@@ -162,6 +162,70 @@ final readonly class CacheLayerFactory
         }
 
         return $transport->pruneBefore(time() - $retentionSeconds, max(1, $limit));
+    }
+
+    /** @param array<string, mixed> $store */
+    private function applyLock(CacheInterface $cache, array $store, CacheDriver $driver): CacheInterface
+    {
+        $global = ValueNormalizer::associativeArray($this->config->get('cache.lock', []));
+        $local = ValueNormalizer::associativeArray($store['lock'] ?? []);
+        $lock = array_replace($global, $local);
+
+        if ($this->stringOrNull($lock['driver'] ?? null) === null) {
+            return $cache;
+        }
+
+        [$lockStore, $lockDriver] = $this->resolveLockStore($store, $driver, $global, $local);
+
+        return $cache->setLockProvider($this->lockProvider($lockStore, $lock, $lockDriver));
+    }
+
+    /**  */
+    private function assertNodePath(string $file, string $name): void
+    {
+        $directory = rtrim(str_replace('\\', '/', $this->paths->cache()), '/');
+        $candidate = str_replace('\\', '/', $file);
+        if ($candidate !== $directory && !str_starts_with($candidate, $directory . '/')) {
+            throw new ConfigurationException(sprintf(
+                'Node cache store "%s" must keep its SQLite file inside the configured cache directory.',
+                $name,
+            ));
+        }
+    }
+
+    private function basePath(): string
+    {
+        return $this->stringConfig('app.base_path', getcwd() ?: '.');
+    }
+
+    /** @param array<string, mixed> $store */
+    private function cacheOptions(array $store): CacheOptions
+    {
+        $compression = array_replace(
+            ValueNormalizer::associativeArray($this->config->get('cache.compression', [])),
+            ValueNormalizer::associativeArray($store['compression'] ?? []),
+        );
+        $security = array_replace(
+            ValueNormalizer::associativeArray($this->config->get('cache.security', [])),
+            ValueNormalizer::associativeArray($store['security'] ?? []),
+        );
+        $serialization = array_replace(
+            ValueNormalizer::associativeArray($this->config->get('cache.serialization', [])),
+            ValueNormalizer::associativeArray($store['serialization'] ?? []),
+        );
+
+        $threshold = $compression['threshold_bytes'] ?? $compression['threshold'] ?? null;
+        $maxPayload = $security['max_payload_bytes'] ?? null;
+
+        return new CacheOptions(
+            integrityKey: $this->stringOrNull($security['integrity_key'] ?? null),
+            maxPayloadBytes: is_numeric($maxPayload) ? max(1, (int) $maxPayload) : 8_388_608,
+            compressionThreshold: is_numeric($threshold) && (int) $threshold > 0 ? (int) $threshold : null,
+            compressionLevel: max(1, min(9, ValueNormalizer::int($compression['level'] ?? null, 6))),
+            allowClosures: ValueNormalizer::bool($serialization['allow_closure_payloads'] ?? null, true),
+            allowObjects: ValueNormalizer::bool($serialization['allow_object_payloads'] ?? null, true),
+            failOpen: ValueNormalizer::bool($store['fail_open'] ?? null, true),
+        );
     }
 
     /** @param array<string, mixed> $store */
@@ -231,50 +295,44 @@ final readonly class CacheLayerFactory
         };
     }
 
-    /** @param array<string, mixed> $store */
-    private function applyLock(CacheInterface $cache, array $store, CacheDriver $driver): CacheInterface
+    /** @param array<string, mixed> $config */
+    private function directory(array $config): ?string
     {
-        $global = ValueNormalizer::associativeArray($this->config->get('cache.lock', []));
-        $local = ValueNormalizer::associativeArray($store['lock'] ?? []);
-        $lock = array_replace($global, $local);
+        return $this->directoryFrom($config, 'path', 'dir', 'directory');
+    }
 
-        if ($this->stringOrNull($lock['driver'] ?? null) === null) {
-            return $cache;
+    /** @param array<string, mixed> $config */
+    private function directoryFrom(array $config, string ...$keys): ?string
+    {
+        foreach ($keys as $key) {
+            $path = $this->stringOrNull($config[$key] ?? null);
+            if ($path !== null) {
+                return $this->resolvePath($path);
+            }
         }
 
-        [$lockStore, $lockDriver] = $this->resolveLockStore($store, $driver, $global, $local);
-
-        return $cache->setLockProvider($this->lockProvider($lockStore, $lock, $lockDriver));
+        return null;
     }
 
     /** @param array<string, mixed> $store */
-    private function cacheOptions(array $store): CacheOptions
+    private function driver(string $name, array $store): CacheDriver
     {
-        $compression = array_replace(
-            ValueNormalizer::associativeArray($this->config->get('cache.compression', [])),
-            ValueNormalizer::associativeArray($store['compression'] ?? []),
-        );
-        $security = array_replace(
-            ValueNormalizer::associativeArray($this->config->get('cache.security', [])),
-            ValueNormalizer::associativeArray($store['security'] ?? []),
-        );
-        $serialization = array_replace(
-            ValueNormalizer::associativeArray($this->config->get('cache.serialization', [])),
-            ValueNormalizer::associativeArray($store['serialization'] ?? []),
-        );
+        $raw = isset($store['driver']) && is_string($store['driver']) ? $store['driver'] : $name;
+        $normalized = match (strtolower($raw)) {
+            'array' => 'memory',
+            'memcached' => 'memcache',
+            'null' => 'null_store',
+            'scylla' => 'scylladb',
+            default => strtolower($raw),
+        };
 
-        $threshold = $compression['threshold_bytes'] ?? $compression['threshold'] ?? null;
-        $maxPayload = $security['max_payload_bytes'] ?? null;
+        return CacheDriver::tryFrom($normalized)
+            ?? throw new ConfigurationException(sprintf('Invalid cache store "%s" driver "%s".', $name, $raw));
+    }
 
-        return new CacheOptions(
-            integrityKey: $this->stringOrNull($security['integrity_key'] ?? null),
-            maxPayloadBytes: is_numeric($maxPayload) ? max(1, (int) $maxPayload) : 8_388_608,
-            compressionThreshold: is_numeric($threshold) && (int) $threshold > 0 ? (int) $threshold : null,
-            compressionLevel: max(1, min(9, ValueNormalizer::int($compression['level'] ?? null, 6))),
-            allowClosures: ValueNormalizer::bool($serialization['allow_closure_payloads'] ?? null, true),
-            allowObjects: ValueNormalizer::bool($serialization['allow_object_payloads'] ?? null, true),
-            failOpen: ValueNormalizer::bool($store['fail_open'] ?? null, true),
-        );
+    private function floatValue(mixed $value, float $default): float
+    {
+        return is_int($value) || is_float($value) ? (float) $value : $default;
     }
 
     /** @param array<string, mixed> $store */
@@ -318,6 +376,53 @@ final readonly class CacheLayerFactory
         };
     }
 
+    /**
+     * @param array<string, mixed> $store
+     * @param array<string, mixed> $lock
+     */
+    private function memcachedClient(array $store, array $lock): \Memcached
+    {
+        $client = $lock['client'] ?? $store['client'] ?? null;
+        if ($client instanceof \Memcached) {
+            return $client;
+        }
+        if (!class_exists(\Memcached::class)) {
+            throw new ConfigurationException('Memcached lock provider requires the Memcached extension.');
+        }
+
+        $client = new \Memcached();
+        if (!$client->addServers($this->servers($lock['servers'] ?? $store['servers'] ?? null))) {
+            throw new ConfigurationException('Memcached lock provider could not configure its servers.');
+        }
+
+        return $client;
+    }
+
+    /** @return array<string, array<string, mixed>> */
+    private function named(string $key): array
+    {
+        $configured = $this->config->get($key, []);
+        if (!is_array($configured)) {
+            return [];
+        }
+
+        $resolved = [];
+        foreach ($configured as $name => $definition) {
+            if (is_string($name) && is_array($definition)) {
+                $resolved[$name] = ValueNormalizer::associativeArray($definition);
+            }
+        }
+
+        return $resolved;
+    }
+
+    /** @param array<string, mixed> $store */
+    private function namespace(string $name, array $store): string
+    {
+        return $this->stringOrNull($store['namespace'] ?? null)
+            ?? CacheNamespace::derive($this->stringConfig('cache.prefix', 'foundation:'), $name);
+    }
+
     /** @param array<string, mixed> $store */
     private function nodeConfig(string $name, array $store): NodeCacheConfig
     {
@@ -354,34 +459,6 @@ final readonly class CacheLayerFactory
         return $this->lockProvider($lockStore, $lock, $driver);
     }
 
-    /**
-     * @param array<string, mixed> $fallbackStore
-     * @param array<string, mixed> $global
-     * @param array<string, mixed> $local
-     * @return array{array<string, mixed>, CacheDriver}
-     */
-    private function resolveLockStore(
-        array $fallbackStore,
-        CacheDriver $fallbackDriver,
-        array $global,
-        array $local,
-    ): array {
-        $name = $this->stringOrNull($local['store'] ?? null);
-        if ($name === null && $local === []) {
-            $name = $this->stringOrNull($global['store'] ?? null);
-        }
-        if ($name === null) {
-            return [$fallbackStore, $fallbackDriver];
-        }
-
-        $store = $this->stores()[$name] ?? null;
-        if ($store === null) {
-            throw new ConfigurationException(sprintf('Cache lock references undefined store "%s".', $name));
-        }
-
-        return [$store, $this->driver($name, $store)];
-    }
-
     /** @param array<string, mixed> $store */
     private function pdoCache(string $namespace, array $store, CacheOptions $options): CacheInterface
     {
@@ -395,6 +472,29 @@ final readonly class CacheLayerFactory
             pdo: $runtime['client'],
             table: ValueNormalizer::string($store['table'] ?? null, 'cachelayer_entries'),
             options: $options,
+        );
+    }
+
+    /** @param array<string, mixed> $store */
+    private function pdoClient(array $store, CacheDriver $driver): \PDO
+    {
+        if (($store['client'] ?? null) instanceof \PDO) {
+            return $store['client'];
+        }
+
+        if (!in_array($driver, [CacheDriver::NODE, CacheDriver::PDO, CacheDriver::SQLITE], true)) {
+            throw new ConfigurationException('PDO lock provider requires a PDO-backed cache store or PDO client.');
+        }
+
+        $runtime = $this->pdoRuntime($store);
+        if ($runtime['client'] instanceof \PDO) {
+            return $runtime['client'];
+        }
+
+        return new \PDO(
+            $runtime['dsn'] ?? throw new ConfigurationException('PDO cache store could not resolve a DSN.'),
+            $runtime['username'],
+            $runtime['password'],
         );
     }
 
@@ -427,29 +527,6 @@ final readonly class CacheLayerFactory
     }
 
     /** @param array<string, mixed> $store */
-    private function pdoClient(array $store, CacheDriver $driver): \PDO
-    {
-        if (($store['client'] ?? null) instanceof \PDO) {
-            return $store['client'];
-        }
-
-        if (!in_array($driver, [CacheDriver::NODE, CacheDriver::PDO, CacheDriver::SQLITE], true)) {
-            throw new ConfigurationException('PDO lock provider requires a PDO-backed cache store or PDO client.');
-        }
-
-        $runtime = $this->pdoRuntime($store);
-        if ($runtime['client'] instanceof \PDO) {
-            return $runtime['client'];
-        }
-
-        return new \PDO(
-            $runtime['dsn'] ?? throw new ConfigurationException('PDO cache store could not resolve a DSN.'),
-            $runtime['username'],
-            $runtime['password'],
-        );
-    }
-
-    /** @param array<string, mixed> $store */
     private function redisCache(string $namespace, array $store, string $driver, CacheOptions $options): CacheInterface
     {
         $connection = $this->redisConnection($store, $driver);
@@ -457,6 +534,20 @@ final readonly class CacheLayerFactory
         return $driver === 'valkey'
             ? Cache::valkey($namespace, $connection['dsn'], $connection['client'], $options)
             : Cache::redis($namespace, $connection['dsn'], $connection['client'], $options);
+    }
+
+    /** @param array<string, mixed> $definition */
+    private function redisClient(array $definition, string $driver): \Redis
+    {
+        $connection = $this->redisConnection($definition, $driver);
+        if ($connection['client'] instanceof \Redis) {
+            return $connection['client'];
+        }
+        if (!class_exists(\Redis::class)) {
+            throw new ConfigurationException(sprintf('%s requires the phpredis extension.', ucfirst($driver)));
+        }
+
+        return RedisConnection::connect($connection['dsn']);
     }
 
     /**
@@ -483,17 +574,113 @@ final readonly class CacheLayerFactory
     }
 
     /** @param array<string, mixed> $definition */
-    private function redisClient(array $definition, string $driver): \Redis
+    private function requiredString(array $definition, string $key, string $context): string
     {
-        $connection = $this->redisConnection($definition, $driver);
-        if ($connection['client'] instanceof \Redis) {
-            return $connection['client'];
+        return $this->stringOrNull($definition[$key] ?? null)
+            ?? throw new ConfigurationException(sprintf('%s.%s must be configured.', $context, $key));
+    }
+
+    /**
+     * @param array<string, mixed> $fallbackStore
+     * @param array<string, mixed> $global
+     * @param array<string, mixed> $local
+     * @return array{array<string, mixed>, CacheDriver}
+     */
+    private function resolveLockStore(
+        array $fallbackStore,
+        CacheDriver $fallbackDriver,
+        array $global,
+        array $local,
+    ): array {
+        $name = $this->stringOrNull($local['store'] ?? null);
+        if ($name === null && $local === []) {
+            $name = $this->stringOrNull($global['store'] ?? null);
         }
-        if (!class_exists(\Redis::class)) {
-            throw new ConfigurationException(sprintf('%s requires the phpredis extension.', ucfirst($driver)));
+        if ($name === null) {
+            return [$fallbackStore, $fallbackDriver];
         }
 
-        return RedisConnection::connect($connection['dsn']);
+        $store = $this->stores()[$name] ?? null;
+        if ($store === null) {
+            throw new ConfigurationException(sprintf('Cache lock references undefined store "%s".', $name));
+        }
+
+        return [$store, $this->driver($name, $store)];
+    }
+
+    private function resolvePath(string $path): string
+    {
+        if ($path === '' || preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1) {
+            return $path;
+        }
+
+        return $this->basePath() . DIRECTORY_SEPARATOR . ltrim($path, DIRECTORY_SEPARATOR);
+    }
+
+    /** @return list<string> */
+    private function seeds(mixed $value): array
+    {
+        return is_array($value) && $value !== []
+            ? ValueNormalizer::stringList($value)
+            : ['127.0.0.1:6379'];
+    }
+
+    /** @return list<array{0:string,1:int,2:int}> */
+    private function servers(mixed $value): array
+    {
+        if (!is_array($value) || $value === []) {
+            return [['127.0.0.1', 11211, 0]];
+        }
+
+        $servers = [];
+        foreach ($value as $server) {
+            if (is_array($server) && isset($server[0], $server[1]) && is_string($server[0])) {
+                $servers[] = [
+                    $server[0],
+                    ValueNormalizer::int($server[1], 11211),
+                    ValueNormalizer::int($server[2] ?? null, 0),
+                ];
+
+                continue;
+            }
+
+            $server = ValueNormalizer::associativeArray($server);
+            $servers[] = [
+                ValueNormalizer::string($server['host'] ?? null, '127.0.0.1'),
+                ValueNormalizer::int($server['port'] ?? null, 11211),
+                ValueNormalizer::int($server['weight'] ?? null, 0),
+            ];
+        }
+
+        return $servers;
+    }
+
+    /** @param array<string, mixed> $store */
+    private function sqliteFile(array $store): ?string
+    {
+        $path = $this->stringOrNull(
+            $store['sqlite_file'] ?? $store['file'] ?? $store['path'] ?? $store['database'] ?? null,
+        );
+
+        return $path === null ? null : $this->resolvePath($path);
+    }
+
+    /** @return array<string, array<string, mixed>> */
+    private function stores(): array
+    {
+        return $this->named('cache.stores');
+    }
+
+    private function stringConfig(string $key, string $default): string
+    {
+        $value = $this->config->get($key, $default);
+
+        return is_string($value) ? $value : $default;
+    }
+
+    private function stringOrNull(mixed $value): ?string
+    {
+        return is_string($value) && $value !== '' ? $value : null;
     }
 
     /** @param array<string, mixed> $store */
@@ -580,191 +767,5 @@ final readonly class CacheLayerFactory
                 $driver,
             )),
         };
-    }
-
-    /** @return array<string, array<string, mixed>> */
-    private function stores(): array
-    {
-        return $this->named('cache.stores');
-    }
-
-    /** @return array<string, array<string, mixed>> */
-    private function named(string $key): array
-    {
-        $configured = $this->config->get($key, []);
-        if (!is_array($configured)) {
-            return [];
-        }
-
-        $resolved = [];
-        foreach ($configured as $name => $definition) {
-            if (is_string($name) && is_array($definition)) {
-                $resolved[$name] = ValueNormalizer::associativeArray($definition);
-            }
-        }
-
-        return $resolved;
-    }
-
-    /** @param array<string, mixed> $store */
-    private function driver(string $name, array $store): CacheDriver
-    {
-        $raw = isset($store['driver']) && is_string($store['driver']) ? $store['driver'] : $name;
-        $normalized = match (strtolower($raw)) {
-            'array' => 'memory',
-            'memcached' => 'memcache',
-            'null' => 'null_store',
-            'scylla' => 'scylladb',
-            default => strtolower($raw),
-        };
-
-        return CacheDriver::tryFrom($normalized)
-            ?? throw new ConfigurationException(sprintf('Invalid cache store "%s" driver "%s".', $name, $raw));
-    }
-
-    /** @param array<string, mixed> $store */
-    private function namespace(string $name, array $store): string
-    {
-        return $this->stringOrNull($store['namespace'] ?? null)
-            ?? CacheNamespace::derive($this->stringConfig('cache.prefix', 'foundation:'), $name);
-    }
-
-    /** @param array<string, mixed> $config */
-    private function directory(array $config): ?string
-    {
-        return $this->directoryFrom($config, 'path', 'dir', 'directory');
-    }
-
-    /** @param array<string, mixed> $config */
-    private function directoryFrom(array $config, string ...$keys): ?string
-    {
-        foreach ($keys as $key) {
-            $path = $this->stringOrNull($config[$key] ?? null);
-            if ($path !== null) {
-                return $this->resolvePath($path);
-            }
-        }
-
-        return null;
-    }
-
-    /** @param array<string, mixed> $store */
-    private function sqliteFile(array $store): ?string
-    {
-        $path = $this->stringOrNull(
-            $store['sqlite_file'] ?? $store['file'] ?? $store['path'] ?? $store['database'] ?? null,
-        );
-
-        return $path === null ? null : $this->resolvePath($path);
-    }
-
-    private function resolvePath(string $path): string
-    {
-        if ($path === '' || preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1) {
-            return $path;
-        }
-
-        return $this->basePath() . DIRECTORY_SEPARATOR . ltrim($path, DIRECTORY_SEPARATOR);
-    }
-
-    private function basePath(): string
-    {
-        return $this->stringConfig('app.base_path', getcwd() ?: '.');
-    }
-
-    /** @param array<string, mixed> $store */
-    private function assertNodePath(string $file, string $name): void
-    {
-        $directory = rtrim(str_replace('\\', '/', $this->paths->cache()), '/');
-        $candidate = str_replace('\\', '/', $file);
-        if ($candidate !== $directory && !str_starts_with($candidate, $directory . '/')) {
-            throw new ConfigurationException(sprintf(
-                'Node cache store "%s" must keep its SQLite file inside the configured cache directory.',
-                $name,
-            ));
-        }
-    }
-
-    /** @return list<string> */
-    private function seeds(mixed $value): array
-    {
-        return is_array($value) && $value !== []
-            ? ValueNormalizer::stringList($value)
-            : ['127.0.0.1:6379'];
-    }
-
-    /** @return list<array{0:string,1:int,2:int}> */
-    private function servers(mixed $value): array
-    {
-        if (!is_array($value) || $value === []) {
-            return [['127.0.0.1', 11211, 0]];
-        }
-
-        $servers = [];
-        foreach ($value as $server) {
-            if (is_array($server) && isset($server[0], $server[1]) && is_string($server[0])) {
-                $servers[] = [
-                    $server[0],
-                    ValueNormalizer::int($server[1], 11211),
-                    ValueNormalizer::int($server[2] ?? null, 0),
-                ];
-                continue;
-            }
-
-            $server = ValueNormalizer::associativeArray($server);
-            $servers[] = [
-                ValueNormalizer::string($server['host'] ?? null, '127.0.0.1'),
-                ValueNormalizer::int($server['port'] ?? null, 11211),
-                ValueNormalizer::int($server['weight'] ?? null, 0),
-            ];
-        }
-
-        return $servers;
-    }
-
-    /**
-     * @param array<string, mixed> $store
-     * @param array<string, mixed> $lock
-     */
-    private function memcachedClient(array $store, array $lock): \Memcached
-    {
-        $client = $lock['client'] ?? $store['client'] ?? null;
-        if ($client instanceof \Memcached) {
-            return $client;
-        }
-        if (!class_exists(\Memcached::class)) {
-            throw new ConfigurationException('Memcached lock provider requires the Memcached extension.');
-        }
-
-        $client = new \Memcached();
-        if (!$client->addServers($this->servers($lock['servers'] ?? $store['servers'] ?? null))) {
-            throw new ConfigurationException('Memcached lock provider could not configure its servers.');
-        }
-
-        return $client;
-    }
-
-    /** @param array<string, mixed> $definition */
-    private function requiredString(array $definition, string $key, string $context): string
-    {
-        return $this->stringOrNull($definition[$key] ?? null)
-            ?? throw new ConfigurationException(sprintf('%s.%s must be configured.', $context, $key));
-    }
-
-    private function stringConfig(string $key, string $default): string
-    {
-        $value = $this->config->get($key, $default);
-
-        return is_string($value) ? $value : $default;
-    }
-
-    private function stringOrNull(mixed $value): ?string
-    {
-        return is_string($value) && $value !== '' ? $value : null;
-    }
-
-    private function floatValue(mixed $value, float $default): float
-    {
-        return is_int($value) || is_float($value) ? (float) $value : $default;
     }
 }

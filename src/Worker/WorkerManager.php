@@ -95,64 +95,188 @@ final readonly class WorkerManager
         }
     }
 
-    /**
-     * @param array{provider:class-string<WorkerProvider>,singleton:bool,lock_wait_seconds:float,lock_lease_seconds:float} $definition
-     * @param callable():bool $stopRequested
-     * @param callable():void $processHeartbeat
-     */
-    private function runProvider(
-        string $name,
-        array $definition,
-        callable $stopRequested,
-        callable $processHeartbeat,
-    ): ?int {
-        $app = $this->application->boot();
-        $provider = $app->make($definition['provider']);
-        if (!$provider instanceof WorkerProvider) {
-            throw new \LogicException(sprintf(
-                'Worker provider "%s" must implement %s.',
-                $definition['provider'],
-                WorkerProvider::class,
+    /** @param array<string, mixed> $providers @param array<string, mixed> $messaging */
+    private function assertDistinctNames(array $providers, array $messaging): void
+    {
+        $collision = array_key_first(array_intersect_key($providers, $messaging));
+        if (is_string($collision)) {
+            throw new \UnexpectedValueException(sprintf(
+                'Worker "%s" is defined as both a provider worker and a messaging worker.',
+                $collision,
             ));
         }
+    }
 
-        if (!$definition['singleton']) {
-            return $provider->run(new WorkerRuntime(
-                $app,
-                \Closure::fromCallable($processHeartbeat),
-                \Closure::fromCallable($stopRequested),
-            ));
+    /** @param array<string, mixed> $config */
+    private function assertForkSafeConfig(array $config): void
+    {
+        $this->assertForkSafeValue($config, 'config');
+    }
+
+    private function assertForkSafeValue(mixed $value, string $path): void
+    {
+        if ($value === null || is_scalar($value)) {
+            return;
+        }
+        if (is_array($value)) {
+            foreach ($value as $key => $child) {
+                $this->assertForkSafeValue($child, $path . '.' . $key);
+            }
+
+            return;
         }
 
-        $lock = $app->make(CacheLayerFactory::class)->lock();
-        $handle = $lock->acquire(
-            'foundation:worker:' . $name,
-            $definition['lock_wait_seconds'],
-            $definition['lock_lease_seconds'],
-        );
-        if ($handle === null) {
-            return null;
+        throw new \LogicException(sprintf(
+            'Pooled workers require scalar/array configuration; %s contains %s. Use class names and declarative configuration before forking.',
+            $path,
+            get_debug_type($value),
+        ));
+    }
+
+    private function assertPoolParentClean(): void
+    {
+        if ($this->application->booted()) {
+            throw new \LogicException('Pooled workers must fork before booting the parent Foundation application.');
         }
 
-        $heartbeat = static function () use ($lock, $handle, $definition, $name, $processHeartbeat): void {
-            $processHeartbeat();
-            if (!$lock->refresh($handle, $definition['lock_lease_seconds'])) {
-                throw new \RuntimeException(sprintf(
-                    'Singleton worker "%s" lost its CacheLayer lock lease.',
-                    $name,
+        $container = $this->application->container();
+        foreach ([
+            \Infocyph\Foundation\Cache\CacheManager::class,
+            \Infocyph\CacheLayer\Cache\CacheInterface::class,
+            \Infocyph\CacheLayer\Cache\Cache::class,
+            \Infocyph\CacheLayer\Cache\Lock\LockProviderInterface::class,
+            \Infocyph\CacheLayer\Counter\AtomicCounterStoreInterface::class,
+            \Infocyph\DBLayer\Connection\Connection::class,
+            \Infocyph\Omnibus\Consumer\Consumer::class,
+            \Infocyph\Omnibus\Failure\FailureStore::class,
+            \Infocyph\Omnibus\Transport\TransportRegistry::class,
+            \Infocyph\TalkingBytes\Http\HttpClient::class,
+        ] as $service) {
+            if ($container->isResolved($service)) {
+                throw new \LogicException(sprintf(
+                    'Pooled workers must fork before resolving process-bound service "%s".',
+                    $service,
                 ));
             }
-        };
-
-        try {
-            return $provider->run(new WorkerRuntime(
-                $app,
-                $heartbeat(...),
-                \Closure::fromCallable($stopRequested),
-            ));
-        } finally {
-            $lock->release($handle);
         }
+
+        $db = \Infocyph\DBLayer\DB::class;
+        if (class_exists($db, false) && $db::getConnections() !== []) {
+            throw new \LogicException(
+                'Pooled workers must fork before opening DBLayer connections in the parent process.',
+            );
+        }
+    }
+
+    private function floatValue(mixed $value, float $default, string $key): float
+    {
+        if ($value === null || $value === '') {
+            return $default;
+        }
+        if (is_int($value) || is_float($value) || (is_string($value) && is_numeric($value))) {
+            return (float) $value;
+        }
+
+        throw new \UnexpectedValueException(sprintf('Worker %s must be numeric.', $key));
+    }
+
+    /** @return array<string, array<string, mixed>> */
+    private function messagingDefinitions(): array
+    {
+        $configured = $this->application->config()->get('messaging.workers', []);
+        if (!is_array($configured)) {
+            throw new \UnexpectedValueException('messaging.workers must be an associative worker map.');
+        }
+
+        $workers = [];
+        foreach ($configured as $name => $definition) {
+            if (!is_string($name) || $name === '' || !is_array($definition)) {
+                throw new \UnexpectedValueException(
+                    'messaging.workers must map non-empty worker names to configuration arrays.',
+                );
+            }
+            $workers[$name] = $definition;
+        }
+
+        return $workers;
+    }
+
+    private function nonNegativeFloat(mixed $value, float $default, string $key): float
+    {
+        $resolved = $this->floatValue($value, $default, $key);
+        if (!is_finite($resolved) || $resolved < 0.0) {
+            throw new \UnexpectedValueException(sprintf('Worker %s must be finite and non-negative.', $key));
+        }
+
+        return $resolved;
+    }
+
+    private function path(string $path): string
+    {
+        return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1
+            ? $path
+            : $this->application->basePath(trim($path, DIRECTORY_SEPARATOR));
+    }
+
+    private function positiveFloat(mixed $value, float $default, string $key): float
+    {
+        $resolved = $this->floatValue($value, $default, $key);
+        if (!is_finite($resolved) || $resolved <= 0.0) {
+            throw new \UnexpectedValueException(sprintf('Worker %s must be positive and finite.', $key));
+        }
+
+        return $resolved;
+    }
+
+    /**
+     * @return array<string, array{provider:class-string<WorkerProvider>,singleton:bool,lock_wait_seconds:float,lock_lease_seconds:float}>
+     */
+    private function providerDefinitions(string $routes): array
+    {
+        $path = $this->path($routes);
+        if (!is_file($path)) {
+            return [];
+        }
+
+        $configured = require $path;
+        if (!is_array($configured)) {
+            throw new \UnexpectedValueException(sprintf('Worker route file "%s" must return a worker map.', $path));
+        }
+
+        $workers = [];
+        foreach ($configured as $name => $definition) {
+            if (!is_string($name) || $name === '') {
+                throw new \UnexpectedValueException('Worker route names must be non-empty strings.');
+            }
+
+            $options = is_array($definition) ? $definition : ['provider' => $definition];
+            $provider = $options['provider'] ?? null;
+            if (!is_string($provider) || $provider === '' || !is_a($provider, WorkerProvider::class, true)) {
+                throw new \UnexpectedValueException(sprintf(
+                    'Worker "%s" must define a %s provider.',
+                    $name,
+                    WorkerProvider::class,
+                ));
+            }
+
+            /** @var class-string<WorkerProvider> $provider */
+            $workers[$name] = [
+                'provider' => $provider,
+                'singleton' => ValueNormalizer::bool($options['singleton'] ?? null, false),
+                'lock_wait_seconds' => $this->nonNegativeFloat(
+                    $options['lock_wait_seconds'] ?? $this->application->config()->get('worker.lock_wait_seconds'),
+                    0.0,
+                    'lock_wait_seconds',
+                ),
+                'lock_lease_seconds' => $this->positiveFloat(
+                    $options['lock_lease_seconds'] ?? $this->application->config()->get('worker.lock_lease_seconds'),
+                    300.0,
+                    'lock_lease_seconds',
+                ),
+            ];
+        }
+
+        return $workers;
     }
 
     /** @param callable():bool $stopRequested @param callable():void $processHeartbeat */
@@ -169,10 +293,10 @@ final readonly class WorkerManager
 
         if (!$pool['enabled']) {
             $this->application->boot();
-            $lifecycle = new class($processHeartbeat, $stopRequested) implements WorkerLifecycle {
-                private readonly \Closure $heartbeatCallback;
+            $lifecycle = new readonly class ($processHeartbeat, $stopRequested) implements WorkerLifecycle {
+                private \Closure $heartbeatCallback;
 
-                private readonly \Closure $stopCallback;
+                private \Closure $stopCallback;
 
                 public function __construct(callable $heartbeat, callable $stopRequested)
                 {
@@ -235,6 +359,66 @@ final readonly class WorkerManager
     }
 
     /**
+     * @param array{provider:class-string<WorkerProvider>,singleton:bool,lock_wait_seconds:float,lock_lease_seconds:float} $definition
+     * @param callable():bool $stopRequested
+     * @param callable():void $processHeartbeat
+     */
+    private function runProvider(
+        string $name,
+        array $definition,
+        callable $stopRequested,
+        callable $processHeartbeat,
+    ): ?int {
+        $app = $this->application->boot();
+        $provider = $app->make($definition['provider']);
+        if (!$provider instanceof WorkerProvider) {
+            throw new \LogicException(sprintf(
+                'Worker provider "%s" must implement %s.',
+                $definition['provider'],
+                WorkerProvider::class,
+            ));
+        }
+
+        if (!$definition['singleton']) {
+            return $provider->run(new WorkerRuntime(
+                $app,
+                \Closure::fromCallable($processHeartbeat),
+                \Closure::fromCallable($stopRequested),
+            ));
+        }
+
+        $lock = $app->make(CacheLayerFactory::class)->lock();
+        $handle = $lock->acquire(
+            'foundation:worker:' . $name,
+            $definition['lock_wait_seconds'],
+            $definition['lock_lease_seconds'],
+        );
+        if ($handle === null) {
+            return null;
+        }
+
+        $heartbeat = static function () use ($lock, $handle, $definition, $name, $processHeartbeat): void {
+            $processHeartbeat();
+            if (!$lock->refresh($handle, $definition['lock_lease_seconds'])) {
+                throw new \RuntimeException(sprintf(
+                    'Singleton worker "%s" lost its CacheLayer lock lease.',
+                    $name,
+                ));
+            }
+        };
+
+        try {
+            return $provider->run(new WorkerRuntime(
+                $app,
+                $heartbeat(...),
+                \Closure::fromCallable($stopRequested),
+            ));
+        } finally {
+            $lock->release($handle);
+        }
+    }
+
+    /**
      * WorkerPool is Unix/pcntl-only upstream, so its parent process still uses
      * a small signal watchdog. Single Omnibus workers use WorkerLifecycle and
      * therefore need no Foundation signal polling.
@@ -279,189 +463,5 @@ final readonly class WorkerManager
             pcntl_signal($signal, $previousHandler);
             pcntl_async_signals($previousAsync);
         }
-    }
-
-    /**
-     * @return array<string, array{provider:class-string<WorkerProvider>,singleton:bool,lock_wait_seconds:float,lock_lease_seconds:float}>
-     */
-    private function providerDefinitions(string $routes): array
-    {
-        $path = $this->path($routes);
-        if (!is_file($path)) {
-            return [];
-        }
-
-        $configured = require $path;
-        if (!is_array($configured)) {
-            throw new \UnexpectedValueException(sprintf('Worker route file "%s" must return a worker map.', $path));
-        }
-
-        $workers = [];
-        foreach ($configured as $name => $definition) {
-            if (!is_string($name) || $name === '') {
-                throw new \UnexpectedValueException('Worker route names must be non-empty strings.');
-            }
-
-            $options = is_array($definition) ? $definition : ['provider' => $definition];
-            $provider = $options['provider'] ?? null;
-            if (!is_string($provider) || $provider === '' || !is_a($provider, WorkerProvider::class, true)) {
-                throw new \UnexpectedValueException(sprintf(
-                    'Worker "%s" must define a %s provider.',
-                    $name,
-                    WorkerProvider::class,
-                ));
-            }
-
-            /** @var class-string<WorkerProvider> $provider */
-            $workers[$name] = [
-                'provider' => $provider,
-                'singleton' => ValueNormalizer::bool($options['singleton'] ?? null, false),
-                'lock_wait_seconds' => $this->nonNegativeFloat(
-                    $options['lock_wait_seconds'] ?? $this->application->config()->get('worker.lock_wait_seconds'),
-                    0.0,
-                    'lock_wait_seconds',
-                ),
-                'lock_lease_seconds' => $this->positiveFloat(
-                    $options['lock_lease_seconds'] ?? $this->application->config()->get('worker.lock_lease_seconds'),
-                    300.0,
-                    'lock_lease_seconds',
-                ),
-            ];
-        }
-
-        return $workers;
-    }
-
-    /** @return array<string, array<string, mixed>> */
-    private function messagingDefinitions(): array
-    {
-        $configured = $this->application->config()->get('messaging.workers', []);
-        if (!is_array($configured)) {
-            throw new \UnexpectedValueException('messaging.workers must be an associative worker map.');
-        }
-
-        $workers = [];
-        foreach ($configured as $name => $definition) {
-            if (!is_string($name) || $name === '' || !is_array($definition)) {
-                throw new \UnexpectedValueException(
-                    'messaging.workers must map non-empty worker names to configuration arrays.',
-                );
-            }
-            $workers[$name] = $definition;
-        }
-
-        return $workers;
-    }
-
-    /** @param array<string, mixed> $providers @param array<string, mixed> $messaging */
-    private function assertDistinctNames(array $providers, array $messaging): void
-    {
-        $collision = array_key_first(array_intersect_key($providers, $messaging));
-        if (is_string($collision)) {
-            throw new \UnexpectedValueException(sprintf(
-                'Worker "%s" is defined as both a provider worker and a messaging worker.',
-                $collision,
-            ));
-        }
-    }
-
-    private function assertPoolParentClean(): void
-    {
-        if ($this->application->booted()) {
-            throw new \LogicException('Pooled workers must fork before booting the parent Foundation application.');
-        }
-
-        $container = $this->application->container();
-        foreach ([
-            'Infocyph\\Foundation\\Cache\\CacheManager',
-            'Infocyph\\CacheLayer\\Cache\\CacheInterface',
-            'Infocyph\\CacheLayer\\Cache\\Cache',
-            'Infocyph\\CacheLayer\\Cache\\Lock\\LockProviderInterface',
-            'Infocyph\\CacheLayer\\Counter\\AtomicCounterStoreInterface',
-            'Infocyph\\DBLayer\\Connection\\Connection',
-            'Infocyph\\Omnibus\\Consumer\\Consumer',
-            'Infocyph\\Omnibus\\Failure\\FailureStore',
-            'Infocyph\\Omnibus\\Transport\\TransportRegistry',
-            'Infocyph\\TalkingBytes\\Http\\HttpClient',
-        ] as $service) {
-            if ($container->isResolved($service)) {
-                throw new \LogicException(sprintf(
-                    'Pooled workers must fork before resolving process-bound service "%s".',
-                    $service,
-                ));
-            }
-        }
-
-        $db = 'Infocyph\\DBLayer\\DB';
-        if (class_exists($db, false) && $db::getConnections() !== []) {
-            throw new \LogicException(
-                'Pooled workers must fork before opening DBLayer connections in the parent process.',
-            );
-        }
-    }
-
-    /** @param array<string, mixed> $config */
-    private function assertForkSafeConfig(array $config): void
-    {
-        $this->assertForkSafeValue($config, 'config');
-    }
-
-    private function assertForkSafeValue(mixed $value, string $path): void
-    {
-        if ($value === null || is_scalar($value)) {
-            return;
-        }
-        if (is_array($value)) {
-            foreach ($value as $key => $child) {
-                $this->assertForkSafeValue($child, $path . '.' . (string) $key);
-            }
-
-            return;
-        }
-
-        throw new \LogicException(sprintf(
-            'Pooled workers require scalar/array configuration; %s contains %s. Use class names and declarative configuration before forking.',
-            $path,
-            get_debug_type($value),
-        ));
-    }
-
-    private function nonNegativeFloat(mixed $value, float $default, string $key): float
-    {
-        $resolved = $this->floatValue($value, $default, $key);
-        if (!is_finite($resolved) || $resolved < 0.0) {
-            throw new \UnexpectedValueException(sprintf('Worker %s must be finite and non-negative.', $key));
-        }
-
-        return $resolved;
-    }
-
-    private function positiveFloat(mixed $value, float $default, string $key): float
-    {
-        $resolved = $this->floatValue($value, $default, $key);
-        if (!is_finite($resolved) || $resolved <= 0.0) {
-            throw new \UnexpectedValueException(sprintf('Worker %s must be positive and finite.', $key));
-        }
-
-        return $resolved;
-    }
-
-    private function floatValue(mixed $value, float $default, string $key): float
-    {
-        if ($value === null || $value === '') {
-            return $default;
-        }
-        if (is_int($value) || is_float($value) || (is_string($value) && is_numeric($value))) {
-            return (float) $value;
-        }
-
-        throw new \UnexpectedValueException(sprintf('Worker %s must be numeric.', $key));
-    }
-
-    private function path(string $path): string
-    {
-        return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1
-            ? $path
-            : $this->application->basePath(trim($path, DIRECTORY_SEPARATOR));
     }
 }

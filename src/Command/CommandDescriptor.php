@@ -44,16 +44,6 @@ final readonly class CommandDescriptor
         return new self($definition, $handler);
     }
 
-    /** @return array<string, mixed> */
-    public function toManifest(): array
-    {
-        return [
-            'handler' => $this->handler,
-            'system' => $this->system,
-            'definition' => $this->definition->toManifest(),
-        ];
-    }
-
     /** @param array<string, mixed> $manifest */
     public static function fromManifest(array $manifest): self
     {
@@ -76,6 +66,16 @@ final readonly class CommandDescriptor
         }
 
         return new self(CommandDefinition::fromManifest(self::associative($definition)), $handler, $system);
+    }
+
+    /** @return array<string, mixed> */
+    public function toManifest(): array
+    {
+        return [
+            'handler' => $this->handler,
+            'system' => $this->system,
+            'definition' => $this->definition->toManifest(),
+        ];
     }
 
     /**

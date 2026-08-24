@@ -51,6 +51,17 @@ final class StorageRegistry
         }
     }
 
+    /** @return array<string, mixed> */
+    public function configuration(?string $name = null): array
+    {
+        $disk = $this->resolveDisk($name);
+
+        return $this->configurations[$disk] ?? throw new \InvalidArgumentException(sprintf(
+            'Filesystem disk "%s" is not configured.',
+            $disk,
+        ));
+    }
+
     public function defaultDisk(): string
     {
         return $this->defaultDisk;
@@ -71,17 +82,6 @@ final class StorageRegistry
     public function disks(): array
     {
         return array_keys($this->configurations);
-    }
-
-    /** @return array<string, mixed> */
-    public function configuration(?string $name = null): array
-    {
-        $disk = $this->resolveDisk($name);
-
-        return $this->configurations[$disk] ?? throw new \InvalidArgumentException(sprintf(
-            'Filesystem disk "%s" is not configured.',
-            $disk,
-        ));
     }
 
     public function initialize(): void
@@ -208,6 +208,19 @@ final class StorageRegistry
         return $this->mountScope . '-' . $disk;
     }
 
+    private function normalizeDiskName(string $name): string
+    {
+        $disk = strtolower(trim($name));
+        if (preg_match('/^[a-z][a-z0-9._-]*$/D', $disk) !== 1) {
+            throw new \InvalidArgumentException(sprintf(
+                'Invalid filesystem disk name "%s".',
+                $name,
+            ));
+        }
+
+        return $disk;
+    }
+
     /**
      * @param array<string, mixed> $configuration
      * @return array<string, mixed>
@@ -226,18 +239,5 @@ final class StorageRegistry
         }
 
         return $configuration;
-    }
-
-    private function normalizeDiskName(string $name): string
-    {
-        $disk = strtolower(trim($name));
-        if (preg_match('/^[a-z][a-z0-9._-]*$/D', $disk) !== 1) {
-            throw new \InvalidArgumentException(sprintf(
-                'Invalid filesystem disk name "%s".',
-                $name,
-            ));
-        }
-
-        return $disk;
     }
 }

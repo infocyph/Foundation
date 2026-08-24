@@ -79,6 +79,32 @@ final readonly class ArtifactGenerator
         return ['class' => implode('\\', array_filter([$namespace, $class])), 'path' => $path];
     }
 
+    /** @param array{directory:string,namespace:string,suffix:string,stub:string,requires?:class-string,install?:string} $definition */
+    private function assertRequirement(string $artifact, array $definition): void
+    {
+        $required = $definition['requires'] ?? null;
+        if ($required === null || class_exists($required) || interface_exists($required)) {
+            return;
+        }
+
+        throw new \LogicException(sprintf(
+            'Creating a %s requires its optional module; run "%s".',
+            $artifact,
+            $definition['install'] ?? 'composer install',
+        ));
+    }
+
+    /** @param list<string> $parents */
+    private function commandName(string $class, array $parents): string
+    {
+        $class = preg_replace('/Command$/', '', $class) ?? $class;
+
+        return implode(':', array_map(
+            static fn(string $segment): string => strtolower(preg_replace('/(?<!^)[A-Z]/', '-$0', $segment) ?? $segment),
+            [...$parents, $class],
+        ));
+    }
+
     /** @return array{class:string,path:string} */
     private function createConfig(string $name, bool $force): array
     {
@@ -108,32 +134,6 @@ final readonly class ArtifactGenerator
         $this->write($path, $contents, $force);
 
         return ['class' => 'config/' . implode('/', [...$segments, $filename]), 'path' => $path];
-    }
-
-    /** @param array{directory:string,namespace:string,suffix:string,stub:string,requires?:class-string,install?:string} $definition */
-    private function assertRequirement(string $artifact, array $definition): void
-    {
-        $required = $definition['requires'] ?? null;
-        if ($required === null || class_exists($required) || interface_exists($required)) {
-            return;
-        }
-
-        throw new \LogicException(sprintf(
-            'Creating a %s requires its optional module; run "%s".',
-            $artifact,
-            $definition['install'] ?? 'composer install',
-        ));
-    }
-
-    /** @param list<string> $parents */
-    private function commandName(string $class, array $parents): string
-    {
-        $class = preg_replace('/Command$/', '', $class) ?? $class;
-
-        return implode(':', array_map(
-            static fn(string $segment): string => strtolower(preg_replace('/(?<!^)[A-Z]/', '-$0', $segment) ?? $segment),
-            [...$parents, $class],
-        ));
     }
 
     private function description(string $class): string

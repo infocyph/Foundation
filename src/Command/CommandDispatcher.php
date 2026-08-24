@@ -9,7 +9,7 @@ use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Runtime\ExecutionId;
 
-final class CommandDispatcher
+final readonly class CommandDispatcher
 {
     private const string SUPERVISED_ENV = 'INFOCYPH_FOUNDATION_SUPERVISED';
 
@@ -147,20 +147,21 @@ final class CommandDispatcher
         }
     }
 
-    private function descriptor(ParsedInput $input, CommandIO $io): ?CommandDescriptor
+    /**
+     * @param array<int|string,mixed> $value
+     * @return array<string,mixed>
+     */
+    private static function associative(array $value): array
     {
-        $descriptor = $this->registry->find($input->command);
-        if ($descriptor !== null && !$descriptor->definition->isHidden()) {
-            return $descriptor;
+        $normalized = [];
+        foreach ($value as $key => $item) {
+            if (!is_string($key)) {
+                throw new \UnexpectedValueException('Compiled command manifest must use string keys.');
+            }
+            $normalized[$key] = $item;
         }
 
-        $io->error(sprintf('Command "%s" is not defined.', $input->command));
-        $suggestions = $this->registry->suggestions($input->command);
-        if ($suggestions !== []) {
-            $io->error('Did you mean: ' . implode(', ', $suggestions) . '?');
-        }
-
-        return null;
+        return $normalized;
     }
 
     private function application(RuntimeMode $runtime, ParsedInput $input): Application
@@ -182,6 +183,22 @@ final class CommandDispatcher
             RuntimeMode::Web => Foundation::web($config),
             RuntimeMode::Worker => Foundation::worker($config),
         };
+    }
+
+    private function descriptor(ParsedInput $input, CommandIO $io): ?CommandDescriptor
+    {
+        $descriptor = $this->registry->find($input->command);
+        if ($descriptor !== null && !$descriptor->definition->isHidden()) {
+            return $descriptor;
+        }
+
+        $io->error(sprintf('Command "%s" is not defined.', $input->command));
+        $suggestions = $this->registry->suggestions($input->command);
+        if ($suggestions !== []) {
+            $io->error('Did you mean: ' . implode(', ', $suggestions) . '?');
+        }
+
+        return null;
     }
 
     private function profile(ParsedInput $input, bool $enabled, int|float $startedAt, int $baselinePeak): void
@@ -206,29 +223,12 @@ final class CommandDispatcher
         }
 
         fwrite(STDERR, sprintf(
-            "Profile: %.3f ms; peak %.2f MiB; growth %.2f MiB; verbosity %d%s",
+            'Profile: %.3f ms; peak %.2f MiB; growth %.2f MiB; verbosity %d%s',
             $profile['duration_ms'],
             $profile['peak_memory_bytes'] / 1_048_576,
             $profile['peak_memory_growth_bytes'] / 1_048_576,
             $profile['verbosity'],
             PHP_EOL,
         ));
-    }
-
-    /**
-     * @param array<int|string,mixed> $value
-     * @return array<string,mixed>
-     */
-    private static function associative(array $value): array
-    {
-        $normalized = [];
-        foreach ($value as $key => $item) {
-            if (!is_string($key)) {
-                throw new \UnexpectedValueException('Compiled command manifest must use string keys.');
-            }
-            $normalized[$key] = $item;
-        }
-
-        return $normalized;
     }
 }

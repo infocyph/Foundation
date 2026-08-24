@@ -9,13 +9,13 @@ use Infocyph\Foundation\Process\Internal\ProcessOutcome;
 use Infocyph\Foundation\Process\Internal\ProcessSignals;
 use Infocyph\Foundation\Process\Internal\ProcessTree;
 
-final class ProcessRunner
+final readonly class ProcessRunner
 {
-    private readonly ProcessCapture $capture;
+    private ProcessCapture $capture;
 
-    private readonly ProcessSignals $signals;
+    private ProcessSignals $signals;
 
-    private readonly ProcessTree $tree;
+    private ProcessTree $tree;
 
     public function __construct()
     {
@@ -105,6 +105,29 @@ final class ProcessRunner
         return $environment;
     }
 
+    private function interactiveTermination(
+        ProcessOptions $options,
+        int $startedAt,
+        ?int $interruptedSignal,
+    ): ?ProcessTerminationReason {
+        if ($interruptedSignal !== null) {
+            return ProcessTerminationReason::Interrupted;
+        }
+        if ($options->cancelled !== null && ($options->cancelled)()) {
+            return ProcessTerminationReason::Cancelled;
+        }
+        if ($options->heartbeat !== null && !($options->heartbeat)()) {
+            return ProcessTerminationReason::HeartbeatLost;
+        }
+        if ($options->timeoutSeconds !== null
+            && (ProcessOutcome::clock() - $startedAt) / 1_000_000_000 >= $options->timeoutSeconds
+        ) {
+            return ProcessTerminationReason::TimedOut;
+        }
+
+        return null;
+    }
+
     /**
      * @param list<string>|string $command
      * @return array<string, bool>
@@ -174,28 +197,5 @@ final class ProcessRunner
             signal: $signal,
             durationNanoseconds: max(0, ProcessOutcome::clock() - $startedAt),
         );
-    }
-
-    private function interactiveTermination(
-        ProcessOptions $options,
-        int $startedAt,
-        ?int $interruptedSignal,
-    ): ?ProcessTerminationReason {
-        if ($interruptedSignal !== null) {
-            return ProcessTerminationReason::Interrupted;
-        }
-        if ($options->cancelled !== null && ($options->cancelled)()) {
-            return ProcessTerminationReason::Cancelled;
-        }
-        if ($options->heartbeat !== null && !($options->heartbeat)()) {
-            return ProcessTerminationReason::HeartbeatLost;
-        }
-        if ($options->timeoutSeconds !== null
-            && (ProcessOutcome::clock() - $startedAt) / 1_000_000_000 >= $options->timeoutSeconds
-        ) {
-            return ProcessTerminationReason::TimedOut;
-        }
-
-        return null;
     }
 }

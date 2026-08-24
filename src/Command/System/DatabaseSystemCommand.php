@@ -37,6 +37,28 @@ final class DatabaseSystemCommand extends SystemCommand
         };
     }
 
+    private function authorizeDestructive(string $operation): bool
+    {
+        if ($this->flag('force')) {
+            return true;
+        }
+        if ($this->application->isProduction()) {
+            $this->io()->error(sprintf(
+                '%s is destructive in production; rerun with --force after explicit approval.',
+                $operation,
+            ));
+
+            return false;
+        }
+        if (!$this->io()->interactive()) {
+            $this->io()->error(sprintf('%s requires --force in non-interactive mode.', $operation));
+
+            return false;
+        }
+
+        return $this->io()->confirm(sprintf('Run destructive %s?', $operation), false);
+    }
+
     private function connectionName(): ?string
     {
         return $this->option('connection');
@@ -152,14 +174,14 @@ final class DatabaseSystemCommand extends SystemCommand
         if ($this->io()->machineReadable()) {
             return $this->emit($data);
         }
-        if (is_array($data) && array_is_list($data)) {
+        if (array_is_list($data)) {
             if ($data === []) {
                 $this->io()->info('No records returned.');
 
                 return ExitCode::SUCCESS;
             }
             $headers = array_values(array_unique(array_merge(...array_map(
-                static fn(array $row): array => array_keys($row),
+                array_keys(...),
                 array_filter($data, is_array(...)),
             ))));
             if ($headers !== []) {
@@ -179,6 +201,22 @@ final class DatabaseSystemCommand extends SystemCommand
         }
 
         return $this->emit($data);
+    }
+
+    private function positiveInt(string $name, string $value): int
+    {
+        if (preg_match('/^\d+$/D', $value) !== 1 || (int) $value < 1) {
+            throw new \InvalidArgumentException(sprintf('--%s must be a positive integer.', $name));
+        }
+
+        return (int) $value;
+    }
+
+    private function positiveIntOption(string $name, int $default): int
+    {
+        $value = $this->option($name);
+
+        return $value === null ? $default : $this->positiveInt($name, $value);
     }
 
     private function rollback(): int
@@ -264,43 +302,5 @@ final class DatabaseSystemCommand extends SystemCommand
             ['dropped' => $before, 'count' => count($before)],
             sprintf('Dropped %d database table(s).', count($before)),
         );
-    }
-
-    private function authorizeDestructive(string $operation): bool
-    {
-        if ($this->flag('force')) {
-            return true;
-        }
-        if ($this->application->isProduction()) {
-            $this->io()->error(sprintf(
-                '%s is destructive in production; rerun with --force after explicit approval.',
-                $operation,
-            ));
-
-            return false;
-        }
-        if (!$this->io()->interactive()) {
-            $this->io()->error(sprintf('%s requires --force in non-interactive mode.', $operation));
-
-            return false;
-        }
-
-        return $this->io()->confirm(sprintf('Run destructive %s?', $operation), false);
-    }
-
-    private function positiveInt(string $name, string $value): int
-    {
-        if (preg_match('/^\d+$/D', $value) !== 1 || (int) $value < 1) {
-            throw new \InvalidArgumentException(sprintf('--%s must be a positive integer.', $name));
-        }
-
-        return (int) $value;
-    }
-
-    private function positiveIntOption(string $name, int $default): int
-    {
-        $value = $this->option($name);
-
-        return $value === null ? $default : $this->positiveInt($name, $value);
     }
 }

@@ -15,9 +15,114 @@ final readonly class ExecutionHistory
 
     public function __construct(private Application $application) {}
 
+    public function clear(): bool
+    {
+        return $this->withLock(true, function (): bool {
+            $removed = false;
+            foreach ($this->historyFilesOldestFirst() as $path) {
+                if (is_file($path) && !unlink($path)) {
+                    throw new \RuntimeException(sprintf('Unable to remove execution history "%s".', $path));
+                }
+                $removed = true;
+            }
+
+            return $removed;
+        });
+    }
+
     public function enabled(): bool
     {
         return $this->application->config()->getBool('operations.history.enabled', false) ?? false;
+    }
+
+    /** @return list<array<string,mixed>> */
+    public function find(string $executionId): array
+    {
+        if ($executionId === '') {
+            throw new \InvalidArgumentException('Execution id cannot be empty.');
+        }
+
+        return $this->withLock(false, function () use ($executionId): array {
+            $records = [];
+            foreach ($this->historyFilesOldestFirst() as $path) {
+                foreach ($this->records($path) as $record) {
+                    if (($record['execution_id'] ?? null) === $executionId) {
+                        $records[] = $record;
+                    }
+                }
+            }
+
+            return $records;
+        });
+    }
+
+    /** @return array<string,mixed>|null */
+    public function latest(?string $kind = null, ?string $name = null): ?array
+    {
+        return $this->recent(1, $kind, $name)[0] ?? null;
+    }
+
+    /** @return array<string,mixed>|null */
+    public function latestByMetadata(string $kind, string $key, string $value): ?array
+    {
+        if ($kind === '' || $key === '' || $value === '') {
+            throw new \InvalidArgumentException('Execution history metadata lookup fields cannot be empty.');
+        }
+
+        return $this->withLock(false, function () use ($kind, $key, $value): ?array {
+            $latest = null;
+            foreach ($this->historyFilesOldestFirst() as $path) {
+                foreach ($this->records($path) as $record) {
+                    if (($record['kind'] ?? null) !== $kind) {
+                        continue;
+                    }
+                    $metadata = $record['metadata'] ?? null;
+                    if (is_array($metadata) && ($metadata[$key] ?? null) === $value) {
+                        $latest = $record;
+                    }
+                }
+            }
+
+            return $latest;
+        });
+    }
+
+    public function path(): string
+    {
+        $configured = $this->application->config()->getString(
+            'operations.history.path',
+            'storage/logs/executions.jsonl',
+        ) ?? 'storage/logs/executions.jsonl';
+
+        return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $configured) === 1
+            ? $configured
+            : $this->application->basePath(trim($configured, DIRECTORY_SEPARATOR));
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function recent(int $limit = 100, ?string $kind = null, ?string $name = null): array
+    {
+        if ($limit < 1 || $limit > 1000) {
+            throw new \InvalidArgumentException('Execution history limit must be between 1 and 1000.');
+        }
+
+        return $this->withLock(false, function () use ($limit, $kind, $name): array {
+            $records = [];
+            foreach ($this->historyFilesOldestFirst() as $path) {
+                foreach ($this->records($path) as $record) {
+                    if (!$this->matches($record, $kind, $name)) {
+                        continue;
+                    }
+
+                    $records[] = $record;
+                    if (count($records) > $limit) {
+                        array_shift($records);
+                    }
+                }
+            }
+
+            return array_reverse($records);
+        });
     }
 
     /** @param array<string, scalar|null> $metadata */
@@ -74,125 +179,6 @@ final readonly class ExecutionHistory
         });
     }
 
-    /** @return list<array<string, mixed>> */
-    public function recent(int $limit = 100, ?string $kind = null, ?string $name = null): array
-    {
-        if ($limit < 1 || $limit > 1000) {
-            throw new \InvalidArgumentException('Execution history limit must be between 1 and 1000.');
-        }
-
-        return $this->withLock(false, function () use ($limit, $kind, $name): array {
-            $records = [];
-            foreach ($this->historyFilesOldestFirst() as $path) {
-                foreach ($this->records($path) as $record) {
-                    if (!$this->matches($record, $kind, $name)) {
-                        continue;
-                    }
-
-                    $records[] = $record;
-                    if (count($records) > $limit) {
-                        array_shift($records);
-                    }
-                }
-            }
-
-            return array_reverse($records);
-        });
-    }
-
-    /** @return list<array<string,mixed>> */
-    public function find(string $executionId): array
-    {
-        if ($executionId === '') {
-            throw new \InvalidArgumentException('Execution id cannot be empty.');
-        }
-
-        return $this->withLock(false, function () use ($executionId): array {
-            $records = [];
-            foreach ($this->historyFilesOldestFirst() as $path) {
-                foreach ($this->records($path) as $record) {
-                    if (($record['execution_id'] ?? null) === $executionId) {
-                        $records[] = $record;
-                    }
-                }
-            }
-
-            return $records;
-        });
-    }
-
-    /** @return array<string,mixed>|null */
-    public function latest(?string $kind = null, ?string $name = null): ?array
-    {
-        return $this->recent(1, $kind, $name)[0] ?? null;
-    }
-
-    /** @return array<string,mixed>|null */
-    public function latestByMetadata(string $kind, string $key, string $value): ?array
-    {
-        if ($kind === '' || $key === '' || $value === '') {
-            throw new \InvalidArgumentException('Execution history metadata lookup fields cannot be empty.');
-        }
-
-        return $this->withLock(false, function () use ($kind, $key, $value): ?array {
-            $latest = null;
-            foreach ($this->historyFilesOldestFirst() as $path) {
-                foreach ($this->records($path) as $record) {
-                    if (($record['kind'] ?? null) !== $kind) {
-                        continue;
-                    }
-                    $metadata = $record['metadata'] ?? null;
-                    if (is_array($metadata) && ($metadata[$key] ?? null) === $value) {
-                        $latest = $record;
-                    }
-                }
-            }
-
-            return $latest;
-        });
-    }
-
-    public function clear(): bool
-    {
-        return $this->withLock(true, function (): bool {
-            $removed = false;
-            foreach ($this->historyFilesOldestFirst() as $path) {
-                if (is_file($path) && !unlink($path)) {
-                    throw new \RuntimeException(sprintf('Unable to remove execution history "%s".', $path));
-                }
-                $removed = true;
-            }
-
-            return $removed;
-        });
-    }
-
-    public function path(): string
-    {
-        $configured = $this->application->config()->getString(
-            'operations.history.path',
-            'storage/logs/executions.jsonl',
-        ) ?? 'storage/logs/executions.jsonl';
-
-        return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $configured) === 1
-            ? $configured
-            : $this->application->basePath(trim($configured, DIRECTORY_SEPARATOR));
-    }
-
-    private function maxBytes(): int
-    {
-        $value = $this->application->config()->getInt('operations.history.max_bytes', self::DEFAULT_MAX_BYTES);
-
-        return is_int($value) && $value > 0 ? $value : self::DEFAULT_MAX_BYTES;
-    }
-
-    private function retainedFiles(): int
-    {
-        $value = $this->application->config()->getInt('operations.history.retained_files', self::DEFAULT_RETAINED_FILES);
-
-        return is_int($value) && $value >= 0 ? min(100, $value) : self::DEFAULT_RETAINED_FILES;
-    }
-
     /** @return list<string> */
     private function historyFilesOldestFirst(): array
     {
@@ -209,6 +195,20 @@ final readonly class ExecutionHistory
         }
 
         return $files;
+    }
+
+    /** @param array<string,mixed> $record */
+    private function matches(array $record, ?string $kind, ?string $name): bool
+    {
+        return ($kind === null || ($record['kind'] ?? null) === $kind)
+            && ($name === null || ($record['name'] ?? null) === $name);
+    }
+
+    private function maxBytes(): int
+    {
+        $value = $this->application->config()->getInt('operations.history.max_bytes', self::DEFAULT_MAX_BYTES);
+
+        return is_int($value) && $value > 0 ? $value : self::DEFAULT_MAX_BYTES;
     }
 
     /** @return iterable<array<string,mixed>> */
@@ -235,11 +235,11 @@ final readonly class ExecutionHistory
         }
     }
 
-    /** @param array<string,mixed> $record */
-    private function matches(array $record, ?string $kind, ?string $name): bool
+    private function retainedFiles(): int
     {
-        return ($kind === null || ($record['kind'] ?? null) === $kind)
-            && ($name === null || ($record['name'] ?? null) === $name);
+        $value = $this->application->config()->getInt('operations.history.retained_files', self::DEFAULT_RETAINED_FILES);
+
+        return is_int($value) && $value >= 0 ? min(100, $value) : self::DEFAULT_RETAINED_FILES;
     }
 
     private function rotate(): void

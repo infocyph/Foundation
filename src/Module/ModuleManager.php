@@ -213,6 +213,17 @@ final readonly class ModuleManager
         return $requirements;
     }
 
+    private function discardBackup(string $path): void
+    {
+        set_error_handler(static fn(int $severity): bool => $severity === E_WARNING);
+
+        try {
+            unlink($path);
+        } finally {
+            restore_error_handler();
+        }
+    }
+
     /**
      * @param array<string, string> $sources target => source
      * @param list<string> $existing
@@ -317,16 +328,6 @@ final readonly class ModuleManager
         }
 
         return $published;
-    }
-
-    private function discardBackup(string $path): void
-    {
-        set_error_handler(static fn(int $severity): bool => $severity === E_WARNING);
-        try {
-            unlink($path);
-        } finally {
-            restore_error_handler();
-        }
     }
 
     private function unlink(string $path, string $kind): void

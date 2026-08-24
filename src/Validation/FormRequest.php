@@ -22,6 +22,9 @@ abstract class FormRequest
         return $this->validate($request);
     }
 
+    /** @return array<string,mixed> */
+    abstract protected function rules(Request $request): array;
+
     final public function validate(Request $request): ValidationResult
     {
         return $this->validators
@@ -54,7 +57,4 @@ abstract class FormRequest
 
         return [];
     }
-
-    /** @return array<string,mixed> */
-    abstract protected function rules(Request $request): array;
 }

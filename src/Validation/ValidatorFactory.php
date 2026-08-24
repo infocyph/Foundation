@@ -69,25 +69,6 @@ final readonly class ValidatorFactory
     }
 
     /** @param array<string,mixed> $options */
-    private function configureMessages(Validator $validator, array $options): void
-    {
-        $aliases = $this->stringMap($options['aliases'] ?? null);
-        if ($aliases !== []) {
-            $validator->setFieldAliases($aliases);
-        }
-
-        $messages = $this->stringMap($options['messages'] ?? null);
-        if ($messages !== []) {
-            $validator->setCustomMessages($messages);
-        }
-
-        $sanitizers = $this->sanitizerMap($options['sanitizers'] ?? null);
-        if ($sanitizers !== []) {
-            $validator->setSanitizers($sanitizers);
-        }
-    }
-
-    /** @param array<string,mixed> $options */
     private function configureInput(Validator $validator, array $options): void
     {
         $casts = ValueNormalizer::associativeArray($options['casts'] ?? []);
@@ -114,37 +95,6 @@ final readonly class ValidatorFactory
     }
 
     /** @param array<string,mixed> $options */
-    private function configureUnknownFields(Validator $validator, array $options): void
-    {
-        if (ValueNormalizer::bool($options['strip_unknown'] ?? false, false)) {
-            $validator->stripUnknown();
-
-            return;
-        }
-        if (ValueNormalizer::bool($options['strict'] ?? false, false)) {
-            $validator->strict();
-
-            return;
-        }
-        if (array_key_exists('allow_unknown', $options)) {
-            $validator->allowUnknown(ValueNormalizer::bool($options['allow_unknown'], true));
-        }
-    }
-
-    /** @param array<string,mixed> $options */
-    private function configureOutput(Validator $validator, array $options): void
-    {
-        if (ValueNormalizer::bool($options['throw_on_failure'] ?? false, false)) {
-            $validator->throwOnFailure();
-        }
-
-        $dto = ValueNormalizer::nullableString($options['dto'] ?? null);
-        if ($dto !== null) {
-            $validator->setDtoClass($dto);
-        }
-    }
-
-    /** @param array<string,mixed> $options */
     private function configureLimits(Validator $validator, array $options): void
     {
         $limits = ValueNormalizer::associativeArray($options['limits'] ?? []);
@@ -166,6 +116,56 @@ final readonly class ValidatorFactory
                 'max_flattened_paths',
             ),
         );
+    }
+
+    /** @param array<string,mixed> $options */
+    private function configureMessages(Validator $validator, array $options): void
+    {
+        $aliases = $this->stringMap($options['aliases'] ?? null);
+        if ($aliases !== []) {
+            $validator->setFieldAliases($aliases);
+        }
+
+        $messages = $this->stringMap($options['messages'] ?? null);
+        if ($messages !== []) {
+            $validator->setCustomMessages($messages);
+        }
+
+        $sanitizers = $this->sanitizerMap($options['sanitizers'] ?? null);
+        if ($sanitizers !== []) {
+            $validator->setSanitizers($sanitizers);
+        }
+    }
+
+    /** @param array<string,mixed> $options */
+    private function configureOutput(Validator $validator, array $options): void
+    {
+        if (ValueNormalizer::bool($options['throw_on_failure'] ?? false, false)) {
+            $validator->throwOnFailure();
+        }
+
+        $dto = ValueNormalizer::nullableString($options['dto'] ?? null);
+        if ($dto !== null) {
+            $validator->setDtoClass($dto);
+        }
+    }
+
+    /** @param array<string,mixed> $options */
+    private function configureUnknownFields(Validator $validator, array $options): void
+    {
+        if (ValueNormalizer::bool($options['strip_unknown'] ?? false, false)) {
+            $validator->stripUnknown();
+
+            return;
+        }
+        if (ValueNormalizer::bool($options['strict'] ?? false, false)) {
+            $validator->strict();
+
+            return;
+        }
+        if (array_key_exists('allow_unknown', $options)) {
+            $validator->allowUnknown(ValueNormalizer::bool($options['allow_unknown'], true));
+        }
     }
 
     /** @return array<string, array<string, mixed>> */

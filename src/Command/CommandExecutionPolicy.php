@@ -39,31 +39,6 @@ final readonly class CommandExecutionPolicy
         }
     }
 
-    public function requiresSupervisor(): bool
-    {
-        return $this->isolated
-            || $this->overlap !== OverlapMode::Allow
-            || $this->timeoutSeconds !== null
-            || $this->idleTimeoutSeconds !== null
-            || $this->memoryLimitMegabytes !== null;
-    }
-
-    /** @return array<string, mixed> */
-    public function toManifest(): array
-    {
-        return [
-            'isolated' => $this->isolated,
-            'overlap' => $this->overlap->value,
-            'mutex' => $this->mutex,
-            'wait_seconds' => $this->waitSeconds,
-            'lease_seconds' => $this->leaseSeconds,
-            'timeout_seconds' => $this->timeoutSeconds,
-            'idle_timeout_seconds' => $this->idleTimeoutSeconds,
-            'memory_limit_megabytes' => $this->memoryLimitMegabytes,
-            'termination_grace_seconds' => $this->terminationGraceSeconds,
-        ];
-    }
-
     /** @param array<string, mixed> $manifest */
     public static function fromManifest(array $manifest): self
     {
@@ -107,5 +82,30 @@ final readonly class CommandExecutionPolicy
             memoryLimitMegabytes: $memory,
             terminationGraceSeconds: (float) $grace,
         );
+    }
+
+    public function requiresSupervisor(): bool
+    {
+        return $this->isolated
+            || $this->overlap !== OverlapMode::Allow
+            || $this->timeoutSeconds !== null
+            || $this->idleTimeoutSeconds !== null
+            || $this->memoryLimitMegabytes !== null;
+    }
+
+    /** @return array<string, mixed> */
+    public function toManifest(): array
+    {
+        return [
+            'isolated' => $this->isolated,
+            'overlap' => $this->overlap->value,
+            'mutex' => $this->mutex,
+            'wait_seconds' => $this->waitSeconds,
+            'lease_seconds' => $this->leaseSeconds,
+            'timeout_seconds' => $this->timeoutSeconds,
+            'idle_timeout_seconds' => $this->idleTimeoutSeconds,
+            'memory_limit_megabytes' => $this->memoryLimitMegabytes,
+            'termination_grace_seconds' => $this->terminationGraceSeconds,
+        ];
     }
 }

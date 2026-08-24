@@ -180,20 +180,6 @@ final class MessagingServiceProvider extends ServiceProvider
         return is_numeric($value) ? (float) $value : $default;
     }
 
-    /** @return array<class-string, callable> */
-    private function handlers(Application $app, mixed $configured): array
-    {
-        $handlers = [];
-        foreach ($this->map($configured) as $message => $handler) {
-            if (!is_string($message) || (!class_exists($message) && !interface_exists($message))) {
-                throw new \InvalidArgumentException('Messaging handler keys must be message class names.');
-            }
-            $handlers[$message] = fn(mixed ...$arguments): mixed => ($this->callable($app, $handler))(...$arguments);
-        }
-
-        return $handlers;
-    }
-
     /** @return list<HandlerMiddleware> */
     private function handlerMiddleware(Application $app, mixed $configured, mixed $configuredJobs): array
     {
@@ -231,6 +217,20 @@ final class MessagingServiceProvider extends ServiceProvider
         }
 
         return $middleware;
+    }
+
+    /** @return array<class-string, callable> */
+    private function handlers(Application $app, mixed $configured): array
+    {
+        $handlers = [];
+        foreach ($this->map($configured) as $message => $handler) {
+            if (!is_string($message) || (!class_exists($message) && !interface_exists($message))) {
+                throw new \InvalidArgumentException('Messaging handler keys must be message class names.');
+            }
+            $handlers[$message] = fn(mixed ...$arguments): mixed => ($this->callable($app, $handler))(...$arguments);
+        }
+
+        return $handlers;
     }
 
     /** @return list<JobMiddleware> */

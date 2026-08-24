@@ -52,6 +52,33 @@ final class CommandDefinition
         }
     }
 
+    /** @param array<string, mixed> $manifest */
+    public static function fromManifest(array $manifest): self
+    {
+        $definition = self::definitionFromScalars($manifest);
+
+        foreach (self::stringList($manifest['capabilities'] ?? [], 'capabilities') as $capability) {
+            $definition->capability($capability);
+        }
+        foreach (self::stringList($manifest['aliases'] ?? [], 'aliases') as $alias) {
+            $definition->alias($alias);
+        }
+
+        $hidden = $manifest['hidden'] ?? false;
+        if (!is_bool($hidden)) {
+            throw new \UnexpectedValueException('Compiled command hidden metadata must be boolean.');
+        }
+        $definition->hidden($hidden);
+
+        self::applyArguments($definition, $manifest['arguments'] ?? []);
+        self::applyOptions($definition, $manifest['options'] ?? []);
+        $definition->execution(CommandExecutionPolicy::fromManifest(
+            self::associative($manifest['execution'] ?? [], 'execution'),
+        ));
+
+        return $definition;
+    }
+
     public function alias(string $alias): self
     {
         $this->assertCommandName($alias, 'alias');
@@ -63,6 +90,12 @@ final class CommandDefinition
         }
 
         return $this;
+    }
+
+    /** @return list<string> */
+    public function aliases(): array
+    {
+        return $this->aliases;
     }
 
     public function argument(
@@ -94,6 +127,25 @@ final class CommandDefinition
         return $this;
     }
 
+    /** @return list<array{name:string,description:string,required:bool,variadic:bool}> */
+    public function arguments(): array
+    {
+        return $this->arguments;
+    }
+
+    public function assertComplete(): void
+    {
+        if ($this->name === '') {
+            throw new \LogicException('Command definition must declare a name.');
+        }
+    }
+
+    /** @return list<string> */
+    public function capabilities(): array
+    {
+        return $this->capabilities;
+    }
+
     public function capability(string $capability): self
     {
         $capability = trim($capability);
@@ -105,6 +157,26 @@ final class CommandDefinition
         }
 
         return $this;
+    }
+
+    public function commandDescription(): string
+    {
+        return $this->description;
+    }
+
+    public function commandGroup(): string
+    {
+        return $this->group;
+    }
+
+    public function commandName(): string
+    {
+        return $this->name;
+    }
+
+    public function commandRuntime(): RuntimeMode
+    {
+        return $this->runtime;
     }
 
     public function description(string $description): self
@@ -119,6 +191,11 @@ final class CommandDefinition
         $this->execution = $policy;
 
         return $this;
+    }
+
+    public function executionPolicy(): CommandExecutionPolicy
+    {
+        return $this->execution;
     }
 
     public function group(string $group): self
@@ -137,6 +214,11 @@ final class CommandDefinition
         $this->hidden = $hidden;
 
         return $this;
+    }
+
+    public function isHidden(): bool
+    {
+        return $this->hidden;
     }
 
     public function name(string $name): self
@@ -189,67 +271,6 @@ final class CommandDefinition
         return $this;
     }
 
-    public function runtime(RuntimeMode $runtime): self
-    {
-        $this->runtime = $runtime;
-
-        return $this;
-    }
-
-    /** @return list<string> */
-    public function aliases(): array
-    {
-        return $this->aliases;
-    }
-
-    /** @return list<array{name:string,description:string,required:bool,variadic:bool}> */
-    public function arguments(): array
-    {
-        return $this->arguments;
-    }
-
-    /** @return list<string> */
-    public function capabilities(): array
-    {
-        return $this->capabilities;
-    }
-
-    public function commandDescription(): string
-    {
-        return $this->description;
-    }
-
-    public function commandGroup(): string
-    {
-        return $this->group;
-    }
-
-    public function commandName(): string
-    {
-        return $this->name;
-    }
-
-    public function commandRuntime(): RuntimeMode
-    {
-        return $this->runtime;
-    }
-
-    public function executionPolicy(): CommandExecutionPolicy
-    {
-        return $this->execution;
-    }
-
-    public function isHidden(): bool
-    {
-        return $this->hidden;
-    }
-
-    /** @return array<string, array{name:string,description:string,short:?string,accepts_value:bool,multiple:bool,negatable:bool}> */
-    public function options(): array
-    {
-        return $this->options;
-    }
-
     /** @return array{name:string,description:string,short:?string,accepts_value:bool,multiple:bool,negatable:bool}|null */
     public function optionByShort(string $short): ?array
     {
@@ -262,11 +283,17 @@ final class CommandDefinition
         return null;
     }
 
-    public function assertComplete(): void
+    /** @return array<string, array{name:string,description:string,short:?string,accepts_value:bool,multiple:bool,negatable:bool}> */
+    public function options(): array
     {
-        if ($this->name === '') {
-            throw new \LogicException('Command definition must declare a name.');
-        }
+        return $this->options;
+    }
+
+    public function runtime(RuntimeMode $runtime): self
+    {
+        $this->runtime = $runtime;
+
+        return $this;
     }
 
     /** @return array<string, mixed> */
@@ -288,54 +315,6 @@ final class CommandDefinition
         ];
     }
 
-    /** @param array<string, mixed> $manifest */
-    public static function fromManifest(array $manifest): self
-    {
-        $definition = self::definitionFromScalars($manifest);
-
-        foreach (self::stringList($manifest['capabilities'] ?? [], 'capabilities') as $capability) {
-            $definition->capability($capability);
-        }
-        foreach (self::stringList($manifest['aliases'] ?? [], 'aliases') as $alias) {
-            $definition->alias($alias);
-        }
-
-        $hidden = $manifest['hidden'] ?? false;
-        if (!is_bool($hidden)) {
-            throw new \UnexpectedValueException('Compiled command hidden metadata must be boolean.');
-        }
-        $definition->hidden($hidden);
-
-        self::applyArguments($definition, $manifest['arguments'] ?? []);
-        self::applyOptions($definition, $manifest['options'] ?? []);
-        $definition->execution(CommandExecutionPolicy::fromManifest(
-            self::associative($manifest['execution'] ?? [], 'execution'),
-        ));
-
-        return $definition;
-    }
-
-    /** @param array<string, mixed> $manifest */
-    private static function definitionFromScalars(array $manifest): self
-    {
-        $name = $manifest['name'] ?? null;
-        $description = $manifest['description'] ?? '';
-        $group = $manifest['group'] ?? 'Application';
-        $runtime = $manifest['runtime'] ?? RuntimeMode::Cli->value;
-        if (!is_string($name) || !is_string($description) || !is_string($group) || !is_string($runtime)) {
-            throw new \UnexpectedValueException('Compiled command metadata contains invalid scalar fields.');
-        }
-
-        try {
-            return new self($name, $description, $group, RuntimeMode::from($runtime));
-        } catch (\ValueError $exception) {
-            throw new \UnexpectedValueException(
-                sprintf('Invalid compiled command runtime "%s".', $runtime),
-                previous: $exception,
-            );
-        }
-    }
-
     private static function applyArguments(self $definition, mixed $arguments): void
     {
         if (!is_array($arguments)) {
@@ -349,6 +328,25 @@ final class CommandDefinition
                 $metadata['description'],
                 $metadata['required'],
                 $metadata['variadic'],
+            );
+        }
+    }
+
+    private static function applyOptions(self $definition, mixed $options): void
+    {
+        if (!is_array($options)) {
+            throw new \UnexpectedValueException('Compiled command options metadata must be a list.');
+        }
+
+        foreach ($options as $option) {
+            $metadata = self::optionMetadata($option);
+            $definition->option(
+                $metadata['name'],
+                $metadata['description'],
+                $metadata['short'],
+                $metadata['accepts_value'],
+                $metadata['multiple'],
+                $metadata['negatable'],
             );
         }
     }
@@ -371,21 +369,44 @@ final class CommandDefinition
         return compact('name', 'description', 'required', 'variadic');
     }
 
-    private static function applyOptions(self $definition, mixed $options): void
+    /** @return array<string,mixed> */
+    private static function associative(mixed $value, string $field): array
     {
-        if (!is_array($options)) {
-            throw new \UnexpectedValueException('Compiled command options metadata must be a list.');
+        if (!is_array($value)) {
+            throw new \UnexpectedValueException(sprintf('Compiled command %s metadata must be an array.', $field));
         }
 
-        foreach ($options as $option) {
-            $metadata = self::optionMetadata($option);
-            $definition->option(
-                $metadata['name'],
-                $metadata['description'],
-                $metadata['short'],
-                $metadata['accepts_value'],
-                $metadata['multiple'],
-                $metadata['negatable'],
+        $normalized = [];
+        foreach ($value as $key => $item) {
+            if (!is_string($key)) {
+                throw new \UnexpectedValueException(sprintf(
+                    'Compiled command %s metadata must use string keys.',
+                    $field,
+                ));
+            }
+            $normalized[$key] = $item;
+        }
+
+        return $normalized;
+    }
+
+    /** @param array<string, mixed> $manifest */
+    private static function definitionFromScalars(array $manifest): self
+    {
+        $name = $manifest['name'] ?? null;
+        $description = $manifest['description'] ?? '';
+        $group = $manifest['group'] ?? 'Application';
+        $runtime = $manifest['runtime'] ?? RuntimeMode::Cli->value;
+        if (!is_string($name) || !is_string($description) || !is_string($group) || !is_string($runtime)) {
+            throw new \UnexpectedValueException('Compiled command metadata contains invalid scalar fields.');
+        }
+
+        try {
+            return new self($name, $description, $group, RuntimeMode::from($runtime));
+        } catch (\ValueError $exception) {
+            throw new \UnexpectedValueException(
+                sprintf('Invalid compiled command runtime "%s".', $runtime),
+                previous: $exception,
             );
         }
     }
@@ -423,34 +444,6 @@ final class CommandDefinition
         ];
     }
 
-    /** @return array<string,mixed> */
-    private static function associative(mixed $value, string $field): array
-    {
-        if (!is_array($value)) {
-            throw new \UnexpectedValueException(sprintf('Compiled command %s metadata must be an array.', $field));
-        }
-
-        $normalized = [];
-        foreach ($value as $key => $item) {
-            if (!is_string($key)) {
-                throw new \UnexpectedValueException(sprintf(
-                    'Compiled command %s metadata must use string keys.',
-                    $field,
-                ));
-            }
-            $normalized[$key] = $item;
-        }
-
-        return $normalized;
-    }
-
-    private function assertCommandName(string $name, string $field): void
-    {
-        if ($name === '' || preg_match('/^[a-z][a-z0-9:_-]*$/D', $name) !== 1) {
-            throw new \InvalidArgumentException(sprintf('Invalid command %s "%s".', $field, $name));
-        }
-    }
-
     /** @return list<string> */
     private static function stringList(mixed $value, string $field): array
     {
@@ -470,5 +463,12 @@ final class CommandDefinition
         }
 
         return $items;
+    }
+
+    private function assertCommandName(string $name, string $field): void
+    {
+        if ($name === '' || preg_match('/^[a-z][a-z0-9:_-]*$/D', $name) !== 1) {
+            throw new \InvalidArgumentException(sprintf('Invalid command %s "%s".', $field, $name));
+        }
     }
 }

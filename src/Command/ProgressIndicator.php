@@ -48,6 +48,7 @@ final readonly class ProgressIndicator
                 $this->io->writeln();
             }
             $this->io->error(sprintf('%s failed: %s', $label, $exception->getMessage()));
+
             throw $exception;
         }
 
@@ -55,6 +56,7 @@ final readonly class ProgressIndicator
             if ($render) {
                 $this->io->writeln();
             }
+
             throw new \UnexpectedValueException(sprintf(
                 'Progress iterable produced %d item(s), expected %d.',
                 $count,
@@ -90,6 +92,7 @@ final readonly class ProgressIndicator
             $result = $task();
         } catch (\Throwable $exception) {
             $this->io->error(sprintf('%s failed: %s', $label, $exception->getMessage()));
+
             throw $exception;
         }
 

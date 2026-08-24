@@ -52,11 +52,11 @@ final class ApplicationSystemCommand extends SystemCommand
     private function about(): int
     {
         $modules = [];
-        foreach ((new ModuleManager(
+        foreach (new ModuleManager(
             $this->application,
             new ModuleCatalog(),
             new ProcessRunner(),
-        ))->all() as $module) {
+        )->all() as $module) {
             $modules[$module['name']] = $module;
         }
 
@@ -112,28 +112,28 @@ final class ApplicationSystemCommand extends SystemCommand
 
     private function commandCache(): int
     {
-        $path = (new CommandCacheManager($this->application))->write();
+        $path = new CommandCacheManager($this->application)->write();
 
         return $this->emit(['path' => $path], 'Command manifest cached: ' . $path);
     }
 
     private function commandClear(): int
     {
-        $removed = (new CommandCacheManager($this->application))->clear();
+        $removed = new CommandCacheManager($this->application)->clear();
 
         return $this->emit(['removed' => $removed], $removed ? 'Command manifest cleared.' : 'Command manifest is already clear.');
     }
 
     private function configCache(): int
     {
-        $type = (new ConfigCacheManager($this->application))->write();
+        $type = new ConfigCacheManager($this->application)->write();
 
         return $this->emit(['type' => $type], 'Configuration cached using ' . $type . '.');
     }
 
     private function configClear(): int
     {
-        $removed = (new ConfigCacheManager($this->application))->clear();
+        $removed = new ConfigCacheManager($this->application)->clear();
 
         return $this->emit(['removed' => $removed], $removed ? 'Configuration cache cleared.' : 'Configuration cache is already clear.');
     }
@@ -150,7 +150,7 @@ final class ApplicationSystemCommand extends SystemCommand
             return ExitCode::FAILURE;
         }
 
-        $value = (new ConfigurationRedactor())->redact($this->application->config()->get($key), $key);
+        $value = new ConfigurationRedactor()->redact($this->application->config()->get($key), $key);
 
         return $this->emit(['key' => $key, 'value' => $value], is_scalar($value) || $value === null
             ? sprintf('%s = %s', $key, $value === null ? 'null' : var_export($value, true))
@@ -185,10 +185,10 @@ final class ApplicationSystemCommand extends SystemCommand
             throw new \RuntimeException(sprintf('Unable to create bootstrap cache directory "%s".', $cache));
         }
 
-        $path = (new EnvironmentSecretManager(
+        $path = new EnvironmentSecretManager(
             $this->application,
             new ConfigCacheManager($this->application),
-        ))->install();
+        )->install();
 
         return $this->emit(['environment' => $path], 'Application runtime structure installed.');
     }
@@ -219,10 +219,10 @@ final class ApplicationSystemCommand extends SystemCommand
     private function optimizeClear(): int
     {
         $results = [
-            'config' => (new ConfigCacheManager($this->application))->clear(),
-            'routes' => (new RouteCacheManager($this->application))->clearAll(),
-            'commands' => (new CommandCacheManager($this->application))->clear(),
-            'schedule' => (new ScheduleManager($this->application))->clear(),
+            'config' => new ConfigCacheManager($this->application)->clear(),
+            'routes' => new RouteCacheManager($this->application)->clearAll(),
+            'commands' => new CommandCacheManager($this->application)->clear(),
+            'schedule' => new ScheduleManager($this->application)->clear(),
             'containers' => $this->application->make(ContainerCacheManager::class)->clear(),
         ];
 
@@ -277,9 +277,18 @@ final class ApplicationSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
+    private function positivePort(string $value): int
+    {
+        if (preg_match('/^\d+$/D', $value) !== 1 || (int) $value < 1 || (int) $value > 65535) {
+            throw new \InvalidArgumentException('--port must be an integer between 1 and 65535.');
+        }
+
+        return (int) $value;
+    }
+
     private function ready(): int
     {
-        $report = (new ReadinessReport($this->application))->generate();
+        $report = new ReadinessReport($this->application)->generate();
         if ($this->io()->machineReadable()) {
             $this->io()->json($report);
         } else {
@@ -309,21 +318,12 @@ final class ApplicationSystemCommand extends SystemCommand
 
         $this->io()->info('Development server listening on ' . $endpoint);
 
-        return (new ProcessRunner())->run(
+        return new ProcessRunner()->run(
             [PHP_BINARY, '-S', $host . ':' . $port, '-t', $public],
             new ProcessOptions(
                 cwd: $this->application->basePath(),
                 interactive: true,
             ),
         )->exitCode;
-    }
-
-    private function positivePort(string $value): int
-    {
-        if (preg_match('/^\d+$/D', $value) !== 1 || (int) $value < 1 || (int) $value > 65535) {
-            throw new \InvalidArgumentException('--port must be an integer between 1 and 65535.');
-        }
-
-        return (int) $value;
     }
 }

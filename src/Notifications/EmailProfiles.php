@@ -108,6 +108,16 @@ final readonly class EmailProfiles
         );
     }
 
+    private function absolute(string $path): bool
+    {
+        return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1;
+    }
+
+    private function absolutePath(string $path): string
+    {
+        return $this->absolute($path) ? rtrim($path, DIRECTORY_SEPARATOR) : $this->paths->base($path);
+    }
+
     /** @param array<string, mixed> $config */
     private function applyDkim(Emailer $emailer, array $config): Emailer
     {
@@ -203,16 +213,6 @@ final readonly class EmailProfiles
                 $transport,
             )),
         };
-    }
-
-    private function absolutePath(string $path): string
-    {
-        return $this->absolute($path) ? rtrim($path, DIRECTORY_SEPARATOR) : $this->paths->base($path);
-    }
-
-    private function absolute(string $path): bool
-    {
-        return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1;
     }
 
     /** @param array<string, mixed> $config */

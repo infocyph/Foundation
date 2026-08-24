@@ -10,6 +10,17 @@ final class ProcessTree
 
     private const int SIGNAL_TERMINATE = 15;
 
+    /** @param array{pid:?int,group:bool} $tree */
+    public function alive(array $tree): bool
+    {
+        $pid = $tree['pid'];
+        if (!$tree['group'] || $pid === null || !function_exists('posix_kill')) {
+            return false;
+        }
+
+        return $this->sendPosixSignal(-$pid, 0);
+    }
+
     /**
      * @param resource $process
      * @return array{pid:?int,group:bool}
@@ -49,15 +60,38 @@ final class ProcessTree
         }
     }
 
-    /** @param array{pid:?int,group:bool} $tree */
-    public function alive(array $tree): bool
+    /**
+     * @param list<string> $command
+     * @param array<int, resource> $pipes
+     * @return resource|false
+     */
+    private function openWindowsTerminator(array $command, array &$pipes)
     {
-        $pid = $tree['pid'];
-        if (!$tree['group'] || $pid === null || !function_exists('posix_kill')) {
-            return false;
-        }
+        set_error_handler(static fn(int $severity): bool => $severity === E_WARNING);
 
-        return $this->sendPosixSignal(-$pid, 0);
+        try {
+            return proc_open(
+                $command,
+                [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+                $pipes,
+                null,
+                null,
+                ['bypass_shell' => true, 'create_process_group' => true],
+            );
+        } finally {
+            restore_error_handler();
+        }
+    }
+
+    private function prepareGroup(int $pid): bool
+    {
+        set_error_handler(static fn(int $severity): bool => $severity === E_WARNING);
+
+        try {
+            return posix_setpgid($pid, $pid) || posix_getpgid($pid) === $pid;
+        } finally {
+            restore_error_handler();
+        }
     }
 
     /**
@@ -69,11 +103,12 @@ final class ProcessTree
         return $this->alive($tree) || proc_get_status($process)['running'];
     }
 
-    private function prepareGroup(int $pid): bool
+    private function sendPosixSignal(int $pid, int $signal): bool
     {
         set_error_handler(static fn(int $severity): bool => $severity === E_WARNING);
+
         try {
-            return posix_setpgid($pid, $pid) || posix_getpgid($pid) === $pid;
+            return posix_kill($pid, $signal);
         } finally {
             restore_error_handler();
         }
@@ -98,16 +133,6 @@ final class ProcessTree
         proc_terminate($process, $signal);
     }
 
-    private function sendPosixSignal(int $pid, int $signal): bool
-    {
-        set_error_handler(static fn(int $severity): bool => $severity === E_WARNING);
-        try {
-            return posix_kill($pid, $signal);
-        } finally {
-            restore_error_handler();
-        }
-    }
-
     private function windowsTerminate(int $pid, bool $force): bool
     {
         $command = ['taskkill', '/PID', (string) $pid, '/T'];
@@ -127,27 +152,5 @@ final class ProcessTree
         }
 
         return proc_close($process) === 0;
-    }
-
-    /**
-     * @param list<string> $command
-     * @param array<int, resource> $pipes
-     * @return resource|false
-     */
-    private function openWindowsTerminator(array $command, array &$pipes)
-    {
-        set_error_handler(static fn(int $severity): bool => $severity === E_WARNING);
-        try {
-            return proc_open(
-                $command,
-                [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
-                $pipes,
-                null,
-                null,
-                ['bypass_shell' => true, 'create_process_group' => true],
-            );
-        } finally {
-            restore_error_handler();
-        }
     }
 }

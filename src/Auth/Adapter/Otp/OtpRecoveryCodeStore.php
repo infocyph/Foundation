@@ -14,6 +14,7 @@ use RuntimeException;
 final readonly class OtpRecoveryCodeStore implements RecoveryCodeStoreInterface
 {
     private const int MAX_CAS_ATTEMPTS = 5;
+
     private const string METADATA_KEY = 'otp_recovery';
 
     public function __construct(private MfaFactorCompareAndSwapStoreInterface $factors) {}
@@ -98,6 +99,7 @@ final readonly class OtpRecoveryCodeStore implements RecoveryCodeStoreInterface
                 if ($this->factors->compareAndSwap(null, $created)) {
                     return ['total' => $total, 'remaining' => $total, 'lastUsedAt' => null];
                 }
+
                 continue;
             }
 

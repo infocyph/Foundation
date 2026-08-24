@@ -29,7 +29,7 @@ final readonly class CompletionGenerator
         $cases = [];
         foreach ($options as $command => $commandOptions) {
             $cases[] = sprintf(
-                "        %s) opts=%s ;;",
+                '        %s) opts=%s ;;',
                 escapeshellarg($command),
                 escapeshellarg(implode(' ', $commandOptions)),
             );
@@ -61,6 +61,19 @@ BASH,
             $function,
             escapeshellarg($executable),
         );
+    }
+
+    /** @return list<string> */
+    private function commandNames(): array
+    {
+        $names = [];
+        foreach ($this->registry->visible() as $descriptor) {
+            $names[] = $descriptor->definition->commandName();
+            array_push($names, ...$descriptor->definition->aliases());
+        }
+        sort($names);
+
+        return array_values(array_unique($names));
     }
 
     private function fish(string $executable): string
@@ -97,13 +110,38 @@ BASH,
         return implode(PHP_EOL, $lines) . PHP_EOL;
     }
 
+    /** @return array<string, list<string>> */
+    private function optionMap(): array
+    {
+        $map = [];
+        foreach ($this->registry->visible() as $descriptor) {
+            $definition = $descriptor->definition;
+            $options = ['--help', '-h', '--quiet', '-q', '--no-interaction', '-n', '--json', '--env='];
+            foreach ($definition->options() as $option) {
+                $options[] = '--' . $option['name'] . ($option['accepts_value'] ? '=' : '');
+                if ($option['negatable']) {
+                    $options[] = '--no-' . $option['name'];
+                }
+                if ($option['short'] !== null) {
+                    $options[] = '-' . $option['short'];
+                }
+            }
+            $map[$definition->commandName()] = array_values(array_unique($options));
+            foreach ($definition->aliases() as $alias) {
+                $map[$alias] = $map[$definition->commandName()];
+            }
+        }
+
+        return $map;
+    }
+
     private function zsh(string $executable): string
     {
         $commands = [];
         foreach ($this->registry->visible() as $descriptor) {
             $definition = $descriptor->definition;
             $commands[] = sprintf(
-                "%s:%s",
+                '%s:%s',
                 $this->zshQuote($definition->commandName()),
                 $this->zshQuote($definition->commandDescription()),
             );
@@ -141,44 +179,6 @@ ZSH,
         );
     }
 
-    /** @return list<string> */
-    private function commandNames(): array
-    {
-        $names = [];
-        foreach ($this->registry->visible() as $descriptor) {
-            $names[] = $descriptor->definition->commandName();
-            array_push($names, ...$descriptor->definition->aliases());
-        }
-        sort($names);
-
-        return array_values(array_unique($names));
-    }
-
-    /** @return array<string, list<string>> */
-    private function optionMap(): array
-    {
-        $map = [];
-        foreach ($this->registry->visible() as $descriptor) {
-            $definition = $descriptor->definition;
-            $options = ['--help', '-h', '--quiet', '-q', '--no-interaction', '-n', '--json', '--env='];
-            foreach ($definition->options() as $option) {
-                $options[] = '--' . $option['name'] . ($option['accepts_value'] ? '=' : '');
-                if ($option['negatable']) {
-                    $options[] = '--no-' . $option['name'];
-                }
-                if ($option['short'] !== null) {
-                    $options[] = '-' . $option['short'];
-                }
-            }
-            $map[$definition->commandName()] = array_values(array_unique($options));
-            foreach ($definition->aliases() as $alias) {
-                $map[$alias] = $map[$definition->commandName()];
-            }
-        }
-
-        return $map;
-    }
-
     private function zshCases(): string
     {
         $cases = [];
@@ -188,7 +188,7 @@ ZSH,
                 $options,
             );
             $cases[] = sprintf(
-                "        %s) _arguments %s ;;",
+                '        %s) _arguments %s ;;',
                 $this->zshQuote($command),
                 implode(' ', $specs),
             );

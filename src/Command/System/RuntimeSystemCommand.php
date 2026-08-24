@@ -89,6 +89,68 @@ final class RuntimeSystemCommand extends SystemCommand
         );
     }
 
+    private function nullablePositiveIntOption(string $name): ?int
+    {
+        $value = $this->option($name);
+        if ($value === null) {
+            return null;
+        }
+
+        return $this->positiveInt($name, $value);
+    }
+
+    private function positiveFloatOption(string $name, float $default): float
+    {
+        $value = $this->option($name);
+        if ($value === null) {
+            return $default;
+        }
+        if (!is_numeric($value) || !is_finite((float) $value) || (float) $value <= 0.0) {
+            throw new \InvalidArgumentException(sprintf('--%s must be a positive finite number.', $name));
+        }
+
+        return (float) $value;
+    }
+
+    private function positiveInt(string $name, string $value, ?int $maximum = null): int
+    {
+        if (preg_match('/^\d+$/D', $value) !== 1 || (int) $value < 1) {
+            throw new \InvalidArgumentException(sprintf('--%s must be a positive integer.', $name));
+        }
+        $resolved = (int) $value;
+        if ($maximum !== null && $resolved > $maximum) {
+            throw new \InvalidArgumentException(sprintf('--%s must not exceed %d.', $name, $maximum));
+        }
+
+        return $resolved;
+    }
+
+    private function positiveIntOption(string $name, int $default, ?int $maximum = null): int
+    {
+        $value = $this->option($name);
+
+        return $value === null ? $default : $this->positiveInt($name, $value, $maximum);
+    }
+
+    /** @param list<array<string,mixed>> $links */
+    private function renderStorage(array $links, string $state): int
+    {
+        if ($this->io()->machineReadable()) {
+            $this->io()->json($links);
+        } else {
+            $key = strtolower($state);
+            $this->io()->table(
+                ['Link', 'Target', $state],
+                array_map(
+                    static fn(array $link): array => [$link['link'], $link['target'], $link[$key] ?? false],
+                    $links,
+                ),
+            );
+        }
+
+        return ExitCode::SUCCESS;
+    }
+
     private function routeCache(): int
     {
         $manager = new RouteCacheManager($this->application);
@@ -104,7 +166,7 @@ final class RuntimeSystemCommand extends SystemCommand
 
     private function routeClear(): int
     {
-        $removed = (new RouteCacheManager($this->application))->clearAll();
+        $removed = new RouteCacheManager($this->application)->clearAll();
 
         return $this->emit(
             ['removed' => $removed],
@@ -114,7 +176,7 @@ final class RuntimeSystemCommand extends SystemCommand
 
     private function routeList(): int
     {
-        $routes = (new RouteCacheManager($this->application))->routes($this->option('routes'))->all();
+        $routes = new RouteCacheManager($this->application)->routes($this->option('routes'))->all();
         $data = array_map(
             static fn($route): array => [
                 'method' => $route->getMethod(),
@@ -151,14 +213,14 @@ final class RuntimeSystemCommand extends SystemCommand
 
     private function scheduleCache(): int
     {
-        $path = (new ScheduleManager($this->application))->write();
+        $path = new ScheduleManager($this->application)->write();
 
         return $this->emit(['path' => $path], 'Schedule manifest cached: ' . $path);
     }
 
     private function scheduleClear(): int
     {
-        $removed = (new ScheduleManager($this->application))->clear();
+        $removed = new ScheduleManager($this->application)->clear();
 
         return $this->emit(
             ['removed' => $removed],
@@ -168,7 +230,7 @@ final class RuntimeSystemCommand extends SystemCommand
 
     private function scheduleList(): int
     {
-        $entries = (new ScheduleManager($this->application))->entries();
+        $entries = new ScheduleManager($this->application)->entries();
         $history = new ExecutionHistory($this->application);
         $data = array_map(static function ($entry) use ($history): array {
             $manifest = $entry->toManifest();
@@ -205,7 +267,7 @@ final class RuntimeSystemCommand extends SystemCommand
 
     private function scheduleRun(): int
     {
-        $runs = (new ScheduleManager($this->application))->runDue();
+        $runs = new ScheduleManager($this->application)->runDue();
         $data = array_map($this->scheduleRunData(...), $runs);
         if ($this->io()->machineReadable()) {
             $this->io()->json($data);
@@ -229,20 +291,6 @@ final class RuntimeSystemCommand extends SystemCommand
             : ExitCode::SUCCESS;
     }
 
-    private function scheduleTest(): int
-    {
-        $name = $this->argument(0)
-            ?? throw new \LogicException('Validated scheduled entry name is unavailable.');
-        $run = (new ScheduleManager($this->application))->runNamed($name);
-        $data = $this->scheduleRunData($run);
-        $message = $run->locked
-            ? sprintf('Scheduled entry "%s" was not run because its ownership lock is unavailable.', $name)
-            : sprintf('Scheduled entry "%s" completed with exit code %d.', $name, $run->exitCode);
-        $this->emit($data, $message);
-
-        return $run->successful() ? ExitCode::SUCCESS : ExitCode::FAILURE;
-    }
-
     /** @return array{command:string,identity:string,exit_code:int,locked:bool,successful:bool} */
     private function scheduleRunData($run): array
     {
@@ -255,12 +303,26 @@ final class RuntimeSystemCommand extends SystemCommand
         ];
     }
 
+    private function scheduleTest(): int
+    {
+        $name = $this->argument(0)
+            ?? throw new \LogicException('Validated scheduled entry name is unavailable.');
+        $run = new ScheduleManager($this->application)->runNamed($name);
+        $data = $this->scheduleRunData($run);
+        $message = $run->locked
+            ? sprintf('Scheduled entry "%s" was not run because its ownership lock is unavailable.', $name)
+            : sprintf('Scheduled entry "%s" completed with exit code %d.', $name, $run->exitCode);
+        $this->emit($data, $message);
+
+        return $run->successful() ? ExitCode::SUCCESS : ExitCode::FAILURE;
+    }
+
     private function scheduleWork(): int
     {
         $sleep = $this->positiveIntOption('sleep', 60);
         $iterations = $this->nullablePositiveIntOption('max-iterations');
 
-        return (new ScheduleManager($this->application))->work(
+        return new ScheduleManager($this->application)->work(
             sleepSeconds: $sleep,
             maxIterations: $iterations,
         );
@@ -311,28 +373,9 @@ final class RuntimeSystemCommand extends SystemCommand
         return $this->renderStorage($links, 'Removed');
     }
 
-    /** @param list<array<string,mixed>> $links */
-    private function renderStorage(array $links, string $state): int
-    {
-        if ($this->io()->machineReadable()) {
-            $this->io()->json($links);
-        } else {
-            $key = strtolower($state);
-            $this->io()->table(
-                ['Link', 'Target', $state],
-                array_map(
-                    static fn(array $link): array => [$link['link'], $link['target'], $link[$key] ?? false],
-                    $links,
-                ),
-            );
-        }
-
-        return ExitCode::SUCCESS;
-    }
-
     private function workerList(): int
     {
-        $workers = (new WorkerManager($this->application))->all();
+        $workers = new WorkerManager($this->application)->all();
         if ($this->io()->machineReadable()) {
             $this->io()->json($workers);
 
@@ -363,7 +406,7 @@ final class RuntimeSystemCommand extends SystemCommand
     {
         $name = $this->argument(0)
             ?? throw new \LogicException('Validated worker name is unavailable.');
-        $exit = (new WorkerManager($this->application))->run($name);
+        $exit = new WorkerManager($this->application)->run($name);
         if ($exit === null) {
             $this->io()->note(sprintf('Worker "%s" is already owned by another singleton process.', $name));
 
@@ -371,48 +414,5 @@ final class RuntimeSystemCommand extends SystemCommand
         }
 
         return $exit;
-    }
-
-    private function nullablePositiveIntOption(string $name): ?int
-    {
-        $value = $this->option($name);
-        if ($value === null) {
-            return null;
-        }
-
-        return $this->positiveInt($name, $value);
-    }
-
-    private function positiveFloatOption(string $name, float $default): float
-    {
-        $value = $this->option($name);
-        if ($value === null) {
-            return $default;
-        }
-        if (!is_numeric($value) || !is_finite((float) $value) || (float) $value <= 0.0) {
-            throw new \InvalidArgumentException(sprintf('--%s must be a positive finite number.', $name));
-        }
-
-        return (float) $value;
-    }
-
-    private function positiveInt(string $name, string $value, ?int $maximum = null): int
-    {
-        if (preg_match('/^\d+$/D', $value) !== 1 || (int) $value < 1) {
-            throw new \InvalidArgumentException(sprintf('--%s must be a positive integer.', $name));
-        }
-        $resolved = (int) $value;
-        if ($maximum !== null && $resolved > $maximum) {
-            throw new \InvalidArgumentException(sprintf('--%s must not exceed %d.', $name, $maximum));
-        }
-
-        return $resolved;
-    }
-
-    private function positiveIntOption(string $name, int $default, ?int $maximum = null): int
-    {
-        $value = $this->option($name);
-
-        return $value === null ? $default : $this->positiveInt($name, $value, $maximum);
     }
 }

@@ -38,13 +38,13 @@ final readonly class ReadinessReport
             ],
         ];
 
-        $validation = (new ConfigValidator($this->application->config()))->validateForProduction();
+        $validation = new ConfigValidator($this->application->config())->validateForProduction();
         $messages = $validation->messages();
         $messages = [
             ...$messages,
             ...array_map(
                 static fn($issue): string => $issue->message,
-                (new ProductionSecurityValidator($this->application->config()))->validate(),
+                new ProductionSecurityValidator($this->application->config())->validate(),
             ),
         ];
         if ($this->application->config()->get('auth.drivers.mfa', 'simple') === 'otp') {
@@ -52,7 +52,7 @@ final readonly class ReadinessReport
                 ...$messages,
                 ...array_map(
                     static fn($issue): string => $issue->message,
-                    (new OtpConfigValidator($this->application->config()))->validate(true),
+                    new OtpConfigValidator($this->application->config())->validate(true),
                 ),
             ];
         }
@@ -88,20 +88,15 @@ final readonly class ReadinessReport
         ];
     }
 
-    /** @return array<string,array{package:string,constraint:string}> */
-    private function requiredPackages(): array
+    /** @param array<string,array{package:string,constraint:string}> $required */
+    private function applicationPackages(array &$required, ModuleCatalog $catalog): void
     {
-        $config = $this->application->config();
-        $catalog = new ModuleCatalog();
-        $required = [];
-
-        $this->authPackages($required, $catalog, $config);
-        $this->sessionPackages($required, $catalog, $config);
-        $this->databasePackages($required, $catalog, $config);
-        $this->operationsPackages($required, $catalog, $config);
-        $this->applicationPackages($required, $catalog);
-
-        return $required;
+        if ($this->messagingConfigured()) {
+            $this->selectPackage($required, $catalog, 'messaging');
+        }
+        if ($this->validationConfigured()) {
+            $this->selectPackage($required, $catalog, 'validation');
+        }
     }
 
     /** @param array<string,array{package:string,constraint:string}> $required */
@@ -132,20 +127,6 @@ final readonly class ReadinessReport
     }
 
     /** @param array<string,array{package:string,constraint:string}> $required */
-    private function sessionPackages(array &$required, ModuleCatalog $catalog, ConfigRepository $config): void
-    {
-        $driver = $config->get('session.driver', 'file');
-        if ($driver === 'cache') {
-            $this->selectPackage($required, $catalog, 'cache');
-        } elseif ($driver === 'database') {
-            $this->selectPackage($required, $catalog, 'database');
-        }
-        if ($config->get('session.lock.enabled', false) === true) {
-            $this->selectPackage($required, $catalog, 'cache');
-        }
-    }
-
-    /** @param array<string,array{package:string,constraint:string}> $required */
     private function databasePackages(array &$required, ModuleCatalog $catalog, ConfigRepository $config): void
     {
         $migrationLock = $config->get('database.migrations.lock_store');
@@ -159,6 +140,19 @@ final readonly class ReadinessReport
         }
     }
 
+    private function messagingConfigured(): bool
+    {
+        $config = $this->application->config();
+        foreach (['routes', 'handlers', 'listeners', 'scheduled_messages', 'workers'] as $key) {
+            $value = $config->get('messaging.' . $key, []);
+            if (is_array($value) && $value !== []) {
+                return true;
+            }
+        }
+
+        return $config->get('messaging.forward_auth_events', false) === true;
+    }
+
     /** @param array<string,array{package:string,constraint:string}> $required */
     private function operationsPackages(array &$required, ModuleCatalog $catalog, ConfigRepository $config): void
     {
@@ -169,15 +163,20 @@ final readonly class ReadinessReport
         }
     }
 
-    /** @param array<string,array{package:string,constraint:string}> $required */
-    private function applicationPackages(array &$required, ModuleCatalog $catalog): void
+    /** @return array<string,array{package:string,constraint:string}> */
+    private function requiredPackages(): array
     {
-        if ($this->messagingConfigured()) {
-            $this->selectPackage($required, $catalog, 'messaging');
-        }
-        if ($this->validationConfigured()) {
-            $this->selectPackage($required, $catalog, 'validation');
-        }
+        $config = $this->application->config();
+        $catalog = new ModuleCatalog();
+        $required = [];
+
+        $this->authPackages($required, $catalog, $config);
+        $this->sessionPackages($required, $catalog, $config);
+        $this->databasePackages($required, $catalog, $config);
+        $this->operationsPackages($required, $catalog, $config);
+        $this->applicationPackages($required, $catalog);
+
+        return $required;
     }
 
     /** @param array<string,array{package:string,constraint:string}> $requirements */
@@ -217,17 +216,18 @@ final readonly class ReadinessReport
         }
     }
 
-    private function messagingConfigured(): bool
+    /** @param array<string,array{package:string,constraint:string}> $required */
+    private function sessionPackages(array &$required, ModuleCatalog $catalog, ConfigRepository $config): void
     {
-        $config = $this->application->config();
-        foreach (['routes', 'handlers', 'listeners', 'scheduled_messages', 'workers'] as $key) {
-            $value = $config->get('messaging.' . $key, []);
-            if (is_array($value) && $value !== []) {
-                return true;
-            }
+        $driver = $config->get('session.driver', 'file');
+        if ($driver === 'cache') {
+            $this->selectPackage($required, $catalog, 'cache');
+        } elseif ($driver === 'database') {
+            $this->selectPackage($required, $catalog, 'database');
         }
-
-        return $config->get('messaging.forward_auth_events', false) === true;
+        if ($config->get('session.lock.enabled', false) === true) {
+            $this->selectPackage($required, $catalog, 'cache');
+        }
     }
 
     private function validationConfigured(): bool

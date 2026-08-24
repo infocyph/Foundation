@@ -98,71 +98,28 @@ final readonly class ProcessCapture
         );
     }
 
-    private function requestedTermination(
-        ProcessOptions $options,
-        int $startedAt,
-        int $lastActivityAt,
-        ?int $interruptedSignal,
-    ): ?ProcessTerminationReason {
-        if ($interruptedSignal !== null) {
-            return ProcessTerminationReason::Interrupted;
-        }
-        if ($options->cancelled !== null && ($options->cancelled)()) {
-            return ProcessTerminationReason::Cancelled;
-        }
-        if ($options->heartbeat !== null && !($options->heartbeat)()) {
-            return ProcessTerminationReason::HeartbeatLost;
+    private function allowedChunk(string $chunk, int $observedBytes, ?int $limit): string
+    {
+        if ($limit === null) {
+            return $chunk;
         }
 
-        $now = ProcessOutcome::clock();
-        if ($this->deadlineReached($startedAt, $options->timeoutSeconds, $now)) {
-            return ProcessTerminationReason::TimedOut;
-        }
-        if ($this->deadlineReached($lastActivityAt, $options->idleTimeoutSeconds, $now)) {
-            return ProcessTerminationReason::IdleTimedOut;
+        $remaining = $limit - $observedBytes;
+        if ($remaining <= 0) {
+            return '';
         }
 
-        return null;
+        return strlen($chunk) <= $remaining ? $chunk : substr($chunk, 0, $remaining);
     }
 
-    /**
-     * @param array<int, resource> $pipes
-     */
-    private function poll(
-        array $pipes,
-        ProcessOptions $options,
-        string &$stdout,
-        string &$stderr,
-        int &$observedBytes,
-        int &$lastActivityAt,
-        ?int $interruptedSignal,
-    ): ?ProcessTerminationReason {
-        $read = $this->readablePipes($pipes);
-        if ($read === []) {
-            usleep(10_000);
-
-            return null;
+    /** @param array<int, resource> $pipes */
+    private function closePipes(array $pipes): void
+    {
+        foreach ($pipes as $pipe) {
+            if (is_resource($pipe)) {
+                fclose($pipe);
+            }
         }
-
-        $ready = $this->select($read);
-        if ($ready === false) {
-            return $interruptedSignal !== null
-                ? ProcessTerminationReason::Interrupted
-                : ProcessTerminationReason::IoError;
-        }
-        if ($ready === 0) {
-            return null;
-        }
-
-        return $this->consumeReady(
-            $read,
-            $pipes,
-            $options,
-            $stdout,
-            $stderr,
-            $observedBytes,
-            $lastActivityAt,
-        );
     }
 
     /**
@@ -198,62 +155,6 @@ final readonly class ProcessCapture
         }
 
         return null;
-    }
-
-    /** @param array<int, resource> $pipes */
-    private function preparePipes(array &$pipes, ProcessOptions $options): void
-    {
-        if (isset($pipes[0]) && is_resource($pipes[0])) {
-            if ($options->input !== null && $options->input !== '') {
-                $this->writeInput($pipes[0], $options->input);
-            }
-            fclose($pipes[0]);
-            unset($pipes[0]);
-        }
-
-        foreach ([1, 2] as $index) {
-            if (isset($pipes[$index]) && is_resource($pipes[$index])) {
-                stream_set_blocking($pipes[$index], false);
-            }
-        }
-    }
-
-    /** @param list<resource> $read */
-    private function select(array &$read): int|false
-    {
-        $write = [];
-        $except = [];
-
-        set_error_handler(static fn(int $severity): bool => $severity === E_WARNING);
-        try {
-            return stream_select($read, $write, $except, 0, 20_000);
-        } finally {
-            restore_error_handler();
-        }
-    }
-
-    private function allowedChunk(string $chunk, int $observedBytes, ?int $limit): string
-    {
-        if ($limit === null) {
-            return $chunk;
-        }
-
-        $remaining = $limit - $observedBytes;
-        if ($remaining <= 0) {
-            return '';
-        }
-
-        return strlen($chunk) <= $remaining ? $chunk : substr($chunk, 0, $remaining);
-    }
-
-    /** @param array<int, resource> $pipes */
-    private function closePipes(array $pipes): void
-    {
-        foreach ($pipes as $pipe) {
-            if (is_resource($pipe)) {
-                fclose($pipe);
-            }
-        }
     }
 
     private function deadlineReached(int $startedAt, ?float $seconds, int $now): bool
@@ -335,6 +236,64 @@ final readonly class ProcessCapture
 
     /**
      * @param array<int, resource> $pipes
+     */
+    private function poll(
+        array $pipes,
+        ProcessOptions $options,
+        string &$stdout,
+        string &$stderr,
+        int &$observedBytes,
+        int &$lastActivityAt,
+        ?int $interruptedSignal,
+    ): ?ProcessTerminationReason {
+        $read = $this->readablePipes($pipes);
+        if ($read === []) {
+            usleep(10_000);
+
+            return null;
+        }
+
+        $ready = $this->select($read);
+        if ($ready === false) {
+            return $interruptedSignal !== null
+                ? ProcessTerminationReason::Interrupted
+                : ProcessTerminationReason::IoError;
+        }
+        if ($ready === 0) {
+            return null;
+        }
+
+        return $this->consumeReady(
+            $read,
+            $pipes,
+            $options,
+            $stdout,
+            $stderr,
+            $observedBytes,
+            $lastActivityAt,
+        );
+    }
+
+    /** @param array<int, resource> $pipes */
+    private function preparePipes(array &$pipes, ProcessOptions $options): void
+    {
+        if (isset($pipes[0]) && is_resource($pipes[0])) {
+            if ($options->input !== null && $options->input !== '') {
+                $this->writeInput($pipes[0], $options->input);
+            }
+            fclose($pipes[0]);
+            unset($pipes[0]);
+        }
+
+        foreach ([1, 2] as $index) {
+            if (isset($pipes[$index]) && is_resource($pipes[$index])) {
+                stream_set_blocking($pipes[$index], false);
+            }
+        }
+    }
+
+    /**
+     * @param array<int, resource> $pipes
      * @return list<resource>
      */
     private function readablePipes(array $pipes): array
@@ -348,6 +307,48 @@ final readonly class ProcessCapture
         }
 
         return $read;
+    }
+
+    private function requestedTermination(
+        ProcessOptions $options,
+        int $startedAt,
+        int $lastActivityAt,
+        ?int $interruptedSignal,
+    ): ?ProcessTerminationReason {
+        if ($interruptedSignal !== null) {
+            return ProcessTerminationReason::Interrupted;
+        }
+        if ($options->cancelled !== null && ($options->cancelled)()) {
+            return ProcessTerminationReason::Cancelled;
+        }
+        if ($options->heartbeat !== null && !($options->heartbeat)()) {
+            return ProcessTerminationReason::HeartbeatLost;
+        }
+
+        $now = ProcessOutcome::clock();
+        if ($this->deadlineReached($startedAt, $options->timeoutSeconds, $now)) {
+            return ProcessTerminationReason::TimedOut;
+        }
+        if ($this->deadlineReached($lastActivityAt, $options->idleTimeoutSeconds, $now)) {
+            return ProcessTerminationReason::IdleTimedOut;
+        }
+
+        return null;
+    }
+
+    /** @param list<resource> $read */
+    private function select(array &$read): int|false
+    {
+        $write = [];
+        $except = [];
+
+        set_error_handler(static fn(int $severity): bool => $severity === E_WARNING);
+
+        try {
+            return stream_select($read, $write, $except, 0, 20_000);
+        } finally {
+            restore_error_handler();
+        }
     }
 
     /** @param resource $stdin */

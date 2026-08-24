@@ -9,13 +9,6 @@ use Composer\InstalledVersions;
 final readonly class CliPreflight
 {
     /** @var array<string, string> */
-    private const array SPECIAL_COMMANDS = [
-        'list' => 'List available commands.',
-        'help' => 'Show help for a command.',
-        'completion' => 'Generate Bash, Zsh, or Fish completion output.',
-    ];
-
-    /** @var array<string, string> */
     private const array GLOBAL_OPTIONS = [
         '-h, --help' => 'Show command help.',
         '-V, --version' => 'Show the Foundation/application CLI version.',
@@ -26,6 +19,13 @@ final readonly class CliPreflight
         '-n, --no-interaction' => 'Disable interactive prompts.',
         '--json' => 'Emit machine-readable command output where supported.',
         '--env=ENV' => 'Override the application environment for this invocation.',
+    ];
+
+    /** @var array<string, string> */
+    private const array SPECIAL_COMMANDS = [
+        'list' => 'List available commands.',
+        'help' => 'Show help for a command.',
+        'completion' => 'Generate Bash, Zsh, or Fish completion output.',
     ];
 
     public function __construct(
@@ -87,6 +87,17 @@ final readonly class CliPreflight
         }
 
         return ExitCode::SUCCESS;
+    }
+
+    private function globalOptions(CommandIO $io, bool $leadingBlank = true): void
+    {
+        if ($leadingBlank) {
+            $io->writeln();
+        }
+        $io->writeln('Global options:');
+        foreach (self::GLOBAL_OPTIONS as $signature => $description) {
+            $io->writeln(sprintf('  %-24s %s', $signature, $description));
+        }
     }
 
     private function help(ParsedInput $input, CommandIO $io): int
@@ -196,17 +207,6 @@ final readonly class CliPreflight
         }
 
         return ExitCode::SUCCESS;
-    }
-
-    private function globalOptions(CommandIO $io, bool $leadingBlank = true): void
-    {
-        if ($leadingBlank) {
-            $io->writeln();
-        }
-        $io->writeln('Global options:');
-        foreach (self::GLOBAL_OPTIONS as $signature => $description) {
-            $io->writeln(sprintf('  %-24s %s', $signature, $description));
-        }
     }
 
     private function specialHelp(string $name, CommandIO $io): int

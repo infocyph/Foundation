@@ -64,110 +64,6 @@ final readonly class RuntimeControl
             : '';
     }
 
-    /** @param callable(array<string,mixed>):array<string,mixed> $mutation */
-    private function mutate(callable $mutation): void
-    {
-        if ($this->driver() === 'cache') {
-            if (!class_exists(\Infocyph\CacheLayer\Cache\Cache::class)) {
-                throw new \LogicException(
-                    'Cache-backed runtime control requires the cache module; run "php infbyte module:install cache".',
-                );
-            }
-
-            $lock = $this->application->make(CacheLayerFactory::class)->lock();
-            $handle = $lock->acquire(
-                'foundation:runtime-control:' . substr(hash('sha256', $this->cacheKey()), 0, 48),
-                5.0,
-                15.0,
-            );
-            if ($handle === null) {
-                throw new \RuntimeException('Unable to acquire the runtime-control update lock.');
-            }
-
-            try {
-                $this->write($mutation($this->read()));
-            } finally {
-                $lock->release($handle);
-            }
-
-            return;
-        }
-
-        $path = $this->path();
-        $this->ensureDirectory($path);
-        $lockPath = $path . '.lock';
-        if (is_link($lockPath)) {
-            throw new \RuntimeException(sprintf('Runtime-control lock path "%s" must not be a symbolic link.', $lockPath));
-        }
-        $stream = fopen($lockPath, 'c+b');
-        if (!is_resource($stream)) {
-            throw new \RuntimeException(sprintf('Unable to open runtime-control lock "%s".', $lockPath));
-        }
-
-        try {
-            if (!flock($stream, LOCK_EX)) {
-                throw new \RuntimeException(sprintf('Unable to lock runtime-control state "%s".', $path));
-            }
-            $this->write($mutation($this->read()));
-        } finally {
-            flock($stream, LOCK_UN);
-            fclose($stream);
-        }
-    }
-
-    /** @return array<string,mixed> */
-    private function read(): array
-    {
-        if ($this->driver() === 'cache') {
-            return ValueNormalizer::associativeArray($this->cache()->get($this->cacheKey(), []));
-        }
-
-        $path = $this->path();
-        if (!is_file($path)) {
-            return [];
-        }
-        $contents = file_get_contents($path);
-        if (!is_string($contents) || $contents === '') {
-            return [];
-        }
-        try {
-            $decoded = json_decode($contents, true, 32, JSON_THROW_ON_ERROR);
-        } catch (\JsonException $exception) {
-            throw new \RuntimeException('Runtime-control state is corrupt.', 0, $exception);
-        }
-
-        return ValueNormalizer::associativeArray($decoded);
-    }
-
-    /** @param array<string,mixed> $state */
-    private function write(array $state): void
-    {
-        if ($this->driver() === 'cache') {
-            if (!$this->cache()->set($this->cacheKey(), $state)) {
-                throw new \RuntimeException('Cache backend rejected runtime-control state.');
-            }
-
-            return;
-        }
-
-        $path = $this->path();
-        $this->ensureDirectory($path);
-        $temporary = $path . '.' . bin2hex(random_bytes(6)) . '.tmp';
-        $payload = json_encode($state, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
-        if (file_put_contents($temporary, $payload, LOCK_EX) === false) {
-            throw new \RuntimeException(sprintf('Unable to stage runtime-control state "%s".', $temporary));
-        }
-        try {
-            if (!rename($temporary, $path)) {
-                throw new \RuntimeException(sprintf('Unable to activate runtime-control state "%s".', $path));
-            }
-        } finally {
-            if (is_file($temporary)) {
-                unlink($temporary);
-            }
-        }
-    }
-
     private function cache(): \Infocyph\CacheLayer\Cache\CacheInterface
     {
         if (!class_exists(\Infocyph\CacheLayer\Cache\Cache::class)) {
@@ -230,6 +126,57 @@ final readonly class RuntimeControl
         return $scope . ':' . $name;
     }
 
+    /** @param callable(array<string,mixed>):array<string,mixed> $mutation */
+    private function mutate(callable $mutation): void
+    {
+        if ($this->driver() === 'cache') {
+            if (!class_exists(\Infocyph\CacheLayer\Cache\Cache::class)) {
+                throw new \LogicException(
+                    'Cache-backed runtime control requires the cache module; run "php infbyte module:install cache".',
+                );
+            }
+
+            $lock = $this->application->make(CacheLayerFactory::class)->lock();
+            $handle = $lock->acquire(
+                'foundation:runtime-control:' . substr(hash('sha256', $this->cacheKey()), 0, 48),
+                5.0,
+                15.0,
+            );
+            if ($handle === null) {
+                throw new \RuntimeException('Unable to acquire the runtime-control update lock.');
+            }
+
+            try {
+                $this->write($mutation($this->read()));
+            } finally {
+                $lock->release($handle);
+            }
+
+            return;
+        }
+
+        $path = $this->path();
+        $this->ensureDirectory($path);
+        $lockPath = $path . '.lock';
+        if (is_link($lockPath)) {
+            throw new \RuntimeException(sprintf('Runtime-control lock path "%s" must not be a symbolic link.', $lockPath));
+        }
+        $stream = fopen($lockPath, 'c+b');
+        if (!is_resource($stream)) {
+            throw new \RuntimeException(sprintf('Unable to open runtime-control lock "%s".', $lockPath));
+        }
+
+        try {
+            if (!flock($stream, LOCK_EX)) {
+                throw new \RuntimeException(sprintf('Unable to lock runtime-control state "%s".', $path));
+            }
+            $this->write($mutation($this->read()));
+        } finally {
+            flock($stream, LOCK_UN);
+            fclose($stream);
+        }
+    }
+
     private function path(): string
     {
         $configured = $this->application->config()->get(
@@ -243,5 +190,60 @@ final readonly class RuntimeControl
         return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $configured) === 1
             ? $configured
             : $this->application->basePath(trim($configured, DIRECTORY_SEPARATOR));
+    }
+
+    /** @return array<string,mixed> */
+    private function read(): array
+    {
+        if ($this->driver() === 'cache') {
+            return ValueNormalizer::associativeArray($this->cache()->get($this->cacheKey(), []));
+        }
+
+        $path = $this->path();
+        if (!is_file($path)) {
+            return [];
+        }
+        $contents = file_get_contents($path);
+        if (!is_string($contents) || $contents === '') {
+            return [];
+        }
+
+        try {
+            $decoded = json_decode($contents, true, 32, JSON_THROW_ON_ERROR);
+        } catch (\JsonException $exception) {
+            throw new \RuntimeException('Runtime-control state is corrupt.', 0, $exception);
+        }
+
+        return ValueNormalizer::associativeArray($decoded);
+    }
+
+    /** @param array<string,mixed> $state */
+    private function write(array $state): void
+    {
+        if ($this->driver() === 'cache') {
+            if (!$this->cache()->set($this->cacheKey(), $state)) {
+                throw new \RuntimeException('Cache backend rejected runtime-control state.');
+            }
+
+            return;
+        }
+
+        $path = $this->path();
+        $this->ensureDirectory($path);
+        $temporary = $path . '.' . bin2hex(random_bytes(6)) . '.tmp';
+        $payload = json_encode($state, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+        if (file_put_contents($temporary, $payload, LOCK_EX) === false) {
+            throw new \RuntimeException(sprintf('Unable to stage runtime-control state "%s".', $temporary));
+        }
+
+        try {
+            if (!rename($temporary, $path)) {
+                throw new \RuntimeException(sprintf('Unable to activate runtime-control state "%s".', $path));
+            }
+        } finally {
+            if (is_file($temporary)) {
+                unlink($temporary);
+            }
+        }
     }
 }

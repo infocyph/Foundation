@@ -10,9 +10,9 @@ use Infocyph\Foundation\Application\Application;
 
 final readonly class EnvironmentFileProtector
 {
-    private const string PURPOSE = 'foundation.environment';
-
     private const string AAD = 'environment-file/v1';
+
+    private const string PURPOSE = 'foundation.environment';
 
     public function __construct(private Application $application) {}
 
@@ -66,23 +66,6 @@ final readonly class EnvironmentFileProtector
         }
     }
 
-    private function prepareTarget(string $path, bool $force): void
-    {
-        if (is_link($path)) {
-            throw new \RuntimeException('Environment protection refuses to replace symbolic-link targets.');
-        }
-        if (file_exists($path) && !is_file($path)) {
-            throw new \RuntimeException(sprintf('Environment target "%s" must be a regular file path.', $path));
-        }
-        if (is_file($path) && !$force) {
-            throw new \RuntimeException(sprintf('Environment target "%s" already exists; use --force to replace it.', $path));
-        }
-        $directory = dirname($path);
-        if (!is_dir($directory) && !mkdir($directory, 0700, true) && !is_dir($directory)) {
-            throw new \RuntimeException(sprintf('Unable to create environment target directory "%s".', $directory));
-        }
-    }
-
     private function key(?string $keyFile, string $keyEnvironment): string
     {
         if ($keyFile !== null && $keyFile !== '') {
@@ -115,6 +98,23 @@ final readonly class EnvironmentFileProtector
         return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1
             ? $path
             : $this->application->basePath(trim($path, DIRECTORY_SEPARATOR));
+    }
+
+    private function prepareTarget(string $path, bool $force): void
+    {
+        if (is_link($path)) {
+            throw new \RuntimeException('Environment protection refuses to replace symbolic-link targets.');
+        }
+        if (file_exists($path) && !is_file($path)) {
+            throw new \RuntimeException(sprintf('Environment target "%s" must be a regular file path.', $path));
+        }
+        if (is_file($path) && !$force) {
+            throw new \RuntimeException(sprintf('Environment target "%s" already exists; use --force to replace it.', $path));
+        }
+        $directory = dirname($path);
+        if (!is_dir($directory) && !mkdir($directory, 0700, true) && !is_dir($directory)) {
+            throw new \RuntimeException(sprintf('Unable to create environment target directory "%s".', $directory));
+        }
     }
 
     private function transform(
@@ -162,6 +162,7 @@ final readonly class EnvironmentFileProtector
 
             if ($backup !== null && is_file($backup) && !unlink($backup)) {
                 $restored = is_file($target) && unlink($target) && rename($backup, $target);
+
                 throw new \RuntimeException($restored
                     ? sprintf('Unable to finalize environment target "%s"; the previous file was restored.', $target)
                     : sprintf('Unable to remove environment target backup "%s"; manual recovery may be required.', $backup));

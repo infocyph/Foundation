@@ -6,6 +6,58 @@ namespace Infocyph\Foundation\Logging;
 
 final readonly class LogTailer
 {
+    /** @param callable(string):void $consumer */
+    public function follow(string $path, callable $consumer, int $sleepMicros = 250_000): void
+    {
+        if ($sleepMicros < 10_000 || $sleepMicros > 5_000_000) {
+            throw new \InvalidArgumentException('Log follow sleep must be between 10000 and 5000000 microseconds.');
+        }
+        if (!is_file($path) || !is_readable($path)) {
+            throw new \RuntimeException(sprintf('Log file "%s" is not readable.', $path));
+        }
+
+        $stream = $this->open($path);
+        fseek($stream, 0, SEEK_END);
+
+        try {
+            while (true) {
+                $line = fgets($stream);
+                if ($line !== false) {
+                    $consumer(rtrim($line, "\r\n"));
+
+                    continue;
+                }
+
+                clearstatcache(true, $path);
+                $position = ftell($stream);
+                $streamStat = fstat($stream);
+                $pathStat = is_file($path) ? $this->statPath($path) : false;
+
+                if (is_int($position) && is_array($streamStat) && is_array($pathStat)) {
+                    $replaced = $this->identityChanged($streamStat, $pathStat);
+                    $truncated = is_int($pathStat['size'] ?? null) && $pathStat['size'] < $position;
+                    if ($replaced) {
+                        fclose($stream);
+                        $stream = $this->open($path);
+
+                        continue;
+                    }
+                    if ($truncated) {
+                        rewind($stream);
+
+                        continue;
+                    }
+                }
+
+                usleep($sleepMicros);
+            }
+        } finally {
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
+        }
+    }
+
     /** @return list<string> */
     public function tail(string $path, int $lines = 100): array
     {
@@ -54,55 +106,6 @@ final readonly class LogTailer
         }
     }
 
-    /** @param callable(string):void $consumer */
-    public function follow(string $path, callable $consumer, int $sleepMicros = 250_000): void
-    {
-        if ($sleepMicros < 10_000 || $sleepMicros > 5_000_000) {
-            throw new \InvalidArgumentException('Log follow sleep must be between 10000 and 5000000 microseconds.');
-        }
-        if (!is_file($path) || !is_readable($path)) {
-            throw new \RuntimeException(sprintf('Log file "%s" is not readable.', $path));
-        }
-
-        $stream = $this->open($path);
-        fseek($stream, 0, SEEK_END);
-
-        try {
-            while (true) {
-                $line = fgets($stream);
-                if ($line !== false) {
-                    $consumer(rtrim($line, "\r\n"));
-                    continue;
-                }
-
-                clearstatcache(true, $path);
-                $position = ftell($stream);
-                $streamStat = fstat($stream);
-                $pathStat = is_file($path) ? $this->statPath($path) : false;
-
-                if (is_int($position) && is_array($streamStat) && is_array($pathStat)) {
-                    $replaced = $this->identityChanged($streamStat, $pathStat);
-                    $truncated = is_int($pathStat['size'] ?? null) && $pathStat['size'] < $position;
-                    if ($replaced) {
-                        fclose($stream);
-                        $stream = $this->open($path);
-                        continue;
-                    }
-                    if ($truncated) {
-                        rewind($stream);
-                        continue;
-                    }
-                }
-
-                usleep($sleepMicros);
-            }
-        } finally {
-            if (is_resource($stream)) {
-                fclose($stream);
-            }
-        }
-    }
-
     /** @param array<string|int,mixed> $streamStat @param array<string|int,mixed> $pathStat */
     private function identityChanged(array $streamStat, array $pathStat): bool
     {
@@ -133,6 +136,7 @@ final readonly class LogTailer
     private function statPath(string $path): array|false
     {
         set_error_handler(static fn(int $severity): bool => $severity === E_WARNING);
+
         try {
             return stat($path);
         } finally {

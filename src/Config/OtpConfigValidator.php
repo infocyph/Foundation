@@ -66,20 +66,18 @@ final readonly class OtpConfigValidator
         return $issues;
     }
 
-    /** @param list<ConfigIssue> $issues */
-    private function validateReplayTopology(array &$issues, ?string $store): void
+    private function integer(mixed $value): ?int
     {
-        try {
-            $topology = new SharedStateTopology($this->config);
-            $topology->assertCacheStore(
-                $store,
-                'OTP replay protection',
-                $topology->requiredSecurityScope(),
-                true,
-            );
-        } catch (ConfigurationException $exception) {
-            $issues[] = new ConfigIssue($exception->getMessage(), 'auth.otp.replay.store');
+        if (is_int($value)) {
+            return $value;
         }
+        if (!is_string($value) || preg_match('/^-?(?:0|[1-9]\d*)$/D', $value) !== 1) {
+            return null;
+        }
+
+        $validated = filter_var($value, FILTER_VALIDATE_INT);
+
+        return is_int($validated) ? $validated : null;
     }
 
     /** @param list<ConfigIssue> $issues */
@@ -95,17 +93,19 @@ final readonly class OtpConfigValidator
         }
     }
 
-    private function integer(mixed $value): ?int
+    /** @param list<ConfigIssue> $issues */
+    private function validateReplayTopology(array &$issues, ?string $store): void
     {
-        if (is_int($value)) {
-            return $value;
+        try {
+            $topology = new SharedStateTopology($this->config);
+            $topology->assertCacheStore(
+                $store,
+                'OTP replay protection',
+                $topology->requiredSecurityScope(),
+                true,
+            );
+        } catch (ConfigurationException $exception) {
+            $issues[] = new ConfigIssue($exception->getMessage(), 'auth.otp.replay.store');
         }
-        if (!is_string($value) || preg_match('/^-?(?:0|[1-9]\d*)$/D', $value) !== 1) {
-            return null;
-        }
-
-        $validated = filter_var($value, FILTER_VALIDATE_INT);
-
-        return is_int($validated) ? $validated : null;
     }
 }

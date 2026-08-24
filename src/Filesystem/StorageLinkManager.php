@@ -24,27 +24,6 @@ final readonly class StorageLinkManager
         return $links;
     }
 
-    /** @return list<array{link:string,target:string,exists:bool,linked:bool,matches:bool}> */
-    public function status(): array
-    {
-        $status = [];
-        foreach ($this->configured() as $mapping) {
-            $link = $mapping['link'];
-            $target = $mapping['target'];
-            $linked = is_link($link);
-            $resolved = $linked ? realpath($link) : false;
-            $status[] = [
-                'link' => $link,
-                'target' => $target,
-                'exists' => $linked || file_exists($link),
-                'linked' => $linked,
-                'matches' => $linked && $resolved !== false && $resolved === realpath($target),
-            ];
-        }
-
-        return $status;
-    }
-
     /** @return list<array{link:string,target:string,removed:bool}> */
     public function remove(): array
     {
@@ -80,6 +59,45 @@ final readonly class StorageLinkManager
         return $removed;
     }
 
+    /** @return list<array{link:string,target:string,exists:bool,linked:bool,matches:bool}> */
+    public function status(): array
+    {
+        $status = [];
+        foreach ($this->configured() as $mapping) {
+            $link = $mapping['link'];
+            $target = $mapping['target'];
+            $linked = is_link($link);
+            $resolved = $linked ? realpath($link) : false;
+            $status[] = [
+                'link' => $link,
+                'target' => $target,
+                'exists' => $linked || file_exists($link),
+                'linked' => $linked,
+                'matches' => $linked && $resolved !== false && $resolved === realpath($target),
+            ];
+        }
+
+        return $status;
+    }
+
+    private function absolute(string $path): string
+    {
+        return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1
+            ? rtrim($path, DIRECTORY_SEPARATOR)
+            : $this->paths->base(trim($path, '/\\'));
+    }
+
+    private function assertInside(string $path, string $root, string $label): void
+    {
+        $root = rtrim($root, DIRECTORY_SEPARATOR);
+        if (preg_match('~(?:^|[\\\\/])\.\.(?:[\\\\/]|$)~', $path) === 1) {
+            throw new \RuntimeException($label . ' cannot contain parent-directory traversal.');
+        }
+        if ($path !== $root && !str_starts_with($path, $root . DIRECTORY_SEPARATOR)) {
+            throw new \RuntimeException(sprintf('%s must remain inside "%s".', $label, $root));
+        }
+    }
+
     /** @return list<array{link:string,target:string}> */
     private function configured(): array
     {
@@ -107,24 +125,6 @@ final readonly class StorageLinkManager
         }
 
         return $links;
-    }
-
-    private function absolute(string $path): string
-    {
-        return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1
-            ? rtrim($path, DIRECTORY_SEPARATOR)
-            : $this->paths->base(trim($path, '/\\'));
-    }
-
-    private function assertInside(string $path, string $root, string $label): void
-    {
-        $root = rtrim($root, DIRECTORY_SEPARATOR);
-        if (preg_match('~(?:^|[\\\\/])\.\.(?:[\\\\/]|$)~', $path) === 1) {
-            throw new \RuntimeException($label . ' cannot contain parent-directory traversal.');
-        }
-        if ($path !== $root && !str_starts_with($path, $root . DIRECTORY_SEPARATOR)) {
-            throw new \RuntimeException(sprintf('%s must remain inside "%s".', $label, $root));
-        }
     }
 
     /** @return array{link:string,target:string,created:bool} */

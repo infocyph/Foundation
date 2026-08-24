@@ -85,7 +85,6 @@ final readonly class ProviderFileLoader
     }
 
     /**
-     * @param mixed $configured
      * @return list<class-string<ServiceProviderInterface>>
      */
     private function providersForGroup(string $file, string $group, mixed $configured): array

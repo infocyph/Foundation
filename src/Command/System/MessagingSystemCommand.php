@@ -31,6 +31,20 @@ final class MessagingSystemCommand extends SystemCommand
         };
     }
 
+    private function authorize(string $question): bool
+    {
+        if ($this->flag('force')) {
+            return true;
+        }
+        if (!$this->io()->interactive()) {
+            $this->io()->error('This destructive queue operation requires --force in non-interactive mode.');
+
+            return false;
+        }
+
+        return $this->io()->confirm($question, false);
+    }
+
     private function failed(): int
     {
         $failures = $this->failures()->all($this->positiveIntOption('limit', 100, 1_000));
@@ -122,6 +136,12 @@ final class MessagingSystemCommand extends SystemCommand
         return new FailureManager($this->failures());
     }
 
+    /** @return array<array-key,mixed> */
+    private function map(mixed $value): array
+    {
+        return is_array($value) ? $value : [];
+    }
+
     private function messagingList(): int
     {
         $config = $this->application->config();
@@ -177,6 +197,19 @@ final class MessagingSystemCommand extends SystemCommand
         );
     }
 
+    private function positiveIntOption(string $name, int $default, int $maximum): int
+    {
+        $value = $this->option($name);
+        if ($value === null) {
+            return $default;
+        }
+        if (preg_match('/^\d+$/D', $value) !== 1 || (int) $value < 1 || (int) $value > $maximum) {
+            throw new \InvalidArgumentException(sprintf('--%s must be between 1 and %d.', $name, $maximum));
+        }
+
+        return (int) $value;
+    }
+
     private function pruneFailed(): int
     {
         $hours = $this->positiveIntOption('hours', 168, 24 * 365 * 10);
@@ -214,38 +247,5 @@ final class MessagingSystemCommand extends SystemCommand
             ?? (is_string($configured = $this->application->config()->get('messaging.consumer.transport')) && $configured !== ''
                 ? $configured
                 : 'memory');
-    }
-
-    private function authorize(string $question): bool
-    {
-        if ($this->flag('force')) {
-            return true;
-        }
-        if (!$this->io()->interactive()) {
-            $this->io()->error('This destructive queue operation requires --force in non-interactive mode.');
-
-            return false;
-        }
-
-        return $this->io()->confirm($question, false);
-    }
-
-    /** @return array<array-key,mixed> */
-    private function map(mixed $value): array
-    {
-        return is_array($value) ? $value : [];
-    }
-
-    private function positiveIntOption(string $name, int $default, int $maximum): int
-    {
-        $value = $this->option($name);
-        if ($value === null) {
-            return $default;
-        }
-        if (preg_match('/^\d+$/D', $value) !== 1 || (int) $value < 1 || (int) $value > $maximum) {
-            throw new \InvalidArgumentException(sprintf('--%s must be between 1 and %d.', $name, $maximum));
-        }
-
-        return (int) $value;
     }
 }

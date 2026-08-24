@@ -152,6 +152,18 @@ final readonly class OmnibusWorkerFactory
         ));
     }
 
+    private function floatValue(mixed $value, float $default, string $key): float
+    {
+        if ($value === null || $value === '') {
+            return $default;
+        }
+        if (is_int($value) || is_float($value) || (is_string($value) && is_numeric($value))) {
+            return (float) $value;
+        }
+
+        throw new \InvalidArgumentException(sprintf('messaging.workers.%s must be numeric.', $key));
+    }
+
     private function intValue(mixed $value, int $default, string $key): int
     {
         if ($value === null || $value === '') {
@@ -167,25 +179,13 @@ final readonly class OmnibusWorkerFactory
         throw new \InvalidArgumentException(sprintf('messaging.workers.%s must be an integer.', $key));
     }
 
-    private function floatValue(mixed $value, float $default, string $key): float
+    private function nullableFloat(mixed $value, string $key): ?float
     {
-        if ($value === null || $value === '') {
-            return $default;
-        }
-        if (is_int($value) || is_float($value) || (is_string($value) && is_numeric($value))) {
-            return (float) $value;
-        }
-
-        throw new \InvalidArgumentException(sprintf('messaging.workers.%s must be numeric.', $key));
+        return $value === null || $value === '' ? null : $this->floatValue($value, 0.0, $key);
     }
 
     private function nullableInt(mixed $value, string $key): ?int
     {
         return $value === null || $value === '' ? null : $this->intValue($value, 0, $key);
-    }
-
-    private function nullableFloat(mixed $value, string $key): ?float
-    {
-        return $value === null || $value === '' ? null : $this->floatValue($value, 0.0, $key);
     }
 }

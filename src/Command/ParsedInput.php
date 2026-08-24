@@ -160,46 +160,6 @@ final readonly class ParsedInput
             : [(string) $existing, (string) $value];
     }
 
-    /** @return array{name:string,short:?string,accepts_value:bool,multiple:bool,negatable:bool}|null */
-    private static function longMetadata(string $name, ?CommandDefinition $definition): ?array
-    {
-        $option = $definition?->options()[$name] ?? null;
-        if (is_array($option)) {
-            return [
-                'name' => $option['name'],
-                'short' => $option['short'],
-                'accepts_value' => $option['accepts_value'],
-                'multiple' => $option['multiple'],
-                'negatable' => $option['negatable'],
-            ];
-        }
-
-        return self::GLOBAL_OPTIONS[$name] ?? null;
-    }
-
-    /** @return array{name:string,short:?string,accepts_value:bool,multiple:bool,negatable:bool}|null */
-    private static function shortMetadata(string $short, ?CommandDefinition $definition): ?array
-    {
-        $option = $definition?->optionByShort($short);
-        if (is_array($option)) {
-            return [
-                'name' => $option['name'],
-                'short' => $option['short'],
-                'accepts_value' => $option['accepts_value'],
-                'multiple' => $option['multiple'],
-                'negatable' => $option['negatable'],
-            ];
-        }
-
-        foreach (self::GLOBAL_OPTIONS as $metadata) {
-            if ($metadata['short'] === $short) {
-                return $metadata;
-            }
-        }
-
-        return null;
-    }
-
     /**
      * @param list<string> $tokens
      * @param array<string, string|bool|list<string>> $options
@@ -336,12 +296,53 @@ final readonly class ParsedInput
         return $index;
     }
 
+    /** @return array{name:string,short:?string,accepts_value:bool,multiple:bool,negatable:bool}|null */
+    private static function longMetadata(string $name, ?CommandDefinition $definition): ?array
+    {
+        $option = $definition?->options()[$name] ?? null;
+        if (is_array($option)) {
+            return [
+                'name' => $option['name'],
+                'short' => $option['short'],
+                'accepts_value' => $option['accepts_value'],
+                'multiple' => $option['multiple'],
+                'negatable' => $option['negatable'],
+            ];
+        }
+
+        return self::GLOBAL_OPTIONS[$name] ?? null;
+    }
+
+    /** @return array{name:string,short:?string,accepts_value:bool,multiple:bool,negatable:bool}|null */
+    private static function shortMetadata(string $short, ?CommandDefinition $definition): ?array
+    {
+        $option = $definition?->optionByShort($short);
+        if (is_array($option)) {
+            return [
+                'name' => $option['name'],
+                'short' => $option['short'],
+                'accepts_value' => $option['accepts_value'],
+                'multiple' => $option['multiple'],
+                'negatable' => $option['negatable'],
+            ];
+        }
+
+        foreach (self::GLOBAL_OPTIONS as $metadata) {
+            if ($metadata['short'] === $short) {
+                return $metadata;
+            }
+        }
+
+        return null;
+    }
+
     private static function validateArguments(self $input, CommandDefinition $definition): void
     {
         $declared = $definition->arguments();
         $required = count(array_filter($declared, static fn(array $argument): bool => $argument['required']));
         if (count($input->arguments) < $required) {
             $missing = $declared[count($input->arguments)]['name'] ?? 'argument';
+
             throw new \InvalidArgumentException(sprintf('Missing required argument "%s".', $missing));
         }
 

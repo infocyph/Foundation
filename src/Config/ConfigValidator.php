@@ -91,9 +91,49 @@ final readonly class ConfigValidator
         return str_starts_with($file, $directory . '/');
     }
 
+    private function isNonNegativeInteger(mixed $value): bool
+    {
+        return (is_int($value) && $value >= 0)
+            || (is_string($value) && preg_match('/^(?:0|[1-9]\d*)$/D', $value) === 1);
+    }
+
+    private function isPositiveInteger(mixed $value): bool
+    {
+        return (is_int($value) && $value > 0)
+            || (is_string($value) && preg_match('/^[1-9]\d*$/D', $value) === 1);
+    }
+
+    /** @return array<string, mixed>|null */
+    private function notificationSenderProfile(): ?array
+    {
+        $sender = $this->config->get('notifications.auth.sender');
+        if (!is_string($sender) || trim($sender) === '') {
+            $sender = $this->config->get('notifications.email.default_sender', 'default');
+        }
+        if (!is_string($sender) || trim($sender) === '') {
+            return null;
+        }
+
+        $profile = $this->config->get('notifications.email.senders.' . trim($sender));
+
+        return is_array($profile) ? $profile : null;
+    }
+
     private function reservedCachePurpose(mixed $value): bool
     {
         return is_string($value) && in_array(strtolower($value), ['auth', 'session', 'security', 'idempotency'], true);
+    }
+
+    private function resolvedTokenSecret(): ?string
+    {
+        $configured = $this->config->get('auth.token_secret');
+        if (is_string($configured) && $configured !== '') {
+            return $configured;
+        }
+
+        $environment = Environment::get('AUTH_TOKEN_SECRET');
+
+        return is_string($environment) && $environment !== '' ? $environment : null;
     }
 
     private function runChecks(bool $assumeProduction): ConfigValidationResult
@@ -360,22 +400,6 @@ final readonly class ConfigValidator
         }
     }
 
-    /** @return array<string, mixed>|null */
-    private function notificationSenderProfile(): ?array
-    {
-        $sender = $this->config->get('notifications.auth.sender');
-        if (!is_string($sender) || trim($sender) === '') {
-            $sender = $this->config->get('notifications.email.default_sender', 'default');
-        }
-        if (!is_string($sender) || trim($sender) === '') {
-            return null;
-        }
-
-        $profile = $this->config->get('notifications.email.senders.' . trim($sender));
-
-        return is_array($profile) ? $profile : null;
-    }
-
     /** @param list<ConfigIssue> $issues */
     private function validateNotificationSender(array &$issues, bool $assumeProduction): void
     {
@@ -498,30 +522,6 @@ final readonly class ConfigValidator
         if ($minimumBytes > 0) {
             $this->validateTokenSecret($issues, $minimumBytes, $assumeProduction);
         }
-    }
-
-    private function isNonNegativeInteger(mixed $value): bool
-    {
-        return (is_int($value) && $value >= 0)
-            || (is_string($value) && preg_match('/^(?:0|[1-9]\d*)$/D', $value) === 1);
-    }
-
-    private function isPositiveInteger(mixed $value): bool
-    {
-        return (is_int($value) && $value > 0)
-            || (is_string($value) && preg_match('/^[1-9]\d*$/D', $value) === 1);
-    }
-
-    private function resolvedTokenSecret(): ?string
-    {
-        $configured = $this->config->get('auth.token_secret');
-        if (is_string($configured) && $configured !== '') {
-            return $configured;
-        }
-
-        $environment = Environment::get('AUTH_TOKEN_SECRET');
-
-        return is_string($environment) && $environment !== '' ? $environment : null;
     }
 
     /** @param list<ConfigIssue> $issues */

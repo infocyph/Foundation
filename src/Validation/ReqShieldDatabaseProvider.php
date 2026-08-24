@@ -135,20 +135,6 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
         return $column;
     }
 
-    /**
-     * @param list<array{identifier:int|string,value:mixed}> $entries
-     * @return list<mixed>
-     */
-    private function entryValues(array $entries): array
-    {
-        return array_map(static fn(array $entry): mixed => $entry['value'], $entries);
-    }
-
-    private function identifier(mixed $value, int|string $fallback): int|string
-    {
-        return $this->databaseIdentifier($value) ?? $fallback;
-    }
-
     private function databaseIdentifier(mixed $value): int|string|null
     {
         if (is_int($value) || is_string($value)) {
@@ -162,6 +148,20 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
         }
 
         return null;
+    }
+
+    /**
+     * @param list<array{identifier:int|string,value:mixed}> $entries
+     * @return list<mixed>
+     */
+    private function entryValues(array $entries): array
+    {
+        return array_map(static fn(array $entry): mixed => $entry['value'], $entries);
+    }
+
+    private function identifier(mixed $value, int|string $fallback): int|string
+    {
+        return $this->databaseIdentifier($value) ?? $fallback;
     }
 
     /**
@@ -187,11 +187,6 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
         return $matched;
     }
 
-    private function query(string $table): QueryBuilder
-    {
-        return ($this->connection)()->query()->from($table);
-    }
-
     /**
      * @param array<int|string, mixed> $rows
      * @return list<array<string, mixed>>
@@ -214,6 +209,11 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
         }
 
         return $normalized;
+    }
+
+    private function query(string $table): QueryBuilder
+    {
+        return ($this->connection)()->query()->from($table);
     }
 
     /**

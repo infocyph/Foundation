@@ -68,12 +68,14 @@ final class CommandExecutionCoordinator
                 $this->record($history, $executionId, $name, CommandStatus::Failed, metadata: [
                     'exception' => $exception::class,
                 ]);
+
                 throw $exception;
             }
         }
 
         $lock = null;
         $handle = null;
+
         try {
             if ($policy->overlap !== OverlapMode::Allow) {
                 if ($policy->overlap === OverlapMode::Wait) {
@@ -115,10 +117,20 @@ final class CommandExecutionCoordinator
             $this->record($history, $executionId, $name, CommandStatus::Failed, metadata: [
                 'exception' => $exception::class,
             ]);
+
             throw $exception;
         } finally {
             $lock?->release($handle);
         }
+    }
+
+    private function executionId(): ExecutionId
+    {
+        $inherited = getenv(self::EXECUTION_ENV);
+
+        return is_string($inherited) && $inherited !== ''
+            ? new ExecutionId($inherited)
+            : ExecutionId::generate();
     }
 
     /** @return Closure():bool|null */
@@ -187,15 +199,6 @@ final class CommandExecutionCoordinator
                 terminationGraceSeconds: $policy->terminationGraceSeconds,
             ),
         );
-    }
-
-    private function executionId(): ExecutionId
-    {
-        $inherited = getenv(self::EXECUTION_ENV);
-
-        return is_string($inherited) && $inherited !== ''
-            ? new ExecutionId($inherited)
-            : ExecutionId::generate();
     }
 
     private function lockProvider(): LockProviderInterface

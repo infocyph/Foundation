@@ -6,9 +6,9 @@ namespace Infocyph\Foundation\Config;
 
 enum DeploymentTopology: string
 {
-    case SINGLE_NODE = 'single_node';
-
     case DISTRIBUTED = 'distributed';
+
+    case SINGLE_NODE = 'single_node';
 
     public static function resolve(ConfigRepository $config): self
     {

@@ -39,6 +39,34 @@ final class CommandRegistry
         }
     }
 
+    /** @param array<string, mixed> $manifest */
+    public static function fromManifest(array $manifest): self
+    {
+        $version = $manifest['version'] ?? null;
+        $commands = $manifest['commands'] ?? null;
+        if ($version !== 1 || !is_array($commands)) {
+            throw new \UnexpectedValueException('Compiled command manifest has an unsupported format.');
+        }
+
+        $registry = new self(includeSystem: false);
+        foreach ($commands as $name => $metadata) {
+            if (!is_string($name) || !is_array($metadata)) {
+                throw new \UnexpectedValueException('Compiled command manifest contains an invalid command entry.');
+            }
+            $descriptor = CommandDescriptor::fromManifest(self::associative($metadata));
+            if ($descriptor->definition->commandName() !== $name) {
+                throw new \UnexpectedValueException(sprintf(
+                    'Compiled command key "%s" does not match descriptor name "%s".',
+                    $name,
+                    $descriptor->definition->commandName(),
+                ));
+            }
+            $registry->register($descriptor);
+        }
+
+        return $registry;
+    }
+
     /** @return array<string, CommandDescriptor> */
     public function all(): array
     {
@@ -107,15 +135,6 @@ final class CommandRegistry
         return array_slice(array_keys($candidates), 0, $limit);
     }
 
-    /** @return list<CommandDescriptor> */
-    public function visible(): array
-    {
-        return array_values(array_filter(
-            $this->all(),
-            static fn(CommandDescriptor $descriptor): bool => !$descriptor->definition->isHidden(),
-        ));
-    }
-
     /** @return array<string, mixed> */
     public function toManifest(): array
     {
@@ -130,32 +149,13 @@ final class CommandRegistry
         ];
     }
 
-    /** @param array<string, mixed> $manifest */
-    public static function fromManifest(array $manifest): self
+    /** @return list<CommandDescriptor> */
+    public function visible(): array
     {
-        $version = $manifest['version'] ?? null;
-        $commands = $manifest['commands'] ?? null;
-        if ($version !== 1 || !is_array($commands)) {
-            throw new \UnexpectedValueException('Compiled command manifest has an unsupported format.');
-        }
-
-        $registry = new self(includeSystem: false);
-        foreach ($commands as $name => $metadata) {
-            if (!is_string($name) || !is_array($metadata)) {
-                throw new \UnexpectedValueException('Compiled command manifest contains an invalid command entry.');
-            }
-            $descriptor = CommandDescriptor::fromManifest(self::associative($metadata));
-            if ($descriptor->definition->commandName() !== $name) {
-                throw new \UnexpectedValueException(sprintf(
-                    'Compiled command key "%s" does not match descriptor name "%s".',
-                    $name,
-                    $descriptor->definition->commandName(),
-                ));
-            }
-            $registry->register($descriptor);
-        }
-
-        return $registry;
+        return array_values(array_filter(
+            $this->all(),
+            static fn(CommandDescriptor $descriptor): bool => !$descriptor->definition->isHidden(),
+        ));
     }
 
     /**

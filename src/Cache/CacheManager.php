@@ -23,9 +23,9 @@ final class CacheManager
     private array $stores = [];
 
     public function __construct(
-        private CacheLayerFactory $factory,
+        private readonly CacheLayerFactory $factory,
         /** @var Closure(?string):Connection */
-        private Closure $database,
+        private readonly Closure $database,
     ) {}
 
     public function store(?string $name = null): CacheInterface
@@ -37,17 +37,6 @@ final class CacheManager
 
         $store = $this->factory->make($name);
         $this->stores[$key] = $store;
-
-        if ($name === null) {
-            $this->wireDatabaseCache($store);
-        }
-
-        return $store;
-    }
-
-    public function useStore(CacheInterface $store, ?string $name = null): CacheInterface
-    {
-        $this->stores[$name ?? '__default__'] = $store;
 
         if ($name === null) {
             $this->wireDatabaseCache($store);
@@ -82,9 +71,20 @@ final class CacheManager
         );
     }
 
+    public function useStore(CacheInterface $store, ?string $name = null): CacheInterface
+    {
+        $this->stores[$name ?? '__default__'] = $store;
+
+        if ($name === null) {
+            $this->wireDatabaseCache($store);
+        }
+
+        return $store;
+    }
+
     private function wireDatabaseCache(CacheInterface $store): void
     {
-        $db = 'Infocyph\\DBLayer\\DB';
+        $db = \Infocyph\DBLayer\DB::class;
         if (class_exists($db, false)) {
             $db::setCache($store);
         }

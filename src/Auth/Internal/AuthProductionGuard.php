@@ -26,7 +26,7 @@ final readonly class AuthProductionGuard
             return;
         }
 
-        $securityIssues = (new ProductionSecurityValidator($this->app->config()))->validate();
+        $securityIssues = new ProductionSecurityValidator($this->app->config())->validate();
         if ($securityIssues !== []) {
             throw new ConfigurationException(implode('; ', array_map(
                 static fn($issue): string => $issue->message,

@@ -37,9 +37,6 @@
     },
     "minimum-stability": "stable",
     "prefer-stable": true,
-    "bin": [
-        "bin/infbyte"
-    ],
     "autoload": {
         "psr-4": {
             "Infocyph\\Foundation\\": "src/"
@@ -54,6 +51,9 @@
             "Infocyph\\Foundation\\Tests\\Fixtures\\": "tests/Fixtures/"
         }
     },
+    "bin": [
+        "bin/infbyte"
+    ],
     "config": {
         "allow-plugins": {
             "ergebnis/composer-normalize": true,

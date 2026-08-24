@@ -16,10 +16,10 @@ use Infocyph\Foundation\Session\SessionManager;
  */
 final class RuntimeContextTracker
 {
+    private bool $databaseTouched = false;
+
     /** @var array<class-string, object> */
     private array $dirty = [];
-
-    private bool $databaseTouched = false;
 
     /** @var array<int, Connection> */
     private array $freshDatabaseConnections = [];
@@ -94,6 +94,30 @@ final class RuntimeContextTracker
         }
     }
 
+    private function flushProcessLocalMemoizers(): void
+    {
+        // Do not autoload optional packages solely for cleanup. When active,
+        // process-local memoized values must never cross execution boundaries.
+        if (class_exists(Memoizer::class, false)) {
+            Memoizer::instance()->flush();
+        }
+
+        if (class_exists(OnceMemoizer::class, false)) {
+            OnceMemoizer::instance()->flush();
+        }
+    }
+
+    private function resetConnection(Connection $connection): void
+    {
+        while ($connection->transactionLevel() > 0) {
+            $connection->rollbackTransaction();
+        }
+
+        if (!$connection->resetRuntimeStateForReuse()) {
+            $connection->disconnect();
+        }
+    }
+
     private function resetSharedDatabaseRuntime(): void
     {
         if (!class_exists(DB::class, false)) {
@@ -116,30 +140,6 @@ final class RuntimeContextTracker
 
         if ($failure !== null) {
             throw $failure;
-        }
-    }
-
-    private function resetConnection(Connection $connection): void
-    {
-        while ($connection->transactionLevel() > 0) {
-            $connection->rollbackTransaction();
-        }
-
-        if (!$connection->resetRuntimeStateForReuse()) {
-            $connection->disconnect();
-        }
-    }
-
-    private function flushProcessLocalMemoizers(): void
-    {
-        // Do not autoload optional packages solely for cleanup. When active,
-        // process-local memoized values must never cross execution boundaries.
-        if (class_exists(Memoizer::class, false)) {
-            Memoizer::instance()->flush();
-        }
-
-        if (class_exists(OnceMemoizer::class, false)) {
-            OnceMemoizer::instance()->flush();
         }
     }
 }

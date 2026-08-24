@@ -29,40 +29,56 @@ final readonly class ProductionSecurityValidator
         return $issues;
     }
 
-    /** @param list<ConfigIssue> $issues */
-    private function validateTopology(array &$issues): void
+    private function integer(mixed $value): ?int
     {
-        $configured = $this->config->get('app.topology', DeploymentTopology::SINGLE_NODE->value);
-        if (!is_string($configured) || DeploymentTopology::tryFrom(strtolower(trim($configured))) === null) {
-            $issues[] = new ConfigIssue(
-                'app.topology must be one of: single_node, distributed.',
-                'app.topology',
-            );
+        if (is_int($value)) {
+            return $value;
         }
+
+        return is_string($value) && preg_match('/^-?\d+$/D', $value) === 1
+            ? (int) $value
+            : null;
+    }
+
+    private function normalizeDriver(mixed $driver): ?string
+    {
+        if (!is_string($driver) || trim($driver) === '') {
+            return null;
+        }
+
+        return match (strtolower(trim($driver))) {
+            'array' => 'memory',
+            'memcached' => 'memcache',
+            'null' => 'null_store',
+            'scylla' => 'scylladb',
+            default => strtolower(trim($driver)),
+        };
+    }
+
+    private function string(mixed $value): ?string
+    {
+        return is_string($value) && trim($value) !== '' ? trim($value) : null;
     }
 
     /** @param list<ConfigIssue> $issues */
-    private function validatePasswordPolicy(array &$issues): void
+    private function validateAtomicCounter(array &$issues): void
     {
-        $minimum = $this->integer($this->config->get('auth.password_policy.min_length', 12));
-        $maximum = $this->integer($this->config->get('auth.password_policy.max_length', 1024));
+        $counter = $this->string($this->config->get('cache.default_counter'));
+        if ($counter === null) {
+            $issues[] = new ConfigIssue(
+                'cache.default_counter must select an atomic Redis/Valkey counter for production authentication lockouts.',
+                'cache.default_counter',
+            );
 
-        if ($minimum === null || $minimum < 12) {
-            $issues[] = new ConfigIssue(
-                'auth.password_policy.min_length must be at least 12 in production.',
-                'auth.password_policy.min_length',
-            );
+            return;
         }
-        if ($maximum === null || $maximum < 12 || $maximum > 4096) {
+
+        $definition = $this->config->get('cache.counters.' . $counter);
+        $driver = is_array($definition) ? $this->normalizeDriver($definition['driver'] ?? null) : null;
+        if (!in_array($driver, ['redis', 'valkey'], true)) {
             $issues[] = new ConfigIssue(
-                'auth.password_policy.max_length must be between 12 and 4096 in production.',
-                'auth.password_policy.max_length',
-            );
-        }
-        if ($minimum !== null && $maximum !== null && $maximum < $minimum) {
-            $issues[] = new ConfigIssue(
-                'auth.password_policy.max_length must be greater than or equal to auth.password_policy.min_length.',
-                'auth.password_policy.max_length',
+                sprintf('cache.counters.%s must use Redis or Valkey for atomic authentication lockouts.', $counter),
+                'cache.counters.' . $counter,
             );
         }
     }
@@ -107,29 +123,6 @@ final readonly class ProductionSecurityValidator
     }
 
     /** @param list<ConfigIssue> $issues */
-    private function validateAtomicCounter(array &$issues): void
-    {
-        $counter = $this->string($this->config->get('cache.default_counter'));
-        if ($counter === null) {
-            $issues[] = new ConfigIssue(
-                'cache.default_counter must select an atomic Redis/Valkey counter for production authentication lockouts.',
-                'cache.default_counter',
-            );
-
-            return;
-        }
-
-        $definition = $this->config->get('cache.counters.' . $counter);
-        $driver = is_array($definition) ? $this->normalizeDriver($definition['driver'] ?? null) : null;
-        if (!in_array($driver, ['redis', 'valkey'], true)) {
-            $issues[] = new ConfigIssue(
-                sprintf('cache.counters.%s must use Redis or Valkey for atomic authentication lockouts.', $counter),
-                'cache.counters.' . $counter,
-            );
-        }
-    }
-
-    /** @param list<ConfigIssue> $issues */
     private function validateLockTopology(array &$issues): void
     {
         if (DeploymentTopology::resolve($this->config) !== DeploymentTopology::DISTRIBUTED) {
@@ -148,34 +141,41 @@ final readonly class ProductionSecurityValidator
         }
     }
 
-    private function normalizeDriver(mixed $driver): ?string
+    /** @param list<ConfigIssue> $issues */
+    private function validatePasswordPolicy(array &$issues): void
     {
-        if (!is_string($driver) || trim($driver) === '') {
-            return null;
-        }
+        $minimum = $this->integer($this->config->get('auth.password_policy.min_length', 12));
+        $maximum = $this->integer($this->config->get('auth.password_policy.max_length', 1024));
 
-        return match (strtolower(trim($driver))) {
-            'array' => 'memory',
-            'memcached' => 'memcache',
-            'null' => 'null_store',
-            'scylla' => 'scylladb',
-            default => strtolower(trim($driver)),
-        };
+        if ($minimum === null || $minimum < 12) {
+            $issues[] = new ConfigIssue(
+                'auth.password_policy.min_length must be at least 12 in production.',
+                'auth.password_policy.min_length',
+            );
+        }
+        if ($maximum === null || $maximum < 12 || $maximum > 4096) {
+            $issues[] = new ConfigIssue(
+                'auth.password_policy.max_length must be between 12 and 4096 in production.',
+                'auth.password_policy.max_length',
+            );
+        }
+        if ($minimum !== null && $maximum !== null && $maximum < $minimum) {
+            $issues[] = new ConfigIssue(
+                'auth.password_policy.max_length must be greater than or equal to auth.password_policy.min_length.',
+                'auth.password_policy.max_length',
+            );
+        }
     }
 
-    private function integer(mixed $value): ?int
+    /** @param list<ConfigIssue> $issues */
+    private function validateTopology(array &$issues): void
     {
-        if (is_int($value)) {
-            return $value;
+        $configured = $this->config->get('app.topology', DeploymentTopology::SINGLE_NODE->value);
+        if (!is_string($configured) || DeploymentTopology::tryFrom(strtolower(trim($configured))) === null) {
+            $issues[] = new ConfigIssue(
+                'app.topology must be one of: single_node, distributed.',
+                'app.topology',
+            );
         }
-
-        return is_string($value) && preg_match('/^-?\d+$/D', $value) === 1
-            ? (int) $value
-            : null;
-    }
-
-    private function string(mixed $value): ?string
-    {
-        return is_string($value) && trim($value) !== '' ? trim($value) : null;
     }
 }

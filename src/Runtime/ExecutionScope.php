@@ -39,6 +39,7 @@ final readonly class ExecutionScope
 
         $result = null;
         $primaryFailure = null;
+
         try {
             $result = $callback($executionId);
         } catch (\Throwable $exception) {
@@ -46,6 +47,7 @@ final readonly class ExecutionScope
         }
 
         $cleanupFailure = null;
+
         try {
             $this->externalState->reset();
         } catch (\Throwable $exception) {

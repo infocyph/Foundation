@@ -21,26 +21,6 @@ final readonly class ModuleSchemaManager
     ) {}
 
     /**
-     * Provision every schema currently required by configured application capabilities.
-     *
-     * @return list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}>
-     */
-    public function installApplicable(?string $connection = null): array
-    {
-        $results = [];
-
-        foreach (array_keys($this->catalog->all()) as $module) {
-            foreach ($this->install($module, $connection, true) as $schema) {
-                if ($schema['applicable']) {
-                    $results[] = $schema;
-                }
-            }
-        }
-
-        return $results;
-    }
-
-    /**
      * @return list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}>
      */
     public function install(string $module, ?string $connection = null, bool $applicableOnly = false): array
@@ -70,6 +50,26 @@ final readonly class ModuleSchemaManager
     }
 
     /**
+     * Provision every schema currently required by configured application capabilities.
+     *
+     * @return list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}>
+     */
+    public function installApplicable(?string $connection = null): array
+    {
+        $results = [];
+
+        foreach (array_keys($this->catalog->all()) as $module) {
+            foreach ($this->install($module, $connection, true) as $schema) {
+                if ($schema['applicable']) {
+                    $results[] = $schema;
+                }
+            }
+        }
+
+        return $results;
+    }
+
+    /**
      * @return list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}>
      */
     public function status(string $module, ?string $connection = null): array
@@ -84,82 +84,9 @@ final readonly class ModuleSchemaManager
         return $results;
     }
 
-    private function authApplicable(): bool
+    private function absolute(string $path): bool
     {
-        return $this->application->config()->get('auth.drivers.storage', 'memory') === 'database';
-    }
-
-    /**
-     * @return list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}>
-     */
-    private function cacheStatuses(string $module, ?string $connection, bool $afterInstall = false): array
-    {
-        $applicable = $this->cacheDatabaseConfigured();
-        if (!class_exists(PdoCacheSchema::class)) {
-            return [$this->result(
-                'cache',
-                $module,
-                $applicable,
-                false,
-                'unavailable',
-                'Requires the cache module; run "php infbyte module:install cache".',
-            )];
-        }
-
-        $resources = $this->activeCacheDatabaseResources($connection);
-        if ($resources === []) {
-            return [$this->result(
-                'cache',
-                $module,
-                false,
-                true,
-                'not-applicable',
-                'No active database-backed cache store or PDO invalidation transport.',
-            )];
-        }
-
-        $results = [];
-        foreach ($resources as $resource) {
-            if (!$resource['pdo'] instanceof PDO) {
-                $state = is_string($resource['state'] ?? null) ? $resource['state'] : 'unavailable';
-                $results[] = $this->result(
-                    $resource['name'],
-                    $module,
-                    true,
-                    false,
-                    $afterInstall && $state === 'pending' ? 'missing' : $state,
-                    $resource['detail'],
-                );
-
-                continue;
-            }
-
-            $installed = $this->tableExists($resource['pdo'], $resource['table']);
-            $results[] = $this->result(
-                $resource['name'],
-                $module,
-                true,
-                $installed,
-                $installed ? 'installed' : ($afterInstall ? 'missing' : 'pending'),
-                $resource['detail'],
-            );
-        }
-
-        return $results;
-    }
-
-    private function cacheDatabaseConfigured(): bool
-    {
-        $stores = $this->associative($this->application->config()->get('cache.stores', []));
-        foreach ($this->activeCacheStoreNames() as $name) {
-            $store = $this->associative($stores[$name] ?? []);
-            $driver = strtolower(is_string($store['driver'] ?? null) ? $store['driver'] : $name);
-            if (in_array($driver, ['pdo', 'sqlite'], true)) {
-                return true;
-            }
-        }
-
-        return $this->activePdoTransportNames() !== [];
+        return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1;
     }
 
     /**
@@ -258,6 +185,66 @@ final readonly class ModuleSchemaManager
         return array_keys($active);
     }
 
+    /** @return array<string,mixed> */
+    private function associative(mixed $value): array
+    {
+        return is_array($value) ? $value : [];
+    }
+
+    private function authApplicable(): bool
+    {
+        return $this->application->config()->get('auth.drivers.storage', 'memory') === 'database';
+    }
+
+    /**
+     * @return array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}
+     */
+    private function authStatus(string $module, ?string $connection, bool $afterInstall): array
+    {
+        $applicable = $this->authApplicable();
+        if (!class_exists(\Infocyph\DBLayer\Connection\Connection::class)) {
+            return $this->result(
+                'auth',
+                $module,
+                $applicable,
+                false,
+                'unavailable',
+                'Requires the database module; run "php infbyte module:install database".',
+            );
+        }
+
+        try {
+            $status = $this->application->make(AuthSchemaInstaller::class)->readiness($connection);
+        } catch (\Throwable $failure) {
+            return $this->result('auth', $module, $applicable, false, 'unavailable', $failure->getMessage());
+        }
+
+        return $this->result(
+            'auth',
+            $module,
+            $applicable,
+            $status['installed'],
+            $status['installed'] ? 'installed' : ($afterInstall ? 'missing' : 'pending'),
+            $status['installed']
+                ? 'Authentication tables are installed.'
+                : 'Missing: ' . implode(', ', [...$status['missing_tables'], ...$status['missing_columns']]),
+        );
+    }
+
+    private function cacheDatabaseConfigured(): bool
+    {
+        $stores = $this->associative($this->application->config()->get('cache.stores', []));
+        foreach ($this->activeCacheStoreNames() as $name) {
+            $store = $this->associative($stores[$name] ?? []);
+            $driver = strtolower(is_string($store['driver'] ?? null) ? $store['driver'] : $name);
+            if (in_array($driver, ['pdo', 'sqlite'], true)) {
+                return true;
+            }
+        }
+
+        return $this->activePdoTransportNames() !== [];
+    }
+
     /** @param array<string,mixed> $store @return array{pdo:?PDO,detail:string,state?:string} */
     private function cachePdo(array $store, string $driver, ?string $connection, bool $forInstall): array
     {
@@ -309,6 +296,65 @@ final readonly class ModuleSchemaManager
         ];
     }
 
+    /**
+     * @return list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}>
+     */
+    private function cacheStatuses(string $module, ?string $connection, bool $afterInstall = false): array
+    {
+        $applicable = $this->cacheDatabaseConfigured();
+        if (!class_exists(PdoCacheSchema::class)) {
+            return [$this->result(
+                'cache',
+                $module,
+                $applicable,
+                false,
+                'unavailable',
+                'Requires the cache module; run "php infbyte module:install cache".',
+            )];
+        }
+
+        $resources = $this->activeCacheDatabaseResources($connection);
+        if ($resources === []) {
+            return [$this->result(
+                'cache',
+                $module,
+                false,
+                true,
+                'not-applicable',
+                'No active database-backed cache store or PDO invalidation transport.',
+            )];
+        }
+
+        $results = [];
+        foreach ($resources as $resource) {
+            if (!$resource['pdo'] instanceof PDO) {
+                $state = is_string($resource['state'] ?? null) ? $resource['state'] : 'unavailable';
+                $results[] = $this->result(
+                    $resource['name'],
+                    $module,
+                    true,
+                    false,
+                    $afterInstall && $state === 'pending' ? 'missing' : $state,
+                    $resource['detail'],
+                );
+
+                continue;
+            }
+
+            $installed = $this->tableExists($resource['pdo'], $resource['table']);
+            $results[] = $this->result(
+                $resource['name'],
+                $module,
+                true,
+                $installed,
+                $installed ? 'installed' : ($afterInstall ? 'missing' : 'pending'),
+                $resource['detail'],
+            );
+        }
+
+        return $results;
+    }
+
     /** @return array{pdo:?PDO,detail:string,state?:string} */
     private function databasePdo(?string $connection): array
     {
@@ -329,6 +375,50 @@ final readonly class ModuleSchemaManager
             'pdo' => $pdo,
             'detail' => 'DBLayer connection ' . ($connection ?? 'default') . '.',
         ];
+    }
+
+    private function installCacheSchemas(?string $connection): void
+    {
+        foreach ($this->activeCacheDatabaseResources($connection, true) as $resource) {
+            $pdo = $resource['pdo'];
+            if (!$pdo instanceof PDO) {
+                continue;
+            }
+
+            if ($resource['type'] === 'invalidation') {
+                PdoInvalidationSchema::install(
+                    $pdo,
+                    ($resource['allow_sqlite_for_testing'] ?? false) === true,
+                );
+
+                continue;
+            }
+
+            PdoCacheSchema::install($pdo, $resource['table']);
+        }
+    }
+
+    private function installSchema(string $schema, ?string $connection): void
+    {
+        switch ($schema) {
+            case 'auth':
+                $this->application->make(AuthSchemaInstaller::class)->install($connection);
+
+                break;
+            case 'cache':
+                $this->installCacheSchemas($connection);
+
+                break;
+            case 'session':
+                $this->application->make(SessionDatabaseSchema::class)->install($connection);
+
+                break;
+        }
+    }
+
+    private function nullableString(mixed $value): ?string
+    {
+        return is_string($value) && trim($value) !== '' ? trim($value) : null;
     }
 
     /**
@@ -360,77 +450,6 @@ final readonly class ModuleSchemaManager
             'session' => [$this->sessionStatus($module, $connection, $afterInstall)],
             default => [$this->result($schema, $module, false, true, 'not-applicable', 'No schema provisioner is registered.')],
         };
-    }
-
-    /**
-     * @return array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}
-     */
-    private function authStatus(string $module, ?string $connection, bool $afterInstall): array
-    {
-        $applicable = $this->authApplicable();
-        if (!class_exists(\Infocyph\DBLayer\Connection\Connection::class)) {
-            return $this->result(
-                'auth',
-                $module,
-                $applicable,
-                false,
-                'unavailable',
-                'Requires the database module; run "php infbyte module:install database".',
-            );
-        }
-
-        try {
-            $status = $this->application->make(AuthSchemaInstaller::class)->readiness($connection);
-        } catch (\Throwable $failure) {
-            return $this->result('auth', $module, $applicable, false, 'unavailable', $failure->getMessage());
-        }
-
-        return $this->result(
-            'auth',
-            $module,
-            $applicable,
-            $status['installed'],
-            $status['installed'] ? 'installed' : ($afterInstall ? 'missing' : 'pending'),
-            $status['installed']
-                ? 'Authentication tables are installed.'
-                : 'Missing: ' . implode(', ', [...$status['missing_tables'], ...$status['missing_columns']]),
-        );
-    }
-
-    private function installSchema(string $schema, ?string $connection): void
-    {
-        switch ($schema) {
-            case 'auth':
-                $this->application->make(AuthSchemaInstaller::class)->install($connection);
-                break;
-            case 'cache':
-                $this->installCacheSchemas($connection);
-                break;
-            case 'session':
-                $this->application->make(SessionDatabaseSchema::class)->install($connection);
-                break;
-        }
-    }
-
-    private function installCacheSchemas(?string $connection): void
-    {
-        foreach ($this->activeCacheDatabaseResources($connection, true) as $resource) {
-            $pdo = $resource['pdo'];
-            if (!$pdo instanceof PDO) {
-                continue;
-            }
-
-            if ($resource['type'] === 'invalidation') {
-                PdoInvalidationSchema::install(
-                    $pdo,
-                    ($resource['allow_sqlite_for_testing'] ?? false) === true,
-                );
-
-                continue;
-            }
-
-            PdoCacheSchema::install($pdo, $resource['table']);
-        }
     }
 
     private function sessionApplicable(): bool
@@ -469,22 +488,6 @@ final readonly class ModuleSchemaManager
             $status['installed'] ? 'installed' : ($afterInstall ? 'missing' : 'pending'),
             $status['installed'] ? 'Session table is installed.' : 'Missing session table ' . $status['table'] . '.',
         );
-    }
-
-    /** @return array<string,mixed> */
-    private function associative(mixed $value): array
-    {
-        return is_array($value) ? $value : [];
-    }
-
-    private function nullableString(mixed $value): ?string
-    {
-        return is_string($value) && trim($value) !== '' ? trim($value) : null;
-    }
-
-    private function absolute(string $path): bool
-    {
-        return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1;
     }
 
     private function tableExists(PDO $pdo, string $table): bool

@@ -80,6 +80,15 @@ final class JsonLogger extends AbstractLogger
         }
     }
 
+    private static function timestamp(): string
+    {
+        [$fraction, $seconds] = explode(' ', microtime());
+
+        return gmdate('Y-m-d\TH:i:s', (int) $seconds)
+            . substr($fraction, 1, 7)
+            . 'Z';
+    }
+
     private function isSensitive(string $key): bool
     {
         $key = strtolower($key);
@@ -152,14 +161,5 @@ final class JsonLogger extends AbstractLogger
         }
 
         return $normalized;
-    }
-
-    private static function timestamp(): string
-    {
-        [$fraction, $seconds] = explode(' ', microtime());
-
-        return gmdate('Y-m-d\TH:i:s', (int) $seconds)
-            . substr($fraction, 1, 7)
-            . 'Z';
     }
 }

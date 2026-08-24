@@ -12,24 +12,6 @@ final readonly class MaintenanceManager
 {
     public function __construct(private Application $application) {}
 
-    /** @return array{enabled:bool,enabled_at:?string,retry_after:?int,message:?string,driver:string} */
-    public function enable(?int $retryAfter = null, ?string $message = null): array
-    {
-        if ($retryAfter !== null && $retryAfter < 1) {
-            throw new \InvalidArgumentException('Maintenance retry-after must be positive when provided.');
-        }
-
-        $state = [
-            'enabled' => true,
-            'enabled_at' => gmdate(DATE_ATOM),
-            'retry_after' => $retryAfter,
-            'message' => $message,
-        ];
-        $this->write($state);
-
-        return [...$state, 'driver' => $this->driver()];
-    }
-
     public function disable(): bool
     {
         if ($this->driver() === 'cache') {
@@ -48,6 +30,24 @@ final readonly class MaintenanceManager
     }
 
     /** @return array{enabled:bool,enabled_at:?string,retry_after:?int,message:?string,driver:string} */
+    public function enable(?int $retryAfter = null, ?string $message = null): array
+    {
+        if ($retryAfter !== null && $retryAfter < 1) {
+            throw new \InvalidArgumentException('Maintenance retry-after must be positive when provided.');
+        }
+
+        $state = [
+            'enabled' => true,
+            'enabled_at' => gmdate(DATE_ATOM),
+            'retry_after' => $retryAfter,
+            'message' => $message,
+        ];
+        $this->write($state);
+
+        return [...$state, 'driver' => $this->driver()];
+    }
+
+    /** @return array{enabled:bool,enabled_at:?string,retry_after:?int,message:?string,driver:string} */
     public function status(): array
     {
         $state = $this->read();
@@ -59,6 +59,53 @@ final readonly class MaintenanceManager
             'message' => is_string($state['message'] ?? null) ? $state['message'] : null,
             'driver' => $this->driver(),
         ];
+    }
+
+    private function cache(): \Infocyph\CacheLayer\Cache\CacheInterface
+    {
+        if (!class_exists(\Infocyph\CacheLayer\Cache\Cache::class)) {
+            throw new \LogicException(
+                'Cache-backed maintenance mode requires the cache module; run "php infbyte module:install cache".',
+            );
+        }
+        $store = $this->application->config()->get('operations.maintenance.store');
+
+        return $this->application->make(CacheManager::class)->store(
+            is_string($store) && $store !== '' ? $store : null,
+        );
+    }
+
+    private function cacheKey(): string
+    {
+        $key = $this->application->config()->get('operations.maintenance.key', 'foundation:maintenance');
+
+        return is_string($key) && $key !== '' ? $key : 'foundation:maintenance';
+    }
+
+    private function driver(): string
+    {
+        $driver = strtolower(ValueNormalizer::string(
+            $this->application->config()->get('operations.maintenance.driver', 'file'),
+            'file',
+        ));
+        if (!in_array($driver, ['file', 'cache'], true)) {
+            throw new \UnexpectedValueException('operations.maintenance.driver must be file or cache.');
+        }
+
+        return $driver;
+    }
+
+    private function path(): string
+    {
+        $configured = $this->application->config()->get(
+            'operations.maintenance.path',
+            'storage/framework/maintenance.json',
+        );
+        $configured = is_string($configured) && $configured !== '' ? $configured : 'storage/framework/maintenance.json';
+
+        return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $configured) === 1
+            ? $configured
+            : $this->application->basePath(trim($configured, DIRECTORY_SEPARATOR));
     }
 
     /** @return array<string,mixed> */
@@ -117,52 +164,5 @@ final readonly class MaintenanceManager
                 unlink($temporary);
             }
         }
-    }
-
-    private function cache(): \Infocyph\CacheLayer\Cache\CacheInterface
-    {
-        if (!class_exists(\Infocyph\CacheLayer\Cache\Cache::class)) {
-            throw new \LogicException(
-                'Cache-backed maintenance mode requires the cache module; run "php infbyte module:install cache".',
-            );
-        }
-        $store = $this->application->config()->get('operations.maintenance.store');
-
-        return $this->application->make(CacheManager::class)->store(
-            is_string($store) && $store !== '' ? $store : null,
-        );
-    }
-
-    private function cacheKey(): string
-    {
-        $key = $this->application->config()->get('operations.maintenance.key', 'foundation:maintenance');
-
-        return is_string($key) && $key !== '' ? $key : 'foundation:maintenance';
-    }
-
-    private function driver(): string
-    {
-        $driver = strtolower(ValueNormalizer::string(
-            $this->application->config()->get('operations.maintenance.driver', 'file'),
-            'file',
-        ));
-        if (!in_array($driver, ['file', 'cache'], true)) {
-            throw new \UnexpectedValueException('operations.maintenance.driver must be file or cache.');
-        }
-
-        return $driver;
-    }
-
-    private function path(): string
-    {
-        $configured = $this->application->config()->get(
-            'operations.maintenance.path',
-            'storage/framework/maintenance.json',
-        );
-        $configured = is_string($configured) && $configured !== '' ? $configured : 'storage/framework/maintenance.json';
-
-        return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $configured) === 1
-            ? $configured
-            : $this->application->basePath(trim($configured, DIRECTORY_SEPARATOR));
     }
 }

@@ -25,28 +25,6 @@ final readonly class NotificationChannelRegistry
         return $this->resolve($name);
     }
 
-    private function resolve(string $name): NotificationChannel
-    {
-        $configured = $this->config->get('notifications.channels', []);
-        if (!is_array($configured)) {
-            throw new \LogicException('notifications.channels must be a channel map.');
-        }
-
-        if (array_key_exists($name, $configured)) {
-            return $this->normalize($name, $configured[$name]);
-        }
-        if ($name === 'mail') {
-            return $this->mail ?? throw new \LogicException(
-                'The mail notification channel requires the communication module; run "php infbyte module:install communication".',
-            );
-        }
-
-        throw new \InvalidArgumentException(sprintf(
-            'Notification channel "%s" is not configured.',
-            $name,
-        ));
-    }
-
     private function normalize(string $name, mixed $definition): NotificationChannel
     {
         if ($definition instanceof NotificationChannel) {
@@ -71,5 +49,27 @@ final readonly class NotificationChannelRegistry
         }
 
         return $channel;
+    }
+
+    private function resolve(string $name): NotificationChannel
+    {
+        $configured = $this->config->get('notifications.channels', []);
+        if (!is_array($configured)) {
+            throw new \LogicException('notifications.channels must be a channel map.');
+        }
+
+        if (array_key_exists($name, $configured)) {
+            return $this->normalize($name, $configured[$name]);
+        }
+        if ($name === 'mail') {
+            return $this->mail ?? throw new \LogicException(
+                'The mail notification channel requires the communication module; run "php infbyte module:install communication".',
+            );
+        }
+
+        throw new \InvalidArgumentException(sprintf(
+            'Notification channel "%s" is not configured.',
+            $name,
+        ));
     }
 }

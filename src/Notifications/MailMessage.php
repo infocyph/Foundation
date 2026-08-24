@@ -14,10 +14,10 @@ use Infocyph\TalkingBytes\Email\EmailMessage;
  */
 abstract class MailMessage
 {
+    abstract public function toEmail(): EmailMessage;
+
     public function senderProfile(): ?string
     {
         return null;
     }
-
-    abstract public function toEmail(): EmailMessage;
 }

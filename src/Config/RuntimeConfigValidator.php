@@ -106,6 +106,25 @@ final readonly class RuntimeConfigValidator
             : [new ConfigIssue($key . ' is outside its supported range.', $key)];
     }
 
+    private function forkUnsafePath(mixed $value, string $path): ?string
+    {
+        if ($value === null || is_scalar($value)) {
+            return null;
+        }
+        if (!is_array($value)) {
+            return $path . ' (' . get_debug_type($value) . ')';
+        }
+
+        foreach ($value as $key => $child) {
+            $unsafe = $this->forkUnsafePath($child, $path . '.' . $key);
+            if ($unsafe !== null) {
+                return $unsafe;
+            }
+        }
+
+        return null;
+    }
+
     /** @return list<ConfigIssue> */
     private function logging(): array
     {
@@ -208,32 +227,7 @@ final readonly class RuntimeConfigValidator
                         sprintf('%s must map non-empty keys to callable definitions.', $key),
                         $key,
                     );
-                    break;
-                }
-            }
-        }
 
-        return $issues;
-    }
-
-    /** @return list<ConfigIssue> */
-    private function messageMiddleware(): array
-    {
-        $issues = [];
-        foreach (['handler_middleware', 'job_middleware'] as $surface) {
-            $key = 'messaging.' . $surface;
-            $definitions = $this->config->get($key, []);
-            if (!is_array($definitions) || !array_is_list($definitions)) {
-                $issues[] = new ConfigIssue($key . ' must be an ordered middleware list.', $key);
-
-                continue;
-            }
-            foreach ($definitions as $definition) {
-                if ((!is_string($definition) || trim($definition) === '') && !is_object($definition)) {
-                    $issues[] = new ConfigIssue(
-                        $key . ' entries must be non-empty service class names or middleware instances.',
-                        $key,
-                    );
                     break;
                 }
             }
@@ -271,6 +265,33 @@ final readonly class RuntimeConfigValidator
         }
 
         return [];
+    }
+
+    /** @return list<ConfigIssue> */
+    private function messageMiddleware(): array
+    {
+        $issues = [];
+        foreach (['handler_middleware', 'job_middleware'] as $surface) {
+            $key = 'messaging.' . $surface;
+            $definitions = $this->config->get($key, []);
+            if (!is_array($definitions) || !array_is_list($definitions)) {
+                $issues[] = new ConfigIssue($key . ' must be an ordered middleware list.', $key);
+
+                continue;
+            }
+            foreach ($definitions as $definition) {
+                if ((!is_string($definition) || trim($definition) === '') && !is_object($definition)) {
+                    $issues[] = new ConfigIssue(
+                        $key . ' entries must be non-empty service class names or middleware instances.',
+                        $key,
+                    );
+
+                    break;
+                }
+            }
+        }
+
+        return $issues;
     }
 
     /** @return list<ConfigIssue> */
@@ -454,25 +475,6 @@ final readonly class RuntimeConfigValidator
         return $issues;
     }
 
-    private function forkUnsafePath(mixed $value, string $path): ?string
-    {
-        if ($value === null || is_scalar($value)) {
-            return null;
-        }
-        if (!is_array($value)) {
-            return $path . ' (' . get_debug_type($value) . ')';
-        }
-
-        foreach ($value as $key => $child) {
-            $unsafe = $this->forkUnsafePath($child, $path . '.' . (string) $key);
-            if ($unsafe !== null) {
-                return $unsafe;
-            }
-        }
-
-        return null;
-    }
-
     /** @return list<ConfigIssue> */
     private function migrations(): array
     {
@@ -536,6 +538,7 @@ final readonly class RuntimeConfigValidator
                         'notifications.channels must map non-empty names to service class names or channel instances.',
                         'notifications.channels',
                     );
+
                     break;
                 }
             }
@@ -558,6 +561,46 @@ final readonly class RuntimeConfigValidator
         }
 
         return $issues;
+    }
+
+    /** @return list<ConfigIssue> */
+    private function operationalCacheState(string $surface, mixed $configuredStore): array
+    {
+        $store = is_string($configuredStore) && trim($configuredStore) !== ''
+            ? trim($configuredStore)
+            : $this->config->get('cache.default');
+        $key = 'operations.' . $surface . '.store';
+        if (!is_string($store) || trim($store) === '') {
+            return [new ConfigIssue(
+                sprintf('%s requires a configured cache store.', 'operations.' . $surface),
+                $key,
+            )];
+        }
+        $store = trim($store);
+        if (!$this->config->has('cache.stores.' . $store)) {
+            return [new ConfigIssue(
+                sprintf('cache.stores.%s must exist for cache-backed %s.', $store, str_replace('_', ' ', $surface)),
+                'cache.stores.' . $store,
+            )];
+        }
+
+        $topology = new SharedStateTopology($this->config);
+        $required = DeploymentTopology::resolve($this->config) === DeploymentTopology::DISTRIBUTED
+            ? SharedStateTopology::CLUSTER
+            : SharedStateTopology::HOST;
+
+        try {
+            $topology->assertCacheStore(
+                $store,
+                $surface === 'runtime_control' ? 'Runtime control' : 'Maintenance state',
+                $required,
+                $surface === 'runtime_control',
+            );
+        } catch (ConfigurationException $exception) {
+            return [new ConfigIssue($exception->getMessage(), 'cache.stores.' . $store)];
+        }
+
+        return [];
     }
 
     /** @return list<ConfigIssue> */
@@ -649,46 +692,6 @@ final readonly class RuntimeConfigValidator
         }
 
         return $issues;
-    }
-
-    /** @return list<ConfigIssue> */
-    private function operationalCacheState(string $surface, mixed $configuredStore): array
-    {
-        $store = is_string($configuredStore) && trim($configuredStore) !== ''
-            ? trim($configuredStore)
-            : $this->config->get('cache.default');
-        $key = 'operations.' . $surface . '.store';
-        if (!is_string($store) || trim($store) === '') {
-            return [new ConfigIssue(
-                sprintf('%s requires a configured cache store.', 'operations.' . $surface),
-                $key,
-            )];
-        }
-        $store = trim($store);
-        if (!$this->config->has('cache.stores.' . $store)) {
-            return [new ConfigIssue(
-                sprintf('cache.stores.%s must exist for cache-backed %s.', $store, str_replace('_', ' ', $surface)),
-                'cache.stores.' . $store,
-            )];
-        }
-
-        $topology = new SharedStateTopology($this->config);
-        $required = DeploymentTopology::resolve($this->config) === DeploymentTopology::DISTRIBUTED
-            ? SharedStateTopology::CLUSTER
-            : SharedStateTopology::HOST;
-
-        try {
-            $topology->assertCacheStore(
-                $store,
-                $surface === 'runtime_control' ? 'Runtime control' : 'Maintenance state',
-                $required,
-                $surface === 'runtime_control',
-            );
-        } catch (ConfigurationException $exception) {
-            return [new ConfigIssue($exception->getMessage(), 'cache.stores.' . $store)];
-        }
-
-        return [];
     }
 
     /** @return list<ConfigIssue> */

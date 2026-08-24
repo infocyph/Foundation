@@ -68,13 +68,6 @@ final readonly class ProcessOptions
         }
     }
 
-    private function validateOutputLimit(): void
-    {
-        if ($this->maxOutputBytes !== null && $this->maxOutputBytes < 1) {
-            throw new \InvalidArgumentException('Process output limit must be null or a positive byte count.');
-        }
-    }
-
     /**
      * @param (callable(string):void)|null $onStdout
      * @param (callable(string):void)|null $onStderr
@@ -96,5 +89,12 @@ final readonly class ProcessOptions
         throw new \InvalidArgumentException(
             'Interactive mode owns STDIN/STDOUT/STDERR and cannot be combined with explicit stream options.',
         );
+    }
+
+    private function validateOutputLimit(): void
+    {
+        if ($this->maxOutputBytes !== null && $this->maxOutputBytes < 1) {
+            throw new \InvalidArgumentException('Process output limit must be null or a positive byte count.');
+        }
     }
 }

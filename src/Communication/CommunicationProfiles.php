@@ -225,6 +225,13 @@ final readonly class CommunicationProfiles
         return $client;
     }
 
+    private function defaultProfile(string $key, string $fallback): string
+    {
+        $value = $this->config->get('communication.' . $key, $fallback);
+
+        return is_string($value) && trim($value) !== '' ? trim($value) : $fallback;
+    }
+
     /** @return array<string, mixed> */
     private function grpcConfig(?string $profile): array
     {
@@ -235,13 +242,6 @@ final readonly class CommunicationProfiles
     private function httpConfigArray(?string $profile): array
     {
         return $this->profile('http.clients', 'http.default_client', $profile);
-    }
-
-    private function defaultProfile(string $key, string $fallback): string
-    {
-        $value = $this->config->get('communication.' . $key, $fallback);
-
-        return is_string($value) && trim($value) !== '' ? trim($value) : $fallback;
     }
 
     /** @return array<string, mixed> */

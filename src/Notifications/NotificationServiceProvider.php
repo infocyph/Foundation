@@ -53,6 +53,24 @@ final class NotificationServiceProvider extends ServiceProvider
         );
     }
 
+    private function emailLimits(Application $app): EmailLimits
+    {
+        $config = ValueNormalizer::associativeArray(
+            $app->config()->get('notifications.email.parsing.limits', []),
+        );
+
+        return new EmailLimits(
+            maxMessageBytes: ValueNormalizer::int($config['maxMessageBytes'] ?? 10 * 1024 * 1024, 10 * 1024 * 1024),
+            maxAttachmentBytes: ValueNormalizer::int($config['maxAttachmentBytes'] ?? 25 * 1024 * 1024, 25 * 1024 * 1024),
+            maxAttachmentCount: ValueNormalizer::int($config['maxAttachmentCount'] ?? 500, 500),
+            maxDecodedBodyBytes: ValueNormalizer::int($config['maxDecodedBodyBytes'] ?? 10 * 1024 * 1024, 10 * 1024 * 1024),
+            maxMimeDepth: ValueNormalizer::int($config['maxMimeDepth'] ?? 20, 20),
+            maxMimeParts: ValueNormalizer::int($config['maxMimeParts'] ?? 500, 500),
+            maxHeaderBytes: ValueNormalizer::int($config['maxHeaderBytes'] ?? 131072, 131072),
+            maxHeaderCount: ValueNormalizer::int($config['maxHeaderCount'] ?? 2000, 2000),
+        );
+    }
+
     private function registerMail(Application $app): void
     {
         $container = $app->container();
@@ -175,23 +193,5 @@ final class NotificationServiceProvider extends ServiceProvider
         ] as $service) {
             $this->bindFactory($container, $service, $unavailable, LifetimeEnum::Singleton);
         }
-    }
-
-    private function emailLimits(Application $app): EmailLimits
-    {
-        $config = ValueNormalizer::associativeArray(
-            $app->config()->get('notifications.email.parsing.limits', []),
-        );
-
-        return new EmailLimits(
-            maxMessageBytes: ValueNormalizer::int($config['maxMessageBytes'] ?? 10 * 1024 * 1024, 10 * 1024 * 1024),
-            maxAttachmentBytes: ValueNormalizer::int($config['maxAttachmentBytes'] ?? 25 * 1024 * 1024, 25 * 1024 * 1024),
-            maxAttachmentCount: ValueNormalizer::int($config['maxAttachmentCount'] ?? 500, 500),
-            maxDecodedBodyBytes: ValueNormalizer::int($config['maxDecodedBodyBytes'] ?? 10 * 1024 * 1024, 10 * 1024 * 1024),
-            maxMimeDepth: ValueNormalizer::int($config['maxMimeDepth'] ?? 20, 20),
-            maxMimeParts: ValueNormalizer::int($config['maxMimeParts'] ?? 500, 500),
-            maxHeaderBytes: ValueNormalizer::int($config['maxHeaderBytes'] ?? 131072, 131072),
-            maxHeaderCount: ValueNormalizer::int($config['maxHeaderCount'] ?? 2000, 2000),
-        );
     }
 }

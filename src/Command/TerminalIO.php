@@ -208,13 +208,6 @@ final readonly class TerminalIO implements CommandIO
         }
     }
 
-    private function assertInteractive(): void
-    {
-        if (!$this->interactiveMode) {
-            throw new \RuntimeException('Interactive input is disabled or unavailable.');
-        }
-    }
-
     private static function displayWidth(string $value): int
     {
         $plain = preg_replace('/\x1B\[[0-?]*[ -\/]*[@-~]/', '', $value) ?? $value;
@@ -238,6 +231,28 @@ final readonly class TerminalIO implements CommandIO
             && stream_isatty($stream);
     }
 
+    private static function padDisplay(string $value, int $width): string
+    {
+        return $value . str_repeat(' ', max(0, $width - self::displayWidth($value)));
+    }
+
+    private static function scalarText(bool|float|int|string|null $value): string
+    {
+        return match ($value) {
+            null => '',
+            true => 'true',
+            false => 'false',
+            default => (string) $value,
+        };
+    }
+
+    private function assertInteractive(): void
+    {
+        if (!$this->interactiveMode) {
+            throw new \RuntimeException('Interactive input is disabled or unavailable.');
+        }
+    }
+
     /**
      * @param list<string> $headers
      * @param list<list<bool|float|int|string|null>> $rows
@@ -252,11 +267,6 @@ final readonly class TerminalIO implements CommandIO
         }
 
         return $data;
-    }
-
-    private static function padDisplay(string $value, int $width): string
-    {
-        return $value . str_repeat(' ', max(0, $width - self::displayWidth($value)));
     }
 
     private function readRaw(string $prompt): string
@@ -283,16 +293,6 @@ final readonly class TerminalIO implements CommandIO
         }
 
         return $rendered;
-    }
-
-    private static function scalarText(bool|float|int|string|null $value): string
-    {
-        return match ($value) {
-            null => '',
-            true => 'true',
-            false => 'false',
-            default => (string) $value,
-        };
     }
 
     private function semantic(string $role, string $message): void

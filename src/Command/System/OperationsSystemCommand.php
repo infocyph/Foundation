@@ -47,6 +47,20 @@ final class OperationsSystemCommand extends SystemCommand
         };
     }
 
+    private function authorize(string $question): bool
+    {
+        if ($this->flag('force')) {
+            return true;
+        }
+        if (!$this->io()->interactive()) {
+            $this->io()->error('This destructive operation requires --force in non-interactive mode.');
+
+            return false;
+        }
+
+        return $this->io()->confirm($question, false);
+    }
+
     private function authPrune(): int
     {
         $retention = $this->nonNegativeIntOption('retention-hours', 24);
@@ -74,11 +88,11 @@ final class OperationsSystemCommand extends SystemCommand
         if ($this->application->config()->get('auth.drivers.mfa', 'simple') === 'otp') {
             $issues = [
                 ...$issues,
-                ...(new OtpConfigValidator($this->application->config()))->validate($production),
+                ...new OtpConfigValidator($this->application->config())->validate($production),
             ];
         }
         if ($production) {
-            $issues = [...$issues, ...(new ProductionSecurityValidator($this->application->config()))->validate()];
+            $issues = [...$issues, ...new ProductionSecurityValidator($this->application->config())->validate()];
         }
 
         $data = [
@@ -107,6 +121,11 @@ final class OperationsSystemCommand extends SystemCommand
         }
 
         return $data['valid'] ? ExitCode::SUCCESS : ExitCode::FAILURE;
+    }
+
+    private function control(): RuntimeControl
+    {
+        return new RuntimeControl($this->application);
     }
 
     private function environment(bool $encrypt): int
@@ -210,6 +229,11 @@ final class OperationsSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
+    private function maintenance(): MaintenanceManager
+    {
+        return new MaintenanceManager($this->application);
+    }
+
     private function maintenanceDisable(): int
     {
         $removed = $this->maintenance()->disable();
@@ -248,9 +272,47 @@ final class OperationsSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
-    private function maintenance(): MaintenanceManager
+    private function nonNegativeIntOption(string $name, int $default): int
     {
-        return new MaintenanceManager($this->application);
+        $value = $this->option($name);
+        if ($value === null) {
+            return $default;
+        }
+        if (preg_match('/^\d+$/D', $value) !== 1) {
+            throw new \InvalidArgumentException(sprintf('--%s must be a non-negative integer.', $name));
+        }
+
+        return (int) $value;
+    }
+
+    private function nullablePositiveIntOption(string $name): ?int
+    {
+        $value = $this->option($name);
+
+        return $value === null ? null : $this->positiveInt($name, $value);
+    }
+
+    private function positiveInt(string $name, string $value): int
+    {
+        if (preg_match('/^\d+$/D', $value) !== 1 || (int) $value < 1) {
+            throw new \InvalidArgumentException(sprintf('--%s must be a positive integer.', $name));
+        }
+
+        return (int) $value;
+    }
+
+    private function positiveIntOption(string $name, int $default, int $maximum): int
+    {
+        $value = $this->option($name);
+        if ($value === null) {
+            return $default;
+        }
+        $resolved = $this->positiveInt($name, $value);
+        if ($resolved > $maximum) {
+            throw new \InvalidArgumentException(sprintf('--%s must not exceed %d.', $name, $maximum));
+        }
+
+        return $resolved;
     }
 
     private function runtimeReload(): int
@@ -270,7 +332,7 @@ final class OperationsSystemCommand extends SystemCommand
     private function workerRestart(): int
     {
         $name = $this->argument(0);
-        if ($name !== null && !array_key_exists($name, (new WorkerManager($this->application))->all())) {
+        if ($name !== null && !array_key_exists($name, new WorkerManager($this->application)->all())) {
             throw new \InvalidArgumentException(sprintf('Worker "%s" is not configured.', $name));
         }
         $token = $this->control()->signal('worker', $name);
@@ -284,7 +346,7 @@ final class OperationsSystemCommand extends SystemCommand
     private function workerStatus(): int
     {
         $name = $this->argument(0);
-        $configured = (new WorkerManager($this->application))->all();
+        $configured = new WorkerManager($this->application)->all();
         if ($name !== null && !isset($configured[$name])) {
             throw new \InvalidArgumentException(sprintf('Worker "%s" is not configured.', $name));
         }
@@ -321,67 +383,5 @@ final class OperationsSystemCommand extends SystemCommand
         );
 
         return ExitCode::SUCCESS;
-    }
-
-    private function control(): RuntimeControl
-    {
-        return new RuntimeControl($this->application);
-    }
-
-    private function authorize(string $question): bool
-    {
-        if ($this->flag('force')) {
-            return true;
-        }
-        if (!$this->io()->interactive()) {
-            $this->io()->error('This destructive operation requires --force in non-interactive mode.');
-
-            return false;
-        }
-
-        return $this->io()->confirm($question, false);
-    }
-
-    private function nonNegativeIntOption(string $name, int $default): int
-    {
-        $value = $this->option($name);
-        if ($value === null) {
-            return $default;
-        }
-        if (preg_match('/^\d+$/D', $value) !== 1) {
-            throw new \InvalidArgumentException(sprintf('--%s must be a non-negative integer.', $name));
-        }
-
-        return (int) $value;
-    }
-
-    private function nullablePositiveIntOption(string $name): ?int
-    {
-        $value = $this->option($name);
-
-        return $value === null ? null : $this->positiveInt($name, $value);
-    }
-
-    private function positiveIntOption(string $name, int $default, int $maximum): int
-    {
-        $value = $this->option($name);
-        if ($value === null) {
-            return $default;
-        }
-        $resolved = $this->positiveInt($name, $value);
-        if ($resolved > $maximum) {
-            throw new \InvalidArgumentException(sprintf('--%s must not exceed %d.', $name, $maximum));
-        }
-
-        return $resolved;
-    }
-
-    private function positiveInt(string $name, string $value): int
-    {
-        if (preg_match('/^\d+$/D', $value) !== 1 || (int) $value < 1) {
-            throw new \InvalidArgumentException(sprintf('--%s must be a positive integer.', $name));
-        }
-
-        return (int) $value;
     }
 }

@@ -176,15 +176,6 @@ final readonly class ScheduleManager
         return $path;
     }
 
-    private function interrupted(
-        RuntimeControl $control,
-        string $runtimeToken,
-        string $scheduleToken,
-    ): bool {
-        return $control->changed('runtime', null, $runtimeToken)
-            || $control->changed('schedule', null, $scheduleToken);
-    }
-
     private function executable(): string
     {
         $configured = $this->application->config()->get('command.executable');
@@ -197,6 +188,15 @@ final readonly class ScheduleManager
         return is_file($project)
             ? $project
             : dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'infbyte';
+    }
+
+    private function interrupted(
+        RuntimeControl $control,
+        string $runtimeToken,
+        string $scheduleToken,
+    ): bool {
+        return $control->changed('runtime', null, $runtimeToken)
+            || $control->changed('schedule', null, $scheduleToken);
     }
 
     private function load(string $routes, string $manifest): Schedule
@@ -270,6 +270,25 @@ final readonly class ScheduleManager
             : $this->application->basePath(trim($path, DIRECTORY_SEPARATOR));
     }
 
+    /** @param array<string, scalar|null> $metadata */
+    private function record(
+        ExecutionHistory $history,
+        ExecutionId $executionId,
+        string $name,
+        CommandStatus $status,
+        ?int $exitCode = null,
+        array $metadata = [],
+    ): void {
+        $history->record(
+            kind: 'schedule',
+            executionId: $executionId->value,
+            name: $name,
+            status: $status->value,
+            exitCode: $exitCode,
+            metadata: $metadata,
+        );
+    }
+
     private function runEntry(ScheduledCommand $entry): ScheduleRun
     {
         $executionId = ExecutionId::generate();
@@ -280,6 +299,7 @@ final readonly class ScheduleManager
 
         $lock = null;
         $handle = null;
+
         try {
             if ($entry->preventsOverlap() || $entry->requiresSingleServer()) {
                 if (!interface_exists(LockProviderInterface::class)) {
@@ -381,29 +401,11 @@ final readonly class ScheduleManager
             $this->record($history, $executionId, $name, CommandStatus::Failed, metadata: $identity + [
                 'exception' => $exception::class,
             ]);
+
             throw $exception;
         } finally {
             $lock?->release($handle);
         }
-    }
-
-    /** @param array<string, scalar|null> $metadata */
-    private function record(
-        ExecutionHistory $history,
-        ExecutionId $executionId,
-        string $name,
-        CommandStatus $status,
-        ?int $exitCode = null,
-        array $metadata = [],
-    ): void {
-        $history->record(
-            kind: 'schedule',
-            executionId: $executionId->value,
-            name: $name,
-            status: $status->value,
-            exitCode: $exitCode,
-            metadata: $metadata,
-        );
     }
 
     private function status(ProcessResult $result): CommandStatus

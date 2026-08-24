@@ -15,68 +15,15 @@ use Infocyph\Foundation\Exception\ConfigurationException;
  */
 final readonly class SharedStateTopology
 {
+    public const string CLUSTER = 'cluster';
+
+    public const string HOST = 'host';
+
     public const string NONE = 'none';
 
     public const string PROCESS = 'process';
 
-    public const string HOST = 'host';
-
-    public const string CLUSTER = 'cluster';
-
     public function __construct(private ConfigRepository $config) {}
-
-    public function requiredSecurityScope(): string
-    {
-        return DeploymentTopology::resolve($this->config) === DeploymentTopology::DISTRIBUTED
-            ? self::CLUSTER
-            : self::HOST;
-    }
-
-    public function cacheStoreScope(?string $name = null): string
-    {
-        $name ??= $this->string($this->config->get('cache.default')) ?? 'local';
-        $store = $this->cacheStore($name);
-
-        return $this->cacheDefinitionScope($store, $name);
-    }
-
-    public function cacheStoreCoordinationScope(?string $name = null): string
-    {
-        $globalLock = $this->array($this->config->get('cache.lock', []));
-        $requestedStore = $name
-            ?? $this->string($globalLock['store'] ?? null)
-            ?? $this->string($this->config->get('cache.default'))
-            ?? 'local';
-        $store = $this->cacheStore($requestedStore);
-        $localLock = $this->array($store['lock'] ?? []);
-        $lock = array_replace($globalLock, $localLock);
-        $driver = strtolower($this->string($lock['driver'] ?? null) ?? '');
-
-        if ($driver !== '') {
-            $lockStoreName = $this->string($localLock['store'] ?? null)
-                ?? ($localLock === [] ? $this->string($globalLock['store'] ?? null) : null)
-                ?? $requestedStore;
-            $lockStore = $this->cacheStore($lockStoreName);
-
-            return $this->lockDriverScope($driver, array_replace($lockStore, $lock));
-        }
-
-        return $this->nativeCacheLockScope($store, $requestedStore);
-    }
-
-    public function databaseConnectionScope(?string $name = null): string
-    {
-        $name ??= $this->string($this->config->get('database.default')) ?? 'sqlite';
-        $definition = $this->array($this->config->get('database.connections.' . $name, []));
-        $driver = $this->normalizeDatabaseDriver(
-            $this->string($definition['driver'] ?? null) ?? $name,
-        );
-
-        return $driver === 'sqlite' ? self::HOST : match ($driver) {
-            'mysql', 'mariadb', 'pgsql', 'mssql' => self::CLUSTER,
-            default => self::NONE,
-        };
-    }
 
     public function assertCacheStore(
         ?string $name,
@@ -112,21 +59,79 @@ final readonly class SharedStateTopology
         }
     }
 
+    public function cacheStoreCoordinationScope(?string $name = null): string
+    {
+        $globalLock = $this->array($this->config->get('cache.lock', []));
+        $requestedStore = $name
+            ?? $this->string($globalLock['store'] ?? null)
+            ?? $this->string($this->config->get('cache.default'))
+            ?? 'local';
+        $store = $this->cacheStore($requestedStore);
+        $localLock = $this->array($store['lock'] ?? []);
+        $lock = array_replace($globalLock, $localLock);
+        $driver = strtolower($this->string($lock['driver'] ?? null) ?? '');
+
+        if ($driver !== '') {
+            $lockStoreName = $this->string($localLock['store'] ?? null)
+                ?? ($localLock === [] ? $this->string($globalLock['store'] ?? null) : null)
+                ?? $requestedStore;
+            $lockStore = $this->cacheStore($lockStoreName);
+
+            return $this->lockDriverScope($driver, array_replace($lockStore, $lock));
+        }
+
+        return $this->nativeCacheLockScope($store, $requestedStore);
+    }
+
+    public function cacheStoreScope(?string $name = null): string
+    {
+        $name ??= $this->string($this->config->get('cache.default')) ?? 'local';
+        $store = $this->cacheStore($name);
+
+        return $this->cacheDefinitionScope($store, $name);
+    }
+
+    public function databaseConnectionScope(?string $name = null): string
+    {
+        $name ??= $this->string($this->config->get('database.default')) ?? 'sqlite';
+        $definition = $this->array($this->config->get('database.connections.' . $name, []));
+        $driver = $this->normalizeDatabaseDriver(
+            $this->string($definition['driver'] ?? null) ?? $name,
+        );
+
+        return $driver === 'sqlite' ? self::HOST : match ($driver) {
+            'mysql', 'mariadb', 'pgsql', 'mssql' => self::CLUSTER,
+            default => self::NONE,
+        };
+    }
+
+    public function requiredSecurityScope(): string
+    {
+        return DeploymentTopology::resolve($this->config) === DeploymentTopology::DISTRIBUTED
+            ? self::CLUSTER
+            : self::HOST;
+    }
+
     public function satisfies(string $actual, string $required): bool
     {
         return $this->rank($actual) >= $this->rank($required);
     }
 
     /** @return array<string, mixed> */
-    private function cacheStore(string $name): array
+    private function array(mixed $value): array
     {
-        $stores = $this->array($this->config->get('cache.stores', []));
-        $definition = $stores[$name] ?? null;
-        if (!is_array($definition)) {
-            return ['driver' => $name];
+        if (!is_array($value)) {
+            return [];
         }
 
-        return $this->array($definition);
+        $result = [];
+        foreach ($value as $key => $item) {
+            if (is_string($key)) {
+                $result[$key] = $item;
+            }
+        }
+
+        return $result;
     }
 
     /** @param array<string, mixed> $definition */
@@ -146,6 +151,29 @@ final readonly class SharedStateTopology
         };
     }
 
+    /** @return array<string, mixed> */
+    private function cacheStore(string $name): array
+    {
+        $stores = $this->array($this->config->get('cache.stores', []));
+        $definition = $stores[$name] ?? null;
+        if (!is_array($definition)) {
+            return ['driver' => $name];
+        }
+
+        return $this->array($definition);
+    }
+
+    /** @param array<string, mixed> $definition */
+    private function lockDriverScope(string $driver, array $definition): string
+    {
+        return match ($this->normalizeCacheDriver($driver)) {
+            'file' => self::HOST,
+            'redis', 'valkey', 'memcache' => self::CLUSTER,
+            'pdo' => $this->pdoNativeLockScope($definition),
+            default => self::NONE,
+        };
+    }
+
     /** @param array<string, mixed> $definition */
     private function nativeCacheLockScope(array $definition, string $fallbackDriver): string
     {
@@ -161,33 +189,25 @@ final readonly class SharedStateTopology
         };
     }
 
-    /** @param array<string, mixed> $definition */
-    private function lockDriverScope(string $driver, array $definition): string
+    private function normalizeCacheDriver(string $driver): string
     {
-        return match ($this->normalizeCacheDriver($driver)) {
-            'file' => self::HOST,
-            'redis', 'valkey', 'memcache' => self::CLUSTER,
-            'pdo' => $this->pdoNativeLockScope($definition),
-            default => self::NONE,
+        return match (strtolower($driver)) {
+            'array' => 'memory',
+            'memcached' => 'memcache',
+            'null' => 'null_store',
+            'scylla' => 'scylladb',
+            default => strtolower($driver),
         };
     }
 
-    /** @param array<string, mixed> $definition */
-    private function pdoStateScope(array $definition): string
+    private function normalizeDatabaseDriver(string $driver): string
     {
-        return match ($this->pdoDriver($definition)) {
-            'sqlite' => self::HOST,
-            'mysql', 'mariadb', 'pgsql', 'mssql' => self::CLUSTER,
-            default => self::NONE,
-        };
-    }
-
-    /** @param array<string, mixed> $definition */
-    private function pdoNativeLockScope(array $definition): string
-    {
-        return match ($this->pdoDriver($definition)) {
-            'mysql', 'mariadb', 'pgsql' => self::CLUSTER,
-            default => self::NONE,
+        return match (strtolower($driver)) {
+            'pdo_mysql', 'mysqli' => 'mysql',
+            'postgres', 'postgresql', 'psql', 'pdo_pgsql' => 'pgsql',
+            'sqlsrv', 'sqlserver', 'pdo_sqlsrv' => 'mssql',
+            'sqlite3', 'pdo_sqlite' => 'sqlite',
+            default => strtolower($driver),
         };
     }
 
@@ -219,6 +239,40 @@ final readonly class SharedStateTopology
     }
 
     /** @param array<string, mixed> $definition */
+    private function pdoNativeLockScope(array $definition): string
+    {
+        return match ($this->pdoDriver($definition)) {
+            'mysql', 'mariadb', 'pgsql' => self::CLUSTER,
+            default => self::NONE,
+        };
+    }
+
+    /** @param array<string, mixed> $definition */
+    private function pdoStateScope(array $definition): string
+    {
+        return match ($this->pdoDriver($definition)) {
+            'sqlite' => self::HOST,
+            'mysql', 'mariadb', 'pgsql', 'mssql' => self::CLUSTER,
+            default => self::NONE,
+        };
+    }
+
+    private function rank(string $scope): int
+    {
+        return match ($scope) {
+            self::PROCESS => 1,
+            self::HOST => 2,
+            self::CLUSTER => 3,
+            default => 0,
+        };
+    }
+
+    private function string(mixed $value): ?string
+    {
+        return is_string($value) && trim($value) !== '' ? trim($value) : null;
+    }
+
+    /** @param array<string, mixed> $definition */
     private function tieredScope(array $definition): string
     {
         $tiers = $definition['tiers'] ?? null;
@@ -238,59 +292,5 @@ final readonly class SharedStateTopology
         }
 
         return $scope;
-    }
-
-    private function normalizeCacheDriver(string $driver): string
-    {
-        return match (strtolower($driver)) {
-            'array' => 'memory',
-            'memcached' => 'memcache',
-            'null' => 'null_store',
-            'scylla' => 'scylladb',
-            default => strtolower($driver),
-        };
-    }
-
-    private function normalizeDatabaseDriver(string $driver): string
-    {
-        return match (strtolower($driver)) {
-            'pdo_mysql', 'mysqli' => 'mysql',
-            'postgres', 'postgresql', 'psql', 'pdo_pgsql' => 'pgsql',
-            'sqlsrv', 'sqlserver', 'pdo_sqlsrv' => 'mssql',
-            'sqlite3', 'pdo_sqlite' => 'sqlite',
-            default => strtolower($driver),
-        };
-    }
-
-    private function rank(string $scope): int
-    {
-        return match ($scope) {
-            self::PROCESS => 1,
-            self::HOST => 2,
-            self::CLUSTER => 3,
-            default => 0,
-        };
-    }
-
-    /** @return array<string, mixed> */
-    private function array(mixed $value): array
-    {
-        if (!is_array($value)) {
-            return [];
-        }
-
-        $result = [];
-        foreach ($value as $key => $item) {
-            if (is_string($key)) {
-                $result[$key] = $item;
-            }
-        }
-
-        return $result;
-    }
-
-    private function string(mixed $value): ?string
-    {
-        return is_string($value) && trim($value) !== '' ? trim($value) : null;
     }
 }
