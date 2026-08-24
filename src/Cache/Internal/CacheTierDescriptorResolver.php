@@ -41,7 +41,10 @@ final readonly class CacheTierDescriptorResolver
         return $resolved;
     }
 
-    /** @param array<string,mixed> $descriptor @return array<string,mixed> */
+    /**
+     * @param array<string,mixed> $descriptor
+     * @return array<string,mixed>
+     */
     private function fileDescriptor(array $descriptor): array
     {
         foreach (['dir', 'base_dir'] as $key) {
@@ -54,7 +57,10 @@ final readonly class CacheTierDescriptorResolver
         return $descriptor;
     }
 
-    /** @param array<string,mixed> $descriptor @return array<string,mixed> */
+    /**
+     * @param array<string,mixed> $descriptor
+     * @return array<string,mixed>
+     */
     private function pdoDescriptor(array $descriptor): array
     {
         $connection = $descriptor['connection'] ?? null;
@@ -91,7 +97,10 @@ final readonly class CacheTierDescriptorResolver
         ];
     }
 
-    /** @param array<string,mixed> $descriptor @return array<string,mixed> */
+    /**
+     * @param array<string,mixed> $descriptor
+     * @return array<string,mixed>
+     */
     private function redisDescriptor(array $descriptor, string $driver): array
     {
         $connection = $this->redisConnection($descriptor, $driver);
@@ -126,7 +135,7 @@ final readonly class CacheTierDescriptorResolver
             ));
         }
 
-        $descriptor = ValueNormalizer::associativeArray($tier);
+        $descriptor = $this->stringKeyed($tier);
         $driver = strtolower(ValueNormalizer::string($descriptor['driver'] ?? null));
         if ($driver === '') {
             throw new ConfigurationException(sprintf(
@@ -150,7 +159,10 @@ final readonly class CacheTierDescriptorResolver
         };
     }
 
-    /** @param array<string,mixed> $descriptor @return array<string,mixed> */
+    /**
+     * @param array<string,mixed> $descriptor
+     * @return array<string,mixed>
+     */
     private function sqliteDescriptor(array $descriptor): array
     {
         $file = $descriptor['file'] ?? null;
@@ -166,6 +178,19 @@ final readonly class CacheTierDescriptorResolver
         $value = $this->config->get($key, $default);
 
         return is_string($value) ? $value : $default;
+    }
+
+    /** @param array<array-key,mixed> $value @return array<string,mixed> */
+    private function stringKeyed(array $value): array
+    {
+        $resolved = [];
+        foreach ($value as $key => $item) {
+            if (is_string($key)) {
+                $resolved[$key] = $item;
+            }
+        }
+
+        return $resolved;
     }
 
     private function stringOrNull(mixed $value): ?string
