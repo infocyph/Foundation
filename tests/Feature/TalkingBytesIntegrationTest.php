@@ -116,7 +116,8 @@ MAIL;
         $emailer->assertable()->assertSentTo('user@example.test');
         $emailer->assertable()->assertSentSubject('Framework Mail');
 
-        $parsed = $app->make(RawEmailParser::class)->parse(
+        $parser = $app->make(RawEmailParser::class);
+        $parsed = $parser->parse(
             str_replace("\n", "\r\n", $rawInbound),
             ['source' => 'feature-test'],
         );
@@ -129,10 +130,11 @@ MAIL;
         expect($authResults->passedDkim())->toBeTrue()
             ->and($authResults->passedSpf())->toBeTrue();
 
-        $bounce = $app->make(BounceParser::class)->parse(
+        $bounceEmail = $parser->parse(
             str_replace("\n", "\r\n", $rawBounce),
             ['source' => 'feature-bounce'],
         );
+        $bounce = $app->make(BounceParser::class)->parse($bounceEmail);
         expect($bounce)->not->toBeNull()
             ->and($bounce?->type)->toBe(BounceType::UserUnknown)
             ->and($bounce?->recipient)->toBe('user@example.test');
