@@ -129,6 +129,7 @@ final readonly class OtpRecoveryCodeStore implements RecoveryCodeStoreInterface
         return $accountId;
     }
 
+    /** @param list<string> $hashes */
     private function digestIndex(array $hashes, string $candidate): ?int
     {
         foreach ($hashes as $index => $hash) {
@@ -157,6 +158,10 @@ final readonly class OtpRecoveryCodeStore implements RecoveryCodeStoreInterface
         return null;
     }
 
+    /**
+     * @param array<array-key, mixed> $hashes
+     * @return list<string>
+     */
     private function hashes(array $hashes): array
     {
         $validated = [];
@@ -173,6 +178,14 @@ final readonly class OtpRecoveryCodeStore implements RecoveryCodeStoreInterface
         return array_keys($validated);
     }
 
+    /**
+     * @return array{
+     *     hashes:list<string>,
+     *     issuedAt:DateTimeImmutable,
+     *     lastUsedAt:DateTimeImmutable|null,
+     *     total:int
+     * }
+     */
     private function state(MfaFactor $factor): array
     {
         $stored = $factor->metadata[self::METADATA_KEY] ?? null;
@@ -199,6 +212,11 @@ final readonly class OtpRecoveryCodeStore implements RecoveryCodeStoreInterface
         ];
     }
 
+    /**
+     * @param array<string, mixed> $metadata
+     * @param list<string> $hashes
+     * @return array<string, mixed>
+     */
     private function withRecoveryMetadata(
         array $metadata,
         array $hashes,
