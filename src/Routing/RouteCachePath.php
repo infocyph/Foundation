@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Routing;
 
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\Webrick\Router\Matching\FusedMatcher;
 use Infocyph\Webrick\Router\Matching\GeneratedMatcher;
 use Infocyph\Webrick\Router\Matching\ShardedMatcher;
@@ -166,6 +167,6 @@ final class RouteCachePath
             return null;
         }
 
-        return is_array($payload) ? $payload : null;
+        return is_array($payload) ? ValueNormalizer::associativeArray($payload) : null;
     }
 }
