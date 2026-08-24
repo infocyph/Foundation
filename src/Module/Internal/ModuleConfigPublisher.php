@@ -223,7 +223,10 @@ final readonly class ModuleConfigPublisher
         return $sources;
     }
 
-    /** @param array<string,string> $sources @return array<string,string> */
+    /**
+     * @param array<string,string> $sources
+     * @return array<string,string>
+     */
     private function stage(string $directory, array $sources): array
     {
         $staged = [];
