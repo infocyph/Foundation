@@ -12,6 +12,8 @@ abstract class SystemCommand extends Command
 {
     final public static function define(CommandDefinition $command): void
     {
+        unset($command);
+
         throw new \LogicException('Foundation system command definitions are owned by CommandCatalog.');
     }
 
