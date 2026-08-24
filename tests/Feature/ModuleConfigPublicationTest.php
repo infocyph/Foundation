@@ -47,7 +47,7 @@ it('invalidates compiled configuration after publishing a module template', func
     }
 });
 
-it('publishes the complete security configuration only with the crypto module', function (): void {
+it('publishes only Foundation authentication policy with the crypto module', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-module-crypto-' . bin2hex(random_bytes(5));
     mkdir($basePath . '/config', 0775, true);
 
@@ -60,11 +60,17 @@ it('publishes the complete security configuration only with the crypto module', 
         expect($result['published'])->toBe([$basePath . '/config/security.php'])
             ->and($configuration)->toHaveKeys([
                 'password.algorithm',
+                'password.cost',
+                'jwt.algorithm',
                 'jwt.leeway_seconds',
-                'integrity.algorithm',
-                'key_rings',
             ])
-            ->and($configuration)->not->toHaveKeys(['csrf', 'signed_urls', 'tokens']);
+            ->and($configuration)->not->toHaveKeys([
+                'csrf',
+                'signed_urls',
+                'tokens',
+                'integrity',
+                'key_rings',
+            ]);
     } finally {
         moduleConfigRemoveDirectory($basePath);
     }
@@ -153,7 +159,6 @@ PHP);
 
         expect($commands)->toBe([
             ['require', 'infocyph/dblayer:^4.1', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
-            ['remove', 'infocyph/dblayer', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
             ['require', 'infocyph/omnibus:^2.4', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
         ]);
     } finally {
