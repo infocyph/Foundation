@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\AccessTokenClaims;
+use Infocyph\Foundation\Auth\Authentication\TokenAuth\TokenAuthManager;
 use Infocyph\Foundation\Auth\AuthServices;
-use Infocyph\Foundation\Auth\Contract\Security\AccessTokenServiceInterface;
 use Infocyph\Foundation\Auth\Contract\Security\PasswordHasherInterface;
 use Infocyph\Foundation\Auth\Contract\Security\PasswordVerifierInterface;
 use Infocyph\Foundation\Foundation;
@@ -55,7 +55,7 @@ it('uses Epicrypt for configured Foundation token security', function (): void {
         scopes: ['profile.read'],
     ));
 
-    expect($services->tokens())->toBe($app->make(AccessTokenServiceInterface::class))
+    expect($services->tokens())->toBe($app->make(TokenAuthManager::class))
         ->and($issued->token)->not->toBeNull()
         ->and($services->tokens()->verifyAccessToken($issued->token ?? '')->successful())->toBeTrue();
 });
