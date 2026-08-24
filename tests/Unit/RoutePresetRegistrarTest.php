@@ -6,32 +6,25 @@ use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Routing\RouteMiddlewareRegistrar;
 use Infocyph\Foundation\Routing\RoutePresetRegistrar;
-use Infocyph\Webrick\Router\Definition\Registrar;
-use Infocyph\Webrick\Router\Route\Collection;
 
-it('normalizes named route preset calls in one registrar', function (): void {
+it('normalizes built-in aliases and configured route preset stacks', function (): void {
     $application = Foundation::web(['_config_cache' => false]);
     $presets = new RoutePresetRegistrar(
         new RouteMiddlewareRegistrar($application),
-        new ConfigRepository(),
+        new ConfigRepository([
+            'router' => [
+                'middleware' => [
+                    'groups' => [
+                        'custom' => ['resolve-auth', '', 'auth', 42, 'verified'],
+                    ],
+                ],
+            ],
+        ]),
     );
-    $router = new Registrar(new Collection());
 
-    expect($presets->invokeNamed($router, 'unknownPreset', []))->toBeFalse()
-        ->and($presets->invokeNamed($router, 'apiAuth', [
-            static function (): void {},
-            'api',
-            null,
-            'api.',
-        ]))->toBeTrue();
-
-    expect(fn(): bool => $presets->invokeNamed($router, 'authWeb', []))
-        ->toThrow(InvalidArgumentException::class, 'requires a closure callback')
-        ->and(fn(): bool => $presets->invokeNamed($router, 'authWeb', [
-            static function (): void {},
-            null,
-            null,
-            null,
-            'unexpected',
-        ]))->toThrow(InvalidArgumentException::class, 'accepts at most four arguments');
+    expect($presets->stack('api-auth'))->toBe(['resolve-auth', 'auth'])
+        ->and($presets->stack('auth:mfa'))->toBe(['resolve-auth', 'auth', 'mfa'])
+        ->and($presets->stack('auth:web'))->toBe(['session', 'csrf', 'resolve-auth', 'auth'])
+        ->and($presets->stack('custom'))->toBe(['resolve-auth', 'auth', 'verified'])
+        ->and($presets->stack('unknown'))->toBe([]);
 });
