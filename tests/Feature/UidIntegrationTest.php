@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
+use Infocyph\Foundation\Auth\Adapter\Uid\UidAuthIdGenerator;
 use Infocyph\Foundation\Auth\Contract\Id\AuthIdGeneratorInterface;
-use Infocyph\Foundation\Auth\Support\RandomAuthIdGenerator;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Identifiers\IdentifierManager;
 use Infocyph\UID\ULID;
@@ -41,45 +41,21 @@ it('supports configured auth identifier strategies', function (): void {
             ],
         ],
         'ids' => [
-            'nanoid' => [
-                'length' => 18,
-            ],
             'auth' => [
                 'account' => 'ulid',
-                'correlation' => 'nanoid',
+                'correlation' => 'uuid7',
             ],
         ],
     ])->boot();
 
     $authIds = $app->make(AuthIdGeneratorInterface::class);
 
-    expect(ULID::isValid($authIds->accountId()))->toBeTrue()
-        ->and(strlen($authIds->correlationId()))->toBe(18);
+    expect($authIds)->toBeInstanceOf(UidAuthIdGenerator::class)
+        ->and(ULID::isValid($authIds->accountId()))->toBeTrue()
+        ->and(UUID::isValid($authIds->correlationId()))->toBeTrue();
 });
 
-it('preserves category prefixes for fallback auth identifiers', function (): void {
-    $ids = new RandomAuthIdGenerator();
-
-    $expectedPrefixes = [
-        $ids->accountId() => 'acct_',
-        $ids->auditEventId() => 'evt_',
-        $ids->challengeId() => 'chl_',
-        $ids->correlationId() => 'corr_',
-        $ids->credentialId() => 'cred_',
-        $ids->deviceId() => 'dev_',
-        $ids->grantId() => 'grant_',
-        $ids->permissionId() => 'perm_',
-        $ids->roleId() => 'role_',
-        $ids->sessionId() => 'sess_',
-    ];
-
-    foreach ($expectedPrefixes as $id => $prefix) {
-        expect($id)->toStartWith($prefix)
-            ->and($id)->toHaveLength(strlen($prefix) + 32);
-    }
-});
-
-it('keeps fallback auth identifiers independent of specialist UID configuration', function (): void {
+it('uses UID-backed defaults for auth identifiers', function (): void {
     $app = Foundation::web([
         '_config_cache' => false,
         'router' => [
@@ -90,7 +66,27 @@ it('keeps fallback auth identifiers independent of specialist UID configuration'
 
     $ids = $app->make(AuthIdGeneratorInterface::class);
 
-    expect($ids)->toBeInstanceOf(RandomAuthIdGenerator::class)
-        ->and($ids->accountId())->toStartWith('acct_')
-        ->and($ids->correlationId())->toStartWith('corr_');
+    expect($ids)->toBeInstanceOf(UidAuthIdGenerator::class)
+        ->and(UUID::isValid($ids->accountId()))->toBeTrue()
+        ->and(ULID::isValid($ids->correlationId()))->toBeTrue();
+});
+
+it('rejects unsupported auth identifier strategies instead of falling back silently', function (): void {
+    $app = Foundation::web([
+        '_config_cache' => false,
+        'router' => [
+            'cache' => false,
+            'files' => [],
+        ],
+        'ids' => [
+            'auth' => [
+                'account' => 'random',
+            ],
+        ],
+    ]);
+
+    $ids = $app->make(AuthIdGeneratorInterface::class);
+
+    expect(fn(): string => $ids->accountId())
+        ->toThrow(InvalidArgumentException::class, 'use uuid7 or ulid');
 });
