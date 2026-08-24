@@ -202,7 +202,9 @@ final class OperationsSystemCommand extends SystemCommand
             $this->io()->writeln($line);
         }
         if ($this->flag('follow')) {
-            $tailer->follow($path, fn(string $line): void => $this->io()->writeln($line));
+            $tailer->follow($path, function (string $line): void {
+                $this->io()->writeln($line);
+            });
         }
 
         return ExitCode::SUCCESS;
