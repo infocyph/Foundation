@@ -20,35 +20,12 @@ final readonly class LogTailer
         fseek($stream, 0, SEEK_END);
 
         try {
-            while (true) {
-                $line = fgets($stream);
-                if ($line !== false) {
-                    $consumer(rtrim($line, "\r\n"));
-
+            for (;;) {
+                if ($this->consumeAvailableLine($stream, $consumer)) {
                     continue;
                 }
 
-                clearstatcache(true, $path);
-                $position = ftell($stream);
-                $streamStat = fstat($stream);
-                $pathStat = is_file($path) ? $this->statPath($path) : false;
-
-                if (is_int($position) && is_array($streamStat) && is_array($pathStat)) {
-                    $replaced = $this->identityChanged($streamStat, $pathStat);
-                    $truncated = is_int($pathStat['size'] ?? null) && $pathStat['size'] < $position;
-                    if ($replaced) {
-                        fclose($stream);
-                        $stream = $this->open($path);
-
-                        continue;
-                    }
-                    if ($truncated) {
-                        rewind($stream);
-
-                        continue;
-                    }
-                }
-
+                $stream = $this->refreshStream($stream, $path);
                 usleep($sleepMicros);
             }
         } finally {
@@ -106,6 +83,22 @@ final readonly class LogTailer
         }
     }
 
+    /**
+     * @param resource $stream
+     * @param callable(string):void $consumer
+     */
+    private function consumeAvailableLine($stream, callable $consumer): bool
+    {
+        $line = fgets($stream);
+        if ($line === false) {
+            return false;
+        }
+
+        $consumer(rtrim($line, "\r\n"));
+
+        return true;
+    }
+
     /** @param array<string|int,mixed> $streamStat @param array<string|int,mixed> $pathStat */
     private function identityChanged(array $streamStat, array $pathStat): bool
     {
@@ -127,6 +120,34 @@ final readonly class LogTailer
         $stream = fopen($path, 'rb');
         if (!is_resource($stream)) {
             throw new \RuntimeException(sprintf('Unable to open log file "%s".', $path));
+        }
+
+        return $stream;
+    }
+
+    /**
+     * @param resource $stream
+     * @return resource
+     */
+    private function refreshStream($stream, string $path)
+    {
+        clearstatcache(true, $path);
+        $position = ftell($stream);
+        $streamStat = fstat($stream);
+        $pathStat = is_file($path) ? $this->statPath($path) : false;
+        if (!is_int($position) || !is_array($streamStat) || !is_array($pathStat)) {
+            return $stream;
+        }
+
+        if ($this->identityChanged($streamStat, $pathStat)) {
+            fclose($stream);
+
+            return $this->open($path);
+        }
+
+        $size = $pathStat['size'] ?? null;
+        if (is_int($size) && $size < $position) {
+            rewind($stream);
         }
 
         return $stream;
