@@ -9,17 +9,37 @@
 
 Foundation is the reusable framework/runtime layer. Infbyte is the opinionated application skeleton built on it.
 
+## Active closure run — STARTED
+
+- Started: 2026-08-24 (Asia/Dhaka)
+- Starting Foundation head: `16d60f114314544a5c6db91c0e986423fa6fbb70`
+- Scope: resolve every remaining verification defect and close the full 32-point Foundation 2.0 release checklist.
+- Architecture status: frozen; this run is verification/correction only. Removed convenience APIs/managers are not to be restored.
+- Required finish condition: PHPForge/QA/static analysis and PHPUnit matrix green, specialist integration matrices verified, release/deployment checks verified, Infbyte alignment checked, and this plan updated again with final evidence.
+- Current execution state: **IN PROGRESS**.
+
+### Closure order
+
+1. clear semantic/runtime blockers (OTP recovery metadata, scheduler control/waiting);
+2. clear PHPForge formatting/refactor/sniff/Composer/static-analysis gates;
+3. rerun PHP 8.4/8.5 × lowest/stable tests with zero unjustified skips;
+4. verify DBLayer/module/runtime/auth/messaging/security/process/deployment matrices;
+5. verify benchmarks/soak-sensitive paths and dependency/release alignment;
+6. perform final retired-API grep, update Foundation + Infbyte release state, and record exact completion evidence here.
+
 ## Current checkpoint
 
 - Date: 2026-08-24
-- Foundation source checkpoint: `493c39a7a06bac0455397556254f0f8e7e25f973`
+- Foundation source checkpoint before closure run: `16d60f114314544a5c6db91c0e986423fa6fbb70`
 - Foundation documentation checkpoint: `944220490e1c28e9945fd398265dc9d072eb4c93`
 - Infbyte source checkpoint: `56cb73e18eab07f34242a929eccbc9e6572d9971`
 - Infbyte documentation checkpoint: `26a35da0926285119c31ed880bf1f5aa06f3cf19`
-- Current phase: **public-name/config freeze complete; ready for deferred verification matrix**.
+- Current phase: **verification/closure in progress**.
 - Application-contract/API cleanup: complete.
 - Documentation reconciliation: complete for the public architecture/module/runtime/operations/auth/database/messaging/application-contract surfaces.
-- Full PHPUnit/static-analysis/PHPForge/runtime/release matrix: **not run yet**.
+- CI facts already established before this closure run: clean production install passes; PHP 8.4/8.5 representative benchmarks pass; Psalm passes; Deptrac passes; service startup for MySQL/PostgreSQL/SQLite/Redis/Valkey/Memcached passes.
+- Known blocker already corrected before this marker: duplicate OTP recovery `metadata()` declaration fatal.
+- Remaining gates are tracked by the 32-point checklist below and may only be checked off with verification evidence.
 
 # Dependency baseline
 
@@ -42,7 +62,7 @@ Foundation is the reusable framework/runtime layer. Infbyte is the opinionated a
 - `infocyph/otp ^6.0`
 - `infocyph/pathwise ^3.1`
 - `infocyph/phpforge dev-main@dev`
-- `infocyph/reqshield ^3.0.1`
+- `infocyph/reqshield ^3.0.2`
 - `infocyph/talkingbytes ^2.0`
 - `web-auth/webauthn-lib ^5.3.5`
 
@@ -106,7 +126,7 @@ Foundation adds application policy/composition only where it owns a real framewo
 | `resources` | built in |
 | `security` | `infocyph/epicrypt ^2.1` |
 | `session` | built in |
-| `validation` | `infocyph/reqshield ^3.0` |
+| `validation` | `infocyph/reqshield ^3.0.2` |
 
 Canonical aliases:
 
@@ -293,28 +313,63 @@ Infbyte remains intentionally lean:
 - `.env.example` contains no environment-encryption key;
 - generated optimized artifacts are not committed.
 
-# Verification status
+# 32-point verification / release closure checklist
 
-The public names/config/application contracts are now frozen for verification. The full verification matrix is still intentionally **not run**.
+Status is deliberately evidence-driven. Items stay unchecked until this run proves them.
 
-Next phase:
+1. [x] Freeze Foundation 2.0 architecture/public ownership boundaries.
+2. [x] Freeze narrow `Application` API and remove retired convenience proxies/managers.
+3. [x] Align Composer capability baseline, including ReqShield `^3.0.2`.
+4. [x] Align `ModuleCatalog` package constraints with Composer baseline.
+5. [x] Normalize Foundation PHPForge reusable-workflow configuration to repository-specific overrides only.
+6. [x] Verify production clean install with `--no-dev --classmap-authoritative` and platform checks.
+7. [x] Verify PHP 8.4 representative benchmark gate.
+8. [x] Verify PHP 8.5 representative benchmark gate.
+9. [x] Verify Psalm static analysis gate.
+10. [x] Verify Deptrac architecture gate.
+11. [ ] Clear all syntax/PHPProbe/PHPUnit blocking defects after OTP recovery-store correction.
+12. [ ] Verify DBLayer 4.1 migration up/down/pretend/rollback-batch/status/reset/refresh/wipe/monitor behavior, including exact batch rollback and no mutation during pretend.
+13. [ ] Preserve/verify destructive database-operation safeguards.
+14. [ ] Verify module list/show/install/remove/config-publish/schema-status/schema-install/schema-sync and dry-run/duplicate/failure rollback behavior.
+15. [ ] Verify optional capability isolation and graceful unavailable-capability errors.
+16. [ ] Verify Web runtime routes/cache/middleware/session/auth-principal/maintenance/exception behavior.
+17. [ ] Verify CLI discovery/cache/status/exit/overlap/global options/help/completion/machine-readable/destructive confirmation behavior.
+18. [ ] Verify Worker execution-scope reset/restart/heartbeat/singleton/pools/fork-before-resource-open behavior.
+19. [ ] Verify Scheduler once/work loop/interrupt/runtime-reload/overlap/scheduled-message-dispatch behavior without forbidden blocking APIs.
+20. [ ] Verify no persistent execution-state leaks across InterMix scopes/principal/session/DB/cache/messaging.
+21. [ ] Verify pool/fork safety: no pre-fork DB/network resources; child initialization/cleanup/reaping/termination.
+22. [ ] Verify full auth/session/token/password/email/passwordless/lockout flows.
+23. [ ] Verify MFA recovery/passkey/step-up/recent-auth/authorization/impersonation flows.
+24. [ ] Verify production security posture: secrets, secure defaults, OTP/WebAuthn/shared-state topology, unsafe local-memory rejection.
+25. [ ] Verify Omnibus dispatch/consume/retry/failure-management/prune/monitor/execution-scope/shutdown/restart behavior.
+26. [ ] Verify config/route/command/schedule/container cache optimize/clear idempotency.
+27. [ ] Verify maintenance/runtime reload/worker restart/scheduler interrupt/process-registry/status/stale-cleanup operations.
+28. [ ] Verify environment encrypt/decrypt/temp-file/permissions/overwrite and storage link/unlink safety.
+29. [ ] Clear Pint/Rector/Composer Normalize/PHPCS/PHPStan and retain Psalm/Deptrac green across PHP 8.4/8.5 lowest/stable QA matrices with zero unjustified skips.
+30. [ ] Re-run representative benchmarks, compare regression threshold, and review soak-sensitive persistent runtime paths.
+31. [ ] Perform final dependency/package audit, retired-API/manager grep, and Foundation/Infbyte stable-release alignment.
+32. [ ] Record final source/CI checkpoints and all verified results in this plan; leave zero ambiguous/open closure items.
 
-1. Composer validation/dependency consistency;
-2. PHPForge/static analysis;
-3. PHPUnit/unit/integration suites;
-4. core-only runtime without optional packages;
-5. module install/remove/config/schema matrix, including partial auth bundle state and install ordering;
-6. `app:ready` / `config:validate --production` diagnostics;
-7. CLI/global-option/help/completion matrix;
-8. Web/CLI/Worker/Scheduler execution isolation;
-9. maintenance/runtime reload/worker/scheduler lifecycle;
-10. Omnibus handler/job middleware and failure/retry paths;
-11. pool/fork/process safety;
-12. DB pretend/monitor/wipe/rollback-batch behavior;
-13. env/storage/destructive-operation rollback/safety cases;
-14. optimize/deploy artifact matrix;
-15. performance/soak/benchmark review;
-16. fix verification defects and prepare Foundation 2.0 + Infbyte stable release alignment.
+# Verification status before this closure run
+
+Completed evidence already available:
+
+- Composer dependency resolution succeeds for PHP 8.4/8.5 matrices.
+- Clean production install passes with no dev packages and classmap-authoritative autoloading.
+- Stable runtime constraint guard passes.
+- MySQL/PostgreSQL/SQLite/Redis/Valkey/Memcached CI services start successfully.
+- Representative benchmark gate passes on PHP 8.4 and PHP 8.5.
+- Psalm reports zero findings.
+- Deptrac passes.
+- OTP duplicate `metadata()` fatal was identified and corrected while preserving the public recovery-store contract.
+
+Known work entering this run:
+
+- scheduler work-loop must preserve both runtime reload and schedule interrupt semantics while eliminating forbidden `sleep()` usage;
+- Pint/PHPCS/Rector/Composer Normalize findings need to be resolved semantically, not blindly suppressed;
+- PHPStan must be reassessed after syntax blockers are removed;
+- full PHPUnit/integration and specialist/runtime/security matrices must be closed;
+- final Infbyte/deployment/release alignment remains to be evidenced.
 
 # Do not regress
 
