@@ -20,7 +20,7 @@
         "infocyph/otp": "^6.0",
         "infocyph/pathwise": "^3.1",
         "infocyph/phpforge": "dev-main@dev",
-        "infocyph/reqshield": "^3.0.1",
+        "infocyph/reqshield": "^3.0.2",
         "infocyph/talkingbytes": "^2.0",
         "web-auth/webauthn-lib": "^5.3.5"
     },

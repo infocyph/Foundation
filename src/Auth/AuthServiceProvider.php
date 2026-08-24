@@ -26,6 +26,7 @@ use Infocyph\Foundation\Auth\Internal\AuthSecretResolver;
 use Infocyph\Foundation\Auth\Internal\AuthStoreRegistrar;
 use Infocyph\Foundation\Auth\Internal\AuthTokenRegistrar;
 use Infocyph\Foundation\Auth\Internal\EpicryptTokenPolicyResolver;
+use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
 use Infocyph\Foundation\Http\Middleware\AuthMiddleware;
 use Infocyph\Foundation\Http\Middleware\GuestMiddleware;
 use Infocyph\Foundation\Http\Middleware\MfaRequiredMiddleware;
@@ -95,28 +96,28 @@ final class AuthServiceProvider extends ServiceProvider
             ],
         ), LifetimeEnum::Singleton);
         $this->bindFactory($container, ResolvePrincipalMiddleware::class, fn() => new ResolvePrincipalMiddleware(
-            principals: $app->authManager()->principal(),
+            principals: $app->make(CurrentPrincipalContext::class),
             resolver: $app->make(RequestPrincipalResolver::class),
         ), LifetimeEnum::Singleton);
         $this->bindFactory($container, AuthMiddleware::class, fn() => new AuthMiddleware(
-            $app->authManager()->principal(),
+            $app->make(CurrentPrincipalContext::class),
             $app->make(AuthResponseFactory::class),
         ), LifetimeEnum::Singleton);
         $this->bindFactory($container, GuestMiddleware::class, fn() => new GuestMiddleware(
-            $app->authManager()->principal(),
+            $app->make(CurrentPrincipalContext::class),
             $app->make(AuthResponseFactory::class),
         ), LifetimeEnum::Singleton);
         $this->bindFactory($container, VerifiedMiddleware::class, fn() => new VerifiedMiddleware(
-            $app->authManager()->principal(),
+            $app->make(CurrentPrincipalContext::class),
             $app->make(AccountProviderInterface::class),
             $app->make(AuthResponseFactory::class),
         ), LifetimeEnum::Singleton);
         $this->bindFactory($container, MfaRequiredMiddleware::class, fn() => new MfaRequiredMiddleware(
-            $app->authManager()->principal(),
+            $app->make(CurrentPrincipalContext::class),
             $app->make(AuthResponseFactory::class),
         ), LifetimeEnum::Singleton);
         $this->bindFactory($container, RecentAuthMiddleware::class, fn() => new RecentAuthMiddleware(
-            $app->authManager()->principal(),
+            $app->make(CurrentPrincipalContext::class),
             $app->make(AuthResponseFactory::class),
         ), LifetimeEnum::Singleton);
     }

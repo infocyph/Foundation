@@ -110,7 +110,7 @@ final class ModuleCatalog
         ],
         'validation' => [
             'packages' => [
-                'infocyph/reqshield' => '^3.0.1',
+                'infocyph/reqshield' => '^3.0.2',
             ],
             'description' => 'Request, command, configuration, schema, sanitization, and database validation.',
             'aliases' => ['reqshield', 'validator'],

@@ -32,7 +32,7 @@ final readonly class TestKit
 
     public function auth(): AuthServices
     {
-        return $this->application->auth();
+        return $this->application->make(AuthServices::class);
     }
 
     public function cache(): CacheManager
@@ -119,7 +119,7 @@ final readonly class TestKit
 
     public function sessions(): SessionManager
     {
-        return $this->application->session();
+        return $this->application->make(SessionManager::class);
     }
 
     /** @return list<string> */
