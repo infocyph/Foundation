@@ -34,7 +34,7 @@ final readonly class OmnibusWorkerFactory
                     'messaging.workers must map non-empty worker names to configuration arrays.',
                 );
             }
-            $workers[$name] = $definition;
+            $workers[$name] = ValueNormalizer::associativeArray($definition);
         }
 
         return $workers;
