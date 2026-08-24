@@ -7,6 +7,7 @@ namespace Infocyph\Foundation\Operations;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Cache\CacheLayerFactory;
 use Infocyph\Foundation\Cache\CacheManager;
+use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\UID\Id;
 
 final readonly class RuntimeControl
@@ -41,7 +42,7 @@ final readonly class RuntimeControl
         $state = $this->read();
         $normalized = [];
         foreach ($state as $scope => $entry) {
-            if (!is_string($scope) || !is_array($entry)) {
+            if (!is_array($entry)) {
                 continue;
             }
             $token = $entry['token'] ?? null;
@@ -118,9 +119,7 @@ final readonly class RuntimeControl
     private function read(): array
     {
         if ($this->driver() === 'cache') {
-            $value = $this->cache()->get($this->cacheKey(), []);
-
-            return is_array($value) ? $value : [];
+            return ValueNormalizer::associativeArray($this->cache()->get($this->cacheKey(), []));
         }
 
         $path = $this->path();
@@ -137,7 +136,7 @@ final readonly class RuntimeControl
             throw new \RuntimeException('Runtime-control state is corrupt.', 0, $exception);
         }
 
-        return is_array($decoded) ? $decoded : [];
+        return ValueNormalizer::associativeArray($decoded);
     }
 
     /** @param array<string,mixed> $state */
@@ -196,7 +195,10 @@ final readonly class RuntimeControl
 
     private function driver(): string
     {
-        $driver = strtolower((string) $this->application->config()->get('operations.runtime_control.driver', 'file'));
+        $driver = strtolower(ValueNormalizer::string(
+            $this->application->config()->get('operations.runtime_control.driver', 'file'),
+            'file',
+        ));
         if (!in_array($driver, ['file', 'cache'], true)) {
             throw new \UnexpectedValueException('operations.runtime_control.driver must be file or cache.');
         }
