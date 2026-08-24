@@ -59,7 +59,18 @@ final readonly class ValidatorFactory
     private function configure(Validator $validator, array $options): Validator
     {
         $validator->setFailFast(ValueNormalizer::bool($options['fail_fast'] ?? true, true));
+        $this->configureMessages($validator, $options);
+        $this->configureInput($validator, $options);
+        $this->configureUnknownFields($validator, $options);
+        $this->configureOutput($validator, $options);
+        $this->configureLimits($validator, $options);
 
+        return $validator;
+    }
+
+    /** @param array<string,mixed> $options */
+    private function configureMessages(Validator $validator, array $options): void
+    {
         $aliases = $this->stringMap($options['aliases'] ?? null);
         if ($aliases !== []) {
             $validator->setFieldAliases($aliases);
@@ -74,7 +85,11 @@ final readonly class ValidatorFactory
         if ($sanitizers !== []) {
             $validator->setSanitizers($sanitizers);
         }
+    }
 
+    /** @param array<string,mixed> $options */
+    private function configureInput(Validator $validator, array $options): void
+    {
         $casts = ValueNormalizer::associativeArray($options['casts'] ?? []);
         if ($casts !== []) {
             $validator->setCasts($casts);
@@ -96,15 +111,29 @@ final readonly class ValidatorFactory
                 'all',
             ));
         }
+    }
 
+    /** @param array<string,mixed> $options */
+    private function configureUnknownFields(Validator $validator, array $options): void
+    {
         if (ValueNormalizer::bool($options['strip_unknown'] ?? false, false)) {
             $validator->stripUnknown();
-        } elseif (ValueNormalizer::bool($options['strict'] ?? false, false)) {
+
+            return;
+        }
+        if (ValueNormalizer::bool($options['strict'] ?? false, false)) {
             $validator->strict();
-        } elseif (array_key_exists('allow_unknown', $options)) {
+
+            return;
+        }
+        if (array_key_exists('allow_unknown', $options)) {
             $validator->allowUnknown(ValueNormalizer::bool($options['allow_unknown'], true));
         }
+    }
 
+    /** @param array<string,mixed> $options */
+    private function configureOutput(Validator $validator, array $options): void
+    {
         if (ValueNormalizer::bool($options['throw_on_failure'] ?? false, false)) {
             $validator->throwOnFailure();
         }
@@ -113,26 +142,30 @@ final readonly class ValidatorFactory
         if ($dto !== null) {
             $validator->setDtoClass($dto);
         }
+    }
 
+    /** @param array<string,mixed> $options */
+    private function configureLimits(Validator $validator, array $options): void
+    {
         $limits = ValueNormalizer::associativeArray($options['limits'] ?? []);
-        if ($limits !== []) {
-            $validator->limits(
-                maxDepth: $this->positiveInt($limits['max_depth'] ?? null, 32, 'max_depth'),
-                maxFields: $this->positiveInt($limits['max_fields'] ?? null, 10_000, 'max_fields'),
-                maxWildcardExpansions: $this->positiveInt(
-                    $limits['max_wildcard_expansions'] ?? null,
-                    10_000,
-                    'max_wildcard_expansions',
-                ),
-                maxFlattenedPaths: $this->positiveInt(
-                    $limits['max_flattened_paths'] ?? null,
-                    10_000,
-                    'max_flattened_paths',
-                ),
-            );
+        if ($limits === []) {
+            return;
         }
 
-        return $validator;
+        $validator->limits(
+            maxDepth: $this->positiveInt($limits['max_depth'] ?? null, 32, 'max_depth'),
+            maxFields: $this->positiveInt($limits['max_fields'] ?? null, 10_000, 'max_fields'),
+            maxWildcardExpansions: $this->positiveInt(
+                $limits['max_wildcard_expansions'] ?? null,
+                10_000,
+                'max_wildcard_expansions',
+            ),
+            maxFlattenedPaths: $this->positiveInt(
+                $limits['max_flattened_paths'] ?? null,
+                10_000,
+                'max_flattened_paths',
+            ),
+        );
     }
 
     /** @return array<string, array<string, mixed>> */
