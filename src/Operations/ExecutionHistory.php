@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Operations;
 
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Support\ValueNormalizer;
 
 final readonly class ExecutionHistory
 {
@@ -51,7 +52,7 @@ final readonly class ExecutionHistory
             JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
         ) . "\n";
 
-        $this->withLock(LOCK_EX, function () use ($line): void {
+        $this->withLock(true, function () use ($line): void {
             $path = $this->path();
             $size = is_file($path) ? filesize($path) : 0;
             if (is_int($size) && $size > 0 && $size + strlen($line) > $this->maxBytes()) {
@@ -80,14 +81,11 @@ final readonly class ExecutionHistory
             throw new \InvalidArgumentException('Execution history limit must be between 1 and 1000.');
         }
 
-        return $this->withLock(LOCK_SH, function () use ($limit, $kind, $name): array {
+        return $this->withLock(false, function () use ($limit, $kind, $name): array {
             $records = [];
             foreach ($this->historyFilesOldestFirst() as $path) {
                 foreach ($this->records($path) as $record) {
-                    if ($kind !== null && ($record['kind'] ?? null) !== $kind) {
-                        continue;
-                    }
-                    if ($name !== null && ($record['name'] ?? null) !== $name) {
+                    if (!$this->matches($record, $kind, $name)) {
                         continue;
                     }
 
@@ -109,7 +107,7 @@ final readonly class ExecutionHistory
             throw new \InvalidArgumentException('Execution id cannot be empty.');
         }
 
-        return $this->withLock(LOCK_SH, function () use ($executionId): array {
+        return $this->withLock(false, function () use ($executionId): array {
             $records = [];
             foreach ($this->historyFilesOldestFirst() as $path) {
                 foreach ($this->records($path) as $record) {
@@ -136,7 +134,7 @@ final readonly class ExecutionHistory
             throw new \InvalidArgumentException('Execution history metadata lookup fields cannot be empty.');
         }
 
-        return $this->withLock(LOCK_SH, function () use ($kind, $key, $value): ?array {
+        return $this->withLock(false, function () use ($kind, $key, $value): ?array {
             $latest = null;
             foreach ($this->historyFilesOldestFirst() as $path) {
                 foreach ($this->records($path) as $record) {
@@ -156,7 +154,7 @@ final readonly class ExecutionHistory
 
     public function clear(): bool
     {
-        return $this->withLock(LOCK_EX, function (): bool {
+        return $this->withLock(true, function (): bool {
             $removed = false;
             foreach ($this->historyFilesOldestFirst() as $path) {
                 if (is_file($path) && !unlink($path)) {
@@ -229,12 +227,19 @@ final readonly class ExecutionHistory
                     continue;
                 }
                 if (is_array($record)) {
-                    yield $record;
+                    yield ValueNormalizer::associativeArray($record);
                 }
             }
         } finally {
             fclose($stream);
         }
+    }
+
+    /** @param array<string,mixed> $record */
+    private function matches(array $record, ?string $kind, ?string $name): bool
+    {
+        return ($kind === null || ($record['kind'] ?? null) === $kind)
+            && ($name === null || ($record['name'] ?? null) === $name);
     }
 
     private function rotate(): void
@@ -264,8 +269,12 @@ final readonly class ExecutionHistory
         }
     }
 
-    /** @template T @param callable():T $callback @return T */
-    private function withLock(int $operation, callable $callback): mixed
+    /**
+     * @template T
+     * @param callable():T $callback
+     * @return T
+     */
+    private function withLock(bool $exclusive, callable $callback): mixed
     {
         $path = $this->path();
         $directory = dirname($path);
@@ -279,7 +288,7 @@ final readonly class ExecutionHistory
         }
 
         try {
-            if (!flock($lock, $operation)) {
+            if (!flock($lock, $exclusive ? LOCK_EX : LOCK_SH)) {
                 throw new \RuntimeException(sprintf('Unable to lock execution history "%s".', $path));
             }
 
