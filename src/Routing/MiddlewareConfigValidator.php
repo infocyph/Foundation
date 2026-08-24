@@ -40,7 +40,8 @@ final readonly class MiddlewareConfigValidator
     }
 
     /**
-     * @param array<array-key,mixed> $presets
+     * @param array<array-key,mixed> $definition
+     * @param array<string,array<array-key,mixed>> $presets
      */
     private function arrayDefinition(array $definition, string $key, array $presets): void
     {
