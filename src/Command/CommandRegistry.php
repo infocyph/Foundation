@@ -12,9 +12,7 @@ final class CommandRegistry
     /** @var array<string, CommandDescriptor> */
     private array $commands = [];
 
-    /**
-     * @param array<array-key, class-string<CommandHandlerInterface>> $applicationCommands
-     */
+    /** @param array<array-key, mixed> $applicationCommands */
     public function __construct(
         array $applicationCommands = [],
         ?CommandCatalog $catalog = null,
@@ -27,8 +25,12 @@ final class CommandRegistry
         }
 
         foreach ($applicationCommands as $route => $handler) {
-            if (!is_string($handler)) {
-                throw new \UnexpectedValueException('Application command routes must reference command class names.');
+            if (!is_string($handler) || !is_a($handler, CommandHandlerInterface::class, true)) {
+                throw new \UnexpectedValueException(sprintf(
+                    'Application command route "%s" must reference a %s class.',
+                    is_string($route) ? $route : (string) $route,
+                    CommandHandlerInterface::class,
+                ));
             }
             $this->register(CommandDescriptor::fromClass(
                 $handler,
@@ -142,7 +144,7 @@ final class CommandRegistry
             if (!is_string($name) || !is_array($metadata)) {
                 throw new \UnexpectedValueException('Compiled command manifest contains an invalid command entry.');
             }
-            $descriptor = CommandDescriptor::fromManifest($metadata);
+            $descriptor = CommandDescriptor::fromManifest(self::associative($metadata));
             if ($descriptor->definition->commandName() !== $name) {
                 throw new \UnexpectedValueException(sprintf(
                     'Compiled command key "%s" does not match descriptor name "%s".',
@@ -154,6 +156,23 @@ final class CommandRegistry
         }
 
         return $registry;
+    }
+
+    /**
+     * @param array<int|string, mixed> $value
+     * @return array<string, mixed>
+     */
+    private static function associative(array $value): array
+    {
+        $normalized = [];
+        foreach ($value as $key => $item) {
+            if (!is_string($key)) {
+                throw new \UnexpectedValueException('Compiled command metadata must use string keys.');
+            }
+            $normalized[$key] = $item;
+        }
+
+        return $normalized;
     }
 
     /** @return list<string> */
