@@ -5,32 +5,16 @@ declare(strict_types=1);
 use Infocyph\Foundation\Auth\Adapter\Uid\UidAuthIdGenerator;
 use Infocyph\Foundation\Auth\Contract\Id\AuthIdGeneratorInterface;
 use Infocyph\Foundation\Foundation;
-use Infocyph\Foundation\Identifiers\IdentifierManager;
+use Infocyph\UID\Id;
 use Infocyph\UID\ULID;
 use Infocyph\UID\UUID;
 
-it('uses Foundation only for configured identifier policy', function (): void {
-    $app = Foundation::web([
-        'ids' => [
-            'default' => 'nanoid',
-            'nanoid' => [
-                'length' => 16,
-            ],
-            'deterministic' => [
-                'length' => 12,
-                'namespace' => 'infbyte',
-            ],
-        ],
-    ]);
+it('uses UID directly for general application identifiers', function (): void {
+    $uuid = Id::uuid7();
+    $ulid = Id::ulid();
 
-    $ids = $app->make(IdentifierManager::class);
-    $nanoId = $ids->generate();
-    $deterministic = $ids->generate('deterministic', ['payload' => 'invoice:42']);
-
-    expect($nanoId)->toHaveLength(16)
-        ->and($deterministic)->toBe($ids->generate('deterministic', ['payload' => 'invoice:42']))
-        ->and(UUID::isValid(UUID::v7()))->toBeTrue()
-        ->and(ULID::isValid(ULID::generate()))->toBeTrue();
+    expect(UUID::isValid($uuid))->toBeTrue()
+        ->and(ULID::isValid($ulid))->toBeTrue();
 });
 
 it('supports configured auth identifier strategies', function (): void {
