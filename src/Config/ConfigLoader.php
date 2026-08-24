@@ -202,11 +202,11 @@ final class ConfigLoader
         } catch (\Throwable) {
             return null;
         }
-        if (
-            !is_array($payload)
-            || ($payload['_format'] ?? null) !== self::CACHE_FORMAT
-            || !hash_equals($this->schemaFingerprint(), (string) ($payload['_schema'] ?? ''))
-        ) {
+        if (!is_array($payload) || ($payload['_format'] ?? null) !== self::CACHE_FORMAT) {
+            return null;
+        }
+        $schema = $payload['_schema'] ?? null;
+        if (!is_string($schema) || !hash_equals($this->schemaFingerprint(), $schema)) {
             return null;
         }
 
@@ -282,7 +282,9 @@ final class ConfigLoader
     private function schemaFingerprint(): string
     {
         $defaults = $this->defaults();
-        $defaults['app']['base_path'] = '<application-base>';
+        $app = $this->map($defaults['app'] ?? null);
+        $app['base_path'] = '<application-base>';
+        $defaults['app'] = $app;
 
         return hash('sha256', serialize($defaults));
     }
@@ -365,16 +367,16 @@ final class ConfigLoader
         $metadata = [is_dir($directory) ? 'config:present' : 'config:missing'];
         foreach ($files as $file) {
             $stat = stat($file);
-            if (!is_array($stat)) {
+            if ($stat === false) {
                 return hash('sha256', 'unreadable:' . $file);
             }
             $metadata[] = implode(':', [
                 str_starts_with($file, rtrim($basePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR)
                     ? substr($file, strlen(rtrim($basePath, DIRECTORY_SEPARATOR)) + 1)
                     : $file,
-                (string) ($stat['size'] ?? 0),
-                (string) ($stat['mtime'] ?? 0),
-                (string) ($stat['ctime'] ?? 0),
+                (string) $stat['size'],
+                (string) $stat['mtime'],
+                (string) $stat['ctime'],
             ]);
         }
 
