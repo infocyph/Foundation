@@ -116,9 +116,7 @@ final readonly class ScheduleManager
 
         try {
             while ($maxIterations === null || $iterations < $maxIterations) {
-                if ($control->changed('runtime', null, $runtimeToken)
-                    || $control->changed('schedule', null, $scheduleToken)
-                ) {
+                if ($this->interrupted($control, $runtimeToken, $scheduleToken)) {
                     return 0;
                 }
 
@@ -131,12 +129,10 @@ final readonly class ScheduleManager
 
                 $remaining = $sleepSeconds;
                 while ($remaining-- > 0) {
-                    if ($control->changed('runtime', null, $runtimeToken)
-                        || $control->changed('schedule', null, $scheduleToken)
-                    ) {
+                    if ($this->interrupted($control, $runtimeToken, $scheduleToken)) {
                         return 0;
                     }
-                    sleep(1);
+                    usleep(1_000_000);
                 }
             }
 
@@ -178,6 +174,15 @@ final readonly class ScheduleManager
         }
 
         return $path;
+    }
+
+    private function interrupted(
+        RuntimeControl $control,
+        string $runtimeToken,
+        string $scheduleToken,
+    ): bool {
+        return $control->changed('runtime', null, $runtimeToken)
+            || $control->changed('schedule', null, $scheduleToken);
     }
 
     private function executable(): string
