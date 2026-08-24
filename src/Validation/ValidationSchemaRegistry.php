@@ -86,7 +86,10 @@ final class ValidationSchemaRegistry
         return $this->normalizeSchemas($this->config->get('validation.schemas', []));
     }
 
-    /** @param array<mixed, mixed> $schema @return array<string, mixed> */
+    /**
+     * @param array<int|string, mixed> $schema
+     * @return array<string, mixed>
+     */
     private function normalizeSchema(array $schema): array
     {
         $normalized = [];
@@ -106,6 +109,7 @@ final class ValidationSchemaRegistry
             return [];
         }
 
+        /** @var array<string, array<string, mixed>> $normalized */
         $normalized = [];
         foreach ($schemas as $name => $schema) {
             if (is_string($name) && $name !== '' && is_array($schema)) {
