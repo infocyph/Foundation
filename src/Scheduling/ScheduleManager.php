@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Scheduling;
 
+use Closure;
+use Infocyph\CacheLayer\Cache\Lock\LockHandle;
 use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Cache\CacheLayerFactory;
@@ -190,6 +192,7 @@ final readonly class ScheduleManager
             : dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'infbyte';
     }
 
+    /** @phpstan-impure */
     private function interrupted(
         RuntimeControl $control,
         string $runtimeToken,
@@ -201,35 +204,45 @@ final readonly class ScheduleManager
 
     private function load(string $routes, string $manifest): Schedule
     {
-        $routePath = $this->path($routes);
-        $manifestPath = $manifest === '' ? '' : $this->path($manifest);
-        if ($manifestPath !== '' && is_file($manifestPath)) {
-            try {
-                $payload = require $manifestPath;
-                if (is_array($payload) && ($payload['version'] ?? null) === self::MANIFEST_VERSION) {
-                    $entries = $payload['entries'] ?? null;
-                    if (!is_array($entries)) {
-                        throw new \UnexpectedValueException('Schedule manifest entries must be an array.');
-                    }
-
-                    $schedule = new Schedule();
-                    foreach ($entries as $entry) {
-                        if (!is_array($entry)) {
-                            throw new \UnexpectedValueException('Schedule manifest entries must be arrays.');
-                        }
-                        $schedule->add(ScheduledCommand::fromManifest($this->manifestEntry($entry)));
-                    }
-
-                    return $schedule;
-                }
-            } catch (\Throwable) {
-                // A schedule cache is an optimization. Source routes remain authoritative.
+        if ($manifest !== '') {
+            $cached = $this->loadManifest($this->path($manifest));
+            if ($cached !== null) {
+                return $cached;
             }
         }
 
+        return $this->loadRoutes($this->path($routes));
+    }
+
+    private function loadManifest(string $manifestPath): ?Schedule
+    {
+        if (!is_file($manifestPath)) {
+            return null;
+        }
+
+        try {
+            $payload = require $manifestPath;
+            if (!is_array($payload) || ($payload['version'] ?? null) !== self::MANIFEST_VERSION) {
+                return null;
+            }
+
+            $entries = $payload['entries'] ?? null;
+            if (!is_array($entries)) {
+                throw new \UnexpectedValueException('Schedule manifest entries must be an array.');
+            }
+
+            return $this->scheduleFromManifest($entries);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function loadRoutes(string $routePath): Schedule
+    {
         if (!is_file($routePath)) {
             return new Schedule();
         }
+
         $definition = require $routePath;
         if ($definition instanceof Schedule) {
             return $definition;
@@ -289,6 +302,58 @@ final readonly class ScheduleManager
         );
     }
 
+    /** @return list<string> */
+    private function processCommand(ScheduledCommand $entry): array
+    {
+        $process = [PHP_BINARY];
+        if ($entry->memoryLimitMegabytes() !== null) {
+            $process[] = '-d';
+            $process[] = 'memory_limit=' . $entry->memoryLimitMegabytes() . 'M';
+        }
+        $process[] = $this->executable();
+        $process[] = $entry->command();
+        array_push($process, ...$entry->commandArguments());
+
+        return $process;
+    }
+
+    private function processHeartbeat(
+        ScheduledCommand $entry,
+        ?LockProviderInterface $lock,
+        ?LockHandle $handle,
+    ): ?Closure {
+        if ($lock === null || $handle === null) {
+            return null;
+        }
+
+        $leaseSeconds = $entry->overlapLeaseSeconds();
+        $refreshIntervalNs = max(
+            1,
+            (int) floor(min($leaseSeconds / 3.0, 5.0) * 1_000_000_000),
+        );
+        $nextRefreshAt = hrtime(true) + $refreshIntervalNs;
+
+        return static function () use (
+            $lock,
+            $handle,
+            $leaseSeconds,
+            $refreshIntervalNs,
+            &$nextRefreshAt,
+        ): bool {
+            $now = hrtime(true);
+            if ($now < $nextRefreshAt) {
+                return true;
+            }
+            if (!$lock->refresh($handle, $leaseSeconds)) {
+                return false;
+            }
+
+            $nextRefreshAt = $now + $refreshIntervalNs;
+
+            return true;
+        };
+    }
+
     private function runEntry(ScheduledCommand $entry): ScheduleRun
     {
         $executionId = ExecutionId::generate();
@@ -302,87 +367,18 @@ final readonly class ScheduleManager
 
         try {
             if ($entry->preventsOverlap() || $entry->requiresSingleServer()) {
-                if (!interface_exists(LockProviderInterface::class)) {
-                    throw new \LogicException(
-                        'Schedule overlap/single-server policy requires infocyph/cachelayer.',
-                    );
+                [$lock, $handle, $skipped] = $this->scheduleLock($entry, $history, $executionId, $name, $identity);
+                if ($skipped !== null) {
+                    return $skipped;
                 }
-                if ($entry->overlapWaitSeconds() > 0.0) {
-                    $this->record($history, $executionId, $name, CommandStatus::Waiting, metadata: $identity);
-                }
-                $lock = $this->application->make(CacheLayerFactory::class)->lock();
-                $handle = $lock->acquire(
-                    'foundation-schedule-' . substr(hash('sha256', $entry->identity()), 0, 44),
-                    $entry->overlapWaitSeconds(),
-                    $entry->overlapLeaseSeconds(),
-                );
-                if ($handle === null) {
-                    $this->record($history, $executionId, $name, CommandStatus::Cancelled, 0, $identity + [
-                        'reason' => 'overlap',
-                    ]);
-
-                    return new ScheduleRun($entry, 0, locked: true);
-                }
-            }
-
-            $process = [PHP_BINARY];
-            if ($entry->memoryLimitMegabytes() !== null) {
-                $process[] = '-d';
-                $process[] = 'memory_limit=' . $entry->memoryLimitMegabytes() . 'M';
-            }
-            $process[] = $this->executable();
-            $process[] = $entry->command();
-            array_push($process, ...$entry->commandArguments());
-
-            $heartbeat = null;
-            if ($lock !== null && $handle !== null) {
-                $leaseSeconds = $entry->overlapLeaseSeconds();
-                $refreshIntervalNs = max(
-                    1,
-                    (int) floor(min($leaseSeconds / 3.0, 5.0) * 1_000_000_000),
-                );
-                $nextRefreshAt = hrtime(true) + $refreshIntervalNs;
-                $heartbeat = static function () use (
-                    $lock,
-                    $handle,
-                    $leaseSeconds,
-                    $refreshIntervalNs,
-                    &$nextRefreshAt,
-                ): bool {
-                    $now = hrtime(true);
-                    if ($now < $nextRefreshAt) {
-                        return true;
-                    }
-                    if (!$lock->refresh($handle, $leaseSeconds)) {
-                        return false;
-                    }
-
-                    $nextRefreshAt = $now + $refreshIntervalNs;
-
-                    return true;
-                };
             }
 
             $this->record($history, $executionId, $name, CommandStatus::Running, metadata: $identity);
-            $result = new SchedulerRuntime($this->application)->execute(
-                fn(): ProcessResult => new ProcessRunner()->run(
-                    $process,
-                    new ProcessOptions(
-                        cwd: $this->application->basePath(),
-                        timeoutSeconds: $entry->timeoutSeconds(),
-                        interactive: false,
-                        captureOutput: false,
-                        passthrough: true,
-                        heartbeat: $heartbeat,
-                    ),
-                ),
-                [ScheduledCommand::class => $entry],
+            $result = $this->executeProcess(
+                $entry,
                 $executionId,
+                $this->processHeartbeat($entry, $lock, $handle),
             );
-            if (!$result instanceof ProcessResult) {
-                throw new \UnexpectedValueException('Scheduled process execution must return ProcessResult.');
-            }
-
             $this->record(
                 $history,
                 $executionId,
@@ -404,8 +400,83 @@ final readonly class ScheduleManager
 
             throw $exception;
         } finally {
-            $lock?->release($handle);
+            if ($lock !== null && $handle !== null) {
+                $lock->release($handle);
+            }
         }
+    }
+
+    private function executeProcess(
+        ScheduledCommand $entry,
+        ExecutionId $executionId,
+        ?Closure $heartbeat,
+    ): ProcessResult {
+        return new SchedulerRuntime($this->application)->execute(
+            fn(): ProcessResult => new ProcessRunner()->run(
+                $this->processCommand($entry),
+                new ProcessOptions(
+                    cwd: $this->application->basePath(),
+                    timeoutSeconds: $entry->timeoutSeconds(),
+                    interactive: false,
+                    captureOutput: false,
+                    passthrough: true,
+                    heartbeat: $heartbeat,
+                ),
+            ),
+            [ScheduledCommand::class => $entry],
+            $executionId,
+        );
+    }
+
+    /**
+     * @param array<string,scalar|null> $identity
+     * @return array{?LockProviderInterface,?LockHandle,?ScheduleRun}
+     */
+    private function scheduleLock(
+        ScheduledCommand $entry,
+        ExecutionHistory $history,
+        ExecutionId $executionId,
+        string $name,
+        array $identity,
+    ): array {
+        if (!interface_exists(LockProviderInterface::class)) {
+            throw new \LogicException(
+                'Schedule overlap/single-server policy requires infocyph/cachelayer.',
+            );
+        }
+        if ($entry->overlapWaitSeconds() > 0.0) {
+            $this->record($history, $executionId, $name, CommandStatus::Waiting, metadata: $identity);
+        }
+
+        $lock = $this->application->make(CacheLayerFactory::class)->lock();
+        $handle = $lock->acquire(
+            'foundation-schedule-' . substr(hash('sha256', $entry->identity()), 0, 44),
+            $entry->overlapWaitSeconds(),
+            $entry->overlapLeaseSeconds(),
+        );
+        if ($handle !== null) {
+            return [$lock, $handle, null];
+        }
+
+        $this->record($history, $executionId, $name, CommandStatus::Cancelled, 0, $identity + [
+            'reason' => 'overlap',
+        ]);
+
+        return [null, null, new ScheduleRun($entry, 0, locked: true)];
+    }
+
+    /** @param array<array-key,mixed> $entries */
+    private function scheduleFromManifest(array $entries): Schedule
+    {
+        $schedule = new Schedule();
+        foreach ($entries as $entry) {
+            if (!is_array($entry)) {
+                throw new \UnexpectedValueException('Schedule manifest entries must be arrays.');
+            }
+            $schedule->add(ScheduledCommand::fromManifest($this->manifestEntry($entry)));
+        }
+
+        return $schedule;
     }
 
     private function status(ProcessResult $result): CommandStatus
