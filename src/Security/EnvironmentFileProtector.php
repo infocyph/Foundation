@@ -143,7 +143,12 @@ final readonly class EnvironmentFileProtector
             } else {
                 $protector->unprotect($source, $temporary, $key, $options);
             }
-            @chmod($temporary, 0600);
+            if (!chmod($temporary, 0600)) {
+                throw new \RuntimeException(sprintf(
+                    'Unable to secure staged environment target "%s".',
+                    $temporary,
+                ));
+            }
 
             if (is_file($target)) {
                 $backup = $target . '.' . bin2hex(random_bytes(8)) . '.bak';
