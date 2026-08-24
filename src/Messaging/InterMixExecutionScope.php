@@ -22,7 +22,7 @@ final readonly class InterMixExecutionScope implements ExecutionScope
             : null;
 
         return $this->application->execution()->run(
-            static fn(ExecutionId $id): mixed => $handler($envelope->message, $envelope),
+            static fn(): mixed => $handler($envelope->message, $envelope),
             [
                 Envelope::class => $envelope,
                 $envelope->message::class => $envelope->message,
