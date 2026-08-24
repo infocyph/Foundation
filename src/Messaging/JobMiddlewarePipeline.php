@@ -18,12 +18,6 @@ final readonly class JobMiddlewarePipeline implements HandlerMiddleware
     {
         $normalized = [];
         foreach ($middleware as $candidate) {
-            if (!$candidate instanceof JobMiddleware) {
-                throw new \InvalidArgumentException(sprintf(
-                    'Job middleware must implement %s.',
-                    JobMiddleware::class,
-                ));
-            }
             $normalized[] = $candidate;
         }
         $this->middleware = $normalized;
