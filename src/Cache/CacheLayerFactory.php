@@ -27,6 +27,7 @@ use Infocyph\CacheLayer\Node\NodeCache;
 use Infocyph\CacheLayer\Node\NodeCacheConfig;
 use Infocyph\CacheLayer\Support\RedisConnection;
 use Infocyph\DBLayer\Connection\Connection;
+use Infocyph\Foundation\Cache\Internal\CacheTierDescriptorResolver;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Exception\ConfigurationException;
 use Infocyph\Foundation\Filesystem\PathManager;
@@ -164,7 +165,7 @@ final readonly class CacheLayerFactory
         return $transport->pruneBefore(time() - $retentionSeconds, max(1, $limit));
     }
 
-    /** @param array<string, mixed> $store */
+    /** @param array<string,mixed> $store */
     private function applyLock(CacheInterface $cache, array $store, CacheDriver $driver): CacheInterface
     {
         $global = ValueNormalizer::associativeArray($this->config->get('cache.lock', []));
@@ -180,7 +181,6 @@ final readonly class CacheLayerFactory
         return $cache->setLockProvider($this->lockProvider($lockStore, $lock, $lockDriver));
     }
 
-    /**  */
     private function assertNodePath(string $file, string $name): void
     {
         $directory = rtrim(str_replace('\\', '/', $this->paths->cache()), '/');
@@ -198,7 +198,7 @@ final readonly class CacheLayerFactory
         return $this->stringConfig('app.base_path', getcwd() ?: '.');
     }
 
-    /** @param array<string, mixed> $store */
+    /** @param array<string,mixed> $store */
     private function cacheOptions(array $store): CacheOptions
     {
         $compression = array_replace(
@@ -228,7 +228,7 @@ final readonly class CacheLayerFactory
         );
     }
 
-    /** @param array<string, mixed> $store */
+    /** @param array<string,mixed> $store */
     private function createCache(string $name, array $store, CacheDriver $driver): CacheInterface
     {
         $namespace = $this->namespace($name, $store);
@@ -270,9 +270,7 @@ final readonly class CacheLayerFactory
             ),
             CacheDriver::SCYLLADB => Cache::scylla(
                 namespace: $namespace,
-                session: is_object($store['session'] ?? $store['client'] ?? null)
-                    ? ($store['session'] ?? $store['client'])
-                    : null,
+                session: $this->objectOrNull($store['session'] ?? $store['client'] ?? null),
                 keyspace: ValueNormalizer::string($store['keyspace'] ?? null, 'cachelayer'),
                 table: ValueNormalizer::string($store['table'] ?? null, 'cachelayer_entries'),
                 bucketCount: ValueNormalizer::int($store['bucket_count'] ?? null, 128),
@@ -285,7 +283,7 @@ final readonly class CacheLayerFactory
             ),
             CacheDriver::SQLITE => Cache::sqlite($namespace, $this->sqliteFile($store), $options),
             CacheDriver::TIERED => Cache::tiered(
-                tiers: $this->tierDescriptors($name, $store),
+                tiers: new CacheTierDescriptorResolver($this->config, $this->database)->resolve($name, $store),
                 writeToL1: ValueNormalizer::bool($store['write_to_l1'] ?? null, true),
                 options: $options,
                 namespace: $namespace,
@@ -295,13 +293,13 @@ final readonly class CacheLayerFactory
         };
     }
 
-    /** @param array<string, mixed> $config */
+    /** @param array<string,mixed> $config */
     private function directory(array $config): ?string
     {
         return $this->directoryFrom($config, 'path', 'dir', 'directory');
     }
 
-    /** @param array<string, mixed> $config */
+    /** @param array<string,mixed> $config */
     private function directoryFrom(array $config, string ...$keys): ?string
     {
         foreach ($keys as $key) {
@@ -314,7 +312,7 @@ final readonly class CacheLayerFactory
         return null;
     }
 
-    /** @param array<string, mixed> $store */
+    /** @param array<string,mixed> $store */
     private function driver(string $name, array $store): CacheDriver
     {
         $raw = isset($store['driver']) && is_string($store['driver']) ? $store['driver'] : $name;
@@ -335,7 +333,7 @@ final readonly class CacheLayerFactory
         return is_int($value) || is_float($value) ? (float) $value : $default;
     }
 
-    /** @param array<string, mixed> $store */
+    /** @param array<string,mixed> $store */
     private function localCache(string $namespace, array $store, CacheOptions $options): CacheInterface
     {
         if (extension_loaded('apcu') && function_exists('apcu_enabled') && apcu_enabled()) {
@@ -346,8 +344,8 @@ final readonly class CacheLayerFactory
     }
 
     /**
-     * @param array<string, mixed> $store
-     * @param array<string, mixed> $lock
+     * @param array<string,mixed> $store
+     * @param array<string,mixed> $lock
      */
     private function lockProvider(array $store, array $lock, CacheDriver $storeDriver): LockProviderInterface
     {
@@ -377,8 +375,8 @@ final readonly class CacheLayerFactory
     }
 
     /**
-     * @param array<string, mixed> $store
-     * @param array<string, mixed> $lock
+     * @param array<string,mixed> $store
+     * @param array<string,mixed> $lock
      */
     private function memcachedClient(array $store, array $lock): \Memcached
     {
@@ -398,7 +396,7 @@ final readonly class CacheLayerFactory
         return $client;
     }
 
-    /** @return array<string, array<string, mixed>> */
+    /** @return array<string,array<string,mixed>> */
     private function named(string $key): array
     {
         $configured = $this->config->get($key, []);
@@ -416,14 +414,14 @@ final readonly class CacheLayerFactory
         return $resolved;
     }
 
-    /** @param array<string, mixed> $store */
+    /** @param array<string,mixed> $store */
     private function namespace(string $name, array $store): string
     {
         return $this->stringOrNull($store['namespace'] ?? null)
             ?? CacheNamespace::derive($this->stringConfig('cache.prefix', 'foundation:'), $name);
     }
 
-    /** @param array<string, mixed> $store */
+    /** @param array<string,mixed> $store */
     private function nodeConfig(string $name, array $store): NodeCacheConfig
     {
         $file = $this->sqliteFile($store);
@@ -444,7 +442,7 @@ final readonly class CacheLayerFactory
         );
     }
 
-    /** @param array<string, mixed> $store */
+    /** @param array<string,mixed> $store */
     private function nodeLockProvider(array $store): ?LockProviderInterface
     {
         $global = ValueNormalizer::associativeArray($this->config->get('cache.lock', []));
@@ -459,7 +457,12 @@ final readonly class CacheLayerFactory
         return $this->lockProvider($lockStore, $lock, $driver);
     }
 
-    /** @param array<string, mixed> $store */
+    private function objectOrNull(mixed $value): ?object
+    {
+        return is_object($value) ? $value : null;
+    }
+
+    /** @param array<string,mixed> $store */
     private function pdoCache(string $namespace, array $store, CacheOptions $options): CacheInterface
     {
         $runtime = $this->pdoRuntime($store);
@@ -475,7 +478,7 @@ final readonly class CacheLayerFactory
         );
     }
 
-    /** @param array<string, mixed> $store */
+    /** @param array<string,mixed> $store */
     private function pdoClient(array $store, CacheDriver $driver): \PDO
     {
         if (($store['client'] ?? null) instanceof \PDO) {
@@ -499,7 +502,7 @@ final readonly class CacheLayerFactory
     }
 
     /**
-     * @param array<string, mixed> $store
+     * @param array<string,mixed> $store
      * @return array{dsn:?string,username:?string,password:?string,client:?\PDO}
      */
     private function pdoRuntime(array $store): array
@@ -526,7 +529,7 @@ final readonly class CacheLayerFactory
         ];
     }
 
-    /** @param array<string, mixed> $store */
+    /** @param array<string,mixed> $store */
     private function redisCache(string $namespace, array $store, string $driver, CacheOptions $options): CacheInterface
     {
         $connection = $this->redisConnection($store, $driver);
@@ -536,7 +539,7 @@ final readonly class CacheLayerFactory
             : Cache::redis($namespace, $connection['dsn'], $connection['client'], $options);
     }
 
-    /** @param array<string, mixed> $definition */
+    /** @param array<string,mixed> $definition */
     private function redisClient(array $definition, string $driver): \Redis
     {
         $connection = $this->redisConnection($definition, $driver);
@@ -551,7 +554,7 @@ final readonly class CacheLayerFactory
     }
 
     /**
-     * @param array<string, mixed> $definition
+     * @param array<string,mixed> $definition
      * @return array{client:?\Redis,dsn:string}
      */
     private function redisConnection(array $definition, string $driver): array
@@ -573,7 +576,7 @@ final readonly class CacheLayerFactory
         ];
     }
 
-    /** @param array<string, mixed> $definition */
+    /** @param array<string,mixed> $definition */
     private function requiredString(array $definition, string $key, string $context): string
     {
         return $this->stringOrNull($definition[$key] ?? null)
@@ -581,10 +584,10 @@ final readonly class CacheLayerFactory
     }
 
     /**
-     * @param array<string, mixed> $fallbackStore
-     * @param array<string, mixed> $global
-     * @param array<string, mixed> $local
-     * @return array{array<string, mixed>, CacheDriver}
+     * @param array<string,mixed> $fallbackStore
+     * @param array<string,mixed> $global
+     * @param array<string,mixed> $local
+     * @return array{array<string,mixed>,CacheDriver}
      */
     private function resolveLockStore(
         array $fallbackStore,
@@ -655,7 +658,7 @@ final readonly class CacheLayerFactory
         return $servers;
     }
 
-    /** @param array<string, mixed> $store */
+    /** @param array<string,mixed> $store */
     private function sqliteFile(array $store): ?string
     {
         $path = $this->stringOrNull(
@@ -665,7 +668,7 @@ final readonly class CacheLayerFactory
         return $path === null ? null : $this->resolvePath($path);
     }
 
-    /** @return array<string, array<string, mixed>> */
+    /** @return array<string,array<string,mixed>> */
     private function stores(): array
     {
         return $this->named('cache.stores');
@@ -681,65 +684,6 @@ final readonly class CacheLayerFactory
     private function stringOrNull(mixed $value): ?string
     {
         return is_string($value) && $value !== '' ? $value : null;
-    }
-
-    /** @param array<string, mixed> $store */
-    private function tierDescriptors(string $name, array $store): array
-    {
-        $tiers = $store['tiers'] ?? null;
-        if (!is_array($tiers) || $tiers === []) {
-            throw new ConfigurationException(sprintf(
-                'Tiered cache store "%s" must define CacheLayer-native tier descriptors.',
-                $name,
-            ));
-        }
-
-        $resolved = [];
-        foreach ($tiers as $index => $tier) {
-            if (!is_array($tier)) {
-                throw new ConfigurationException(sprintf(
-                    'Tiered cache store "%s" tier %s must be a CacheLayer descriptor array.',
-                    $name,
-                    (string) $index,
-                ));
-            }
-
-            $descriptor = ValueNormalizer::associativeArray($tier);
-            $driver = strtolower(ValueNormalizer::string($descriptor['driver'] ?? null));
-            if ($driver === '') {
-                throw new ConfigurationException(sprintf(
-                    'Tiered cache store "%s" tier %s requires driver.',
-                    $name,
-                    (string) $index,
-                ));
-            }
-
-            $descriptor['namespace'] ??= $this->namespace($name . '.tier.' . $index, []);
-
-            if (in_array($driver, ['file', 'php_files'], true)) {
-                foreach (['dir', 'base_dir'] as $key) {
-                    if (is_string($descriptor[$key] ?? null)) {
-                        $descriptor[$key] = $this->resolvePath($descriptor[$key]);
-                    }
-                }
-            } elseif ($driver === 'sqlite' && is_string($descriptor['file'] ?? null)) {
-                $descriptor['file'] = $this->resolvePath($descriptor['file']);
-            } elseif (in_array($driver, ['redis', 'valkey'], true)) {
-                $connection = $this->redisConnection($descriptor, $driver);
-                $descriptor['dsn'] = $connection['dsn'];
-                if ($connection['client'] instanceof \Redis) {
-                    $descriptor['client'] = $connection['client'];
-                }
-                unset($descriptor['connection']);
-            } elseif ($driver === 'pdo' && $this->stringOrNull($descriptor['connection'] ?? null) !== null) {
-                $descriptor['client'] = ($this->database)($descriptor['connection'])->getPdo();
-                unset($descriptor['connection']);
-            }
-
-            $resolved[] = $descriptor;
-        }
-
-        return $resolved;
     }
 
     private function transport(string $name): InvalidationTransportInterface
