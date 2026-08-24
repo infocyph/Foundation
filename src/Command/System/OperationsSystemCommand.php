@@ -173,17 +173,28 @@ final class OperationsSystemCommand extends SystemCommand
         }
         $this->io()->table(
             ['Recorded', 'Kind', 'Execution ID', 'Name', 'Status', 'Exit'],
-            array_map(static fn(array $record): array => [
-                isset($record['recorded_at']) ? gmdate(DATE_ATOM, (int) $record['recorded_at']) : '',
-                $record['kind'] ?? '',
-                $record['execution_id'] ?? '',
-                $record['name'] ?? '',
-                $record['status'] ?? '',
-                $record['exit_code'] ?? '',
-            ], $records),
+            array_map(self::executionRow(...), $records),
         );
 
         return ExitCode::SUCCESS;
+    }
+
+    /**
+     * @param array<string,mixed> $record
+     * @return list<bool|float|int|string|null>
+     */
+    private static function executionRow(array $record): array
+    {
+        $recordedAt = $record['recorded_at'] ?? null;
+
+        return [
+            is_int($recordedAt) || is_float($recordedAt) ? gmdate(DATE_ATOM, (int) $recordedAt) : '',
+            self::tableValue($record['kind'] ?? null),
+            self::tableValue($record['execution_id'] ?? null),
+            self::tableValue($record['name'] ?? null),
+            self::tableValue($record['status'] ?? null),
+            self::tableValue($record['exit_code'] ?? null),
+        ];
     }
 
     private function executionShow(): int
@@ -329,6 +340,11 @@ final class OperationsSystemCommand extends SystemCommand
         return $this->emit(['scope' => 'schedule', 'token' => $token], 'Scheduler interrupt requested.');
     }
 
+    private static function tableValue(mixed $value): bool|float|int|string|null
+    {
+        return $value === null || is_scalar($value) ? $value : json_encode($value, JSON_THROW_ON_ERROR);
+    }
+
     private function workerRestart(): int
     {
         $name = $this->argument(0);
@@ -378,7 +394,7 @@ final class OperationsSystemCommand extends SystemCommand
                 $process['host'],
                 $process['started_at'],
                 $process['heartbeat_at'],
-                $process['running'] ?? 'unknown',
+                $process['running'],
             ], $processes),
         );
 
