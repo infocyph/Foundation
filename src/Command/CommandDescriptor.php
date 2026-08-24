@@ -15,9 +15,6 @@ final readonly class CommandDescriptor
         $definition->assertComplete();
     }
 
-    /**
-     * @param class-string<CommandHandlerInterface> $handler
-     */
     public static function fromClass(string $handler, ?string $routeName = null): self
     {
         if (!is_a($handler, CommandHandlerInterface::class, true)) {
@@ -70,7 +67,31 @@ final readonly class CommandDescriptor
             throw new \UnexpectedValueException('Compiled command descriptor metadata is invalid.');
         }
 
-        /** @var class-string<CommandHandlerInterface>|null $handler */
-        return new self(CommandDefinition::fromManifest($definition), $handler, $system);
+        if ($handler !== null && !is_a($handler, CommandHandlerInterface::class, true)) {
+            throw new \UnexpectedValueException(sprintf(
+                'Compiled command handler "%s" must implement %s.',
+                $handler,
+                CommandHandlerInterface::class,
+            ));
+        }
+
+        return new self(CommandDefinition::fromManifest(self::associative($definition)), $handler, $system);
+    }
+
+    /**
+     * @param array<int|string, mixed> $value
+     * @return array<string, mixed>
+     */
+    private static function associative(array $value): array
+    {
+        $normalized = [];
+        foreach ($value as $key => $item) {
+            if (!is_string($key)) {
+                throw new \UnexpectedValueException('Compiled command definition metadata must use string keys.');
+            }
+            $normalized[$key] = $item;
+        }
+
+        return $normalized;
     }
 }
