@@ -291,6 +291,33 @@ final class CommandDefinition
     /** @param array<string, mixed> $manifest */
     public static function fromManifest(array $manifest): self
     {
+        $definition = self::definitionFromScalars($manifest);
+
+        foreach (self::stringList($manifest['capabilities'] ?? [], 'capabilities') as $capability) {
+            $definition->capability($capability);
+        }
+        foreach (self::stringList($manifest['aliases'] ?? [], 'aliases') as $alias) {
+            $definition->alias($alias);
+        }
+
+        $hidden = $manifest['hidden'] ?? false;
+        if (!is_bool($hidden)) {
+            throw new \UnexpectedValueException('Compiled command hidden metadata must be boolean.');
+        }
+        $definition->hidden($hidden);
+
+        self::applyArguments($definition, $manifest['arguments'] ?? []);
+        self::applyOptions($definition, $manifest['options'] ?? []);
+        $definition->execution(CommandExecutionPolicy::fromManifest(
+            self::associative($manifest['execution'] ?? [], 'execution'),
+        ));
+
+        return $definition;
+    }
+
+    /** @param array<string, mixed> $manifest */
+    private static function definitionFromScalars(array $manifest): self
+    {
         $name = $manifest['name'] ?? null;
         $description = $manifest['description'] ?? '';
         $group = $manifest['group'] ?? 'Application';
@@ -300,76 +327,121 @@ final class CommandDefinition
         }
 
         try {
-            $definition = new self($name, $description, $group, RuntimeMode::from($runtime));
+            return new self($name, $description, $group, RuntimeMode::from($runtime));
         } catch (\ValueError $exception) {
-            throw new \UnexpectedValueException(sprintf('Invalid compiled command runtime "%s".', $runtime), previous: $exception);
+            throw new \UnexpectedValueException(
+                sprintf('Invalid compiled command runtime "%s".', $runtime),
+                previous: $exception,
+            );
         }
+    }
 
-        foreach (self::stringList($manifest['capabilities'] ?? [], 'capabilities') as $capability) {
-            $definition->capability($capability);
-        }
-        foreach (self::stringList($manifest['aliases'] ?? [], 'aliases') as $alias) {
-            $definition->alias($alias);
-        }
-        $hidden = $manifest['hidden'] ?? false;
-        if (!is_bool($hidden)) {
-            throw new \UnexpectedValueException('Compiled command hidden metadata must be boolean.');
-        }
-        $definition->hidden($hidden);
-
-        $arguments = $manifest['arguments'] ?? [];
+    private static function applyArguments(self $definition, mixed $arguments): void
+    {
         if (!is_array($arguments)) {
             throw new \UnexpectedValueException('Compiled command arguments metadata must be a list.');
         }
+
         foreach ($arguments as $argument) {
-            if (!is_array($argument)
-                || !is_string($argument['name'] ?? null)
-                || !is_string($argument['description'] ?? null)
-                || !is_bool($argument['required'] ?? null)
-                || !is_bool($argument['variadic'] ?? null)
-            ) {
-                throw new \UnexpectedValueException('Compiled command argument metadata is invalid.');
-            }
+            $metadata = self::argumentMetadata($argument);
             $definition->argument(
-                $argument['name'],
-                $argument['description'],
-                $argument['required'],
-                $argument['variadic'],
+                $metadata['name'],
+                $metadata['description'],
+                $metadata['required'],
+                $metadata['variadic'],
             );
         }
+    }
 
-        $options = $manifest['options'] ?? [];
+    /** @return array{name:string,description:string,required:bool,variadic:bool} */
+    private static function argumentMetadata(mixed $argument): array
+    {
+        if (!is_array($argument)) {
+            throw new \UnexpectedValueException('Compiled command argument metadata is invalid.');
+        }
+
+        $name = $argument['name'] ?? null;
+        $description = $argument['description'] ?? null;
+        $required = $argument['required'] ?? null;
+        $variadic = $argument['variadic'] ?? null;
+        if (!is_string($name) || !is_string($description) || !is_bool($required) || !is_bool($variadic)) {
+            throw new \UnexpectedValueException('Compiled command argument metadata is invalid.');
+        }
+
+        return compact('name', 'description', 'required', 'variadic');
+    }
+
+    private static function applyOptions(self $definition, mixed $options): void
+    {
         if (!is_array($options)) {
             throw new \UnexpectedValueException('Compiled command options metadata must be a list.');
         }
+
         foreach ($options as $option) {
-            if (!is_array($option)
-                || !is_string($option['name'] ?? null)
-                || !is_string($option['description'] ?? null)
-                || !(is_string($option['short'] ?? null) || ($option['short'] ?? null) === null)
-                || !is_bool($option['accepts_value'] ?? null)
-                || !is_bool($option['multiple'] ?? null)
-                || !is_bool($option['negatable'] ?? null)
-            ) {
-                throw new \UnexpectedValueException('Compiled command option metadata is invalid.');
-            }
+            $metadata = self::optionMetadata($option);
             $definition->option(
-                $option['name'],
-                $option['description'],
-                $option['short'],
-                $option['accepts_value'],
-                $option['multiple'],
-                $option['negatable'],
+                $metadata['name'],
+                $metadata['description'],
+                $metadata['short'],
+                $metadata['accepts_value'],
+                $metadata['multiple'],
+                $metadata['negatable'],
             );
         }
+    }
 
-        $execution = $manifest['execution'] ?? [];
-        if (!is_array($execution)) {
-            throw new \UnexpectedValueException('Compiled command execution metadata must be an array.');
+    /** @return array{name:string,description:string,short:?string,accepts_value:bool,multiple:bool,negatable:bool} */
+    private static function optionMetadata(mixed $option): array
+    {
+        if (!is_array($option)) {
+            throw new \UnexpectedValueException('Compiled command option metadata is invalid.');
         }
-        $definition->execution(CommandExecutionPolicy::fromManifest($execution));
 
-        return $definition;
+        $name = $option['name'] ?? null;
+        $description = $option['description'] ?? null;
+        $short = $option['short'] ?? null;
+        $acceptsValue = $option['accepts_value'] ?? null;
+        $multiple = $option['multiple'] ?? null;
+        $negatable = $option['negatable'] ?? null;
+        if (!is_string($name)
+            || !is_string($description)
+            || !($short === null || is_string($short))
+            || !is_bool($acceptsValue)
+            || !is_bool($multiple)
+            || !is_bool($negatable)
+        ) {
+            throw new \UnexpectedValueException('Compiled command option metadata is invalid.');
+        }
+
+        return [
+            'name' => $name,
+            'description' => $description,
+            'short' => $short,
+            'accepts_value' => $acceptsValue,
+            'multiple' => $multiple,
+            'negatable' => $negatable,
+        ];
+    }
+
+    /** @return array<string,mixed> */
+    private static function associative(mixed $value, string $field): array
+    {
+        if (!is_array($value)) {
+            throw new \UnexpectedValueException(sprintf('Compiled command %s metadata must be an array.', $field));
+        }
+
+        $normalized = [];
+        foreach ($value as $key => $item) {
+            if (!is_string($key)) {
+                throw new \UnexpectedValueException(sprintf(
+                    'Compiled command %s metadata must use string keys.',
+                    $field,
+                ));
+            }
+            $normalized[$key] = $item;
+        }
+
+        return $normalized;
     }
 
     private function assertCommandName(string $name, string $field): void
@@ -382,10 +454,21 @@ final class CommandDefinition
     /** @return list<string> */
     private static function stringList(mixed $value, string $field): array
     {
-        if (!is_array($value) || array_any($value, static fn(mixed $item): bool => !is_string($item))) {
+        if (!is_array($value)) {
             throw new \UnexpectedValueException(sprintf('Compiled command %s metadata must be a string list.', $field));
         }
 
-        return array_values($value);
+        $items = [];
+        foreach ($value as $item) {
+            if (!is_string($item)) {
+                throw new \UnexpectedValueException(sprintf(
+                    'Compiled command %s metadata must be a string list.',
+                    $field,
+                ));
+            }
+            $items[] = $item;
+        }
+
+        return $items;
     }
 }
