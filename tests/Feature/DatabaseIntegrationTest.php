@@ -57,27 +57,31 @@ final class FoundationExampleSeeder implements Seeder
 it('runs the auth schema through DBLayer migrations', function (): void {
     $tables = new AuthTables();
     $schema = new AuthSchema($tables);
-    $connection = new Connection(new ConnectionConfig([
+    $connection = DB::addConnection(new ConnectionConfig([
         'driver' => 'sqlite',
         'database' => ':memory:',
-    ]));
+    ]), 'auth-schema');
     $runner = new MigrationRunner($connection, [$schema]);
 
-    expect($runner->run())->toBe([$schema->id()])
-        ->and($runner->status())->toBe([[
-            'id' => $schema->id(),
-            'applied' => true,
-            'batch' => 1,
-        ]]);
+    try {
+        expect($runner->run())->toBe([$schema->id()])
+            ->and($runner->status())->toBe([[
+                'id' => $schema->id(),
+                'applied' => true,
+                'batch' => 1,
+            ]]);
 
-    $manager = new SchemaManager($connection);
-    foreach ($tables->all() as $table) {
-        expect($manager->hasTable($table))->toBeTrue();
-    }
+        $manager = new SchemaManager($connection);
+        foreach ($tables->all() as $table) {
+            expect($manager->hasTable($table))->toBeTrue();
+        }
 
-    expect($runner->reset(true))->toBe([$schema->id()]);
-    foreach ($tables->all() as $table) {
-        expect($manager->hasTable($table))->toBeFalse();
+        expect($runner->reset(true))->toBe([$schema->id()]);
+        foreach ($tables->all() as $table) {
+            expect($manager->hasTable($table))->toBeFalse();
+        }
+    } finally {
+        DB::purge();
     }
 });
 
