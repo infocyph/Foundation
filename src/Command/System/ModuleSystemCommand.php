@@ -283,6 +283,51 @@ final class ModuleSystemCommand extends SystemCommand
         return $failed ? ExitCode::FAILURE : ExitCode::SUCCESS;
     }
 
+    /** @return array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}|null */
+    private function schemaRow(mixed $value): ?array
+    {
+        if (!is_array($value)) {
+            return null;
+        }
+
+        $name = $value['name'] ?? null;
+        $module = $value['module'] ?? null;
+        $applicable = $value['applicable'] ?? null;
+        $installed = $value['installed'] ?? null;
+        $state = $value['state'] ?? null;
+        $detail = $value['detail'] ?? null;
+
+        if (!is_string($name)
+            || !is_string($module)
+            || !is_bool($applicable)
+            || !is_bool($installed)
+            || !is_string($state)
+            || !is_string($detail)
+        ) {
+            return null;
+        }
+
+        return compact('name', 'module', 'applicable', 'installed', 'state', 'detail');
+    }
+
+    /** @return list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}> */
+    private function schemaRows(mixed $value): array
+    {
+        if (!is_array($value)) {
+            return [];
+        }
+
+        $schemas = [];
+        foreach ($value as $candidate) {
+            $schema = $this->schemaRow($candidate);
+            if ($schema !== null) {
+                $schemas[] = $schema;
+            }
+        }
+
+        return $schemas;
+    }
+
     private function schemas(): ModuleSchemaManager
     {
         return new ModuleSchemaManager($this->application, $this->catalog());
@@ -401,9 +446,7 @@ final class ModuleSystemCommand extends SystemCommand
             captureOutput: true,
         ));
         $decoded = json_decode(trim($result->stdout), true);
-        $schemas = is_array($decoded) && is_array($decoded['schemas'] ?? null)
-            ? array_values(array_filter($decoded['schemas'], is_array(...)))
-            : [];
+        $schemas = is_array($decoded) ? $this->schemaRows($decoded['schemas'] ?? null) : [];
 
         if (!$result->successful() && $schemas === []) {
             $detail = trim($result->stderr) !== '' ? trim($result->stderr) : trim($result->stdout);
