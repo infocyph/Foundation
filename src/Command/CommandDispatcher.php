@@ -45,7 +45,11 @@ final class CommandDispatcher
             try {
                 $manifest = require $manifestPath;
                 if (is_array($manifest)) {
-                    return new self($config, CommandRegistry::fromManifest($manifest), $displayName);
+                    return new self(
+                        $config,
+                        CommandRegistry::fromManifest(self::associative($manifest)),
+                        $displayName,
+                    );
                 }
             } catch (\Throwable) {
                 // A command cache is an optimization. Source routes remain authoritative.
@@ -97,13 +101,8 @@ final class CommandDispatcher
             return $handled;
         }
 
-        $descriptor = $this->registry->find($coarse->command);
-        if ($descriptor === null || $descriptor->definition->isHidden()) {
-            $io->error(sprintf('Command "%s" is not defined.', $coarse->command));
-            $suggestions = $this->registry->suggestions($coarse->command);
-            if ($suggestions !== []) {
-                $io->error('Did you mean: ' . implode(', ', $suggestions) . '?');
-            }
+        $descriptor = $this->descriptor($coarse, $io);
+        if ($descriptor === null) {
             $this->profile($coarse, $profile, $startedAt, $baselinePeak);
 
             return ExitCode::COMMAND_NOT_FOUND;
@@ -148,6 +147,22 @@ final class CommandDispatcher
         }
     }
 
+    private function descriptor(ParsedInput $input, CommandIO $io): ?CommandDescriptor
+    {
+        $descriptor = $this->registry->find($input->command);
+        if ($descriptor !== null && !$descriptor->definition->isHidden()) {
+            return $descriptor;
+        }
+
+        $io->error(sprintf('Command "%s" is not defined.', $input->command));
+        $suggestions = $this->registry->suggestions($input->command);
+        if ($suggestions !== []) {
+            $io->error('Did you mean: ' . implode(', ', $suggestions) . '?');
+        }
+
+        return null;
+    }
+
     private function application(RuntimeMode $runtime, ParsedInput $input): Application
     {
         $config = $this->config;
@@ -169,7 +184,7 @@ final class CommandDispatcher
         };
     }
 
-    private function profile(ParsedInput $input, bool $enabled, int $startedAt, int $baselinePeak): void
+    private function profile(ParsedInput $input, bool $enabled, int|float $startedAt, int $baselinePeak): void
     {
         if (!$enabled) {
             return;
@@ -198,5 +213,22 @@ final class CommandDispatcher
             $profile['verbosity'],
             PHP_EOL,
         ));
+    }
+
+    /**
+     * @param array<int|string,mixed> $value
+     * @return array<string,mixed>
+     */
+    private static function associative(array $value): array
+    {
+        $normalized = [];
+        foreach ($value as $key => $item) {
+            if (!is_string($key)) {
+                throw new \UnexpectedValueException('Compiled command manifest must use string keys.');
+            }
+            $normalized[$key] = $item;
+        }
+
+        return $normalized;
     }
 }
