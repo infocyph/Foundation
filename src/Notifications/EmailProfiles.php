@@ -148,7 +148,7 @@ final readonly class EmailProfiles
                 $headers,
                 $algorithm,
             )
-            : DkimConfig::fromPrivateKeyString($domain, $selector, $privateKey ?? '', $headers, $algorithm);
+            : DkimConfig::fromPrivateKeyString($domain, $selector, $privateKey, $headers, $algorithm);
 
         return $emailer->withDkim($dkim);
     }
@@ -261,7 +261,10 @@ final readonly class EmailProfiles
         return trim($value);
     }
 
-    /** @param array<string, mixed> $config @return array<string, mixed> */
+    /**
+     * @param array<string, mixed> $config
+     * @return array<string, mixed>
+     */
     private function resolveSpoolPaths(array $config): array
     {
         foreach (['directory', 'processingDirectory', 'moveAfterRead', 'failedDirectory'] as $key) {
