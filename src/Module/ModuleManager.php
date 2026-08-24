@@ -312,11 +312,21 @@ final readonly class ModuleManager
         // successfully published configs after other backups may already be gone.
         foreach ($backups as $backup) {
             if (is_file($backup)) {
-                @unlink($backup);
+                $this->discardBackup($backup);
             }
         }
 
         return $published;
+    }
+
+    private function discardBackup(string $path): void
+    {
+        set_error_handler(static fn(int $severity): bool => $severity === E_WARNING);
+        try {
+            unlink($path);
+        } finally {
+            restore_error_handler();
+        }
     }
 
     private function unlink(string $path, string $kind): void
