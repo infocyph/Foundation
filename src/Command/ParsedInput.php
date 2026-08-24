@@ -34,7 +34,7 @@ final readonly class ParsedInput
     /** @param list<string> $argv */
     public static function fromArgv(array $argv, ?CommandDefinition $definition = null): self
     {
-        $tokens = array_values(array_slice($argv, 1));
+        $tokens = array_slice($argv, 1);
         $command = '';
         $arguments = [];
         $options = [];
@@ -121,7 +121,7 @@ final readonly class ParsedInput
             return [$value];
         }
         if (is_array($value)) {
-            return array_values($value);
+            return $value;
         }
 
         return [];
@@ -161,6 +161,64 @@ final readonly class ParsedInput
     }
 
     /**
+     * @param array{name:string,short:?string,accepts_value:bool,multiple:bool,negatable:bool} $metadata
+     * @param list<string> $tokens
+     * @param array<string, string|bool|list<string>> $options
+     */
+    private static function consumeDefinedLongOption(
+        array $tokens,
+        int $index,
+        array &$options,
+        string $name,
+        ?string $inlineValue,
+        array $metadata,
+        bool $negated,
+    ): int {
+        if ($negated) {
+            if ($inlineValue !== null) {
+                throw new \InvalidArgumentException(sprintf('Negated option "--no-%s" does not accept a value.', $name));
+            }
+            self::addOption($options, $name, false, $metadata['multiple']);
+
+            return $index;
+        }
+
+        if (!$metadata['accepts_value']) {
+            return self::consumeLongFlag($index, $options, $name, $inlineValue, $metadata['multiple']);
+        }
+
+        $value = $inlineValue ?? $tokens[$index + 1] ?? null;
+        if (!is_string($value) || $value === '--') {
+            throw new \InvalidArgumentException(sprintf('Option "--%s" requires a value.', $name));
+        }
+        self::addOption($options, $name, $value, $metadata['multiple']);
+
+        return $inlineValue === null ? $index + 1 : $index;
+    }
+
+    /** @param array<string, string|bool|list<string>> $options */
+    private static function consumeLongFlag(
+        int $index,
+        array &$options,
+        string $name,
+        ?string $inlineValue,
+        bool $multiple,
+    ): int {
+        if ($inlineValue !== null && !in_array(strtolower($inlineValue), ['0', '1', 'false', 'true'], true)) {
+            throw new \InvalidArgumentException(sprintf('Flag option "--%s" does not accept a value.', $name));
+        }
+
+        self::addOption(
+            $options,
+            $name,
+            $inlineValue === null ? true : in_array(strtolower($inlineValue), ['1', 'true'], true),
+            $multiple,
+        );
+
+        return $index;
+    }
+
+    /**
      * @param list<string> $tokens
      * @param array<string, string|bool|list<string>> $options
      */
@@ -175,77 +233,25 @@ final readonly class ParsedInput
             return $index;
         }
 
-        $inlineValue = null;
-        if (str_contains($body, '=')) {
-            [$body, $inlineValue] = explode('=', $body, 2);
-        }
-
-        $negated = false;
-        $name = $body;
-        $metadata = self::longMetadata($name, $definition);
-        if ($metadata === null && str_starts_with($name, 'no-')) {
-            $candidate = substr($name, 3);
-            $candidateMetadata = self::longMetadata($candidate, $definition);
-            if ($candidateMetadata !== null && $candidateMetadata['negatable']) {
-                $name = $candidate;
-                $metadata = $candidateMetadata;
-                $negated = true;
-            }
-        }
+        [$name, $inlineValue] = self::splitLongOption($body);
+        [$name, $metadata, $negated] = self::resolveLongOption($name, $definition);
 
         if ($definition === null && $metadata === null) {
-            if ($inlineValue !== null) {
-                self::addOption($options, $name, $inlineValue, true);
-
-                return $index;
-            }
-            $next = $tokens[$index + 1] ?? null;
-            if (is_string($next) && $next !== '' && $next[0] !== '-') {
-                self::addOption($options, $name, $next, true);
-
-                return $index + 1;
-            }
-            self::addOption($options, $name, true, true);
-
-            return $index;
+            return self::consumeUnknownLongOption($tokens, $index, $options, $name, $inlineValue);
         }
-
         if ($metadata === null) {
             throw new \InvalidArgumentException(sprintf('Unknown option "--%s".', $name));
         }
-        if ($negated) {
-            if ($inlineValue !== null) {
-                throw new \InvalidArgumentException(sprintf('Negated option "--no-%s" does not accept a value.', $name));
-            }
-            self::addOption($options, $name, false, $metadata['multiple']);
 
-            return $index;
-        }
-        if (!$metadata['accepts_value']) {
-            if ($inlineValue !== null && !in_array(strtolower($inlineValue), ['0', '1', 'false', 'true'], true)) {
-                throw new \InvalidArgumentException(sprintf('Flag option "--%s" does not accept a value.', $name));
-            }
-            self::addOption(
-                $options,
-                $name,
-                $inlineValue === null ? true : in_array(strtolower($inlineValue), ['1', 'true'], true),
-                $metadata['multiple'],
-            );
-
-            return $index;
-        }
-
-        $value = $inlineValue;
-        if ($value === null) {
-            $value = $tokens[$index + 1] ?? null;
-            if (!is_string($value) || $value === '--') {
-                throw new \InvalidArgumentException(sprintf('Option "--%s" requires a value.', $name));
-            }
-            $index++;
-        }
-        self::addOption($options, $name, $value, $metadata['multiple']);
-
-        return $index;
+        return self::consumeDefinedLongOption(
+            $tokens,
+            $index,
+            $options,
+            $name,
+            $inlineValue,
+            $metadata,
+            $negated,
+        );
     }
 
     /**
@@ -296,6 +302,35 @@ final readonly class ParsedInput
         return $index;
     }
 
+    /**
+     * @param list<string> $tokens
+     * @param array<string, string|bool|list<string>> $options
+     */
+    private static function consumeUnknownLongOption(
+        array $tokens,
+        int $index,
+        array &$options,
+        string $name,
+        ?string $inlineValue,
+    ): int {
+        if ($inlineValue !== null) {
+            self::addOption($options, $name, $inlineValue, true);
+
+            return $index;
+        }
+
+        $next = $tokens[$index + 1] ?? null;
+        if (is_string($next) && $next !== '' && $next[0] !== '-') {
+            self::addOption($options, $name, $next, true);
+
+            return $index + 1;
+        }
+
+        self::addOption($options, $name, true, true);
+
+        return $index;
+    }
+
     /** @return array{name:string,short:?string,accepts_value:bool,multiple:bool,negatable:bool}|null */
     private static function longMetadata(string $name, ?CommandDefinition $definition): ?array
     {
@@ -311,6 +346,25 @@ final readonly class ParsedInput
         }
 
         return self::GLOBAL_OPTIONS[$name] ?? null;
+    }
+
+    /**
+     * @return array{string,array{name:string,short:?string,accepts_value:bool,multiple:bool,negatable:bool}|null,bool}
+     */
+    private static function resolveLongOption(string $name, ?CommandDefinition $definition): array
+    {
+        $metadata = self::longMetadata($name, $definition);
+        if ($metadata !== null || !str_starts_with($name, 'no-')) {
+            return [$name, $metadata, false];
+        }
+
+        $candidate = substr($name, 3);
+        $candidateMetadata = self::longMetadata($candidate, $definition);
+        if ($candidateMetadata === null || !$candidateMetadata['negatable']) {
+            return [$name, null, false];
+        }
+
+        return [$candidate, $candidateMetadata, true];
     }
 
     /** @return array{name:string,short:?string,accepts_value:bool,multiple:bool,negatable:bool}|null */
@@ -334,6 +388,18 @@ final readonly class ParsedInput
         }
 
         return null;
+    }
+
+    /** @return array{string, ?string} */
+    private static function splitLongOption(string $body): array
+    {
+        if (!str_contains($body, '=')) {
+            return [$body, null];
+        }
+
+        [$name, $value] = explode('=', $body, 2);
+
+        return [$name, $value];
     }
 
     private static function validateArguments(self $input, CommandDefinition $definition): void
