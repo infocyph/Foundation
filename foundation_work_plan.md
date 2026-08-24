@@ -41,6 +41,20 @@ Foundation is the reusable framework/runtime layer. Infbyte is the opinionated a
 - Known blocker already corrected before this marker: duplicate OTP recovery `metadata()` declaration fatal.
 - Remaining gates are tracked by the 32-point checklist below and may only be checked off with verification evidence.
 
+## Latest closure evidence — 2026-08-24 (`test_details_5`)
+
+- Runtime: PHP `8.4.24`; Composer `2.10.2`.
+- Syntax/PHPProbe: `564/564` PHP files pass syntax checking.
+- PHPUnit/Pest: `133 passed`, `1 failed`, `5 skipped`, `734 assertions`. The earlier migration-class validation failure has been cleared; the remaining failure is `RuntimeCapabilityConfigTest` expecting `logging.exceptions.ignore` to reject `Missing\Exception`. Checklist item 11 therefore remains open.
+- The five skipped tests are live browser-session lock-contention datasets for Redis, Valkey, Memcached, MySQL PDO, and PostgreSQL PDO because those lock backends are not configured in this local environment. They still require configured matrix evidence before closure.
+- Pint: `523` files pass. PHPCS: `554` files complete with no reported violations.
+- Duplicate-code probe: PASS at `3.64%` (`42` clone groups, `1729` duplicated lines).
+- Comment policy: PASS under the configured gate with `1256` INFO findings across `239` files; these are predominantly missing PHPDoc parameter annotations and are not current blocking defects.
+- Deptrac: `0` violations / `0` warnings / `0` errors. Psalm: no errors. Rector: completed. Composer Normalize: already normalized.
+- PHPStan remains a blocking gate with `40` errors: Bootstrapper `1`; CacheLayerFactory `6`; DatabaseSystemCommand `5`; MessagingSystemCommand `2`; ModuleSystemCommand `1`; OperationsSystemCommand `3`; RuntimeSystemCommand `13`; ConfigValidator `5`; ModuleManager `2`; MiddlewareConfigValidator `2`. These are primarily mixed/list typing plus cognitive-complexity violations. Checklist item 29 remains open.
+- No additional checklist item is marked complete from this report alone; specialist/runtime matrices remain evidence-driven.
+- Immediate closure priority: fix `RuntimeLoggingValidator` so configured ignored exception entries must resolve to valid `Throwable` types, rerun the focused test, then clear the PHPStan set before the next authoritative full details run.
+
 # Dependency baseline
 
 ## Core
