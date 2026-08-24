@@ -99,7 +99,7 @@ final readonly class ReadinessReport
         $this->sessionPackages($required, $catalog, $config);
         $this->databasePackages($required, $catalog, $config);
         $this->operationsPackages($required, $catalog, $config);
-        $this->applicationPackages($required, $catalog, $config);
+        $this->applicationPackages($required, $catalog);
 
         return $required;
     }
@@ -170,7 +170,7 @@ final readonly class ReadinessReport
     }
 
     /** @param array<string,array{package:string,constraint:string}> $required */
-    private function applicationPackages(array &$required, ModuleCatalog $catalog, ConfigRepository $config): void
+    private function applicationPackages(array &$required, ModuleCatalog $catalog): void
     {
         if ($this->messagingConfigured()) {
             $this->selectPackage($required, $catalog, 'messaging');
