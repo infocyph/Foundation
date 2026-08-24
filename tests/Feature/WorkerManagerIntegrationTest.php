@@ -17,6 +17,7 @@ final class FoundationMaintenanceWorker implements WorkerProvider
         $runtime->heartbeat();
 
         return $runtime->execute(static function (ExecutionId $executionId): int {
+            unset($executionId);
             self::$runs++;
 
             return 0;
