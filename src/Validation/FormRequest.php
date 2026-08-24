@@ -50,6 +50,8 @@ abstract class FormRequest
      */
     protected function options(Request $request): array
     {
+        unset($request);
+
         return [];
     }
 
