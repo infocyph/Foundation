@@ -41,7 +41,7 @@ final readonly class OtpRecoveryCodeStore implements RecoveryCodeStoreInterface
             $hashes = $state['hashes'];
             unset($hashes[$index]);
             $hashes = array_values($hashes);
-            $updated = $factor->withMetadata($this->metadata(
+            $updated = $factor->withMetadata($this->withRecoveryMetadata(
                 $factor->metadata,
                 $hashes,
                 $state['total'],
@@ -93,7 +93,7 @@ final readonly class OtpRecoveryCodeStore implements RecoveryCodeStoreInterface
                     label: 'Recovery codes',
                     enabled: false,
                     createdAt: $issuedAt->getTimestamp(),
-                    metadata: $this->metadata([], $hashes, $total, $issuedAt, null),
+                    metadata: $this->withRecoveryMetadata([], $hashes, $total, $issuedAt, null),
                 );
                 if ($this->factors->compareAndSwap(null, $created)) {
                     return ['total' => $total, 'remaining' => $total, 'lastUsedAt' => null];
@@ -101,7 +101,7 @@ final readonly class OtpRecoveryCodeStore implements RecoveryCodeStoreInterface
                 continue;
             }
 
-            $updated = $factor->withMetadata($this->metadata(
+            $updated = $factor->withMetadata($this->withRecoveryMetadata(
                 $factor->metadata,
                 $hashes,
                 $total,
@@ -173,23 +173,6 @@ final readonly class OtpRecoveryCodeStore implements RecoveryCodeStoreInterface
         return array_keys($validated);
     }
 
-    private function metadata(
-        array $metadata,
-        array $hashes,
-        int $total,
-        DateTimeImmutable $issuedAt,
-        ?DateTimeImmutable $lastUsedAt,
-    ): array {
-        $metadata[self::METADATA_KEY] = [
-            'hashes' => $hashes,
-            'issued_at' => $issuedAt->getTimestamp(),
-            'last_used_at' => $lastUsedAt?->getTimestamp(),
-            'total' => $total,
-        ];
-
-        return $metadata;
-    }
-
     private function state(MfaFactor $factor): array
     {
         $stored = $factor->metadata[self::METADATA_KEY] ?? null;
@@ -214,5 +197,22 @@ final readonly class OtpRecoveryCodeStore implements RecoveryCodeStoreInterface
             'lastUsedAt' => $lastUsedAt === null ? null : new DateTimeImmutable()->setTimestamp($lastUsedAt),
             'total' => $total,
         ];
+    }
+
+    private function withRecoveryMetadata(
+        array $metadata,
+        array $hashes,
+        int $total,
+        DateTimeImmutable $issuedAt,
+        ?DateTimeImmutable $lastUsedAt,
+    ): array {
+        $metadata[self::METADATA_KEY] = [
+            'hashes' => $hashes,
+            'issued_at' => $issuedAt->getTimestamp(),
+            'last_used_at' => $lastUsedAt?->getTimestamp(),
+            'total' => $total,
+        ];
+
+        return $metadata;
     }
 }
