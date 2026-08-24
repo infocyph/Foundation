@@ -7,11 +7,11 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Config\ConfigValidator;
 use Infocyph\Foundation\Foundation;
-use Infocyph\Foundation\Messaging\MessagingManager;
 use Infocyph\Foundation\Messaging\OmnibusWorkerFactory;
 use Infocyph\Foundation\Worker\WorkerManager;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Omnibus\Envelope\Envelope;
+use Infocyph\Omnibus\MessageBus;
 
 final readonly class FoundationWorkerMessage
 {
@@ -98,7 +98,7 @@ it('runs bounded Omnibus workers with a fresh Foundation execution scope per mes
         ],
     ]);
 
-    $messaging = $app->make(MessagingManager::class);
+    $messaging = $app->make(MessageBus::class);
     $messaging->dispatch(new FoundationWorkerMessage('first'));
     $messaging->dispatch(new FoundationWorkerMessage('second'));
 
