@@ -86,7 +86,19 @@ final class MessagingSystemCommand extends SystemCommand
         return $this->emit($this->failureData($failure));
     }
 
-    /** @return array<string,mixed> */
+    /**
+     * @return array{
+     *     id:string,
+     *     queue:string,
+     *     attempt:int,
+     *     failed_at:string,
+     *     failure_class:string,
+     *     reason:string,
+     *     decoded:bool,
+     *     payload_truncated:bool,
+     *     message:?string
+     * }
+     */
     private function failureData(FailedMessage $failure): array
     {
         return [
@@ -145,9 +157,14 @@ final class MessagingSystemCommand extends SystemCommand
     private function messagingList(): int
     {
         $config = $this->application->config();
+        $consumerTransport = $config->get('messaging.consumer.transport', 'memory');
+        if (!is_string($consumerTransport) || $consumerTransport === '') {
+            $consumerTransport = 'memory';
+        }
+
         $data = [
             'default_route' => $config->get('messaging.default_route', []),
-            'consumer_transport' => $config->get('messaging.consumer.transport', 'memory'),
+            'consumer_transport' => $consumerTransport,
             'routes' => $this->map($config->get('messaging.routes', [])),
             'handlers' => $this->map($config->get('messaging.handlers', [])),
             'handler_middleware' => $this->map($config->get('messaging.handler_middleware', [])),
@@ -171,7 +188,7 @@ final class MessagingSystemCommand extends SystemCommand
                 ['Listener groups', count($data['listeners'])],
                 ['Scheduled messages', count($data['scheduled_messages'])],
                 ['Workers', count($data['workers'])],
-                ['Consumer transport', (string) $data['consumer_transport']],
+                ['Consumer transport', $consumerTransport],
                 ['Failure store', $data['failure_store']],
             ],
         );
