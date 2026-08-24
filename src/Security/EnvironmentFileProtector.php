@@ -66,6 +66,42 @@ final readonly class EnvironmentFileProtector
         }
     }
 
+    private function backupTarget(string $target): ?string
+    {
+        if (!is_file($target)) {
+            return null;
+        }
+
+        $backup = $target . '.' . bin2hex(random_bytes(8)) . '.bak';
+        if (!rename($target, $backup)) {
+            throw new \RuntimeException(sprintf('Unable to stage existing environment target "%s".', $target));
+        }
+
+        return $backup;
+    }
+
+    private function cleanupFailedTransform(string $temporary, ?string $backup, string $target): void
+    {
+        if (is_file($temporary)) {
+            unlink($temporary);
+        }
+        if ($backup !== null && is_file($backup) && !is_file($target)) {
+            rename($backup, $target);
+        }
+    }
+
+    private function finalizeBackup(?string $backup, string $target): void
+    {
+        if ($backup === null || !is_file($backup) || unlink($backup)) {
+            return;
+        }
+
+        $restored = is_file($target) && unlink($target) && rename($backup, $target);
+        throw new \RuntimeException($restored
+            ? sprintf('Unable to finalize environment target "%s"; the previous file was restored.', $target)
+            : sprintf('Unable to remove environment target backup "%s"; manual recovery may be required.', $backup));
+    }
+
     private function key(?string $keyFile, string $keyEnvironment): string
     {
         if ($keyFile !== null && $keyFile !== '') {
@@ -117,6 +153,35 @@ final readonly class EnvironmentFileProtector
         }
     }
 
+    private function publish(string $temporary, string $target): void
+    {
+        if (!rename($temporary, $target)) {
+            throw new \RuntimeException(sprintf('Unable to publish environment target "%s".', $target));
+        }
+    }
+
+    private function stage(
+        bool $protect,
+        string $source,
+        string $temporary,
+        string $key,
+        ProtectionOptions $options,
+    ): void {
+        $protector = new FileProtector();
+        if ($protect) {
+            $protector->protect($source, $temporary, $key, $options);
+        } else {
+            $protector->unprotect($source, $temporary, $key, $options);
+        }
+
+        if (!chmod($temporary, 0600)) {
+            throw new \RuntimeException(sprintf(
+                'Unable to secure staged environment target "%s".',
+                $temporary,
+            ));
+        }
+    }
+
     private function transform(
         bool $protect,
         string $input,
@@ -133,49 +198,22 @@ final readonly class EnvironmentFileProtector
 
         $temporary = $target . '.' . bin2hex(random_bytes(8)) . '.tmp';
         $backup = null;
-        $protector = new FileProtector();
-        $options = new ProtectionOptions(self::PURPOSE, self::AAD);
-        $key = $this->key($keyFile, $keyEnvironment);
 
         try {
-            if ($protect) {
-                $protector->protect($source, $temporary, $key, $options);
-            } else {
-                $protector->unprotect($source, $temporary, $key, $options);
-            }
-            if (!chmod($temporary, 0600)) {
-                throw new \RuntimeException(sprintf(
-                    'Unable to secure staged environment target "%s".',
-                    $temporary,
-                ));
-            }
-
-            if (is_file($target)) {
-                $backup = $target . '.' . bin2hex(random_bytes(8)) . '.bak';
-                if (!rename($target, $backup)) {
-                    throw new \RuntimeException(sprintf('Unable to stage existing environment target "%s".', $target));
-                }
-            }
-            if (!rename($temporary, $target)) {
-                throw new \RuntimeException(sprintf('Unable to publish environment target "%s".', $target));
-            }
-
-            if ($backup !== null && is_file($backup) && !unlink($backup)) {
-                $restored = is_file($target) && unlink($target) && rename($backup, $target);
-
-                throw new \RuntimeException($restored
-                    ? sprintf('Unable to finalize environment target "%s"; the previous file was restored.', $target)
-                    : sprintf('Unable to remove environment target backup "%s"; manual recovery may be required.', $backup));
-            }
+            $this->stage(
+                $protect,
+                $source,
+                $temporary,
+                $this->key($keyFile, $keyEnvironment),
+                new ProtectionOptions(self::PURPOSE, self::AAD),
+            );
+            $backup = $this->backupTarget($target);
+            $this->publish($temporary, $target);
+            $this->finalizeBackup($backup, $target);
 
             return $target;
         } catch (\Throwable $failure) {
-            if (is_file($temporary)) {
-                unlink($temporary);
-            }
-            if ($backup !== null && is_file($backup) && !is_file($target)) {
-                rename($backup, $target);
-            }
+            $this->cleanupFailedTransform($temporary, $backup, $target);
 
             throw $failure;
         }
