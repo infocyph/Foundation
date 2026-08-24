@@ -320,13 +320,19 @@ it('isolates current principals between concurrent fibers and restores failed re
         ['test' => new readonly class($resolved) implements PrincipalResolverInterface {
             public function __construct(private Principal $principal) {}
             public function name(): string { return 'test'; }
-            public function resolve(Request $_request): Principal { return $this->principal; }
+            public function resolve(Request $request): Principal
+            {
+                unset($request);
+
+                return $this->principal;
+            }
         }],
     );
     $middleware = new ResolvePrincipalMiddleware($context, $resolver);
     expect(fn() => $middleware(
         foundationRequest('/auth-failure'),
-        static function (Request $_request) use ($context): Response {
+        static function (Request $request) use ($context): Response {
+            unset($request);
             expect($context->require()->id())->toBe('request');
             throw new RuntimeException('handler failed');
         },
@@ -393,7 +399,16 @@ PHP,
 it('boots every matcher from cache while preserving signed URL services', function (): void {
     foreach (['fused', 'generated', 'sharded'] as $matcher) {
         $project = foundationIntegrationProject([]);
-        $config = new ConfigRepository(['app' => ['base_path' => $project], 'router' => ['matcher' => $matcher]]);
+        $options = [
+            'base_path' => $project,
+            '_config_cache' => false,
+            'router' => [
+                'matcher' => $matcher,
+                'signed_urls' => ['key' => 'foundation-cache-signing-secret'],
+            ],
+        ];
+        $cacheApplication = Foundation::cli($options);
+        $config = $cacheApplication->config();
         try {
             WebrickRouteCache::build([
                 'cache' => RouteCachePath::for($config),
@@ -404,10 +419,9 @@ it('boots every matcher from cache while preserving signed URL services', functi
                 'signKey' => 'foundation-cache-signing-secret',
                 'fallbackAliasesFromRegistrar' => false,
             ]);
-            $app = Foundation::web([
-                'base_path' => $project,
-                'router' => ['matcher' => $matcher, 'signed_urls' => ['key' => 'foundation-cache-signing-secret']],
-            ]);
+            RouteCachePath::markFresh($config);
+
+            $app = Foundation::web($options);
             expect(foundationJsonResponse($app->handle(foundationRequest('/cached/Codex'))))->toBe(['name' => 'Codex'])
                 ->and(Route::signedUrlFor('cached.show', ['name' => 'Codex']))->toContain('/cached/Codex');
         } finally {
