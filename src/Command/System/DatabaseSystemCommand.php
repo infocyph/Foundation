@@ -98,7 +98,7 @@ final class DatabaseSystemCommand extends SystemCommand
                 $this->io()->writeln($migration . ':');
                 foreach ($statements as $statement) {
                     $this->io()->writeln('  ' . $statement['sql']);
-                    if (($statement['bindings'] ?? []) !== []) {
+                    if ($statement['bindings'] !== []) {
                         $this->io()->writeln('    bindings=' . json_encode($statement['bindings'], JSON_THROW_ON_ERROR));
                     }
                 }
@@ -112,10 +112,11 @@ final class DatabaseSystemCommand extends SystemCommand
         return $this->migrationResult($migrations, 'Migrations completed.');
     }
 
+    /** @param list<string> $migrations */
     private function migrationResult(array $migrations, string $message): int
     {
         if ($this->io()->machineReadable()) {
-            return $this->emit(['migrations' => array_values($migrations)]);
+            return $this->emit(['migrations' => $migrations]);
         }
         if ($migrations === []) {
             $this->io()->info('Nothing to migrate.');
@@ -123,7 +124,7 @@ final class DatabaseSystemCommand extends SystemCommand
             return ExitCode::SUCCESS;
         }
         foreach ($migrations as $migration) {
-            $this->io()->success((string) $migration);
+            $this->io()->success($migration);
         }
         $this->io()->success($message);
 
@@ -174,25 +175,23 @@ final class DatabaseSystemCommand extends SystemCommand
         if ($this->io()->machineReadable()) {
             return $this->emit($data);
         }
-        if (array_is_list($data)) {
-            if ($data === []) {
+
+        $records = $this->recordList($data);
+        if ($records !== null) {
+            if ($records === []) {
                 $this->io()->info('No records returned.');
 
                 return ExitCode::SUCCESS;
             }
-            $headers = array_values(array_unique(array_merge(...array_map(
-                array_keys(...),
-                array_filter($data, is_array(...)),
-            ))));
+
+            $headers = array_values(array_unique(array_merge(...array_map(array_keys(...), $records))));
             if ($headers !== []) {
                 $rows = array_map(
                     static fn(array $row): array => array_map(
-                        static fn(string $key): mixed => is_scalar($row[$key] ?? null) || ($row[$key] ?? null) === null
-                            ? ($row[$key] ?? '')
-                            : json_encode($row[$key], JSON_THROW_ON_ERROR),
+                        static fn(string $key): bool|float|int|string|null => self::tableValue($row[$key] ?? null),
                         $headers,
                     ),
-                    $data,
+                    $records,
                 );
                 $this->io()->table($headers, $rows);
 
@@ -217,6 +216,28 @@ final class DatabaseSystemCommand extends SystemCommand
         $value = $this->option($name);
 
         return $value === null ? $default : $this->positiveInt($name, $value);
+    }
+
+    /** @return list<array<string,mixed>>|null */
+    private function recordList(mixed $data): ?array
+    {
+        if (!is_array($data) || !array_is_list($data)) {
+            return null;
+        }
+
+        $records = [];
+        foreach ($data as $row) {
+            if (!is_array($row)
+                || array_any(array_keys($row), static fn(int|string $key): bool => !is_string($key))
+            ) {
+                return null;
+            }
+
+            /** @var array<string,mixed> $row */
+            $records[] = $row;
+        }
+
+        return $records;
     }
 
     private function rollback(): int
@@ -285,6 +306,15 @@ final class DatabaseSystemCommand extends SystemCommand
         }
 
         return $exists ? ExitCode::SUCCESS : ExitCode::FAILURE;
+    }
+
+    private static function tableValue(mixed $value): bool|float|int|string|null
+    {
+        if ($value === null || is_scalar($value)) {
+            return $value;
+        }
+
+        return json_encode($value, JSON_THROW_ON_ERROR);
     }
 
     private function wipe(): int
