@@ -149,6 +149,7 @@ final readonly class ModuleConfigPublisher
             $targetState = $this->prepareTarget($target, $temporary, $existing, $force);
             if (!$targetState['publish']) {
                 unset($staged[$target]);
+
                 continue;
             }
             if ($targetState['backup'] !== null) {

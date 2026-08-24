@@ -47,6 +47,11 @@ final class RuntimeSystemCommand extends SystemCommand
         };
     }
 
+    private static function tableValue(mixed $value): bool|float|int|string|null
+    {
+        return $value === null || is_scalar($value) ? $value : json_encode($value, JSON_THROW_ON_ERROR);
+    }
+
     private function consume(): int
     {
         $queue = $this->option('queue', 'default') ?? 'default';
@@ -381,11 +386,6 @@ final class RuntimeSystemCommand extends SystemCommand
         $links = $this->application->make(StorageLinkManager::class)->remove();
 
         return $this->renderStorage($links, 'Removed');
-    }
-
-    private static function tableValue(mixed $value): bool|float|int|string|null
-    {
-        return $value === null || is_scalar($value) ? $value : json_encode($value, JSON_THROW_ON_ERROR);
     }
 
     private function workerList(): int

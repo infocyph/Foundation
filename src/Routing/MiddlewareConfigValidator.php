@@ -60,6 +60,23 @@ final readonly class MiddlewareConfigValidator
         }
     }
 
+    /** @param array<string,array<array-key,mixed>> $presets */
+    private function definition(mixed $definition, string $key, array $presets): void
+    {
+        if (is_string($definition)) {
+            $this->stringDefinition($definition, $key);
+
+            return;
+        }
+        if (is_array($definition)) {
+            $this->arrayDefinition($definition, $key, $presets);
+
+            return;
+        }
+
+        throw new ConfigurationException($key . ' must be a middleware driver string or configuration array.');
+    }
+
     /** @return array<string,array<array-key,mixed>> */
     private function definitions(mixed $definitions): array
     {
@@ -78,23 +95,6 @@ final readonly class MiddlewareConfigValidator
         }
 
         return $validated;
-    }
-
-    /** @param array<string,array<array-key,mixed>> $presets */
-    private function definition(mixed $definition, string $key, array $presets): void
-    {
-        if (is_string($definition)) {
-            $this->stringDefinition($definition, $key);
-
-            return;
-        }
-        if (is_array($definition)) {
-            $this->arrayDefinition($definition, $key, $presets);
-
-            return;
-        }
-
-        throw new ConfigurationException($key . ' must be a middleware driver string or configuration array.');
     }
 
     private function driver(string $driver, string $key): void
@@ -173,17 +173,6 @@ final readonly class MiddlewareConfigValidator
     }
 
     /** @param array<string,array<array-key,mixed>> $presets */
-    private function validateGlobals(mixed $globals, array $presets): void
-    {
-        if (!is_array($globals)) {
-            throw new ConfigurationException('router.middleware.globals must define pre and post middleware lists.');
-        }
-        foreach (['pre', 'post'] as $phase) {
-            $this->validateGlobalPhase($globals[$phase] ?? [], $phase, $presets);
-        }
-    }
-
-    /** @param array<string,array<array-key,mixed>> $presets */
     private function validateGlobalPhase(mixed $entries, string $phase, array $presets): void
     {
         if (!is_array($entries)) {
@@ -198,6 +187,17 @@ final readonly class MiddlewareConfigValidator
                 sprintf('router.middleware.globals.%s.%s', $phase, (string) $index),
                 $presets,
             );
+        }
+    }
+
+    /** @param array<string,array<array-key,mixed>> $presets */
+    private function validateGlobals(mixed $globals, array $presets): void
+    {
+        if (!is_array($globals)) {
+            throw new ConfigurationException('router.middleware.globals must define pre and post middleware lists.');
+        }
+        foreach (['pre', 'post'] as $phase) {
+            $this->validateGlobalPhase($globals[$phase] ?? [], $phase, $presets);
         }
     }
 }

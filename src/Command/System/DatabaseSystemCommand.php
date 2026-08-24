@@ -37,6 +37,15 @@ final class DatabaseSystemCommand extends SystemCommand
         };
     }
 
+    private static function tableValue(mixed $value): bool|float|int|string|null
+    {
+        if ($value === null || is_scalar($value)) {
+            return $value;
+        }
+
+        return json_encode($value, JSON_THROW_ON_ERROR);
+    }
+
     private function authorizeDestructive(string $operation): bool
     {
         if ($this->flag('force')) {
@@ -306,15 +315,6 @@ final class DatabaseSystemCommand extends SystemCommand
         }
 
         return $exists ? ExitCode::SUCCESS : ExitCode::FAILURE;
-    }
-
-    private static function tableValue(mixed $value): bool|float|int|string|null
-    {
-        if ($value === null || is_scalar($value)) {
-            return $value;
-        }
-
-        return json_encode($value, JSON_THROW_ON_ERROR);
     }
 
     private function wipe(): int
