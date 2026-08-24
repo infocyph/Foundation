@@ -6,6 +6,7 @@ use Infocyph\CacheLayer\Counter\AtomicCounterStoreInterface;
 use Infocyph\CacheLayer\Counter\AtomicCounterValue;
 use Infocyph\DBLayer\Exceptions\TransactionException;
 use Infocyph\Foundation\Auth\Adapter\CacheLayer\AtomicCounterStore;
+use Infocyph\Foundation\Cache\CacheLayerFactory;
 use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Config\ConfigValidator;
 use Infocyph\Foundation\Database\DBLayerFactory;
@@ -16,7 +17,7 @@ it('creates node cache stores and reports configured cluster status', function (
     $manager = $app->make(CacheManager::class);
     $cache = $manager->store('catalog');
     $cache->set('product.42', 'cached');
-    $status = $manager->cluster('catalog')->status();
+    $status = $app->make(CacheLayerFactory::class)->cluster('catalog')->status();
 
     expect($cache->get('product.42'))->toBe('cached')
         ->and($status->cluster)->toBe('catalog')
@@ -30,7 +31,7 @@ it('publishes cache invalidations through the transactional outbox only after co
     $cache = $app->make(CacheManager::class);
     $database->connection()->statement('CREATE TABLE ' . $table . ' (id INTEGER PRIMARY KEY, name TEXT NOT NULL)');
 
-    $cluster = $cache->cluster('catalog');
+    $cluster = $app->make(CacheLayerFactory::class)->cluster('catalog');
     $cluster->cache()->set('product.42', 'cached');
     $cache->transactionalInvalidation(
         'catalog',
@@ -48,7 +49,7 @@ it('publishes cache invalidations through the transactional outbox only after co
 it('rolls back transactional outbox events without invalidating the local cache', function (): void {
     $app = foundationClusterCacheApplication();
     $cache = $app->make(CacheManager::class);
-    $cluster = $cache->cluster('catalog');
+    $cluster = $app->make(CacheLayerFactory::class)->cluster('catalog');
     $cluster->cache()->set('product.42', 'cached');
 
     expect(static function () use ($cache): mixed {
@@ -111,16 +112,19 @@ it('adapts CacheLayer atomic counters to auth lockout counters', function (): vo
             $this->lastTtl = $ttlSeconds ?? 0;
             return new AtomicCounterValue(0, false);
         }
+
         public function delete(string $key): bool
         {
             $this->lastKey = $key;
             return true;
         }
+
         public function get(string $key): ?int
         {
             $this->lastKey = $key;
             return null;
         }
+
         public function increment(string $key, int $by = 1, ?int $ttlSeconds = null): AtomicCounterValue
         {
             $this->lastKey = $key;
