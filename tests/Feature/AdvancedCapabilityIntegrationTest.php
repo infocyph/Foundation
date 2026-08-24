@@ -90,13 +90,13 @@ it('supports secure HOTP and OCRA MFA workflows', function (): void {
         ->and($replayedVerification->code)->toBe('mfa_code_invalid')
         ->and($secondVerification->successful())->toBeTrue();
 
-    $ocraKey = '12345678901234567890';
-    $ocra = new OCRA('OCRA-1:HOTP-SHA1-6:QN08', $ocraKey);
+    $ocraSecret = OCRA::generateSecret(20);
+    $ocra = OCRA::fromBase32('OCRA-1:HOTP-SHA1-6:QN08', $ocraSecret);
     $ocraEnrollment = $mfa->enrollFactor(
         'account-ocra',
         MfaFactorType::OCRA,
         'Challenge token',
-        ['otp' => ['shared_key' => $ocraKey, 'suite' => 'OCRA-1:HOTP-SHA1-6:QN08']],
+        ['otp' => ['secret' => $ocraSecret, 'suite' => 'OCRA-1:HOTP-SHA1-6:QN08']],
         enabled: true,
     );
     $ocraFactorId = $ocraEnrollment->factor?->id;
