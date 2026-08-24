@@ -4,14 +4,10 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Module;
 
-use Infocyph\CacheLayer\Cache\Adapter\PdoCacheSchema;
-use Infocyph\CacheLayer\Cluster\Transport\Pdo\PdoInvalidationSchema;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchemaInstaller;
-use Infocyph\Foundation\Database\DBLayerFactory;
+use Infocyph\Foundation\Module\Internal\CacheSchemaManager;
 use Infocyph\Foundation\Session\SessionDatabaseSchema;
-use PDO;
-use PDOException;
 
 final readonly class ModuleSchemaManager
 {
@@ -84,113 +80,6 @@ final readonly class ModuleSchemaManager
         return $results;
     }
 
-    private function absolute(string $path): bool
-    {
-        return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1;
-    }
-
-    /**
-     * @return list<array{name:string,table:string,pdo:?PDO,detail:string,type:string,state?:string,allow_sqlite_for_testing?:bool}>
-     */
-    private function activeCacheDatabaseResources(?string $connection, bool $forInstall = false): array
-    {
-        $stores = $this->associative($this->application->config()->get('cache.stores', []));
-        $resources = [];
-
-        foreach ($this->activeCacheStoreNames() as $name) {
-            $store = $this->associative($stores[$name] ?? []);
-            $driver = strtolower(is_string($store['driver'] ?? null) ? $store['driver'] : $name);
-            if (!in_array($driver, ['pdo', 'sqlite'], true)) {
-                continue;
-            }
-
-            $table = is_string($store['table'] ?? null) && $store['table'] !== ''
-                ? $store['table']
-                : 'cachelayer_entries';
-            $resolved = $this->cachePdo($store, $driver, $connection, $forInstall);
-            $resources[] = [
-                'name' => 'cache:store:' . $name,
-                'table' => $table,
-                'pdo' => $resolved['pdo'],
-                'detail' => $resolved['detail'],
-                'type' => 'cache',
-                'state' => $resolved['state'] ?? null,
-            ];
-        }
-
-        $transports = $this->associative($this->application->config()->get('cache.transports', []));
-        foreach ($this->activePdoTransportNames() as $name) {
-            $transport = $this->associative($transports[$name] ?? []);
-            $resolved = $this->databasePdo(
-                $this->nullableString($transport['connection'] ?? null) ?? $connection,
-            );
-            $resources[] = [
-                'name' => 'cache:transport:' . $name,
-                'table' => 'cachelayer_invalidation_events',
-                'pdo' => $resolved['pdo'],
-                'detail' => $resolved['detail'],
-                'type' => 'invalidation',
-                'state' => $resolved['state'] ?? null,
-                'allow_sqlite_for_testing' => ($transport['allow_sqlite_for_testing'] ?? false) === true,
-            ];
-        }
-
-        return $resources;
-    }
-
-    /** @return list<string> */
-    private function activeCacheStoreNames(): array
-    {
-        $config = $this->application->config();
-        $default = $config->get('cache.default', 'memory');
-        $default = is_string($default) && $default !== '' ? $default : 'memory';
-        $names = [$default => true];
-
-        foreach (['cache.lock.store', 'database.migrations.lock_store'] as $key) {
-            $name = $config->get($key);
-            if (is_string($name) && $name !== '') {
-                $names[$name] = true;
-            }
-        }
-
-        if ($config->get('session.driver', 'file') === 'cache') {
-            $name = $config->get('session.stores.cache.store');
-            $names[is_string($name) && $name !== '' ? $name : $default] = true;
-        }
-
-        return array_keys($names);
-    }
-
-    /** @return list<string> */
-    private function activePdoTransportNames(): array
-    {
-        $clusters = $this->associative($this->application->config()->get('cache.clusters', []));
-        $transports = $this->associative($this->application->config()->get('cache.transports', []));
-        $active = [];
-
-        foreach ($clusters as $cluster) {
-            if (!is_array($cluster)) {
-                continue;
-            }
-            $name = $cluster['transport'] ?? null;
-            if (!is_string($name) || $name === '') {
-                continue;
-            }
-            $transport = $this->associative($transports[$name] ?? []);
-            if (strtolower(is_string($transport['driver'] ?? null) ? $transport['driver'] : '') === 'pdo') {
-                $active[$name] = true;
-            }
-        }
-
-        return array_keys($active);
-    }
-
-    /** @return array<string,mixed> */
-    private function associative(mixed $value): array
-    {
-        return is_array($value) ? $value : [];
-    }
-
     private function authApplicable(): bool
     {
         return $this->application->config()->get('auth.drivers.storage', 'memory') === 'database';
@@ -231,194 +120,19 @@ final readonly class ModuleSchemaManager
         );
     }
 
-    private function cacheDatabaseConfigured(): bool
+    private function cacheSchemas(): CacheSchemaManager
     {
-        $stores = $this->associative($this->application->config()->get('cache.stores', []));
-        foreach ($this->activeCacheStoreNames() as $name) {
-            $store = $this->associative($stores[$name] ?? []);
-            $driver = strtolower(is_string($store['driver'] ?? null) ? $store['driver'] : $name);
-            if (in_array($driver, ['pdo', 'sqlite'], true)) {
-                return true;
-            }
-        }
-
-        return $this->activePdoTransportNames() !== [];
-    }
-
-    /** @param array<string,mixed> $store @return array{pdo:?PDO,detail:string,state?:string} */
-    private function cachePdo(array $store, string $driver, ?string $connection, bool $forInstall): array
-    {
-        if (($store['client'] ?? null) instanceof PDO) {
-            return ['pdo' => $store['client'], 'detail' => 'Configured PDO client.'];
-        }
-
-        $named = $this->nullableString($store['connection'] ?? null) ?? $connection;
-        if ($named !== null) {
-            return $this->databasePdo($named);
-        }
-
-        if ($driver === 'sqlite') {
-            $path = $this->nullableString($store['path'] ?? $store['file'] ?? $store['sqlite_file'] ?? null);
-            if ($path === null) {
-                return ['pdo' => null, 'detail' => 'SQLite cache store has no configured path.'];
-            }
-            $path = $this->absolute($path) ? $path : $this->application->basePath($path);
-            if (!$forInstall && !is_file($path)) {
-                return [
-                    'pdo' => null,
-                    'detail' => 'SQLite cache database ' . $path . ' does not exist.',
-                    'state' => 'pending',
-                ];
-            }
-
-            if ($forInstall) {
-                $directory = dirname($path);
-                if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
-                    throw new \RuntimeException(sprintf('Unable to create cache schema directory "%s".', $directory));
-                }
-            }
-
-            return ['pdo' => new PDO('sqlite:' . $path), 'detail' => 'SQLite cache database ' . $path . '.'];
-        }
-
-        $dsn = $this->nullableString($store['dsn'] ?? null);
-        if ($dsn === null) {
-            return ['pdo' => null, 'detail' => 'PDO cache store requires a DBLayer connection or DSN.'];
-        }
-
-        return [
-            'pdo' => new PDO(
-                $dsn,
-                $this->nullableString($store['username'] ?? null),
-                $this->nullableString($store['password'] ?? null),
-            ),
-            'detail' => 'Configured PDO cache DSN.',
-        ];
-    }
-
-    /**
-     * @return list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}>
-     */
-    private function cacheStatuses(string $module, ?string $connection, bool $afterInstall = false): array
-    {
-        $applicable = $this->cacheDatabaseConfigured();
-        if (!class_exists(PdoCacheSchema::class)) {
-            return [$this->result(
-                'cache',
-                $module,
-                $applicable,
-                false,
-                'unavailable',
-                'Requires the cache module; run "php infbyte module:install cache".',
-            )];
-        }
-
-        $resources = $this->activeCacheDatabaseResources($connection);
-        if ($resources === []) {
-            return [$this->result(
-                'cache',
-                $module,
-                false,
-                true,
-                'not-applicable',
-                'No active database-backed cache store or PDO invalidation transport.',
-            )];
-        }
-
-        $results = [];
-        foreach ($resources as $resource) {
-            if (!$resource['pdo'] instanceof PDO) {
-                $state = is_string($resource['state'] ?? null) ? $resource['state'] : 'unavailable';
-                $results[] = $this->result(
-                    $resource['name'],
-                    $module,
-                    true,
-                    false,
-                    $afterInstall && $state === 'pending' ? 'missing' : $state,
-                    $resource['detail'],
-                );
-
-                continue;
-            }
-
-            $installed = $this->tableExists($resource['pdo'], $resource['table']);
-            $results[] = $this->result(
-                $resource['name'],
-                $module,
-                true,
-                $installed,
-                $installed ? 'installed' : ($afterInstall ? 'missing' : 'pending'),
-                $resource['detail'],
-            );
-        }
-
-        return $results;
-    }
-
-    /** @return array{pdo:?PDO,detail:string,state?:string} */
-    private function databasePdo(?string $connection): array
-    {
-        if (!class_exists(\Infocyph\DBLayer\Connection\Connection::class)) {
-            return [
-                'pdo' => null,
-                'detail' => 'Requires the database module; run "php infbyte module:install database".',
-            ];
-        }
-
-        try {
-            $pdo = $this->application->make(DBLayerFactory::class)->connection($connection)->getPdo();
-        } catch (\Throwable $failure) {
-            return ['pdo' => null, 'detail' => $failure->getMessage()];
-        }
-
-        return [
-            'pdo' => $pdo,
-            'detail' => 'DBLayer connection ' . ($connection ?? 'default') . '.',
-        ];
-    }
-
-    private function installCacheSchemas(?string $connection): void
-    {
-        foreach ($this->activeCacheDatabaseResources($connection, true) as $resource) {
-            $pdo = $resource['pdo'];
-            if (!$pdo instanceof PDO) {
-                continue;
-            }
-
-            if ($resource['type'] === 'invalidation') {
-                PdoInvalidationSchema::install(
-                    $pdo,
-                    ($resource['allow_sqlite_for_testing'] ?? false) === true,
-                );
-
-                continue;
-            }
-
-            PdoCacheSchema::install($pdo, $resource['table']);
-        }
+        return new CacheSchemaManager($this->application);
     }
 
     private function installSchema(string $schema, ?string $connection): void
     {
-        switch ($schema) {
-            case 'auth':
-                $this->application->make(AuthSchemaInstaller::class)->install($connection);
-
-                break;
-            case 'cache':
-                $this->installCacheSchemas($connection);
-
-                break;
-            case 'session':
-                $this->application->make(SessionDatabaseSchema::class)->install($connection);
-
-                break;
-        }
-    }
-
-    private function nullableString(mixed $value): ?string
-    {
-        return is_string($value) && trim($value) !== '' ? trim($value) : null;
+        match ($schema) {
+            'auth' => $this->application->make(AuthSchemaInstaller::class)->install($connection),
+            'cache' => $this->cacheSchemas()->install($connection),
+            'session' => $this->application->make(SessionDatabaseSchema::class)->install($connection),
+            default => null,
+        };
     }
 
     /**
@@ -432,7 +146,14 @@ final readonly class ModuleSchemaManager
         string $state,
         string $detail,
     ): array {
-        return compact('name', 'module', 'applicable', 'installed', 'state', 'detail');
+        return [
+            'name' => $name,
+            'module' => $module,
+            'applicable' => $applicable,
+            'installed' => $installed,
+            'state' => $state,
+            'detail' => $detail,
+        ];
     }
 
     /**
@@ -446,7 +167,7 @@ final readonly class ModuleSchemaManager
     ): array {
         return match ($schema) {
             'auth' => [$this->authStatus($module, $connection, $afterInstall)],
-            'cache' => $this->cacheStatuses($module, $connection, $afterInstall),
+            'cache' => $this->cacheSchemas()->statuses($module, $connection, $afterInstall),
             'session' => [$this->sessionStatus($module, $connection, $afterInstall)],
             default => [$this->result($schema, $module, false, true, 'not-applicable', 'No schema provisioner is registered.')],
         };
@@ -488,18 +209,5 @@ final readonly class ModuleSchemaManager
             $status['installed'] ? 'installed' : ($afterInstall ? 'missing' : 'pending'),
             $status['installed'] ? 'Session table is installed.' : 'Missing session table ' . $status['table'] . '.',
         );
-    }
-
-    private function tableExists(PDO $pdo, string $table): bool
-    {
-        if (preg_match('/^[A-Za-z0-9_]+$/D', $table) !== 1) {
-            return false;
-        }
-
-        try {
-            return $pdo->query('SELECT 1 FROM ' . $table . ' WHERE 1 = 0') !== false;
-        } catch (PDOException) {
-            return false;
-        }
     }
 }
