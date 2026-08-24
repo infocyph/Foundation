@@ -10,7 +10,9 @@ use Infocyph\Foundation\Filesystem\StorageLinkManager;
 use Infocyph\Foundation\Messaging\ConsumerFactory;
 use Infocyph\Foundation\Operations\ExecutionHistory;
 use Infocyph\Foundation\Routing\RouteCacheManager;
+use Infocyph\Foundation\Scheduling\ScheduledCommand;
 use Infocyph\Foundation\Scheduling\ScheduleManager;
+use Infocyph\Foundation\Scheduling\ScheduleRun;
 use Infocyph\Foundation\Session\SessionManager;
 use Infocyph\Foundation\Worker\WorkerManager;
 use Infocyph\Omnibus\Consumer\Command\ConsumeRequest;
@@ -142,7 +144,11 @@ final class RuntimeSystemCommand extends SystemCommand
             $this->io()->table(
                 ['Link', 'Target', $state],
                 array_map(
-                    static fn(array $link): array => [$link['link'], $link['target'], $link[$key] ?? false],
+                    static fn(array $link): array => [
+                        self::tableValue($link['link'] ?? null),
+                        self::tableValue($link['target'] ?? null),
+                        self::tableValue($link[$key] ?? false),
+                    ],
                     $links,
                 ),
             );
@@ -232,11 +238,15 @@ final class RuntimeSystemCommand extends SystemCommand
     {
         $entries = new ScheduleManager($this->application)->entries();
         $history = new ExecutionHistory($this->application);
-        $data = array_map(static function ($entry) use ($history): array {
+        $data = array_map(static function (ScheduledCommand $entry) use ($history): array {
             $manifest = $entry->toManifest();
             $last = $history->latestByMetadata('schedule', 'schedule_identity', $entry->identity());
-            $manifest['last_status'] = $last['status'] ?? null;
-            $manifest['last_recorded_at'] = isset($last['recorded_at']) ? (float) $last['recorded_at'] : null;
+            $lastStatus = $last['status'] ?? null;
+            $recordedAt = $last['recorded_at'] ?? null;
+            $manifest['last_status'] = is_string($lastStatus) ? $lastStatus : null;
+            $manifest['last_recorded_at'] = is_int($recordedAt) || is_float($recordedAt)
+                ? (float) $recordedAt
+                : null;
 
             return $manifest;
         }, $entries);
@@ -250,13 +260,13 @@ final class RuntimeSystemCommand extends SystemCommand
             ['Key', 'Command', 'Cron', 'Timezone', 'Overlap', 'One Server', 'Last Status'],
             array_map(
                 static fn(array $entry): array => [
-                    $entry['key'] ?? '',
-                    $entry['command'],
-                    $entry['cron'],
-                    $entry['timezone'],
-                    $entry['without_overlap'],
-                    $entry['on_one_server'],
-                    $entry['last_status'] ?? '',
+                    self::tableValue($entry['key'] ?? null),
+                    self::tableValue($entry['command'] ?? null),
+                    self::tableValue($entry['cron'] ?? null),
+                    self::tableValue($entry['timezone'] ?? null),
+                    self::tableValue($entry['without_overlap'] ?? null),
+                    self::tableValue($entry['on_one_server'] ?? null),
+                    self::tableValue($entry['last_status'] ?? null),
                 ],
                 $data,
             ),
@@ -286,13 +296,13 @@ final class RuntimeSystemCommand extends SystemCommand
             );
         }
 
-        return array_any($runs, static fn($run): bool => !$run->locked && !$run->successful())
+        return array_any($runs, static fn(ScheduleRun $run): bool => !$run->locked && !$run->successful())
             ? ExitCode::FAILURE
             : ExitCode::SUCCESS;
     }
 
     /** @return array{command:string,identity:string,exit_code:int,locked:bool,successful:bool} */
-    private function scheduleRunData($run): array
+    private function scheduleRunData(ScheduleRun $run): array
     {
         return [
             'command' => $run->entry->command(),
@@ -373,6 +383,11 @@ final class RuntimeSystemCommand extends SystemCommand
         return $this->renderStorage($links, 'Removed');
     }
 
+    private static function tableValue(mixed $value): bool|float|int|string|null
+    {
+        return $value === null || is_scalar($value) ? $value : json_encode($value, JSON_THROW_ON_ERROR);
+    }
+
     private function workerList(): int
     {
         $workers = new WorkerManager($this->application)->all();
@@ -386,12 +401,12 @@ final class RuntimeSystemCommand extends SystemCommand
         foreach ($workers as $name => $worker) {
             $rows[] = [
                 $name,
-                $worker['type'] ?? '',
-                $worker['queue'] ?? '',
-                $worker['transport'] ?? '',
-                $worker['singleton'] ?? false,
-                $worker['pool'] ?? false,
-                $worker['concurrency'] ?? '',
+                self::tableValue($worker['type'] ?? null),
+                self::tableValue($worker['queue'] ?? null),
+                self::tableValue($worker['transport'] ?? null),
+                self::tableValue($worker['singleton'] ?? false),
+                self::tableValue($worker['pool'] ?? false),
+                self::tableValue($worker['concurrency'] ?? null),
             ];
         }
         $this->io()->table(
