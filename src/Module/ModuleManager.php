@@ -7,6 +7,7 @@ namespace Infocyph\Foundation\Module;
 use Composer\InstalledVersions;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Config\ConfigCacheManager;
+use Infocyph\Foundation\Module\Internal\ModuleConfigPublisher;
 use Infocyph\Foundation\Process\ProcessOptions;
 use Infocyph\Foundation\Process\ProcessResult;
 use Infocyph\Foundation\Process\ProcessRunner;
@@ -105,57 +106,13 @@ final readonly class ModuleManager
     /** @return array{published:list<string>,existing:list<string>} */
     public function publishConfig(string $module, bool $force = false): array
     {
-        $definition = $this->catalog->resolve($module);
-        $configured = $definition['config'];
-        if ($configured === []) {
-            return ['published' => [], 'existing' => []];
-        }
-
-        $directory = $this->application->configPath();
-        if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
-            throw new \RuntimeException(sprintf('Unable to create project config directory "%s".', $directory));
-        }
-
-        $existing = [];
-        $sources = [];
-        foreach ($configured as $filename) {
-            if ($filename === '' || basename($filename) !== $filename) {
-                continue;
-            }
-
-            $target = $directory . DIRECTORY_SEPARATOR . $filename;
-            if (is_link($target)) {
-                if (!$force) {
-                    $existing[] = $target;
-
-                    continue;
-                }
-
-                throw new \RuntimeException(sprintf(
-                    'Refusing to force-publish config through symbolic link "%s".',
-                    $target,
-                ));
-            }
-            if (is_file($target) && !$force) {
-                $existing[] = $target;
-
-                continue;
-            }
-
-            $source = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'resources' . DIRECTORY_SEPARATOR . 'config'
-                . DIRECTORY_SEPARATOR . $filename;
-            if (!is_file($source) || !is_readable($source)) {
-                throw new \RuntimeException(sprintf('Config template "%s" is unavailable.', $filename));
-            }
-            $sources[$target] = $source;
-        }
-
-        $published = $this->publishConfigFiles($directory, $sources, $existing, $force);
-        if ($published !== []) {
+        $configured = $this->catalog->resolve($module)['config'];
+        $result = new ModuleConfigPublisher($this->application)->publish($configured, $force);
+        if ($result['published'] !== []) {
             new ConfigCacheManager($this->application)->clear();
         }
 
-        return ['published' => $published, 'existing' => $existing];
+        return $result;
     }
 
     public function remove(string $module, bool $dryRun = false): ProcessResult
@@ -185,7 +142,7 @@ final readonly class ModuleManager
         ));
     }
 
-    /** @return array<string, string> */
+    /** @return array<string,string> */
     private function directRequirements(): array
     {
         $path = $this->application->basePath('composer.json');
@@ -211,129 +168,5 @@ final readonly class ModuleManager
         }
 
         return $requirements;
-    }
-
-    private function discardBackup(string $path): void
-    {
-        set_error_handler(static fn(int $severity): bool => $severity === E_WARNING);
-
-        try {
-            unlink($path);
-        } finally {
-            restore_error_handler();
-        }
-    }
-
-    /**
-     * @param array<string, string> $sources target => source
-     * @param list<string> $existing
-     * @return list<string>
-     */
-    private function publishConfigFiles(string $directory, array $sources, array &$existing, bool $force): array
-    {
-        if ($sources === []) {
-            return [];
-        }
-
-        $staged = [];
-        $backups = [];
-        $published = [];
-
-        try {
-            foreach ($sources as $target => $source) {
-                $temporary = tempnam($directory, '.foundation-config-');
-                if ($temporary === false) {
-                    throw new \RuntimeException(sprintf('Unable to stage config template "%s".', basename($target)));
-                }
-                $staged[$target] = $temporary;
-
-                if (!copy($source, $temporary) || !chmod($temporary, 0664)) {
-                    throw new \RuntimeException(sprintf('Unable to stage config template "%s".', basename($target)));
-                }
-            }
-
-            foreach ($staged as $target => $temporary) {
-                if (is_link($target)) {
-                    if (!$force) {
-                        $existing[] = $target;
-                        $this->unlink($temporary, 'staged config');
-                        unset($staged[$target]);
-
-                        continue;
-                    }
-
-                    throw new \RuntimeException(sprintf(
-                        'Refusing to force-publish config through symbolic link "%s".',
-                        $target,
-                    ));
-                }
-                if (is_file($target)) {
-                    if (!$force) {
-                        $existing[] = $target;
-                        $this->unlink($temporary, 'staged config');
-                        unset($staged[$target]);
-
-                        continue;
-                    }
-
-                    $backup = $target . '.foundation-' . bin2hex(random_bytes(6)) . '.bak';
-                    if (!rename($target, $backup)) {
-                        throw new \RuntimeException(sprintf('Unable to stage existing config "%s".', basename($target)));
-                    }
-                    $backups[$target] = $backup;
-                }
-
-                if (!rename($temporary, $target)) {
-                    throw new \RuntimeException(sprintf('Unable to publish config template "%s".', basename($target)));
-                }
-                unset($staged[$target]);
-                $published[] = $target;
-            }
-        } catch (\Throwable $failure) {
-            $rollback = [];
-            foreach ($staged as $temporary) {
-                if (is_file($temporary) && !unlink($temporary)) {
-                    $rollback[] = 'unable to remove staged file ' . $temporary;
-                }
-            }
-            foreach ($published as $target) {
-                if (is_file($target) && !unlink($target)) {
-                    $rollback[] = 'unable to remove published file ' . $target;
-                }
-            }
-            foreach ($backups as $target => $backup) {
-                if (is_file($backup) && !rename($backup, $target)) {
-                    $rollback[] = 'unable to restore backup ' . $backup;
-                }
-            }
-
-            if ($rollback !== []) {
-                throw new \RuntimeException(
-                    'Module config publication failed and rollback was incomplete: ' . implode('; ', $rollback),
-                    0,
-                    $failure,
-                );
-            }
-
-            throw $failure;
-        }
-
-        // Publication has committed at this point. Backup cleanup is finalization,
-        // not part of the transaction: a stale backup is safer than rolling back
-        // successfully published configs after other backups may already be gone.
-        foreach ($backups as $backup) {
-            if (is_file($backup)) {
-                $this->discardBackup($backup);
-            }
-        }
-
-        return $published;
-    }
-
-    private function unlink(string $path, string $kind): void
-    {
-        if (is_file($path) && !unlink($path)) {
-            throw new \RuntimeException(sprintf('Unable to remove %s "%s".', $kind, $path));
-        }
     }
 }
