@@ -1,0 +1,76 @@
+name: "Foundation 2.0 one-shot processing"
+
+on:
+  push:
+    branches: [ "feature/foundation-2.0" ]
+    paths:
+      - ".github/workflows/foundation-2-autofix.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  process:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v7
+        with:
+          ref: feature/foundation-2.0
+          fetch-depth: 0
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          extensions: mbstring, pdo, pdo_mysql, pdo_pgsql, pdo_sqlite, redis, memcached
+          coverage: none
+
+      - name: Install dependencies
+        run: composer update --no-interaction --prefer-dist --no-progress --prefer-stable
+
+      - name: Preserve scheduler interruption semantics
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          path = Path("src/Scheduling/ScheduleManager.php")
+          source = path.read_text()
+          condition = """if ($control->changed('runtime', null, $runtimeToken)\n                    || $control->changed('schedule', null, $scheduleToken)\n                )"""
+          replacement = "if ($this->interrupted($control, $runtimeToken, $scheduleToken))"
+          if source.count(condition) != 2:
+              raise SystemExit("Unexpected scheduler interruption-condition count")
+          source = source.replace(condition, replacement)
+          if source.count("sleep(1);") != 1:
+              raise SystemExit("Unexpected scheduler sleep call count")
+          source = source.replace("sleep(1);", "usleep(1_000_000);")
+
+          marker = "    private function executable(): string\n"
+          helper = """    private function interrupted(\n        RuntimeControl $control,\n        string $runtimeToken,\n        string $scheduleToken,\n    ): bool {\n        return $control->changed('runtime', null, $runtimeToken)\n            || $control->changed('schedule', null, $scheduleToken);\n    }\n\n"""
+          if marker not in source:
+              raise SystemExit("Scheduler helper insertion point not found")
+          source = source.replace(marker, helper + marker, 1)
+          path.write_text(source)
+          PY
+
+      - name: Apply PHPForge processors
+        run: composer ic:process
+
+      - name: Remove one-shot workflow
+        run: rm .github/workflows/foundation-2-autofix.yml
+
+      - name: Commit processed tree
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No processing changes to commit."
+            exit 0
+          fi
+          git commit -m "Apply Foundation PHPForge processing"
+          git push origin HEAD:feature/foundation-2.0
