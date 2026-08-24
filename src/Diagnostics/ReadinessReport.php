@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Diagnostics;
 
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Config\ConfigValidator;
 use Infocyph\Foundation\Config\OtpConfigValidator;
 use Infocyph\Foundation\Config\ProductionSecurityValidator;
@@ -93,98 +94,127 @@ final readonly class ReadinessReport
         $config = $this->application->config();
         $catalog = new ModuleCatalog();
         $required = [];
-        $select = static function (
-            array &$requirements,
-            ModuleCatalog $modules,
-            string $module,
-            ?string $package = null,
-            ?string $label = null,
-        ): void {
-            $definition = $modules->resolve($module);
-            $packages = $definition['packages'];
 
-            if ($package !== null) {
-                $constraint = $packages[$package] ?? throw new \LogicException(sprintf(
-                    'Module "%s" does not provide package "%s".',
-                    $definition['name'],
-                    $package,
-                ));
-                $requirements[$label ?? $definition['name']] = [
-                    'package' => $package,
-                    'constraint' => $constraint,
-                ];
+        $this->authPackages($required, $catalog, $config);
+        $this->sessionPackages($required, $catalog, $config);
+        $this->databasePackages($required, $catalog, $config);
+        $this->operationsPackages($required, $catalog, $config);
+        $this->applicationPackages($required, $catalog, $config);
 
-                return;
-            }
+        return $required;
+    }
 
-            $multiple = count($packages) > 1;
-            foreach ($packages as $dependency => $constraint) {
-                $key = $label ?? ($multiple
-                    ? $definition['name'] . ':' . str_replace(['infocyph/', 'web-auth/'], '', $dependency)
-                    : $definition['name']);
-                $requirements[$key] = [
-                    'package' => $dependency,
-                    'constraint' => $constraint,
-                ];
-            }
-        };
-
+    /** @param array<string,array{package:string,constraint:string}> $required */
+    private function authPackages(array &$required, ModuleCatalog $catalog, ConfigRepository $config): void
+    {
         if ($config->get('auth.drivers.cache', 'array') === 'cache') {
-            $select($required, $catalog, 'cache');
+            $this->selectPackage($required, $catalog, 'cache');
         }
         if ($config->get('auth.drivers.storage', 'memory') === 'database') {
-            $select($required, $catalog, 'database');
+            $this->selectPackage($required, $catalog, 'database');
         }
         if ($config->get('auth.drivers.mfa', 'simple') === 'otp') {
-            $select($required, $catalog, 'auth', 'infocyph/otp', 'auth:otp');
-            $select($required, $catalog, 'cache');
+            $this->selectPackage($required, $catalog, 'auth', 'infocyph/otp', 'auth:otp');
+            $this->selectPackage($required, $catalog, 'cache');
         }
         if ($config->get('auth.drivers.notifications', 'collect') === 'talkingbytes') {
-            $select($required, $catalog, 'communication');
+            $this->selectPackage($required, $catalog, 'communication');
         }
         if ($config->get('auth.drivers.passwords', 'native') === 'security'
             || $config->get('auth.drivers.tokens', 'simple') === 'security'
         ) {
-            $select($required, $catalog, 'security');
+            $this->selectPackage($required, $catalog, 'security');
         }
         if ($config->get('auth.drivers.passkey', 'memory') === 'webauthn') {
-            $select($required, $catalog, 'auth', 'web-auth/webauthn-lib', 'auth:passkeys');
-            $select($required, $catalog, 'cache');
+            $this->selectPackage($required, $catalog, 'auth', 'web-auth/webauthn-lib', 'auth:passkeys');
+            $this->selectPackage($required, $catalog, 'cache');
         }
+    }
 
-        $sessionDriver = $config->get('session.driver', 'file');
-        if ($sessionDriver === 'cache') {
-            $select($required, $catalog, 'cache');
-        } elseif ($sessionDriver === 'database') {
-            $select($required, $catalog, 'database');
+    /** @param array<string,array{package:string,constraint:string}> $required */
+    private function sessionPackages(array &$required, ModuleCatalog $catalog, ConfigRepository $config): void
+    {
+        $driver = $config->get('session.driver', 'file');
+        if ($driver === 'cache') {
+            $this->selectPackage($required, $catalog, 'cache');
+        } elseif ($driver === 'database') {
+            $this->selectPackage($required, $catalog, 'database');
         }
         if ($config->get('session.lock.enabled', false) === true) {
-            $select($required, $catalog, 'cache');
+            $this->selectPackage($required, $catalog, 'cache');
         }
+    }
 
+    /** @param array<string,array{package:string,constraint:string}> $required */
+    private function databasePackages(array &$required, ModuleCatalog $catalog, ConfigRepository $config): void
+    {
         $migrationLock = $config->get('database.migrations.lock_store');
         if (is_string($migrationLock) && trim($migrationLock) !== '') {
-            $select($required, $catalog, 'cache');
+            $this->selectPackage($required, $catalog, 'cache');
         }
 
-        foreach (['maintenance', 'runtime_control'] as $surface) {
-            if ($config->get('operations.' . $surface . '.driver', 'file') === 'cache') {
-                $select($required, $catalog, 'cache');
-            }
-        }
-
-        if ($this->messagingConfigured()) {
-            $select($required, $catalog, 'messaging');
-        }
-        if ($this->validationConfigured()) {
-            $select($required, $catalog, 'validation');
-        }
         $validationConnection = $config->get('validation.database_connection');
         if (is_string($validationConnection) && trim($validationConnection) !== '') {
-            $select($required, $catalog, 'database');
+            $this->selectPackage($required, $catalog, 'database');
+        }
+    }
+
+    /** @param array<string,array{package:string,constraint:string}> $required */
+    private function operationsPackages(array &$required, ModuleCatalog $catalog, ConfigRepository $config): void
+    {
+        foreach (['maintenance', 'runtime_control'] as $surface) {
+            if ($config->get('operations.' . $surface . '.driver', 'file') === 'cache') {
+                $this->selectPackage($required, $catalog, 'cache');
+            }
+        }
+    }
+
+    /** @param array<string,array{package:string,constraint:string}> $required */
+    private function applicationPackages(array &$required, ModuleCatalog $catalog, ConfigRepository $config): void
+    {
+        if ($this->messagingConfigured()) {
+            $this->selectPackage($required, $catalog, 'messaging');
+        }
+        if ($this->validationConfigured()) {
+            $this->selectPackage($required, $catalog, 'validation');
+        }
+    }
+
+    /** @param array<string,array{package:string,constraint:string}> $requirements */
+    private function selectPackage(
+        array &$requirements,
+        ModuleCatalog $modules,
+        string $module,
+        ?string $package = null,
+        ?string $label = null,
+    ): void {
+        $definition = $modules->resolve($module);
+        $packages = $definition['packages'];
+
+        if ($package !== null) {
+            $constraint = $packages[$package] ?? throw new \LogicException(sprintf(
+                'Module "%s" does not provide package "%s".',
+                $definition['name'],
+                $package,
+            ));
+            $requirements[$label ?? $definition['name']] = [
+                'package' => $package,
+                'constraint' => $constraint,
+            ];
+
+            return;
         }
 
-        return $required;
+        $multiple = count($packages) > 1;
+        foreach ($packages as $dependency => $constraint) {
+            $key = $label ?? ($multiple
+                ? $definition['name'] . ':' . str_replace(['infocyph/', 'web-auth/'], '', $dependency)
+                : $definition['name']);
+            $requirements[$key] = [
+                'package' => $dependency,
+                'constraint' => $constraint,
+            ];
+        }
     }
 
     private function messagingConfigured(): bool
