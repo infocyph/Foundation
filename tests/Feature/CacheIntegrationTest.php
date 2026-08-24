@@ -8,7 +8,6 @@ use Infocyph\CacheLayer\Cache\Cache;
 use Infocyph\CacheLayer\Cache\CacheInterface;
 use Infocyph\CacheLayer\Cache\Lock\FileLockProvider;
 use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
-use Infocyph\CacheLayer\Cache\Lock\PdoLockProvider;
 use Infocyph\CacheLayer\Memoize\Memoizer;
 use Infocyph\CacheLayer\Memoize\OnceMemoizer;
 use Infocyph\DBLayer\DB;
@@ -18,7 +17,7 @@ use Psr\SimpleCache\CacheInterface as SimpleCacheInterface;
 
 it('exposes one native CacheLayer store through Foundation PSR and DBLayer bindings', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-cache-' . uniqid('', true);
-    mkdir($basePath . '/storage/cache', 0775, true);
+    mkdir($basePath . '/storage/cache/locks', 0775, true);
     mkdir($basePath . '/database', 0775, true);
 
     $app = Foundation::web([
@@ -52,7 +51,8 @@ it('exposes one native CacheLayer store through Foundation PSR and DBLayer bindi
                     'connection' => 'cache',
                     'table' => 'cache_entries',
                     'lock' => [
-                        'driver' => 'pdo',
+                        'driver' => 'file',
+                        'path' => 'storage/cache/locks',
                         'prefix' => 'cache:test:lock:',
                     ],
                 ],
@@ -130,33 +130,18 @@ it('passes CacheLayer-native tier descriptors and applies Foundation lock policy
 
 it('exposes the configured CacheLayer lock provider directly', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-cache-lock-' . uniqid('', true);
-    mkdir($basePath . '/storage/cache', 0775, true);
-    mkdir($basePath . '/database', 0775, true);
+    mkdir($basePath . '/storage/cache/locks', 0775, true);
 
     $app = Foundation::web([
         'app' => ['base_path' => $basePath],
-        'database' => [
-            'default' => 'cache',
-            'connections' => [
-                'cache' => [
-                    'driver' => 'sqlite',
-                    'database' => 'database/cache.sqlite',
-                ],
-            ],
-        ],
         'cache' => [
             'default' => 'memory',
             'lock' => [
-                'driver' => 'pdo',
-                'store' => 'database',
+                'driver' => 'file',
                 'path' => 'storage/cache/locks',
             ],
             'stores' => [
                 'memory' => ['driver' => 'memory'],
-                'database' => [
-                    'driver' => 'pdo',
-                    'connection' => 'cache',
-                ],
             ],
         ],
     ]);
@@ -166,8 +151,8 @@ it('exposes the configured CacheLayer lock provider directly', function (): void
     $cacheLock = $lockProperty->getValue($cache);
     $sharedLock = $app->make(LockProviderInterface::class);
 
-    expect($cacheLock)->toBeInstanceOf(PdoLockProvider::class)
-        ->and($sharedLock)->toBeInstanceOf(PdoLockProvider::class);
+    expect($cacheLock)->toBeInstanceOf(FileLockProvider::class)
+        ->and($sharedLock)->toBeInstanceOf(FileLockProvider::class);
 
     $handle = $sharedLock->acquire('shared-lock', 0.0, 10.0);
     expect($handle)->not->toBeNull()
