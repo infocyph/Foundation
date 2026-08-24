@@ -77,7 +77,12 @@ final readonly class RuntimeLoggingValidator
 
         $ignored = $this->config->get('logging.exceptions.ignore', []);
         if (!is_array($ignored)
-            || array_any($ignored, static fn(mixed $class): bool => !is_string($class) || trim($class) === '')
+            || array_any(
+                $ignored,
+                static fn(mixed $class): bool => !is_string($class)
+                    || trim($class) === ''
+                    || !is_a($class, \Throwable::class, true),
+            )
         ) {
             $issues[] = new ConfigIssue(
                 'logging.exceptions.ignore must be a list of non-empty Throwable class names.',
