@@ -49,10 +49,7 @@ final readonly class AuthProductionGuard
         if ($drivers->notifications() === AuthNotificationDriver::COLLECT) {
             throw new ConfigurationException('auth.drivers.notifications must not be "collect" in production.');
         }
-
-        if ($drivers->notifications() === AuthNotificationDriver::TALKINGBYTES) {
-            $this->guardTalkingBytesNotifications();
-        }
+        $this->guardTalkingBytesNotifications();
 
         if ($drivers->passkey() === AuthPasskeyDriver::MEMORY) {
             throw new ConfigurationException('auth.drivers.passkey must not be "memory" in production.');
