@@ -135,7 +135,10 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
         return $column;
     }
 
-    /** @param list<array{identifier:int|string,value:mixed}> $entries @return list<mixed> */
+    /**
+     * @param list<array{identifier:int|string,value:mixed}> $entries
+     * @return list<mixed>
+     */
     private function entryValues(array $entries): array
     {
         return array_map(static fn(array $entry): mixed => $entry['value'], $entries);
@@ -189,19 +192,49 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
         return ($this->connection)()->query()->from($table);
     }
 
-    /** @param list<mixed> $values @return list<array<string, mixed>> */
+    /**
+     * @param array<int|string, mixed> $rows
+     * @return list<array<string, mixed>>
+     */
+    private function normalizeRows(array $rows): array
+    {
+        $normalized = [];
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+
+            $record = [];
+            foreach ($row as $key => $value) {
+                if (is_string($key)) {
+                    $record[$key] = $value;
+                }
+            }
+            $normalized[] = $record;
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * @param list<mixed> $values
+     * @return list<array<string, mixed>>
+     */
     private function rowsForValues(QueryBuilder $query, string $column, array $values): array
     {
         $rows = [];
         $nonNullValues = array_values(array_filter($values, static fn(mixed $value): bool => $value !== null));
         if ($nonNullValues !== []) {
-            $rows = $query->cloneBuilder()->whereIn($column, $nonNullValues)->get();
+            $rows = $this->normalizeRows($query->cloneBuilder()->whereIn($column, $nonNullValues)->get());
         }
         if (!in_array(null, $values, true)) {
             return $rows;
         }
 
-        return [...$rows, ...$query->cloneBuilder()->whereNull($column)->get()];
+        return [
+            ...$rows,
+            ...$this->normalizeRows($query->cloneBuilder()->whereNull($column)->get()),
+        ];
     }
 
     private function sameDatabaseValue(mixed $actual, mixed $expected): bool
