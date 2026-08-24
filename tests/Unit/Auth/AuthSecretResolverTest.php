@@ -15,7 +15,8 @@ it('keeps the development fallback in runtime policy instead of application conf
     ]);
 
     expect($application->config()->get('auth.token_secret'))->toBeNull()
-        ->and((new AuthSecretResolver($application))->tokenSecret())->toBe('foundation-dev-secret');
+        ->and((new AuthSecretResolver($application))->tokenSecret())
+        ->toBe('foundation-development-token-secret-change-me-000000000000000000000000');
 });
 
 it('rejects a missing production token secret at the point of use', function (): void {
