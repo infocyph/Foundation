@@ -123,7 +123,7 @@ it('boots from a sharded lazy cache without loading environment or scanning conf
 
         expect($cached->get('app.name'))->toBe('source')
             ->and($cached->get('app.debug'))->toBeTrue()
-            ->and($cached->get('cache.default'))->toBe('memory')
+            ->and($cached->get('cache.default'))->toBe('local')
             ->and($cached->lazyNamespaces())->toContain('app', 'auth', 'cache', 'router')
             ->and($manifest)->toBeFile();
     } finally {
