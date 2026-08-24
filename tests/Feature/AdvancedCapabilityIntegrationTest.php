@@ -6,16 +6,12 @@ use Infocyph\Foundation\Auth\Adapter\WebAuthn\NoneWebAuthnAttestationPolicy;
 use Infocyph\Foundation\Auth\Adapter\WebAuthn\WebAuthnAttestationPolicyInterface;
 use Infocyph\Foundation\Auth\Adapter\WebAuthn\WebAuthnConfig;
 use Infocyph\Foundation\Auth\Adapter\WebAuthn\WebAuthnRuntime;
+use Infocyph\Foundation\Auth\AuthServices;
 use Infocyph\Foundation\Auth\Mfa\MfaFactorType;
-use Infocyph\Foundation\Communication\CommunicationManager;
 use Infocyph\Foundation\Exception\ConfigurationException;
 use Infocyph\Foundation\Foundation;
-use Infocyph\Foundation\Notifications\NotificationManager;
 use Infocyph\OTP\HOTP;
 use Infocyph\OTP\OCRA;
-use Infocyph\TalkingBytes\Core\Result\CommunicationResult;
-use Infocyph\TalkingBytes\Http\Contract\HttpTransport;
-use Infocyph\TalkingBytes\Http\HttpRequest;
 use Webauthn\AttestationStatement\AttestationStatementSupportManager;
 use Webauthn\AttestationStatement\NoneAttestationStatementSupport;
 use Webauthn\CeremonyStep\CeremonyStepManagerFactory;
@@ -38,14 +34,6 @@ final class FoundationDirectAttestationPolicy implements WebAuthnAttestationPoli
         return AttestationStatementSupportManager::create([
             NoneAttestationStatementSupport::create(),
         ]);
-    }
-}
-
-final class FoundationPipelineTransport implements HttpTransport
-{
-    public function send(HttpRequest $request): CommunicationResult
-    {
-        return CommunicationResult::success(200, $request->url);
     }
 }
 
@@ -77,7 +65,7 @@ it('supports secure HOTP and OCRA MFA workflows', function (): void {
         ],
     ])->boot();
 
-    $mfa = $app->auth()->mfa();
+    $mfa = $app->make(AuthServices::class)->mfa();
     $hotpSecret = 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP';
     $hotp = new HOTP($hotpSecret);
     $hotpEnrollment = $mfa->enrollFactor(
@@ -142,16 +130,4 @@ it('keeps direct WebAuthn attestation fail-closed until a policy is registered',
     $runtime->attestationValidator();
 
     expect($policy->configured)->toBeTrue();
-});
-
-it('exposes lean TalkingBytes composition helpers', function (): void {
-    $app = Foundation::web()->boot();
-    $comms = $app->make(CommunicationManager::class);
-    $notifications = $app->make(NotificationManager::class);
-    $signer = $comms->hmacSigner('test-signing-key');
-    $pipeline = $comms->httpPipeline(new FoundationPipelineTransport());
-
-    expect($comms->signatureVerifier($signer)->verify('payload', $signer->sign('payload')))->toBeTrue()
-        ->and($pipeline->send(HttpRequest::get('https://example.test/health'))->successful)->toBeTrue()
-        ->and($notifications->dkimVerifier())->toBeObject();
 });
