@@ -31,7 +31,7 @@ final readonly class TerminalIO implements CommandIO
 
     public function choice(string $question, array $choices, ?string $default = null): string
     {
-        if ($choices === [] || array_any($choices, static fn(mixed $choice): bool => !is_string($choice) || $choice === '')) {
+        if ($choices === [] || array_any($choices, static fn(string $choice): bool => $choice === '')) {
             throw new \InvalidArgumentException('Choice prompts require non-empty string choices.');
         }
         if ($default !== null && !in_array($default, $choices, true)) {
@@ -39,7 +39,7 @@ final readonly class TerminalIO implements CommandIO
         }
 
         $this->assertInteractive();
-        foreach (array_values($choices) as $index => $choice) {
+        foreach ($choices as $index => $choice) {
             $this->writeln(sprintf('  %d) %s', $index + 1, $choice));
         }
 
@@ -172,45 +172,21 @@ final readonly class TerminalIO implements CommandIO
         if ($this->quietMode || $this->silentMode) {
             return;
         }
-        if ($headers === [] || array_any($headers, static fn(mixed $header): bool => !is_string($header))) {
+        if ($headers === []) {
             throw new \InvalidArgumentException('Table headers must be a non-empty string list.');
         }
-        if (array_any($rows, static fn(mixed $row): bool => !is_array($row) || count($row) !== count($headers))) {
+        if (array_any($rows, static fn(array $row): bool => count($row) !== count($headers))) {
             throw new \InvalidArgumentException('Every table row must match the header column count.');
         }
 
         if ($this->jsonMode) {
-            $data = [];
-            foreach ($rows as $row) {
-                $data[] = array_combine($headers, array_map(self::scalarText(...), array_values($row)));
-            }
-            $this->json($data);
+            $this->json($this->jsonTable($headers, $rows));
 
             return;
         }
 
-        $rendered = [array_values($headers)];
-        foreach ($rows as $row) {
-            $rendered[] = array_map(self::scalarText(...), array_values($row));
-        }
-
-        $widths = array_fill(0, count($headers), 0);
-        foreach ($rendered as $row) {
-            foreach ($row as $index => $value) {
-                $widths[$index] = max($widths[$index], self::displayWidth($value));
-            }
-        }
-
-        foreach ($rendered as $index => $row) {
-            $cells = [];
-            foreach ($row as $column => $value) {
-                $cells[] = self::padDisplay($value, $widths[$column]);
-            }
-            $this->writeln(implode('  ', $cells));
-            if ($index === 0) {
-                $this->writeln(implode('  ', array_map(static fn(int $width): string => str_repeat('-', $width), $widths)));
-            }
-        }
+        $rendered = $this->renderedTable($headers, $rows);
+        $this->writeTable($rendered, $this->widths($rendered));
     }
 
     public function warning(string $message): void
@@ -262,6 +238,22 @@ final readonly class TerminalIO implements CommandIO
             && stream_isatty($stream);
     }
 
+    /**
+     * @param list<string> $headers
+     * @param list<list<bool|float|int|string|null>> $rows
+     * @return list<array<string,string>>
+     */
+    private function jsonTable(array $headers, array $rows): array
+    {
+        $data = [];
+        foreach ($rows as $row) {
+            $combined = array_combine($headers, array_map(self::scalarText(...), $row));
+            $data[] = $combined;
+        }
+
+        return $data;
+    }
+
     private static function padDisplay(string $value, int $width): string
     {
         return $value . str_repeat(' ', max(0, $width - self::displayWidth($value)));
@@ -278,14 +270,28 @@ final readonly class TerminalIO implements CommandIO
         return rtrim($value, "\r\n");
     }
 
-    private static function scalarText(mixed $value): string
+    /**
+     * @param list<string> $headers
+     * @param list<list<bool|float|int|string|null>> $rows
+     * @return non-empty-list<list<string>>
+     */
+    private function renderedTable(array $headers, array $rows): array
     {
-        return match (true) {
-            $value === null => '',
-            $value === true => 'true',
-            $value === false => 'false',
-            is_scalar($value) => (string) $value,
-            default => throw new \InvalidArgumentException('Table cells must be scalar or null.'),
+        $rendered = [$headers];
+        foreach ($rows as $row) {
+            $rendered[] = array_map(self::scalarText(...), $row);
+        }
+
+        return $rendered;
+    }
+
+    private static function scalarText(bool|float|int|string|null $value): string
+    {
+        return match ($value) {
+            null => '',
+            true => 'true',
+            false => 'false',
+            default => (string) $value,
         };
     }
 
@@ -305,11 +311,55 @@ final readonly class TerminalIO implements CommandIO
 
     private function stty(string $mode): bool
     {
-        $process = proc_open(['stty', $mode], [STDIN, STDOUT, STDERR], $pipes, null, null, ['bypass_shell' => true]);
+        $process = proc_open(
+            ['stty', $mode],
+            [STDIN, STDOUT, STDERR],
+            $pipes,
+            null,
+            null,
+            ['bypass_shell' => true],
+        );
         if (!is_resource($process)) {
             return false;
         }
 
         return proc_close($process) === 0;
+    }
+
+    /**
+     * @param non-empty-list<list<string>> $rendered
+     * @return list<int>
+     */
+    private function widths(array $rendered): array
+    {
+        $widths = array_fill(0, count($rendered[0]), 0);
+        foreach ($rendered as $row) {
+            foreach ($row as $index => $value) {
+                $widths[$index] = max($widths[$index], self::displayWidth($value));
+            }
+        }
+
+        return $widths;
+    }
+
+    /**
+     * @param non-empty-list<list<string>> $rendered
+     * @param list<int> $widths
+     */
+    private function writeTable(array $rendered, array $widths): void
+    {
+        foreach ($rendered as $index => $row) {
+            $cells = [];
+            foreach ($row as $column => $value) {
+                $cells[] = self::padDisplay($value, $widths[$column]);
+            }
+            $this->writeln(implode('  ', $cells));
+            if ($index === 0) {
+                $this->writeln(implode(
+                    '  ',
+                    array_map(static fn(int $width): string => str_repeat('-', $width), $widths),
+                ));
+            }
+        }
     }
 }
