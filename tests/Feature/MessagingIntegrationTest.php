@@ -5,12 +5,14 @@ declare(strict_types=1);
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Foundation;
-use Infocyph\Foundation\Messaging\MessagingManager;
+use Infocyph\Foundation\Testing\TestKit;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Omnibus\Consumer\Command\ConsumeRequest;
 use Infocyph\Omnibus\Consumer\Command\ConsumerTask;
 use Infocyph\Omnibus\Envelope\Envelope;
+use Infocyph\Omnibus\MessageBus;
 use Infocyph\Omnibus\Scheduling\ScheduledMessageDispatcher;
+use Psr\EventDispatcher\EventDispatcherInterface;
 
 final readonly class FoundationMessage
 {
@@ -46,10 +48,8 @@ final class FoundationMessageHandler
 
     public function __construct(private Application $application) {}
 
-    public function __invoke(
-        FoundationMessage $message,
-        Envelope $envelope,
-    ): void {
+    public function __invoke(FoundationMessage $message, Envelope $envelope): void
+    {
         $probe = $this->application->make(FoundationMessageProbe::class);
         self::$handled[] = [
             'value' => $message->value,
@@ -99,8 +99,7 @@ function foundationMessagingApplication(array $messaging = []): Application
     $provider = new class extends ServiceProvider {
         public function register(Application $app): void
         {
-            $container = $app->container();
-            $container->bind(
+            $app->container()->bind(
                 FoundationMessageProbe::class,
                 static fn() => new FoundationMessageProbe(),
                 LifetimeEnum::Scoped,
@@ -146,46 +145,41 @@ it('keeps Omnibus deferred until messaging is selected', function (): void {
     $app = Foundation::cli();
     $repository = $app->container()->getRepository();
 
-    expect($repository->hasResolvedSingleton(MessagingManager::class))->toBeFalse()
-        ->and($app->has(MessagingManager::class))->toBeTrue()
-        ->and($repository->hasResolvedSingleton(MessagingManager::class))->toBeFalse()
-        ->and($app->make(MessagingManager::class))->toBeInstanceOf(MessagingManager::class)
-        ->and($repository->hasResolvedSingleton(MessagingManager::class))->toBeTrue();
+    expect($repository->hasResolvedSingleton(MessageBus::class))->toBeFalse()
+        ->and($app->has(MessageBus::class))->toBeTrue()
+        ->and($repository->hasResolvedSingleton(MessageBus::class))->toBeFalse()
+        ->and($app->make(MessageBus::class))->toBeInstanceOf(MessageBus::class)
+        ->and($repository->hasResolvedSingleton(MessageBus::class))->toBeTrue();
 });
 
 it('wires explicit event listeners and Foundation messaging fakes', function (): void {
     $app = foundationMessagingApplication();
-    $messaging = $app->make(MessagingManager::class);
+    $events = $app->make(EventDispatcherInterface::class);
 
-    expect($messaging->event(new FoundationEvent('created')))
+    expect($events->dispatch(new FoundationEvent('created')))
         ->toBeInstanceOf(FoundationEvent::class)
         ->and(FoundationEventListener::$events)->toBe(['created']);
 
-    $recording = $app->testing()->fakeMessaging();
-    $messaging->dispatch(new FoundationMessage('fake'));
-    $messaging->dispatchNotification(new FoundationMessage('notification'));
-    $messaging->event(new FoundationEvent('fake-event'));
+    $recording = $app->make(TestKit::class)->fakeMessaging();
+    $app->make(MessageBus::class)->dispatch(new FoundationMessage('fake'));
+    $events->dispatch(new FoundationEvent('fake-event'));
 
-    expect($recording->count(FoundationMessage::class))->toBe(2)
-        ->and($recording->count(FoundationEvent::class))->toBe(1)
-        ->and(array_column($recording->sent(), 'queue'))->toBe(['default', 'default', 'events']);
-
-    $messaging->restore();
-    expect($messaging->isFaking())->toBeFalse();
+    expect($recording->count(FoundationMessage::class))->toBe(1)
+        ->and(FoundationEventListener::$events)->toBe(['created', 'fake-event']);
 });
 
 it('creates a fresh InterMix scope after successful and failed message handling', function (): void {
     $app = foundationMessagingApplication();
-    $messaging = $app->make(MessagingManager::class);
+    $bus = $app->make(MessageBus::class);
     $task = $app->make(ConsumerTask::class);
 
-    $messaging->dispatch(new FoundationMessage('first'));
+    $bus->dispatch(new FoundationMessage('first'));
     $first = $task->run(new ConsumeRequest(limit: 1));
 
-    $messaging->dispatch(new FoundationFailingMessage('failure'));
+    $bus->dispatch(new FoundationFailingMessage('failure'));
     $failure = $task->run(new ConsumeRequest(limit: 1));
 
-    $messaging->dispatch(new FoundationMessage('second'));
+    $bus->dispatch(new FoundationMessage('second'));
     $second = $task->run(new ConsumeRequest(limit: 1));
 
     expect($first->succeeded)->toBe(1)
