@@ -157,6 +157,7 @@ final class CommandExecutionCoordinator
         };
     }
 
+    /** @param list<string> $argv */
     private function isolated(
         CommandDescriptor $descriptor,
         array $argv,
@@ -173,6 +174,7 @@ final class CommandExecutionCoordinator
             ));
         }
 
+        /** @var list<string> $command */
         $command = [PHP_BINARY];
         if ($policy->memoryLimitMegabytes !== null) {
             $command[] = '-d';
