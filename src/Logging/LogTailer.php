@@ -99,7 +99,10 @@ final readonly class LogTailer
         return true;
     }
 
-    /** @param array<string|int,mixed> $streamStat @param array<string|int,mixed> $pathStat */
+    /**
+     * @param array<int|string, mixed> $streamStat
+     * @param array<int|string, mixed> $pathStat
+     */
     private function identityChanged(array $streamStat, array $pathStat): bool
     {
         $streamInode = $streamStat['ino'] ?? null;
