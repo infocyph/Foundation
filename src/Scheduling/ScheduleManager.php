@@ -192,6 +192,28 @@ final readonly class ScheduleManager
             : dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'infbyte';
     }
 
+    private function executeProcess(
+        ScheduledCommand $entry,
+        ExecutionId $executionId,
+        ?Closure $heartbeat,
+    ): ProcessResult {
+        return new SchedulerRuntime($this->application)->execute(
+            fn(): ProcessResult => new ProcessRunner()->run(
+                $this->processCommand($entry),
+                new ProcessOptions(
+                    cwd: $this->application->basePath(),
+                    timeoutSeconds: $entry->timeoutSeconds(),
+                    interactive: false,
+                    captureOutput: false,
+                    passthrough: true,
+                    heartbeat: $heartbeat,
+                ),
+            ),
+            [ScheduledCommand::class => $entry],
+            $executionId,
+        );
+    }
+
     /** @phpstan-impure */
     private function interrupted(
         RuntimeControl $control,
@@ -283,25 +305,6 @@ final readonly class ScheduleManager
             : $this->application->basePath(trim($path, DIRECTORY_SEPARATOR));
     }
 
-    /** @param array<string, scalar|null> $metadata */
-    private function record(
-        ExecutionHistory $history,
-        ExecutionId $executionId,
-        string $name,
-        CommandStatus $status,
-        ?int $exitCode = null,
-        array $metadata = [],
-    ): void {
-        $history->record(
-            kind: 'schedule',
-            executionId: $executionId->value,
-            name: $name,
-            status: $status->value,
-            exitCode: $exitCode,
-            metadata: $metadata,
-        );
-    }
-
     /** @return list<string> */
     private function processCommand(ScheduledCommand $entry): array
     {
@@ -352,6 +355,25 @@ final readonly class ScheduleManager
 
             return true;
         };
+    }
+
+    /** @param array<string, scalar|null> $metadata */
+    private function record(
+        ExecutionHistory $history,
+        ExecutionId $executionId,
+        string $name,
+        CommandStatus $status,
+        ?int $exitCode = null,
+        array $metadata = [],
+    ): void {
+        $history->record(
+            kind: 'schedule',
+            executionId: $executionId->value,
+            name: $name,
+            status: $status->value,
+            exitCode: $exitCode,
+            metadata: $metadata,
+        );
     }
 
     private function runEntry(ScheduledCommand $entry): ScheduleRun
@@ -406,26 +428,18 @@ final readonly class ScheduleManager
         }
     }
 
-    private function executeProcess(
-        ScheduledCommand $entry,
-        ExecutionId $executionId,
-        ?Closure $heartbeat,
-    ): ProcessResult {
-        return new SchedulerRuntime($this->application)->execute(
-            fn(): ProcessResult => new ProcessRunner()->run(
-                $this->processCommand($entry),
-                new ProcessOptions(
-                    cwd: $this->application->basePath(),
-                    timeoutSeconds: $entry->timeoutSeconds(),
-                    interactive: false,
-                    captureOutput: false,
-                    passthrough: true,
-                    heartbeat: $heartbeat,
-                ),
-            ),
-            [ScheduledCommand::class => $entry],
-            $executionId,
-        );
+    /** @param array<array-key,mixed> $entries */
+    private function scheduleFromManifest(array $entries): Schedule
+    {
+        $schedule = new Schedule();
+        foreach ($entries as $entry) {
+            if (!is_array($entry)) {
+                throw new \UnexpectedValueException('Schedule manifest entries must be arrays.');
+            }
+            $schedule->add(ScheduledCommand::fromManifest($this->manifestEntry($entry)));
+        }
+
+        return $schedule;
     }
 
     /**
@@ -463,20 +477,6 @@ final readonly class ScheduleManager
         ]);
 
         return [null, null, new ScheduleRun($entry, 0, locked: true)];
-    }
-
-    /** @param array<array-key,mixed> $entries */
-    private function scheduleFromManifest(array $entries): Schedule
-    {
-        $schedule = new Schedule();
-        foreach ($entries as $entry) {
-            if (!is_array($entry)) {
-                throw new \UnexpectedValueException('Schedule manifest entries must be arrays.');
-            }
-            $schedule->add(ScheduledCommand::fromManifest($this->manifestEntry($entry)));
-        }
-
-        return $schedule;
     }
 
     private function status(ProcessResult $result): CommandStatus

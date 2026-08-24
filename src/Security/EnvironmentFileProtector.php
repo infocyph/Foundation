@@ -97,6 +97,7 @@ final readonly class EnvironmentFileProtector
         }
 
         $restored = is_file($target) && unlink($target) && rename($backup, $target);
+
         throw new \RuntimeException($restored
             ? sprintf('Unable to finalize environment target "%s"; the previous file was restored.', $target)
             : sprintf('Unable to remove environment target backup "%s"; manual recovery may be required.', $backup));

@@ -199,6 +199,21 @@ final readonly class ExecutionHistory
         return is_int($value) && $value > 0 ? $value : self::DEFAULT_MAX_BYTES;
     }
 
+    private function removeCurrentHistory(string $path): void
+    {
+        if (is_file($path) && !unlink($path)) {
+            throw new \RuntimeException(sprintf('Unable to truncate execution history "%s".', $path));
+        }
+    }
+
+    private function removeOldestHistory(string $path, int $retained): void
+    {
+        $oldest = $path . '.' . $retained;
+        if (is_file($oldest) && !unlink($oldest)) {
+            throw new \RuntimeException(sprintf('Unable to remove old execution history "%s".', $oldest));
+        }
+    }
+
     private function retainedFiles(): int
     {
         $value = $this->application->config()->getInt('operations.history.retained_files', self::DEFAULT_RETAINED_FILES);
@@ -220,21 +235,6 @@ final readonly class ExecutionHistory
         $this->shiftRotatedHistory($path, $retained);
         if (is_file($path) && !rename($path, $path . '.1')) {
             throw new \RuntimeException(sprintf('Unable to rotate execution history "%s".', $path));
-        }
-    }
-
-    private function removeCurrentHistory(string $path): void
-    {
-        if (is_file($path) && !unlink($path)) {
-            throw new \RuntimeException(sprintf('Unable to truncate execution history "%s".', $path));
-        }
-    }
-
-    private function removeOldestHistory(string $path, int $retained): void
-    {
-        $oldest = $path . '.' . $retained;
-        if (is_file($oldest) && !unlink($oldest)) {
-            throw new \RuntimeException(sprintf('Unable to remove old execution history "%s".', $oldest));
         }
     }
 

@@ -219,6 +219,13 @@ final readonly class CacheSchemaManager
         ];
     }
 
+    private function ensureDirectory(string $directory): void
+    {
+        if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
+            throw new \RuntimeException(sprintf('Unable to create cache schema directory "%s".', $directory));
+        }
+    }
+
     private function nullableString(mixed $value): ?string
     {
         return is_string($value) && trim($value) !== '' ? trim($value) : null;
@@ -306,13 +313,6 @@ final readonly class CacheSchemaManager
             'detail' => 'SQLite cache database ' . $path . '.',
             'state' => 'ready',
         ];
-    }
-
-    private function ensureDirectory(string $directory): void
-    {
-        if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
-            throw new \RuntimeException(sprintf('Unable to create cache schema directory "%s".', $directory));
-        }
     }
 
     /**

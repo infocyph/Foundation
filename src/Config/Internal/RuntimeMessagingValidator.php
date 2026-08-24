@@ -25,6 +25,26 @@ final readonly class RuntimeMessagingValidator
         ];
     }
 
+    private function callableDefinition(mixed $definition): bool
+    {
+        if (is_string($definition)) {
+            return trim($definition) !== '';
+        }
+        if ($definition instanceof \Closure) {
+            return true;
+        }
+        if (!is_array($definition) || count($definition) !== 2) {
+            return false;
+        }
+
+        $target = $definition[0] ?? null;
+        $method = $definition[1] ?? null;
+
+        return (is_string($target) || is_object($target))
+            && is_string($method)
+            && trim($method) !== '';
+    }
+
     /** @return list<ConfigIssue> */
     private function callableMaps(): array
     {
@@ -46,26 +66,6 @@ final readonly class RuntimeMessagingValidator
         }
 
         return $issues;
-    }
-
-    private function callableDefinition(mixed $definition): bool
-    {
-        if (is_string($definition)) {
-            return trim($definition) !== '';
-        }
-        if ($definition instanceof \Closure) {
-            return true;
-        }
-        if (!is_array($definition) || count($definition) !== 2) {
-            return false;
-        }
-
-        $target = $definition[0] ?? null;
-        $method = $definition[1] ?? null;
-
-        return (is_string($target) || is_object($target))
-            && is_string($method)
-            && trim($method) !== '';
     }
 
     /** @return list<ConfigIssue> */
@@ -137,8 +137,10 @@ final readonly class RuntimeMessagingValidator
 
                 continue;
             }
-            if (array_any($definitions, static fn(mixed $definition): bool =>
-                (!is_string($definition) || trim($definition) === '') && !is_object($definition)
+            if (array_any(
+                $definitions,
+                static fn(mixed $definition): bool
+                => (!is_string($definition) || trim($definition) === '') && !is_object($definition),
             )) {
                 $issues[] = new ConfigIssue(
                     $key . ' entries must be non-empty service class names or middleware instances.',
@@ -200,20 +202,6 @@ final readonly class RuntimeMessagingValidator
             )];
     }
 
-    /**
-     * @param array<int|string,mixed> $route
-     * @return list<ConfigIssue>
-     */
-    private function routeString(string $key, array $route, string $field): array
-    {
-        return is_string($route[$field] ?? null) && $route[$field] !== ''
-            ? []
-            : [new ConfigIssue(
-                $key . '.' . $field . ' must be a non-empty string.',
-                $key . '.' . $field,
-            )];
-    }
-
     /** @return list<ConfigIssue> */
     private function routes(): array
     {
@@ -241,6 +229,20 @@ final readonly class RuntimeMessagingValidator
         return $issues;
     }
 
+    /**
+     * @param array<int|string,mixed> $route
+     * @return list<ConfigIssue>
+     */
+    private function routeString(string $key, array $route, string $field): array
+    {
+        return is_string($route[$field] ?? null) && $route[$field] !== ''
+            ? []
+            : [new ConfigIssue(
+                $key . '.' . $field . ' must be a non-empty string.',
+                $key . '.' . $field,
+            )];
+    }
+
     /** @return list<ConfigIssue> */
     private function settings(): array
     {
@@ -265,13 +267,7 @@ final readonly class RuntimeMessagingValidator
     /** @param array<int|string,mixed> $value */
     private function validCallableMap(array $value): bool
     {
-        foreach ($value as $name => $definition) {
-            if (!is_string($name) || $name === '' || !$this->callableDefinition($definition)) {
-                return false;
-            }
-        }
-
-        return true;
+        return array_all($value, fn($definition, $name) => !(!is_string($name) || $name === '' || !$this->callableDefinition($definition)));
     }
 
     private function validListenerEntry(mixed $event, mixed $definitions): bool
@@ -336,6 +332,30 @@ final readonly class RuntimeMessagingValidator
     }
 
     /**
+     * @param list<string> $pooled
+     * @return list<ConfigIssue>
+     */
+    private function workerForkSafety(array $pooled): array
+    {
+        if ($pooled === []) {
+            return [];
+        }
+
+        $unsafe = $this->forkUnsafePath($this->config->all(), 'config');
+        if ($unsafe === null) {
+            return [];
+        }
+
+        return [new ConfigIssue(
+            sprintf(
+                'Pooled messaging workers require scalar/array declarative configuration; %s contains runtime state.',
+                $unsafe,
+            ),
+            $pooled[0] . '.pool',
+        )];
+    }
+
+    /**
      * @param array<int|string,mixed> $definition
      * @return list<ConfigIssue>
      */
@@ -387,29 +407,5 @@ final readonly class RuntimeMessagingValidator
         }
 
         return [...$issues, ...$this->workerForkSafety($pooled)];
-    }
-
-    /**
-     * @param list<string> $pooled
-     * @return list<ConfigIssue>
-     */
-    private function workerForkSafety(array $pooled): array
-    {
-        if ($pooled === []) {
-            return [];
-        }
-
-        $unsafe = $this->forkUnsafePath($this->config->all(), 'config');
-        if ($unsafe === null) {
-            return [];
-        }
-
-        return [new ConfigIssue(
-            sprintf(
-                'Pooled messaging workers require scalar/array declarative configuration; %s contains runtime state.',
-                $unsafe,
-            ),
-            $pooled[0] . '.pool',
-        )];
     }
 }
