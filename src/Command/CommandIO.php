@@ -6,6 +6,7 @@ namespace Infocyph\Foundation\Command;
 
 interface CommandIO
 {
+    /** @param list<string> $choices */
     public function choice(string $question, array $choices, ?string $default = null): string;
 
     public function confirm(string $question, bool $default = false): bool;
@@ -30,7 +31,10 @@ interface CommandIO
 
     public function success(string $message): void;
 
-    /** @param list<string> $headers @param list<list<scalar|null>> $rows */
+    /**
+     * @param list<string> $headers
+     * @param list<list<scalar|null>> $rows
+     */
     public function table(array $headers, array $rows): void;
 
     public function warning(string $message): void;
