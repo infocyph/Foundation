@@ -132,6 +132,22 @@ final class Bootstrapper
         return $app->providers()->activate($provider, $app);
     }
 
+    private function assertProviderGroup(int|string $group, mixed $entries): void
+    {
+        if (!is_string($group) || !in_array($group, self::PROVIDER_GROUPS, true)) {
+            throw new BootstrapException(sprintf(
+                'Configured providers contain unsupported group "%s".',
+                (string) $group,
+            ));
+        }
+        if (!is_array($entries)) {
+            throw new BootstrapException(sprintf(
+                'Configured provider group "%s" must be a provider list.',
+                $group,
+            ));
+        }
+    }
+
     /** @return list<ServiceProviderInterface> */
     private function configuredProviders(Application $app): array
     {
@@ -146,18 +162,7 @@ final class Bootstrapper
         }
 
         foreach ($configured as $group => $entries) {
-            if (!is_string($group) || !in_array($group, self::PROVIDER_GROUPS, true)) {
-                throw new BootstrapException(sprintf(
-                    'Configured providers contain unsupported group "%s".',
-                    is_scalar($group) ? (string) $group : get_debug_type($group),
-                ));
-            }
-            if (!is_array($entries)) {
-                throw new BootstrapException(sprintf(
-                    'Configured provider group "%s" must be a provider list.',
-                    $group,
-                ));
-            }
+            $this->assertProviderGroup($group, $entries);
         }
 
         $providers = [];
