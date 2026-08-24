@@ -167,7 +167,14 @@ final class Bootstrapper
 
         $providers = [];
         foreach (['common', $app->runtimeMode()->value] as $group) {
-            foreach ($configured[$group] ?? [] as $provider) {
+            $entries = $configured[$group] ?? [];
+            if (!is_array($entries)) {
+                throw new BootstrapException(sprintf(
+                    'Configured provider group "%s" must be a provider list.',
+                    $group,
+                ));
+            }
+            foreach ($entries as $provider) {
                 $instance = $this->instantiateProvider($provider);
                 $providers[$instance::class] = $instance;
             }
