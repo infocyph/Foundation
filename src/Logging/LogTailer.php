@@ -78,7 +78,7 @@ final readonly class LogTailer
                 clearstatcache(true, $path);
                 $position = ftell($stream);
                 $streamStat = fstat($stream);
-                $pathStat = is_file($path) ? @stat($path) : false;
+                $pathStat = is_file($path) ? $this->statPath($path) : false;
 
                 if (is_int($position) && is_array($streamStat) && is_array($pathStat)) {
                     $replaced = $this->identityChanged($streamStat, $pathStat);
@@ -127,5 +127,16 @@ final readonly class LogTailer
         }
 
         return $stream;
+    }
+
+    /** @return array<int|string, mixed>|false */
+    private function statPath(string $path): array|false
+    {
+        set_error_handler(static fn(int $severity): bool => $severity === E_WARNING);
+        try {
+            return stat($path);
+        } finally {
+            restore_error_handler();
+        }
     }
 }
