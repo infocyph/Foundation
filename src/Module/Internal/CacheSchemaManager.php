@@ -133,7 +133,10 @@ final readonly class CacheSchemaManager
         return array_keys($active);
     }
 
-    /** @return array{pdo:?PDO,detail:string,state:string} */
+    /**
+     * @param array<string,mixed> $store
+     * @return array{pdo:?PDO,detail:string,state:string}
+     */
     private function cachePdo(array $store, string $driver, ?string $connection, bool $forInstall): array
     {
         $client = $store['client'] ?? null;
@@ -190,7 +193,10 @@ final readonly class CacheSchemaManager
         ];
     }
 
-    /** @param array<string,mixed> $store @return array{pdo:?PDO,detail:string,state:string} */
+    /**
+     * @param array<string,mixed> $store
+     * @return array{pdo:?PDO,detail:string,state:string}
+     */
     private function dsnPdo(array $store): array
     {
         $dsn = $this->nullableString($store['dsn'] ?? null);
@@ -271,7 +277,10 @@ final readonly class CacheSchemaManager
         ];
     }
 
-    /** @param array<string,mixed> $store @return array{pdo:?PDO,detail:string,state:string} */
+    /**
+     * @param array<string,mixed> $store
+     * @return array{pdo:?PDO,detail:string,state:string}
+     */
     private function sqlitePdo(array $store, bool $forInstall): array
     {
         $path = $this->nullableString($store['path'] ?? $store['file'] ?? $store['sqlite_file'] ?? null);
