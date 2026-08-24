@@ -32,7 +32,6 @@ final readonly class FoundationEvent
 final class FoundationMessageProbe
 {
     private static int $next = 0;
-
     public readonly int $sequence;
 
     public function __construct()
@@ -70,7 +69,6 @@ final class FoundationFailingMessageHandler
     public function __invoke(): never
     {
         self::$scopes[] = $this->application->make(FoundationMessageProbe::class)->sequence;
-
         throw new RuntimeException('expected consumer failure');
     }
 }
@@ -114,16 +112,12 @@ function foundationMessagingApplication(array $messaging = []): Application
                 FoundationMessage::class => FoundationMessageHandler::class,
                 FoundationFailingMessage::class => FoundationFailingMessageHandler::class,
             ],
-            'listeners' => [
-                FoundationEvent::class => [FoundationEventListener::class],
-            ],
+            'listeners' => [FoundationEvent::class => [FoundationEventListener::class]],
             'routes' => [
                 FoundationMessage::class => ['transport' => 'memory', 'queue' => 'default'],
                 FoundationFailingMessage::class => ['transport' => 'memory', 'queue' => 'default'],
             ],
-            'scheduled_messages' => [
-                'reports.daily' => FoundationScheduledMessageFactory::class,
-            ],
+            'scheduled_messages' => ['reports.daily' => FoundationScheduledMessageFactory::class],
             'retry' => [
                 'maximum_attempts' => 1,
                 'initial_delay_seconds' => 0.0,
@@ -155,14 +149,13 @@ it('keeps Omnibus deferred until messaging is selected', function (): void {
 it('wires explicit event listeners and Foundation messaging fakes', function (): void {
     $app = foundationMessagingApplication();
     $events = $app->make(EventDispatcherInterface::class);
-
     expect($events->dispatch(new FoundationEvent('created')))
         ->toBeInstanceOf(FoundationEvent::class)
         ->and(FoundationEventListener::$events)->toBe(['created']);
 
     $recording = $app->make(TestKit::class)->fakeMessaging();
     $app->make(MessageBus::class)->dispatch(new FoundationMessage('fake'));
-    $events->dispatch(new FoundationEvent('fake-event'));
+    $app->make(EventDispatcherInterface::class)->dispatch(new FoundationEvent('fake-event'));
 
     expect($recording->count(FoundationMessage::class))->toBe(1)
         ->and(FoundationEventListener::$events)->toBe(['created', 'fake-event']);
@@ -175,10 +168,8 @@ it('creates a fresh InterMix scope after successful and failed message handling'
 
     $bus->dispatch(new FoundationMessage('first'));
     $first = $task->run(new ConsumeRequest(limit: 1));
-
     $bus->dispatch(new FoundationFailingMessage('failure'));
     $failure = $task->run(new ConsumeRequest(limit: 1));
-
     $bus->dispatch(new FoundationMessage('second'));
     $second = $task->run(new ConsumeRequest(limit: 1));
 
@@ -188,18 +179,14 @@ it('creates a fresh InterMix scope after successful and failed message handling'
         ->and(FoundationMessageHandler::$handled)->toHaveCount(2)
         ->and(FoundationMessageHandler::$handled[0]['envelope'])->toBeTrue()
         ->and(FoundationMessageHandler::$handled[0]['message'])->toBeTrue()
-        ->and(FoundationMessageHandler::$handled[0]['sequence'])
-        ->not->toBe(FoundationFailingMessageHandler::$scopes[0])
-        ->and(FoundationFailingMessageHandler::$scopes[0])
-        ->not->toBe(FoundationMessageHandler::$handled[1]['sequence']);
+        ->and(FoundationMessageHandler::$handled[0]['sequence'])->not->toBe(FoundationFailingMessageHandler::$scopes[0])
+        ->and(FoundationFailingMessageHandler::$scopes[0])->not->toBe(FoundationMessageHandler::$handled[1]['sequence']);
 });
 
 it('dispatches named scheduled messages through the configured route map', function (): void {
     $app = foundationMessagingApplication();
-
     $app->make(ScheduledMessageDispatcher::class)->dispatch('reports.daily');
     $result = $app->make(ConsumerTask::class)->run(new ConsumeRequest(limit: 1));
-
     expect($result->succeeded)->toBe(1)
         ->and(FoundationMessageHandler::$handled[0]['value'])->toBe('scheduled');
 });
