@@ -160,10 +160,6 @@ final class CommunicationServiceProvider extends ServiceProvider
         }
 
         $factory = $app->make(CacheLayerFactory::class);
-        if (!$factory instanceof CacheLayerFactory) {
-            throw new \RuntimeException('CacheLayerFactory did not resolve for webhook replay protection.');
-        }
-
         $ttl = max(1, ValueNormalizer::int($replay['ttl_seconds'] ?? null, 86_400));
         $replayStore = new CacheLayerWebhookReplayStore(
             $factory->make($store),
