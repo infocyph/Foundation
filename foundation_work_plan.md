@@ -6,6 +6,8 @@
 
 - Foundation: `feature/foundation-2.0`
 - Infbyte: `feature/foundation-2.0`
+- Foundation PR: #6, `feature/foundation-2.0` → `main`
+- Infbyte integration PR: draft #5, `feature/foundation-2.0` → `main`
 
 ## Active closure run
 
@@ -13,14 +15,14 @@
 - Original closure checkpoint: `16d60f114314544a5c6db91c0e986423fa6fbb70`
 - Dependency-rebaseline checkpoint: `6663dad26e75453fcebb7975dda2ad0b49661951`
 - Persistent-runtime soak checkpoint: `8a07d929ae644016c2cf2bd4045e661951163349`
-- Latest verified Foundation branch checkpoint: `0f71a61b8348173f40de212fe880d6eccacd0a85`
-- Authoritative Foundation Security & Standards run: `32828615370`
-- Authoritative Foundation dedicated PHPStan run: `32828614755`
-- Verified Infbyte integration checkpoint: `ab011a48d08a26ed362e5b53278e249144fbe227`
-- Verified Infbyte integration run: `32830537262`
-- Current phase: **final dependency/package/retired-API audit and Foundation/Infbyte stable-release alignment, then final checkpoint closure**.
+- Latest verified Foundation prerelease checkpoint: `f559355b785d4edc56edfde2eadd1aa652c69360`
+- Authoritative Foundation Security & Standards run: `32830829761`
+- Authoritative Foundation dedicated PHPStan run: `32830829087`
+- Latest verified Infbyte prerelease checkpoint: `f2e81b09a843a3d9ea162ed349790107078cf1f8`
+- Authoritative Infbyte integration run: `32837108534`
+- Current phase: **source/dependency/API/docs audit complete; public Foundation 2.0 release, Infbyte stable-constraint cutover, stable release-workflow validation, and final immutable checkpoint closure remain**.
 - Architecture/public ownership boundaries are frozen. Correct integration defects, tests, diagnostics and docs only; do not restore retired convenience APIs or duplicate specialist engines.
-- Final finish condition: updated dependencies resolve, PHPUnit/PHPForge/static-analysis matrices are green, specialist/runtime/security/process/deployment behavior is evidenced, Infbyte is aligned to the stable Foundation 2 release constraint, benchmarks remain acceptable, and every checklist item below has explicit evidence.
+- Final finish condition: Foundation 2.0 is published from a verified commit, Infbyte consumes stable `^2.0`, the normal stable release guard is green, and every checklist item below has explicit evidence.
 
 ## Dependency baseline
 
@@ -47,7 +49,7 @@
 - `infocyph/talkingbytes ^2.0`
 - `web-auth/webauthn-lib ^5.3.5`
 
-`ModuleCatalog` must stay aligned with Composer. Stable refs were verified directly for DBLayer `5.0`, Omnibus `2.5`, and ReqShield `3.1`.
+`ModuleCatalog` is aligned with Composer for every package-backed purpose module: auth, cache, communication, database, filesystem, messaging, security and validation.
 
 # Frozen architecture
 
@@ -78,7 +80,7 @@ Module removal never deletes schema/data. Schema ownership remains auth → Foun
 
 ### Dependency/specialist compatibility
 
-- Composer and `ModuleCatalog` target DBLayer `^5.0`, Omnibus `^2.5`, ReqShield `^3.1`.
+- Composer and `ModuleCatalog` target the same frozen package constraints, including DBLayer `^5.0`, Omnibus `^2.5`, ReqShield `^3.1`, CacheLayer `^3.2.0`, TalkingBytes `^2.0`, OTP `^6.0`, Epicrypt `^2.1`, Pathwise `^3.1`, and WebAuthn `^5.3.5`.
 - ReqShield DB validation physically chunks queries through DBLayer 5 `safeBatchSize()` without changing ReqShield's public contract.
 - DBLayer 5 migration/pretend/status/rollback/fresh/refresh/reset/wipe/monitor behavior is executed and green.
 - destructive DB commands are tested through the real dispatcher and require explicit authorization/`--force` in non-interactive and production-sensitive paths.
@@ -154,7 +156,7 @@ Soak checkpoint `8a07d929ae644016c2cf2bd4045e661951163349`, Security run `328277
 - every seventeenth unit fails deliberately, exercising cleanup after both success and exception paths;
 - scoped InterMix probe instances are tracked with `WeakReference` and are collectible after execution batches, demonstrating that long-running execution boundaries do not retain scoped instances;
 - PHP 8.4/8.5 lowest/stable QA and representative benchmark validators remain green;
-- hosted GitHub runners are used to validate benchmark workload/contract only, not as a stable numeric performance baseline;
+- hosted GitHub runners validate benchmark workload/contract only, not a stable numeric performance baseline;
 - PHPForge numeric regression comparison remains intentionally skipped until both baseline and current measurements are captured from the same explicitly stable environment. No baseline is fabricated.
 
 ### Auth/session/token and advanced auth
@@ -185,7 +187,7 @@ Security run `32819176255`, dedicated PHPStan `32819175905` are fully green acro
 - fresh Foundation/InterMix execution scope for successful and failed message handling;
 - retry/release/failure storage behavior and retry-claim/send/removal;
 - failure list/show/prune/forget/flush semantics;
-- real `queue:failed`, `queue:failed:show`, `queue:retry`, `queue:monitor`, `queue:prune-failed`, `queue:forget`, and `queue:flush` system-command paths through fresh `CommandDispatcher` applications;
+- real `queue:failed`, `queue:failed:show`, `queue:retry`, `queue:monitor`, `queue:prune-failed`, `queue:forget`, and `queue:flush` paths through fresh `CommandDispatcher` applications;
 - queue monitoring reports actual Omnibus transport size;
 - destructive failure flush refuses non-interactively without `--force` and succeeds with it;
 - Worker/WorkerOptions and Foundation-to-Omnibus lifecycle callbacks;
@@ -223,23 +225,48 @@ Security run `32827098635`, dedicated PHPStan `32827097882`:
 
 ### Infbyte integration issue resolution
 
-Infbyte checkpoint `ab011a48d08a26ed362e5b53278e249144fbe227`, draft PR #5, integration run `32830537262`:
+Latest Infbyte checkpoint `f2e81b09a843a3d9ea162ed349790107078cf1f8`, draft PR #5, integration run `32837108534`:
 
 - all four PHP 8.4/8.5 × prefer-lowest/prefer-stable PHPForge quality jobs pass;
 - the clean production install passes;
-- skeleton tests now exercise the frozen four-runtime/narrow-`Application` contract instead of retired Foundation 1 convenience APIs;
+- skeleton tests exercise the frozen four-runtime/narrow-`Application` contract instead of retired Foundation 1 convenience APIs;
 - canonical Web handling replaces retired test shortcuts;
 - route/config/command cache tests use Foundation 2 command contracts and isolated temporary skeletons;
 - canonical module names, readiness JSON and database install guidance are verified;
-- distribution/archive expectations now match Foundation 2 cache artifacts and `optimize:clear` ownership;
+- distribution/archive expectations match Foundation 2 cache artifacts and `optimize:clear` ownership;
 - Infbyte CI no longer passes removed PHPForge reusable-workflow inputs;
+- the README skeleton tree now matches the branch and no longer advertises nonexistent `routes/web.php` or `routes/auth.php` files;
 - while Infbyte consumes `dev-feature/foundation-2.0 as 2.0.x-dev`, its feature branch uses a dedicated integration QA matrix rather than weakening PHPForge's stable-release constraint guard. Normal release CI must be restored when Infbyte moves to stable `^2.0`.
 
-## Authoritative QA baseline
+### Final prerelease dependency/API/docs audit
 
-Verified Foundation branch checkpoint: `0f71a61b8348173f40de212fe880d6eccacd0a85`.
+Completed against the active Foundation and Infbyte feature branches:
 
-Security & Standards `32828615370`:
+- Foundation `composer.json` and `ModuleCatalog` are aligned on all package-backed modules;
+- Foundation release-facing README and focused database/messaging/module/architecture documentation use the frozen DBLayer 5, Omnibus 2.5, ReqShield 3.1 and CacheLayer 3.2.0 baseline;
+- indexed stale-version sweeps found no remaining Foundation `^4.1`, `^2.4`, or `^3.0` dependency references and no Infbyte `4.1`, `2.4`, or `3.0.1` integration references;
+- retired runtime/API sweeps found no active `Foundation::console`, `AuthManager`, `DatabaseManager`, `RouterManager`, `FilesystemManager`, `module:install db`, or retired hyphenated module-schema command usage;
+- Infbyte Composer remains intentionally minimal and does not duplicate Foundation's specialist packages;
+- Foundation PR #6 is mergeable and its description now records the actual release baseline and authoritative QA evidence;
+- Infbyte draft PR #5 is mergeable and remains intentionally draft until stable Foundation 2.0 exists.
+
+### Stable publication gate
+
+The public Foundation releases endpoint currently exposes release `1.0.0`; Foundation 2.0 has not yet been published as a GitHub release.
+
+Therefore the following are intentionally not performed implicitly:
+
+1. publish/tag Foundation 2.0;
+2. change Infbyte from `dev-feature/foundation-2.0 as 2.0.x-dev` to `^2.0` before that stable version exists;
+3. claim a stable-constraint release run before Composer can resolve the published release.
+
+Publishing a major release is the sole remaining external release action before stable Infbyte cutover and final closure.
+
+## Authoritative prerelease QA baseline
+
+Verified Foundation prerelease checkpoint: `f559355b785d4edc56edfde2eadd1aa652c69360`.
+
+Security & Standards `32830829761`:
 
 - matrix preparation: PASS;
 - clean production install: PASS;
@@ -254,7 +281,7 @@ Security & Standards `32828615370`:
 - benchmark comparison: skipped because no stable comparable baseline is configured;
 - Security SVG report: skipped and not a release gate.
 
-QA uses `fail_on_skipped_tests: true` and enforces Pest, Pint, PHPCS, PHPProbe, Deptrac, Rector and Composer Normalize. Analyzer jobs enforce PHPStan and Psalm. Dedicated PHPStan `32828614755` passed.
+QA uses `fail_on_skipped_tests: true` and enforces Pest, Pint, PHPCS, PHPProbe, Deptrac, Rector and Composer Normalize. Analyzer jobs enforce PHPStan and Psalm. Dedicated PHPStan `32830829087` passed.
 
 # 32-point verification / release closure checklist
 
@@ -263,12 +290,12 @@ QA uses `fail_on_skipped_tests: true` and enforces Pest, Pint, PHPCS, PHPProbe, 
 3. [x] Align Composer capability baseline to DBLayer `^5.0`, Omnibus `^2.5`, ReqShield `^3.1`.
 4. [x] Align `ModuleCatalog` constraints with Composer baseline.
 5. [x] Normalize PHPForge reusable-workflow configuration to repository-specific overrides only.
-6. [x] Production clean-install gate passes on the current dependency set (`32828615370`).
-7. [x] PHP 8.4 representative benchmark validation passes (`32828615370`).
-8. [x] PHP 8.5 representative benchmark validation passes (`32828615370`).
-9. [x] Psalm passes on PHP 8.4 and PHP 8.5 analyzer jobs (`32828615370`).
-10. [x] Deptrac passes across the current QA matrix (`32828615370`).
-11. [x] Current syntax/PHPProbe/Pest blocking defects are cleared (`32828615370`).
+6. [x] Production clean-install gate passes on the current dependency set (`32830829761`).
+7. [x] PHP 8.4 representative benchmark validation passes (`32830829761`).
+8. [x] PHP 8.5 representative benchmark validation passes (`32830829761`).
+9. [x] Psalm passes on PHP 8.4 and PHP 8.5 analyzer jobs (`32830829761`).
+10. [x] Deptrac passes across the current QA matrix (`32830829761`).
+11. [x] Current syntax/PHPProbe/Pest blocking defects are cleared (`32830829761`).
 12. [x] DBLayer 5 migration/rollback/status/reset/refresh/wipe/monitor compatibility matrix is green.
 13. [x] Destructive database safeguard/confirmation matrix is green through the real CLI dispatcher.
 14. [x] Module list/show/install/remove/config-publish/schema-status/schema-install/schema-sync plus dry-run/duplicate/failure rollback behavior is green.
@@ -286,7 +313,7 @@ QA uses `fail_on_skipped_tests: true` and enforces Pest, Pint, PHPCS, PHPProbe, 
 26. [x] Config/route/command/schedule/container optimize/clear idempotency is green (`32827098635`, `32827097882`).
 27. [x] Maintenance/runtime reload/worker restart/scheduler interrupt/process-registry/status/stale cleanup is green (`32827098635`, `32827097882`).
 28. [x] Env encrypt/decrypt/temp-file/permissions/overwrite and storage link/unlink safety is green (`32827098635`, `32827097882`).
-29. [x] Pint/Rector/Composer Normalize/PHPCS/PHPStan/Psalm/Deptrac are green on the current PHP 8.4/8.5 lowest/stable matrix with `fail_on_skipped_tests: true` (`32828615370`, `32828614755`).
+29. [x] Pint/Rector/Composer Normalize/PHPCS/PHPStan/Psalm/Deptrac are green on the current PHP 8.4/8.5 lowest/stable matrix with `fail_on_skipped_tests: true` (`32830829761`, `32830829087`).
 30. [x] Persistent-runtime soak-sensitive paths are exercised with mixed success/failure retention pressure; hosted-runner benchmark validation is green and numeric comparison is reserved for a same-stable-environment baseline (`32827736851`, `32827736213`).
-31. [ ] Final dependency/package/stale-version/retired-API audit plus Foundation/Infbyte stable-release alignment. Infbyte prerelease integration is green at `ab011a48d08a26ed362e5b53278e249144fbe227` / `32830537262`; stable Foundation `^2.0` transition remains open.
-32. [ ] Record final source/CI checkpoints and all verified results with zero ambiguous closure items.
+31. [ ] Final dependency/package/stale-version/retired-API audit plus Foundation/Infbyte stable-release alignment. **Audit is complete and green**; the remaining part is publication of Foundation 2.0, Infbyte `^2.0` cutover, and stable release-workflow validation (`f559355b785d4edc56edfde2eadd1aa652c69360`, `32830829761`, `32830829087`, `f2e81b09a843a3d9ea162ed349790107078cf1f8`, `32837108534`).
+32. [ ] Record final post-publication source/CI checkpoints with zero ambiguous closure items. This remains blocked only by #31's explicit public-release/cutover gate.
