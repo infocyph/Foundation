@@ -121,7 +121,9 @@ it('cleans all request-local state between persistent execution units including 
         ): void {
             expect((string) $executionId)->not->toBe('');
 
+            /** @var FoundationPersistentScopedProbe $first */
             $first = $app->make('persistent.execution.scoped');
+            /** @var FoundationPersistentScopedProbe $same */
             $same = $app->make('persistent.execution.scoped');
             expect($first)->toBe($same);
             $firstScoped = $first->sequence;
@@ -163,7 +165,9 @@ it('cleans all request-local state between persistent execution units including 
             expect($principal->get())->toBeNull()
                 ->and(fn() => $sessions->current())->toThrow(LogicException::class);
 
-            $secondScoped = $app->make('persistent.execution.scoped')->sequence;
+            /** @var FoundationPersistentScopedProbe $scoped */
+            $scoped = $app->make('persistent.execution.scoped');
+            $secondScoped = $scoped->sequence;
             $connection = $databaseFactory->connection();
             expect($connection->transactionLevel())->toBe(0)
                 ->and(foundationPersistentMemoized($memoCalls))->toBe(2)
@@ -184,6 +188,7 @@ it('cleans all request-local state between persistent execution units including 
                 $seededEnvelope = $app->make(Envelope::class);
                 $seededMessage = $app->make(FoundationPersistentMessage::class);
                 $executionId = $app->make(ExecutionId::class);
+                /** @var FoundationPersistentScopedProbe $scoped */
                 $scoped = $app->make('persistent.execution.scoped');
 
                 expect($current)->toBe($seededMessage)
