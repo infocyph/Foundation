@@ -38,7 +38,7 @@ final class FoundationWorkerLifecycleServiceProvider extends ServiceProvider
     }
 }
 
-final readonly class FoundationWorkerLifecycleScopeProvider implements WorkerProvider
+final class FoundationWorkerLifecycleScopeProvider implements WorkerProvider
 {
     /** @var list<array{first:int,second:int}> */
     public static array $scopes = [];
@@ -46,7 +46,7 @@ final readonly class FoundationWorkerLifecycleScopeProvider implements WorkerPro
     /** @var list<string> */
     public static array $executionIds = [];
 
-    public function __construct(private Application $application) {}
+    public function __construct(private readonly Application $application) {}
 
     public function run(WorkerRuntime $runtime): int
     {
@@ -65,7 +65,7 @@ final readonly class FoundationWorkerLifecycleScopeProvider implements WorkerPro
     }
 }
 
-final readonly class FoundationWorkerLifecycleRestartProvider implements WorkerProvider
+final class FoundationWorkerLifecycleRestartProvider implements WorkerProvider
 {
     public static int $registryCount = 0;
 
@@ -73,7 +73,7 @@ final readonly class FoundationWorkerLifecycleRestartProvider implements WorkerP
 
     public static bool $continuedAfterHeartbeat = false;
 
-    public function __construct(private Application $application) {}
+    public function __construct(private readonly Application $application) {}
 
     public function run(WorkerRuntime $runtime): int
     {
