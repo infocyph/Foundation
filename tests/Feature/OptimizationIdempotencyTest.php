@@ -79,6 +79,11 @@ final class FoundationOptimizationCommandIO implements CommandIO
 it('keeps optimize and optimize clear idempotent across every runtime artifact', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-optimize-' . bin2hex(random_bytes(6));
     mkdir($basePath . '/routes', 0775, true);
+    file_put_contents($basePath . '/routes/web.php', <<<'PHP'
+<?php
+use Infocyph\Webrick\Router\Facade\Router;
+Router::get('/health', static fn(): array => ['ok' => true], ['name' => 'health']);
+PHP);
 
     $dispatcher = CommandDispatcher::project(
         [
