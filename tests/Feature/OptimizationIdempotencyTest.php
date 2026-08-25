@@ -96,13 +96,15 @@ it('keeps optimize and optimize clear idempotent across every runtime artifact',
     );
 
     try {
-        $first = foundationOptimizationRun($dispatcher, 'optimize');
-        $second = foundationOptimizationRun($dispatcher, 'optimize');
+        $firstPayload = foundationOptimizationPayload(foundationOptimizationRun($dispatcher, 'optimize'));
+        $secondPayload = foundationOptimizationPayload(foundationOptimizationRun($dispatcher, 'optimize'));
+        $secondContainers = $secondPayload['containers'] ?? null;
+        if (!is_array($secondContainers)) {
+            throw new RuntimeException('Second optimization did not expose compiled runtime containers.');
+        }
 
-        $firstPayload = foundationOptimizationPayload($first);
-        $secondPayload = foundationOptimizationPayload($second);
         expect($firstPayload['artifacts'] ?? null)->toBe($secondPayload['artifacts'] ?? null)
-            ->and(array_keys($secondPayload['containers'] ?? []))->toBe(['web', 'cli', 'worker', 'scheduler']);
+            ->and(array_keys($secondContainers))->toBe(['web', 'cli', 'worker', 'scheduler']);
 
         $warm = foundationOptimizationPayload(foundationOptimizationRun($dispatcher, 'optimize:report'));
         expect($warm['config'] ?? null)->toBeTrue()
@@ -142,6 +144,7 @@ it('keeps optimize and optimize clear idempotent across every runtime artifact',
     }
 });
 
+/** @param array<string, mixed> $payload */
 function foundationOptimizationExpectContainers(array $payload, bool $ready): void
 {
     $containers = $payload['containers'] ?? null;
@@ -151,10 +154,19 @@ function foundationOptimizationExpectContainers(array $payload, bool $ready): vo
 
     expect(array_keys($containers))->toBe(['web', 'cli', 'worker', 'scheduler']);
     foreach ($containers as $runtime => $status) {
-        expect($status)->toBeArray()
-            ->and($status['runtime'] ?? null)->toBe($runtime)
-            ->and($status['ready'] ?? null)->toBe($ready)
-            ->and($status['compiled'] ?? null)->toBe($ready ? expect()->not->toBe(0) : 0);
+        if (!is_array($status)) {
+            throw new RuntimeException(sprintf('Optimization status for %s is invalid.', (string) $runtime));
+        }
+
+        expect($status['runtime'] ?? null)->toBe($runtime)
+            ->and($status['ready'] ?? null)->toBe($ready);
+
+        $compiled = $status['compiled'] ?? null;
+        if ($ready) {
+            expect($compiled)->toBeInt()->toBeGreaterThan(0);
+        } else {
+            expect($compiled)->toBe(0);
+        }
     }
 }
 
