@@ -149,7 +149,7 @@ Provider workers are unlocked by default. `singleton=true` opts into CacheLayer
 ownership, and `WorkerRuntime::heartbeat()` refreshes that ownership and checks
 runtime/worker restart generations.
 
-Single Omnibus 2.4 workers use native `WorkerLifecycle` callbacks for heartbeat
+Single Omnibus 2.5 workers use native `WorkerLifecycle` callbacks for heartbeat
 and graceful stop requests. Optional Omnibus `WorkerPool` remains a Unix
 `pcntl`/`posix` feature; each child constructs a fresh Foundation worker
 application after fork.
