@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\Connection\ConnectionConfig;
+use Infocyph\DBLayer\DB;
 use Infocyph\DBLayer\Migration\Migration;
 use Infocyph\DBLayer\Migration\MigrationContext;
 use Infocyph\DBLayer\Migration\MigrationRunner;
@@ -58,7 +58,8 @@ final class FoundationDBLayer5SecondMigration implements Migration
 }
 
 it('preserves DBLayer 5 pretend, step batches, exact rollback, refresh and reset semantics', function (): void {
-    $connection = new Connection(ConnectionConfig::fromArray([
+    DB::purge();
+    $connection = DB::addConnection(ConnectionConfig::fromArray([
         'driver' => 'sqlite',
         'database' => ':memory:',
     ]));
@@ -94,12 +95,13 @@ it('preserves DBLayer 5 pretend, step batches, exact rollback, refresh and reset
             ->and($schema->hasTable('foundation_dblayer5_first'))->toBeFalse()
             ->and($schema->hasTable('foundation_dblayer5_second'))->toBeFalse();
     } finally {
-        $connection->disconnect();
+        DB::purge();
     }
 });
 
 it('keeps DBLayer 5 schema wipe and monitor surfaces compatible with Foundation commands', function (): void {
-    $connection = new Connection(ConnectionConfig::fromArray([
+    DB::purge();
+    $connection = DB::addConnection(ConnectionConfig::fromArray([
         'driver' => 'sqlite',
         'database' => ':memory:',
     ]));
@@ -133,6 +135,6 @@ it('keeps DBLayer 5 schema wipe and monitor surfaces compatible with Foundation 
 
         expect($schema->hasTable('foundation_dblayer5_wipe'))->toBeFalse();
     } finally {
-        $connection->disconnect();
+        DB::purge();
     }
 });
