@@ -1,6 +1,6 @@
 # Foundation 2.0 — Live Work Plan
 
-> `foundation_plan.md` is historical architecture/reference material. This file tracks the current implementation/release state.
+> `foundation_plan.md` is historical architecture/reference material. This file is the evidence-driven source of truth for the current Foundation 2.0 implementation and release closure.
 
 ## Working branches
 
@@ -9,75 +9,30 @@
 
 Foundation is the reusable framework/runtime layer. Infbyte is the opinionated application skeleton built on it.
 
-## Active closure run — STARTED
+## Active closure run
 
 - Started: 2026-08-24 (Asia/Dhaka)
-- Starting Foundation head: `16d60f114314544a5c6db91c0e986423fa6fbb70`
-- Scope: resolve every remaining verification defect and close the full 32-point Foundation 2.0 release checklist.
-- Architecture status: frozen; this run is verification/correction only. Removed convenience APIs/managers are not to be restored.
-- Required finish condition: PHPForge/QA/static analysis and PHPUnit matrix green, specialist integration matrices verified, release/deployment checks verified, Infbyte alignment checked, and this plan updated again with final evidence.
-- Current execution state: **IN PROGRESS**.
+- Original closure-run checkpoint: `16d60f114314544a5c6db91c0e986423fa6fbb70`
+- Dependency-rebaseline starting checkpoint: `6663dad26e75453fcebb7975dda2ad0b49661951`
+- Latest implementation/documentation checkpoint before this plan update: `a3b1087c6443ffdc5b4db005f8b858f9acf6a588`
+- Current phase: **DBLayer 5 / Omnibus 2.5 / ReqShield 3.1 rebaseline + verification closure**.
+- Architecture/public ownership boundaries remain frozen. This run may correct implementation, integration, tests, diagnostics, and documentation; it must not restore retired convenience APIs or duplicate specialist engines.
+- Finish condition: updated dependency set resolves, PHPForge/QA/static analysis and PHPUnit matrices pass, specialist/runtime/security/process/deployment matrices are evidenced, Infbyte is aligned, representative benchmarks remain acceptable, and every checklist item below has explicit evidence.
 
 ### Closure order
 
-1. clear semantic/runtime blockers (OTP recovery metadata, scheduler control/waiting);
-2. clear PHPForge formatting/refactor/sniff/Composer/static-analysis gates;
-3. rerun PHP 8.4/8.5 × lowest/stable tests with zero unjustified skips;
-4. verify DBLayer/module/runtime/auth/messaging/security/process/deployment matrices;
-5. verify benchmarks/soak-sensitive paths and dependency/release alignment;
-6. perform final retired-API grep, update Foundation + Infbyte release state, and record exact completion evidence here.
+1. complete DBLayer 5 / Omnibus 2.5 / ReqShield 3.1 integration rebaseline;
+2. verify database/messaging/worker destructive and lifecycle behavior;
+3. clear semantic/runtime blockers and regenerate the authoritative PHPUnit/PHPStan state;
+4. clear PHPForge formatting/refactor/sniff/Composer/static-analysis gates;
+5. run PHP 8.4/8.5 × lowest/stable matrices plus configured service-backed tests;
+6. verify Web/CLI/Worker/Scheduler/auth/security/module/operations matrices;
+7. rerun representative benchmarks and soak-sensitive paths;
+8. perform final dependency/retired-API/Infbyte/release audit and record exact final checkpoints.
 
-## Current checkpoint
+## Dependency baseline
 
-- Date: 2026-08-25
-- Foundation source checkpoint before closure run: `16d60f114314544a5c6db91c0e986423fa6fbb70`
-- Foundation source checkpoint before dependency rebaseline: `6663dad26e75453fcebb7975dda2ad0b49661951`
-- Latest Foundation implementation checkpoint: `21642498a4468c047b90d05c19ad86df9f10b159`
-- Foundation documentation checkpoint: `944220490e1c28e9945fd398265dc9d072eb4c93`
-- Infbyte source checkpoint: `56cb73e18eab07f34242a929eccbc9e6572d9971`
-- Infbyte documentation checkpoint: `26a35da0926285119c31ed880bf1f5aa06f3cf19`
-- Current phase: **dependency rebaseline + verification/closure in progress**.
-- Application-contract/API cleanup: complete.
-- Documentation reconciliation: complete for the public architecture/module/runtime/operations/auth/database/messaging/application-contract surfaces, subject to the current DBLayer/Omnibus/ReqShield version wording pass.
-- CI facts already established before this closure run: clean production install passes; PHP 8.4/8.5 representative benchmarks pass; Psalm passes; Deptrac passes; service startup for MySQL/PostgreSQL/SQLite/Redis/Valkey/Memcached passes.
-- Known blocker already corrected before this marker: duplicate OTP recovery `metadata()` declaration fatal.
-- Remaining gates are tracked by the 32-point checklist below and may only be checked off with verification evidence.
-
-## Dependency rebaseline progress — 2026-08-25
-
-- Foundation work is locked to `feature/foundation-2.0`; current rebaseline started from branch head `6663dad26e75453fcebb7975dda2ad0b49661951`.
-- `composer.json` is aligned to DBLayer `^5.0`, Omnibus `^2.5`, and ReqShield `^3.1` in commit `b48e60d10a1de8a12e5124f3a13cb4a099fc68fb`.
-- `ModuleCatalog` is aligned to the same database/messaging/validation constraints in commit `b635b30ba2afef775450f08d5c3240a84aedb004`.
-- Stable repository refs were verified directly: DBLayer `5.0`, Omnibus `2.5`, and ReqShield `3.1`. The constraints therefore target existing stable version lines; the repositories do not use `2.5.0` / `3.1.0` refs for these releases.
-- DBLayer 5 source comparison confirms Foundation's `DBLayerFactory` still uses supported public APIs: `ConnectionConfig::fromArray()`, `DB::setDefaultConnection()`, `DB::hasConnection()`, `DB::addConnection()`, and `DB::connection($name, $fresh)`.
-- DBLayer 5 `MigrationRunner` constructor and `pretend()` shape remain compatible with `DatabaseMigrationManager`; no migration-manager rewrite was required from source inspection.
-- DBLayer 5 runtime cleanup APIs used by `RuntimeContextTracker` remain available: `Connection::transactionLevel()`, `rollbackTransaction()`, `resetRuntimeStateForReuse()`, `disconnect()`, `DB::getConnections()`, and `DB::resetRuntimeState(false)`. The current Foundation cleanup path remains source-compatible and preserves connection reuse when safe.
-- DBLayer 5 now exposes/enforces `effectiveMaxBindParameters()` / `safeBatchSize()`. Foundation's `ReqShieldDatabaseProvider` previously passed an entire value set into one `whereIn()`, which could exceed DBLayer 5's configured/driver bind ceiling.
-- `ReqShieldDatabaseProvider` now calculates safe physical DB batches through `Connection::safeBatchSize()`, counts the unique-ignore binding as a fixed binding, preserves ReqShield's logical batched validation semantics, and keeps null lookup handling separate. Implemented in commit `4d8753a86c89b8d9771d223ad2ea632975726f9a`.
-- ReqShield `3.1` keeps the same minimal `DatabaseProvider` contract (`batchExists()` / `batchUnique()`), so Foundation does not need a new validation abstraction.
-- `ReqShieldDatabaseValidationTest` now runs the adapter with DBLayer `security.max_params = 3`, checks the effective limit, forces multi-chunk exists validation, and exercises unique-ignore batching where one fixed binding reduces the safe value chunk size. Added in commit `21642498a4468c047b90d05c19ad86df9f10b159`.
-- Omnibus `2.5` source comparison confirms `Consumer`, `Worker`, `WorkerOptions`, and `HandlerInvoker` constructor contracts used by Foundation remain source-compatible. Foundation continues to delegate message retry/consumer behavior to Omnibus instead of adding a second engine.
-- `Bootstrapper` had one stale user-facing Omnibus `^2.4` capability message; it now reports `infocyph/omnibus ^2.5` in commit `e46815b078879e59361739e9eb206c688ee01c6f`.
-- No PHPUnit/PHPForge/CI gate is marked complete from this source audit. The execution environment available here cannot clone GitHub, so runtime proof must come from repository CI or an executable project environment.
-
-## Latest closure evidence — 2026-08-24 (`test_details_5`)
-
-> This evidence predates the 2026-08-25 dependency rebaseline and must be rerun before closure decisions. The previously recorded logging-ignore failure is already corrected in current source, but it has not yet been re-proven by an authoritative full run.
-
-- Runtime: PHP `8.4.24`; Composer `2.10.2`.
-- Syntax/PHPProbe: `564/564` PHP files pass syntax checking.
-- PHPUnit/Pest: `133 passed`, `1 failed`, `5 skipped`, `734 assertions`. The earlier migration-class validation failure has been cleared; the remaining failure in this historical run was `RuntimeCapabilityConfigTest` expecting `logging.exceptions.ignore` to reject `Missing\Exception`. Checklist item 11 therefore remains open until rerun.
-- The five skipped tests are live browser-session lock-contention datasets for Redis, Valkey, Memcached, MySQL PDO, and PostgreSQL PDO because those lock backends were not configured in that local environment. They still require configured matrix evidence before closure.
-- Pint: `523` files pass. PHPCS: `554` files complete with no reported violations.
-- Duplicate-code probe: PASS at `3.64%` (`42` clone groups, `1729` duplicated lines).
-- Comment policy: PASS under the configured gate with `1256` INFO findings across `239` files; these are predominantly missing PHPDoc parameter annotations and are not current blocking defects.
-- Deptrac: `0` violations / `0` warnings / `0` errors. Psalm: no errors. Rector: completed. Composer Normalize: already normalized.
-- PHPStan reported `40` errors in this historical run: Bootstrapper `1`; CacheLayerFactory `6`; DatabaseSystemCommand `5`; MessagingSystemCommand `2`; ModuleSystemCommand `1`; OperationsSystemCommand `3`; RuntimeSystemCommand `13`; ConfigValidator `5`; ModuleManager `2`; MiddlewareConfigValidator `2`. Current source is 120+ commits beyond the run's starting checkpoint, so this count must be regenerated rather than treated as authoritative.
-- No additional checklist item is marked complete from this report alone; specialist/runtime matrices remain evidence-driven.
-
-# Dependency baseline
-
-## Core
+### Core
 
 - PHP `^8.4`
 - `composer-runtime-api ^2.0`
@@ -87,7 +42,7 @@ Foundation is the reusable framework/runtime layer. Infbyte is the opinionated a
 - `infocyph/webrick ^4.0.2`
 - `psr/log ^3.0.2`
 
-## Optional/dev capabilities
+### Optional/dev capabilities
 
 - `infocyph/cachelayer ^3.2.0`
 - `infocyph/dblayer ^5.0`
@@ -100,7 +55,107 @@ Foundation is the reusable framework/runtime layer. Infbyte is the opinionated a
 - `infocyph/talkingbytes ^2.0`
 - `web-auth/webauthn-lib ^5.3.5`
 
-`ModuleCatalog` constraints stay aligned with this baseline.
+`ModuleCatalog` must remain aligned with this baseline. Stable repository refs were verified directly for DBLayer `5.0`, Omnibus `2.5`, and ReqShield `3.1`.
+
+## 2026-08-25 dependency/integration rebaseline evidence
+
+### Metadata and capability boundaries
+
+- `composer.json` moved to DBLayer `^5.0`, Omnibus `^2.5`, ReqShield `^3.1`.
+- `ModuleCatalog` uses the same constraints.
+- Bootstrapper's stale Omnibus `^2.4` capability error was updated to `^2.5`.
+- Public database/messaging documentation is now written against DBLayer 5 and Omnibus 2.5.
+- `docs/console.md` now identifies native single-worker lifecycle integration as Omnibus 2.5.
+
+### DBLayer 5 source compatibility
+
+Source comparison confirms Foundation still uses supported DBLayer 5 APIs:
+
+- `ConnectionConfig::fromArray()`;
+- `DB::setDefaultConnection()`, `DB::hasConnection()`, `DB::addConnection()`, `DB::connection()`;
+- `Connection::query()`, `transactionLevel()`, `rollbackTransaction()`, `resetRuntimeStateForReuse()`, `disconnect()`;
+- `DB::getConnections()` and `DB::resetRuntimeState(false)`;
+- `MigrationRunner` construction, `run()`, `pretend()`, `status()`, `rollback()`, `rollbackBatch()`, `fresh()`, `refresh()`, `reset()`;
+- `DatabaseMonitor` status/sessions/queries/locks/tables/indexes/replication/snapshot surfaces;
+- `SchemaManager::dropAllTables(true)` for explicitly authorized wipe behavior.
+
+No Foundation repository/ORM rewrite is required. DBLayer remains the owner of database infrastructure.
+
+### ReqShield 3.1 + DBLayer 5 validation adapter
+
+ReqShield 3.1 preserves its minimal database boundary:
+
+- `DatabaseProvider::batchExists()`;
+- `DatabaseProvider::batchUnique()`.
+
+A concrete Foundation defect was corrected: `ReqShieldDatabaseProvider` previously sent an entire logical value group into one DBLayer `whereIn()`. DBLayer 5 enforces configured/driver bind ceilings, so a large wildcard/batch could fail.
+
+The adapter now:
+
+- uses `Connection::safeBatchSize()` for physical DB chunks;
+- counts the unique-ignore predicate as a fixed binding;
+- preserves ReqShield's logical validation batch semantics;
+- keeps null lookup handling separate;
+- does not introduce repositories, collections, cache, or another validation abstraction.
+
+`ReqShieldDatabaseValidationTest` now configures a deliberately small DBLayer `security.max_params` ceiling and forces multi-chunk exists/unique-ignore behavior.
+
+### DBLayer 5 compatibility coverage prepared
+
+`DBLayer5MigrationCompatibilityTest` now explicitly covers:
+
+- `pretend()` returning pending migration SQL without creating tables;
+- step-mode migration batches;
+- status batch reporting;
+- exact `rollbackBatch()` selection;
+- normal latest-batch rollback;
+- `fresh(true)`;
+- `refresh(true)`;
+- `reset(true)` and reverse rollback order;
+- `DatabaseMonitor::status()` / `snapshot()` shape;
+- `SchemaManager::dropAllTables(true)` wipe behavior.
+
+`CurrentInfocyphApiCompatibilityTest` now targets DBLayer 5 and includes bind-sizing/monitoring probes.
+
+These tests are **prepared evidence, not executed evidence**. Checklist items 11–13 remain open until an authoritative run proves them and command-level destructive safeguards are exercised.
+
+### Omnibus 2.5 source compatibility
+
+Source comparison confirms Foundation's current integration remains compatible with:
+
+- `Consumer` constructor and execution scope;
+- `Worker` constructor;
+- `WorkerOptions` fields;
+- `WorkerLifecycle::heartbeat()` / `stopRequested()`;
+- `WorkerPool` constructor and Unix process-pool ownership;
+- `HandlerInvoker` middleware pipeline;
+- `FailureManager::retry()`, `forget()`, `prune()`, `flush()`;
+- `FailureStore` retry-claim lifecycle.
+
+Foundation continues to delegate delivery, retry, reservation, failure-store, worker-loop, and process-pool mechanics to Omnibus. There is no second Foundation workflow or queue engine.
+
+### Omnibus 2.5 compatibility coverage prepared
+
+- Commit `fa6dc9a77d9c8a249696d870def7f5ef60c4ab4a` adds failure lifecycle coverage for retry-claim/send/removal, prune, forget, and flush.
+- Commit `ff5d95bd798f3b2bd01bb800ea5ed5c045240235` adds a Foundation worker integration probe proving `WorkerLifecycle` callbacks are passed into the Omnibus worker.
+- Existing messaging tests already cover memory dispatch/consume, routing, retry/release/failure storage, job middleware, and metadata.
+- Existing worker integration already covers bounded workers and optional Unix `WorkerPool` behavior.
+
+These tests are also **prepared evidence, not executed evidence**. Checklist item 25 remains open pending runtime proof.
+
+## Historical closure evidence — 2026-08-24 (`test_details_5`)
+
+This report predates the current dependency rebaseline and is retained only as historical context:
+
+- PHP `8.4.24`; Composer `2.10.2`.
+- Syntax/PHPProbe: `564/564` PHP files passed.
+- PHPUnit/Pest: `133 passed`, `1 failed`, `5 skipped`, `734 assertions`.
+- The historical remaining test failure was `RuntimeCapabilityConfigTest` for invalid `logging.exceptions.ignore`; current source already contains the intended `Throwable` validation, but a new run is required.
+- Five service-backed browser-session lock-contention datasets were skipped because Redis, Valkey, Memcached, MySQL PDO, and PostgreSQL PDO lock backends were not configured in that local run.
+- Pint and PHPCS passed that snapshot; duplicate-code probe passed at `3.64%`; Psalm and Deptrac passed.
+- PHPStan reported 40 errors in that historical snapshot. Current source is materially newer, so the count must be regenerated and must not be used as the current defect list.
+
+No current checklist gate is closed from this historical report alone.
 
 # Frozen architecture
 
@@ -113,37 +168,37 @@ Exactly four Foundation runtimes exist:
 - Worker
 - Scheduler
 
-No `FoundationConsole`, `Foundation::console()`, `src/Console` hierarchy, runtime inference from `PHP_SAPI`, static global application state, generic IdentifierManager, or `app.container.request_scope` compatibility layer is permitted.
+No `FoundationConsole`, `Foundation::console()`, `src/Console` hierarchy, runtime inference from `PHP_SAPI`, static global application state, generic IdentifierManager, or compatibility request-scope manager is permitted.
 
 ## Application surface
 
-`Application` is intentionally a narrow runtime/composition object. Its stable categories are:
+`Application` remains narrow:
 
 - boot/runtime state;
 - `config()` / `container()` / `providers()`;
-- generic DI resolution through `make()` / `has()`;
+- generic DI through `make()` / `has()`;
 - `execution()`;
-- canonical Web entry through `handle()` / `http()`;
-- Foundation application path methods.
+- canonical Web handling;
+- Foundation application paths.
 
-Auth, session, router, response and testing convenience proxies are removed. Consumers resolve concrete services through DI. Do not add broad cache/database/filesystem/messaging/security/application facades.
+Do not add broad auth/cache/database/filesystem/messaging/security/testing/response facades.
 
 ## Specialist ownership
 
-- InterMix owns DI/lifetimes/scopes.
-- Webrick owns HTTP/router/request/response/emission engines.
-- UID owns identifier algorithms.
-- DBLayer owns DB/query/schema/migration engines.
-- CacheLayer owns cache/lock/counter/node/cluster engines.
-- Omnibus owns message transport/handlers/retry/failure/workers/pools.
-- TalkingBytes owns HTTP/email/webhook/gRPC protocol engines.
-- ReqShield owns validation mechanics.
-- Epicrypt owns cryptographic primitives.
-- Pathwise/Flysystem own generic filesystem/storage behavior.
-- OTP owns OTP algorithms/replay primitives.
-- WebAuthn library owns WebAuthn protocol validation.
+- InterMix: DI/lifetimes/scopes.
+- Webrick: HTTP/router/request/response/emission.
+- UID: identifier algorithms.
+- DBLayer: connection/query/schema/migration/database transaction infrastructure.
+- CacheLayer: cache/lock/counter/node/cluster coordination.
+- Omnibus: message transport/handler/retry/failure/worker/pool/workflow engines.
+- TalkingBytes: HTTP/email/webhook/gRPC protocols.
+- ReqShield: validation mechanics.
+- Epicrypt: cryptographic primitives.
+- Pathwise/Flysystem: filesystem/storage mechanics.
+- OTP: OTP algorithms and replay primitives.
+- WebAuthn library: WebAuthn protocol validation.
 
-Foundation adds application policy/composition only where it owns a real framework responsibility.
+Foundation adds only application policy/composition where the framework owns a real responsibility.
 
 # Frozen purpose-first modules
 
@@ -162,208 +217,78 @@ Foundation adds application policy/composition only where it owns a real framewo
 | `session` | built in |
 | `validation` | `infocyph/reqshield ^3.1` |
 
-Canonical aliases:
-
-- `db|dblayer -> database`
-- `crypto|epicrypt -> security`
-- `otp|mfa|passkey|passkeys|webauthn -> auth`
-- `notifications|talkingbytes -> communication`
-- `events|omnibus|queue|queues -> messaging`
-- `files|pathwise|storage -> filesystem`
-- `reqshield|validator -> validation`
-- `ops|runtime -> operations`
-
-No standalone OTP/passkey public modules.
+Canonical aliases remain purpose-first (`db|dblayer -> database`, `events|omnibus|queue|queues -> messaging`, `reqshield|validator -> validation`, etc.). No standalone OTP/passkey public modules.
 
 # Frozen config/schema lifecycle
 
-Public module operations:
+Public module operations remain:
 
 - `module:list`
-- `module:show <module>`
-- `module:install <module>`
-- `module:remove <module>`
-- `module:config:publish <module> [--force]`
-- `module:schema:status <module> [--connection=...]`
-- `module:schema:install <module> [--connection=...]`
-- `module:schema:sync [--connection=...]`
+- `module:show`
+- `module:install`
+- `module:remove`
+- `module:config:publish`
+- `module:schema:status`
+- `module:schema:install`
+- `module:schema:sync`
 
 Schema owners:
 
-- `auth` -> Foundation auth schema;
-- `cache` -> CacheLayer public PDO/SQLite/invalidation schema provisioners;
-- `session` -> Foundation database-session schema.
+- `auth` → Foundation auth schema;
+- `cache` → CacheLayer public provisioners;
+- `session` → Foundation database-session schema.
 
-`database` owns DB/migration infrastructure, not arbitrary application tables. `module:remove` never drops schema/data. Schema status is observational and must not create a missing SQLite cache DB.
-
-Force config publication stages replacement/backup transactionally, refuses symlink targets, and treats post-commit backup cleanup as best-effort finalization rather than a reason to destructively roll back a successful publication.
+The `database` module owns database infrastructure, not arbitrary application tables. `module:remove` never deletes schema/data.
 
 # Frozen application contracts
 
 ## Validation
 
-- Foundation `FormRequest` composes Webrick request input into ReqShield.
+- `FormRequest` composes Webrick input into ReqShield.
 - Custom validation rules implement ReqShield `Contracts\Rule` directly.
-- Generators: `create:request`, `create:rule`.
 
 ## Notifications/mail
 
-Foundation application routing contracts:
-
-- `Notification`
-- `NotificationRecipient`
-- `NotificationChannel`
-- `NotificationChannelRegistry`
-- `NotificationDispatcher`
-
-TalkingBytes-backed mail integration:
-
-- `MailMessage`
-- `Mailer`
-- `MailNotificationChannel`
-
-Generators: `create:mail`, `create:notification`, `create:notification-channel`.
+Foundation application routing contracts remain `Notification`, `NotificationRecipient`, `NotificationChannel`, `NotificationChannelRegistry`, `NotificationDispatcher`; TalkingBytes backs mail/protocol integration.
 
 ## Messaging/jobs
 
-- `Job`
-- `JobContext`
-- `JobMiddleware`
-- `JobMiddlewarePipeline`
-
-Omnibus `HandlerInvoker` remains the single sync/async handler execution point. Generators: `create:job`, `create:handler`, `create:job-middleware`.
+Foundation application-facing contracts remain `Job`, `JobContext`, `JobMiddleware`, `JobMiddlewarePipeline`. Omnibus `HandlerInvoker` remains the single sync/async handler execution point. Omnibus `Envelope` / `HandlerContext` must not leak into Foundation `JobMiddleware`.
 
 ## Resources/testing
 
-- `JsonResource::resolve(): mixed` is the application resource contract.
-- `create:resource` targets that contract.
-- `TestKit` is resolved through DI; there is no `Application::testing()` facade.
-- JsonDispatch response factory is resolved through DI; there is no `Application::responses()` facade.
-- `AuthServices` is resolved through DI; there is no `Application::auth()` facade.
+`JsonResource::resolve(): mixed` remains the application resource contract. Testing/auth/response services are resolved through DI; retired `Application` convenience proxies stay removed.
 
-# Runtime correctness completed before freeze
-
-## Execution cleanup
+# Runtime invariants already frozen
 
 - one InterMix execution scope per execution unit;
-- targeted `RuntimeContextTracker` cleanup;
-- original application exception remains primary if cleanup also fails;
-- reset and scope-leave are both attempted.
-
-## Scheduling
-
-- overlap/single-server lease refresh continues during child execution;
-- lost lease -> heartbeat loss -> terminate child -> failed run;
-- `schedule:test` returns real failure status;
-- every schedule history transition carries stable `schedule_identity`;
-- `schedule:list` resolves last state by identity, not only command text.
-
-## Workers / Omnibus 2.5
-
-- Bootstrapper probes `WorkerLifecycle` as the Omnibus capability boundary;
-- single messaging workers use native Omnibus lifecycle heartbeat/stop callbacks and do not require `pcntl` solely for generation polling;
-- Omnibus `WorkerPool` remains Unix/pcntl/posix based and retains the Unix watchdog;
+- targeted `RuntimeContextTracker` cleanup with the application exception remaining primary;
+- scheduler lease refresh during child execution and stable schedule identity;
+- single messaging workers use native Omnibus lifecycle callbacks;
+- process registry is heartbeat observability, not supervisor truth;
 - provider-only workers remain messaging-lazy;
-- provider singleton workers refresh CacheLayer ownership through `WorkerRuntime::heartbeat()`.
-
-## Runtime control/process registry
-
-- file runtime-control state uses stable lock + atomic replacement;
-- cache runtime-control state uses CacheLayer coordination for one read/modify/write transaction;
-- concurrent generation signals cannot silently overwrite one another;
-- runtime registry visibility is `host|shared`, default `host`;
-- registry records are heartbeat observability, not supervisor truth;
-- `worker:status` reports registry visibility.
-
-## Other correctness work
-
-- DB provider activation no longer wakes CacheLayer accidentally;
-- supervised child `--profile` output is suppressed so only parent profiles;
-- `config:validate --production` passes production intent into OTP topology checks;
-- Cache schema readiness is read-only for missing SQLite files;
-- `log:tail --follow` handles truncation and replacement/rotation;
-- `AuthPruner` matches the current auth schema;
-- DBLayer 5 `MigrationRunner::pretend()` return shape is used directly;
+- DB provider activation does not wake CacheLayer accidentally;
+- persistent DB runtime state is reset between execution units;
 - storage unlink remains symlink/target safe;
 - environment encryption uses external key material and rollback-safe publication.
 
-# Frozen CLI families
-
-Current public command families are source-of-truth in `CommandCatalog` and documentation. Major surfaces:
-
-- application: `about`, `app:install`, `app:ready`, `env:show`, `serve`
-- config/cache: `config:*`, `cache:*`, `command:*`
-- database: `db:*`, `migrate*`
-- modules: `module:*`
-- operations: `execution:*`, `maintenance:*`, `runtime:reload`, `log:tail`, env protect
-- messaging: `messaging:list`, `queue:*`, `schedule:dispatch-message`
-- scheduling: `schedule:*`
-- workers: `worker:list|run|restart|status`
-- storage/session/auth operational commands
-- optimization: `optimize`, `optimize:clear`, `optimize:report`
-- `create:*` generators backed by real framework/package contracts.
-
-Do not add command-for-command Laravel parity or commands that duplicate specialist engines.
-
-# Documentation reconciliation completed
-
-Updated/reconciled public docs include:
-
-- root `README.md`;
-- architecture/runtime ownership;
-- retired Console parity closure record;
-- modules/configuration;
-- CLI/scheduler/workers;
-- operations/runtime control;
-- database/migrations/schema lifecycle;
-- messaging/Omnibus 2.5;
-- authentication/OTP/browser sessions;
-- security;
-- HTTP/capability ownership;
-- testing/resource DI examples;
-- Infbyte skeleton README.
-
-Important removed stale references:
-
-- `Foundation::console()` / Console-owned runtime architecture;
-- arbitrary `foundation-module.php` package discovery;
-- standalone OTP/passkey public modules;
-- `auth:schema:*` / `session:schema:*` command families;
-- `$app->auth()` / `$app->responses()` / `$app->testing()` convenience proxies;
-- `$app->messaging()` forwarding manager;
-- nonexistent generic Composer release/test scripts;
-- old Omnibus 2.3 / CacheLayer 3.1 dependency wording;
-- old `router.route_files` key.
-
-# Infbyte boundary
-
-Infbyte remains intentionally lean:
-
-- root `infbyte` delegates directly to Foundation `CommandDispatcher`;
-- Web bootstrap is one `Foundation::web()` call;
-- checked-in config remains only `app.php`, `auth.php`, `router.php`;
-- optional capability config is publish-on-demand;
-- no Foundation runtime/messaging/notification/validation/schema engine is copied into Infbyte;
-- `.env.example` contains no environment-encryption key;
-- generated optimized artifacts are not committed.
-
 # 32-point verification / release closure checklist
 
-Status is deliberately evidence-driven. Items stay unchecked until this run proves them.
+Items remain evidence-driven and unchecked until an authoritative execution proves them.
 
 1. [x] Freeze Foundation 2.0 architecture/public ownership boundaries.
 2. [x] Freeze narrow `Application` API and remove retired convenience proxies/managers.
-3. [x] Align Composer capability baseline, including DBLayer `^5.0`, Omnibus `^2.5`, and ReqShield `^3.1`.
+3. [x] Align Composer capability baseline to DBLayer `^5.0`, Omnibus `^2.5`, ReqShield `^3.1`.
 4. [x] Align `ModuleCatalog` package constraints with Composer baseline.
 5. [x] Normalize Foundation PHPForge reusable-workflow configuration to repository-specific overrides only.
-6. [x] Verify production clean install with `--no-dev --classmap-authoritative` and platform checks.
-7. [x] Verify PHP 8.4 representative benchmark gate.
-8. [x] Verify PHP 8.5 representative benchmark gate.
-9. [x] Verify Psalm static analysis gate.
-10. [x] Verify Deptrac architecture gate.
-11. [ ] Clear all syntax/PHPProbe/PHPUnit blocking defects after OTP recovery-store correction and dependency rebaseline.
-12. [ ] Verify DBLayer 5 migration up/down/pretend/rollback-batch/status/reset/refresh/wipe/monitor behavior, including exact batch rollback and no mutation during pretend.
-13. [ ] Preserve/verify destructive database-operation safeguards.
+6. [x] Verify production clean install with `--no-dev --classmap-authoritative` and platform checks on the pre-rebaseline set; **must be rerun for final release alignment**.
+7. [x] Verify PHP 8.4 representative benchmark gate on the pre-rebaseline set; **rerun required at final closure**.
+8. [x] Verify PHP 8.5 representative benchmark gate on the pre-rebaseline set; **rerun required at final closure**.
+9. [x] Verify Psalm static-analysis gate on the pre-rebaseline set; **rerun required at final closure**.
+10. [x] Verify Deptrac architecture gate on the pre-rebaseline set; **rerun required at final closure**.
+11. [ ] Clear all syntax/PHPProbe/PHPUnit blocking defects after dependency rebaseline.
+12. [ ] Execute DBLayer 5 migration up/down/pretend/rollback-batch/status/reset/refresh/wipe/monitor matrix, including exact batch rollback and no mutation during pretend.
+13. [ ] Preserve and execute destructive database-operation safeguards/confirmation behavior.
 14. [ ] Verify module list/show/install/remove/config-publish/schema-status/schema-install/schema-sync and dry-run/duplicate/failure rollback behavior.
 15. [ ] Verify optional capability isolation and graceful unavailable-capability errors.
 16. [ ] Verify Web runtime routes/cache/middleware/session/auth-principal/maintenance/exception behavior.
@@ -375,36 +300,22 @@ Status is deliberately evidence-driven. Items stay unchecked until this run prov
 22. [ ] Verify full auth/session/token/password/email/passwordless/lockout flows.
 23. [ ] Verify MFA recovery/passkey/step-up/recent-auth/authorization/impersonation flows.
 24. [ ] Verify production security posture: secrets, secure defaults, OTP/WebAuthn/shared-state topology, unsafe local-memory rejection.
-25. [ ] Verify Omnibus 2.5 dispatch/consume/retry/failure-management/prune/monitor/execution-scope/shutdown/restart behavior.
+25. [ ] Execute Omnibus 2.5 dispatch/consume/retry/failure-management/prune/monitor/execution-scope/shutdown/restart matrix.
 26. [ ] Verify config/route/command/schedule/container cache optimize/clear idempotency.
 27. [ ] Verify maintenance/runtime reload/worker restart/scheduler interrupt/process-registry/status/stale-cleanup operations.
 28. [ ] Verify environment encrypt/decrypt/temp-file/permissions/overwrite and storage link/unlink safety.
 29. [ ] Clear Pint/Rector/Composer Normalize/PHPCS/PHPStan and retain Psalm/Deptrac green across PHP 8.4/8.5 lowest/stable QA matrices with zero unjustified skips.
-30. [ ] Re-run representative benchmarks, compare regression threshold, and review soak-sensitive persistent runtime paths.
-31. [ ] Perform final dependency/package audit, retired-API/manager grep, and Foundation/Infbyte stable-release alignment.
+30. [ ] Re-run representative benchmarks, compare regression threshold, and review soak-sensitive persistent-runtime paths.
+31. [ ] Perform final dependency/package audit, stale-version/retired-API/manager grep, and Foundation/Infbyte stable-release alignment.
 32. [ ] Record final source/CI checkpoints and all verified results in this plan; leave zero ambiguous/open closure items.
 
-# Verification status before this closure run
+## Immediate next work
 
-Completed evidence already available:
-
-- Composer dependency resolution succeeds for PHP 8.4/8.5 matrices on the pre-rebaseline dependency set; it must be rerun for the 2026-08-25 baseline.
-- Clean production install passes with no dev packages and classmap-authoritative autoloading.
-- Stable runtime constraint guard passes.
-- MySQL/PostgreSQL/SQLite/Redis/Valkey/Memcached CI services start successfully.
-- Representative benchmark gate passes on PHP 8.4 and PHP 8.5.
-- Psalm reports zero findings.
-- Deptrac passes.
-- OTP duplicate `metadata()` fatal was identified and corrected while preserving the public recovery-store contract.
-
-Known work entering this run:
-
-- complete DBLayer 5 / Omnibus 2.5 / ReqShield 3.1 integration audit and execute the updated test matrix;
-- scheduler work-loop must preserve both runtime reload and schedule interrupt semantics while eliminating forbidden `sleep()` usage;
-- Pint/PHPCS/Rector/Composer Normalize findings need to be resolved semantically, not blindly suppressed;
-- PHPStan must be reassessed against current source rather than the stale 40-error snapshot;
-- full PHPUnit/integration and specialist/runtime/security matrices must be closed;
-- final Infbyte/deployment/release alignment remains to be evidenced.
+1. clean remaining stale source/test references to DBLayer 4.1 / Omnibus 2.4 (notably the messaging-worker runtime error path and any historical test labels);
+2. add/verify command-level destructive database safeguards for `db:wipe`, `migrate:fresh`, `migrate:refresh`, and `migrate:reset`, including non-interactive refusal without `--force`;
+3. complete Omnibus 2.5 command-facing failure/monitor/restart verification without adding a second workflow abstraction;
+4. obtain an authoritative executable run for the newly added compatibility tests;
+5. regenerate PHPUnit/PHPStan/PHPForge results from current HEAD and use those results—not the historical 2026-08-24 counts—as the next defect list.
 
 # Do not regress
 
@@ -415,8 +326,8 @@ Known work entering this run:
 - no copied specialist SQL/transport/retry/cache/database engines;
 - no unsafe lock fallback;
 - no broad `Application` service facade;
-- no second messaging/retry/failure/worker engine above Omnibus;
-- no Omnibus Envelope/HandlerContext leakage into Foundation JobMiddleware;
+- no second messaging/retry/failure/worker/workflow engine above Omnibus;
+- no Omnibus `Envelope`/`HandlerContext` leakage into Foundation `JobMiddleware`;
 - no retired Console runtime hierarchy;
 - no static global application state;
 - no generic IdentifierManager/request scope;
