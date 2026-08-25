@@ -118,7 +118,7 @@ it('cleans all request-local state between persistent execution units including 
         $database->getPdo()->exec('CREATE TABLE runtime_state (value TEXT NOT NULL)');
 
         $firstScoped = null;
-        expect(fn() => $app->execution()->run(function (ExecutionId $executionId) use (
+        expect(function () use (
             $app,
             $principal,
             $sessions,
@@ -126,33 +126,42 @@ it('cleans all request-local state between persistent execution units including 
             $memoCalls,
             &$firstScoped,
         ): void {
-            expect((string) $executionId)->not->toBe('');
+            $app->execution()->run(function (ExecutionId $executionId) use (
+                $app,
+                $principal,
+                $sessions,
+                $databaseFactory,
+                $memoCalls,
+                &$firstScoped,
+            ): void {
+                expect((string) $executionId)->not->toBe('');
 
-            /** @var FoundationPersistentScopedProbe $first */
-            $first = $app->make('persistent.execution.scoped');
-            /** @var FoundationPersistentScopedProbe $same */
-            $same = $app->make('persistent.execution.scoped');
-            expect($first)->toBe($same);
-            $firstScoped = $first->sequence;
+                /** @var FoundationPersistentScopedProbe $first */
+                $first = $app->make('persistent.execution.scoped');
+                /** @var FoundationPersistentScopedProbe $same */
+                $same = $app->make('persistent.execution.scoped');
+                expect($first)->toBe($same);
+                $firstScoped = $first->sequence;
 
-            $principal->set(new FoundationPersistentPrincipal('account-one'));
-            expect($principal->get()?->id())->toBe('account-one');
+                $principal->set(new FoundationPersistentPrincipal('account-one'));
+                expect($principal->get()?->id())->toBe('account-one');
 
-            $browser = $sessions->open(null);
-            $sessions->enter($browser);
-            $browser->put('request_only', 'first');
-            expect($sessions->current())->toBe($browser);
+                $browser = $sessions->open(null);
+                $sessions->enter($browser);
+                $browser->put('request_only', 'first');
+                expect($sessions->current())->toBe($browser);
 
-            $connection = $databaseFactory->connection();
-            $connection->beginTransaction();
-            $connection->insert('INSERT INTO runtime_state (value) VALUES (?)', ['uncommitted']);
-            expect($connection->transactionLevel())->toBe(1);
+                $connection = $databaseFactory->connection();
+                $connection->beginTransaction();
+                $connection->insert('INSERT INTO runtime_state (value) VALUES (?)', ['uncommitted']);
+                expect($connection->transactionLevel())->toBe(1);
 
-            expect(foundationPersistentMemoized($memoCalls))->toBe(1)
-                ->and(foundationPersistentOnce($memoCalls))->toBe(1);
+                expect(foundationPersistentMemoized($memoCalls))->toBe(1)
+                    ->and(foundationPersistentOnce($memoCalls))->toBe(1);
 
-            throw new RuntimeException('deliberate persistent execution failure');
-        }))->toThrow(RuntimeException::class, 'deliberate persistent execution failure');
+                throw new RuntimeException('deliberate persistent execution failure');
+            });
+        })->toThrow(RuntimeException::class, 'deliberate persistent execution failure');
 
         expect($principal->get())->toBeNull()
             ->and(fn() => $sessions->current())->toThrow(LogicException::class)
