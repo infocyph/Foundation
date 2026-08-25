@@ -14,11 +14,10 @@ Foundation is the reusable framework/runtime layer. Infbyte is the opinionated a
 - Started: 2026-08-24 (Asia/Dhaka)
 - Original closure checkpoint: `16d60f114314544a5c6db91c0e986423fa6fbb70`
 - Dependency-rebaseline checkpoint: `6663dad26e75453fcebb7975dda2ad0b49661951`
-- Latest verified implementation checkpoint: `36fc3600ebd1774a673a79ec08e01cdfd3b85f8d`
-- Current Worker lifecycle candidate under validation: `9a87be2156b6819d65e434146a460d0532441222`
-- Authoritative Security & Standards run: `32813737909`
-- Authoritative dedicated PHPStan run: `32813737450`
-- Current phase: **Worker lifecycle/fork-safety closure, then Scheduler runtime matrix**.
+- Latest verified implementation checkpoint: `4dbccd51a9b033f80947c1f4fe1dd047e14200ba`
+- Authoritative Security & Standards run: `32814167565`
+- Authoritative dedicated PHPStan run: `32814167162`
+- Current phase: **pool/fork safety closure, then Scheduler runtime matrix**.
 - Architecture/public ownership boundaries are frozen. Correct integration defects, tests, diagnostics and docs only; do not restore retired convenience APIs or duplicate specialist engines.
 - Final finish condition: updated dependencies resolve, PHPUnit/PHPForge/static-analysis matrices are green, specialist/runtime/security/process/deployment behavior is evidenced, Infbyte is aligned, benchmarks remain acceptable, and every checklist item below has explicit evidence.
 
@@ -154,9 +153,34 @@ Verified behavior includes:
 - thrown handler exceptions become framework failure exits with a stable error message;
 - execution history records pending/running/succeeded for success and pending/running/failed for non-zero/exception exits;
 - overlap `Skip` mode uses the configured CacheLayer lock, prevents handler execution when ownership is unavailable, and records pending/cancelled while returning a successful skip exit;
-- destructive confirmation remains covered independently by `DatabaseDestructiveCommandTest`, so the generic CLI matrix does not duplicate it.
+- destructive confirmation remains covered independently by `DatabaseDestructiveCommandTest`.
 
 The first CLI matrix run failed one fallback assertion because the test incorrectly expected a source command to disappear after an invalid cache was rejected. Production behavior was correct; the assertion was corrected, and the exact-head rerun is fully green.
+
+### Worker lifecycle matrix — executed
+
+`WorkerLifecycleClosureTest`, the existing WorkerManager tests, and Omnibus worker integration coverage are green in Security & Standards run `32814167565` across PHP 8.4/8.5 lowest/stable. Dedicated PHPStan run `32814167162` is also green.
+
+Verified Foundation-owned Worker behavior includes:
+
+- provider workers are Worker-runtime-only;
+- each bounded provider unit passed through `WorkerRuntime::execute()` receives a fresh InterMix execution scope and a distinct execution ID while repeated resolutions inside the same unit share the same scoped service;
+- existing bounded Omnibus message-worker coverage also proves distinct scoped services per message;
+- runtime, worker-wide and named-worker control tokens are captured when `WorkerManager::run()` starts;
+- worker processes register in `RuntimeProcessRegistry`, heartbeat their record and unregister in `finally`;
+- a named restart signal is observed through `WorkerRuntime::stopRequested()` and `heartbeat()`, converted to graceful manager exit `0`, prevents execution after the heartbeat, and leaves no registry record;
+- non-singleton providers do not acquire a global lock;
+- singleton providers acquire CacheLayer ownership and refresh it from heartbeat;
+- externally held singleton ownership prevents provider entry and still leaves no stale process-registry record;
+- process-local memory and sync transports are rejected for pools;
+- pooled workers require an unbooted/clean parent and scalar/array declarative configuration;
+- pool child construction remains inside the post-fork factory as a fresh `Foundation::worker($config)` followed by child boot;
+- an already resolved parent CacheManager is rejected before pool start;
+- the stale WorkerManager Omnibus `^2.4` diagnostic was aligned to the current `^2.5` dependency baseline.
+
+The first Worker closure candidate failed before runtime execution because two state-recording test providers were declared `readonly` while carrying mutable static assertion state. The fixture classes were corrected without changing Worker behavior; `4dbccd51` is fully green.
+
+Checklist item 21 remains separate: source guards and current pool tests support the architecture, but opened DB/network parent-state and real non-skipped child creation/reaping/termination still require explicit closure evidence.
 
 ### Omnibus 2.5 current compatibility evidence
 
@@ -175,9 +199,9 @@ Checklist item 25 remains open until monitor/execution-scope/shutdown/restart be
 
 ## Authoritative QA baseline — 2026-08-25
 
-Verified implementation checkpoint: `36fc3600ebd1774a673a79ec08e01cdfd3b85f8d`.
+Verified implementation checkpoint: `4dbccd51a9b033f80947c1f4fe1dd047e14200ba`.
 
-Security & Standards run `32813737909`:
+Security & Standards run `32814167565`:
 
 - matrix preparation: PASS;
 - clean production install: PASS;
@@ -192,7 +216,7 @@ Security & Standards run `32813737909`:
 - benchmark comparison: skipped because no baseline artifact is configured; result validation itself passed;
 - Security SVG report: skipped and not a release gate.
 
-The QA jobs use `fail_on_skipped_tests: true` and enforce Pest, Pint, PHPCS, PHPProbe, Deptrac, Rector and Composer Normalize. Analyzer jobs enforce PHPStan and Psalm. Dedicated Foundation PHPStan diagnostic run `32813737450` also passed.
+The QA jobs use `fail_on_skipped_tests: true` and enforce Pest, Pint, PHPCS, PHPProbe, Deptrac, Rector and Composer Normalize. Analyzer jobs enforce PHPStan and Psalm. Dedicated Foundation PHPStan diagnostic run `32814167162` also passed.
 
 # Frozen architecture
 
@@ -226,19 +250,19 @@ Module removal never deletes schema/data. Schema ownership remains auth → Foun
 3. [x] Align Composer capability baseline to DBLayer `^5.0`, Omnibus `^2.5`, ReqShield `^3.1`.
 4. [x] Align `ModuleCatalog` constraints with Composer baseline.
 5. [x] Normalize PHPForge reusable-workflow configuration to repository-specific overrides only.
-6. [x] Production clean-install gate passes on the rebaselined dependency set (`32813737909`).
-7. [x] PHP 8.4 representative benchmark validation passes (`32813737909`).
-8. [x] PHP 8.5 representative benchmark validation passes (`32813737909`).
-9. [x] Psalm passes on PHP 8.4 and PHP 8.5 analyzer jobs (`32813737909`).
-10. [x] Deptrac passes across the current QA matrix (`32813737909`).
-11. [x] Current syntax/PHPProbe/Pest blocking defects are cleared (`32813737909`).
+6. [x] Production clean-install gate passes on the rebaselined dependency set (`32814167565`).
+7. [x] PHP 8.4 representative benchmark validation passes (`32814167565`).
+8. [x] PHP 8.5 representative benchmark validation passes (`32814167565`).
+9. [x] Psalm passes on PHP 8.4 and PHP 8.5 analyzer jobs (`32814167565`).
+10. [x] Deptrac passes across the current QA matrix (`32814167565`).
+11. [x] Current syntax/PHPProbe/Pest blocking defects are cleared (`32814167565`).
 12. [x] DBLayer 5 migration/rollback/status/reset/refresh/wipe/monitor compatibility matrix is green.
 13. [x] Destructive database safeguard/confirmation matrix is green through the real CLI dispatcher.
 14. [x] Module list/show/install/remove/config-publish/schema-status/schema-install/schema-sync plus dry-run/duplicate/failure rollback behavior is green.
 15. [x] Optional capability isolation, dependency-free base boot and graceful unavailable-capability errors are green (`32812503732`, `32812503419`).
 16. [x] Web routes/cache/middleware/session/auth-principal/maintenance/exception behavior is green (`32812796414`, `32812795816`).
 17. [x] CLI discovery/cache/status/exit/overlap/global options/help/completion/machine-readable/destructive-confirmation behavior is green (`32813737909`, `32813737450`).
-18. [ ] Verify Worker scope reset/restart/heartbeat/singleton/pools/fork-before-resource-open behavior.
+18. [x] Worker scope reset/restart/heartbeat/singleton/pools/fork-before-resource-open behavior is green (`32814167565`, `32814167162`).
 19. [ ] Verify Scheduler once/work/interrupt/runtime-reload/overlap/scheduled-message behavior without forbidden blocking APIs.
 20. [ ] Verify no persistent execution-state leaks across InterMix/principal/session/DB/cache/messaging.
 21. [ ] Verify pool/fork safety: no pre-fork DB/network resources; child init/cleanup/reaping/termination.
@@ -249,40 +273,33 @@ Module removal never deletes schema/data. Schema ownership remains auth → Foun
 26. [ ] Verify config/route/command/schedule/container optimize/clear idempotency.
 27. [ ] Verify maintenance/runtime reload/worker restart/scheduler interrupt/process-registry/status/stale cleanup.
 28. [ ] Verify env encrypt/decrypt/temp-file/permissions/overwrite and storage link/unlink safety.
-29. [x] Pint/Rector/Composer Normalize/PHPCS/PHPStan/Psalm/Deptrac are green on the current PHP 8.4/8.5 lowest/stable matrix with `fail_on_skipped_tests: true` (`32813737909`, `32813737450`).
+29. [x] Pint/Rector/Composer Normalize/PHPCS/PHPStan/Psalm/Deptrac are green on the current PHP 8.4/8.5 lowest/stable matrix with `fail_on_skipped_tests: true` (`32814167565`, `32814167162`).
 30. [ ] Review soak-sensitive persistent-runtime paths and establish/compare a representative benchmark baseline where appropriate.
 31. [ ] Final dependency/package/stale-version/retired-API audit plus Foundation/Infbyte stable-release alignment.
 32. [ ] Record final source/CI checkpoints and all verified results with zero ambiguous closure items.
 
-## Worker lifecycle/fork-safety audit — active
+## Pool/fork safety audit — active
 
-Current source and existing test coverage already prove:
+Current source and existing verified tests establish the Foundation-side preconditions:
 
-- provider workers run only in the Worker runtime;
-- provider work is expected to pass bounded units through `WorkerRuntime::execute()`;
-- `WorkerRuntime::execute()` enters a fresh Foundation execution scope for each unit;
-- bounded Omnibus message workers already prove distinct scoped services per message;
-- runtime/worker/named-worker control tokens are captured when `WorkerManager::run()` starts;
-- worker processes register in `RuntimeProcessRegistry`, heartbeat their record, and unregister in `finally`;
-- explicit singleton providers use CacheLayer ownership and refresh the lease from heartbeat;
-- non-singleton providers do not acquire a global lock;
-- process-local memory and sync transports are rejected for pools;
-- pooled workers require an unbooted/clean parent and declarative scalar/array configuration;
-- pool children construct and boot a fresh `Foundation::worker($config)` inside the child factory;
-- existing parent-resource guard coverage proves a resolved CacheManager prevents pool startup;
-- `WorkerManager` now reports the current Omnibus `^2.5` requirement rather than the stale `^2.4` message.
+- pool factory invocation is delegated to Omnibus `WorkerPool`, whose factory executes inside the child after `pcntl_fork()`;
+- Foundation creates and boots a fresh child Worker application inside that post-fork factory;
+- memory/sync transports are rejected for process pools;
+- booted parents and non-declarative runtime objects/closures are rejected before pool startup;
+- the parent guard checks resolved CacheLayer/cache, DBLayer connection, Omnibus consumer/failure/transport-registry and TalkingBytes HTTP client services;
+- it also rejects any globally registered DBLayer connections even when the connection object was not resolved through the Foundation container;
+- the existing cache-resource test proves a resolved parent CacheManager blocks pool startup.
 
-Candidate `9a87be2156b6819d65e434146a460d0532441222` adds focused proofs for:
+Checklist 21 remains open until the following execute without skips:
 
-- two provider execution units receiving distinct InterMix scoped services and execution IDs while reusing the same service within each scope;
-- a named worker restart signal being observed by `WorkerRuntime::heartbeat()`, converted into graceful manager exit `0`, and followed by process-registry cleanup;
-- an externally held singleton lock preventing provider entry and still leaving no stale process-registry record.
-
-Checklist item 18 remains open until this candidate is fully green across the exact-head QA matrix. Checklist item 21 remains separate: source guards and current tests are supporting evidence, but actual pre-fork DB/network and child/reaping/termination behavior still need explicit non-skipped closure evidence.
+- opened DBLayer parent connection rejection;
+- resolved TalkingBytes HTTP-client parent rejection;
+- CI `pcntl`/`posix` support exercised by a real Omnibus `WorkerPool` child;
+- child factory runs under a different PID, stop/termination completes, the child is reaped, and parent signal handlers are restored.
 
 ## Immediate next work
 
-1. finish exact-head PHPForge/PHPStan validation for Worker lifecycle candidate `9a87be21` and close checklist item 18 only if fully green;
-2. extend checklist 21 with explicit parent DB/network-resource rejection and determine whether reliable non-skipped pcntl/posix child-init/reaping/termination tests can run in the enforced CI environment;
-3. proceed to checklist 19 Scheduler once/work/interrupt/runtime-reload/overlap/scheduled-message behavior;
-4. then consolidate persistent-state cleanup under checklist 20 using the already-verified Web/Worker/messaging scope evidence plus any remaining cache/session/DB leak probes.
+1. add the focused pool/fork-safety matrix above and close checklist item 21 only with non-skipped exact-head evidence;
+2. proceed to checklist 19 Scheduler once/work/interrupt/runtime-reload/overlap/scheduled-message behavior;
+3. consolidate persistent-state cleanup under checklist 20 using the verified Web/Worker/messaging scope evidence plus any remaining cache/session/DB leak probes;
+4. continue into auth/security/Omnibus/optimize/operations/environment closure items in checklist order where dependencies allow.
