@@ -178,7 +178,8 @@ it('closes maintenance runtime control and process registry operations through r
             foundationOperationsRun($dispatcher, ['infbyte', 'worker:restart']),
         );
         expect($allWorkerRestart['scope'] ?? null)->toBe('worker')
-            ->and($allWorkerRestart['worker'] ?? 'unexpected')->toBeNull()
+            ->and(array_key_exists('worker', $allWorkerRestart))->toBeTrue()
+            ->and($allWorkerRestart['worker'])->toBeNull()
             ->and($allWorkerRestart['token'] ?? null)->toBeString()->not->toBe($workerBaseline)
             ->and($control->token('worker'))->toBe($allWorkerRestart['token']);
 
