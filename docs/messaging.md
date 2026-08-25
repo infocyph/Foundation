@@ -1,6 +1,6 @@
 # Events, queues, workers, and scheduled messages
 
-Foundation composes Omnibus 2.4 through the purpose-first `messaging` module.
+Foundation composes Omnibus 2.5 through the purpose-first `messaging` module.
 Omnibus owns message delivery, receiving, retries, failure storage, handler
 execution, worker loops, and the optional Unix process pool. Foundation owns
 application configuration, DI composition, job middleware adaptation,
@@ -74,7 +74,7 @@ remain Omnibus responsibilities.
 
 ## Handler middleware and Foundation JobMiddleware
 
-Omnibus 2.4 supplies the framework-neutral handler pipeline:
+Omnibus 2.5 supplies the framework-neutral handler pipeline:
 
 ```text
 ExecutionScope
@@ -173,7 +173,7 @@ php infbyte worker:run reports
 
 Omnibus `Worker` owns idle backoff, signal handling, receive batching, runtime,
 message-count, absolute-memory, and memory-growth limits. Foundation supplies an
-Omnibus 2.4 `WorkerLifecycle` implementation that updates process visibility and
+Omnibus 2.5 `WorkerLifecycle` implementation that updates process visibility and
 checks Foundation runtime/worker generation tokens.
 
 That means single messaging workers can observe:
