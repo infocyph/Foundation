@@ -42,7 +42,7 @@ final class ModuleCatalog
         ],
         'database' => [
             'packages' => [
-                'infocyph/dblayer' => '^4.1',
+                'infocyph/dblayer' => '^5.0',
             ],
             'description' => 'Database connections, queries, repositories, schema, migrations, and persistence.',
             'aliases' => ['db', 'dblayer'],
@@ -68,7 +68,7 @@ final class ModuleCatalog
         ],
         'messaging' => [
             'packages' => [
-                'infocyph/omnibus' => '^2.4',
+                'infocyph/omnibus' => '^2.5',
             ],
             'description' => 'Events, messages, queues, handler middleware, retries, workers, optional process pools, workflows, and scheduled-message dispatch.',
             'aliases' => ['events', 'omnibus', 'queue', 'queues'],
@@ -110,7 +110,7 @@ final class ModuleCatalog
         ],
         'validation' => [
             'packages' => [
-                'infocyph/reqshield' => '^3.0.2',
+                'infocyph/reqshield' => '^3.1',
             ],
             'description' => 'Request, command, configuration, schema, sanitization, and database validation.',
             'aliases' => ['reqshield', 'validator'],
