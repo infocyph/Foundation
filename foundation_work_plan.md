@@ -14,10 +14,10 @@ Foundation is the reusable framework/runtime layer. Infbyte is the opinionated a
 - Started: 2026-08-24 (Asia/Dhaka)
 - Original closure checkpoint: `16d60f114314544a5c6db91c0e986423fa6fbb70`
 - Dependency-rebaseline checkpoint: `6663dad26e75453fcebb7975dda2ad0b49661951`
-- Latest verified implementation checkpoint: `6cfb551063bffa0aba567ddc2541771a6c05c4b9`
-- Authoritative Security & Standards run: `32814512066`
-- Authoritative dedicated PHPStan run: `32814511676`
-- Current phase: **Scheduler runtime matrix, then persistent execution-state isolation**.
+- Latest verified implementation checkpoint: `5957a14e05ae34b5b2bf9fe0bf71109d7737086a`
+- Authoritative Security & Standards run: `32815333061`
+- Authoritative dedicated PHPStan run: `32815332711`
+- Current phase: **Persistent execution-state isolation, then auth/security closure**.
 - Architecture/public ownership boundaries are frozen. Correct integration defects, tests, diagnostics and docs only; do not restore retired convenience APIs or duplicate specialist engines.
 - Final finish condition: updated dependencies resolve, PHPUnit/PHPForge/static-analysis matrices are green, specialist/runtime/security/process/deployment behavior is evidenced, Infbyte is aligned, benchmarks remain acceptable, and every checklist item below has explicit evidence.
 
@@ -193,6 +193,24 @@ Verified behavior includes:
 - a real non-skipped Omnibus `WorkerPool` test executes with `pcntl`/`posix`, proves the worker factory runs under a child PID distinct from the parent, requests SIGTERM shutdown, reaps the child, and restores the parent signal handlers;
 - no fork/process test is skipped under the release QA matrix (`fail_on_skipped_tests: true`).
 
+### Scheduler runtime matrix — executed
+
+`SchedulerRuntimeClosureTest` is green in Security & Standards run `32815333061` across PHP 8.4/8.5 lowest/stable. Dedicated PHPStan run `32815332711` is also green.
+
+Verified behavior includes:
+
+- `SchedulerRuntime::execute()` creates a fresh InterMix execution scope for every bounded scheduling unit;
+- the real `schedule:run` command executes due work once through the Scheduler runtime;
+- the real `schedule:test` command executes a named entry regardless of its due time;
+- fixed-clock `runDue()` executes only matching cron/timezone entries;
+- non-zero subprocess exits propagate into failed schedule history with the original exit code;
+- subprocess timeout terminates work and records `timed_out` status/reason;
+- overlap policy uses the configured CacheLayer file lock, prevents subprocess side effects, and records pending/cancelled with reason `overlap`;
+- persistent `schedule:work` reacts after its first due unit to both schedule-specific and runtime-wide control-token changes, exits successfully before a second iteration, and unregisters its scheduler process record;
+- the real `schedule:interrupt` and `runtime:reload` commands publish their respective runtime-control tokens;
+- the real `schedule:dispatch-message` command resolves Omnibus `ScheduledMessageDispatcher`, creates the configured message, routes it through sync transport, and invokes the configured handler;
+- scheduled subprocesses use the Foundation `ProcessRunner` argument-list path, preserving timeout/heartbeat/process-tree handling rather than shell execution.
+
 ### Omnibus 2.5 current compatibility evidence
 
 Green compatibility coverage includes:
@@ -210,9 +228,9 @@ Checklist item 25 remains open until monitor/execution-scope/shutdown/restart be
 
 ## Authoritative QA baseline — 2026-08-25
 
-Verified implementation checkpoint: `6cfb551063bffa0aba567ddc2541771a6c05c4b9`.
+Verified implementation checkpoint: `5957a14e05ae34b5b2bf9fe0bf71109d7737086a`.
 
-Security & Standards run `32814512066`:
+Security & Standards run `32815333061`:
 
 - matrix preparation: PASS;
 - clean production install: PASS;
@@ -227,7 +245,7 @@ Security & Standards run `32814512066`:
 - benchmark comparison: skipped because no baseline artifact is configured; result validation itself passed;
 - Security SVG report: skipped and not a release gate.
 
-The QA jobs use `fail_on_skipped_tests: true` and enforce Pest, Pint, PHPCS, PHPProbe, Deptrac, Rector and Composer Normalize. Analyzer jobs enforce PHPStan and Psalm. Dedicated Foundation PHPStan diagnostic run `32814511676` also passed.
+The QA jobs use `fail_on_skipped_tests: true` and enforce Pest, Pint, PHPCS, PHPProbe, Deptrac, Rector and Composer Normalize. Analyzer jobs enforce PHPStan and Psalm. Dedicated Foundation PHPStan diagnostic run `32815332711` also passed.
 
 # Frozen architecture
 
@@ -261,12 +279,12 @@ Module removal never deletes schema/data. Schema ownership remains auth → Foun
 3. [x] Align Composer capability baseline to DBLayer `^5.0`, Omnibus `^2.5`, ReqShield `^3.1`.
 4. [x] Align `ModuleCatalog` constraints with Composer baseline.
 5. [x] Normalize PHPForge reusable-workflow configuration to repository-specific overrides only.
-6. [x] Production clean-install gate passes on the rebaselined dependency set (`32814512066`).
-7. [x] PHP 8.4 representative benchmark validation passes (`32814512066`).
-8. [x] PHP 8.5 representative benchmark validation passes (`32814512066`).
-9. [x] Psalm passes on PHP 8.4 and PHP 8.5 analyzer jobs (`32814512066`).
-10. [x] Deptrac passes across the current QA matrix (`32814512066`).
-11. [x] Current syntax/PHPProbe/Pest blocking defects are cleared (`32814512066`).
+6. [x] Production clean-install gate passes on the rebaselined dependency set (`32815333061`).
+7. [x] PHP 8.4 representative benchmark validation passes (`32815333061`).
+8. [x] PHP 8.5 representative benchmark validation passes (`32815333061`).
+9. [x] Psalm passes on PHP 8.4 and PHP 8.5 analyzer jobs (`32815333061`).
+10. [x] Deptrac passes across the current QA matrix (`32815333061`).
+11. [x] Current syntax/PHPProbe/Pest blocking defects are cleared (`32815333061`).
 12. [x] DBLayer 5 migration/rollback/status/reset/refresh/wipe/monitor compatibility matrix is green.
 13. [x] Destructive database safeguard/confirmation matrix is green through the real CLI dispatcher.
 14. [x] Module list/show/install/remove/config-publish/schema-status/schema-install/schema-sync plus dry-run/duplicate/failure rollback behavior is green.
@@ -274,7 +292,7 @@ Module removal never deletes schema/data. Schema ownership remains auth → Foun
 16. [x] Web routes/cache/middleware/session/auth-principal/maintenance/exception behavior is green (`32812796414`, `32812795816`).
 17. [x] CLI discovery/cache/status/exit/overlap/global options/help/completion/machine-readable/destructive-confirmation behavior is green (`32813737909`, `32813737450`).
 18. [x] Worker scope reset/restart/heartbeat/singleton/pools/fork-before-resource-open behavior is green (`32814167565`, `32814167162`).
-19. [ ] Verify Scheduler once/work/interrupt/runtime-reload/overlap/scheduled-message behavior without forbidden blocking APIs.
+19. [x] Scheduler once/work/interrupt/runtime-reload/overlap/scheduled-message behavior is green without shell execution (`32815333061`, `32815332711`).
 20. [ ] Verify no persistent execution-state leaks across InterMix/principal/session/DB/cache/messaging.
 21. [x] Pool/fork safety is green: no pre-fork DB/network/cache resources and real child init/termination/reaping/signal restoration are verified (`32814512066`, `32814511676`).
 22. [ ] Verify full auth/session/token/password/email/passwordless/lockout flows.
@@ -284,7 +302,7 @@ Module removal never deletes schema/data. Schema ownership remains auth → Foun
 26. [ ] Verify config/route/command/schedule/container optimize/clear idempotency.
 27. [ ] Verify maintenance/runtime reload/worker restart/scheduler interrupt/process-registry/status/stale cleanup.
 28. [ ] Verify env encrypt/decrypt/temp-file/permissions/overwrite and storage link/unlink safety.
-29. [x] Pint/Rector/Composer Normalize/PHPCS/PHPStan/Psalm/Deptrac are green on the current PHP 8.4/8.5 lowest/stable matrix with `fail_on_skipped_tests: true` (`32814512066`, `32814511676`).
+29. [x] Pint/Rector/Composer Normalize/PHPCS/PHPStan/Psalm/Deptrac are green on the current PHP 8.4/8.5 lowest/stable matrix with `fail_on_skipped_tests: true` (`32815333061`, `32815332711`).
 30. [ ] Review soak-sensitive persistent-runtime paths and establish/compare a representative benchmark baseline where appropriate.
 31. [ ] Final dependency/package/stale-version/retired-API audit plus Foundation/Infbyte stable-release alignment.
 32. [ ] Record final source/CI checkpoints and all verified results with zero ambiguous closure items.
