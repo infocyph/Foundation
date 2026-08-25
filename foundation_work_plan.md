@@ -14,10 +14,10 @@ Foundation is the reusable framework/runtime layer. Infbyte is the opinionated a
 - Started: 2026-08-24 (Asia/Dhaka)
 - Original closure checkpoint: `16d60f114314544a5c6db91c0e986423fa6fbb70`
 - Dependency-rebaseline checkpoint: `6663dad26e75453fcebb7975dda2ad0b49661951`
-- Latest verified implementation checkpoint: `4dbccd51a9b033f80947c1f4fe1dd047e14200ba`
-- Authoritative Security & Standards run: `32814167565`
-- Authoritative dedicated PHPStan run: `32814167162`
-- Current phase: **pool/fork safety closure, then Scheduler runtime matrix**.
+- Latest verified implementation checkpoint: `6cfb551063bffa0aba567ddc2541771a6c05c4b9`
+- Authoritative Security & Standards run: `32814512066`
+- Authoritative dedicated PHPStan run: `32814511676`
+- Current phase: **Scheduler runtime matrix, then persistent execution-state isolation**.
 - Architecture/public ownership boundaries are frozen. Correct integration defects, tests, diagnostics and docs only; do not restore retired convenience APIs or duplicate specialist engines.
 - Final finish condition: updated dependencies resolve, PHPUnit/PHPForge/static-analysis matrices are green, specialist/runtime/security/process/deployment behavior is evidenced, Infbyte is aligned, benchmarks remain acceptable, and every checklist item below has explicit evidence.
 
@@ -180,7 +180,18 @@ Verified Foundation-owned Worker behavior includes:
 
 The first Worker closure candidate failed before runtime execution because two state-recording test providers were declared `readonly` while carrying mutable static assertion state. The fixture classes were corrected without changing Worker behavior; `4dbccd51` is fully green.
 
-Checklist item 21 remains separate: source guards and current pool tests support the architecture, but opened DB/network parent-state and real non-skipped child creation/reaping/termination still require explicit closure evidence.
+### Pool/fork safety matrix — executed
+
+`WorkerPoolForkSafetyTest` and the existing Omnibus pool guards are green in Security & Standards run `32814512066` across PHP 8.4/8.5 lowest/stable. Dedicated PHPStan run `32814511676` is also green.
+
+Verified behavior includes:
+
+- a resolved parent `CacheManager` is rejected before pool startup;
+- an opened DBLayer connection is rejected before pool startup;
+- a resolved TalkingBytes HTTP client is rejected before pool startup;
+- process-local memory/sync transports and runtime-bearing declarative config remain rejected before fork;
+- a real non-skipped Omnibus `WorkerPool` test executes with `pcntl`/`posix`, proves the worker factory runs under a child PID distinct from the parent, requests SIGTERM shutdown, reaps the child, and restores the parent signal handlers;
+- no fork/process test is skipped under the release QA matrix (`fail_on_skipped_tests: true`).
 
 ### Omnibus 2.5 current compatibility evidence
 
@@ -199,9 +210,9 @@ Checklist item 25 remains open until monitor/execution-scope/shutdown/restart be
 
 ## Authoritative QA baseline — 2026-08-25
 
-Verified implementation checkpoint: `4dbccd51a9b033f80947c1f4fe1dd047e14200ba`.
+Verified implementation checkpoint: `6cfb551063bffa0aba567ddc2541771a6c05c4b9`.
 
-Security & Standards run `32814167565`:
+Security & Standards run `32814512066`:
 
 - matrix preparation: PASS;
 - clean production install: PASS;
@@ -216,7 +227,7 @@ Security & Standards run `32814167565`:
 - benchmark comparison: skipped because no baseline artifact is configured; result validation itself passed;
 - Security SVG report: skipped and not a release gate.
 
-The QA jobs use `fail_on_skipped_tests: true` and enforce Pest, Pint, PHPCS, PHPProbe, Deptrac, Rector and Composer Normalize. Analyzer jobs enforce PHPStan and Psalm. Dedicated Foundation PHPStan diagnostic run `32814167162` also passed.
+The QA jobs use `fail_on_skipped_tests: true` and enforce Pest, Pint, PHPCS, PHPProbe, Deptrac, Rector and Composer Normalize. Analyzer jobs enforce PHPStan and Psalm. Dedicated Foundation PHPStan diagnostic run `32814511676` also passed.
 
 # Frozen architecture
 
@@ -250,12 +261,12 @@ Module removal never deletes schema/data. Schema ownership remains auth → Foun
 3. [x] Align Composer capability baseline to DBLayer `^5.0`, Omnibus `^2.5`, ReqShield `^3.1`.
 4. [x] Align `ModuleCatalog` constraints with Composer baseline.
 5. [x] Normalize PHPForge reusable-workflow configuration to repository-specific overrides only.
-6. [x] Production clean-install gate passes on the rebaselined dependency set (`32814167565`).
-7. [x] PHP 8.4 representative benchmark validation passes (`32814167565`).
-8. [x] PHP 8.5 representative benchmark validation passes (`32814167565`).
-9. [x] Psalm passes on PHP 8.4 and PHP 8.5 analyzer jobs (`32814167565`).
-10. [x] Deptrac passes across the current QA matrix (`32814167565`).
-11. [x] Current syntax/PHPProbe/Pest blocking defects are cleared (`32814167565`).
+6. [x] Production clean-install gate passes on the rebaselined dependency set (`32814512066`).
+7. [x] PHP 8.4 representative benchmark validation passes (`32814512066`).
+8. [x] PHP 8.5 representative benchmark validation passes (`32814512066`).
+9. [x] Psalm passes on PHP 8.4 and PHP 8.5 analyzer jobs (`32814512066`).
+10. [x] Deptrac passes across the current QA matrix (`32814512066`).
+11. [x] Current syntax/PHPProbe/Pest blocking defects are cleared (`32814512066`).
 12. [x] DBLayer 5 migration/rollback/status/reset/refresh/wipe/monitor compatibility matrix is green.
 13. [x] Destructive database safeguard/confirmation matrix is green through the real CLI dispatcher.
 14. [x] Module list/show/install/remove/config-publish/schema-status/schema-install/schema-sync plus dry-run/duplicate/failure rollback behavior is green.
@@ -265,7 +276,7 @@ Module removal never deletes schema/data. Schema ownership remains auth → Foun
 18. [x] Worker scope reset/restart/heartbeat/singleton/pools/fork-before-resource-open behavior is green (`32814167565`, `32814167162`).
 19. [ ] Verify Scheduler once/work/interrupt/runtime-reload/overlap/scheduled-message behavior without forbidden blocking APIs.
 20. [ ] Verify no persistent execution-state leaks across InterMix/principal/session/DB/cache/messaging.
-21. [ ] Verify pool/fork safety: no pre-fork DB/network resources; child init/cleanup/reaping/termination.
+21. [x] Pool/fork safety is green: no pre-fork DB/network/cache resources and real child init/termination/reaping/signal restoration are verified (`32814512066`, `32814511676`).
 22. [ ] Verify full auth/session/token/password/email/passwordless/lockout flows.
 23. [ ] Verify MFA recovery/passkey/step-up/recent-auth/authorization/impersonation flows.
 24. [ ] Verify production security posture: secrets, secure defaults, OTP/WebAuthn/shared-state topology, unsafe-memory rejection.
@@ -273,33 +284,7 @@ Module removal never deletes schema/data. Schema ownership remains auth → Foun
 26. [ ] Verify config/route/command/schedule/container optimize/clear idempotency.
 27. [ ] Verify maintenance/runtime reload/worker restart/scheduler interrupt/process-registry/status/stale cleanup.
 28. [ ] Verify env encrypt/decrypt/temp-file/permissions/overwrite and storage link/unlink safety.
-29. [x] Pint/Rector/Composer Normalize/PHPCS/PHPStan/Psalm/Deptrac are green on the current PHP 8.4/8.5 lowest/stable matrix with `fail_on_skipped_tests: true` (`32814167565`, `32814167162`).
+29. [x] Pint/Rector/Composer Normalize/PHPCS/PHPStan/Psalm/Deptrac are green on the current PHP 8.4/8.5 lowest/stable matrix with `fail_on_skipped_tests: true` (`32814512066`, `32814511676`).
 30. [ ] Review soak-sensitive persistent-runtime paths and establish/compare a representative benchmark baseline where appropriate.
 31. [ ] Final dependency/package/stale-version/retired-API audit plus Foundation/Infbyte stable-release alignment.
 32. [ ] Record final source/CI checkpoints and all verified results with zero ambiguous closure items.
-
-## Pool/fork safety audit — active
-
-Current source and existing verified tests establish the Foundation-side preconditions:
-
-- pool factory invocation is delegated to Omnibus `WorkerPool`, whose factory executes inside the child after `pcntl_fork()`;
-- Foundation creates and boots a fresh child Worker application inside that post-fork factory;
-- memory/sync transports are rejected for process pools;
-- booted parents and non-declarative runtime objects/closures are rejected before pool startup;
-- the parent guard checks resolved CacheLayer/cache, DBLayer connection, Omnibus consumer/failure/transport-registry and TalkingBytes HTTP client services;
-- it also rejects any globally registered DBLayer connections even when the connection object was not resolved through the Foundation container;
-- the existing cache-resource test proves a resolved parent CacheManager blocks pool startup.
-
-Checklist 21 remains open until the following execute without skips:
-
-- opened DBLayer parent connection rejection;
-- resolved TalkingBytes HTTP-client parent rejection;
-- CI `pcntl`/`posix` support exercised by a real Omnibus `WorkerPool` child;
-- child factory runs under a different PID, stop/termination completes, the child is reaped, and parent signal handlers are restored.
-
-## Immediate next work
-
-1. add the focused pool/fork-safety matrix above and close checklist item 21 only with non-skipped exact-head evidence;
-2. proceed to checklist 19 Scheduler once/work/interrupt/runtime-reload/overlap/scheduled-message behavior;
-3. consolidate persistent-state cleanup under checklist 20 using the verified Web/Worker/messaging scope evidence plus any remaining cache/session/DB leak probes;
-4. continue into auth/security/Omnibus/optimize/operations/environment closure items in checklist order where dependencies allow.
