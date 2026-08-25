@@ -225,7 +225,7 @@ final readonly class ContainerCacheManager
             || !is_string($fingerprint)
             || preg_match('/^[a-f0-9]{64}$/D', $fingerprint) !== 1
             || !is_int($compiled)
-            || $compiled < 1
+            || $compiled < 0
         ) {
             return null;
         }
