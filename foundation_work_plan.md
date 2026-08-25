@@ -14,10 +14,10 @@ Foundation is the reusable framework/runtime layer. Infbyte is the opinionated a
 - Started: 2026-08-24 (Asia/Dhaka)
 - Original closure checkpoint: `16d60f114314544a5c6db91c0e986423fa6fbb70`
 - Dependency-rebaseline checkpoint: `6663dad26e75453fcebb7975dda2ad0b49661951`
-- Latest verified implementation checkpoint: `5957a14e05ae34b5b2bf9fe0bf71109d7737086a`
-- Authoritative Security & Standards run: `32815333061`
-- Authoritative dedicated PHPStan run: `32815332711`
-- Current phase: **Persistent execution-state isolation, then auth/security closure**.
+- Latest verified implementation checkpoint: `37efafd18b90db8cf80b722aa3e43bbb9ef85c83`
+- Authoritative Security & Standards run: `32816540790`
+- Authoritative dedicated PHPStan run: `32816540419`
+- Current phase: **Auth/session/security closure, then messaging/operations release matrices**.
 - Architecture/public ownership boundaries are frozen. Correct integration defects, tests, diagnostics and docs only; do not restore retired convenience APIs or duplicate specialist engines.
 - Final finish condition: updated dependencies resolve, PHPUnit/PHPForge/static-analysis matrices are green, specialist/runtime/security/process/deployment behavior is evidenced, Infbyte is aligned, benchmarks remain acceptable, and every checklist item below has explicit evidence.
 
@@ -211,6 +211,22 @@ Verified behavior includes:
 - the real `schedule:dispatch-message` command resolves Omnibus `ScheduledMessageDispatcher`, creates the configured message, routes it through sync transport, and invokes the configured handler;
 - scheduled subprocesses use the Foundation `ProcessRunner` argument-list path, preserving timeout/heartbeat/process-tree handling rather than shell execution.
 
+### Persistent execution-state isolation — executed
+
+`PersistentExecutionStateIsolationTest` is green in Security & Standards run `32816540790` across PHP 8.4/8.5 lowest/stable. Dedicated PHPStan run `32816540419` is also green.
+
+Verified behavior includes:
+
+- InterMix scoped services are shared only inside one execution and are recreated for the next execution;
+- `CurrentPrincipalContext` is cleared after execution;
+- active browser-session context is cleared after execution;
+- open DBLayer transactions are rolled back and runtime connection state is reset, including failure paths;
+- CacheLayer `Memoizer` and `OnceMemoizer` process-local state is flushed at the execution boundary without treating shared cache contents as request-local state;
+- the same cleanup executes when the bounded execution throws;
+- Omnibus execution seeds (`Envelope`, message and `ExecutionId`) are isolated between deliveries and use fresh scoped services per message.
+
+The two initial failures in this closure test were fixture defects only: the first used an invalid memoizer expectation and the second captured the outer scoped-ID variable by value. No production cleanup change was required; the corrected exact-head candidate is fully green.
+
 ### Omnibus 2.5 current compatibility evidence
 
 Green compatibility coverage includes:
@@ -228,9 +244,9 @@ Checklist item 25 remains open until monitor/execution-scope/shutdown/restart be
 
 ## Authoritative QA baseline — 2026-08-25
 
-Verified implementation checkpoint: `5957a14e05ae34b5b2bf9fe0bf71109d7737086a`.
+Verified implementation checkpoint: `37efafd18b90db8cf80b722aa3e43bbb9ef85c83`.
 
-Security & Standards run `32815333061`:
+Security & Standards run `32816540790`:
 
 - matrix preparation: PASS;
 - clean production install: PASS;
@@ -245,7 +261,7 @@ Security & Standards run `32815333061`:
 - benchmark comparison: skipped because no baseline artifact is configured; result validation itself passed;
 - Security SVG report: skipped and not a release gate.
 
-The QA jobs use `fail_on_skipped_tests: true` and enforce Pest, Pint, PHPCS, PHPProbe, Deptrac, Rector and Composer Normalize. Analyzer jobs enforce PHPStan and Psalm. Dedicated Foundation PHPStan diagnostic run `32815332711` also passed.
+The QA jobs use `fail_on_skipped_tests: true` and enforce Pest, Pint, PHPCS, PHPProbe, Deptrac, Rector and Composer Normalize. Analyzer jobs enforce PHPStan and Psalm. Dedicated Foundation PHPStan diagnostic run `32816540419` also passed.
 
 # Frozen architecture
 
@@ -279,12 +295,12 @@ Module removal never deletes schema/data. Schema ownership remains auth → Foun
 3. [x] Align Composer capability baseline to DBLayer `^5.0`, Omnibus `^2.5`, ReqShield `^3.1`.
 4. [x] Align `ModuleCatalog` constraints with Composer baseline.
 5. [x] Normalize PHPForge reusable-workflow configuration to repository-specific overrides only.
-6. [x] Production clean-install gate passes on the rebaselined dependency set (`32815333061`).
-7. [x] PHP 8.4 representative benchmark validation passes (`32815333061`).
-8. [x] PHP 8.5 representative benchmark validation passes (`32815333061`).
-9. [x] Psalm passes on PHP 8.4 and PHP 8.5 analyzer jobs (`32815333061`).
-10. [x] Deptrac passes across the current QA matrix (`32815333061`).
-11. [x] Current syntax/PHPProbe/Pest blocking defects are cleared (`32815333061`).
+6. [x] Production clean-install gate passes on the rebaselined dependency set (`32816540790`).
+7. [x] PHP 8.4 representative benchmark validation passes (`32816540790`).
+8. [x] PHP 8.5 representative benchmark validation passes (`32816540790`).
+9. [x] Psalm passes on PHP 8.4 and PHP 8.5 analyzer jobs (`32816540790`).
+10. [x] Deptrac passes across the current QA matrix (`32816540790`).
+11. [x] Current syntax/PHPProbe/Pest blocking defects are cleared (`32816540790`).
 12. [x] DBLayer 5 migration/rollback/status/reset/refresh/wipe/monitor compatibility matrix is green.
 13. [x] Destructive database safeguard/confirmation matrix is green through the real CLI dispatcher.
 14. [x] Module list/show/install/remove/config-publish/schema-status/schema-install/schema-sync plus dry-run/duplicate/failure rollback behavior is green.
@@ -293,7 +309,7 @@ Module removal never deletes schema/data. Schema ownership remains auth → Foun
 17. [x] CLI discovery/cache/status/exit/overlap/global options/help/completion/machine-readable/destructive-confirmation behavior is green (`32813737909`, `32813737450`).
 18. [x] Worker scope reset/restart/heartbeat/singleton/pools/fork-before-resource-open behavior is green (`32814167565`, `32814167162`).
 19. [x] Scheduler once/work/interrupt/runtime-reload/overlap/scheduled-message behavior is green without shell execution (`32815333061`, `32815332711`).
-20. [ ] Verify no persistent execution-state leaks across InterMix/principal/session/DB/cache/messaging.
+20. [x] Persistent execution-state isolation across InterMix/principal/session/DB/cache/messaging is green on success and failure paths (`32816540790`, `32816540419`).
 21. [x] Pool/fork safety is green: no pre-fork DB/network/cache resources and real child init/termination/reaping/signal restoration are verified (`32814512066`, `32814511676`).
 22. [ ] Verify full auth/session/token/password/email/passwordless/lockout flows.
 23. [ ] Verify MFA recovery/passkey/step-up/recent-auth/authorization/impersonation flows.
@@ -302,7 +318,7 @@ Module removal never deletes schema/data. Schema ownership remains auth → Foun
 26. [ ] Verify config/route/command/schedule/container optimize/clear idempotency.
 27. [ ] Verify maintenance/runtime reload/worker restart/scheduler interrupt/process-registry/status/stale cleanup.
 28. [ ] Verify env encrypt/decrypt/temp-file/permissions/overwrite and storage link/unlink safety.
-29. [x] Pint/Rector/Composer Normalize/PHPCS/PHPStan/Psalm/Deptrac are green on the current PHP 8.4/8.5 lowest/stable matrix with `fail_on_skipped_tests: true` (`32815333061`, `32815332711`).
+29. [x] Pint/Rector/Composer Normalize/PHPCS/PHPStan/Psalm/Deptrac are green on the current PHP 8.4/8.5 lowest/stable matrix with `fail_on_skipped_tests: true` (`32816540790`, `32816540419`).
 30. [ ] Review soak-sensitive persistent-runtime paths and establish/compare a representative benchmark baseline where appropriate.
 31. [ ] Final dependency/package/stale-version/retired-API audit plus Foundation/Infbyte stable-release alignment.
 32. [ ] Record final source/CI checkpoints and all verified results with zero ambiguous closure items.
