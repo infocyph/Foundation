@@ -288,14 +288,21 @@ function foundationDestructiveCommandInsertMarker(string $databasePath, string $
     $statement = foundationDestructiveCommandPdo($databasePath)->prepare(
         'INSERT INTO foundation_destructive_probe (value) VALUES (?)',
     );
+    if ($statement === false) {
+        throw new RuntimeException('Unable to prepare destructive-command marker insert.');
+    }
     $statement->execute([$value]);
 }
 
 function foundationDestructiveCommandMarkerCount(string $databasePath): int
 {
-    $count = foundationDestructiveCommandPdo($databasePath)
-        ->query('SELECT COUNT(*) FROM foundation_destructive_probe')
-        ?->fetchColumn();
+    $statement = foundationDestructiveCommandPdo($databasePath)
+        ->query('SELECT COUNT(*) FROM foundation_destructive_probe');
+    if ($statement === false) {
+        throw new RuntimeException('Unable to count destructive-command marker rows.');
+    }
+
+    $count = $statement->fetchColumn();
 
     return is_int($count) ? $count : (int) $count;
 }
@@ -317,6 +324,7 @@ function foundationDestructiveCommandPdo(string $databasePath): PDO
     return $pdo;
 }
 
+/** @param list<string> $argv */
 function foundationDestructiveCommandRun(
     CommandDispatcher $dispatcher,
     array $argv,
@@ -334,6 +342,9 @@ function foundationDestructiveCommandTableExists(string $databasePath, string $t
     $statement = foundationDestructiveCommandPdo($databasePath)->prepare(
         "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1",
     );
+    if ($statement === false) {
+        throw new RuntimeException('Unable to prepare destructive-command table probe.');
+    }
     $statement->execute([$table]);
 
     return $statement->fetchColumn() !== false;
