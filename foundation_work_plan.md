@@ -14,10 +14,10 @@ Foundation is the reusable framework/runtime layer. Infbyte is the opinionated a
 - Started: 2026-08-24 (Asia/Dhaka)
 - Original closure checkpoint: `16d60f114314544a5c6db91c0e986423fa6fbb70`
 - Dependency-rebaseline checkpoint: `6663dad26e75453fcebb7975dda2ad0b49661951`
-- Latest verified implementation checkpoint: `31db003e6319bc35ccba5909b3c619847ae28c49`
-- Authoritative Security & Standards run: `32812503732`
-- Authoritative dedicated PHPStan run: `32812503419`
-- Current phase: **Web runtime closure, then CLI/Worker/Scheduler runtime matrices**.
+- Latest verified implementation checkpoint: `aae70ca7399323c5d03c87c8c9a72801be94db52`
+- Authoritative Security & Standards run: `32812796414`
+- Authoritative dedicated PHPStan run: `32812795816`
+- Current phase: **CLI runtime closure, then Worker/Scheduler runtime matrices**.
 - Architecture/public ownership boundaries are frozen. Correct integration defects, tests, diagnostics and docs only; do not restore retired convenience APIs or duplicate specialist engines.
 - Final finish condition: updated dependencies resolve, PHPUnit/PHPForge/static-analysis matrices are green, specialist/runtime/security/process/deployment behavior is evidenced, Infbyte is aligned, benchmarks remain acceptable, and every checklist item below has explicit evidence.
 
@@ -116,6 +116,26 @@ Green behavior in Security & Standards run `32812503732`:
 
 No production optional-capability redesign was required. The only first-run failure was PHPForge forbidding `echo()` in the subprocess fixture; replacing it with `file_put_contents('php://stdout', ...)` produced a fully green exact-head matrix.
 
+### Web runtime matrix — executed
+
+Existing Webrick/InterMix/route-cache coverage plus `WebMaintenanceRuntimeTest` are green in Security & Standards run `32812796414` across PHP 8.4/8.5 lowest/stable.
+
+Verified behavior includes:
+
+- route-file loading and canonical router/kernel services;
+- warm generated/fused/sharded route-cache boot plus disabled/cold cache behavior;
+- per-request InterMix execution scopes;
+- middleware laziness/aliases and global middleware application without recursive boot;
+- unrelated optional subsystems remain deferred on plain routes;
+- principal/session/DB execution state resets between requests, including rollback of open DB transactions;
+- optional auth adapters remain lazy until selected;
+- concurrent fiber principal isolation and failure restoration;
+- 404 logging and auth exception rendering return expected statuses without eager renderer construction;
+- file-backed maintenance short-circuits router dispatch, returns 503 with configured message and `Retry-After`, and prevents route side effects;
+- disabling maintenance restores normal route dispatch immediately on the same persistent Web application.
+
+No Web runtime production redesign was required.
+
 ### Omnibus 2.5 current compatibility evidence
 
 Green compatibility coverage includes:
@@ -133,9 +153,9 @@ Checklist item 25 remains open until monitor/execution-scope/shutdown/restart be
 
 ## Authoritative QA baseline — 2026-08-25
 
-Verified implementation checkpoint: `31db003e6319bc35ccba5909b3c619847ae28c49`.
+Verified implementation checkpoint: `aae70ca7399323c5d03c87c8c9a72801be94db52`.
 
-Security & Standards run `32812503732`:
+Security & Standards run `32812796414`:
 
 - matrix preparation: PASS;
 - clean production install: PASS;
@@ -150,7 +170,7 @@ Security & Standards run `32812503732`:
 - benchmark comparison: skipped because no baseline artifact is configured; result validation itself passed;
 - Security SVG report: skipped and not a release gate.
 
-The QA jobs use `fail_on_skipped_tests: true` and enforce Pest, Pint, PHPCS, PHPProbe, Deptrac, Rector and Composer Normalize. Analyzer jobs enforce PHPStan and Psalm. Dedicated Foundation PHPStan diagnostic run `32812503419` also passed.
+The QA jobs use `fail_on_skipped_tests: true` and enforce Pest, Pint, PHPCS, PHPProbe, Deptrac, Rector and Composer Normalize. Analyzer jobs enforce PHPStan and Psalm. Dedicated Foundation PHPStan diagnostic run `32812795816` also passed.
 
 This supersedes all earlier closure-run QA checkpoints and the historical 2026-08-24 PHPStan/RuntimeLoggingValidator snapshot.
 
@@ -186,17 +206,17 @@ Module removal never deletes schema/data. Schema ownership remains auth → Foun
 3. [x] Align Composer capability baseline to DBLayer `^5.0`, Omnibus `^2.5`, ReqShield `^3.1`.
 4. [x] Align `ModuleCatalog` constraints with Composer baseline.
 5. [x] Normalize PHPForge reusable-workflow configuration to repository-specific overrides only.
-6. [x] Production clean-install gate passes on the rebaselined dependency set (`32812503732`).
-7. [x] PHP 8.4 representative benchmark validation passes (`32812503732`).
-8. [x] PHP 8.5 representative benchmark validation passes (`32812503732`).
-9. [x] Psalm passes on PHP 8.4 and PHP 8.5 analyzer jobs (`32812503732`).
-10. [x] Deptrac passes across the current QA matrix (`32812503732`).
-11. [x] Current syntax/PHPProbe/Pest blocking defects are cleared (`32812503732`).
+6. [x] Production clean-install gate passes on the rebaselined dependency set (`32812796414`).
+7. [x] PHP 8.4 representative benchmark validation passes (`32812796414`).
+8. [x] PHP 8.5 representative benchmark validation passes (`32812796414`).
+9. [x] Psalm passes on PHP 8.4 and PHP 8.5 analyzer jobs (`32812796414`).
+10. [x] Deptrac passes across the current QA matrix (`32812796414`).
+11. [x] Current syntax/PHPProbe/Pest blocking defects are cleared (`32812796414`).
 12. [x] DBLayer 5 migration/rollback/status/reset/refresh/wipe/monitor compatibility matrix is green.
 13. [x] Destructive database safeguard/confirmation matrix is green through the real CLI dispatcher.
 14. [x] Module list/show/install/remove/config-publish/schema-status/schema-install/schema-sync plus dry-run/duplicate/failure rollback behavior is green.
 15. [x] Optional capability isolation, dependency-free base boot and graceful unavailable-capability errors are green (`32812503732`, `32812503419`).
-16. [ ] Verify Web routes/cache/middleware/session/auth-principal/maintenance/exception behavior.
+16. [x] Web routes/cache/middleware/session/auth-principal/maintenance/exception behavior is green (`32812796414`, `32812795816`).
 17. [ ] Verify CLI discovery/cache/status/exit/overlap/global options/help/completion/machine-readable/destructive-confirmation behavior.
 18. [ ] Verify Worker scope reset/restart/heartbeat/singleton/pools/fork-before-resource-open behavior.
 19. [ ] Verify Scheduler once/work/interrupt/runtime-reload/overlap/scheduled-message behavior without forbidden blocking APIs.
@@ -209,50 +229,31 @@ Module removal never deletes schema/data. Schema ownership remains auth → Foun
 26. [ ] Verify config/route/command/schedule/container optimize/clear idempotency.
 27. [ ] Verify maintenance/runtime reload/worker restart/scheduler interrupt/process-registry/status/stale cleanup.
 28. [ ] Verify env encrypt/decrypt/temp-file/permissions/overwrite and storage link/unlink safety.
-29. [x] Pint/Rector/Composer Normalize/PHPCS/PHPStan/Psalm/Deptrac are green on the current PHP 8.4/8.5 lowest/stable matrix with `fail_on_skipped_tests: true` (`32812503732`, `32812503419`).
+29. [x] Pint/Rector/Composer Normalize/PHPCS/PHPStan/Psalm/Deptrac are green on the current PHP 8.4/8.5 lowest/stable matrix with `fail_on_skipped_tests: true` (`32812796414`, `32812795816`).
 30. [ ] Review soak-sensitive persistent-runtime paths and establish/compare a representative benchmark baseline where appropriate.
 31. [ ] Final dependency/package/stale-version/retired-API audit plus Foundation/Infbyte stable-release alignment.
 32. [ ] Record final source/CI checkpoints and all verified results with zero ambiguous closure items.
 
-## Web runtime audit — active
+## CLI runtime audit — active
 
-Existing green `WebrickInterMixIntegrationTest` / route-cache coverage already verifies:
+The CLI surface is centered on `CommandDispatcher`, `CliPreflight`, `CommandRegistry`, `ParsedInput`, `CommandExecutionCoordinator` and `CommandIO`. Existing module/database tests already prove real dispatcher execution, destructive confirmation and machine-readable command output for specialist/system commands.
 
-- Webrick route-file loading and canonical router/kernel services;
-- per-request InterMix execution scopes;
-- unrelated optional subsystems stay deferred on plain routes;
-- 404 exception logging and auth-exception rendering are lazy and return the expected 404/401 statuses;
-- principal/session/DB state is cleaned between HTTP execution scopes, including rollback of an open DB transaction;
-- optional auth adapters are lazy until their capability is selected;
-- auth actions/capabilities resolve through DI;
-- current principals are isolated across concurrent fibers and restored on failure;
-- configured middleware aliases are not instantiated until a route uses them;
-- global middleware applies without recursive application boot;
-- warm fused/generated/sharded Webrick route caches boot correctly and preserve signed routes/aliases;
-- disabled/cold route-cache path behavior is covered.
+The remaining #17 audit should explicitly cover framework-wide command behavior rather than duplicate specialist command assertions:
 
-`HttpKernel` checks `MaintenanceManager::status()` before router dispatch and returns a negotiated 503 response with `maintenance: true` plus optional `Retry-After`. No existing test explicitly proves the router is short-circuited while maintenance is active and resumes on the same persistent Web application after maintenance is disabled. That is the remaining focused #16 evidence gap.
+- source command discovery when no valid cache exists;
+- valid command-manifest precedence and invalid/incompatible manifest fallback to source routes;
+- list/version/help metadata paths without application boot;
+- completion listing and Bash/Zsh/Fish generation plus unsupported-shell exit behavior;
+- unknown-command suggestions and command-not-found exit code;
+- descriptor-aware parsing, global `--env`, verbosity/non-interaction/JSON flags and invalid-usage exits;
+- handler exit-code propagation and exception-to-failure conversion;
+- overlap/status execution policy through `CommandExecutionCoordinator`;
+- hidden commands remain undiscoverable through normal CLI help/list lookup.
 
 ## Immediate next work
 
-1. add a focused persistent-Web maintenance test: route side-effect must not execute while maintenance is enabled; response must be 503 with the configured message/`Retry-After`; disabling maintenance on the same app must immediately restore normal route dispatch;
-2. rerun exact-head PHPForge/PHPStan and close checklist item 16 only if the Web runtime matrix stays green;
-3. then audit checklist item 17 CLI discovery/cache/status/exit/overlap/global-option/help/completion/machine-readable behavior and add only missing command-boundary probes.
-
-# Do not regress
-
-- no package-per-module public model;
-- no standalone OTP/passkey modules;
-- no duplicate specialist schema command families;
-- no schema/data deletion during module removal;
-- no copied specialist SQL/transport/retry/cache/database engines;
-- no unsafe lock fallback;
-- no broad `Application` service facade;
-- no second messaging/retry/failure/worker/workflow engine above Omnibus;
-- no Omnibus `Envelope`/`HandlerContext` leakage into Foundation `JobMiddleware`;
-- no retired Console runtime hierarchy;
-- no static global application state;
-- no generic IdentifierManager/request scope;
-- no bulk optional-config copy into Infbyte;
-- no environment-protection key inside `.env`/`.env.example`;
-- no generated optimized artifacts committed.
+1. inspect current `CommandRegistry`, `ParsedInput`, `CommandExecutionCoordinator`, command cache/manifest and existing operational command tests to avoid duplicate coverage;
+2. add one focused CLI runtime matrix through the real `CommandDispatcher`, using project route/cache fixtures and a capturing `CommandIO`;
+3. patch production CLI code only if the matrix exposes a contract defect;
+4. rerun exact-head PHPForge/PHPStan and close checklist item 17 only with green matrix evidence;
+5. then proceed directly to checklist items 18/21 Worker lifecycle and fork-safety closure.
