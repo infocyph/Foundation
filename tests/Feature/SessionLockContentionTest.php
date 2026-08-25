@@ -21,36 +21,40 @@ it('enforces browser-session contention through every configured shared lock bac
 
     [$holder, $contender] = $pair;
     $id = bin2hex(random_bytes(32));
-    $key = 'foundation:session:' . $id;
+    $key = hash('sha256', 'foundation-session:' . $id);
     $held = $holder->acquire($key, 0.0, 5.0);
     expect($held)->not->toBeNull();
 
-    $config = SessionConfig::fromRepository(new ConfigRepository([
-        'session' => [
-            'driver' => 'array',
-            'lock' => [
-                'enabled' => true,
-                'wait' => 0.01,
-                'lease' => 5.0,
+    $config = static fn(float $wait): SessionConfig => SessionConfig::fromRepository(
+        new ConfigRepository([
+            'session' => [
+                'driver' => 'array',
+                'lock' => [
+                    'enabled' => true,
+                    'wait' => $wait,
+                    'lease' => 5.0,
+                ],
             ],
-        ],
-    ]), sys_get_temp_dir() . '/foundation-browser-sessions');
+        ]),
+        sys_get_temp_dir() . '/foundation-browser-sessions',
+    );
     $store = new ArraySessionStore();
     $store->save($id, new SessionPayload(['value' => 1], [], time() + 60));
-    $manager = new SessionManager(
-        $config,
+    $manager = static fn(float $wait): SessionManager => new SessionManager(
+        $config($wait),
         static fn(): SessionStoreInterface => $store,
         static fn(): LockProviderInterface => $contender,
     );
 
     try {
-        expect(fn() => $manager->open($id)->get('value'))
+        expect(fn() => $manager(0.01)->open($id)->get('value'))
             ->toThrow(RuntimeException::class, 'Timed out while waiting for the browser session lock.');
     } finally {
         $holder->release($held);
     }
 
-    $session = $manager->open($id);
+    $session = $manager(2.0)->open($id);
+
     try {
         expect($session->get('value'))->toBe(1);
     } finally {

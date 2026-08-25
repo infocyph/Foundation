@@ -14,9 +14,11 @@ final class InMemoryRecoveryCodeService implements RecoveryCodeServiceInterface
      */
     private array $codes = [];
 
-    public function generate(string $accountId, int $count = 10): array
+    public function generate(string $accountId, int $count = 0): array
     {
+        $count = $count > 0 ? $count : 10;
         $plain = [];
+        $this->codes[$accountId] = [];
 
         for ($i = 0; $i < $count; $i++) {
             $code = strtoupper(substr(bin2hex(random_bytes(6)), 0, 10));

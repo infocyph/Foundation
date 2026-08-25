@@ -149,13 +149,14 @@ it('resolves relative log paths from the application and includes exception deta
 });
 
 it('keeps CLI logging deferred until a logging dependent service is selected', function (): void {
-    $app = Foundation::console();
+    $app = Foundation::cli();
+    $repository = $app->container()->getRepository();
 
-    expect($app->container()->has(LoggerInterface::class))->toBeFalse()
+    expect($repository->hasResolvedSingleton(LoggerInterface::class))->toBeFalse()
         ->and($app->has(LoggerInterface::class))->toBeTrue()
-        ->and($app->container()->has(LoggerInterface::class))->toBeFalse()
+        ->and($repository->hasResolvedSingleton(LoggerInterface::class))->toBeFalse()
         ->and($app->make(LoggerInterface::class))->toBeInstanceOf(LoggerInterface::class)
-        ->and($app->container()->has(LoggerInterface::class))->toBeTrue();
+        ->and($repository->hasResolvedSingleton(LoggerInterface::class))->toBeTrue();
 });
 
 it('supports exception exclusions, sampling, and bounded repeated reporting', function (): void {

@@ -4,22 +4,20 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Filesystem;
 
+use Infocyph\Pathwise\Results\ChunkUploadState;
 use Infocyph\Pathwise\StreamHandler\UploadProcessor;
 use Infocyph\Webrick\Request\Core\UploadedFile;
 use Infocyph\Webrick\Request\Request;
 
 final readonly class FilesystemUploadRequestHandler
 {
-    public function __construct(private FilesystemManager $files) {}
+    public function __construct(private FilesystemTransferFactory $transfers) {}
 
     public function finalizeChunkUpload(string $uploadId, ?string $directory = null, ?string $disk = null): string
     {
-        return $this->files->upload($directory, $disk)->finalizeChunkUpload($uploadId);
+        return $this->transfers->upload($directory, $disk)->finalizeChunkUpload($uploadId);
     }
 
-    /**
-     * @return array{uploadId: string, receivedChunks: int, totalChunks: int, isComplete: bool}
-     */
     public function processChunkUploadRequest(
         Request $request,
         string $field = 'file',
@@ -29,8 +27,8 @@ final readonly class FilesystemUploadRequestHandler
         ?string $originalFilename = null,
         ?string $directory = null,
         ?string $disk = null,
-    ): array {
-        $processor = $this->files->upload($directory, $disk);
+    ): ChunkUploadState {
+        $processor = $this->transfers->upload($directory, $disk);
         $file = $this->uploadedFile($request, $field);
         $resolvedUploadId = $this->resolveString(
             $uploadId,
@@ -74,7 +72,7 @@ final readonly class FilesystemUploadRequestHandler
         ?string $directory = null,
         ?string $disk = null,
     ): string {
-        $processor = $this->files->upload($directory, $disk);
+        $processor = $this->transfers->upload($directory, $disk);
         $file = $this->uploadedFile($request, $field);
         $payload = $this->materializeUpload(
             $file,
@@ -82,7 +80,7 @@ final readonly class FilesystemUploadRequestHandler
             $file->getClientFilename() ?? $field,
         );
 
-        return $processor->processUpload($payload);
+        return $processor->ingestFile($payload);
     }
 
     private function ensureDirectory(string $directory): void
@@ -147,9 +145,7 @@ final readonly class FilesystemUploadRequestHandler
         return $file->getClientFilename() ?? $field;
     }
 
-    /**
-     * @param list<mixed> $candidates
-     */
+    /** @param list<mixed> $candidates */
     private function resolveInt(?int $value, array $candidates, string $label): int
     {
         if (is_int($value)) {
@@ -169,9 +165,7 @@ final readonly class FilesystemUploadRequestHandler
         throw new \InvalidArgumentException(sprintf('Unable to resolve the %s for the chunk upload request.', $label));
     }
 
-    /**
-     * @param list<mixed> $candidates
-     */
+    /** @param list<mixed> $candidates */
     private function resolveString(?string $value, array $candidates, string $label): string
     {
         if (is_string($value) && trim($value) !== '') {
@@ -192,11 +186,7 @@ final readonly class FilesystemUploadRequestHandler
         $info = $processor->getInfo();
         $tempDirectory = trim($info['tempDir']);
 
-        if ($tempDirectory === '') {
-            return sys_get_temp_dir();
-        }
-
-        return $tempDirectory;
+        return $tempDirectory === '' ? sys_get_temp_dir() : $tempDirectory;
     }
 
     private function uploadedFile(Request $request, string $field): UploadedFile

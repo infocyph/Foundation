@@ -8,6 +8,11 @@ use Closure;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Webrick\Router\Definition\Registrar;
 
+/**
+ * Foundation-owned named middleware stacks for application route groups.
+ *
+ * Route registration itself remains a native Webrick Registrar concern.
+ */
 final readonly class RoutePresetRegistrar
 {
     private const array BUILT_IN_GROUPS = [
@@ -22,14 +27,6 @@ final readonly class RoutePresetRegistrar
         'auth:mfa' => 'mfa-auth',
         'auth:verified' => 'verified-auth',
         'auth:web' => 'web-auth',
-    ];
-
-    /** @var array<string, string> */
-    private const array NAMED_PRESETS = [
-        'apiAuth' => 'api-auth',
-        'authMfa' => 'mfa-auth',
-        'authVerified' => 'verified-auth',
-        'authWeb' => 'web-auth',
     ];
 
     public function __construct(
@@ -58,44 +55,12 @@ final readonly class RoutePresetRegistrar
         );
     }
 
-    /**
-     * @param list<mixed> $arguments
-     */
-    public function invokeNamed(Registrar $router, string $method, array $arguments): bool
-    {
-        $preset = self::NAMED_PRESETS[$method] ?? null;
-        if ($preset === null) {
-            return false;
-        }
-
-        $callback = $arguments[0] ?? null;
-        if (!$callback instanceof Closure) {
-            throw new \InvalidArgumentException(sprintf('Route preset "%s" requires a closure callback.', $method));
-        }
-        if (count($arguments) > 4) {
-            throw new \InvalidArgumentException(sprintf('Route preset "%s" accepts at most four arguments.', $method));
-        }
-
-        $this->group(
-            $router,
-            $preset,
-            $callback,
-            $this->prefixArgument($arguments[1] ?? null),
-            $this->domainArgument($arguments[2] ?? null),
-            $this->namePrefixArgument($arguments[3] ?? null),
-        );
-
-        return true;
-    }
-
     public function register(): void
     {
         $this->middleware->register();
     }
 
-    /**
-     * @return list<string>
-     */
+    /** @return list<string> */
     public function stack(string $preset): array
     {
         $stack = $this->configuredGroups()[$preset] ?? $this->builtInGroups()[$preset] ?? [];
@@ -103,9 +68,7 @@ final readonly class RoutePresetRegistrar
         return $this->normalizeStack($stack);
     }
 
-    /**
-     * @return array<string, list<string>>
-     */
+    /** @return array<string, list<string>> */
     private function builtInGroups(): array
     {
         $groups = self::BUILT_IN_GROUPS;
@@ -117,9 +80,7 @@ final readonly class RoutePresetRegistrar
         return $groups;
     }
 
-    /**
-     * @return array<string, list<string>>
-     */
+    /** @return array<string, list<string>> */
     private function configuredGroups(): array
     {
         $configured = $this->config->get('router.middleware.groups', []);
@@ -140,27 +101,6 @@ final readonly class RoutePresetRegistrar
     }
 
     /**
-     * @return list<string>|string|Closure|null
-     */
-    private function domainArgument(mixed $value): array|string|Closure|null
-    {
-        if ($value === null || is_string($value) || $value instanceof Closure) {
-            return $value;
-        }
-
-        return $this->stringListArgument($value, 'domain');
-    }
-
-    private function namePrefixArgument(mixed $value): ?string
-    {
-        if ($value === null || is_string($value)) {
-            return $value;
-        }
-
-        throw new \InvalidArgumentException('Route preset name prefix must be a string.');
-    }
-
-    /**
      * @param array<mixed> $stack
      * @return list<string>
      */
@@ -176,44 +116,5 @@ final readonly class RoutePresetRegistrar
         }
 
         return $normalized;
-    }
-
-    /**
-     * @return list<string>|string|null
-     */
-    private function prefixArgument(mixed $value): array|string|null
-    {
-        if ($value === null || is_string($value)) {
-            return $value;
-        }
-
-        return $this->stringListArgument($value, 'prefix');
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function stringListArgument(mixed $value, string $argument): array
-    {
-        if (!is_array($value)) {
-            throw new \InvalidArgumentException(sprintf(
-                'Route preset %s must be a string or list of strings.',
-                $argument,
-            ));
-        }
-
-        $items = [];
-        foreach ($value as $item) {
-            if (!is_string($item)) {
-                throw new \InvalidArgumentException(sprintf(
-                    'Route preset %s must contain only strings.',
-                    $argument,
-                ));
-            }
-
-            $items[] = $item;
-        }
-
-        return $items;
     }
 }

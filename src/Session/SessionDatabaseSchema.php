@@ -4,17 +4,15 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Session;
 
-use Closure;
 use Infocyph\DBLayer\Schema\Blueprint;
 use Infocyph\DBLayer\Schema\SchemaManager;
-use Infocyph\Foundation\Database\DatabaseManager;
+use Infocyph\Foundation\Database\DBLayerFactory;
 
 final readonly class SessionDatabaseSchema
 {
     public function __construct(
         private SessionConfig $config,
-        /** @var Closure():DatabaseManager */
-        private Closure $database,
+        private DBLayerFactory $database,
     ) {}
 
     public function install(?string $connection = null): void
@@ -47,7 +45,7 @@ final readonly class SessionDatabaseSchema
     private function schema(?string $connection): SchemaManager
     {
         return new SchemaManager(
-            ($this->database)()->connection($connection ?? $this->config->databaseConnection),
+            $this->database->connection($connection ?? $this->config->databaseConnection),
         );
     }
 }

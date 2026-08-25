@@ -8,47 +8,36 @@ return [
     | Validation Execution
     |--------------------------------------------------------------------------
     |
-    | "fail_fast" stops at the first failed rule when true. Disable it when a
-    | caller needs the complete set of validation failures in one pass.
-    | Accepted values: `true|false`.
+    | Foundation resolves named application schemas and then hands execution to
+    | ReqShield. "fail_fast" selects ReqShield's rule-level fail-fast behavior.
     |
     */
     'fail_fast' => true,
 
     /*
     |--------------------------------------------------------------------------
+    | Database Validation
+    |--------------------------------------------------------------------------
+    |
+    | ReqShield database rules use the configured DBLayer connection lazily.
+    | Null selects Foundation's default database connection. Applications that
+    | never use database validation do not open a database connection.
+    |
+    */
+    'database_connection' => null,
+
+    /*
+    |--------------------------------------------------------------------------
     | Default Validation Profile
     |--------------------------------------------------------------------------
     |
-    | "allow_unknown" permits fields absent from the schema; "strip_unknown"
-    | removes them from validated output. "strict" disables permissive value
-    | coercion. "nested" enables nested validation and "nested_mode" selects
-    | how nested failures are aggregated. "throw_on_failure" chooses exceptions
-    | instead of a failed result.
+    | "allow_unknown" permits fields absent from the schema. "strict" rejects
+    | unknown fields and "strip_unknown" removes them instead. "nested" enables
+    | ReqShield nested-field flattening; nested_mode accepts `all|required`
+    | (`required` maps to ReqShield's targeted mode).
     |
-    | "locale" selects messages and "locale_packs" supplies additional packs.
-    | "messages" replaces rule messages, "aliases" gives fields display names,
-    | "sanitizers" and "casts" define output transformations, and "dto" names
-    | an optional output class. Empty collections retain library defaults.
-    |
-    | Boolean keys accept `true|false`. Nested mode accepts `all|required`.
-    | A locale may be `en`. A Bengali locale pack may map its `required` key to
-    | `এই ঘরটি আবশ্যক।`; a custom message may map `required` to
-    | `This field is required.`; and an alias may map `email` to `email address`.
-    | A DTO class may be `App\\Data\\SignupData`.
-    |
-    | Built-in sanitizers: `alpha|alphaDash|alphanumeric|alphanumericSpace|array|`
-    | `base64Decode|base64Encode|boolean|camelCase|currency|domain|email|`
-    | `escapeLike|filename|float|formatCurrency|htmlDecode|htmlEncode|integer|`
-    | `jsonDecode|jsonEncode|kebabCase|lowercase|normalizeWhitespace|numeric|`
-    | `pascalCase|phone|removeLineBreaks|removeSqlPatterns|removeXss|sentenceCase|`
-    | `slug|snakeCase|string|stripTags|stripUnsafeTags|stripWhitespace|titleCase|`
-    | `trim|truncate|truncateWords|uppercase|url`, or a callable.
-    |
-    | Built-in casts: `int|integer|float|double|real|bool|boolean|string|array|`
-    | `object|date|datetime|datetimeimmutable`, an enum class, a sanitizer name,
-    | or a callable. Map fields to names/pipelines, e.g. `['email' => ['trim',
-    | 'lowercase']]` and `['age' => 'int']`.
+    | Messages, aliases, sanitizers, casts, locale packs and DTO handling are
+    | native ReqShield features. Limits expose ReqShield's input safety bounds.
     |
     */
     'defaults' => [
@@ -65,17 +54,36 @@ return [
         'sanitizers' => [],
         'casts' => [],
         'dto' => null,
+        'limits' => [
+            'max_depth' => 32,
+            'max_fields' => 10_000,
+            'max_wildcard_expansions' => 10_000,
+            'max_flattened_paths' => 10_000,
+        ],
     ],
 
     /*
     |--------------------------------------------------------------------------
-    | Schema Overrides
+    | Named Application Schemas
     |--------------------------------------------------------------------------
     |
-    | Add schema-name keys here to override the defaults for individual
-    | validation schemas without changing their registered rule definitions.
-    | Example: `['auth.login' => ['strict' => true]]`; accepted override keys
-    | are the same keys documented in the default validation profile above.
+    | Foundation ships its authentication request schemas internally. Add host
+    | application schemas here. `extend` overlays fields onto an existing named
+    | schema without replacing the complete definition.
+    |
+    */
+    'schemas' => [],
+    'extend' => [],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Schema Profile Overrides
+    |--------------------------------------------------------------------------
+    |
+    | Override the default validation profile for individual named schemas.
+    | Example: `['auth.login' => ['strict' => true]]`. Nested map options such
+    | as messages, aliases, casts, sanitizers, locale packs and limits merge
+    | with their defaults instead of replacing the full map.
     |
     */
     'overrides' => [],

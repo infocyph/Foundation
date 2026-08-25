@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace {{ namespace }};
 
-use Infocyph\Console\Command\Command;
-use Infocyph\Console\Command\CommandDefinition;
-use Infocyph\Console\Command\ExitCode;
+use Infocyph\Foundation\Command\Command;
+use Infocyph\Foundation\Command\CommandDefinition;
+use Infocyph\Foundation\Command\ExitCode;
 
 final class {{ class }} extends Command
 {

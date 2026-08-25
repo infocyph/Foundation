@@ -24,7 +24,7 @@ abstract readonly class AbstractEpicryptTimedTokenService
         return $this->factory->payload($context)->encode(
             $claims,
             $this->factory->key(),
-            ['exp' => $this->factory->now() + $this->ttlSeconds],
+            $this->factory->now() + $this->ttlSeconds,
         );
     }
 

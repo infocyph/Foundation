@@ -60,6 +60,7 @@ use Infocyph\Foundation\Auth\Support\{
 };
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DBLayerFactory;
+use Psr\EventDispatcher\EventDispatcherInterface;
 
 final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
 {
@@ -85,9 +86,7 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
             : null;
     }
 
-    /**
-     * @param class-string $storeClass
-     */
+    /** @param class-string $storeClass */
     private function bindClockedDbStore(string $id, string $storeClass, ?string $connection): void
     {
         $this->singleton($id, fn() => new $storeClass(
@@ -98,9 +97,7 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
         ));
     }
 
-    /**
-     * @param class-string $storeClass
-     */
+    /** @param class-string $storeClass */
     private function bindPlainDbStore(string $id, string $storeClass, ?string $connection): void
     {
         $this->singleton($id, fn() => new $storeClass(
@@ -110,9 +107,7 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
         ));
     }
 
-    /**
-     * @return array<string, class-string>
-     */
+    /** @return array<string, class-string> */
     private function clockedDbStores(): array
     {
         return [
@@ -129,9 +124,7 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
         ];
     }
 
-    /**
-     * @return array<string, class-string>
-     */
+    /** @return array<string, class-string> */
     private function clockedMemoryStores(): array
     {
         return [
@@ -140,9 +133,7 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
         ];
     }
 
-    /**
-     * @return array<string, class-string>
-     */
+    /** @return array<string, class-string> */
     private function plainDbStores(): array
     {
         return [
@@ -153,9 +144,7 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
         ];
     }
 
-    /**
-     * @return array<string, class-string>
-     */
+    /** @return array<string, class-string> */
     private function plainMemoryStores(): array
     {
         return [
@@ -181,7 +170,6 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
         foreach ($this->plainDbStores() as $id => $storeClass) {
             $this->bindPlainDbStore($id, $storeClass, $connection);
         }
-
         foreach ($this->clockedDbStores() as $id => $storeClass) {
             $this->bindClockedDbStore($id, $storeClass, $connection);
         }
@@ -194,7 +182,6 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
         foreach ($this->plainMemoryStores() as $id => $storeClass) {
             $this->singleton($id, fn() => new $storeClass());
         }
-
         foreach ($this->clockedMemoryStores() as $id => $storeClass) {
             $this->singleton($id, fn() => new $storeClass(
                 $this->service(ClockInterface::class),
@@ -218,7 +205,7 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
             return new ForwardingAuditEventStore(
                 $storage,
                 function (AuthEvent $event): void {
-                    $this->app->messaging()->event($event);
+                    $this->app->make(EventDispatcherInterface::class)->dispatch($event);
                 },
             );
         });

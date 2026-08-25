@@ -4,17 +4,20 @@ declare(strict_types=1);
 
 use Infocyph\CacheLayer\Counter\AtomicCounterStoreInterface;
 use Infocyph\CacheLayer\Counter\AtomicCounterValue;
-use Infocyph\Foundation\Auth\Adapter\CacheLayer\AtomicCounterStore;
-use Infocyph\Foundation\Foundation;
 use Infocyph\DBLayer\Exceptions\TransactionException;
+use Infocyph\Foundation\Auth\Adapter\CacheLayer\AtomicCounterStore;
+use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Cache\CacheManager;
+use Infocyph\Foundation\Config\ConfigValidator;
+use Infocyph\Foundation\Database\DBLayerFactory;
+use Infocyph\Foundation\Foundation;
 
 it('creates node cache stores and reports configured cluster status', function (): void {
     $app = foundationClusterCacheApplication();
-
-    $cache = $app->cache()->store('catalog');
+    $manager = $app->make(CacheManager::class);
+    $cache = $manager->store('catalog');
     $cache->set('product.42', 'cached');
-
-    $status = $app->cache()->clusterStatus('catalog');
+    $status = $app->make(CacheLayerFactory::class)->cluster('catalog')->status();
 
     expect($cache->get('product.42'))->toBe('cached')
         ->and($status->cluster)->toBe('catalog')
@@ -24,12 +27,13 @@ it('creates node cache stores and reports configured cluster status', function (
 it('publishes cache invalidations through the transactional outbox only after commit', function (): void {
     $app = foundationClusterCacheApplication();
     $table = 'products_' . str_replace('.', '', uniqid('', true));
-    $app->db()->connection()->statement('CREATE TABLE ' . $table . ' (id INTEGER PRIMARY KEY, name TEXT NOT NULL)');
+    $database = $app->make(DBLayerFactory::class);
+    $cache = $app->make(CacheManager::class);
+    $database->connection()->statement('CREATE TABLE ' . $table . ' (id INTEGER PRIMARY KEY, name TEXT NOT NULL)');
 
-    $cluster = $app->cache()->cluster('catalog');
+    $cluster = $app->make(CacheLayerFactory::class)->cluster('catalog');
     $cluster->cache()->set('product.42', 'cached');
-
-    $app->cache()->transactionalInvalidation(
+    $cache->transactionalInvalidation(
         'catalog',
         static function ($connection, $outbox) use ($table): void {
             $connection->table($table)->insert(['id' => 42, 'name' => 'Ada']);
@@ -38,22 +42,22 @@ it('publishes cache invalidations through the transactional outbox only after co
     );
 
     expect($cluster->cache()->get('product.42'))->toBeNull()
-        ->and($app->db()->table($table)->count())->toBe(1)
+        ->and($database->connection()->table($table)->count())->toBe(1)
         ->and($cluster->status()->pendingEventCount)->toBe(1);
 });
 
 it('rolls back transactional outbox events without invalidating the local cache', function (): void {
     $app = foundationClusterCacheApplication();
-    $cluster = $app->cache()->cluster('catalog');
+    $cache = $app->make(CacheManager::class);
+    $cluster = $app->make(CacheLayerFactory::class)->cluster('catalog');
     $cluster->cache()->set('product.42', 'cached');
 
-    expect(static function () use ($app): mixed {
-        return $app->cache()->transactionalInvalidation(
+    expect(static function () use ($cache): mixed {
+        return $cache->transactionalInvalidation(
             'catalog',
             static function ($connection, $outbox): void {
                 expect($connection->getPdo()->inTransaction())->toBeTrue();
                 $outbox->invalidateKey('product.42');
-
                 throw new RuntimeException('rollback');
             },
         );
@@ -72,10 +76,7 @@ it('rejects unsafe cluster topology and non-atomic counter configuration', funct
             ],
             'clusters' => [
                 'auth' => [
-                    'store' => 'auth',
-                    'cluster' => 'auth',
-                    'node_id' => '',
-                    'transport' => 'events',
+                    'store' => 'auth', 'cluster' => 'auth', 'node_id' => '', 'transport' => 'events',
                 ],
             ],
             'transports' => [
@@ -87,14 +88,11 @@ it('rejects unsafe cluster topology and non-atomic counter configuration', funct
         ],
         'database' => [
             'default' => 'sqlite',
-            'connections' => [
-                'sqlite' => ['driver' => 'sqlite', 'database' => ':memory:'],
-            ],
+            'connections' => ['sqlite' => ['driver' => 'sqlite', 'database' => ':memory:']],
         ],
     ]);
 
-    $validation = $app->validateConfiguration();
-
+    $validation = $app->make(ConfigValidator::class)->validate();
     expect($validation->fails())->toBeTrue()
         ->and($validation->messages())->toContain('cache.clusters.auth.node_id must be a stable explicit instance identity.')
         ->and($validation->messages())->toContain('cache.clusters.auth cannot be used for auth, session, security, or idempotency state.')
@@ -102,12 +100,9 @@ it('rejects unsafe cluster topology and non-atomic counter configuration', funct
 });
 
 it('adapts CacheLayer atomic counters to auth lockout counters', function (): void {
-    $backend = new class implements AtomicCounterStoreInterface
-    {
+    $backend = new class implements AtomicCounterStoreInterface {
         public int $lastTtl = 0;
-
         public string $lastKey = '';
-
         public int $lastBy = 0;
 
         public function decrement(string $key, int $by = 1, ?int $ttlSeconds = null): AtomicCounterValue
@@ -115,21 +110,18 @@ it('adapts CacheLayer atomic counters to auth lockout counters', function (): vo
             $this->lastKey = $key;
             $this->lastBy = $by;
             $this->lastTtl = $ttlSeconds ?? 0;
-
             return new AtomicCounterValue(0, false);
         }
 
         public function delete(string $key): bool
         {
             $this->lastKey = $key;
-
             return true;
         }
 
         public function get(string $key): ?int
         {
             $this->lastKey = $key;
-
             return null;
         }
 
@@ -138,13 +130,11 @@ it('adapts CacheLayer atomic counters to auth lockout counters', function (): vo
             $this->lastKey = $key;
             $this->lastBy = $by;
             $this->lastTtl = $ttlSeconds ?? 0;
-
             return new AtomicCounterValue(6, true);
         }
     };
 
     $counters = new AtomicCounterStore($backend, 'auth:');
-
     expect($counters->increment('login.42', ttlSeconds: 900))->toBe(6)
         ->and($backend->lastTtl)->toBe(900);
 });
@@ -174,17 +164,12 @@ function foundationClusterCacheApplication(): \Infocyph\Foundation\Application\A
             ],
             'transports' => [
                 'events' => [
-                    'driver' => 'pdo',
-                    'connection' => 'primary',
-                    'allow_sqlite_for_testing' => true,
+                    'driver' => 'pdo', 'connection' => 'primary', 'allow_sqlite_for_testing' => true,
                 ],
             ],
             'clusters' => [
                 'catalog' => [
-                    'store' => 'catalog',
-                    'cluster' => 'catalog',
-                    'node_id' => 'node-a',
-                    'transport' => 'events',
+                    'store' => 'catalog', 'cluster' => 'catalog', 'node_id' => 'node-a', 'transport' => 'events',
                 ],
             ],
         ],

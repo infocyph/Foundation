@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Auth\Internal;
 
 use Infocyph\Epicrypt\Password\PasswordHasher as EpicryptPasswordEngine;
-use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptPasswordHasher;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptPasswordVerifier;
 use Infocyph\Foundation\Auth\Contract\Security\PasswordHasherInterface;
@@ -17,28 +16,16 @@ use Infocyph\Foundation\Auth\Support\NativePasswordVerifier;
 
 final readonly class AuthPasswordRegistrar extends AbstractAuthRegistrar
 {
-    public function __construct(
-        Application $app,
-        \Infocyph\InterMix\DI\Container $container,
-        private EpicryptConfigResolver $epicrypt,
-    ) {
-        parent::__construct($app, $container);
-    }
-
     public function register(AuthDriverResolver $drivers): void
     {
         if ($drivers->passwords() === AuthPasswordDriver::SECURITY) {
             $this->requirePackage(EpicryptPasswordEngine::class, 'infocyph/epicrypt', 'crypto');
-            $options = $this->epicrypt->passwordOptions();
 
             $this->singleton(PasswordHasherInterface::class, fn() => new EpicryptPasswordHasher(
-                hasher: new EpicryptPasswordEngine(),
-                options: $options,
+                $this->app->make(EpicryptPasswordEngine::class),
             ));
-
             $this->singleton(PasswordVerifierInterface::class, fn() => new EpicryptPasswordVerifier(
-                hasher: new EpicryptPasswordEngine(),
-                options: $options,
+                $this->app->make(EpicryptPasswordEngine::class),
             ));
 
             return;

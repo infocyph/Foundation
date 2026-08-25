@@ -8,6 +8,7 @@ use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Runtime\RuntimeContextTracker;
 use Infocyph\Foundation\Session\Middleware\CsrfMiddleware;
 use Infocyph\Foundation\Session\Middleware\SessionMiddleware;
@@ -19,17 +20,19 @@ final class SessionServiceProvider extends ServiceProvider
     {
         $container = $app->container();
 
-        $this->bindFactory($container, SessionConfig::class, fn() => SessionConfig::fromRepository(
-            $app->config(),
-            $app->sessionsPath(),
-        ), LifetimeEnum::Singleton);
+        $this->bindFactory($container, SessionConfig::class, function () use ($app): SessionConfig {
+            $config = SessionConfig::fromRepository($app->config(), $app->sessionsPath());
+            new SessionTopologyGuard($app->config())->assert($config);
+
+            return $config;
+        }, LifetimeEnum::Singleton);
         $this->bindFactory($container, SessionStoreFactory::class, fn() => new SessionStoreFactory(
             $app,
             $app->make(SessionConfig::class),
         ), LifetimeEnum::Singleton);
         $this->bindFactory($container, SessionDatabaseSchema::class, fn() => new SessionDatabaseSchema(
             $app->make(SessionConfig::class),
-            fn() => $app->db(),
+            $app->make(DBLayerFactory::class),
         ), LifetimeEnum::Singleton);
         $this->bindFactory($container, SessionManager::class, fn() => new SessionManager(
             $app->make(SessionConfig::class),

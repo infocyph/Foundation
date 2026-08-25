@@ -8,8 +8,11 @@ return [
     | Default Filesystem Disk
     |--------------------------------------------------------------------------
     |
-    | This value names the disk used when filesystem calls do not select one.
-    | It must match a key in the "disks" collection below. Shipped values:
+    | Foundation names application disks; Pathwise/Flysystem own their storage
+    | engines and operations. This value selects the configured disk injected
+    | when a caller requests the native FilesystemOperator without a disk name.
+    |
+    | It must match a key in "disks" below. Shipped values are
     | `local|public|uploads`; custom configured disk names are also valid.
     |
     */
@@ -20,41 +23,44 @@ return [
     | Filesystem Disks
     |--------------------------------------------------------------------------
     |
-    | Each disk declares its storage "driver" and root directory. "local"
-    | stores private application data, "public" stores publishable files, and
-    | "uploads" isolates user-provided content from other application files.
-    | The shipped driver is `local`; root examples are `storage/app` and
-    | `storage/uploads`. Additional values depend on registered adapters.
+    | These are application-level Pathwise storage configurations. Foundation
+    | resolves relative local roots against the application base path and mounts
+    | each disk by name; Pathwise StorageFactory owns driver aliases, adapters,
+    | Flysystem options and third-party driver construction.
+    |
+    | "local" stores private application data, "public" stores publishable
+    | files, and "uploads" isolates user-provided content. Additional drivers
+    | use Pathwise's native configuration and their corresponding Flysystem
+    | adapter packages rather than Foundation-specific wrappers.
     |
     */
     'disks' => [
         'local' => [
             'driver' => 'local',
-            'root' => storage_path('app'),
+            'root' => 'storage/app',
         ],
         'public' => [
             'driver' => 'local',
-            'root' => storage_path('app/public'),
+            'root' => 'storage/app/public',
         ],
         'uploads' => [
             'driver' => 'local',
-            'root' => storage_path('uploads'),
+            'root' => 'storage/uploads',
         ],
     ],
 
-    /**
-     * Public Storage Links
-     *
-     * Each key is a symbolic-link path inside the public directory and each
-     * value is its target inside the storage directory. The storage:link
-     * command validates both boundaries, creates missing target directories,
-     * preserves correct existing links, and rejects conflicting paths.
-     *
-     * Example:
-     * [public_path('storage') => storage_path('app/public')]
-     */
+    /*
+    |--------------------------------------------------------------------------
+    | Public Storage Links
+    |--------------------------------------------------------------------------
+    |
+    | Each key is an application-relative link path and each value is its
+    | application-relative target. StorageLinkManager resolves both through the
+    | active application's PathManager, then enforces public/storage boundaries.
+    |
+    */
     'links' => [
-        public_path('storage') => storage_path('app/public'),
+        'public/storage' => 'storage/app/public',
     ],
 
     /*
@@ -62,9 +68,13 @@ return [
     | Upload Policy
     |--------------------------------------------------------------------------
     |
+    | Foundation maps this application policy directly onto a native Pathwise
+    | UploadProcessor. Upload validation, chunk handling, naming, malware hooks,
+    | content inspection and final storage remain Pathwise behavior.
+    |
     | "disk" and "directory" select the destination; "temp_directory" controls
     | staging and "use_date_directories" partitions final files by date.
-    | "validation_profile" selects an optional registered validation profile.
+    | "validation_profile" selects a native Pathwise validation profile.
     |
     | "allowed_file_types" contains accepted media types and
     | "allowed_extensions" is an extension allowlist. "blocked_extensions" is
@@ -73,14 +83,9 @@ return [
     | image dimensions means no configured limit for that constraint.
     |
     | "naming_strategy" selects generated filenames. Malware scanning must be
-    | available when "require_malware_scan" is true. Strict content-type
-    | validation rejects files whose detected type does not match expectations.
-    |
-    | Disk example: `uploads`; directory example: `avatars`; temp example:
-    | `/var/tmp/acme-uploads`. Validation profiles: `image|video|document` or
-    | null. MIME example: `image/png`; extension example: `png`. Naming strategy:
-    | `hash|timestamp`. All switches accept `true|false`. Size values are bytes,
-    | count/dimension values are integers, and `0` disables the relevant limit.
+    | available when "require_malware_scan" is true. Strict content validation
+    | is enabled by default and rejects MIME/extension or magic-signature
+    | mismatches; disable it only for a deliberately relaxed upload policy.
     |
     */
     'uploads' => [
@@ -99,7 +104,7 @@ return [
         'max_image_height' => env('FILESYSTEM_UPLOAD_MAX_IMAGE_HEIGHT', 0),
         'naming_strategy' => env('FILESYSTEM_UPLOAD_NAMING_STRATEGY', 'hash'),
         'require_malware_scan' => env('FILESYSTEM_UPLOAD_REQUIRE_MALWARE_SCAN', false),
-        'strict_content_type_validation' => env('FILESYSTEM_UPLOAD_STRICT_CONTENT_TYPE_VALIDATION', false),
+        'strict_content_type_validation' => env('FILESYSTEM_UPLOAD_STRICT_CONTENT_TYPE_VALIDATION', true),
     ],
 
     /*
@@ -107,19 +112,18 @@ return [
     | Download Policy
     |--------------------------------------------------------------------------
     |
+    | Foundation maps this application policy onto a native Pathwise
+    | DownloadProcessor. Path validation, metadata, ranges and stream copying
+    | remain Pathwise behavior; Webrick conditional responses are composed by
+    | Foundation's HTTP bridge.
+    |
     | "disk" and "directory" select the source. "allowed_roots" constrains
     | resolved paths; extension allow/block lists restrict served file types.
     | "block_hidden_files" rejects dotfiles. "chunk_size" is the streaming read
     | size in bytes and "default_name" is used when no download name is given.
-    |
     | "force_attachment" controls Content-Disposition. "max_size" is a byte
     | ceiling where zero means unlimited, and "range_requests" enables partial
     | content responses for resumable or seekable downloads.
-    |
-    | Disk example: `uploads`; directory/root example: `exports`; extension
-    | example: `pdf`; chunk example: `8192` bytes; filename example:
-    | `report.pdf`. Boolean switches accept `true|false`; max size is bytes and
-    | `0` disables that ceiling.
     |
     */
     'downloads' => [
@@ -141,10 +145,13 @@ return [
     | Web-Server Offload
     |--------------------------------------------------------------------------
     |
-    | Enable "x_sendfile.enabled" for a trusted X-Sendfile-capable server or
-    | "x_accel_redirect.enabled" for an Nginx internal-location deployment.
-    | Leave both disabled until the corresponding server mapping is configured.
-    | Both enable keys accept `true|false`.
+    | Offload headers are Foundation/Webrick application policy. Calling the
+    | corresponding response method while its switch is disabled fails rather
+    | than emitting a server-trusted header accidentally.
+    |
+    | Enable "x_sendfile.enabled" only for a trusted X-Sendfile-capable server;
+    | X-Sendfile accepts local paths only. Enable "x_accel_redirect.enabled"
+    | only after configuring the matching Nginx internal location.
     |
     */
     'offload' => [

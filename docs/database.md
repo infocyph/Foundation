@@ -1,106 +1,182 @@
 # Database migrations and seeding
 
-Install DBLayer and publish `config/database.php`:
+Foundation composes DBLayer 5 for application database configuration,
+migrations, schema inspection, and operational commands. DBLayer remains the
+owner of connections, queries, transactions, schema grammar, migration
+execution, replicas, pooling, query caching, and telemetry.
+
+Install the canonical `database` module and publish `config/database.php`:
 
 ```bash
-php infbyte module:install db
+php infbyte module:install database
 ```
 
-The template contains separate MySQL/MariaDB, PostgreSQL, and SQLite examples
-using only keys supported by that driver. Foundation passes the selected
-connection policy to DBLayer; it does not normalize SQL or maintain a second
-schema grammar.
+`db` and `dblayer` remain accepted module aliases, but public documentation uses
+`database` as the canonical capability name.
 
-## Explicit migration manifest
+Application services may type-hint `Infocyph\DBLayer\Connection\Connection` to
+receive the configured default connection. Generic database work should use
+DBLayer directly rather than a Foundation database facade.
 
-Register ordered migration classes:
+## Foundation-owned schemas
+
+The `database` module owns database infrastructure; it does not own an
+application schema. Capability schemas are installed through their purpose
+modules.
+
+Foundation authentication schema:
+
+```bash
+php infbyte module:schema:status auth
+php infbyte module:schema:install auth
+```
+
+Database-backed browser sessions:
+
+```bash
+php infbyte module:schema:status session
+php infbyte module:schema:install session
+```
+
+Database-backed CacheLayer stores/invalidation transports are similarly managed
+through the `cache` module when applicable:
+
+```bash
+php infbyte module:schema:status cache
+php infbyte module:schema:install cache
+```
+
+To provision every schema required by the current application configuration:
+
+```bash
+php infbyte module:schema:sync
+```
+
+All schema commands accept `--connection=<name>` where the provisioner supports
+a DBLayer connection override. `module:remove` never drops schemas or
+application data.
+
+Foundation auth MFA factors include a scalar `revision` column used for
+portable compare-and-swap state transitions. JSON metadata remains payload and
+is never the synchronization token.
+
+## Explicit application migration manifest
+
+Application migrations are declared under `database.migrations`; Foundation
+performs no directory scanning:
 
 ```php
-'migrations' => [
-    'classes' => [
-        App\Database\Migration\CreateAccounts::class,
-        App\Database\Migration\CreateInvoices::class,
+return [
+    'default' => 'sqlite',
+
+    'migrations' => [
+        'classes' => [
+            App\Database\Migration\CreateAccountsMigration::class,
+            App\Database\Migration\CreateInvoicesMigration::class,
+        ],
+        'table' => 'migrations',
+        'lock_store' => null,
+        'lock_wait_seconds' => 10.0,
+        'lock_lease_seconds' => 300.0,
     ],
-    'table' => 'migrations',
-    'lock_store' => 'redis',
-    'lock_wait_seconds' => 10.0,
-    'lock_lease_seconds' => 300.0,
-],
+
+    'seeders' => [
+        App\Database\Seeder\ProductionSeeder::class,
+    ],
+];
 ```
 
-Classes implement `Infocyph\DBLayer\Migration\Migration` and use DBLayer
-`SchemaManager`/`Blueprint`. Foundation performs no filesystem discovery.
+Migration classes implement `Infocyph\DBLayer\Migration\Migration` and use
+DBLayer `SchemaManager`/`Blueprint`.
 
-Generate a registered-class starting point without scanning the project:
+Generate starting points without modifying configuration automatically:
 
 ```bash
 php infbyte create:migration CreateAccounts
 php infbyte create:seeder Production
 ```
 
-The commands create `App\Database\Migration\CreateAccountsMigration` and
-`App\Database\Seeder\ProductionSeeder`. Add those classes to
-`database.migrations.classes` and `database.seeders`; generation never edits
-application configuration implicitly. Migration identifiers include a UTC
-timestamp and descriptive suffix, and existing files are preserved unless
-`--force` is supplied.
+Then add the generated classes to `database.migrations.classes` or
+`database.seeders` explicitly.
 
-Available commands:
+## Migration commands
 
 ```bash
 php infbyte migrate
-php infbyte migrate --step=true
+php infbyte migrate --step
+php infbyte migrate --pretend
 php infbyte migrate:status
 php infbyte migrate:rollback --batches=1
-php infbyte migrate:refresh --force=true
-php infbyte migrate:reset --force=true
-php infbyte migrate:fresh --force=true
+php infbyte migrate:rollback --batch=3
+php infbyte migrate:refresh --force
+php infbyte migrate:reset --force
+php infbyte migrate:fresh --force
 ```
 
-Destructive operations require explicit `--force=true`. If `lock_store` is
-null, no distributed lock is used. Otherwise Foundation requests the named
-CacheLayer lock provider; the backend may be file, Redis, Valkey, Memcached,
-PDO, or SQLite according to CacheLayer configuration.
+Every migration command accepts `--connection=<name>`.
 
-## Seeders
+`migrate --pretend` delegates directly to DBLayer 5
+`MigrationRunner::pretend()`. DBLayer returns pending migration IDs mapped to an
+ordered list of `sql` + `bindings` records. Foundation only renders that native
+preview; it does not implement a second SQL compiler or migration engine.
 
-Register classes under `database.seeders`. They implement DBLayer `Seeder` or
-are invokable services:
+Destructive migration operations require `--force` in non-interactive mode.
+When `database.migrations.lock_store` is configured, Foundation obtains the
+selected CacheLayer coordination lock and DBLayer refreshes ownership through
+its migration checkpoints.
+
+## Seeding
+
+Registered seeders run in configured order:
 
 ```bash
 php infbyte db:seed
-php infbyte db:seed --transactional=false
+php infbyte db:seed --no-transaction
+php infbyte db:seed --connection=reporting
 ```
 
-Seed order is the configured order. There is no runtime scanning.
+`transaction` is a negatable option: seeders are transactional by default, and
+`--no-transaction` disables that behavior. There is no runtime seeder scan.
 
-## Database inspection
+## Inspection and operations
 
-Inspect the selected connection and its user tables:
+Inspect the selected connection:
 
 ```bash
 php infbyte db:show
-php infbyte db:show --connection=reporting --json=true
+php infbyte db:show --connection=reporting
 php infbyte db:table users
-php infbyte db:table reporting.events --connection=reporting
+php infbyte db:table events --connection=reporting
 ```
 
-`db:table` reports columns, indexes, and foreign keys using read-only metadata
-queries for DBLayer's SQLite, MySQL/MariaDB, and PostgreSQL drivers. Identifiers
-are validated before interpolation. These commands connect to the database only
-when selected and do not participate in web bootstrap.
+Drop all user tables only with explicit destructive authorization:
 
-## Testing
-
-```php
-$db = $app->testing()->database();
-
-$result = $db->transaction(function () use ($app) {
-    return $app->db()->repository('accounts')->create([...]);
-});
-
-$db->refresh();
+```bash
+php infbyte db:wipe --force
+php infbyte db:wipe --connection=testing --force
 ```
 
-`transaction()` always rolls back in `finally`. `refresh()` explicitly
-authorizes DBLayer's destructive refresh and reruns the registered migrations.
+DBLayer operational monitoring is available through:
+
+```bash
+php infbyte db:monitor
+php infbyte db:monitor --section=status
+php infbyte db:monitor --section=sessions
+php infbyte db:monitor --section=queries --seconds=10
+php infbyte db:monitor --section=locks
+php infbyte db:monitor --section=tables
+php infbyte db:monitor --section=indexes
+php infbyte db:monitor --section=replication
+php infbyte db:monitor --section=maintenance
+```
+
+Full snapshots may opt into more expensive maintenance data with
+`--maintenance`. Foundation only selects the connection/options and renders
+DBLayer `DatabaseMonitor` output.
+
+## Persistent runtime cleanup
+
+Every DBLayer connection resolved through Foundation participates in the
+execution-boundary cleanup managed by `RuntimeContextTracker`. Shared
+connections are sanitized for reuse; execution-local state must not leak into
+the next Web request, CLI execution, worker message, or scheduled unit.

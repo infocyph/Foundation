@@ -26,66 +26,97 @@ it('derives route cache locations from the selected matcher', function (): void 
 
 it('detects a warm single-file route cache', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-route-cache-' . bin2hex(random_bytes(4));
-    $cache = $basePath . '/bootstrap/cache/routes/fused.php';
-    mkdir(dirname($cache), 0777, true);
-    file_put_contents($cache, "<?php\n\nreturn [];\n");
+    $config = new ConfigRepository([
+        'app' => ['base_path' => $basePath],
+        'router' => ['matcher' => 'fused'],
+    ]);
+    $cache = RouteCachePath::for($config);
 
     try {
-        expect(RouteCachePath::isWarm(new ConfigRepository([
-            'app' => ['base_path' => $basePath],
-            'router' => ['matcher' => 'fused'],
-        ])))->toBeTrue()
+        WebrickRouteCache::build([
+            'cache' => $cache,
+            'matcher' => 'fused',
+            'register' => static fn(Registrar $router): mixed => $router->get('/fused', static fn(): string => 'ok'),
+        ]);
+        RouteCachePath::markFresh($config);
+
+        expect(RouteCachePath::isWarm($config))->toBeTrue()
             ->and(RouteCachePath::isWarm(new ConfigRepository([
                 'app' => ['base_path' => $basePath],
                 'router' => ['matcher' => 'fused', 'cache' => false],
             ])))->toBeFalse();
     } finally {
-        unlink($cache);
-        rmdir(dirname($cache));
-        rmdir(dirname(dirname($cache)));
-        rmdir(dirname(dirname(dirname($cache))));
-        rmdir($basePath);
+        routeCacheRemoveDirectory($basePath);
     }
 });
 
 it('detects warm generated and sharded route caches', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-route-cache-' . bin2hex(random_bytes(4));
+    $generated = new ConfigRepository([
+        'app' => ['base_path' => $basePath],
+        'router' => ['matcher' => 'generated'],
+    ]);
+    $sharded = new ConfigRepository([
+        'app' => ['base_path' => $basePath],
+        'router' => ['matcher' => 'sharded'],
+    ]);
     $directory = $basePath . '/bootstrap/cache/routes';
-    mkdir($directory, 0777, true);
 
     try {
         WebrickRouteCache::build([
-            'cache' => $directory . '/generated.php',
+            'cache' => RouteCachePath::for($generated),
             'matcher' => 'generated',
             'register' => static fn(Registrar $router): mixed => $router->get('/generated', static fn(): string => 'ok'),
         ]);
-        expect(RouteCachePath::isWarm(new ConfigRepository([
-            'app' => ['base_path' => $basePath],
-            'router' => ['matcher' => 'generated'],
-        ])))->toBeTrue();
+        RouteCachePath::markFresh($generated);
+        expect(RouteCachePath::isWarm($generated))->toBeTrue();
 
         WebrickRouteCache::clear([
-            'cache' => $directory . '/generated.php',
+            'cache' => RouteCachePath::for($generated),
             'matcher' => 'generated',
         ]);
         WebrickRouteCache::build([
-            'cache' => $directory,
+            'cache' => RouteCachePath::for($sharded),
             'matcher' => 'sharded',
             'register' => static fn(Registrar $router): mixed => $router->get('/sharded', static fn(): string => 'ok'),
         ]);
-        expect(RouteCachePath::isWarm(new ConfigRepository([
-            'app' => ['base_path' => $basePath],
-            'router' => ['matcher' => 'sharded'],
-        ])))->toBeTrue();
+        RouteCachePath::markFresh($sharded);
+        expect(RouteCachePath::isWarm($sharded))->toBeTrue();
     } finally {
-        WebrickRouteCache::clear([
-            'cache' => $directory,
-            'matcher' => 'sharded',
-            'aggressive' => true,
-        ]);
-        rmdir($directory);
-        rmdir(dirname($directory));
-        rmdir(dirname(dirname($directory)));
-        rmdir($basePath);
+        if (is_dir($directory)) {
+            WebrickRouteCache::clear([
+                'cache' => $directory,
+                'matcher' => 'sharded',
+                'aggressive' => true,
+            ]);
+        }
+        routeCacheRemoveDirectory($basePath);
     }
 });
+
+function routeCacheRemoveDirectory(string $directory): void
+{
+    if (!is_dir($directory)) {
+        return;
+    }
+
+    $entries = scandir($directory);
+    if ($entries === false) {
+        return;
+    }
+
+    foreach ($entries as $entry) {
+        if ($entry === '.' || $entry === '..') {
+            continue;
+        }
+
+        $path = $directory . DIRECTORY_SEPARATOR . $entry;
+        if (is_dir($path)) {
+            routeCacheRemoveDirectory($path);
+        } else {
+            unlink($path);
+        }
+    }
+
+    rmdir($directory);
+}

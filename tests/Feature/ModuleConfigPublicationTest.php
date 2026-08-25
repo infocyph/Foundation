@@ -2,11 +2,10 @@
 
 declare(strict_types=1);
 
-use Infocyph\Console\Process\ProcessRunner;
-use Infocyph\Foundation\Console\Support\ModuleCatalog;
-use Infocyph\Foundation\Console\Support\ModuleManifestManager;
-use Infocyph\Foundation\Console\Support\ModuleManager;
 use Infocyph\Foundation\Foundation;
+use Infocyph\Foundation\Module\ModuleCatalog;
+use Infocyph\Foundation\Module\ModuleManager;
+use Infocyph\Foundation\Process\ProcessRunner;
 
 it('publishes module config without replacing application-owned files', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-module-config-' . bin2hex(random_bytes(5));
@@ -14,10 +13,7 @@ it('publishes module config without replacing application-owned files', function
     file_put_contents($basePath . '/config/notifications.php', "<?php\n\nreturn ['owned' => true];\n");
 
     try {
-        $application = Foundation::console([
-            'base_path' => $basePath,
-            '_config_cache' => false,
-        ]);
+        $application = Foundation::cli(['base_path' => $basePath, '_config_cache' => false]);
         $manager = new ModuleManager($application, new ModuleCatalog(), new ProcessRunner());
         $result = $manager->publishConfig('communication');
 
@@ -38,10 +34,7 @@ it('invalidates compiled configuration after publishing a module template', func
     file_put_contents($basePath . '/bootstrap/cache/config/app.php', '<?php return [];');
 
     try {
-        $application = Foundation::console([
-            'base_path' => $basePath,
-            '_config_cache' => false,
-        ]);
+        $application = Foundation::cli(['base_path' => $basePath, '_config_cache' => false]);
         $manager = new ModuleManager($application, new ModuleCatalog(), new ProcessRunner());
         $result = $manager->publishConfig('db');
 
@@ -54,15 +47,12 @@ it('invalidates compiled configuration after publishing a module template', func
     }
 });
 
-it('publishes the complete security configuration only with the crypto module', function (): void {
+it('publishes only Foundation authentication policy with the crypto module', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-module-crypto-' . bin2hex(random_bytes(5));
     mkdir($basePath . '/config', 0775, true);
 
     try {
-        $application = Foundation::console([
-            'base_path' => $basePath,
-            '_config_cache' => false,
-        ]);
+        $application = Foundation::cli(['base_path' => $basePath, '_config_cache' => false]);
         $manager = new ModuleManager($application, new ModuleCatalog(), new ProcessRunner());
         $result = $manager->publishConfig('crypto');
         $configuration = require $basePath . '/config/security.php';
@@ -70,14 +60,16 @@ it('publishes the complete security configuration only with the crypto module', 
         expect($result['published'])->toBe([$basePath . '/config/security.php'])
             ->and($configuration)->toHaveKeys([
                 'password.algorithm',
+                'password.cost',
+                'jwt.algorithm',
                 'jwt.leeway_seconds',
-                'integrity.algorithm',
-                'key_rings',
             ])
             ->and($configuration)->not->toHaveKeys([
                 'csrf',
                 'signed_urls',
                 'tokens',
+                'integrity',
+                'key_rings',
             ]);
     } finally {
         moduleConfigRemoveDirectory($basePath);
@@ -88,10 +80,7 @@ it('publishes the built-in browser session configuration without Composer', func
     $basePath = sys_get_temp_dir() . '/foundation-module-session-' . bin2hex(random_bytes(5));
 
     try {
-        $application = Foundation::console([
-            'base_path' => $basePath,
-            '_config_cache' => false,
-        ]);
+        $application = Foundation::cli(['base_path' => $basePath, '_config_cache' => false]);
         $manager = new ModuleManager($application, new ModuleCatalog(), new ProcessRunner());
         $install = $manager->install('session');
         $result = $manager->publishConfig('session');
@@ -99,89 +88,52 @@ it('publishes the built-in browser session configuration without Composer', func
         expect($install->successful())->toBeTrue()
             ->and($result['published'])->toBe([$basePath . '/config/session.php'])
             ->and(require $basePath . '/config/session.php')->toHaveKeys([
-                'driver',
-                'lifetime',
-                'cookie',
-                'stores',
-                'lock',
-                'csrf',
+                'driver', 'lifetime', 'cookie', 'stores', 'lock', 'csrf',
             ]);
     } finally {
         moduleConfigRemoveDirectory($basePath);
     }
 });
 
-it('loads explicit third-party modules only from the compiled optimize manifest', function (): void {
-    $basePath = sys_get_temp_dir() . '/foundation-module-manifest-' . bin2hex(random_bytes(5));
-    $packageRoot = $basePath . '/vendor/acme/reports';
-    mkdir($packageRoot . '/config', 0775, true);
-    mkdir($basePath . '/bootstrap/cache', 0775, true);
-    file_put_contents(
-        $packageRoot . '/config/reports.php',
-        "<?php\n\ndeclare(strict_types=1);\n\nreturn ['enabled' => true];\n",
-    );
-    file_put_contents(
-        $basePath . '/bootstrap/cache/modules.php',
-        '<?php return ' . var_export([
-            'reports' => [
-                'package' => 'acme/reports',
-                'description' => 'Reporting integration.',
-                'aliases' => ['reporting'],
-                'config' => ['reports.php' => 'config/reports.php'],
-                'root' => $packageRoot,
-            ],
-        ], true) . ';',
-    );
+it('force-publishes atomically and removes Foundation-owned backups after commit', function (): void {
+    $basePath = sys_get_temp_dir() . '/foundation-module-force-' . bin2hex(random_bytes(5));
+    mkdir($basePath . '/config', 0775, true);
+    file_put_contents($basePath . '/config/database.php', "<?php\nreturn ['owned' => true];\n");
 
     try {
-        $application = Foundation::console([
-            'base_path' => $basePath,
-            '_config_cache' => false,
-        ]);
-        $manifest = new ModuleManifestManager($application);
-        $manager = new ModuleManager(
-            $application,
-            new ModuleCatalog(),
-            new ProcessRunner(),
-            $manifest,
-        );
+        $application = Foundation::cli(['base_path' => $basePath, '_config_cache' => false]);
+        $manager = new ModuleManager($application, new ModuleCatalog(), new ProcessRunner());
+        $result = $manager->publishConfig('db', true);
 
-        expect(array_column($manager->all(), 'name'))->toContain('reports');
-        $result = $manager->publishConfig('reporting');
-
-        expect($result['published'])->toBe([$basePath . '/config/reports.php'])
-            ->and(require $basePath . '/config/reports.php')->toBe(['enabled' => true])
-            ->and($manifest->clear())->toBeTrue()
-            ->and($manifest->load())->toBe([]);
+        expect($result['published'])->toBe([$basePath . '/config/database.php'])
+            ->and(glob($basePath . '/config/*.foundation-*.bak') ?: [])->toBe([])
+            ->and(glob($basePath . '/config/.foundation-config-*') ?: [])->toBe([])
+            ->and(require $basePath . '/config/database.php')->toHaveKey('connections');
     } finally {
         moduleConfigRemoveDirectory($basePath);
     }
 });
 
-it('rejects unsafe third-party module config sources at manifest load time', function (): void {
-    $basePath = sys_get_temp_dir() . '/foundation-module-invalid-' . bin2hex(random_bytes(5));
-    mkdir($basePath . '/bootstrap/cache', 0775, true);
-    file_put_contents(
-        $basePath . '/bootstrap/cache/modules.php',
-        '<?php return ' . var_export([
-            'unsafe' => [
-                'package' => 'acme/unsafe',
-                'description' => 'Unsafe fixture.',
-                'aliases' => [],
-                'config' => ['unsafe.php' => '../secrets.php'],
-                'root' => $basePath,
-            ],
-        ], true) . ';',
-    );
+it('rolls back already-published config when a later target cannot be committed', function (): void {
+    $basePath = sys_get_temp_dir() . '/foundation-module-rollback-' . bin2hex(random_bytes(5));
+    mkdir($basePath . '/config/notifications.php', 0775, true);
 
     try {
-        $manifest = new ModuleManifestManager(Foundation::console([
-            'base_path' => $basePath,
-            '_config_cache' => false,
-        ]));
+        $application = Foundation::cli(['base_path' => $basePath, '_config_cache' => false]);
+        $manager = new ModuleManager($application, new ModuleCatalog(), new ProcessRunner());
+        set_error_handler(static fn(int $severity): bool => $severity === E_WARNING);
 
-        expect(fn() => $manifest->load())
-            ->toThrow(UnexpectedValueException::class);
+        try {
+            expect(fn() => $manager->publishConfig('communication', true))
+                ->toThrow(RuntimeException::class, 'Unable to publish config template "notifications.php".');
+        } finally {
+            restore_error_handler();
+        }
+
+        expect($basePath . '/config/communication.php')->not->toBeFile()
+            ->and($basePath . '/config/notifications.php')->toBeDirectory()
+            ->and(glob($basePath . '/config/.foundation-config-*') ?: [])->toBe([])
+            ->and(glob($basePath . '/config/*.foundation-*.bak') ?: [])->toBe([]);
     } finally {
         moduleConfigRemoveDirectory($basePath);
     }
@@ -196,7 +148,13 @@ it('keeps development dependencies out of module composer operations', function 
     $originalLog = getenv('FOUNDATION_MODULE_COMMAND_LOG');
 
     mkdir($binPath, 0775, true);
-    file_put_contents($basePath . '/composer.json', '{"name":"example/application"}');
+    file_put_contents($basePath . '/composer.json', json_encode([
+        'name' => 'example/application',
+        'require' => [
+            'infocyph/dblayer' => '^5.0',
+            'infocyph/omnibus' => '^2.5',
+        ],
+    ], JSON_THROW_ON_ERROR));
     file_put_contents($composerPath, <<<'PHP'
 #!/usr/bin/env php
 <?php
@@ -207,7 +165,6 @@ $log = getenv('FOUNDATION_MODULE_COMMAND_LOG');
 if (!is_string($log) || $log === '') {
     exit(2);
 }
-
 file_put_contents(
     $log,
     json_encode(array_slice($argv, 1), JSON_THROW_ON_ERROR) . PHP_EOL,
@@ -215,19 +172,16 @@ file_put_contents(
 );
 PHP);
     chmod($composerPath, 0755);
-
     putenv('PATH=' . $binPath . PATH_SEPARATOR . (is_string($originalPath) ? $originalPath : ''));
     putenv('FOUNDATION_MODULE_COMMAND_LOG=' . $commandLog);
 
     try {
-        $application = Foundation::console([
-            'base_path' => $basePath,
-            '_config_cache' => false,
-        ]);
+        $application = Foundation::cli(['base_path' => $basePath, '_config_cache' => false]);
         $manager = new ModuleManager($application, new ModuleCatalog(), new ProcessRunner());
 
         expect($manager->install('db', true)->successful())->toBeTrue()
-            ->and($manager->remove('db', true)->successful())->toBeTrue();
+            ->and($manager->remove('db', true)->successful())->toBeTrue()
+            ->and($manager->install('messaging', true)->successful())->toBeTrue();
 
         $commands = array_map(
             static fn(string $command): array => json_decode($command, true, flags: JSON_THROW_ON_ERROR),
@@ -235,8 +189,9 @@ PHP);
         );
 
         expect($commands)->toBe([
-            ['require', 'infocyph/dblayer', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
+            ['require', 'infocyph/dblayer:^5.0', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
             ['remove', 'infocyph/dblayer', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
+            ['require', 'infocyph/omnibus:^2.5', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
         ]);
     } finally {
         is_string($originalPath) ? putenv('PATH=' . $originalPath) : putenv('PATH');
@@ -252,15 +207,12 @@ function moduleConfigRemoveDirectory(string $directory): void
     if (!is_dir($directory)) {
         return;
     }
-
     $files = new RecursiveIteratorIterator(
         new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS),
         RecursiveIteratorIterator::CHILD_FIRST,
     );
-
     foreach ($files as $file) {
         $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
-
     rmdir($directory);
 }

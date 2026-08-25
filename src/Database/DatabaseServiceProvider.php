@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Database;
 
+use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\DB;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
+use Infocyph\Foundation\Database\AuthSchema\AuthMfaRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchemaInstaller;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
@@ -19,7 +21,7 @@ final class DatabaseServiceProvider extends ServiceProvider
     {
         if (!class_exists(DB::class)) {
             throw new \LogicException(
-                'Foundation database services require infocyph/dblayer; run "php infbyte module:install db".',
+                'Foundation database services require infocyph/dblayer; run "php infbyte module:install database".',
             );
         }
 
@@ -31,15 +33,27 @@ final class DatabaseServiceProvider extends ServiceProvider
 
         $this->bindFactory($container, DBLayerFactory::class, fn() => new DBLayerFactory(
             $app->make(DatabaseConnectionResolver::class),
+            $app->make(RuntimeContextTracker::class),
         ), LifetimeEnum::Singleton);
+
+        $this->bindFactory(
+            $container,
+            Connection::class,
+            fn() => $app->make(DBLayerFactory::class)->connection(),
+            LifetimeEnum::Singleton,
+        );
 
         $container->bind(AuthTables::class, new AuthTables(), LifetimeEnum::Singleton);
         $this->bindFactory($container, AuthSchema::class, fn() => new AuthSchema(
             $app->make(AuthTables::class),
         ), LifetimeEnum::Singleton);
+        $this->bindFactory($container, AuthMfaRevisionSchema::class, fn() => new AuthMfaRevisionSchema(
+            $app->make(AuthTables::class),
+        ), LifetimeEnum::Singleton);
         $this->bindFactory($container, AuthSchemaInstaller::class, fn() => new AuthSchemaInstaller(
             $app->make(DBLayerFactory::class),
             $app->make(AuthSchema::class),
+            $app->make(AuthMfaRevisionSchema::class),
             $app->make(AuthTables::class),
         ), LifetimeEnum::Singleton);
         $this->bindFactory($container, DatabaseMigrationManager::class, fn() => new DatabaseMigrationManager(
@@ -47,14 +61,11 @@ final class DatabaseServiceProvider extends ServiceProvider
             $app->make(DBLayerFactory::class),
         ), LifetimeEnum::Singleton);
 
-        $this->bindFactory($container, DatabaseManager::class, fn() => new DatabaseManager(
-            config: $app->config(),
-            factory: $app->make(DBLayerFactory::class),
-            authSchemaInstaller: $app->make(AuthSchemaInstaller::class),
-            migrations: $app->make(DatabaseMigrationManager::class),
-            contexts: $app->make(RuntimeContextTracker::class),
-        ), LifetimeEnum::Singleton);
-
-        $this->bindFactory($container, 'foundation.db', fn() => $container->get(DatabaseManager::class), LifetimeEnum::Singleton);
+        $this->bindFactory(
+            $container,
+            'foundation.db',
+            fn() => $container->get(Connection::class),
+            LifetimeEnum::Singleton,
+        );
     }
 }

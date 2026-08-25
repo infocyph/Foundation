@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
+use Infocyph\Foundation\Config\ConfigValidator;
+use Infocyph\Foundation\Diagnostics\ReadinessReport;
 use Infocyph\Foundation\Foundation;
 
 it('validates migration, messaging, logging, and JsonDispatch configuration before runtime', function (): void {
-    $app = Foundation::console([
+    $app = Foundation::cli([
         'database' => [
             'migrations' => [
                 'classes' => ['Missing\\Migration'],
@@ -54,7 +56,7 @@ it('validates migration, messaging, logging, and JsonDispatch configuration befo
         ],
     ]);
 
-    $issues = $app->validateConfiguration()->toArray()['issues'];
+    $issues = new ConfigValidator($app->config())->validate()->toArray()['issues'];
     $keys = array_column($issues, 'key');
 
     expect($keys)->toContain(
@@ -89,9 +91,12 @@ it('validates migration, messaging, logging, and JsonDispatch configuration befo
 });
 
 it('accepts the default configuration for new runtime capabilities', function (): void {
-    $application = Foundation::console();
-    $issueKeys = array_column($application->validateConfiguration()->toArray()['issues'], 'key');
-    $readiness = $application->readinessReport();
+    $application = Foundation::cli();
+    $issueKeys = array_column(
+        new ConfigValidator($application->config())->validate()->toArray()['issues'],
+        'key',
+    );
+    $readiness = new ReadinessReport($application)->generate();
 
     expect($issueKeys)->not->toContain(
         'database.migrations.classes',
@@ -99,15 +104,7 @@ it('accepts the default configuration for new runtime capabilities', function ()
         'logging.driver',
         'messaging.default_route',
         'responses.json_dispatch.vendor',
-    )->and($readiness)->toHaveKeys([
-        'logging',
-        'messaging',
-        'migrations',
-        'modules',
-        'optimization',
-        'resources',
-        'sessions',
-    ])->and($readiness['messaging']['configured'])->toBeFalse()
-        ->and($readiness['migrations']['pending'])->toBe([])
-        ->and($readiness['sessions']['configured'])->toBeFalse();
+    )->and($readiness)->toHaveKeys(['ready', 'checks'])
+        ->and($readiness['checks'])->toHaveKeys(['php', 'base_path', 'storage', 'runtime'])
+        ->and($readiness['checks']['runtime']['detail'])->toBe('cli');
 });

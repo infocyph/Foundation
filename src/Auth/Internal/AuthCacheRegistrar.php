@@ -6,6 +6,7 @@ namespace Infocyph\Foundation\Auth\Internal;
 
 use Infocyph\CacheLayer\Cache\Cache;
 use Infocyph\CacheLayer\Cache\CacheInterface;
+use Infocyph\CacheLayer\Counter\AtomicCounterStoreInterface;
 use Infocyph\Foundation\Auth\Adapter\CacheLayer\AtomicCounterStore;
 use Infocyph\Foundation\Auth\Adapter\CacheLayer\CacheLayerCounterStore;
 use Infocyph\Foundation\Auth\Adapter\CacheLayer\CacheLayerTtlStore;
@@ -23,11 +24,11 @@ final readonly class AuthCacheRegistrar extends AbstractAuthRegistrar
     {
         if ($drivers->cache() === AuthCacheDriver::CACHE) {
             $this->requirePackage(Cache::class, 'infocyph/cachelayer', 'cache');
-            $this->singleton(CacheInterface::class, fn() => $this->app->cache()->store());
             $counter = $this->stringConfig('cache.default_counter', '');
+
             $this->singleton(CounterStoreInterface::class, $counter === ''
                 ? fn() => new CacheLayerCounterStore($this->app->make(CacheInterface::class))
-                : fn() => new AtomicCounterStore($this->app->cache()->counters($counter)));
+                : fn() => new AtomicCounterStore($this->app->make(AtomicCounterStoreInterface::class)));
             $this->singleton(TtlStoreInterface::class, fn() => new CacheLayerTtlStore(
                 $this->app->make(CacheInterface::class),
             ));

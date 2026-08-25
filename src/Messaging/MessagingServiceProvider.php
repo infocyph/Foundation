@@ -6,26 +6,25 @@ namespace Infocyph\Foundation\Messaging;
 
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
-use Infocyph\Foundation\Runtime\RuntimeContextResetter;
 use Infocyph\Foundation\Support\ValueNormalizer;
-use Infocyph\InterMix\DI\Invoker\InjectedCall;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Omnibus\Clock\SystemClock;
 use Infocyph\Omnibus\Consumer\Command\ConsumerTask;
 use Infocyph\Omnibus\Consumer\Consumer;
+use Infocyph\Omnibus\Consumer\ExecutionScope;
 use Infocyph\Omnibus\Event\EventDispatcher;
 use Infocyph\Omnibus\Event\ListenerMap;
 use Infocyph\Omnibus\Failure\FailureStore;
 use Infocyph\Omnibus\Failure\InMemoryFailureStore;
+use Infocyph\Omnibus\Handler\HandlerInvoker;
 use Infocyph\Omnibus\Handler\HandlerMap;
+use Infocyph\Omnibus\Handler\HandlerMiddleware;
 use Infocyph\Omnibus\MessageBus;
-use Infocyph\Omnibus\Retry\ExponentialRetryStrategy;
 use Infocyph\Omnibus\Routing\Route;
 use Infocyph\Omnibus\Routing\RouteMap;
 use Infocyph\Omnibus\Scheduling\MessageFactoryMap;
 use Infocyph\Omnibus\Scheduling\ScheduledMessageDispatcher;
 use Infocyph\Omnibus\Transport\InMemoryTransport;
-use Infocyph\Omnibus\Transport\Receiver;
 use Infocyph\Omnibus\Transport\SyncTransport;
 use Infocyph\Omnibus\Transport\TransportRegistry;
 use Psr\EventDispatcher\EventDispatcherInterface;
@@ -41,12 +40,28 @@ final class MessagingServiceProvider extends ServiceProvider
         $this->bindFactory($container, HandlerMap::class, fn() => new HandlerMap(
             $this->handlers($app, $app->config()->get('messaging.handlers', [])),
         ), LifetimeEnum::Singleton);
+        if (!$this->hasExplicitBinding($container, HandlerInvoker::class)) {
+            $this->bindFactory($container, HandlerInvoker::class, fn() => new HandlerInvoker(
+                $app->make(HandlerMap::class),
+                $this->handlerMiddleware(
+                    $app,
+                    $app->config()->get('messaging.handler_middleware', []),
+                    $app->config()->get('messaging.job_middleware', []),
+                ),
+            ), LifetimeEnum::Singleton);
+        }
         $this->bindFactory($container, ListenerMap::class, fn() => new ListenerMap(
             $this->listeners($app, $app->config()->get('messaging.listeners', [])),
         ), LifetimeEnum::Singleton);
-        if (!$container->has(ListenerProviderInterface::class)) {
-            $this->bindFactory($container, ListenerProviderInterface::class, fn() => $app->make(ListenerMap::class), LifetimeEnum::Singleton);
+        if (!$this->hasExplicitBinding($container, ListenerProviderInterface::class)) {
+            $this->bindFactory(
+                $container,
+                ListenerProviderInterface::class,
+                fn() => $app->make(ListenerMap::class),
+                LifetimeEnum::Singleton,
+            );
         }
+
         $this->bindFactory($container, RouteMap::class, fn() => new RouteMap(
             $this->routes($app->config()->get('messaging.routes', [])),
             $this->route($app->config()->get('messaging.default_route', [])),
@@ -55,51 +70,79 @@ final class MessagingServiceProvider extends ServiceProvider
             $app->make(SystemClock::class),
         ), LifetimeEnum::Singleton);
         $this->bindFactory($container, SyncTransport::class, fn() => new SyncTransport(
-            $app->make(HandlerMap::class),
+            $app->make(HandlerInvoker::class),
         ), LifetimeEnum::Singleton);
-        if (!$container->has(TransportRegistry::class)) {
+        if (!$this->hasExplicitBinding($container, TransportRegistry::class)) {
             $this->bindFactory($container, TransportRegistry::class, fn() => new TransportRegistry([
                 'sync' => $app->make(SyncTransport::class),
                 'memory' => $app->make(InMemoryTransport::class),
             ]), LifetimeEnum::Singleton);
         }
-        if (!$container->has(MessageBus::class)) {
+        if (!$this->hasExplicitBinding($container, MessageBus::class)) {
             $this->bindFactory($container, MessageBus::class, fn() => new MessageBus(
                 $app->make(RouteMap::class),
                 $app->make(TransportRegistry::class),
             ), LifetimeEnum::Singleton);
         }
+
         $this->bindFactory($container, EventDispatcher::class, fn() => new EventDispatcher(
             $app->make(ListenerProviderInterface::class),
             $app->make(MessageBus::class),
         ), LifetimeEnum::Singleton);
-        if (!$container->has(EventDispatcherInterface::class)) {
-            $this->bindFactory($container, EventDispatcherInterface::class, fn() => $app->make(EventDispatcher::class), LifetimeEnum::Singleton);
+        if (!$this->hasExplicitBinding($container, EventDispatcherInterface::class)) {
+            $this->bindFactory(
+                $container,
+                EventDispatcherInterface::class,
+                fn() => $app->make(EventDispatcher::class),
+                LifetimeEnum::Singleton,
+            );
         }
-        if (!$container->has(FailureStore::class)) {
-            $this->bindFactory($container, FailureStore::class, static fn() => new InMemoryFailureStore(), LifetimeEnum::Singleton);
+        if (!$this->hasExplicitBinding($container, FailureStore::class)) {
+            $this->bindFactory(
+                $container,
+                FailureStore::class,
+                static fn() => new InMemoryFailureStore(),
+                LifetimeEnum::Singleton,
+            );
         }
-        $this->bindFactory($container, InterMixExecutionScope::class, fn() => new InterMixExecutionScope(
-            $app->container(),
-            $app->make(RuntimeContextResetter::class),
-        ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, Consumer::class, fn() => new Consumer(
-            receiver: $this->receiver($app),
-            handlers: $app->make(HandlerMap::class),
-            retry: new ExponentialRetryStrategy(
-                maximumAttempts: ValueNormalizer::int($app->config()->get('messaging.retry.maximum_attempts'), 3),
-                initialDelaySeconds: $this->float($app->config()->get('messaging.retry.initial_delay_seconds'), 1.0),
-                multiplier: $this->float($app->config()->get('messaging.retry.multiplier'), 2.0),
-                maximumDelaySeconds: $this->float($app->config()->get('messaging.retry.maximum_delay_seconds'), 60.0),
-                jitterRatio: $this->float($app->config()->get('messaging.retry.jitter_ratio'), 0.0),
-            ),
+
+        $this->bindFactory(
+            $container,
+            InterMixExecutionScope::class,
+            fn() => new InterMixExecutionScope($app),
+            LifetimeEnum::Singleton,
+        );
+        if (!$this->hasExplicitBinding($container, ExecutionScope::class)) {
+            $this->bindFactory(
+                $container,
+                ExecutionScope::class,
+                fn() => $app->make(InterMixExecutionScope::class),
+                LifetimeEnum::Singleton,
+            );
+        }
+
+        $this->bindFactory($container, ConsumerFactory::class, fn() => new ConsumerFactory(
+            config: $app->config(),
+            transports: $app->make(TransportRegistry::class),
+            invoker: $app->make(HandlerInvoker::class),
             failures: $app->make(FailureStore::class),
             clock: $app->make(SystemClock::class),
-            scope: $app->make(InterMixExecutionScope::class),
+            scope: $app->make(ExecutionScope::class),
         ), LifetimeEnum::Singleton);
+        $this->bindFactory(
+            $container,
+            Consumer::class,
+            fn() => $app->make(ConsumerFactory::class)->make(),
+            LifetimeEnum::Singleton,
+        );
         $this->bindFactory($container, ConsumerTask::class, fn() => new ConsumerTask(
             $app->make(Consumer::class),
         ), LifetimeEnum::Singleton);
+        $this->bindFactory($container, OmnibusWorkerFactory::class, fn() => new OmnibusWorkerFactory(
+            $app->config(),
+            fn() => $app->make(ConsumerFactory::class),
+        ), LifetimeEnum::Singleton);
+
         $this->bindFactory($container, MessageFactoryMap::class, fn() => new MessageFactoryMap(
             $this->scheduledMessages($app, $app->config()->get('messaging.scheduled_messages', [])),
         ), LifetimeEnum::Singleton);
@@ -107,11 +150,12 @@ final class MessagingServiceProvider extends ServiceProvider
             $app->make(MessageFactoryMap::class),
             $app->make(MessageBus::class),
         ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, MessagingManager::class, fn() => new MessagingManager(
-            $app->make(MessageBus::class),
-            $app->make(EventDispatcher::class),
-        ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, 'foundation.messaging', fn() => $app->make(MessagingManager::class), LifetimeEnum::Singleton);
+        $this->bindFactory(
+            $container,
+            'foundation.messaging',
+            fn() => $app->make(MessageBus::class),
+            LifetimeEnum::Singleton,
+        );
     }
 
     private function callable(Application $app, mixed $definition): callable
@@ -123,9 +167,7 @@ final class MessagingServiceProvider extends ServiceProvider
             throw new \InvalidArgumentException('Messaging definitions must be callables or service class names.');
         }
 
-        $service = $app->container()->has($definition)
-            ? $app->make($definition)
-            : $this->constructInvokable($app, $definition);
+        $service = $app->container()->make($definition);
         if (!is_callable($service)) {
             throw new \InvalidArgumentException(sprintf('Messaging service "%s" is not callable.', $definition));
         }
@@ -133,31 +175,51 @@ final class MessagingServiceProvider extends ServiceProvider
         return $service;
     }
 
-    private function constructInvokable(Application $app, string $class): object
-    {
-        $resolver = $app->container()->getCurrentResolver();
-        $resolved = $resolver instanceof InjectedCall
-            ? $resolver->classSettler($class, '__foundation_construct_only__', true)
-            : $resolver->classSettler($class, '__foundation_construct_only__');
-        $instance = $resolved['instance'] ?? null;
-        if (!is_object($instance)) {
-            throw new \InvalidArgumentException(sprintf(
-                'Messaging service "%s" could not be constructed.',
-                $class,
-            ));
-        }
-
-        return $instance;
-    }
-
     private function float(mixed $value, float $default): float
     {
         return is_numeric($value) ? (float) $value : $default;
     }
 
-    /**
-     * @return array<class-string, callable>
-     */
+    /** @return list<HandlerMiddleware> */
+    private function handlerMiddleware(Application $app, mixed $configured, mixed $configuredJobs): array
+    {
+        if (!is_array($configured)) {
+            throw new \InvalidArgumentException('messaging.handler_middleware must be an ordered middleware list.');
+        }
+
+        $middleware = [];
+        foreach ($configured as $definition) {
+            if ($definition instanceof HandlerMiddleware) {
+                $middleware[] = $definition;
+
+                continue;
+            }
+            if (!is_string($definition) || $definition === '') {
+                throw new \InvalidArgumentException(
+                    'Messaging handler middleware must be service class names or HandlerMiddleware instances.',
+                );
+            }
+
+            $resolved = $app->container()->make($definition);
+            if (!$resolved instanceof HandlerMiddleware) {
+                throw new \InvalidArgumentException(sprintf(
+                    'Messaging handler middleware "%s" must implement %s.',
+                    $definition,
+                    HandlerMiddleware::class,
+                ));
+            }
+            $middleware[] = $resolved;
+        }
+
+        $jobs = $this->jobMiddleware($app, $configuredJobs);
+        if ($jobs !== []) {
+            $middleware[] = new JobMiddlewarePipeline($jobs);
+        }
+
+        return $middleware;
+    }
+
+    /** @return array<class-string, callable> */
     private function handlers(Application $app, mixed $configured): array
     {
         $handlers = [];
@@ -171,9 +233,41 @@ final class MessagingServiceProvider extends ServiceProvider
         return $handlers;
     }
 
-    /**
-     * @return array<class-string, list<callable>>
-     */
+    /** @return list<JobMiddleware> */
+    private function jobMiddleware(Application $app, mixed $configured): array
+    {
+        if (!is_array($configured)) {
+            throw new \InvalidArgumentException('messaging.job_middleware must be an ordered middleware list.');
+        }
+
+        $middleware = [];
+        foreach ($configured as $definition) {
+            if ($definition instanceof JobMiddleware) {
+                $middleware[] = $definition;
+
+                continue;
+            }
+            if (!is_string($definition) || $definition === '') {
+                throw new \InvalidArgumentException(
+                    'Messaging job middleware must be service class names or JobMiddleware instances.',
+                );
+            }
+
+            $resolved = $app->container()->make($definition);
+            if (!$resolved instanceof JobMiddleware) {
+                throw new \InvalidArgumentException(sprintf(
+                    'Messaging job middleware "%s" must implement %s.',
+                    $definition,
+                    JobMiddleware::class,
+                ));
+            }
+            $middleware[] = $resolved;
+        }
+
+        return $middleware;
+    }
+
+    /** @return array<class-string, list<callable>> */
     private function listeners(Application $app, mixed $configured): array
     {
         $listeners = [];
@@ -192,23 +286,10 @@ final class MessagingServiceProvider extends ServiceProvider
         return $listeners;
     }
 
-    /**
-     * @return array<array-key, mixed>
-     */
+    /** @return array<array-key, mixed> */
     private function map(mixed $value): array
     {
         return is_array($value) ? $value : [];
-    }
-
-    private function receiver(Application $app): Receiver
-    {
-        $name = ValueNormalizer::string($app->config()->get('messaging.consumer.transport'), 'memory');
-        $transport = $app->make(TransportRegistry::class)->get($name);
-        if (!$transport instanceof Receiver) {
-            throw new \LogicException(sprintf('Messaging consumer transport "%s" cannot receive messages.', $name));
-        }
-
-        return $transport;
     }
 
     private function route(mixed $definition): Route
@@ -222,9 +303,7 @@ final class MessagingServiceProvider extends ServiceProvider
         );
     }
 
-    /**
-     * @return array<class-string, Route>
-     */
+    /** @return array<class-string, Route> */
     private function routes(mixed $configured): array
     {
         $routes = [];
@@ -238,9 +317,7 @@ final class MessagingServiceProvider extends ServiceProvider
         return $routes;
     }
 
-    /**
-     * @return array<string, callable(): object>
-     */
+    /** @return array<string, callable(): object> */
     private function scheduledMessages(Application $app, mixed $configured): array
     {
         $messages = [];

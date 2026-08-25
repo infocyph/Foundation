@@ -1,0 +1,15 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Infocyph\Foundation\Http\Resource\JsonResource;
+
+final class {{ class }} extends JsonResource
+{
+    public function resolve(): mixed
+    {
+        return $this->resource;
+    }
+}

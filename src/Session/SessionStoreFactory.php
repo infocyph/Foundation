@@ -6,7 +6,7 @@ namespace Infocyph\Foundation\Session;
 
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Cache\CacheManager;
-use Infocyph\Foundation\Database\DatabaseManager;
+use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Session\Store\ArraySessionStore;
 use Infocyph\Foundation\Session\Store\CacheSessionStore;
 use Infocyph\Foundation\Session\Store\DatabaseSessionStore;
@@ -30,7 +30,7 @@ final class SessionStoreFactory
                 $this->application->make(CacheManager::class)->store($this->config->cacheStore),
             ),
             'database' => new DatabaseSessionStore(
-                $this->application->make(DatabaseManager::class)->connection($this->config->databaseConnection),
+                $this->application->make(DBLayerFactory::class)->connection($this->config->databaseConnection),
                 $this->config->databaseTable,
             ),
             default => throw new \LogicException(sprintf(

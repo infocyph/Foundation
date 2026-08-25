@@ -15,7 +15,6 @@ final class AuthDefaults
             'auth' => [
                 'drivers' => [
                     'cache' => 'array',
-                    'ids' => 'random',
                     'mfa' => 'simple',
                     'notifications' => 'collect',
                     'passkey' => 'memory',
@@ -45,23 +44,29 @@ final class AuthDefaults
                     'window_seconds' => 900,
                 ],
                 'otp' => [
-                    'freshness_window' => 900,
                     'issuer' => 'Foundation',
+                    'hotp' => [
+                        'look_ahead' => 5,
+                    ],
                     'totp' => [
                         'algorithm' => 'sha1',
                         'digits' => 6,
                         'period' => 30,
-                        'secret_bytes' => 64,
+                        'secret_bytes' => 20,
                         'window' => 1,
                     ],
                     'recovery_codes' => [
                         'count' => 10,
-                        'length' => 10,
+                        'length' => 12,
                     ],
                     'replay' => [
-                        'enabled' => true,
+                        'store' => null,
                         'ttl' => 90,
                     ],
+                ],
+                'password_policy' => [
+                    'min_length' => 12,
+                    'max_length' => 1024,
                 ],
                 'webauthn' => [
                     'algorithms' => [

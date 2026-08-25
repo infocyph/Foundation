@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+$envFloat = static function (string $key, float $default): float {
+    $value = env($key);
+
+    return is_numeric($value) ? (float) $value : $default;
+};
+
 return [
     /*
     |--------------------------------------------------------------------------
@@ -10,9 +16,14 @@ return [
     |
     | "driver" accepts `array|file|cache|database`. The `array` store is
     | process-local and intended for tests. `file` is the dependency-free
-    | default. `cache` requires the CacheLayer module and `database` requires
-    | the DBLayer module. Session services remain unloaded until a route uses
-    | the `session` or `csrf` middleware.
+    | default. `cache` requires the cache module and `database` requires the
+    | database module. Session services remain unloaded until a route uses the
+    | `session` or `csrf` middleware.
+    |
+    | Database-backed sessions use the session module schema. Module installation
+    | synchronizes it when SESSION_DRIVER=database; prepare it explicitly with
+    | `module:schema:install session` or inspect it with
+    | `module:schema:status session`.
     |
     | "lifetime" is the idle lifetime in seconds and must be a positive
     | integer; examples: `7200` (two hours) or `1209600` (fourteen days).
@@ -29,7 +40,7 @@ return [
     | Session Cookie
     |--------------------------------------------------------------------------
     |
-    | "name" is an RFC 6265 cookie name, for example `infbyte_session`.
+    | "name" is an RFC 6265 cookie name, for example `foundation_session`.
     | "path" is normally `/`. "domain" is null for a host-only cookie or a
     | domain such as `.example.com`. "secure" and "http_only" accept
     | `true|false`. "same_site" accepts `Lax|Strict|None`; `None` requires
@@ -38,7 +49,7 @@ return [
     |
     */
     'cookie' => [
-        'name' => env_string('SESSION_COOKIE', 'infbyte_session'),
+        'name' => env_string('SESSION_COOKIE', 'foundation_session'),
         'path' => env_string('SESSION_COOKIE_PATH', '/'),
         'domain' => env('SESSION_COOKIE_DOMAIN'),
         'secure' => env_bool('SESSION_COOKIE_SECURE', true),
@@ -51,12 +62,12 @@ return [
     | Store Settings
     |--------------------------------------------------------------------------
     |
-    | File "path" is an absolute or application-resolved directory, for
-    | example `storage/sessions`. Cache "store" is null for the default cache
-    | store or a configured name such as `redis`, `memcached`, or `sqlite`.
-    | Database "connection" is null for the default DBLayer connection or a
-    | name such as `mysql`, `pgsql`, or `sqlite`; "table" is a portable SQL
-    | identifier such as `sessions`.
+    | File "path" is an absolute or application-relative directory, for example
+    | `storage/sessions`. Cache "store" is null for the default cache store or
+    | a configured name such as `redis`, `memcached`, or `sqlite`. Database
+    | "connection" is null for the default DBLayer connection or a name such as
+    | `mysql`, `pgsql`, or `sqlite`; "table" is a portable SQL identifier such
+    | as `sessions`.
     |
     | Stored values must be JSON-serializable PHP scalars/arrays. Cache
     | backends expire records themselves. File and database stores are pruned
@@ -65,7 +76,7 @@ return [
     */
     'stores' => [
         'file' => [
-            'path' => env_string('SESSION_FILE_PATH', storage_path('sessions')),
+            'path' => env_string('SESSION_FILE_PATH', 'storage/sessions'),
         ],
         'cache' => [
             'store' => env('SESSION_CACHE_STORE'),
@@ -94,8 +105,8 @@ return [
     'lock' => [
         'enabled' => env_bool('SESSION_LOCK_ENABLED', false),
         'store' => env('SESSION_LOCK_STORE'),
-        'wait' => env('SESSION_LOCK_WAIT', 2.0),
-        'lease' => env('SESSION_LOCK_LEASE', 30.0),
+        'wait' => $envFloat('SESSION_LOCK_WAIT', 2.0),
+        'lease' => $envFloat('SESSION_LOCK_LEASE', 30.0),
     ],
 
     /*

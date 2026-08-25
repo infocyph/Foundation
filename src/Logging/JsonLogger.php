@@ -57,7 +57,7 @@ final class JsonLogger extends AbstractLogger
         }
 
         $record = json_encode([
-            'timestamp' => gmdate('Y-m-d\TH:i:s.u\Z'),
+            'timestamp' => self::timestamp(),
             'level' => $level,
             'message' => (string) $message,
             'context' => $this->normalize($context),
@@ -78,6 +78,15 @@ final class JsonLogger extends AbstractLogger
         if (file_put_contents($path, $line, FILE_APPEND | LOCK_EX) === false) {
             throw new \RuntimeException(sprintf('Unable to append log file "%s".', $path));
         }
+    }
+
+    private static function timestamp(): string
+    {
+        [$fraction, $seconds] = explode(' ', microtime());
+
+        return gmdate('Y-m-d\TH:i:s', (int) $seconds)
+            . substr($fraction, 1, 7)
+            . 'Z';
     }
 
     private function isSensitive(string $key): bool

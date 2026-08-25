@@ -8,13 +8,13 @@ use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\InterMix\DI\Container;
 use Infocyph\InterMix\DI\Support\TraceLevelEnum;
+use Infocyph\UID\Id;
 
 final class ContainerFactory
 {
     public function create(ConfigRepository $config): Container
     {
         $container = new Container($this->alias($config) ?? $this->defaultAlias());
-
         $this->configure($container, $config);
 
         return $container;
@@ -35,22 +35,22 @@ final class ContainerFactory
             $options->setEnvironment($environment);
         }
 
-        if (ValueNormalizer::bool($config->get('app.container.lazy_loading'), false)) {
+        // Foundation keeps unused capability graphs cold by default. Lazy loading is
+        // the single public switch; there is no inverse eager-loading configuration.
+        if (ValueNormalizer::bool($config->get('app.container.lazy_loading'), true)) {
             $options->enableLazyLoading();
         }
 
-        $traceEnabled = ValueNormalizer::bool($config->get('app.container.debug_tracing.enabled'), false);
-        if ($traceEnabled) {
+        if (ValueNormalizer::bool($config->get('app.container.debug_tracing.enabled'), false)) {
             $options->enableDebugTracing(true, $this->traceLevel(
                 ValueNormalizer::string($config->get('app.container.debug_tracing.level'), 'node'),
             ));
         }
-
     }
 
     private function defaultAlias(): string
     {
-        return 'foundation.' . bin2hex(random_bytes(8));
+        return 'foundation.' . Id::uuid7();
     }
 
     private function traceLevel(string $value): TraceLevelEnum

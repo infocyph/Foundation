@@ -2,24 +2,28 @@
 
 declare(strict_types=1);
 
-use Infocyph\Foundation\Facades\DB;
+use Infocyph\DBLayer\DB;
+use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Validation\ReqShieldDatabaseProvider;
+use Infocyph\Foundation\Validation\ValidatorFactory;
+use Infocyph\ReqShield\Rule;
 
-it('validates database-backed reqshield rules through DBLayer', function (): void {
+it('validates database-backed ReqShield 3.1 rules through DBLayer 5 bind-aware batches', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-validation-db-' . uniqid('', true);
     mkdir($basePath . '/database', 0775, true);
 
     $app = Foundation::web([
-        'app' => [
-            'base_path' => $basePath,
-        ],
+        'app' => ['base_path' => $basePath],
         'database' => [
             'default' => 'main',
             'connections' => [
                 'main' => [
                     'driver' => 'sqlite',
                     'database' => 'database/validation.sqlite',
+                    'security' => [
+                        'max_params' => 3,
+                    ],
                 ],
             ],
         ],
@@ -30,80 +34,109 @@ it('validates database-backed reqshield rules through DBLayer', function (): voi
                     'email' => 'required|email|unique:users,email',
                 ],
                 'users.update' => [
-                    'email' => 'required|email|unique:users,email,1',
+                    'email' => ['required', 'email', Rule::unique('users', 'email')->ignore(1)],
                 ],
                 'users.restore' => [
-                    'email' => 'required|email|unique:users,email,,id,false,deleted_at',
+                    'email' => ['required', 'email', Rule::unique('users', 'email')->withoutTrashed()],
                 ],
             ],
         ],
     ])->boot();
 
+    $database = $app->make(DBLayerFactory::class)->connection();
+    $validators = $app->make(ValidatorFactory::class);
+
     try {
-        DB::pdo()->exec('CREATE TABLE categories (id INTEGER PRIMARY KEY)');
-        DB::pdo()->exec('CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT NOT NULL, deleted_at TEXT NULL)');
-        DB::pdo()->exec("INSERT INTO categories (id) VALUES (1)");
-        DB::pdo()->exec("INSERT INTO users (id, email, deleted_at) VALUES (1, 'ada@example.test', NULL)");
-        DB::pdo()->exec("INSERT INTO users (id, email, deleted_at) VALUES (2, 'archived@example.test', '2026-01-01')");
+        $pdo = $database->getPdo();
+        $pdo->exec('CREATE TABLE categories (id INTEGER PRIMARY KEY)');
+        $pdo->exec('CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT NOT NULL, deleted_at TEXT NULL)');
+        $pdo->exec('INSERT INTO categories (id) VALUES (1), (2), (3), (4), (5)');
+        $pdo->exec("INSERT INTO users (id, email, deleted_at) VALUES (1, 'ada@example.test', NULL)");
+        $pdo->exec("INSERT INTO users (id, email, deleted_at) VALUES (2, 'archived@example.test', '2026-01-01')");
 
-        expect($app->validator()->validate('users.create', [
-            'category_id' => 1,
-            'email' => 'new@example.test',
-        ])->fails())->toBeFalse();
+        expect($database->effectiveMaxBindParameters())->toBe(3)
+            ->and($validators->make('users.create')->validate([
+                'category_id' => 1,
+                'email' => 'new@example.test',
+            ])->fails())->toBeFalse();
 
-        $invalid = $app->validator()->validate('users.create', [
+        $invalid = $validators->make('users.create')->validate([
             'category_id' => 404,
             'email' => 'ada@example.test',
         ]);
 
         expect($invalid->fails())->toBeTrue()
             ->and($invalid->errors())->toHaveKeys(['category_id', 'email'])
-            ->and($app->validator()->validate('users.update', [
+            ->and($validators->make('users.update')->validate([
                 'email' => 'ada@example.test',
             ])->fails())->toBeFalse()
-            ->and($app->validator()->validate('users.restore', [
+            ->and($validators->make('users.restore')->validate([
                 'email' => 'archived@example.test',
             ])->fails())->toBeFalse();
 
-        /** @var ReqShieldDatabaseProvider $provider */
         $provider = $app->make(ReqShieldDatabaseProvider::class);
-
-        expect($provider->batchExistsCheck('categories', [
-            ['column' => 'id', 'value' => 1, 'field' => 'present'],
+        expect($provider->batchExists('categories', [
+            ['column' => 'id', 'value' => 1, 'field' => 'one'],
+            ['column' => 'id', 'value' => 2, 'field' => 'two'],
+            ['column' => 'id', 'value' => 3, 'field' => 'three'],
+            ['column' => 'id', 'value' => 4, 'field' => 'four'],
+            ['column' => 'id', 'value' => 5, 'field' => 'five'],
             ['column' => 'id', 'value' => 404, 'field' => 'missing'],
         ]))->toBe(['missing'])
-            ->and($provider->batchUniqueCheck('users', [
+            ->and($provider->batchUnique('users', [
                 [
-                    'column' => 'email',
-                    'value' => 'ada@example.test',
-                    'field' => 'email',
-                    'ignore_id' => 1,
-                    'id_column' => 'id',
-                    'with_trashed' => false,
+                    'column' => 'email', 'value' => 'ada@example.test', 'field' => 'ignored-owner',
+                    'ignore' => 1, 'id_column' => 'id', 'include_trashed' => false,
                     'soft_delete_column' => 'deleted_at',
                 ],
                 [
-                    'column' => 'email',
-                    'value' => 'ada@example.test',
-                    'field' => 'duplicate',
-                    'ignore_id' => null,
-                    'id_column' => 'id',
-                    'with_trashed' => false,
+                    'column' => 'email', 'value' => 'new@example.test', 'field' => 'new-one',
+                    'ignore' => 1, 'id_column' => 'id', 'include_trashed' => false,
                     'soft_delete_column' => 'deleted_at',
                 ],
-            ]))->toBe(['duplicate'])
-            ->and($provider->compositeUnique('users', [
-                'email' => 'ada@example.test',
-                'deleted_at' => null,
-            ]))->toBeFalse()
-            ->and($provider->compositeUnique('users', [
-                'email' => 'ada@example.test',
-                'deleted_at' => null,
-            ], 1))->toBeTrue()
-            ->and($provider->query('SELECT id FROM users WHERE email = ?', ['ada@example.test']))->toBe([
-                ['id' => 1],
-            ]);
+                [
+                    'column' => 'email', 'value' => 'other@example.test', 'field' => 'new-two',
+                    'ignore' => 1, 'id_column' => 'id', 'include_trashed' => false,
+                    'soft_delete_column' => 'deleted_at',
+                ],
+                [
+                    'column' => 'email', 'value' => 'archived@example.test', 'field' => 'archived',
+                    'ignore' => 1, 'id_column' => 'id', 'include_trashed' => false,
+                    'soft_delete_column' => 'deleted_at',
+                ],
+            ]))->toBe([])
+            ->and($provider->batchUnique('users', [
+                [
+                    'column' => 'email', 'value' => 'ada@example.test', 'field' => 'duplicate',
+                    'ignore' => null, 'id_column' => 'id', 'include_trashed' => false,
+                    'soft_delete_column' => 'deleted_at',
+                ],
+            ]))->toBe(['duplicate']);
     } finally {
         DB::purge();
+        foundationReqShieldDatabaseRemove($basePath);
     }
 });
+
+function foundationReqShieldDatabaseRemove(string $directory): void
+{
+    if (!is_dir($directory)) {
+        return;
+    }
+    $entries = scandir($directory);
+    if ($entries === false) {
+        return;
+    }
+    foreach ($entries as $entry) {
+        if ($entry === '.' || $entry === '..') {
+            continue;
+        }
+        $path = $directory . DIRECTORY_SEPARATOR . $entry;
+        if (is_dir($path)) {
+            foundationReqShieldDatabaseRemove($path);
+        } else {
+            unlink($path);
+        }
+    }
+    rmdir($directory);
+}

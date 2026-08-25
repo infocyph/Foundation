@@ -17,7 +17,7 @@ final class LoggingServiceProvider extends ServiceProvider
     {
         $container = $app->container();
 
-        if (!$container->has(LoggerInterface::class)) {
+        if (!$this->hasExplicitBinding($container, LoggerInterface::class)) {
             $this->bindFactory(
                 $container,
                 LoggerInterface::class,

@@ -6,18 +6,20 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Auth\Account\Account;
 use Infocyph\Foundation\Auth\Account\AccountStatus;
 use Infocyph\Foundation\Auth\Authentication\Session\AuthSession;
-use Infocyph\Foundation\Auth\Authentication\TokenAuth\RefreshTokenRecord;
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\AccessTokenClaims;
+use Infocyph\Foundation\Auth\Authentication\TokenAuth\RefreshTokenRecord;
+use Infocyph\Foundation\Auth\AuthServices;
 use Infocyph\Foundation\Auth\Authorization\Decision\AuthorizationDecision;
 use Infocyph\Foundation\Auth\Contract\Notification\AuthNotifierInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AuditEventStoreInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\SessionStoreInterface;
 use Infocyph\Foundation\Auth\Device\DeviceRecord;
+use Infocyph\Foundation\Auth\Http\AuthActions;
 use Infocyph\Foundation\Auth\Mfa\MfaChallenge;
 use Infocyph\Foundation\Auth\Mfa\MfaFactor;
 use Infocyph\Foundation\Auth\Mfa\MfaFactorType;
-use Infocyph\Foundation\Auth\Passkey\PasskeyChallenge;
 use Infocyph\Foundation\Auth\Passkey\PasskeyAuthenticationResult;
+use Infocyph\Foundation\Auth\Passkey\PasskeyChallenge;
 use Infocyph\Foundation\Auth\Passkey\PasskeyRegistrationResult;
 use Infocyph\Foundation\Auth\Principal\Principal;
 use Infocyph\Foundation\Auth\Support\CollectingAuthNotifier;
@@ -38,8 +40,8 @@ function foundationAuthApplication(): Application
 
 it('composes the complete credential and token lifecycle without eager sibling services', function (): void {
     $app = foundationAuthApplication();
-    $services = $app->auth();
-    $actions = $app->authActions();
+    $services = $app->make(AuthServices::class);
+    $actions = $app->make(AuthActions::class);
     $hasher = $services->passwordHasher();
     $created = $services->accounts()->create(
         'person@example.test',
@@ -55,9 +57,9 @@ it('composes the complete credential and token lifecycle without eager sibling s
     }
 
     expect($actions->login([
-            'identifier' => 'person@example.test',
-            'password' => 'wrong-secret',
-        ])->failed())->toBeTrue();
+        'identifier' => 'person@example.test',
+        'password' => 'wrong-secret',
+    ])->failed())->toBeTrue();
 
     $verification = $services->emailVerification()->issue(
         $account->id(),
@@ -155,7 +157,7 @@ it('composes the complete credential and token lifecycle without eager sibling s
 
 it('locks repeated login failures and supports an explicit unlock', function (): void {
     $app = foundationAuthApplication();
-    $services = $app->auth();
+    $services = $app->make(AuthServices::class);
     $account = $services->accounts()->create(
         'locked@example.test',
         $services->passwordHasher()->hash('correct-secret'),
@@ -185,7 +187,7 @@ it('locks repeated login failures and supports an explicit unlock', function ():
 
 it('composes permissions roles grants gates and denial auditing', function (): void {
     $app = foundationAuthApplication();
-    $services = $app->auth();
+    $services = $app->make(AuthServices::class);
     $created = $services->accounts()->create('authorizer@example.test');
     $account = $created->account;
 
@@ -223,7 +225,7 @@ it('composes permissions roles grants gates and denial auditing', function (): v
 
 it('composes MFA passkeys devices impersonation and step-up state', function (): void {
     $app = foundationAuthApplication();
-    $services = $app->auth();
+    $services = $app->make(AuthServices::class);
     $created = $services->accounts()->create('secure@example.test');
     $target = $created->account;
 
@@ -257,10 +259,10 @@ it('composes MFA passkeys devices impersonation and step-up state', function ():
     }
 
     expect($services->mfa()->verifyChallenge(
-            $challenge->challenge->id,
-            '000000',
-            ['session_id' => 'session-1'],
-        )->successful())->toBeTrue()
+        $challenge->challenge->id,
+        '000000',
+        ['session_id' => 'session-1'],
+    )->successful())->toBeTrue()
         ->and($services->mfa()->isSatisfied($target->id(), 'session-1'))->toBeTrue()
         ->and($services->mfa()->verifyRecoveryCode(
             $target->id(),
