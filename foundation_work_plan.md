@@ -12,10 +12,10 @@
 - Started: 2026-08-24 (Asia/Dhaka)
 - Original closure checkpoint: `16d60f114314544a5c6db91c0e986423fa6fbb70`
 - Dependency-rebaseline checkpoint: `6663dad26e75453fcebb7975dda2ad0b49661951`
-- Latest verified implementation checkpoint: `2cd7060717e2ec9352a9a1cac60e8c992d481851`
-- Authoritative Security & Standards run: `32819176255`
-- Authoritative dedicated PHPStan run: `32819175905`
-- Current phase: **optimization/operations/environment safety closure, then soak/baseline and final Foundation/Infbyte release audit**.
+- Latest verified implementation checkpoint: `d2178b7eff678a4793732be9f45b12032b3a5b2c`
+- Authoritative Security & Standards run: `32827098635`
+- Authoritative dedicated PHPStan run: `32827097882`
+- Current phase: **soak/baseline review, then final Foundation/Infbyte release audit and checkpoint closure**.
 - Architecture/public ownership boundaries are frozen. Correct integration defects, tests, diagnostics and docs only; do not restore retired convenience APIs or duplicate specialist engines.
 - Final finish condition: updated dependencies resolve, PHPUnit/PHPForge/static-analysis matrices are green, specialist/runtime/security/process/deployment behavior is evidenced, Infbyte is aligned, benchmarks remain acceptable, and every checklist item below has explicit evidence.
 
@@ -178,11 +178,40 @@ Security run `32819176255`, dedicated PHPStan `32819175905` are fully green acro
 - a real message worker consumes one queued message, receives named `worker:jobs` restart control from the handler, exits gracefully before consuming the next message, unregisters its process record, and leaves later work queued;
 - existing pool/fork evidence remains owned by Omnibus rather than duplicated in Foundation.
 
+### Optimization/cache idempotency
+
+Security run `32827098635`, dedicated PHPStan `32827097882`:
+
+- config, route, command, schedule and container optimization paths are exercised repeatedly through the real command dispatcher;
+- repeated `optimize` converges without duplicate/stale artifacts and `optimize:report` reflects the built caches;
+- repeated `optimize:clear` is idempotent and leaves all managed cache families clear;
+- config cache clearing owns the complete dedicated config-cache tree, removes implementation-specific auxiliary entries, and does not follow symlinks outside that tree.
+
+### Operations/runtime control closure
+
+Security run `32827098635`, dedicated PHPStan `32827097882`:
+
+- maintenance status/enable/disable and idempotent disable behavior are green through the real dispatcher;
+- `runtime:reload`, `schedule:interrupt`, all-worker restart and named-worker restart control tokens change as intended;
+- worker process registration/status includes configured worker, host visibility and running state;
+- stale heartbeats remain observable with `running=false`, matching the registry's documented observational-not-supervisory contract;
+- explicit unregister cleanup removes the stale process record and leaves the registry empty; no PID-probing or duplicate process-supervisor API is introduced.
+
+### Environment/storage safety closure
+
+Security run `32827098635`, dedicated PHPStan `32827097882`:
+
+- environment encryption/decryption preserves exact plaintext round-trip while encrypted/decrypted outputs use `0600` permissions;
+- overwrite requires explicit force, failed decrypt does not corrupt an existing destination, temporary/backup files are cleaned, and symlink output targets are refused;
+- storage link creation/status/unlink is idempotent for configured matching links;
+- unlink refuses ordinary directories and mismatched symlink targets, preserving unrelated data;
+- traversal outside configured Foundation public/storage roots is rejected.
+
 ## Authoritative QA baseline
 
-Verified implementation checkpoint: `2cd7060717e2ec9352a9a1cac60e8c992d481851`.
+Verified implementation checkpoint: `d2178b7eff678a4793732be9f45b12032b3a5b2c`.
 
-Security & Standards `32819176255`:
+Security & Standards `32827098635`:
 
 - matrix preparation: PASS;
 - clean production install: PASS;
@@ -194,10 +223,10 @@ Security & Standards `32819176255`:
 - PHP 8.5 prefer-stable QA: PASS;
 - PHP 8.4 representative benchmark validation: PASS;
 - PHP 8.5 representative benchmark validation: PASS;
-- benchmark comparison: skipped because no baseline artifact is configured;
+- benchmark comparison: skipped because no stable comparable baseline is configured;
 - Security SVG report: skipped and not a release gate.
 
-QA uses `fail_on_skipped_tests: true` and enforces Pest, Pint, PHPCS, PHPProbe, Deptrac, Rector and Composer Normalize. Analyzer jobs enforce PHPStan and Psalm. Dedicated PHPStan `32819175905` passed.
+QA uses `fail_on_skipped_tests: true` and enforces Pest, Pint, PHPCS, PHPProbe, Deptrac, Rector and Composer Normalize. Analyzer jobs enforce PHPStan and Psalm. Dedicated PHPStan `32827097882` passed.
 
 # 32-point verification / release closure checklist
 
@@ -206,12 +235,12 @@ QA uses `fail_on_skipped_tests: true` and enforces Pest, Pint, PHPCS, PHPProbe, 
 3. [x] Align Composer capability baseline to DBLayer `^5.0`, Omnibus `^2.5`, ReqShield `^3.1`.
 4. [x] Align `ModuleCatalog` constraints with Composer baseline.
 5. [x] Normalize PHPForge reusable-workflow configuration to repository-specific overrides only.
-6. [x] Production clean-install gate passes on the current dependency set (`32819176255`).
-7. [x] PHP 8.4 representative benchmark validation passes (`32819176255`).
-8. [x] PHP 8.5 representative benchmark validation passes (`32819176255`).
-9. [x] Psalm passes on PHP 8.4 and PHP 8.5 analyzer jobs (`32819176255`).
-10. [x] Deptrac passes across the current QA matrix (`32819176255`).
-11. [x] Current syntax/PHPProbe/Pest blocking defects are cleared (`32819176255`).
+6. [x] Production clean-install gate passes on the current dependency set (`32827098635`).
+7. [x] PHP 8.4 representative benchmark validation passes (`32827098635`).
+8. [x] PHP 8.5 representative benchmark validation passes (`32827098635`).
+9. [x] Psalm passes on PHP 8.4 and PHP 8.5 analyzer jobs (`32827098635`).
+10. [x] Deptrac passes across the current QA matrix (`32827098635`).
+11. [x] Current syntax/PHPProbe/Pest blocking defects are cleared (`32827098635`).
 12. [x] DBLayer 5 migration/rollback/status/reset/refresh/wipe/monitor compatibility matrix is green.
 13. [x] Destructive database safeguard/confirmation matrix is green through the real CLI dispatcher.
 14. [x] Module list/show/install/remove/config-publish/schema-status/schema-install/schema-sync plus dry-run/duplicate/failure rollback behavior is green.
@@ -226,10 +255,10 @@ QA uses `fail_on_skipped_tests: true` and enforces Pest, Pint, PHPCS, PHPProbe, 
 23. [x] MFA recovery/passkey/step-up/recent-auth/authorization/impersonation flows are green (`32818552123`, `32818551519`).
 24. [x] Production security posture is green for secrets, secure defaults, OTP/WebAuthn/shared-state topology and unsafe-memory rejection (`32818552123`, `32818551519`).
 25. [x] Omnibus 2.5 dispatch/consume/retry/failure/prune/monitor/execution-scope/shutdown/restart matrix is green (`32819176255`, `32819175905`).
-26. [ ] Verify config/route/command/schedule/container optimize/clear idempotency.
-27. [ ] Verify maintenance/runtime reload/worker restart/scheduler interrupt/process-registry/status/stale cleanup.
-28. [ ] Verify env encrypt/decrypt/temp-file/permissions/overwrite and storage link/unlink safety.
-29. [x] Pint/Rector/Composer Normalize/PHPCS/PHPStan/Psalm/Deptrac are green on the current PHP 8.4/8.5 lowest/stable matrix with `fail_on_skipped_tests: true` (`32819176255`, `32819175905`).
+26. [x] Config/route/command/schedule/container optimize/clear idempotency is green (`32827098635`, `32827097882`).
+27. [x] Maintenance/runtime reload/worker restart/scheduler interrupt/process-registry/status/stale cleanup is green (`32827098635`, `32827097882`).
+28. [x] Env encrypt/decrypt/temp-file/permissions/overwrite and storage link/unlink safety is green (`32827098635`, `32827097882`).
+29. [x] Pint/Rector/Composer Normalize/PHPCS/PHPStan/Psalm/Deptrac are green on the current PHP 8.4/8.5 lowest/stable matrix with `fail_on_skipped_tests: true` (`32827098635`, `32827097882`).
 30. [ ] Review soak-sensitive persistent-runtime paths and establish/compare a representative benchmark baseline where appropriate.
 31. [ ] Final dependency/package/stale-version/retired-API audit plus Foundation/Infbyte stable-release alignment.
 32. [ ] Record final source/CI checkpoints and all verified results with zero ambiguous closure items.
