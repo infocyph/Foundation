@@ -14,10 +14,10 @@ Foundation is the reusable framework/runtime layer. Infbyte is the opinionated a
 - Started: 2026-08-24 (Asia/Dhaka)
 - Original closure checkpoint: `16d60f114314544a5c6db91c0e986423fa6fbb70`
 - Dependency-rebaseline checkpoint: `6663dad26e75453fcebb7975dda2ad0b49661951`
-- Latest verified implementation checkpoint: `dfc7d12f004be7179503ca87530b6f044b8d98a7`
-- Authoritative Security & Standards run: `32811030933`
-- Authoritative dedicated PHPStan run: `32811030099`
-- Current phase: **module lifecycle/schema closure, then optional-capability isolation and runtime matrices**.
+- Latest verified implementation checkpoint: `4c3cee6480601f24fd2db5ab045ca8782ba8bc59`
+- Authoritative Security & Standards run: `32811659551`
+- Authoritative dedicated PHPStan run: `32811659288`
+- Current phase: **optional-capability isolation, then Web/CLI/Worker/Scheduler runtime matrices**.
 - Architecture/public ownership boundaries are frozen. Correct integration defects, tests, diagnostics and docs only; do not restore retired convenience APIs or duplicate specialist engines.
 - Final finish condition: updated dependencies resolve, PHPUnit/PHPForge/static-analysis matrices are green, specialist/runtime/security/process/deployment behavior is evidenced, Infbyte is aligned, benchmarks remain acceptable, and every checklist item below has explicit evidence.
 
@@ -89,7 +89,7 @@ Foundation fixed one concrete DBLayer 5 integration issue: `ReqShieldDatabasePro
 
 ### DBLayer 5 compatibility — executed
 
-`DBLayer5MigrationCompatibilityTest` and the existing database integration tests are green in Security & Standards run `32811030933` across the PHP 8.4/8.5 lowest/stable QA matrix. Covered behavior includes:
+`DBLayer5MigrationCompatibilityTest` and the existing database integration tests are green in Security & Standards run `32811659551` across the PHP 8.4/8.5 lowest/stable QA matrix. Covered behavior includes:
 
 - pretend without schema mutation;
 - step-mode batches;
@@ -106,7 +106,7 @@ The DBLayer 5 migration fixture was corrected to register its connection through
 
 ### Destructive database command safeguards — executed
 
-`DatabaseDestructiveCommandTest` exercises the real `CommandDispatcher` + `DatabaseSystemCommand` boundary against a persistent temporary SQLite database and is green in run `32811030933`.
+`DatabaseDestructiveCommandTest` exercises the real `CommandDispatcher` + `DatabaseSystemCommand` boundary against a persistent temporary SQLite database and is green in run `32811659551`.
 
 Verified cases:
 
@@ -145,11 +145,34 @@ Current green compatibility coverage includes:
 
 Checklist item 25 remains open because the dedicated release matrix still needs explicit monitor/execution-scope/shutdown/restart closure evidence beyond the current compatibility suite.
 
+### Module lifecycle/schema matrix — executed
+
+`ModuleConfigPublicationTest` and `ModuleLifecycleIntegrationTest` are green in Security & Standards run `32811659551` across PHP 8.4/8.5 lowest/stable.
+
+Verified behavior includes:
+
+- `module:list` returns canonical purpose-first modules;
+- `module:show db` resolves the alias to `database` and reports DBLayer `^5.0`;
+- `module:install db --dry-run` emits the expected `composer require` command without dev-dependency mutation;
+- `module:remove db --dry-run` emits a real selective `composer remove` only when DBLayer is a direct project requirement;
+- removing a non-direct optional package is a successful no-op;
+- built-in module removal is refused;
+- successful optional-package removal preserves application-owned config and database data;
+- `module:config:publish` publishes owned config and a duplicate non-force publish preserves application-owned contents;
+- a forced multi-file config publication that fails on a later target rolls back already-published files and leaves no Foundation staging/backup debris;
+- `module:schema:status session` reports pending before installation;
+- `module:schema:install session` provisions the configured database session schema and later status reports installed;
+- cache schema status is observational and does not create a missing SQLite cache database;
+- `module:schema:sync` creates the required SQLite cache database/schema only during provisioning;
+- module package removal has no schema/data deletion path.
+
+No production module code needed redesign; this chunk closed evidence gaps in the existing lifecycle contract.
+
 ## Authoritative QA baseline — 2026-08-25
 
-Verified implementation checkpoint: `dfc7d12f004be7179503ca87530b6f044b8d98a7`.
+Verified implementation checkpoint: `4c3cee6480601f24fd2db5ab045ca8782ba8bc59`.
 
-Security & Standards run `32811030933`:
+Security & Standards run `32811659551`:
 
 - matrix preparation: PASS;
 - clean production install: PASS;
@@ -164,9 +187,9 @@ Security & Standards run `32811030933`:
 - benchmark comparison step: skipped because no baseline artifact is configured; result validation itself passed;
 - Security SVG report: skipped and not a release gate.
 
-The QA jobs run with `fail_on_skipped_tests: true`. The PHP 8.5 stable log explicitly reports PASS for Pest, Pint, PHPCS, PHPProbe, Deptrac, Rector, and Composer Normalize. Analyzer jobs enforce PHPStan and Psalm. The dedicated Foundation PHPStan diagnostic run `32811030099` also passed.
+The QA jobs run with `fail_on_skipped_tests: true`. The quality jobs enforce Pest, Pint, PHPCS, PHPProbe, Deptrac, Rector, and Composer Normalize. Analyzer jobs enforce PHPStan and Psalm. The dedicated Foundation PHPStan diagnostic run `32811659288` also passed.
 
-This supersedes the historical 2026-08-24 defect snapshot and its old PHPStan count.
+This supersedes the historical 2026-08-24 defect snapshot and all earlier closure-run QA checkpoints.
 
 ## Historical QA context — not authoritative
 
@@ -214,15 +237,15 @@ Items remain evidence-driven and unchecked until an authoritative execution prov
 3. [x] Align Composer capability baseline to DBLayer `^5.0`, Omnibus `^2.5`, ReqShield `^3.1`.
 4. [x] Align `ModuleCatalog` constraints with Composer baseline.
 5. [x] Normalize PHPForge reusable-workflow configuration to repository-specific overrides only.
-6. [x] Production clean-install gate passes on the rebaselined dependency set (`32811030933`).
-7. [x] PHP 8.4 representative benchmark validation passes on the rebaselined dependency set (`32811030933`).
-8. [x] PHP 8.5 representative benchmark validation passes on the rebaselined dependency set (`32811030933`).
-9. [x] Psalm passes on PHP 8.4 and PHP 8.5 analyzer jobs (`32811030933`).
-10. [x] Deptrac passes across the current QA matrix (`32811030933`).
-11. [x] Current syntax/PHPProbe/Pest blocking defects are cleared after dependency rebaseline (`32811030933`).
-12. [x] DBLayer 5 migration up/down/pretend/rollback-batch/status/reset/refresh/wipe/monitor compatibility matrix is green (`32811030933`).
-13. [x] Destructive database safeguard/confirmation matrix is green through the real CLI dispatcher (`32811030933`).
-14. [ ] Verify module list/show/install/remove/config-publish/schema-status/schema-install/schema-sync plus dry-run/duplicate/failure rollback behavior.
+6. [x] Production clean-install gate passes on the rebaselined dependency set (`32811659551`).
+7. [x] PHP 8.4 representative benchmark validation passes on the rebaselined dependency set (`32811659551`).
+8. [x] PHP 8.5 representative benchmark validation passes on the rebaselined dependency set (`32811659551`).
+9. [x] Psalm passes on PHP 8.4 and PHP 8.5 analyzer jobs (`32811659551`).
+10. [x] Deptrac passes across the current QA matrix (`32811659551`).
+11. [x] Current syntax/PHPProbe/Pest blocking defects are cleared after dependency rebaseline (`32811659551`).
+12. [x] DBLayer 5 migration up/down/pretend/rollback-batch/status/reset/refresh/wipe/monitor compatibility matrix is green (`32811659551`).
+13. [x] Destructive database safeguard/confirmation matrix is green through the real CLI dispatcher (`32811659551`).
+14. [x] Module list/show/install/remove/config-publish/schema-status/schema-install/schema-sync plus dry-run/duplicate/failure rollback behavior is green (`32811659551`).
 15. [ ] Verify optional capability isolation and graceful unavailable-capability errors.
 16. [ ] Verify Web routes/cache/middleware/session/auth-principal/maintenance/exception behavior.
 17. [ ] Verify CLI discovery/cache/status/exit/overlap/global options/help/completion/machine-readable/destructive-confirmation behavior.
@@ -237,33 +260,33 @@ Items remain evidence-driven and unchecked until an authoritative execution prov
 26. [ ] Verify config/route/command/schedule/container optimize/clear idempotency.
 27. [ ] Verify maintenance/runtime reload/worker restart/scheduler interrupt/process-registry/status/stale cleanup.
 28. [ ] Verify env encrypt/decrypt/temp-file/permissions/overwrite and storage link/unlink safety.
-29. [x] Pint/Rector/Composer Normalize/PHPCS/PHPStan/Psalm/Deptrac are green on the current PHP 8.4/8.5 lowest/stable CI matrix with `fail_on_skipped_tests: true` (`32811030933`, `32811030099`).
+29. [x] Pint/Rector/Composer Normalize/PHPCS/PHPStan/Psalm/Deptrac are green on the current PHP 8.4/8.5 lowest/stable CI matrix with `fail_on_skipped_tests: true` (`32811659551`, `32811659288`).
 30. [ ] Review soak-sensitive persistent-runtime paths and establish/compare a representative benchmark baseline where appropriate.
 31. [ ] Final dependency/package/stale-version/retired-API audit plus Foundation/Infbyte stable-release alignment.
 32. [ ] Record final source/CI checkpoints and all verified results with zero ambiguous closure items.
 
-## Module lifecycle audit — active
+## Optional-capability isolation audit — active
 
 Current source audit confirms:
 
-- `ModuleManager::install()` installs only module-owned packages and uses `--with-all-dependencies --update-no-dev`;
-- built-in modules require no Composer operation;
-- `ModuleManager::remove()` refuses built-in modules and removes only direct project requirements;
-- package removal contains no schema/data deletion path;
-- module install publishes config, invalidates compiled runtime, and synchronizes applicable schemas in a fresh PHP process;
-- config publication is staged/atomic, preserves application-owned files by default, rejects force-publishing through symlinks, and rolls back staged/published targets on failure;
-- schema ownership remains auth/cache/session only;
-- cache schema status is observational: a missing SQLite cache database is not created until install.
+- `Bootstrapper` keeps optional providers deferred and checks their package marker class before activation;
+- `Application::has()` returns false for a managed service whose optional dependency is unavailable without activating the provider;
+- `Application::make()` converts unavailable managed-service resolution into a stable `ServiceResolutionException` containing the missing package/module guidance;
+- command capabilities resolve through `Application::make()` before command execution, so unavailable optional command capabilities fail at the framework boundary rather than inside specialist code;
+- auth remains built in, while OTP/WebAuthn specialist drivers call a centralized `requirePackage()` only when that driver is selected;
+- disabled/simple/in-memory auth drivers do not require OTP/WebAuthn packages;
+- the current clean-install gate proves the Foundation production autoloader resolves with optional/dev packages omitted.
 
-Existing `ModuleConfigPublicationTest` strongly covers publication behavior, but its Composer test does not actually execute `remove()` because its temporary project has no direct module requirement. Checklist item 14 therefore stays open until focused lifecycle coverage proves real remove/direct-filtering, built-in refusal, command-level list/show/schema status/install/sync, and schema/config preservation.
+This checklist item remains open until isolated-process probes explicitly simulate absent optional package autoloading and verify both graceful service errors and dependency-free base CLI boot behavior.
 
 ## Immediate next work
 
-1. add focused module lifecycle coverage for real Composer remove/direct filtering, built-in removal refusal and preservation of config/schema data;
-2. exercise `module:list`, `module:show`, `module:schema:status`, `module:schema:install`, and `module:schema:sync` through the actual command boundary where practical;
-3. prove cache schema status does not create a missing SQLite database but schema install does;
-4. rerun exact-head PHPForge/PHPStan after the module test chunk and close checklist item 14 only if the full evidence is green;
-5. then continue checklist item 15 optional-capability isolation.
+1. add isolated optional-capability probes that unregister the Composer loader after Foundation/core classes are loaded, so optional package marker classes are genuinely unavailable in the probe process;
+2. verify base CLI application creation/boot remains healthy with optional capabilities unavailable;
+3. verify representative cache/database/communication/filesystem/messaging/security/validation services report `has() === false` and `make()` returns stable install-module guidance;
+4. verify selected OTP and WebAuthn auth drivers fail with their explicit package guidance while dependency-free auth drivers continue to register;
+5. rerun exact-head PHPForge/PHPStan and close checklist item 15 only from green evidence;
+6. then continue the Web runtime matrix.
 
 # Do not regress
 
