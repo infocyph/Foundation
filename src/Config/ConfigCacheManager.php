@@ -15,28 +15,18 @@ final readonly class ConfigCacheManager
     public function clear(string $path = 'bootstrap/cache/config'): bool
     {
         $directory = $this->path($path);
-        if (!is_dir($directory)) {
+        if (!is_dir($directory) && !is_link($directory)) {
             return false;
         }
 
-        $files = glob($directory . DIRECTORY_SEPARATOR . '*.php');
-        if ($files === false || $files === []) {
-            return false;
-        }
-        if (!is_writable($directory)) {
-            throw new \RuntimeException(sprintf('Config cache directory "%s" is not writable.', $directory));
-        }
-
-        foreach ($files as $file) {
-            if (!unlink($file)) {
-                throw new \RuntimeException(sprintf('Unable to remove config cache file "%s".', $file));
-            }
-        }
-        if (!rmdir($directory) && is_dir($directory)) {
-            throw new \RuntimeException(sprintf('Unable to remove config cache directory "%s".', $directory));
-        }
+        $this->removeDirectory($directory);
 
         return true;
+    }
+
+    public function cached(string $path = 'bootstrap/cache/config'): bool
+    {
+        return is_file($this->path($path) . DIRECTORY_SEPARATOR . ConfigLoader::MANIFEST_FILE);
     }
 
     public function path(string $path = 'bootstrap/cache/config'): string
@@ -154,16 +144,30 @@ final readonly class ConfigCacheManager
 
     private function removeDirectory(string $directory): void
     {
+        if (is_link($directory) || is_file($directory)) {
+            if (!unlink($directory)) {
+                throw new \RuntimeException(sprintf('Unable to remove config cache path "%s".', $directory));
+            }
+
+            return;
+        }
         if (!is_dir($directory)) {
             return;
         }
-        foreach (scandir($directory) ?: [] as $entry) {
+
+        $entries = scandir($directory);
+        if ($entries === false) {
+            throw new \RuntimeException(sprintf('Unable to read config cache directory "%s".', $directory));
+        }
+        foreach ($entries as $entry) {
             if ($entry === '.' || $entry === '..') {
                 continue;
             }
-            $path = $directory . DIRECTORY_SEPARATOR . $entry;
-            is_dir($path) ? $this->removeDirectory($path) : unlink($path);
+
+            $this->removeDirectory($directory . DIRECTORY_SEPARATOR . $entry);
         }
-        rmdir($directory);
+        if (!rmdir($directory)) {
+            throw new \RuntimeException(sprintf('Unable to remove config cache directory "%s".', $directory));
+        }
     }
 }
