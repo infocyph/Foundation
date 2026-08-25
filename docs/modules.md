@@ -19,17 +19,17 @@ uses the purpose name.
 | Module | Backing packages |
 | --- | --- |
 | `auth` | `infocyph/otp ^6.0`, `web-auth/webauthn-lib ^5.3.5` |
-| `cache` | `infocyph/cachelayer ^3.2` |
+| `cache` | `infocyph/cachelayer ^3.2.0` |
 | `communication` | `infocyph/talkingbytes ^2.0` |
-| `database` | `infocyph/dblayer ^4.1` |
+| `database` | `infocyph/dblayer ^5.0` |
 | `filesystem` | `infocyph/pathwise ^3.1` |
 | `logging` | built into Foundation |
-| `messaging` | `infocyph/omnibus ^2.4` |
+| `messaging` | `infocyph/omnibus ^2.5` |
 | `operations` | built into Foundation |
 | `resources` | built into Foundation |
 | `security` | `infocyph/epicrypt ^2.1` |
 | `session` | built into Foundation |
-| `validation` | `infocyph/reqshield ^3.0` |
+| `validation` | `infocyph/reqshield ^3.1` |
 
 Important aliases include:
 
