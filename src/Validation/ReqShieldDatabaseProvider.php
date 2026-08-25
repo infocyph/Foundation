@@ -39,11 +39,13 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
             ];
         }
 
+        $connection = ($this->connection)();
         $missing = [];
         foreach ($grouped as $column => $entries) {
             $matched = $this->matchedEntries(
                 $this->rowsForValues(
-                    $this->query($table)->select($this->column($column)),
+                    $connection,
+                    $this->query($connection, $table)->select($this->column($column)),
                     $this->column($column),
                     $this->entryValues($entries),
                 ),
@@ -73,9 +75,10 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
             $this->addUniqueCheck($grouped, $key, $check);
         }
 
+        $connection = ($this->connection)();
         $nonUnique = [];
         foreach ($grouped as $group) {
-            $query = $this->query($table)->select($this->column($group['column']));
+            $query = $this->query($connection, $table)->select($this->column($group['column']));
             if (!$group['with_trashed']) {
                 $query->whereNull($this->column($group['soft_delete_column']));
             }
@@ -85,9 +88,11 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
 
             $matched = $this->matchedEntries(
                 $this->rowsForValues(
+                    $connection,
                     $query,
                     $this->column($group['column']),
                     $this->entryValues($group['checks']),
+                    $group['ignore_id'] === null ? 0 : 1,
                 ),
                 $group['column'],
                 $group['checks'],
@@ -211,21 +216,36 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
         return $normalized;
     }
 
-    private function query(string $table): QueryBuilder
+    private function query(Connection $connection, string $table): QueryBuilder
     {
-        return ($this->connection)()->query()->from($table);
+        return $connection->query()->from($table);
     }
 
     /**
      * @param list<mixed> $values
      * @return list<array<string, mixed>>
      */
-    private function rowsForValues(QueryBuilder $query, string $column, array $values): array
-    {
+    private function rowsForValues(
+        Connection $connection,
+        QueryBuilder $query,
+        string $column,
+        array $values,
+        int $fixedBindings = 0,
+    ): array {
         $rows = [];
         $nonNullValues = array_values(array_filter($values, static fn(mixed $value): bool => $value !== null));
         if ($nonNullValues !== []) {
-            $rows = $this->normalizeRows($query->cloneBuilder()->whereIn($column, $nonNullValues)->get());
+            $batchSize = $connection->safeBatchSize(
+                parametersPerRow: 1,
+                fixedBindings: $fixedBindings,
+                requested: count($nonNullValues),
+            );
+            foreach (array_chunk($nonNullValues, $batchSize) as $batch) {
+                $rows = [
+                    ...$rows,
+                    ...$this->normalizeRows($query->cloneBuilder()->whereIn($column, $batch)->get()),
+                ];
+            }
         }
         if (!in_array(null, $values, true)) {
             return $rows;
