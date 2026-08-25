@@ -9,16 +9,14 @@ use Infocyph\Foundation\Auth\Contract\Security\PasswordHasherInterface;
 
 final readonly class EpicryptPasswordHasher implements PasswordHasherInterface
 {
-    /**
-     * @param array<string, mixed> $options
-     */
     public function __construct(
         private PasswordHasher $hasher,
-        private array $options = [],
     ) {}
 
     public function hash(string $plainPassword, array $context = []): string
     {
-        return $this->hasher->hashPassword($plainPassword, $this->options + $context);
+        unset($context);
+
+        return $this->hasher->hashPassword($plainPassword);
     }
 }

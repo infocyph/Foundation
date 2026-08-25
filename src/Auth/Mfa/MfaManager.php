@@ -42,6 +42,9 @@ final readonly class MfaManager
         if ($factor === null) {
             return new MfaEnrollmentResult(MfaStatus::INVALID, code: 'mfa_factor_not_found', context: $context);
         }
+        if (!$this->isPrimaryFactor($factor)) {
+            return new MfaEnrollmentResult(MfaStatus::INVALID, $factor, code: 'mfa_factor_not_activatable', context: $context);
+        }
 
         $enabledFactor = $factor->activated();
         $this->factors->save($enabledFactor);
@@ -52,12 +55,21 @@ final readonly class MfaManager
     /**
      * @param array<string, mixed> $metadata
      */
-    public function enrollFactor(string $accountId, MfaFactorType|string $type, string $label, array $metadata = [], bool $enabled = false, int $recoveryCodeCount = 10): MfaEnrollmentResult
+    public function enrollFactor(string $accountId, MfaFactorType|string $type, string $label, array $metadata = [], bool $enabled = false, int $recoveryCodeCount = 0): MfaEnrollmentResult
     {
+        $resolvedType = $type instanceof MfaFactorType ? $type->value : $type;
+        if ($resolvedType === MfaFactorType::RECOVERY_CODE->value) {
+            return new MfaEnrollmentResult(
+                MfaStatus::INVALID,
+                code: 'mfa_recovery_factor_managed_internally',
+                context: $metadata,
+            );
+        }
+
         $factor = new MfaFactor(
             id: $this->ids->challengeId(),
             accountId: $accountId,
-            type: $type instanceof MfaFactorType ? $type->value : $type,
+            type: $resolvedType,
             label: $label,
             enabled: $enabled,
             createdAt: $this->clock->now(),
@@ -83,7 +95,7 @@ final readonly class MfaManager
     {
         $factor = $factorId !== null ? $this->findFactor($accountId, $factorId) : $this->firstEnabledFactor($accountId);
 
-        if ($factor === null) {
+        if ($factor === null || !$this->isPrimaryFactor($factor) || !$factor->enabled) {
             return new MfaChallengeResult(MfaStatus::INVALID, code: 'mfa_factor_not_available', context: $context);
         }
 
@@ -118,6 +130,9 @@ final readonly class MfaManager
 
         if ($factor === null) {
             return new MfaEnrollmentResult(MfaStatus::INVALID, code: 'mfa_factor_not_found', context: $context);
+        }
+        if (!$this->isPrimaryFactor($factor)) {
+            return new MfaEnrollmentResult(MfaStatus::INVALID, $factor, code: 'mfa_factor_not_removable', context: $context);
         }
 
         $this->factors->remove($factorId);
@@ -160,6 +175,10 @@ final readonly class MfaManager
      */
     public function verifyRecoveryCode(string $accountId, string $code, array $context = []): MfaChallengeResult
     {
+        if (!$this->hasEnabledPrimaryFactor($accountId)) {
+            return new MfaChallengeResult(MfaStatus::INVALID, code: 'recovery_code_unavailable', context: $context);
+        }
+
         $verification = $this->recoveryCodes->verify($accountId, $code);
 
         if (!$verification->verified) {
@@ -191,12 +210,22 @@ final readonly class MfaManager
     private function firstEnabledFactor(string $accountId): ?MfaFactor
     {
         foreach ($this->factors->findForAccount($accountId) as $factor) {
-            if ($factor->enabled) {
+            if ($factor->enabled && $this->isPrimaryFactor($factor)) {
                 return $factor;
             }
         }
 
         return null;
+    }
+
+    private function hasEnabledPrimaryFactor(string $accountId): bool
+    {
+        return $this->firstEnabledFactor($accountId) !== null;
+    }
+
+    private function isPrimaryFactor(MfaFactor $factor): bool
+    {
+        return $factor->type !== MfaFactorType::RECOVERY_CODE->value;
     }
 
     private function markSatisfied(string $accountId, ?string $sessionId): void

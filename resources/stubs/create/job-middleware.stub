@@ -1,0 +1,17 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Infocyph\Foundation\Messaging\Job;
+use Infocyph\Foundation\Messaging\JobContext;
+use Infocyph\Foundation\Messaging\JobMiddleware;
+
+final readonly class {{ class }} implements JobMiddleware
+{
+    public function process(Job $job, JobContext $context, callable $next): mixed
+    {
+        return $next();
+    }
+}

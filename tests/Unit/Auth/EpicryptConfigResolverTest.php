@@ -3,15 +3,15 @@
 declare(strict_types=1);
 
 use Infocyph\Epicrypt\Password\Enum\PasswordHashAlgorithm;
+use Infocyph\Epicrypt\Password\PasswordHashOptions;
 use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
 use Infocyph\Foundation\Auth\Driver\AuthPasswordDriver;
 use Infocyph\Foundation\Auth\Driver\AuthTokenDriver;
-use Infocyph\Foundation\Auth\Internal\EpicryptConfigResolver;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Foundation;
 
 it('normalizes crypto-owned Epicrypt authentication configuration', function (): void {
-    $application = Foundation::console([
+    $application = Foundation::cli([
         '_config_cache' => false,
         'security' => [
             'password' => [
@@ -26,15 +26,13 @@ it('normalizes crypto-owned Epicrypt authentication configuration', function ():
         ],
     ]);
 
-    $resolver = new EpicryptConfigResolver($application);
-    $password = $resolver->passwordOptions();
+    $password = $application->make(PasswordHashOptions::class);
 
-    expect($password)->not->toHaveKey('profile')
-        ->and($password['algorithm'])->toBe(PasswordHashAlgorithm::BCRYPT)
-        ->and($password['cost'])->toBe(13)
-        ->and($resolver->tokenAudience())->toBe('foundation-api')
-        ->and($resolver->tokenIssuer())->toBe('https://identity.example.test')
-        ->and($resolver->tokenLeeway())->toBe(30);
+    expect($password->algorithm)->toBe(PasswordHashAlgorithm::BCRYPT)
+        ->and($password->bcryptCost)->toBe(13)
+        ->and($application->config()->get('security.jwt.audience'))->toBe('foundation-api')
+        ->and($application->config()->get('security.jwt.issuer'))->toBe('https://identity.example.test')
+        ->and($application->config()->get('security.jwt.leeway_seconds'))->toBe(30);
 });
 
 it('selects the installed security capability without exposing its package name', function (): void {

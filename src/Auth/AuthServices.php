@@ -25,6 +25,7 @@ use Infocyph\Foundation\Auth\Authorization\Permission\PermissionManager;
 use Infocyph\Foundation\Auth\Authorization\Role\RoleManager;
 use Infocyph\Foundation\Auth\Contract\Security\PasswordHasherInterface;
 use Infocyph\Foundation\Auth\Contract\Security\PasswordPolicyInterface;
+use Infocyph\Foundation\Auth\Contract\Security\PasswordVerifierInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
 use Infocyph\Foundation\Auth\Device\DeviceManager;
 use Infocyph\Foundation\Auth\Mfa\MfaManager;
@@ -120,6 +121,11 @@ final readonly class AuthServices
     public function passwordResets(): PasswordResetManager
     {
         return $this->app->make(PasswordResetManager::class);
+    }
+
+    public function passwordVerifier(): PasswordVerifierInterface
+    {
+        return $this->app->make(PasswordVerifierInterface::class);
     }
 
     public function permissions(): PermissionManager

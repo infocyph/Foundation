@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Infocyph\Foundation\Facades\Comms;
+use Infocyph\Foundation\Communication\CommunicationProfiles;
 use Infocyph\Foundation\Foundation;
 use Infocyph\TalkingBytes\Grpc\GrpcStatus;
 use Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundResponse;
@@ -11,13 +11,12 @@ use Infocyph\TalkingBytes\Grpc\Sender\GrpcResponse;
 use Infocyph\TalkingBytes\Http\HttpClient;
 use Infocyph\TalkingBytes\Http\Testing\FakeHttpTransport;
 use Infocyph\TalkingBytes\Webhook\Support\WebhookHeaders;
+use Infocyph\TalkingBytes\Webhook\Webhook;
 use Infocyph\TalkingBytes\Webhook\WebhookMessage;
 
-it('resolves configured talkingbytes http profiles', function (): void {
+it('resolves configured TalkingBytes HTTP profiles', function (): void {
     $app = Foundation::web([
-        'app' => [
-            'base_path' => dirname(__DIR__, 2),
-        ],
+        'app' => ['base_path' => dirname(__DIR__, 2)],
         'communication' => [
             'http' => [
                 'default_client' => 'api',
@@ -26,42 +25,43 @@ it('resolves configured talkingbytes http profiles', function (): void {
                         'timeoutSeconds' => 15,
                         'connectTimeoutSeconds' => 5,
                         'userAgent' => 'Infbyte Test Client',
-                        'defaultHeaders' => [
-                            'X-App' => 'Infbyte',
-                        ],
+                        'defaultHeaders' => ['X-App' => 'Infbyte'],
                     ],
                 ],
             ],
         ],
     ]);
 
-    $config = $app->communication()->httpConfig();
+    $config = $app->make(CommunicationProfiles::class)->httpConfig();
 
     expect($config->timeoutSeconds)->toBe(15)
         ->and($config->connectTimeoutSeconds)->toBe(5)
         ->and($config->userAgent)->toBe('Infbyte Test Client')
-        ->and($config->defaultHeaders)->toBe([
-            'X-App' => 'Infbyte',
-        ]);
-
-    expect(Comms::httpConfig()->userAgent)->toBe('Infbyte Test Client');
+        ->and($config->defaultHeaders)->toBe(['X-App' => 'Infbyte']);
 });
 
-it('applies talkingbytes webhook profiles through foundation', function (): void {
+it('applies TalkingBytes webhook profiles through Foundation composition', function (): void {
     $app = Foundation::web([
-        'app' => [
-            'base_path' => dirname(__DIR__, 2),
-        ],
+        'app' => ['base_path' => dirname(__DIR__, 2)],
         'communication' => [
+            'http' => [
+                'default_client' => 'default',
+                'clients' => [
+                    'default' => [],
+                ],
+            ],
             'webhooks' => [
+                'default_inbound' => 'default',
+                'default_outbound' => 'default',
                 'outbound' => [
                     'default' => [
-                        'signing_secret' => 'top-secret',
+                        'http_client' => 'default',
+                        'signing_secret' => 'test-webhook-key',
                     ],
                 ],
                 'inbound' => [
                     'default' => [
-                        'secret' => 'top-secret',
+                        'secret' => 'test-webhook-key',
                         'max_age_seconds' => 600,
                     ],
                 ],
@@ -69,49 +69,39 @@ it('applies talkingbytes webhook profiles through foundation', function (): void
         ],
     ]);
 
-    $events = [];
-    $app->communication()->events(static function (string $event, array $payload) use (&$events): void {
-        $events[] = [$event, $payload];
-    });
+    $profiles = $app->make(CommunicationProfiles::class);
+    $transport = (new FakeHttpTransport())->pushJson(['ok' => true]);
+    $client = HttpClient::fake($transport);
+    $sender = Webhook::sender($client)->withSecret('test-webhook-key');
 
-    try {
-        $transport = (new FakeHttpTransport())->pushJson(['ok' => true]);
-        $client = HttpClient::fake($transport);
+    $delivery = $sender->send(
+        WebhookMessage::event('orders.created')
+            ->deliveryId(str_repeat('a', 32))
+            ->url('https://example.test/hooks')
+            ->payload(['order_id' => 1001]),
+    );
 
-        $delivery = $app->communication()->webhookSenderUsing($client)->send(
-            WebhookMessage::event('orders.created')
-                ->deliveryId(str_repeat('a', 32))
-                ->url('https://example.test/hooks')
-                ->payload(['order_id' => 1001]),
-        );
+    $request = $transport->sentRequests()[0];
+    $payload = $request->body?->toCurlPayload();
+    $event = $profiles->webhookReceiver()->receive((string) $payload, [
+        WebhookHeaders::SIGNATURE => (string) $request->headers->get(WebhookHeaders::SIGNATURE),
+        WebhookHeaders::TIMESTAMP => (string) $request->headers->get(WebhookHeaders::TIMESTAMP),
+        WebhookHeaders::EVENT => (string) $request->headers->get(WebhookHeaders::EVENT),
+        WebhookHeaders::DELIVERY => (string) $request->headers->get(WebhookHeaders::DELIVERY),
+    ]);
 
-        $request = $transport->sentRequests()[0];
-        $receiver = Comms::webhookReceiver();
-        $payload = $request->body?->toCurlPayload();
-
-        $event = $receiver->receive((string) $payload, [
-            WebhookHeaders::SIGNATURE => (string) $request->headers->get(WebhookHeaders::SIGNATURE),
-            WebhookHeaders::TIMESTAMP => (string) $request->headers->get(WebhookHeaders::TIMESTAMP),
-            WebhookHeaders::EVENT => (string) $request->headers->get(WebhookHeaders::EVENT),
-            WebhookHeaders::DELIVERY => (string) $request->headers->get(WebhookHeaders::DELIVERY),
-        ]);
-
-        expect($delivery->delivery->delivered)->toBeTrue()
-            ->and($event->event)->toBe('orders.created')
-            ->and($event->payload)->toBe(['order_id' => 1001])
-            ->and(array_column($events, 0))->toContain('webhook.send.start', 'webhook.send.finish', 'webhook.verified', 'webhook.received');
-    } finally {
-        $app->communication()->events(null);
-    }
+    expect($profiles->webhookSender())->toBeObject()
+        ->and($delivery->delivery->delivered)->toBeTrue()
+        ->and($event->event)->toBe('orders.created')
+        ->and($event->payload)->toBe(['order_id' => 1001]);
 });
 
-it('creates talkingbytes grpc clients and servers through foundation', function (): void {
+it('creates TalkingBytes gRPC clients and inbound dispatchers through Foundation profiles', function (): void {
     $app = Foundation::web([
-        'app' => [
-            'base_path' => dirname(__DIR__, 2),
-        ],
+        'app' => ['base_path' => dirname(__DIR__, 2)],
         'communication' => [
             'grpc' => [
+                'default_profile' => 'default',
                 'profiles' => [
                     'default' => [
                         'retry' => [
@@ -125,7 +115,8 @@ it('creates talkingbytes grpc clients and servers through foundation', function 
         ],
     ]);
 
-    $client = $app->communication()->grpcClient(
+    $profiles = $app->make(CommunicationProfiles::class);
+    $client = $profiles->grpc(
         static fn(GrpcRequest $request): GrpcResponse => new GrpcResponse(
             GrpcStatus::Ok,
             ['echo' => $request->message],
@@ -137,21 +128,16 @@ it('creates talkingbytes grpc clients and servers through foundation', function 
         ['order_id' => 1001],
     ));
 
-    $server = Comms::grpcServer([
+    $dispatcher = $profiles->grpcInbound([
         '/orders.v1.OrderService/Create' => static fn($request): GrpcInboundResponse => GrpcInboundResponse::ok(
             ['accepted' => $request->message],
         ),
     ]);
-
-    $response = $server->receive('/orders.v1.OrderService/Create', ['order_id' => 1001]);
+    $response = $dispatcher->receive('/orders.v1.OrderService/Create', ['order_id' => 1001]);
 
     expect($result->successful)->toBeTrue()
         ->and($result->response)->toBeInstanceOf(GrpcResponse::class)
-        ->and($result->response->message)->toBe([
-            'echo' => ['order_id' => 1001],
-        ])
+        ->and($result->response->message)->toBe(['echo' => ['order_id' => 1001]])
         ->and($response->isOk())->toBeTrue()
-        ->and($response->message)->toBe([
-            'accepted' => ['order_id' => 1001],
-        ]);
+        ->and($response->message)->toBe(['accepted' => ['order_id' => 1001]]);
 });

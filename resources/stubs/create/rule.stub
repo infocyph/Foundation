@@ -1,0 +1,25 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Infocyph\ReqShield\Contracts\Rule;
+
+final readonly class {{ class }} implements Rule
+{
+    public function cost(): int
+    {
+        return 1;
+    }
+
+    public function message(string $field): string
+    {
+        return sprintf('%s is invalid.', $field);
+    }
+
+    public function passes(mixed $value, string $field, array $data): bool
+    {
+        return true;
+    }
+}

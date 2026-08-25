@@ -1,32 +1,38 @@
 {
     "name": "infocyph/foundation",
-    "description": "Illuminate-style integration foundation for the Infocyph PHP ecosystem.",
+    "description": "Performance-first application foundation for the Infocyph PHP ecosystem.",
     "license": "MIT",
     "type": "library",
     "require": {
-        "php": ">=8.4",
-        "infocyph/console": "^1.4",
-        "infocyph/webrick": "^3.3"
+        "php": "^8.4",
+        "composer-runtime-api": "^2.0",
+        "infocyph/arraykit": "^5.1.1",
+        "infocyph/intermix": "^9.2",
+        "infocyph/uid": "^5.0",
+        "infocyph/webrick": "^4.0.2",
+        "psr/log": "^3.0.2"
     },
     "require-dev": {
-        "infocyph/cachelayer": "^2.0.1",
-        "infocyph/dblayer": "^3.0.3",
-        "infocyph/epicrypt": "^1.1.1",
-        "infocyph/otp": "^5.04",
-        "infocyph/pathwise": "^2.5.3",
+        "infocyph/cachelayer": "^3.2.0",
+        "infocyph/dblayer": "^5.0",
+        "infocyph/epicrypt": "^2.1",
+        "infocyph/omnibus": "^2.5",
+        "infocyph/otp": "^6.0",
+        "infocyph/pathwise": "^3.1",
         "infocyph/phpforge": "dev-main@dev",
-        "infocyph/reqshield": "^2.4.3",
-        "infocyph/talkingbytes": "^1.0.0",
+        "infocyph/reqshield": "^3.1",
+        "infocyph/talkingbytes": "^2.0",
         "web-auth/webauthn-lib": "^5.3.5"
     },
     "suggest": {
-        "infocyph/cachelayer": "Adds Foundation cache stores and CacheLayer-backed authentication.",
-        "infocyph/dblayer": "Adds database services, database validation, and persistent authentication storage.",
-        "infocyph/epicrypt": "Adds Foundation cryptography and Epicrypt-backed authentication.",
-        "infocyph/otp": "Adds OTP-backed multi-factor authentication.",
-        "infocyph/pathwise": "Adds the full filesystem service; core application paths work without it.",
-        "infocyph/reqshield": "Adds request and application validation services.",
-        "infocyph/talkingbytes": "Adds communication and notification services.",
+        "infocyph/cachelayer": "Adds cache stores, native bulk paths, locks, counters, node/cluster cache, and shared authentication/runtime state.",
+        "infocyph/dblayer": "Adds database services, persistence, migrations, query caching, replicas, and MySQL/MariaDB/PostgreSQL/SQLite/SQL Server support.",
+        "infocyph/epicrypt": "Adds cryptography, secrets, password, token, and key security services.",
+        "infocyph/omnibus": "Adds events, messages, durable queues, handler middleware, workers, optional process pools, retries, workflows, and scheduled-message dispatch.",
+        "infocyph/otp": "Adds OTP-backed multi-factor authentication with atomic replay-safe state integration.",
+        "infocyph/pathwise": "Adds filesystem, storage, upload, download, archive, sync, retention, and storage capability enforcement.",
+        "infocyph/reqshield": "Adds request, command, configuration, schema, sanitization, typed input, and database validation services.",
+        "infocyph/talkingbytes": "Adds HTTP, inbound/outbound email, webhook, and gRPC communication services.",
         "web-auth/webauthn-lib": "Adds WebAuthn passkey authentication."
     },
     "minimum-stability": "stable",
@@ -36,7 +42,7 @@
             "Infocyph\\Foundation\\": "src/"
         },
         "files": [
-            "src/Config/config_helpers.php"
+            "src/Config/helpers.php"
         ]
     },
     "autoload-dev": {
@@ -45,6 +51,9 @@
             "Infocyph\\Foundation\\Tests\\Fixtures\\": "tests/Fixtures/"
         }
     },
+    "bin": [
+        "bin/infbyte"
+    ],
     "config": {
         "allow-plugins": {
             "ergebnis/composer-normalize": true,

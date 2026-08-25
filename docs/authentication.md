@@ -1,33 +1,33 @@
 # Authentication and authorization
 
-Foundation is the canonical owner of application authentication. It composes
-storage, cryptography, OTP, passkey, notification, cache, and identifier
-packages without moving their infrastructure behavior into Foundation.
+Foundation owns application authentication composition. It combines storage,
+cryptography, OTP, passkey, notification, cache, and identifier capabilities
+without moving specialist package engines into Foundation.
 
 ## Activation and lifecycle
 
-Authentication is not part of the global web path. Foundation activates its
-auth provider only when application code requests an auth service or a selected
-route uses an auth middleware alias.
+Authentication is not part of every Web request. Foundation activates auth
+services only when application code resolves them or selected route middleware
+requires them.
 
-The `resolve-auth` middleware resolves the configured principal sources. The
+The `resolve-auth` middleware resolves configured principal sources. The
 `auth`, `guest`, `verified`, `mfa`, `recent`, `role`, `permission`, and `policy`
 aliases consume that request principal. The `web-auth` route preset applies
 browser sessions and CSRF before principal resolution and authorization.
 
-Current-principal state is isolated between Fibers and restored in a `finally`
-block after successful or failed request handling. A persistent worker may
-therefore reuse one application instance without carrying a principal from one
-request or Fiber into another.
+Current-principal state participates in the Foundation execution boundary and is
+restored/cleared in `finally`, preventing persistent runtimes from carrying one
+execution's principal into the next.
 
 ## Typed lazy services
 
-`Application::auth()` returns the typed `AuthServices` gateway. Resolving the
-gateway does not construct every authentication capability. Each accessor
-resolves only its selected graph:
+`Application` remains a runtime/composition object rather than an auth facade.
+Resolve the typed `AuthServices` gateway through DI:
 
 ```php
-$auth = $app->auth();
+use Infocyph\Foundation\Auth\AuthServices;
+
+$auth = $app->make(AuthServices::class);
 
 $accounts = $auth->accounts();
 $login = $auth->authenticator();
@@ -38,28 +38,24 @@ $passkeys = $auth->passkeys();
 $authorizer = $auth->authorizer();
 ```
 
-Additional accessors cover password reset/change/passwordless flows, email
-verification, remember tokens, roles, permissions, delegation, devices,
-impersonation, step-up checks, password services, and the mutable application
-gate. Requesting one accessor does not resolve its siblings.
+Resolving the gateway does not intentionally construct every authentication
+capability. Additional accessors cover password reset/change/passwordless flows,
+email verification, remember tokens, roles, permissions, delegation, devices,
+impersonation, step-up checks, password services, and the application gate.
 
 ## Accounts and login
 
-Repository code may create accounts through the account manager or persist an
-`AccountInterface` through the configured storage contract:
-
 ```php
-$auth = $app->auth();
+use Infocyph\Foundation\Auth\AuthServices;
+use Infocyph\Foundation\Auth\Authentication\Login\LoginRequest;
+
+$auth = $app->make(AuthServices::class);
 $hash = $auth->passwordHasher()->hash($plainPassword);
 $created = $auth->accounts()->create($email, $hash);
 
 $result = $auth->authenticator()->login(
     new LoginRequest($email, $plainPassword),
 );
-
-if (!$result->authenticated()) {
-    // Map the explicit result status without exposing credential details.
-}
 ```
 
 Authentication sessions are identity/security records used by login and
@@ -68,60 +64,141 @@ which own cookie-backed application state, flash data, and CSRF tokens.
 
 ## Authorization
 
-The configured authorizer evaluates, in order:
-
-1. explicit gate callbacks;
-2. a resolved policy when the application has registered a
-   `PolicyResolverInterface`;
-3. direct permissions, role permissions, and delegated grants.
-
-Denied decisions are recorded through the configured auth audit store.
+The configured authorizer evaluates application gate/policy/permission/grant
+state according to the registered auth services. Generic persistence remains in
+its configured storage implementation.
 
 ```php
 $permission = $auth->permissions()->create('invoice.read');
 $auth->permissions()->assignToAccount($accountId, $permission->id);
 
 $decision = $auth->authorizer()->can($principal, 'invoice.read');
-
-$auth->gate()->define(
-    'invoice.approve',
-    static fn (PrincipalInterface $principal): bool => $principal->id() === $ownerId,
-);
 ```
 
-Do not perform hidden database access from policy properties. Load required
-repository projections before authorization and pass the explicit resource to
-the authorizer.
+Load required repository projections explicitly before authorization rather
+than hiding database work in policy properties.
 
-## Optional drivers
+## Purpose-first optional modules
 
-The final `auth.*` configuration selects behavior; infrastructure configuration
-remains in its owning file:
+Authentication is one public `auth` capability. There are no standalone public
+OTP or passkey modules.
 
-- `memory` storage requires no database.
-- `database` storage uses the selected DBLayer connection.
-- `array` cache uses process-local stores.
-- `cache` uses the configured CacheLayer stores and atomic counters.
-- `native` passwords and `simple` tokens are development-capable built-ins.
-- `security` passwords/tokens use Epicrypt.
-- `simple` MFA is intended for controlled development/testing.
-- `otp` MFA uses the OTP module.
-- `memory`, `disabled`, and `webauthn` select the passkey implementation.
-- `collect` records notifications in memory; `talkingbytes` delivers through
-  the configured notification transport.
+```bash
+php infbyte module:show auth
+php infbyte module:install auth
+```
 
-Production validation rejects development-only driver combinations. Optional
-packages are installed through `module:install` and remain outside unrelated
-routes and console commands.
+The module bundle contains:
 
-## Verification
+- `infocyph/otp ^6.0`
+- `web-auth/webauthn-lib ^5.3.5`
 
-The Foundation test suite covers the default complete credential, token,
-authorization, MFA, passkey, device, impersonation, and step-up lifecycles,
-including Fiber isolation and failure cleanup. The benchmark suite contains
-separate login, authorization, token, MFA, passkey, and successful
-authenticated-request workloads.
+Runtime readiness remains implementation-specific: selecting OTP MFA requires
+OTP; selecting WebAuthn passkeys requires WebAuthn. One does not make the other
+mandatory unless both behaviors are configured.
 
-Use application-level benchmarks with production password costs, database/cache
-drivers, OPcache, and representative concurrency before selecting operational
-budgets.
+Other selected auth drivers may require the canonical `cache`, `database`,
+`security`, or `communication` modules.
+
+## Driver ownership
+
+The final `auth.*` configuration selects application behavior while
+infrastructure stays in its owning capability:
+
+- `memory` storage requires no database;
+- `database` storage uses DBLayer;
+- process-local auth cache requires no CacheLayer;
+- shared `cache` state uses CacheLayer;
+- `native` password/token behavior remains Foundation-owned baseline behavior;
+- `security` password/token behavior uses Epicrypt;
+- `simple` MFA is development/testing-oriented;
+- `otp` MFA uses the OTP package;
+- passkeys may be disabled/memory-backed or use WebAuthn;
+- collected notifications are local application behavior, while TalkingBytes
+  delivery belongs to `communication`.
+
+Foundation never constructs a second password, token, OTP, WebAuthn, cache,
+database, or email transport engine merely to expose a framework-prefixed API.
+
+## Security-backed passwords and tokens
+
+When password or token drivers select `security`, Foundation applies application
+auth policy and Epicrypt owns the underlying cryptographic implementation.
+
+`security.password.*` selects Epicrypt password-hash options. JWT configuration
+under `security.jwt.*` selects supported signing policy; secret/key material must
+meet the requirements of the chosen algorithm and deployment.
+
+See [Security boundaries](security.md).
+
+## OTP-backed MFA
+
+When `auth.drivers.mfa=otp`, Foundation owns factor/challenge persistence and
+maps application state to OTP 6.0 primitives. OTP owns TOTP, HOTP, OCRA,
+provisioning payloads, verification semantics, and recovery-code cryptography.
+
+Replay/counter state is coordinated according to the OTP mode and Foundation's
+configured durable state. Production validation checks that replay protection
+has suitable state visibility and atomic coordination for the deployment
+topology.
+
+See [OTP-backed MFA](otp.md).
+
+## Passkeys
+
+When passkeys select WebAuthn, Foundation owns the application workflow and
+credential persistence boundary while `web-auth/webauthn-lib` owns WebAuthn
+protocol validation. Package presence alone does not activate passkey services.
+
+## Notifications
+
+Foundation authentication can emit application notifications through its
+notification contracts. TalkingBytes remains the owner of inbound/outbound email
+and transport mechanics.
+
+Reusable email sender profiles live under `notifications.email.*` and are
+activated only when communication-backed delivery is selected.
+
+## Durable auth schema
+
+When `auth.drivers.storage=database`, inspect/install the Foundation-owned auth
+schema with the canonical module schema commands:
+
+```bash
+php infbyte module:schema:status auth
+php infbyte module:schema:install auth
+```
+
+`module:schema:sync` also provisions the auth schema when current configuration
+requires database-backed auth.
+
+The schema includes accounts, authentication sessions, consumable verification
+requests, remember/refresh tokens, MFA factors, passkey credentials,
+authorization records, devices, audit records, and lockouts. MFA factors include
+a scalar `revision` used for portable compare-and-swap updates.
+
+Expired/revoked state can be pruned explicitly:
+
+```bash
+php infbyte auth:prune
+php infbyte auth:prune --retention-hours=24
+php infbyte auth:prune --connection=primary
+```
+
+## Production validation
+
+```bash
+php infbyte config:validate --production
+php infbyte app:ready
+```
+
+Production validation rejects development-only/inadequate state combinations
+and applies OTP replay-topology validation when OTP MFA is active.
+
+## Verification phase
+
+Credential, authorization, MFA, passkey, persistence, concurrency, Fiber,
+persistent-runtime, and failure-path coverage belong in the dedicated deferred
+Foundation release matrix. The documented contracts describe intended current
+behavior; they do not assert that the full release-candidate test matrix has
+already been executed.

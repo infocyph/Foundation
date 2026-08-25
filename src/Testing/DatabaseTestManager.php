@@ -4,29 +4,33 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Testing;
 
-use Infocyph\Foundation\Database\DatabaseManager;
+use Infocyph\Foundation\Database\DatabaseMigrationManager;
+use Infocyph\Foundation\Database\DBLayerFactory;
 
 final readonly class DatabaseTestManager
 {
-    public function __construct(private DatabaseManager $database) {}
+    public function __construct(
+        private DBLayerFactory $database,
+        private DatabaseMigrationManager $migrations,
+    ) {}
 
     public function begin(?string $connection = null): void
     {
-        $this->database->beginTransaction($connection);
+        $this->database->connection($connection)->begin();
     }
 
-    /**
-     * @return list<string>
-     */
+    /** @return list<string> */
     public function refresh(?string $connection = null): array
     {
-        return $this->database->migrations()->runner($connection)->refresh(true);
+        return $this->migrations->runner($connection)->refresh(true);
     }
 
     public function rollback(?string $connection = null): void
     {
-        while ($this->database->transactionLevel($connection) > 0) {
-            $this->database->rollback($connection);
+        $database = $this->database->connection($connection);
+
+        while ($database->transactionLevel() > 0) {
+            $database->rollbackTransaction();
         }
     }
 

@@ -17,7 +17,12 @@ final readonly class MfaFactor
         public bool $enabled,
         public int $createdAt,
         public array $metadata = [],
-    ) {}
+        public int $revision = 0,
+    ) {
+        if ($this->revision < 0) {
+            throw new \InvalidArgumentException('MFA factor revision cannot be negative.');
+        }
+    }
 
     public function activated(): self
     {
@@ -29,6 +34,7 @@ final readonly class MfaFactor
             enabled: true,
             createdAt: $this->createdAt,
             metadata: $this->metadata,
+            revision: $this->nextRevision(),
         );
     }
 
@@ -43,6 +49,16 @@ final readonly class MfaFactor
             enabled: $this->enabled,
             createdAt: $this->createdAt,
             metadata: $metadata,
+            revision: $this->nextRevision(),
         );
+    }
+
+    private function nextRevision(): int
+    {
+        if ($this->revision === PHP_INT_MAX) {
+            throw new \OverflowException('MFA factor revision is exhausted.');
+        }
+
+        return $this->revision + 1;
     }
 }

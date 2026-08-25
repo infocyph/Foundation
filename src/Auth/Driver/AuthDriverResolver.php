@@ -12,8 +12,6 @@ final readonly class AuthDriverResolver
 {
     private AuthCacheDriver $cache;
 
-    private AuthIdDriver $ids;
-
     private AuthMfaDriver $mfa;
 
     private AuthNotificationDriver $notifications;
@@ -30,7 +28,6 @@ final readonly class AuthDriverResolver
         ConfigRepository $config,
     ) {
         $this->cache = self::enumConfig($config, 'auth.drivers.cache', 'array', AuthCacheDriver::class);
-        $this->ids = self::enumConfig($config, 'auth.drivers.ids', 'random', AuthIdDriver::class);
         $this->mfa = self::enumConfig($config, 'auth.drivers.mfa', 'simple', AuthMfaDriver::class);
         $this->notifications = self::enumConfig($config, 'auth.drivers.notifications', 'collect', AuthNotificationDriver::class);
         $this->passkey = self::enumConfig($config, 'auth.drivers.passkey', 'memory', AuthPasskeyDriver::class);
@@ -42,11 +39,6 @@ final readonly class AuthDriverResolver
     public function cache(): AuthCacheDriver
     {
         return $this->cache;
-    }
-
-    public function ids(): AuthIdDriver
-    {
-        return $this->ids;
     }
 
     public function mfa(): AuthMfaDriver
@@ -81,7 +73,6 @@ final readonly class AuthDriverResolver
     {
         return [
             'cache' => $this->cache()->value,
-            'ids' => $this->ids()->value,
             'mfa' => $this->mfa()->value,
             'notifications' => $this->notifications()->value,
             'passkey' => $this->passkey()->value,

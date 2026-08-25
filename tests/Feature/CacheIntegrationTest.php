@@ -2,23 +2,26 @@
 
 declare(strict_types=1);
 
-use Infocyph\CacheLayer\Cache\Adapter\ChainCacheAdapter;
+use Infocyph\CacheLayer\Cache\Adapter\TieredCacheAdapter;
+use Infocyph\CacheLayer\Cache\AuthenticationStateCacheInterface;
+use Infocyph\CacheLayer\Cache\Cache;
+use Infocyph\CacheLayer\Cache\CacheInterface;
 use Infocyph\CacheLayer\Cache\Lock\FileLockProvider;
-use Infocyph\CacheLayer\Cache\Lock\PdoLockProvider;
-use Infocyph\Foundation\Cache\CacheLayerFactory;
-use Infocyph\Foundation\Cache\RedisConnectionFactory;
-use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
+use Infocyph\CacheLayer\Memoize\Memoizer;
+use Infocyph\CacheLayer\Memoize\OnceMemoizer;
+use Infocyph\DBLayer\DB;
 use Infocyph\Foundation\Foundation;
+use Psr\Cache\CacheItemPoolInterface;
+use Psr\SimpleCache\CacheInterface as SimpleCacheInterface;
 
-it('creates sqlite cache stores from database connections and applies strict serialization policy', function (): void {
+it('exposes one native CacheLayer store through Foundation PSR and DBLayer bindings', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-cache-' . uniqid('', true);
-    mkdir($basePath . '/storage/cache', 0775, true);
+    mkdir($basePath . '/storage/cache/locks', 0775, true);
     mkdir($basePath . '/database', 0775, true);
 
     $app = Foundation::web([
-        'app' => [
-            'base_path' => $basePath,
-        ],
+        'app' => ['base_path' => $basePath],
         'database' => [
             'default' => 'cache',
             'connections' => [
@@ -48,7 +51,8 @@ it('creates sqlite cache stores from database connections and applies strict ser
                     'connection' => 'cache',
                     'table' => 'cache_entries',
                     'lock' => [
-                        'driver' => 'pdo',
+                        'driver' => 'file',
+                        'path' => 'storage/cache/locks',
                         'prefix' => 'cache:test:lock:',
                     ],
                 ],
@@ -56,52 +60,46 @@ it('creates sqlite cache stores from database connections and applies strict ser
         ],
     ]);
 
-    $cache = $app->cache()->store();
-
     try {
-        expect($cache->set('name', 'Ada'))->toBeTrue()
+        $cache = $app->make(CacheInterface::class);
+
+        expect($cache)->toBeInstanceOf(Cache::class)
+            ->and($app->make(Cache::class))->toBe($cache)
+            ->and($app->make(AuthenticationStateCacheInterface::class))->toBe($cache)
+            ->and($app->make(SimpleCacheInterface::class))->toBe($cache)
+            ->and($app->make(CacheItemPoolInterface::class))->toBe($cache)
+            ->and($app->make('foundation.cache'))->toBe($cache)
+            ->and(DB::cache())->toBe($cache)
+            ->and($cache->set('name', 'Ada'))->toBeTrue()
             ->and($cache->get('name'))->toBe('Ada')
-            ->and($cache->exportMetrics())->toHaveKey('pdo');
-
-        expect($basePath . '/database/cache.sqlite')->toBeFile();
-
-        $cache->set('user', (object) ['name' => 'Ada']);
-
-        test()->fail('Expected object cache payloads to be blocked by strict serialization policy.');
-    } catch (\InvalidArgumentException $e) {
-        expect($e->getMessage())->toContain('Object payload');
+            ->and($cache->exportMetrics())->toHaveKey('pdo')
+            ->and($basePath . '/database/cache.sqlite')->toBeFile()
+            ->and($cache->set('user', (object) ['name' => 'Ada']))->toBeFalse()
+            ->and($cache->get('user'))->toBeNull();
     } finally {
-        $cache->configurePayloadCompression(null);
-        $cache->configurePayloadSecurity(null, 8_388_608);
-        $cache->configureSerializationSecurity(true, true);
+        DB::purge();
     }
 });
 
-it('builds tiered cache stores from named store descriptors and applies file locking', function (): void {
+it('passes CacheLayer-native tier descriptors and applies Foundation lock policy', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-cache-tiered-' . uniqid('', true);
     mkdir($basePath . '/storage/cache/tiered', 0775, true);
     mkdir($basePath . '/storage/cache/locks', 0775, true);
 
     $app = Foundation::web([
-        'app' => [
-            'base_path' => $basePath,
-        ],
+        'app' => ['base_path' => $basePath],
         'cache' => [
             'default' => 'tiered',
             'prefix' => 'suite:',
             'stores' => [
-                'memory' => [
-                    'driver' => 'memory',
-                ],
-                'file' => [
-                    'driver' => 'file',
-                    'path' => 'storage/cache/tiered/file',
-                ],
                 'tiered' => [
                     'driver' => 'tiered',
                     'tiers' => [
-                        ['store' => 'memory'],
-                        ['store' => 'file'],
+                        ['driver' => 'memory'],
+                        [
+                            'driver' => 'file',
+                            'dir' => 'storage/cache/tiered/file',
+                        ],
                     ],
                     'lock' => [
                         'driver' => 'file',
@@ -112,73 +110,49 @@ it('builds tiered cache stores from named store descriptors and applies file loc
         ],
     ]);
 
-    $cache = $app->cache()->store();
+    $cache = $app->make(CacheInterface::class);
 
     expect($cache->set('framework', 'Infbyte'))->toBeTrue()
-        ->and($cache->get('framework'))->toBe('Infbyte')
-        ->and($cache->count())->toBe(1);
+        ->and($cache->get('framework'))->toBe('Infbyte');
 
-    $reflection = new \ReflectionClass($cache);
-    $adapterProperty = $reflection->getProperty('adapter');
-    $adapter = $adapterProperty->getValue($cache);
+    $reflection = new ReflectionClass($cache);
+    $adapter = $reflection->getProperty('adapter')->getValue($cache);
+    $lockProvider = $reflection->getProperty('lockProvider')->getValue($cache);
 
-    $lockProperty = $reflection->getProperty('lockProvider');
-    $lockProvider = $lockProperty->getValue($cache);
-
-    expect($adapter)->toBeInstanceOf(ChainCacheAdapter::class)
+    expect($adapter)->toBeInstanceOf(TieredCacheAdapter::class)
         ->and($lockProvider)->toBeInstanceOf(FileLockProvider::class);
 
-    $chainReflection = new \ReflectionClass($adapter);
-    $poolsProperty = $chainReflection->getProperty('pools');
-    $pools = $poolsProperty->getValue($adapter);
+    $chainReflection = new ReflectionClass($adapter);
+    $pools = $chainReflection->getProperty('pools')->getValue($adapter);
 
     expect($pools)->toHaveCount(2);
 });
 
-it('shares the configured CacheLayer lock store with cache and console consumers', function (): void {
+it('exposes the configured CacheLayer lock provider directly', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-cache-lock-' . uniqid('', true);
-    mkdir($basePath . '/storage/cache', 0775, true);
-    mkdir($basePath . '/database', 0775, true);
+    mkdir($basePath . '/storage/cache/locks', 0775, true);
 
     $app = Foundation::web([
-        'app' => [
-            'base_path' => $basePath,
-        ],
-        'database' => [
-            'default' => 'cache',
-            'connections' => [
-                'cache' => [
-                    'driver' => 'sqlite',
-                    'database' => 'database/cache.sqlite',
-                ],
-            ],
-        ],
+        'app' => ['base_path' => $basePath],
         'cache' => [
             'default' => 'memory',
             'lock' => [
-                'driver' => 'pdo',
-                'store' => 'database',
+                'driver' => 'file',
                 'path' => 'storage/cache/locks',
             ],
             'stores' => [
-                'memory' => [
-                    'driver' => 'memory',
-                ],
-                'database' => [
-                    'driver' => 'pdo',
-                    'connection' => 'cache',
-                ],
+                'memory' => ['driver' => 'memory'],
             ],
         ],
     ]);
 
-    $cache = $app->cache()->store();
-    $lockProperty = new \ReflectionProperty($cache, 'lockProvider');
+    $cache = $app->make(CacheInterface::class);
+    $lockProperty = new ReflectionProperty($cache, 'lockProvider');
     $cacheLock = $lockProperty->getValue($cache);
-    $sharedLock = $app->boot()->make(CacheLayerFactory::class)->lock();
+    $sharedLock = $app->make(LockProviderInterface::class);
 
-    expect($cacheLock)->toBeInstanceOf(PdoLockProvider::class)
-        ->and($sharedLock)->toBeInstanceOf(PdoLockProvider::class);
+    expect($cacheLock)->toBeInstanceOf(FileLockProvider::class)
+        ->and($sharedLock)->toBeInstanceOf(FileLockProvider::class);
 
     $handle = $sharedLock->acquire('shared-lock', 0.0, 10.0);
     expect($handle)->not->toBeNull()
@@ -186,23 +160,53 @@ it('shares the configured CacheLayer lock store with cache and console consumers
     $sharedLock->release($handle);
 });
 
-it('resolves named Redis-compatible connections without opening a client eagerly', function (): void {
-    $factory = new RedisConnectionFactory(new ConfigRepository([
+it('flushes process-local memoizers without clearing the shared cache between execution units', function (): void {
+    $app = Foundation::web([
         'cache' => [
-            'connections' => [
-                'primary' => [
-                    'driver' => 'valkey',
-                    'dsn' => 'valkey://cache.internal:6379/2',
-                ],
+            'default' => 'memory',
+            'stores' => [
+                'memory' => ['driver' => 'memory'],
             ],
         ],
-    ]));
-
-    expect($factory->connection([
-        'driver' => 'valkey',
-        'connection' => 'primary',
-    ]))->toBe([
-        'client' => null,
-        'dsn' => 'valkey://cache.internal:6379/2',
     ]);
+
+    $cache = $app->make(CacheInterface::class);
+    $memoizer = $app->make(Memoizer::class);
+    $once = $app->make(OnceMemoizer::class);
+    $memoCalls = 0;
+    $onceCalls = 0;
+    $resolver = static function () use (&$memoCalls): int {
+        return ++$memoCalls;
+    };
+
+    $cache->set('persistent', 'shared');
+
+    $first = $app->execution()->run(static function () use ($memoizer, $once, $resolver, &$onceCalls): array {
+        return [
+            $memoizer->get($resolver),
+            $memoizer->get($resolver),
+            foundationCacheOnceValue($once, $onceCalls),
+            foundationCacheOnceValue($once, $onceCalls),
+        ];
+    });
+
+    $second = $app->execution()->run(static function () use ($memoizer, $once, $resolver, &$onceCalls): array {
+        return [
+            $memoizer->get($resolver),
+            $memoizer->get($resolver),
+            foundationCacheOnceValue($once, $onceCalls),
+            foundationCacheOnceValue($once, $onceCalls),
+        ];
+    });
+
+    expect($first)->toBe([1, 1, 1, 1])
+        ->and($second)->toBe([2, 2, 2, 2])
+        ->and($cache->get('persistent'))->toBe('shared');
 });
+
+function foundationCacheOnceValue(OnceMemoizer $memoizer, int &$calls): int
+{
+    return $memoizer->once(static function () use (&$calls): int {
+        return ++$calls;
+    });
+}

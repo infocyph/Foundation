@@ -6,8 +6,9 @@ namespace Infocyph\Foundation\Validation;
 
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
-use Infocyph\Foundation\Database\DatabaseManager;
+use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
+use Infocyph\ReqShield\Contracts\DatabaseProvider;
 use Infocyph\ReqShield\Validator;
 
 final class ValidationServiceProvider extends ServiceProvider
@@ -28,22 +29,27 @@ final class ValidationServiceProvider extends ServiceProvider
         ), LifetimeEnum::Singleton);
 
         $this->bindFactory($container, ReqShieldDatabaseProvider::class, fn() => new ReqShieldDatabaseProvider(
-            database: fn(): DatabaseManager => $app->make(DatabaseManager::class),
-            connection: $this->databaseConnection($app),
+            connection: fn() => $app->make(DBLayerFactory::class)->connection($this->databaseConnection($app)),
         ), LifetimeEnum::Singleton);
+        $this->bindFactory(
+            $container,
+            DatabaseProvider::class,
+            fn() => $app->make(ReqShieldDatabaseProvider::class),
+            LifetimeEnum::Singleton,
+        );
 
-        $this->bindFactory($container, FoundationValidator::class, fn() => new FoundationValidator(
+        $this->bindFactory($container, ValidatorFactory::class, fn() => new ValidatorFactory(
             config: $app->config(),
-            database: $app->make(ReqShieldDatabaseProvider::class),
             schemas: $app->make(ValidationSchemaRegistry::class),
+            database: $app->make(DatabaseProvider::class),
         ), LifetimeEnum::Singleton);
 
-        $this->bindFactory($container, ValidationManager::class, fn() => new ValidationManager(
-            config: $app->config(),
-            validator: $app->make(FoundationValidator::class),
-        ), LifetimeEnum::Singleton);
-
-        $this->bindFactory($container, 'foundation.validator', fn() => $container->get(ValidationManager::class), LifetimeEnum::Singleton);
+        $this->bindFactory(
+            $container,
+            'foundation.validator',
+            fn() => $app->make(ValidatorFactory::class),
+            LifetimeEnum::Singleton,
+        );
     }
 
     private function databaseConnection(Application $app): ?string

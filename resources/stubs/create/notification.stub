@@ -1,0 +1,21 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Infocyph\Foundation\Notifications\Notification;
+use Infocyph\Foundation\Notifications\NotificationRecipient;
+use Infocyph\TalkingBytes\Email\EmailMessage;
+
+final readonly class {{ class }} implements Notification
+{
+    public function channels(NotificationRecipient $recipient): array
+    {
+        return [
+            'mail' => EmailMessage::new()
+                ->subject('{{ description }}')
+                ->text('{{ description }}'),
+        ];
+    }
+}

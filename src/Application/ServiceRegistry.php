@@ -6,46 +6,51 @@ namespace Infocyph\Foundation\Application;
 
 final class ServiceRegistry
 {
-    /**
-     * @var array<string, true>
-     */
+    /** @var array<string, true> */
     private array $booted = [];
 
-    /**
-     * @var array<class-string, ServiceProviderInterface|class-string<ServiceProviderInterface>>
-     */
+    /** @var array<class-string, ServiceProviderInterface|class-string<ServiceProviderInterface>> */
     private array $deferred = [];
 
-    /**
-     * @var array<string, ServiceProviderInterface>
-     */
+    /** @var array<string, ServiceProviderInterface> */
     private array $providers = [];
 
-    /**
-     * @var array<string, true>
-     */
+    /** @var array<string, true> */
     private array $registered = [];
 
-    /**
-     * @param class-string<ServiceProviderInterface> $provider
-     */
+    /** @param class-string<ServiceProviderInterface> $provider */
     public function activate(string $provider, Application $app): bool
     {
+        $instance = $this->providers[$provider] ?? null;
+        if ($instance instanceof ServiceProviderInterface) {
+            $this->registerProvider($instance, $app);
+
+            if ($app->booted()) {
+                $this->bootProvider($instance, $app);
+            }
+
+            return true;
+        }
+
         $deferred = $this->deferred[$provider] ?? null;
         if ($deferred === null) {
-            return isset($this->providers[$provider]);
+            return false;
         }
 
         $instance = is_string($deferred) ? new $deferred() : $deferred;
-
-        unset($this->deferred[$provider]);
         $this->providers[$provider] = $instance;
-        $instance->register($app);
-        $this->registered[$provider] = true;
+        unset($this->deferred[$provider]);
 
-        if ($app->booted()) {
-            $instance->boot($app);
-            $this->booted[$provider] = true;
+        try {
+            $this->registerProvider($instance, $app);
+            if ($app->booted()) {
+                $this->bootProvider($instance, $app);
+            }
+        } catch (\Throwable $exception) {
+            unset($this->providers[$provider], $this->registered[$provider], $this->booted[$provider]);
+            $this->deferred[$provider] = $deferred;
+
+            throw $exception;
         }
 
         return true;
@@ -53,8 +58,13 @@ final class ServiceRegistry
 
     public function add(ServiceProviderInterface $provider): void
     {
-        $this->providers[$provider::class] = $provider;
-        unset($this->deferred[$provider::class]);
+        $class = $provider::class;
+        if (isset($this->providers[$class])) {
+            return;
+        }
+
+        $this->providers[$class] = $provider;
+        unset($this->deferred[$class]);
     }
 
     /** @param ServiceProviderInterface|class-string<ServiceProviderInterface> $provider */
@@ -72,24 +82,36 @@ final class ServiceRegistry
         $this->register($app);
 
         foreach ($this->providers as $provider) {
-            if (isset($this->booted[$provider::class])) {
-                continue;
-            }
-
-            $provider->boot($app);
-            $this->booted[$provider::class] = true;
+            $this->bootProvider($provider, $app);
         }
     }
 
     public function register(Application $app): void
     {
         foreach ($this->providers as $provider) {
-            if (isset($this->registered[$provider::class])) {
-                continue;
-            }
-
-            $provider->register($app);
-            $this->registered[$provider::class] = true;
+            $this->registerProvider($provider, $app);
         }
+    }
+
+    private function bootProvider(ServiceProviderInterface $provider, Application $app): void
+    {
+        $class = $provider::class;
+        if (isset($this->booted[$class])) {
+            return;
+        }
+
+        $provider->boot($app);
+        $this->booted[$class] = true;
+    }
+
+    private function registerProvider(ServiceProviderInterface $provider, Application $app): void
+    {
+        $class = $provider::class;
+        if (isset($this->registered[$class])) {
+            return;
+        }
+
+        $provider->register($app);
+        $this->registered[$class] = true;
     }
 }

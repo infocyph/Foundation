@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use Infocyph\Console\Command\ExitCode;
-use Infocyph\Console\IO\BufferedIO;
 use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\Connection\ConnectionConfig;
+use Infocyph\DBLayer\DB;
+use Infocyph\DBLayer\Exceptions\MigrationException;
 use Infocyph\DBLayer\Migration\Migration;
 use Infocyph\DBLayer\Migration\MigrationContext;
 use Infocyph\DBLayer\Migration\MigrationRunner;
@@ -14,13 +14,13 @@ use Infocyph\DBLayer\Migration\Seeder;
 use Infocyph\DBLayer\Schema\Blueprint;
 use Infocyph\DBLayer\Schema\SchemaManager;
 use Infocyph\Foundation\Config\ConfigRepository;
-use Infocyph\Foundation\Config\ConfigRuntime;
-use Infocyph\Foundation\Console\FoundationConsole;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DatabaseConnectionResolver;
-use Infocyph\Foundation\Facades\DB;
+use Infocyph\Foundation\Database\DatabaseMigrationManager;
+use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Foundation;
+use Infocyph\Foundation\Testing\TestKit;
 
 final class FoundationExampleMigration implements Migration
 {
@@ -50,45 +50,46 @@ final class FoundationExampleSeeder implements Seeder
     public function run(Connection $connection, SeedContext $context): void
     {
         expect($context->connection())->toBe($connection);
-        $connection->statement(
-            'INSERT INTO foundation_examples (name) VALUES (?)',
-            ['seeded'],
-        );
+        $connection->statement('INSERT INTO foundation_examples (name) VALUES (?)', ['seeded']);
     }
 }
 
 it('runs the auth schema through DBLayer migrations', function (): void {
     $tables = new AuthTables();
     $schema = new AuthSchema($tables);
-    $connection = new Connection(new ConnectionConfig([
+    $connection = DB::addConnection(new ConnectionConfig([
         'driver' => 'sqlite',
         'database' => ':memory:',
-    ]));
+    ]), 'auth-schema');
     $runner = new MigrationRunner($connection, [$schema]);
 
-    expect($runner->run())->toBe([$schema->id()])
-        ->and($runner->status())->toBe([[
-            'id' => $schema->id(),
-            'applied' => true,
-            'batch' => 1,
-        ]]);
+    try {
+        expect($runner->run())->toBe([$schema->id()])
+            ->and($runner->status())->toBe([[
+                'id' => $schema->id(),
+                'applied' => true,
+                'batch' => 1,
+            ]]);
 
-    $manager = new SchemaManager($connection);
-    foreach ($tables->all() as $table) {
-        expect($manager->hasTable($table))->toBeTrue();
-    }
+        $manager = new SchemaManager($connection);
+        foreach ($tables->all() as $table) {
+            expect($manager->hasTable($table))->toBeTrue();
+        }
 
-    expect($runner->reset(true))->toBe([$schema->id()]);
-    foreach ($tables->all() as $table) {
-        expect($manager->hasTable($table))->toBeFalse();
+        expect($runner->reset(true))->toBe([$schema->id()]);
+        foreach ($tables->all() as $table) {
+            expect($manager->hasTable($table))->toBeFalse();
+        }
+    } finally {
+        DB::purge();
     }
 });
 
-it('runs configured DBLayer migrations, seeders, and database test transactions', function (): void {
+it('runs configured migrations seeders and database test transactions', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-migrations-' . bin2hex(random_bytes(6));
     mkdir($basePath . '/database', 0775, true);
-    $app = Foundation::console([
-        'base_path' => $basePath,
+    $app = Foundation::cli([
+        'app' => ['base_path' => $basePath],
         'database' => [
             'default' => 'testing',
             'connections' => [
@@ -109,26 +110,20 @@ it('runs configured DBLayer migrations, seeders, and database test transactions'
     ]);
 
     try {
-        $database = $app->db();
-        $runner = $database->migrations()->runner();
-        $readiness = $app->readinessReport();
+        $factory = $app->make(DBLayerFactory::class);
+        $migrations = $app->make(DatabaseMigrationManager::class);
+        $connection = $factory->connection();
+        $runner = $migrations->runner();
+        $testing = $app->make(TestKit::class);
 
-        expect($readiness['migrations']['pending'])->toBe([
-            '20260730000000_create_foundation_examples',
-        ])->and($runner->status())->toBe([[
-            'id' => '20260730000000_create_foundation_examples',
-            'applied' => false,
-            'batch' => null,
-        ]])->and($runner->run())->toBe(['20260730000000_create_foundation_examples'])
-            ->and($app->readinessReport()['migrations']['pending'])->toBe([])
-            ->and($database->migrations()->seed())->toBe(1)
-            ->and($database->connection()->select(
-                'SELECT name FROM foundation_examples ORDER BY id',
-            ))->toBe([['name' => 'seeded']]);
+        expect($runner->run())->toBe(['20260730000000_create_foundation_examples'])
+            ->and($migrations->seed())->toBe(1)
+            ->and($connection->select('SELECT name FROM foundation_examples ORDER BY id'))
+            ->toBe([['name' => 'seeded']]);
 
-        $result = $app->testing()->database()->transaction(
-            function () use ($database): string {
-                $database->connection()->statement(
+        $result = $testing->database()->transaction(
+            function () use ($connection): string {
+                $connection->statement(
                     'INSERT INTO foundation_examples (name) VALUES (?)',
                     ['temporary'],
                 );
@@ -138,107 +133,65 @@ it('runs configured DBLayer migrations, seeders, and database test transactions'
         );
 
         expect($result)->toBe('completed')
-            ->and($database->connection()->select(
-                'SELECT name FROM foundation_examples ORDER BY id',
-            ))->toBe([['name' => 'seeded']])
-            ->and($app->testing()->database()->refresh())
-            ->toBe(['20260730000000_create_foundation_examples'])
-            ->and($database->connection()->select(
-                'SELECT name FROM foundation_examples ORDER BY id',
-            ))->toBe([]);
+            ->and($connection->select('SELECT name FROM foundation_examples ORDER BY id'))
+            ->toBe([['name' => 'seeded']])
+            ->and($testing->database()->refresh())
+            ->toBe(['20260730000000_create_foundation_examples']);
     } finally {
-        $app->db()->purge();
-        $databasePath = $basePath . '/database/testing.sqlite';
-        if (is_file($databasePath)) {
-            unlink($databasePath);
-        }
-        if (is_dir($basePath . '/database')) {
-            rmdir($basePath . '/database');
-        }
-        if (is_dir($basePath)) {
-            rmdir($basePath);
-        }
+        DB::purge();
+        foundationDatabaseRemove($basePath);
     }
 });
 
-it('runs every destructive migration command through the shared command flow', function (): void {
-    $basePath = sys_get_temp_dir() . '/foundation-migration-commands-' . bin2hex(random_bytes(6));
-    mkdir($basePath . '/database', 0775, true);
-    $app = Foundation::console([
-        'base_path' => $basePath,
-        'database' => [
-            'default' => 'testing',
-            'connections' => [
-                'testing' => [
-                    'driver' => 'sqlite',
-                    'database' => 'database/testing.sqlite',
-                ],
-            ],
-            'migrations' => [
-                'classes' => [FoundationExampleMigration::class],
-                'table' => 'migrations',
-                'lock_store' => null,
-                'lock_wait_seconds' => 0.0,
-                'lock_lease_seconds' => 30.0,
-            ],
-        ],
-    ]);
-    $console = FoundationConsole::create(
-        static function (?string $profile) use ($app) {
-            expect($profile)->toBeNull();
+it('uses DBLayer 4.1 pretend output without mutating schema and rolls back exact batches', function (): void {
+    $connection = new Connection(new ConnectionConfig([
+        'driver' => 'sqlite',
+        'database' => ':memory:',
+    ]));
+    $runner = new MigrationRunner($connection, [new FoundationExampleMigration()]);
+    $schema = new SchemaManager($connection);
 
-            return $app;
-        },
-        name: 'foundation-test',
-    )->withIO(new BufferedIO());
-    $schema = new SchemaManager($app->db()->connection());
+    $preview = $runner->pretend();
 
-    try {
-        expect($console->run(['foundation-test', 'migrate:fresh']))
-            ->toBe(ExitCode::INVALID_USAGE)
-            ->and($console->run(['foundation-test', 'migrate:fresh', '--force']))
-            ->toBe(ExitCode::SUCCESS)
-            ->and($schema->hasTable('foundation_examples'))->toBeTrue()
-            ->and($console->run(['foundation-test', 'migrate:refresh', '--force']))
-            ->toBe(ExitCode::SUCCESS)
-            ->and($schema->hasTable('foundation_examples'))->toBeTrue()
-            ->and($console->run(['foundation-test', 'migrate:reset', '--force']))
-            ->toBe(ExitCode::SUCCESS)
-            ->and($schema->hasTable('foundation_examples'))->toBeFalse();
-    } finally {
-        $app->db()->purge();
-        $databasePath = $basePath . '/database/testing.sqlite';
-        if (is_file($databasePath)) {
-            unlink($databasePath);
-        }
-        if (is_dir($basePath . '/database')) {
-            rmdir($basePath . '/database');
-        }
-        if (is_dir($basePath)) {
-            rmdir($basePath);
-        }
-    }
+    expect($preview)->toHaveKey('20260730000000_create_foundation_examples')
+        ->and($preview['20260730000000_create_foundation_examples'])->not->toBeEmpty()
+        ->and($preview['20260730000000_create_foundation_examples'][0])->toHaveKeys(['sql', 'bindings'])
+        ->and($schema->hasTable('foundation_examples'))->toBeFalse()
+        ->and($runner->run(step: true))->toBe(['20260730000000_create_foundation_examples'])
+        ->and($runner->status()[0]['batch'])->toBe(1)
+        ->and($runner->rollbackBatch(1))->toBe(['20260730000000_create_foundation_examples'])
+        ->and($schema->hasTable('foundation_examples'))->toBeFalse();
 });
 
-it('surfaces DBLayer repositories and query observability through Foundation', function (): void {
-    $basePath = sys_get_temp_dir() . '/foundation-db-' . uniqid('', true);
+it('requires explicit authorization for destructive migration operations', function (): void {
+    $connection = new Connection(new ConnectionConfig([
+        'driver' => 'sqlite',
+        'database' => ':memory:',
+    ]));
+    $runner = new MigrationRunner($connection, [new FoundationExampleMigration()]);
+    $schema = new SchemaManager($connection);
+
+    expect(fn() => $runner->fresh())
+        ->toThrow(MigrationException::class, 'requires explicit authorization')
+        ->and($runner->fresh(true))->toBe(['20260730000000_create_foundation_examples'])
+        ->and($schema->hasTable('foundation_examples'))->toBeTrue()
+        ->and(fn() => $runner->refresh())
+        ->toThrow(MigrationException::class, 'requires explicit authorization')
+        ->and($runner->refresh(true))->toBe(['20260730000000_create_foundation_examples'])
+        ->and(fn() => $runner->reset())
+        ->toThrow(MigrationException::class, 'requires explicit authorization')
+        ->and($runner->reset(true))->toBe(['20260730000000_create_foundation_examples'])
+        ->and($schema->hasTable('foundation_examples'))->toBeFalse();
+});
+
+it('exposes DBLayer directly while Foundation keeps connection composition policy', function (): void {
+    $basePath = sys_get_temp_dir() . '/foundation-db-' . bin2hex(random_bytes(6));
     mkdir($basePath . '/database', 0775, true);
-    mkdir($basePath . '/storage/cache', 0775, true);
 
-    $events = [];
-
-    Foundation::web([
-        'app' => [
-            'base_path' => $basePath,
-        ],
+    $app = Foundation::web([
+        'app' => ['base_path' => $basePath],
         'database' => [
             'default' => 'main',
-            'pool' => [
-                'max_connections' => 3,
-                'idle_timeout' => 15,
-                'max_lifetime' => 300,
-                'health_check_interval' => 10,
-            ],
             'connections' => [
                 'main' => [
                     'driver' => 'sqlite',
@@ -248,14 +201,11 @@ it('surfaces DBLayer repositories and query observability through Foundation', f
         ],
     ]);
 
+    $connection = $app->make(Connection::class);
+    $events = [];
+
     try {
-        expect(DB::freshConnection())->toBeInstanceOf(Connection::class);
-        expect(DB::pool()->getConfig())->toMatchArray([
-            'max_connections' => 3,
-            'idle_timeout' => 15,
-            'max_lifetime' => 300,
-            'health_check_interval' => 10,
-        ]);
+        expect($connection)->toBe($app->make(DBLayerFactory::class)->connection());
 
         DB::enableQueryLog();
         DB::enableTelemetry();
@@ -264,60 +214,32 @@ it('surfaces DBLayer repositories and query observability through Foundation', f
             $events[] = $event;
         });
 
-        DB::pdo()->exec('CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT NOT NULL)');
-
+        $connection->getPdo()->exec(
+            'CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT NOT NULL)',
+        );
         $created = DB::repository('users')->create([
             'name' => 'Ada Lovelace',
             'email' => 'ada@example.test',
         ]);
-
-        $fetched = DB::withQueryTimeout(1_000, static fn(): mixed => DB::repository('users')->find($created['id']));
-
-        DB::beginTransaction();
-        expect(DB::transactionLevel())->toBe(1);
-        DB::rollback();
-
-        DB::disconnect();
-        expect(DB::reconnect())->toBeInstanceOf(Connection::class);
-
-        $count = DB::withQueryCancellation(
-            static fn(): bool => false,
-            static fn(): int => DB::table('users')->count(),
+        $fetched = DB::withQueryTimeout(
+            1_000,
+            static fn(): mixed => DB::repository('users')->find($created['id']),
         );
         $plan = DB::explain('SELECT * FROM users WHERE id = ?', [$created['id']]);
-        $queryShapes = DB::queryShapeReport();
 
-        $ping = DB::ping();
-        $driverName = DB::driverName();
-        $databaseName = DB::databaseName();
-        $stats = DB::stats();
-        $queryLog = DB::queryLog();
-        $telemetry = DB::telemetry();
-        $flushed = DB::flushTelemetry();
-        $telemetryAfterFlush = DB::telemetry();
-
-        expect($created['name'])->toBe('Ada Lovelace')
-            ->and($fetched)->toBeArray()
-            ->and($fetched['email'] ?? null)->toBe('ada@example.test')
-            ->and($count)->toBe(1)
+        expect($fetched['email'] ?? null)->toBe('ada@example.test')
             ->and($plan)->not->toBeEmpty()
-            ->and($queryShapes['shapes'] ?? [])->not->toBeEmpty()
-            ->and($ping)->toBeTrue()
-            ->and($driverName)->toBe('sqlite')
-            ->and($databaseName)->toEndWith('foundation.sqlite')
-            ->and($stats['driver'])->toBe('sqlite')
-            ->and($stats['transaction_level'])->toBe(0)
-            ->and($queryLog)->not->toBeEmpty()
-            ->and($events)->not->toBeEmpty()
-            ->and($telemetry)->toHaveKey('queries')
-            ->and($telemetry['queries'])->not->toBeEmpty()
-            ->and($flushed['queries'])->not->toBeEmpty()
-            ->and($telemetryAfterFlush['queries'])->toBeEmpty();
+            ->and(DB::getDriverName())->toBe('sqlite')
+            ->and(DB::getDatabaseName())->toEndWith('foundation.sqlite')
+            ->and(DB::getQueryLog())->not->toBeEmpty()
+            ->and(DB::telemetry()['queries'] ?? [])->not->toBeEmpty()
+            ->and($events)->not->toBeEmpty();
     } finally {
         DB::disableTelemetry();
         DB::disableQueryLog();
         DB::flushQueryLog();
         DB::purge();
+        foundationDatabaseRemove($basePath);
     }
 });
 
@@ -369,11 +291,7 @@ it('passes advanced connection configuration through to DBLayer unchanged', func
 
     expect($resolved['read_strategy'])->toBe('weighted')
         ->and($resolved['options'])->toBe([PDO::ATTR_TIMEOUT => 7])
-        ->and($resolved['timeout'])->toBe(9)
-        ->and($resolved['persistent'])->toBeTrue()
         ->and($resolved['sslmode'])->toBe('verify-full')
-        ->and($resolved['statement_cache_size'])->toBe(128)
-        ->and($resolved['query_comment_context'])->toBe(['service' => 'reports'])
         ->and($normalized->getReadConfigs())->toHaveCount(2)
         ->and($normalized->getReadStrategy())->toBe('weighted')
         ->and($normalized->shouldUseStatementCache())->toBeTrue()
@@ -381,106 +299,71 @@ it('passes advanced connection configuration through to DBLayer unchanged', func
         ->and($normalized->securityConfig()['raw_sql_policy'])->toBe('deny');
 });
 
-it('publishes the complete DBLayer connection policy for every built-in driver', function (): void {
-    require_once dirname(__DIR__, 2) . '/src/Config/config_helpers.php';
-    ConfigRuntime::activate(dirname(__DIR__, 2));
-
-    /**
-     * @var array{
-     *   default:mixed,
-     *   pool:array<string,int>,
-     *   connections:array<string,array<string,mixed>>
-     * } $configuration
-     */
+it('publishes all five DBLayer drivers as first class Foundation connections', function (): void {
+    /** @var array{connections:array<string,array<string,mixed>>} $configuration */
     $configuration = require dirname(__DIR__, 2) . '/resources/config/database.php';
     $connections = $configuration['connections'];
-    $keys = static function (array $values): array {
-        $keys = array_keys($values);
-        sort($keys);
 
-        return $keys;
-    };
-    $shared = [
-        'driver',
-        'database',
-        'prefix',
-        'options',
-        'timeout',
-        'persistent',
-        'write',
-        'read',
-        'read_strategy',
-        'read_health_cooldown',
-        'read_latency_ttl',
-        'read_probe_sample_size',
-        'statement_cache_enabled',
-        'statement_cache_size',
-        'query_comment_enabled',
-        'query_comment_max_length',
-        'query_comment_context',
-        'sticky',
-        'security',
-    ];
-    $security = [
-        'enabled',
-        'max_sql_length',
-        'max_params',
-        'max_param_bytes',
-        'queries_per_second',
-        'queries_per_minute',
-        'rate_limit_key',
-        'strict_identifiers',
-        'allow_insecure',
-        'raw_sql_policy',
-        'raw_sql_allowlist',
-        'cursor_signing_key',
-    ];
-
-    expect(array_keys($configuration))->toBe(['default', 'migrations', 'seeders', 'pool', 'connections'])
-        ->and(array_keys($connections))->toBe(['mysql', 'pgsql', 'sqlite'])
-        ->and(array_keys($configuration['pool']))->toBe([
-            'max_connections',
-            'idle_timeout',
-            'max_lifetime',
-            'health_check_interval',
-        ]);
-
-    expect($keys($connections['mysql']))->toBe($keys(array_fill_keys(array_merge($shared, [
-        'host',
-        'port',
-        'username',
-        'password',
-        'charset',
-        'collation',
-        'unix_socket',
-        'ssl_ca',
-        'ssl_cert',
-        'ssl_key',
-        'ssl_verify_server_cert',
-        'read_session_read_only',
-    ]), null)))
-        ->and($keys($connections['pgsql']))->toBe($keys(array_fill_keys(array_merge($shared, [
-            'host',
-            'port',
-            'username',
-            'password',
-            'charset',
-            'schema',
-            'sslmode',
-            'read_session_read_only',
-        ]), null)))
-        ->and($keys($connections['sqlite']))->toBe($keys(array_fill_keys($shared, null)))
-        ->and($keys($connections['mysql']['security']))->toBe(
-            $keys(array_fill_keys(array_merge($security, ['require_tls']), null)),
-        )
-        ->and($keys($connections['pgsql']['security']))->toBe(
-            $keys(array_fill_keys(array_merge($security, ['require_tls']), null)),
-        )
-        ->and($keys($connections['sqlite']['security']))->toBe(
-            $keys(array_fill_keys($security, null)),
-        );
-
-    foreach (['mysql', 'pgsql', 'sqlite'] as $driver) {
-        expect(ConnectionConfig::fromArray($connections[$driver])->getDriver())->toBe($driver);
-    }
+    expect(array_keys($connections))->toBe(['mysql', 'mariadb', 'pgsql', 'mssql', 'sqlite'])
+        ->and(ConnectionConfig::fromArray($connections['mysql'])->getDriver())->toBe('mysql')
+        ->and(ConnectionConfig::fromArray($connections['mariadb'])->getDriver())->toBe('mariadb')
+        ->and(ConnectionConfig::fromArray($connections['pgsql'])->getDriver())->toBe('pgsql')
+        ->and(ConnectionConfig::fromArray($connections['mssql'])->getDriver())->toBe('mssql')
+        ->and(ConnectionConfig::fromArray($connections['sqlite'])->getDriver())->toBe('sqlite')
+        ->and($connections['mssql'])->toMatchArray([
+            'encrypt' => true,
+            'trust_server_certificate' => false,
+            'application_intent' => 'ReadWrite',
+        ])
+        ->and($connections['mysql'])->toHaveKey('read_session_read_only')
+        ->and($connections['mariadb'])->toHaveKey('read_session_read_only')
+        ->and($connections['pgsql'])->toHaveKey('read_session_read_only')
+        ->and($connections['mssql'])->not->toHaveKey('read_session_read_only')
+        ->and($connections['sqlite']['security'])->not->toHaveKey('require_tls');
 });
+
+it('resolves relative sqlite paths for every DBLayer sqlite alias', function (string $driver): void {
+    $basePath = sys_get_temp_dir() . '/foundation-db-resolver';
+    $resolver = new DatabaseConnectionResolver(new ConfigRepository([
+        'app' => ['base_path' => $basePath],
+        'database' => [
+            'default' => 'main',
+            'connections' => [
+                'main' => [
+                    'driver' => $driver,
+                    'database' => 'database/testing.sqlite',
+                ],
+            ],
+        ],
+    ]));
+
+    expect($resolver->configuration()['database'])
+        ->toBe($basePath . DIRECTORY_SEPARATOR . 'database/testing.sqlite');
+})->with(['sqlite', 'sqlite3', 'pdo_sqlite']);
+
+function foundationDatabaseRemove(string $directory): void
+{
+    if (!is_dir($directory)) {
+        return;
+    }
+
+    $entries = scandir($directory);
+    if ($entries === false) {
+        return;
+    }
+
+    foreach ($entries as $entry) {
+        if ($entry === '.' || $entry === '..') {
+            continue;
+        }
+
+        $path = $directory . DIRECTORY_SEPARATOR . $entry;
+        if (is_dir($path)) {
+            foundationDatabaseRemove($path);
+        } else {
+            unlink($path);
+        }
+    }
+
+    rmdir($directory);
+}

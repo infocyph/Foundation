@@ -2,10 +2,14 @@
 
 declare(strict_types=1);
 
+use Infocyph\Foundation\Application\RuntimeMode;
+use Infocyph\Foundation\Config\LocalPreset;
+use Infocyph\Foundation\Config\ProductionPreset;
+use Infocyph\Foundation\Diagnostics\ReadinessReport;
 use Infocyph\Foundation\Foundation;
 
-it('boots the local preset', function (): void {
-    $app = Foundation::local([
+it('boots the local preset independently from runtime selection', function (): void {
+    $app = Foundation::preset(RuntimeMode::Web, new LocalPreset(), [
         'base_path' => dirname(__DIR__, 2),
     ]);
 
@@ -15,7 +19,7 @@ it('boots the local preset', function (): void {
 });
 
 it('boots production when passkey auth is disabled', function (): void {
-    $app = Foundation::production([
+    $app = Foundation::preset(RuntimeMode::Web, new ProductionPreset(), [
         'auth' => [
             'drivers' => [
                 'passkey' => 'disabled',
@@ -49,12 +53,44 @@ it('includes path awareness in the readiness report', function (): void {
     mkdir($basePath . '/storage/sessions', 0775, true);
     mkdir($basePath . '/storage/uploads', 0775, true);
 
-    $app = Foundation::local([
-        'base_path' => $basePath,
-    ]);
+    try {
+        $app = Foundation::preset(RuntimeMode::Cli, new LocalPreset(), [
+            'base_path' => $basePath,
+        ]);
+        $report = new ReadinessReport($app)->generate();
 
-    $report = $app->readinessReport();
-
-    expect($report)->toHaveKey('paths');
-    expect($report['paths']['issues'] ?? [])->toBeArray()->toBeEmpty();
+        expect($report['checks'])->toHaveKeys(['base_path', 'storage', 'runtime'])
+            ->and($report['checks']['base_path']['ready'])->toBeTrue()
+            ->and($report['checks']['storage']['ready'])->toBeTrue()
+            ->and($report['checks']['runtime']['detail'])->toBe('cli');
+    } finally {
+        foundationSmokeRemoveDirectory($basePath);
+    }
 });
+
+function foundationSmokeRemoveDirectory(string $directory): void
+{
+    if (!is_dir($directory)) {
+        return;
+    }
+
+    $entries = scandir($directory);
+    if ($entries === false) {
+        return;
+    }
+
+    foreach ($entries as $entry) {
+        if ($entry === '.' || $entry === '..') {
+            continue;
+        }
+
+        $path = $directory . DIRECTORY_SEPARATOR . $entry;
+        if (is_dir($path)) {
+            foundationSmokeRemoveDirectory($path);
+        } else {
+            unlink($path);
+        }
+    }
+
+    rmdir($directory);
+}

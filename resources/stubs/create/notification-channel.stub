@@ -1,0 +1,20 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Infocyph\Foundation\Notifications\Notification;
+use Infocyph\Foundation\Notifications\NotificationChannel;
+use Infocyph\Foundation\Notifications\NotificationRecipient;
+
+final readonly class {{ class }} implements NotificationChannel
+{
+    public function send(
+        NotificationRecipient $recipient,
+        Notification $notification,
+        mixed $payload,
+    ): mixed {
+        return null;
+    }
+}

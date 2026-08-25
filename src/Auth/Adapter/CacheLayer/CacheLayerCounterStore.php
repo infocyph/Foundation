@@ -10,8 +10,8 @@ use Infocyph\Foundation\Auth\Contract\Cache\CounterStoreInterface;
 final readonly class CacheLayerCounterStore implements CounterStoreInterface
 {
     /**
-     * Note: this adapter preserves TTL semantics but is not guaranteed atomic
-     * unless the underlying CacheLayer store itself provides atomic mutation.
+     * This adapter preserves TTL semantics but is not guaranteed atomic unless
+     * the underlying CacheLayer store itself provides atomic mutation.
      */
     public function __construct(
         private CacheInterface $cache,

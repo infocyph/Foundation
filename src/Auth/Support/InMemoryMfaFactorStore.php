@@ -9,14 +9,27 @@ use Infocyph\Foundation\Auth\Mfa\MfaFactorCompareAndSwapStoreInterface;
 
 final class InMemoryMfaFactorStore implements MfaFactorCompareAndSwapStoreInterface
 {
-    /**
-     * @var array<string, MfaFactor>
-     */
+    /** @var array<string, MfaFactor> */
     private array $factors = [];
 
-    public function compareAndSwap(MfaFactor $expected, MfaFactor $updated): bool
+    public function compareAndSwap(?MfaFactor $expected, MfaFactor $updated): bool
     {
-        if (($this->factors[$expected->id] ?? null) != $expected || $updated->id !== $expected->id) {
+        if ($expected === null) {
+            if ($updated->revision !== 0 || isset($this->factors[$updated->id])) {
+                return false;
+            }
+
+            $this->factors[$updated->id] = $updated;
+
+            return true;
+        }
+
+        $current = $this->factors[$expected->id] ?? null;
+        if (!$current instanceof MfaFactor
+            || $updated->id !== $expected->id
+            || $current->revision !== $expected->revision
+            || $updated->revision !== $expected->revision + 1
+        ) {
             return false;
         }
 

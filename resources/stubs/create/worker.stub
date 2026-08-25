@@ -4,34 +4,18 @@ declare(strict_types=1);
 
 namespace {{ namespace }};
 
-use Infocyph\Console\Worker\WorkerOptions;
-use Infocyph\Console\Worker\WorkloadProbe;
-use Infocyph\Foundation\Console\WorkerProvider;
+use Infocyph\Foundation\Runtime\ExecutionId;
+use Infocyph\Foundation\Worker\WorkerProvider;
+use Infocyph\Foundation\Worker\WorkerRuntime;
 
-final readonly class {{ class }} implements WorkerProvider, WorkloadProbe
+final readonly class {{ class }} implements WorkerProvider
 {
-    /** @return list<string> */
-    public function command(): array
+    public function run(WorkerRuntime $runtime): int
     {
-        return [PHP_BINARY, 'infbyte', 'queue:work-once'];
-    }
-
-    public function options(): WorkerOptions
-    {
-        return new WorkerOptions(
-            maximumProcesses: 4,
-            jobsPerProcess: 1,
-            stopWhenEmpty: true,
-        );
-    }
-
-    public function pending(): int
-    {
-        return 0;
-    }
-
-    public function workload(): WorkloadProbe
-    {
-        return $this;
+        return $runtime->execute(static function (ExecutionId $executionId): int {
+            // Perform one bounded maintenance unit here. Long-running providers
+            // should call $runtime->execute() for every unit of work.
+            return 0;
+        });
     }
 }

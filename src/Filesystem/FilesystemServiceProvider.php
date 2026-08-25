@@ -8,32 +8,52 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Pathwise\PathwiseFacade;
+use Infocyph\Pathwise\StreamHandler\DownloadProcessor;
+use Infocyph\Pathwise\StreamHandler\UploadProcessor;
+use League\Flysystem\FilesystemOperator;
 
 final class FilesystemServiceProvider extends ServiceProvider
 {
     public function register(Application $app): void
     {
-        $container = $app->container();
-
-        $this->bindFactory($container, FilesystemManager::class, function () use ($app, $container): FilesystemManager {
-            if (!class_exists(PathwiseFacade::class)) {
-                throw new \LogicException(
-                    'Foundation filesystem services require infocyph/pathwise; run "php infbyte module:install filesystem".',
-                );
-            }
-
-            $paths = $container->get(PathManager::class);
-            if (!$paths instanceof PathManager) {
-                throw new \RuntimeException('Filesystem paths service must resolve to PathManager.');
-            }
-
-            return new FilesystemManager(
-                config: $app->config(),
-                paths: $paths,
+        if (!class_exists(PathwiseFacade::class)) {
+            throw new \LogicException(
+                'Foundation filesystem services require infocyph/pathwise; run "php infbyte module:install filesystem".',
             );
-        }, LifetimeEnum::Singleton);
+        }
 
-        $this->bindFactory($container, 'foundation.files', fn() => $container->get(FilesystemManager::class), LifetimeEnum::Singleton);
-        $this->bindFactory($container, 'foundation.filesystem', fn() => $container->get(FilesystemManager::class), LifetimeEnum::Singleton);
+        $container = $app->container();
+        $paths = $app->make(PathManager::class);
+
+        $this->bindFactory($container, StorageRegistry::class, fn() => new StorageRegistry(
+            config: $app->config(),
+            paths: $paths,
+        ), LifetimeEnum::Singleton);
+
+        $this->bindFactory($container, FilesystemTransferFactory::class, fn() => new FilesystemTransferFactory(
+            config: $app->config(),
+            paths: $paths,
+            storage: $app->make(StorageRegistry::class),
+        ), LifetimeEnum::Singleton);
+
+        $this->bindFactory($container, FilesystemOperator::class, fn() => $app->make(StorageRegistry::class)->disk(), LifetimeEnum::Singleton);
+        $this->bindFactory($container, UploadProcessor::class, fn() => $app->make(FilesystemTransferFactory::class)->upload(), LifetimeEnum::Transient);
+        $this->bindFactory($container, DownloadProcessor::class, fn() => $app->make(FilesystemTransferFactory::class)->download(), LifetimeEnum::Transient);
+
+        $this->bindFactory($container, FilesystemUploadRequestHandler::class, fn() => new FilesystemUploadRequestHandler(
+            $app->make(FilesystemTransferFactory::class),
+        ), LifetimeEnum::Singleton);
+        $this->bindFactory($container, FilesystemResponseFactory::class, fn() => new FilesystemResponseFactory(
+            config: $app->config(),
+            transfers: $app->make(FilesystemTransferFactory::class),
+            storage: $app->make(StorageRegistry::class),
+        ), LifetimeEnum::Singleton);
+        $this->bindFactory($container, StorageLinkManager::class, fn() => new StorageLinkManager(
+            config: $app->config(),
+            paths: $paths,
+        ), LifetimeEnum::Singleton);
+
+        $this->bindFactory($container, 'foundation.files', fn() => $app->make(StorageRegistry::class), LifetimeEnum::Singleton);
+        $this->bindFactory($container, 'foundation.filesystem', fn() => $app->make(StorageRegistry::class), LifetimeEnum::Singleton);
     }
 }

@@ -2,138 +2,44 @@
 
 declare(strict_types=1);
 
+use Infocyph\Foundation\Auth\Adapter\Uid\UidAuthIdGenerator;
 use Infocyph\Foundation\Auth\Contract\Id\AuthIdGeneratorInterface;
-use Infocyph\Foundation\Auth\Otp\OtpProvisioningService;
-use Infocyph\Foundation\Auth\Support\RandomAuthIdGenerator;
-use Infocyph\Foundation\Facades\Ids;
 use Infocyph\Foundation\Foundation;
-use Infocyph\Foundation\Identifiers\IdentifierManager;
+use Infocyph\UID\Id;
 use Infocyph\UID\ULID;
 use Infocyph\UID\UUID;
 
-it('exposes uid algorithms and parsing through foundation ids manager', function (): void {
-    $basePath = sys_get_temp_dir() . '/foundation-ids-' . uniqid('', true);
-    mkdir($basePath . '/cache', 0775, true);
+it('uses UID directly for general application identifiers', function (): void {
+    $uuid = Id::uuid7();
+    $ulid = Id::ulid();
 
-    $app = Foundation::web([
-        'app' => [
-            'base_path' => $basePath,
-        ],
-        'paths' => [
-            'cache' => 'cache',
-        ],
-        'ids' => [
-            'default' => 'nanoid',
-            'nanoid' => [
-                'length' => 16,
-            ],
-            'deterministic' => [
-                'length' => 12,
-                'namespace' => 'infbyte',
-            ],
-        ],
-    ])->boot();
-
-    $nanoId = $app->ids()->generate();
-    $uuid = $app->ids()->uuid7();
-    $ulid = Ids::ulid();
-
-    expect($nanoId)->toHaveLength(16)
-        ->and($app->ids()->isValid('nanoid', (string) $nanoId))->toBeTrue()
-        ->and(UUID::isValid($uuid))->toBeTrue()
-        ->and(ULID::isValid($ulid))->toBeTrue()
-        ->and($app->ids()->deterministic('invoice:42'))->toBe($app->ids()->deterministic('invoice:42'))
-        ->and($app->ids()->parse('ulid', $ulid))->toHaveKey('time');
-
-    $sorted = $app->ids()->sort([
-        UUID::max(),
-        UUID::nil(),
-        $uuid,
-    ]);
-
-    expect($sorted[0])->toBe(UUID::nil())
-        ->and($sorted[2])->toBe(UUID::max());
+    expect(UUID::isValid($uuid))->toBeTrue()
+        ->and(ULID::isValid($ulid))->toBeTrue();
 });
 
-it('supports configured sequence-backed generators and auth id strategies', function (): void {
-    $basePath = sys_get_temp_dir() . '/foundation-ids-auth-' . uniqid('', true);
-    mkdir($basePath . '/cache', 0775, true);
-
+it('supports configured auth identifier strategies', function (): void {
     $app = Foundation::web([
-        'app' => [
-            'base_path' => $basePath,
-        ],
-        'paths' => [
-            'cache' => 'cache',
-        ],
         'auth' => [
             'drivers' => [
                 'ids' => 'uid',
             ],
         ],
         'ids' => [
-            'default' => 'snowflake',
-            'sequence' => [
-                'driver' => 'filesystem',
-                'directory' => 'cache/ids-seq',
-            ],
-            'nanoid' => [
-                'length' => 18,
-            ],
-            'snowflake' => [
-                'datacenter_id' => 4,
-                'worker_id' => 2,
-                'output' => 'string',
-            ],
-            'tbsl' => [
-                'machine_id' => 7,
-                'sequenced' => true,
-                'output' => 'string',
-            ],
             'auth' => [
                 'account' => 'ulid',
-                'correlation' => 'nanoid',
+                'correlation' => 'uuid7',
             ],
         ],
     ])->boot();
 
-    $snowflake = (string) $app->ids()->generate();
-    $snowflakeParts = $app->ids()->parse('snowflake', $snowflake);
-    $tbsl = (string) $app->ids()->tbsl();
-    $tbslParts = $app->ids()->parse('tbsl', $tbsl);
     $authIds = $app->make(AuthIdGeneratorInterface::class);
 
-    expect($snowflakeParts['datacenter_id'])->toBe(4)
-        ->and($snowflakeParts['worker_id'])->toBe(2)
-        ->and($tbslParts['machineId'])->toBe(7)
+    expect($authIds)->toBeInstanceOf(UidAuthIdGenerator::class)
         ->and(ULID::isValid($authIds->accountId()))->toBeTrue()
-        ->and(strlen($authIds->correlationId()))->toBe(18)
-        ->and($basePath . '/cache/ids-seq')->toBeDirectory();
+        ->and(UUID::isValid($authIds->correlationId()))->toBeTrue();
 });
 
-it('preserves category prefixes for fallback auth identifiers', function (): void {
-    $ids = new RandomAuthIdGenerator;
-
-    $expectedPrefixes = [
-        $ids->accountId() => 'acct_',
-        $ids->auditEventId() => 'evt_',
-        $ids->challengeId() => 'chl_',
-        $ids->correlationId() => 'corr_',
-        $ids->credentialId() => 'cred_',
-        $ids->deviceId() => 'dev_',
-        $ids->grantId() => 'grant_',
-        $ids->permissionId() => 'perm_',
-        $ids->roleId() => 'role_',
-        $ids->sessionId() => 'sess_',
-    ];
-
-    foreach ($expectedPrefixes as $id => $prefix) {
-        expect($id)->toStartWith($prefix)
-            ->and($id)->toHaveLength(strlen($prefix) + 32);
-    }
-});
-
-it('keeps identifier and otp services outside the default auth path', function (): void {
+it('uses UID-backed defaults for auth identifiers', function (): void {
     $app = Foundation::web([
         '_config_cache' => false,
         'router' => [
@@ -144,7 +50,27 @@ it('keeps identifier and otp services outside the default auth path', function (
 
     $ids = $app->make(AuthIdGeneratorInterface::class);
 
-    expect($ids)->toBeInstanceOf(RandomAuthIdGenerator::class)
-        ->and($app->container()->has(IdentifierManager::class))->toBeFalse()
-        ->and($app->container()->has(OtpProvisioningService::class))->toBeFalse();
+    expect($ids)->toBeInstanceOf(UidAuthIdGenerator::class)
+        ->and(UUID::isValid($ids->accountId()))->toBeTrue()
+        ->and(ULID::isValid($ids->correlationId()))->toBeTrue();
+});
+
+it('rejects unsupported auth identifier strategies instead of falling back silently', function (): void {
+    $app = Foundation::web([
+        '_config_cache' => false,
+        'router' => [
+            'cache' => false,
+            'files' => [],
+        ],
+        'ids' => [
+            'auth' => [
+                'account' => 'random',
+            ],
+        ],
+    ]);
+
+    $ids = $app->make(AuthIdGeneratorInterface::class);
+
+    expect(fn(): string => $ids->accountId())
+        ->toThrow(InvalidArgumentException::class, 'use uuid7 or ulid');
 });

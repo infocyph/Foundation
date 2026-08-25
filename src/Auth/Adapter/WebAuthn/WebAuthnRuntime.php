@@ -6,7 +6,6 @@ namespace Infocyph\Foundation\Auth\Adapter\WebAuthn;
 
 use Infocyph\Foundation\Support\ValueNormalizer;
 use JsonException;
-
 use Symfony\Component\Serializer\SerializerInterface;
 use Webauthn\AuthenticatorAssertionResponseValidator;
 use Webauthn\AuthenticatorAttestationResponseValidator;
@@ -54,17 +53,13 @@ final class WebAuthnRuntime
         );
     }
 
-    /**
-     * @return array<string, mixed>
-     */
+    /** @return array<string, mixed> */
     public function creationOptionsToArray(PublicKeyCredentialCreationOptions $options): array
     {
         return $this->deserializeToArray($this->serializer()->serialize($options, 'json'));
     }
 
-    /**
-     * @param array<string, mixed> $payload
-     */
+    /** @param array<string, mixed> $payload */
     public function denormalizeCredentialRecord(array $payload): CredentialRecord
     {
         return $this->serializer()->deserialize(
@@ -74,9 +69,7 @@ final class WebAuthnRuntime
         );
     }
 
-    /**
-     * @param array<string, mixed> $payload
-     */
+    /** @param array<string, mixed> $payload */
     public function loadCredential(array $payload): PublicKeyCredential
     {
         return $this->serializer()->deserialize(
@@ -86,17 +79,13 @@ final class WebAuthnRuntime
         );
     }
 
-    /**
-     * @return array<string, mixed>
-     */
+    /** @return array<string, mixed> */
     public function normalizeCredentialRecord(CredentialRecord $record): array
     {
         return $this->deserializeToArray($this->serializer()->serialize($record, 'json'));
     }
 
-    /**
-     * @return array<string, mixed>
-     */
+    /** @return array<string, mixed> */
     public function requestOptionsToArray(PublicKeyCredentialRequestOptions $options): array
     {
         return $this->deserializeToArray($this->serializer()->serialize($options, 'json'));
@@ -110,18 +99,15 @@ final class WebAuthnRuntime
             $factory->setAllowedOrigins([$this->config->origin]);
         }
 
-        if ($this->config->rpId !== null) {
-            $factory->setSecuredRelyingPartyId([$this->config->rpId]);
-        }
-
+        // RP-ID validation is performed by the current WebAuthn ceremony flow
+        // against the relying-party/request options. Do not use the deprecated
+        // setSecuredRelyingPartyId() compatibility hook removed in WebAuthn 6.
         $this->attestationPolicy->configure($this->config, $factory);
 
         return $factory;
     }
 
-    /**
-     * @return array<string, mixed>
-     */
+    /** @return array<string, mixed> */
     private function deserializeToArray(string $payload): array
     {
         try {
@@ -133,9 +119,7 @@ final class WebAuthnRuntime
         return ValueNormalizer::associativeArray($decoded);
     }
 
-    /**
-     * @param array<string, mixed> $payload
-     */
+    /** @param array<string, mixed> $payload */
     private function encodeJson(array $payload): string
     {
         try {

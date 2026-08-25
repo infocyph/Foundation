@@ -6,72 +6,49 @@ namespace Infocyph\Foundation;
 
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\RuntimeMode;
-use Infocyph\Foundation\Config\ApiPreset;
 use Infocyph\Foundation\Config\FoundationPreset;
-use Infocyph\Foundation\Config\LocalPreset;
-use Infocyph\Foundation\Config\ProductionPreset;
-use Infocyph\Foundation\Facades\Facade;
 
 final class Foundation
 {
-    /**
-     * @param array<string, mixed> $config
-     */
-    public static function api(array $config = []): Application
+    /** @param array<string, mixed> $config */
+    public static function cli(array $config = []): Application
     {
-        return self::preset(new ApiPreset(), $config);
+        return self::createFor(RuntimeMode::Cli, $config);
     }
 
     /**
+     * Apply an environment/application preset independently from the selected runtime.
+     *
      * @param array<string, mixed> $config
      */
-    public static function console(array $config = []): Application
-    {
-        return self::createFor(RuntimeMode::Console, $config);
-    }
-
-    /**
-     * @param array<string, mixed> $config
-     */
-    public static function local(array $config = []): Application
-    {
-        return self::preset(new LocalPreset(), $config);
-    }
-
-    /**
-     * @param array<string, mixed> $config
-     */
-    public static function preset(FoundationPreset $preset, array $config = []): Application
+    public static function preset(RuntimeMode $runtime, FoundationPreset $preset, array $config = []): Application
     {
         $config['_preset'] = $preset->config();
 
-        return self::web($config);
+        return self::createFor($runtime, $config);
     }
 
-    /**
-     * @param array<string, mixed> $config
-     */
-    public static function production(array $config = []): Application
+    /** @param array<string, mixed> $config */
+    public static function scheduler(array $config = []): Application
     {
-        return self::preset(new ProductionPreset(), $config);
+        return self::createFor(RuntimeMode::Scheduler, $config);
     }
 
-    /**
-     * @param array<string, mixed> $config
-     */
+    /** @param array<string, mixed> $config */
     public static function web(array $config = []): Application
     {
         return self::createFor(RuntimeMode::Web, $config);
     }
 
-    /**
-     * @param array<string, mixed> $config
-     */
-    private static function createFor(RuntimeMode $runtimeMode, array $config): Application
+    /** @param array<string, mixed> $config */
+    public static function worker(array $config = []): Application
     {
-        $app = Application::create($config, $runtimeMode);
-        Facade::setApplication($app);
+        return self::createFor(RuntimeMode::Worker, $config);
+    }
 
-        return $app;
+    /** @param array<string, mixed> $config */
+    private static function createFor(RuntimeMode $runtime, array $config): Application
+    {
+        return Application::create($config, $runtime);
     }
 }

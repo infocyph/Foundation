@@ -8,329 +8,190 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
-use Infocyph\TalkingBytes\Email\Config\DkimConfig;
 use Infocyph\TalkingBytes\Email\Config\EmailLimits;
-use Infocyph\TalkingBytes\Email\Config\LogEmailConfig;
-use Infocyph\TalkingBytes\Email\Config\SendmailConfig;
-use Infocyph\TalkingBytes\Email\Config\SmtpConfig;
-use Infocyph\TalkingBytes\Email\Config\SpoolConfig;
+use Infocyph\TalkingBytes\Email\Dkim\DkimPublicKeyResolver;
+use Infocyph\TalkingBytes\Email\Dkim\DkimVerifier;
+use Infocyph\TalkingBytes\Email\Dkim\DnsDkimPublicKeyResolver;
 use Infocyph\TalkingBytes\Email\Emailer;
 use Infocyph\TalkingBytes\Email\EmailMailboxFactory;
 use Infocyph\TalkingBytes\Email\EmailReceiverFactory;
 use Infocyph\TalkingBytes\Email\EmailSenderFactory;
-use Infocyph\TalkingBytes\Email\Enum\DkimAlgorithm;
 use Infocyph\TalkingBytes\Email\Parser\AuthenticationResultsParser;
 use Infocyph\TalkingBytes\Email\Parser\BounceParser;
 use Infocyph\TalkingBytes\Email\Parser\RawEmailParser;
-use Infocyph\TalkingBytes\Resilience\RateLimiter;
-use Infocyph\TalkingBytes\Retry\ExponentialBackoffRetryPolicy;
-use Infocyph\TalkingBytes\Retry\FixedDelayRetryPolicy;
+use Infocyph\TalkingBytes\Email\Receiver\SpoolEmailReceiver;
 
 final class NotificationServiceProvider extends ServiceProvider
 {
     public function register(Application $app): void
     {
-        if (!class_exists(Emailer::class)) {
-            throw new \LogicException(
-                'Foundation notification services require infocyph/talkingbytes; run "php infbyte module:install communication".',
-            );
-        }
-
         $container = $app->container();
 
         $this->bindFactory($container, NotificationTemplateRegistry::class, fn() => new NotificationTemplateRegistry(
             $app->config(),
         ), LifetimeEnum::Singleton);
 
-        $container->bind(EmailSenderFactory::class, new EmailSenderFactory(), LifetimeEnum::Singleton);
-        $container->bind(EmailReceiverFactory::class, new EmailReceiverFactory(), LifetimeEnum::Singleton);
-        $container->bind(EmailMailboxFactory::class, new EmailMailboxFactory(), LifetimeEnum::Singleton);
-        $this->bindFactory($container, EmailLimits::class, fn() => $this->emailLimits($app), LifetimeEnum::Singleton);
-        $this->bindFactory($container, RawEmailParser::class, fn() => new RawEmailParser(
-            limits: $app->make(EmailLimits::class),
-        ), LifetimeEnum::Singleton);
-        $container->bind(BounceParser::class, new BounceParser(), LifetimeEnum::Singleton);
-        $container->bind(AuthenticationResultsParser::class, new AuthenticationResultsParser(), LifetimeEnum::Singleton);
-
-        if (!$container->has(Emailer::class)) {
-            $this->bindFactory($container, Emailer::class, fn() => $this->createEmailer($app), LifetimeEnum::Singleton);
+        if (class_exists(Emailer::class)) {
+            $this->registerMail($app);
+        } else {
+            $this->registerUnavailableMail($app);
         }
-        $this->bindFactory($container, 'foundation.notifications.emailer', fn() => $container->get(Emailer::class), LifetimeEnum::Singleton);
 
-        $this->bindFactory($container, NotificationManager::class, fn() => new NotificationManager(
+        $this->bindFactory($container, NotificationChannelRegistry::class, fn() => new NotificationChannelRegistry(
             config: $app->config(),
-            container: $container,
+            mail: class_exists(Emailer::class) ? $app->make(MailNotificationChannel::class) : null,
+            resolver: fn(string $service): mixed => $app->make($service),
         ), LifetimeEnum::Singleton);
-
-        $this->bindFactory($container, 'foundation.notifications', fn() => $container->get(NotificationManager::class), LifetimeEnum::Singleton);
-    }
-
-    private function absolute(string $path): bool
-    {
-        return preg_match('/^(?:[A-Z]:[\\\\\\/]|\\\\\\\\|\/)/i', $path) === 1;
-    }
-
-    private function applyDkim(Application $app, Emailer $emailer): Emailer
-    {
-        $config = $this->arrayConfig($app, 'notifications.auth.dkim');
-        if (!$this->boolValue($config, 'enabled', false)) {
-            return $emailer;
-        }
-
-        $domain = $this->stringValue($config, 'domain');
-        $selector = $this->stringValue($config, 'selector');
-        $privateKey = $this->stringValue($config, 'private_key');
-        $privateKeyPath = $this->stringValue($config, 'private_key_path');
-        $headers = $this->stringList($config['headers'] ?? []);
-        $algorithm = DkimAlgorithm::tryFrom($this->stringValue($config, 'algorithm', DkimAlgorithm::RsaSha256->value))
-            ?? DkimAlgorithm::RsaSha256;
-
-        $dkim = $privateKeyPath !== ''
-            ? DkimConfig::fromPrivateKeyPath($domain, $selector, $this->absolute($privateKeyPath) ? $privateKeyPath : $app->basePath($privateKeyPath), $headers, $algorithm)
-            : DkimConfig::fromPrivateKeyString($domain, $selector, $privateKey, $headers, $algorithm);
-
-        return $emailer->withDkim($dkim);
-    }
-
-    private function applyRateLimit(Application $app, Emailer $emailer): Emailer
-    {
-        $config = $this->arrayConfig($app, 'notifications.auth.rate_limit');
-        if (!$this->boolValue($config, 'enabled', false)) {
-            return $emailer;
-        }
-
-        return $emailer->withRateLimit(new RateLimiter(
-            $this->intValue($config, 'max_requests', 60),
-            $this->intValue($config, 'per_seconds', 60),
-        ));
-    }
-
-    private function applyRetry(Application $app, Emailer $emailer): Emailer
-    {
-        $config = $this->arrayConfig($app, 'notifications.auth.retry');
-        if (!$this->boolValue($config, 'enabled', false)) {
-            return $emailer;
-        }
-
-        $policy = match ($this->stringValue($config, 'policy', 'fixed')) {
-            'backoff', 'exponential' => new ExponentialBackoffRetryPolicy(
-                $this->intValue($config, 'max_attempts', 3),
-                $this->intValue($config, 'delay_ms', 250),
-            ),
-            default => new FixedDelayRetryPolicy(
-                $this->intValue($config, 'max_attempts', 3),
-                $this->intValue($config, 'delay_ms', 250),
-            ),
-        };
-
-        return $emailer->withRetry($policy);
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function arrayConfig(Application $app, string $key): array
-    {
-        return ValueNormalizer::associativeArray(
-            $app->config()->get($key, []),
+        $this->bindFactory($container, NotificationDispatcher::class, fn() => new NotificationDispatcher(
+            $app->make(NotificationChannelRegistry::class),
+        ), LifetimeEnum::Singleton);
+        $this->bindFactory(
+            $container,
+            'foundation.notifications',
+            fn() => $app->make(NotificationDispatcher::class),
+            LifetimeEnum::Singleton,
         );
-    }
-
-    private function baseEmailer(Application $app, string $transport): Emailer
-    {
-        $config = $this->transportConfig($app, $transport);
-
-        return match ($transport) {
-            'fake' => Emailer::fake(),
-            'log' => Emailer::usingLog(LogEmailConfig::fromArray([
-                'dailyFiles' => $this->boolValue($config, 'dailyFiles', true),
-                'directory' => $this->notificationLogDirectory($app, $config),
-                'filenamePrefix' => $this->stringValue($config, 'filenamePrefix', 'auth'),
-                'maxMessageBytes' => $config['maxMessageBytes'] ?? null,
-            ])),
-            'mail' => Emailer::usingMailFunction(),
-            'sendmail' => Emailer::usingSendmail(SendmailConfig::fromArray($config)),
-            'smtp' => Emailer::usingSmtp(SmtpConfig::fromArray($config)),
-            'spool' => Emailer::usingSpool(SpoolConfig::fromArray($this->normalizeSpoolConfig($app, $config))),
-            default => Emailer::usingNull(),
-        };
-    }
-
-    /**
-     * @param array<string, mixed> $config
-     */
-    private function boolValue(array $config, string $key, bool $default): bool
-    {
-        $value = $config[$key] ?? $default;
-
-        return match (true) {
-            is_bool($value) => $value,
-            is_int($value) => $value !== 0,
-            is_string($value) => in_array(strtolower($value), ['1', 'true', 'yes', 'on'], true),
-            default => $default,
-        };
-    }
-
-    private function createEmailer(Application $app): Emailer
-    {
-        return $this->decorateEmailer(
-            $app,
-            $this->baseEmailer($app, $this->stringConfig($app, 'notifications.auth.transport', 'null')),
-        );
-    }
-
-    /**
-     */
-    private function decorateEmailer(Application $app, Emailer $emailer, bool $includeFallback = true): Emailer
-    {
-        $emailer = $this->applyRetry($app, $emailer);
-        $emailer = $this->applyRateLimit($app, $emailer);
-        $emailer = $this->applyDkim($app, $emailer);
-
-        if (!$includeFallback) {
-            return $emailer;
-        }
-
-        $fallbackTransports = [];
-
-        foreach ($this->stringList($app->config()->get('notifications.auth.fallback.transports', [])) as $transport) {
-            if ($transport === $this->stringConfig($app, 'notifications.auth.transport', 'null')) {
-                continue;
-            }
-
-            $fallbackTransports[] = $this->decorateEmailer(
-                $app,
-                $this->baseEmailer($app, $transport),
-                false,
-            )->transport();
-        }
-
-        return $fallbackTransports === []
-            ? $emailer
-            : $emailer->withFallback($fallbackTransports);
     }
 
     private function emailLimits(Application $app): EmailLimits
     {
-        $config = $this->arrayConfig($app, 'notifications.email.parsing.limits');
+        $config = ValueNormalizer::associativeArray(
+            $app->config()->get('notifications.email.parsing.limits', []),
+        );
 
         return new EmailLimits(
-            maxMessageBytes: $this->intValue($config, 'maxMessageBytes', 10 * 1024 * 1024),
-            maxAttachmentBytes: $this->intValue($config, 'maxAttachmentBytes', 25 * 1024 * 1024),
-            maxAttachmentCount: $this->intValue($config, 'maxAttachmentCount', 500),
-            maxDecodedBodyBytes: $this->intValue($config, 'maxDecodedBodyBytes', 10 * 1024 * 1024),
-            maxMimeDepth: $this->intValue($config, 'maxMimeDepth', 20),
-            maxMimeParts: $this->intValue($config, 'maxMimeParts', 500),
-            maxHeaderBytes: $this->intValue($config, 'maxHeaderBytes', 131072),
-            maxHeaderCount: $this->intValue($config, 'maxHeaderCount', 2000),
+            maxMessageBytes: ValueNormalizer::int($config['maxMessageBytes'] ?? 10 * 1024 * 1024, 10 * 1024 * 1024),
+            maxAttachmentBytes: ValueNormalizer::int($config['maxAttachmentBytes'] ?? 25 * 1024 * 1024, 25 * 1024 * 1024),
+            maxAttachmentCount: ValueNormalizer::int($config['maxAttachmentCount'] ?? 500, 500),
+            maxDecodedBodyBytes: ValueNormalizer::int($config['maxDecodedBodyBytes'] ?? 10 * 1024 * 1024, 10 * 1024 * 1024),
+            maxMimeDepth: ValueNormalizer::int($config['maxMimeDepth'] ?? 20, 20),
+            maxMimeParts: ValueNormalizer::int($config['maxMimeParts'] ?? 500, 500),
+            maxHeaderBytes: ValueNormalizer::int($config['maxHeaderBytes'] ?? 131072, 131072),
+            maxHeaderCount: ValueNormalizer::int($config['maxHeaderCount'] ?? 2000, 2000),
         );
     }
 
-    /**
-     * @param array<string, mixed> $config
-     */
-    private function intValue(array $config, string $key, int $default): int
+    private function registerMail(Application $app): void
     {
-        $value = $config[$key] ?? $default;
+        $container = $app->container();
 
-        if (is_int($value)) {
-            return $value;
+        if (!$this->hasExplicitBinding($container, EmailSenderFactory::class)) {
+            $container->bind(EmailSenderFactory::class, new EmailSenderFactory(), LifetimeEnum::Singleton);
+        }
+        if (!$this->hasExplicitBinding($container, EmailReceiverFactory::class)) {
+            $container->bind(EmailReceiverFactory::class, new EmailReceiverFactory(), LifetimeEnum::Singleton);
+        }
+        if (!$this->hasExplicitBinding($container, EmailMailboxFactory::class)) {
+            $container->bind(EmailMailboxFactory::class, new EmailMailboxFactory(), LifetimeEnum::Singleton);
+        }
+        if (!$this->hasExplicitBinding($container, EmailLimits::class)) {
+            $this->bindFactory(
+                $container,
+                EmailLimits::class,
+                fn(): EmailLimits => $this->emailLimits($app),
+                LifetimeEnum::Singleton,
+            );
+        }
+        if (!$this->hasExplicitBinding($container, RawEmailParser::class)) {
+            $this->bindFactory(
+                $container,
+                RawEmailParser::class,
+                fn(): RawEmailParser => new RawEmailParser(limits: $app->make(EmailLimits::class)),
+                LifetimeEnum::Singleton,
+            );
+        }
+        if (!$this->hasExplicitBinding($container, BounceParser::class)) {
+            $container->bind(BounceParser::class, new BounceParser(), LifetimeEnum::Singleton);
+        }
+        if (!$this->hasExplicitBinding($container, AuthenticationResultsParser::class)) {
+            $container->bind(AuthenticationResultsParser::class, new AuthenticationResultsParser(), LifetimeEnum::Singleton);
+        }
+        if (!$this->hasExplicitBinding($container, DkimPublicKeyResolver::class)) {
+            $container->bind(DkimPublicKeyResolver::class, new DnsDkimPublicKeyResolver(), LifetimeEnum::Singleton);
+        }
+        if (!$this->hasExplicitBinding($container, DkimVerifier::class)) {
+            $this->bindFactory(
+                $container,
+                DkimVerifier::class,
+                fn(): DkimVerifier => new DkimVerifier($app->make(DkimPublicKeyResolver::class)),
+                LifetimeEnum::Singleton,
+            );
         }
 
-        return is_string($value) && is_numeric($value)
-            ? (int) $value
-            : $default;
-    }
+        $this->bindFactory($container, EmailProfiles::class, fn() => new EmailProfiles(
+            config: $app->config(),
+            paths: $app->paths(),
+            senders: $app->make(EmailSenderFactory::class),
+            receivers: $app->make(EmailReceiverFactory::class),
+            mailboxes: $app->make(EmailMailboxFactory::class),
+            parser: $app->make(RawEmailParser::class),
+        ), LifetimeEnum::Singleton);
 
-    /**
-     * @param array<string, mixed> $config
-     * @return array<string, mixed>
-     */
-    private function normalizeSpoolConfig(Application $app, array $config): array
-    {
-        $directory = $config['directory'] ?? null;
-        if (is_string($directory) && $directory !== '' && !$this->absolute($directory)) {
-            $config['directory'] = $app->basePath($directory);
+        if (!$this->hasExplicitBinding($container, Emailer::class)) {
+            $this->bindFactory(
+                $container,
+                Emailer::class,
+                fn(): Emailer => $app->make(EmailProfiles::class)->sender(),
+                LifetimeEnum::Scoped,
+            );
+        }
+        if (!$this->hasExplicitBinding($container, SpoolEmailReceiver::class)) {
+            $this->bindFactory(
+                $container,
+                SpoolEmailReceiver::class,
+                fn(): SpoolEmailReceiver => $app->make(EmailProfiles::class)->spoolReceiver(),
+                LifetimeEnum::Scoped,
+            );
         }
 
-        $processingDirectory = $config['processingDirectory'] ?? null;
-        if (is_string($processingDirectory) && $processingDirectory !== '' && !$this->absolute($processingDirectory)) {
-            $config['processingDirectory'] = $app->basePath($processingDirectory);
-        }
+        $this->bindFactory($container, Mailer::class, fn() => new Mailer(
+            $app->make(EmailProfiles::class),
+            $app->config(),
+        ), LifetimeEnum::Singleton);
+        $this->bindFactory($container, MailNotificationChannel::class, fn() => new MailNotificationChannel(
+            $app->make(Mailer::class),
+        ), LifetimeEnum::Singleton);
 
-        return $config;
-    }
-
-    /**
-     * @param array<string, mixed> $config
-     */
-    private function notificationLogDirectory(Application $app, array $config): string
-    {
-        $configured = $config['directory'] ?? $app->config()->get('notifications.auth.log.directory');
-        if (is_string($configured) && $configured !== '') {
-            return $this->absolute($configured)
-                ? $configured
-                : $app->basePath($configured);
-        }
-
-        return $app->logsPath('email');
-    }
-
-    private function stringConfig(Application $app, string $key, string $default): string
-    {
-        $value = $app->config()->get($key, $default);
-
-        return is_string($value) ? $value : $default;
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function stringList(mixed $value): array
-    {
-        if (!is_array($value)) {
-            return [];
-        }
-
-        $strings = [];
-
-        foreach ($value as $item) {
-            if (!is_string($item) || $item === '') {
-                continue;
-            }
-
-            $strings[] = $item;
-        }
-
-        return array_values(array_unique($strings));
-    }
-
-    /**
-     * @param array<string, mixed> $config
-     */
-    private function stringValue(array $config, string $key, string $default = ''): string
-    {
-        $value = $config[$key] ?? $default;
-
-        return is_string($value)
-            ? $value
-            : $default;
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function transportConfig(Application $app, string $transport): array
-    {
-        $configured = ValueNormalizer::associativeArray(
-            $app->config()->get('notifications.auth.transports.' . $transport),
+        $this->bindFactory(
+            $container,
+            'foundation.notifications.emailer',
+            fn() => $app->make(Emailer::class),
+            LifetimeEnum::Scoped,
         );
-        if ($configured !== []) {
-            return $configured;
-        }
-
-        return ValueNormalizer::associativeArray(
-            $app->config()->get('notifications.auth.' . $transport),
+        $this->bindFactory(
+            $container,
+            'foundation.email',
+            fn() => $app->make(Mailer::class),
+            LifetimeEnum::Singleton,
         );
+    }
+
+    private function registerUnavailableMail(Application $app): void
+    {
+        $unavailable = static function (): never {
+            throw new \LogicException(
+                'Foundation mail services require infocyph/talkingbytes; run "php infbyte module:install communication".',
+            );
+        };
+        $container = $app->container();
+        foreach ([
+            Mailer::class,
+            MailNotificationChannel::class,
+            Emailer::class,
+            EmailSenderFactory::class,
+            EmailReceiverFactory::class,
+            EmailMailboxFactory::class,
+            EmailLimits::class,
+            RawEmailParser::class,
+            BounceParser::class,
+            AuthenticationResultsParser::class,
+            DkimPublicKeyResolver::class,
+            DkimVerifier::class,
+            SpoolEmailReceiver::class,
+            'foundation.email',
+            'foundation.notifications.emailer',
+        ] as $service) {
+            $this->bindFactory($container, $service, $unavailable, LifetimeEnum::Singleton);
+        }
     }
 }

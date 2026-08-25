@@ -11,6 +11,7 @@ use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
 use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
 use Infocyph\Foundation\Auth\Driver\AuthNotificationDriver;
 use Infocyph\Foundation\Auth\Support\CollectingAuthNotifier;
+use Infocyph\Foundation\Notifications\EmailProfiles;
 use Infocyph\Foundation\Notifications\NotificationTemplateRegistry;
 use Infocyph\TalkingBytes\Email\Emailer;
 
@@ -24,26 +25,33 @@ final readonly class AuthNotificationRegistrar extends AbstractAuthRegistrar
                 $this->app->make(NotificationTemplateRegistry::class),
             ));
 
-            $this->singleton(AuthNotifierInterface::class, fn() => new TalkingBytesAuthNotifier(
-                emailer: $this->app->notifications()->emailer(),
+            $this->container->factory(AuthNotifierInterface::class, fn() => new TalkingBytesAuthNotifier(
+                emailer: $this->app->make(EmailProfiles::class)->authEmailer(),
                 mapper: $this->app->make(AuthNotificationMapper::class),
                 accounts: $this->app->make(AccountProviderInterface::class),
                 criticalTypes: $this->criticalTypes(),
                 failSilently: $this->boolConfig('notifications.auth.fail_silently', false),
-                from: $this->nullableString($this->app->config()->get('notifications.auth.from')),
-            ));
+                from: $this->notificationFrom(),
+            ))->scoped();
 
             return;
         }
 
-        $this->singleton(AuthNotifierInterface::class, fn() => new CollectingAuthNotifier());
+        $this->container->factory(
+            AuthNotifierInterface::class,
+            static fn() => new CollectingAuthNotifier(),
+        )->scoped();
     }
 
-    /**
-     * @return list<string>
-     */
+    /** @return list<string> */
     private function criticalTypes(): array
     {
         return $this->stringList($this->app->config()->get('notifications.auth.critical_types', []));
+    }
+
+    private function notificationFrom(): ?string
+    {
+        return $this->nullableString($this->app->config()->get('notifications.auth.from'))
+            ?? $this->nullableString($this->app->config()->get('notifications.email.default_from'));
     }
 }
