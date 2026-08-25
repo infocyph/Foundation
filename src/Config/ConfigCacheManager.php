@@ -32,6 +32,9 @@ final readonly class ConfigCacheManager
                 throw new \RuntimeException(sprintf('Unable to remove config cache file "%s".', $file));
             }
         }
+        if (!rmdir($directory) && is_dir($directory)) {
+            throw new \RuntimeException(sprintf('Unable to remove config cache directory "%s".', $directory));
+        }
 
         return true;
     }
