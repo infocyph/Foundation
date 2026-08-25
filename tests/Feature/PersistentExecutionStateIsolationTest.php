@@ -73,12 +73,19 @@ final readonly class FoundationPersistentMessage
     public function __construct(public string $value) {}
 }
 
+final class FoundationPersistentMemoCalls
+{
+    public int $memo = 0;
+
+    public int $once = 0;
+}
+
 it('cleans all request-local state between persistent execution units including failure paths', function (): void {
     DB::purge();
     Memoizer::instance()->flush();
     OnceMemoizer::instance()->flush();
     $project = foundationPersistentStateProject();
-    $memoCalls = ['memo' => 0, 'once' => 0];
+    $memoCalls = new FoundationPersistentMemoCalls();
 
     try {
         $app = Foundation::web([
@@ -116,7 +123,7 @@ it('cleans all request-local state between persistent execution units including 
             $principal,
             $sessions,
             $databaseFactory,
-            &$memoCalls,
+            $memoCalls,
             &$firstScoped,
         ): void {
             expect((string) $executionId)->not->toBe('');
@@ -159,7 +166,7 @@ it('cleans all request-local state between persistent execution units including 
             $principal,
             $sessions,
             $databaseFactory,
-            &$memoCalls,
+            $memoCalls,
             &$secondScoped,
         ): void {
             expect($principal->get())->toBeNull()
@@ -171,6 +178,7 @@ it('cleans all request-local state between persistent execution units including 
             $connection = $databaseFactory->connection();
             expect($connection->transactionLevel())->toBe(0)
                 ->and(foundationPersistentMemoized($memoCalls))->toBe(2)
+                ->and(Memoizer::instance()->stats())->toBe(['hits' => 0, 'misses' => 1, 'total' => 1])
                 ->and(foundationPersistentOnce($memoCalls))->toBe(2);
         });
 
@@ -216,19 +224,17 @@ it('cleans all request-local state between persistent execution units including 
     }
 });
 
-/** @param array{memo:int,once:int} $calls */
-function foundationPersistentMemoized(array &$calls): int
+function foundationPersistentMemoized(FoundationPersistentMemoCalls $calls): int
 {
-    return Memoizer::instance()->get(static function () use (&$calls): int {
-        return ++$calls['memo'];
+    return Memoizer::instance()->get(static function () use ($calls): int {
+        return ++$calls->memo;
     });
 }
 
-/** @param array{memo:int,once:int} $calls */
-function foundationPersistentOnce(array &$calls): int
+function foundationPersistentOnce(FoundationPersistentMemoCalls $calls): int
 {
-    return OnceMemoizer::instance()->once(static function () use (&$calls): int {
-        return ++$calls['once'];
+    return OnceMemoizer::instance()->once(static function () use ($calls): int {
+        return ++$calls->once;
     });
 }
 
