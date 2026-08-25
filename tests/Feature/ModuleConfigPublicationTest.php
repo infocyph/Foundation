@@ -114,6 +114,31 @@ it('force-publishes atomically and removes Foundation-owned backups after commit
     }
 });
 
+it('rolls back already-published config when a later target cannot be committed', function (): void {
+    $basePath = sys_get_temp_dir() . '/foundation-module-rollback-' . bin2hex(random_bytes(5));
+    mkdir($basePath . '/config/notifications.php', 0775, true);
+
+    try {
+        $application = Foundation::cli(['base_path' => $basePath, '_config_cache' => false]);
+        $manager = new ModuleManager($application, new ModuleCatalog(), new ProcessRunner());
+        set_error_handler(static fn(int $severity): bool => $severity === E_WARNING);
+
+        try {
+            expect(fn() => $manager->publishConfig('communication', true))
+                ->toThrow(RuntimeException::class, 'Unable to publish config template "notifications.php".');
+        } finally {
+            restore_error_handler();
+        }
+
+        expect($basePath . '/config/communication.php')->not->toBeFile()
+            ->and($basePath . '/config/notifications.php')->toBeDirectory()
+            ->and(glob($basePath . '/config/.foundation-config-*') ?: [])->toBe([])
+            ->and(glob($basePath . '/config/*.foundation-*.bak') ?: [])->toBe([]);
+    } finally {
+        moduleConfigRemoveDirectory($basePath);
+    }
+});
+
 it('keeps development dependencies out of module composer operations', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-module-composer-' . bin2hex(random_bytes(5));
     $binPath = $basePath . '/bin';
@@ -123,7 +148,13 @@ it('keeps development dependencies out of module composer operations', function 
     $originalLog = getenv('FOUNDATION_MODULE_COMMAND_LOG');
 
     mkdir($binPath, 0775, true);
-    file_put_contents($basePath . '/composer.json', '{"name":"example/application"}');
+    file_put_contents($basePath . '/composer.json', json_encode([
+        'name' => 'example/application',
+        'require' => [
+            'infocyph/dblayer' => '^5.0',
+            'infocyph/omnibus' => '^2.5',
+        ],
+    ], JSON_THROW_ON_ERROR));
     file_put_contents($composerPath, <<<'PHP'
 #!/usr/bin/env php
 <?php
@@ -159,6 +190,7 @@ PHP);
 
         expect($commands)->toBe([
             ['require', 'infocyph/dblayer:^5.0', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
+            ['remove', 'infocyph/dblayer', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
             ['require', 'infocyph/omnibus:^2.5', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
         ]);
     } finally {
