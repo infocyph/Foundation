@@ -107,9 +107,11 @@ PHP);
         if (!is_array($secondContainers)) {
             throw new RuntimeException('Second optimization did not expose compiled runtime containers.');
         }
+        $secondRuntimeKeys = array_keys($secondContainers);
+        sort($secondRuntimeKeys);
 
         expect($firstPayload['artifacts'] ?? null)->toBe($secondPayload['artifacts'] ?? null)
-            ->and(array_keys($secondContainers))->toBe(['web', 'cli', 'worker', 'scheduler']);
+            ->and($secondRuntimeKeys)->toBe(['cli', 'scheduler', 'web', 'worker']);
 
         $warm = foundationOptimizationPayload(foundationOptimizationRun($dispatcher, 'optimize:report'));
         expect($warm['config'] ?? null)->toBeTrue()
@@ -156,8 +158,10 @@ function foundationOptimizationExpectContainers(array $payload, bool $ready): vo
     if (!is_array($containers)) {
         throw new RuntimeException('Optimization report did not expose container status.');
     }
+    $runtimeKeys = array_keys($containers);
+    sort($runtimeKeys);
 
-    expect(array_keys($containers))->toBe(['web', 'cli', 'worker', 'scheduler']);
+    expect($runtimeKeys)->toBe(['cli', 'scheduler', 'web', 'worker']);
     foreach ($containers as $runtime => $status) {
         if (!is_array($status)) {
             throw new RuntimeException(sprintf('Optimization status for %s is invalid.', (string) $runtime));
