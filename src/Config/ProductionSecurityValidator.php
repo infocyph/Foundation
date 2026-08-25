@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Config;
 
 use Infocyph\Foundation\Auth\Driver\AuthCacheDriver;
+use Infocyph\Foundation\Auth\Driver\AuthStorageDriver;
 use Infocyph\Foundation\Exception\ConfigurationException;
 
 final readonly class ProductionSecurityValidator
@@ -22,6 +23,7 @@ final readonly class ProductionSecurityValidator
         $issues = [];
         $this->validateTopology($issues);
         $this->validatePasswordPolicy($issues);
+        $this->validateAuthStorage($issues);
         $this->validateAuthState($issues);
         $this->validateAtomicCounter($issues);
         $this->validateLockTopology($issues);
@@ -120,6 +122,35 @@ final readonly class ProductionSecurityValidator
         } catch (ConfigurationException $exception) {
             $issues[] = new ConfigIssue($exception->getMessage(), 'cache.stores.' . $default);
         }
+    }
+
+    /** @param list<ConfigIssue> $issues */
+    private function validateAuthStorage(array &$issues): void
+    {
+        if ($this->config->get('auth.drivers.storage', AuthStorageDriver::MEMORY->value) !== AuthStorageDriver::DATABASE->value) {
+            return;
+        }
+
+        $connection = $this->string($this->config->get('database.default'));
+        if ($connection === null || !$this->config->has('database.connections.' . $connection)) {
+            return;
+        }
+
+        $required = $this->state->requiredSecurityScope();
+        $actual = $this->state->databaseConnectionScope($connection);
+        if ($this->state->satisfies($actual, $required)) {
+            return;
+        }
+
+        $issues[] = new ConfigIssue(
+            sprintf(
+                'Production authentication persistence requires %s-visible state; database connection "%s" is only %s-visible.',
+                $required,
+                $connection,
+                $actual,
+            ),
+            'database.connections.' . $connection,
+        );
     }
 
     /** @param list<ConfigIssue> $issues */
