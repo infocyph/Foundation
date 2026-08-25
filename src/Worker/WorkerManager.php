@@ -289,7 +289,7 @@ final readonly class WorkerManager
     private function runMessaging(string $name, callable $stopRequested, callable $processHeartbeat): int
     {
         if (!class_exists(Worker::class) || !interface_exists(WorkerLifecycle::class)) {
-            throw new \LogicException('Messaging workers require infocyph/omnibus ^2.4.');
+            throw new \LogicException('Messaging workers require infocyph/omnibus ^2.5.');
         }
 
         /** @var OmnibusWorkerFactory $factory */
