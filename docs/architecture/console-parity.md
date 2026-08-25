@@ -4,7 +4,9 @@ Foundation 2.0 no longer depends on or contains the former
 `infocyph/console`/`Infocyph\Foundation\Console` architecture. This document is
 the closure record for that migration, not a second live implementation plan.
 
-The authoritative current tracker is `foundation_work_plan.md`.
+The authoritative release requirements are documented in the
+[README verification section](../../README.md#verification) and enforced by
+the [Security & Standards workflow](../../.github/workflows/security-standards.yml).
 
 ## Migration rule
 
