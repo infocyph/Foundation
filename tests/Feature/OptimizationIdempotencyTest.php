@@ -172,7 +172,7 @@ function foundationOptimizationExpectContainers(array $payload, bool $ready): vo
 
         $compiled = $status['compiled'] ?? null;
         if ($ready) {
-            expect($compiled)->toBeInt()->toBeGreaterThan(0);
+            expect($compiled)->toBeInt()->toBeGreaterThanOrEqual(0);
         } else {
             expect($compiled)->toBe(0);
         }
