@@ -258,7 +258,7 @@ it('discovers source commands and gives a valid manifest precedence with invalid
         );
         $fallback = foundationCliRuntimeDispatcher($project);
         expect($fallback->registry()->find('cli:probe'))->not->toBeNull()
-            ->and($fallback->registry()->find('cli:exit'))->toBeNull();
+            ->and($fallback->registry()->find('cli:exit'))->not->toBeNull();
     } finally {
         foundationCliRuntimeRemoveDirectory($project);
     }
