@@ -117,7 +117,7 @@ Application maintenance workers and Omnibus queue workers are distinct:
 Foundation provider workers expose `WorkerRuntime::heartbeat()` for singleton
 lease refresh and runtime generation checks.
 
-Omnibus 2.4 single workers use native `WorkerLifecycle` callbacks. Optional
+Omnibus 2.5 single workers use native `WorkerLifecycle` callbacks. Optional
 `WorkerPool` remains an upstream Unix/pcntl process-pool feature; Foundation
 constructs a fresh application in each child after fork.
 
