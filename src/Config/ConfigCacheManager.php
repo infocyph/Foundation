@@ -24,11 +24,6 @@ final readonly class ConfigCacheManager
         return true;
     }
 
-    public function cached(string $path = 'bootstrap/cache/config'): bool
-    {
-        return is_file($this->path($path) . DIRECTORY_SEPARATOR . ConfigLoader::MANIFEST_FILE);
-    }
-
     public function path(string $path = 'bootstrap/cache/config'): string
     {
         $path = $path !== '' ? $path : 'bootstrap/cache/config';
