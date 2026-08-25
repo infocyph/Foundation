@@ -14,10 +14,10 @@ Foundation is the reusable framework/runtime layer. Infbyte is the opinionated a
 - Started: 2026-08-24 (Asia/Dhaka)
 - Original closure checkpoint: `16d60f114314544a5c6db91c0e986423fa6fbb70`
 - Dependency-rebaseline checkpoint: `6663dad26e75453fcebb7975dda2ad0b49661951`
-- Latest verified implementation checkpoint: `37efafd18b90db8cf80b722aa3e43bbb9ef85c83`
-- Authoritative Security & Standards run: `32816540790`
-- Authoritative dedicated PHPStan run: `32816540419`
-- Current phase: **Auth/session/security closure, then messaging/operations release matrices**.
+- Latest verified implementation checkpoint: `396aa4b9db1f27b8dfb466701e3d0309912f0ba8`
+- Authoritative Security & Standards run: `32818552123`
+- Authoritative dedicated PHPStan run: `32818551519`
+- Current phase: **Omnibus 2.5 release matrix, then optimization/operations/environment safety closure**.
 - Architecture/public ownership boundaries are frozen. Correct integration defects, tests, diagnostics and docs only; do not restore retired convenience APIs or duplicate specialist engines.
 - Final finish condition: updated dependencies resolve, PHPUnit/PHPForge/static-analysis matrices are green, specialist/runtime/security/process/deployment behavior is evidenced, Infbyte is aligned, benchmarks remain acceptable, and every checklist item below has explicit evidence.
 
@@ -227,6 +227,51 @@ Verified behavior includes:
 
 The two initial failures in this closure test were fixture defects only: the first used an invalid memoizer expectation and the second captured the outer scoped-ID variable by value. No production cleanup change was required; the corrected exact-head candidate is fully green.
 
+### Auth/session/token and advanced-auth matrix — executed
+
+`AuthDomainIntegrationTest`, `AuthReleaseClosureTest`, `BrowserSessionIntegrationTest`, `SessionLockContentionTest`, `AdvancedCapabilityIntegrationTest` and OTP coverage are green in Security & Standards run `32818552123` across PHP 8.4/8.5 lowest/stable.
+
+Verified core auth/session behavior includes:
+
+- account creation, password hashing/verification and failed/successful password login;
+- email verification token issue/verification, with the emitted `EMAIL_VERIFICATION_REQUESTED` notification explicitly carrying the target email and issued token;
+- authentication-session creation, rotation and logout invalidation;
+- password change and password-reset issue/complete/replay rejection;
+- passwordless login token issue/verification;
+- remember-me issue/verification;
+- access-token issue/verification plus refresh-token issue, verification, rotation, family revocation and replay rejection;
+- repeated-login lockout, locked-login rejection, explicit unlock and restored login;
+- browser-session persistence/flash lifecycle, identifier regeneration, CSRF selection, lazy route activation, file/cache/database persistence/error paths, lock release and concurrent-fiber isolation.
+
+Verified advanced auth behavior includes:
+
+- permission/role assignment, delegation, explicit gates and denial/audit recording;
+- device registration/trust/touch/list/revoke;
+- MFA enrollment/challenge/satisfaction and recovery-code consumption;
+- HOTP replay rejection and OCRA challenge replay rejection through OTP 6;
+- passkey registration/authentication flow plus fail-closed direct WebAuthn attestation policy;
+- impersonation start/stop and actor restoration;
+- explicit recent-auth semantics: fresh sessions do not require step-up, stale sessions do, and `markSatisfied()` satisfies the scoped step-up requirement.
+
+### Production security posture — executed
+
+`ProductionSecurityClosureTest`, `AuthSecretResolverTest`, existing config/cache topology tests and readiness coverage are green in Security & Standards run `32818552123`; dedicated PHPStan run `32818551519` is also green.
+
+Verified production policy includes:
+
+- development-placeholder/missing/short auth token secrets are rejected while explicit high-entropy production secrets are accepted;
+- production rejects memory auth storage, process-local array auth state, weak password minimums, fake/null auth delivery, and non-HTTPS remote WebAuthn origins;
+- WebAuthn RP/origin/algorithm/transport policy is validated before runtime selection;
+- authentication lockouts require a configured Redis/Valkey atomic counter;
+- single-node security state may use host-visible cache/lock/SQLite persistence when the rest of the production policy is valid;
+- distributed authentication cache/challenge state and lock coordination must be cluster-visible;
+- distributed OTP replay state must be cluster-visible and atomically coordinated;
+- distributed database-backed authentication persistence must also be cluster-visible: host-local SQLite auth storage is now explicitly rejected, while cluster-visible MySQL-style persistence is accepted;
+- safe single-node configuration passes `ConfigValidator::validateForProduction()`, `ProductionSecurityValidator`, `OtpConfigValidator(true)`, and the readiness report's production configuration check;
+- a fully cluster-visible distributed configuration passes all three production/OTP validators without opening runtime network resources.
+
+The distributed-auth-storage check closes a real policy gap: `SharedStateTopology::databaseConnectionScope()` existed but production authentication persistence was not previously validated against deployment visibility. `ProductionSecurityValidator` now enforces the same required security scope for DB-backed auth persistence while preserving host-visible SQLite for single-node deployments.
+
 ### Omnibus 2.5 current compatibility evidence
 
 Green compatibility coverage includes:
@@ -240,13 +285,13 @@ Green compatibility coverage includes:
 - Foundation-to-Omnibus worker lifecycle callback wiring;
 - existing memory dispatch/consume, routing, retry/release/failure storage, job middleware and metadata tests.
 
-Checklist item 25 remains open until monitor/execution-scope/shutdown/restart behavior is explicitly closed as a release matrix.
+Checklist item 25 remains open until monitor and Omnibus-specific shutdown/restart behavior are explicitly closed as a release matrix.
 
 ## Authoritative QA baseline — 2026-08-25
 
-Verified implementation checkpoint: `37efafd18b90db8cf80b722aa3e43bbb9ef85c83`.
+Verified implementation checkpoint: `396aa4b9db1f27b8dfb466701e3d0309912f0ba8`.
 
-Security & Standards run `32816540790`:
+Security & Standards run `32818552123`:
 
 - matrix preparation: PASS;
 - clean production install: PASS;
@@ -261,7 +306,7 @@ Security & Standards run `32816540790`:
 - benchmark comparison: skipped because no baseline artifact is configured; result validation itself passed;
 - Security SVG report: skipped and not a release gate.
 
-The QA jobs use `fail_on_skipped_tests: true` and enforce Pest, Pint, PHPCS, PHPProbe, Deptrac, Rector and Composer Normalize. Analyzer jobs enforce PHPStan and Psalm. Dedicated Foundation PHPStan diagnostic run `32816540419` also passed.
+The QA jobs use `fail_on_skipped_tests: true` and enforce Pest, Pint, PHPCS, PHPProbe, Deptrac, Rector and Composer Normalize. Analyzer jobs enforce PHPStan and Psalm. Dedicated Foundation PHPStan diagnostic run `32818551519` also passed.
 
 # Frozen architecture
 
@@ -295,12 +340,12 @@ Module removal never deletes schema/data. Schema ownership remains auth → Foun
 3. [x] Align Composer capability baseline to DBLayer `^5.0`, Omnibus `^2.5`, ReqShield `^3.1`.
 4. [x] Align `ModuleCatalog` constraints with Composer baseline.
 5. [x] Normalize PHPForge reusable-workflow configuration to repository-specific overrides only.
-6. [x] Production clean-install gate passes on the rebaselined dependency set (`32816540790`).
-7. [x] PHP 8.4 representative benchmark validation passes (`32816540790`).
-8. [x] PHP 8.5 representative benchmark validation passes (`32816540790`).
-9. [x] Psalm passes on PHP 8.4 and PHP 8.5 analyzer jobs (`32816540790`).
-10. [x] Deptrac passes across the current QA matrix (`32816540790`).
-11. [x] Current syntax/PHPProbe/Pest blocking defects are cleared (`32816540790`).
+6. [x] Production clean-install gate passes on the rebaselined dependency set (`32818552123`).
+7. [x] PHP 8.4 representative benchmark validation passes (`32818552123`).
+8. [x] PHP 8.5 representative benchmark validation passes (`32818552123`).
+9. [x] Psalm passes on PHP 8.4 and PHP 8.5 analyzer jobs (`32818552123`).
+10. [x] Deptrac passes across the current QA matrix (`32818552123`).
+11. [x] Current syntax/PHPProbe/Pest blocking defects are cleared (`32818552123`).
 12. [x] DBLayer 5 migration/rollback/status/reset/refresh/wipe/monitor compatibility matrix is green.
 13. [x] Destructive database safeguard/confirmation matrix is green through the real CLI dispatcher.
 14. [x] Module list/show/install/remove/config-publish/schema-status/schema-install/schema-sync plus dry-run/duplicate/failure rollback behavior is green.
@@ -311,14 +356,14 @@ Module removal never deletes schema/data. Schema ownership remains auth → Foun
 19. [x] Scheduler once/work/interrupt/runtime-reload/overlap/scheduled-message behavior is green without shell execution (`32815333061`, `32815332711`).
 20. [x] Persistent execution-state isolation across InterMix/principal/session/DB/cache/messaging is green on success and failure paths (`32816540790`, `32816540419`).
 21. [x] Pool/fork safety is green: no pre-fork DB/network/cache resources and real child init/termination/reaping/signal restoration are verified (`32814512066`, `32814511676`).
-22. [ ] Verify full auth/session/token/password/email/passwordless/lockout flows.
-23. [ ] Verify MFA recovery/passkey/step-up/recent-auth/authorization/impersonation flows.
-24. [ ] Verify production security posture: secrets, secure defaults, OTP/WebAuthn/shared-state topology, unsafe-memory rejection.
+22. [x] Full auth/session/token/password/email/passwordless/lockout flows are green (`32818552123`, `32818551519`).
+23. [x] MFA recovery/passkey/step-up/recent-auth/authorization/impersonation flows are green (`32818552123`, `32818551519`).
+24. [x] Production security posture is green for secrets, secure defaults, OTP/WebAuthn/shared-state topology and unsafe-memory rejection (`32818552123`, `32818551519`).
 25. [ ] Execute Omnibus 2.5 dispatch/consume/retry/failure/prune/monitor/execution-scope/shutdown/restart matrix.
 26. [ ] Verify config/route/command/schedule/container optimize/clear idempotency.
 27. [ ] Verify maintenance/runtime reload/worker restart/scheduler interrupt/process-registry/status/stale cleanup.
 28. [ ] Verify env encrypt/decrypt/temp-file/permissions/overwrite and storage link/unlink safety.
-29. [x] Pint/Rector/Composer Normalize/PHPCS/PHPStan/Psalm/Deptrac are green on the current PHP 8.4/8.5 lowest/stable matrix with `fail_on_skipped_tests: true` (`32816540790`, `32816540419`).
+29. [x] Pint/Rector/Composer Normalize/PHPCS/PHPStan/Psalm/Deptrac are green on the current PHP 8.4/8.5 lowest/stable matrix with `fail_on_skipped_tests: true` (`32818552123`, `32818551519`).
 30. [ ] Review soak-sensitive persistent-runtime paths and establish/compare a representative benchmark baseline where appropriate.
 31. [ ] Final dependency/package/stale-version/retired-API audit plus Foundation/Infbyte stable-release alignment.
 32. [ ] Record final source/CI checkpoints and all verified results with zero ambiguous closure items.
