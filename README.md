@@ -156,17 +156,17 @@ A Foundation module represents an application capability, not a package name.
 | Module | Backing packages |
 | --- | --- |
 | `auth` | `infocyph/otp ^6.0`, `web-auth/webauthn-lib ^5.3.5` |
-| `cache` | `infocyph/cachelayer ^3.2` |
+| `cache` | `infocyph/cachelayer ^3.2.0` |
 | `communication` | `infocyph/talkingbytes ^2.0` |
-| `database` | `infocyph/dblayer ^4.1` |
+| `database` | `infocyph/dblayer ^5.0` |
 | `filesystem` | `infocyph/pathwise ^3.1` |
 | `logging` | built into Foundation |
-| `messaging` | `infocyph/omnibus ^2.4` |
+| `messaging` | `infocyph/omnibus ^2.5` |
 | `operations` | built into Foundation |
 | `resources` | built into Foundation |
 | `security` | `infocyph/epicrypt ^2.1` |
 | `session` | built into Foundation |
-| `validation` | `infocyph/reqshield ^3.0` |
+| `validation` | `infocyph/reqshield ^3.1` |
 
 Common aliases remain accepted (`db` -> `database`, `crypto` -> `security`,
 `otp|mfa|passkeys|webauthn` -> `auth`), but canonical documentation uses the
@@ -306,7 +306,7 @@ php infbyte migrate:status
 php infbyte db:monitor --section=status
 ```
 
-`migrate --pretend` renders DBLayer 4.1's native pending SQL/bindings preview.
+`migrate --pretend` renders DBLayer 5's native pending SQL/bindings preview.
 Foundation does not implement another migration SQL compiler.
 
 See [Database migrations and seeding](docs/database.md).
@@ -326,7 +326,7 @@ Optional package presence does not force cache or DB activation.
 
 ## Messaging and workers
 
-Omnibus 2.4 is the messaging baseline. Foundation uses one native Omnibus
+Omnibus 2.5 is the messaging baseline. Foundation uses one native Omnibus
 `HandlerInvoker` for sync and queued handlers. `messaging.handler_middleware`
 applies to all handlers; Foundation `messaging.job_middleware` runs only for
 messages implementing Foundation `Job`.
@@ -340,7 +340,7 @@ $bus = $app->make(MessageBus::class);
 $bus->dispatch(new App\Jobs\GenerateReportJob());
 ```
 
-Persistent single messaging workers use Omnibus 2.4 `WorkerLifecycle` callbacks
+Persistent single messaging workers use Omnibus 2.5 `WorkerLifecycle` callbacks
 for Foundation heartbeat/reload checks. Unix `WorkerPool` remains optional and
 requires `pcntl`/`posix`.
 
@@ -433,17 +433,21 @@ See [docs/README.md](docs/README.md) for focused guides covering architecture,
 configuration, authentication, sessions, database, filesystem, communication,
 messaging, resources, logging, operations, security, modules, and testing.
 
-## Verification status
+## Verification
 
-Source/config/documentation reconciliation is separate from the final release
-gates. The full Composer/PHPForge/static-analysis/PHPUnit/integration/runtime and
-performance matrix should be run only in the dedicated verification phase.
+Foundation's release closure is evidence-driven and tracked in
+[`foundation_work_plan.md`](foundation_work_plan.md). The PHP 8.4/8.5
+lowest/stable QA matrices, analyzers, clean production install, representative
+benchmark validation, runtime isolation, operational safety, and persistent
+execution retention checks are required to pass before release closure.
 
-The repository currently exposes the representative benchmark script:
+The representative benchmark can be run with:
 
 ```bash
 composer benchmark:representative
 ```
 
-Do not infer that deferred release verification has run merely because the
-Foundation 2.0 source and documentation have been reconciled.
+Hosted-runner benchmark results validate the benchmark contract and workload.
+Numeric regression comparison should only be gated against a baseline captured
+from the same explicitly stable environment; Foundation does not treat noisy
+hosted runners as a synthetic performance baseline.
