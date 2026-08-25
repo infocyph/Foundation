@@ -9,7 +9,7 @@ use Infocyph\Foundation\Validation\ReqShieldDatabaseProvider;
 use Infocyph\Foundation\Validation\ValidatorFactory;
 use Infocyph\ReqShield\Rule;
 
-it('validates database-backed ReqShield 3.0.2 rules through DBLayer', function (): void {
+it('validates database-backed ReqShield 3.1 rules through DBLayer 5 bind-aware batches', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-validation-db-' . uniqid('', true);
     mkdir($basePath . '/database', 0775, true);
 
@@ -21,6 +21,9 @@ it('validates database-backed ReqShield 3.0.2 rules through DBLayer', function (
                 'main' => [
                     'driver' => 'sqlite',
                     'database' => 'database/validation.sqlite',
+                    'security' => [
+                        'max_params' => 3,
+                    ],
                 ],
             ],
         ],
@@ -47,14 +50,15 @@ it('validates database-backed ReqShield 3.0.2 rules through DBLayer', function (
         $pdo = $database->getPdo();
         $pdo->exec('CREATE TABLE categories (id INTEGER PRIMARY KEY)');
         $pdo->exec('CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT NOT NULL, deleted_at TEXT NULL)');
-        $pdo->exec('INSERT INTO categories (id) VALUES (1)');
+        $pdo->exec('INSERT INTO categories (id) VALUES (1), (2), (3), (4), (5)');
         $pdo->exec("INSERT INTO users (id, email, deleted_at) VALUES (1, 'ada@example.test', NULL)");
         $pdo->exec("INSERT INTO users (id, email, deleted_at) VALUES (2, 'archived@example.test', '2026-01-01')");
 
-        expect($validators->make('users.create')->validate([
-            'category_id' => 1,
-            'email' => 'new@example.test',
-        ])->fails())->toBeFalse();
+        expect($database->effectiveMaxBindParameters())->toBe(3)
+            ->and($validators->make('users.create')->validate([
+                'category_id' => 1,
+                'email' => 'new@example.test',
+            ])->fails())->toBeFalse();
 
         $invalid = $validators->make('users.create')->validate([
             'category_id' => 404,
@@ -72,15 +76,36 @@ it('validates database-backed ReqShield 3.0.2 rules through DBLayer', function (
 
         $provider = $app->make(ReqShieldDatabaseProvider::class);
         expect($provider->batchExists('categories', [
-            ['column' => 'id', 'value' => 1, 'field' => 'present'],
+            ['column' => 'id', 'value' => 1, 'field' => 'one'],
+            ['column' => 'id', 'value' => 2, 'field' => 'two'],
+            ['column' => 'id', 'value' => 3, 'field' => 'three'],
+            ['column' => 'id', 'value' => 4, 'field' => 'four'],
+            ['column' => 'id', 'value' => 5, 'field' => 'five'],
             ['column' => 'id', 'value' => 404, 'field' => 'missing'],
         ]))->toBe(['missing'])
             ->and($provider->batchUnique('users', [
                 [
-                    'column' => 'email', 'value' => 'ada@example.test', 'field' => 'email',
+                    'column' => 'email', 'value' => 'ada@example.test', 'field' => 'ignored-owner',
                     'ignore' => 1, 'id_column' => 'id', 'include_trashed' => false,
                     'soft_delete_column' => 'deleted_at',
                 ],
+                [
+                    'column' => 'email', 'value' => 'new@example.test', 'field' => 'new-one',
+                    'ignore' => 1, 'id_column' => 'id', 'include_trashed' => false,
+                    'soft_delete_column' => 'deleted_at',
+                ],
+                [
+                    'column' => 'email', 'value' => 'other@example.test', 'field' => 'new-two',
+                    'ignore' => 1, 'id_column' => 'id', 'include_trashed' => false,
+                    'soft_delete_column' => 'deleted_at',
+                ],
+                [
+                    'column' => 'email', 'value' => 'archived@example.test', 'field' => 'archived',
+                    'ignore' => 1, 'id_column' => 'id', 'include_trashed' => false,
+                    'soft_delete_column' => 'deleted_at',
+                ],
+            ]))->toBe([])
+            ->and($provider->batchUnique('users', [
                 [
                     'column' => 'email', 'value' => 'ada@example.test', 'field' => 'duplicate',
                     'ignore' => null, 'id_column' => 'id', 'include_trashed' => false,
