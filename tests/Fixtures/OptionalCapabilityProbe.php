@@ -134,4 +134,7 @@ try {
     ];
 }
 
-echo json_encode($probe, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES) . PHP_EOL;
+file_put_contents(
+    'php://stdout',
+    json_encode($probe, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES) . PHP_EOL,
+);
