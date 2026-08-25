@@ -32,7 +32,7 @@ Foundation is the reusable framework/runtime layer. Infbyte is the opinionated a
 - Date: 2026-08-25
 - Foundation source checkpoint before closure run: `16d60f114314544a5c6db91c0e986423fa6fbb70`
 - Foundation source checkpoint before dependency rebaseline: `6663dad26e75453fcebb7975dda2ad0b49661951`
-- Latest Foundation implementation checkpoint: `4d8753a86c89b8d9771d223ad2ea632975726f9a`
+- Latest Foundation implementation checkpoint: `21642498a4468c047b90d05c19ad86df9f10b159`
 - Foundation documentation checkpoint: `944220490e1c28e9945fd398265dc9d072eb4c93`
 - Infbyte source checkpoint: `56cb73e18eab07f34242a929eccbc9e6572d9971`
 - Infbyte documentation checkpoint: `26a35da0926285119c31ed880bf1f5aa06f3cf19`
@@ -48,11 +48,16 @@ Foundation is the reusable framework/runtime layer. Infbyte is the opinionated a
 - Foundation work is locked to `feature/foundation-2.0`; current rebaseline started from branch head `6663dad26e75453fcebb7975dda2ad0b49661951`.
 - `composer.json` is aligned to DBLayer `^5.0`, Omnibus `^2.5`, and ReqShield `^3.1` in commit `b48e60d10a1de8a12e5124f3a13cb4a099fc68fb`.
 - `ModuleCatalog` is aligned to the same database/messaging/validation constraints in commit `b635b30ba2afef775450f08d5c3240a84aedb004`.
+- Stable repository refs were verified directly: DBLayer `5.0`, Omnibus `2.5`, and ReqShield `3.1`. The constraints therefore target existing stable version lines; the repositories do not use `2.5.0` / `3.1.0` refs for these releases.
 - DBLayer 5 source comparison confirms Foundation's `DBLayerFactory` still uses supported public APIs: `ConnectionConfig::fromArray()`, `DB::setDefaultConnection()`, `DB::hasConnection()`, `DB::addConnection()`, and `DB::connection($name, $fresh)`.
 - DBLayer 5 `MigrationRunner` constructor and `pretend()` shape remain compatible with `DatabaseMigrationManager`; no migration-manager rewrite was required from source inspection.
+- DBLayer 5 runtime cleanup APIs used by `RuntimeContextTracker` remain available: `Connection::transactionLevel()`, `rollbackTransaction()`, `resetRuntimeStateForReuse()`, `disconnect()`, `DB::getConnections()`, and `DB::resetRuntimeState(false)`. The current Foundation cleanup path remains source-compatible and preserves connection reuse when safe.
 - DBLayer 5 now exposes/enforces `effectiveMaxBindParameters()` / `safeBatchSize()`. Foundation's `ReqShieldDatabaseProvider` previously passed an entire value set into one `whereIn()`, which could exceed DBLayer 5's configured/driver bind ceiling.
 - `ReqShieldDatabaseProvider` now calculates safe physical DB batches through `Connection::safeBatchSize()`, counts the unique-ignore binding as a fixed binding, preserves ReqShield's logical batched validation semantics, and keeps null lookup handling separate. Implemented in commit `4d8753a86c89b8d9771d223ad2ea632975726f9a`.
-- Current Omnibus `WorkerOptions` constructor remains source-compatible with Foundation's `OmnibusWorkerFactory` fields inspected so far; deeper transport/worker/lifecycle integration audit is still open.
+- ReqShield `3.1` keeps the same minimal `DatabaseProvider` contract (`batchExists()` / `batchUnique()`), so Foundation does not need a new validation abstraction.
+- `ReqShieldDatabaseValidationTest` now runs the adapter with DBLayer `security.max_params = 3`, checks the effective limit, forces multi-chunk exists validation, and exercises unique-ignore batching where one fixed binding reduces the safe value chunk size. Added in commit `21642498a4468c047b90d05c19ad86df9f10b159`.
+- Omnibus `2.5` source comparison confirms `Consumer`, `Worker`, `WorkerOptions`, and `HandlerInvoker` constructor contracts used by Foundation remain source-compatible. Foundation continues to delegate message retry/consumer behavior to Omnibus instead of adding a second engine.
+- `Bootstrapper` had one stale user-facing Omnibus `^2.4` capability message; it now reports `infocyph/omnibus ^2.5` in commit `e46815b078879e59361739e9eb206c688ee01c6f`.
 - No PHPUnit/PHPForge/CI gate is marked complete from this source audit. The execution environment available here cannot clone GitHub, so runtime proof must come from repository CI or an executable project environment.
 
 ## Latest closure evidence — 2026-08-24 (`test_details_5`)
