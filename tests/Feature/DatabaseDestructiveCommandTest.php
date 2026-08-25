@@ -53,6 +53,7 @@ final class FoundationDestructiveCommandIO implements CommandIO
 
     public function confirm(string $question, bool $default = false): bool
     {
+        unset($question, $default);
         $this->confirmations++;
 
         return $this->confirmation;
