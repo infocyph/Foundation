@@ -158,8 +158,8 @@ PHP);
         );
 
         expect($commands)->toBe([
-            ['require', 'infocyph/dblayer:^4.1', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
-            ['require', 'infocyph/omnibus:^2.4', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
+            ['require', 'infocyph/dblayer:^5.0', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
+            ['require', 'infocyph/omnibus:^2.5', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
         ]);
     } finally {
         is_string($originalPath) ? putenv('PATH=' . $originalPath) : putenv('PATH');
