@@ -53,8 +53,10 @@ final readonly class OAuthHttpHandler
         return $this->responses->authorizationSuccess($request, $issue->code, $this->issuer());
     }
 
-    public function authorizationDenied(AuthorizationRequest $request): Response
+    public function authorizationDenied(AuthorizationRequest $request, ?PrincipalInterface $principal = null): Response
     {
+        $this->oauth->deny($request, $principal);
+
         return $this->responses->authorizationError(
             new AuthorizationRedirectContext($request->client, $request->redirectUri, $request->state),
             OAuthProtocolException::accessDenied(),
