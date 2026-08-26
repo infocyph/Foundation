@@ -48,7 +48,7 @@ final readonly class EpicryptOAuthAccessTokenService implements OAuthAccessToken
             'token_use' => $claims->tokenUse,
         ];
         if ($claims->scopes !== []) {
-            $custom['scope'] = $claims->scopes;
+            $custom['scope'] = implode(' ', $claims->scopes);
         }
         if ($claims->authorizationId !== null) {
             $custom['authorization_id'] = $claims->authorizationId;
