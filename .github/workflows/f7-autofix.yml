@@ -35,5 +35,5 @@ jobs:
             echo "No generated fixes"
             exit 0
           fi
-          git commit -m "style(f7): apply PHPForge formatter and rector"
+          git commit --no-verify -m "style(f7): apply PHPForge formatter and rector"
           git push origin HEAD:feature/oauth-2.1
