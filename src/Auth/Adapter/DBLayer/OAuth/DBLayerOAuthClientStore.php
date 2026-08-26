@@ -24,6 +24,21 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
         );
     }
 
+    public function list(int $limit = 100): array
+    {
+        if ($limit < 1 || $limit > 500) {
+            throw new \InvalidArgumentException('OAuth client list limit must be between 1 and 500.');
+        }
+
+        $rows = $this->all(sprintf(
+            'SELECT * FROM %s ORDER BY created_at DESC, client_id ASC LIMIT %d',
+            $this->table('oauthClients'),
+            $limit,
+        ));
+
+        return array_map($this->mapClient(...), $rows);
+    }
+
     public function redirectUris(string $clientId): array
     {
         $rows = $this->all(
