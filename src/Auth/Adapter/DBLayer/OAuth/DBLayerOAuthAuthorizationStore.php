@@ -20,6 +20,22 @@ final readonly class DBLayerOAuthAuthorizationStore extends DBLayerStore impleme
         );
     }
 
+    public function recent(int $limit = 100, ?string $clientId = null): array
+    {
+        if ($limit < 1 || $limit > 500) {
+            throw new \InvalidArgumentException('OAuth authorization list limit must be between 1 and 500.');
+        }
+        $sql = sprintf('SELECT * FROM %s', $this->table('oauthAuthorizations'));
+        $bindings = [];
+        if (is_string($clientId) && $clientId !== '') {
+            $sql .= ' WHERE client_id = ?';
+            $bindings[] = $clientId;
+        }
+        $sql .= sprintf(' ORDER BY created_at DESC, id ASC LIMIT %d', $limit);
+
+        return array_map($this->mapAuthorization(...), $this->all($sql, $bindings));
+    }
+
     public function revoke(string $authorizationId, int $revokedAt): bool
     {
         return $this->connection()->execute(
