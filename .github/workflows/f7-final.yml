@@ -1,3 +1,4 @@
+# Temporary F7 evidence workflow; remove after the recorded release gates pass.
 name: F7 Final Verification
 
 on:
