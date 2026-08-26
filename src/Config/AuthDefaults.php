@@ -55,6 +55,8 @@ final class AuthDefaults
                         'refresh_token',
                     ],
                     'pkce_methods' => ['S256'],
+                    'resource_audiences' => [],
+                    'scope_permissions' => [],
                     'signing' => [
                         'algorithm' => 'RS256',
                         'active_key_id' => null,
