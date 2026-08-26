@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 use Infocyph\DBLayer\DB;
 use Infocyph\DBLayer\Schema\SchemaManager;
-use Infocyph\Foundation\Auth\OAuth\OAuthManager;
-use Infocyph\Foundation\Auth\OAuth\Token\OAuthSigningKeySet;
+use Infocyph\Foundation\Auth\AuthServices;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchemaInstaller;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DBLayerFactory;
@@ -51,9 +50,11 @@ it('keeps OAuth fully inert when disabled', function (): void {
                 'remember',
             ])
             ->and($app->has(BearerTokenPrincipalResolver::class))->toBeTrue()
-            ->and($app->has(RequestPrincipalResolver::class))->toBeTrue()
-            ->and($app->has(OAuthManager::class))->toBeFalse()
-            ->and($app->has(OAuthSigningKeySet::class))->toBeFalse();
+            ->and($app->has(RequestPrincipalResolver::class))->toBeTrue();
+
+        $auth = new AuthServices($app);
+        expect(fn() => $auth->oauth())
+            ->toThrow(LogicException::class, 'OAuth is disabled. Enable auth.oauth.enabled before requesting OAuth services.');
 
         $installer = $app->make(AuthSchemaInstaller::class);
         $installer->install();
