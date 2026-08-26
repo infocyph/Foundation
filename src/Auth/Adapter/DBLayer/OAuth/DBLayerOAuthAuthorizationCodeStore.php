@@ -18,6 +18,7 @@ final readonly class DBLayerOAuthAuthorizationCodeStore extends DBLayerStore imp
         string $codeHash,
         string $clientId,
         string $redirectUriHash,
+        string $pkceChallenge,
         int $now,
     ): OAuthAuthorizationCodeConsumeResult {
         $connection = $this->connection();
@@ -26,45 +27,32 @@ final readonly class DBLayerOAuthAuthorizationCodeStore extends DBLayerStore imp
             $codeHash,
             $clientId,
             $redirectUriHash,
+            $pkceChallenge,
             $now,
         ): OAuthAuthorizationCodeConsumeResult {
             $current = $this->find($transaction, $codeHash);
-            $status = $this->preconditionStatus($current, $clientId, $redirectUriHash, $now);
+            $status = $this->preconditionStatus($current, $clientId, $redirectUriHash, $pkceChallenge, $now);
             if ($status instanceof OAuthAuthorizationCodeConsumeStatus) {
                 return new OAuthAuthorizationCodeConsumeResult($status, $current);
             }
 
             $affected = $transaction->execute(
                 sprintf(
-                    'UPDATE %s SET consumed_at = ? WHERE code_hash = ? AND client_id = ? AND redirect_uri_hash = ? AND consumed_at IS NULL AND expires_at > ?',
+                    'UPDATE %s SET consumed_at = ? WHERE code_hash = ? AND client_id = ? AND redirect_uri_hash = ? AND pkce_challenge = ? AND consumed_at IS NULL AND expires_at > ?',
                     $this->table('oauthAuthorizationCodes'),
                 ),
-                [$now, $codeHash, $clientId, $redirectUriHash, $now],
+                [$now, $codeHash, $clientId, $redirectUriHash, $pkceChallenge, $now],
             )->rowCount();
 
             if ($affected === 1 && $current instanceof OAuthAuthorizationCode) {
                 return new OAuthAuthorizationCodeConsumeResult(
                     OAuthAuthorizationCodeConsumeStatus::Consumed,
-                    new OAuthAuthorizationCode(
-                        id: $current->id,
-                        codeHash: $current->codeHash,
-                        clientId: $current->clientId,
-                        accountId: $current->accountId,
-                        authorizationId: $current->authorizationId,
-                        redirectUriHash: $current->redirectUriHash,
-                        pkceChallenge: $current->pkceChallenge,
-                        scopes: $current->scopes,
-                        audiences: $current->audiences,
-                        issuedAt: $current->issuedAt,
-                        expiresAt: $current->expiresAt,
-                        consumedAt: $now,
-                        metadata: $current->metadata,
-                    ),
+                    $this->withConsumedAt($current, $now),
                 );
             }
 
             $latest = $this->find($transaction, $codeHash);
-            $latestStatus = $this->preconditionStatus($latest, $clientId, $redirectUriHash, $now)
+            $latestStatus = $this->preconditionStatus($latest, $clientId, $redirectUriHash, $pkceChallenge, $now)
                 ?? OAuthAuthorizationCodeConsumeStatus::Reused;
 
             return new OAuthAuthorizationCodeConsumeResult($latestStatus, $latest);
@@ -130,12 +118,17 @@ final readonly class DBLayerOAuthAuthorizationCodeStore extends DBLayerStore imp
         ?OAuthAuthorizationCode $code,
         string $clientId,
         string $redirectUriHash,
+        string $pkceChallenge,
         int $now,
     ): ?OAuthAuthorizationCodeConsumeStatus {
         if (!$code instanceof OAuthAuthorizationCode) {
             return OAuthAuthorizationCodeConsumeStatus::Missing;
         }
-        if (!hash_equals($code->clientId, $clientId) || !hash_equals($code->redirectUriHash, $redirectUriHash)) {
+        if (
+            !hash_equals($code->clientId, $clientId)
+            || !hash_equals($code->redirectUriHash, $redirectUriHash)
+            || !hash_equals($code->pkceChallenge, $pkceChallenge)
+        ) {
             return OAuthAuthorizationCodeConsumeStatus::Mismatched;
         }
         if ($code->expiresAt <= $now) {
@@ -146,5 +139,24 @@ final readonly class DBLayerOAuthAuthorizationCodeStore extends DBLayerStore imp
         }
 
         return null;
+    }
+
+    private function withConsumedAt(OAuthAuthorizationCode $code, int $consumedAt): OAuthAuthorizationCode
+    {
+        return new OAuthAuthorizationCode(
+            id: $code->id,
+            codeHash: $code->codeHash,
+            clientId: $code->clientId,
+            accountId: $code->accountId,
+            authorizationId: $code->authorizationId,
+            redirectUriHash: $code->redirectUriHash,
+            pkceChallenge: $code->pkceChallenge,
+            scopes: $code->scopes,
+            audiences: $code->audiences,
+            issuedAt: $code->issuedAt,
+            expiresAt: $code->expiresAt,
+            consumedAt: $consumedAt,
+            metadata: $code->metadata,
+        );
     }
 }
