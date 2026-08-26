@@ -114,7 +114,10 @@ PHP;
         touch($barrier);
         $exitA = proc_close($processA);
         $exitB = proc_close($processB);
-        $statuses = [trim((string) @file_get_contents($resultA)), trim((string) @file_get_contents($resultB))];
+        $statuses = [
+            oauth21ReadContentionResult($resultA),
+            oauth21ReadContentionResult($resultB),
+        ];
         sort($statuses, SORT_STRING);
 
         expect([$exitA, $exitB])->toBe([0, 0])
@@ -134,14 +137,47 @@ PHP;
             ->and($rows[0]['consumed_at'] ?? null)->not->toBeNull();
     } finally {
         DB::purge();
-        foreach ([$barrier, $resultA, $resultB, $script, $database, $database . '-shm', $database . '-wal'] as $file) {
-            @unlink($file);
-        }
-        @rmdir($directory);
+        oauth21CleanupContentionFiles([
+            $barrier,
+            $resultA,
+            $resultB,
+            $script,
+            $database,
+            $database . '-shm',
+            $database . '-wal',
+        ], $directory);
     }
 });
 
-/** @param list<string> $command */
+function oauth21ReadContentionResult(string $path): string
+{
+    $contents = file_get_contents($path);
+    if (!is_string($contents)) {
+        throw new RuntimeException(sprintf('Unable to read OAuth contention result "%s".', $path));
+    }
+
+    return trim($contents);
+}
+
+/**
+ * @param list<string> $files
+ */
+function oauth21CleanupContentionFiles(array $files, string $directory): void
+{
+    foreach ($files as $file) {
+        if (is_file($file) && !unlink($file)) {
+            throw new RuntimeException(sprintf('Unable to remove OAuth contention fixture "%s".', $file));
+        }
+    }
+    if (is_dir($directory) && !rmdir($directory)) {
+        throw new RuntimeException(sprintf('Unable to remove OAuth contention directory "%s".', $directory));
+    }
+}
+
+/**
+ * @param list<string> $command
+ * @return resource
+ */
 function oauth21StartContentionProcess(array $command)
 {
     $pipes = [];

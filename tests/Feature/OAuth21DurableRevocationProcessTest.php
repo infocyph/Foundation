@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 use Infocyph\DBLayer\DB;
 use Infocyph\DBLayer\Migration\MigrationRunner;
-use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerOAuthAccessRevocationStore;
 use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerOAuthAuthorizationStore;
 use Infocyph\Foundation\Auth\OAuth\Authorization\OAuthAuthorization;
-use Infocyph\Foundation\Auth\OAuth\Token\OAuthAccessTokenRevocation;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthOAuthRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
@@ -145,10 +143,14 @@ PHP;
         ]);
     } finally {
         DB::purge();
-        foreach ([$writer, $reader, $result, $database, $database . '-shm', $database . '-wal'] as $file) {
-            @unlink($file);
-        }
-        @rmdir($directory);
+        oauth21CleanupDurableRevocationFiles([
+            $writer,
+            $reader,
+            $result,
+            $database,
+            $database . '-shm',
+            $database . '-wal',
+        ], $directory);
     }
 });
 
@@ -160,6 +162,19 @@ function oauth21DurableRevocationFactory(string $database, string $name): DBLaye
             'connections' => [$name => ['driver' => 'sqlite', 'database' => $database]],
         ],
     ])), new RuntimeContextTracker());
+}
+
+/** @param list<string> $files */
+function oauth21CleanupDurableRevocationFiles(array $files, string $directory): void
+{
+    foreach ($files as $file) {
+        if (is_file($file) && !unlink($file)) {
+            throw new RuntimeException(sprintf('Unable to remove OAuth durable-revocation fixture "%s".', $file));
+        }
+    }
+    if (is_dir($directory) && !rmdir($directory)) {
+        throw new RuntimeException(sprintf('Unable to remove OAuth durable-revocation directory "%s".', $directory));
+    }
 }
 
 /** @param list<string> $command */

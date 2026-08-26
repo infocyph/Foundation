@@ -125,7 +125,10 @@ PHP;
         touch($barrier);
         $exitA = proc_close($processA);
         $exitB = proc_close($processB);
-        $statuses = [trim((string) @file_get_contents($resultA)), trim((string) @file_get_contents($resultB))];
+        $statuses = [
+            oauth21ReadRefreshContentionResult($resultA),
+            oauth21ReadRefreshContentionResult($resultB),
+        ];
         sort($statuses, SORT_STRING);
 
         expect([$exitA, $exitB])->toBe([0, 0])
@@ -147,10 +150,15 @@ PHP;
             ->and($replacement['revoked_at'] ?? null)->not->toBeNull();
     } finally {
         DB::purge();
-        foreach ([$barrier, $resultA, $resultB, $script, $database, $database . '-shm', $database . '-wal'] as $file) {
-            @unlink($file);
-        }
-        @rmdir($directory);
+        oauth21CleanupRefreshContentionFiles([
+            $barrier,
+            $resultA,
+            $resultB,
+            $script,
+            $database,
+            $database . '-shm',
+            $database . '-wal',
+        ], $directory);
     }
 });
 
@@ -164,7 +172,33 @@ function oauth21RefreshConcurrencyFactory(string $database, string $name): DBLay
     ])), new RuntimeContextTracker());
 }
 
-/** @param list<string> $command */
+function oauth21ReadRefreshContentionResult(string $path): string
+{
+    $contents = file_get_contents($path);
+    if (!is_string($contents)) {
+        throw new RuntimeException(sprintf('Unable to read OAuth refresh contention result "%s".', $path));
+    }
+
+    return trim($contents);
+}
+
+/** @param list<string> $files */
+function oauth21CleanupRefreshContentionFiles(array $files, string $directory): void
+{
+    foreach ($files as $file) {
+        if (is_file($file) && !unlink($file)) {
+            throw new RuntimeException(sprintf('Unable to remove OAuth refresh contention fixture "%s".', $file));
+        }
+    }
+    if (is_dir($directory) && !rmdir($directory)) {
+        throw new RuntimeException(sprintf('Unable to remove OAuth refresh contention directory "%s".', $directory));
+    }
+}
+
+/**
+ * @param list<string> $command
+ * @return resource
+ */
 function oauth21StartRefreshContentionProcess(array $command)
 {
     $pipes = [];
