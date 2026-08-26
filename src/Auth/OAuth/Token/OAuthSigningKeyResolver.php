@@ -31,7 +31,7 @@ final readonly class OAuthSigningKeyResolver
         try {
             $resolved = $this->resolveConfigured();
         } catch (\Throwable $exception) {
-            $this->recordReadiness(['result' => 'failure'], AuthEventSeverity::ERROR);
+            $this->recordReadiness(['result' => 'failure'], AuthEventSeverity::CRITICAL);
 
             throw $exception;
         }
@@ -134,8 +134,11 @@ final readonly class OAuthSigningKeyResolver
         if (!$this->absolute($path)) {
             $path = $this->basePath() . DIRECTORY_SEPARATOR . ltrim($path, DIRECTORY_SEPARATOR);
         }
+        if (!is_file($path) || !is_readable($path)) {
+            throw new ConfigurationException('OAuth signing key material is unavailable.');
+        }
 
-        $key = @file_get_contents($path);
+        $key = file_get_contents($path);
         if (!is_string($key) || trim($key) === '') {
             throw new ConfigurationException('OAuth signing key material is unavailable.');
         }
