@@ -12,6 +12,7 @@ use Infocyph\Foundation\Auth\Driver\AuthPasskeyDriver;
 use Infocyph\Foundation\Auth\Driver\AuthPasswordDriver;
 use Infocyph\Foundation\Auth\Driver\AuthStorageDriver;
 use Infocyph\Foundation\Auth\Driver\AuthTokenDriver;
+use Infocyph\Foundation\Auth\OAuth\Configuration\OAuthConfigValidator;
 use Infocyph\Foundation\Config\Internal\CacheTopologyValidator;
 
 final readonly class ConfigValidator
@@ -118,6 +119,7 @@ final readonly class ConfigValidator
         $this->validateDriver($issues, 'auth.drivers.storage', $this->stringConfig('auth.drivers.storage', 'memory'), AuthStorageDriver::class);
         $this->validateDriver($issues, 'auth.drivers.tokens', $this->stringConfig('auth.drivers.tokens', 'simple'), AuthTokenDriver::class);
         $issues = [...$issues, ...new RuntimeConfigValidator($this->config)->validate()];
+        $issues = [...$issues, ...new OAuthConfigValidator($this->config)->validate($assumeProduction)];
 
         $storageDriver = $this->stringConfig('auth.drivers.storage', 'memory');
         $cacheDriver = $this->stringConfig('auth.drivers.cache', 'array');
