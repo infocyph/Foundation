@@ -23,19 +23,21 @@ final readonly class ConsentManager
         $accountId = $this->accountId($principal);
         $this->assertPermissions($principal, $request);
         $fingerprint = $this->fingerprint($request->scopes, $request->audiences);
-        $existing = $this->consents->findActive($accountId, $request->client->clientId, $fingerprint);
-        if ($existing instanceof OAuthConsent) {
+        $existing = $this->consents->find($accountId, $request->client->clientId, $fingerprint);
+        if ($existing instanceof OAuthConsent && $existing->revokedAt === null) {
             return $existing;
         }
 
         $consent = new OAuthConsent(
-            id: bin2hex(random_bytes(16)),
+            id: $existing instanceof OAuthConsent ? $existing->id : bin2hex(random_bytes(16)),
             accountId: $accountId,
             clientId: $request->client->clientId,
             scopeFingerprint: $fingerprint,
             scopes: $request->scopes,
             audiences: $request->audiences,
             grantedAt: $this->clock->now(),
+            revokedAt: null,
+            metadata: $existing instanceof OAuthConsent ? $existing->metadata : [],
         );
         $this->consents->save($consent);
 
