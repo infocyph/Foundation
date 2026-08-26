@@ -21,9 +21,7 @@ final class AuthTables
         return 'auth_accounts';
     }
 
-    /**
-     * @return list<string>
-     */
+    /** @return list<string> */
     public function all(): array
     {
         return [
@@ -75,6 +73,61 @@ final class AuthTables
     public function mfaFactors(): string
     {
         return 'auth_mfa_factors';
+    }
+
+    /** @return list<string> */
+    public function oauth(): array
+    {
+        return [
+            $this->oauthClients(),
+            $this->oauthRedirectUris(),
+            $this->oauthClientScopes(),
+            $this->oauthAuthorizationCodes(),
+            $this->oauthConsents(),
+            $this->oauthAuthorizations(),
+            $this->oauthRefreshTokens(),
+            $this->oauthAccessRevocations(),
+        ];
+    }
+
+    public function oauthAccessRevocations(): string
+    {
+        return 'auth_oauth_access_revocations';
+    }
+
+    public function oauthAuthorizationCodes(): string
+    {
+        return 'auth_oauth_authorization_codes';
+    }
+
+    public function oauthAuthorizations(): string
+    {
+        return 'auth_oauth_authorizations';
+    }
+
+    public function oauthClients(): string
+    {
+        return 'auth_oauth_clients';
+    }
+
+    public function oauthClientScopes(): string
+    {
+        return 'auth_oauth_client_scopes';
+    }
+
+    public function oauthConsents(): string
+    {
+        return 'auth_oauth_consents';
+    }
+
+    public function oauthRedirectUris(): string
+    {
+        return 'auth_oauth_redirect_uris';
+    }
+
+    public function oauthRefreshTokens(): string
+    {
+        return 'auth_oauth_refresh_tokens';
     }
 
     public function passkeyCredentials(): string
