@@ -60,15 +60,17 @@ Exit: OAuth client/authorization/key administration is usable through Foundation
 
 ### F2 — Reusable OAuth HTTP protocol boundary
 
-- [ ] Add strict form/query parameter extraction with size bounds, duplicate-parameter rejection, and content-type validation.
-- [ ] Add safe `client_secret_basic` parsing; reject query credentials and `client_secret_post`.
-- [ ] Add Foundation HTTP handlers/adapters for metadata, JWKS, token, revocation, and introspection responses while leaving route declarations/presentation to Infbyte.
-- [ ] Add authorization success/error redirect builder with exact registered redirect preservation, unchanged `state`, and RFC 9207 `iss` response parameter.
-- [ ] Redirect OAuth errors only after the redirect URI has been validated.
-- [ ] Add `Cache-Control: no-store` / `Pragma: no-cache` to token-like responses as applicable.
-- [ ] Add RFC 6750 bearer error response handling for OAuth resource middleware.
-- [ ] Integrate existing Foundation/Webrick rate-limiting capability or a narrow existing-policy adapter for authorization/token/revocation/introspection/client-auth failure surfaces; no cache-only correctness.
-- [ ] Add HTTP boundary tests for malformed, duplicated, oversized, unsupported-content-type, and credential-downgrade inputs.
+- [x] Add strict form/query parameter extraction with size bounds, duplicate-parameter rejection, and content-type validation.
+- [x] Add safe `client_secret_basic` parsing; reject query credentials and `client_secret_post`.
+- [x] Add Foundation HTTP handlers/adapters for metadata, JWKS, token, revocation, and introspection responses while leaving route declarations/presentation to Infbyte.
+- [x] Add authorization success/error redirect builder with exact registered redirect preservation, unchanged `state`, and RFC 9207 `iss` response parameter.
+- [x] Redirect OAuth errors only after the redirect URI has been validated.
+- [x] Add `Cache-Control: no-store` / `Pragma: no-cache` to token-like responses as applicable.
+- [x] Add RFC 6750 bearer error response handling for OAuth resource middleware.
+- [x] Integrate existing Foundation/Webrick rate-limiting capability or a narrow existing-policy adapter for authorization/token/revocation/introspection/client-auth failure surfaces; no cache-only correctness.
+- [x] Add HTTP boundary tests for malformed, duplicated, oversized, unsupported-content-type, and credential-downgrade inputs.
+
+Implementation evidence: redirect validation/context `4469d9769596f0203938ecad8ca2eadb09121596`, protocol error extension `11a003c09dc57f1ed156001b6963da27b50aea7f`, strict HTTP input `0b9ef344b114478ae50c5bd04f57130b92d8ceb9`, response factory `222dc601929002ae37c8500d969ea3ba46c27800`, reusable HTTP handler/manager support `1762ccb09260e351494d5e8bba7a0f0f4e697741` and `0183705e04ea8f2a56836c35575325278f525e0a`, conditional DI `688b3e1ca2d1de73b223639371e79cdff89e5246`, HTTP boundary tests `98677594c3be2637f43a643f09e3ac996d61e6d0`, throttle adapter `484f192b26155f6fa4bc10219a4d195b98f85e1b`, rate-limit defaults `2aae12b52757c56adb409185e294e0d74c47fa3b`, validation `83e7d4192be32e880d080d8af0b378dd94a21c69`, registrar binding `30283a3189727c9f18e35a762719a7e6e24b7916`, and throttle-policy tests `61d4f6a2bb0766841c78008bb053e3bcbcab9d5e`. Test files are committed; execution evidence remains intentionally unchecked under F7.
 
 Exit: Infbyte can expose thin opt-in routes with no protocol/crypto/persistence logic in application controllers.
 
@@ -153,8 +155,8 @@ Exit: Foundation is complete before Infbyte integration lock/release.
 
 ## Resume point
 
-Last completed checkpoint: **F1 — CLI administration**.
-Implementation/test commit: `b07e82f7d3e3ef05e2929912ce0b1a7751efce1c` (plus supporting commits listed in F1).
-Current active task: **F2 — Reusable OAuth HTTP protocol boundary**.
-First unchecked action: strict bounded form/query extraction with duplicate rejection and content-type validation.
-Execution evidence: F1 test files are committed but have not yet been run in this environment; suite/release evidence remains under F7.
+Last completed checkpoint: **F2 — Reusable OAuth HTTP protocol boundary**.
+Implementation/test commit: `61d4f6a2bb0766841c78008bb053e3bcbcab9d5e` (plus supporting commits listed in F2).
+Current active task: **F3 — Security/audit/operational closure**.
+First unchecked action: verify every planned OAuth audit event is emitted at the correct lifecycle boundary.
+Execution evidence: F1/F2 test files are committed but have not yet been run in this environment; suite/release evidence remains under F7.
