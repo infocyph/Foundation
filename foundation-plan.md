@@ -66,17 +66,10 @@ Evidence: `520d0b6`, `64aa5b0`, `246db78`, `604af3b`, `c11c0ae`, `87a306c` plus 
 - [x] Durable revocation survives fresh process/store instances without cache correctness.
 - [x] Consent regrant after revoke and client registration atomicity integration tests.
 
-Evidence:
-- Schema upgrade: `f13ba53` (`OAuth21SchemaUpgradeTest.php`).
-- Rollback/partial failure: `7146bfb` (`OAuth21SchemaRollbackTest.php`).
-- Code contention: `99fca7d` (`OAuth21AuthorizationCodeConcurrencyTest.php`).
-- Refresh contention/replay-family revoke: `d806cbe` (`OAuth21RefreshConcurrencyTest.php`).
-- Fresh-process durable revoke: `f315660` (`OAuth21DurableRevocationProcessTest.php`).
-- Consent regrant/client transaction rollback: `1f9d9e9` (`OAuth21PersistenceAtomicityTest.php`).
-Execution remains F7.
+Evidence: `f13ba53`, `7146bfb`, `99fca7d`, `d806cbe`, `f315660`, `1f9d9e9`. Execution remains F7.
 
 ## F5 — Protocol and compatibility test matrix
-- [ ] Update existing OAuth access-token tests for current signing-key-set constructor and trusted-audience `verify(token, audience)` contract.
+- [x] Update existing OAuth access-token tests for current signing-key-set constructor and trusted-audience `verify(token, audience)` contract.
 - [ ] Public Authorization Code + S256 success flow.
 - [ ] Confidential Authorization Code + S256 success flow.
 - [ ] Client Credentials success flow.
@@ -87,6 +80,8 @@ Execution remains F7.
 - [ ] OAuth/application bearer semantic separation in both directions.
 - [ ] Disabled OAuth leaves resolver order/bindings/bootstrap/schema/key loading unchanged.
 - [ ] Rejection matrix: client/redirect/PKCE/code/grant/response/auth-method/scope/issuer/audience/token-use/algorithm/signature/kid/time/revocation/account/client/authorization/malformed failures.
+
+Access-token contract evidence: `c5a7ef019814c24324418920c7f93e1b1c420d05` updates the tests to `OAuthSigningKeySet` plus explicit trusted-audience verification and fixes issued `scope` to the RFC-style space-delimited claim expected by the verifier. Execution remains F7.
 
 ## F6 — Documentation and operations
 - [ ] Document `auth.oauth` configuration: disabled behavior, `resource_audiences`, `scope_permissions`, route policy, TTL units, public-key list format.
@@ -119,8 +114,8 @@ Execution remains F7.
 - [ ] After Foundation release, add disabled-default OAuth application config/routes/thin presentation hooks/integration tests/deployment closure.
 
 ## Resume point
-Last completed checkpoint: **F4 — Persistence, migration, and concurrency closure**.
-Latest implementation/test commit: `1f9d9e9aa7758333defcb6c3b313466029870a2f`.
+Last completed checkpoint: **F5.1 — current OAuth access-token signing and trusted-audience contract**.
+Implementation/test commit: `c5a7ef019814c24324418920c7f93e1b1c420d05`.
 Current active task: **F5 — Protocol and compatibility test matrix**.
-First unchecked action: update access-token tests to the current signing-key-set and trusted-audience verification contract.
+First unchecked action: Public Authorization Code + S256 success flow.
 Execution evidence: implementation/test files are committed but not yet run in this environment; suite/release evidence remains under F7.
