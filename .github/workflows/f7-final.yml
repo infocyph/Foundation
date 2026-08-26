@@ -193,8 +193,8 @@ jobs:
         run: composer validate --strict
       - name: Resolve supported stable dependencies
         run: composer update --no-interaction --prefer-dist --no-progress --prefer-stable
-      - name: Audit resolved dependency graph
-        run: composer audit --locked
+      - name: Audit resolved dependency graph with Foundation release policy
+        run: composer ic:release:audit
       - name: Verify release constraints and platform requirements
         shell: bash
         run: |
@@ -204,7 +204,7 @@ jobs:
         shell: bash
         run: |
           composer dump-autoload --classmap-authoritative --no-interaction
-          php -r 'require "vendor/autoload.php"; echo "autoload-ok\n";'
+          php -r 'require "vendor/autoload.php"; fwrite(STDOUT, "autoload-ok\n");'
 
   phpforge-engineering:
     name: F7.6 PHPForge engineering gates
@@ -272,10 +272,12 @@ jobs:
           docker compose -f .phpforge-workflow/resources/services/compose.yml \
             --profile mysql --profile postgres --profile redis --profile valkey --profile memcached up -d
           bash .phpforge-workflow/.github/scripts/verify-and-wait-services.sh
-      - name: Resolve dependency matrix
+      - name: Resolve requested dependency boundary
         shell: bash
         run: composer update --no-interaction --prefer-dist --no-progress --${{ matrix.dependencies }}
-      - name: Run complete Pest suite with skipped tests blocking
+      - name: Run complete Pest suite with skipped tests fatal
+        env:
+          IC_PEST_FAIL_ON_SKIPPED: "1"
         run: vendor/bin/pest --fail-on-skipped
       - name: Stop PHPForge integration services
         if: always()
@@ -299,20 +301,8 @@ jobs:
           extensions: mbstring, pdo, pdo_sqlite
           coverage: none
       - run: composer update --no-interaction --prefer-dist --no-progress --prefer-stable
-      - name: Record available OAuth conformance surface
-        shell: bash
-        run: |
-          find tests/Feature -maxdepth 1 -type f -name 'OAuth21*Test.php' -print | sort | tee f7-oauth-conformance-files.txt
-          test -s f7-oauth-conformance-files.txt
-      - name: Run complete available OAuth protocol suite
-        shell: bash
+      - name: Run complete available OAuth 2.1 protocol/conformance coverage
         run: vendor/bin/pest --fail-on-skipped tests/Feature/OAuth21*Test.php
-      - uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: f7-8-oauth-conformance
-          path: f7-oauth-conformance-files.txt
-          if-no-files-found: error
 
   no-weakened-gates:
     name: F7.9 no weakened quality gates
@@ -326,13 +316,10 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.5"
+          tools: composer:v2
+          extensions: mbstring
           coverage: none
-      - name: Verify feature diff contains no gate weakening
-        shell: bash
-        run: php tools/f7-no-weakened-gates.php | tee f7-no-weakened-gates.txt
-      - uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: f7-9-no-weakened-gates
-          path: f7-no-weakened-gates.txt
-          if-no-files-found: warn
+      - name: Reject suppression, baseline, exclusion and weakened-gate additions
+        env:
+          FOUNDATION_F7_BASE_REF: "2.0"
+        run: php tools/f7-no-weakened-gates.php
