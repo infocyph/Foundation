@@ -80,12 +80,13 @@ Exit: Infbyte can expose thin opt-in routes with no protocol/crypto/persistence 
 - [x] Add tests proving raw secrets, codes, refresh/access tokens, PKCE verifiers, private keys, Authorization headers, and private-key locator paths never enter audit/log/CLI/error output.
 - [x] Verify persistent request/principal OAuth metadata is cleared by existing request scope/reset behavior.
 - [x] Verify existing auth/verified/MFA/recent/role/permission/policy flows accept OAuth principals without special alternate authorization semantics.
-- [ ] Confirm pruning is idempotent and does not remove active authorizations or refresh-family replay evidence early.
+- [x] Confirm pruning is idempotent and does not remove active authorizations or refresh-family replay evidence early.
 
 Audit lifecycle evidence: existing `OAuth21AuditLifecycleTest.php`, `OAuth21AuditSecurityTest.php`, and `OAuth21RevocationAuditTest.php`, plus `OAuth21AuditClosureTest.php` and `OAuth21SigningKeySelectionAuditTest.php` committed in `520d0b628767c301fee0168f71d146dc30bc5841` and `64aa5b0440328b8c49fd9ff7471fc8d3ab16c0d1`. Execution remains part of F7.
 Sensitive-output evidence: existing audit/CLI security assertions plus `OAuth21SensitiveOutputClosureTest.php` commit `246db78afee4c7331b4923545c6e06df752a627b`; the designed one-time generated/rotated client-secret return remains the explicit F1 administration output, while incidental audit/log/error/client-view output is covered here. Execution remains part of F7.
 Persistent-reset evidence: `OAuth21PersistentPrincipalResetTest.php` commit `604af3bf31ee97f4c82dc044d58f27af335da17a` covers account/service OAuth metadata cleanup and next-request isolation through the existing runtime tracker. Execution remains part of F7.
 Principal compatibility evidence: `OAuth21PrincipalCompatibilityTest.php` commit `c11c0ae154c62b12f6e57e7bb017e7efd9f4878f` exercises existing auth/verified/MFA/recent/role/permission/policy middleware with OAuth account and service principals, including no MFA/recent bypass and no account-only bypass for service principals. Execution remains part of F7.
+Pruning evidence: `OAuth21PruningRetentionTest.php` commit `87a306c8a7f3b07041b0e459bcda126ae76f2045` covers idempotent second-pass pruning, active authorization retention, unexpired rotated/revoked refresh replay evidence retention, and expired refresh cleanup. Execution remains part of F7.
 
 Exit: planned security and operational invariants are covered by tests rather than documentation only.
 
@@ -160,8 +161,8 @@ Exit: Foundation is complete before Infbyte integration lock/release.
 
 ## Resume point
 
-Last completed checkpoint: **F3.4 — OAuth principal compatibility with existing authorization middleware**.
-Implementation/test commit: `c11c0ae154c62b12f6e57e7bb017e7efd9f4878f`.
-Current active task: **F3 — Security/audit/operational closure**.
-First unchecked action: confirm OAuth pruning idempotency and retention boundaries.
+Last completed checkpoint: **F3 — Security/audit/operational closure**.
+Implementation/test commits: `520d0b628767c301fee0168f71d146dc30bc5841`, `64aa5b0440328b8c49fd9ff7471fc8d3ab16c0d1`, `246db78afee4c7331b4923545c6e06df752a627b`, `604af3bf31ee97f4c82dc044d58f27af335da17a`, `c11c0ae154c62b12f6e57e7bb017e7efd9f4878f`, `87a306c8a7f3b07041b0e459bcda126ae76f2045` plus prior revocation audit commits.
+Current active task: **F4 — Persistence, migration, and concurrency closure**.
+First unchecked action: add Foundation 2.0-to-2.1 auth schema install/status/upgrade coverage.
 Execution evidence: implementation/test files are committed but have not yet been run in this environment; suite/release evidence remains under F7.
