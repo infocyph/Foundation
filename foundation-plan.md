@@ -72,7 +72,7 @@ Evidence: `f13ba53`, `7146bfb`, `99fca7d`, `d806cbe`, `f315660`, `1f9d9e9`. Exec
 - [x] Refresh equal/narrowed-scope success; widened-scope rejection; rotated-token reuse handling.
 - [x] Metadata/JWKS correctness and key rotation/fallback/unknown-kid behavior.
 - [x] Access-token durable revocation and access/refresh introspection active/inactive states.
-- [ ] OAuth bearer -> existing account/service principal -> existing authorization middleware/gates.
+- [x] OAuth bearer -> existing account/service principal -> existing authorization middleware/gates.
 - [ ] OAuth/application bearer semantic separation in both directions.
 - [ ] Disabled OAuth leaves resolver order/bindings/bootstrap/schema/key loading unchanged.
 - [ ] Rejection matrix: client/redirect/PKCE/code/grant/response/auth-method/scope/issuer/audience/token-use/algorithm/signature/kid/time/revocation/account/client/authorization/malformed failures.
@@ -85,6 +85,7 @@ Evidence:
 - Refresh grant scope/replay matrix: `c12b37e`.
 - Metadata/JWKS/key rotation/fallback/unknown-kid: `f5e2d84`.
 - Durable access/refresh revocation + introspection: `7e0ef5c`.
+- OAuth bearer standard principal + existing middleware/authorizer: `e9fed9c`.
 Execution remains F7.
 
 ## F6 — Documentation and operations
@@ -118,8 +119,8 @@ Execution remains F7.
 - [ ] After Foundation release, add disabled-default OAuth application config/routes/thin presentation hooks/integration tests/deployment closure.
 
 ## Resume point
-Last completed checkpoint: **F5.7 — durable revocation and introspection active/inactive states**.
-Implementation/test commit: `7e0ef5c333274933f2942e0a4869c232fc45341e`.
+Last completed checkpoint: **F5.8 — OAuth bearer principals through existing authorization semantics**.
+Implementation/test commit: `e9fed9c7828fda364dfb63252872512ea245d3fd`.
 Current active task: **F5 — Protocol and compatibility test matrix**.
-First unchecked action: OAuth bearer -> existing account/service principal -> existing authorization middleware/gates.
+First unchecked action: OAuth/application bearer semantic separation in both directions.
 Execution evidence: implementation/test files are committed but not yet run in this environment; suite/release evidence remains under F7.
