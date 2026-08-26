@@ -40,17 +40,6 @@ final readonly class DBLayerOAuthRefreshTokenStore extends DBLayerStore implemen
             $replacement,
             $rotatedAt,
         ): OAuthRefreshRotationResult {
-            $current = $this->findRecord($transaction, $tokenHash);
-            if (!$current instanceof OAuthRefreshTokenRecord) {
-                return new OAuthRefreshRotationResult(OAuthRefreshRotationStatus::Missing);
-            }
-            if ($current->revokedAt !== null) {
-                return new OAuthRefreshRotationResult(OAuthRefreshRotationStatus::Revoked, $current);
-            }
-            if ($current->rotatedAt !== null) {
-                return new OAuthRefreshRotationResult(OAuthRefreshRotationStatus::Reused, $current);
-            }
-
             $table = $this->table('oauthRefreshTokens');
             $affected = $transaction->execute(
                 sprintf(
@@ -62,9 +51,12 @@ final readonly class DBLayerOAuthRefreshTokenStore extends DBLayerStore implemen
 
             if ($affected !== 1) {
                 $latest = $this->findRecord($transaction, $tokenHash);
+                if (!$latest instanceof OAuthRefreshTokenRecord) {
+                    return new OAuthRefreshRotationResult(OAuthRefreshRotationStatus::Missing);
+                }
 
                 return new OAuthRefreshRotationResult(
-                    $latest?->revokedAt !== null
+                    $latest->revokedAt !== null
                         ? OAuthRefreshRotationStatus::Revoked
                         : OAuthRefreshRotationStatus::Reused,
                     $latest,
