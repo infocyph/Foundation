@@ -22,7 +22,7 @@ final readonly class DBLayerOAuthRefreshTokenStore extends DBLayerStore implemen
     public function revokeFamily(string $familyId, int $revokedAt): void
     {
         $table = $this->table('oauthRefreshTokens');
-        $this->connection()->update(
+        $this->connection()->execute(
             sprintf('UPDATE %s SET revoked_at = ? WHERE family_id = ? AND revoked_at IS NULL', $table),
             [$revokedAt, $familyId],
         );
@@ -52,13 +52,13 @@ final readonly class DBLayerOAuthRefreshTokenStore extends DBLayerStore implemen
             }
 
             $table = $this->table('oauthRefreshTokens');
-            $affected = $transaction->update(
+            $affected = $transaction->execute(
                 sprintf(
                     'UPDATE %s SET rotated_at = ? WHERE token_hash = ? AND rotated_at IS NULL AND revoked_at IS NULL',
                     $table,
                 ),
                 [$rotatedAt, $tokenHash],
-            );
+            )->rowCount();
 
             if ($affected !== 1) {
                 $latest = $this->findRecord($transaction, $tokenHash);
