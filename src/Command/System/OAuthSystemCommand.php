@@ -55,7 +55,7 @@ final class OAuthSystemCommand extends SystemCommand
             throw new \InvalidArgumentException('--type must be public or confidential.');
         }
 
-        $grants = array_map($this->grant(...), $this->optionValues('grant'));
+        $grants = array_map($this->grant(...), $this->values('grant'));
         if ($grants === []) {
             throw new \InvalidArgumentException('At least one --grant option is required.');
         }
@@ -63,9 +63,9 @@ final class OAuthSystemCommand extends SystemCommand
         $registration = $this->clients()->register(
             type: $type,
             grants: $grants,
-            redirectUris: $this->optionValues('redirect-uri'),
-            scopes: $this->optionValues('scope'),
-            audiences: $this->optionValues('audience'),
+            redirectUris: $this->values('redirect-uri'),
+            scopes: $this->values('scope'),
+            audiences: $this->values('audience'),
             metadata: $this->flag('native-client') ? ['native_client' => true] : [],
         );
 
