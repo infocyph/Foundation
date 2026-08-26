@@ -82,7 +82,10 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
     private function registerCrypto(): void
     {
         $this->singleton(OpaqueToken::class, fn() => new OpaqueToken());
-        $this->singleton(OAuthSigningKeyResolver::class, fn() => new OAuthSigningKeyResolver($this->app->config()));
+        $this->singleton(OAuthSigningKeyResolver::class, fn() => new OAuthSigningKeyResolver(
+            $this->app->config(),
+            $this->service(OAuthAuditRecorder::class),
+        ));
         $this->singleton(OAuthSigningKeySet::class, fn() => $this->service(OAuthSigningKeyResolver::class)->resolve());
         $this->singleton(JwkSetProviderInterface::class, fn() => new EpicryptOAuthJwkSetProvider(
             $this->service(OAuthSigningKeySet::class),
@@ -129,6 +132,7 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
             clock: $this->service(ClockInterface::class),
             tokens: $this->service(OpaqueToken::class),
             ttlSeconds: $this->intConfig('auth.oauth.authorization_code_ttl', 60),
+            audit: $this->service(OAuthAuditRecorder::class),
         ));
         $this->singleton(OAuthRefreshTokenCoordinator::class, fn() => new OAuthRefreshTokenCoordinator(
             refreshTokens: $this->service(OAuthRefreshTokenStoreInterface::class),
@@ -139,6 +143,7 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
             clock: $this->service(ClockInterface::class),
             tokens: $this->service(OpaqueToken::class),
             ttlSeconds: $this->intConfig('auth.oauth.refresh_token_ttl', 1209600),
+            audit: $this->service(OAuthAuditRecorder::class),
         ));
         $this->singleton(OAuthAccessTokenValidator::class, fn() => new OAuthAccessTokenValidator(
             tokens: $this->service(OAuthAccessTokenServiceInterface::class),
@@ -193,7 +198,10 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
         ));
         $this->singleton(OAuthHttpInput::class, fn() => new OAuthHttpInput());
         $this->singleton(OAuthHttpResponseFactory::class, fn() => new OAuthHttpResponseFactory());
-        $this->singleton(OAuthHttpThrottleFactory::class, fn() => new OAuthHttpThrottleFactory($this->app->config()));
+        $this->singleton(OAuthHttpThrottleFactory::class, fn() => new OAuthHttpThrottleFactory(
+            $this->app->config(),
+            $this->service(OAuthAuditRecorder::class),
+        ));
         $this->singleton(OAuthHttpHandler::class, fn() => new OAuthHttpHandler(
             $this->service(OAuthManager::class),
             $this->service(OAuthHttpInput::class),
