@@ -67,7 +67,14 @@ final readonly class OAuthTokenManager
         if (!$authorization instanceof OAuthAuthorization) {
             throw OAuthProtocolException::invalidGrant();
         }
-        $this->assertUserAuthorization($authorization, $client, $code->accountId, $code->scopes, $code->audiences);
+        $this->assertUserAuthorization(
+            $authorization,
+            $client,
+            $code->accountId,
+            $code->scopes,
+            $code->audiences,
+            false,
+        );
 
         $refresh = $client->allowsGrant(OAuthGrantType::RefreshToken)
             ? $this->refreshTokens->issue($authorization)
@@ -139,6 +146,7 @@ final readonly class OAuthTokenManager
             $record->accountId,
             $record->scopes,
             $record->audiences,
+            true,
         );
 
         return $this->response(
@@ -187,14 +195,18 @@ final readonly class OAuthTokenManager
         string $accountId,
         array $scopes,
         array $audiences,
+        bool $allowNarrowedScopes,
     ): void {
         $now = $this->clock->now();
+        $validScopes = $allowNarrowedScopes
+            ? $this->subsetOf($scopes, $authorization->scopes)
+            : $this->sameSet($authorization->scopes, $scopes);
         if (
             !$authorization->activeAt($now)
             || !hash_equals($authorization->clientId, $client->clientId)
             || !is_string($authorization->accountId)
             || !hash_equals($authorization->accountId, $accountId)
-            || !$this->sameSet($authorization->scopes, $scopes)
+            || !$validScopes
             || !$this->sameSet($authorization->audiences, $audiences)
         ) {
             throw OAuthProtocolException::invalidGrant();
@@ -290,6 +302,19 @@ final readonly class OAuthTokenManager
         sort($right, SORT_STRING);
 
         return $left === $right;
+    }
+
+    /** @param list<string> $candidate @param list<string> $allowed */
+    private function subsetOf(array $candidate, array $allowed): bool
+    {
+        $allowedSet = array_fill_keys($allowed, true);
+        foreach ($candidate as $value) {
+            if (!isset($allowedSet[$value])) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /** @param array<string, mixed> $parameters @return list<string> */
