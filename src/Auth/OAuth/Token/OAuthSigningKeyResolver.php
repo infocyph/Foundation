@@ -13,14 +13,42 @@ use Infocyph\Epicrypt\Token\Jwt\Enum\AsymmetricJwtAlgorithm;
 use Infocyph\Epicrypt\Token\Jwt\JwtClaims;
 use Infocyph\Epicrypt\Token\Jwt\JwtPolicy;
 use Infocyph\Epicrypt\Token\Jwt\Jwks;
+use Infocyph\Foundation\Auth\Audit\AuthEventSeverity;
+use Infocyph\Foundation\Auth\Audit\AuthEventType;
+use Infocyph\Foundation\Auth\OAuth\Audit\OAuthAuditRecorder;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Exception\ConfigurationException;
 
 final readonly class OAuthSigningKeyResolver
 {
-    public function __construct(private ConfigRepository $config) {}
+    public function __construct(
+        private ConfigRepository $config,
+        private ?OAuthAuditRecorder $audit = null,
+    ) {}
 
     public function resolve(): OAuthSigningKeySet
+    {
+        try {
+            $resolved = $this->resolveConfigured();
+        } catch (\Throwable $exception) {
+            $this->audit?->record(
+                AuthEventType::OAUTH_KEY_READINESS,
+                metadata: ['result' => 'failure'],
+                severity: AuthEventSeverity::ERROR,
+            );
+            throw $exception;
+        }
+
+        $this->audit?->record(AuthEventType::OAUTH_KEY_READINESS, metadata: [
+            'result' => 'ready',
+            'algorithm' => $resolved->algorithm->value,
+            'key_id' => $resolved->activeKeyId,
+        ]);
+
+        return $resolved;
+    }
+
+    private function resolveConfigured(): OAuthSigningKeySet
     {
         $issuer = $this->requiredString('auth.oauth.issuer');
         $activeKeyId = $this->requiredKeyId('auth.oauth.signing.active_key_id');
