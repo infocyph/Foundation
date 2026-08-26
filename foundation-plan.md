@@ -92,12 +92,14 @@ Exit: planned security and operational invariants are covered by tests rather th
 
 ### F4 — Persistence, migration, and concurrency closure
 
-- [ ] Add schema install/status/upgrade tests from released Foundation 2.0 auth state into the additive OAuth revision.
+- [x] Add schema install/status/upgrade tests from released Foundation 2.0 auth state into the additive OAuth revision.
 - [ ] Add rollback/partial-failure coverage where the existing schema runner supports it.
 - [ ] Add simultaneous authorization-code redemption test proving exactly one success.
 - [ ] Add simultaneous refresh redemption test proving exactly one rotation and family revocation on replay.
 - [ ] Verify durable revocation survives fresh process/store instances and does not rely on cache correctness.
 - [ ] Verify consent regrant after revoke and client registration atomicity with integration tests.
+
+Schema upgrade evidence: `OAuth21SchemaUpgradeTest.php` commit `f13ba53493db07a892d5d502800245c5f7b487cb` establishes a 2.0 base/MFA schema, preserves representative account/session/application-refresh state, verifies OAuth-aware readiness before/after upgrade, applies only the additive OAuth revision, and verifies idempotent reinstall. Execution remains part of F7.
 
 Exit: database atomicity and upgrade behavior are demonstrated, not inferred.
 
@@ -161,8 +163,8 @@ Exit: Foundation is complete before Infbyte integration lock/release.
 
 ## Resume point
 
-Last completed checkpoint: **F3 — Security/audit/operational closure**.
-Implementation/test commits: `520d0b628767c301fee0168f71d146dc30bc5841`, `64aa5b0440328b8c49fd9ff7471fc8d3ab16c0d1`, `246db78afee4c7331b4923545c6e06df752a627b`, `604af3bf31ee97f4c82dc044d58f27af335da17a`, `c11c0ae154c62b12f6e57e7bb017e7efd9f4878f`, `87a306c8a7f3b07041b0e459bcda126ae76f2045` plus prior revocation audit commits.
+Last completed checkpoint: **F4.1 — Foundation 2.0-to-2.1 schema install/status/upgrade coverage**.
+Implementation/test commit: `f13ba53493db07a892d5d502800245c5f7b487cb`.
 Current active task: **F4 — Persistence, migration, and concurrency closure**.
-First unchecked action: add Foundation 2.0-to-2.1 auth schema install/status/upgrade coverage.
+First unchecked action: add rollback/partial-failure coverage supported by the schema runner.
 Execution evidence: implementation/test files are committed but have not yet been run in this environment; suite/release evidence remains under F7.
