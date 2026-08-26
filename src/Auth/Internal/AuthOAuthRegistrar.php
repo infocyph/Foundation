@@ -172,6 +172,7 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
             revocations: $this->service(OAuthAccessRevocationStoreInterface::class),
             refreshTokens: $this->service(OAuthRefreshTokenCoordinator::class),
             clock: $this->service(ClockInterface::class),
+            audit: $this->service(OAuthAuditRecorder::class),
         ));
         $this->singleton(OAuthIntrospectionManager::class, fn() => new OAuthIntrospectionManager(
             clients: $this->service(OAuthClientManager::class),
