@@ -29,6 +29,7 @@ use Infocyph\Foundation\Auth\Contract\Security\PasswordVerifierInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
 use Infocyph\Foundation\Auth\Device\DeviceManager;
 use Infocyph\Foundation\Auth\Mfa\MfaManager;
+use Infocyph\Foundation\Auth\OAuth\OAuthManager;
 use Infocyph\Foundation\Auth\Passkey\PasskeyManager;
 use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
 
@@ -91,6 +92,15 @@ final readonly class AuthServices
     public function mfa(): MfaManager
     {
         return $this->app->make(MfaManager::class);
+    }
+
+    public function oauth(): OAuthManager
+    {
+        if ($this->app->config()->get('auth.oauth.enabled', false) !== true) {
+            throw new \LogicException('OAuth is disabled. Enable auth.oauth.enabled before requesting OAuth services.');
+        }
+
+        return $this->app->make(OAuthManager::class);
     }
 
     public function passkeys(): PasskeyManager
