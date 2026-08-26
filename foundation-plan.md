@@ -96,10 +96,10 @@ Execution remains F7.
 - [x] Document `auth.oauth` configuration: disabled behavior, `resource_audiences`, `scope_permissions`, route policy, TTL units, public-key list format.
 - [x] Document signing-key provisioning/rotation and one-time client-secret handling.
 - [x] Document Foundation/Infbyte ownership boundary and OAuth/application-token separation.
-- [ ] Document schema deployment, readiness, pruning, canary and rollback procedures.
-- [ ] Document implemented RFC claims accurately; do not claim generic final OAuth 2.1 RFC compliance while relying on draft guidance.
-- [ ] Document unsupported/deferred features: OIDC, dynamic registration, device flow, password/implicit grants, generic OAuth login, DPoP/PAR/etc.
-Evidence: configuration/key/client-secret/ownership guide `e7076d5`, docs index `5c8d314`.
+- [x] Document schema deployment, readiness, pruning, canary and rollback procedures.
+- [x] Document implemented RFC claims accurately; do not claim generic final OAuth 2.1 RFC compliance while relying on draft guidance.
+- [x] Document unsupported/deferred features: OIDC, dynamic registration, device flow, password/implicit grants, generic OAuth login, DPoP/PAR/etc.
+Evidence: configuration/key/client-secret/ownership guide `e7076d5`, docs index `5c8d314`, deployment/readiness/pruning/canary/rollback/protocol/deferred scope `2cfcfc7`. The standards section records the August 2026 OAuth 2.1 draft status rather than claiming a final OAuth 2.1 RFC. Runtime conformance execution remains F7.
 
 ## F7 — Performance and engineering gates
 - [ ] Extend benchmark framework with OAuth-disabled and OAuth workloads.
@@ -124,8 +124,8 @@ Evidence: configuration/key/client-secret/ownership guide `e7076d5`, docs index 
 - [ ] After Foundation release, add disabled-default OAuth application config/routes/thin presentation hooks/integration tests/deployment closure.
 
 ## Resume point
-Last completed checkpoint: **F6.1-F6.3 — configuration, key/secret, and ownership documentation**.
-Documentation commit: `e7076d5ebba89dd35b79a772e941ec50749934b4`; index commit: `5c8d31489a72640a0c51f27930b9d858b31df4df`.
-Current active task: **F6 — Documentation and operations**.
-First unchecked action: document schema deployment, readiness, pruning, canary and rollback procedures.
-Execution evidence: implementation/test files are committed but not yet run in this environment; suite/release evidence remains under F7.
+Last completed checkpoint: **F6 — Documentation and operations complete**.
+Latest documentation commit: `2cfcfc798095c94448b34f63f6a1faf7d9deeccb`.
+Current active task: **F7 — Performance and engineering gates**.
+First unchecked action: extend the representative benchmark framework with OAuth-disabled and OAuth workloads.
+Execution evidence: implementation/test/docs files are committed but have not been run as a release suite in this environment; runtime/performance/conformance evidence remains deliberately unchecked under F7.
