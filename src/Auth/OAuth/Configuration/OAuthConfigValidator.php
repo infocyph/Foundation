@@ -213,28 +213,37 @@ final readonly class OAuthConfigValidator
         foreach (['authorization', 'token', 'revocation', 'introspection', 'jwks'] as $name) {
             $key = 'auth.oauth.routes.' . $name;
             $path = $this->config->get($key);
-            if (is_string($path) && str_starts_with($path, '/') && !str_starts_with($path, '//')) {
-                $parts = parse_url($path);
-                if (is_array($parts) && !isset($parts['scheme'], $parts['host'], $parts['query'], $parts['fragment'])) {
-                    if (isset($seen[$path])) {
-                        $issues[] = new ConfigIssue('OAuth protocol route paths must be unique.', $key);
-                    } else {
-                        $seen[$path] = true;
-                    }
+            if (!$this->validRoutePath($path)) {
+                $issues[] = new ConfigIssue(sprintf('%s must be a local absolute path.', $key), $key);
 
-                    continue;
-                }
+                continue;
             }
 
-            $issues[] = new ConfigIssue(sprintf('%s must be a local absolute path.', $key), $key);
+            if (isset($seen[$path])) {
+                $issues[] = new ConfigIssue('OAuth protocol route paths must be unique.', $key);
+
+                continue;
+            }
+            $seen[$path] = true;
         }
+    }
+
+    private function validRoutePath(mixed $path): bool
+    {
+        if (!is_string($path) || !str_starts_with($path, '/') || str_starts_with($path, '//')) {
+            return false;
+        }
+
+        $parts = parse_url($path);
+
+        return is_array($parts) && !isset($parts['scheme'], $parts['host'], $parts['query'], $parts['fragment']);
     }
 
     /** @param list<ConfigIssue> $issues */
     private function validateScopePermissions(array &$issues): void
     {
         $mapping = $this->config->get('auth.oauth.scope_permissions', []);
-        if (!is_array($mapping) || array_is_list($mapping) && $mapping !== []) {
+        if (!is_array($mapping) || (array_is_list($mapping) && $mapping !== [])) {
             $issues[] = new ConfigIssue(
                 'auth.oauth.scope_permissions must be a map of OAuth scope names to Foundation permission names.',
                 'auth.oauth.scope_permissions',
@@ -264,6 +273,15 @@ final readonly class OAuthConfigValidator
     /** @param list<ConfigIssue> $issues */
     private function validateSigning(array &$issues): void
     {
+        $this->validateSigningAlgorithm($issues);
+        $activeKeyId = $this->validateActiveSigningKeyId($issues);
+        $this->validatePrivateSigningKey($issues);
+        $this->validatePublicSigningKeys($issues, $activeKeyId);
+    }
+
+    /** @param list<ConfigIssue> $issues */
+    private function validateSigningAlgorithm(array &$issues): void
+    {
         $algorithm = $this->config->get('auth.oauth.signing.algorithm', 'RS256');
         if (!is_string($algorithm) || !in_array($algorithm, self::SIGNING_ALGORITHMS, true)) {
             $issues[] = new ConfigIssue(
@@ -271,16 +289,27 @@ final readonly class OAuthConfigValidator
                 'auth.oauth.signing.algorithm',
             );
         }
+    }
 
+    /** @param list<ConfigIssue> $issues */
+    private function validateActiveSigningKeyId(array &$issues): ?string
+    {
         $activeKeyId = $this->config->get('auth.oauth.signing.active_key_id');
-        if (!is_string($activeKeyId) || preg_match('/\A[A-Za-z0-9_-]{1,128}\z/D', $activeKeyId) !== 1) {
-            $issues[] = new ConfigIssue(
-                'auth.oauth.signing.active_key_id must be a Base64URL-safe key id.',
-                'auth.oauth.signing.active_key_id',
-            );
-            $activeKeyId = null;
+        if (is_string($activeKeyId) && preg_match('/\A[A-Za-z0-9_-]{1,128}\z/D', $activeKeyId) === 1) {
+            return $activeKeyId;
         }
 
+        $issues[] = new ConfigIssue(
+            'auth.oauth.signing.active_key_id must be a Base64URL-safe key id.',
+            'auth.oauth.signing.active_key_id',
+        );
+
+        return null;
+    }
+
+    /** @param list<ConfigIssue> $issues */
+    private function validatePrivateSigningKey(array &$issues): void
+    {
         $privateKey = $this->config->get('auth.oauth.signing.private_key');
         if (!is_string($privateKey) || trim($privateKey) === '') {
             $issues[] = new ConfigIssue(
@@ -288,7 +317,11 @@ final readonly class OAuthConfigValidator
                 'auth.oauth.signing.private_key',
             );
         }
+    }
 
+    /** @param list<ConfigIssue> $issues */
+    private function validatePublicSigningKeys(array &$issues, ?string $activeKeyId): void
+    {
         $publicKeys = $this->config->get('auth.oauth.signing.public_keys', []);
         if (!is_array($publicKeys) || $publicKeys === [] || !array_is_list($publicKeys)) {
             $issues[] = new ConfigIssue(
@@ -302,49 +335,27 @@ final readonly class OAuthConfigValidator
         $seen = [];
         $activeCount = 0;
         foreach ($publicKeys as $entry) {
-            if (!is_array($entry)) {
-                $issues[] = new ConfigIssue('OAuth public-key entries must be maps.', 'auth.oauth.signing.public_keys');
+            $validated = $this->validatePublicSigningKeyEntry($issues, $entry);
+            if ($validated === null) {
+                return;
+            }
+            if (isset($seen[$validated['id']])) {
+                $issues[] = new ConfigIssue(
+                    'OAuth public-key ids must be unique Base64URL-safe values.',
+                    'auth.oauth.signing.public_keys',
+                );
 
                 return;
             }
-
-            $id = $entry['id'] ?? null;
-            $path = $entry['path'] ?? null;
-            $status = $entry['status'] ?? null;
-            if (!is_string($id) || preg_match('/\A[A-Za-z0-9_-]{1,128}\z/D', $id) !== 1 || isset($seen[$id])) {
-                $issues[] = new ConfigIssue('OAuth public-key ids must be unique Base64URL-safe values.', 'auth.oauth.signing.public_keys');
-
-                return;
-            }
-            $seen[$id] = true;
-
-            if (!is_string($path) || trim($path) === '') {
-                $issues[] = new ConfigIssue('OAuth public-key entries require a deployment-owned path locator.', 'auth.oauth.signing.public_keys');
-
-                return;
-            }
-            if (!is_string($status) || !in_array($status, ['active', 'fallback'], true)) {
-                $issues[] = new ConfigIssue('OAuth public-key status must be active or fallback.', 'auth.oauth.signing.public_keys');
-
-                return;
-            }
-            if ($status === 'active') {
+            $seen[$validated['id']] = true;
+            if ($validated['status'] === 'active') {
                 $activeCount++;
-                if (!is_string($activeKeyId) || !hash_equals($activeKeyId, $id)) {
-                    $issues[] = new ConfigIssue('OAuth active public key must match active_key_id.', 'auth.oauth.signing.public_keys');
+                if ($activeKeyId === null || !hash_equals($activeKeyId, $validated['id'])) {
+                    $issues[] = new ConfigIssue(
+                        'OAuth active public key must match active_key_id.',
+                        'auth.oauth.signing.public_keys',
+                    );
                 }
-            }
-
-            $notBefore = $entry['not_before'] ?? null;
-            $notAfter = $entry['not_after'] ?? null;
-            if ($notBefore !== null && (!is_int($notBefore) || $notBefore <= 0)) {
-                $issues[] = new ConfigIssue('OAuth public-key not_before must be a positive Unix timestamp.', 'auth.oauth.signing.public_keys');
-            }
-            if ($notAfter !== null && (!is_int($notAfter) || $notAfter <= 0)) {
-                $issues[] = new ConfigIssue('OAuth public-key not_after must be a positive Unix timestamp.', 'auth.oauth.signing.public_keys');
-            }
-            if (is_int($notBefore) && is_int($notAfter) && $notBefore >= $notAfter) {
-                $issues[] = new ConfigIssue('OAuth public-key validity must satisfy not_before < not_after.', 'auth.oauth.signing.public_keys');
             }
         }
 
@@ -354,11 +365,90 @@ final readonly class OAuthConfigValidator
                 'auth.oauth.signing.public_keys',
             );
         }
-        if (is_string($activeKeyId) && !isset($seen[$activeKeyId])) {
+        if ($activeKeyId !== null && !isset($seen[$activeKeyId])) {
             $issues[] = new ConfigIssue(
                 'auth.oauth.signing.active_key_id must reference a configured public key.',
                 'auth.oauth.signing.active_key_id',
             );
         }
+    }
+
+    /**
+     * @param list<ConfigIssue> $issues
+     * @return array{id:string,status:string}|null
+     */
+    private function validatePublicSigningKeyEntry(array &$issues, mixed $entry): ?array
+    {
+        if (!is_array($entry)) {
+            $issues[] = new ConfigIssue('OAuth public-key entries must be maps.', 'auth.oauth.signing.public_keys');
+
+            return null;
+        }
+
+        $id = $entry['id'] ?? null;
+        $path = $entry['path'] ?? null;
+        $status = $entry['status'] ?? null;
+        if (!is_string($id) || preg_match('/\A[A-Za-z0-9_-]{1,128}\z/D', $id) !== 1) {
+            $issues[] = new ConfigIssue(
+                'OAuth public-key ids must be unique Base64URL-safe values.',
+                'auth.oauth.signing.public_keys',
+            );
+
+            return null;
+        }
+        if (!is_string($path) || trim($path) === '') {
+            $issues[] = new ConfigIssue(
+                'OAuth public-key entries require a deployment-owned path locator.',
+                'auth.oauth.signing.public_keys',
+            );
+
+            return null;
+        }
+        if (!is_string($status) || !in_array($status, ['active', 'fallback'], true)) {
+            $issues[] = new ConfigIssue(
+                'OAuth public-key status must be active or fallback.',
+                'auth.oauth.signing.public_keys',
+            );
+
+            return null;
+        }
+        if (!$this->validSigningKeyWindow($issues, $entry)) {
+            return null;
+        }
+
+        return ['id' => $id, 'status' => $status];
+    }
+
+    /** @param list<ConfigIssue> $issues @param array<string|int, mixed> $entry */
+    private function validSigningKeyWindow(array &$issues, array $entry): bool
+    {
+        $notBefore = $entry['not_before'] ?? null;
+        $notAfter = $entry['not_after'] ?? null;
+        if ($notBefore !== null && (!is_int($notBefore) || $notBefore <= 0)) {
+            $issues[] = new ConfigIssue(
+                'OAuth public-key not_before must be a positive Unix timestamp.',
+                'auth.oauth.signing.public_keys',
+            );
+
+            return false;
+        }
+        if ($notAfter !== null && (!is_int($notAfter) || $notAfter <= 0)) {
+            $issues[] = new ConfigIssue(
+                'OAuth public-key not_after must be a positive Unix timestamp.',
+                'auth.oauth.signing.public_keys',
+            );
+
+            return false;
+        }
+        if (is_int($notBefore) && is_int($notAfter) && $notBefore >= $notAfter) {
+            $issues[] = new ConfigIssue(
+                'OAuth public-key validity must satisfy not_before < not_after.',
+                'auth.oauth.signing.public_keys',
+            );
+
+            return false;
+        }
+
+        return true;
     }
 }
