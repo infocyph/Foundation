@@ -8,6 +8,7 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Auth\Account\Account;
 use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerOAuthAccessRevocationStore;
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\AccessTokenClaims;
+use Infocyph\Foundation\Auth\AuthServices;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthAccessTokenValidator;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthClientAuthentication;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthClientAuthenticationMethod;
@@ -165,7 +166,7 @@ PHP);
     /** @return callable():bool */
     private function applicationBearerOperation(Application $application): callable
     {
-        $services = $application->auth();
+        $services = new AuthServices($application);
         $created = $services->accounts()->create(
             'representative-bearer@example.test',
             $services->passwordHasher()->hash('benchmark-secret'),
@@ -442,7 +443,7 @@ PHP);
     }
 
     /**
-     * @param string $directory Temporary benchmark application root.
+     * @param string $directory Temporary application root.
      */
     private function removeDirectory(string $directory): void
     {
