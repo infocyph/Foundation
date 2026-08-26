@@ -93,12 +93,13 @@ Evidence:
 Execution remains F7.
 
 ## F6 — Documentation and operations
-- [ ] Document `auth.oauth` configuration: disabled behavior, `resource_audiences`, `scope_permissions`, route policy, TTL units, public-key list format.
-- [ ] Document signing-key provisioning/rotation and one-time client-secret handling.
-- [ ] Document Foundation/Infbyte ownership boundary and OAuth/application-token separation.
+- [x] Document `auth.oauth` configuration: disabled behavior, `resource_audiences`, `scope_permissions`, route policy, TTL units, public-key list format.
+- [x] Document signing-key provisioning/rotation and one-time client-secret handling.
+- [x] Document Foundation/Infbyte ownership boundary and OAuth/application-token separation.
 - [ ] Document schema deployment, readiness, pruning, canary and rollback procedures.
 - [ ] Document implemented RFC claims accurately; do not claim generic final OAuth 2.1 RFC compliance while relying on draft guidance.
 - [ ] Document unsupported/deferred features: OIDC, dynamic registration, device flow, password/implicit grants, generic OAuth login, DPoP/PAR/etc.
+Evidence: configuration/key/client-secret/ownership guide `e7076d5`, docs index `5c8d314`.
 
 ## F7 — Performance and engineering gates
 - [ ] Extend benchmark framework with OAuth-disabled and OAuth workloads.
@@ -123,8 +124,8 @@ Execution remains F7.
 - [ ] After Foundation release, add disabled-default OAuth application config/routes/thin presentation hooks/integration tests/deployment closure.
 
 ## Resume point
-Last completed checkpoint: **F5 — protocol and compatibility matrix complete**.
-Latest implementation/test commit: `38868c6f55b96d7349412e7085b790bf75e21f77`.
+Last completed checkpoint: **F6.1-F6.3 — configuration, key/secret, and ownership documentation**.
+Documentation commit: `e7076d5ebba89dd35b79a772e941ec50749934b4`; index commit: `5c8d31489a72640a0c51f27930b9d858b31df4df`.
 Current active task: **F6 — Documentation and operations**.
-First unchecked action: document the `auth.oauth` configuration and disabled behavior.
+First unchecked action: document schema deployment, readiness, pruning, canary and rollback procedures.
 Execution evidence: implementation/test files are committed but not yet run in this environment; suite/release evidence remains under F7.
