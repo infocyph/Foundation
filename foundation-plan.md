@@ -70,7 +70,7 @@ Evidence: `f13ba53`, `7146bfb`, `99fca7d`, `d806cbe`, `f315660`, `1f9d9e9`. Exec
 
 ## F5 — Protocol and compatibility test matrix
 - [x] Update existing OAuth access-token tests for current signing-key-set constructor and trusted-audience `verify(token, audience)` contract.
-- [ ] Public Authorization Code + S256 success flow.
+- [x] Public Authorization Code + S256 success flow.
 - [ ] Confidential Authorization Code + S256 success flow.
 - [ ] Client Credentials success flow.
 - [ ] Refresh equal/narrowed-scope success; widened-scope rejection; rotated-token reuse handling.
@@ -81,7 +81,10 @@ Evidence: `f13ba53`, `7146bfb`, `99fca7d`, `d806cbe`, `f315660`, `1f9d9e9`. Exec
 - [ ] Disabled OAuth leaves resolver order/bindings/bootstrap/schema/key loading unchanged.
 - [ ] Rejection matrix: client/redirect/PKCE/code/grant/response/auth-method/scope/issuer/audience/token-use/algorithm/signature/kid/time/revocation/account/client/authorization/malformed failures.
 
-Access-token contract evidence: source fix `fc362c6c3e3d72a1d418923d8cc1df8085fc14e7`, test update `174b48b32d5c93d69e9b7433cb01de5fd17e262f`. The service now emits RFC-style space-delimited `scope`, and the test uses `OAuthSigningKeySet` plus explicit trusted-audience verification. Execution remains F7.
+Evidence:
+- Access-token contract: `fc362c6`, `174b48b`.
+- Public Authorization Code + S256: fixture `3703023`, flow test `6ff8f8f`.
+Execution remains F7.
 
 ## F6 — Documentation and operations
 - [ ] Document `auth.oauth` configuration: disabled behavior, `resource_audiences`, `scope_permissions`, route policy, TTL units, public-key list format.
@@ -114,8 +117,8 @@ Access-token contract evidence: source fix `fc362c6c3e3d72a1d418923d8cc1df8085fc
 - [ ] After Foundation release, add disabled-default OAuth application config/routes/thin presentation hooks/integration tests/deployment closure.
 
 ## Resume point
-Last completed checkpoint: **F5.1 — current OAuth access-token signing and trusted-audience contract**.
-Implementation/test commits: `fc362c6c3e3d72a1d418923d8cc1df8085fc14e7`, `174b48b32d5c93d69e9b7433cb01de5fd17e262f`.
+Last completed checkpoint: **F5.2 — Public Authorization Code + PKCE S256 success flow**.
+Implementation/test commits: `370302336a8077e40c19be8cd7b85c7db61a4ca7`, `6ff8f8f7044afe96dcb4f01fa2f018af53f0d671`.
 Current active task: **F5 — Protocol and compatibility test matrix**.
-First unchecked action: Public Authorization Code + S256 success flow.
+First unchecked action: Confidential Authorization Code + S256 success flow.
 Execution evidence: implementation/test files are committed but not yet run in this environment; suite/release evidence remains under F7.
