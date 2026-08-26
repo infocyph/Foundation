@@ -17,9 +17,12 @@ use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\EpicryptOAuthAccessTokenServ
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\EpicryptOAuthJwkSetProvider;
 use Infocyph\Foundation\Auth\Authorization\Gate\AuthorizerInterface;
 use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
+use Infocyph\Foundation\Auth\Contract\Id\AuthIdGeneratorInterface;
 use Infocyph\Foundation\Auth\Contract\Security\PasswordHasherInterface;
 use Infocyph\Foundation\Auth\Contract\Security\PasswordVerifierInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
+use Infocyph\Foundation\Auth\Contract\Storage\AuditEventStoreInterface;
+use Infocyph\Foundation\Auth\OAuth\Audit\OAuthAuditRecorder;
 use Infocyph\Foundation\Auth\OAuth\Authorization\AuthorizationCodeManager;
 use Infocyph\Foundation\Auth\OAuth\Authorization\AuthorizationRequestValidator;
 use Infocyph\Foundation\Auth\OAuth\Client\OAuthClientManager;
@@ -89,6 +92,11 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
 
     private function registerProtocolServices(): void
     {
+        $this->singleton(OAuthAuditRecorder::class, fn() => new OAuthAuditRecorder(
+            $this->service(AuditEventStoreInterface::class),
+            $this->service(AuthIdGeneratorInterface::class),
+            $this->service(ClockInterface::class),
+        ));
         $this->singleton(OAuthClientManager::class, fn() => new OAuthClientManager(
             clients: $this->service(OAuthClientStoreInterface::class),
             hasher: $this->service(PasswordHasherInterface::class),
@@ -177,6 +185,7 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
             metadata: $this->service(AuthorizationServerMetadata::class),
             jwks: $this->service(JwkSetProviderInterface::class),
             clients: $this->service(OAuthClientManager::class),
+            audit: $this->service(OAuthAuditRecorder::class),
         ));
     }
 
