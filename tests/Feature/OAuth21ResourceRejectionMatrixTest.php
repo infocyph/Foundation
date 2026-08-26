@@ -51,27 +51,52 @@ it('rejects issuer audience token-use algorithm signature and time failures', fu
             ],
         ));
         $wrongAudience = $fixture->accessTokens->issue(new OAuthAccessTokenClaims(
-            ...get_object_vars($claims),
+            issuer: $claims->issuer,
+            subject: $claims->subject,
             audiences: ['https://other-api.example.test'],
+            expiresAt: $claims->expiresAt,
+            issuedAt: $claims->issuedAt,
+            tokenId: 'wrong-audience-token',
+            clientId: $claims->clientId,
+            scopes: $claims->scopes,
+            authorizationId: $claims->authorizationId,
         ));
         $wrongUse = $fixture->accessTokens->issue(new OAuthAccessTokenClaims(
-            ...get_object_vars($claims),
+            issuer: $claims->issuer,
+            subject: $claims->subject,
+            audiences: $claims->audiences,
+            expiresAt: $claims->expiresAt,
+            issuedAt: $claims->issuedAt,
+            tokenId: 'wrong-use-token',
+            clientId: $claims->clientId,
+            scopes: $claims->scopes,
+            authorizationId: $claims->authorizationId,
             tokenUse: 'application_access',
         ));
         $valid = $fixture->accessTokens->issue($claims);
         $wrongAlgorithm = oauth21RejectRewriteHeader($valid, ['alg' => 'ES384']);
         $badSignature = oauth21RejectCorruptSignature($valid);
         $expired = $fixture->accessTokens->issue(new OAuthAccessTokenClaims(
-            ...get_object_vars($claims),
+            issuer: $claims->issuer,
+            subject: $claims->subject,
+            audiences: $claims->audiences,
             expiresAt: $now - 1,
             issuedAt: $now - 100,
             tokenId: 'expired-token',
+            clientId: $claims->clientId,
+            scopes: $claims->scopes,
+            authorizationId: $claims->authorizationId,
         ));
         $future = $fixture->accessTokens->issue(new OAuthAccessTokenClaims(
-            ...get_object_vars($claims),
+            issuer: $claims->issuer,
+            subject: $claims->subject,
+            audiences: $claims->audiences,
             expiresAt: $now + 300,
             issuedAt: $now + 120,
             tokenId: 'future-token',
+            clientId: $claims->clientId,
+            scopes: $claims->scopes,
+            authorizationId: $claims->authorizationId,
         ));
 
         foreach ([$wrongIssuer, $wrongAudience, $wrongUse, $wrongAlgorithm, $badSignature, $expired, $future] as $token) {
@@ -104,12 +129,13 @@ it('rejects revoked tokens disabled accounts disabled clients and revoked author
             createdAt: $fixture->clock->now(),
         );
         $fixture->authorizationStore->save($authorization);
+        $issuedAt = time();
         $token = $fixture->accessTokens->issue(new OAuthAccessTokenClaims(
             issuer: $fixture->keys->issuer,
             subject: 'account-1',
             audiences: [$audience],
-            expiresAt: time() + 120,
-            issuedAt: time(),
+            expiresAt: $issuedAt + 120,
+            issuedAt: $issuedAt,
             tokenId: 'matrix-state-token',
             clientId: $registration->client->clientId,
             scopes: ['profile.read'],
@@ -139,7 +165,7 @@ it('rejects revoked tokens disabled accounts disabled clients and revoked author
         $disabledAccounts = new class implements AccountProviderInterface {
             public function findById(string $id): ?AccountInterface
             {
-                return $id === 'account-1' ? new readonly class implements AccountInterface {
+                return $id === 'account-1' ? new class implements AccountInterface {
                     public function id(): string { return 'account-1'; }
                     public function identifier(): string { return 'disabled@example.test'; }
                     public function metadata(): array { return []; }
