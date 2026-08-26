@@ -1,17 +1,15 @@
-name: F7 Correctness Fix
+name: "F7 Autofix"
 
 on:
   push:
-    branches:
-      - feature/oauth-2.1
-    paths:
-      - .github/workflows/f7-autofix.yml
+    branches: [ "feature/oauth-2.1" ]
+    paths: [ ".github/workflows/f7-autofix.yml" ]
 
 permissions:
   contents: write
 
 jobs:
-  fix:
+  autofix:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -26,14 +24,18 @@ jobs:
         run: composer update --no-interaction --prefer-dist --no-progress --prefer-stable
       - name: Apply deterministic correctness patch
         run: python tools/f7-correctness-fix.py
-      - name: Apply PHPForge style and refactor rules
-        run: |
-          vendor/bin/pint --config vendor/infocyph/phpforge/resources/pint.json
-          vendor/bin/rector process --config vendor/infocyph/phpforge/resources/rector.php
-      - name: Commit correctness fixes
+      - name: Apply PHPForge Pint rules
+        run: vendor/bin/pint --config vendor/infocyph/phpforge/resources/pint.json
+      - name: Apply PHPForge Rector rules
+        run: vendor/bin/rector process --config vendor/infocyph/phpforge/resources/rector.php
+      - name: Commit generated fixes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src tests benchmarks
+          git add benchmarks src tests
+          if git diff --cached --quiet; then
+            echo "No generated fixes"
+            exit 0
+          fi
           git commit --no-verify -m "fix(f7): close release correctness failures"
           git push origin HEAD:feature/oauth-2.1
