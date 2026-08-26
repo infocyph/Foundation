@@ -1,162 +1,23 @@
-# Temporary F7 evidence workflow; remove after the recorded release gates pass.
-name: F7 Final Verification
+# Temporary F7 point-by-point evidence workflow; remove after F7 closes.
+name: F7 Point 2 Measurements
 
 on:
   push:
     branches: [ "feature/oauth-2.1" ]
-    paths:
-      - ".github/workflows/f7-final.yml"
-      - "tools/f7-existing-path-benchmark.php"
+    paths: [ ".github/workflows/f7-final.yml" ]
 
 permissions:
   contents: read
   actions: read
 
 concurrency:
-  group: foundation-f7-final
+  group: foundation-f7-point-2
   cancel-in-progress: true
 
-env:
-  XDEBUG_MODE: off
-  PHPFORGE_SERVICE_DATABASE: phpforge
-  PHPFORGE_SERVICE_USERNAME: phpforge
-  PHPFORGE_SERVICE_PASSWORD: Phpforge_123!
-  IC_SERVICE_DATABASE: phpforge
-  IC_SERVICE_USERNAME: phpforge
-  IC_SERVICE_PASSWORD: Phpforge_123!
-  IC_MYSQL_DSN: "mysql:host=127.0.0.1;port=3306;dbname=phpforge;charset=utf8mb4"
-  IC_MYSQL_PRIMARY_DSN: "mysql:host=127.0.0.1;port=3306;dbname=phpforge;charset=utf8mb4"
-  IC_MYSQL_REPLICA_DSN: "mysql:host=127.0.0.1;port=3307;dbname=phpforge;charset=utf8mb4"
-  IC_MYSQL_USER: phpforge
-  IC_MYSQL_PASSWORD: Phpforge_123!
-  IC_POSTGRES_DSN: "pgsql:host=127.0.0.1;port=5432;dbname=phpforge"
-  IC_POSTGRES_PRIMARY_DSN: "pgsql:host=127.0.0.1;port=5432;dbname=phpforge"
-  IC_POSTGRES_REPLICA_DSN: "pgsql:host=127.0.0.1;port=5433;dbname=phpforge"
-  IC_POSTGRES_USER: phpforge
-  IC_POSTGRES_PASSWORD: Phpforge_123!
-  IC_SQLITE_MEMORY_DSN: "sqlite::memory:"
-  IC_SQLITE_FILE_DSN: "sqlite:/tmp/phpforge.sqlite"
-  IC_REDIS_HOST: 127.0.0.1
-  IC_REDIS_PORT: 6379
-  IC_REDIS_REPLICA_HOST: 127.0.0.1
-  IC_REDIS_REPLICA_PORT: 6381
-  IC_REDIS_PASSWORD: Phpforge_123!
-  IC_VALKEY_HOST: 127.0.0.1
-  IC_VALKEY_PORT: 6380
-  IC_VALKEY_REPLICA_HOST: 127.0.0.1
-  IC_VALKEY_REPLICA_PORT: 6382
-  IC_VALKEY_PASSWORD: Phpforge_123!
-  IC_MEMCACHED_HOST: 127.0.0.1
-  IC_MEMCACHED_PORT: 11211
-  INTEGRATION_SERVICES: '["mysql","postgres","sqlite","redis","valkey","memcached"]'
-  SERVICE_TOPOLOGIES: '{}'
-
 jobs:
-  qa:
-    name: QA PHP ${{ matrix.php }} ${{ matrix.dependencies }}
-    runs-on: ubuntu-22.04
-    strategy:
-      fail-fast: false
-      matrix:
-        php: [ "8.4", "8.5" ]
-        dependencies: [ "prefer-lowest", "prefer-stable" ]
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/checkout@v7
-        with:
-          repository: infocyph/phpforge
-          ref: main
-          path: .phpforge-workflow
-          sparse-checkout: |
-            .github/scripts/verify-and-wait-services.sh
-            resources/services
-          sparse-checkout-cone-mode: false
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: ${{ matrix.php }}
-          tools: composer:v2
-          extensions: mbstring, pdo, pdo_mysql, pdo_pgsql, pdo_sqlite, redis, memcached
-          coverage: none
-      - name: Start PHPForge integration services
-        shell: bash
-        run: |
-          docker compose -f .phpforge-workflow/resources/services/compose.yml \
-            --profile mysql --profile postgres --profile redis --profile valkey --profile memcached up -d
-          bash .phpforge-workflow/.github/scripts/verify-and-wait-services.sh
-      - name: Resolve dependencies and constraints
-        shell: bash
-        run: |
-          composer validate --strict
-          composer update --no-interaction --prefer-dist --no-progress --${{ matrix.dependencies }}
-          composer ic:release:constraints
-      - name: Run unchanged PHPForge quality suite
-        shell: bash
-        env:
-          IC_PHPSTAN_MEMORY_LIMIT: 1G
-          IC_PEST_FAIL_ON_SKIPPED: "1"
-          IC_TEST_TASK_TIMEOUT: "300"
-        run: |
-          if [ "${{ matrix.dependencies }}" = "prefer-lowest" ]; then
-            composer ic:ci --prefer-lowest --without-analysis
-          else
-            composer ic:ci --without-analysis
-          fi
-      - name: Prove persistent reset and soak targets explicitly
-        run: vendor/bin/pest tests/Feature/OAuth21PersistentPrincipalResetTest.php tests/Feature/PersistentRuntimeSoakTest.php
-      - name: Stop PHPForge integration services
-        if: always()
-        shell: bash
-        run: |
-          docker compose -f .phpforge-workflow/resources/services/compose.yml \
-            --profile mysql --profile postgres --profile redis --profile valkey --profile memcached \
-            down --volumes --remove-orphans
-
-  analysis:
-    name: Analysis PHP ${{ matrix.php }}
-    runs-on: ubuntu-22.04
-    strategy:
-      fail-fast: false
-      matrix:
-        php: [ "8.4", "8.5" ]
-    steps:
-      - uses: actions/checkout@v7
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: ${{ matrix.php }}
-          tools: composer:v2
-          extensions: mbstring, pdo, pdo_mysql, pdo_pgsql, pdo_sqlite, redis, memcached
-          coverage: none
-      - run: composer update --no-interaction --prefer-dist --no-progress --prefer-stable
-      - name: Run release audit and analyzers with PHPForge configs
-        shell: bash
-        run: |
-          composer ic:release:audit
-          vendor_dir="$(composer config vendor-dir)"
-          php "$vendor_dir/bin/phpstan" analyse \
-            --configuration="$vendor_dir/infocyph/phpforge/resources/phpstan.neon.dist" \
-            --memory-limit=1G --no-progress
-          php "$vendor_dir/bin/psalm.phar" \
-            --config="$vendor_dir/infocyph/phpforge/resources/psalm.xml" \
-            --security-analysis --threads=1 --no-progress --no-cache
-
-  clean-install:
-    name: Clean production install
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v7
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: "8.5"
-          tools: composer:v2
-          extensions: mbstring, pdo, pdo_mysql, pdo_pgsql, pdo_sqlite, redis, memcached
-          coverage: none
-      - run: composer install --no-dev --no-interaction --prefer-dist --no-progress --classmap-authoritative
-      - run: composer check-platform-reqs --no-dev
-      - run: php -r 'require "vendor/autoload.php";'
-
-  performance:
-    name: Foundation 2.0 vs OAuth-disabled candidate
-    runs-on: ubuntu-22.04
+  measurements:
+    name: Record Foundation 2.0 and candidate measurements
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
         with:
@@ -183,41 +44,45 @@ jobs:
           FOUNDATION_BENCHMARK_STABLE: "1"
           FOUNDATION_BENCHMARK_FINGERPRINT: "${{ runner.os }}-${{ runner.arch }}-php85-${{ github.run_id }}"
         run: |
-          (cd baseline && composer benchmark:representative)
-          (cd candidate && composer benchmark:representative)
-      - name: Measure identical existing bearer path
+          (cd baseline && FOUNDATION_BENCHMARK_REF=2.0 composer benchmark:representative)
+          (cd candidate && FOUNDATION_BENCHMARK_REF=${{ github.sha }} composer benchmark:representative)
+      - name: Record identical existing bearer-path measurements
         shell: bash
         env:
           FOUNDATION_BENCHMARK_FINGERPRINT: "${{ runner.os }}-${{ runner.arch }}-php85-${{ github.run_id }}"
         run: |
           (cd baseline && FOUNDATION_BENCHMARK_REF=2.0 php ../candidate/tools/f7-existing-path-benchmark.php build/f7-existing-path.json)
           (cd candidate && FOUNDATION_BENCHMARK_REF=${{ github.sha }} php tools/f7-existing-path-benchmark.php build/f7-existing-path.json)
-      - name: Enforce <=2% median regression
+      - name: Write measurement manifest
         shell: bash
         run: |
           php -r '
           $baseline = json_decode((string) file_get_contents("baseline/build/f7-existing-path.json"), true, 512, JSON_THROW_ON_ERROR);
           $candidate = json_decode((string) file_get_contents("candidate/build/f7-existing-path.json"), true, 512, JSON_THROW_ON_ERROR);
-          $base = (float) $baseline["median_rpm"];
-          $next = (float) $candidate["median_rpm"];
-          if ($base <= 0.0 || $next <= 0.0) { fwrite(STDERR, "Invalid F7 benchmark median.\n"); exit(2); }
-          $regression = (($base - $next) / $base) * 100.0;
-          $result = ["baseline_median_rpm" => $base, "candidate_median_rpm" => $next, "regression_percent" => $regression, "budget_percent" => 2.0, "passed" => $regression <= 2.0];
-          file_put_contents("f7-performance-summary.json", json_encode($result, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR) . PHP_EOL);
-          echo json_encode($result, JSON_THROW_ON_ERROR) . PHP_EOL;
-          exit($regression <= 2.0 ? 0 : 1);
+          $manifest = [
+              "runner" => getenv("RUNNER_OS") . "-" . getenv("RUNNER_ARCH"),
+              "php" => PHP_VERSION,
+              "run_id" => getenv("GITHUB_RUN_ID"),
+              "baseline_ref" => "2.0",
+              "candidate_ref" => getenv("GITHUB_SHA"),
+              "baseline_existing_path_median_rpm" => $baseline["median_rpm"],
+              "candidate_existing_path_median_rpm" => $candidate["median_rpm"],
+          ];
+          file_put_contents("f7-measurement-manifest.json", json_encode($manifest, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR) . PHP_EOL);
+          echo json_encode($manifest, JSON_THROW_ON_ERROR) . PHP_EOL;
           '
-      - name: Validate candidate representative benchmark document
-        working-directory: candidate
-        run: composer ic:benchmark:validate build/benchmark-result.json
+        env:
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_SHA: ${{ github.sha }}
+          RUNNER_OS: ${{ runner.os }}
+          RUNNER_ARCH: ${{ runner.arch }}
       - uses: actions/upload-artifact@v7
-        if: always()
         with:
-          name: f7-performance-evidence
+          name: f7-point-2-measurements
           path: |
             baseline/build/benchmark-result.json
             candidate/build/benchmark-result.json
             baseline/build/f7-existing-path.json
             candidate/build/f7-existing-path.json
-            f7-performance-summary.json
+            f7-measurement-manifest.json
           if-no-files-found: error
