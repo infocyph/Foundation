@@ -35,7 +35,7 @@ use Infocyph\Foundation\Tests\Fixtures\OAuthAuditCapture;
 /**
  * @return array{
  *     manager: OAuthRevocationManager,
- *     revocations: OAuthAccessRevocationStoreInterface,
+ *     persisted: ArrayObject<int, OAuthAccessTokenRevocation>,
  *     capture: OAuthAuditCapture
  * }
  */
@@ -123,11 +123,13 @@ function oauthRevocationAuditFixture(string $claimClientId = 'oc_client'): array
             );
         }
     };
-    $revocations = new class implements OAuthAccessRevocationStoreInterface {
-        /** @var list<OAuthAccessTokenRevocation> */
-        public array $records = [];
+    /** @var ArrayObject<int, OAuthAccessTokenRevocation> $persisted */
+    $persisted = new ArrayObject();
+    $revocations = new class($persisted) implements OAuthAccessRevocationStoreInterface {
+        /** @param ArrayObject<int, OAuthAccessTokenRevocation> $records */
+        public function __construct(private ArrayObject $records) {}
         public function isRevoked(string $tokenId, int $now): bool { return false; }
-        public function revoke(OAuthAccessTokenRevocation $revocation): void { $this->records[] = $revocation; }
+        public function revoke(OAuthAccessTokenRevocation $revocation): void { $this->records->append($revocation); }
     };
     $capture = new OAuthAuditCapture();
 
@@ -140,7 +142,7 @@ function oauthRevocationAuditFixture(string $claimClientId = 'oc_client'): array
             clock: $clock,
             audit: $capture->recorder($now),
         ),
-        'revocations' => $revocations,
+        'persisted' => $persisted,
         'capture' => $capture,
     ];
 }
@@ -155,8 +157,8 @@ it('audits access-token revocation only after the durable revocation write', fun
         'access_token',
     );
 
-    expect($fixture['revocations']->records)->toHaveCount(1)
-        ->and($fixture['revocations']->records[0]->tokenId)->toBe('access-token-id')
+    expect($fixture['persisted'])->toHaveCount(1)
+        ->and($fixture['persisted'][0]->tokenId)->toBe('access-token-id')
         ->and($fixture['capture']->events)->toHaveCount(1)
         ->and($fixture['capture']->events[0]->type)->toBe(AuthEventType::OAUTH_ACCESS_TOKEN_REVOKED)
         ->and($fixture['capture']->events[0]->metadata)->toBe([
@@ -177,6 +179,6 @@ it('does not audit or persist an access-token revocation for a token owned by an
         'access_token',
     );
 
-    expect($fixture['revocations']->records)->toBe([])
+    expect($fixture['persisted'])->toHaveCount(0)
         ->and($fixture['capture']->events)->toBe([]);
 });
