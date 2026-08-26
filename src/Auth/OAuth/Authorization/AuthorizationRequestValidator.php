@@ -18,7 +18,7 @@ final readonly class AuthorizationRequestValidator
     ) {}
 
     /** @param array<string, mixed> $parameters */
-    public function validate(array $parameters): AuthorizationRequest
+    public function redirectContext(array $parameters): AuthorizationRedirectContext
     {
         $clientId = $this->requiredString($parameters, 'client_id', 128, false);
         $client = $this->clients->enabled($clientId);
@@ -31,15 +31,28 @@ final readonly class AuthorizationRequestValidator
             throw OAuthProtocolException::invalidRequest('The redirect URI is invalid.');
         }
 
+        return new AuthorizationRedirectContext(
+            client: $client,
+            redirectUri: $redirectUri,
+            state: $this->safeState($parameters['state'] ?? null),
+        );
+    }
+
+    /** @param array<string, mixed> $parameters */
+    public function validate(array $parameters): AuthorizationRequest
+    {
+        $redirect = $this->redirectContext($parameters);
+        $client = $redirect->client;
+
         if (!$client->allowsGrant(OAuthGrantType::AuthorizationCode)) {
             throw OAuthProtocolException::unauthorizedClient(true);
         }
-        if ($this->requiredString($parameters, 'response_type', 32) !== 'code') {
+        if ($this->requiredString($parameters, 'response_type', 32, redirectAllowed: true) !== 'code') {
             throw OAuthProtocolException::unsupportedResponseType(true);
         }
 
-        $challenge = $this->requiredString($parameters, 'code_challenge', 128);
-        $method = $this->requiredString($parameters, 'code_challenge_method', 16);
+        $challenge = $this->requiredString($parameters, 'code_challenge', 128, redirectAllowed: true);
+        $method = $this->requiredString($parameters, 'code_challenge_method', 16, redirectAllowed: true);
         if ($method !== 'S256' || preg_match('/\A[A-Za-z0-9_-]{43}\z/D', $challenge) !== 1) {
             throw OAuthProtocolException::invalidRequest('PKCE S256 is required.', true);
         }
@@ -56,7 +69,7 @@ final readonly class AuthorizationRequestValidator
 
         return new AuthorizationRequest(
             client: $client,
-            redirectUri: $redirectUri,
+            redirectUri: $redirect->redirectUri,
             codeChallenge: $challenge,
             scopes: $selection->scopes,
             audiences: $selection->audiences,
@@ -72,8 +85,8 @@ final readonly class AuthorizationRequestValidator
             return null;
         }
 
-        $state = $parameters['state'];
-        if (!is_string($state) || $state === '' || strlen($state) > 512 || preg_match('/[\x00-\x1F\x7F]/', $state) === 1) {
+        $state = $this->safeState($parameters['state']);
+        if ($state === null) {
             throw OAuthProtocolException::invalidRequest('The state parameter is invalid.', true);
         }
 
@@ -100,15 +113,16 @@ final readonly class AuthorizationRequestValidator
         string $name,
         int $maximumBytes,
         bool $trim = true,
+        bool $redirectAllowed = false,
     ): string {
         $value = $parameters[$name] ?? null;
         if (!is_string($value) || $value === '' || strlen($value) > $maximumBytes) {
-            throw OAuthProtocolException::invalidRequest();
+            throw OAuthProtocolException::invalidRequest(redirectAllowed: $redirectAllowed);
         }
 
         if (!$trim) {
             if (trim($value) !== $value) {
-                throw OAuthProtocolException::invalidRequest();
+                throw OAuthProtocolException::invalidRequest(redirectAllowed: $redirectAllowed);
             }
 
             return $value;
@@ -116,10 +130,19 @@ final readonly class AuthorizationRequestValidator
 
         $value = trim($value);
         if ($value === '') {
-            throw OAuthProtocolException::invalidRequest();
+            throw OAuthProtocolException::invalidRequest(redirectAllowed: $redirectAllowed);
         }
 
         return $value;
+    }
+
+    private function safeState(mixed $state): ?string
+    {
+        if (!is_string($state) || $state === '' || strlen($state) > 512 || preg_match('/[\x00-\x1F\x7F]/', $state) === 1) {
+            return null;
+        }
+
+        return $state;
     }
 
     /** @param array<string, mixed> $parameters @return list<string> */
