@@ -65,6 +65,7 @@ $currentFile = '(unknown)';
 foreach (preg_split('/\R/', $diff) ?: [] as $line) {
     if (str_starts_with($line, '+++ b/')) {
         $currentFile = substr($line, 6);
+
         continue;
     }
 
@@ -73,6 +74,7 @@ foreach (preg_split('/\R/', $diff) ?: [] as $line) {
     }
 
     $added = substr($line, 1);
+
     foreach ($forbidden as $pattern => $reason) {
         if (preg_match($pattern, $added) === 1) {
             $violations[] = sprintf('%s: %s: %s', $currentFile, $reason, trim($added));
@@ -88,6 +90,7 @@ foreach (preg_split('/\R/', trim($nameStatus)) ?: [] as $entry) {
     $parts = preg_split('/\s+/', $entry, 2);
     $status = $parts[0] ?? '';
     $path = $parts[1] ?? '';
+
     if (!str_starts_with($status, 'A')) {
         continue;
     }
@@ -102,4 +105,4 @@ if ($violations !== []) {
     exit(1);
 }
 
-echo sprintf("F7 no-weakened-gates guard passed against %s.\n", $base);
+fwrite(STDOUT, sprintf("F7 no-weakened-gates guard passed against %s.\n", $base));
