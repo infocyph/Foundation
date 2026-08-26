@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "point": "F7.3",
+  "source": {
+    "measurement_evidence_commit": "e565610706f186aee7b0d6b5a49e4cd5e3ba47cc",
+    "workflow_run_id": 32987689449,
+    "job_id": 98237728121,
+    "artifact_id": 9613479396,
+    "fingerprint": "Linux-X64-php85-32987689449"
+  },
+  "workload": "oauth-disabled-existing-application-bearer",
+  "baseline_ref": "2.0",
+  "candidate_ref": "d59756d318108e52f0d1c886007ecde21316b529",
+  "baseline_median_rpm": 1102806.5610902894,
+  "candidate_median_rpm": 1121033.6540132312,
+  "formula": "((baseline_median_rpm - candidate_median_rpm) / baseline_median_rpm) * 100",
+  "regression_percent": -1.6527914836597972,
+  "budget_percent": 2.0,
+  "passed": true,
+  "interpretation": "Negative regression means the candidate is faster than the Foundation 2.0 baseline on the identical OAuth-disabled existing application-bearer path."
+}
