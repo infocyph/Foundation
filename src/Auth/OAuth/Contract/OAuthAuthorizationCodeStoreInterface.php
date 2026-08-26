@@ -15,6 +15,7 @@ interface OAuthAuthorizationCodeStoreInterface
         string $codeHash,
         string $clientId,
         string $redirectUriHash,
+        string $pkceChallenge,
         int $now,
     ): OAuthAuthorizationCodeConsumeResult;
 }
