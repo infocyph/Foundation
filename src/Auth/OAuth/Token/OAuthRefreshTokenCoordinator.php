@@ -6,8 +6,11 @@ namespace Infocyph\Foundation\Auth\OAuth\Token;
 
 use Infocyph\Epicrypt\Token\Opaque\OpaqueToken;
 use Infocyph\Foundation\Auth\Account\AccountStatus;
+use Infocyph\Foundation\Auth\Audit\AuthEventSeverity;
+use Infocyph\Foundation\Auth\Audit\AuthEventType;
 use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
+use Infocyph\Foundation\Auth\OAuth\Audit\OAuthAuditRecorder;
 use Infocyph\Foundation\Auth\OAuth\Authorization\OAuthAuthorization;
 use Infocyph\Foundation\Auth\OAuth\Client\OAuthClient;
 use Infocyph\Foundation\Auth\OAuth\Client\OAuthClientManager;
@@ -28,6 +31,7 @@ final readonly class OAuthRefreshTokenCoordinator
         private ClockInterface $clock,
         private OpaqueToken $tokens,
         private int $ttlSeconds = 1209600,
+        private ?OAuthAuditRecorder $audit = null,
     ) {
         if ($this->ttlSeconds < 1) {
             throw new \InvalidArgumentException('OAuth refresh-token TTL must be positive.');
@@ -74,6 +78,7 @@ final readonly class OAuthRefreshTokenCoordinator
         $now = $this->clock->now();
         if ($current->rotatedAt !== null) {
             $this->refreshTokens->revokeFamily($current->familyId, $now);
+            $this->recordReuse($current);
             throw OAuthProtocolException::invalidGrant();
         }
         if ($current->revokedAt !== null || $current->expiresAt <= $now) {
@@ -110,11 +115,24 @@ final readonly class OAuthRefreshTokenCoordinator
         $result = $this->refreshTokens->rotate($tokenHash, $replacement, $now);
         if ($result->status === OAuthRefreshRotationStatus::Reused) {
             $this->refreshTokens->revokeFamily($current->familyId, $now);
+            $this->recordReuse($current);
             throw OAuthProtocolException::invalidGrant();
         }
         if (!$result->succeeded()) {
             throw OAuthProtocolException::invalidGrant();
         }
+
+        $this->audit?->record(
+            AuthEventType::OAUTH_REFRESH_TOKEN_ROTATED,
+            $current->accountId,
+            [
+                'client_id' => $current->clientId,
+                'authorization_id' => $current->authorizationId,
+                'result' => $result->status->value,
+                'scopes' => $replacement->scopes,
+                'audiences' => $replacement->audiences,
+            ],
+        );
 
         return new OAuthRefreshTokenIssue($plain, $replacement);
     }
@@ -131,6 +149,15 @@ final readonly class OAuthRefreshTokenCoordinator
         }
 
         $this->refreshTokens->revokeFamily($record->familyId, $this->clock->now());
+        $this->audit?->record(
+            AuthEventType::OAUTH_REFRESH_TOKEN_REVOKED,
+            $record->accountId,
+            [
+                'client_id' => $record->clientId,
+                'authorization_id' => $record->authorizationId,
+                'result' => 'revoked',
+            ],
+        );
     }
 
     private function assertAuthorization(OAuthAuthorization $authorization, OAuthClient $client, int $now): void
@@ -178,6 +205,20 @@ final readonly class OAuthRefreshTokenCoordinator
             audiences: $audiences,
             issuedAt: $now,
             expiresAt: $now + $this->ttlSeconds,
+        );
+    }
+
+    private function recordReuse(OAuthRefreshTokenRecord $record): void
+    {
+        $this->audit?->record(
+            AuthEventType::OAUTH_REFRESH_TOKEN_REUSE,
+            $record->accountId,
+            [
+                'client_id' => $record->clientId,
+                'authorization_id' => $record->authorizationId,
+                'result' => 'reused',
+            ],
+            AuthEventSeverity::WARNING,
         );
     }
 
