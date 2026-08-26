@@ -37,6 +37,8 @@ final readonly class OAuthConfigValidator
         $this->validatePositiveInteger($issues, 'auth.oauth.refresh_token_ttl');
         $this->validateGrants($issues);
         $this->validatePkce($issues);
+        $this->validateResourceAudiences($issues);
+        $this->validateScopePermissions($issues);
         $this->validateSigning($issues);
         $this->validateRoutes($issues);
         $this->validateDatabase($issues);
@@ -143,6 +145,33 @@ final readonly class OAuthConfigValidator
     }
 
     /** @param list<ConfigIssue> $issues */
+    private function validateResourceAudiences(array &$issues): void
+    {
+        $audiences = $this->config->get('auth.oauth.resource_audiences', []);
+        if (!is_array($audiences) || !array_is_list($audiences) || count($audiences) > 16) {
+            $issues[] = new ConfigIssue(
+                'auth.oauth.resource_audiences must be a list containing at most 16 audience identifiers.',
+                'auth.oauth.resource_audiences',
+            );
+
+            return;
+        }
+
+        $seen = [];
+        foreach ($audiences as $audience) {
+            if (!is_string($audience) || trim($audience) === '' || strlen($audience) > 2048 || isset($seen[$audience])) {
+                $issues[] = new ConfigIssue(
+                    'auth.oauth.resource_audiences must contain unique non-empty strings no longer than 2048 bytes.',
+                    'auth.oauth.resource_audiences',
+                );
+
+                return;
+            }
+            $seen[$audience] = true;
+        }
+    }
+
+    /** @param list<ConfigIssue> $issues */
     private function validateRoutes(array &$issues): void
     {
         $seen = [];
@@ -162,6 +191,37 @@ final readonly class OAuthConfigValidator
             }
 
             $issues[] = new ConfigIssue(sprintf('%s must be a local absolute path.', $key), $key);
+        }
+    }
+
+    /** @param list<ConfigIssue> $issues */
+    private function validateScopePermissions(array &$issues): void
+    {
+        $mapping = $this->config->get('auth.oauth.scope_permissions', []);
+        if (!is_array($mapping) || array_is_list($mapping) && $mapping !== []) {
+            $issues[] = new ConfigIssue(
+                'auth.oauth.scope_permissions must be a map of OAuth scope names to Foundation permission names.',
+                'auth.oauth.scope_permissions',
+            );
+
+            return;
+        }
+
+        foreach ($mapping as $scope => $permission) {
+            if (
+                !is_string($scope)
+                || preg_match('/\A[A-Za-z0-9._:-]{1,128}\z/D', $scope) !== 1
+                || !is_string($permission)
+                || trim($permission) === ''
+                || strlen($permission) > 255
+            ) {
+                $issues[] = new ConfigIssue(
+                    'auth.oauth.scope_permissions contains an invalid scope or permission name.',
+                    'auth.oauth.scope_permissions',
+                );
+
+                return;
+            }
         }
     }
 
