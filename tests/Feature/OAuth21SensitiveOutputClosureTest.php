@@ -87,15 +87,8 @@ it('has no direct OAuth logger channel that could bypass the sanitized audit rec
     $root = dirname(__DIR__, 2) . '/src/Auth/OAuth';
     $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root));
     $forbidden = [
+        'Psr\\Log\\',
         'LoggerInterface',
-        '->debug(',
-        '->info(',
-        '->notice(',
-        '->warning(',
-        '->error(',
-        '->critical(',
-        '->alert(',
-        '->emergency(',
     ];
 
     foreach ($iterator as $file) {

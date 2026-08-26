@@ -39,9 +39,15 @@ it('audits active signing key selection failure without exposing key paths', fun
             ->not->toContain($privateLocator)
             ->not->toContain($publicLocator);
     } finally {
-        @unlink($privateLocator);
-        @unlink($publicLocator);
-        @rmdir($directory);
+        if (is_file($privateLocator)) {
+            unlink($privateLocator);
+        }
+        if (is_file($publicLocator)) {
+            unlink($publicLocator);
+        }
+        if (is_dir($directory)) {
+            rmdir($directory);
+        }
     }
 
     expect($capture->events)->toHaveCount(1)

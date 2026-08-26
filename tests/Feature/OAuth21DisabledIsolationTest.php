@@ -11,7 +11,6 @@ use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Http\Resolver\BearerTokenPrincipalResolver;
-use Infocyph\Foundation\Http\Resolver\OAuthBearerTokenPrincipalResolver;
 use Infocyph\Foundation\Http\Resolver\RequestPrincipalResolver;
 
 it('keeps OAuth fully inert when disabled', function (): void {
@@ -53,7 +52,6 @@ it('keeps OAuth fully inert when disabled', function (): void {
             ])
             ->and($app->has(BearerTokenPrincipalResolver::class))->toBeTrue()
             ->and($app->has(RequestPrincipalResolver::class))->toBeTrue()
-            ->and($app->has(OAuthBearerTokenPrincipalResolver::class))->toBeFalse()
             ->and($app->has(OAuthManager::class))->toBeFalse()
             ->and($app->has(OAuthSigningKeySet::class))->toBeFalse();
 

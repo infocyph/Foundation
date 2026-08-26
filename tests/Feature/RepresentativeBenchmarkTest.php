@@ -20,6 +20,8 @@ it('produces validated representative results from complete Foundation requests'
             ->and(array_column($document['workloads'], 'name'))->toBe([
                 'minimal-json-warm',
                 'route-selected-array-session-warm',
+                'oauth-disabled-application-bearer-warm',
+                'oauth-client-credentials-bearer-resolution-warm',
             ]);
 
         foreach ($document['workloads'] as $workload) {

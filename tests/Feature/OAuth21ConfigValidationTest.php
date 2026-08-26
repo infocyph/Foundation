@@ -35,7 +35,11 @@ it('accepts the supported OAuth profile when required deployment state is config
         'signing' => [
             'active_key_id' => 'oauth-key-1',
             'private_key' => '/run/secrets/oauth-private.pem',
-            'public_keys' => ['/run/secrets/oauth-public.pem'],
+            'public_keys' => [[
+                'id' => 'oauth-key-1',
+                'path' => '/run/secrets/oauth-public.pem',
+                'status' => 'active',
+            ]],
         ],
     ]);
     $config['database'] = [

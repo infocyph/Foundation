@@ -115,7 +115,7 @@ it('regrants revoked consent and rolls back partial client registration atomical
             $atomicClient,
             [$duplicateRedirect, $duplicateRedirect],
             ['profile.read'],
-        ))->toThrow(Throwable::class);
+        ))->toThrow(RuntimeException::class);
 
         expect($clients->find('oc_atomic'))->toBeNull()
             ->and($clients->redirectUris('oc_atomic'))->toBe([])

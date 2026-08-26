@@ -80,7 +80,7 @@ it('rejects issuer audience token-use algorithm signature and time failures', fu
             issuer: $claims->issuer,
             subject: $claims->subject,
             audiences: $claims->audiences,
-            expiresAt: $now - 1,
+            expiresAt: $now - 60,
             issuedAt: $now - 100,
             tokenId: 'expired-token',
             clientId: $claims->clientId,
