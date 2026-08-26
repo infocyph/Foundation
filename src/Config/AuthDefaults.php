@@ -43,6 +43,31 @@ final class AuthDefaults
                     'max_passkey_failures' => 5,
                     'window_seconds' => 900,
                 ],
+                'oauth' => [
+                    'enabled' => false,
+                    'issuer' => null,
+                    'access_token_ttl' => 300,
+                    'authorization_code_ttl' => 60,
+                    'refresh_token_ttl' => 1209600,
+                    'grants' => [
+                        'authorization_code',
+                        'client_credentials',
+                        'refresh_token',
+                    ],
+                    'pkce_methods' => ['S256'],
+                    'signing' => [
+                        'active_key_id' => null,
+                        'private_key' => null,
+                        'public_keys' => [],
+                    ],
+                    'routes' => [
+                        'authorization' => '/oauth/authorize',
+                        'token' => '/oauth/token',
+                        'revocation' => '/oauth/revoke',
+                        'introspection' => '/oauth/introspect',
+                        'jwks' => '/.well-known/jwks.json',
+                    ],
+                ],
                 'otp' => [
                     'issuer' => 'Foundation',
                     'hotp' => [
