@@ -40,19 +40,21 @@ These items are already implemented on this branch and were re-verified from the
 
 ### F1 — CLI administration
 
-- [ ] Add bounded client administration commands:
+- [x] Add bounded client administration commands:
   - `auth:oauth:client:create`
   - `auth:oauth:client:list`
   - `auth:oauth:client:show`
   - `auth:oauth:client:rotate-secret`
   - `auth:oauth:client:enable`
   - `auth:oauth:client:disable`
-- [ ] Add bounded authorization commands:
+- [x] Add bounded authorization commands:
   - `auth:oauth:authorization:list`
   - `auth:oauth:authorization:revoke`
-- [ ] Add `auth:oauth:key:check` without exposing private material or locator paths.
-- [ ] Ensure explicit options permit non-interactive use, secret output is one-time only, and stable exit codes are used.
-- [ ] Add CLI command tests.
+- [x] Add `auth:oauth:key:check` without exposing private material or locator paths.
+- [x] Ensure explicit options permit non-interactive use, secret output is one-time only, and stable exit codes are used.
+- [x] Add CLI command tests.
+
+Implementation evidence: command handler `f49924f2675e3ba49727621fe7222f04a529d357`, catalog wiring `a730d979619d6e83cf1c2d80875dbb5e2f3fe08c`, repeated-value API correction `898b129c954afd89cc7c81381eb116386cc35dde`, CLI tests `b07e82f7d3e3ef05e2929912ce0b1a7751efce1c`. Test files are committed; execution evidence remains intentionally unchecked under F7.
 
 Exit: OAuth client/authorization/key administration is usable through Foundation's existing command ownership without a parallel CLI subsystem.
 
@@ -151,11 +153,8 @@ Exit: Foundation is complete before Infbyte integration lock/release.
 
 ## Resume point
 
-Current active task: **F1 — CLI administration**.
-
-When stopping work, update this section with:
-
-- last completed task/checkpoint;
-- commit SHA containing the implementation;
-- first unchecked next action;
-- any verified blocker or unavailable execution evidence.
+Last completed checkpoint: **F1 — CLI administration**.
+Implementation/test commit: `b07e82f7d3e3ef05e2929912ce0b1a7751efce1c` (plus supporting commits listed in F1).
+Current active task: **F2 — Reusable OAuth HTTP protocol boundary**.
+First unchecked action: strict bounded form/query extraction with duplicate rejection and content-type validation.
+Execution evidence: F1 test files are committed but have not yet been run in this environment; suite/release evidence remains under F7.
