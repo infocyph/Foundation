@@ -119,9 +119,8 @@ final readonly class OAuthRefreshTokenCoordinator
         }
         $this->assertAuthorization($authorization, $client, $now);
 
-        $scopes = $this->scopes->narrow($current->scopes, $requestedScopes);
-
         try {
+            $scopes = $this->scopes->narrow($current->scopes, $requestedScopes);
             $selection = $this->scopes->resolve($client, $scopes, $current->audiences);
         } catch (\InvalidArgumentException) {
             throw OAuthProtocolException::invalidGrant();
@@ -187,6 +186,10 @@ final readonly class OAuthRefreshTokenCoordinator
         }
     }
 
+    /**
+     * @param list<string> $scopes
+     * @param list<string> $audiences
+     */
     private function newRecord(
         string $tokenHash,
         string $familyId,
