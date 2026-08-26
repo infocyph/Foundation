@@ -2,8 +2,6 @@
 
 declare(strict_types=1);
 
-use function Pest\Faker\fake;
-
 /**
  * @param list<string> $command
  */
