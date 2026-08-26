@@ -6,19 +6,43 @@ namespace Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth;
 
 use Infocyph\Epicrypt\Token\Jwt\AsymmetricJwt;
 use Infocyph\Epicrypt\Token\Jwt\JwtClaims;
+use Infocyph\Epicrypt\Token\Jwt\JwtPolicy;
+use Infocyph\Epicrypt\Token\Jwt\JwtProfile;
 use Infocyph\Foundation\Auth\OAuth\Contract\OAuthAccessTokenServiceInterface;
 use Infocyph\Foundation\Auth\OAuth\Exception\OAuthTokenException;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthAccessTokenClaims;
+use Infocyph\Foundation\Auth\OAuth\Token\OAuthSigningKeySet;
 
 final readonly class EpicryptOAuthAccessTokenService implements OAuthAccessTokenServiceInterface
 {
+    private AsymmetricJwt $issuer;
+
     public function __construct(
-        private AsymmetricJwt $issuer,
-        private AsymmetricJwt $verifier,
-    ) {}
+        private OAuthSigningKeySet $keys,
+        private int $maximumLifetimeSeconds = 300,
+        private int $leewaySeconds = 30,
+    ) {
+        if ($this->maximumLifetimeSeconds < 1 || $this->leewaySeconds < 0) {
+            throw new \InvalidArgumentException('OAuth access-token timing policy is invalid.');
+        }
+
+        $this->issuer = AsymmetricJwt::issuer(
+            $this->keys->privateKey,
+            'at+jwt',
+            $this->keys->activeKeyId,
+            $this->keys->algorithm,
+        );
+    }
 
     public function issue(OAuthAccessTokenClaims $claims): string
     {
+        if (!hash_equals($this->keys->issuer, $claims->issuer)) {
+            throw new OAuthTokenException('OAuth access token issuer does not match server policy.');
+        }
+        if (($claims->expiresAt - $claims->issuedAt) > $this->maximumLifetimeSeconds) {
+            throw new OAuthTokenException('OAuth access token lifetime exceeds server policy.');
+        }
+
         $custom = [
             'client_id' => $claims->clientId,
             'token_use' => $claims->tokenUse,
@@ -42,9 +66,27 @@ final readonly class EpicryptOAuthAccessTokenService implements OAuthAccessToken
         ));
     }
 
-    public function verify(string $token): OAuthAccessTokenClaims
+    public function verify(string $token, string $expectedAudience): OAuthAccessTokenClaims
     {
-        $result = $this->verifier->verifyResult($token);
+        if ($token === '' || $expectedAudience === '') {
+            throw new OAuthTokenException('OAuth access token verification failed.');
+        }
+
+        $policy = new JwtPolicy(
+            expectedIssuer: $this->keys->issuer,
+            expectedAudience: $expectedAudience,
+            expectedType: 'at+jwt',
+            maximumLifetimeSeconds: $this->maximumLifetimeSeconds,
+            leewaySeconds: $this->leewaySeconds,
+            maximumFutureIssuedAtSeconds: $this->leewaySeconds,
+            profile: JwtProfile::OAUTH_ACCESS_TOKEN,
+            requiredClaims: ['iss', 'sub', 'aud', 'exp', 'iat', 'jti', 'client_id'],
+        );
+        $result = AsymmetricJwt::verifier(
+            $this->keys->publicKeys,
+            $policy,
+            $this->keys->algorithm,
+        )->verifyResult($token);
         if (!$result->valid) {
             throw new OAuthTokenException('OAuth access token verification failed.');
         }
