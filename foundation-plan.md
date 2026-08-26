@@ -104,7 +104,7 @@ Evidence: configuration/key/client-secret/ownership guide `e7076d5`, docs index 
 ## F7 — Performance and engineering gates
 - [x] Extend benchmark framework with OAuth-disabled and OAuth workloads.
 - [x] Record environment and representative baseline/candidate measurements.
-- [ ] Prove OAuth-disabled existing-path median regression within measured acceptance budget.
+- [x] Prove OAuth-disabled existing-path median regression within measured acceptance budget.
 - [ ] Run persistent-worker repeated-request/reset and available soak coverage.
 - [ ] Run Composer validation/audit/runtime compatibility.
 - [ ] Run PHPForge static/style/refactor/complexity/architecture/duplicate/comment gates.
@@ -115,14 +115,13 @@ Evidence: configuration/key/client-secret/ownership guide `e7076d5`, docs index 
 Evidence and prepared execution paths:
 - F7.1 benchmark framework: `4d6f0bf` adds explicit OAuth-disabled application-bearer and OAuth client-credentials bearer-resolution workloads; provisioning/key generation/schema/token issuance remain outside measured loops.
 - F7.2 measurements: execution run `32987689449`, job `98237728121`, artifact `9613479396` (`sha256:ed5b68b509afd658d1d0dada3c53411e27d61cefed8cd894878ff5b969d4404e`), durable evidence `e565610`. Same-runner fingerprint `Linux-X64-php85-32987689449` on PHP 8.5.9 / Linux 6.17.0-1022-azure / AMD EPYC 7763; baseline `2.0` and candidate `d59756d` representative plus identical application-bearer measurements recorded.
-- F7.3 preliminary calculation evidence: `d1e5c47` records the already measured 2% budget result, but this checkbox intentionally remains open for the later point-specific rerun requested before marking completion.
+- F7.3 regression budget: executed in run `32987689449`; baseline median `1,102,806.56 RPM`, candidate median `1,121,033.65 RPM`, regression `-1.6528%` against the `2%` maximum. Result PASS; durable calculation evidence `d1e5c47`.
 - F7.4 execution target: `8dcdc03` adds a 1,000-iteration OAuth/non-OAuth principal reset soak, complementing `OAuth21PersistentPrincipalResetTest` and `PersistentRuntimeSoakTest`.
 - F7.9 guard implementation: `46cda9b` rejects feature-diff additions that introduce analyzer suppressions/baselines, skipped-test bypasses, non-blocking CI, disabled analysis/audit/platform checks, unbounded analyzer memory, or a raised benchmark regression budget.
-- Deferred selector: `b4fc0bf` adds `tools/f7-run/gate.txt`, initially `none`, so gate execution is opt-in.
-- F7.3-F7.9 runner: `b986906` replaces the temporary point-2 workflow with isolated later-run jobs for performance, persistent worker soak, Composer/runtime PHP 8.4+8.5, explicit PHPForge engineering checks, full Pest dependency/PHP matrix with integration services, focused OAuth conformance coverage, and the no-weakened-gates guard.
+- Deferred selector: `b4fc0bf` adds `tools/f7-run/gate.txt` so remaining gate execution is opt-in.
+- F7.3-F7.9 runner: `b986906` provides isolated jobs for performance, persistent worker soak, Composer/runtime PHP 8.4+8.5, explicit PHPForge engineering checks, full Pest dependency/PHP matrix with integration services, focused OAuth conformance coverage, and the no-weakened-gates guard.
 - Local F7 entry points: `f509e5e` adds `composer f7:worker`, `composer f7:pest`, `composer f7:oauth`, and `composer f7:no-weakened-gates`.
 - Temporary F7.2 Pest evidence harness removed in `5dc13eb` so future complete Pest execution does not perform benchmark/network side effects.
-- Per current instruction, F7.3-F7.9 remain unchecked until each prepared gate is actually executed and reviewed later.
 
 ## F8 — Foundation release handoff
 - [ ] Resolve OAuth-introduced gate failures.
@@ -136,8 +135,8 @@ Evidence and prepared execution paths:
 - [ ] After Foundation release, add disabled-default OAuth application config/routes/thin presentation hooks/integration tests/deployment closure.
 
 ## Resume point
-Last completed checkpoint: **F7.2 — stable environment and representative Foundation 2.0/candidate measurements recorded**.
-Measurement evidence commit: `e565610706f186aee7b0d6b5a49e4cd5e3ba47cc`; execution run `32987689449`.
-Current implementation state: **all F7.3-F7.9 execution support is prepared and committed, but deliberately not marked complete**.
-Next execution action: set `tools/f7-run/gate.txt` to `f7.3`, execute/review that gate, mark it only on green evidence, then continue point-by-point through `f7.9`.
-Execution evidence: F7.1-F7.2 are complete; F7.3-F7.9 are ready to run and remain unchecked by request until their later point-specific executions are reviewed.
+Last completed checkpoint: **F7.3 — OAuth-disabled existing-path performance budget passed**.
+Performance evidence: run `32987689449`; durable calculation `d1e5c47a8aa6ee5e066a4ae8c9d54e36b2c14456`.
+Current active task: **F7 — Performance and engineering gates**.
+First unchecked action: run persistent-worker repeated-request/reset and available soak coverage (F7.4).
+Execution evidence: F7.1-F7.3 are complete; F7.4-F7.9 remain unchecked until their execution evidence is reviewed.
