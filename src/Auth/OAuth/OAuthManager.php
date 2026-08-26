@@ -44,7 +44,12 @@ final readonly class OAuthManager
     /** @param array<string, mixed> $parameters */
     public function authorizationRedirectContext(array $parameters): AuthorizationRedirectContext
     {
-        return $this->authorizationRequests->redirectContext($parameters);
+        try {
+            return $this->authorizationRequests->redirectContext($parameters);
+        } catch (OAuthProtocolException $exception) {
+            $this->recordInvalidRequest($exception, 'redirect_validation');
+            throw $exception;
+        }
     }
 
     /** @param array<string, mixed> $parameters */
@@ -53,11 +58,8 @@ final readonly class OAuthManager
         try {
             return $this->authorizationRequests->validate($parameters);
         } catch (OAuthProtocolException $exception) {
-            $this->audit?->record(
-                AuthEventType::OAUTH_INVALID_REQUEST,
-                metadata: ['error' => $exception->error],
-                severity: AuthEventSeverity::WARNING,
-            );
+            $reason = $exception->error === 'invalid_scope' ? 'scope_validation' : 'authorization_request';
+            $this->recordInvalidRequest($exception, $reason);
             throw $exception;
         }
     }
@@ -77,6 +79,21 @@ final readonly class OAuthManager
         ]);
 
         return $consent;
+    }
+
+    public function deny(AuthorizationRequest $request, ?PrincipalInterface $principal = null): void
+    {
+        $this->audit?->record(
+            AuthEventType::OAUTH_AUTHORIZATION_DENIED,
+            $principal?->accountId(),
+            [
+                'client_id' => $request->client->clientId,
+                'scopes' => $request->scopes,
+                'audiences' => $request->audiences,
+                'reason' => 'resource_owner_denied',
+            ],
+            AuthEventSeverity::WARNING,
+        );
     }
 
     public function revokeConsent(PrincipalInterface $principal, string $clientId): int
@@ -175,5 +192,17 @@ final readonly class OAuthManager
     public function clients(): OAuthClientManager
     {
         return $this->clients;
+    }
+
+    private function recordInvalidRequest(OAuthProtocolException $exception, string $reason): void
+    {
+        $this->audit?->record(
+            AuthEventType::OAUTH_INVALID_REQUEST,
+            metadata: [
+                'error' => $exception->error,
+                'reason' => $reason,
+            ],
+            severity: AuthEventSeverity::WARNING,
+        );
     }
 }
