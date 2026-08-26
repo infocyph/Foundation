@@ -70,6 +70,12 @@ final class AuthDefaults
                         'introspection' => '/oauth/introspect',
                         'jwks' => '/.well-known/jwks.json',
                     ],
+                    'rate_limits' => [
+                        'authorization' => ['max' => 60, 'window' => 60],
+                        'token' => ['max' => 30, 'window' => 60],
+                        'revocation' => ['max' => 60, 'window' => 60],
+                        'introspection' => ['max' => 120, 'window' => 60],
+                    ],
                 ],
                 'otp' => [
                     'issuer' => 'Foundation',
