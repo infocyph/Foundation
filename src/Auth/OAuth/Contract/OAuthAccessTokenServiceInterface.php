@@ -10,5 +10,5 @@ interface OAuthAccessTokenServiceInterface
 {
     public function issue(OAuthAccessTokenClaims $claims): string;
 
-    public function verify(string $token): OAuthAccessTokenClaims;
+    public function verify(string $token, string $expectedAudience): OAuthAccessTokenClaims;
 }
