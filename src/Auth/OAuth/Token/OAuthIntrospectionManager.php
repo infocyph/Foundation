@@ -14,6 +14,7 @@ use Infocyph\Foundation\Auth\OAuth\Client\OAuthClientManager;
 use Infocyph\Foundation\Auth\OAuth\Contract\OAuthAuthorizationStoreInterface;
 use Infocyph\Foundation\Auth\OAuth\Contract\OAuthRefreshTokenStoreInterface;
 use Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException;
+use Infocyph\Foundation\Auth\OAuth\Exception\OAuthTokenException;
 use Infocyph\Foundation\Auth\OAuth\Scope\OAuthScopeResolver;
 
 final readonly class OAuthIntrospectionManager
@@ -60,7 +61,7 @@ final readonly class OAuthIntrospectionManager
         foreach ($caller->audiences as $audience) {
             try {
                 $verified = $this->accessTokens->verify($token, $audience);
-            } catch (\Throwable) {
+            } catch (OAuthTokenException) {
                 continue;
             }
             if (!hash_equals($verified->claims->clientId, $caller->clientId)) {
@@ -86,10 +87,12 @@ final readonly class OAuthIntrospectionManager
     private function introspectRefresh(#[\SensitiveParameter] string $token, OAuthClient $caller): OAuthIntrospectionResult
     {
         try {
-            $record = $this->refreshTokens->findByHash($this->opaqueTokens->hash($token));
+            $tokenHash = $this->opaqueTokens->hash($token);
         } catch (\Throwable) {
             return OAuthIntrospectionResult::inactive();
         }
+
+        $record = $this->refreshTokens->findByHash($tokenHash);
         $now = $this->clock->now();
         if (
             !$record instanceof OAuthRefreshTokenRecord
