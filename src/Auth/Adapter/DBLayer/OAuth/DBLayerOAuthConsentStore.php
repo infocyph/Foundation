@@ -11,16 +11,23 @@ use Infocyph\Foundation\Auth\OAuth\Contract\OAuthConsentStoreInterface;
 
 final readonly class DBLayerOAuthConsentStore extends DBLayerStore implements OAuthConsentStoreInterface
 {
-    public function findActive(string $accountId, string $clientId, string $scopeFingerprint): ?OAuthConsent
+    public function find(string $accountId, string $clientId, string $scopeFingerprint): ?OAuthConsent
     {
         return $this->firstMapped(
             sprintf(
-                'SELECT * FROM %s WHERE account_id = ? AND client_id = ? AND scope_fingerprint = ? AND revoked_at IS NULL',
+                'SELECT * FROM %s WHERE account_id = ? AND client_id = ? AND scope_fingerprint = ?',
                 $this->table('oauthConsents'),
             ),
             $this->mapConsent(...),
             [$accountId, $clientId, $scopeFingerprint],
         );
+    }
+
+    public function findActive(string $accountId, string $clientId, string $scopeFingerprint): ?OAuthConsent
+    {
+        $consent = $this->find($accountId, $clientId, $scopeFingerprint);
+
+        return $consent instanceof OAuthConsent && $consent->revokedAt === null ? $consent : null;
     }
 
     public function revoke(string $accountId, string $clientId, int $revokedAt): int
