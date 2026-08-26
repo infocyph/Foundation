@@ -68,7 +68,7 @@ Evidence: `f13ba53`, `7146bfb`, `99fca7d`, `d806cbe`, `f315660`, `1f9d9e9`. Exec
 - [x] Update existing OAuth access-token tests for current signing-key-set constructor and trusted-audience `verify(token, audience)` contract.
 - [x] Public Authorization Code + S256 success flow.
 - [x] Confidential Authorization Code + S256 success flow.
-- [ ] Client Credentials success flow.
+- [x] Client Credentials success flow.
 - [ ] Refresh equal/narrowed-scope success; widened-scope rejection; rotated-token reuse handling.
 - [ ] Metadata/JWKS correctness and key rotation/fallback/unknown-kid behavior.
 - [ ] Access-token durable revocation and access/refresh introspection active/inactive states.
@@ -80,7 +80,8 @@ Evidence: `f13ba53`, `7146bfb`, `99fca7d`, `d806cbe`, `f315660`, `1f9d9e9`. Exec
 Evidence:
 - Access-token contract: `fc362c6`, `174b48b`.
 - Public Authorization Code + S256: fixture `3703023`, test `6ff8f8f`.
-- Confidential Authorization Code + S256/client_secret_basic: `effa313d953860f7b946dbf872514afc341932e6`.
+- Confidential Authorization Code + S256/client_secret_basic: `effa313`.
+- Client Credentials/service authorization: `c7b0a37`.
 Execution remains F7.
 
 ## F6 — Documentation and operations
@@ -114,8 +115,8 @@ Execution remains F7.
 - [ ] After Foundation release, add disabled-default OAuth application config/routes/thin presentation hooks/integration tests/deployment closure.
 
 ## Resume point
-Last completed checkpoint: **F5.3 — Confidential Authorization Code + PKCE S256**.
-Implementation/test commit: `effa313d953860f7b946dbf872514afc341932e6`.
+Last completed checkpoint: **F5.4 — Client Credentials success flow**.
+Implementation/test commit: `c7b0a37ec87e4fbd5044bb69f368f94028e04b1b`.
 Current active task: **F5 — Protocol and compatibility test matrix**.
-First unchecked action: Client Credentials success flow.
+First unchecked action: refresh equal/narrowed-scope success, widened-scope rejection and rotated-token reuse handling.
 Execution evidence: implementation/test files are committed but not yet run in this environment; suite/release evidence remains under F7.
