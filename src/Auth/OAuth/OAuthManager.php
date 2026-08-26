@@ -157,10 +157,6 @@ final readonly class OAuthManager
         ?string $tokenTypeHint = null,
     ): void {
         $this->revocations->revoke($token, $authentication, $tokenTypeHint);
-        $this->audit?->record(AuthEventType::OAUTH_ACCESS_TOKEN_REVOKED, metadata: [
-            'client_id' => $authentication->clientId,
-            'token_type' => $tokenTypeHint,
-        ]);
     }
 
     public function introspect(
