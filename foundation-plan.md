@@ -33,7 +33,6 @@ This is the running source of truth. Mark an item complete only after committed 
 - [x] Signing-key check command without private material/locator leakage.
 - [x] Non-interactive options, one-time secret output, stable exit codes.
 - [x] CLI command tests.
-
 Evidence: `f49924f`, `a730d97`, `898b129`, `b07e82f`. Execution remains F7.
 
 ## F2 — Reusable OAuth HTTP protocol boundary
@@ -46,7 +45,6 @@ Evidence: `f49924f`, `a730d97`, `898b129`, `b07e82f`. Execution remains F7.
 - [x] RFC 6750 bearer error handling.
 - [x] Existing-policy rate limiting for OAuth surfaces.
 - [x] HTTP malformed/duplicate/oversized/content-type/downgrade tests.
-
 Evidence: `4469d97`, `11a003c`, `0b9ef34`, `222dc60`, `1762ccb`, `0183705`, `688b3e1`, `9867759`, `484f192`, `2aae12b`, `83e7d41`, `30283a3`, `61d4f6a`. Execution remains F7.
 
 ## F3 — Security/audit/operational closure
@@ -55,8 +53,7 @@ Evidence: `4469d97`, `11a003c`, `0b9ef34`, `222dc60`, `1762ccb`, `0183705`, `688
 - [x] Persistent request/principal OAuth metadata reset isolation.
 - [x] Existing auth/verified/MFA/recent/role/permission/policy semantics for OAuth principals.
 - [x] Idempotent pruning with active authorization and replay-evidence retention.
-
-Evidence: `520d0b6`, `64aa5b0`, `246db78`, `604af3b`, `c11c0ae`, `87a306c` plus existing audit/revocation tests. Execution remains F7.
+Evidence: `520d0b6`, `64aa5b0`, `246db78`, `604af3b`, `c11c0ae`, `87a306c`. Execution remains F7.
 
 ## F4 — Persistence, migration, and concurrency closure
 - [x] Schema install/status/upgrade from released Foundation 2.0 auth state.
@@ -65,13 +62,12 @@ Evidence: `520d0b6`, `64aa5b0`, `246db78`, `604af3b`, `c11c0ae`, `87a306c` plus 
 - [x] Simultaneous refresh redemption: exactly one rotation and family revoke on replay.
 - [x] Durable revocation survives fresh process/store instances without cache correctness.
 - [x] Consent regrant after revoke and client registration atomicity integration tests.
-
 Evidence: `f13ba53`, `7146bfb`, `99fca7d`, `d806cbe`, `f315660`, `1f9d9e9`. Execution remains F7.
 
 ## F5 — Protocol and compatibility test matrix
 - [x] Update existing OAuth access-token tests for current signing-key-set constructor and trusted-audience `verify(token, audience)` contract.
 - [x] Public Authorization Code + S256 success flow.
-- [ ] Confidential Authorization Code + S256 success flow.
+- [x] Confidential Authorization Code + S256 success flow.
 - [ ] Client Credentials success flow.
 - [ ] Refresh equal/narrowed-scope success; widened-scope rejection; rotated-token reuse handling.
 - [ ] Metadata/JWKS correctness and key rotation/fallback/unknown-kid behavior.
@@ -83,7 +79,8 @@ Evidence: `f13ba53`, `7146bfb`, `99fca7d`, `d806cbe`, `f315660`, `1f9d9e9`. Exec
 
 Evidence:
 - Access-token contract: `fc362c6`, `174b48b`.
-- Public Authorization Code + S256: fixture `3703023`, flow test `6ff8f8f`.
+- Public Authorization Code + S256: fixture `3703023`, test `6ff8f8f`.
+- Confidential Authorization Code + S256/client_secret_basic: `effa313d953860f7b946dbf872514afc341932e6`.
 Execution remains F7.
 
 ## F6 — Documentation and operations
@@ -117,8 +114,8 @@ Execution remains F7.
 - [ ] After Foundation release, add disabled-default OAuth application config/routes/thin presentation hooks/integration tests/deployment closure.
 
 ## Resume point
-Last completed checkpoint: **F5.2 — Public Authorization Code + PKCE S256 success flow**.
-Implementation/test commits: `370302336a8077e40c19be8cd7b85c7db61a4ca7`, `6ff8f8f7044afe96dcb4f01fa2f018af53f0d671`.
+Last completed checkpoint: **F5.3 — Confidential Authorization Code + PKCE S256**.
+Implementation/test commit: `effa313d953860f7b946dbf872514afc341932e6`.
 Current active task: **F5 — Protocol and compatibility test matrix**.
-First unchecked action: Confidential Authorization Code + S256 success flow.
+First unchecked action: Client Credentials success flow.
 Execution evidence: implementation/test files are committed but not yet run in this environment; suite/release evidence remains under F7.
