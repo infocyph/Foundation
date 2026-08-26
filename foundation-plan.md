@@ -81,7 +81,7 @@ Evidence: `f13ba53`, `7146bfb`, `99fca7d`, `d806cbe`, `f315660`, `1f9d9e9`. Exec
 - [ ] Disabled OAuth leaves resolver order/bindings/bootstrap/schema/key loading unchanged.
 - [ ] Rejection matrix: client/redirect/PKCE/code/grant/response/auth-method/scope/issuer/audience/token-use/algorithm/signature/kid/time/revocation/account/client/authorization/malformed failures.
 
-Access-token contract evidence: `9062734e851203a6a74eb382e89431b7e4049a40` updates the tests to `OAuthSigningKeySet` plus explicit trusted-audience verification and fixes issued `scope` to the RFC-style space-delimited claim expected by the verifier. Execution remains F7.
+Access-token contract evidence: source fix `fc362c6c3e3d72a1d418923d8cc1df8085fc14e7`, test update `174b48b32d5c93d69e9b7433cb01de5fd17e262f`. The service now emits RFC-style space-delimited `scope`, and the test uses `OAuthSigningKeySet` plus explicit trusted-audience verification. Execution remains F7.
 
 ## F6 — Documentation and operations
 - [ ] Document `auth.oauth` configuration: disabled behavior, `resource_audiences`, `scope_permissions`, route policy, TTL units, public-key list format.
@@ -115,7 +115,7 @@ Access-token contract evidence: `9062734e851203a6a74eb382e89431b7e4049a40` updat
 
 ## Resume point
 Last completed checkpoint: **F5.1 — current OAuth access-token signing and trusted-audience contract**.
-Implementation/test commit: `9062734e851203a6a74eb382e89431b7e4049a40`.
+Implementation/test commits: `fc362c6c3e3d72a1d418923d8cc1df8085fc14e7`, `174b48b32d5c93d69e9b7433cb01de5fd17e262f`.
 Current active task: **F5 — Protocol and compatibility test matrix**.
 First unchecked action: Public Authorization Code + S256 success flow.
 Execution evidence: implementation/test files are committed but not yet run in this environment; suite/release evidence remains under F7.
