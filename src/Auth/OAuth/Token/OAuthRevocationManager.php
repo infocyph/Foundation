@@ -10,6 +10,7 @@ use Infocyph\Foundation\Auth\OAuth\Client\OAuthClientManager;
 use Infocyph\Foundation\Auth\OAuth\Contract\OAuthAccessRevocationStoreInterface;
 use Infocyph\Foundation\Auth\OAuth\Contract\OAuthAccessTokenServiceInterface;
 use Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException;
+use Infocyph\Foundation\Auth\OAuth\Exception\OAuthTokenException;
 
 final readonly class OAuthRevocationManager
 {
@@ -58,7 +59,7 @@ final readonly class OAuthRevocationManager
         foreach ($client->audiences as $audience) {
             try {
                 $claims = $this->accessTokens->verify($token, $audience);
-            } catch (\Throwable) {
+            } catch (OAuthTokenException) {
                 continue;
             }
             if (!hash_equals($claims->clientId, $client->clientId)) {
