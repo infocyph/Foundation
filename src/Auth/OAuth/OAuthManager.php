@@ -8,6 +8,7 @@ use Infocyph\Foundation\Auth\Audit\AuthEventSeverity;
 use Infocyph\Foundation\Auth\Audit\AuthEventType;
 use Infocyph\Foundation\Auth\OAuth\Audit\OAuthAuditRecorder;
 use Infocyph\Foundation\Auth\OAuth\Authorization\AuthorizationCodeManager;
+use Infocyph\Foundation\Auth\OAuth\Authorization\AuthorizationRedirectContext;
 use Infocyph\Foundation\Auth\OAuth\Authorization\AuthorizationRequest;
 use Infocyph\Foundation\Auth\OAuth\Authorization\AuthorizationRequestValidator;
 use Infocyph\Foundation\Auth\OAuth\Authorization\OAuthAuthorizationCodeIssue;
@@ -39,6 +40,12 @@ final readonly class OAuthManager
         private OAuthClientManager $clients,
         private ?OAuthAuditRecorder $audit = null,
     ) {}
+
+    /** @param array<string, mixed> $parameters */
+    public function authorizationRedirectContext(array $parameters): AuthorizationRedirectContext
+    {
+        return $this->authorizationRequests->redirectContext($parameters);
+    }
 
     /** @param array<string, mixed> $parameters */
     public function validateAuthorizationRequest(array $parameters): AuthorizationRequest
