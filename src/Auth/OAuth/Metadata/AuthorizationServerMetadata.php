@@ -40,10 +40,8 @@ final readonly class AuthorizationServerMetadata
         if (isset($parts['port'])) {
             $origin .= ':' . $parts['port'];
         }
-        $issuerPath = isset($parts['path']) ? rtrim($parts['path'], '/') : '';
-        $route = $this->string('auth.oauth.routes.' . $name);
 
-        return $origin . $issuerPath . '/' . ltrim($route, '/');
+        return $origin . $this->string('auth.oauth.routes.' . $name);
     }
 
     private function string(string $key): string
