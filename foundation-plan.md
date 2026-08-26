@@ -3,113 +3,80 @@
 Branch: `feature/oauth-2.1`
 Target: Foundation `2.1.0`
 Source plan: OAuth 2 Extension Plan
-Tracker started from branch head: `89939c1aca33a842694ef571de6b2a30770cee59`
+Tracker started from: `89939c1aca33a842694ef571de6b2a30770cee59`
 
-This file is the running source of truth for the remaining Foundation OAuth 2.1 implementation. A checkbox is marked complete only after the corresponding code/tests/docs work is committed with evidence. Update this file in the same completion commit or in the immediately following tracker commit so the repository always exposes the current resume point.
+This is the running source of truth. Mark an item complete only after committed implementation/test/docs evidence exists. Runtime/release execution evidence stays under F7.
 
 ## Workflow
-
-- [x] Create this tracker before beginning the remaining work.
+- [x] Create this tracker before remaining work.
 - [ ] Keep OAuth disabled by default and preserve Foundation 2.0 public auth behavior.
 - [ ] Do not mark release/test gates complete without executable evidence.
-- [ ] Do not begin Infbyte integration until the Foundation surface and release gates are complete.
+- [ ] Do not begin Infbyte integration until Foundation F1-F8 is complete.
 
 ## Completed before tracker creation
+- [x] Baseline application-token compatibility and additive OAuth resolver behavior.
+- [x] OAuth refresh atomicity/reuse-gap record.
+- [x] Additive OAuth schema revision and conditional registration.
+- [x] OAuth protocol/value/client/grant/auth-method types and distinct access-token contract.
+- [x] DBLayer OAuth clients/redirects/scopes/codes/consents/authorizations/refresh/revocation stores.
+- [x] Atomic refresh rotation/family-reuse and one-time authorization-code consume.
+- [x] Epicrypt asymmetric signing, verification, key resolver/readiness and JWKS.
+- [x] Client, redirect, secret, scope/audience, consent, authorization and PKCE S256 managers.
+- [x] Authorization-code, client-credentials and refresh token exchange.
+- [x] Durable resource validation/revocation/introspection, OAuth principals, scope/audience middleware.
+- [x] Conditional registrar, `OAuthManager`, `AuthServices::oauth()` and configuration/readiness integration.
+- [x] OAuth audit sanitization, OAuth-aware pruning, client registration/regrant integrity, operational error handling.
 
-These items are already implemented on this branch and were re-verified from the current branch before the tracker was created.
+## F1 — CLI administration
+- [x] Bounded client administration commands.
+- [x] Authorization list/revoke commands.
+- [x] Signing-key check command without private material/locator leakage.
+- [x] Non-interactive options, one-time secret output, stable exit codes.
+- [x] CLI command tests.
 
-- [x] Baseline compatibility test for existing application access-token semantics and additive resolver behavior.
-- [x] Reuse-gap record documenting the OAuth refresh-token atomicity/storage boundary.
-- [x] Additive OAuth auth-schema revision and conditional auth schema registration.
-- [x] OAuth value types, protocol errors, client/grant/auth-method policy types, and distinct OAuth access-token claims/service contract.
-- [x] DBLayer authoritative stores for clients, redirects/scopes, authorization codes, consents, authorizations, OAuth refresh tokens, and access-token revocations.
-- [x] Atomic OAuth refresh rotation/family-reuse handling and one-time authorization-code consumption.
-- [x] Epicrypt asymmetric OAuth access-token signing/verification, signing-key resolver, key-set readiness, and JWKS provider.
-- [x] OAuth client manager, exact redirect policy, secret verification/rotation, scope/audience policy, consent, authorization-request validation, and PKCE S256 code issuance/consumption.
-- [x] Token endpoint domain manager for authorization-code, client-credentials, and refresh grants.
-- [x] OAuth resource-token durable validation, revocation, introspection, OAuth bearer principal resolution, and scope/audience middleware.
-- [x] Conditional `AuthOAuthRegistrar`, `OAuthManager`, and `AuthServices::oauth()` integration.
-- [x] OAuth configuration validation integrated into Foundation validation, including resource audiences and scope-permission mapping.
-- [x] OAuth-enabled readiness integration for DBLayer/Epicrypt/schema/signing keys; disabled mode remains key/schema inert.
-- [x] OAuth lifecycle audit events use Foundation's existing audit store with secret/token/key sanitization.
-- [x] `auth:prune` extended for OAuth state while retaining refresh replay evidence until expiry.
-- [x] Atomic client registration and revoked-consent regrant integrity fixes.
-- [x] Revocation/introspection operational failures are no longer silently converted into inactive-token results.
+Evidence: `f49924f`, `a730d97`, `898b129`, `b07e82f`. Execution remains F7.
 
-## Remaining Foundation work
+## F2 — Reusable OAuth HTTP protocol boundary
+- [x] Strict bounded form/query parsing and duplicate/content-type rejection.
+- [x] Safe `client_secret_basic`; reject query credentials and `client_secret_post`.
+- [x] Metadata/JWKS/token/revocation/introspection HTTP adapters.
+- [x] Safe authorization success/error redirects with unchanged `state` and RFC 9207 `iss`.
+- [x] Redirect errors only after redirect validation.
+- [x] No-store/no-cache on token-like responses.
+- [x] RFC 6750 bearer error handling.
+- [x] Existing-policy rate limiting for OAuth surfaces.
+- [x] HTTP malformed/duplicate/oversized/content-type/downgrade tests.
 
-### F1 — CLI administration
+Evidence: `4469d97`, `11a003c`, `0b9ef34`, `222dc60`, `1762ccb`, `0183705`, `688b3e1`, `9867759`, `484f192`, `2aae12b`, `83e7d41`, `30283a3`, `61d4f6a`. Execution remains F7.
 
-- [x] Add bounded client administration commands:
-  - `auth:oauth:client:create`
-  - `auth:oauth:client:list`
-  - `auth:oauth:client:show`
-  - `auth:oauth:client:rotate-secret`
-  - `auth:oauth:client:enable`
-  - `auth:oauth:client:disable`
-- [x] Add bounded authorization commands:
-  - `auth:oauth:authorization:list`
-  - `auth:oauth:authorization:revoke`
-- [x] Add `auth:oauth:key:check` without exposing private material or locator paths.
-- [x] Ensure explicit options permit non-interactive use, secret output is one-time only, and stable exit codes are used.
-- [x] Add CLI command tests.
+## F3 — Security/audit/operational closure
+- [x] Audit lifecycle boundaries: denial, code outcomes, refresh outcomes, authorization revoke, invalid redirect/scope, rate limit, signing-key readiness/selection.
+- [x] Sensitive-output tests for secrets/codes/tokens/PKCE/private keys/Authorization headers/key locators.
+- [x] Persistent request/principal OAuth metadata reset isolation.
+- [x] Existing auth/verified/MFA/recent/role/permission/policy semantics for OAuth principals.
+- [x] Idempotent pruning with active authorization and replay-evidence retention.
 
-Implementation evidence: command handler `f49924f2675e3ba49727621fe7222f04a529d357`, catalog wiring `a730d979619d6e83cf1c2d80875dbb5e2f3fe08c`, repeated-value API correction `898b129c954afd89cc7c81381eb116386cc35dde`, CLI tests `b07e82f7d3e3ef05e2929912ce0b1a7751efce1c`. Test files are committed; execution evidence remains intentionally unchecked under F7.
+Evidence: `520d0b6`, `64aa5b0`, `246db78`, `604af3b`, `c11c0ae`, `87a306c` plus existing audit/revocation tests. Execution remains F7.
 
-Exit: OAuth client/authorization/key administration is usable through Foundation's existing command ownership without a parallel CLI subsystem.
+## F4 — Persistence, migration, and concurrency closure
+- [x] Schema install/status/upgrade from released Foundation 2.0 auth state.
+- [x] Rollback/partial-failure coverage supported by DBLayer runner.
+- [x] Simultaneous authorization-code redemption: exactly one success.
+- [x] Simultaneous refresh redemption: exactly one rotation and family revoke on replay.
+- [x] Durable revocation survives fresh process/store instances without cache correctness.
+- [x] Consent regrant after revoke and client registration atomicity integration tests.
 
-### F2 — Reusable OAuth HTTP protocol boundary
+Evidence:
+- Schema upgrade: `f13ba53` (`OAuth21SchemaUpgradeTest.php`).
+- Rollback/partial failure: `7146bfb` (`OAuth21SchemaRollbackTest.php`).
+- Code contention: `99fca7d` (`OAuth21AuthorizationCodeConcurrencyTest.php`).
+- Refresh contention/replay-family revoke: `d806cbe` (`OAuth21RefreshConcurrencyTest.php`).
+- Fresh-process durable revoke: `f315660` (`OAuth21DurableRevocationProcessTest.php`).
+- Consent regrant/client transaction rollback: `1f9d9e9` (`OAuth21PersistenceAtomicityTest.php`).
+Execution remains F7.
 
-- [x] Add strict form/query parameter extraction with size bounds, duplicate-parameter rejection, and content-type validation.
-- [x] Add safe `client_secret_basic` parsing; reject query credentials and `client_secret_post`.
-- [x] Add Foundation HTTP handlers/adapters for metadata, JWKS, token, revocation, and introspection responses while leaving route declarations/presentation to Infbyte.
-- [x] Add authorization success/error redirect builder with exact registered redirect preservation, unchanged `state`, and RFC 9207 `iss` response parameter.
-- [x] Redirect OAuth errors only after the redirect URI has been validated.
-- [x] Add `Cache-Control: no-store` / `Pragma: no-cache` to token-like responses as applicable.
-- [x] Add RFC 6750 bearer error response handling for OAuth resource middleware.
-- [x] Integrate existing Foundation/Webrick rate-limiting capability or a narrow existing-policy adapter for authorization/token/revocation/introspection/client-auth failure surfaces; no cache-only correctness.
-- [x] Add HTTP boundary tests for malformed, duplicated, oversized, unsupported-content-type, and credential-downgrade inputs.
-
-Implementation evidence: redirect validation/context `4469d9769596f0203938ecad8ca2eadb09121596`, protocol error extension `11a003c09dc57f1ed156001b6963da27b50aea7f`, strict HTTP input `0b9ef344b114478ae50c5bd04f57130b92d8ceb9`, response factory `222dc601929002ae37c8500d969ea3ba46c27800`, reusable HTTP handler/manager support `1762ccb09260e351494d5e8bba7a0f0f4e697741` and `0183705e04ea8f2a56836c35575325278f525e0a`, conditional DI `688b3e1ca2d1de73b223639371e79cdff89e5246`, HTTP boundary tests `98677594c3be2637f43a643f09e3ac996d61e6d0`, throttle adapter `484f192b26155f6fa4bc10219a4d195b98f85e1b`, rate-limit defaults `2aae12b52757c56adb409185e294e0d74c47fa3b`, validation `83e7d4192be32e880d080d8af0b378dd94a21c69`, registrar binding `30283a3189727c9f18e35a762719a7e6e24b7916`, and throttle-policy tests `61d4f6a2bb0766841c78008bb053e3bcbcab9d5e`. Test files are committed; execution evidence remains intentionally unchecked under F7.
-
-Exit: Infbyte can expose thin opt-in routes with no protocol/crypto/persistence logic in application controllers.
-
-### F3 — Security/audit/operational closure
-
-- [x] Verify every planned OAuth audit event is emitted at the correct lifecycle boundary: authorization denial, code consume/expire/replay, refresh rotate/revoke/reuse, authorization revoke, invalid redirect/scope, rate-limit rejection, and signing-key readiness/selection failure.
-- [x] Add tests proving raw secrets, codes, refresh/access tokens, PKCE verifiers, private keys, Authorization headers, and private-key locator paths never enter audit/log/CLI/error output.
-- [x] Verify persistent request/principal OAuth metadata is cleared by existing request scope/reset behavior.
-- [x] Verify existing auth/verified/MFA/recent/role/permission/policy flows accept OAuth principals without special alternate authorization semantics.
-- [x] Confirm pruning is idempotent and does not remove active authorizations or refresh-family replay evidence early.
-
-Audit lifecycle evidence: existing `OAuth21AuditLifecycleTest.php`, `OAuth21AuditSecurityTest.php`, and `OAuth21RevocationAuditTest.php`, plus `OAuth21AuditClosureTest.php` and `OAuth21SigningKeySelectionAuditTest.php` committed in `520d0b628767c301fee0168f71d146dc30bc5841` and `64aa5b0440328b8c49fd9ff7471fc8d3ab16c0d1`. Execution remains part of F7.
-Sensitive-output evidence: existing audit/CLI security assertions plus `OAuth21SensitiveOutputClosureTest.php` commit `246db78afee4c7331b4923545c6e06df752a627b`; the designed one-time generated/rotated client-secret return remains the explicit F1 administration output, while incidental audit/log/error/client-view output is covered here. Execution remains part of F7.
-Persistent-reset evidence: `OAuth21PersistentPrincipalResetTest.php` commit `604af3bf31ee97f4c82dc044d58f27af335da17a` covers account/service OAuth metadata cleanup and next-request isolation through the existing runtime tracker. Execution remains part of F7.
-Principal compatibility evidence: `OAuth21PrincipalCompatibilityTest.php` commit `c11c0ae154c62b12f6e57e7bb017e7efd9f4878f` exercises existing auth/verified/MFA/recent/role/permission/policy middleware with OAuth account and service principals, including no MFA/recent bypass and no account-only bypass for service principals. Execution remains part of F7.
-Pruning evidence: `OAuth21PruningRetentionTest.php` commit `87a306c8a7f3b07041b0e459bcda126ae76f2045` covers idempotent second-pass pruning, active authorization retention, unexpired rotated/revoked refresh replay evidence retention, and expired refresh cleanup. Execution remains part of F7.
-
-Exit: planned security and operational invariants are covered by tests rather than documentation only.
-
-### F4 — Persistence, migration, and concurrency closure
-
-- [x] Add schema install/status/upgrade tests from released Foundation 2.0 auth state into the additive OAuth revision.
-- [x] Add rollback/partial-failure coverage where the existing schema runner supports it.
-- [x] Add simultaneous authorization-code redemption test proving exactly one success.
-- [x] Add simultaneous refresh redemption test proving exactly one rotation and family revocation on replay.
-- [x] Verify durable revocation survives fresh process/store instances and does not rely on cache correctness.
-- [ ] Verify consent regrant after revoke and client registration atomicity with integration tests.
-
-Schema upgrade evidence: `OAuth21SchemaUpgradeTest.php` commit `f13ba53493db07a892d5d502800245c5f7b487cb` establishes a 2.0 base/MFA schema, preserves representative account/session/application-refresh state, verifies OAuth-aware readiness before/after upgrade, applies only the additive OAuth revision, and verifies idempotent reinstall. Execution remains part of F7.
-Rollback evidence: `OAuth21SchemaRollbackTest.php` commit `7146bfb6a1d7ef9fff7bac4400f46f25aafa0411` proves latest-batch OAuth rollback leaves released auth tables/data intact, supports clean re-application, and verifies DBLayer transactional-DDL failure leaves neither the partial table nor a migration record. Execution remains part of F7.
-Authorization-code contention evidence: `OAuth21AuthorizationCodeConcurrencyTest.php` commit `99fca7d42a927199c7b6b33ddba0588074ebd297` uses a file-backed SQLite database and two barrier-synchronized independent PHP processes; the only accepted outcome is exactly one `consumed` plus one `reused`, with durable `consumed_at`. Execution remains part of F7.
-Refresh contention evidence: `OAuth21RefreshConcurrencyTest.php` commit `d806cbeed4a0a5cdb79ee6effd8a20a705cc4a52` uses a file-backed SQLite database and two barrier-synchronized independent PHP processes; it requires one `rotated` plus one `reused`, and the replaying contender revokes the durable family so both the original rotated token and winning replacement end revoked. Execution remains part of F7.
-Durable-revocation evidence: `OAuth21DurableRevocationProcessTest.php` commit `f31566009e6b7732fab407282a30cb6e6c8de88f` writes access-token and authorization revocation in one process and verifies both from a fresh process/store graph backed only by the shared SQLite database. Execution remains part of F7.
-
-Exit: database atomicity and upgrade behavior are demonstrated, not inferred.
-
-### F5 — Protocol and compatibility test matrix
-
-- [ ] Update existing OAuth access-token tests for the current signing-key-set constructor and trusted-audience `verify(token, audience)` contract.
+## F5 — Protocol and compatibility test matrix
+- [ ] Update existing OAuth access-token tests for current signing-key-set constructor and trusted-audience `verify(token, audience)` contract.
 - [ ] Public Authorization Code + S256 success flow.
 - [ ] Confidential Authorization Code + S256 success flow.
 - [ ] Client Credentials success flow.
@@ -119,56 +86,41 @@ Exit: database atomicity and upgrade behavior are demonstrated, not inferred.
 - [ ] OAuth bearer -> existing account/service principal -> existing authorization middleware/gates.
 - [ ] OAuth/application bearer semantic separation in both directions.
 - [ ] Disabled OAuth leaves resolver order/bindings/bootstrap/schema/key loading unchanged.
-- [ ] Rejection matrix: unknown/disabled/mismatched client; redirect attacks; PKCE failures; expired/replayed code; unsupported grant/response/auth method; invalid/widened scope; issuer/audience/token-use/algorithm/signature/kid/time/revocation failures; disabled account/client/authorization; malformed input.
+- [ ] Rejection matrix: client/redirect/PKCE/code/grant/response/auth-method/scope/issuer/audience/token-use/algorithm/signature/kid/time/revocation/account/client/authorization/malformed failures.
 
-Exit: the plan's protocol-success, protocol-rejection, compatibility, and separation matrix is executable.
-
-### F6 — Documentation and operations
-
-- [ ] Document `auth.oauth` configuration, including disabled behavior, `resource_audiences`, `scope_permissions`, route policy, TTL units, and selected public-key list format.
+## F6 — Documentation and operations
+- [ ] Document `auth.oauth` configuration: disabled behavior, `resource_audiences`, `scope_permissions`, route policy, TTL units, public-key list format.
 - [ ] Document signing-key provisioning/rotation and one-time client-secret handling.
-- [ ] Document Foundation/Infbyte ownership boundary and OAuth/app-token separation.
-- [ ] Document schema deployment, readiness, pruning, canary, and rollback procedures.
+- [ ] Document Foundation/Infbyte ownership boundary and OAuth/application-token separation.
+- [ ] Document schema deployment, readiness, pruning, canary and rollback procedures.
 - [ ] Document implemented RFC claims accurately; do not claim generic final OAuth 2.1 RFC compliance while relying on draft guidance.
-- [ ] Document unsupported/deferred features (OIDC, dynamic registration, device flow, password/implicit grants, generic OAuth login, DPoP/PAR/etc.).
+- [ ] Document unsupported/deferred features: OIDC, dynamic registration, device flow, password/implicit grants, generic OAuth login, DPoP/PAR/etc.
 
-Exit: operators and Infbyte integrators can deploy and use Foundation OAuth without reading internals.
-
-### F7 — Performance and engineering gates
-
-- [ ] Extend existing benchmark framework with OAuth-disabled minimal/app-bearer/session/gate paths and OAuth authorization/token/resource/refresh/revoke/introspect workloads.
-- [ ] Record environment evidence and representative baseline/candidate measurements where executable infrastructure is available.
-- [ ] Prove OAuth-disabled existing-path median regression is within the plan's measured acceptance budget (default 2% only after accounting for environmental noise).
-- [ ] Run persistent-worker repeated-request/reset checks and available soak coverage.
+## F7 — Performance and engineering gates
+- [ ] Extend benchmark framework with OAuth-disabled and OAuth workloads.
+- [ ] Record environment and representative baseline/candidate measurements.
+- [ ] Prove OAuth-disabled existing-path median regression within measured acceptance budget.
+- [ ] Run persistent-worker repeated-request/reset and available soak coverage.
 - [ ] Run Composer validation/audit/runtime compatibility.
-- [ ] Run PHPStan/Psalm/PHPCS/Pint/Rector/complexity/architecture/duplicate/comment gates through the active PHPForge workflow.
-- [ ] Run the complete Pest suite with no unexpected skips.
+- [ ] Run PHPForge static/style/refactor/complexity/architecture/duplicate/comment gates.
+- [ ] Run complete Pest suite with no unexpected skips.
 - [ ] Run available OAuth interoperability/conformance coverage.
-- [ ] Do not add suppressions, baselines, exclusions, weakened assertions/security checks, or raised complexity limits to obtain green gates.
+- [ ] No suppressions/baselines/exclusions/weakened checks/raised limits to obtain green gates.
 
-Exit: Foundation has reproducible release evidence. Do not check items that could not actually be executed.
-
-### F8 — Foundation release handoff
-
-- [ ] Resolve all gate failures introduced by OAuth work.
-- [ ] Re-run the full Foundation release guard after fixes.
-- [ ] Confirm `foundation-plan.md` has no unchecked Foundation implementation items other than explicitly unavailable external/multi-node evidence, which must be documented as blocked rather than silently skipped.
+## F8 — Foundation release handoff
+- [ ] Resolve OAuth-introduced gate failures.
+- [ ] Re-run full Foundation release guard.
+- [ ] Ensure tracker has no unchecked Foundation implementation work except explicitly documented unavailable external/multi-node evidence.
 - [ ] Prepare Foundation `2.1.0` release notes and immutable release boundary.
-- [ ] Release/tag Foundation `2.1.0` only after release evidence is green.
+- [ ] Release/tag Foundation `2.1.0` only after green evidence.
 
-Exit: Foundation is complete before Infbyte integration lock/release.
-
-## Deferred until Foundation completion
-
-### I1 — Infbyte integration
-
-- [ ] Keep Infbyte untouched while Foundation tasks F1-F8 are incomplete.
-- [ ] After Foundation release: add disabled-default `auth.oauth` application config, opt-in `routes/oauth.php`, thin handlers/consent presentation hooks, integration tests against released Foundation `2.1.x`, deployment/canary/rollback steps, then Infbyte release closure.
+## Deferred until Foundation completion — I1 Infbyte integration
+- [ ] Keep Infbyte untouched while F1-F8 are incomplete.
+- [ ] After Foundation release, add disabled-default OAuth application config/routes/thin presentation hooks/integration tests/deployment closure.
 
 ## Resume point
-
-Last completed checkpoint: **F4.5 — durable revocation across fresh process/store instances**.
-Implementation/test commit: `f31566009e6b7732fab407282a30cb6e6c8de88f`.
-Current active task: **F4 — Persistence, migration, and concurrency closure**.
-First unchecked action: verify consent regrant and client registration atomicity with real DB integration tests.
-Execution evidence: implementation/test files are committed but have not yet been run in this environment; suite/release evidence remains under F7.
+Last completed checkpoint: **F4 — Persistence, migration, and concurrency closure**.
+Latest implementation/test commit: `1f9d9e9aa7758333defcb6c3b313466029870a2f`.
+Current active task: **F5 — Protocol and compatibility test matrix**.
+First unchecked action: update access-token tests to the current signing-key-set and trusted-audience verification contract.
+Execution evidence: implementation/test files are committed but not yet run in this environment; suite/release evidence remains under F7.
