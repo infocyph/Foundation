@@ -17,6 +17,7 @@ use Infocyph\Foundation\Logging\LogTailer;
 use Infocyph\Foundation\Operations\ExecutionHistory;
 use Infocyph\Foundation\Operations\MaintenanceManager;
 use Infocyph\Foundation\Operations\RuntimeControl;
+use Infocyph\Foundation\Operations\RuntimeProcessRegistry;
 use Infocyph\Foundation\Security\EnvironmentFileProtector;
 use Infocyph\Foundation\Worker\WorkerManager;
 
@@ -363,27 +364,36 @@ final class OperationsSystemCommand extends SystemCommand
     {
         $name = $this->argument(0);
         $manager = new WorkerManager($this->application);
-        if ($name !== null && !array_key_exists($name, $manager->all())) {
+        $configured = $manager->all();
+        if ($name !== null && !array_key_exists($name, $configured)) {
             throw new \InvalidArgumentException(sprintf('Worker "%s" is not configured.', $name));
         }
-        $status = $manager->status($name);
+
+        $registry = new RuntimeProcessRegistry($this->application);
+        $processes = $registry->all('worker', $name);
+        $selected = $name === null ? $configured : [$name => $configured[$name]];
+        $status = [
+            'worker' => $name,
+            'registry_visibility' => $registry->visibility(),
+            'configured' => $selected,
+            'processes' => $processes,
+        ];
         if ($this->io()->machineReadable()) {
             return $this->emit($status);
         }
+
         $rows = array_map(
             static fn(array $item): array => [
                 $item['name'],
                 $item['running'],
-                $item['pid'] ?? '',
-                $item['started_at'] ?? '',
-                $item['last_heartbeat_at'] ?? '',
-                $item['restart_token'] ?? '',
-                $item['restart_requested'],
+                $item['pid'],
+                $item['started_at'],
+                $item['heartbeat_at'],
             ],
-            $status,
+            $processes,
         );
         $this->io()->table(
-            ['Name', 'Running', 'PID', 'Started', 'Heartbeat', 'Restart Token', 'Restart Requested'],
+            ['Name', 'Running', 'PID', 'Started', 'Heartbeat'],
             $rows,
         );
 
