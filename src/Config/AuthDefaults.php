@@ -56,6 +56,7 @@ final class AuthDefaults
                     ],
                     'pkce_methods' => ['S256'],
                     'signing' => [
+                        'algorithm' => 'RS256',
                         'active_key_id' => null,
                         'private_key' => null,
                         'public_keys' => [],
