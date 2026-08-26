@@ -31,15 +31,11 @@ final readonly class OAuthSigningKeyResolver
         try {
             $resolved = $this->resolveConfigured();
         } catch (\Throwable $exception) {
-            $this->audit?->record(
-                AuthEventType::OAUTH_KEY_READINESS,
-                metadata: ['result' => 'failure'],
-                severity: AuthEventSeverity::ERROR,
-            );
+            $this->recordReadiness(['result' => 'failure'], AuthEventSeverity::ERROR);
             throw $exception;
         }
 
-        $this->audit?->record(AuthEventType::OAUTH_KEY_READINESS, metadata: [
+        $this->recordReadiness([
             'result' => 'ready',
             'algorithm' => $resolved->algorithm->value,
             'key_id' => $resolved->activeKeyId,
@@ -151,6 +147,24 @@ final readonly class OAuthSigningKeyResolver
         }
 
         return $entries;
+    }
+
+    /** @param array<string, mixed> $metadata */
+    private function recordReadiness(array $metadata, AuthEventSeverity $severity = AuthEventSeverity::INFO): void
+    {
+        if (!$this->audit instanceof OAuthAuditRecorder) {
+            return;
+        }
+
+        try {
+            $this->audit->record(
+                AuthEventType::OAUTH_KEY_READINESS,
+                metadata: $metadata,
+                severity: $severity,
+            );
+        } catch (\Throwable) {
+            // Signing readiness is authoritative; an audit backend outage must not replace its result.
+        }
     }
 
     private function readKey(mixed $locator): string
