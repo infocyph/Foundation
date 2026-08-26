@@ -6,10 +6,12 @@ use Infocyph\Foundation\Auth\OAuth\Configuration\OAuthConfigValidator;
 use Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpThrottleFactory;
 use Infocyph\Foundation\Config\AuthDefaults;
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Tests\Fixtures\OAuthAuditCapture;
 
 it('defines bounded OAuth endpoint rate-limit defaults', function (): void {
     $config = new ConfigRepository(AuthDefaults::all());
-    $factory = new OAuthHttpThrottleFactory($config);
+    $audit = new OAuthAuditCapture();
+    $factory = new OAuthHttpThrottleFactory($config, $audit->recorder());
 
     expect($factory->policy('authorization'))->toBe([
         'max' => 60,
@@ -31,7 +33,11 @@ it('defines bounded OAuth endpoint rate-limit defaults', function (): void {
 });
 
 it('rejects unknown OAuth throttle endpoints', function (): void {
-    $factory = new OAuthHttpThrottleFactory(new ConfigRepository(AuthDefaults::all()));
+    $audit = new OAuthAuditCapture();
+    $factory = new OAuthHttpThrottleFactory(
+        new ConfigRepository(AuthDefaults::all()),
+        $audit->recorder(),
+    );
 
     expect(fn() => $factory->policy('jwks'))
         ->toThrow(InvalidArgumentException::class, 'Unsupported OAuth rate-limit endpoint');
