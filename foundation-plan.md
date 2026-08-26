@@ -76,11 +76,13 @@ Exit: Infbyte can expose thin opt-in routes with no protocol/crypto/persistence 
 
 ### F3 — Security/audit/operational closure
 
-- [ ] Verify every planned OAuth audit event is emitted at the correct lifecycle boundary: authorization denial, code consume/expire/replay, refresh rotate/revoke/reuse, authorization revoke, invalid redirect/scope, rate-limit rejection, and signing-key readiness/selection failure.
+- [x] Verify every planned OAuth audit event is emitted at the correct lifecycle boundary: authorization denial, code consume/expire/replay, refresh rotate/revoke/reuse, authorization revoke, invalid redirect/scope, rate-limit rejection, and signing-key readiness/selection failure.
 - [ ] Add tests proving raw secrets, codes, refresh/access tokens, PKCE verifiers, private keys, Authorization headers, and private-key locator paths never enter audit/log/CLI/error output.
 - [ ] Verify persistent request/principal OAuth metadata is cleared by existing request scope/reset behavior.
 - [ ] Verify existing auth/verified/MFA/recent/role/permission/policy flows accept OAuth principals without special alternate authorization semantics.
 - [ ] Confirm pruning is idempotent and does not remove active authorizations or refresh-family replay evidence early.
+
+Audit lifecycle evidence: existing `OAuth21AuditLifecycleTest.php`, `OAuth21AuditSecurityTest.php`, and `OAuth21RevocationAuditTest.php`, plus `OAuth21AuditClosureTest.php` and `OAuth21SigningKeySelectionAuditTest.php` committed in `520d0b628767c301fee0168f71d146dc30bc5841` and `64aa5b0440328b8c49fd9ff7471fc8d3ab16c0d1`. Execution remains part of F7.
 
 Exit: planned security and operational invariants are covered by tests rather than documentation only.
 
@@ -155,8 +157,8 @@ Exit: Foundation is complete before Infbyte integration lock/release.
 
 ## Resume point
 
-Last completed checkpoint: **F2 — Reusable OAuth HTTP protocol boundary**.
-Implementation/test commit: `61d4f6a2bb0766841c78008bb053e3bcbcab9d5e` (plus supporting commits listed in F2).
+Last completed checkpoint: **F3.1 — OAuth audit lifecycle coverage**.
+Implementation/test commits: `520d0b628767c301fee0168f71d146dc30bc5841`, `64aa5b0440328b8c49fd9ff7471fc8d3ab16c0d1` (plus existing F3 audit tests and revocation fixes).
 Current active task: **F3 — Security/audit/operational closure**.
-First unchecked action: verify every planned OAuth audit event is emitted at the correct lifecycle boundary.
-Execution evidence: F1/F2 test files are committed but have not yet been run in this environment; suite/release evidence remains under F7.
+First unchecked action: prove OAuth-sensitive values never enter audit/log/CLI/error output.
+Execution evidence: implementation/test files are committed but have not yet been run in this environment; suite/release evidence remains under F7.
