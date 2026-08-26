@@ -162,6 +162,11 @@ final readonly class ReadinessReport
         return $config->get('messaging.forward_auth_events', false) === true;
     }
 
+    private function oauthEnabled(): bool
+    {
+        return $this->application->config()->get('auth.oauth.enabled', false) === true;
+    }
+
     /** @return array{ready:bool,detail:string} */
     private function oauthSigningReadiness(): array
     {
@@ -179,11 +184,6 @@ final readonly class ReadinessReport
                 'detail' => 'OAuth signing key readiness failed; verify configured key locators, active key and public-key set.',
             ];
         }
-    }
-
-    private function oauthEnabled(): bool
-    {
-        return $this->application->config()->get('auth.oauth.enabled', false) === true;
     }
 
     /** @param array<string,array{package:string,constraint:string}> $required */

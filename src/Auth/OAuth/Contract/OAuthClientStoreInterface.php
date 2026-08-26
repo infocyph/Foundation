@@ -16,17 +16,17 @@ interface OAuthClientStoreInterface
     /** @return list<string> */
     public function redirectUris(string $clientId): array;
 
-    /** @return list<string> */
-    public function scopes(string $clientId): array;
-
     /** @param list<string> $redirectUris @param list<string> $scopes */
     public function register(OAuthClient $client, array $redirectUris, array $scopes): void;
-
-    public function save(OAuthClient $client): void;
 
     /** @param list<string> $redirectUris */
     public function replaceRedirectUris(string $clientId, array $redirectUris, int $createdAt): void;
 
     /** @param list<string> $scopes */
     public function replaceScopes(string $clientId, array $scopes, int $createdAt): void;
+
+    public function save(OAuthClient $client): void;
+
+    /** @return list<string> */
+    public function scopes(string $clientId): array;
 }

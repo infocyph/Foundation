@@ -38,13 +38,7 @@ final readonly class OAuthClient
 
     public function allowsGrant(OAuthGrantType $grant): bool
     {
-        foreach ($this->grants as $allowed) {
-            if ($allowed === $grant) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any($this->grants, fn($allowed) => $allowed === $grant);
     }
 
     public function confidential(): bool

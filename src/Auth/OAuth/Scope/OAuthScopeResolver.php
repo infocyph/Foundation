@@ -17,6 +17,16 @@ final readonly class OAuthScopeResolver
         private ConfigRepository $config,
     ) {}
 
+    /** @param list<string> $previous @param list<string> $requested @return list<string> */
+    public function narrow(array $previous, array $requested): array
+    {
+        if ($requested === []) {
+            return $previous;
+        }
+
+        return $this->subset($requested, $previous, self::MAX_REQUESTED_SCOPES, 'scope');
+    }
+
     /**
      * @param list<string> $requestedScopes
      * @param list<string> $requestedAudiences
@@ -44,16 +54,6 @@ final readonly class OAuthScopeResolver
             audiences: $audiences,
             permissions: $this->mappedPermissions($scopes),
         );
-    }
-
-    /** @param list<string> $previous @param list<string> $requested @return list<string> */
-    public function narrow(array $previous, array $requested): array
-    {
-        if ($requested === []) {
-            return $previous;
-        }
-
-        return $this->subset($requested, $previous, self::MAX_REQUESTED_SCOPES, 'scope');
     }
 
     /** @param list<string> $scopes @return list<string> */

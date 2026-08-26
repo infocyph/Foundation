@@ -48,94 +48,24 @@ final class OAuthSystemCommand extends SystemCommand
         }
     }
 
-    private function clientCreate(): int
+    private function auditor(): OAuthAuditRecorder
     {
-        $type = OAuthClientType::tryFrom($this->option('type', OAuthClientType::Confidential->value) ?? '');
-        if (!$type instanceof OAuthClientType) {
-            throw new \InvalidArgumentException('--type must be public or confidential.');
-        }
+        return $this->application->make(OAuthAuditRecorder::class);
+    }
 
-        $grants = array_map($this->grant(...), $this->values('grant'));
-        if ($grants === []) {
-            throw new \InvalidArgumentException('At least one --grant option is required.');
-        }
-
-        $registration = $this->clients()->register(
-            type: $type,
-            grants: $grants,
-            redirectUris: $this->values('redirect-uri'),
-            scopes: $this->values('scope'),
-            audiences: $this->values('audience'),
-            metadata: $this->flag('native-client') ? ['native_client' => true] : [],
-        );
-
-        $data = [
-            'client' => $this->clientData($registration->client),
-            'redirect_uris' => $this->clients()->redirectUris($registration->client->clientId),
-            'scopes' => $this->clients()->scopes($registration->client->clientId),
-            'client_secret' => $registration->secret,
-            'secret_display' => $registration->secret === null ? 'none' : 'one-time',
+    /** @return array<string, mixed> */
+    private function authorizationData(OAuthAuthorization $authorization): array
+    {
+        return [
+            'authorization_id' => $authorization->id,
+            'client_id' => $authorization->clientId,
+            'account_id' => $authorization->accountId,
+            'scopes' => $authorization->scopes,
+            'audiences' => $authorization->audiences,
+            'created_at' => $authorization->createdAt,
+            'expires_at' => $authorization->expiresAt,
+            'revoked_at' => $authorization->revokedAt,
         ];
-
-        return $this->emit(
-            $data,
-            $registration->secret === null
-                ? sprintf('OAuth public client created: %s', $registration->client->clientId)
-                : sprintf('OAuth confidential client created: %s. The returned client secret is shown once.', $registration->client->clientId),
-        );
-    }
-
-    private function clientList(): int
-    {
-        $clients = array_map(
-            $this->clientData(...),
-            $this->clientStore()->list($this->positiveLimit()),
-        );
-
-        return $this->emit(['clients' => $clients, 'count' => count($clients)]);
-    }
-
-    private function clientShow(): int
-    {
-        $clientId = $this->requiredArgument();
-        $client = $this->clientStore()->find($clientId);
-        if (!$client instanceof OAuthClient) {
-            $this->io()->error(sprintf('OAuth client "%s" was not found.', $clientId));
-
-            return ExitCode::FAILURE;
-        }
-
-        return $this->emit([
-            'client' => $this->clientData($client),
-            'redirect_uris' => $this->clientStore()->redirectUris($clientId),
-            'scopes' => $this->clientStore()->scopes($clientId),
-        ]);
-    }
-
-    private function clientRotateSecret(): int
-    {
-        $clientId = $this->requiredArgument();
-        $secret = $this->clients()->rotateSecret($clientId);
-
-        return $this->emit(
-            ['client_id' => $clientId, 'client_secret' => $secret, 'secret_display' => 'one-time'],
-            sprintf('OAuth client secret rotated for %s. The returned secret is shown once.', $clientId),
-        );
-    }
-
-    private function clientSetEnabled(bool $enabled): int
-    {
-        $clientId = $this->requiredArgument();
-        if (!$this->clients()->setEnabled($clientId, $enabled)) {
-            $this->io()->error(sprintf('OAuth client "%s" was not found.', $clientId));
-
-            return ExitCode::FAILURE;
-        }
-
-        return $this->emit(
-            ['client_id' => $clientId, 'enabled' => $enabled],
-            sprintf('OAuth client %s: %s', $enabled ? 'enabled' : 'disabled', $clientId),
-        );
     }
 
     private function authorizationList(): int
@@ -180,6 +110,153 @@ final class OAuthSystemCommand extends SystemCommand
         );
     }
 
+    private function authorizationStore(): OAuthAuthorizationStoreInterface
+    {
+        return $this->application->make(OAuthAuthorizationStoreInterface::class);
+    }
+
+    private function authorize(string $question): bool
+    {
+        if ($this->flag('force')) {
+            return true;
+        }
+        if (!$this->io()->interactive()) {
+            $this->io()->error('This destructive operation requires --force in non-interactive mode.');
+
+            return false;
+        }
+
+        return $this->io()->confirm($question, false);
+    }
+
+    private function clientCreate(): int
+    {
+        $type = OAuthClientType::tryFrom($this->option('type', OAuthClientType::Confidential->value) ?? '');
+        if (!$type instanceof OAuthClientType) {
+            throw new \InvalidArgumentException('--type must be public or confidential.');
+        }
+
+        $grants = array_map($this->grant(...), $this->values('grant'));
+        if ($grants === []) {
+            throw new \InvalidArgumentException('At least one --grant option is required.');
+        }
+
+        $registration = $this->clients()->register(
+            type: $type,
+            grants: $grants,
+            redirectUris: $this->values('redirect-uri'),
+            scopes: $this->values('scope'),
+            audiences: $this->values('audience'),
+            metadata: $this->flag('native-client') ? ['native_client' => true] : [],
+        );
+
+        $data = [
+            'client' => $this->clientData($registration->client),
+            'redirect_uris' => $this->clients()->redirectUris($registration->client->clientId),
+            'scopes' => $this->clients()->scopes($registration->client->clientId),
+            'client_secret' => $registration->secret,
+            'secret_display' => $registration->secret === null ? 'none' : 'one-time',
+        ];
+
+        return $this->emit(
+            $data,
+            $registration->secret === null
+                ? sprintf('OAuth public client created: %s', $registration->client->clientId)
+                : sprintf('OAuth confidential client created: %s. The returned client secret is shown once.', $registration->client->clientId),
+        );
+    }
+
+    /** @return array<string, mixed> */
+    private function clientData(OAuthClient $client): array
+    {
+        return [
+            'client_id' => $client->clientId,
+            'type' => $client->type->value,
+            'authentication_method' => $client->authenticationMethod->value,
+            'grants' => array_map(static fn(OAuthGrantType $grant): string => $grant->value, $client->grants),
+            'audiences' => $client->audiences,
+            'enabled' => $client->enabled && $client->disabledAt === null,
+            'created_at' => $client->createdAt,
+            'updated_at' => $client->updatedAt,
+            'disabled_at' => $client->disabledAt,
+            'metadata' => $client->metadata,
+        ];
+    }
+
+    private function clientList(): int
+    {
+        $clients = array_map(
+            $this->clientData(...),
+            $this->clientStore()->list($this->positiveLimit()),
+        );
+
+        return $this->emit(['clients' => $clients, 'count' => count($clients)]);
+    }
+
+    private function clientRotateSecret(): int
+    {
+        $clientId = $this->requiredArgument();
+        $secret = $this->clients()->rotateSecret($clientId);
+
+        return $this->emit(
+            ['client_id' => $clientId, 'client_secret' => $secret, 'secret_display' => 'one-time'],
+            sprintf('OAuth client secret rotated for %s. The returned secret is shown once.', $clientId),
+        );
+    }
+
+    private function clients(): OAuthClientManager
+    {
+        return $this->application->make(OAuthClientManager::class);
+    }
+
+    private function clientSetEnabled(bool $enabled): int
+    {
+        $clientId = $this->requiredArgument();
+        if (!$this->clients()->setEnabled($clientId, $enabled)) {
+            $this->io()->error(sprintf('OAuth client "%s" was not found.', $clientId));
+
+            return ExitCode::FAILURE;
+        }
+
+        return $this->emit(
+            ['client_id' => $clientId, 'enabled' => $enabled],
+            sprintf('OAuth client %s: %s', $enabled ? 'enabled' : 'disabled', $clientId),
+        );
+    }
+
+    private function clientShow(): int
+    {
+        $clientId = $this->requiredArgument();
+        $client = $this->clientStore()->find($clientId);
+        if (!$client instanceof OAuthClient) {
+            $this->io()->error(sprintf('OAuth client "%s" was not found.', $clientId));
+
+            return ExitCode::FAILURE;
+        }
+
+        return $this->emit([
+            'client' => $this->clientData($client),
+            'redirect_uris' => $this->clientStore()->redirectUris($clientId),
+            'scopes' => $this->clientStore()->scopes($clientId),
+        ]);
+    }
+
+    private function clientStore(): OAuthClientStoreInterface
+    {
+        return $this->application->make(OAuthClientStoreInterface::class);
+    }
+
+    private function clock(): ClockInterface
+    {
+        return $this->application->make(ClockInterface::class);
+    }
+
+    private function grant(string $value): OAuthGrantType
+    {
+        return OAuthGrantType::tryFrom($value)
+            ?? throw new \InvalidArgumentException(sprintf('Unsupported OAuth grant "%s".', $value));
+    }
+
     private function keyCheck(): int
     {
         try {
@@ -213,58 +290,6 @@ final class OAuthSystemCommand extends SystemCommand
         }
     }
 
-    private function authorize(string $question): bool
-    {
-        if ($this->flag('force')) {
-            return true;
-        }
-        if (!$this->io()->interactive()) {
-            $this->io()->error('This destructive operation requires --force in non-interactive mode.');
-
-            return false;
-        }
-
-        return $this->io()->confirm($question, false);
-    }
-
-    /** @return array<string, mixed> */
-    private function clientData(OAuthClient $client): array
-    {
-        return [
-            'client_id' => $client->clientId,
-            'type' => $client->type->value,
-            'authentication_method' => $client->authenticationMethod->value,
-            'grants' => array_map(static fn(OAuthGrantType $grant): string => $grant->value, $client->grants),
-            'audiences' => $client->audiences,
-            'enabled' => $client->enabled && $client->disabledAt === null,
-            'created_at' => $client->createdAt,
-            'updated_at' => $client->updatedAt,
-            'disabled_at' => $client->disabledAt,
-            'metadata' => $client->metadata,
-        ];
-    }
-
-    /** @return array<string, mixed> */
-    private function authorizationData(OAuthAuthorization $authorization): array
-    {
-        return [
-            'authorization_id' => $authorization->id,
-            'client_id' => $authorization->clientId,
-            'account_id' => $authorization->accountId,
-            'scopes' => $authorization->scopes,
-            'audiences' => $authorization->audiences,
-            'created_at' => $authorization->createdAt,
-            'expires_at' => $authorization->expiresAt,
-            'revoked_at' => $authorization->revokedAt,
-        ];
-    }
-
-    private function grant(string $value): OAuthGrantType
-    {
-        return OAuthGrantType::tryFrom($value)
-            ?? throw new \InvalidArgumentException(sprintf('Unsupported OAuth grant "%s".', $value));
-    }
-
     private function positiveLimit(): int
     {
         $value = $this->option('limit');
@@ -281,30 +306,5 @@ final class OAuthSystemCommand extends SystemCommand
     private function requiredArgument(): string
     {
         return $this->argument(0) ?? throw new \LogicException('Validated OAuth command argument is unavailable.');
-    }
-
-    private function clients(): OAuthClientManager
-    {
-        return $this->application->make(OAuthClientManager::class);
-    }
-
-    private function clientStore(): OAuthClientStoreInterface
-    {
-        return $this->application->make(OAuthClientStoreInterface::class);
-    }
-
-    private function authorizationStore(): OAuthAuthorizationStoreInterface
-    {
-        return $this->application->make(OAuthAuthorizationStoreInterface::class);
-    }
-
-    private function clock(): ClockInterface
-    {
-        return $this->application->make(ClockInterface::class);
-    }
-
-    private function auditor(): OAuthAuditRecorder
-    {
-        return $this->application->make(OAuthAuditRecorder::class);
     }
 }

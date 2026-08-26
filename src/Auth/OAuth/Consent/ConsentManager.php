@@ -36,7 +36,6 @@ final readonly class ConsentManager
             scopes: $request->scopes,
             audiences: $request->audiences,
             grantedAt: $this->clock->now(),
-            revokedAt: null,
             metadata: $existing instanceof OAuthConsent ? $existing->metadata : [],
         );
         $this->consents->save($consent);
@@ -91,20 +90,14 @@ final readonly class ConsentManager
 
     private function permissionsAllowed(PrincipalInterface $principal, AuthorizationRequest $request): bool
     {
-        foreach ($request->requiredPermissions as $permission) {
-            if (!$this->authorizer->can(
-                $principal,
-                $permission,
-                context: [
-                    'oauth_client_id' => $request->client->clientId,
-                    'oauth_scopes' => $request->scopes,
-                    'oauth_audiences' => $request->audiences,
-                ],
-            )->allowed) {
-                return false;
-            }
-        }
-
-        return true;
+        return array_all($request->requiredPermissions, fn($permission) => $this->authorizer->can(
+            $principal,
+            $permission,
+            context: [
+                'oauth_client_id' => $request->client->clientId,
+                'oauth_scopes' => $request->scopes,
+                'oauth_audiences' => $request->audiences,
+            ],
+        )->allowed);
     }
 }

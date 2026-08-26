@@ -60,6 +60,16 @@ final readonly class OAuthScopeMiddleware
         );
     }
 
+    /** @return list<string> */
+    private function stringList(mixed $value): array
+    {
+        if (!is_array($value)) {
+            return [];
+        }
+
+        return array_values(array_filter($value, static fn(mixed $item): bool => is_string($item) && $item !== ''));
+    }
+
     private function unauthorized(string $description): Response
     {
         return Response::json(
@@ -71,15 +81,5 @@ final readonly class OAuthScopeMiddleware
                 'WWW-Authenticate' => 'Bearer error="invalid_token"',
             ],
         );
-    }
-
-    /** @return list<string> */
-    private function stringList(mixed $value): array
-    {
-        if (!is_array($value)) {
-            return [];
-        }
-
-        return array_values(array_filter($value, static fn(mixed $item): bool => is_string($item) && $item !== ''));
     }
 }

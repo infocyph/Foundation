@@ -163,6 +163,7 @@ final readonly class OAuthConfigValidator
             $key = 'auth.oauth.rate_limits.' . $endpoint;
             if (!is_array($policy) || array_is_list($policy)) {
                 $issues[] = new ConfigIssue(sprintf('%s must define max and window.', $key), $key);
+
                 continue;
             }
 
@@ -220,6 +221,7 @@ final readonly class OAuthConfigValidator
                     } else {
                         $seen[$path] = true;
                     }
+
                     continue;
                 }
             }
@@ -302,6 +304,7 @@ final readonly class OAuthConfigValidator
         foreach ($publicKeys as $entry) {
             if (!is_array($entry)) {
                 $issues[] = new ConfigIssue('OAuth public-key entries must be maps.', 'auth.oauth.signing.public_keys');
+
                 return;
             }
 
@@ -310,16 +313,19 @@ final readonly class OAuthConfigValidator
             $status = $entry['status'] ?? null;
             if (!is_string($id) || preg_match('/\A[A-Za-z0-9_-]{1,128}\z/D', $id) !== 1 || isset($seen[$id])) {
                 $issues[] = new ConfigIssue('OAuth public-key ids must be unique Base64URL-safe values.', 'auth.oauth.signing.public_keys');
+
                 return;
             }
             $seen[$id] = true;
 
             if (!is_string($path) || trim($path) === '') {
                 $issues[] = new ConfigIssue('OAuth public-key entries require a deployment-owned path locator.', 'auth.oauth.signing.public_keys');
+
                 return;
             }
             if (!is_string($status) || !in_array($status, ['active', 'fallback'], true)) {
                 $issues[] = new ConfigIssue('OAuth public-key status must be active or fallback.', 'auth.oauth.signing.public_keys');
+
                 return;
             }
             if ($status === 'active') {

@@ -20,16 +20,6 @@ final readonly class OAuthHttpHandler
         private OAuthHttpResponseFactory $responses,
     ) {}
 
-    public function metadata(): Response
-    {
-        return $this->responses->metadata($this->oauth->metadata());
-    }
-
-    public function jwks(): Response
-    {
-        return $this->responses->jwks($this->oauth->jwks());
-    }
-
     public function authorization(Request $request): AuthorizationRequest|Response
     {
         try {
@@ -64,16 +54,30 @@ final readonly class OAuthHttpHandler
         );
     }
 
-    public function token(Request $request): Response
+    public function introspection(Request $request): Response
     {
         try {
             $parameters = $this->input->form($request);
             $authentication = $this->input->clientAuthentication($request, $parameters);
+            $result = $this->oauth->introspect(
+                $this->requiredString($parameters, 'token', 4096),
+                $authentication,
+            );
 
-            return $this->responses->token($this->oauth->exchange($parameters, $authentication));
+            return $this->responses->introspection($result);
         } catch (OAuthProtocolException $exception) {
             return $this->responses->error($exception);
         }
+    }
+
+    public function jwks(): Response
+    {
+        return $this->responses->jwks($this->oauth->jwks());
+    }
+
+    public function metadata(): Response
+    {
+        return $this->responses->metadata($this->oauth->metadata());
     }
 
     public function revocation(Request $request): Response
@@ -93,31 +97,26 @@ final readonly class OAuthHttpHandler
         }
     }
 
-    public function introspection(Request $request): Response
+    public function token(Request $request): Response
     {
         try {
             $parameters = $this->input->form($request);
             $authentication = $this->input->clientAuthentication($request, $parameters);
-            $result = $this->oauth->introspect(
-                $this->requiredString($parameters, 'token', 4096),
-                $authentication,
-            );
 
-            return $this->responses->introspection($result);
+            return $this->responses->token($this->oauth->exchange($parameters, $authentication));
         } catch (OAuthProtocolException $exception) {
             return $this->responses->error($exception);
         }
     }
 
-    /** @param array<string, string> $parameters */
-    private function requiredString(array $parameters, string $name, int $maximumBytes): string
+    private function issuer(): string
     {
-        $value = $parameters[$name] ?? null;
-        if (!is_string($value) || $value === '' || strlen($value) > $maximumBytes) {
-            throw OAuthProtocolException::invalidRequest();
+        $issuer = $this->oauth->metadata()['issuer'] ?? null;
+        if (!is_string($issuer) || $issuer === '') {
+            throw new \LogicException('OAuth authorization-server metadata does not expose a valid issuer.');
         }
 
-        return $value;
+        return $issuer;
     }
 
     /** @param array<string, string> $parameters */
@@ -130,13 +129,14 @@ final readonly class OAuthHttpHandler
         return $this->requiredString($parameters, $name, $maximumBytes);
     }
 
-    private function issuer(): string
+    /** @param array<string, string> $parameters */
+    private function requiredString(array $parameters, string $name, int $maximumBytes): string
     {
-        $issuer = $this->oauth->metadata()['issuer'] ?? null;
-        if (!is_string($issuer) || $issuer === '') {
-            throw new \LogicException('OAuth authorization-server metadata does not expose a valid issuer.');
+        $value = $parameters[$name] ?? null;
+        if (!is_string($value) || $value === '' || strlen($value) > $maximumBytes) {
+            throw OAuthProtocolException::invalidRequest();
         }
 
-        return $issuer;
+        return $value;
     }
 }

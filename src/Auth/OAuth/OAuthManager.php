@@ -41,6 +41,17 @@ final readonly class OAuthManager
         private ?OAuthAuditRecorder $audit = null,
     ) {}
 
+    public function approve(AuthorizationRequest $request, PrincipalInterface $principal): OAuthAuthorizationCodeIssue
+    {
+        $issue = $this->authorizationCodes->issue($request, $principal);
+        $this->audit?->record(AuthEventType::OAUTH_AUTHORIZATION_CODE_ISSUED, $principal->accountId(), [
+            'client_id' => $request->client->clientId,
+            'authorization_id' => $issue->authorization->id,
+        ]);
+
+        return $issue;
+    }
+
     /** @param array<string, mixed> $parameters */
     public function authorizationRedirectContext(array $parameters): AuthorizationRedirectContext
     {
@@ -48,37 +59,14 @@ final readonly class OAuthManager
             return $this->authorizationRequests->redirectContext($parameters);
         } catch (OAuthProtocolException $exception) {
             $this->recordInvalidRequest($exception, 'redirect_validation');
+
             throw $exception;
         }
     }
 
-    /** @param array<string, mixed> $parameters */
-    public function validateAuthorizationRequest(array $parameters): AuthorizationRequest
+    public function clients(): OAuthClientManager
     {
-        try {
-            return $this->authorizationRequests->validate($parameters);
-        } catch (OAuthProtocolException $exception) {
-            $reason = $exception->error === 'invalid_scope' ? 'scope_validation' : 'authorization_request';
-            $this->recordInvalidRequest($exception, $reason);
-            throw $exception;
-        }
-    }
-
-    public function hasConsent(PrincipalInterface $principal, AuthorizationRequest $request): bool
-    {
-        return $this->consents->hasConsent($principal, $request);
-    }
-
-    public function grantConsent(PrincipalInterface $principal, AuthorizationRequest $request): OAuthConsent
-    {
-        $consent = $this->consents->grant($principal, $request);
-        $this->audit?->record(AuthEventType::OAUTH_AUTHORIZATION_APPROVED, $principal->accountId(), [
-            'client_id' => $request->client->clientId,
-            'scopes' => $request->scopes,
-            'audiences' => $request->audiences,
-        ]);
-
-        return $consent;
+        return $this->clients;
     }
 
     public function deny(AuthorizationRequest $request, ?PrincipalInterface $principal = null): void
@@ -96,30 +84,6 @@ final readonly class OAuthManager
         );
     }
 
-    public function revokeConsent(PrincipalInterface $principal, string $clientId): int
-    {
-        $count = $this->consents->revoke($principal, $clientId);
-        if ($count > 0) {
-            $this->audit?->record(AuthEventType::OAUTH_AUTHORIZATION_REVOKED, $principal->accountId(), [
-                'client_id' => $clientId,
-                'reason' => 'consent_revoked',
-            ]);
-        }
-
-        return $count;
-    }
-
-    public function approve(AuthorizationRequest $request, PrincipalInterface $principal): OAuthAuthorizationCodeIssue
-    {
-        $issue = $this->authorizationCodes->issue($request, $principal);
-        $this->audit?->record(AuthEventType::OAUTH_AUTHORIZATION_CODE_ISSUED, $principal->accountId(), [
-            'client_id' => $request->client->clientId,
-            'authorization_id' => $issue->authorization->id,
-        ]);
-
-        return $issue;
-    }
-
     /** @param array<string, mixed> $parameters */
     public function exchange(array $parameters, OAuthClientAuthentication $authentication): OAuthTokenResponse
     {
@@ -134,6 +98,7 @@ final readonly class OAuthManager
                 'grant_type' => is_string($parameters['grant_type'] ?? null) ? $parameters['grant_type'] : null,
                 'error' => $exception->error,
             ], severity: AuthEventSeverity::WARNING);
+
             throw $exception;
         }
 
@@ -144,23 +109,33 @@ final readonly class OAuthManager
         $this->audit?->record(AuthEventType::OAUTH_ACCESS_TOKEN_ISSUED, metadata: [
             'client_id' => $authentication->clientId,
             'grant_type' => is_string($parameters['grant_type'] ?? null) ? $parameters['grant_type'] : null,
-            'scopes' => $response->scope === '' ? [] : preg_split('/\s+/', $response->scope) ?: [],
+            'scopes' => ($response->scope === '' ? [] : preg_split('/\s+/', $response->scope)) ?: [],
             'token_type' => $response->tokenType,
         ]);
 
         return $response;
     }
 
-    public function revoke(
-        #[\SensitiveParameter] string $token,
-        OAuthClientAuthentication $authentication,
-        ?string $tokenTypeHint = null,
-    ): void {
-        $this->revocations->revoke($token, $authentication, $tokenTypeHint);
+    public function grantConsent(PrincipalInterface $principal, AuthorizationRequest $request): OAuthConsent
+    {
+        $consent = $this->consents->grant($principal, $request);
+        $this->audit?->record(AuthEventType::OAUTH_AUTHORIZATION_APPROVED, $principal->accountId(), [
+            'client_id' => $request->client->clientId,
+            'scopes' => $request->scopes,
+            'audiences' => $request->audiences,
+        ]);
+
+        return $consent;
+    }
+
+    public function hasConsent(PrincipalInterface $principal, AuthorizationRequest $request): bool
+    {
+        return $this->consents->hasConsent($principal, $request);
     }
 
     public function introspect(
-        #[\SensitiveParameter] string $token,
+        #[\SensitiveParameter]
+        string $token,
         OAuthClientAuthentication $authentication,
     ): OAuthIntrospectionResult {
         $result = $this->introspection->introspect($token, $authentication);
@@ -173,21 +148,51 @@ final readonly class OAuthManager
         return $result;
     }
 
-    /** @return array<string, mixed> */
-    public function metadata(): array
-    {
-        return $this->metadata->toArray();
-    }
-
     /** @return array{keys:list<array<string, mixed>>} */
     public function jwks(): array
     {
         return $this->jwks->jwks();
     }
 
-    public function clients(): OAuthClientManager
+    /** @return array<string, mixed> */
+    public function metadata(): array
     {
-        return $this->clients;
+        return $this->metadata->toArray();
+    }
+
+    public function revoke(
+        #[\SensitiveParameter]
+        string $token,
+        OAuthClientAuthentication $authentication,
+        ?string $tokenTypeHint = null,
+    ): void {
+        $this->revocations->revoke($token, $authentication, $tokenTypeHint);
+    }
+
+    public function revokeConsent(PrincipalInterface $principal, string $clientId): int
+    {
+        $count = $this->consents->revoke($principal, $clientId);
+        if ($count > 0) {
+            $this->audit?->record(AuthEventType::OAUTH_AUTHORIZATION_REVOKED, $principal->accountId(), [
+                'client_id' => $clientId,
+                'reason' => 'consent_revoked',
+            ]);
+        }
+
+        return $count;
+    }
+
+    /** @param array<string, mixed> $parameters */
+    public function validateAuthorizationRequest(array $parameters): AuthorizationRequest
+    {
+        try {
+            return $this->authorizationRequests->validate($parameters);
+        } catch (OAuthProtocolException $exception) {
+            $reason = $exception->error === 'invalid_scope' ? 'scope_validation' : 'authorization_request';
+            $this->recordInvalidRequest($exception, $reason);
+
+            throw $exception;
+        }
     }
 
     private function recordInvalidRequest(OAuthProtocolException $exception, string $reason): void

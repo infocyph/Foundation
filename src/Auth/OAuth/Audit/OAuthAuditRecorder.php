@@ -64,6 +64,7 @@ final readonly class OAuthAuditRecorder
             $value = $metadata[$key];
             if (is_bool($value) || is_int($value) || is_string($value) || $value === null) {
                 $safe[$key] = is_string($value) ? mb_substr($value, 0, 2048) : $value;
+
                 continue;
             }
             if (in_array($key, ['scopes', 'audiences'], true) && is_array($value)) {

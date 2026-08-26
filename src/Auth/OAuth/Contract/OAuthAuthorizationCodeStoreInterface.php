@@ -9,8 +9,6 @@ use Infocyph\Foundation\Auth\OAuth\Authorization\OAuthAuthorizationCodeConsumeRe
 
 interface OAuthAuthorizationCodeStoreInterface
 {
-    public function save(OAuthAuthorizationCode $code): void;
-
     public function consume(
         string $codeHash,
         string $clientId,
@@ -18,4 +16,6 @@ interface OAuthAuthorizationCodeStoreInterface
         string $pkceChallenge,
         int $now,
     ): OAuthAuthorizationCodeConsumeResult;
+
+    public function save(OAuthAuthorizationCode $code): void;
 }

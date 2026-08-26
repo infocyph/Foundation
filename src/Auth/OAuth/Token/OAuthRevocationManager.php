@@ -47,6 +47,7 @@ final readonly class OAuthRevocationManager
 
         if ($tokenTypeHint === 'refresh_token') {
             $this->refreshTokens->revoke($token, $client->clientId);
+
             return;
         }
 

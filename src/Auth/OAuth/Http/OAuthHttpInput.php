@@ -49,25 +49,6 @@ final readonly class OAuthHttpInput
         return $parameters;
     }
 
-    /** @return array<string, string> */
-    public function form(Request $request): array
-    {
-        $query = $this->parseEncoded($request->getUri()->getQuery(), $this->maximumQueryBytes);
-        if ($query !== []) {
-            throw OAuthProtocolException::invalidRequest('OAuth protocol endpoint parameters must be sent in the request body.');
-        }
-
-        $contentType = strtolower(trim(explode(';', $request->getHeaderLine('Content-Type'), 2)[0] ?? ''));
-        if ($contentType !== 'application/x-www-form-urlencoded') {
-            throw OAuthProtocolException::invalidRequest('OAuth protocol endpoints require application/x-www-form-urlencoded.');
-        }
-
-        $parameters = $this->parseEncoded((string) $request->getBody(), $this->maximumFormBytes);
-        $this->rejectCredentialParameters($parameters);
-
-        return $parameters;
-    }
-
     /** @param array<string, string> $parameters */
     public function clientAuthentication(Request $request, array $parameters): OAuthClientAuthentication
     {
@@ -115,6 +96,25 @@ final readonly class OAuthHttpInput
     }
 
     /** @return array<string, string> */
+    public function form(Request $request): array
+    {
+        $query = $this->parseEncoded($request->getUri()->getQuery(), $this->maximumQueryBytes);
+        if ($query !== []) {
+            throw OAuthProtocolException::invalidRequest('OAuth protocol endpoint parameters must be sent in the request body.');
+        }
+
+        $contentType = strtolower(trim(explode(';', $request->getHeaderLine('Content-Type'), 2)[0] ?? ''));
+        if ($contentType !== 'application/x-www-form-urlencoded') {
+            throw OAuthProtocolException::invalidRequest('OAuth protocol endpoints require application/x-www-form-urlencoded.');
+        }
+
+        $parameters = $this->parseEncoded((string) $request->getBody(), $this->maximumFormBytes);
+        $this->rejectCredentialParameters($parameters);
+
+        return $parameters;
+    }
+
+    /** @return array<string, string> */
     public function parseEncoded(string $encoded, int $maximumBytes): array
     {
         if (strlen($encoded) > $maximumBytes) {
@@ -155,6 +155,15 @@ final readonly class OAuthHttpInput
         return $parameters;
     }
 
+    private function decodeComponent(string $value): string
+    {
+        if (preg_match('/%(?![0-9A-Fa-f]{2})/', $value) === 1) {
+            throw OAuthProtocolException::invalidRequest('OAuth request contains malformed percent encoding.');
+        }
+
+        return rawurldecode(str_replace('+', ' ', $value));
+    }
+
     /** @param array<string, string> $parameters */
     private function rejectCredentialParameters(array $parameters): void
     {
@@ -163,15 +172,6 @@ final readonly class OAuthHttpInput
                 throw OAuthProtocolException::invalidRequest('Client credentials must use client_secret_basic.');
             }
         }
-    }
-
-    private function decodeComponent(string $value): string
-    {
-        if (preg_match('/%(?![0-9A-Fa-f]{2})/', $value) === 1) {
-            throw OAuthProtocolException::invalidRequest('OAuth request contains malformed percent encoding.');
-        }
-
-        return rawurldecode(str_replace('+', ' ', $value));
     }
 
     private function validCredential(string $value, int $maximumBytes): bool

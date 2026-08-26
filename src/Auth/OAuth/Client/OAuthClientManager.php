@@ -16,7 +16,9 @@ use Infocyph\Foundation\Auth\OAuth\Value\OAuthGrantType;
 final readonly class OAuthClientManager
 {
     private const int MAX_AUDIENCES = 16;
+
     private const int MAX_REDIRECT_URIS = 20;
+
     private const int MAX_SCOPES = 64;
 
     public function __construct(
@@ -58,15 +60,15 @@ final readonly class OAuthClientManager
             : null;
     }
 
+    public function redirectUriAllowed(string $clientId, string $redirectUri): bool
+    {
+        return in_array($redirectUri, $this->clients->redirectUris($clientId), true);
+    }
+
     /** @return list<string> */
     public function redirectUris(string $clientId): array
     {
         return $this->clients->redirectUris($clientId);
-    }
-
-    public function redirectUriAllowed(string $clientId, string $redirectUri): bool
-    {
-        return in_array($redirectUri, $this->clients->redirectUris($clientId), true);
     }
 
     /**
@@ -134,6 +136,12 @@ final readonly class OAuthClientManager
         return $secret;
     }
 
+    /** @return list<string> */
+    public function scopes(string $clientId): array
+    {
+        return $this->clients->scopes($clientId);
+    }
+
     public function setEnabled(string $clientId, bool $enabled): bool
     {
         $client = $this->clients->find($clientId);
@@ -158,12 +166,6 @@ final readonly class OAuthClientManager
         ));
 
         return true;
-    }
-
-    /** @return list<string> */
-    public function scopes(string $clientId): array
-    {
-        return $this->clients->scopes($clientId);
     }
 
     /** @param list<string> $audiences @return list<string> */

@@ -52,6 +52,66 @@ final readonly class OAuthTokenManager
         };
     }
 
+    /**
+     * @param list<string> $scopes
+     * @param list<string> $audiences
+     */
+    private function assertUserAuthorization(
+        OAuthAuthorization $authorization,
+        OAuthClient $client,
+        string $accountId,
+        array $scopes,
+        array $audiences,
+        bool $allowNarrowedScopes,
+    ): void {
+        $now = $this->clock->now();
+        $validScopes = $allowNarrowedScopes
+            ? $this->subsetOf($scopes, $authorization->scopes)
+            : $this->sameSet($authorization->scopes, $scopes);
+        if (
+            !$authorization->activeAt($now)
+            || !hash_equals($authorization->clientId, $client->clientId)
+            || !is_string($authorization->accountId)
+            || !hash_equals($authorization->accountId, $accountId)
+            || !$validScopes
+            || !$this->sameSet($authorization->audiences, $audiences)
+        ) {
+            throw OAuthProtocolException::invalidGrant();
+        }
+
+        $account = $this->accounts->findById($accountId);
+        if ($account === null || $account->status() !== AccountStatus::ACTIVE) {
+            throw OAuthProtocolException::invalidGrant();
+        }
+    }
+
+    /** @param array<string, mixed> $parameters @return list<string> */
+    private function audiences(array $parameters, OAuthClient $client): array
+    {
+        if (!array_key_exists('audience', $parameters)) {
+            return count($client->audiences) === 1
+                ? $client->audiences
+                : throw OAuthProtocolException::invalidRequest('An audience is required.');
+        }
+
+        return $this->spaceList($parameters, 'audience', 16, true);
+    }
+
+    private function authenticate(OAuthClientAuthentication $authentication, OAuthGrantType $grant): OAuthClient
+    {
+        $client = $this->clients->authenticate(
+            $authentication->clientId,
+            $authentication->secret,
+            $grant,
+            $authentication->method,
+        );
+        if (!$client instanceof OAuthClient) {
+            throw OAuthProtocolException::invalidClient();
+        }
+
+        return $client;
+    }
+
     /** @param array<string, mixed> $parameters */
     private function authorizationCode(array $parameters, OAuthClientAuthentication $authentication): OAuthTokenResponse
     {
@@ -158,66 +218,6 @@ final readonly class OAuthTokenManager
         );
     }
 
-    private function authenticate(OAuthClientAuthentication $authentication, OAuthGrantType $grant): OAuthClient
-    {
-        $client = $this->clients->authenticate(
-            $authentication->clientId,
-            $authentication->secret,
-            $grant,
-            $authentication->method,
-        );
-        if (!$client instanceof OAuthClient) {
-            throw OAuthProtocolException::invalidClient();
-        }
-
-        return $client;
-    }
-
-    /** @param array<string, mixed> $parameters @return list<string> */
-    private function audiences(array $parameters, OAuthClient $client): array
-    {
-        if (!array_key_exists('audience', $parameters)) {
-            return count($client->audiences) === 1
-                ? $client->audiences
-                : throw OAuthProtocolException::invalidRequest('An audience is required.');
-        }
-
-        return $this->spaceList($parameters, 'audience', 16, true);
-    }
-
-    /**
-     * @param list<string> $scopes
-     * @param list<string> $audiences
-     */
-    private function assertUserAuthorization(
-        OAuthAuthorization $authorization,
-        OAuthClient $client,
-        string $accountId,
-        array $scopes,
-        array $audiences,
-        bool $allowNarrowedScopes,
-    ): void {
-        $now = $this->clock->now();
-        $validScopes = $allowNarrowedScopes
-            ? $this->subsetOf($scopes, $authorization->scopes)
-            : $this->sameSet($authorization->scopes, $scopes);
-        if (
-            !$authorization->activeAt($now)
-            || !hash_equals($authorization->clientId, $client->clientId)
-            || !is_string($authorization->accountId)
-            || !hash_equals($authorization->accountId, $accountId)
-            || !$validScopes
-            || !$this->sameSet($authorization->audiences, $audiences)
-        ) {
-            throw OAuthProtocolException::invalidGrant();
-        }
-
-        $account = $this->accounts->findById($accountId);
-        if ($account === null || $account->status() !== AccountStatus::ACTIVE) {
-            throw OAuthProtocolException::invalidGrant();
-        }
-    }
-
     /** @param array<string, mixed> $parameters */
     private function rejectCredentialParameters(array $parameters): void
     {
@@ -236,6 +236,30 @@ final readonly class OAuthTokenManager
                 throw OAuthProtocolException::invalidRequest();
             }
         }
+    }
+
+    /** @param array<string, mixed> $parameters */
+    private function requiredString(array $parameters, string $name, int $maximumBytes, bool $trim = true): string
+    {
+        $value = $parameters[$name] ?? null;
+        if (!is_string($value) || $value === '' || strlen($value) > $maximumBytes) {
+            throw OAuthProtocolException::invalidRequest();
+        }
+
+        if (!$trim) {
+            if (trim($value) !== $value) {
+                throw OAuthProtocolException::invalidRequest();
+            }
+
+            return $value;
+        }
+
+        $value = trim($value);
+        if ($value === '') {
+            throw OAuthProtocolException::invalidRequest();
+        }
+
+        return $value;
     }
 
     /**
@@ -271,30 +295,6 @@ final readonly class OAuthTokenManager
         );
     }
 
-    /** @param array<string, mixed> $parameters */
-    private function requiredString(array $parameters, string $name, int $maximumBytes, bool $trim = true): string
-    {
-        $value = $parameters[$name] ?? null;
-        if (!is_string($value) || $value === '' || strlen($value) > $maximumBytes) {
-            throw OAuthProtocolException::invalidRequest();
-        }
-
-        if (!$trim) {
-            if (trim($value) !== $value) {
-                throw OAuthProtocolException::invalidRequest();
-            }
-
-            return $value;
-        }
-
-        $value = trim($value);
-        if ($value === '') {
-            throw OAuthProtocolException::invalidRequest();
-        }
-
-        return $value;
-    }
-
     /** @param list<string> $left @param list<string> $right */
     private function sameSet(array $left, array $right): bool
     {
@@ -302,19 +302,6 @@ final readonly class OAuthTokenManager
         sort($right, SORT_STRING);
 
         return $left === $right;
-    }
-
-    /** @param list<string> $candidate @param list<string> $allowed */
-    private function subsetOf(array $candidate, array $allowed): bool
-    {
-        $allowedSet = array_fill_keys($allowed, true);
-        foreach ($candidate as $value) {
-            if (!isset($allowedSet[$value])) {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     /** @param array<string, mixed> $parameters @return list<string> */
@@ -334,5 +321,12 @@ final readonly class OAuthTokenManager
         }
 
         return array_values($items);
+    }
+
+    /** @param list<string> $candidate @param list<string> $allowed */
+    private function subsetOf(array $candidate, array $allowed): bool
+    {
+        $allowedSet = array_fill_keys($allowed, true);
+        return array_all($candidate, fn($value) => isset($allowedSet[$value]));
     }
 }

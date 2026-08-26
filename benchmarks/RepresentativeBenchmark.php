@@ -77,6 +77,7 @@ PHP);
         }
 
         $oauthFixture = null;
+
         try {
             $application = $this->application($basePath);
             $workloads = [

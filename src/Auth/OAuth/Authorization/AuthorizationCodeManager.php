@@ -126,6 +126,7 @@ final readonly class AuthorizationCodeManager
                     $accountId,
                     $metadata,
                 );
+
                 break;
             case OAuthAuthorizationCodeConsumeStatus::Expired:
                 $this->audit?->record(
@@ -134,6 +135,7 @@ final readonly class AuthorizationCodeManager
                     $metadata,
                     AuthEventSeverity::WARNING,
                 );
+
                 break;
             case OAuthAuthorizationCodeConsumeStatus::Reused:
                 $this->audit?->record(
@@ -142,6 +144,7 @@ final readonly class AuthorizationCodeManager
                     $metadata,
                     AuthEventSeverity::WARNING,
                 );
+
                 break;
             case OAuthAuthorizationCodeConsumeStatus::Missing:
             case OAuthAuthorizationCodeConsumeStatus::Mismatched:

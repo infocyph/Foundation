@@ -117,6 +117,7 @@ final readonly class OAuthIntrospectionManager
         if ($account === null || $account->status() !== AccountStatus::ACTIVE) {
             return OAuthIntrospectionResult::inactive();
         }
+
         try {
             $this->scopes->resolve($caller, $record->scopes, $record->audiences);
         } catch (\InvalidArgumentException) {

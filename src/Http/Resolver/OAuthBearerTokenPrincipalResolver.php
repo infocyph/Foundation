@@ -16,11 +16,12 @@ use Infocyph\Webrick\Request\Request;
 
 final class OAuthBearerTokenPrincipalResolver extends AbstractPrincipalResolver
 {
-    private readonly string $header;
-    private readonly string $prefix;
-
     /** @var list<string> */
     private readonly array $audiences;
+
+    private readonly string $header;
+
+    private readonly string $prefix;
 
     public function __construct(
         ConfigRepository $config,
@@ -67,7 +68,6 @@ final class OAuthBearerTokenPrincipalResolver extends AbstractPrincipalResolver
             return new Principal(
                 id: $verified->client->clientId,
                 type: PrincipalType::SERVICE,
-                accountId: null,
                 metadata: $metadata,
             );
         }

@@ -10,9 +10,9 @@ use Infocyph\Epicrypt\Security\KeyRingEntry;
 use Infocyph\Epicrypt\Security\KeyStatus;
 use Infocyph\Epicrypt\Token\Jwt\AsymmetricJwt;
 use Infocyph\Epicrypt\Token\Jwt\Enum\AsymmetricJwtAlgorithm;
+use Infocyph\Epicrypt\Token\Jwt\Jwks;
 use Infocyph\Epicrypt\Token\Jwt\JwtClaims;
 use Infocyph\Epicrypt\Token\Jwt\JwtPolicy;
-use Infocyph\Epicrypt\Token\Jwt\Jwks;
 use Infocyph\Foundation\Auth\Audit\AuthEventSeverity;
 use Infocyph\Foundation\Auth\Audit\AuthEventType;
 use Infocyph\Foundation\Auth\OAuth\Audit\OAuthAuditRecorder;
@@ -32,6 +32,7 @@ final readonly class OAuthSigningKeyResolver
             $resolved = $this->resolveConfigured();
         } catch (\Throwable $exception) {
             $this->recordReadiness(['result' => 'failure'], AuthEventSeverity::ERROR);
+
             throw $exception;
         }
 
@@ -44,30 +45,9 @@ final readonly class OAuthSigningKeyResolver
         return $resolved;
     }
 
-    private function resolveConfigured(): OAuthSigningKeySet
+    private function absolute(string $path): bool
     {
-        $issuer = $this->requiredString('auth.oauth.issuer');
-        $activeKeyId = $this->requiredKeyId('auth.oauth.signing.active_key_id');
-        $algorithm = $this->algorithm();
-        $privateKey = $this->readKey($this->config->get('auth.oauth.signing.private_key'));
-        $entries = $this->publicKeyEntries($issuer, $activeKeyId, $algorithm);
-        $ring = new KeyRing($entries);
-        $active = $ring->activeForWrite(KeyPurpose::JWT_SIGNING, $algorithm->value, $issuer);
-
-        if (!hash_equals($activeKeyId, $active->id)) {
-            throw new ConfigurationException('OAuth active signing key configuration is inconsistent.');
-        }
-
-        $this->verifyKeyPair($issuer, $activeKeyId, $privateKey, $ring, $algorithm);
-        new Jwks()->exportFromKeyRing($ring, $algorithm, $issuer);
-
-        return new OAuthSigningKeySet(
-            issuer: $issuer,
-            activeKeyId: $activeKeyId,
-            privateKey: $privateKey,
-            publicKeys: $ring,
-            algorithm: $algorithm,
-        );
+        return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1;
     }
 
     private function algorithm(): AsymmetricJwtAlgorithm
@@ -80,11 +60,6 @@ final readonly class OAuthSigningKeyResolver
         }
 
         return $algorithm;
-    }
-
-    private function absolute(string $path): bool
-    {
-        return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1;
     }
 
     private function basePath(): string
@@ -149,24 +124,6 @@ final readonly class OAuthSigningKeyResolver
         return $entries;
     }
 
-    /** @param array<string, mixed> $metadata */
-    private function recordReadiness(array $metadata, AuthEventSeverity $severity = AuthEventSeverity::INFO): void
-    {
-        if (!$this->audit instanceof OAuthAuditRecorder) {
-            return;
-        }
-
-        try {
-            $this->audit->record(
-                AuthEventType::OAUTH_KEY_READINESS,
-                metadata: $metadata,
-                severity: $severity,
-            );
-        } catch (\Throwable) {
-            // Signing readiness is authoritative; an audit backend outage must not replace its result.
-        }
-    }
-
     private function readKey(mixed $locator): string
     {
         if (!is_string($locator) || trim($locator) === '') {
@@ -184,6 +141,24 @@ final readonly class OAuthSigningKeyResolver
         }
 
         return $key;
+    }
+
+    /** @param array<string, mixed> $metadata */
+    private function recordReadiness(array $metadata, AuthEventSeverity $severity = AuthEventSeverity::INFO): void
+    {
+        if (!$this->audit instanceof OAuthAuditRecorder) {
+            return;
+        }
+
+        try {
+            $this->audit->record(
+                AuthEventType::OAUTH_KEY_READINESS,
+                metadata: $metadata,
+                severity: $severity,
+            );
+        } catch (\Throwable) {
+            // Signing readiness is authoritative; an audit backend outage must not replace its result.
+        }
     }
 
     private function requiredKeyId(string $key): string
@@ -206,10 +181,37 @@ final readonly class OAuthSigningKeyResolver
         return trim($value);
     }
 
+    private function resolveConfigured(): OAuthSigningKeySet
+    {
+        $issuer = $this->requiredString('auth.oauth.issuer');
+        $activeKeyId = $this->requiredKeyId('auth.oauth.signing.active_key_id');
+        $algorithm = $this->algorithm();
+        $privateKey = $this->readKey($this->config->get('auth.oauth.signing.private_key'));
+        $entries = $this->publicKeyEntries($issuer, $activeKeyId, $algorithm);
+        $ring = new KeyRing($entries);
+        $active = $ring->activeForWrite(KeyPurpose::JWT_SIGNING, $algorithm->value, $issuer);
+
+        if (!hash_equals($activeKeyId, $active->id)) {
+            throw new ConfigurationException('OAuth active signing key configuration is inconsistent.');
+        }
+
+        $this->verifyKeyPair($issuer, $activeKeyId, $privateKey, $ring, $algorithm);
+        new Jwks()->exportFromKeyRing($ring, $algorithm, $issuer);
+
+        return new OAuthSigningKeySet(
+            issuer: $issuer,
+            activeKeyId: $activeKeyId,
+            privateKey: $privateKey,
+            publicKeys: $ring,
+            algorithm: $algorithm,
+        );
+    }
+
     private function verifyKeyPair(
         string $issuer,
         string $activeKeyId,
-        #[\SensitiveParameter] string $privateKey,
+        #[\SensitiveParameter]
+        string $privateKey,
         KeyRing $publicKeys,
         AsymmetricJwtAlgorithm $algorithm,
     ): void {
