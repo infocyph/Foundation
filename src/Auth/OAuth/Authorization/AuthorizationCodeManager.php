@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Auth\OAuth\Authorization;
 
 use Infocyph\Epicrypt\Token\Opaque\OpaqueToken;
+use Infocyph\Foundation\Auth\Audit\AuthEventSeverity;
+use Infocyph\Foundation\Auth\Audit\AuthEventType;
 use Infocyph\Foundation\Auth\Authorization\Gate\AuthorizerInterface;
 use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
+use Infocyph\Foundation\Auth\OAuth\Audit\OAuthAuditRecorder;
 use Infocyph\Foundation\Auth\OAuth\Contract\OAuthAuthorizationCodeStoreInterface;
 use Infocyph\Foundation\Auth\OAuth\Contract\OAuthAuthorizationStoreInterface;
 use Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException;
@@ -21,6 +24,7 @@ final readonly class AuthorizationCodeManager
         private ClockInterface $clock,
         private OpaqueToken $tokens,
         private int $ttlSeconds = 60,
+        private ?OAuthAuditRecorder $audit = null,
     ) {
         if ($this->ttlSeconds < 1 || $this->ttlSeconds > 60) {
             throw new \InvalidArgumentException('OAuth authorization code TTL must be between 1 and 60 seconds.');
@@ -50,6 +54,7 @@ final readonly class AuthorizationCodeManager
             pkceChallenge: $challenge,
             now: $this->clock->now(),
         );
+        $this->auditConsumeResult($result, $clientId);
         if (!$result->consumed() || !$result->code instanceof OAuthAuthorizationCode) {
             throw OAuthProtocolException::invalidGrant();
         }
@@ -102,6 +107,39 @@ final readonly class AuthorizationCodeManager
                 throw new \LogicException('OAuth scope permission policy denied the authorization request.');
             }
         }
+    }
+
+    private function auditConsumeResult(OAuthAuthorizationCodeConsumeResult $result, string $clientId): void
+    {
+        $code = $result->code;
+        $metadata = [
+            'client_id' => $clientId,
+            'authorization_id' => $code?->authorizationId,
+            'result' => $result->status->value,
+        ];
+        $accountId = $code?->accountId;
+
+        match ($result->status) {
+            OAuthAuthorizationCodeConsumeStatus::Consumed => $this->audit?->record(
+                AuthEventType::OAUTH_AUTHORIZATION_CODE_CONSUMED,
+                $accountId,
+                $metadata,
+            ),
+            OAuthAuthorizationCodeConsumeStatus::Expired => $this->audit?->record(
+                AuthEventType::OAUTH_AUTHORIZATION_CODE_EXPIRED,
+                $accountId,
+                $metadata,
+                AuthEventSeverity::WARNING,
+            ),
+            OAuthAuthorizationCodeConsumeStatus::Reused => $this->audit?->record(
+                AuthEventType::OAUTH_AUTHORIZATION_CODE_REPLAY,
+                $accountId,
+                $metadata,
+                AuthEventSeverity::WARNING,
+            ),
+            OAuthAuthorizationCodeConsumeStatus::Missing,
+            OAuthAuthorizationCodeConsumeStatus::Mismatched => null,
+        };
     }
 
     private function pkceChallenge(#[\SensitiveParameter] string $verifier): string
