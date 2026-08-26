@@ -10,6 +10,9 @@ interface OAuthClientStoreInterface
 {
     public function find(string $clientId): ?OAuthClient;
 
+    /** @return list<OAuthClient> */
+    public function list(int $limit = 100): array;
+
     /** @return list<string> */
     public function redirectUris(string $clientId): array;
 
