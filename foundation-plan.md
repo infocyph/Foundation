@@ -103,7 +103,7 @@ Evidence: configuration/key/client-secret/ownership guide `e7076d5`, docs index 
 
 ## F7 — Performance and engineering gates
 - [x] Extend benchmark framework with OAuth-disabled and OAuth workloads.
-- [ ] Record environment and representative baseline/candidate measurements.
+- [x] Record environment and representative baseline/candidate measurements.
 - [ ] Prove OAuth-disabled existing-path median regression within measured acceptance budget.
 - [ ] Run persistent-worker repeated-request/reset and available soak coverage.
 - [ ] Run Composer validation/audit/runtime compatibility.
@@ -111,7 +111,9 @@ Evidence: configuration/key/client-secret/ownership guide `e7076d5`, docs index 
 - [ ] Run complete Pest suite with no unexpected skips.
 - [ ] Run available OAuth interoperability/conformance coverage.
 - [ ] No suppressions/baselines/exclusions/weakened checks/raised limits to obtain green gates.
-Evidence: representative benchmark v2 adds explicit OAuth-disabled application-bearer request and OAuth client-credentials bearer-resolution workloads in `4d6f0bf`. Provisioning/key generation/schema/token issuance remain outside measured loops. Measurements and acceptance decisions remain unchecked until executed.
+Evidence:
+- F7.1 benchmark framework: `4d6f0bf` adds explicit OAuth-disabled application-bearer and OAuth client-credentials bearer-resolution workloads; provisioning/key generation/schema/token issuance remain outside measured loops.
+- F7.2 measurements: execution run `32987689449`, job `98237728121`, artifact `9613479396` (`sha256:ed5b68b509afd658d1d0dada3c53411e27d61cefed8cd894878ff5b969d4404e`), durable evidence `e565610`. Same-runner fingerprint `Linux-X64-php85-32987689449` on PHP 8.5.9 / Linux 6.17.0-1022-azure / AMD EPYC 7763; baseline `2.0` and candidate `d59756d` representative plus identical application-bearer measurements recorded.
 
 ## F8 — Foundation release handoff
 - [ ] Resolve OAuth-introduced gate failures.
@@ -125,8 +127,8 @@ Evidence: representative benchmark v2 adds explicit OAuth-disabled application-b
 - [ ] After Foundation release, add disabled-default OAuth application config/routes/thin presentation hooks/integration tests/deployment closure.
 
 ## Resume point
-Last completed checkpoint: **F7.1 — representative benchmark framework extended for OAuth-disabled and OAuth-enabled steady-state workloads**.
-Benchmark implementation commit: `4d6f0bf5cf8285ddffcc4d77b317422dc1bd2f6e`.
+Last completed checkpoint: **F7.2 — stable environment and representative Foundation 2.0/candidate measurements recorded**.
+Measurement evidence commit: `e565610706f186aee7b0d6b5a49e4cd5e3ba47cc`; execution run `32987689449`.
 Current active task: **F7 — Performance and engineering gates**.
-First unchecked action: record stable environment and representative baseline/candidate measurements, then evaluate the OAuth-disabled existing-path regression budget.
-Execution evidence: benchmark/test/docs code is committed, but runtime/performance/conformance results remain deliberately unchecked until an actual execution environment provides evidence.
+First unchecked action: prove the OAuth-disabled existing-path median regression is within the measured 2% acceptance budget.
+Execution evidence: F7.1-F7.2 are complete; subsequent runtime/performance/conformance gates remain unchecked until their point-specific evidence exists.
