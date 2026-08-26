@@ -78,12 +78,13 @@ Exit: Infbyte can expose thin opt-in routes with no protocol/crypto/persistence 
 
 - [x] Verify every planned OAuth audit event is emitted at the correct lifecycle boundary: authorization denial, code consume/expire/replay, refresh rotate/revoke/reuse, authorization revoke, invalid redirect/scope, rate-limit rejection, and signing-key readiness/selection failure.
 - [x] Add tests proving raw secrets, codes, refresh/access tokens, PKCE verifiers, private keys, Authorization headers, and private-key locator paths never enter audit/log/CLI/error output.
-- [ ] Verify persistent request/principal OAuth metadata is cleared by existing request scope/reset behavior.
+- [x] Verify persistent request/principal OAuth metadata is cleared by existing request scope/reset behavior.
 - [ ] Verify existing auth/verified/MFA/recent/role/permission/policy flows accept OAuth principals without special alternate authorization semantics.
 - [ ] Confirm pruning is idempotent and does not remove active authorizations or refresh-family replay evidence early.
 
 Audit lifecycle evidence: existing `OAuth21AuditLifecycleTest.php`, `OAuth21AuditSecurityTest.php`, and `OAuth21RevocationAuditTest.php`, plus `OAuth21AuditClosureTest.php` and `OAuth21SigningKeySelectionAuditTest.php` committed in `520d0b628767c301fee0168f71d146dc30bc5841` and `64aa5b0440328b8c49fd9ff7471fc8d3ab16c0d1`. Execution remains part of F7.
 Sensitive-output evidence: existing audit/CLI security assertions plus `OAuth21SensitiveOutputClosureTest.php` commit `246db78afee4c7331b4923545c6e06df752a627b`; the designed one-time generated/rotated client-secret return remains the explicit F1 administration output, while incidental audit/log/error/client-view output is covered here. Execution remains part of F7.
+Persistent-reset evidence: `OAuth21PersistentPrincipalResetTest.php` commit `604af3bf31ee97f4c82dc044d58f27af335da17a` covers account/service OAuth metadata cleanup and next-request isolation through the existing runtime tracker. Execution remains part of F7.
 
 Exit: planned security and operational invariants are covered by tests rather than documentation only.
 
@@ -158,8 +159,8 @@ Exit: Foundation is complete before Infbyte integration lock/release.
 
 ## Resume point
 
-Last completed checkpoint: **F3.2 — OAuth sensitive-output closure**.
-Implementation/test commit: `246db78afee4c7331b4923545c6e06df752a627b` (plus existing audit/CLI security tests).
+Last completed checkpoint: **F3.3 — OAuth persistent principal reset isolation**.
+Implementation/test commit: `604af3bf31ee97f4c82dc044d58f27af335da17a`.
 Current active task: **F3 — Security/audit/operational closure**.
-First unchecked action: verify OAuth principal/request metadata is cleared by persistent runtime reset behavior.
+First unchecked action: verify existing auth/verified/MFA/recent/role/permission/policy semantics for OAuth principals.
 Execution evidence: implementation/test files are committed but have not yet been run in this environment; suite/release evidence remains under F7.
