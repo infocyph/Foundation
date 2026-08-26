@@ -142,7 +142,7 @@ final class OAuthSystemCommand extends SystemCommand
     {
         $authorizations = array_map(
             $this->authorizationData(...),
-            $this->authorizationStore()->list($this->positiveLimit(), $this->option('client')),
+            $this->authorizationStore()->recent($this->positiveLimit(), $this->option('client')),
         );
 
         return $this->emit(['authorizations' => $authorizations, 'count' => count($authorizations)]);
