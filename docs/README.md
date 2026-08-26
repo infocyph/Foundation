@@ -10,6 +10,7 @@ their domain behavior.
 - [Communication and email](communication.md)
 - [CLI, schedules, and workers](console.md)
 - [Authentication and authorization](authentication.md)
+- [OAuth 2.1 extension](oauth-2.1.md)
 - [OTP-backed MFA](otp.md)
 - [Browser sessions and CSRF](browser-sessions.md)
 - [Database migrations and seeding](database.md)
@@ -24,5 +25,5 @@ their domain behavior.
 
 The configuration templates under `resources/config/` are the canonical
 key-by-key reference for publishable configuration. Runtime behavior and public
-command/module names in these guides follow the Foundation 2.0 source on the
-current branch; full release verification is a separate phase.
+command/module names in these guides follow the Foundation source on the current
+branch; full release verification is a separate phase.
