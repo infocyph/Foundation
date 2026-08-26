@@ -109,7 +109,7 @@ final readonly class OAuthManager
         $this->audit?->record(AuthEventType::OAUTH_ACCESS_TOKEN_ISSUED, metadata: [
             'client_id' => $authentication->clientId,
             'grant_type' => is_string($parameters['grant_type'] ?? null) ? $parameters['grant_type'] : null,
-            'scopes' => ($response->scope === '' ? [] : preg_split('/\s+/', $response->scope)) ?: [],
+            'scopes' => $response->scopes,
             'token_type' => $response->tokenType,
         ]);
 
