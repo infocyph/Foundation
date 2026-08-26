@@ -15,6 +15,11 @@ final class OAuthProtocolException extends \RuntimeException
         parent::__construct($error);
     }
 
+    public static function accessDenied(): self
+    {
+        return new self('access_denied', 'The resource owner denied the authorization request.', 400, true);
+    }
+
     public static function invalidClient(): self
     {
         return new self('invalid_client', 'Client authentication failed.', 401);
