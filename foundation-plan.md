@@ -75,7 +75,7 @@ Evidence: `f13ba53`, `7146bfb`, `99fca7d`, `d806cbe`, `f315660`, `1f9d9e9`. Exec
 - [x] OAuth bearer -> existing account/service principal -> existing authorization middleware/gates.
 - [x] OAuth/application bearer semantic separation in both directions.
 - [x] Disabled OAuth leaves resolver order/bindings/bootstrap/schema/key loading unchanged.
-- [ ] Rejection matrix: client/redirect/PKCE/code/grant/response/auth-method/scope/issuer/audience/token-use/algorithm/signature/kid/time/revocation/account/client/authorization/malformed failures.
+- [x] Rejection matrix: client/redirect/PKCE/code/grant/response/auth-method/scope/issuer/audience/token-use/algorithm/signature/kid/time/revocation/account/client/authorization/malformed failures.
 
 Evidence:
 - Access-token contract: `fc362c6`, `174b48b`.
@@ -88,6 +88,8 @@ Evidence:
 - OAuth bearer standard principal + existing middleware/authorizer: `e9fed9c`.
 - OAuth/application bearer mutual separation: `5eec491`.
 - Disabled OAuth boot/resolver/binding/schema/key isolation: `f484405`.
+- Protocol/client/request/grant rejection matrix: `62b47d4`.
+- JWT/resource-state rejection matrix: `38868c6`; complemented by existing HTTP boundary, code expiry/replay, refresh widening/reuse, unknown-kid and durable-revocation tests.
 Execution remains F7.
 
 ## F6 — Documentation and operations
@@ -121,8 +123,8 @@ Execution remains F7.
 - [ ] After Foundation release, add disabled-default OAuth application config/routes/thin presentation hooks/integration tests/deployment closure.
 
 ## Resume point
-Last completed checkpoint: **F5.10 — disabled OAuth isolation**.
-Implementation/test commit: `f484405c8393351fc0a1903a4228f3e0fab7e601`.
-Current active task: **F5 — Protocol and compatibility test matrix**.
-First unchecked action: complete the protocol/security rejection matrix.
+Last completed checkpoint: **F5 — protocol and compatibility matrix complete**.
+Latest implementation/test commit: `38868c6f55b96d7349412e7085b790bf75e21f77`.
+Current active task: **F6 — Documentation and operations**.
+First unchecked action: document the `auth.oauth` configuration and disabled behavior.
 Execution evidence: implementation/test files are committed but not yet run in this environment; suite/release evidence remains under F7.
