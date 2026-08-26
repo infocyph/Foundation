@@ -5,13 +5,18 @@ on:
   push:
     branches: [ "feature/oauth-2.1" ]
     paths: [ ".github/workflows/f7-final.yml" ]
+  pull_request:
+    branches: [ "feature/oauth-2.1" ]
+    paths:
+      - ".github/workflows/f7-final.yml"
+      - "tools/**"
 
 permissions:
   contents: read
   actions: read
 
 concurrency:
-  group: foundation-f7-point-2
+  group: foundation-f7-point-2-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -55,27 +60,27 @@ jobs:
           (cd candidate && FOUNDATION_BENCHMARK_REF=${{ github.sha }} php tools/f7-existing-path-benchmark.php build/f7-existing-path.json)
       - name: Write measurement manifest
         shell: bash
+        env:
+          RUN_ID: ${{ github.run_id }}
+          CANDIDATE_REF: ${{ github.sha }}
+          RUNNER_OS_NAME: ${{ runner.os }}
+          RUNNER_ARCH_NAME: ${{ runner.arch }}
         run: |
           php -r '
           $baseline = json_decode((string) file_get_contents("baseline/build/f7-existing-path.json"), true, 512, JSON_THROW_ON_ERROR);
           $candidate = json_decode((string) file_get_contents("candidate/build/f7-existing-path.json"), true, 512, JSON_THROW_ON_ERROR);
           $manifest = [
-              "runner" => getenv("RUNNER_OS") . "-" . getenv("RUNNER_ARCH"),
+              "runner" => getenv("RUNNER_OS_NAME") . "-" . getenv("RUNNER_ARCH_NAME"),
               "php" => PHP_VERSION,
-              "run_id" => getenv("GITHUB_RUN_ID"),
+              "run_id" => getenv("RUN_ID"),
               "baseline_ref" => "2.0",
-              "candidate_ref" => getenv("GITHUB_SHA"),
+              "candidate_ref" => getenv("CANDIDATE_REF"),
               "baseline_existing_path_median_rpm" => $baseline["median_rpm"],
               "candidate_existing_path_median_rpm" => $candidate["median_rpm"],
           ];
           file_put_contents("f7-measurement-manifest.json", json_encode($manifest, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR) . PHP_EOL);
           echo json_encode($manifest, JSON_THROW_ON_ERROR) . PHP_EOL;
           '
-        env:
-          GITHUB_RUN_ID: ${{ github.run_id }}
-          GITHUB_SHA: ${{ github.sha }}
-          RUNNER_OS: ${{ runner.os }}
-          RUNNER_ARCH: ${{ runner.arch }}
       - uses: actions/upload-artifact@v7
         with:
           name: f7-point-2-measurements
