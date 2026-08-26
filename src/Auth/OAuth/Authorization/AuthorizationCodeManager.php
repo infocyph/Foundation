@@ -119,27 +119,34 @@ final readonly class AuthorizationCodeManager
         ];
         $accountId = $code?->accountId;
 
-        match ($result->status) {
-            OAuthAuthorizationCodeConsumeStatus::Consumed => $this->audit?->record(
-                AuthEventType::OAUTH_AUTHORIZATION_CODE_CONSUMED,
-                $accountId,
-                $metadata,
-            ),
-            OAuthAuthorizationCodeConsumeStatus::Expired => $this->audit?->record(
-                AuthEventType::OAUTH_AUTHORIZATION_CODE_EXPIRED,
-                $accountId,
-                $metadata,
-                AuthEventSeverity::WARNING,
-            ),
-            OAuthAuthorizationCodeConsumeStatus::Reused => $this->audit?->record(
-                AuthEventType::OAUTH_AUTHORIZATION_CODE_REPLAY,
-                $accountId,
-                $metadata,
-                AuthEventSeverity::WARNING,
-            ),
-            OAuthAuthorizationCodeConsumeStatus::Missing,
-            OAuthAuthorizationCodeConsumeStatus::Mismatched => null,
-        };
+        switch ($result->status) {
+            case OAuthAuthorizationCodeConsumeStatus::Consumed:
+                $this->audit?->record(
+                    AuthEventType::OAUTH_AUTHORIZATION_CODE_CONSUMED,
+                    $accountId,
+                    $metadata,
+                );
+                break;
+            case OAuthAuthorizationCodeConsumeStatus::Expired:
+                $this->audit?->record(
+                    AuthEventType::OAUTH_AUTHORIZATION_CODE_EXPIRED,
+                    $accountId,
+                    $metadata,
+                    AuthEventSeverity::WARNING,
+                );
+                break;
+            case OAuthAuthorizationCodeConsumeStatus::Reused:
+                $this->audit?->record(
+                    AuthEventType::OAUTH_AUTHORIZATION_CODE_REPLAY,
+                    $accountId,
+                    $metadata,
+                    AuthEventSeverity::WARNING,
+                );
+                break;
+            case OAuthAuthorizationCodeConsumeStatus::Missing:
+            case OAuthAuthorizationCodeConsumeStatus::Mismatched:
+                break;
+        }
     }
 
     private function pkceChallenge(#[\SensitiveParameter] string $verifier): string
