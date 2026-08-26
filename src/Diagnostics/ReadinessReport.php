@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Diagnostics;
 
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Auth\OAuth\Token\OAuthSigningKeyResolver;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Config\ConfigValidator;
 use Infocyph\Foundation\Config\OtpConfigValidator;
@@ -60,6 +61,10 @@ final readonly class ReadinessReport
             'ready' => $messages === [],
             'detail' => $messages === [] ? 'valid for production' : implode('; ', array_values(array_unique($messages))),
         ];
+
+        if ($this->oauthEnabled()) {
+            $checks['oauth:signing'] = $this->oauthSigningReadiness();
+        }
 
         foreach ($this->requiredPackages() as $name => $requirement) {
             $checks['module:' . $name] = [
@@ -124,6 +129,10 @@ final readonly class ReadinessReport
             $this->selectPackage($required, $catalog, 'auth', 'web-auth/webauthn-lib', 'auth:passkeys');
             $this->selectPackage($required, $catalog, 'cache');
         }
+        if ($config->get('auth.oauth.enabled', false) === true) {
+            $this->selectPackage($required, $catalog, 'database');
+            $this->selectPackage($required, $catalog, 'security');
+        }
     }
 
     /** @param array<string,array{package:string,constraint:string}> $required */
@@ -151,6 +160,30 @@ final readonly class ReadinessReport
         }
 
         return $config->get('messaging.forward_auth_events', false) === true;
+    }
+
+    /** @return array{ready:bool,detail:string} */
+    private function oauthSigningReadiness(): array
+    {
+        try {
+            $keys = new OAuthSigningKeyResolver($this->application->config())->resolve();
+
+            return [
+                'ready' => true,
+                'detail' => sprintf('active key %s using %s', $keys->activeKeyId, $keys->algorithm->value),
+            ];
+        } catch (\Throwable) {
+            // Key locators/material are deployment secrets and must not be echoed by readiness diagnostics.
+            return [
+                'ready' => false,
+                'detail' => 'OAuth signing key readiness failed; verify configured key locators, active key and public-key set.',
+            ];
+        }
+    }
+
+    private function oauthEnabled(): bool
+    {
+        return $this->application->config()->get('auth.oauth.enabled', false) === true;
     }
 
     /** @param array<string,array{package:string,constraint:string}> $required */
