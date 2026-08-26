@@ -9,6 +9,7 @@ use Infocyph\DBLayer\DB;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Database\AuthSchema\AuthMfaRevisionSchema;
+use Infocyph\Foundation\Database\AuthSchema\AuthOAuthRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchemaInstaller;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
@@ -26,6 +27,7 @@ final class DatabaseServiceProvider extends ServiceProvider
         }
 
         $container = $app->container();
+        $oauthEnabled = $app->config()->get('auth.oauth.enabled', false) === true;
 
         $this->bindFactory($container, DatabaseConnectionResolver::class, fn() => new DatabaseConnectionResolver(
             $app->config(),
@@ -50,11 +52,18 @@ final class DatabaseServiceProvider extends ServiceProvider
         $this->bindFactory($container, AuthMfaRevisionSchema::class, fn() => new AuthMfaRevisionSchema(
             $app->make(AuthTables::class),
         ), LifetimeEnum::Singleton);
+        if ($oauthEnabled) {
+            $this->bindFactory($container, AuthOAuthRevisionSchema::class, fn() => new AuthOAuthRevisionSchema(
+                $app->make(AuthTables::class),
+            ), LifetimeEnum::Singleton);
+        }
         $this->bindFactory($container, AuthSchemaInstaller::class, fn() => new AuthSchemaInstaller(
             $app->make(DBLayerFactory::class),
             $app->make(AuthSchema::class),
             $app->make(AuthMfaRevisionSchema::class),
             $app->make(AuthTables::class),
+            $oauthEnabled ? $app->make(AuthOAuthRevisionSchema::class) : null,
+            $oauthEnabled,
         ), LifetimeEnum::Singleton);
         $this->bindFactory($container, DatabaseMigrationManager::class, fn() => new DatabaseMigrationManager(
             $app,
