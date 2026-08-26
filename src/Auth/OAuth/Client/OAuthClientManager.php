@@ -32,11 +32,11 @@ final readonly class OAuthClientManager
         string $clientId,
         #[\SensitiveParameter]
         ?string $secret,
-        OAuthGrantType $grant,
+        ?OAuthGrantType $grant,
         OAuthClientAuthenticationMethod $method,
     ): ?OAuthClient {
         $client = $this->enabled($clientId);
-        if (!$client instanceof OAuthClient || !$client->allowsGrant($grant)) {
+        if (!$client instanceof OAuthClient || ($grant !== null && !$client->allowsGrant($grant))) {
             return null;
         }
 
