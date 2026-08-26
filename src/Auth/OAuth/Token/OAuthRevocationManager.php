@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\OAuth\Token;
 
+use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Auth\OAuth\Client\OAuthClient;
 use Infocyph\Foundation\Auth\OAuth\Client\OAuthClientManager;
 use Infocyph\Foundation\Auth\OAuth\Contract\OAuthAccessRevocationStoreInterface;
@@ -17,6 +18,7 @@ final readonly class OAuthRevocationManager
         private OAuthAccessTokenServiceInterface $accessTokens,
         private OAuthAccessRevocationStoreInterface $revocations,
         private OAuthRefreshTokenCoordinator $refreshTokens,
+        private ClockInterface $clock,
     ) {}
 
     public function revoke(
@@ -68,7 +70,7 @@ final readonly class OAuthRevocationManager
                 clientId: $claims->clientId,
                 authorizationId: $claims->authorizationId,
                 expiresAt: $claims->expiresAt,
-                revokedAt: time(),
+                revokedAt: $this->clock->now(),
                 reason: 'client_revocation',
             ));
 
