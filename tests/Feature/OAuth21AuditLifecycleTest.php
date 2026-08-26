@@ -119,7 +119,8 @@ it('audits OAuth endpoint throttling only when a request is rejected', function 
         $capture->recorder(),
     );
     $middleware = $factory->forEndpoint('token', Cache::memory('oauth-rate-limit-audit'));
-    $request = Request::fake(method: 'POST', uri: '/oauth/token');
+    $request = Request::fake(method: 'POST', uri: '/oauth/token')
+        ->withAttribute('client_ip', '203.0.113.10');
     $next = static fn(Request $request): Response => Response::json(['ok' => true]);
 
     $middleware($request, $next);
