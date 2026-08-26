@@ -33,6 +33,7 @@ use Infocyph\Foundation\Auth\OAuth\Contract\OAuthClientStoreInterface;
 use Infocyph\Foundation\Auth\OAuth\Contract\OAuthConsentStoreInterface;
 use Infocyph\Foundation\Auth\OAuth\Contract\OAuthRefreshTokenStoreInterface;
 use Infocyph\Foundation\Auth\OAuth\Metadata\AuthorizationServerMetadata;
+use Infocyph\Foundation\Auth\OAuth\OAuthManager;
 use Infocyph\Foundation\Auth\OAuth\Scope\OAuthScopeResolver;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthAccessTokenValidator;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthIntrospectionManager;
@@ -166,6 +167,17 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
             opaqueTokens: $this->service(OpaqueToken::class),
         ));
         $this->singleton(AuthorizationServerMetadata::class, fn() => new AuthorizationServerMetadata($this->app->config()));
+        $this->singleton(OAuthManager::class, fn() => new OAuthManager(
+            authorizationRequests: $this->service(AuthorizationRequestValidator::class),
+            consents: $this->service(ConsentManager::class),
+            authorizationCodes: $this->service(AuthorizationCodeManager::class),
+            tokens: $this->service(OAuthTokenManager::class),
+            revocations: $this->service(OAuthRevocationManager::class),
+            introspection: $this->service(OAuthIntrospectionManager::class),
+            metadata: $this->service(AuthorizationServerMetadata::class),
+            jwks: $this->service(JwkSetProviderInterface::class),
+            clients: $this->service(OAuthClientManager::class),
+        ));
     }
 
     private function registerStores(): void
