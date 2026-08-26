@@ -210,3 +210,156 @@ Do not interchange these tokens, share validators between them, or make an
 application bearer token satisfy OAuth scope/audience policy. When OAuth is
 enabled, its bearer resolver is additive to the existing resolver chain rather
 than a replacement for Foundation authentication.
+
+## Deployment and operations
+
+OAuth persistence is an additive revision of Foundation's existing `auth`
+schema. A normal 2.1 deployment should preserve existing Foundation 2.0 account,
+session, MFA and application-token data.
+
+### Enablement sequence
+
+A production rollout should use this order:
+
+1. Deploy Foundation 2.1 code while OAuth remains disabled. This preserves the
+   existing authentication bootstrap and allows the release to be deployed
+   without loading OAuth key material.
+2. Provision the DBLayer connection, signing-key files and final OAuth
+   configuration on the target deployment.
+3. In a controlled enablement/canary environment, set `auth.oauth.enabled=true`
+   and validate the resolved configuration:
+
+   ```bash
+   php infbyte config:validate --production
+   ```
+
+4. Inspect and install the additive auth schema revision:
+
+   ```bash
+   php infbyte module:schema:status auth
+   php infbyte module:schema:install auth
+   ```
+
+   `module:schema:sync` may be used when the deployment intentionally syncs all
+   schemas required by its resolved configuration.
+5. Check the active signing key and full application readiness before traffic:
+
+   ```bash
+   php infbyte auth:oauth:key:check
+   php infbyte app:ready
+   ```
+
+6. Expose the thin application OAuth routes only after schema and key readiness
+   are green. Verify metadata/JWKS, one public Authorization Code + S256 flow,
+   one confidential flow if used, resource validation, revocation and
+   introspection on the canary.
+7. Expand traffic only after the canary remains healthy and audit/error telemetry
+   shows no unexpected OAuth failures.
+
+Readiness is authoritative. Do not turn a missing schema or signing-key failure
+into a warning merely to continue deployment.
+
+### Pruning
+
+Use Foundation's existing authentication pruning command as part of normal
+maintenance:
+
+```bash
+php infbyte auth:prune
+```
+
+OAuth pruning removes expired authorization codes, expired refresh-token rows,
+expired access-revocation evidence and sufficiently old revoked consent or
+authorization state according to the existing pruning policy. It is idempotent.
+Active authorizations and unexpired refresh-token rotation/replay evidence must
+not be removed early.
+
+Run pruning as routine retention maintenance, not as a revocation mechanism.
+Client, authorization, refresh-family and access-token revocation are explicit
+durable protocol operations.
+
+### Canary and rollback
+
+The preferred operational rollback is **disablement, not destructive schema
+rollback**:
+
+1. Stop exposing the application OAuth routes or set `auth.oauth.enabled=false`
+   in the rollback deployment.
+2. Re-run configuration/readiness for the restored application surface.
+3. Leave the additive OAuth tables and durable state in place while the incident
+   is investigated. Existing Foundation 2.0 auth data remains independent of
+   those tables.
+4. Roll application code/configuration back to the previously approved release
+   if necessary.
+
+A database rollback of the OAuth schema revision is a separate, destructive
+maintenance decision. Use it only with an appropriate backup/change window and
+only through the schema runner supported by that deployment. It is not part of
+the routine 2.1 rollback path. The Foundation integration matrix separately
+covers OAuth-revision rollback/re-application and transactional partial-failure
+behavior.
+
+For a signing-key incident, preserve any still-trusted fallback public key needed
+to validate already-issued tokens. Disabling OAuth immediately is safer than
+removing verification keys while bearer tokens may still be in circulation.
+
+## Protocol scope and standards
+
+The release name “OAuth 2.1 extension” describes Foundation's implementation
+track; it is not a blanket conformance claim for every OAuth specification or
+profile.
+
+At this documentation baseline in August 2026, the IETF OAuth 2.1 authorization
+framework is still published as `draft-ietf-oauth-v2-1-15`, not as a final RFC.
+Foundation therefore documents the protocol pieces it actually implements and
+uses the OAuth 2.1 draft/security guidance as a design input rather than claiming
+conformance to a final OAuth 2.1 RFC.
+
+Implemented protocol pieces include:
+
+- OAuth 2.0 authorization-code, client-credentials and refresh-token semantics
+  from RFC 6749, constrained by the Foundation 2.1 security policy;
+- PKCE S256 from RFC 7636 for Authorization Code clients;
+- HTTP bearer-token handling/error semantics from RFC 6750;
+- token revocation behavior based on RFC 7009;
+- token introspection behavior based on RFC 7662;
+- authorization-server metadata fields based on RFC 8414;
+- asymmetric JWT access tokens using the RFC 9068 access-token profile;
+- the authorization-response `iss` parameter from RFC 9207;
+- security choices informed by the OAuth 2.0 Security Best Current Practice,
+  RFC 9700, including removal of legacy/insecure grant behavior from this
+  surface.
+
+The implementation may intentionally be stricter than a base RFC. Examples are
+S256-only PKCE, exact registered redirect matching, bounded inputs, no
+`client_secret_post`, durable one-time authorization-code consumption, refresh
+rotation/reuse handling and explicit OAuth/application token separation.
+
+Interoperability and conformance execution remain release gates under F7; the
+presence of these protocol implementations in source and tests is not itself a
+claim that an external conformance suite has passed.
+
+## Unsupported and deferred features
+
+Foundation 2.1 intentionally does **not** provide:
+
+- OpenID Connect: no ID Tokens, UserInfo, OIDC discovery/login semantics or
+  generic “Sign in with OAuth/OIDC” application login;
+- dynamic client registration;
+- OAuth Device Authorization Grant/device flow;
+- Resource Owner Password Credentials/password grant;
+- implicit grant;
+- DPoP proof-of-possession tokens;
+- Pushed Authorization Requests (PAR);
+- a generic social-login/provider abstraction;
+- application-owned replacements for Foundation protocol/crypto/persistence.
+
+Other OAuth extensions are not implicitly supported merely because they can be
+combined with OAuth. Additions such as JAR/JARM, richer client-authentication
+methods, token exchange, Rich Authorization Requests or new proof-of-possession
+profiles require their own design, threat model, configuration, tests and
+release decision before they are advertised.
+
+Browser-based clients should also evaluate the current browser OAuth best
+practices applicable to their deployment; Foundation's protocol implementation
+does not replace client-side/browser architecture guidance.
