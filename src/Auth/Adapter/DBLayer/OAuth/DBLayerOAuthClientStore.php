@@ -37,21 +37,20 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
         )));
     }
 
+    public function register(OAuthClient $client, array $redirectUris, array $scopes): void
+    {
+        $this->connection()->transaction(function (Connection $connection) use ($client, $redirectUris, $scopes): void {
+            $connection->table($this->table('oauthClients'))->insert($this->clientRecord($client));
+            $this->insertRedirectUris($connection, $client->clientId, $redirectUris, $client->createdAt);
+            $this->insertScopes($connection, $client->clientId, $scopes, $client->createdAt);
+        });
+    }
+
     public function replaceRedirectUris(string $clientId, array $redirectUris, int $createdAt): void
     {
         $this->connection()->transaction(function (Connection $connection) use ($clientId, $redirectUris, $createdAt): void {
             $connection->table($this->table('oauthRedirectUris'))->where('client_id', '=', $clientId)->delete();
-
-            foreach ($redirectUris as $uri) {
-                $hash = hash('sha256', $uri);
-                $connection->table($this->table('oauthRedirectUris'))->insert([
-                    'id' => hash('sha256', $clientId . "\0" . $uri),
-                    'client_id' => $clientId,
-                    'redirect_uri_hash' => $hash,
-                    'redirect_uri' => $uri,
-                    'created_at' => $createdAt,
-                ]);
-            }
+            $this->insertRedirectUris($connection, $clientId, $redirectUris, $createdAt);
         });
     }
 
@@ -59,20 +58,32 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
     {
         $this->connection()->transaction(function (Connection $connection) use ($clientId, $scopes, $createdAt): void {
             $connection->table($this->table('oauthClientScopes'))->where('client_id', '=', $clientId)->delete();
-
-            foreach ($scopes as $scope) {
-                $connection->table($this->table('oauthClientScopes'))->insert([
-                    'client_id' => $clientId,
-                    'scope' => $scope,
-                    'created_at' => $createdAt,
-                ]);
-            }
+            $this->insertScopes($connection, $clientId, $scopes, $createdAt);
         });
     }
 
     public function save(OAuthClient $client): void
     {
-        $this->upsertRecord('oauthClients', 'client_id', [
+        $this->upsertRecord('oauthClients', 'client_id', $this->clientRecord($client));
+    }
+
+    public function scopes(string $clientId): array
+    {
+        $rows = $this->all(
+            sprintf('SELECT scope FROM %s WHERE client_id = ? ORDER BY scope ASC', $this->table('oauthClientScopes')),
+            [$clientId],
+        );
+
+        return array_values(array_filter(array_map(
+            fn(array $row): ?string => $this->stringOrNull($row['scope'] ?? null),
+            $rows,
+        )));
+    }
+
+    /** @return array<string, mixed> */
+    private function clientRecord(OAuthClient $client): array
+    {
+        return [
             'id' => $client->id,
             'client_id' => $client->clientId,
             'client_type' => $client->type->value,
@@ -88,20 +99,33 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
             'updated_at' => $client->updatedAt,
             'disabled_at' => $client->disabledAt,
             'metadata' => DBLayerJson::encode($client->metadata),
-        ]);
+        ];
     }
 
-    public function scopes(string $clientId): array
+    /** @param list<string> $redirectUris */
+    private function insertRedirectUris(Connection $connection, string $clientId, array $redirectUris, int $createdAt): void
     {
-        $rows = $this->all(
-            sprintf('SELECT scope FROM %s WHERE client_id = ? ORDER BY scope ASC', $this->table('oauthClientScopes')),
-            [$clientId],
-        );
+        foreach ($redirectUris as $uri) {
+            $connection->table($this->table('oauthRedirectUris'))->insert([
+                'id' => hash('sha256', $clientId . "\0" . $uri),
+                'client_id' => $clientId,
+                'redirect_uri_hash' => hash('sha256', $uri),
+                'redirect_uri' => $uri,
+                'created_at' => $createdAt,
+            ]);
+        }
+    }
 
-        return array_values(array_filter(array_map(
-            fn(array $row): ?string => $this->stringOrNull($row['scope'] ?? null),
-            $rows,
-        )));
+    /** @param list<string> $scopes */
+    private function insertScopes(Connection $connection, string $clientId, array $scopes, int $createdAt): void
+    {
+        foreach ($scopes as $scope) {
+            $connection->table($this->table('oauthClientScopes'))->insert([
+                'client_id' => $clientId,
+                'scope' => $scope,
+                'created_at' => $createdAt,
+            ]);
+        }
     }
 
     /** @param array<string, mixed> $row */
