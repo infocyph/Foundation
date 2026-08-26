@@ -71,7 +71,7 @@ Evidence: `f13ba53`, `7146bfb`, `99fca7d`, `d806cbe`, `f315660`, `1f9d9e9`. Exec
 - [x] Client Credentials success flow.
 - [x] Refresh equal/narrowed-scope success; widened-scope rejection; rotated-token reuse handling.
 - [x] Metadata/JWKS correctness and key rotation/fallback/unknown-kid behavior.
-- [ ] Access-token durable revocation and access/refresh introspection active/inactive states.
+- [x] Access-token durable revocation and access/refresh introspection active/inactive states.
 - [ ] OAuth bearer -> existing account/service principal -> existing authorization middleware/gates.
 - [ ] OAuth/application bearer semantic separation in both directions.
 - [ ] Disabled OAuth leaves resolver order/bindings/bootstrap/schema/key loading unchanged.
@@ -84,6 +84,7 @@ Evidence:
 - Client Credentials/service authorization: `c7b0a37`.
 - Refresh grant scope/replay matrix: `c12b37e`.
 - Metadata/JWKS/key rotation/fallback/unknown-kid: `f5e2d84`.
+- Durable access/refresh revocation + introspection: `7e0ef5c`.
 Execution remains F7.
 
 ## F6 — Documentation and operations
@@ -117,8 +118,8 @@ Execution remains F7.
 - [ ] After Foundation release, add disabled-default OAuth application config/routes/thin presentation hooks/integration tests/deployment closure.
 
 ## Resume point
-Last completed checkpoint: **F5.6 — metadata/JWKS and signing-key rotation**.
-Implementation/test commit: `f5e2d84daa98fdf353b2c3cb867a1667bd0bc5dd`.
+Last completed checkpoint: **F5.7 — durable revocation and introspection active/inactive states**.
+Implementation/test commit: `7e0ef5c333274933f2942e0a4869c232fc45341e`.
 Current active task: **F5 — Protocol and compatibility test matrix**.
-First unchecked action: access-token durable revocation and access/refresh introspection active/inactive states.
+First unchecked action: OAuth bearer -> existing account/service principal -> existing authorization middleware/gates.
 Execution evidence: implementation/test files are committed but not yet run in this environment; suite/release evidence remains under F7.
