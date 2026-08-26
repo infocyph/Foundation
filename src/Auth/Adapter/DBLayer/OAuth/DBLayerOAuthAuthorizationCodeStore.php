@@ -30,12 +30,6 @@ final readonly class DBLayerOAuthAuthorizationCodeStore extends DBLayerStore imp
             $pkceChallenge,
             $now,
         ): OAuthAuthorizationCodeConsumeResult {
-            $current = $this->find($transaction, $codeHash);
-            $status = $this->preconditionStatus($current, $clientId, $redirectUriHash, $pkceChallenge, $now);
-            if ($status instanceof OAuthAuthorizationCodeConsumeStatus) {
-                return new OAuthAuthorizationCodeConsumeResult($status, $current);
-            }
-
             $affected = $transaction->execute(
                 sprintf(
                     'UPDATE %s SET consumed_at = ? WHERE code_hash = ? AND client_id = ? AND redirect_uri_hash = ? AND pkce_challenge = ? AND consumed_at IS NULL AND expires_at > ?',
@@ -44,14 +38,14 @@ final readonly class DBLayerOAuthAuthorizationCodeStore extends DBLayerStore imp
                 [$now, $codeHash, $clientId, $redirectUriHash, $pkceChallenge, $now],
             )->rowCount();
 
-            if ($affected === 1 && $current instanceof OAuthAuthorizationCode) {
+            $latest = $this->find($transaction, $codeHash);
+            if ($affected === 1 && $latest instanceof OAuthAuthorizationCode) {
                 return new OAuthAuthorizationCodeConsumeResult(
                     OAuthAuthorizationCodeConsumeStatus::Consumed,
-                    $this->withConsumedAt($current, $now),
+                    $latest,
                 );
             }
 
-            $latest = $this->find($transaction, $codeHash);
             $latestStatus = $this->preconditionStatus($latest, $clientId, $redirectUriHash, $pkceChallenge, $now)
                 ?? OAuthAuthorizationCodeConsumeStatus::Reused;
 
@@ -139,24 +133,5 @@ final readonly class DBLayerOAuthAuthorizationCodeStore extends DBLayerStore imp
         }
 
         return null;
-    }
-
-    private function withConsumedAt(OAuthAuthorizationCode $code, int $consumedAt): OAuthAuthorizationCode
-    {
-        return new OAuthAuthorizationCode(
-            id: $code->id,
-            codeHash: $code->codeHash,
-            clientId: $code->clientId,
-            accountId: $code->accountId,
-            authorizationId: $code->authorizationId,
-            redirectUriHash: $code->redirectUriHash,
-            pkceChallenge: $code->pkceChallenge,
-            scopes: $code->scopes,
-            audiences: $code->audiences,
-            issuedAt: $code->issuedAt,
-            expiresAt: $code->expiresAt,
-            consumedAt: $consumedAt,
-            metadata: $code->metadata,
-        );
     }
 }
