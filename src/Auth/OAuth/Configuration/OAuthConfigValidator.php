@@ -48,6 +48,22 @@ final readonly class OAuthConfigValidator
     }
 
     /** @param list<ConfigIssue> $issues */
+    private function validateActiveSigningKeyId(array &$issues): ?string
+    {
+        $activeKeyId = $this->config->get('auth.oauth.signing.active_key_id');
+        if (is_string($activeKeyId) && preg_match('/\A[A-Za-z0-9_-]{1,128}\z/D', $activeKeyId) === 1) {
+            return $activeKeyId;
+        }
+
+        $issues[] = new ConfigIssue(
+            'auth.oauth.signing.active_key_id must be a Base64URL-safe key id.',
+            'auth.oauth.signing.active_key_id',
+        );
+
+        return null;
+    }
+
+    /** @param list<ConfigIssue> $issues */
     private function validateDatabase(array &$issues): void
     {
         $name = $this->config->get('database.default');
@@ -146,6 +162,118 @@ final readonly class OAuthConfigValidator
     }
 
     /** @param list<ConfigIssue> $issues */
+    private function validatePrivateSigningKey(array &$issues): void
+    {
+        $privateKey = $this->config->get('auth.oauth.signing.private_key');
+        if (!is_string($privateKey) || trim($privateKey) === '') {
+            $issues[] = new ConfigIssue(
+                'auth.oauth.signing.private_key must contain a deployment-owned key locator.',
+                'auth.oauth.signing.private_key',
+            );
+        }
+    }
+
+    /**
+     * @param list<ConfigIssue> $issues
+     * @return array{id:string,status:string}|null
+     */
+    private function validatePublicSigningKeyEntry(array &$issues, mixed $entry): ?array
+    {
+        if (!is_array($entry)) {
+            $issues[] = new ConfigIssue('OAuth public-key entries must be maps.', 'auth.oauth.signing.public_keys');
+
+            return null;
+        }
+
+        $id = $entry['id'] ?? null;
+        $path = $entry['path'] ?? null;
+        $status = $entry['status'] ?? null;
+        if (!is_string($id) || preg_match('/\A[A-Za-z0-9_-]{1,128}\z/D', $id) !== 1) {
+            $issues[] = new ConfigIssue(
+                'OAuth public-key ids must be unique Base64URL-safe values.',
+                'auth.oauth.signing.public_keys',
+            );
+
+            return null;
+        }
+        if (!is_string($path) || trim($path) === '') {
+            $issues[] = new ConfigIssue(
+                'OAuth public-key entries require a deployment-owned path locator.',
+                'auth.oauth.signing.public_keys',
+            );
+
+            return null;
+        }
+        if (!is_string($status) || !in_array($status, ['active', 'fallback'], true)) {
+            $issues[] = new ConfigIssue(
+                'OAuth public-key status must be active or fallback.',
+                'auth.oauth.signing.public_keys',
+            );
+
+            return null;
+        }
+        if (!$this->validSigningKeyWindow($issues, $entry)) {
+            return null;
+        }
+
+        return ['id' => $id, 'status' => $status];
+    }
+
+    /** @param list<ConfigIssue> $issues */
+    private function validatePublicSigningKeys(array &$issues, ?string $activeKeyId): void
+    {
+        $publicKeys = $this->config->get('auth.oauth.signing.public_keys', []);
+        if (!is_array($publicKeys) || $publicKeys === [] || !array_is_list($publicKeys)) {
+            $issues[] = new ConfigIssue(
+                'auth.oauth.signing.public_keys must be a non-empty list of public-key locators.',
+                'auth.oauth.signing.public_keys',
+            );
+
+            return;
+        }
+
+        $seen = [];
+        $activeCount = 0;
+        foreach ($publicKeys as $entry) {
+            $validated = $this->validatePublicSigningKeyEntry($issues, $entry);
+            if ($validated === null) {
+                return;
+            }
+            if (isset($seen[$validated['id']])) {
+                $issues[] = new ConfigIssue(
+                    'OAuth public-key ids must be unique Base64URL-safe values.',
+                    'auth.oauth.signing.public_keys',
+                );
+
+                return;
+            }
+            $seen[$validated['id']] = true;
+            if ($validated['status'] === 'active') {
+                $activeCount++;
+                if ($activeKeyId === null || !hash_equals($activeKeyId, $validated['id'])) {
+                    $issues[] = new ConfigIssue(
+                        'OAuth active public key must match active_key_id.',
+                        'auth.oauth.signing.public_keys',
+                    );
+                }
+            }
+        }
+
+        if ($activeCount !== 1) {
+            $issues[] = new ConfigIssue(
+                'auth.oauth.signing.public_keys must contain exactly one active key.',
+                'auth.oauth.signing.public_keys',
+            );
+        }
+        if ($activeKeyId !== null && !isset($seen[$activeKeyId])) {
+            $issues[] = new ConfigIssue(
+                'auth.oauth.signing.active_key_id must reference a configured public key.',
+                'auth.oauth.signing.active_key_id',
+            );
+        }
+    }
+
+    /** @param list<ConfigIssue> $issues */
     private function validateRateLimits(array &$issues): void
     {
         $limits = $this->config->get('auth.oauth.rate_limits');
@@ -228,17 +356,6 @@ final readonly class OAuthConfigValidator
         }
     }
 
-    private function validRoutePath(mixed $path): bool
-    {
-        if (!is_string($path) || !str_starts_with($path, '/') || str_starts_with($path, '//')) {
-            return false;
-        }
-
-        $parts = parse_url($path);
-
-        return is_array($parts) && !isset($parts['scheme'], $parts['host'], $parts['query'], $parts['fragment']);
-    }
-
     /** @param list<ConfigIssue> $issues */
     private function validateScopePermissions(array &$issues): void
     {
@@ -291,132 +408,15 @@ final readonly class OAuthConfigValidator
         }
     }
 
-    /** @param list<ConfigIssue> $issues */
-    private function validateActiveSigningKeyId(array &$issues): ?string
+    private function validRoutePath(mixed $path): bool
     {
-        $activeKeyId = $this->config->get('auth.oauth.signing.active_key_id');
-        if (is_string($activeKeyId) && preg_match('/\A[A-Za-z0-9_-]{1,128}\z/D', $activeKeyId) === 1) {
-            return $activeKeyId;
+        if (!is_string($path) || !str_starts_with($path, '/') || str_starts_with($path, '//')) {
+            return false;
         }
 
-        $issues[] = new ConfigIssue(
-            'auth.oauth.signing.active_key_id must be a Base64URL-safe key id.',
-            'auth.oauth.signing.active_key_id',
-        );
+        $parts = parse_url($path);
 
-        return null;
-    }
-
-    /** @param list<ConfigIssue> $issues */
-    private function validatePrivateSigningKey(array &$issues): void
-    {
-        $privateKey = $this->config->get('auth.oauth.signing.private_key');
-        if (!is_string($privateKey) || trim($privateKey) === '') {
-            $issues[] = new ConfigIssue(
-                'auth.oauth.signing.private_key must contain a deployment-owned key locator.',
-                'auth.oauth.signing.private_key',
-            );
-        }
-    }
-
-    /** @param list<ConfigIssue> $issues */
-    private function validatePublicSigningKeys(array &$issues, ?string $activeKeyId): void
-    {
-        $publicKeys = $this->config->get('auth.oauth.signing.public_keys', []);
-        if (!is_array($publicKeys) || $publicKeys === [] || !array_is_list($publicKeys)) {
-            $issues[] = new ConfigIssue(
-                'auth.oauth.signing.public_keys must be a non-empty list of public-key locators.',
-                'auth.oauth.signing.public_keys',
-            );
-
-            return;
-        }
-
-        $seen = [];
-        $activeCount = 0;
-        foreach ($publicKeys as $entry) {
-            $validated = $this->validatePublicSigningKeyEntry($issues, $entry);
-            if ($validated === null) {
-                return;
-            }
-            if (isset($seen[$validated['id']])) {
-                $issues[] = new ConfigIssue(
-                    'OAuth public-key ids must be unique Base64URL-safe values.',
-                    'auth.oauth.signing.public_keys',
-                );
-
-                return;
-            }
-            $seen[$validated['id']] = true;
-            if ($validated['status'] === 'active') {
-                $activeCount++;
-                if ($activeKeyId === null || !hash_equals($activeKeyId, $validated['id'])) {
-                    $issues[] = new ConfigIssue(
-                        'OAuth active public key must match active_key_id.',
-                        'auth.oauth.signing.public_keys',
-                    );
-                }
-            }
-        }
-
-        if ($activeCount !== 1) {
-            $issues[] = new ConfigIssue(
-                'auth.oauth.signing.public_keys must contain exactly one active key.',
-                'auth.oauth.signing.public_keys',
-            );
-        }
-        if ($activeKeyId !== null && !isset($seen[$activeKeyId])) {
-            $issues[] = new ConfigIssue(
-                'auth.oauth.signing.active_key_id must reference a configured public key.',
-                'auth.oauth.signing.active_key_id',
-            );
-        }
-    }
-
-    /**
-     * @param list<ConfigIssue> $issues
-     * @return array{id:string,status:string}|null
-     */
-    private function validatePublicSigningKeyEntry(array &$issues, mixed $entry): ?array
-    {
-        if (!is_array($entry)) {
-            $issues[] = new ConfigIssue('OAuth public-key entries must be maps.', 'auth.oauth.signing.public_keys');
-
-            return null;
-        }
-
-        $id = $entry['id'] ?? null;
-        $path = $entry['path'] ?? null;
-        $status = $entry['status'] ?? null;
-        if (!is_string($id) || preg_match('/\A[A-Za-z0-9_-]{1,128}\z/D', $id) !== 1) {
-            $issues[] = new ConfigIssue(
-                'OAuth public-key ids must be unique Base64URL-safe values.',
-                'auth.oauth.signing.public_keys',
-            );
-
-            return null;
-        }
-        if (!is_string($path) || trim($path) === '') {
-            $issues[] = new ConfigIssue(
-                'OAuth public-key entries require a deployment-owned path locator.',
-                'auth.oauth.signing.public_keys',
-            );
-
-            return null;
-        }
-        if (!is_string($status) || !in_array($status, ['active', 'fallback'], true)) {
-            $issues[] = new ConfigIssue(
-                'OAuth public-key status must be active or fallback.',
-                'auth.oauth.signing.public_keys',
-            );
-
-            return null;
-        }
-        if (!$this->validSigningKeyWindow($issues, $entry)) {
-            return null;
-        }
-
-        return ['id' => $id, 'status' => $status];
+        return is_array($parts) && !isset($parts['scheme'], $parts['host'], $parts['query'], $parts['fragment']);
     }
 
     /** @param list<ConfigIssue> $issues @param array<string|int, mixed> $entry */

@@ -85,6 +85,7 @@ final readonly class OAuthAccessTokenValidator
     private function subsetOf(array $candidate, array $allowed): bool
     {
         $allowedSet = array_fill_keys($allowed, true);
+
         return array_all($candidate, fn($value) => isset($allowedSet[$value]));
     }
 }
