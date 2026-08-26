@@ -50,6 +50,8 @@ enum AuthEventType: string
 
     case OAUTH_AUTHORIZATION_CODE_CONSUMED = 'oauth_authorization_code_consumed';
 
+    case OAUTH_AUTHORIZATION_CODE_EXPIRED = 'oauth_authorization_code_expired';
+
     case OAUTH_AUTHORIZATION_CODE_ISSUED = 'oauth_authorization_code_issued';
 
     case OAUTH_AUTHORIZATION_CODE_REPLAY = 'oauth_authorization_code_replay';
@@ -65,6 +67,8 @@ enum AuthEventType: string
     case OAUTH_KEY_READINESS = 'oauth_key_readiness';
 
     case OAUTH_REFRESH_TOKEN_REUSE = 'oauth_refresh_token_reuse';
+
+    case OAUTH_REFRESH_TOKEN_REVOKED = 'oauth_refresh_token_revoked';
 
     case OAUTH_REFRESH_TOKEN_ROTATED = 'oauth_refresh_token_rotated';
 
