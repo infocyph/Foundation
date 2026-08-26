@@ -69,7 +69,7 @@ Evidence: `f13ba53`, `7146bfb`, `99fca7d`, `d806cbe`, `f315660`, `1f9d9e9`. Exec
 - [x] Public Authorization Code + S256 success flow.
 - [x] Confidential Authorization Code + S256 success flow.
 - [x] Client Credentials success flow.
-- [ ] Refresh equal/narrowed-scope success; widened-scope rejection; rotated-token reuse handling.
+- [x] Refresh equal/narrowed-scope success; widened-scope rejection; rotated-token reuse handling.
 - [ ] Metadata/JWKS correctness and key rotation/fallback/unknown-kid behavior.
 - [ ] Access-token durable revocation and access/refresh introspection active/inactive states.
 - [ ] OAuth bearer -> existing account/service principal -> existing authorization middleware/gates.
@@ -82,6 +82,7 @@ Evidence:
 - Public Authorization Code + S256: fixture `3703023`, test `6ff8f8f`.
 - Confidential Authorization Code + S256/client_secret_basic: `effa313`.
 - Client Credentials/service authorization: `c7b0a37`.
+- Refresh grant scope/replay matrix: `c12b37e`.
 Execution remains F7.
 
 ## F6 — Documentation and operations
@@ -115,8 +116,8 @@ Execution remains F7.
 - [ ] After Foundation release, add disabled-default OAuth application config/routes/thin presentation hooks/integration tests/deployment closure.
 
 ## Resume point
-Last completed checkpoint: **F5.4 — Client Credentials success flow**.
-Implementation/test commit: `c7b0a37ec87e4fbd5044bb69f368f94028e04b1b`.
+Last completed checkpoint: **F5.5 — refresh grant scope and replay matrix**.
+Implementation/test commit: `c12b37e9e91362660a010f64ad6a6686413bbe6d`.
 Current active task: **F5 — Protocol and compatibility test matrix**.
-First unchecked action: refresh equal/narrowed-scope success, widened-scope rejection and rotated-token reuse handling.
+First unchecked action: metadata/JWKS correctness and key rotation/fallback/unknown-kid behavior.
 Execution evidence: implementation/test files are committed but not yet run in this environment; suite/release evidence remains under F7.
