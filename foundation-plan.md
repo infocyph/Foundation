@@ -105,7 +105,7 @@ Evidence: configuration/key/client-secret/ownership guide `e7076d5`, docs index 
 - [x] Extend benchmark framework with OAuth-disabled and OAuth workloads.
 - [x] Record environment and representative baseline/candidate measurements.
 - [x] Prove OAuth-disabled existing-path median regression within measured acceptance budget.
-- [ ] Run persistent-worker repeated-request/reset and available soak coverage.
+- [x] Run persistent-worker repeated-request/reset and available soak coverage.
 - [ ] Run Composer validation/audit/runtime compatibility.
 - [ ] Run PHPForge static/style/refactor/complexity/architecture/duplicate/comment gates.
 - [ ] Run complete Pest suite with no unexpected skips.
@@ -116,7 +116,7 @@ Evidence and prepared execution paths:
 - F7.1 benchmark framework: `4d6f0bf` adds explicit OAuth-disabled application-bearer and OAuth client-credentials bearer-resolution workloads; provisioning/key generation/schema/token issuance remain outside measured loops.
 - F7.2 measurements: execution run `32987689449`, job `98237728121`, artifact `9613479396` (`sha256:ed5b68b509afd658d1d0dada3c53411e27d61cefed8cd894878ff5b969d4404e`), durable evidence `e565610`. Same-runner fingerprint `Linux-X64-php85-32987689449` on PHP 8.5.9 / Linux 6.17.0-1022-azure / AMD EPYC 7763; baseline `2.0` and candidate `d59756d` representative plus identical application-bearer measurements recorded.
 - F7.3 regression budget: executed in run `32987689449`; baseline median `1,102,806.56 RPM`, candidate median `1,121,033.65 RPM`, regression `-1.6528%` against the `2%` maximum. Result PASS; durable calculation evidence `d1e5c47`.
-- F7.4 execution target: `8dcdc03` adds a 1,000-iteration OAuth/non-OAuth principal reset soak, complementing `OAuth21PersistentPrincipalResetTest` and `PersistentRuntimeSoakTest`.
+- F7.4 persistent-worker/reset/soak: Security & Standards run `32990021147`, PHP 8.5 prefer-stable job `98245194960`; `OAuth21PersistentPrincipalResetTest`, 1,000-cycle `OAuth21PersistentWorkerSoakTest`, `PersistentExecutionStateIsolationTest`, and 1,000-cycle `PersistentRuntimeSoakTest` all passed. Soak implementation `8dcdc03`.
 - F7.9 guard implementation: `46cda9b` rejects feature-diff additions that introduce analyzer suppressions/baselines, skipped-test bypasses, non-blocking CI, disabled analysis/audit/platform checks, unbounded analyzer memory, or a raised benchmark regression budget.
 - Deferred selector: `b4fc0bf` adds `tools/f7-run/gate.txt` so remaining gate execution is opt-in.
 - F7.3-F7.9 runner: `b986906` provides isolated jobs for performance, persistent worker soak, Composer/runtime PHP 8.4+8.5, explicit PHPForge engineering checks, full Pest dependency/PHP matrix with integration services, focused OAuth conformance coverage, and the no-weakened-gates guard.
@@ -135,8 +135,8 @@ Evidence and prepared execution paths:
 - [ ] After Foundation release, add disabled-default OAuth application config/routes/thin presentation hooks/integration tests/deployment closure.
 
 ## Resume point
-Last completed checkpoint: **F7.3 — OAuth-disabled existing-path performance budget passed**.
-Performance evidence: run `32987689449`; durable calculation `d1e5c47a8aa6ee5e066a4ae8c9d54e36b2c14456`.
+Last completed checkpoint: **F7.4 — persistent-worker repeated-request/reset and soak coverage passed**.
+Execution evidence: Security & Standards run `32990021147`, PHP 8.5 prefer-stable job `98245194960`; soak implementation `8dcdc0347d0c2e74b6300e477ea5aab646a358c2`.
 Current active task: **F7 — Performance and engineering gates**.
-First unchecked action: run persistent-worker repeated-request/reset and available soak coverage (F7.4).
-Execution evidence: F7.1-F7.3 are complete; F7.4-F7.9 remain unchecked until their execution evidence is reviewed.
+First unchecked action: run Composer validation/audit/runtime compatibility (F7.5), while resolving the unrelated Pest/PHPStan/PHPCS failures exposed by the same matrix before later F7 gates can close.
+Execution evidence: F7.1-F7.4 are complete; F7.5-F7.9 remain unchecked until their execution evidence is reviewed.
