@@ -41,6 +41,7 @@ final readonly class OAuthConfigValidator
         $this->validateScopePermissions($issues);
         $this->validateSigning($issues);
         $this->validateRoutes($issues);
+        $this->validateRateLimits($issues);
         $this->validateDatabase($issues);
 
         return $issues;
@@ -142,6 +143,39 @@ final readonly class OAuthConfigValidator
             ? sprintf('%s must be a positive integer.', $key)
             : sprintf('%s must be a positive integer no greater than %d.', $key, $maximum);
         $issues[] = new ConfigIssue($message, $key);
+    }
+
+    /** @param list<ConfigIssue> $issues */
+    private function validateRateLimits(array &$issues): void
+    {
+        $limits = $this->config->get('auth.oauth.rate_limits');
+        if (!is_array($limits) || array_is_list($limits)) {
+            $issues[] = new ConfigIssue(
+                'auth.oauth.rate_limits must be a map of endpoint policies.',
+                'auth.oauth.rate_limits',
+            );
+
+            return;
+        }
+
+        foreach (['authorization', 'token', 'revocation', 'introspection'] as $endpoint) {
+            $policy = $limits[$endpoint] ?? null;
+            $key = 'auth.oauth.rate_limits.' . $endpoint;
+            if (!is_array($policy) || array_is_list($policy)) {
+                $issues[] = new ConfigIssue(sprintf('%s must define max and window.', $key), $key);
+                continue;
+            }
+
+            foreach (['max', 'window'] as $field) {
+                $value = $policy[$field] ?? null;
+                if (!is_int($value) || $value < 1) {
+                    $issues[] = new ConfigIssue(
+                        sprintf('%s.%s must be a positive integer.', $key, $field),
+                        $key . '.' . $field,
+                    );
+                }
+            }
+        }
     }
 
     /** @param list<ConfigIssue> $issues */
