@@ -95,13 +95,14 @@ Exit: planned security and operational invariants are covered by tests rather th
 - [x] Add schema install/status/upgrade tests from released Foundation 2.0 auth state into the additive OAuth revision.
 - [x] Add rollback/partial-failure coverage where the existing schema runner supports it.
 - [x] Add simultaneous authorization-code redemption test proving exactly one success.
-- [ ] Add simultaneous refresh redemption test proving exactly one rotation and family revocation on replay.
+- [x] Add simultaneous refresh redemption test proving exactly one rotation and family revocation on replay.
 - [ ] Verify durable revocation survives fresh process/store instances and does not rely on cache correctness.
 - [ ] Verify consent regrant after revoke and client registration atomicity with integration tests.
 
 Schema upgrade evidence: `OAuth21SchemaUpgradeTest.php` commit `f13ba53493db07a892d5d502800245c5f7b487cb` establishes a 2.0 base/MFA schema, preserves representative account/session/application-refresh state, verifies OAuth-aware readiness before/after upgrade, applies only the additive OAuth revision, and verifies idempotent reinstall. Execution remains part of F7.
 Rollback evidence: `OAuth21SchemaRollbackTest.php` commit `7146bfb6a1d7ef9fff7bac4400f46f25aafa0411` proves latest-batch OAuth rollback leaves released auth tables/data intact, supports clean re-application, and verifies DBLayer transactional-DDL failure leaves neither the partial table nor a migration record. Execution remains part of F7.
 Authorization-code contention evidence: `OAuth21AuthorizationCodeConcurrencyTest.php` commit `99fca7d42a927199c7b6b33ddba0588074ebd297` uses a file-backed SQLite database and two barrier-synchronized independent PHP processes; the only accepted outcome is exactly one `consumed` plus one `reused`, with durable `consumed_at`. Execution remains part of F7.
+Refresh contention evidence: `OAuth21RefreshConcurrencyTest.php` commit `d806cbeed4a0a5cdb79ee6effd8a20a705cc4a52` uses a file-backed SQLite database and two barrier-synchronized independent PHP processes; it requires one `rotated` plus one `reused`, and the replaying contender revokes the durable family so both the original rotated token and winning replacement end revoked. Execution remains part of F7.
 
 Exit: database atomicity and upgrade behavior are demonstrated, not inferred.
 
@@ -165,8 +166,8 @@ Exit: Foundation is complete before Infbyte integration lock/release.
 
 ## Resume point
 
-Last completed checkpoint: **F4.3 — cross-process authorization-code redemption contention**.
-Implementation/test commit: `99fca7d42a927199c7b6b33ddba0588074ebd297`.
+Last completed checkpoint: **F4.4 — cross-process refresh redemption contention and replay-family revocation**.
+Implementation/test commit: `d806cbeed4a0a5cdb79ee6effd8a20a705cc4a52`.
 Current active task: **F4 — Persistence, migration, and concurrency closure**.
-First unchecked action: add two-process refresh redemption contention and family replay revocation coverage.
+First unchecked action: prove durable revocation survives fresh store/process instances and remains cache-independent.
 Execution evidence: implementation/test files are committed but have not yet been run in this environment; suite/release evidence remains under F7.
