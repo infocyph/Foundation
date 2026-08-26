@@ -102,7 +102,7 @@ Execution remains F7.
 Evidence: configuration/key/client-secret/ownership guide `e7076d5`, docs index `5c8d314`, deployment/readiness/pruning/canary/rollback/protocol/deferred scope `2cfcfc7`. The standards section records the August 2026 OAuth 2.1 draft status rather than claiming a final OAuth 2.1 RFC. Runtime conformance execution remains F7.
 
 ## F7 — Performance and engineering gates
-- [ ] Extend benchmark framework with OAuth-disabled and OAuth workloads.
+- [x] Extend benchmark framework with OAuth-disabled and OAuth workloads.
 - [ ] Record environment and representative baseline/candidate measurements.
 - [ ] Prove OAuth-disabled existing-path median regression within measured acceptance budget.
 - [ ] Run persistent-worker repeated-request/reset and available soak coverage.
@@ -111,6 +111,7 @@ Evidence: configuration/key/client-secret/ownership guide `e7076d5`, docs index 
 - [ ] Run complete Pest suite with no unexpected skips.
 - [ ] Run available OAuth interoperability/conformance coverage.
 - [ ] No suppressions/baselines/exclusions/weakened checks/raised limits to obtain green gates.
+Evidence: representative benchmark v2 adds explicit OAuth-disabled application-bearer request and OAuth client-credentials bearer-resolution workloads in `4d6f0bf`. Provisioning/key generation/schema/token issuance remain outside measured loops. Measurements and acceptance decisions remain unchecked until executed.
 
 ## F8 — Foundation release handoff
 - [ ] Resolve OAuth-introduced gate failures.
@@ -124,8 +125,8 @@ Evidence: configuration/key/client-secret/ownership guide `e7076d5`, docs index 
 - [ ] After Foundation release, add disabled-default OAuth application config/routes/thin presentation hooks/integration tests/deployment closure.
 
 ## Resume point
-Last completed checkpoint: **F6 — Documentation and operations complete**.
-Latest documentation commit: `2cfcfc798095c94448b34f63f6a1faf7d9deeccb`.
+Last completed checkpoint: **F7.1 — representative benchmark framework extended for OAuth-disabled and OAuth-enabled steady-state workloads**.
+Benchmark implementation commit: `4d6f0bf5cf8285ddffcc4d77b317422dc1bd2f6e`.
 Current active task: **F7 — Performance and engineering gates**.
-First unchecked action: extend the representative benchmark framework with OAuth-disabled and OAuth workloads.
-Execution evidence: implementation/test/docs files are committed but have not been run as a release suite in this environment; runtime/performance/conformance evidence remains deliberately unchecked under F7.
+First unchecked action: record stable environment and representative baseline/candidate measurements, then evaluate the OAuth-disabled existing-path regression budget.
+Execution evidence: benchmark/test/docs code is committed, but runtime/performance/conformance results remain deliberately unchecked until an actual execution environment provides evidence.
