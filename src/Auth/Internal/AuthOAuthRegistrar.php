@@ -38,6 +38,7 @@ use Infocyph\Foundation\Auth\OAuth\Contract\OAuthRefreshTokenStoreInterface;
 use Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpHandler;
 use Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpInput;
 use Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpResponseFactory;
+use Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpThrottleFactory;
 use Infocyph\Foundation\Auth\OAuth\Metadata\AuthorizationServerMetadata;
 use Infocyph\Foundation\Auth\OAuth\OAuthManager;
 use Infocyph\Foundation\Auth\OAuth\Scope\OAuthScopeResolver;
@@ -192,6 +193,7 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
         ));
         $this->singleton(OAuthHttpInput::class, fn() => new OAuthHttpInput());
         $this->singleton(OAuthHttpResponseFactory::class, fn() => new OAuthHttpResponseFactory());
+        $this->singleton(OAuthHttpThrottleFactory::class, fn() => new OAuthHttpThrottleFactory($this->app->config()));
         $this->singleton(OAuthHttpHandler::class, fn() => new OAuthHttpHandler(
             $this->service(OAuthManager::class),
             $this->service(OAuthHttpInput::class),
