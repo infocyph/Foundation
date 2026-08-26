@@ -113,9 +113,7 @@ final readonly class OAuthClientManager
             metadata: $metadata,
         );
 
-        $this->clients->save($client);
-        $this->clients->replaceRedirectUris($clientId, $redirectUris, $now);
-        $this->clients->replaceScopes($clientId, $scopes, $now);
+        $this->clients->register($client, $redirectUris, $scopes);
 
         return new OAuthClientRegistration($client, $secret);
     }
