@@ -38,6 +38,42 @@ enum AuthEventType: string
 
     case MFA_ENROLLED = 'mfa_enrolled';
 
+    case OAUTH_ACCESS_TOKEN_ISSUED = 'oauth_access_token_issued';
+
+    case OAUTH_ACCESS_TOKEN_REVOKED = 'oauth_access_token_revoked';
+
+    case OAUTH_AUTHORIZATION_APPROVED = 'oauth_authorization_approved';
+
+    case OAUTH_AUTHORIZATION_CODE_CONSUMED = 'oauth_authorization_code_consumed';
+
+    case OAUTH_AUTHORIZATION_CODE_EXPIRED = 'oauth_authorization_code_expired';
+
+    case OAUTH_AUTHORIZATION_CODE_ISSUED = 'oauth_authorization_code_issued';
+
+    case OAUTH_AUTHORIZATION_CODE_REPLAY = 'oauth_authorization_code_replay';
+
+    case OAUTH_AUTHORIZATION_DENIED = 'oauth_authorization_denied';
+
+    case OAUTH_AUTHORIZATION_REVOKED = 'oauth_authorization_revoked';
+
+    case OAUTH_CLIENT_AUTH_FAILURE = 'oauth_client_auth_failure';
+
+    case OAUTH_CLIENT_AUTH_SUCCESS = 'oauth_client_auth_success';
+
+    case OAUTH_INTROSPECTION = 'oauth_introspection';
+
+    case OAUTH_INVALID_REQUEST = 'oauth_invalid_request';
+
+    case OAUTH_KEY_READINESS = 'oauth_key_readiness';
+
+    case OAUTH_RATE_LIMITED = 'oauth_rate_limited';
+
+    case OAUTH_REFRESH_TOKEN_REUSE = 'oauth_refresh_token_reuse';
+
+    case OAUTH_REFRESH_TOKEN_REVOKED = 'oauth_refresh_token_revoked';
+
+    case OAUTH_REFRESH_TOKEN_ROTATED = 'oauth_refresh_token_rotated';
+
     case PASSKEY_REGISTERED = 'passkey_registered';
 
     case PASSKEY_REMOVED = 'passkey_removed';

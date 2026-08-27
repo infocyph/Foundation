@@ -91,6 +91,7 @@ final class OperationsSystemCommand extends SystemCommand
             $this->application->make(DBLayerFactory::class),
             $this->application->make(AuthTables::class),
             $this->application->make(AuthSchemaInstaller::class),
+            $this->application->config()->get('auth.oauth.enabled', false) === true,
         );
         $counts = $pruner->prune($this->option('connection'), $retention);
         $total = array_sum($counts);
@@ -362,40 +363,38 @@ final class OperationsSystemCommand extends SystemCommand
     private function workerStatus(): int
     {
         $name = $this->argument(0);
-        $configured = new WorkerManager($this->application)->all();
-        if ($name !== null && !isset($configured[$name])) {
+        $manager = new WorkerManager($this->application);
+        $configured = $manager->all();
+        if ($name !== null && !array_key_exists($name, $configured)) {
             throw new \InvalidArgumentException(sprintf('Worker "%s" is not configured.', $name));
         }
+
         $registry = new RuntimeProcessRegistry($this->application);
         $processes = $registry->all('worker', $name);
-        $data = [
+        $selected = $name === null ? $configured : [$name => $configured[$name]];
+        $status = [
             'worker' => $name,
-            'configured' => $name === null ? $configured : [$name => $configured[$name]],
             'registry_visibility' => $registry->visibility(),
+            'configured' => $selected,
             'processes' => $processes,
-            'control' => $this->control()->status(),
         ];
         if ($this->io()->machineReadable()) {
-            return $this->emit($data);
+            return $this->emit($status);
         }
-        if ($processes === []) {
-            $this->io()->note(sprintf(
-                'No registered worker process is visible in the %s runtime registry.',
-                $data['registry_visibility'],
-            ));
 
-            return ExitCode::SUCCESS;
-        }
+        $rows = array_map(
+            static fn(array $item): array => [
+                $item['name'],
+                $item['running'],
+                $item['pid'],
+                $item['started_at'],
+                $item['heartbeat_at'],
+            ],
+            $processes,
+        );
         $this->io()->table(
-            ['Worker', 'PID', 'Host', 'Started', 'Heartbeat', 'Running'],
-            array_map(static fn(array $process): array => [
-                $process['name'],
-                $process['pid'],
-                $process['host'],
-                $process['started_at'],
-                $process['heartbeat_at'],
-                $process['running'],
-            ], $processes),
+            ['Name', 'Running', 'PID', 'Started', 'Heartbeat'],
+            $rows,
         );
 
         return ExitCode::SUCCESS;

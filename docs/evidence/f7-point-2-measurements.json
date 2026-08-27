@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "point": "F7.2",
+  "source": {
+    "workflow_run_id": 32987689449,
+    "job_id": 98237728121,
+    "artifact_id": 9613479396,
+    "artifact_digest": "sha256:ed5b68b509afd658d1d0dada3c53411e27d61cefed8cd894878ff5b969d4404e"
+  },
+  "environment": {
+    "fingerprint": "Linux-X64-php85-32987689449",
+    "php_version": "8.5.9",
+    "php_sapi": "cli",
+    "operating_system": "Linux 6.17.0-1022-azure",
+    "cpu_model": "AMD EPYC 7763 64-Core Processor",
+    "opcache": false,
+    "jit": true,
+    "xdebug": false
+  },
+  "baseline": {
+    "ref": "2.0",
+    "existing_application_bearer": {
+      "repetitions": 7,
+      "warmup_operations_per_sample": 250,
+      "operations_per_sample": 2500,
+      "median_rpm": 1102806.5610902894
+    },
+    "representative": {
+      "minimal-json-warm": {
+        "successful_rpm": 1588486.7749342187,
+        "p95_latency_ms": 0.046557,
+        "peak_memory_mb": 12,
+        "stability": "stable",
+        "spread_percent": 0.9770607428889763
+      },
+      "route-selected-array-session-warm": {
+        "successful_rpm": 781385.6300960018,
+        "p95_latency_ms": 0.095929,
+        "peak_memory_mb": 14,
+        "stability": "stable",
+        "spread_percent": 1.8925386540354912
+      }
+    }
+  },
+  "candidate": {
+    "ref": "d59756d318108e52f0d1c886007ecde21316b529",
+    "existing_application_bearer": {
+      "repetitions": 7,
+      "warmup_operations_per_sample": 250,
+      "operations_per_sample": 2500,
+      "median_rpm": 1121033.6540132312
+    },
+    "representative": {
+      "minimal-json-warm": {
+        "successful_rpm": 1569587.4503321492,
+        "p95_latency_ms": 0.049563,
+        "peak_memory_mb": 12,
+        "stability": "unstable",
+        "spread_percent": 5.033531418540712
+      },
+      "route-selected-array-session-warm": {
+        "successful_rpm": 782452.0589558673,
+        "p95_latency_ms": 0.094957,
+        "peak_memory_mb": 14,
+        "stability": "stable",
+        "spread_percent": 0.6846982070774337
+      },
+      "oauth-disabled-application-bearer-warm": {
+        "successful_rpm": 1097505.310675767,
+        "p95_latency_ms": 0.070682,
+        "peak_memory_mb": 16,
+        "stability": "stable",
+        "spread_percent": 0.4773697361268375
+      },
+      "oauth-client-credentials-bearer-resolution-warm": {
+        "successful_rpm": 70275.75409840088,
+        "p95_latency_ms": 0.876396,
+        "peak_memory_mb": 20,
+        "stability": "stable",
+        "spread_percent": 0.31181224271292773
+      }
+    }
+  }
+}

@@ -15,12 +15,14 @@ final readonly class RequestPrincipalResolver
 
     /**
      * @param array<string, PrincipalResolverInterface> $resolvers
+     * @param list<string>|null $order
      */
     public function __construct(
         ConfigRepository $config,
         array $resolvers,
+        ?array $order = null,
     ) {
-        $order = $config->get('auth.http.principal_resolvers', []);
+        $order ??= $config->get('auth.http.principal_resolvers', []);
         $ordered = [];
 
         if (is_array($order)) {

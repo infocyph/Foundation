@@ -129,7 +129,7 @@ final class AuthBench
                 'files' => [],
             ],
         ]);
-        $this->services = $this->app->auth();
+        $this->services = new AuthServices($this->app);
         $created = $this->services->accounts()->create(
             'benchmark@example.test',
             $this->services->passwordHasher()->hash('benchmark-secret'),
@@ -177,7 +177,7 @@ PHP);
                 'files' => ['web.php'],
             ],
         ])->boot();
-        $this->services = $this->app->auth();
+        $this->services = new AuthServices($this->app);
         $created = $this->services->accounts()->create(
             'request-benchmark@example.test',
             $this->services->passwordHasher()->hash('benchmark-secret'),

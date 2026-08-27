@@ -1,0 +1,95 @@
+# Temporary F7 point-by-point evidence workflow; remove after F7 closes.
+name: F7 Point 2 Measurements
+
+on:
+  push:
+    branches: [ "feature/oauth-2.1" ]
+    paths: [ ".github/workflows/f7-autofix.yml" ]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: foundation-f7-point-2-registered
+  cancel-in-progress: true
+
+jobs:
+  measurements:
+    name: Record Foundation 2.0 and candidate measurements
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feature/oauth-2.1
+          path: candidate
+      - uses: actions/checkout@v7
+        with:
+          ref: "2.0"
+          path: baseline
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.5"
+          tools: composer:v2
+          extensions: mbstring, pdo, pdo_mysql, pdo_pgsql, pdo_sqlite, redis, memcached
+          coverage: none
+      - name: Install stable dependencies for both refs
+        shell: bash
+        run: |
+          (cd baseline && composer update --no-interaction --prefer-dist --no-progress --prefer-stable)
+          (cd candidate && composer update --no-interaction --prefer-dist --no-progress --prefer-stable)
+      - name: Record representative measurements
+        shell: bash
+        env:
+          FOUNDATION_BENCHMARK_STABLE: "1"
+          FOUNDATION_BENCHMARK_FINGERPRINT: "${{ runner.os }}-${{ runner.arch }}-php85-${{ github.run_id }}"
+        run: |
+          (cd baseline && FOUNDATION_BENCHMARK_REF=2.0 composer benchmark:representative)
+          (cd candidate && FOUNDATION_BENCHMARK_REF=${{ github.sha }} composer benchmark:representative)
+      - name: Record identical existing bearer path
+        shell: bash
+        env:
+          FOUNDATION_BENCHMARK_FINGERPRINT: "${{ runner.os }}-${{ runner.arch }}-php85-${{ github.run_id }}"
+        run: |
+          (cd baseline && FOUNDATION_BENCHMARK_REF=2.0 php ../candidate/tools/f7-existing-path-benchmark.php build/f7-existing-path.json)
+          (cd candidate && FOUNDATION_BENCHMARK_REF=${{ github.sha }} php tools/f7-existing-path-benchmark.php build/f7-existing-path.json)
+      - name: Write environment and measurement manifest
+        shell: bash
+        env:
+          RUN_ID: ${{ github.run_id }}
+          CANDIDATE_REF: ${{ github.sha }}
+          RUNNER_OS_NAME: ${{ runner.os }}
+          RUNNER_ARCH_NAME: ${{ runner.arch }}
+        run: |
+          php -r '
+          $baseline = json_decode((string) file_get_contents("baseline/build/f7-existing-path.json"), true, 512, JSON_THROW_ON_ERROR);
+          $candidate = json_decode((string) file_get_contents("candidate/build/f7-existing-path.json"), true, 512, JSON_THROW_ON_ERROR);
+          $manifest = [
+              "schema_version" => 1,
+              "point" => "F7.2",
+              "runner" => getenv("RUNNER_OS_NAME") . "-" . getenv("RUNNER_ARCH_NAME"),
+              "php" => PHP_VERSION,
+              "run_id" => getenv("RUN_ID"),
+              "baseline_ref" => "2.0",
+              "candidate_ref" => getenv("CANDIDATE_REF"),
+              "baseline_existing_path_median_rpm" => $baseline["median_rpm"],
+              "candidate_existing_path_median_rpm" => $candidate["median_rpm"],
+          ];
+          file_put_contents("f7-measurement-manifest.json", json_encode($manifest, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR) . PHP_EOL);
+          echo json_encode($manifest, JSON_THROW_ON_ERROR) . PHP_EOL;
+          '
+      - name: Validate representative documents
+        shell: bash
+        run: |
+          (cd baseline && composer ic:benchmark:validate build/benchmark-result.json)
+          (cd candidate && composer ic:benchmark:validate build/benchmark-result.json)
+      - uses: actions/upload-artifact@v7
+        with:
+          name: f7-point-2-measurements
+          path: |
+            baseline/build/benchmark-result.json
+            candidate/build/benchmark-result.json
+            baseline/build/f7-existing-path.json
+            candidate/build/f7-existing-path.json
+            f7-measurement-manifest.json
+          if-no-files-found: error
