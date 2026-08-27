@@ -20,12 +20,14 @@ final readonly class RouteFileLoader
         private ConfigRepository $config,
         private Registrar $router,
         private RoutePresetRegistrar $presets,
+        private OAuthRouteRegistrar $oauth,
         private array $files = ['web.php', 'api.php', 'auth.php'],
     ) {}
 
     public function load(): void
     {
         $this->presets->register();
+        $this->oauth->register($this->router);
 
         foreach ($this->files as $file) {
             $path = $this->paths->routes($file);

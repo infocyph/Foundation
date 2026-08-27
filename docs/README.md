@@ -11,7 +11,6 @@ their domain behavior.
 - [CLI, schedules, and workers](console.md)
 - [Authentication and authorization](authentication.md)
 - [OAuth 2.1 extension](oauth-2.1.md)
-- [Foundation 2.1.0 release notes](releases/2.1.0.md)
 - [OTP-backed MFA](otp.md)
 - [Browser sessions and CSRF](browser-sessions.md)
 - [Database migrations and seeding](database.md)

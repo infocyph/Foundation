@@ -88,6 +88,9 @@ final class Bootstrapper
         $eager = self::COMMON_EAGER_PROVIDERS;
         if ($app->runtimeMode() === RuntimeMode::Web) {
             $eager = [...$eager, ...self::WEB_EAGER_PROVIDERS];
+            if ($app->config()->get('auth.oauth.enabled', false) === true) {
+                $eager = [...$eager, CacheServiceProvider::class, AuthServiceProvider::class];
+            }
         }
 
         foreach ($eager as $provider) {

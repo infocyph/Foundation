@@ -41,6 +41,10 @@ final class RoutingServiceProvider extends ServiceProvider
             new ServiceReference(RouteMiddlewareRegistrar::class),
             new ServiceReference(\Infocyph\Foundation\Config\ConfigRepository::class),
         ]);
+        $this->bindRecipe($container, OAuthRouteRegistrar::class, OAuthRouteRegistrar::class, [
+            new ServiceReference(\Infocyph\Foundation\Config\ConfigRepository::class),
+            new ServiceReference(RoutePresetRegistrar::class),
+        ]);
         $this->bindFactory(
             $container,
             Registrar::class,
@@ -58,6 +62,7 @@ final class RoutingServiceProvider extends ServiceProvider
             config: $app->config(),
             router: $app->make(Registrar::class),
             presets: $app->make(RoutePresetRegistrar::class),
+            oauth: $app->make(OAuthRouteRegistrar::class),
             files: $this->routeFiles($app->config()->get('router.files', ['web.php', 'api.php', 'auth.php'])),
         ), LifetimeEnum::Singleton);
 

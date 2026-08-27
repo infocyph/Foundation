@@ -43,40 +43,7 @@ final class AuthDefaults
                     'max_passkey_failures' => 5,
                     'window_seconds' => 900,
                 ],
-                'oauth' => [
-                    'enabled' => false,
-                    'issuer' => null,
-                    'access_token_ttl' => 300,
-                    'authorization_code_ttl' => 60,
-                    'refresh_token_ttl' => 1209600,
-                    'grants' => [
-                        'authorization_code',
-                        'client_credentials',
-                        'refresh_token',
-                    ],
-                    'pkce_methods' => ['S256'],
-                    'resource_audiences' => [],
-                    'scope_permissions' => [],
-                    'signing' => [
-                        'algorithm' => 'RS256',
-                        'active_key_id' => null,
-                        'private_key' => null,
-                        'public_keys' => [],
-                    ],
-                    'routes' => [
-                        'authorization' => '/oauth/authorize',
-                        'token' => '/oauth/token',
-                        'revocation' => '/oauth/revoke',
-                        'introspection' => '/oauth/introspect',
-                        'jwks' => '/.well-known/jwks.json',
-                    ],
-                    'rate_limits' => [
-                        'authorization' => ['max' => 60, 'window' => 60],
-                        'token' => ['max' => 30, 'window' => 60],
-                        'revocation' => ['max' => 60, 'window' => 60],
-                        'introspection' => ['max' => 120, 'window' => 60],
-                    ],
-                ],
+                'oauth' => self::oauth(),
                 'otp' => [
                     'issuer' => 'Foundation',
                     'hotp' => [
@@ -136,5 +103,73 @@ final class AuthDefaults
                 'token_secret' => null,
             ],
         ];
+    }
+
+    /** @return array<string, mixed> */
+    private static function oauth(): array
+    {
+        $enabled = env_bool('AUTH_OAUTH_ENABLED', false);
+
+        return [
+            'enabled' => $enabled,
+            'issuer' => $enabled ? env('AUTH_OAUTH_ISSUER') : null,
+            'access_token_ttl' => 300,
+            'authorization_code_ttl' => 60,
+            'refresh_token_ttl' => 1209600,
+            'grants' => [
+                'authorization_code',
+                'client_credentials',
+                'refresh_token',
+            ],
+            'pkce_methods' => ['S256'],
+            'rate_limit_store' => null,
+            'resource_audiences' => [],
+            'scope_permissions' => [],
+            'signing' => [
+                'algorithm' => 'RS256',
+                'active_key_id' => $enabled ? env('AUTH_OAUTH_ACTIVE_KEY_ID') : null,
+                'private_key' => $enabled ? env('AUTH_OAUTH_PRIVATE_KEY') : null,
+                'public_keys' => self::oauthPublicKeys($enabled),
+            ],
+            'routes' => [
+                'authorization' => '/oauth/authorize',
+                'token' => '/oauth/token',
+                'revocation' => '/oauth/revoke',
+                'introspection' => '/oauth/introspect',
+                'jwks' => '/.well-known/jwks.json',
+            ],
+            'rate_limits' => [
+                'authorization' => ['max' => 60, 'window' => 60],
+                'token' => ['max' => 30, 'window' => 60],
+                'revocation' => ['max' => 60, 'window' => 60],
+                'introspection' => ['max' => 120, 'window' => 60],
+            ],
+        ];
+    }
+
+    /** @return list<mixed> */
+    private static function oauthPublicKeys(bool $enabled): array
+    {
+        $encoded = $enabled ? env('AUTH_OAUTH_PUBLIC_KEYS') : null;
+        if ($encoded === null || $encoded === '') {
+            return [];
+        }
+        if (!is_string($encoded)) {
+            throw new \UnexpectedValueException('AUTH_OAUTH_PUBLIC_KEYS must be a JSON list.');
+        }
+
+        try {
+            $decoded = json_decode($encoded, true, flags: JSON_THROW_ON_ERROR);
+        } catch (\JsonException $exception) {
+            throw new \UnexpectedValueException(
+                'AUTH_OAUTH_PUBLIC_KEYS must be a valid JSON list.',
+                previous: $exception,
+            );
+        }
+        if (!is_array($decoded) || !array_is_list($decoded)) {
+            throw new \UnexpectedValueException('AUTH_OAUTH_PUBLIC_KEYS must be a JSON list.');
+        }
+
+        return $decoded;
     }
 }

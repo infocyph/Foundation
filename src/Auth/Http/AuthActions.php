@@ -516,9 +516,7 @@ final readonly class AuthActions
         $attestationObject = $this->string($response, 'attestation_object', $attestationObject);
         $response['attestationObject'] = $this->string($response, 'attestationObject', $attestationObject);
 
-        if (!isset($response['transports'])) {
-            $response['transports'] = $credential['transports'] ?? $payload['transports'] ?? [];
-        }
+        $response['transports'] ??= $credential['transports'] ?? $payload['transports'] ?? [];
 
         $credential['id'] = $id;
         $credential['rawId'] = $rawId;

@@ -7,6 +7,8 @@ namespace Infocyph\Foundation\Auth\OAuth\Configuration;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthGrantType;
 use Infocyph\Foundation\Config\ConfigIssue;
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Config\SharedStateTopology;
+use Infocyph\Foundation\Exception\ConfigurationException;
 
 final readonly class OAuthConfigValidator
 {
@@ -42,6 +44,7 @@ final readonly class OAuthConfigValidator
         $this->validateSigning($issues);
         $this->validateRoutes($issues);
         $this->validateRateLimits($issues);
+        $this->validateRateLimitStore($issues, $production);
         $this->validateDatabase($issues);
 
         return $issues;
@@ -304,6 +307,32 @@ final readonly class OAuthConfigValidator
                     );
                 }
             }
+        }
+    }
+
+    /** @param list<ConfigIssue> $issues */
+    private function validateRateLimitStore(array &$issues, bool $production): void
+    {
+        $store = $this->config->get('auth.oauth.rate_limit_store');
+        if ($store !== null && (!is_string($store) || trim($store) === '')) {
+            $issues[] = new ConfigIssue(
+                'auth.oauth.rate_limit_store must be null or a non-empty cache store name.',
+                'auth.oauth.rate_limit_store',
+            );
+
+            return;
+        }
+        if (!$production) {
+            return;
+        }
+
+        try {
+            new SharedStateTopology($this->config)->assertCacheStore(
+                is_string($store) ? trim($store) : null,
+                'OAuth endpoint rate limiting',
+            );
+        } catch (ConfigurationException $exception) {
+            $issues[] = new ConfigIssue($exception->getMessage(), 'auth.oauth.rate_limit_store');
         }
     }
 
