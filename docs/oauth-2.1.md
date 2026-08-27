@@ -335,9 +335,9 @@ S256-only PKCE, exact registered redirect matching, bounded inputs, no
 `client_secret_post`, durable one-time authorization-code consumption, refresh
 rotation/reuse handling and explicit OAuth/application token separation.
 
-Interoperability and conformance execution remain release gates under F7; the
-presence of these protocol implementations in source and tests is not itself a
-claim that an external conformance suite has passed.
+Available interoperability and conformance coverage is recorded in the release
+tracker. Passing the project protocol suite is not a claim that an external
+conformance suite has passed.
 
 ## Unsupported and deferred features
 

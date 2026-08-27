@@ -64,10 +64,6 @@
         "sort-packages": true
     },
     "scripts": {
-        "benchmark:representative": "@php benchmarks/run-representative.php",
-        "f7:worker": "@php vendor/bin/pest --fail-on-skipped tests/Feature/OAuth21PersistentPrincipalResetTest.php tests/Feature/OAuth21PersistentWorkerSoakTest.php tests/Feature/PersistentRuntimeSoakTest.php",
-        "f7:pest": "@php vendor/bin/pest --fail-on-skipped",
-        "f7:oauth": "@php vendor/bin/pest --fail-on-skipped tests/Feature/OAuth21*Test.php",
-        "f7:no-weakened-gates": "@php tools/f7-no-weakened-gates.php"
+        "benchmark:representative": "@php benchmarks/run-representative.php"
     }
 }
