@@ -62,6 +62,7 @@ $config = new ConfigRepository([
     ],
 ]);
 $factory = new DBLayerFactory(new DatabaseConnectionResolver($config), new RuntimeContextTracker());
+$factory->connection()->setQueryTimeoutMs(5000);
 $store = new DBLayerOAuthRefreshTokenStore($factory, new AuthTables());
 $replacement = new OAuthRefreshTokenRecord(
     id: $replacementId,
