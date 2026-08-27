@@ -46,28 +46,49 @@ it('uses ordinary account semantics for OAuth bearer principals across existing 
     $exceptions = new AuthExceptionMapper($responses);
     $accounts = new class implements AccountProviderInterface {
         public function findById(string $id): ?AccountInterface { return oauth21CompatibilityAccount($id); }
-        public function findByIdentifier(string $identifier): ?AccountInterface { return null; }
+        public function findByIdentifier(string $identifier): ?AccountInterface
+        {
+            unset($identifier);
+
+            return null;
+        }
     };
     $authorizer = new class implements AuthorizerInterface {
         public ?PrincipalInterface $seen = null;
-        public function authorize(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): void { $this->seen = $principal; }
-        public function can(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): AuthorizationDecision {
+        public function authorize(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): void
+        {
+            unset($ability, $resource, $context);
             $this->seen = $principal;
+        }
+        public function can(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): AuthorizationDecision
+        {
+            unset($ability, $resource, $context);
+            $this->seen = $principal;
+
             return AuthorizationDecision::allow();
         }
     };
     $roles = new RoleManager(
         new class implements RoleStoreInterface {
-            public function rolesForAccount(string $accountId): array { return [new Role('role-1', 'admin')]; }
+            public function rolesForAccount(string $accountId): array
+            {
+                unset($accountId);
+
+                return [new Role('role-1', 'admin')];
+            }
         },
         new class implements RoleAssignmentStoreInterface {
-            public function assignRole(string $accountId, string $roleId): void {}
-            public function revokeRole(string $accountId, string $roleId): void {}
-            public function save(Role $role): void {}
+            public function assignRole(string $accountId, string $roleId): void { unset($accountId, $roleId); }
+            public function revokeRole(string $accountId, string $roleId): void { unset($accountId, $roleId); }
+            public function save(Role $role): void { unset($role); }
         },
         oauth21CompatibilityIds(),
     );
-    $next = static fn(Request $request): Response => Response::plaintext('ok', 200);
+    $next = static function (Request $request): Response {
+        unset($request);
+
+        return Response::plaintext('ok', 200);
+    };
     $request = Request::fake();
 
     expect((new AuthMiddleware($context, $responses))($request, $next)->getStatusCode())->toBe(200)
@@ -88,7 +109,11 @@ it('does not give OAuth account principals alternate MFA or recent-auth semantic
         metadata: ['auth_via' => 'oauth_bearer', 'oauth_client_id' => 'oc_client'],
     ));
     $responses = new AuthResponseFactory();
-    $next = static fn(Request $request): Response => Response::plaintext('ok', 200);
+    $next = static function (Request $request): Response {
+        unset($request);
+
+        return Response::plaintext('ok', 200);
+    };
     $request = Request::fake();
 
     expect((new MfaRequiredMiddleware($context, $responses))($request, $next)->getStatusCode())->toBe(403)
@@ -113,18 +138,34 @@ it('keeps account-only middleware account-only for OAuth service principals', fu
     $responses = new AuthResponseFactory();
     $accounts = new class implements AccountProviderInterface {
         public function findById(string $id): ?AccountInterface { return oauth21CompatibilityAccount($id); }
-        public function findByIdentifier(string $identifier): ?AccountInterface { return null; }
+        public function findByIdentifier(string $identifier): ?AccountInterface
+        {
+            unset($identifier);
+
+            return null;
+        }
     };
     $roles = new RoleManager(
-        new class implements RoleStoreInterface { public function rolesForAccount(string $accountId): array { return []; } },
+        new class implements RoleStoreInterface {
+            public function rolesForAccount(string $accountId): array
+            {
+                unset($accountId);
+
+                return [];
+            }
+        },
         new class implements RoleAssignmentStoreInterface {
-            public function assignRole(string $accountId, string $roleId): void {}
-            public function revokeRole(string $accountId, string $roleId): void {}
-            public function save(Role $role): void {}
+            public function assignRole(string $accountId, string $roleId): void { unset($accountId, $roleId); }
+            public function revokeRole(string $accountId, string $roleId): void { unset($accountId, $roleId); }
+            public function save(Role $role): void { unset($role); }
         },
         oauth21CompatibilityIds(),
     );
-    $next = static fn(Request $request): Response => Response::plaintext('ok', 200);
+    $next = static function (Request $request): Response {
+        unset($request);
+
+        return Response::plaintext('ok', 200);
+    };
     $request = Request::fake();
 
     expect((new AuthMiddleware($context, $responses))($request, $next)->getStatusCode())->toBe(200)
