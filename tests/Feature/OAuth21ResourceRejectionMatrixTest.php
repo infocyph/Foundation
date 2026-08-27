@@ -143,8 +143,17 @@ it('rejects revoked tokens disabled accounts disabled clients and revoked author
         ));
         $revocations = new class implements OAuthAccessRevocationStoreInterface {
             public bool $revoked = false;
-            public function isRevoked(string $tokenId, int $now): bool { return $this->revoked; }
-            public function revoke(OAuthAccessTokenRevocation $revocation): void { $this->revoked = true; }
+            public function isRevoked(string $tokenId, int $now): bool
+            {
+                unset($tokenId, $now);
+
+                return $this->revoked;
+            }
+            public function revoke(OAuthAccessTokenRevocation $revocation): void
+            {
+                unset($revocation);
+                $this->revoked = true;
+            }
         };
         $validator = new OAuthAccessTokenValidator(
             $fixture->accessTokens,
@@ -173,7 +182,12 @@ it('rejects revoked tokens disabled accounts disabled clients and revoked author
                     public function status(): AccountStatus { return AccountStatus::DISABLED; }
                 } : null;
             }
-            public function findByIdentifier(string $identifier): ?AccountInterface { return null; }
+            public function findByIdentifier(string $identifier): ?AccountInterface
+            {
+                unset($identifier);
+
+                return null;
+            }
         };
         $disabledAccountValidator = new OAuthAccessTokenValidator(
             $fixture->accessTokens,
