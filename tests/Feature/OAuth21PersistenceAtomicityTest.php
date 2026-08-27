@@ -75,9 +75,15 @@ it('regrants revoked consent and rolls back partial client registration atomical
             public function now(): int { return $this->now; }
         };
         $authorizer = new class implements AuthorizerInterface {
-            public function authorize(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): void {}
+            public function authorize(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): void
+            {
+                unset($principal, $ability, $resource, $context);
+            }
+
             public function can(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): AuthorizationDecision
             {
+                unset($principal, $ability, $resource, $context);
+
                 return AuthorizationDecision::allow();
             }
         };
