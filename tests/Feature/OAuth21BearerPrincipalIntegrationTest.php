@@ -73,12 +73,15 @@ it('resolves account and service OAuth bearer tokens into the existing principal
 
             public function authorize(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): void
             {
+                unset($resource, $context);
                 $this->seen[] = ['principal' => $principal, 'ability' => $ability];
             }
 
             public function can(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): AuthorizationDecision
             {
+                unset($resource, $context);
                 $this->seen[] = ['principal' => $principal, 'ability' => $ability];
+
                 return AuthorizationDecision::allow();
             }
         };
@@ -87,7 +90,11 @@ it('resolves account and service OAuth bearer tokens into the existing principal
         $context = new CurrentPrincipalContext();
         $auth = new AuthMiddleware($context, $responses);
         $permission = new PermissionMiddleware($context, $authorizer, $exceptions, $responses, ['resource.read']);
-        $next = static fn(Request $request): Response => Response::json(['ok' => true]);
+        $next = static function (Request $request): Response {
+            unset($request);
+
+            return Response::json(['ok' => true]);
+        };
 
         foreach ([$account, $service] as $principal) {
             expect($principal)->not->toBeNull();
