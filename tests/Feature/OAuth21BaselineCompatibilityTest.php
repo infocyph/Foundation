@@ -47,6 +47,7 @@ it('accepts an additive oauth principal resolver without changing configured pre
 
             public function resolve(Request $request): ?PrincipalInterface
             {
+                unset($request);
                 ++$this->calls;
 
                 return $this->principal;
