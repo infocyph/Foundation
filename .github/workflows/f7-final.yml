@@ -278,7 +278,7 @@ jobs:
       - name: Run complete Pest suite with skipped tests fatal
         env:
           IC_PEST_FAIL_ON_SKIPPED: "1"
-        run: vendor/bin/pest --fail-on-skipped
+        run: composer ic:test:code
       - name: Stop PHPForge integration services
         if: always()
         shell: bash
