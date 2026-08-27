@@ -81,7 +81,10 @@ final readonly class OAuthAccessTokenValidator
         return new OAuthVerifiedAccessToken($claims, $client, $authorization, $account);
     }
 
-    /** @param list<string> $candidate @param list<string> $allowed */
+    /**
+     * @param list<string> $candidate
+     * @param list<string> $allowed
+     */
     private function subsetOf(array $candidate, array $allowed): bool
     {
         $allowedSet = array_fill_keys($allowed, true);

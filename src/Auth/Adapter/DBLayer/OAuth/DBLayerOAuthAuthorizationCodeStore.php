@@ -22,8 +22,7 @@ final readonly class DBLayerOAuthAuthorizationCodeStore extends DBLayerStore imp
         int $now,
     ): OAuthAuthorizationCodeConsumeResult {
         $connection = $this->connection();
-
-        return $connection->transaction(function (Connection $transaction) use (
+        $result = $connection->transaction(function (Connection $transaction) use (
             $codeHash,
             $clientId,
             $redirectUriHash,
@@ -51,6 +50,11 @@ final readonly class DBLayerOAuthAuthorizationCodeStore extends DBLayerStore imp
 
             return new OAuthAuthorizationCodeConsumeResult($latestStatus, $latest);
         });
+        if (!$result instanceof OAuthAuthorizationCodeConsumeResult) {
+            throw new \RuntimeException('OAuth authorization-code transaction returned an invalid result.');
+        }
+
+        return $result;
     }
 
     public function save(OAuthAuthorizationCode $code): void

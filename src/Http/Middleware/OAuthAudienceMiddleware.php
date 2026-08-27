@@ -15,11 +15,11 @@ final readonly class OAuthAudienceMiddleware
         private CurrentPrincipalContext $principals,
         private array $requiredAudiences,
     ) {
-        if ($this->requiredAudiences === [] || !array_is_list($this->requiredAudiences)) {
+        if ($this->requiredAudiences === []) {
             throw new \InvalidArgumentException('OAuth audience middleware requires at least one audience.');
         }
         foreach ($this->requiredAudiences as $audience) {
-            if (!is_string($audience) || $audience === '') {
+            if ($audience === '') {
                 throw new \InvalidArgumentException('OAuth audience middleware received an invalid audience.');
             }
         }

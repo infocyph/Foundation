@@ -79,7 +79,10 @@ final readonly class ConsentManager
         }
     }
 
-    /** @param list<string> $scopes @param list<string> $audiences */
+    /**
+     * @param list<string> $scopes
+     * @param list<string> $audiences
+     */
     private function fingerprint(array $scopes, array $audiences): string
     {
         sort($scopes, SORT_STRING);

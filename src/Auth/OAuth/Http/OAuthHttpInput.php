@@ -57,7 +57,7 @@ final readonly class OAuthHttpInput
             throw OAuthProtocolException::invalidClient();
         }
 
-        $authorization = $headers[0] ?? '';
+        $authorization = $headers[0];
         if ($authorization !== '') {
             if (array_key_exists('client_id', $parameters)) {
                 throw OAuthProtocolException::invalidRequest('Client identity must not be supplied by multiple authentication sources.');

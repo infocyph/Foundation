@@ -170,6 +170,6 @@ final readonly class EpicryptOAuthAccessTokenService implements OAuthAccessToken
 
         $scopes = preg_split('/\s+/', trim($value), -1, PREG_SPLIT_NO_EMPTY);
 
-        return is_array($scopes) ? array_values($scopes) : [];
+        return is_array($scopes) ? $scopes : [];
     }
 }

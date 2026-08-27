@@ -53,9 +53,13 @@ final readonly class OAuthAuditRecorder
         );
     }
 
-    /** @param array<string, mixed> $metadata @return array<string, mixed> */
+    /**
+     * @param array<string, mixed> $metadata
+     * @return array<string, mixed>
+     */
     private function sanitize(array $metadata): array
     {
+        /** @var array<string, mixed> $safe */
         $safe = [];
         foreach (self::ALLOWED_METADATA as $key) {
             if (!array_key_exists($key, $metadata)) {

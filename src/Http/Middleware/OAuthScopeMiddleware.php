@@ -15,11 +15,11 @@ final readonly class OAuthScopeMiddleware
         private CurrentPrincipalContext $principals,
         private array $requiredScopes,
     ) {
-        if ($this->requiredScopes === [] || !array_is_list($this->requiredScopes)) {
+        if ($this->requiredScopes === []) {
             throw new \InvalidArgumentException('OAuth scope middleware requires at least one scope.');
         }
         foreach ($this->requiredScopes as $scope) {
-            if (!is_string($scope) || $scope === '') {
+            if ($scope === '') {
                 throw new \InvalidArgumentException('OAuth scope middleware received an invalid scope.');
             }
         }

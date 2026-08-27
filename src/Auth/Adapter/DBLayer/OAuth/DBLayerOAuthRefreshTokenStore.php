@@ -34,8 +34,7 @@ final readonly class DBLayerOAuthRefreshTokenStore extends DBLayerStore implemen
         int $rotatedAt,
     ): OAuthRefreshRotationResult {
         $connection = $this->connection();
-
-        return $connection->transaction(function (Connection $transaction) use (
+        $result = $connection->transaction(function (Connection $transaction) use (
             $tokenHash,
             $replacement,
             $rotatedAt,
@@ -67,6 +66,11 @@ final readonly class DBLayerOAuthRefreshTokenStore extends DBLayerStore implemen
 
             return new OAuthRefreshRotationResult(OAuthRefreshRotationStatus::Rotated, $replacement);
         });
+        if (!$result instanceof OAuthRefreshRotationResult) {
+            throw new \RuntimeException('OAuth refresh-token transaction returned an invalid result.');
+        }
+
+        return $result;
     }
 
     public function save(OAuthRefreshTokenRecord $record): void
