@@ -101,8 +101,7 @@ foreach (preg_split('/\R/', trim($nameStatus)) ?: [] as $entry) {
 }
 
 if ($violations !== []) {
-    fwrite(STDERR, "F7 no-weakened-gates guard failed:\n - " . implode("\n - ", $violations) . "\n");
-    exit(1);
+    throw new RuntimeException("F7 no-weakened-gates guard failed:\n - " . implode("\n - ", $violations));
 }
 
 fwrite(STDOUT, sprintf("F7 no-weakened-gates guard passed against %s.\n", $base));
