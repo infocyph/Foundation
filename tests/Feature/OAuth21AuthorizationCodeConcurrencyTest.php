@@ -69,6 +69,7 @@ $config = new ConfigRepository([
     ],
 ]);
 $factory = new DBLayerFactory(new DatabaseConnectionResolver($config), new RuntimeContextTracker());
+$factory->connection()->setQueryTimeoutMs(5000);
 $store = new DBLayerOAuthAuthorizationCodeStore($factory, new AuthTables());
 while (!is_file($barrier)) {
     usleep(1000);
