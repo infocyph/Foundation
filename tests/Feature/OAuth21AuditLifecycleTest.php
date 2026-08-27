@@ -47,7 +47,7 @@ it('audits authorization code consume expiry and replay at the atomic store outc
     $result = new OAuthAuthorizationCodeConsumeResult($status, $code);
     $codes = new class($result) implements OAuthAuthorizationCodeStoreInterface {
         public function __construct(private OAuthAuthorizationCodeConsumeResult $result) {}
-        public function save(OAuthAuthorizationCode $code): void {}
+        public function save(OAuthAuthorizationCode $code): void { unset($code); }
         public function consume(
             string $codeHash,
             string $clientId,
@@ -55,18 +55,27 @@ it('audits authorization code consume expiry and replay at the atomic store outc
             string $pkceChallenge,
             int $now,
         ): OAuthAuthorizationCodeConsumeResult {
+            unset($codeHash, $clientId, $redirectUriHash, $pkceChallenge, $now);
+
             return $this->result;
         }
     };
     $authorizations = new class implements OAuthAuthorizationStoreInterface {
-        public function find(string $authorizationId): ?OAuthAuthorization { return null; }
-        public function recent(int $limit = 100, ?string $clientId = null): array { return []; }
-        public function revoke(string $authorizationId, int $revokedAt): bool { return false; }
-        public function save(OAuthAuthorization $authorization): void {}
+        public function find(string $authorizationId): ?OAuthAuthorization { unset($authorizationId); return null; }
+        public function recent(int $limit = 100, ?string $clientId = null): array { unset($limit, $clientId); return []; }
+        public function revoke(string $authorizationId, int $revokedAt): bool { unset($authorizationId, $revokedAt); return false; }
+        public function save(OAuthAuthorization $authorization): void { unset($authorization); }
     };
     $authorizer = new class implements AuthorizerInterface {
-        public function authorize(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): void {}
-        public function can(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): AuthorizationDecision {
+        public function authorize(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): void
+        {
+            unset($principal, $ability, $resource, $context);
+        }
+
+        public function can(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): AuthorizationDecision
+        {
+            unset($principal, $ability, $resource, $context);
+
             throw new LogicException('Not used by authorization-code consumption.');
         }
     };
@@ -121,7 +130,11 @@ it('audits OAuth endpoint throttling only when a request is rejected', function 
     $middleware = $factory->forEndpoint('token', Cache::memory('oauth-rate-limit-audit'));
     $request = Request::fake(method: 'POST', uri: '/oauth/token')
         ->withAttribute('client_ip', '203.0.113.10');
-    $next = static fn(Request $request): Response => Response::json(['ok' => true]);
+    $next = static function (Request $request): Response {
+        unset($request);
+
+        return Response::json(['ok' => true]);
+    };
 
     $middleware($request, $next);
     expect($capture->events)->toBe([]);
