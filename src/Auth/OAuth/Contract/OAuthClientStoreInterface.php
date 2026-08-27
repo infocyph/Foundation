@@ -16,7 +16,10 @@ interface OAuthClientStoreInterface
     /** @return list<string> */
     public function redirectUris(string $clientId): array;
 
-    /** @param list<string> $redirectUris @param list<string> $scopes */
+    /**
+     * @param list<string> $redirectUris
+     * @param list<string> $scopes
+     */
     public function register(OAuthClient $client, array $redirectUris, array $scopes): void;
 
     /** @param list<string> $redirectUris */

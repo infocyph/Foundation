@@ -93,7 +93,10 @@ final readonly class AuthorizationRequestValidator
         return $state;
     }
 
-    /** @param array<string, mixed> $parameters @return list<string> */
+    /**
+     * @param array<string, mixed> $parameters
+     * @return list<string>
+     */
     private function requestedAudiences(array $parameters, OAuthClient $client): array
     {
         if (!array_key_exists('audience', $parameters)) {
@@ -145,7 +148,10 @@ final readonly class AuthorizationRequestValidator
         return $state;
     }
 
-    /** @param array<string, mixed> $parameters @return list<string> */
+    /**
+     * @param array<string, mixed> $parameters
+     * @return list<string>
+     */
     private function spaceList(array $parameters, string $name, int $maximumItems, bool $required): array
     {
         $value = $parameters[$name] ?? null;
@@ -161,6 +167,6 @@ final readonly class AuthorizationRequestValidator
             throw new \InvalidArgumentException(sprintf('OAuth %s parameter is invalid.', $name));
         }
 
-        return array_values($items);
+        return $items;
     }
 }

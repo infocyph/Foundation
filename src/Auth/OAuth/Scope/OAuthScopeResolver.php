@@ -17,7 +17,11 @@ final readonly class OAuthScopeResolver
         private ConfigRepository $config,
     ) {}
 
-    /** @param list<string> $previous @param list<string> $requested @return list<string> */
+    /**
+     * @param list<string> $previous
+     * @param list<string> $requested
+     * @return list<string>
+     */
     public function narrow(array $previous, array $requested): array
     {
         if ($requested === []) {
@@ -56,7 +60,10 @@ final readonly class OAuthScopeResolver
         );
     }
 
-    /** @param list<string> $scopes @return list<string> */
+    /**
+     * @param list<string> $scopes
+     * @return list<string>
+     */
     private function mappedPermissions(array $scopes): array
     {
         $configured = $this->config->get('auth.oauth.scope_permissions', []);
@@ -75,17 +82,21 @@ final readonly class OAuthScopeResolver
         return array_keys($permissions);
     }
 
-    /** @param list<string> $requested @param list<string> $allowed @return list<string> */
+    /**
+     * @param list<string> $requested
+     * @param list<string> $allowed
+     * @return list<string>
+     */
     private function subset(array $requested, array $allowed, int $maximum, string $name): array
     {
-        if ($requested === [] || count($requested) > $maximum || !array_is_list($requested)) {
+        if ($requested === [] || count($requested) > $maximum) {
             throw new \InvalidArgumentException(sprintf('OAuth %s request is missing or exceeds policy limits.', $name));
         }
 
         $allowedSet = array_fill_keys($allowed, true);
         $selected = [];
         foreach ($requested as $value) {
-            if (!is_string($value) || $value === '' || !isset($allowedSet[$value]) || isset($selected[$value])) {
+            if ($value === '' || !isset($allowedSet[$value]) || isset($selected[$value])) {
                 throw new \InvalidArgumentException(sprintf('OAuth %s request exceeds client policy.', $name));
             }
             $selected[$value] = true;

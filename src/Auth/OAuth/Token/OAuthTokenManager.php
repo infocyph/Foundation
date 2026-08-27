@@ -85,7 +85,10 @@ final readonly class OAuthTokenManager
         }
     }
 
-    /** @param array<string, mixed> $parameters @return list<string> */
+    /**
+     * @param array<string, mixed> $parameters
+     * @return list<string>
+     */
     private function audiences(array $parameters, OAuthClient $client): array
     {
         if (!array_key_exists('audience', $parameters)) {
@@ -228,7 +231,10 @@ final readonly class OAuthTokenManager
         }
     }
 
-    /** @param array<string, mixed> $parameters @param list<string> $names */
+    /**
+     * @param array<string, mixed> $parameters
+     * @param list<string> $names
+     */
     private function rejectParameters(array $parameters, array $names): void
     {
         foreach ($names as $name) {
@@ -295,7 +301,10 @@ final readonly class OAuthTokenManager
         );
     }
 
-    /** @param list<string> $left @param list<string> $right */
+    /**
+     * @param list<string> $left
+     * @param list<string> $right
+     */
     private function sameSet(array $left, array $right): bool
     {
         sort($left, SORT_STRING);
@@ -304,7 +313,10 @@ final readonly class OAuthTokenManager
         return $left === $right;
     }
 
-    /** @param array<string, mixed> $parameters @return list<string> */
+    /**
+     * @param array<string, mixed> $parameters
+     * @return list<string>
+     */
     private function spaceList(array $parameters, string $name, int $maximumItems, bool $required): array
     {
         if (!array_key_exists($name, $parameters)) {
@@ -320,10 +332,13 @@ final readonly class OAuthTokenManager
             throw OAuthProtocolException::invalidRequest();
         }
 
-        return array_values($items);
+        return $items;
     }
 
-    /** @param list<string> $candidate @param list<string> $allowed */
+    /**
+     * @param list<string> $candidate
+     * @param list<string> $allowed
+     */
     private function subsetOf(array $candidate, array $allowed): bool
     {
         $allowedSet = array_fill_keys($allowed, true);

@@ -52,6 +52,10 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
         )));
     }
 
+    /**
+     * @param list<string> $redirectUris
+     * @param list<string> $scopes
+     */
     public function register(OAuthClient $client, array $redirectUris, array $scopes): void
     {
         $this->connection()->transaction(function (Connection $connection) use ($client, $redirectUris, $scopes): void {

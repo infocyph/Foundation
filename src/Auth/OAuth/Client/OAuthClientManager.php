@@ -168,16 +168,19 @@ final readonly class OAuthClientManager
         return true;
     }
 
-    /** @param list<string> $audiences @return list<string> */
+    /**
+     * @param list<string> $audiences
+     * @return list<string>
+     */
     private function validateAudiences(array $audiences): array
     {
-        if ($audiences === [] || count($audiences) > self::MAX_AUDIENCES || !array_is_list($audiences)) {
+        if ($audiences === [] || count($audiences) > self::MAX_AUDIENCES) {
             throw new \InvalidArgumentException('OAuth clients require a bounded audience list.');
         }
 
         $normalized = [];
         foreach ($audiences as $audience) {
-            if (!is_string($audience) || $audience === '' || strlen($audience) > 2048 || isset($normalized[$audience])) {
+            if ($audience === '' || strlen($audience) > 2048 || isset($normalized[$audience])) {
                 throw new \InvalidArgumentException('OAuth client audience policy is invalid.');
             }
             $normalized[$audience] = true;
@@ -186,16 +189,19 @@ final readonly class OAuthClientManager
         return array_keys($normalized);
     }
 
-    /** @param list<OAuthGrantType> $grants @return list<OAuthGrantType> */
+    /**
+     * @param list<OAuthGrantType> $grants
+     * @return list<OAuthGrantType>
+     */
     private function validateGrants(OAuthClientType $type, array $grants): array
     {
-        if ($grants === [] || !array_is_list($grants)) {
+        if ($grants === []) {
             throw new \InvalidArgumentException('OAuth clients require at least one grant.');
         }
 
         $seen = [];
         foreach ($grants as $grant) {
-            if (!$grant instanceof OAuthGrantType || isset($seen[$grant->value])) {
+            if (isset($seen[$grant->value])) {
                 throw new \InvalidArgumentException('OAuth client grant policy is invalid.');
             }
             $seen[$grant->value] = true;
@@ -224,10 +230,14 @@ final readonly class OAuthClientManager
         }
     }
 
-    /** @param list<string> $redirectUris @param array<string, mixed> $metadata @return list<string> */
+    /**
+     * @param list<string> $redirectUris
+     * @param array<string, mixed> $metadata
+     * @return list<string>
+     */
     private function validateRedirectUris(array $redirectUris, array $metadata): array
     {
-        if (count($redirectUris) > self::MAX_REDIRECT_URIS || !array_is_list($redirectUris)) {
+        if (count($redirectUris) > self::MAX_REDIRECT_URIS) {
             throw new \InvalidArgumentException('OAuth redirect URI policy exceeds the supported limit.');
         }
 
@@ -242,16 +252,19 @@ final readonly class OAuthClientManager
         return array_keys($normalized);
     }
 
-    /** @param list<string> $scopes @return list<string> */
+    /**
+     * @param list<string> $scopes
+     * @return list<string>
+     */
     private function validateScopes(array $scopes): array
     {
-        if (count($scopes) > self::MAX_SCOPES || !array_is_list($scopes)) {
+        if (count($scopes) > self::MAX_SCOPES) {
             throw new \InvalidArgumentException('OAuth scope policy exceeds the supported limit.');
         }
 
         $normalized = [];
         foreach ($scopes as $scope) {
-            if (!is_string($scope) || preg_match('/\A[A-Za-z0-9][A-Za-z0-9:._-]{0,190}\z/D', $scope) !== 1 || isset($normalized[$scope])) {
+            if (preg_match('/\A[A-Za-z0-9][A-Za-z0-9:._-]{0,190}\z/D', $scope) !== 1 || isset($normalized[$scope])) {
                 throw new \InvalidArgumentException('OAuth scope policy is invalid.');
             }
             $normalized[$scope] = true;
