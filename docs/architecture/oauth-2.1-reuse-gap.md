@@ -55,10 +55,17 @@ No new account model, principal context, permission engine, audit sink, notifica
 
 ## Gates before protocol routes
 
-Before `routes/oauth.php` is introduced in Infbyte:
+Before Foundation activates its OAuth routes:
 
 1. OAuth configuration must default disabled and register no OAuth runtime services when disabled.
 2. Authorization-code consumption and OAuth refresh rotation must have database-atomic one-success concurrency tests.
 3. OAuth access tokens must be asymmetrically signed and discriminated from application access tokens.
 4. Resolver precedence tests must prove existing session/application-bearer/remember behavior is unchanged when OAuth is disabled.
 5. Key readiness and JWKS behavior must fail closed for missing, unknown, incompatible, or expired-retirement keys.
+
+## Ownership correction
+
+The original planning boundary anticipated an Infbyte-owned `routes/oauth.php`.
+The completed integration supersedes that boundary: Foundation conditionally
+registers the protocol routes, endpoint throttling and consent presentation
+itself. Infbyte remains OAuth-neutral.

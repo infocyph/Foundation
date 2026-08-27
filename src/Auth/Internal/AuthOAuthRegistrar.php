@@ -35,6 +35,7 @@ use Infocyph\Foundation\Auth\OAuth\Contract\OAuthAuthorizationStoreInterface;
 use Infocyph\Foundation\Auth\OAuth\Contract\OAuthClientStoreInterface;
 use Infocyph\Foundation\Auth\OAuth\Contract\OAuthConsentStoreInterface;
 use Infocyph\Foundation\Auth\OAuth\Contract\OAuthRefreshTokenStoreInterface;
+use Infocyph\Foundation\Auth\OAuth\Http\OAuthAuthorizationController;
 use Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpHandler;
 use Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpInput;
 use Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpResponseFactory;
@@ -49,8 +50,10 @@ use Infocyph\Foundation\Auth\OAuth\Token\OAuthRevocationManager;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthSigningKeyResolver;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthSigningKeySet;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthTokenManager;
+use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DBLayerFactory;
+use Infocyph\Foundation\Session\SessionConfig;
 
 final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
 {
@@ -67,6 +70,7 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
 
         $this->requirePackage(DB::class, 'infocyph/dblayer', 'database');
         $this->requirePackage(AsymmetricJwt::class, 'infocyph/epicrypt', 'crypto');
+        $this->requirePackage(\Infocyph\CacheLayer\Cache\Cache::class, 'infocyph/cachelayer', 'cache');
         $this->registerStores();
         $this->registerCrypto();
         $this->registerProtocolServices();
@@ -207,6 +211,11 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
             $this->service(OAuthManager::class),
             $this->service(OAuthHttpInput::class),
             $this->service(OAuthHttpResponseFactory::class),
+        ));
+        $this->singleton(OAuthAuthorizationController::class, fn() => new OAuthAuthorizationController(
+            $this->service(OAuthHttpHandler::class),
+            $this->service(CurrentPrincipalContext::class),
+            $this->service(SessionConfig::class),
         ));
     }
 

@@ -6,8 +6,8 @@ stores, protocol services, signing-key loading, OAuth bearer resolution and the
 OAuth schema revision remain inactive; the Foundation 2.0 authentication surface
 keeps its existing resolver order and behavior.
 
-This guide describes the Foundation-owned OAuth implementation and the thin
-application integration boundary expected by Infbyte.
+Foundation owns the complete opt-in OAuth boundary. Infbyte does not need OAuth
+routes, controllers, middleware, configuration or environment declarations.
 
 ## Configuration
 
@@ -30,6 +30,10 @@ OAuth configuration lives under `auth.oauth`.
             'refresh_token',
         ],
         'pkce_methods' => ['S256'],
+
+        // Null uses cache.default. Production stores must be shared by every
+        // process on one host and by every host in a distributed deployment.
+        'rate_limit_store' => null,
 
         'resource_audiences' => [
             'https://api.example.com',
@@ -95,13 +99,31 @@ permission system: account principals produced from OAuth still pass through the
 normal Foundation authorizer and middleware semantics.
 
 `routes` are local absolute paths only. They must be unique and must not contain
-a scheme, host, query or fragment. Foundation owns the protocol handlers and
-response construction; an application may mount these paths through thin route
-adapters without reimplementing protocol behavior.
+a scheme, host, query or fragment. When OAuth is enabled, Foundation registers
+these routes in both dynamic and cached routing modes. Applications must not
+mount duplicate route adapters.
 
 The configured rate-limit `window` values are seconds. Rate limiting is a
 protective policy; correctness, code one-time use, refresh rotation and
-revocation do not depend on cache availability.
+revocation do not depend on cache availability. `rate_limit_store` selects the
+CacheLayer store used by the endpoint throttles; `null` uses `cache.default`.
+Production validation rejects process-memory state. The selected store must be
+visible to all workers on a host, and to all hosts in a distributed deployment.
+
+The default configuration can be enabled without an application-owned
+`config/auth.php` OAuth block by setting:
+
+```dotenv
+AUTH_OAUTH_ENABLED=true
+AUTH_OAUTH_ISSUER=https://identity.example.com
+AUTH_OAUTH_ACTIVE_KEY_ID=oauth-2026-08
+AUTH_OAUTH_PRIVATE_KEY=/run/secrets/oauth-2026-08-private.pem
+AUTH_OAUTH_PUBLIC_KEYS=[{"id":"oauth-2026-08","path":"/run/secrets/oauth-2026-08-public.pem","status":"active"}]
+```
+
+`AUTH_OAUTH_PUBLIC_KEYS` is a JSON list. Keep deployment-specific audiences,
+scope mappings, route overrides and rate-limit policy in application
+configuration only when the defaults are not suitable.
 
 ## Signing keys
 
@@ -174,9 +196,9 @@ Public clients do not have a client secret. Authorization Code clients must use
 PKCE S256; `plain`, password grant, implicit grant and credential transport in
 query parameters are not accepted by this Foundation surface.
 
-## Foundation and Infbyte ownership
+## Ownership
 
-Foundation owns reusable OAuth mechanics:
+Foundation owns the complete OAuth integration:
 
 - request/parameter validation and client authentication policy;
 - exact redirect validation, PKCE, consent and authorization-code lifecycle;
@@ -186,13 +208,14 @@ Foundation owns reusable OAuth mechanics:
 - OAuth audit events, pruning hooks, rate-limit policy adapters and CLI
   administration;
 - OAuth bearer principal resolution and scope/audience middleware;
-- protocol-oriented HTTP handlers and response construction.
+- protocol-oriented HTTP handlers and response construction;
+- configuration defaults and environment resolution;
+- conditional provider activation, route registration and route caching;
+- endpoint throttling and the authorization consent presentation.
 
-Infbyte must remain a thin presentation/integration layer. After Foundation is
-released, Infbyte may provide opt-in route declarations, authorization/consent
-presentation, application configuration and integration/deployment tests. It
-must not duplicate Foundation crypto, OAuth persistence, token parsing, grant
-logic or protocol error handling in application controllers.
+Infbyte remains an OAuth-neutral application skeleton. Enabling OAuth through
+Foundation adds an OAuth capability to the existing authentication system; it
+does not create a second application authentication system.
 
 ## OAuth bearer versus application bearer
 
@@ -249,10 +272,10 @@ A production rollout should use this order:
    php infbyte app:ready
    ```
 
-6. Expose the thin application OAuth routes only after schema and key readiness
-   are green. Verify metadata/JWKS, one public Authorization Code + S256 flow,
-   one confidential flow if used, resource validation, revocation and
-   introspection on the canary.
+6. Rebuild configuration and route caches after enabling OAuth. Foundation then
+   exposes its OAuth routes automatically. Verify metadata/JWKS, one public
+   Authorization Code + S256 flow, one confidential flow if used, resource
+   validation, revocation and introspection on the canary.
 7. Expand traffic only after the canary remains healthy and audit/error telemetry
    shows no unexpected OAuth failures.
 
@@ -283,8 +306,8 @@ durable protocol operations.
 The preferred operational rollback is **disablement, not destructive schema
 rollback**:
 
-1. Stop exposing the application OAuth routes or set `auth.oauth.enabled=false`
-   in the rollback deployment.
+1. Set `auth.oauth.enabled=false` (or `AUTH_OAUTH_ENABLED=false`) in the rollback
+   deployment and rebuild configuration and route caches.
 2. Re-run configuration/readiness for the restored application surface.
 3. Leave the additive OAuth tables and durable state in place while the incident
    is investigated. Existing Foundation 2.0 auth data remains independent of

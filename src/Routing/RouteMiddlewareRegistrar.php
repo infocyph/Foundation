@@ -7,7 +7,9 @@ namespace Infocyph\Foundation\Routing;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Auth\Authorization\Gate\AuthorizerInterface;
 use Infocyph\Foundation\Auth\Authorization\Role\RoleManager;
+use Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpThrottleFactory;
 use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
+use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Http\Middleware\AuthMiddleware;
 use Infocyph\Foundation\Http\Middleware\GuestMiddleware;
 use Infocyph\Foundation\Http\Middleware\MfaRequiredMiddleware;
@@ -36,6 +38,7 @@ final class RouteMiddlewareRegistrar
         'role' => true,
         'permission' => true,
         'policy' => true,
+        'oauth-throttle' => true,
     ];
 
     /** @var array<string, true> */
@@ -99,6 +102,13 @@ final class RouteMiddlewareRegistrar
         $this->fullyRegistered = $requirements === null;
     }
 
+    private function oauthRateLimitStore(): ?string
+    {
+        $store = $this->app->config()->get('auth.oauth.rate_limit_store');
+
+        return is_string($store) && $store !== '' ? $store : null;
+    }
+
     /**
      * @param string $alias Registered Foundation auth alias.
      * @param list<string> $parameters
@@ -132,6 +142,12 @@ final class RouteMiddlewareRegistrar
                 $this->app->make(AuthResponseFactory::class),
                 $parameters[0] ?? throw new \InvalidArgumentException('Policy middleware requires an ability.'),
                 $parameters[1] ?? null,
+            ),
+            'oauth-throttle' => $this->app->make(OAuthHttpThrottleFactory::class)->forEndpoint(
+                $parameters[0] ?? throw new \InvalidArgumentException(
+                    'OAuth throttle middleware requires an endpoint name.',
+                ),
+                $this->app->make(CacheManager::class)->store($this->oauthRateLimitStore()),
             ),
             default => throw new \LogicException(sprintf('Unsupported auth middleware alias "%s".', $alias)),
         };

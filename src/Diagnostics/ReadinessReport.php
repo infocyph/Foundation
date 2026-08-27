@@ -130,6 +130,7 @@ final readonly class ReadinessReport
             $this->selectPackage($required, $catalog, 'cache');
         }
         if ($config->get('auth.oauth.enabled', false) === true) {
+            $this->selectPackage($required, $catalog, 'cache');
             $this->selectPackage($required, $catalog, 'database');
             $this->selectPackage($required, $catalog, 'security');
         }
