@@ -341,7 +341,7 @@ final readonly class OAuthConfigValidator
         foreach (['authorization', 'token', 'revocation', 'introspection', 'jwks'] as $name) {
             $key = 'auth.oauth.routes.' . $name;
             $path = $this->config->get($key);
-            if (!$this->validRoutePath($path)) {
+            if (!is_string($path) || !$this->validRoutePath($path)) {
                 $issues[] = new ConfigIssue(sprintf('%s must be a local absolute path.', $key), $key);
 
                 continue;
@@ -408,9 +408,9 @@ final readonly class OAuthConfigValidator
         }
     }
 
-    private function validRoutePath(mixed $path): bool
+    private function validRoutePath(string $path): bool
     {
-        if (!is_string($path) || !str_starts_with($path, '/') || str_starts_with($path, '//')) {
+        if (!str_starts_with($path, '/') || str_starts_with($path, '//')) {
             return false;
         }
 
@@ -419,7 +419,10 @@ final readonly class OAuthConfigValidator
         return is_array($parts) && !isset($parts['scheme'], $parts['host'], $parts['query'], $parts['fragment']);
     }
 
-    /** @param list<ConfigIssue> $issues @param array<string|int, mixed> $entry */
+    /**
+     * @param list<ConfigIssue> $issues
+     * @param array<string|int, mixed> $entry
+     */
     private function validSigningKeyWindow(array &$issues, array $entry): bool
     {
         $notBefore = $entry['not_before'] ?? null;
