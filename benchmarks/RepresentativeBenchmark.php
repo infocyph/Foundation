@@ -5,7 +5,20 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Benchmarks;
 
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Auth\Account\Account;
+use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerOAuthAccessRevocationStore;
+use Infocyph\Foundation\Auth\Authentication\TokenAuth\AccessTokenClaims;
+use Infocyph\Foundation\Auth\AuthServices;
+use Infocyph\Foundation\Auth\OAuth\Token\OAuthAccessTokenValidator;
+use Infocyph\Foundation\Auth\OAuth\Token\OAuthClientAuthentication;
+use Infocyph\Foundation\Auth\OAuth\Value\OAuthClientAuthenticationMethod;
+use Infocyph\Foundation\Auth\OAuth\Value\OAuthClientType;
+use Infocyph\Foundation\Auth\OAuth\Value\OAuthGrantType;
+use Infocyph\Foundation\Auth\Principal\PrincipalType;
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Foundation;
+use Infocyph\Foundation\Http\Resolver\OAuthBearerTokenPrincipalResolver;
+use Infocyph\Foundation\Tests\Fixtures\OAuth21FlowFixture;
 use Infocyph\Webrick\Request\Request;
 use Throwable;
 
@@ -53,6 +66,9 @@ Router::get('/session', static function (BrowserSession $session): Response {
 
     return Response::json(['session' => true]);
 }, ['middleware' => ['session']]);
+Router::get('/application-bearer', static fn(): Response => Response::json(['authenticated' => true]), [
+    'middleware' => ['resolve-auth', 'auth'],
+]);
 PHP);
         if ($written === false) {
             $this->removeDirectory($basePath);
@@ -60,31 +76,64 @@ PHP);
             throw new \RuntimeException(sprintf('Unable to write benchmark route file "%s".', $routeFile));
         }
 
+        $oauthFixture = null;
+
         try {
             $application = $this->application($basePath);
+            $workloads = [
+                $this->measure(
+                    'minimal-json-warm',
+                    'persistent-worker',
+                    $this->requestOperation($application, '/json', '{"ok":true}'),
+                    ['route' => '/json', 'middleware' => [], 'response_bytes' => 11],
+                ),
+                $this->measure(
+                    'route-selected-array-session-warm',
+                    'persistent-worker',
+                    $this->requestOperation($application, '/session', '{"session":true}'),
+                    ['route' => '/session', 'middleware' => ['session'], 'session_driver' => 'array'],
+                ),
+                $this->measure(
+                    'oauth-disabled-application-bearer-warm',
+                    'persistent-worker',
+                    $this->applicationBearerOperation($application),
+                    [
+                        'route' => '/application-bearer',
+                        'middleware' => ['resolve-auth', 'auth'],
+                        'oauth_enabled' => false,
+                        'token_domain' => 'foundation_application',
+                    ],
+                ),
+            ];
+
+            // Provisioning is deliberately outside the measured operation. The OAuth workload
+            // represents a steady-state resource request with a previously issued access token.
+            $oauthFixture = new OAuth21FlowFixture();
+            $workloads[] = $this->measure(
+                'oauth-client-credentials-bearer-resolution-warm',
+                'persistent-worker',
+                $this->oauthBearerOperation($oauthFixture),
+                [
+                    'oauth_enabled' => true,
+                    'grant_type' => OAuthGrantType::ClientCredentials->value,
+                    'token_domain' => 'oauth_access_token',
+                    'validation' => 'jwt+durable-client-authorization-revocation+principal-resolution',
+                    'provisioning_in_timed_loop' => false,
+                    'response_validation' => 'resolved service principal identity and OAuth metadata',
+                ],
+            );
+
             $document = [
                 'schema_version' => 1,
                 'generated_at' => date(DATE_RFC3339),
                 'environment' => $this->environment(),
-                'workloads' => [
-                    $this->measure(
-                        'minimal-json-warm',
-                        'persistent-worker',
-                        $this->requestOperation($application, '/json', '{"ok":true}'),
-                        ['route' => '/json', 'middleware' => [], 'response_bytes' => 11],
-                    ),
-                    $this->measure(
-                        'route-selected-array-session-warm',
-                        'persistent-worker',
-                        $this->requestOperation($application, '/session', '{"session":true}'),
-                        ['route' => '/session', 'middleware' => ['session'], 'session_driver' => 'array'],
-                    ),
-                ],
+                'workloads' => $workloads,
             ];
             $this->write($outputPath, $document);
 
             return $document;
         } finally {
+            $oauthFixture?->close();
             $this->removeDirectory($basePath);
         }
     }
@@ -97,6 +146,10 @@ PHP);
         return Foundation::web([
             'app' => ['base_path' => $basePath],
             '_config_cache' => false,
+            'auth' => [
+                'http' => ['principal_resolvers' => ['bearer']],
+                'oauth' => ['enabled' => false],
+            ],
             'router' => [
                 'cache' => false,
                 'files' => ['web.php'],
@@ -109,6 +162,46 @@ PHP);
             ],
             'session' => ['driver' => 'array'],
         ])->boot();
+    }
+
+    /** @return callable():bool */
+    private function applicationBearerOperation(Application $application): callable
+    {
+        $services = new AuthServices($application);
+        $created = $services->accounts()->create(
+            'representative-bearer@example.test',
+            $services->passwordHasher()->hash('benchmark-secret'),
+        );
+        $account = $created->account;
+        if (!$account instanceof Account) {
+            throw new \LogicException('Representative bearer benchmark account was not created.');
+        }
+
+        $now = time();
+        $token = $services->tokens()->issueAccessToken(new AccessTokenClaims(
+            subjectId: $account->id(),
+            actorId: null,
+            issuedAt: $now,
+            expiresAt: $now + 3_600,
+        ))->token;
+        if (!is_string($token) || $token === '') {
+            throw new \LogicException('Representative bearer benchmark token was not issued.');
+        }
+
+        $request = Request::fake(
+            headers: [
+                'Authorization' => 'Bearer ' . $token,
+                'Host' => 'benchmark.test',
+            ],
+            uri: 'https://benchmark.test/application-bearer',
+        );
+
+        return static function () use ($application, $request): bool {
+            $response = $application->handle($request);
+
+            return $response->getStatusCode() === 200
+                && (string) $response->getBody() === '{"authenticated":true}';
+        };
     }
 
     private function cpuModel(): string
@@ -162,7 +255,7 @@ PHP);
             'jit' => (string) ini_get('opcache.jit') !== '' && (string) ini_get('opcache.jit') !== '0',
             'xdebug' => extension_loaded('xdebug'),
             'extensions' => $extensions,
-            'runner' => 'foundation-representative 1',
+            'runner' => 'foundation-representative 2',
             'release' => getenv('GITHUB_SHA') ?: 'working-tree',
         ];
     }
@@ -230,13 +323,13 @@ PHP);
         return [
             'name' => $name,
             'type' => $type,
-            'metadata' => array_merge($metadata, [
+            'metadata' => array_merge([
                 'command' => 'composer benchmark:representative',
                 'successful_rpm_regression_budget_percent' => 2,
                 'maximum_error_rate' => 0,
                 'maximum_timeout_rate' => 0,
                 'response_validation' => 'exact status and JSON body',
-            ]),
+            ], $metadata),
             'repetitions' => $this->repetitions,
             'warmup_operations' => $this->warmupOperations * $this->repetitions,
             'duration_seconds' => $duration,
@@ -275,6 +368,66 @@ PHP);
         ];
     }
 
+    /** @return callable():bool */
+    private function oauthBearerOperation(OAuth21FlowFixture $fixture): callable
+    {
+        $audience = 'https://benchmark-resource.example.test';
+        $registration = $fixture->clients->register(
+            OAuthClientType::Confidential,
+            [OAuthGrantType::ClientCredentials],
+            [],
+            ['benchmark.read'],
+            [$audience],
+        );
+        $secret = $registration->secret;
+        if (!is_string($secret) || $secret === '') {
+            throw new \LogicException('Representative OAuth benchmark client secret was not issued.');
+        }
+
+        $response = $fixture->tokens->exchange([
+            'grant_type' => OAuthGrantType::ClientCredentials->value,
+            'scope' => 'benchmark.read',
+            'audience' => $audience,
+        ], new OAuthClientAuthentication(
+            OAuthClientAuthenticationMethod::ClientSecretBasic,
+            $registration->client->clientId,
+            $secret,
+        ));
+        $validator = new OAuthAccessTokenValidator(
+            $fixture->accessTokens,
+            $fixture->clients,
+            $fixture->authorizationStore,
+            new DBLayerOAuthAccessRevocationStore($fixture->factory, $fixture->tables),
+            $fixture->scopes,
+            $fixture->accounts,
+            $fixture->clock,
+        );
+        $resolver = new OAuthBearerTokenPrincipalResolver(new ConfigRepository([
+            'auth' => [
+                'http' => [
+                    'bearer_header' => 'Authorization',
+                    'bearer_prefix' => 'Bearer ',
+                ],
+                'oauth' => ['resource_audiences' => [$audience]],
+            ],
+        ]), $validator);
+        $request = Request::fake(headers: [
+            'Authorization' => 'Bearer ' . $response->accessToken,
+            'Host' => 'benchmark.test',
+        ]);
+        $expectedClientId = $registration->client->clientId;
+
+        return static function () use ($resolver, $request, $expectedClientId): bool {
+            $principal = $resolver->resolve($request);
+
+            return $principal !== null
+                && $principal->type() === PrincipalType::SERVICE
+                && $principal->id() === $expectedClientId
+                && ($principal->metadata()['auth_via'] ?? null) === 'oauth_bearer'
+                && ($principal->metadata()['oauth_scopes'] ?? null) === ['benchmark.read'];
+        };
+    }
+
     /**
      * @param list<float> $values Sorted measured values.
      * @param float $percentile Requested percentile from zero through one.
@@ -291,7 +444,7 @@ PHP);
     }
 
     /**
-     * @param string $directory Temporary benchmark application root.
+     * @param string $directory Temporary application root.
      */
     private function removeDirectory(string $directory): void
     {

@@ -11,6 +11,7 @@ use Infocyph\Foundation\Command\System\CacheSystemCommand;
 use Infocyph\Foundation\Command\System\DatabaseSystemCommand;
 use Infocyph\Foundation\Command\System\MessagingSystemCommand;
 use Infocyph\Foundation\Command\System\ModuleSystemCommand;
+use Infocyph\Foundation\Command\System\OAuthSystemCommand;
 use Infocyph\Foundation\Command\System\OperationsSystemCommand;
 use Infocyph\Foundation\Command\System\RuntimeSystemCommand;
 
@@ -39,6 +40,30 @@ final class CommandCatalog
             new CommandDefinition('auth:prune', 'Prune expired and retained-revoked authentication records.', 'Authentication & Security', capabilities: ['db'])
                 ->option('connection', 'Configured database connection name.', acceptsValue: true)
                 ->option('retention-hours', 'Hours to retain revoked token/grant records.', acceptsValue: true),
+            new CommandDefinition('auth:oauth:client:create', 'Create an OAuth client and display any generated secret once.', 'Authentication & Security', capabilities: ['db', 'crypto'])
+                ->option('type', 'Client type: public|confidential.', acceptsValue: true)
+                ->option('grant', 'Allowed grant. Repeat for multiple grants.', acceptsValue: true, multiple: true)
+                ->option('redirect-uri', 'Exact registered redirect URI. Repeat as needed.', acceptsValue: true, multiple: true)
+                ->option('scope', 'Allowed OAuth scope. Repeat as needed.', acceptsValue: true, multiple: true)
+                ->option('audience', 'Allowed resource audience. Repeat as needed.', acceptsValue: true, multiple: true)
+                ->option('native-client', 'Allow production loopback HTTP redirects for a native public client.'),
+            new CommandDefinition('auth:oauth:client:list', 'List OAuth clients using a bounded result set.', 'Authentication & Security', capabilities: ['db', 'crypto'])
+                ->option('limit', 'Maximum clients, from 1 to 500.', acceptsValue: true),
+            new CommandDefinition('auth:oauth:client:show', 'Show one OAuth client without secret material.', 'Authentication & Security', capabilities: ['db', 'crypto'])
+                ->argument('client', 'OAuth client identifier.', required: true),
+            new CommandDefinition('auth:oauth:client:rotate-secret', 'Rotate a confidential OAuth client secret and display it once.', 'Authentication & Security', capabilities: ['db', 'crypto'])
+                ->argument('client', 'OAuth client identifier.', required: true),
+            new CommandDefinition('auth:oauth:client:enable', 'Enable an OAuth client.', 'Authentication & Security', capabilities: ['db', 'crypto'])
+                ->argument('client', 'OAuth client identifier.', required: true),
+            new CommandDefinition('auth:oauth:client:disable', 'Disable an OAuth client.', 'Authentication & Security', capabilities: ['db', 'crypto'])
+                ->argument('client', 'OAuth client identifier.', required: true),
+            new CommandDefinition('auth:oauth:authorization:list', 'List OAuth authorizations using a bounded result set.', 'Authentication & Security', capabilities: ['db', 'crypto'])
+                ->option('limit', 'Maximum authorizations, from 1 to 500.', acceptsValue: true)
+                ->option('client', 'Filter by exact OAuth client identifier.', acceptsValue: true),
+            new CommandDefinition('auth:oauth:authorization:revoke', 'Revoke one OAuth authorization.', 'Authentication & Security', capabilities: ['db', 'crypto'])
+                ->argument('authorization', 'OAuth authorization identifier.', required: true)
+                ->option('force', 'Authorize revocation without prompting.'),
+            new CommandDefinition('auth:oauth:key:check', 'Validate OAuth signing-key readiness without exposing key material.', 'Authentication & Security', capabilities: ['db', 'crypto']),
             new CommandDefinition(
                 'secret:generate',
                 'Generate secure application secret material.',
@@ -320,6 +345,7 @@ final class CommandCatalog
         return match (true) {
             str_starts_with($name, 'create:') => ArtifactSystemCommand::class,
             str_starts_with($name, 'module:') => ModuleSystemCommand::class,
+            str_starts_with($name, 'auth:oauth:') => OAuthSystemCommand::class,
             $name === 'cache:forget' => CacheSystemCommand::class,
             str_starts_with($name, 'db:'),
             str_starts_with($name, 'migrate') => DatabaseSystemCommand::class,

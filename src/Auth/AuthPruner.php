@@ -14,6 +14,7 @@ final readonly class AuthPruner
         private DBLayerFactory $database,
         private AuthTables $tables,
         private AuthSchemaInstaller $schema,
+        private bool $oauthEnabled = false,
     ) {}
 
     /** @return array<string,int> */
@@ -34,7 +35,7 @@ final readonly class AuthPruner
         $retainedBefore = $now - ($retentionHours * 3600);
         $table = fn(string $name): string => $this->table($db, $name);
 
-        return [
+        $counts = [
             'sessions' => $db->delete(
                 'DELETE FROM ' . $table($this->tables->sessions()) . ' WHERE expires_at < ?',
                 [$now],
@@ -79,6 +80,24 @@ final readonly class AuthPruner
                 [$now],
             ),
         ];
+
+        if ($this->oauthEnabled) {
+            $counts['oauth_authorization_codes'] = $db->delete(
+                'DELETE FROM ' . $table($this->tables->oauthAuthorizationCodes()) . ' WHERE expires_at < ?',
+                [$now],
+            );
+            // Rotated/revoked refresh rows are deliberately retained until expiry so replay detection remains authoritative.
+            $counts['oauth_refresh_tokens'] = $db->delete(
+                'DELETE FROM ' . $table($this->tables->oauthRefreshTokens()) . ' WHERE expires_at < ?',
+                [$now],
+            );
+            $counts['oauth_access_revocations'] = $db->delete(
+                'DELETE FROM ' . $table($this->tables->oauthAccessRevocations()) . ' WHERE expires_at < ?',
+                [$now],
+            );
+        }
+
+        return $counts;
     }
 
     private function table(\Infocyph\DBLayer\Connection\Connection $connection, string $table): string
