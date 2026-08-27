@@ -57,13 +57,13 @@ function oauthRevocationAuditFixture(string $claimClientId = 'oc_client'): array
     $clients = new class($client) implements OAuthClientStoreInterface {
         public function __construct(private OAuthClient $client) {}
         public function find(string $clientId): ?OAuthClient { return $clientId === $this->client->clientId ? $this->client : null; }
-        public function list(int $limit = 100): array { return [$this->client]; }
-        public function redirectUris(string $clientId): array { return []; }
-        public function scopes(string $clientId): array { return ['profile:read']; }
-        public function register(OAuthClient $client, array $redirectUris, array $scopes): void {}
-        public function save(OAuthClient $client): void {}
-        public function replaceRedirectUris(string $clientId, array $redirectUris, int $createdAt): void {}
-        public function replaceScopes(string $clientId, array $scopes, int $createdAt): void {}
+        public function list(int $limit = 100): array { unset($limit); return [$this->client]; }
+        public function redirectUris(string $clientId): array { unset($clientId); return []; }
+        public function scopes(string $clientId): array { unset($clientId); return ['profile:read']; }
+        public function register(OAuthClient $client, array $redirectUris, array $scopes): void { unset($client, $redirectUris, $scopes); }
+        public function save(OAuthClient $client): void { unset($client); }
+        public function replaceRedirectUris(string $clientId, array $redirectUris, int $createdAt): void { unset($clientId, $redirectUris, $createdAt); }
+        public function replaceScopes(string $clientId, array $scopes, int $createdAt): void { unset($clientId, $scopes, $createdAt); }
     };
     $clock = new readonly class($now) implements ClockInterface {
         public function __construct(private int $time) {}
@@ -72,26 +72,41 @@ function oauthRevocationAuditFixture(string $claimClientId = 'oc_client'): array
     $clientManager = new OAuthClientManager(
         clients: $clients,
         hasher: new class implements PasswordHasherInterface {
-            public function hash(string $plainPassword, array $context = []): string { throw new LogicException('Not used for public client authentication.'); }
+            public function hash(string $plainPassword, array $context = []): string
+            {
+                unset($plainPassword, $context);
+
+                throw new LogicException('Not used for public client authentication.');
+            }
         },
         verifier: new class implements PasswordVerifierInterface {
-            public function verify(string $plainPassword, string $storedHash): PasswordVerificationResult { throw new LogicException('Not used for public client authentication.'); }
+            public function verify(string $plainPassword, string $storedHash): PasswordVerificationResult
+            {
+                unset($plainPassword, $storedHash);
+
+                throw new LogicException('Not used for public client authentication.');
+            }
         },
         clock: $clock,
         tokens: new OpaqueToken(),
         production: true,
     );
     $authorizations = new class implements OAuthAuthorizationStoreInterface {
-        public function find(string $authorizationId): ?OAuthAuthorization { return null; }
-        public function recent(int $limit = 100, ?string $clientId = null): array { return []; }
-        public function revoke(string $authorizationId, int $revokedAt): bool { return false; }
-        public function save(OAuthAuthorization $authorization): void {}
+        public function find(string $authorizationId): ?OAuthAuthorization { unset($authorizationId); return null; }
+        public function recent(int $limit = 100, ?string $clientId = null): array { unset($limit, $clientId); return []; }
+        public function revoke(string $authorizationId, int $revokedAt): bool { unset($authorizationId, $revokedAt); return false; }
+        public function save(OAuthAuthorization $authorization): void { unset($authorization); }
     };
     $refreshStore = new class implements OAuthRefreshTokenStoreInterface {
-        public function findByHash(string $tokenHash): ?OAuthRefreshTokenRecord { return null; }
-        public function revokeFamily(string $familyId, int $revokedAt): void {}
-        public function rotate(string $tokenHash, OAuthRefreshTokenRecord $replacement, int $rotatedAt): OAuthRefreshRotationResult { throw new LogicException('Not used by access-token revocation.'); }
-        public function save(OAuthRefreshTokenRecord $record): void {}
+        public function findByHash(string $tokenHash): ?OAuthRefreshTokenRecord { unset($tokenHash); return null; }
+        public function revokeFamily(string $familyId, int $revokedAt): void { unset($familyId, $revokedAt); }
+        public function rotate(string $tokenHash, OAuthRefreshTokenRecord $replacement, int $rotatedAt): OAuthRefreshRotationResult
+        {
+            unset($tokenHash, $replacement, $rotatedAt);
+
+            throw new LogicException('Not used by access-token revocation.');
+        }
+        public function save(OAuthRefreshTokenRecord $record): void { unset($record); }
     };
     $refreshTokens = new OAuthRefreshTokenCoordinator(
         refreshTokens: $refreshStore,
@@ -99,17 +114,24 @@ function oauthRevocationAuditFixture(string $claimClientId = 'oc_client'): array
         clients: $clientManager,
         scopes: new OAuthScopeResolver($clients, new ConfigRepository()),
         accounts: new class implements AccountProviderInterface {
-            public function findById(string $id): ?AccountInterface { return null; }
-            public function findByIdentifier(string $identifier): ?AccountInterface { return null; }
+            public function findById(string $id): ?AccountInterface { unset($id); return null; }
+            public function findByIdentifier(string $identifier): ?AccountInterface { unset($identifier); return null; }
         },
         clock: $clock,
         tokens: new OpaqueToken(),
     );
     $accessTokens = new class($claimClientId, $now) implements OAuthAccessTokenServiceInterface {
         public function __construct(private string $clientId, private int $now) {}
-        public function issue(OAuthAccessTokenClaims $claims): string { throw new LogicException('Not used by revocation.'); }
+        public function issue(OAuthAccessTokenClaims $claims): string
+        {
+            unset($claims);
+
+            throw new LogicException('Not used by revocation.');
+        }
         public function verify(string $token, string $expectedAudience): OAuthAccessTokenClaims
         {
+            unset($token);
+
             return new OAuthAccessTokenClaims(
                 issuer: 'https://issuer.example.test',
                 subject: 'account-1',
@@ -128,7 +150,12 @@ function oauthRevocationAuditFixture(string $claimClientId = 'oc_client'): array
     $revocations = new class($persisted) implements OAuthAccessRevocationStoreInterface {
         /** @param ArrayObject<int, OAuthAccessTokenRevocation> $records */
         public function __construct(private ArrayObject $records) {}
-        public function isRevoked(string $tokenId, int $now): bool { return false; }
+        public function isRevoked(string $tokenId, int $now): bool
+        {
+            unset($tokenId, $now);
+
+            return false;
+        }
         public function revoke(OAuthAccessTokenRevocation $revocation): void { $this->records->append($revocation); }
     };
     $capture = new OAuthAuditCapture();
