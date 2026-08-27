@@ -108,7 +108,7 @@ Evidence: configuration/key/client-secret/ownership guide `e7076d5`, docs index 
 - [x] Run persistent-worker repeated-request/reset and available soak coverage.
 - [x] Run Composer validation/audit/runtime compatibility.
 - [ ] Run PHPForge static/style/refactor/complexity/architecture/duplicate/comment gates.
-- [ ] Run complete Pest suite with no unexpected skips.
+- [x] Run complete Pest suite with no unexpected skips.
 - [ ] Run available OAuth interoperability/conformance coverage.
 - [ ] No suppressions/baselines/exclusions/weakened checks/raised limits to obtain green gates.
 
@@ -118,6 +118,7 @@ Evidence and prepared execution paths:
 - F7.3 regression budget: executed in run `32987689449`; baseline median `1,102,806.56 RPM`, candidate median `1,121,033.65 RPM`, regression `-1.6528%` against the `2%` maximum. Result PASS; durable calculation evidence `d1e5c47`.
 - F7.4 persistent-worker/reset/soak: Security & Standards run `32990021147`, PHP 8.5 prefer-stable job `98245194960`; `OAuth21PersistentPrincipalResetTest`, 1,000-cycle `OAuth21PersistentWorkerSoakTest`, `PersistentExecutionStateIsolationTest`, and 1,000-cycle `PersistentRuntimeSoakTest` all passed. Soak implementation `8dcdc03`.
 - F7.5 Composer/runtime: F7 Gate Runner run `32991881142`; PHP 8.4 job `98251191323` and PHP 8.5 job `98251191303` both passed strict Composer validation, stable dependency resolution, Foundation release audit, platform/release-constraint checks, and classmap-authoritative runtime autoload.
+- F7.7 full Pest matrix: F7 Gate Runner run `33031655158`; PHP 8.4 prefer-stable job `98385349189`, PHP 8.4 prefer-lowest job `98385349293`, PHP 8.5 prefer-stable job `98385349306`, and PHP 8.5 prefer-lowest job `98385349190` all passed with PHPForge integration services and `IC_PEST_FAIL_ON_SKIPPED=1`.
 - F7.9 guard implementation: `46cda9b` rejects feature-diff additions that introduce analyzer suppressions/baselines, skipped-test bypasses, non-blocking CI, disabled analysis/audit/platform checks, unbounded analyzer memory, or a raised benchmark regression budget.
 - Deferred selector: `b4fc0bf` adds `tools/f7-run/gate.txt` so remaining gate execution is opt-in.
 - F7.3-F7.9 runner: `b986906` provides isolated jobs for performance, persistent worker soak, Composer/runtime PHP 8.4+8.5, explicit PHPForge engineering checks, full Pest dependency/PHP matrix with integration services, focused OAuth conformance coverage, and the no-weakened-gates guard.
@@ -136,8 +137,8 @@ Evidence and prepared execution paths:
 - [ ] After Foundation release, add disabled-default OAuth application config/routes/thin presentation hooks/integration tests/deployment closure.
 
 ## Resume point
-Last completed checkpoint: **F7.5 — Composer validation/audit/runtime compatibility passed**.
-Execution evidence: F7 Gate Runner run `32991881142`; PHP 8.4 job `98251191323`, PHP 8.5 job `98251191303`.
+Last completed checkpoint: **F7.7 — complete Pest PHP/dependency matrix passed with skipped tests fatal**.
+Execution evidence: F7 Gate Runner run `33031655158`; PHP 8.4 prefer-stable `98385349189`, PHP 8.4 prefer-lowest `98385349293`, PHP 8.5 prefer-stable `98385349306`, PHP 8.5 prefer-lowest `98385349190`.
 Current active task: **F7 — Performance and engineering gates**.
 First unchecked action: run PHPForge static/style/refactor/complexity/architecture/duplicate/comment gates (F7.6).
-Execution evidence: F7.1-F7.5 are complete; F7.6-F7.9 remain unchecked until their execution evidence is reviewed.
+Execution evidence: F7.1-F7.5 and F7.7 are complete; F7.6, F7.8 and F7.9 remain unchecked until their execution evidence is reviewed.
