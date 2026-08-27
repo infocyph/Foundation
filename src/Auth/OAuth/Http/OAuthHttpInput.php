@@ -103,7 +103,7 @@ final readonly class OAuthHttpInput
             throw OAuthProtocolException::invalidRequest('OAuth protocol endpoint parameters must be sent in the request body.');
         }
 
-        $contentType = strtolower(trim(explode(';', $request->getHeaderLine('Content-Type'), 2)[0] ?? ''));
+        $contentType = strtolower(trim(explode(';', $request->getHeaderLine('Content-Type'), 2)[0]));
         if ($contentType !== 'application/x-www-form-urlencoded') {
             throw OAuthProtocolException::invalidRequest('OAuth protocol endpoints require application/x-www-form-urlencoded.');
         }
