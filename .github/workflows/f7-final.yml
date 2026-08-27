@@ -302,7 +302,9 @@ jobs:
           coverage: none
       - run: composer update --no-interaction --prefer-dist --no-progress --prefer-stable
       - name: Run complete available OAuth 2.1 protocol/conformance coverage
-        run: vendor/bin/pest --fail-on-skipped tests/Feature/OAuth21*Test.php
+        env:
+          IC_PEST_FAIL_ON_SKIPPED: "1"
+        run: composer ic:test:code
 
   no-weakened-gates:
     name: F7.9 no weakened quality gates
