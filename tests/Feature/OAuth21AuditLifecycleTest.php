@@ -135,21 +135,31 @@ it('audits OAuth endpoint throttling only when a request is rejected', function 
 
         return Response::json(['ok' => true]);
     };
-
-    $middleware($request, $next);
-    expect($capture->events)->toBe([]);
+    $previousRequestTime = $_SERVER['REQUEST_TIME'] ?? null;
+    $_SERVER['REQUEST_TIME'] = time();
 
     try {
         $middleware($request, $next);
-        throw new RuntimeException('Expected the second request in the fixed window to be throttled.');
-    } catch (HttpException $exception) {
-        expect($exception->getStatusCode())->toBe(429);
-    }
+        expect($capture->events)->toBe([]);
 
-    expect($capture->events)->toHaveCount(1)
-        ->and($capture->events[0]->type)->toBe(AuthEventType::OAUTH_RATE_LIMITED)
-        ->and($capture->events[0]->metadata)->toBe([
-            'reason' => 'token',
-            'result' => 'rejected',
-        ]);
+        try {
+            $middleware($request, $next);
+            throw new RuntimeException('Expected the second request in the fixed window to be throttled.');
+        } catch (HttpException $exception) {
+            expect($exception->getStatusCode())->toBe(429);
+        }
+
+        expect($capture->events)->toHaveCount(1)
+            ->and($capture->events[0]->type)->toBe(AuthEventType::OAUTH_RATE_LIMITED)
+            ->and($capture->events[0]->metadata)->toBe([
+                'reason' => 'token',
+                'result' => 'rejected',
+            ]);
+    } finally {
+        if ($previousRequestTime === null) {
+            unset($_SERVER['REQUEST_TIME']);
+        } else {
+            $_SERVER['REQUEST_TIME'] = $previousRequestTime;
+        }
+    }
 });
