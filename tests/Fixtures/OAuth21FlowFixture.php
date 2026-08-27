@@ -106,6 +106,8 @@ final class OAuth21FlowFixture
         $hasher = new class implements PasswordHasherInterface {
             public function hash(string $plainPassword, array $context = []): string
             {
+                unset($context);
+
                 return hash('sha256', $plainPassword);
             }
         };
@@ -116,9 +118,15 @@ final class OAuth21FlowFixture
             }
         };
         $authorizer = new class implements AuthorizerInterface {
-            public function authorize(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): void {}
+            public function authorize(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): void
+            {
+                unset($principal, $ability, $resource, $context);
+            }
+
             public function can(PrincipalInterface $principal, string $ability, mixed $resource = null, array $context = []): AuthorizationDecision
             {
+                unset($principal, $ability, $resource, $context);
+
                 return AuthorizationDecision::allow();
             }
         };
