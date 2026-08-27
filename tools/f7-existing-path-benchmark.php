@@ -35,10 +35,15 @@ if (!$routeFileExists && file_put_contents($routeFile, "<?php\n") === false) {
 $store = new class implements ApplicationTokenStoreInterface {
     public function isRevoked(string $jti, int $now): bool
     {
+        unset($jti, $now);
+
         return false;
     }
 
-    public function revoke(string $jti, int $expiresAt): void {}
+    public function revoke(string $jti, int $expiresAt): void
+    {
+        unset($jti, $expiresAt);
+    }
 };
 
 try {
