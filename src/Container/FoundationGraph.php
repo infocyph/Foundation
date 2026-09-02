@@ -9,6 +9,7 @@ use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\RuntimeModeFactory;
 use Infocyph\Foundation\Config\ConfigExportValidator;
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Runtime\RuntimeContextTracker;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 
@@ -31,6 +32,10 @@ final class FoundationGraph
                 'from',
                 [$context->runtimeMode->value],
             ),
+        );
+        $builder->singleton(
+            RuntimeContextTracker::class,
+            FactoryDefinition::construct(RuntimeContextTracker::class),
         );
 
         return $builder;
