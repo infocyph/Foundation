@@ -15,9 +15,11 @@ use Infocyph\Foundation\Http\HttpKernel;
 use Infocyph\Foundation\Runtime\ExecutionScope;
 use Infocyph\Foundation\Runtime\RuntimeContextTracker;
 use Infocyph\InterMix\DI\Container;
+use Infocyph\InterMix\DI\ProductionContainer;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
+use Psr\Container\ContainerInterface;
 
 final class Application
 {
@@ -25,25 +27,32 @@ final class Application
 
     public function __construct(
         private readonly ConfigRepository $config,
-        private readonly Container $container,
+        private readonly Container|ProductionContainer $container,
         private readonly ServiceRegistry $providers,
         private readonly Bootstrapper $bootstrapper,
         private readonly RuntimeMode $runtimeMode,
     ) {
-        $this->bindCoreServices();
-        $this->container->onMissing(function (string $id): void {
-            $this->activateManagedService($id);
-        });
+        if ($this->container instanceof Container) {
+            $this->bindDevelopmentCoreServices();
+            $this->container->onMissing(function (string $id): void {
+                $this->activateManagedService($id);
+            });
+        }
     }
 
     /** @param array<string, mixed> $config */
     public static function create(array $config, RuntimeMode $runtimeMode): self
     {
-        $repository = new ConfigLoader()->load($config);
-        $context = FoundationBuildContext::fromConfig($repository, $runtimeMode);
-        $container = FoundationGraph::compose($repository, $context)->development();
+        $sourceConfig = new ConfigLoader()->load($config);
+        $context = FoundationBuildContext::fromConfig($sourceConfig, $runtimeMode);
+        $container = FoundationGraph::compose($context)->development();
+        $runtimeConfig = $container->get(ConfigRepository::class);
+        if (!$runtimeConfig instanceof ConfigRepository) {
+            throw new \LogicException('Foundation graph did not produce a ConfigRepository.');
+        }
+
         $app = new self(
-            config: $repository,
+            config: $runtimeConfig,
             container: $container,
             providers: new ServiceRegistry(),
             bootstrapper: new Bootstrapper(),
@@ -52,7 +61,7 @@ final class Application
 
         $app->bootstrapper->prepare($app);
 
-        $compiledActivation = $repository->get('app.container.compiled_activation', 'off');
+        $compiledActivation = $runtimeConfig->get('app.container.compiled_activation', 'off');
         if (is_string($compiledActivation) && strtolower($compiledActivation) === 'always') {
             $app->make(ContainerCacheManager::class)->activate();
         }
@@ -105,8 +114,18 @@ final class Application
         return $this->paths()->config($path);
     }
 
+    /**
+     * Mutable container access is development-only. Production code should use
+     * runtime-neutral resolution through runtime(), make(), and has().
+     */
     public function container(): Container
     {
+        if (!$this->container instanceof Container) {
+            throw new \LogicException(
+                'The mutable InterMix development container is unavailable in generated production runtime.',
+            );
+        }
+
         return $this->container;
     }
 
@@ -134,7 +153,7 @@ final class Application
 
     public function has(string $id): bool
     {
-        if ($this->bootstrapper->manages($id)) {
+        if ($this->container instanceof Container && $this->bootstrapper->manages($id)) {
             return $this->bootstrapper->canProvide($this, $id);
         }
 
@@ -171,7 +190,9 @@ final class Application
     public function make(string $id): mixed
     {
         try {
-            $this->activateManagedService($id);
+            if ($this->container instanceof Container) {
+                $this->activateManagedService($id);
+            }
 
             return $this->container->get($id);
         } catch (\Throwable $exception) {
@@ -201,6 +222,12 @@ final class Application
 
     public function register(ServiceProviderInterface $provider): self
     {
+        if (!$this->container instanceof Container) {
+            throw new \LogicException(
+                'Providers must be composed before a generated production runtime is created.',
+            );
+        }
+
         $this->providers->add($provider);
 
         return $this;
@@ -234,6 +261,11 @@ final class Application
     public function runningInWorker(): bool
     {
         return $this->runtimeMode === RuntimeMode::Worker;
+    }
+
+    public function runtime(): ContainerInterface
+    {
+        return $this->container;
     }
 
     public function runtimeMode(): RuntimeMode
@@ -275,21 +307,26 @@ final class Application
         }
     }
 
-    private function bindCoreServices(): void
+    private function bindDevelopmentCoreServices(): void
     {
-        $this->container->bind(self::class, $this, LifetimeEnum::Singleton);
-        $this->container->bind(Container::class, $this->container, LifetimeEnum::Singleton);
-        $this->container->bind(
+        $container = $this->container;
+        if (!$container instanceof Container) {
+            return;
+        }
+
+        $container->bind(self::class, $this, LifetimeEnum::Singleton);
+        $container->bind(Container::class, $container, LifetimeEnum::Singleton);
+        $container->bind(
             ContainerCacheManager::class,
             new ContainerCacheManager($this),
             LifetimeEnum::Singleton,
         );
 
         $externalState = new RuntimeContextTracker();
-        $this->container->bind(RuntimeContextTracker::class, $externalState, LifetimeEnum::Singleton);
-        $this->container->bind(
+        $container->bind(RuntimeContextTracker::class, $externalState, LifetimeEnum::Singleton);
+        $container->bind(
             ExecutionScope::class,
-            new ExecutionScope($this->container, $externalState, $this->runtimeMode),
+            new ExecutionScope($container, $externalState, $this->runtimeMode),
             LifetimeEnum::Singleton,
         );
     }
