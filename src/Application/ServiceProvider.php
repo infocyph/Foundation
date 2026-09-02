@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Application;
 
 use Closure;
-use Infocyph\Foundation\Bootstrap\Bootstrapper;
-use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\InterMix\DI\Container;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
@@ -15,47 +13,19 @@ use Infocyph\InterMix\DI\Support\ServiceReference;
 
 abstract class ServiceProvider implements ServiceProviderInterface
 {
-    /** @var \WeakMap<ContainerBuilder, Application>|null */
-    private static ?\WeakMap $buildApplications = null;
-
     public function boot(Application $app): void {}
 
-    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
+    final protected function application(ContainerBuilder $builder): Application
     {
-        $this->register($this->application($builder, $context));
-    }
-
-    /** Build-time compatibility seam; runtime provider registration is absent. */
-    public function register(Application $app): void {}
-
-    final protected function application(
-        ContainerBuilder $builder,
-        FoundationBuildContext $context,
-    ): Application {
         $container = $builder->development();
-        if ($container->definitions()->has(Application::class)) {
-            $app = $container->get(Application::class);
-            if ($app instanceof Application) {
-                return $app;
-            }
+        if (!$container->definitions()->has(Application::class)) {
+            throw new \LogicException('Foundation Application must exist before provider contribution.');
         }
 
-        self::$buildApplications ??= new \WeakMap();
-        $existing = self::$buildApplications[$builder] ?? null;
-        if ($existing instanceof Application) {
-            return $existing;
+        $app = $container->get(Application::class);
+        if (!$app instanceof Application) {
+            throw new \LogicException('Foundation Application binding is invalid during provider contribution.');
         }
-
-        $app = new Application(
-            config: new ConfigRepository($context->config, $context->compiledConfig),
-            container: $container,
-            providers: new ServiceRegistry(),
-            bootstrapper: new Bootstrapper(),
-            runtimeMode: $context->runtimeMode,
-            bindDevelopmentCore: true,
-            enableDynamicProviderActivation: false,
-        );
-        self::$buildApplications[$builder] = $app;
 
         return $app;
     }
