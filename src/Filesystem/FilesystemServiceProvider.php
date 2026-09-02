@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Filesystem;
 
-use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
+use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\InterMix\DI\ContainerBuilder;
+use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
+use Infocyph\InterMix\DI\Support\ServiceReference;
 use Infocyph\Pathwise\PathwiseFacade;
 use Infocyph\Pathwise\StreamHandler\DownloadProcessor;
 use Infocyph\Pathwise\StreamHandler\UploadProcessor;
@@ -14,7 +18,7 @@ use League\Flysystem\FilesystemOperator;
 
 final class FilesystemServiceProvider extends ServiceProvider
 {
-    public function register(Application $app): void
+    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         if (!class_exists(PathwiseFacade::class)) {
             throw new \LogicException(
@@ -22,38 +26,56 @@ final class FilesystemServiceProvider extends ServiceProvider
             );
         }
 
-        $container = $app->container();
-        $paths = $app->make(PathManager::class);
+        $builder->singleton(StorageRegistry::class, FactoryDefinition::construct(StorageRegistry::class, [
+            new ServiceReference(ConfigRepository::class),
+            new ServiceReference(PathManager::class),
+        ]));
+        $builder->singleton(FilesystemTransferFactory::class, FactoryDefinition::construct(FilesystemTransferFactory::class, [
+            new ServiceReference(ConfigRepository::class),
+            new ServiceReference(PathManager::class),
+            new ServiceReference(StorageRegistry::class),
+        ]));
+        $builder->singleton(FilesystemOperator::class, FactoryDefinition::staticFactory(
+            FilesystemGraphFactory::class,
+            'operator',
+            [new ServiceReference(StorageRegistry::class)],
+        ));
+        $builder->bind(
+            UploadProcessor::class,
+            FactoryDefinition::staticFactory(
+                FilesystemGraphFactory::class,
+                'upload',
+                [new ServiceReference(FilesystemTransferFactory::class)],
+            ),
+            LifetimeEnum::Transient,
+        );
+        $builder->bind(
+            DownloadProcessor::class,
+            FactoryDefinition::staticFactory(
+                FilesystemGraphFactory::class,
+                'download',
+                [new ServiceReference(FilesystemTransferFactory::class)],
+            ),
+            LifetimeEnum::Transient,
+        );
+        $builder->singleton(FilesystemUploadRequestHandler::class, FactoryDefinition::construct(
+            FilesystemUploadRequestHandler::class,
+            [new ServiceReference(FilesystemTransferFactory::class)],
+        ));
+        $builder->singleton(FilesystemResponseFactory::class, FactoryDefinition::construct(
+            FilesystemResponseFactory::class,
+            [
+                new ServiceReference(ConfigRepository::class),
+                new ServiceReference(FilesystemTransferFactory::class),
+                new ServiceReference(StorageRegistry::class),
+            ],
+        ));
+        $builder->singleton(StorageLinkManager::class, FactoryDefinition::construct(StorageLinkManager::class, [
+            new ServiceReference(ConfigRepository::class),
+            new ServiceReference(PathManager::class),
+        ]));
 
-        $this->bindFactory($container, StorageRegistry::class, fn() => new StorageRegistry(
-            config: $app->config(),
-            paths: $paths,
-        ), LifetimeEnum::Singleton);
-
-        $this->bindFactory($container, FilesystemTransferFactory::class, fn() => new FilesystemTransferFactory(
-            config: $app->config(),
-            paths: $paths,
-            storage: $app->make(StorageRegistry::class),
-        ), LifetimeEnum::Singleton);
-
-        $this->bindFactory($container, FilesystemOperator::class, fn() => $app->make(StorageRegistry::class)->disk(), LifetimeEnum::Singleton);
-        $this->bindFactory($container, UploadProcessor::class, fn() => $app->make(FilesystemTransferFactory::class)->upload(), LifetimeEnum::Transient);
-        $this->bindFactory($container, DownloadProcessor::class, fn() => $app->make(FilesystemTransferFactory::class)->download(), LifetimeEnum::Transient);
-
-        $this->bindFactory($container, FilesystemUploadRequestHandler::class, fn() => new FilesystemUploadRequestHandler(
-            $app->make(FilesystemTransferFactory::class),
-        ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, FilesystemResponseFactory::class, fn() => new FilesystemResponseFactory(
-            config: $app->config(),
-            transfers: $app->make(FilesystemTransferFactory::class),
-            storage: $app->make(StorageRegistry::class),
-        ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, StorageLinkManager::class, fn() => new StorageLinkManager(
-            config: $app->config(),
-            paths: $paths,
-        ), LifetimeEnum::Singleton);
-
-        $this->bindFactory($container, 'foundation.files', fn() => $app->make(StorageRegistry::class), LifetimeEnum::Singleton);
-        $this->bindFactory($container, 'foundation.filesystem', fn() => $app->make(StorageRegistry::class), LifetimeEnum::Singleton);
+        $builder->alias('foundation.files', StorageRegistry::class);
+        $builder->alias('foundation.filesystem', StorageRegistry::class);
     }
 }
