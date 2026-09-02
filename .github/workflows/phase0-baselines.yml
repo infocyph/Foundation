@@ -1,0 +1,48 @@
+name: Foundation 3 Phase 0 Baselines
+
+on:
+  push:
+    branches:
+      - foundation-3/runtime-architecture-plan
+    paths:
+      - benchmarks/phase0-intermix.php
+      - .github/workflows/phase0-baselines.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  intermix-baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          ini-values: opcache.enable_cli=1
+
+      - name: Install pinned InterMix
+        run: |
+          mkdir -p /tmp/foundation-phase0
+          cd /tmp/foundation-phase0
+          composer init --name=infocyph/foundation-phase0 --no-interaction
+          composer require infocyph/intermix:10.0.3 --prefer-dist --no-interaction --no-progress
+
+      - name: Record direct InterMix baseline
+        env:
+          PHASE0_AUTOLOAD: /tmp/foundation-phase0/vendor/autoload.php
+          PHASE0_OUTPUT: build/phase0-intermix.json
+          PHASE0_OPERATIONS: '200000'
+          PHASE0_REPETITIONS: '7'
+        run: php benchmarks/phase0-intermix.php
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: foundation-phase0-intermix
+          path: build/phase0-intermix.json
+          if-no-files-found: error
+          retention-days: 30
