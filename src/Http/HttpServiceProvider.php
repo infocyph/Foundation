@@ -45,7 +45,6 @@ final class HttpServiceProvider extends ServiceProvider
         $this->bindFactory($container, ErrorHandler::class, fn() => new ErrorHandler(
             logger: static fn(): LoggerInterface => $app->make(HttpExceptionLogger::class),
             debug: (bool) $app->config()->get('app.debug', false),
-            capturePhpErrors: true,
             requestIdHeader: 'X-Request-Id',
             responseRenderer: static fn(
                 \Infocyph\Webrick\Request\Request $request,
