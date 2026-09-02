@@ -51,7 +51,7 @@ function statistics(array $values): array
     ];
 }
 
-function child(string $basePath): never
+function child(string $basePath): void
 {
     $started = hrtime(true);
     require getcwd() . '/vendor/autoload.php';
@@ -67,8 +67,6 @@ function child(string $basePath): never
         'memory_bytes' => memory_get_usage(true),
         'peak_memory_bytes' => memory_get_peak_usage(true),
     ], JSON_THROW_ON_ERROR) . PHP_EOL);
-
-    exit(0);
 }
 
 /** @return array<string, mixed> */
@@ -177,6 +175,8 @@ $repetitions = max(3, (int) (getenv('PHASE0_BOOT_REPETITIONS') ?: DEFAULT_REPETI
 
 if ($mode === 'child') {
     child($basePath);
+
+    return;
 }
 
 $result = [
