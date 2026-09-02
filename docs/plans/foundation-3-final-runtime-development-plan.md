@@ -1886,7 +1886,7 @@ Use this section as the implementation ledger. Check an item only when its code 
 
 ### Overall phase status
 
-- [ ] Phase 0 — Freeze baselines
+- [x] Phase 0 — Freeze baselines
 - [ ] Phase 1 — Webrick prerequisites
 - [ ] Phase 2 — Foundation composition root
 - [ ] Phase 3 — Provider graph migration
@@ -1900,12 +1900,14 @@ Use this section as the implementation ledger. Check an item only when its code 
 
 ### Phase 0 — Freeze baselines
 
-- [ ] Record direct InterMix 10.0.3 development and generated-production DI baselines.
-- [ ] Record standalone Webrick 5.1 compiled HTTP baselines.
-- [ ] Record current Foundation representative baseline before architecture changes.
-- [ ] Pin exact InterMix/Webrick/Foundation source/tag/commit identities in benchmark output.
-- [ ] Capture semantic behavior tests that Foundation 3 must preserve.
-- [ ] Record baseline memory, throughput, latency and cold/warm boot data needed for later attribution.
+- [x] Record direct InterMix 10.0.3 development and generated-production DI baselines.
+- [x] Record standalone Webrick 5.1 compiled HTTP baselines.
+- [x] Record current Foundation representative baseline before architecture changes.
+- [x] Pin exact InterMix/Webrick/Foundation source/tag/commit identities in benchmark output.
+- [x] Capture semantic behavior tests that Foundation 3 must preserve.
+- [x] Record baseline memory, throughput, latency and cold/warm boot data needed for later attribution.
+
+Baseline evidence: `docs/baselines/foundation-3-phase-0/README.md`.
 
 ### Phase 1 — Webrick prerequisites
 
