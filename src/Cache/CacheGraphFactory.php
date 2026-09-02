@@ -25,11 +25,38 @@ final class CacheGraphFactory
         );
     }
 
+    public static function layerFactoryWithoutDatabase(
+        ConfigRepository $config,
+        PathManager $paths,
+    ): CacheLayerFactory {
+        return new CacheLayerFactory(
+            config: $config,
+            paths: $paths,
+            database: static function (?string $name = null): never {
+                throw new \LogicException(
+                    'The selected cache topology requires the Foundation database capability.',
+                );
+            },
+        );
+    }
+
     public static function manager(CacheLayerFactory $factory, DBLayerFactory $database): CacheManager
     {
         return new CacheManager(
             factory: $factory,
             database: static fn(?string $name = null) => $database->connection($name),
+        );
+    }
+
+    public static function managerWithoutDatabase(CacheLayerFactory $factory): CacheManager
+    {
+        return new CacheManager(
+            factory: $factory,
+            database: static function (?string $name = null): never {
+                throw new \LogicException(
+                    'Transactional cache invalidation requires the Foundation database capability.',
+                );
+            },
         );
     }
 
