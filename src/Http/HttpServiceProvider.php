@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Http;
 
-use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Http\Response\AuthExceptionMapper;
 use Infocyph\Foundation\Http\Response\AuthResponseFactory;
@@ -14,6 +14,7 @@ use Infocyph\Foundation\Logging\HttpExceptionLogger;
 use Infocyph\Foundation\Operations\MaintenanceManager;
 use Infocyph\Foundation\Routing\WebrickRouterFactory;
 use Infocyph\Foundation\Runtime\ExecutionScope;
+use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\InterMix\DI\Support\ServiceReference;
 use Infocyph\Webrick\Router\Kernel\ErrorHandler;
@@ -22,9 +23,10 @@ use Psr\Log\LoggerInterface;
 
 final class HttpServiceProvider extends ServiceProvider
 {
-    public function register(Application $app): void
+    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        $container = $app->container();
+        $app = $this->application($builder, $context);
+        $container = $builder->development();
 
         $this->bindRecipe($container, AuthResponseFactory::class, AuthResponseFactory::class);
         $this->bindRecipe($container, AuthExceptionMapper::class, AuthExceptionMapper::class, [
@@ -35,6 +37,8 @@ final class HttpServiceProvider extends ServiceProvider
             new ServiceReference(AuthExceptionMapper::class),
             new ServiceReference(ValidationExceptionMapper::class),
         ]);
+
+        // Maintenance remains a Phase-6 dynamic island until it moves out of the universal HTTP kernel.
         $this->bindFactory(
             $container,
             MaintenanceManager::class,
@@ -42,9 +46,10 @@ final class HttpServiceProvider extends ServiceProvider
             LifetimeEnum::Singleton,
         );
 
+        // Error-handler and live RouterKernel ownership move to the compiled Webrick runtime in Phase 5.
         $this->bindFactory($container, ErrorHandler::class, fn() => new ErrorHandler(
             logger: static fn(): LoggerInterface => $app->make(HttpExceptionLogger::class),
-            debug: (bool) $app->config()->get('app.debug', false),
+            debug: (bool) ($context->config['app']['debug'] ?? false),
             requestIdHeader: 'X-Request-Id',
             responseRenderer: static fn(
                 \Infocyph\Webrick\Request\Request $request,
@@ -53,7 +58,6 @@ final class HttpServiceProvider extends ServiceProvider
                 ? $app->make(ExceptionRenderer::class)->render($request, $exception)
                 : null,
         ), LifetimeEnum::Singleton);
-
         $this->bindFactory(
             $container,
             RouterKernel::class,
@@ -66,6 +70,6 @@ final class HttpServiceProvider extends ServiceProvider
             new ServiceReference(MaintenanceManager::class),
         ]);
 
-        $this->bindFactory($container, 'foundation.http', fn() => $container->get(HttpKernel::class), LifetimeEnum::Singleton);
+        $container->alias('foundation.http', HttpKernel::class, LifetimeEnum::Singleton);
     }
 }
