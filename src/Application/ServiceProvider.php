@@ -20,17 +20,16 @@ abstract class ServiceProvider implements ServiceProviderInterface
 
     public function boot(Application $app): void {}
 
-    final public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
+    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         $this->register(self::buildApplication($builder, $context));
     }
 
     /**
-     * Temporary provider-internal compatibility seam while each provider is
-     * converted from Application-driven registration to declarative builder
-     * recipes. It is build-time only and never performs runtime discovery.
+     * Build-time compatibility seam for providers not yet expressed directly
+     * against ContainerBuilder. Runtime registration is intentionally absent.
      */
-    abstract public function register(Application $app): void;
+    public function register(Application $app): void {}
 
     /** @param array<int, string> $tags */
     final protected function bindFactory(
