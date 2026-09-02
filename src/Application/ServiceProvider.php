@@ -22,14 +22,43 @@ abstract class ServiceProvider implements ServiceProviderInterface
 
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        $this->register(self::buildApplication($builder, $context));
+        $this->register($this->application($builder, $context));
     }
 
-    /**
-     * Build-time compatibility seam for providers not yet expressed directly
-     * against ContainerBuilder. Runtime registration is intentionally absent.
-     */
+    /** Build-time compatibility seam; runtime provider registration is absent. */
     public function register(Application $app): void {}
+
+    final protected function application(
+        ContainerBuilder $builder,
+        FoundationBuildContext $context,
+    ): Application {
+        $container = $builder->development();
+        if ($container->definitions()->has(Application::class)) {
+            $app = $container->get(Application::class);
+            if ($app instanceof Application) {
+                return $app;
+            }
+        }
+
+        self::$buildApplications ??= new \WeakMap();
+        $existing = self::$buildApplications[$builder] ?? null;
+        if ($existing instanceof Application) {
+            return $existing;
+        }
+
+        $app = new Application(
+            config: new ConfigRepository($context->config, $context->compiledConfig),
+            container: $container,
+            providers: new ServiceRegistry(),
+            bootstrapper: new Bootstrapper(),
+            runtimeMode: $context->runtimeMode,
+            bindDevelopmentCore: true,
+            enableDynamicProviderActivation: false,
+        );
+        self::$buildApplications[$builder] = $app;
+
+        return $app;
+    }
 
     /** @param array<int, string> $tags */
     final protected function bindFactory(
@@ -72,37 +101,5 @@ abstract class ServiceProvider implements ServiceProviderInterface
     final protected function hasExplicitBinding(Container $container, string $id): bool
     {
         return $container->definitions()->has($id);
-    }
-
-    private static function buildApplication(
-        ContainerBuilder $builder,
-        FoundationBuildContext $context,
-    ): Application {
-        $container = $builder->development();
-        if ($container->definitions()->has(Application::class)) {
-            $app = $container->get(Application::class);
-            if ($app instanceof Application) {
-                return $app;
-            }
-        }
-
-        self::$buildApplications ??= new \WeakMap();
-        $existing = self::$buildApplications[$builder] ?? null;
-        if ($existing instanceof Application) {
-            return $existing;
-        }
-
-        $app = new Application(
-            config: new ConfigRepository($context->config, $context->compiledConfig),
-            container: $container,
-            providers: new ServiceRegistry(),
-            bootstrapper: new Bootstrapper(),
-            runtimeMode: $context->runtimeMode,
-            bindDevelopmentCore: true,
-            enableDynamicProviderActivation: false,
-        );
-        self::$buildApplications[$builder] = $app;
-
-        return $app;
     }
 }
