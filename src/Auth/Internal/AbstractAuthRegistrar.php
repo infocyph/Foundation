@@ -102,12 +102,16 @@ abstract readonly class AbstractAuthRegistrar
      * @param class-string $class
      * @param list<scalar|array<array-key, mixed>|ServiceReference|null> $arguments
      */
-    protected function recipe(string $id, string $class, array $arguments = []): void
-    {
+    protected function recipe(
+        string $id,
+        string $class,
+        array $arguments = [],
+        LifetimeEnum $lifetime = LifetimeEnum::Singleton,
+    ): void {
         $this->container->bind(
             $id,
             FactoryDefinition::construct($class, $arguments),
-            LifetimeEnum::Singleton,
+            $lifetime,
         );
     }
 
@@ -125,7 +129,6 @@ abstract readonly class AbstractAuthRegistrar
         ));
     }
 
-    /** @return ServiceReference */
     protected function ref(string $id): ServiceReference
     {
         return new ServiceReference($id);
