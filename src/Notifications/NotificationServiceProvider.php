@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Notifications;
 
-use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Support\ValueNormalizer;
+use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\TalkingBytes\Email\Config\EmailLimits;
 use Infocyph\TalkingBytes\Email\Dkim\DkimPublicKeyResolver;
@@ -23,37 +24,32 @@ use Infocyph\TalkingBytes\Email\Receiver\SpoolEmailReceiver;
 
 final class NotificationServiceProvider extends ServiceProvider
 {
-    public function register(Application $app): void
+    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        $container = $app->container();
+        $app = $this->application($builder, $context);
+        $container = $builder->development();
 
         $this->bindFactory($container, NotificationTemplateRegistry::class, fn() => new NotificationTemplateRegistry(
             $app->config(),
         ), LifetimeEnum::Singleton);
 
-        if (class_exists(Emailer::class)) {
+        $mailAvailable = class_exists(Emailer::class);
+        if ($mailAvailable) {
             $this->registerMail($app);
-        } else {
-            $this->registerUnavailableMail($app);
         }
 
         $this->bindFactory($container, NotificationChannelRegistry::class, fn() => new NotificationChannelRegistry(
             config: $app->config(),
-            mail: class_exists(Emailer::class) ? $app->make(MailNotificationChannel::class) : null,
+            mail: $mailAvailable ? $app->make(MailNotificationChannel::class) : null,
             resolver: fn(string $service): mixed => $app->make($service),
         ), LifetimeEnum::Singleton);
         $this->bindFactory($container, NotificationDispatcher::class, fn() => new NotificationDispatcher(
             $app->make(NotificationChannelRegistry::class),
         ), LifetimeEnum::Singleton);
-        $this->bindFactory(
-            $container,
-            'foundation.notifications',
-            fn() => $app->make(NotificationDispatcher::class),
-            LifetimeEnum::Singleton,
-        );
+        $container->alias('foundation.notifications', NotificationDispatcher::class, LifetimeEnum::Singleton);
     }
 
-    private function emailLimits(Application $app): EmailLimits
+    private function emailLimits(\Infocyph\Foundation\Application\Application $app): EmailLimits
     {
         $config = ValueNormalizer::associativeArray(
             $app->config()->get('notifications.email.parsing.limits', []),
@@ -71,7 +67,7 @@ final class NotificationServiceProvider extends ServiceProvider
         );
     }
 
-    private function registerMail(Application $app): void
+    private function registerMail(\Infocyph\Foundation\Application\Application $app): void
     {
         $container = $app->container();
 
@@ -152,46 +148,7 @@ final class NotificationServiceProvider extends ServiceProvider
             $app->make(Mailer::class),
         ), LifetimeEnum::Singleton);
 
-        $this->bindFactory(
-            $container,
-            'foundation.notifications.emailer',
-            fn() => $app->make(Emailer::class),
-            LifetimeEnum::Scoped,
-        );
-        $this->bindFactory(
-            $container,
-            'foundation.email',
-            fn() => $app->make(Mailer::class),
-            LifetimeEnum::Singleton,
-        );
-    }
-
-    private function registerUnavailableMail(Application $app): void
-    {
-        $unavailable = static function (): never {
-            throw new \LogicException(
-                'Foundation mail services require infocyph/talkingbytes; run "php infbyte module:install communication".',
-            );
-        };
-        $container = $app->container();
-        foreach ([
-            Mailer::class,
-            MailNotificationChannel::class,
-            Emailer::class,
-            EmailSenderFactory::class,
-            EmailReceiverFactory::class,
-            EmailMailboxFactory::class,
-            EmailLimits::class,
-            RawEmailParser::class,
-            BounceParser::class,
-            AuthenticationResultsParser::class,
-            DkimPublicKeyResolver::class,
-            DkimVerifier::class,
-            SpoolEmailReceiver::class,
-            'foundation.email',
-            'foundation.notifications.emailer',
-        ] as $service) {
-            $this->bindFactory($container, $service, $unavailable, LifetimeEnum::Singleton);
-        }
+        $container->alias('foundation.notifications.emailer', Emailer::class, LifetimeEnum::Scoped);
+        $container->alias('foundation.email', Mailer::class, LifetimeEnum::Singleton);
     }
 }
