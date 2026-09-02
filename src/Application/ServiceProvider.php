@@ -78,6 +78,14 @@ abstract class ServiceProvider implements ServiceProviderInterface
         ContainerBuilder $builder,
         FoundationBuildContext $context,
     ): Application {
+        $container = $builder->development();
+        if ($container->definitions()->has(Application::class)) {
+            $app = $container->get(Application::class);
+            if ($app instanceof Application) {
+                return $app;
+            }
+        }
+
         self::$buildApplications ??= new \WeakMap();
         $existing = self::$buildApplications[$builder] ?? null;
         if ($existing instanceof Application) {
@@ -86,7 +94,7 @@ abstract class ServiceProvider implements ServiceProviderInterface
 
         $app = new Application(
             config: new ConfigRepository($context->config, $context->compiledConfig),
-            container: $builder->development(),
+            container: $container,
             providers: new ServiceRegistry(),
             bootstrapper: new Bootstrapper(),
             runtimeMode: $context->runtimeMode,
