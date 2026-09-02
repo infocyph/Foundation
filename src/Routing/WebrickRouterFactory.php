@@ -6,6 +6,7 @@ namespace Infocyph\Foundation\Routing;
 
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\InterMix\DI\Container;
+use Infocyph\InterMix\DI\Invoker;
 use Infocyph\Webrick\Interfaces\RouteInterface;
 use Infocyph\Webrick\Router\Definition\Registrar;
 use Infocyph\Webrick\Router\Facade\Router;
@@ -41,29 +42,15 @@ final class WebrickRouterFactory
             return $this->kernel;
         }
 
-        $routeCache = RouteCachePath::enabled($this->config)
-            ? RouteCachePath::for($this->config)
-            : null;
         $matcher = $this->matcher();
-        $warm = false;
-        if ($routeCache !== null && RouteCachePath::isSourceFresh($this->config)) {
-            $matcher->enableCache($routeCache);
-            $warm = $matcher->canBootFromCache();
-        }
-
-        $this->middlewareRegistrar->register($warm ? $matcher->middlewareRequirements() : null);
-
-        $routes = $warm ? null : $this->routes();
-        $aliases = $routes instanceof Collection ? $this->aliasesByRoute($routes) : [];
+        $this->middlewareRegistrar->register();
+        $routes = $this->routes();
+        $aliases = $this->aliasesByRoute($routes);
 
         return $this->kernel = RouterKernel::bootWithRegistrar(
             log: $this->logger,
             matcher: $matcher,
             register: function (Registrar $registrar) use ($routes, $aliases): void {
-                if (!$routes instanceof Collection) {
-                    return;
-                }
-
                 foreach ($routes->all() as $route) {
                     $this->replayRoute(
                         $registrar,
@@ -72,7 +59,7 @@ final class WebrickRouterFactory
                     );
                 }
             },
-            routeCache: $warm ? $routeCache : null,
+            invoker: Invoker::with($this->container),
             registrarOptions: [
                 'autoSlashRedirect' => (bool) $this->config->get('router.auto_slash_redirect', false),
                 'exposeUrlServices' => (bool) $this->config->get('router.expose_url_services', false),
@@ -84,10 +71,6 @@ final class WebrickRouterFactory
             preGlobal: $this->middleware->preGlobal(),
             postGlobal: $this->middleware->postGlobal(),
             errorHandler: $errorHandler,
-            fallbackAliasesFromRegistrar: false,
-            // HttpKernel already owns the canonical InterMix execution scope.
-            requestScopeEnabled: false,
-            container: $this->container,
         );
     }
 
