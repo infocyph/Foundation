@@ -38,44 +38,31 @@ use Infocyph\Foundation\Auth\Device\{DeviceManager, DeviceStoreInterface};
 use Infocyph\Foundation\Auth\Mfa\{MfaFactorStoreInterface, MfaManager, MfaVerifierInterface, RecoveryCodeServiceInterface};
 use Infocyph\Foundation\Auth\Otp\OtpManager;
 use Infocyph\Foundation\Auth\Passkey\{PasskeyCredentialStoreInterface, PasskeyManager, PasskeyServiceInterface};
-use Infocyph\InterMix\DI\Support\FactoryDefinition;
-use Infocyph\InterMix\DI\Support\LifetimeEnum;
 
 final readonly class AuthManagerRegistrar extends AbstractAuthRegistrar
 {
     public function register(): void
     {
-        $this->container->bind(
-            SessionManager::class,
-            FactoryDefinition::construct(SessionManager::class, [
-                $this->ref(SessionStoreInterface::class),
-                $this->ref(AuthIdGeneratorInterface::class),
-                new SessionConfig(
-                    absoluteTtlSeconds: $this->intConfig('auth.session_ttl', 3600),
-                    recentAuthWindowSeconds: $this->intConfig('auth.recent_auth_window', 900),
-                ),
-                $this->ref(ClockInterface::class),
-            ]),
-            LifetimeEnum::Singleton,
-        );
-        $this->container->bind(
-            LockoutManager::class,
-            FactoryDefinition::construct(LockoutManager::class, [
-                $this->ref(CounterStoreInterface::class),
-                $this->ref(LockoutStoreInterface::class),
-                $this->ref(AuditEventStoreInterface::class),
-                $this->ref(AuthIdGeneratorInterface::class),
-                new LockoutConfig(
-                    maxLoginFailures: $this->intConfig('auth.lockout.max_login_failures', 5),
-                    maxMfaFailures: $this->intConfig('auth.lockout.max_mfa_failures', 5),
-                    maxPasskeyFailures: $this->intConfig('auth.lockout.max_passkey_failures', 5),
-                    windowSeconds: $this->intConfig('auth.lockout.window_seconds', 900),
-                    lockSeconds: $this->intConfig('auth.lockout.lock_seconds', 900),
-                ),
-                $this->ref(ClockInterface::class),
-            ]),
-            LifetimeEnum::Singleton,
-        );
+        $this->recipe(SessionConfig::class, SessionConfig::class, [
+            $this->intConfig('auth.session_ttl', 3600),
+            $this->intConfig('auth.recent_auth_window', 900),
+        ]);
+        $this->recipe(LockoutConfig::class, LockoutConfig::class, [
+            $this->intConfig('auth.lockout.max_login_failures', 5),
+            $this->intConfig('auth.lockout.max_mfa_failures', 5),
+            $this->intConfig('auth.lockout.max_passkey_failures', 5),
+            $this->intConfig('auth.lockout.window_seconds', 900),
+            $this->intConfig('auth.lockout.lock_seconds', 900),
+        ]);
+        $this->recipe(SessionManager::class, SessionManager::class, [
+            $this->ref(SessionStoreInterface::class), $this->ref(AuthIdGeneratorInterface::class),
+            $this->ref(SessionConfig::class), $this->ref(ClockInterface::class),
+        ]);
+        $this->recipe(LockoutManager::class, LockoutManager::class, [
+            $this->ref(CounterStoreInterface::class), $this->ref(LockoutStoreInterface::class),
+            $this->ref(AuditEventStoreInterface::class), $this->ref(AuthIdGeneratorInterface::class),
+            $this->ref(LockoutConfig::class), $this->ref(ClockInterface::class),
+        ]);
         $this->recipe(AccountManager::class, AccountManager::class, [
             $this->ref(AccountProviderInterface::class), $this->ref(AccountStoreInterface::class),
             $this->ref(AuthIdGeneratorInterface::class), $this->ref(ClockInterface::class),
