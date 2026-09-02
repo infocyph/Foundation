@@ -1,0 +1,50 @@
+{
+    "schema": 1,
+    "phase": "Foundation 3 Phase 0 — Freeze baselines",
+    "completed_at_utc": "2026-09-02T06:36:27+00:00",
+    "workflow": {
+        "repository": "infocyph/Foundation",
+        "branch": "foundation-3/runtime-architecture-plan",
+        "run_id": 33599547700,
+        "head_commit": "a22ee20f312d87e7008dd727123f77821891c869",
+        "conclusion": "success",
+        "artifacts": {
+            "foundation-phase0-representative": {
+                "id": 9834641633,
+                "sha256": "a54d162e05c78766d254939791bb8c7779f94a1556adc0d8332edf2be3a07531"
+            },
+            "foundation-phase0-intermix": {
+                "id": 9834630201,
+                "sha256": "df4cddf70e6424ad9b4ee8df4534324a6c3acb3183a813269040d4b805142d50"
+            }
+        }
+    },
+    "source_identities": {
+        "intermix_10_0_3": "a9ec6d5852eae34e4829108a811b68fc6be6baa5",
+        "webrick_5_1": "7d1527f7b9076087549d64bf543e54c96a37911f",
+        "foundation_pre_architecture": "b6fce52d5580f6940f2a2647dff3040e351e15a3",
+        "foundation_pre_architecture_tree": "2f6ccc9bf406b841b60c2e25bfc919c35070dd96",
+        "foundation_2_1_1": "f6749ebe0aa1f93c6b3586e8cb63ecc1f552d98b",
+        "benchmark_repo": "d1b130302e9f8918f81c613f6f038c35eb67ce76",
+        "pre_architecture_resolved_dependencies": {
+            "foundation_commit": "b6fce52d5580f6940f2a2647dff3040e351e15a3",
+            "intermix_version": "9.2",
+            "intermix_reference": "7f4c71920471a53f11609ed6ae9ca4e26e83c487",
+            "webrick_version": "4.0.2",
+            "webrick_reference": "417a1c62f4899e7a2a72960920d59fb44c636192"
+        }
+    },
+    "files": [
+        "README.md",
+        "manifest.json",
+        "intermix-10.0.3.json",
+        "foundation-pre-architecture-representative-summary.json",
+        "foundation-pre-architecture-boot.json",
+        "semantic-summary.json",
+        "http-opcache.json"
+    ],
+    "notes": [
+        "The successful GitHub Actions freeze run retains the raw representative benchmark JSON, JUnit XML, exact source sidecar, and generated historical Composer lock. The committed representative summary removes the misleading workflow-trigger release field from the historical raw benchmark and pins the authoritative pre-architecture source explicitly.",
+        "The exact Composer lock is not committed because Foundation itself did not carry a lock at the frozen source commit; its resolved lower-layer identities are committed in this manifest and the representative summary."
+    ]
+}
