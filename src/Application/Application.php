@@ -47,22 +47,24 @@ final class Application
         $sourceConfig = new ConfigLoader()->load($config);
         $context = FoundationBuildContext::fromConfig($sourceConfig, $runtimeMode);
         $builder = FoundationGraph::compose($context);
-        $bootstrapper = new Bootstrapper();
-        $providers = $bootstrapper->compose($builder, $context);
         $container = $builder->development();
         $runtimeConfig = $container->get(ConfigRepository::class);
         if (!$runtimeConfig instanceof ConfigRepository) {
             throw new \LogicException('Foundation graph did not produce a ConfigRepository.');
         }
 
-        return new self(
+        $bootstrapper = new Bootstrapper();
+        $providers = new ServiceRegistry();
+        $app = new self(
             config: $runtimeConfig,
             container: $container,
             providers: $providers,
             bootstrapper: $bootstrapper,
             runtimeMode: $runtimeMode,
-            bindDevelopmentCore: false,
         );
+        $bootstrapper->compose($builder, $context, $providers);
+
+        return $app;
     }
 
     public function appPath(string $path = ''): string
