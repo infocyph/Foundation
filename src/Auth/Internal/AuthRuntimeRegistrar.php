@@ -33,7 +33,11 @@ final readonly class AuthRuntimeRegistrar extends AbstractAuthRegistrar
             clock: $this->clock(),
         ));
 
-        $this->singleton(AuthServices::class, fn() => new AuthServices($this->app));
+        // AuthServices is an intentional runtime facade over the finalized PSR container.
+        $this->singleton(AuthServices::class, fn() => new AuthServices(
+            $this->container,
+            $this->app->config(),
+        ));
 
         $this->singleton(AuthActions::class, fn() => new AuthActions(
             services: $this->service(AuthServices::class),
