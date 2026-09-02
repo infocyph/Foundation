@@ -56,8 +56,10 @@ it('keeps core graph values equivalent in development and generated production',
             ->and($production->get(ConfigRepository::class)->get('app.name'))
             ->toBe('Foundation graph parity');
     } finally {
-        if (is_file($artifact) && !unlink($artifact)) {
-            throw new RuntimeException('Unable to remove the temporary InterMix artifact.');
+        foreach ([$artifact, $artifact . '.meta.json'] as $path) {
+            if (is_file($path) && !unlink($path)) {
+                throw new RuntimeException('Unable to remove a temporary InterMix artifact file.');
+            }
         }
     }
 });

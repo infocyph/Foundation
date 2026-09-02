@@ -50,8 +50,10 @@ it('keeps generated production resolution behind the runtime-neutral application
         expect(fn() => $app->container())
             ->toThrow(LogicException::class, 'mutable InterMix development container is unavailable');
     } finally {
-        if (is_file($artifact) && !unlink($artifact)) {
-            throw new RuntimeException('Unable to remove the temporary InterMix artifact.');
+        foreach ([$artifact, $artifact . '.meta.json'] as $path) {
+            if (is_file($path) && !unlink($path)) {
+                throw new RuntimeException('Unable to remove a temporary InterMix artifact file.');
+            }
         }
     }
 });
