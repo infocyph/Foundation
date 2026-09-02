@@ -11,17 +11,20 @@ use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
 use Infocyph\CacheLayer\Counter\AtomicCounterStoreInterface;
 use Infocyph\CacheLayer\Memoize\Memoizer;
 use Infocyph\CacheLayer\Memoize\OnceMemoizer;
-use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Filesystem\PathManager;
-use Infocyph\InterMix\DI\Support\LifetimeEnum;
+use Infocyph\InterMix\DI\ContainerBuilder;
+use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\ServiceReference;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\SimpleCache\CacheInterface as SimpleCacheInterface;
 
 final class CacheServiceProvider extends ServiceProvider
 {
-    public function register(Application $app): void
+    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         if (!class_exists(Cache::class)) {
             throw new \LogicException(
@@ -29,84 +32,51 @@ final class CacheServiceProvider extends ServiceProvider
             );
         }
 
-        $container = $app->container();
-        $database = fn(?string $name = null) => $app->make(DBLayerFactory::class)->connection($name);
+        $builder->singleton(CacheLayerFactory::class, FactoryDefinition::staticFactory(
+            CacheGraphFactory::class,
+            'layerFactory',
+            [
+                new ServiceReference(ConfigRepository::class),
+                new ServiceReference(PathManager::class),
+                new ServiceReference(DBLayerFactory::class),
+            ],
+        ));
+        $builder->singleton(CacheManager::class, FactoryDefinition::staticFactory(
+            CacheGraphFactory::class,
+            'manager',
+            [
+                new ServiceReference(CacheLayerFactory::class),
+                new ServiceReference(DBLayerFactory::class),
+            ],
+        ));
+        $builder->singleton(CacheInterface::class, FactoryDefinition::staticFactory(
+            CacheGraphFactory::class,
+            'store',
+            [new ServiceReference(CacheManager::class)],
+        ));
 
-        $this->bindFactory($container, CacheLayerFactory::class, fn() => new CacheLayerFactory(
-            config: $app->config(),
-            paths: $app->make(PathManager::class),
-            database: $database,
-        ), LifetimeEnum::Singleton);
+        $builder->alias(Cache::class, CacheInterface::class);
+        $builder->alias(AuthenticationStateCacheInterface::class, CacheInterface::class);
+        $builder->alias(SimpleCacheInterface::class, CacheInterface::class);
+        $builder->alias(CacheItemPoolInterface::class, CacheInterface::class);
+        $builder->singleton(LockProviderInterface::class, FactoryDefinition::staticFactory(
+            CacheGraphFactory::class,
+            'lock',
+            [new ServiceReference(CacheLayerFactory::class)],
+        ));
+        $builder->singleton(Memoizer::class, FactoryDefinition::staticFactory(Memoizer::class, 'instance'));
+        $builder->singleton(OnceMemoizer::class, FactoryDefinition::staticFactory(OnceMemoizer::class, 'instance'));
 
-        $this->bindFactory($container, CacheManager::class, fn() => new CacheManager(
-            factory: $app->make(CacheLayerFactory::class),
-            database: $database,
-        ), LifetimeEnum::Singleton);
-
-        $this->bindFactory(
-            $container,
-            CacheInterface::class,
-            fn() => $app->make(CacheManager::class)->store(),
-            LifetimeEnum::Singleton,
-        );
-        $this->bindFactory(
-            $container,
-            Cache::class,
-            fn() => $app->make(CacheInterface::class),
-            LifetimeEnum::Singleton,
-        );
-        $this->bindFactory(
-            $container,
-            AuthenticationStateCacheInterface::class,
-            fn() => $app->make(CacheInterface::class),
-            LifetimeEnum::Singleton,
-        );
-        $this->bindFactory(
-            $container,
-            SimpleCacheInterface::class,
-            fn() => $app->make(CacheInterface::class),
-            LifetimeEnum::Singleton,
-        );
-        $this->bindFactory(
-            $container,
-            CacheItemPoolInterface::class,
-            fn() => $app->make(CacheInterface::class),
-            LifetimeEnum::Singleton,
-        );
-        $this->bindFactory(
-            $container,
-            LockProviderInterface::class,
-            fn() => $app->make(CacheLayerFactory::class)->lock(),
-            LifetimeEnum::Singleton,
-        );
-        $this->bindFactory(
-            $container,
-            Memoizer::class,
-            Memoizer::instance(...),
-            LifetimeEnum::Singleton,
-        );
-        $this->bindFactory(
-            $container,
-            OnceMemoizer::class,
-            OnceMemoizer::instance(...),
-            LifetimeEnum::Singleton,
-        );
-
-        $counter = $app->config()->get('cache.default_counter');
+        $cache = is_array($context->config['cache'] ?? null) ? $context->config['cache'] : [];
+        $counter = $cache['default_counter'] ?? null;
         if (is_string($counter) && $counter !== '') {
-            $this->bindFactory(
-                $container,
-                AtomicCounterStoreInterface::class,
-                fn() => $app->make(CacheLayerFactory::class)->counters($counter),
-                LifetimeEnum::Singleton,
-            );
+            $builder->singleton(AtomicCounterStoreInterface::class, FactoryDefinition::staticFactory(
+                CacheGraphFactory::class,
+                'counters',
+                [new ServiceReference(CacheLayerFactory::class), $counter],
+            ));
         }
 
-        $this->bindFactory(
-            $container,
-            'foundation.cache',
-            fn() => $app->make(CacheInterface::class),
-            LifetimeEnum::Singleton,
-        );
+        $builder->alias('foundation.cache', CacheInterface::class);
     }
 }
