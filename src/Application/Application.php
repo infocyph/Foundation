@@ -30,12 +30,14 @@ final class Application
         private readonly ServiceRegistry $providers,
         private readonly Bootstrapper $bootstrapper,
         private readonly RuntimeMode $runtimeMode,
+        bool $bindDevelopmentCore = true,
+        bool $enableDynamicProviderActivation = false,
     ) {
-        if ($this->container instanceof Container) {
+        if ($bindDevelopmentCore && $this->container instanceof Container) {
             $this->bindDevelopmentCoreServices();
-            $this->container->onMissing(function (string $id): void {
-                $this->activateManagedService($id);
-            });
+        }
+        if ($enableDynamicProviderActivation) {
+            throw new \LogicException('Dynamic provider activation is not supported by the Foundation 3 runtime graph.');
         }
     }
 
@@ -44,23 +46,23 @@ final class Application
     {
         $sourceConfig = new ConfigLoader()->load($config);
         $context = FoundationBuildContext::fromConfig($sourceConfig, $runtimeMode);
-        $container = FoundationGraph::compose($context)->development();
+        $builder = FoundationGraph::compose($context);
+        $bootstrapper = new Bootstrapper();
+        $providers = $bootstrapper->compose($builder, $context);
+        $container = $builder->development();
         $runtimeConfig = $container->get(ConfigRepository::class);
         if (!$runtimeConfig instanceof ConfigRepository) {
             throw new \LogicException('Foundation graph did not produce a ConfigRepository.');
         }
 
-        $app = new self(
+        return new self(
             config: $runtimeConfig,
             container: $container,
-            providers: new ServiceRegistry(),
-            bootstrapper: new Bootstrapper(),
+            providers: $providers,
+            bootstrapper: $bootstrapper,
             runtimeMode: $runtimeMode,
+            bindDevelopmentCore: false,
         );
-
-        $app->bootstrapper->prepare($app);
-
-        return $app;
     }
 
     public function appPath(string $path = ''): string
@@ -108,10 +110,7 @@ final class Application
         return $this->paths()->config($path);
     }
 
-    /**
-     * Mutable container access is development-only. Production code should use
-     * runtime-neutral resolution through runtime(), make(), and has().
-     */
+    /** Mutable container access is development-only. */
     public function container(): Container
     {
         if (!$this->container instanceof Container) {
@@ -147,10 +146,6 @@ final class Application
 
     public function has(string $id): bool
     {
-        if ($this->container instanceof Container && $this->bootstrapper->manages($id)) {
-            return $this->bootstrapper->canProvide($this, $id);
-        }
-
         return $this->container->has($id);
     }
 
@@ -184,10 +179,6 @@ final class Application
     public function make(string $id): mixed
     {
         try {
-            if ($this->container instanceof Container) {
-                $this->activateManagedService($id);
-            }
-
             return $this->container->get($id);
         } catch (\Throwable $exception) {
             $message = sprintf('Unable to resolve service "%s".', $id);
@@ -216,15 +207,9 @@ final class Application
 
     public function register(ServiceProviderInterface $provider): self
     {
-        if (!$this->container instanceof Container) {
-            throw new \LogicException(
-                'Providers must be composed before a generated production runtime is created.',
-            );
-        }
-
-        $this->providers->add($provider);
-
-        return $this;
+        throw new \LogicException(
+            'Providers must be selected and composed before a Foundation runtime is created.',
+        );
     }
 
     public function resourcesPath(string $path = ''): string
@@ -282,25 +267,6 @@ final class Application
         return $this->paths()->uploads($path);
     }
 
-    private function activateManagedService(string $id): void
-    {
-        if (!$this->bootstrapper->manages($id)) {
-            return;
-        }
-
-        $unavailable = $this->bootstrapper->unavailableServiceMessage($id);
-        if ($unavailable !== null) {
-            throw new \LogicException($unavailable);
-        }
-        if (!$this->bootstrapper->activateProviderFor($this, $id)) {
-            throw new \LogicException(sprintf(
-                'Foundation service "%s" is unavailable in the %s runtime.',
-                $id,
-                $this->runtimeMode->value,
-            ));
-        }
-    }
-
     private function bindDevelopmentCoreServices(): void
     {
         $container = $this->container;
@@ -308,20 +274,33 @@ final class Application
             return;
         }
 
-        $container->bind(self::class, $this, LifetimeEnum::Singleton);
-        $container->bind(Container::class, $container, LifetimeEnum::Singleton);
-        $container->bind(
-            ContainerCacheManager::class,
-            new ContainerCacheManager($this),
-            LifetimeEnum::Singleton,
-        );
+        if (!$container->definitions()->has(self::class)) {
+            $container->bind(self::class, $this, LifetimeEnum::Singleton);
+        }
+        if (!$container->definitions()->has(Container::class)) {
+            $container->bind(Container::class, $container, LifetimeEnum::Singleton);
+        }
+        if (!$container->definitions()->has(ContainerCacheManager::class)) {
+            $container->bind(
+                ContainerCacheManager::class,
+                new ContainerCacheManager($this),
+                LifetimeEnum::Singleton,
+            );
+        }
 
-        $externalState = new RuntimeContextTracker();
-        $container->bind(RuntimeContextTracker::class, $externalState, LifetimeEnum::Singleton);
-        $container->bind(
-            ExecutionScope::class,
-            new ExecutionScope($container, $externalState, $this->runtimeMode),
-            LifetimeEnum::Singleton,
-        );
+        if (!$container->definitions()->has(RuntimeContextTracker::class)) {
+            $container->bind(RuntimeContextTracker::class, new RuntimeContextTracker(), LifetimeEnum::Singleton);
+        }
+        if (!$container->definitions()->has(ExecutionScope::class)) {
+            $externalState = $container->get(RuntimeContextTracker::class);
+            if (!$externalState instanceof RuntimeContextTracker) {
+                throw new \LogicException('RuntimeContextTracker binding is invalid.');
+            }
+            $container->bind(
+                ExecutionScope::class,
+                new ExecutionScope($container, $externalState, $this->runtimeMode),
+                LifetimeEnum::Singleton,
+            );
+        }
     }
 }
