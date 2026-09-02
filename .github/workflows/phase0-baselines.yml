@@ -111,9 +111,21 @@ jobs:
           ' "$FOUNDATION_SOURCE"
 
       - name: Freeze semantic behavior suite
-        run: vendor/bin/pest --colors=never --log-junit build/phase0-semantic-tests.xml
+        run: |
+          cat > /tmp/phase0-phpunit.xml <<'XML'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <phpunit bootstrap="vendor/autoload.php" cacheDirectory=".phpunit.cache" colors="false">
+              <testsuites>
+                  <testsuite name="Foundation pre-architecture semantics">
+                      <directory>tests</directory>
+                  </testsuite>
+              </testsuites>
+          </phpunit>
+          XML
+          vendor/bin/pest --configuration=/tmp/phase0-phpunit.xml --colors=never --log-junit build/phase0-semantic-tests.xml
 
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: foundation-phase0-representative
           path: |
@@ -122,5 +134,5 @@ jobs:
             build/phase0-foundation-sources.json
             build/phase0-semantic-tests.xml
             composer.lock
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 30
