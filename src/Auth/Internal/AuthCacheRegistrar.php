@@ -26,21 +26,23 @@ final readonly class AuthCacheRegistrar extends AbstractAuthRegistrar
             $this->requirePackage(Cache::class, 'infocyph/cachelayer', 'cache');
             $counter = $this->stringConfig('cache.default_counter', '');
 
-            $this->singleton(CounterStoreInterface::class, $counter === ''
-                ? fn() => new CacheLayerCounterStore($this->app->make(CacheInterface::class))
-                : fn() => new AtomicCounterStore($this->app->make(AtomicCounterStoreInterface::class)));
-            $this->singleton(TtlStoreInterface::class, fn() => new CacheLayerTtlStore(
-                $this->app->make(CacheInterface::class),
-            ));
+            $this->recipe(
+                CounterStoreInterface::class,
+                $counter === '' ? CacheLayerCounterStore::class : AtomicCounterStore::class,
+                [$this->ref($counter === '' ? CacheInterface::class : AtomicCounterStoreInterface::class)],
+            );
+            $this->recipe(TtlStoreInterface::class, CacheLayerTtlStore::class, [
+                $this->ref(CacheInterface::class),
+            ]);
 
             return;
         }
 
-        $this->singleton(CounterStoreInterface::class, fn() => new InMemoryCounterStore(
-            $this->app->make(ClockInterface::class),
-        ));
-        $this->singleton(TtlStoreInterface::class, fn() => new ArrayTtlStore(
-            $this->app->make(ClockInterface::class),
-        ));
+        $this->recipe(CounterStoreInterface::class, InMemoryCounterStore::class, [
+            $this->ref(ClockInterface::class),
+        ]);
+        $this->recipe(TtlStoreInterface::class, ArrayTtlStore::class, [
+            $this->ref(ClockInterface::class),
+        ]);
     }
 }
