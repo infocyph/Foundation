@@ -147,6 +147,8 @@ if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)
 }
 
 file_put_contents($output, json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL, LOCK_EX);
-@unlink($artifact);
+if (is_file($artifact) && !unlink($artifact)) {
+    throw new RuntimeException(sprintf('Unable to remove benchmark artifact "%s".', $artifact));
+}
 
 fwrite(STDOUT, json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
