@@ -6,6 +6,7 @@ on:
       - foundation-3/runtime-architecture-plan
     paths:
       - benchmarks/phase0-intermix.php
+      - benchmarks/phase0-foundation-boot.php
       - .github/workflows/phase0-baselines.yml
   workflow_dispatch:
 
@@ -49,11 +50,12 @@ jobs:
 
   foundation-representative-baseline:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
           ref: b6fce52d5580f6940f2a2647dff3040e351e15a3
+          fetch-depth: 1
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -72,6 +74,26 @@ jobs:
           FOUNDATION_BENCHMARK_OUTPUT: build/phase0-foundation-representative.json
         run: composer benchmark:representative
 
+      - name: Record cold and warm Foundation boot baseline
+        env:
+          PHASE0_BOOT_REPETITIONS: '15'
+          PHASE0_BOOT_OUTPUT: build/phase0-foundation-boot.json
+        run: |
+          git fetch --depth=1 origin "$GITHUB_SHA"
+          git show "$GITHUB_SHA:benchmarks/phase0-foundation-boot.php" > /tmp/phase0-foundation-boot.php
+          mkdir -p /tmp/foundation-phase0-app/routes
+          cat > /tmp/foundation-phase0-app/routes/web.php <<'PHP'
+          <?php
+
+          declare(strict_types=1);
+
+          use Infocyph\Webrick\Response\Response;
+          use Infocyph\Webrick\Router\Facade\Router;
+
+          Router::get('/json', static fn(): Response => Response::json(['ok' => true]));
+          PHP
+          PHASE0_FOUNDATION_BASE=/tmp/foundation-phase0-app php /tmp/phase0-foundation-boot.php suite /tmp/foundation-phase0-app
+
       - name: Record resolved source identities
         run: |
           FOUNDATION_SOURCE="$(git rev-parse HEAD)"
@@ -88,12 +110,17 @@ jobs:
           file_put_contents("build/phase0-foundation-sources.json", json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
           ' "$FOUNDATION_SOURCE"
 
+      - name: Freeze semantic behavior suite
+        run: vendor/bin/pest --colors=never --log-junit build/phase0-semantic-tests.xml
+
       - uses: actions/upload-artifact@v4
         with:
           name: foundation-phase0-representative
           path: |
             build/phase0-foundation-representative.json
+            build/phase0-foundation-boot.json
             build/phase0-foundation-sources.json
+            build/phase0-semantic-tests.xml
             composer.lock
           if-no-files-found: error
           retention-days: 30
