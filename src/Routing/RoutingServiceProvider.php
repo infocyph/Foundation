@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Routing;
 
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Exception\ConfigurationException;
 use Infocyph\Foundation\Filesystem\PathManager;
+use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\InterMix\DI\Support\ServiceReference;
 use Infocyph\Webrick\Router\Definition\Registrar;
@@ -16,12 +18,13 @@ use Psr\Log\LoggerInterface;
 
 final class RoutingServiceProvider extends ServiceProvider
 {
-    public function register(Application $app): void
+    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
+        $app = $this->application($builder, $context);
         new MiddlewareConfigValidator($app->config())->validate();
+        $container = $builder->development();
 
-        $container = $app->container();
-
+        // Webrick live router objects remain an explicit Phase-5 dynamic island.
         $this->bindFactory($container, WebrickMiddlewareFactory::class, fn() => new WebrickMiddlewareFactory(
             app: $app,
             config: $app->config(),
@@ -45,33 +48,18 @@ final class RoutingServiceProvider extends ServiceProvider
             new ServiceReference(\Infocyph\Foundation\Config\ConfigRepository::class),
             new ServiceReference(RoutePresetRegistrar::class),
         ]);
-        $this->bindFactory(
-            $container,
-            Registrar::class,
-            fn() => $app->make(WebrickRouterFactory::class)->router(),
-            LifetimeEnum::Singleton,
-        );
-        $this->bindFactory(
-            $container,
-            Collection::class,
-            fn() => $app->make(WebrickRouterFactory::class)->routes(),
-            LifetimeEnum::Singleton,
-        );
+        $this->bindFactory($container, Registrar::class, fn() => $app->make(WebrickRouterFactory::class)->router(), LifetimeEnum::Singleton);
+        $this->bindFactory($container, Collection::class, fn() => $app->make(WebrickRouterFactory::class)->routes(), LifetimeEnum::Singleton);
         $this->bindFactory($container, RouteFileLoader::class, fn() => new RouteFileLoader(
             paths: $app->make(PathManager::class),
             config: $app->config(),
             router: $app->make(Registrar::class),
             presets: $app->make(RoutePresetRegistrar::class),
             oauth: $app->make(OAuthRouteRegistrar::class),
-            files: $this->routeFiles($app->config()->get('router.files', ['web.php', 'api.php', 'auth.php'])),
+            files: $this->routeFiles($context->config['router']['files'] ?? ['web.php', 'api.php', 'auth.php']),
         ), LifetimeEnum::Singleton);
 
-        $this->bindFactory(
-            $container,
-            'foundation.router',
-            fn() => $container->get(Registrar::class),
-            LifetimeEnum::Singleton,
-        );
+        $container->alias('foundation.router', Registrar::class, LifetimeEnum::Singleton);
     }
 
     /** @return list<string> */
@@ -89,7 +77,6 @@ final class RoutingServiceProvider extends ServiceProvider
                     (string) $index,
                 ));
             }
-
             $files[] = $file;
         }
 
