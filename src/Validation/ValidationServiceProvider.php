@@ -32,11 +32,25 @@ final class ValidationServiceProvider extends ServiceProvider
             ValidationSchemaRegistry::class,
             [new ServiceReference(ConfigRepository::class), AuthRequestSchemas::all()],
         ));
-        $builder->singleton(ReqShieldDatabaseProvider::class, FactoryDefinition::staticFactory(
-            ValidationGraphFactory::class,
-            'databaseProvider',
-            [new ServiceReference(DBLayerFactory::class), $connection],
-        ));
+
+        if ($builder->definitions()->has(DBLayerFactory::class)) {
+            $builder->singleton(ReqShieldDatabaseProvider::class, FactoryDefinition::staticFactory(
+                ValidationGraphFactory::class,
+                'databaseProvider',
+                [new ServiceReference(DBLayerFactory::class), $connection],
+            ));
+        } else {
+            $builder->bindFactory(ReqShieldDatabaseProvider::class, static function (): ReqShieldDatabaseProvider {
+                return new ReqShieldDatabaseProvider(
+                    connection: static function (): never {
+                        throw new \LogicException(
+                            'Database-backed validation rules require the Foundation database capability.',
+                        );
+                    },
+                );
+            });
+        }
+
         $builder->alias(DatabaseProvider::class, ReqShieldDatabaseProvider::class);
         $builder->singleton(ValidatorFactory::class, FactoryDefinition::construct(
             ValidatorFactory::class,
