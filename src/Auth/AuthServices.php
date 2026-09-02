@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth;
 
-use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Auth\Account\AccountManager;
 use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailVerificationManager;
 use Infocyph\Foundation\Auth\Authentication\Impersonation\ImpersonationManager;
@@ -32,144 +31,162 @@ use Infocyph\Foundation\Auth\Mfa\MfaManager;
 use Infocyph\Foundation\Auth\OAuth\OAuthManager;
 use Infocyph\Foundation\Auth\Passkey\PasskeyManager;
 use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
+use Infocyph\Foundation\Config\ConfigRepository;
+use Psr\Container\ContainerInterface;
 
 final readonly class AuthServices
 {
     public function __construct(
-        private Application $app,
+        private ContainerInterface $container,
+        private ConfigRepository $config,
     ) {}
 
     public function accountProvider(): AccountProviderInterface
     {
-        return $this->app->make(AccountProviderInterface::class);
+        return $this->resolve(AccountProviderInterface::class);
     }
 
     public function accounts(): AccountManager
     {
-        return $this->app->make(AccountManager::class);
+        return $this->resolve(AccountManager::class);
     }
 
     public function authenticator(): AuthenticatorInterface
     {
-        return $this->app->make(Authenticator::class);
+        return $this->resolve(Authenticator::class);
     }
 
     public function authorizer(): AuthorizerInterface
     {
-        return $this->app->make(AuthorizerInterface::class);
+        return $this->resolve(AuthorizerInterface::class);
     }
 
     public function delegation(): DelegationManager
     {
-        return $this->app->make(DelegationManager::class);
+        return $this->resolve(DelegationManager::class);
     }
 
     public function devices(): DeviceManager
     {
-        return $this->app->make(DeviceManager::class);
+        return $this->resolve(DeviceManager::class);
     }
 
     public function emailVerification(): EmailVerificationManager
     {
-        return $this->app->make(EmailVerificationManager::class);
+        return $this->resolve(EmailVerificationManager::class);
     }
 
     public function gate(): Gate
     {
-        return $this->app->make(Gate::class);
+        return $this->resolve(Gate::class);
     }
 
     public function impersonation(): ImpersonationManager
     {
-        return $this->app->make(ImpersonationManager::class);
+        return $this->resolve(ImpersonationManager::class);
     }
 
     public function lockouts(): LockoutManager
     {
-        return $this->app->make(LockoutManager::class);
+        return $this->resolve(LockoutManager::class);
     }
 
     public function mfa(): MfaManager
     {
-        return $this->app->make(MfaManager::class);
+        return $this->resolve(MfaManager::class);
     }
 
     public function oauth(): OAuthManager
     {
-        if ($this->app->config()->get('auth.oauth.enabled', false) !== true) {
+        if ($this->config->get('auth.oauth.enabled', false) !== true) {
             throw new \LogicException('OAuth is disabled. Enable auth.oauth.enabled before requesting OAuth services.');
         }
 
-        return $this->app->make(OAuthManager::class);
+        return $this->resolve(OAuthManager::class);
     }
 
     public function passkeys(): PasskeyManager
     {
-        return $this->app->make(PasskeyManager::class);
+        return $this->resolve(PasskeyManager::class);
     }
 
     public function passwordChanges(): PasswordChangeManager
     {
-        return $this->app->make(PasswordChangeManager::class);
+        return $this->resolve(PasswordChangeManager::class);
     }
 
     public function passwordHasher(): PasswordHasherInterface
     {
-        return $this->app->make(PasswordHasherInterface::class);
+        return $this->resolve(PasswordHasherInterface::class);
     }
 
     public function passwordless(): PasswordlessManager
     {
-        return $this->app->make(PasswordlessManager::class);
+        return $this->resolve(PasswordlessManager::class);
     }
 
     public function passwordPolicy(): PasswordPolicyInterface
     {
-        return $this->app->make(PasswordPolicyInterface::class);
+        return $this->resolve(PasswordPolicyInterface::class);
     }
 
     public function passwordResets(): PasswordResetManager
     {
-        return $this->app->make(PasswordResetManager::class);
+        return $this->resolve(PasswordResetManager::class);
     }
 
     public function passwordVerifier(): PasswordVerifierInterface
     {
-        return $this->app->make(PasswordVerifierInterface::class);
+        return $this->resolve(PasswordVerifierInterface::class);
     }
 
     public function permissions(): PermissionManager
     {
-        return $this->app->make(PermissionManager::class);
+        return $this->resolve(PermissionManager::class);
     }
 
     public function principals(): CurrentPrincipalContext
     {
-        return $this->app->make(CurrentPrincipalContext::class);
+        return $this->resolve(CurrentPrincipalContext::class);
     }
 
     public function rememberMe(): RememberMeManager
     {
-        return $this->app->make(RememberMeManager::class);
+        return $this->resolve(RememberMeManager::class);
     }
 
     public function roles(): RoleManager
     {
-        return $this->app->make(RoleManager::class);
+        return $this->resolve(RoleManager::class);
     }
 
     public function sessions(): SessionManager
     {
-        return $this->app->make(SessionManager::class);
+        return $this->resolve(SessionManager::class);
     }
 
     public function stepUp(): StepUpManager
     {
-        return $this->app->make(StepUpManager::class);
+        return $this->resolve(StepUpManager::class);
     }
 
     public function tokens(): TokenAuthManager
     {
-        return $this->app->make(TokenAuthManager::class);
+        return $this->resolve(TokenAuthManager::class);
+    }
+
+    /**
+     * @template T of object
+     * @param class-string<T> $id
+     * @return T
+     */
+    private function resolve(string $id): object
+    {
+        $service = $this->container->get($id);
+        if (!is_object($service)) {
+            throw new \UnexpectedValueException(sprintf('Auth service "%s" did not resolve to an object.', $id));
+        }
+
+        return $service;
     }
 }
