@@ -17,6 +17,7 @@ use Infocyph\Foundation\Auth\Authentication\Passwordless\PasswordlessTokenServic
 use Infocyph\Foundation\Auth\Authentication\PasswordReset\PasswordResetTokenServiceInterface;
 use Infocyph\Foundation\Auth\Authentication\RememberMe\RememberTokenServiceInterface;
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\RefreshTokenServiceInterface;
+use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Auth\Contract\Security\AccessTokenServiceInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\RememberTokenStoreInterface;
 use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
@@ -45,52 +46,40 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
         if ($drivers->tokens() === AuthTokenDriver::SECURITY) {
             $this->requirePackage(SymmetricJwt::class, 'infocyph/epicrypt', 'crypto');
             $this->registerEpicryptTokens();
-
             return;
         }
 
-        $this->singleton(HmacTokenCodec::class, fn() => new HmacTokenCodec(
+        $this->recipe(HmacTokenCodec::class, HmacTokenCodec::class, [
             $this->secrets->tokenSecret(),
-        ));
+        ]);
         $this->registerSimpleTokens();
     }
 
-    /**
-     * @param class-string<object> $implementation
-     * @param class-string<object> $dependency
-     */
+    /** @param class-string<object> $implementation @param class-string<object> $dependency */
     private function bindClockedToken(string $service, string $implementation, string $dependency): void
     {
-        $this->singleton($service, fn() => new $implementation(
-            $this->service($dependency),
-            $this->clock(),
-        ));
+        $this->recipe($service, $implementation, [
+            $this->ref($dependency),
+            $this->ref(ClockInterface::class),
+        ]);
     }
 
     private function bindRememberTokens(): void
     {
-        $this->singleton(RememberTokenServiceInterface::class, fn() => new SimpleRememberTokenService(
-            $this->service(RememberTokenStoreInterface::class),
-            $this->clock(),
+        $this->recipe(RememberTokenServiceInterface::class, SimpleRememberTokenService::class, [
+            $this->ref(RememberTokenStoreInterface::class),
+            $this->ref(ClockInterface::class),
             $this->intConfig('auth.remember_me_ttl', 2592000),
-        ));
+        ]);
     }
 
-    /**
-     * @param class-string<object> $implementation
-     * @param class-string<object> $dependency
-     */
+    /** @param class-string<object> $implementation @param class-string<object> $dependency */
     private function bindSingleDependencyToken(string $service, string $implementation, string $dependency): void
     {
-        $this->singleton($service, fn() => new $implementation(
-            $this->service($dependency),
-        ));
+        $this->recipe($service, $implementation, [$this->ref($dependency)]);
     }
 
-    /**
-     * @param class-string<object> $implementation
-     * @param class-string<object> $dependency
-     */
+    /** @param class-string<object> $implementation @param class-string<object> $dependency */
     private function bindTimedClockedToken(
         string $service,
         string $implementation,
@@ -98,17 +87,14 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
         string $ttlKey,
         int $ttlDefault,
     ): void {
-        $this->singleton($service, fn() => new $implementation(
-            $this->service($dependency),
-            $this->clock(),
+        $this->recipe($service, $implementation, [
+            $this->ref($dependency),
+            $this->ref(ClockInterface::class),
             $this->intConfig($ttlKey, $ttlDefault),
-        ));
+        ]);
     }
 
-    /**
-     * @param class-string<object> $implementation
-     * @param class-string<object> $dependency
-     */
+    /** @param class-string<object> $implementation @param class-string<object> $dependency */
     private function bindTimedSingleDependencyToken(
         string $service,
         string $implementation,
@@ -116,23 +102,23 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
         string $ttlKey,
         int $ttlDefault,
     ): void {
-        $this->singleton($service, fn() => new $implementation(
-            $this->service($dependency),
+        $this->recipe($service, $implementation, [
+            $this->ref($dependency),
             $this->intConfig($ttlKey, $ttlDefault),
-        ));
+        ]);
     }
 
     private function registerEpicryptTokens(): void
     {
-        $this->singleton(EpicryptTokenFactory::class, fn() => new EpicryptTokenFactory(
-            key: $this->secrets->tokenSecret($this->epicrypt->minimumKeyBytes()),
-            clock: $this->clock(),
-            issuer: $this->epicrypt->issuer(),
-            audience: $this->epicrypt->audience(),
-            algorithm: $this->epicrypt->algorithm(),
-            maximumLifetimeSeconds: $this->epicrypt->maximumLifetimeSeconds(),
-            leewaySeconds: $this->epicrypt->leewaySeconds(),
-        ));
+        $this->recipe(EpicryptTokenFactory::class, EpicryptTokenFactory::class, [
+            $this->secrets->tokenSecret($this->epicrypt->minimumKeyBytes()),
+            $this->ref(ClockInterface::class),
+            $this->epicrypt->issuer(),
+            $this->epicrypt->audience(),
+            $this->epicrypt->algorithm(),
+            $this->epicrypt->maximumLifetimeSeconds(),
+            $this->epicrypt->leewaySeconds(),
+        ]);
 
         $this->bindSingleDependencyToken(AccessTokenServiceInterface::class, EpicryptAccessTokenService::class, EpicryptTokenFactory::class);
         $this->bindSingleDependencyToken(RefreshTokenServiceInterface::class, EpicryptRefreshTokenService::class, EpicryptTokenFactory::class);
