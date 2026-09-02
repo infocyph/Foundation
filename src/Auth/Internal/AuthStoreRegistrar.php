@@ -81,30 +81,28 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
     {
         $default = $this->app->config()->get('database.default');
 
-        return is_string($default) && $default !== ''
-            ? $default
-            : null;
+        return is_string($default) && $default !== '' ? $default : null;
     }
 
     /** @param class-string $storeClass */
     private function bindClockedDbStore(string $id, string $storeClass, ?string $connection): void
     {
-        $this->singleton($id, fn() => new $storeClass(
-            $this->service(DBLayerFactory::class),
-            $this->service(AuthTables::class),
-            $this->service(ClockInterface::class),
+        $this->recipe($id, $storeClass, [
+            $this->ref(DBLayerFactory::class),
+            $this->ref(AuthTables::class),
+            $this->ref(ClockInterface::class),
             $connection,
-        ));
+        ]);
     }
 
     /** @param class-string $storeClass */
     private function bindPlainDbStore(string $id, string $storeClass, ?string $connection): void
     {
-        $this->singleton($id, fn() => new $storeClass(
-            $this->service(DBLayerFactory::class),
-            $this->service(AuthTables::class),
+        $this->recipe($id, $storeClass, [
+            $this->ref(DBLayerFactory::class),
+            $this->ref(AuthTables::class),
             $connection,
-        ));
+        ]);
     }
 
     /** @return array<string, class-string> */
@@ -180,12 +178,10 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
     private function registerMemoryStores(): void
     {
         foreach ($this->plainMemoryStores() as $id => $storeClass) {
-            $this->singleton($id, fn() => new $storeClass());
+            $this->recipe($id, $storeClass);
         }
         foreach ($this->clockedMemoryStores() as $id => $storeClass) {
-            $this->singleton($id, fn() => new $storeClass(
-                $this->service(ClockInterface::class),
-            ));
+            $this->recipe($id, $storeClass, [$this->ref(ClockInterface::class)]);
         }
 
         $this->registerStoreAliases();
@@ -193,6 +189,7 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
 
     private function registerStoreAliases(): void
     {
+        // Optional event forwarding remains dynamic because EventDispatcher may be a host supplied runtime service.
         $this->singleton(AuditEventStoreInterface::class, function (): AuditEventStoreInterface {
             $storage = $this->container->get(self::AUDIT_STORAGE);
             if (!$storage instanceof AuditEventStoreInterface) {
@@ -205,7 +202,11 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
             return new ForwardingAuditEventStore(
                 $storage,
                 function (AuthEvent $event): void {
-                    $this->app->make(EventDispatcherInterface::class)->dispatch($event);
+                    $dispatcher = $this->container->get(EventDispatcherInterface::class);
+                    if (!$dispatcher instanceof EventDispatcherInterface) {
+                        throw new \LogicException('Auth event forwarding requires an event dispatcher.');
+                    }
+                    $dispatcher->dispatch($event);
                 },
             );
         });
