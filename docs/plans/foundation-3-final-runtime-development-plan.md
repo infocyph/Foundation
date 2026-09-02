@@ -1911,15 +1911,15 @@ Baseline evidence: `docs/baselines/foundation-3-phase-0/README.md`.
 
 ### Phase 1 — Webrick prerequisites
 
-- [ ] WB-1: implement artifact-safe parameterized runtime-backed middleware descriptor.
-- [ ] WB-1: cover alias parsing, artifact encode/decode, capability calculation and runtime `resolveNow()` parameters.
-- [ ] WB-2: separate direct 404/405 routing-control handling from application exception handling.
-- [ ] WB-2: preserve logging/security semantics and add direct routing-error tests.
-- [ ] WB-3: use stable `webrick.request` scope label in development and compiled production.
-- [ ] WB-3: prove sequential/Fiber/coroutine isolation with the stable scope label.
-- [ ] WB-4: expose route-first graph-enrichment point before InterMix validation/compile.
-- [ ] WB-4: prove route-referenced controllers/middleware can be added without duplicate route discovery.
-- [ ] Re-run standalone Webrick correctness/static-analysis suites.
+- [x] WB-1: implement artifact-safe parameterized runtime-backed middleware descriptor.
+- [x] WB-1: cover alias parsing, artifact encode/decode, capability calculation and runtime `resolveNow()` parameters.
+- [x] WB-2: separate direct 404/405 routing-control handling from application exception handling.
+- [x] WB-2: preserve logging/security semantics and add direct routing-error tests.
+- [x] WB-3: use stable `webrick.request` scope label in development and compiled production.
+- [x] WB-3: prove sequential/Fiber/coroutine isolation with the stable scope label.
+- [x] WB-4: expose route-first graph-enrichment point before InterMix validation/compile.
+- [x] WB-4: prove route-referenced controllers/middleware can be added without duplicate route discovery.
+- [x] Re-run standalone Webrick correctness/static-analysis suites.
 - [ ] Re-run standalone Webrick compiled benchmarks and confirm no unexplained regression.
 - [ ] Release/tag the Webrick version carrying WB-1 through WB-4.
 - [ ] Update this plan's Webrick baseline to that exact released version.
