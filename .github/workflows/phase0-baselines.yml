@@ -112,7 +112,7 @@ jobs:
 
       - name: Freeze semantic behavior suite
         run: |
-          cat > /tmp/phase0-phpunit.xml <<'XML'
+          cat > phase0-phpunit.xml <<'XML'
           <?xml version="1.0" encoding="UTF-8"?>
           <phpunit bootstrap="vendor/autoload.php" cacheDirectory=".phpunit.cache" colors="false">
               <testsuites>
@@ -122,7 +122,7 @@ jobs:
               </testsuites>
           </phpunit>
           XML
-          vendor/bin/pest --configuration=/tmp/phase0-phpunit.xml --colors=never --log-junit build/phase0-semantic-tests.xml
+          vendor/bin/pest --configuration=phase0-phpunit.xml --colors=never --log-junit build/phase0-semantic-tests.xml
 
       - uses: actions/upload-artifact@v4
         if: always()
