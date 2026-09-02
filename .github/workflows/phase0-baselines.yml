@@ -46,3 +46,54 @@ jobs:
           path: build/phase0-intermix.json
           if-no-files-found: error
           retention-days: 30
+
+  foundation-representative-baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: b6fce52d5580f6940f2a2647dff3040e351e15a3
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          ini-values: opcache.enable_cli=1
+
+      - name: Install pre-architecture Foundation dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Record representative Foundation baseline
+        env:
+          FOUNDATION_BENCHMARK_REPETITIONS: '5'
+          FOUNDATION_BENCHMARK_WARMUP: '100'
+          FOUNDATION_BENCHMARK_OPERATIONS: '1000'
+          FOUNDATION_BENCHMARK_OUTPUT: build/phase0-foundation-representative.json
+        run: composer benchmark:representative
+
+      - name: Record resolved source identities
+        run: |
+          FOUNDATION_SOURCE="$(git rev-parse HEAD)"
+          php -r '
+          require "vendor/autoload.php";
+          use Composer\InstalledVersions;
+          $data = [
+              "foundation_commit" => $argv[1],
+              "intermix_version" => InstalledVersions::getPrettyVersion("infocyph/intermix"),
+              "intermix_reference" => InstalledVersions::getReference("infocyph/intermix"),
+              "webrick_version" => InstalledVersions::getPrettyVersion("infocyph/webrick"),
+              "webrick_reference" => InstalledVersions::getReference("infocyph/webrick"),
+          ];
+          file_put_contents("build/phase0-foundation-sources.json", json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
+          ' "$FOUNDATION_SOURCE"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: foundation-phase0-representative
+          path: |
+            build/phase0-foundation-representative.json
+            build/phase0-foundation-sources.json
+            composer.lock
+          if-no-files-found: error
+          retention-days: 30
