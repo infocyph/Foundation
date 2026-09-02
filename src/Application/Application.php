@@ -15,7 +15,6 @@ use Infocyph\Foundation\Http\HttpKernel;
 use Infocyph\Foundation\Runtime\ExecutionScope;
 use Infocyph\Foundation\Runtime\RuntimeContextTracker;
 use Infocyph\InterMix\DI\Container;
-use Infocyph\InterMix\DI\ProductionContainer;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
@@ -27,7 +26,7 @@ final class Application
 
     public function __construct(
         private readonly ConfigRepository $config,
-        private readonly Container|ProductionContainer $container,
+        private readonly ContainerInterface $container,
         private readonly ServiceRegistry $providers,
         private readonly Bootstrapper $bootstrapper,
         private readonly RuntimeMode $runtimeMode,
@@ -60,11 +59,6 @@ final class Application
         );
 
         $app->bootstrapper->prepare($app);
-
-        $compiledActivation = $runtimeConfig->get('app.container.compiled_activation', 'off');
-        if (is_string($compiledActivation) && strtolower($compiledActivation) === 'always') {
-            $app->make(ContainerCacheManager::class)->activate();
-        }
 
         return $app;
     }

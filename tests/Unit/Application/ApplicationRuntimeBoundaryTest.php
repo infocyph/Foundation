@@ -9,6 +9,7 @@ use Infocyph\Foundation\Application\ServiceRegistry;
 use Infocyph\Foundation\Bootstrap\Bootstrapper;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Container\FoundationGraph;
+use Psr\Container\ContainerInterface;
 
 it('keeps generated production resolution behind the runtime-neutral application facade', function (): void {
     $context = FoundationBuildContext::fromConfig(
@@ -56,4 +57,42 @@ it('keeps generated production resolution behind the runtime-neutral application
             }
         }
     }
+});
+
+it('coordinates through the PSR container contract without requiring an InterMix runtime type', function (): void {
+    $service = new stdClass();
+    $runtime = new class ($service) implements ContainerInterface {
+        public function __construct(private readonly object $service)
+        {
+        }
+
+        public function get(string $id): mixed
+        {
+            if ($id === $this->service::class) {
+                return $this->service;
+            }
+
+            throw new RuntimeException(sprintf('Unknown service "%s".', $id));
+        }
+
+        public function has(string $id): bool
+        {
+            return $id === $this->service::class;
+        }
+    };
+    $config = new ConfigRepository(['app' => ['env' => 'testing']]);
+    $app = new Application(
+        config: $config,
+        container: $runtime,
+        providers: new ServiceRegistry(),
+        bootstrapper: new Bootstrapper(),
+        runtimeMode: RuntimeMode::Cli,
+    );
+
+    expect($app->runtime())->toBe($runtime)
+        ->and($app->make($service::class))->toBe($service)
+        ->and($app->has($service::class))->toBeTrue();
+
+    expect(fn() => $app->container())
+        ->toThrow(LogicException::class, 'mutable InterMix development container is unavailable');
 });

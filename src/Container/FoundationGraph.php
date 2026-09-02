@@ -7,6 +7,7 @@ namespace Infocyph\Foundation\Container;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\RuntimeModeFactory;
+use Infocyph\Foundation\Config\ConfigExportValidator;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
@@ -22,13 +23,7 @@ final class FoundationGraph
         ContainerBuilder $builder,
         FoundationBuildContext $context,
     ): ContainerBuilder {
-        $builder->singleton(
-            ConfigRepository::class,
-            FactoryDefinition::construct(
-                ConfigRepository::class,
-                [$context->config, $context->compiledConfig],
-            ),
-        );
+        self::registerConfigRepository($builder, $context);
         $builder->singleton(
             RuntimeMode::class,
             FactoryDefinition::staticFactory(
@@ -58,5 +53,27 @@ final class FoundationGraph
         }
 
         return $builder;
+    }
+
+    private static function registerConfigRepository(
+        ContainerBuilder $builder,
+        FoundationBuildContext $context,
+    ): void {
+        if (ConfigExportValidator::isExportable($context->config)) {
+            $builder->singleton(
+                ConfigRepository::class,
+                FactoryDefinition::construct(
+                    ConfigRepository::class,
+                    [$context->config, $context->compiledConfig],
+                ),
+            );
+
+            return;
+        }
+
+        $builder->value(
+            ConfigRepository::class,
+            new ConfigRepository($context->config, $context->compiledConfig),
+        );
     }
 }
