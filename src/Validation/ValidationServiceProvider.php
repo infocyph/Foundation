@@ -4,16 +4,19 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Validation;
 
-use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\DBLayerFactory;
-use Infocyph\InterMix\DI\Support\LifetimeEnum;
+use Infocyph\InterMix\DI\ContainerBuilder;
+use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\ServiceReference;
 use Infocyph\ReqShield\Contracts\DatabaseProvider;
 use Infocyph\ReqShield\Validator;
 
 final class ValidationServiceProvider extends ServiceProvider
 {
-    public function register(Application $app): void
+    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         if (!class_exists(Validator::class)) {
             throw new \LogicException(
@@ -21,41 +24,28 @@ final class ValidationServiceProvider extends ServiceProvider
             );
         }
 
-        $container = $app->container();
+        $validation = is_array($context->config['validation'] ?? null) ? $context->config['validation'] : [];
+        $connection = $validation['database_connection'] ?? null;
+        $connection = is_string($connection) && $connection !== '' ? $connection : null;
 
-        $this->bindFactory($container, ValidationSchemaRegistry::class, fn() => new ValidationSchemaRegistry(
-            config: $app->config(),
-            baseSchemas: AuthRequestSchemas::all(),
-        ), LifetimeEnum::Singleton);
-
-        $this->bindFactory($container, ReqShieldDatabaseProvider::class, fn() => new ReqShieldDatabaseProvider(
-            connection: fn() => $app->make(DBLayerFactory::class)->connection($this->databaseConnection($app)),
-        ), LifetimeEnum::Singleton);
-        $this->bindFactory(
-            $container,
-            DatabaseProvider::class,
-            fn() => $app->make(ReqShieldDatabaseProvider::class),
-            LifetimeEnum::Singleton,
-        );
-
-        $this->bindFactory($container, ValidatorFactory::class, fn() => new ValidatorFactory(
-            config: $app->config(),
-            schemas: $app->make(ValidationSchemaRegistry::class),
-            database: $app->make(DatabaseProvider::class),
-        ), LifetimeEnum::Singleton);
-
-        $this->bindFactory(
-            $container,
-            'foundation.validator',
-            fn() => $app->make(ValidatorFactory::class),
-            LifetimeEnum::Singleton,
-        );
-    }
-
-    private function databaseConnection(Application $app): ?string
-    {
-        $connection = $app->config()->get('validation.database_connection');
-
-        return is_string($connection) && $connection !== '' ? $connection : null;
+        $builder->singleton(ValidationSchemaRegistry::class, FactoryDefinition::construct(
+            ValidationSchemaRegistry::class,
+            [new ServiceReference(ConfigRepository::class), AuthRequestSchemas::all()],
+        ));
+        $builder->singleton(ReqShieldDatabaseProvider::class, FactoryDefinition::staticFactory(
+            ValidationGraphFactory::class,
+            'databaseProvider',
+            [new ServiceReference(DBLayerFactory::class), $connection],
+        ));
+        $builder->alias(DatabaseProvider::class, ReqShieldDatabaseProvider::class);
+        $builder->singleton(ValidatorFactory::class, FactoryDefinition::construct(
+            ValidatorFactory::class,
+            [
+                new ServiceReference(ConfigRepository::class),
+                new ServiceReference(ValidationSchemaRegistry::class),
+                new ServiceReference(DatabaseProvider::class),
+            ],
+        ));
+        $builder->alias('foundation.validator', ValidatorFactory::class);
     }
 }
