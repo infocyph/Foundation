@@ -1,0 +1,39 @@
+{
+    "schema": 1,
+    "source": {
+        "foundation_commit": "b6fce52d5580f6940f2a2647dff3040e351e15a3",
+        "tests_tree": "8c12be45dc4ffdcc457298dbfdd38c35c0e46d01"
+    },
+    "command": "vendor/bin/pest --configuration=phase0-phpunit.xml --colors=never --log-junit build/phase0-semantic-tests.xml",
+    "result": {
+        "tests": 263,
+        "assertions": 15111,
+        "errors": 0,
+        "failures": 0,
+        "skipped": 5,
+        "time_seconds": 7.864666
+    },
+    "skipped_tests": [
+        {
+            "class": "Tests\\Feature\\SessionLockContentionTest",
+            "name": "it enforces browser-session contention through every configured shared lock backend with data set \"dataset \"redis\"\""
+        },
+        {
+            "class": "Tests\\Feature\\SessionLockContentionTest",
+            "name": "it enforces browser-session contention through every configured shared lock backend with data set \"dataset \"valkey\"\""
+        },
+        {
+            "class": "Tests\\Feature\\SessionLockContentionTest",
+            "name": "it enforces browser-session contention through every configured shared lock backend with data set \"dataset \"memcached\"\""
+        },
+        {
+            "class": "Tests\\Feature\\SessionLockContentionTest",
+            "name": "it enforces browser-session contention through every configured shared lock backend with data set \"dataset \"mysql-pdo\"\""
+        },
+        {
+            "class": "Tests\\Feature\\SessionLockContentionTest",
+            "name": "it enforces browser-session contention through every configured shared lock backend with data set \"dataset \"postgres-pdo\"\""
+        }
+    ],
+    "note": "The five skips are external shared-lock backend contention cases (Redis, Valkey, Memcached, MySQL PDO, PostgreSQL PDO) unavailable on the GitHub-hosted baseline runner."
+}
