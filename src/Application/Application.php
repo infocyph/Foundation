@@ -8,7 +8,7 @@ use Infocyph\Foundation\Bootstrap\Bootstrapper;
 use Infocyph\Foundation\Config\ConfigLoader;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Container\ContainerCacheManager;
-use Infocyph\Foundation\Container\ContainerFactory;
+use Infocyph\Foundation\Container\FoundationGraph;
 use Infocyph\Foundation\Exception\ServiceResolutionException;
 use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\Foundation\Http\HttpKernel;
@@ -40,7 +40,8 @@ final class Application
     public static function create(array $config, RuntimeMode $runtimeMode): self
     {
         $repository = new ConfigLoader()->load($config);
-        $container = new ContainerFactory()->create($repository);
+        $context = FoundationBuildContext::fromConfig($repository, $runtimeMode);
+        $container = FoundationGraph::compose($repository, $context)->development();
         $app = new self(
             config: $repository,
             container: $container,
@@ -277,8 +278,6 @@ final class Application
     private function bindCoreServices(): void
     {
         $this->container->bind(self::class, $this, LifetimeEnum::Singleton);
-        $this->container->bind(RuntimeMode::class, $this->runtimeMode, LifetimeEnum::Singleton);
-        $this->container->bind(ConfigRepository::class, $this->config, LifetimeEnum::Singleton);
         $this->container->bind(Container::class, $this->container, LifetimeEnum::Singleton);
         $this->container->bind(
             ContainerCacheManager::class,
