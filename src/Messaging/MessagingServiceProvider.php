@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Messaging;
 
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Support\ValueNormalizer;
+use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Omnibus\Clock\SystemClock;
 use Infocyph\Omnibus\Consumer\Command\ConsumerTask;
@@ -32,39 +34,36 @@ use Psr\EventDispatcher\ListenerProviderInterface;
 
 final class MessagingServiceProvider extends ServiceProvider
 {
-    public function register(Application $app): void
+    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        $container = $app->container();
+        $app = $this->application($builder, $context);
+        $container = $builder->development();
 
+        // Handler/listener/scheduled-message callables are intentional dynamic islands.
         $this->bindFactory($container, SystemClock::class, static fn() => new SystemClock(), LifetimeEnum::Singleton);
         $this->bindFactory($container, HandlerMap::class, fn() => new HandlerMap(
-            $this->handlers($app, $app->config()->get('messaging.handlers', [])),
+            $this->handlers($app, $context->config['messaging']['handlers'] ?? []),
         ), LifetimeEnum::Singleton);
         if (!$this->hasExplicitBinding($container, HandlerInvoker::class)) {
             $this->bindFactory($container, HandlerInvoker::class, fn() => new HandlerInvoker(
                 $app->make(HandlerMap::class),
                 $this->handlerMiddleware(
                     $app,
-                    $app->config()->get('messaging.handler_middleware', []),
-                    $app->config()->get('messaging.job_middleware', []),
+                    $context->config['messaging']['handler_middleware'] ?? [],
+                    $context->config['messaging']['job_middleware'] ?? [],
                 ),
             ), LifetimeEnum::Singleton);
         }
         $this->bindFactory($container, ListenerMap::class, fn() => new ListenerMap(
-            $this->listeners($app, $app->config()->get('messaging.listeners', [])),
+            $this->listeners($app, $context->config['messaging']['listeners'] ?? []),
         ), LifetimeEnum::Singleton);
         if (!$this->hasExplicitBinding($container, ListenerProviderInterface::class)) {
-            $this->bindFactory(
-                $container,
-                ListenerProviderInterface::class,
-                fn() => $app->make(ListenerMap::class),
-                LifetimeEnum::Singleton,
-            );
+            $container->alias(ListenerProviderInterface::class, ListenerMap::class, LifetimeEnum::Singleton);
         }
 
         $this->bindFactory($container, RouteMap::class, fn() => new RouteMap(
-            $this->routes($app->config()->get('messaging.routes', [])),
-            $this->route($app->config()->get('messaging.default_route', [])),
+            $this->routes($context->config['messaging']['routes'] ?? []),
+            $this->route($context->config['messaging']['default_route'] ?? []),
         ), LifetimeEnum::Singleton);
         $this->bindFactory($container, InMemoryTransport::class, fn() => new InMemoryTransport(
             $app->make(SystemClock::class),
@@ -90,35 +89,16 @@ final class MessagingServiceProvider extends ServiceProvider
             $app->make(MessageBus::class),
         ), LifetimeEnum::Singleton);
         if (!$this->hasExplicitBinding($container, EventDispatcherInterface::class)) {
-            $this->bindFactory(
-                $container,
-                EventDispatcherInterface::class,
-                fn() => $app->make(EventDispatcher::class),
-                LifetimeEnum::Singleton,
-            );
+            $container->alias(EventDispatcherInterface::class, EventDispatcher::class, LifetimeEnum::Singleton);
         }
         if (!$this->hasExplicitBinding($container, FailureStore::class)) {
-            $this->bindFactory(
-                $container,
-                FailureStore::class,
-                static fn() => new InMemoryFailureStore(),
-                LifetimeEnum::Singleton,
-            );
+            $container->bind(FailureStore::class, new InMemoryFailureStore(), LifetimeEnum::Singleton);
         }
 
-        $this->bindFactory(
-            $container,
-            InterMixExecutionScope::class,
-            fn() => new InterMixExecutionScope($app),
-            LifetimeEnum::Singleton,
-        );
+        // Scope ownership is deliberately deferred to Phase 4.
+        $this->bindFactory($container, InterMixExecutionScope::class, fn() => new InterMixExecutionScope($app), LifetimeEnum::Singleton);
         if (!$this->hasExplicitBinding($container, ExecutionScope::class)) {
-            $this->bindFactory(
-                $container,
-                ExecutionScope::class,
-                fn() => $app->make(InterMixExecutionScope::class),
-                LifetimeEnum::Singleton,
-            );
+            $container->alias(ExecutionScope::class, InterMixExecutionScope::class, LifetimeEnum::Singleton);
         }
 
         $this->bindFactory($container, ConsumerFactory::class, fn() => new ConsumerFactory(
@@ -129,33 +109,21 @@ final class MessagingServiceProvider extends ServiceProvider
             clock: $app->make(SystemClock::class),
             scope: $app->make(ExecutionScope::class),
         ), LifetimeEnum::Singleton);
-        $this->bindFactory(
-            $container,
-            Consumer::class,
-            fn() => $app->make(ConsumerFactory::class)->make(),
-            LifetimeEnum::Singleton,
-        );
-        $this->bindFactory($container, ConsumerTask::class, fn() => new ConsumerTask(
-            $app->make(Consumer::class),
-        ), LifetimeEnum::Singleton);
+        $this->bindFactory($container, Consumer::class, fn() => $app->make(ConsumerFactory::class)->make(), LifetimeEnum::Singleton);
+        $this->bindFactory($container, ConsumerTask::class, fn() => new ConsumerTask($app->make(Consumer::class)), LifetimeEnum::Singleton);
         $this->bindFactory($container, OmnibusWorkerFactory::class, fn() => new OmnibusWorkerFactory(
             $app->config(),
             fn() => $app->make(ConsumerFactory::class),
         ), LifetimeEnum::Singleton);
 
         $this->bindFactory($container, MessageFactoryMap::class, fn() => new MessageFactoryMap(
-            $this->scheduledMessages($app, $app->config()->get('messaging.scheduled_messages', [])),
+            $this->scheduledMessages($app, $context->config['messaging']['scheduled_messages'] ?? []),
         ), LifetimeEnum::Singleton);
         $this->bindFactory($container, ScheduledMessageDispatcher::class, fn() => new ScheduledMessageDispatcher(
             $app->make(MessageFactoryMap::class),
             $app->make(MessageBus::class),
         ), LifetimeEnum::Singleton);
-        $this->bindFactory(
-            $container,
-            'foundation.messaging',
-            fn() => $app->make(MessageBus::class),
-            LifetimeEnum::Singleton,
-        );
+        $container->alias('foundation.messaging', MessageBus::class, LifetimeEnum::Singleton);
     }
 
     private function callable(Application $app, mixed $definition): callable
@@ -191,7 +159,6 @@ final class MessagingServiceProvider extends ServiceProvider
         foreach ($configured as $definition) {
             if ($definition instanceof HandlerMiddleware) {
                 $middleware[] = $definition;
-
                 continue;
             }
             if (!is_string($definition) || $definition === '') {
@@ -244,7 +211,6 @@ final class MessagingServiceProvider extends ServiceProvider
         foreach ($configured as $definition) {
             if ($definition instanceof JobMiddleware) {
                 $middleware[] = $definition;
-
                 continue;
             }
             if (!is_string($definition) || $definition === '') {
