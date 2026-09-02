@@ -21,6 +21,7 @@ use Infocyph\Foundation\Auth\Passkey\PasskeyCredentialStoreInterface;
 use Infocyph\Foundation\Auth\Passkey\PasskeyServiceInterface;
 use Infocyph\Foundation\Auth\Support\DisabledPasskeyService;
 use Infocyph\Foundation\Auth\Support\InMemoryPasskeyService;
+use Infocyph\Foundation\Config\ConfigRepository;
 use Webauthn\PublicKeyCredential;
 
 final readonly class AuthPasskeyRegistrar extends AbstractAuthRegistrar
@@ -30,57 +31,60 @@ final readonly class AuthPasskeyRegistrar extends AbstractAuthRegistrar
         $driver = $drivers->passkey();
 
         if ($driver === AuthPasskeyDriver::DISABLED) {
-            $this->singleton(PasskeyServiceInterface::class, fn() => new DisabledPasskeyService());
-
+            $this->recipe(PasskeyServiceInterface::class, DisabledPasskeyService::class);
             return;
         }
 
         if ($driver === AuthPasskeyDriver::WEBAUTHN) {
             $this->requirePackage(PublicKeyCredential::class, 'web-auth/webauthn-lib', 'passkeys');
-            $this->singleton(WebAuthnConfigResolver::class, fn() => new WebAuthnConfigResolver(
-                $this->app->config(),
-            ));
-            $this->singleton(WebAuthnChallengeStore::class, fn() => new WebAuthnChallengeStore(
-                $this->app->make(TtlStoreInterface::class),
-            ));
+            $this->recipe(WebAuthnConfigResolver::class, WebAuthnConfigResolver::class, [
+                $this->ref(ConfigRepository::class),
+            ]);
+            $this->recipe(WebAuthnChallengeStore::class, WebAuthnChallengeStore::class, [
+                $this->ref(TtlStoreInterface::class),
+            ]);
+
+            // Resolved WebAuthn library objects and host attestation policy remain adapter dynamic islands.
             $this->singleton(WebAuthnRuntime::class, fn() => new WebAuthnRuntime(
-                $this->app->make(WebAuthnConfigResolver::class)->resolve(),
+                $this->service(WebAuthnConfigResolver::class)->resolve(),
                 $this->attestationPolicy(),
             ));
-            $this->singleton(WebAuthnCredentialMapper::class, fn() => new WebAuthnCredentialMapper(
-                $this->app->make(AuthIdGeneratorInterface::class),
-                $this->app->make(ClockInterface::class),
-                $this->app->make(WebAuthnRuntime::class),
-            ));
+            $this->recipe(WebAuthnCredentialMapper::class, WebAuthnCredentialMapper::class, [
+                $this->ref(AuthIdGeneratorInterface::class),
+                $this->ref(ClockInterface::class),
+                $this->ref(WebAuthnRuntime::class),
+            ]);
             $this->singleton(WebAuthnPublicKeyOptionsFactory::class, fn() => new WebAuthnPublicKeyOptionsFactory(
-                $this->app->make(WebAuthnConfigResolver::class)->resolve(),
-                $this->app->make(WebAuthnRuntime::class),
+                $this->service(WebAuthnConfigResolver::class)->resolve(),
+                $this->service(WebAuthnRuntime::class),
             ));
             $this->singleton(PasskeyServiceInterface::class, fn() => new WebAuthnPasskeyService(
-                config: $this->app->make(WebAuthnConfigResolver::class)->resolve(),
-                challenges: $this->app->make(WebAuthnChallengeStore::class),
-                credentials: $this->app->make(PasskeyCredentialStoreInterface::class),
-                ids: $this->app->make(AuthIdGeneratorInterface::class),
-                clock: $this->app->make(ClockInterface::class),
-                options: $this->app->make(WebAuthnPublicKeyOptionsFactory::class),
-                mapper: $this->app->make(WebAuthnCredentialMapper::class),
-                runtime: $this->app->make(WebAuthnRuntime::class),
+                config: $this->service(WebAuthnConfigResolver::class)->resolve(),
+                challenges: $this->service(WebAuthnChallengeStore::class),
+                credentials: $this->service(PasskeyCredentialStoreInterface::class),
+                ids: $this->service(AuthIdGeneratorInterface::class),
+                clock: $this->service(ClockInterface::class),
+                options: $this->service(WebAuthnPublicKeyOptionsFactory::class),
+                mapper: $this->service(WebAuthnCredentialMapper::class),
+                runtime: $this->service(WebAuthnRuntime::class),
             ));
-
             return;
         }
 
-        $this->singleton(PasskeyServiceInterface::class, fn() => new InMemoryPasskeyService(
-            $this->app->make(PasskeyCredentialStoreInterface::class),
-            $this->app->make(ClockInterface::class),
+        $this->recipe(PasskeyServiceInterface::class, InMemoryPasskeyService::class, [
+            $this->ref(PasskeyCredentialStoreInterface::class),
+            $this->ref(ClockInterface::class),
             $this->intConfig('auth.passkey_challenge_ttl', 300),
-        ));
+        ]);
     }
 
     private function attestationPolicy(): WebAuthnAttestationPolicyInterface
     {
-        if ($this->app->has(WebAuthnAttestationPolicyInterface::class)) {
-            return $this->app->make(WebAuthnAttestationPolicyInterface::class);
+        if ($this->hasExplicitBinding(WebAuthnAttestationPolicyInterface::class)) {
+            $policy = $this->service(WebAuthnAttestationPolicyInterface::class);
+            if ($policy instanceof WebAuthnAttestationPolicyInterface) {
+                return $policy;
+            }
         }
 
         return new NoneWebAuthnAttestationPolicy();
