@@ -8,13 +8,40 @@ use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\InterMix\DI\ContainerBuilder;
+use Infocyph\InterMix\DI\Support\FactoryDefinition;
 
 final class FoundationGraph
 {
-    public static function compose(
-        ConfigRepository $config,
+    public static function compose(FoundationBuildContext $context): ContainerBuilder
+    {
+        return self::contributeTo(self::createBuilder($context), $context);
+    }
+
+    public static function contributeTo(
+        ContainerBuilder $builder,
         FoundationBuildContext $context,
     ): ContainerBuilder {
+        $builder->singleton(
+            ConfigRepository::class,
+            FactoryDefinition::construct(
+                ConfigRepository::class,
+                [$context->config, $context->compiledConfig],
+            ),
+        );
+        $builder->singleton(
+            RuntimeMode::class,
+            FactoryDefinition::staticFactory(
+                RuntimeMode::class,
+                'from',
+                [$context->runtimeMode->value],
+            ),
+        );
+
+        return $builder;
+    }
+
+    public static function createBuilder(FoundationBuildContext $context): ContainerBuilder
+    {
         $builder = ContainerBuilder::create($context->runtimeMode->containerAlias());
 
         if ($context->environment !== null) {
@@ -28,9 +55,6 @@ final class FoundationGraph
         if ($context->debugTracing) {
             $builder->options()->enableDebugTracing(true, $context->debugTraceLevel);
         }
-
-        $builder->value(ConfigRepository::class, $config);
-        $builder->value(RuntimeMode::class, $context->runtimeMode);
 
         return $builder;
     }

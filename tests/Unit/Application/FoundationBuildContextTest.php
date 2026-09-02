@@ -7,7 +7,7 @@ use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\InterMix\DI\Support\TraceLevelEnum;
 
-it('normalizes the foundation build context once before graph composition', function (): void {
+it('normalizes immutable build input once before graph composition', function (): void {
     $config = new ConfigRepository([
         'app' => [
             'env' => 'testing',
@@ -22,10 +22,23 @@ it('normalizes the foundation build context once before graph composition', func
         ],
     ]);
 
-    $context = FoundationBuildContext::fromConfig($config, RuntimeMode::Worker);
+    $context = FoundationBuildContext::fromConfig(
+        $config,
+        RuntimeMode::Worker,
+        ['database' => true, 'cache' => false, 'messaging'],
+    );
 
     expect($context->runtimeMode)->toBe(RuntimeMode::Worker)
         ->and($context->environment)->toBe('benchmark')
+        ->and($context->config)->toBe($config->all())
+        ->and($context->compiledConfig)->toBeFalse()
+        ->and($context->capabilities)->toBe([
+            'cache' => false,
+            'database' => true,
+            'messaging' => true,
+        ])
+        ->and($context->hasCapability('database'))->toBeTrue()
+        ->and($context->hasCapability('cache'))->toBeFalse()
         ->and($context->lazyLoading)->toBeFalse()
         ->and($context->debugTracing)->toBeTrue()
         ->and($context->debugTraceLevel)->toBe(TraceLevelEnum::Warn);
