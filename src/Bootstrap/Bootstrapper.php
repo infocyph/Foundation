@@ -68,9 +68,12 @@ final class Bootstrapper
         }
     }
 
-    public function compose(ContainerBuilder $builder, FoundationBuildContext $context): ServiceRegistry
-    {
-        $registry = new ServiceRegistry();
+    public function compose(
+        ContainerBuilder $builder,
+        FoundationBuildContext $context,
+        ?ServiceRegistry $registry = null,
+    ): ServiceRegistry {
+        $registry ??= new ServiceRegistry();
         $registry->add(new PathServiceProvider());
 
         foreach (self::OPTIONAL_BUILT_INS as $provider) {
