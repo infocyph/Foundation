@@ -22,7 +22,7 @@ it('creates a fresh deterministic builder for each runtime composition', functio
         ->and($second->development()->getRepository()->getAlias())->toBe($runtimeMode->containerAlias());
 })->with(RuntimeMode::cases());
 
-it('keeps core graph values equivalent in development and generated production', function (): void {
+it('keeps core graph values equivalent in development and generated production', function (RuntimeMode $runtimeMode): void {
     $context = FoundationBuildContext::fromConfig(
         new ConfigRepository([
             'app' => [
@@ -31,7 +31,7 @@ it('keeps core graph values equivalent in development and generated production',
                 'container' => ['lazy_loading' => false],
             ],
         ]),
-        RuntimeMode::Cli,
+        $runtimeMode,
         ['cache' => true],
     );
     $builder = FoundationGraph::compose($context);
@@ -49,8 +49,8 @@ it('keeps core graph values equivalent in development and generated production',
 
         expect($report['skipped'])->not->toHaveKey(ConfigRepository::class)
             ->and($report['skipped'])->not->toHaveKey(RuntimeMode::class)
-            ->and($development->get(RuntimeMode::class))->toBe(RuntimeMode::Cli)
-            ->and($production->get(RuntimeMode::class))->toBe(RuntimeMode::Cli)
+            ->and($development->get(RuntimeMode::class))->toBe($runtimeMode)
+            ->and($production->get(RuntimeMode::class))->toBe($runtimeMode)
             ->and($development->get(ConfigRepository::class)->all())
             ->toBe($production->get(ConfigRepository::class)->all())
             ->and($production->get(ConfigRepository::class)->get('app.name'))
@@ -62,4 +62,4 @@ it('keeps core graph values equivalent in development and generated production',
             }
         }
     }
-});
+})->with(RuntimeMode::cases());
