@@ -35,56 +35,55 @@ final readonly class AuthMfaRegistrar extends AbstractAuthRegistrar
 
     public function register(AuthDriverResolver $drivers): void
     {
-        $driver = $drivers->mfa();
-        if ($driver === AuthMfaDriver::OTP) {
+        if ($drivers->mfa() === AuthMfaDriver::OTP) {
             $this->requirePackage(TOTP::class, 'infocyph/otp', 'otp');
             $this->registerOtpSupport();
             $this->registerOtpDriver();
-
             return;
         }
 
-        $this->singleton(MfaVerifierInterface::class, fn() => new SimpleMfaVerifier(
+        $this->recipe(MfaVerifierInterface::class, SimpleMfaVerifier::class, [
             $this->stringConfig('auth.mfa_default_code', '000000'),
-        ));
-        $this->singleton(RecoveryCodeServiceInterface::class, fn() => new InMemoryRecoveryCodeService());
+        ]);
+        $this->recipe(RecoveryCodeServiceInterface::class, InMemoryRecoveryCodeService::class);
     }
 
     public function registerOtpSupport(): void
     {
         if (!$this->hasExplicitBinding(OtpProvisioningService::class)) {
-            $this->singleton(OtpProvisioningService::class, fn() => new OtpProvisioningService(
-                issuer: $this->stringConfig('auth.otp.issuer', 'Foundation'),
-                algorithm: $this->stringConfig('auth.otp.totp.algorithm', 'sha1'),
-                digits: $this->intConfig('auth.otp.totp.digits', 6),
-                period: $this->intConfig('auth.otp.totp.period', 30),
-                secretBytes: $this->intConfig('auth.otp.totp.secret_bytes', 20),
-                hotpLookAhead: $this->intConfig('auth.otp.hotp.look_ahead', 5),
-            ));
+            $this->recipe(OtpProvisioningService::class, OtpProvisioningService::class, [
+                $this->stringConfig('auth.otp.issuer', 'Foundation'),
+                $this->stringConfig('auth.otp.totp.algorithm', 'sha1'),
+                $this->intConfig('auth.otp.totp.digits', 6),
+                $this->intConfig('auth.otp.totp.period', 30),
+                $this->intConfig('auth.otp.totp.secret_bytes', 20),
+                $this->intConfig('auth.otp.hotp.look_ahead', 5),
+            ]);
         }
 
         if (!$this->hasExplicitBinding(RecoveryCodeStoreInterface::class)) {
+            // CAS capability validation is an intentional runtime adapter boundary.
             $this->singleton(RecoveryCodeStoreInterface::class, function (): RecoveryCodeStoreInterface {
-                $factors = $this->app->make(MfaFactorStoreInterface::class);
+                $factors = $this->service(MfaFactorStoreInterface::class);
                 if (!$factors instanceof MfaFactorCompareAndSwapStoreInterface) {
                     throw new \LogicException(
                         'OTP recovery codes require an MFA factor store with atomic compare-and-swap support.',
                     );
                 }
-
                 return new OtpRecoveryCodeStore($factors);
             });
         }
         if (!$this->hasExplicitBinding(RecoveryCodes::class)) {
-            $this->singleton(RecoveryCodes::class, fn() => new RecoveryCodes(
-                $this->app->make(RecoveryCodeStoreInterface::class),
-                key: hash_hmac('sha256', 'foundation:otp-recovery:v1', $this->secrets->tokenSecret(), true),
-            ));
+            $this->recipe(RecoveryCodes::class, RecoveryCodes::class, [
+                $this->ref(RecoveryCodeStoreInterface::class),
+                hash_hmac('sha256', 'foundation:otp-recovery:v1', $this->secrets->tokenSecret(), true),
+            ]);
         }
 
         if (!$this->hasExplicitBinding(OtpMfaVerifier::class)) {
+            // Replay-store selection plus CAS validation remain runtime adapter boundaries.
             $this->singleton(OtpMfaVerifier::class, function (): OtpMfaVerifier {
-                $factors = $this->app->make(MfaFactorStoreInterface::class);
+                $factors = $this->service(MfaFactorStoreInterface::class);
                 if (!$factors instanceof MfaFactorCompareAndSwapStoreInterface) {
                     throw new \LogicException(
                         'OTP MFA requires an MFA factor store with atomic compare-and-swap support.',
@@ -101,11 +100,11 @@ final readonly class AuthMfaRegistrar extends AbstractAuthRegistrar
         }
 
         if (!$this->hasExplicitBinding(OtpRecoveryCodeService::class)) {
-            $this->singleton(OtpRecoveryCodeService::class, fn() => new OtpRecoveryCodeService(
-                recoveryCodes: $this->app->make(RecoveryCodes::class),
-                defaultCount: $this->intConfig('auth.otp.recovery_codes.count', 10),
-                codeLength: $this->intConfig('auth.otp.recovery_codes.length', 12),
-            ));
+            $this->recipe(OtpRecoveryCodeService::class, OtpRecoveryCodeService::class, [
+                $this->ref(RecoveryCodes::class),
+                $this->intConfig('auth.otp.recovery_codes.count', 10),
+                $this->intConfig('auth.otp.recovery_codes.length', 12),
+            ]);
         }
     }
 
@@ -113,7 +112,7 @@ final readonly class AuthMfaRegistrar extends AbstractAuthRegistrar
     {
         $configured = $this->app->config()->get('auth.otp.replay.store');
         $storeName = is_string($configured) && trim($configured) !== '' ? trim($configured) : null;
-        $store = $this->app->make(CacheLayerFactory::class)->make($storeName);
+        $store = $this->service(CacheLayerFactory::class)->make($storeName);
         if (!$store instanceof AuthenticationStateCacheInterface) {
             throw new \LogicException(
                 'OTP replay protection requires a CacheLayer AuthenticationStateCacheInterface store.',
@@ -126,10 +125,10 @@ final readonly class AuthMfaRegistrar extends AbstractAuthRegistrar
     private function registerOtpDriver(): void
     {
         if (!$this->hasExplicitBinding(MfaVerifierInterface::class)) {
-            $this->singleton(MfaVerifierInterface::class, fn() => $this->app->make(OtpMfaVerifier::class));
+            $this->alias(MfaVerifierInterface::class, OtpMfaVerifier::class);
         }
         if (!$this->hasExplicitBinding(RecoveryCodeServiceInterface::class)) {
-            $this->singleton(RecoveryCodeServiceInterface::class, fn() => $this->app->make(OtpRecoveryCodeService::class));
+            $this->alias(RecoveryCodeServiceInterface::class, OtpRecoveryCodeService::class);
         }
     }
 }
