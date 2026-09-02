@@ -17,7 +17,9 @@ use Infocyph\Foundation\Auth\Contract\Storage\AccountStoreInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AuditEventStoreInterface;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\InterMix\DI\Container;
+use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
+use Infocyph\InterMix\DI\Support\ServiceReference;
 
 abstract readonly class AbstractAuthRegistrar
 {
@@ -96,6 +98,19 @@ abstract readonly class AbstractAuthRegistrar
         return $this->service(PasswordVerifierInterface::class);
     }
 
+    /**
+     * @param class-string $class
+     * @param list<scalar|array<array-key, mixed>|ServiceReference|null> $arguments
+     */
+    protected function recipe(string $id, string $class, array $arguments = []): void
+    {
+        $this->container->bind(
+            $id,
+            FactoryDefinition::construct($class, $arguments),
+            LifetimeEnum::Singleton,
+        );
+    }
+
     /** @param class-string $class */
     protected function requirePackage(string $class, string $package, string $module): void
     {
@@ -108,6 +123,12 @@ abstract readonly class AbstractAuthRegistrar
             $package,
             $module,
         ));
+    }
+
+    /** @return ServiceReference */
+    protected function ref(string $id): ServiceReference
+    {
+        return new ServiceReference($id);
     }
 
     /**
