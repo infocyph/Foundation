@@ -5,24 +5,34 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Application;
 
 use Closure;
+use Infocyph\Foundation\Bootstrap\Bootstrapper;
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\InterMix\DI\Container;
+use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\InterMix\DI\Support\ServiceReference;
 
 abstract class ServiceProvider implements ServiceProviderInterface
 {
+    /** @var \WeakMap<ContainerBuilder, Application>|null */
+    private static ?\WeakMap $buildApplications = null;
+
     public function boot(Application $app): void {}
 
+    final public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
+    {
+        $this->register(self::buildApplication($builder, $context));
+    }
+
     /**
-     * Register an explicit factory without requiring closure autowiring.
-     *
-     * @param Container $container Target application container.
-     * @param string $id Service identifier.
-     * @param Closure $factory Reflection-free service factory.
-     * @param LifetimeEnum $lifetime Service lifetime.
-     * @param array<int, string> $tags
+     * Temporary provider-internal compatibility seam while each provider is
+     * converted from Application-driven registration to declarative builder
+     * recipes. It is build-time only and never performs runtime discovery.
      */
+    abstract public function register(Application $app): void;
+
+    /** @param array<int, string> $tags */
     final protected function bindFactory(
         Container $container,
         string $id,
@@ -40,13 +50,8 @@ abstract class ServiceProvider implements ServiceProviderInterface
     }
 
     /**
-     * Register an immutable construction recipe that InterMix may compile.
-     *
-     * @param Container $container Target application container.
-     * @param string $id Service identifier.
      * @param class-string $class
      * @param list<scalar|array<array-key, mixed>|ServiceReference|null> $arguments
-     * @param LifetimeEnum $lifetime Service lifetime.
      * @param array<int, string> $tags
      */
     final protected function bindRecipe(
@@ -65,12 +70,32 @@ abstract class ServiceProvider implements ServiceProviderInterface
         );
     }
 
-    /**
-     * Determine whether an entry was explicitly registered rather than merely
-     * being autowireable or previously resolved by class name.
-     */
     final protected function hasExplicitBinding(Container $container, string $id): bool
     {
         return $container->definitions()->has($id);
+    }
+
+    private static function buildApplication(
+        ContainerBuilder $builder,
+        FoundationBuildContext $context,
+    ): Application {
+        self::$buildApplications ??= new \WeakMap();
+        $existing = self::$buildApplications[$builder] ?? null;
+        if ($existing instanceof Application) {
+            return $existing;
+        }
+
+        $app = new Application(
+            config: new ConfigRepository($context->config, $context->compiledConfig),
+            container: $builder->development(),
+            providers: new ServiceRegistry(),
+            bootstrapper: new Bootstrapper(),
+            runtimeMode: $context->runtimeMode,
+            bindDevelopmentCore: true,
+            enableDynamicProviderActivation: false,
+        );
+        self::$buildApplications[$builder] = $app;
+
+        return $app;
     }
 }
