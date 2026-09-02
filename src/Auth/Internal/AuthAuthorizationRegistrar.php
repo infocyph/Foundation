@@ -28,56 +28,50 @@ final readonly class AuthAuthorizationRegistrar extends AbstractAuthRegistrar
 {
     public function register(): void
     {
-        $this->singleton(RoleManager::class, fn() => new RoleManager(
-            roles: $this->app->make(RoleStoreInterface::class),
-            assignments: $this->app->make(RoleAssignmentStoreInterface::class),
-            ids: $this->app->make(AuthIdGeneratorInterface::class),
-        ));
-
-        $this->singleton(PermissionManager::class, fn() => new PermissionManager(
-            permissions: $this->app->make(PermissionStoreInterface::class),
-            assignments: $this->app->make(PermissionAssignmentStoreInterface::class),
-            ids: $this->app->make(AuthIdGeneratorInterface::class),
-        ));
-
-        $this->singleton(DelegationManager::class, fn() => new DelegationManager(
-            grants: $this->app->make(GrantStoreInterface::class),
-            audit: $this->app->make(AuditEventStoreInterface::class),
-            ids: $this->app->make(AuthIdGeneratorInterface::class),
-            clock: $this->app->make(ClockInterface::class),
-        ));
-
-        $this->singleton(PermissionResolver::class, fn() => new PermissionResolver(
-            permissions: $this->app->make(PermissionStoreInterface::class),
-        ));
-
-        $this->singleton(RolePermissionResolver::class, fn() => new RolePermissionResolver(
-            roles: $this->app->make(RoleStoreInterface::class),
-            permissions: $this->app->make(PermissionStoreInterface::class),
-        ));
-
-        $this->singleton(GrantResolver::class, fn() => new GrantResolver(
-            grants: $this->app->make(GrantStoreInterface::class),
-            clock: $this->app->make(ClockInterface::class),
-        ));
-
-        $this->singleton(PermissionAuthorizer::class, fn() => new PermissionAuthorizer(
-            permissions: $this->app->make(PermissionResolver::class),
-            rolePermissions: $this->app->make(RolePermissionResolver::class),
-            grants: $this->app->make(GrantResolver::class),
-        ));
-        $this->singleton(Gate::class, fn() => new Gate(
-            policyResolver: $this->container->has(PolicyResolverInterface::class)
-                ? $this->app->make(PolicyResolverInterface::class)
+        $this->recipe(RoleManager::class, RoleManager::class, [
+            $this->ref(RoleStoreInterface::class),
+            $this->ref(RoleAssignmentStoreInterface::class),
+            $this->ref(AuthIdGeneratorInterface::class),
+        ]);
+        $this->recipe(PermissionManager::class, PermissionManager::class, [
+            $this->ref(PermissionStoreInterface::class),
+            $this->ref(PermissionAssignmentStoreInterface::class),
+            $this->ref(AuthIdGeneratorInterface::class),
+        ]);
+        $this->recipe(DelegationManager::class, DelegationManager::class, [
+            $this->ref(GrantStoreInterface::class),
+            $this->ref(AuditEventStoreInterface::class),
+            $this->ref(AuthIdGeneratorInterface::class),
+            $this->ref(ClockInterface::class),
+        ]);
+        $this->recipe(PermissionResolver::class, PermissionResolver::class, [
+            $this->ref(PermissionStoreInterface::class),
+        ]);
+        $this->recipe(RolePermissionResolver::class, RolePermissionResolver::class, [
+            $this->ref(RoleStoreInterface::class),
+            $this->ref(PermissionStoreInterface::class),
+        ]);
+        $this->recipe(GrantResolver::class, GrantResolver::class, [
+            $this->ref(GrantStoreInterface::class),
+            $this->ref(ClockInterface::class),
+        ]);
+        $this->recipe(PermissionAuthorizer::class, PermissionAuthorizer::class, [
+            $this->ref(PermissionResolver::class),
+            $this->ref(RolePermissionResolver::class),
+            $this->ref(GrantResolver::class),
+        ]);
+        $this->recipe(Gate::class, Gate::class, [
+            $this->hasExplicitBinding(PolicyResolverInterface::class)
+                ? $this->ref(PolicyResolverInterface::class)
                 : null,
-            fallback: $this->app->make(PermissionAuthorizer::class),
-        ));
-        $this->singleton(AuditingAuthorizer::class, fn() => new AuditingAuthorizer(
-            inner: $this->app->make(Gate::class),
-            audit: $this->app->make(AuditEventStoreInterface::class),
-            ids: $this->app->make(AuthIdGeneratorInterface::class),
-            clock: $this->app->make(ClockInterface::class),
-        ));
+            $this->ref(PermissionAuthorizer::class),
+        ]);
+        $this->recipe(AuditingAuthorizer::class, AuditingAuthorizer::class, [
+            $this->ref(Gate::class),
+            $this->ref(AuditEventStoreInterface::class),
+            $this->ref(AuthIdGeneratorInterface::class),
+            $this->ref(ClockInterface::class),
+        ]);
         $this->alias(AuthorizerInterface::class, AuditingAuthorizer::class);
     }
 }
