@@ -32,22 +32,30 @@ final class CacheServiceProvider extends ServiceProvider
             );
         }
 
+        $hasDatabase = $builder->definitions()->has(DBLayerFactory::class);
         $builder->singleton(CacheLayerFactory::class, FactoryDefinition::staticFactory(
             CacheGraphFactory::class,
-            'layerFactory',
-            [
-                new ServiceReference(ConfigRepository::class),
-                new ServiceReference(PathManager::class),
-                new ServiceReference(DBLayerFactory::class),
-            ],
+            $hasDatabase ? 'layerFactory' : 'layerFactoryWithoutDatabase',
+            $hasDatabase
+                ? [
+                    new ServiceReference(ConfigRepository::class),
+                    new ServiceReference(PathManager::class),
+                    new ServiceReference(DBLayerFactory::class),
+                ]
+                : [
+                    new ServiceReference(ConfigRepository::class),
+                    new ServiceReference(PathManager::class),
+                ],
         ));
         $builder->singleton(CacheManager::class, FactoryDefinition::staticFactory(
             CacheGraphFactory::class,
-            'manager',
-            [
-                new ServiceReference(CacheLayerFactory::class),
-                new ServiceReference(DBLayerFactory::class),
-            ],
+            $hasDatabase ? 'manager' : 'managerWithoutDatabase',
+            $hasDatabase
+                ? [
+                    new ServiceReference(CacheLayerFactory::class),
+                    new ServiceReference(DBLayerFactory::class),
+                ]
+                : [new ServiceReference(CacheLayerFactory::class)],
         ));
         $builder->singleton(CacheInterface::class, FactoryDefinition::staticFactory(
             CacheGraphFactory::class,
