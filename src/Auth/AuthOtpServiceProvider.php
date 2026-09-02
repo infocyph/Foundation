@@ -4,17 +4,18 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth;
 
-use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Auth\Internal\AuthMfaRegistrar;
 use Infocyph\Foundation\Auth\Internal\AuthSecretResolver;
 use Infocyph\Foundation\Config\OtpConfigValidator;
 use Infocyph\Foundation\Exception\ConfigurationException;
+use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\OTP\TOTP;
 
 final class AuthOtpServiceProvider extends ServiceProvider
 {
-    public function register(Application $app): void
+    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         if (!class_exists(TOTP::class)) {
             throw new \LogicException(
@@ -22,6 +23,7 @@ final class AuthOtpServiceProvider extends ServiceProvider
             );
         }
 
+        $app = $this->application($builder, $context);
         $issues = new OtpConfigValidator($app->config())->validate();
         if ($issues !== []) {
             throw new ConfigurationException(
@@ -34,7 +36,7 @@ final class AuthOtpServiceProvider extends ServiceProvider
 
         new AuthMfaRegistrar(
             $app,
-            $app->container(),
+            $builder->development(),
             new AuthSecretResolver($app),
         )->registerOtpSupport();
     }
