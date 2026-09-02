@@ -1,69 +1,114 @@
-# Foundation 3 — Final Runtime Development Plan
+# Foundation 3 — Unified Runtime Development Plan
 
-**Status:** Final implementation baseline  
+**Status:** Final implementation baseline / canonical plan  
 **Foundation target:** 3.x  
 **Foundation source baseline:** `main`  
 **InterMix baseline:** `^10.0.3`  
-**Webrick baseline:** `^5.1` plus the lower-layer corrections listed in this document  
+**Webrick baseline:** `^5.1` plus the lower-layer corrections defined here  
 **Priority:** correctness → hot-path performance → persistent-runtime safety → scalability → ergonomics
 
-> This is the canonical runtime-development plan for Foundation 3. It incorporates the final joint InterMix 10.0.3 + Webrick 5.1 sweep and supersedes any architectural or execution-order ambiguity in the earlier dedicated audit plans. The earlier plans remain useful source-audit evidence.
-
-Related audits:
-
-- `docs/plans/foundation-3-runtime-architecture.md` — detailed InterMix/Foundation source audit;
-- `docs/plans/foundation-3-webrick-5.1-integration.md` — detailed Webrick/Foundation source audit.
+> This is the single source of truth for Foundation 3 runtime development. It merges the complete InterMix 10.0.3 audit, the complete Webrick 5.1 audit, and the final joint runtime architecture into one document. There are no separate InterMix/Webrick runtime-plan files to keep synchronized.
 
 ---
 
-## 1. Final architectural decision
+## 1. Purpose and review method
 
-Foundation 3 has **four independent runtime paths**:
+Foundation 3 is a deep internal runtime revision, not a feature-expansion release. The goal is to make Foundation a thin, deterministic application composition/integration layer that fully consumes optimized lower-level Infocyph runtimes rather than rebuilding equivalent runtime machinery above them.
+
+Public application-facing behavior should remain stable where useful and inexpensive to preserve, but Foundation 2 internal runtime/container compatibility is not a design constraint for this major release.
+
+The codebase was reviewed with direct focus on:
+
+- InterMix imports and concrete container types;
+- `ContainerBuilder`, `LifetimeEnum`, `FactoryDefinition`, `ServiceReference` and scope usage;
+- live-container registration/mutation and old resolver-map compilation/activation;
+- application/provider/bootstrap lifecycle;
+- all four execution paths: web, CLI, worker and scheduler;
+- auth registrar/container coupling;
+- messaging execution-scope bridges;
+- every HTTP/routing/Webrick bootstrap surface;
+- middleware aliases/groups/presets and parameterized middleware;
+- matcher/route-cache ownership;
+- exception rendering and maintenance mode;
+- URL generation/frozen registries;
+- filesystem upload/download/streaming bridges;
+- runtime adapters and persistent-worker behavior;
+- tests/benchmarks that encode Foundation 2 runtime assumptions.
+
+The connected Foundation repository did not expose a complete code-search index during the audit, so the review used repository-tree enumeration plus direct source inspection. During implementation, add local/CI sanity scans for at least:
+
+```text
+Infocyph\\InterMix
+Container
+ContainerBuilder
+LifetimeEnum
+FactoryDefinition
+ServiceReference
+compileTo
+useCompiled
+usePrevalidated
+onMissing
+enterScope
+leaveScope
+Infocyph\\Webrick
+RouterKernel
+CompiledRouterKernel
+Registrar
+Collection
+RouteCache
+MiddlewareAliases
+Request
+Response
+php://output
+```
+
+---
+
+## 2. Final architectural decision: four runtime paths
+
+Foundation has **four independent runtime paths**:
 
 1. `web`;
 2. `cli`;
 3. `worker`;
 4. `scheduler`.
 
-InterMix is the DI/runtime foundation for **all four** paths.
+InterMix is the DI/runtime foundation for **all four**.
 
-Webrick owns only the **web** HTTP path. It must not become the build/runtime owner of CLI, worker, or scheduler execution.
-
-The final ownership model is therefore:
+Webrick owns only the **web** HTTP path. It must never become the build/runtime owner of CLI, worker or scheduler execution.
 
 ```text
                          one Foundation graph/composition source
                                       |
-              +-----------------------+-----------------------+
-              |                       |                       |
-              v                       v                       v
-            web                     cli                   worker                 scheduler
-              |                       |                       |                       |
-              |                       |                       |                       |
-   fresh ContainerBuilder   fresh ContainerBuilder   fresh ContainerBuilder   fresh ContainerBuilder
-              |                       |                       |                       |
-   Foundation web graph      Foundation CLI graph      Foundation worker graph   Foundation scheduler graph
-              |
-   Webrick::contributeTo(...)
-              |
-   Webrick coordinated        direct InterMix           direct InterMix           direct InterMix
-   release compilation        compilation               compilation               compilation
-              |                       |                       |                       |
-   InterMix + Webrick          InterMix artifact          InterMix artifact          InterMix artifact
-   web release bundle
+          +---------------------------+---------------------------+
+          |                           |                           |
+          v                           v                           v
+        web                         cli                        worker                 scheduler
+          |                           |                           |                       |
+ fresh ContainerBuilder       fresh ContainerBuilder       fresh ContainerBuilder   fresh ContainerBuilder
+          |                           |                           |                       |
+ Foundation web graph         Foundation CLI graph          Foundation worker graph  Foundation scheduler graph
+          |
+ Webrick::contributeTo(...)
+          |
+ Webrick coordinated          direct InterMix               direct InterMix          direct InterMix
+ web release compilation      compilation                   compilation              compilation
+          |                           |                           |                       |
+ InterMix + Webrick           InterMix artifact             InterMix artifact        InterMix artifact
+ web release bundle
 ```
 
-There is **one graph source of truth**, but there are **four fresh builders and four runtime-specific artifacts**. Runtime/capability inputs decide which definitions are included; the graph must not be copied into four separate implementations.
+There is **one graph source of truth**, but four fresh builders and four runtime-specific artifacts. Runtime/capability inputs decide which definitions are included. Do not copy the graph into four separate implementations.
 
-Foundation remains the application composition and release coordinator. InterMix owns DI graph/runtime behavior. Webrick owns HTTP routing/execution/transport only for `web`.
+Foundation remains application composition and release coordinator. InterMix owns DI/runtime behavior. Webrick owns HTTP routing/execution/transport only for `web`.
 
 ---
 
-## 2. Hard ownership boundaries
+## 3. Hard ownership boundaries
 
-### 2.1 InterMix owns
+### 3.1 InterMix owns
 
-Foundation must use InterMix directly for:
+Use InterMix directly for:
 
 - `ContainerBuilder` graph composition;
 - environment-specific graph selection;
@@ -72,18 +117,18 @@ Foundation must use InterMix directly for:
 - compilation-safe constructor/static-factory recipes;
 - strict validation;
 - generated production containers;
-- production artifact verification/prevalidation;
+- artifact verification/prevalidation;
 - runtime `resolveNow()`;
-- execution scopes and scope seeds;
+- execution scopes and seeds;
 - Fiber/Swoole/OpenSwoole execution-context isolation;
-- lifecycle/scope-leave hooks where their semantics fit;
+- lifecycle/scope-leave hooks where semantics fit;
 - compile reports and dynamic-island visibility.
 
-Foundation must not add a second DI builder, second scope implementation, or second generated-container runtime.
+Foundation must not add a second DI builder, second scope runtime, or second generated-container runtime.
 
-### 2.2 Webrick owns for `web`
+### 3.2 Webrick owns for `web`
 
-Foundation must use Webrick directly for:
+Use Webrick directly for:
 
 - route registration/build;
 - handler inspection;
@@ -91,18 +136,18 @@ Foundation must use Webrick directly for:
 - matcher compilation/runtime matching;
 - lazy Request materialization;
 - middleware pipeline dispatch;
-- HTTP request scope decisions;
+- HTTP request-scope decisions;
 - routing-control responses;
-- runtime HTTP adapters;
+- runtime adapters;
 - runtime capabilities;
 - native response writing/streaming;
 - URL-generator runtime registry;
 - compiled/frozen HTTP registries;
 - coordinated web release metadata.
 
-Foundation must not add a second HTTP transport/runtime above Webrick.
+Foundation must not add a second HTTP runtime/transport layer above Webrick.
 
-### 2.3 Foundation owns
+### 3.3 Foundation owns
 
 Foundation owns:
 
@@ -110,19 +155,19 @@ Foundation owns:
 - runtime/capability selection;
 - application graph contribution;
 - package/provider composition policy;
-- application-facing service integrations;
-- CLI/worker/scheduler execution orchestration;
+- application-facing integrations;
+- CLI/worker/scheduler orchestration;
 - Foundation-specific auth/session/database/filesystem policy;
-- Foundation release-generation coordination across all four runtime paths;
+- release-generation coordination across all four runtimes;
 - deployment activation/trust policy;
 - diagnostics, migration guidance and benchmarks;
 - thin application-facing convenience APIs.
 
 ---
 
-## 3. Exact InterMix 10.0.3 contract
+## 4. Exact InterMix 10.0.3 contract
 
-Foundation 3 must design against the actual InterMix 10.0.3 builder/runtime split:
+Foundation must design against the InterMix 10 builder/runtime split, not the InterMix 9 resolver-map model.
 
 ```text
 ContainerBuilder::development()
@@ -146,30 +191,366 @@ ContainerBuilder::productionPrevalidated($path, $trustedDigest)
 
 Rules:
 
-- `setEnvironment()` selects graph metadata; it is not production-runtime selection;
-- every independently active runtime uses a **fresh builder instance**;
+- `setEnvironment()` selects graph metadata; it does not select the production runtime;
+- every independently active runtime uses a fresh builder;
 - normal production graph mutation after finalization is prohibited;
-- InterMix deoptimization is a correctness fallback, never Foundation's deployment mechanism;
+- deoptimization is a correctness fallback, never Foundation's deployment mechanism;
 - every new `skipped` definition is release-significant and must be checked against an explicit allowlist;
-- `resolveFactories: true` is not a blanket build requirement because dynamic factories may have side effects;
-- aliases and deterministic constructor/static-factory definitions must use compilation-safe primitives rather than closures;
-- scope seeds carry ready execution objects/values; graph definitions are never rebound per request/job.
+- do not blanket-call `validate(resolveFactories: true)` because dynamic factories can perform side effects/open connections;
+- deterministic constructor/static-factory definitions and aliases use compilation-safe primitives instead of closures;
+- scope seeds carry execution objects/values; definitions are never rebound per request/job;
+- separate builders are mandatory for simultaneously active runtime artifacts because loading another production runtime from the same builder deoptimizes the previous runtime;
+- safe default is `production()`; use `productionPrevalidated()` only with a digest from trusted immutable deployment metadata;
+- the artifact directory cannot serve as the trust source for its own expected digest.
 
-No InterMix 10.0.3 code change is currently required for Foundation 3's intended architecture. The necessary builder, production-container, scope and execution-context mechanisms already exist.
+Compilation-safe recipe capabilities in 10.0.3 are exactly:
+
+```text
+FactoryDefinition::construct(...)
+FactoryDefinition::staticFactory(...)
+ServiceReference(...)
+```
+
+Recipe args must be service references or exportable scalar/null/array values. Do not design around nonexistent `FactoryDefinition::service()`, `function()` or `invokable()` helpers.
+
+A closure/`DirectFactory` may be reflection-free but is still a dynamic production island.
+
+No InterMix 10.0.3 code change is currently required for the Foundation architecture described here.
 
 ---
 
-## 4. Exact Webrick 5.1 contract
+## 5. Integrated InterMix direct-usage audit
 
-Foundation must treat Webrick's development and production HTTP paths as intentionally different.
+### 5.1 `src/Application/Application.php`
+
+Current coupling:
+
+- concrete dynamic `Infocyph\InterMix\DI\Container` constructor/property/return type;
+- Application is created only after the dynamic container already exists;
+- binds Application, RuntimeMode, ConfigRepository, concrete Container, RuntimeContextTracker and ExecutionScope as live singleton instances;
+- installs broad `Container::onMissing()` provider/service activation;
+- `make()` performs provider activation before container lookup;
+- `has()` consults Bootstrapper/provider discovery;
+- optionally activates a compiled resolver map after dynamic Application construction.
+
+Foundation 3 action:
+
+- remove dynamic Container as architectural Application owner;
+- compose first through `ContainerBuilder`;
+- choose development/production runtime only after composition;
+- make Application a thin runtime façade/coordinator;
+- remove broad production provider activation from `make()`/`has()`;
+- avoid binding live Application when it makes otherwise compilable services dynamic;
+- expose runtime-neutral/PSR-style lookup publicly rather than promise mutable dynamic-container APIs in production.
+
+### 5.2 `src/Container/ContainerFactory.php`
+
+Current:
+
+- constructs `new Container(...)` directly;
+- random UUID7 alias every boot;
+- environment/lazy/debug options are dynamic-container runtime configuration.
+
+Action:
+
+- retire in favor of ContainerBuilder composition;
+- stable deterministic aliases: `foundation.web`, `foundation.cli`, `foundation.worker`, `foundation.scheduler` (optionally deterministic app prefix);
+- use builder environment selection;
+- debug tracing development-only;
+- reevaluate/remove obsolete `app.container.lazy_loading` semantics when production uses generated resolvers.
+
+### 5.3 `src/Container/ContainerCacheManager.php`
+
+Current:
+
+- reconstructs a full dynamic Application for each runtime;
+- calls `Container::compileTo()`;
+- consumes resolver-map compilation report;
+- later calls `usePrevalidated()` on the same dynamic container;
+- models compiled activation as optional runtime mode;
+- expects a 64-hex Foundation fingerprint.
+
+This is a **hard architectural incompatibility**, not an API rename.
+
+Action:
+
+- retire old compile/activate model;
+- build with builder `validate()` + `compile()`;
+- boot directly with ProductionContainer;
+- consume InterMix xxh128 `digest` directly;
+- if an artifact coordinator remains, it coordinates files/reports only and never activates a resolver map on a live container.
+
+### 5.4 `src/Runtime/ExecutionScope.php`
+
+Current:
+
+- concrete dynamic Container dependency;
+- manual `enterScope()`/`leaveScope()`;
+- unique runtime+UUID scope names;
+- manually resets external runtime context before leave.
+
+Action:
+
+- runtime-neutral dev/prod container boundary;
+- prefer `withinScope()`;
+- use seeds instead of rebinding;
+- semantic stable non-web labels (`foundation.cli`, `foundation.worker`, `foundation.scheduler`);
+- preserve primary application exception over cleanup failures;
+- retain explicit Foundation execution boundaries for CLI/worker/scheduler;
+- do not impose this outer scope on every HTTP request.
+
+### 5.5 `src/Application/ServiceProvider.php`
+
+Current:
+
+- helper methods target live Container;
+- direct LifetimeEnum use;
+- `bindRecipe()` already points in the correct `FactoryDefinition::construct()` direction;
+- closure `bindFactory()` is described as reflection-free but remains dynamic in InterMix 10.
+
+Action:
+
+- provider contribution targets ContainerBuilder;
+- keep only a very small helper layer around exact InterMix primitives;
+- expand recipes/aliases and sharply reduce closures;
+- distinguish reflection-free from compilation-safe.
+
+### 5.6 `src/Application/ServiceProviderInterface.php`
+
+Current:
+
+```php
+register(Application $app): void
+boot(Application $app): void
+```
+
+Target conceptually:
+
+```php
+register(ContainerBuilder $builder, FoundationBuildContext $context): void
+```
+
+with an optional separate process-boot contract for true side effects after runtime selection. Boot may not mutate a finalized production graph.
+
+Do not simply adopt InterMix's own provider interface because it receives the dynamic Container. Foundation needs graph composition before runtime selection.
+
+### 5.7 `src/Application/ServiceRegistry.php`
+
+Current deferred providers may register/boot after Application start.
+
+Action:
+
+- production provider/capability topology determined before compilation;
+- dev may retain controlled convenience;
+- process boot may perform side effects only;
+- no normal production resolution via late provider activation.
+
+### 5.8 `src/Bootstrap/Bootstrapper.php`
+
+Current:
+
+- large service→provider map;
+- `class_exists()` capability discovery;
+- broad on-missing activation;
+- configured/provider-file discovery during preparation.
+
+Action:
+
+- capability/provider selection becomes composition/build topology;
+- production enabled provider set finalized before production runtime load;
+- broad discovery restricted to dev/tooling;
+- any production fallback must be narrow, explicit, tested and visible in skipped-definition diagnostics.
+
+### 5.9 `src/Routing/WebrickRouterFactory.php`
+
+Current direct InterMix coupling:
+
+- accepts concrete dynamic Container;
+- passes it to Webrick;
+- disables Webrick request scope because Foundation owns an outer scope;
+- creates routing against live runtime state.
+
+Action:
+
+- remove dynamic-container assumption;
+- controller/middleware/service definitions contributed before production compilation;
+- no late graph mutation during route creation;
+- production class removed from architecture (see Webrick sections).
+
+### 5.10 `src/Routing/RoutingServiceProvider.php`
+
+Current mixes recipes and closure factories and passes live container into WebrickRouterFactory.
+
+Action:
+
+- builder definitions/recipes;
+- no live-container capture;
+- route/controller topology visible before final web compilation.
+
+### 5.11 `src/Http/HttpServiceProvider.php`
+
+Current has useful recipes but also Application-capturing closures for MaintenanceManager, ErrorHandler, RouterKernel and aliases.
+
+Action:
+
+- preserve/expand recipes;
+- remove unnecessary Application capture;
+- Webrick production kernel construction moves outside old provider model.
+
+### 5.12 `src/Http/JsonDispatch/JsonDispatchServiceProvider.php`
+
+Current is closure-built singleton + closure alias.
+
+Action:
+
+- export normalized config to recipe/static factory;
+- use a real alias/reference.
+
+### 5.13 Auth subsystem
+
+`AuthServiceProvider`, `AuthOtpServiceProvider`, `AbstractAuthRegistrar` and registrar family are a major direct InterMix surface.
+
+Current patterns:
+
+- live dynamic Container stored/passed through registrars;
+- direct definition checks;
+- aliases implemented as singleton closures;
+- closure factories around `$app->make()`;
+- runtime-mode/config branching while mutating live graph.
+
+Migrate core, stores, cache, password, token, MFA, passkey, notification, manager, authorization, runtime and OAuth registrars together.
+
+Rules:
+
+- auth feature/driver choices occur during composition;
+- registrars target builder/build context;
+- deterministic services use recipes/aliases;
+- only truly runtime-dependent secrets/callables remain narrow dynamic inputs;
+- every auth singleton gets persistent/concurrency lifetime review;
+- security behavior may not be weakened merely to improve compilation;
+- OTP/Epicrypt/WebAuthn exact package semantics remain for their specialist passes.
+
+### 5.14 Provider families requiring compileability migration
+
+All of these currently use InterMix lifetimes/live registration and must be audited binding-by-binding:
+
+- CacheServiceProvider;
+- DatabaseServiceProvider;
+- MessagingServiceProvider;
+- CommunicationServiceProvider;
+- FilesystemServiceProvider;
+- PathServiceProvider;
+- LoggingServiceProvider;
+- NotificationServiceProvider;
+- SecurityServiceProvider;
+- SessionServiceProvider;
+- ValidationServiceProvider;
+- RoutingServiceProvider;
+- HttpServiceProvider;
+- JsonDispatchServiceProvider;
+- auth provider/registrar family.
+
+Common problematic patterns:
+
+- closure construction around `$app->make()`;
+- closure aliases;
+- manager-method closures (`store()`, `disk()`, `connection()`, etc.);
+- runtime `class_exists()` feature branching;
+- binding already-created object instances;
+- live Application capture in singleton factories;
+- correct scoped lifetime intent implemented through dynamic closures;
+- optional capability placeholders/throwing closures that keep unrelated runtime graph edges alive.
+
+### 5.15 Messaging execution-scope bridge
+
+`src/Messaging/InterMixExecutionScope.php` correctly uses scope seeds for Envelope/message values, but underlying execution must move to `withinScope()` with deterministic leave/cleanup. Message/envelope ID remains correlation/seed data, not the semantic scope name. Exact Omnibus design waits for its dedicated pass.
+
+### 5.16 Build command and tests
+
+`src/Command/System/ApplicationSystemCommand.php` currently compiles through ContainerCacheManager and reports activation state.
+
+Target per runtime:
+
+```text
+fresh deterministic ContainerBuilder
+ -> validate(strict: true)
+ -> compile(path)
+ -> collect compiled/skipped/digest
+ -> enforce skipped allowlist
+ -> publish transactionally
+```
+
+`tests/Feature/ContainerCacheIntegrationTest.php` encodes the old resolver-map model and should be replaced rather than adapted.
+
+---
+
+## 6. InterMix provider migration and lifetime policy
+
+Every binding must be classified:
+
+| Current pattern | Foundation 3 form |
+| --- | --- |
+| class/new service | builder singleton/scoped/transient |
+| constructor deps | `FactoryDefinition::construct()` + `ServiceReference` |
+| public static factory | `FactoryDefinition::staticFactory()` |
+| interface/ID points to same service | real `alias()` |
+| immutable scalar/array build value | `value()` or exportable recipe arg |
+| Request/job/envelope/current execution object | scope seed |
+| feature/capability branch | build-context graph decision |
+| user runtime callable/closure | explicit narrow dynamic island |
+| manager instance method factory | explicit static recipe where worthwhile, otherwise documented island |
+| optional package absent | omit capability graph / record unavailable capability |
+
+Mandatory rules:
+
+- aliases are never closure factories;
+- deterministic constructor graphs are never closures;
+- provider factories do not call `$app->make()` merely for constructor injection;
+- normalize config before recipe generation where practical;
+- capability `class_exists()` checks happen during composition, not hot resolution;
+- bind already-created instances only when runtime identity genuinely requires it.
+
+### Lifetime policy
+
+**Singleton** only when process-wide immutable/concurrency-safe, retaining no request/job/command/schedule state and no first-scoped dependency.
+
+Audit especially controllers, DB/default connections, auth/session managers, transports/consumers, registries, communication clients and middleware that touches mutable current context.
+
+**Scoped** for state shared inside one execution but isolated across requests/jobs/commands/schedules.
+
+**Transient** for cheap/stateful one-use services where sharing is undesirable.
+
+Every migrated provider requires an explicit lifetime review. “It was singleton in Foundation 2” is not justification.
+
+### Dynamic-island build gate
+
+For every runtime artifact:
+
+1. strict validate;
+2. compile;
+3. read exact `compiled`, `skipped`, `digest`;
+4. compare skipped IDs/reasons with explicit allowlist;
+5. fail CI/release on new unexpected skipped entries;
+6. report each intentional island with subsystem/reason.
+
+Foundation core target: zero **avoidable** islands.
+
+---
+
+## 7. Exact Webrick 5.1 contract
+
+Foundation must treat Webrick development and production as intentionally different.
 
 ### Development
 
 ```text
-RouterKernel::bootWithRegistrar(...)
+same Foundation graph
+ -> ContainerBuilder::development()
+ -> Webrick contribution
+ -> RouterKernel::bootWithRegistrar(...)
 ```
 
-Development may use a dynamic InterMix container, live registrar and development diagnostics.
+`RouterKernel` is development/registrar infrastructure. Development may use live route registration, mutable aliases and diagnostics.
 
 ### Production
 
@@ -184,7 +565,7 @@ boot-selected RuntimeAdapter
 RuntimeServer
 ```
 
-The production hot path is:
+Native hot path:
 
 ```text
 native request
@@ -200,121 +581,279 @@ native request
  -> RuntimeAdapter writer
 ```
 
-Foundation must preserve Webrick's direct requestless/scopeless path for routes that do not need framework/runtime state.
+Foundation must preserve requestless/scopeless routes where their execution plans allow it.
 
-The Webrick release manifest format remains Webrick-owned. Foundation references it rather than reimplementing its InterMix/Webrick digest fields.
+### Host-owned InterMix graph
+
+Foundation owns the builder/environment. Webrick contributes to that exact graph:
+
+```php
+Webrick::contributeTo($builder, $providers);
+```
+
+Never create a separate Webrick container.
+
+### Webrick release manifest
+
+Tagged 5.1 source uses release format **2** with fields including:
+
+```text
+format
+environment
+config_fingerprint
+intermix.path
+intermix.digest
+intermix.compiled
+intermix.skipped
+webrick.path
+webrick.meta
+webrick.digest
+webrick.fingerprint
+webrick.routes
+```
+
+It publishes JSON plus an OPcache-friendly PHP runtime manifest; runtime loading prefers PHP and falls back to JSON.
+
+Do not conflate identities:
+
+- `intermix.digest` — xxh128 InterMix artifact identity;
+- `webrick.digest` — xxh128 router artifact file digest;
+- `webrick.fingerprint` — xxh128 semantic artifact fingerprint for trusted loading;
+- `config_fingerprint` — host-owned opaque deterministic config identity.
+
+Follow tagged source if stale documentation examples use older SHA-256 terminology.
+
+### Production loading
+
+Normal verified:
+
+```text
+ProductionContainer
+ -> CompiledRouterKernel::fromCompiledArtifact(...)
+```
+
+Trusted immutable deployment:
+
+```text
+ProductionContainer with trusted InterMix digest
+ -> CompiledRouterKernel::fromPrevalidatedArtifact(trusted Webrick fingerprint, ...)
+```
+
+### Execution/runtime behavior
+
+- `CompiledRouterKernel` can boot matcher directly from cache where supported, otherwise hydrates compiled route metadata;
+- each route has an ExecutionPlan capability set such as REQUEST, SCOPE, MIDDLEWARE, DOMAIN, CORS, PRODUCES, ROUTE_ARGS;
+- RuntimeRequestContext keeps lightweight RoutingInput + lazy Request factory + RuntimeCapabilities + native handles;
+- Request is cached/materialized only if required;
+- runtime capabilities are attached to Request when created;
+- Webrick enters request scope only when execution plan or runtime-backed middleware requires it;
+- RuntimeServer selects SAPI/RoadRunner/Swoole/Workerman adapter once at boot, not per request;
+- exactly one layer writes native response: Webrick RuntimeAdapter;
+- compiled kernel freezes URL/middleware/constraint/header/trusted-proxy/method-override registries before traffic.
 
 ---
 
-## 5. Final joint-sweep gaps and decisions
+## 8. Integrated Webrick direct-usage audit
 
-### J-1 — Web InterMix must be compiled exactly once
+### 8.1 `src/Http/HttpKernel.php`
 
-The earlier plans could be read as if Foundation should compile the web InterMix artifact itself and then invoke Webrick's `ReleaseCompiler`.
-
-That is incorrect.
-
-Webrick 5.1 `ReleaseCompiler` already performs strict InterMix validation and calls `ContainerBuilder::compile()`.
-
-Final rule:
+Current:
 
 ```text
-Foundation composes fresh web builder
- -> Webrick contributes to that same builder
- -> Webrick coordinated release compiler compiles web InterMix exactly once
+Request already exists
+ -> Foundation ExecutionScope
+ -> MaintenanceManager::status()
+ -> RouterKernel::handle(Request)
 ```
 
-Foundation must **not** perform an earlier independent web `builder->compile()`.
+Target:
 
-This rule applies only to the web path. CLI, worker and scheduler directly compile their own InterMix builders.
+- remove from native production hot path;
+- no HTTP scope ownership;
+- no native emission;
+- no pre-created Request;
+- no universal maintenance I/O;
+- optionally retain a thin embedded/testing API delegating an already-created Request.
 
-### J-2 — Scope names must be semantic and stable
+### 8.2 `src/Http/HttpServiceProvider.php`
 
-Current Foundation scopes synthesize execution IDs into the scope name, while current Webrick scopes synthesize request object/sequence IDs.
+Current binds live RouterKernel, custom ErrorHandler and Foundation HttpKernel.
 
-InterMix `onScopeLeave($scope, ...)` is keyed by the **exact scope name**. A hook registered for `request` cannot match `webrick.request.123` or `web:<uuid>`.
+Target:
 
-InterMix already isolates same-named scopes by Fiber/coroutine execution context, so unique scope names are unnecessary for concurrency.
+- development may expose RouterKernel;
+- production loads CompiledRouterKernel from release metadata;
+- split exception services from kernel construction;
+- custom error behavior is deliberate boot configuration;
+- no Foundation outer HTTP scope dependency.
 
-Foundation 3 target labels:
+### 8.3 `src/Routing/WebrickRouterFactory.php`
+
+Disposition: remove from production, likely delete after migration.
+
+It currently owns matcher selection, matcher cache boot, route replay, live InterMix container passing and request-scope disabling—all obsolete in compiled production.
+
+### 8.4 `src/Routing/RoutingServiceProvider.php`
+
+Current production-like graph exposes WebrickRouterFactory, Registrar, Collection, RouteFileLoader and mutable `foundation.router`.
+
+Target:
+
+- DI contains application/controller/middleware services;
+- route-registration tooling is development/build-only;
+- Registrar/Collection are dev/build-only;
+- production URL generation comes from compiled/frozen Webrick runtime;
+- mutable router facade is not a normal production dependency.
+
+### 8.5 `src/Routing/RouteCacheManager.php`
+
+Remove from production optimize flow. A matcher cache is not the complete Webrick production release artifact. Delete unless a separate dev/diagnostic use is demonstrably useful.
+
+### 8.6 `src/Routing/RouteCachePath.php`
+
+Current owns matcher-cache path, Foundation SHA-256 freshness metadata and matcher reconstruction for warm-state detection.
+
+Production action:
+
+- retire from readiness/boot;
+- use Webrick release/router artifact identity;
+- Foundation config fingerprint may stay SHA-256 if desired, but it is distinct from xxh128 artifact identities;
+- any dev matcher cache is isolated from production readiness.
+
+### 8.7 `src/Routing/RouteFileLoader.php`
+
+Keep discovery only in development or release build. Production requests never scan route directories, require route files, reflect controllers or load route attributes.
+
+### 8.8 `src/Routing/RoutePresetRegistrar.php`
+
+Keep policy presets such as `web`/`web-auth` as thin build-time route policy. Presets contribute descriptors/route attributes; they do not activate middleware services.
+
+### 8.9 `src/Routing/OAuthRouteRegistrar.php`
+
+Current class-method descriptors are a good compiled shape. Execute registration only during dev/build, never into a live production router after boot.
+
+### 8.10 `src/Routing/RouteMiddlewareRegistrar.php`
+
+Rewrite around artifact-safe descriptors:
+
+- deterministic aliases registered before route compilation;
+- never resolve service graphs merely to serialize alias results;
+- non-parameterized DI middleware uses class/method descriptors;
+- parameterized aliases use the Webrick descriptor correction below or explicit route attributes;
+- alias registries finalize/freeze before traffic;
+- old warm matcher-cache requirements do not control production alias registration.
+
+### 8.11 `src/Routing/WebrickMiddlewareFactory.php`
+
+Continue reusing Webrick built-ins rather than duplicating them.
+
+Change construction boundary:
+
+- normalize config at build/graph time;
+- DI-backed middleware where practical;
+- no serialized objects capturing live Foundation services;
+- disabled middleware omitted from graph/topology;
+- optional cache/database middleware activates those capabilities only when configured;
+- rely on RuntimeCapabilities to avoid duplicate transport-native compression/request-limit work;
+- global middleware stays empty by default.
+
+### 8.12 Auth middleware
+
+Keep Webrick-native `__invoke(Request $request, callable $next): Response` contracts for principal/auth/guest/verified/MFA/recent/role/permission/policy/OAuth audience/scope middleware.
+
+Ensure:
+
+- only declaring routes pay Request/scope cost;
+- runtime-backed middleware resolves through InterMix;
+- parameters are artifact data, not serialized service objects;
+- principal state is scoped and Fiber/coroutine-safe;
+- order deterministic.
+
+### 8.13 Session/CSRF middleware
+
+Keep Foundation session semantics and Webrick Request/Response/Cookie types, but route/preset-specific only. No universal session/CSRF stack by default. Cleanup occurs inside Webrick-selected request scope.
+
+### 8.14 Filesystem HTTP bridge
+
+Upload request handling already uses Webrick UploadedFile/Request without transport emission and is conceptually correct.
+
+Download/stream output must change: Foundation response factories may not write directly to `php://output` or runtime-native handles. Webrick RuntimeAdapter owns writing.
+
+### 8.15 Testing HTTP client
+
+Keep fake Request + embedded handler convenience. Add production-native compiled-kernel/runtime-adapter tests so the test client does not define the architecture being benchmarked.
+
+---
+
+## 9. Final joint InterMix + Webrick decisions
+
+### J-1 — Compile web InterMix exactly once
+
+Webrick `ReleaseCompiler` already performs strict InterMix validation/compile. Foundation composes a fresh web builder, Webrick contributes to the same builder, and Webrick's coordinated release compilation compiles the web InterMix artifact **once**.
+
+Foundation must not compile web separately before invoking Webrick.
+
+CLI/worker/scheduler still compile directly through InterMix.
+
+### J-2 — Semantic stable scope names
+
+InterMix `onScopeLeave($scope, ...)` matches exact scope labels. Current unique names containing request/execution IDs make compile-time hooks unusable.
+
+Use:
 
 ```text
-webrick.request       web request scope, owned by Webrick
-foundation.cli        command invocation scope
-foundation.worker     job/message invocation scope
-foundation.scheduler  scheduled invocation scope
+webrick.request
+foundation.cli
+foundation.worker
+foundation.scheduler
 ```
 
-Execution IDs, request IDs, job IDs and envelope IDs remain **scope seeds/correlation values**, not scope names.
+InterMix execution-context isolation already separates concurrent Fibers/coroutines using the same semantic label. Request/job/execution/envelope IDs remain seeds/correlation values.
 
-This allows compile-time scope cleanup hooks and consistent lifecycle reasoning.
+### J-3 — RuntimeContextTracker cannot remain a mutable process singleton
 
-Webrick should change its development and production request-scope naming to the stable `webrick.request` label before Foundation relies on scope-leave integration.
+Current tracker stores per-execution DB touched state, dirty principal/session contexts and fresh connections in one mutable singleton. Concurrent Fibers/coroutines can corrupt each other's cleanup bookkeeping.
 
-### J-3 — `RuntimeContextTracker` cannot remain a mutable process singleton
+Redesign around scoped execution state or eliminate it.
 
-Current `RuntimeContextTracker` stores mutable per-execution data such as:
+Preferred direction:
 
-- whether database state was touched;
-- dirty principal/session contexts;
-- fresh database connections.
+- `CurrentPrincipalContext` becomes scoped ordinary state rather than maintaining another Fiber WeakMap when InterMix owns execution isolation;
+- active browser-session context becomes scoped while session store/locking remains separate reusable infrastructure;
+- DB configuration/registries may stay process-wide when safe, but touched/transaction/fresh-connection cleanup bookkeeping is execution-local;
+- memoizers/caches are explicitly classified as process-safe, generation-bound or execution-cleared;
+- no singleton captures the first scoped dependency resolved into it.
 
-That singleton is not execution-context-local. Under Fiber/coroutine concurrency, one request can mark or reset another request's cleanup state.
+Use one concurrency model: InterMix scopes.
 
-Simply moving the current `reset()` call into a Webrick scope-leave hook is therefore insufficient.
+### J-4 — Removing Foundation HTTP outer scope must preserve cleanup
 
-Foundation 3 must redesign runtime state around InterMix scopes:
+Webrick decides whether an HTTP execution needs scope. Foundation request-scoped services clean up on `webrick.request` leave. Direct routes remain scopeless and pay no Foundation cleanup tax. Do not reintroduce a universal Foundation scope merely to preserve legacy cleanup.
 
-- per-execution cleanup state becomes scoped or disappears;
-- `CurrentPrincipalContext` should preferably be scoped and use ordinary state rather than maintaining its own Fiber `WeakMap` if InterMix owns isolation;
-- active browser-session context should be scoped; process-wide session store/lock infrastructure remains separately reusable;
-- database configuration/connection registries may remain process-wide where safe, but transaction/touched/fresh-connection cleanup bookkeeping must be execution-local;
-- process-wide memoizers/caches must be explicitly classified as safe, generation-bound, or execution-cleared;
-- a singleton must never capture the first scoped dependency resolved into it.
+### J-5 — Route topology must enrich DI before InterMix compile
 
-The goal is to use one concurrency model—InterMix execution scopes—not InterMix plus multiple Foundation-specific Fiber-local state systems.
+Current Webrick 5.1 coordinated release compiles InterMix before route compilation, but finalized route topology reveals controller/middleware class specs later resolved through `InterMixRuntime::resolveNow()`.
 
-### J-4 — Removing Foundation's outer HTTP scope must not remove cleanup
+A compiled router can therefore still reference dynamic-fallback handlers.
 
-The current outer `ExecutionScope` happens to provide cleanup for principal/session/database state. Removing it is required for Webrick performance, but cleanup must move to the correct Webrick-owned request scope.
-
-Final rule:
-
-- Webrick decides whether a request needs an InterMix scope;
-- only routes that touch runtime-backed Foundation state enter that scope;
-- Foundation request-scoped services clean up on `webrick.request` leave;
-- truly direct requestless/scopeless routes pay no Foundation cleanup cost;
-- no Foundation universal HTTP scope is reintroduced merely to preserve legacy cleanup.
-
-### J-5 — Webrick's current release order can leave route handlers as dynamic islands
-
-Current Webrick 5.1 coordinated compilation validates/compiles InterMix **before** route compilation.
-
-But the finalized route topology is what reveals class-based controller and middleware specs that Webrick later resolves through `InterMixRuntime::resolveNow()`.
-
-If a route-referenced class was not already registered in the builder, the router can be fully compiled while that handler/middleware still falls into InterMix's dynamic fallback at runtime.
-
-Foundation should not duplicate controller/middleware scans just to guess the route graph before Webrick builds it.
-
-Preferred Webrick correction:
+Preferred Webrick release order:
 
 ```text
 RouteCompiler::compile(...)
  -> RouterBuildResult / ExecutionPlans
- -> optional host graph-enrichment callback using finalized route descriptors
+ -> host graph-enrichment callback
+ -> add deterministic route-referenced DI definitions
  -> ContainerBuilder::validate(strict: true)
  -> ContainerBuilder::compile(...)
  -> RouterArtifactCompiler::compile(...)
  -> release manifest
 ```
 
-The graph-enrichment callback must only add deterministic route-referenced DI definitions. It must not resolve services or mutate an already-compiled graph.
+No duplicated Foundation controller scan.
 
-This preserves one route discovery pass and improves InterMix production coverage.
+### J-6 — Declarative parameterized middleware
 
-### J-6 — Parameterized middleware needs a declarative runtime-backed descriptor
-
-Foundation currently supports middleware aliases such as:
+Aliases such as:
 
 ```text
 role:admin
@@ -324,41 +863,23 @@ oauth-scope:payments.write
 oauth-audience:merchant-api
 ```
 
-Current Foundation alias resolution may build middleware objects during route registration. Those objects can capture live Foundation services and must not become serialized router-artifact service graphs.
+must not materialize middleware service graphs during route registration.
 
-Preferred Webrick addition:
+Preferred Webrick descriptor:
 
 ```text
 ParameterizedMiddlewareDescriptor / MiddlewareReference
-    spec: class-string | class/method descriptor
+    spec: class-string | class/method
     parameters: exportable scalar/list/map values
 ```
 
-At runtime Webrick merges descriptor parameters with:
+At runtime Webrick merges parameters with `request` and `next` and delegates to `InterMixRuntime::resolveNow()`.
 
-```text
-request
-next
-```
+If unavailable, Foundation may encode Foundation-owned policy parameters into route attributes read by DI-backed middleware, but that must not become a second generic middleware runtime.
 
-and delegates to `InterMixRuntime::resolveNow()`.
+### J-7 — Empty global middleware means empty tags too
 
-This keeps constructor/service dependencies inside InterMix and keeps route artifacts declarative.
-
-Fallback if Webrick is not changed: Foundation may encode some policy parameters into route attributes and use a DI-backed middleware that reads them. That is acceptable for Foundation-owned policies but is less general and should not become a second alias runtime.
-
-### J-7 — Empty middleware config does not automatically mean no global middleware
-
-Webrick's current compiler/kernel defaults include tag-driven global middleware:
-
-```text
-webrick.middleware.pre
-webrick.middleware.post
-```
-
-Therefore Foundation's current explicit `pre=[]`, `post=[]` configuration is not enough to guarantee the minimal route stays middleware-free.
-
-Foundation must pass:
+Webrick defaults can include tag-driven global middleware. Foundation must explicitly default all of these empty:
 
 ```text
 preGlobal: []
@@ -367,93 +888,57 @@ preGlobalTags: []
 postGlobalTags: []
 ```
 
-by default.
+Tag-driven globals are explicit opt-in only. This preserves minimal Request-free routes.
 
-Tag-driven global middleware becomes explicit opt-in Foundation behavior.
+### J-8 — Router artifacts may not hide Foundation service graphs
 
-This is a hard performance invariant because global middleware forces every route into Request/pipeline execution.
+Foundation-owned production routes prefer declarative class/method/invokable/static/function descriptors. Do not persist resolved controller/middleware objects or closures capturing Application/container/auth/session/DB managers.
 
-### J-8 — Route artifacts must not hide Foundation service graphs in closures/objects
+User closures remain supported where Webrick can serialize them, but build diagnostics must report closure/callable-object usage and flag Foundation runtime captures. Unsafe Foundation-owned captures fail the build.
 
-Webrick supports serialized closures/callables for legitimate dynamic application routes. Foundation must not misuse that flexibility to bypass InterMix compilation.
+### J-9 — Separate routing-control errors from application exceptions
 
-Foundation-owned production route policy:
-
-- prefer class/method, invokable class, static method or stable function descriptors;
-- do not serialize resolved controller/middleware objects containing Foundation services;
-- do not serialize closures capturing `Application`, mutable container/runtime objects, auth/session/database managers, or other framework service graphs;
-- parameterized middleware uses a declarative descriptor, not a constructed object;
-- user closures remain supported when Webrick can serialize them, but build diagnostics must report closure/callable-object counts and flag framework-runtime captures;
-- Foundation-owned unsafe captures fail the production build.
-
-### J-9 — Application exception handling and routing-control errors must be separable
-
-Webrick's direct 404/405 fast path currently depends on the custom `ErrorHandler` being null.
-
-Foundation needs application exception mapping/logging, but that should not automatically force custom Request-based rendering for routine route-not-found/method-not-allowed control flow.
+Foundation requires logging/mapping for application exceptions, but this should not automatically force custom Request-based rendering for routine 404/405.
 
 Preferred Webrick refinement:
 
-- retain direct routing-control rendering by default;
-- allow an independent custom dispatch/application exception handler;
-- opt into custom routing-error rendering only when explicitly requested.
+- direct routing-control responses remain default;
+- independent custom dispatch/application exception handler;
+- custom routing-error rendering explicit opt-in.
 
-Correctness and observability remain mandatory; direct 404/405 behavior is an optimization only when semantics remain equivalent.
+Correctness/security/observability remain higher priority than the optimization.
 
-### J-10 — Maintenance mode leaves the Foundation outer kernel
+### J-10 — Maintenance leaves old HttpKernel
 
-Current Foundation maintenance checking occurs before every RouterKernel dispatch and can perform runtime file work.
+Do not perform Foundation per-request file/cache status work after Request/scope creation.
 
-That position is incompatible with the compiled Webrick hot path.
+Initial solution: Webrick maintenance middleware/state with worker-local refresh caching where semantics fit.
 
-Initial Foundation 3 solution:
+Optional future optimization: a generic pre-routing gate over RoutingInput/runtime context only if benchmarks prove meaningful value.
 
-- use Webrick's maintenance middleware/state model where it satisfies semantics;
-- back dynamic file state with worker-local refresh caching;
-- do not perform per-request Foundation filesystem discovery.
+### J-11 — Filesystem streaming stays inside Webrick writer contract
 
-Potential later Webrick optimization:
+Never write directly to `php://output` inside Webrick response producers.
 
-- a generic lightweight pre-routing gate operating on `RoutingInput`/runtime context and capable of returning a Response without Request/scope creation.
-
-Do not add this abstraction before a benchmark shows meaningful value.
-
-### J-11 — Filesystem streaming must remain inside Webrick's response writer contract
-
-Foundation currently has a streaming path that writes directly to `php://output` inside a Webrick `Response::stream()` producer.
-
-That bypasses Webrick's runtime adapter and is unsafe for RoadRunner/Swoole/Workerman.
-
-Foundation 3 rules:
-
-- never write directly to `php://output` from a Webrick producer;
-- local files prefer Webrick `FileBody`/download/inline/ranged/stream-download facilities;
-- non-local/custom Pathwise sources expose a Webrick-compatible `BodyStream` or chunk-yielding iterable;
-- Pathwise/Foundation security/policy checks still run before response construction;
-- X-Sendfile/X-Accel-Redirect behavior remains policy-driven;
-- SAPI and persistent adapter behavior must be tested.
+- local files: prefer Webrick FileBody/download/inline/ranged/stream-download APIs;
+- non-local/custom Pathwise: BodyStream or chunk-yielding iterable;
+- Foundation/Pathwise authorization/policy still happens first;
+- X-Sendfile/X-Accel-Redirect stays policy-driven;
+- test SAPI plus persistent adapters.
 
 ### J-12 — One compiled web application per production process
 
-Webrick intentionally freezes process-level URL/middleware/constraint/header/request configuration registries at compiled-kernel boot.
+Webrick freezes process-level registries at compiled-kernel boot. Treat a production process as hosting one compiled web application/release generation. Do not add normal production unfreeze/reset merely to run unrelated compiled web apps in one process. Use process isolation for such tests.
 
-Foundation must treat a production process as hosting one compiled web application/release generation.
+### J-13 — Four runtime artifacts are one Foundation release generation
 
-Do not add a normal production unfreeze/reset mechanism merely to support multiple unrelated compiled kernels in one process.
-
-Tests requiring different compiled production web applications should use process isolation where registry state differs.
-
-### J-13 — The four runtime artifacts form one Foundation release generation
-
-Webrick publishes its own web files atomically, but Foundation owns deployment coherence across all four runtime paths.
-
-Foundation build must publish a complete immutable generation:
+Webrick owns atomic publication of its web bundle; Foundation owns cross-runtime coherence.
 
 ```text
 release/<generation>/
     foundation.php
-    config.php                       optional compiled config
-    capabilities.php                 if useful
+    config.php                  optional
+    capabilities.php            optional/useful only
     web/
         Webrick release manifest
         InterMix web artifact
@@ -464,44 +949,20 @@ release/<generation>/
         InterMix artifact + metadata
     scheduler/
         InterMix artifact + metadata
-    command/scheduler/worker maps    when they remove runtime discovery
+    command/scheduler/worker maps  only when they remove measurable discovery
 ```
 
-Build sequence:
-
-1. create a new unique generation directory;
-2. build web through the coordinated Webrick release path;
-3. build CLI directly with InterMix;
-4. build worker directly with InterMix;
-5. build scheduler directly with InterMix;
-6. validate all compile/skipped/digest reports;
-7. generate only useful Foundation deterministic metadata;
-8. write an OPcache-friendly Foundation generation manifest;
-9. verify the complete generation;
-10. atomically switch one small trusted/read-only release pointer only after every runtime succeeds;
-11. leave the previous generation active on any failure;
-12. persistent workers restart/replace gracefully onto the new generation;
-13. old-generation cleanup happens outside request/job hot paths.
-
-Foundation metadata references Webrick's release metadata; it must not duplicate Webrick-owned InterMix/Webrick digest fields unnecessarily.
+Build a new immutable generation, verify all four paths, then atomically switch one small trusted/read-only active-generation pointer. Any failure leaves previous generation active. Persistent workers replace gracefully onto the new generation. Old cleanup occurs outside hot paths.
 
 ### J-14 — Prevalidated loading requires a real trust boundary
 
-Safe default for all runtime paths is normal verified loading.
-
-Use prevalidated loading only when expected digest/fingerprint values come from trusted immutable deployment metadata, for example a read-only release-generation descriptor supplied by deployment tooling.
-
-The same mutable cache/artifact directory that contains the artifact is not a trust source for its own expected digest.
-
-This policy applies equally to web, CLI, worker and scheduler artifacts.
+Normal verified loading is default. Trusted/prevalidated loading is allowed only when expected digests/fingerprints come from immutable deployment metadata outside the writable artifact/cache trust boundary. Same policy for all four runtimes.
 
 ---
 
-## 6. Final graph/composition model
+## 10. Final graph, provider and Application model
 
-Foundation needs one small graph coordinator, not another DI framework.
-
-Conceptual API:
+Foundation needs a small graph coordinator, not another DI framework.
 
 ```php
 function foundationGraph(
@@ -510,116 +971,59 @@ function foundationGraph(
 ): ContainerBuilder {
     // Foundation core
     // runtime-specific definitions
-    // selected package capabilities/providers
+    // selected capabilities/providers
+    // package contributions
     // web only: Webrick::contributeTo($builder, ...)
 
     return $builder;
 }
 ```
 
-`FoundationBuildContext` is immutable build data only. It may include:
+`FoundationBuildContext` is immutable build data only, for example:
 
 - normalized environment;
 - runtime mode;
-- application paths;
+- paths;
 - normalized config/capability selections;
 - enabled modules/providers;
-- release generation identity where needed.
+- release generation identity if needed.
 
-It must **not** become a service locator.
+It is **not** a service locator.
 
-Each runtime creates a fresh builder with a deterministic alias:
+Provider lifecycle splits into:
 
-```text
-foundation.web
-foundation.cli
-foundation.worker
-foundation.scheduler
-```
+1. graph contribution;
+2. optional process-level boot side effects after runtime exists;
+3. execution behavior inside request/job/command/scheduler scopes.
 
-An application-defined stable prefix may be added if multiple app identities genuinely share tooling, but random UUID aliases are not part of normal boot.
+`Application` remains a thin application-facing façade/coordinator:
 
----
-
-## 7. Provider/application redesign
-
-### 7.1 Provider registration
-
-The Foundation 2 contract:
-
-```php
-register(Application $app): void
-boot(Application $app): void
-```
-
-mixes graph mutation with runtime boot.
-
-Foundation 3 separates:
-
-1. graph contribution before runtime creation;
-2. process boot after selected runtime exists;
-3. execution behavior inside request/job/command scopes.
-
-Preferred registration shape:
-
-```php
-register(ContainerBuilder $builder, FoundationBuildContext $context): void
-```
-
-A separate optional boot contract may perform true process-level side effects, but cannot mutate a finalized production graph.
-
-### 7.2 Application
-
-`Application` remains an application-facing façade/coordinator, not a dynamic graph owner.
-
-Rules:
-
-- no broad production provider activation in `make()`/`has()`;
-- public service resolution convenience may remain;
-- core generated services must not capture `Application` merely to call `make()`;
+- no broad provider activation in normal production `make()`/`has()`;
+- generated core services do not capture Application solely to resolve dependencies;
 - prefer narrow constructor dependencies;
-- public APIs should not promise a mutable dynamic InterMix `Container` in production;
-- production web native handling goes through Webrick RuntimeServer, not `Application::handle(Request)`.
-
-`Application::handle(Request)` may remain as a thin embedded/testing path when useful.
-
-### 7.3 Dynamic islands
-
-For every runtime artifact:
-
-1. `validate(strict: true)`;
-2. compile;
-3. collect exact `compiled`, `skipped`, `digest`;
-4. compare `skipped` with explicit allowlist;
-5. fail build on unexpected Foundation-owned dynamic islands;
-6. report each intentional island with subsystem and reason.
-
-Foundation core target: zero **avoidable** islands.
+- production web native handling goes through Webrick RuntimeServer;
+- `Application::handle(Request)` may remain as embedded/testing convenience.
 
 ---
 
-## 8. Development lifecycle
+## 11. Development lifecycle
 
-Development optimizes iteration/diagnostics, not production-hot-path parity.
-
-### 8.1 Web development
+### 11.1 Web development
 
 ```text
 load/normalize config
  -> fresh ContainerBuilder('foundation.web')
  -> compose Foundation web graph
  -> Webrick::contributeTo(same builder)
- -> register build-safe middleware aliases
+ -> register build-safe aliases/descriptors
  -> development()
  -> RouterKernel::bootWithRegistrar(...)
- -> development request handling
+ -> development Request handling
 ```
 
-Development may use live route registration and diagnostics.
+Development can use live route registration and diagnostics but must follow the same logical capability/graph decisions as production.
 
-It must still follow the same logical graph/capability decisions as production so behavior does not drift.
-
-### 8.2 CLI/worker/scheduler development
+### 11.2 CLI/worker/scheduler development
 
 Each runtime:
 
@@ -630,36 +1034,36 @@ fresh builder
  -> runtime-specific execution
 ```
 
-Do not reuse one mutable builder across independently active runtime paths.
+Never reuse one mutable builder across independently active runtimes.
 
 ---
 
-## 9. Production build lifecycle
+## 12. Production build lifecycle
 
-### 9.1 Web build
+### 12.1 Web
 
 After the Webrick route/graph coordination correction:
 
 ```text
-normalized Foundation build context
+normalized build context
  -> fresh ContainerBuilder('foundation.web')
  -> Foundation web graph
  -> Webrick::contributeTo(same builder)
- -> deterministic middleware alias/descriptors
- -> build routes once
- -> obtain RouterBuildResult / ExecutionPlans
- -> enrich builder with deterministic route-referenced DI classes
+ -> deterministic middleware aliases/descriptors
+ -> compile routes once
+ -> RouterBuildResult / ExecutionPlans
+ -> enrich builder with deterministic route-referenced DI definitions
  -> strict InterMix validation
  -> compile web InterMix artifact ONCE
  -> compile Webrick router artifact
  -> publish Webrick format-2 release manifest
- -> enforce InterMix skipped allowlist
- -> verify bundle
+ -> enforce skipped allowlist
+ -> verify web bundle
 ```
 
-No second Foundation web container compilation.
+No second Foundation web container compile.
 
-### 9.2 CLI build
+### 12.2 CLI
 
 ```text
 fresh ContainerBuilder('foundation.cli')
@@ -669,7 +1073,7 @@ fresh ContainerBuilder('foundation.cli')
  -> enforce skipped allowlist
 ```
 
-### 9.3 Worker build
+### 12.3 Worker
 
 ```text
 fresh ContainerBuilder('foundation.worker')
@@ -679,9 +1083,9 @@ fresh ContainerBuilder('foundation.worker')
  -> enforce skipped allowlist
 ```
 
-Only selected worker/messaging capabilities belong in the worker graph.
+Only selected worker/messaging capabilities belong in this graph.
 
-### 9.4 Scheduler build
+### 12.4 Scheduler
 
 ```text
 fresh ContainerBuilder('foundation.scheduler')
@@ -691,23 +1095,23 @@ fresh ContainerBuilder('foundation.scheduler')
  -> enforce skipped allowlist
 ```
 
-Only scheduler/command/dispatch capabilities belong in this graph.
+Only scheduler/command/dispatch capabilities belong here.
 
 ---
 
-## 10. Production runtime lifecycle
+## 13. Production runtime lifecycle
 
-### 10.1 Web
+### 13.1 Web
 
 ```text
-load active Foundation release generation
+load active Foundation generation
  -> load Webrick release metadata
- -> reconstruct same web ContainerBuilder graph
+ -> reconstruct same web builder graph
  -> verified ProductionContainer
       or trusted productionPrevalidated(...)
  -> verified/prevalidated CompiledRouterKernel
  -> select RuntimeAdapter once
- -> construct RuntimeServer once
+ -> RuntimeServer once
  -> serve traffic
 ```
 
@@ -718,36 +1122,36 @@ RuntimeAdapter context
  -> RoutingInput
  -> compiled match
  -> ExecutionPlan
- -> Request only when required
- -> webrick.request scope only when required
+ -> Request only if required
+ -> webrick.request scope only if required
  -> middleware/handler
  -> Response
  -> RuntimeAdapter write
 ```
 
-### 10.2 CLI
+### 13.2 CLI
 
 ```text
 load active generation
  -> reconstruct CLI graph
  -> ProductionContainer
- -> foundation.cli scope per command invocation when scoped state is required
+ -> foundation.cli scope per invocation when needed
  -> deterministic cleanup
 ```
 
-### 10.3 Worker
+### 13.3 Worker
 
 ```text
 load active generation once per worker process
  -> reconstruct worker graph
- -> ProductionContainer reused across jobs/messages
- -> foundation.worker scope per item
+ -> ProductionContainer reused
+ -> foundation.worker scope per job/message
  -> seed envelope/job/execution values
- -> deterministic cleanup on success/failure/cancel
- -> graceful worker replacement on generation change
+ -> deterministic cleanup success/failure/cancel
+ -> graceful replacement on generation change
 ```
 
-### 10.4 Scheduler
+### 13.4 Scheduler
 
 ```text
 load active generation once per scheduler process
@@ -759,117 +1163,84 @@ load active generation once per scheduler process
 
 ---
 
-## 11. Webrick lower-layer corrections required before Foundation web integration is considered final
+## 14. Required Webrick lower-layer corrections
+
+These should be fixed in Webrick rather than worked around in Foundation.
 
 ### WB-1 — Parameterized runtime-backed middleware descriptor
 
-Add an artifact-safe descriptor carrying a resolver spec plus exportable parameters and resolve it through InterMix at runtime.
+Artifact-safe resolver spec + exportable parameters, supported end-to-end by alias resolution, handler normalization/capability logic, artifact codec and compiled pipeline invocation.
 
-Required for Foundation's role/permission/policy/OAuth parameterized middleware without serialized service graphs.
+### WB-2 — Separate routing-control errors from application exception handling
 
-### WB-2 — Separate direct routing-control errors from custom dispatch exceptions
-
-Allow Foundation to install application exception mapping/logging without automatically losing Webrick's direct 404/405 control path.
+Allow custom application exception mapping/logging without automatically losing direct default 404/405 handling. Custom routing-error rendering becomes explicit opt-in.
 
 ### WB-3 — Stable request scope label
 
-Use a stable semantic scope such as:
+Use `webrick.request` in development and production. Rely on InterMix execution-context isolation for concurrency; request identity is seed/context data.
 
-```text
-webrick.request
-```
+### WB-4 — Route-first graph-enrichment point
 
-in development and production. Rely on InterMix execution-context isolation for concurrent requests; request identity remains a seed/context value.
+Expose finalized RouterBuildResult/execution descriptors before InterMix compile so hosts can add deterministic route-referenced controller/middleware definitions without repeating route discovery.
 
-This makes compile-time `onScopeLeave('webrick.request', ...)` integration possible.
+### WB-5 — Optional pre-routing gate, benchmark-driven only
 
-### WB-4 — Route-first graph-enrichment point in coordinated release compilation
+Potentially useful for maintenance or another universal operational gate, but not a Foundation prerequisite. Add only if measured benefit justifies it.
 
-Expose the finalized `RouterBuildResult`/execution descriptors before InterMix compilation so a host can contribute deterministic route-referenced controller/middleware definitions to the same builder.
-
-Do not require Foundation to repeat route discovery.
-
-### WB-5 — Optional pre-routing gate only if measured
-
-A generic lightweight pre-routing operational gate may be useful for maintenance mode, but only add it if benchmarks prove that Webrick's cached middleware solution is materially insufficient.
-
-WB-5 is **not** a prerequisite for Foundation 3 development.
-
-The first four items should be resolved in Webrick before Foundation's production web runtime is considered final. They should remain small lower-layer changes rather than Foundation workarounds.
+WB-1 through WB-4 are prerequisites before Foundation web production integration is considered final.
 
 ---
 
-## 12. Foundation class/subsystem disposition
+## 15. Foundation class/subsystem disposition
 
 ### Remove/replace
 
-- `ContainerFactory` as the runtime DI factory;
-- old `ContainerCacheManager` compile/activate semantics;
-- production use of `WebrickRouterFactory`;
-- independent production route-cache orchestration through `RouteCacheManager`/`RouteCachePath`;
-- universal Foundation `HttpKernel` execution scope;
+- ContainerFactory as runtime DI factory;
+- old ContainerCacheManager compile/activate semantics;
+- production WebrickRouterFactory;
+- independent production RouteCacheManager/RouteCachePath orchestration;
+- universal Foundation HttpKernel execution scope;
 - broad production `onMissing()` provider activation;
-- runtime provider/module discovery in normal resolution;
-- direct `php://output` Webrick streaming producers.
+- runtime provider/module discovery in normal production resolution;
+- direct `php://output` streaming producers.
 
 ### Keep but redesign
 
-- `Application` — façade/coordinator, no graph ownership;
-- `ExecutionScope` — non-web Foundation execution helper for CLI/worker/scheduler, based on InterMix `withinScope()` and stable semantic labels;
-- `RuntimeContextTracker` — redesign into execution-local cleanup state or eliminate;
-- `ServiceProvider` infrastructure — builder-first graph contribution;
-- `ServiceRegistry`/`Bootstrapper` — build-time/capability topology rather than production lazy activation;
-- `RouteFileLoader`/attribute route discovery — development/build only;
-- route presets/OAuth route registration — build/development policy only;
-- Foundation middleware — Webrick-native Request/Response contracts retained, construction moved to DI-safe descriptors;
-- filesystem HTTP integration — preserve policy, use Webrick body/response writer contracts;
-- testing HTTP client — thin embedded Request path remains useful.
+- Application — façade/coordinator, no graph ownership;
+- ExecutionScope — non-web helper using InterMix `withinScope()` + semantic labels;
+- RuntimeContextTracker — execution-local redesign or removal;
+- provider infrastructure — builder-first graph contribution;
+- ServiceRegistry/Bootstrapper — build-time topology instead of lazy production activation;
+- RouteFileLoader/attribute scanning — dev/build only;
+- route presets/OAuth registration — dev/build policy;
+- Foundation middleware — Webrick Request/Response contracts, DI-safe descriptors;
+- filesystem HTTP integration — Foundation policy + Webrick body/writer contract;
+- HttpTestClient — thin embedded Request path.
 
-### Keep ownership where already correct
+### Continue lower-layer ownership already correct
 
-Foundation should continue using Webrick HTTP primitives rather than creating alternatives:
-
-- Request/Response;
-- cookies;
-- conditional/range handling where appropriate;
-- middleware conventions;
-- runtime capabilities;
-- URL generation;
-- response writing.
+Use Webrick Request/Response, cookies, conditional/range handling where appropriate, middleware conventions, RuntimeCapabilities, URL generation and response writing rather than creating Foundation alternatives.
 
 ---
 
-## 13. Runtime state/lifetime redesign checklist
+## 16. Runtime state/lifetime redesign checklist
 
-Before carrying any Foundation 2 lifetime into v3, classify it for all four runtime paths.
+Process singleton only when immutable or explicitly concurrency-safe, containing no execution state and no first-scoped dependency capture.
 
-### Process singleton only if
+Scoped when state belongs to one request/job/command/scheduler invocation, must be shared inside that execution, or owns execution cleanup.
 
-- immutable or explicitly concurrency-safe;
-- no request/job/command/schedule mutable state retained;
-- no first-scoped-dependency capture;
-- safe across repeated persistent-runtime executions.
+Transient for cheap/stateful one-use objects.
 
-### Scoped if
-
-- state belongs to a request/job/command/scheduled invocation;
-- it must be shared within one execution but isolated from the next;
-- it carries cleanup ownership.
-
-### Transient if
-
-- cheap/stateful one-use object where sharing is undesirable.
-
-Mandatory review targets include:
+Mandatory review targets:
 
 - principal/auth context;
-- session active context;
+- active session context;
 - DB transaction/runtime state;
 - memoizers;
 - logging correlation/context;
 - cache locks;
 - communication clients;
-- messaging envelope/current-message state;
+- messaging current envelope/message state;
 - notification state;
 - filesystem temp/upload state;
 - WebAuthn/OTP request state;
@@ -877,16 +1248,16 @@ Mandatory review targets include:
 
 ---
 
-## 14. Foundation release-generation manifest
+## 17. Release-generation manifest and trust
 
-Foundation may publish a small OPcache-friendly generation descriptor conceptually containing:
+Foundation may publish a small OPcache-friendly generation descriptor, conceptually:
 
 ```php
 return [
     'format' => 1,
     'generation' => 'immutable-generation-id',
     'environment' => 'production',
-    'config_fingerprint' => 'host-defined deterministic identity',
+    'config_fingerprint' => 'host-defined-deterministic-identity',
 
     'web' => [
         'release_manifest' => 'web/release.json',
@@ -909,74 +1280,89 @@ return [
 ];
 ```
 
-The exact schema can evolve during implementation.
-
 Rules:
 
-- do not duplicate Webrick's router/intermix digest/fingerprint fields into Foundation metadata when a reference to the Webrick release manifest is enough;
-- paths should be generation-relative where practical;
-- production activation points to one complete generation;
-- no request/job scans multiple directories to determine active artifacts.
+- reference Webrick's release manifest rather than duplicating Webrick-owned digest/fingerprint fields;
+- generation-relative paths where practical;
+- one active generation pointer;
+- no request/job scans directories to discover active artifacts;
+- publish only after every runtime artifact/report validates;
+- rollback/incomplete builds leave previous generation active;
+- trusted/prevalidated mode requires an immutable trust source external to writable artifact storage.
 
 ---
 
-## 15. Testing matrix
+## 18. Testing matrix
 
-### 15.1 InterMix graph parity
+### 18.1 InterMix graph parity across all four runtimes
 
-For representative graphs across all four runtimes:
+Test development vs generated production observable behavior for:
 
-- development vs generated production behavior;
-- singleton/scoped/transient semantics;
+- singleton/scoped/transient;
 - aliases/contextual/environment bindings;
-- scope seeds;
+- tags where used;
 - lifecycle hooks;
-- expected intentional dynamic islands;
-- mutation/stale-artifact rejection;
+- scope seeds;
+- intentional dynamic islands;
+- optional capability graphs;
+- mutation/stale artifact rejection;
 - verified and trusted-prevalidated loading.
 
-### 15.2 Scope/isolation
+### 18.2 Scope/concurrency/isolation
 
 Required:
 
-- same semantic scope label across sequential invocations produces fresh scoped state;
-- concurrent Fibers using the same semantic scope label remain isolated;
-- Swoole/OpenSwoole coroutine isolation where available;
-- cleanup on success;
-- cleanup on application exception;
-- cleanup failure does not mask the primary application failure;
-- nested scopes restore their parent correctly;
-- request/job/command/scheduler seeds disappear after leave;
-- no principal/session/DB/memoizer/context leakage;
-- no singleton retains a scoped service from the first execution.
+- same semantic scope label sequentially yields fresh scoped state;
+- concurrent Fibers with same semantic label remain isolated;
+- Swoole/OpenSwoole coroutine isolation when available;
+- nested scopes restore parent;
+- seeds disappear after leave;
+- cleanup on success and exception;
+- cleanup failure does not mask primary failure;
+- no principal/session/DB/memoizer/message leakage;
+- no singleton retains first scoped service;
+- long-running workers do not retain scoped instances.
 
-### 15.3 Webrick execution-plan coverage
+### 18.3 Webrick execution-plan coverage
 
-Test representative routes:
+Representative routes:
 
-- direct zero-arg requestless/scopeless;
-- direct route-argument requestless/scopeless;
-- Request-only;
-- DI controller requiring scope;
-- non-parameterized DI middleware;
-- parameterized DI middleware;
-- global middleware opt-in;
-- 404/405/OPTIONS;
-- exception path;
-- auth/session/CSRF routes;
-- domain routes;
-- signed URL generation;
-- URL generation after compiled boot.
+1. zero-arg direct Request-free/scope-free;
+2. route-arg direct Request-free/scope-free;
+3. Request-only handler;
+4. controller DI handler;
+5. one DI middleware;
+6. parameterized DI middleware;
+7. session/CSRF route;
+8. auth route;
+9. global middleware opt-in;
+10. 404/405/OPTIONS;
+11. application exception;
+12. domain/signed-URL/URL-generation cases.
 
-Assert whether each route creates:
+Assert Request, SCOPE and MIDDLEWARE capabilities explicitly.
 
-- Request;
-- InterMix scope;
-- middleware pipeline.
+### 18.4 Webrick development vs compiled production tests
 
-### 15.4 Release/artifact correctness
+Replace old live-router tests with separate suites.
 
-Required failures:
+Development verifies route files/facade registration, mutable dev aliases, diagnostics and embedded fake Requests.
+
+Compiled production verifies:
+
+- release compiler output;
+- PHP runtime manifest preference;
+- verified load;
+- environment/config mismatch failures;
+- wrong InterMix/Webrick digest/fingerprint failures;
+- exact trusted prevalidated loading;
+- matcher cached boot behavior;
+- frozen registries;
+- production route mutation failure.
+
+### 18.5 Release/artifact correctness
+
+Required failure cases:
 
 - missing artifact;
 - wrong InterMix digest;
@@ -985,38 +1371,55 @@ Required failures:
 - stale graph after mutation;
 - unexpected skipped definition;
 - partial Foundation generation;
-- generation pointer referencing incomplete release;
-- untrusted/mutable prevalidation metadata.
+- active pointer to incomplete release;
+- mutable/untrusted prevalidation metadata.
 
-### 15.5 Runtime adapters
+### 18.6 Runtime adapters
 
 At minimum:
 
 - SAPI/FPM integration;
-- one persistent adapter path in CI/integration testing;
-- RoadRunner/Swoole/Workerman adapter-specific suites as their environments are available;
-- native streaming/file response behavior;
-- transport-native compression/request-limit capability bypass;
+- one persistent adapter path in CI/integration;
+- RoadRunner/Swoole/Workerman suites as environments permit;
+- RuntimeCapabilities propagation;
+- lazy Request materialization;
+- native streaming/file behavior;
+- transport-native compression/request-limit bypass;
 - repeated request isolation.
 
-### 15.6 Non-web persistent execution
+### 18.7 Maintenance/filesystem tests
 
-Worker/scheduler tests must cover hundreds/thousands of sequential executions and concurrent execution where supported, verifying:
+Maintenance:
 
-- bounded memory;
-- no transaction carry-over;
-- no principal/session/message context leak;
-- locks/temp resources released;
-- proper cancellation/error cleanup;
-- worker replacement on new release generation.
+- refresh caching;
+- enable/disable transition;
+- message/retry metadata;
+- no state leakage in long-running workers;
+- no per-request unchanged-state disk read.
+
+Filesystem:
+
+- local file;
+- range;
+- HEAD;
+- 304/412 conditional behavior;
+- inline/attachment;
+- X-Sendfile/X-Accel;
+- streaming;
+- persistent-adapter compatibility;
+- no direct SAPI side effects from portable code.
+
+### 18.8 Non-web persistent execution
+
+Worker/scheduler tests run hundreds/thousands of sequential executions plus concurrency where supported, checking bounded memory, no transaction/context carryover, released locks/temp resources, cancellation/error cleanup and generation replacement.
 
 ---
 
-## 16. Benchmark plan
+## 19. Benchmark plan
 
-Benchmarks must attribute cost by layer rather than optimize synthetic Foundation code in isolation.
+### DI attribution
 
-### DI layers
+Compare:
 
 1. direct InterMix 10.0.3 development graph;
 2. direct InterMix generated production graph;
@@ -1024,24 +1427,36 @@ Benchmarks must attribute cost by layer rather than optimize synthetic Foundatio
 
 Measure:
 
-- production artifact load;
-- trusted prevalidated load;
-- singleton get;
-- scoped get;
+- builder composition;
+- strict validation;
+- compile time as build-only metric;
+- verified production load;
+- trusted-prevalidated load;
+- singleton/scoped/transient get;
 - `withinScope()` enter/leave;
-- compiled constructor/static factory chains;
-- compiled↔dynamic-island bridges;
-- Foundation façade resolution overhead;
-- memory across repeated scopes.
+- compiled constructor/static-factory chains;
+- compiled↔dynamic bridge;
+- Application façade resolution overhead;
+- CLI/worker scope/seed overhead;
+- repeated-scope memory;
+- Fiber-interleaved isolation overhead.
 
-### HTTP layers
+Primary DI attribution:
+
+```text
+Foundation DI tax
+= Foundation resolution/scope cost
+- equivalent direct InterMix production cost
+```
+
+### HTTP attribution
+
+Compare:
 
 1. raw PHP;
 2. standalone Webrick 5.1 compiled endpoint;
 3. Foundation 3 + Webrick compiled endpoint;
 4. minimal InfByte endpoint.
-
-Primary attribution:
 
 ```text
 Foundation HTTP tax
@@ -1049,262 +1464,416 @@ Foundation HTTP tax
 - standalone Webrick compiled minimal request
 ```
 
-Measure:
+Measure cold boot, warm persistent requests, throughput, p50/p95/p99, memory/peak, RoutingInput, matching, ExecutionPlan lookup, Request materialization, scope, first/warm middleware pipeline, handler dispatch, 404/405, exception path, response write, maintenance enabled/disabled, local/ranged/streaming response.
 
-- cold process boot;
-- warm requests;
-- real Apache/Nginx + PHP-FPM + OPcache;
-- persistent runtime;
-- throughput;
-- p50/p95/p99;
-- memory/peak;
-- routing input;
-- matching;
-- Request materialization;
-- scope enter/leave;
-- pipeline dispatch;
-- handler dispatch;
-- exception path;
-- 404/405;
-- response write;
-- maintenance enabled/disabled;
-- streaming/download paths.
+Repeat representative measurements through the real Apache/Nginx + PHP-FPM + OPcache environment used by InfByte benchmarks; in-process microbenchmarks alone are not acceptance evidence.
 
-No arbitrary percentage regression budget is fixed before these new baselines exist.
+No arbitrary percentage budget before new baselines exist.
 
 ---
 
-## 17. Implementation order
-
-Development should proceed in this order so lower-layer contracts are stable before Foundation builds around them.
+## 20. Implementation order
 
 ### Phase 0 — Freeze baselines
 
-- record InterMix 10.0.3 direct DI benchmarks;
-- record standalone Webrick 5.1 compiled HTTP benchmarks;
-- record current Foundation representative benchmark;
+- direct InterMix 10.0.3 DI benchmarks;
+- standalone Webrick 5.1 compiled HTTP benchmarks;
+- current Foundation representative benchmark;
 - pin exact source/tag commits in benchmark metadata;
-- capture current Foundation tests and behavior that must remain semantically correct.
+- capture semantic tests that must remain correct.
 
-### Phase 1 — Webrick prerequisite corrections
+### Phase 1 — Webrick prerequisites
 
-Implement/test WB-1 through WB-4 in Webrick.
-
-Do not add WB-5 unless maintenance measurements justify it.
-
-After release/tagging, raise Foundation's minimum Webrick patch version to the first release containing the required contracts.
+Implement/test WB-1 through WB-4. WB-5 only if measured. Release/tag Webrick and raise Foundation minimum to the first version carrying required contracts.
 
 ### Phase 2 — Foundation composition root
 
-- update InterMix/Webrick dependency floors;
-- introduce immutable build context;
-- implement one builder-first Foundation graph function;
-- deterministic aliases for web/cli/worker/scheduler;
-- remove `ContainerFactory` architecture;
-- make Application runtime-neutral/thin.
+- dependency floors;
+- immutable build context;
+- one builder-first Foundation graph;
+- deterministic four-runtime aliases;
+- remove ContainerFactory architecture;
+- Application runtime-neutral/thin.
 
 ### Phase 3 — Provider graph migration
 
 - builder-first provider contract;
 - deterministic recipes/aliases;
 - remove `$app->make()` constructor factories;
-- compileability/lifetime classification for every provider;
+- classify compileability/lifetime for every binding;
 - build-time capability topology;
-- eliminate broad production `onMissing()`.
-
-Migrate simple providers first, then auth/messaging.
+- remove broad production onMissing activation;
+- migrate simple providers first, then auth/messaging.
 
 ### Phase 4 — Runtime state/scope redesign
 
-- stable semantic Foundation non-web scopes;
-- consume stable Webrick request scope;
-- redesign/remove `RuntimeContextTracker` singleton state;
-- migrate principal/session/DB execution state to scoped ownership;
-- add cleanup hooks/tests;
-- prove Fiber/coroutine/persistent isolation.
+- stable semantic non-web scopes;
+- stable Webrick request scope;
+- redesign/remove RuntimeContextTracker singleton state;
+- principal/session/DB execution state moves to scoped ownership;
+- cleanup hooks/tests;
+- Fiber/coroutine/persistent isolation proof.
 
 ### Phase 5 — Webrick build/runtime integration
 
-- remove production `WebrickRouterFactory` path;
-- route-first coordinated web build;
-- graph enrichment from route build result;
-- build-safe middleware descriptors;
-- explicit empty global tags by default;
-- production `CompiledRouterKernel` + RuntimeAdapter + RuntimeServer;
+- remove production WebrickRouterFactory;
+- route-first coordinated build;
+- DI enrichment from RouterBuildResult;
+- artifact-safe middleware descriptors;
+- explicitly empty global arrays/tags by default;
+- CompiledRouterKernel + RuntimeAdapter + RuntimeServer;
 - frozen URL/runtime registries;
-- retain embedded/testing Request path separately.
+- embedded Request path separate.
 
-### Phase 6 — Error/maintenance/filesystem HTTP cleanup
+### Phase 6 — Error/maintenance/filesystem cleanup
 
-- direct routing-control vs app exception split;
-- move maintenance out of Foundation outer kernel;
+- direct routing-control vs app-exception split;
+- maintenance out of Foundation outer kernel;
 - runtime-compatible file/stream responses;
-- transport-capability integration;
-- remove any duplicate response emission.
+- RuntimeCapabilities integration;
+- no duplicate response emission.
 
 ### Phase 7 — Non-web generated runtimes
 
 - CLI artifact/build/load;
 - worker artifact/build/load/reuse;
 - scheduler artifact/build/load/reuse;
-- command/job/schedule topology artifacts only where they remove measurable discovery;
-- no full graph rebuild per worker/scheduler item.
+- command/job/schedule topology artifacts only when they remove measurable discovery;
+- no graph rebuild per worker/scheduler item.
 
 ### Phase 8 — Unified Foundation release generation
 
-- generation directory layout;
-- build all four runtime artifacts;
-- enforce all skipped-definition gates;
+- generation directory;
+- build/verify all four artifacts;
+- skipped-definition gates;
 - generation manifest;
 - atomic activation pointer;
-- rollback/incomplete-build behavior;
+- rollback/incomplete behavior;
 - persistent-runtime graceful replacement.
 
 ### Phase 9 — Full regression/performance pass
 
-- all correctness/security/static-analysis suites;
-- runtime isolation suites;
+- correctness/security/static analysis;
+- runtime isolation;
 - real HTTP comparison;
 - four-runtime DI/runtime benchmarks;
-- stage profiling only where measured overhead remains;
+- Webrick stage profiling only where measured overhead remains;
 - optimize only attributable Foundation cost.
 
-### Phase 10 — Final source rescan/release readiness
+### Phase 10 — Final rescan/release readiness
 
 Rescan every class/function for:
 
-- direct old InterMix container mutation;
-- old resolver-map compile/activation calls;
-- route-cache duplication;
-- live production Registrar/Collection use;
+- old InterMix dynamic container mutation;
+- compileTo/useCompiled/usePrevalidated resolver-map production calls;
 - closure aliases/constructor factories;
 - Application/container capture;
 - unexpected dynamic islands;
-- Request creation outside required plans;
-- duplicated scopes;
+- duplicate scopes;
 - mutable singleton execution state;
-- Fiber/coroutine leaks;
-- runtime filesystem discovery;
+- Fiber/coroutine leakage;
+- production route/provider/module discovery;
+- live Registrar/Collection production use;
+- route-cache duplication;
+- unnecessary Request creation;
+- runtime filesystem scans;
 - direct output/emission;
 - repeated hashing/manifest parsing;
 - hidden DB/cache activation;
-- cleanup/error masking;
-- stale old docs/tests/config switches.
-
-Then publish migration docs and final benchmark evidence.
+- cleanup masking primary exceptions;
+- stale old docs/tests/config.
 
 ---
 
-## 18. Breaking-change policy
+## 21. Detailed migration batches
 
-Foundation 3 is a major release. Preserve useful application-facing APIs only when doing so does not preserve the old runtime architecture.
+### InterMix batches
 
-Likely intentional breaks include:
+**IM-1 — Composition root/core**
 
-- APIs exposing a mutable concrete InterMix development `Container` as a production guarantee;
-- service providers that mutate bindings from `boot()`;
+- InterMix `^10.0.3`;
+- builder-first composition;
+- deterministic aliases;
+- runtime/build context;
+- compile-friendly ConfigRepository core construction;
+- RuntimeMode metadata;
+- Application façade boundary;
+- remove/replace ContainerFactory.
+
+**IM-2 — Provider contract**
+
+- builder-first ServiceProviderInterface;
+- compile-friendly helpers;
+- split graph contribution from boot side effects;
+- migrate PathServiceProvider/simple providers first;
+- explicit-binding checks through builder definitions.
+
+**IM-3 — Bootstrap/capabilities**
+
+- service→provider discovery becomes build topology;
+- reshape ServiceRegistry;
+- stop broad production onMissing;
+- explicit optional capability absence.
+
+**IM-4 — Core providers**
+
+JSON dispatch, logging, security, filesystem, cache, database, validation, communication, notifications and session: classify every binding, replace closure aliases/factories, review lifetime, record remaining islands.
+
+**IM-5 — Auth graph**
+
+Migrate AuthServiceProvider, AuthOtpServiceProvider, AbstractAuthRegistrar and all registrars together.
+
+**IM-6 — Messaging/worker graph**
+
+MessagingServiceProvider, InterMixExecutionScope→withinScope, deterministic Foundation-owned handler/listener topology; Omnibus-specific choices later.
+
+**IM-7 — Routing/HTTP InterMix boundary**
+
+Remove dynamic Container from Webrick boundary, place controller/middleware definitions before runtime creation and ensure HTTP services resolve from ProductionContainer.
+
+**IM-8 — Optimize/artifacts**
+
+Retire resolver-map ContainerCacheManager, build all runtime artifacts, add skipped gate, publish digest metadata, strict production load.
+
+**IM-9 — Tests/bench/rescan**
+
+Parity, scopes/concurrency, artifact/mutation, compile reports, direct InterMix scan, remove obsolete InterMix 9 config/tests/docs.
+
+### Webrick batches
+
+**WB-M1 — Dependency/boot split**
+
+- target released Webrick carrying WB-1..WB-4;
+- explicit development vs compiled production boot;
+- same host-owned InterMix builder.
+
+**WB-M2 — Build/release compiler**
+
+- replace old production RouteCacheManager/container compilation for web;
+- one deterministic route-registration pass;
+- one config fingerprint;
+- exact format-2 manifest handling.
+
+**WB-M3 — Production kernel/runtime adapter**
+
+- load CompiledRouterKernel;
+- select SAPI/RoadRunner/Swoole/Workerman adapter once;
+- RuntimeServer;
+- embedded `$app->handle(Request)` only as delegated convenience;
+- Foundation native emission removed.
+
+**WB-M4 — Remove old router runtime classes**
+
+- delete/reduce WebrickRouterFactory;
+- no live production Registrar/Collection;
+- retire production RouteCachePath freshness logic;
+- RouteFileLoader build/dev only;
+- compiled URL runtime.
+
+**WB-M5 — Middleware compilation**
+
+- normalize built-in middleware config;
+- global arrays/tags empty by default;
+- lightweight aliases/descriptors;
+- parameterized descriptor support;
+- optional cache/DB capabilities cold when disabled.
+
+**WB-M6 — Error/maintenance**
+
+- direct routing errors vs app exceptions;
+- remove old HttpKernel maintenance I/O;
+- cached maintenance state or measured pre-routing gate.
+
+**WB-M7 — Scope/cleanup**
+
+- no Foundation outer web scope;
+- request cleanup attached to Webrick-selected InterMix scope;
+- principal/session/DB/log cleanup audit;
+- Fiber/concurrent/persistent isolation.
+
+**WB-M8 — HTTP specialist bridges**
+
+- filesystem stream ownership;
+- native Webrick file/range/conditional APIs;
+- uploads;
+- audit all SAPI/native-output assumptions.
+
+**WB-M9 — Tests**
+
+Release/kernel/artifact, execution-plan capability, runtime-adapter, error/maintenance/filesystem and dev/prod parity tests.
+
+**WB-M10 — Benchmarks/rescan**
+
+Standalone Webrick vs Foundation compiled, attribute Foundation-only overhead, full direct-Webrick rescan, remove stale 4.x/cache architecture.
+
+---
+
+## 22. Configuration cleanup
+
+Review/remove obsolete runtime switches such as:
+
+```text
+router.cache
+app.container.compiled_*
+app.container.lazy_loading   # if no longer meaningful for generated production runtime
+```
+
+Keep settings that directly map to current Webrick behavior: matcher choice, route files, attribute routes, slash policy, URL/signed URL configuration, explicit middleware definitions/groups and runtime-specific options.
+
+Add release/artifact paths only where Foundation owns path selection. Do not duplicate Webrick manifest fields as configuration.
+
+---
+
+## 23. Breaking-change policy
+
+Foundation 3 is a major release. Preserve useful application APIs only when they do not preserve the old runtime architecture.
+
+Likely intentional breaks:
+
+- APIs guaranteeing mutable concrete InterMix development Container in production;
+- providers mutating bindings from `boot()`;
 - late provider activation semantics;
 - old container-cache activation switches;
 - live production route registration;
-- code assuming `Registrar`/`Collection` are mutable production services;
-- code assuming every HTTP request has a Foundation `ExecutionScope`;
-- code treating `Application::handle(Request)` as the native production transport entry point;
-- middleware alias factories that depend on preconstructed service objects;
-- code relying on exact old synthesized scope names.
+- mutable production Registrar/Collection assumptions;
+- assumption that every HTTP request has a Foundation ExecutionScope;
+- treating `Application::handle(Request)` as native production transport entrypoint;
+- middleware alias factories depending on preconstructed service objects;
+- dependence on old synthesized unique scope names.
 
-Compatibility bridges, if any, must not force production deoptimization or restore universal request overhead.
+Compatibility bridges may not force production deoptimization or restore universal request overhead.
 
 ---
 
-## 19. Hard implementation gates
+## 24. Hard implementation gates
 
 ### InterMix gate
-
-Before declaring the DI/runtime migration complete:
 
 - one graph source of truth;
 - four fresh runtime builders;
 - generated ProductionContainer normal in production;
-- no old `compileTo()`/resolver-map activation path;
+- no old resolver-map activation path;
 - no broad production graph mutation;
-- aliases/recipes compilation-safe where deterministic;
-- all lifetimes reviewed;
+- deterministic aliases/recipes compilation-safe;
+- every lifetime reviewed;
 - unexpected skipped definitions fail build;
-- semantic scope model passes sequential/concurrent tests;
-- dynamic islands documented and justified.
+- semantic scopes pass sequential/concurrent tests;
+- dynamic islands documented/allowlisted;
+- deoptimization not deployment strategy.
 
 ### Web gate
 
-Before declaring web migration complete:
-
-- WB-1 through WB-4 resolved;
-- web InterMix compiled exactly once through coordinated build;
+- WB-1 through WB-4 resolved in Webrick;
+- web InterMix compiled exactly once;
 - no production live RouterKernel/Registrar architecture;
-- no Foundation universal request scope;
-- default plain route has no global middleware tags;
+- no Foundation universal HTTP scope;
+- default plain route has no explicit or tagged global middleware;
 - requestless/scopeless route remains requestless/scopeless;
-- route-referenced DI classes are visible to InterMix before compile;
+- route-referenced classes visible to InterMix before compile;
 - no serialized Foundation service graph in router artifact;
-- parameterized middleware remains declarative;
-- custom app errors do not unnecessarily destroy direct routing-control path;
-- runtime adapter owns response writing;
-- persistent request state cleanup is deterministic.
+- parameterized middleware declarative;
+- app exception handling does not unnecessarily destroy direct routing-control path;
+- RuntimeAdapter exclusively owns native response write;
+- persistent request state cleanup deterministic.
 
 ### Release-generation gate
 
-Before production deploy:
-
-- web/cli/worker/scheduler artifacts all belong to one immutable generation;
-- all four are verified;
-- all skipped-definition reports accepted;
-- Foundation generation manifest complete;
-- activation is atomic;
+- web/cli/worker/scheduler belong to one immutable generation;
+- all four verified;
+- all skipped reports accepted;
+- generation manifest complete;
+- atomic activation;
 - previous generation remains usable until successful switch;
-- prevalidated mode, if used, has a real immutable trust source;
-- persistent workers have a safe replacement strategy.
+- prevalidated mode has real immutable trust source;
+- persistent workers have safe replacement strategy.
 
 ---
 
-## 20. Final definition of done
+## 25. Final definition of done
 
-Foundation 3 runtime architecture is done only when all of the following are true:
+Foundation 3 runtime architecture is complete only when:
 
-- InterMix 10.0.3+ is fully utilized across `web`, `cli`, `worker`, and `scheduler`;
-- Webrick owns only the `web` HTTP runtime and does not leak into ownership of non-web paths;
-- `ContainerBuilder` is the sole DI graph builder;
-- each runtime receives a fresh builder from the same Foundation composition source;
-- web compilation uses Webrick's coordinated path exactly once;
+- InterMix is fully utilized across web, CLI, worker and scheduler;
+- Webrick owns only web HTTP runtime responsibilities;
+- ContainerBuilder is the sole DI graph builder;
+- all runtimes receive fresh builders from the same composition source;
+- web compilation uses Webrick coordinated path exactly once;
 - non-web runtimes compile directly through InterMix;
 - production graphs are finalized before execution;
-- route topology and DI compilation are coordinated so route classes do not silently become runtime islands;
-- compiled router artifacts contain descriptors/data, not hidden Foundation service graphs;
-- production Request construction occurs only when the Webrick execution plan requires it;
-- production HTTP scope occurs only when the execution path requires scoped/runtime-backed state;
-- stable semantic scopes support compile-time cleanup and concurrent isolation;
-- no mutable singleton cleanup tracker leaks state between concurrent requests/jobs;
-- auth/session/database state is isolated correctly;
-- Webrick runtime adapters exclusively own native response writes;
-- production route/provider/module discovery is absent from request/job hot paths;
-- no silent artifact fallback exists;
-- all dynamic islands are explicit and reported;
-- four runtime artifacts publish as one atomic Foundation release generation;
-- persistent workers do not leak state and replace safely on deployment;
-- representative real-HTTP and non-web benchmarks show measured, attributable Foundation overhead;
-- the complete source tree is rescanned after implementation;
-- InfByte can consume Foundation's final build/runtime lifecycle directly without recreating another framework runtime above it.
+- route topology and DI compile order prevent silent route-handler dynamic fallback;
+- router artifacts contain descriptors/data, not hidden Foundation service graphs;
+- Request and HTTP scope are created only when execution plan requires them;
+- stable semantic scopes enable cleanup + concurrency isolation;
+- no mutable singleton execution tracker leaks concurrent state;
+- auth/session/DB execution state is isolated;
+- Webrick adapters exclusively own native response writing;
+- production route/provider/module discovery is absent from hot paths;
+- optional integrations have no meaningful cost when absent/disabled;
+- no silent artifact fallback;
+- every dynamic island intentional/reported;
+- all four runtime artifacts publish as one atomic generation;
+- persistent runtimes do not leak state and replace safely on deploy;
+- real HTTP and non-web benchmarks show attributable Foundation overhead;
+- complete source tree rescanned after implementation;
+- InfByte consumes Foundation's final build/runtime lifecycle directly instead of recreating another framework runtime.
 
 ---
 
-## 21. Development starting checklist
+## 26. Subsequent lower-library passes
 
-Before beginning Foundation implementation work, use this order:
+After InterMix + Webrick implementation contracts are frozen, run the same dedicated current-version utilization process for:
+
+1. ArrayKit — config/environment parsing, sealed compiled config and scan/cache strategy;
+2. UID — execution/correlation ID cost and lazy/reused identities;
+3. CacheLayer / DBLayer — capability boundaries, store/connection lifetimes and optional graph cost;
+4. ReqShield — remove unnecessary unconditional DB coupling;
+5. Omnibus — messaging topology and worker integration;
+6. TalkingBytes — HTTP/email/webhook/gRPC profile graph and scope behavior;
+7. OTP / Epicrypt / WebAuthn / Pathwise — specialist security/filesystem integration boundaries.
+
+Each pass updates **this same document**. Do not create another standalone runtime-plan file.
+
+---
+
+## 27. Working principles
+
+For every Foundation DI/runtime change ask:
+
+1. Does InterMix already own this responsibility?
+2. Can the definition be generated instead of dynamic?
+3. Can a real alias/recipe/ServiceReference replace a closure?
+4. Can Application/container lookup become a narrow constructor dependency?
+5. Is lifetime safe for persistent/concurrent runtimes?
+6. Can work happen at build time instead of boot?
+7. Can it happen once at boot instead of per execution?
+8. Is every dynamic island truly necessary and visible?
+9. Can a scope seed carry runtime context without graph mutation?
+10. Is lower-layer-vs-Foundation cost measured?
+
+For every web/routing change also ask:
+
+1. Does Webrick already own the behavior?
+2. Can it happen in coordinated release compilation instead of request runtime?
+3. Does it force Request creation unnecessarily?
+4. Does it force InterMix scope unnecessarily?
+5. Does it force global middleware unnecessarily?
+6. Does it serialize live service state into a route artifact?
+7. Can RuntimeCapabilities/adapter already provide the transport feature?
+8. Is Foundation attempting to write a response Webrick should write?
+9. Is a mutable registry being exposed after production freeze?
+10. Is the cost measured against standalone compiled Webrick?
+
+If the lower layer already provides the correct mechanism, Foundation uses it directly. If a genuinely general capability is missing, fix the lower layer once rather than building a Foundation-only runtime workaround.
+
+---
+
+## 28. Development starting checklist
 
 1. keep InterMix 10.0.3 as the current DI baseline;
-2. implement/release the required Webrick WB-1 through WB-4 corrections;
+2. implement/release Webrick WB-1 through WB-4;
 3. capture lower-layer benchmark baselines;
-4. update Foundation dependency floors to those exact released versions;
-5. begin Foundation Phase 2 composition-root work;
-6. do not port old ContainerFactory/ContainerCacheManager/WebrickRouterFactory architecture as temporary production scaffolding;
-7. keep all four runtime paths in every composition/lifetime/release decision from the first implementation commit.
-
-This is the implementation baseline to use when development begins.
+4. update Foundation dependency floors to exact released versions;
+5. begin Foundation composition-root work;
+6. do not port ContainerFactory/ContainerCacheManager/WebrickRouterFactory architecture as temporary production scaffolding;
+7. keep all four runtime paths in every composition, lifetime and release decision from the first implementation commit;
+8. keep this file as the only runtime-development plan and merge every later library pass into it.
