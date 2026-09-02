@@ -38,7 +38,7 @@ abstract readonly class AbstractAuthRegistrar
 
     protected function alias(string $id, string $target): void
     {
-        $this->singleton($id, fn() => $this->container->get($target));
+        $this->container->alias($id, $target, LifetimeEnum::Singleton);
     }
 
     protected function auditStore(): AuditEventStoreInterface
@@ -96,9 +96,7 @@ abstract readonly class AbstractAuthRegistrar
         return $this->service(PasswordVerifierInterface::class);
     }
 
-    /**
-     * @param class-string $class
-     */
+    /** @param class-string $class */
     protected function requirePackage(string $class, string $package, string $module): void
     {
         if (class_exists($class) || interface_exists($class)) {
@@ -115,13 +113,13 @@ abstract readonly class AbstractAuthRegistrar
     /**
      * @template T of object
      * @param class-string<T> $id
-     * @return object Resolved container service.
+     * @return object
      * @phpstan-return T
      * @psalm-return T
      */
     protected function service(string $id): object
     {
-        return $this->app->make($id);
+        return $this->container->get($id);
     }
 
     protected function singleton(string $id, mixed $concrete): void
@@ -140,9 +138,7 @@ abstract readonly class AbstractAuthRegistrar
         return ValueNormalizer::string($this->app->config()->get($key, $default), $default);
     }
 
-    /**
-     * @return list<string>
-     */
+    /** @return list<string> */
     protected function stringList(mixed $value): array
     {
         return ValueNormalizer::stringList($value);
