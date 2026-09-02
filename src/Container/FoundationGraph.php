@@ -6,6 +6,7 @@ namespace Infocyph\Foundation\Container;
 
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
+use Infocyph\Foundation\Application\RuntimeModeFactory;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
@@ -31,7 +32,7 @@ final class FoundationGraph
         $builder->singleton(
             RuntimeMode::class,
             FactoryDefinition::staticFactory(
-                RuntimeMode::class,
+                RuntimeModeFactory::class,
                 'from',
                 [$context->runtimeMode->value],
             ),
