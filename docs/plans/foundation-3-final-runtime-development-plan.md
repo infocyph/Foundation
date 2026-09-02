@@ -4,10 +4,10 @@
 **Foundation target:** 3.x  
 **Foundation source baseline:** `main`  
 **InterMix baseline:** `^10.0.3`  
-**Webrick baseline:** `^5.1` plus the lower-layer corrections defined here  
+**Webrick baseline:** `^5.2`  
 **Priority:** correctness → hot-path performance → persistent-runtime safety → scalability → ergonomics
 
-> This is the single source of truth for Foundation 3 runtime development. It merges the complete InterMix 10.0.3 audit, the complete Webrick 5.1 audit, and the final joint runtime architecture into one document. There are no separate InterMix/Webrick runtime-plan files to keep synchronized.
+> This is the single source of truth for Foundation 3 runtime development. It merges the complete InterMix 10.0.3 audit, the complete Webrick 5.1 audit plus the released Webrick 5.2 prerequisite corrections, and the final joint runtime architecture into one document. There are no separate InterMix/Webrick runtime-plan files to keep synchronized.
 
 ---
 
@@ -537,7 +537,7 @@ Foundation core target: zero **avoidable** islands.
 
 ---
 
-## 7. Exact Webrick 5.1 contract
+## 7. Exact Webrick 5.2 contract
 
 Foundation must treat Webrick development and production as intentionally different.
 
@@ -595,7 +595,7 @@ Never create a separate Webrick container.
 
 ### Webrick release manifest
 
-Tagged 5.1 source uses release format **2** with fields including:
+Tagged 5.2 source uses release format **2** with fields including:
 
 ```text
 format
@@ -832,11 +832,9 @@ Webrick decides whether an HTTP execution needs scope. Foundation request-scoped
 
 ### J-5 — Route topology must enrich DI before InterMix compile
 
-Current Webrick 5.1 coordinated release compiles InterMix before route compilation, but finalized route topology reveals controller/middleware class specs later resolved through `InterMixRuntime::resolveNow()`.
+Webrick 5.2 provides the route-first graph-enrichment point required by Foundation: finalized route topology is available before InterMix validation/compile so route-referenced controller/middleware definitions can be added without repeating route discovery.
 
-A compiled router can therefore still reference dynamic-fallback handlers.
-
-Preferred Webrick release order:
+Required release order:
 
 ```text
 RouteCompiler::compile(...)
@@ -865,17 +863,9 @@ oauth-audience:merchant-api
 
 must not materialize middleware service graphs during route registration.
 
-Preferred Webrick descriptor:
+Webrick 5.2 provides an artifact-safe runtime middleware descriptor carrying a resolver spec plus exportable parameters. At runtime Webrick merges request/next invocation data and delegates resolution/invocation through InterMix.
 
-```text
-ParameterizedMiddlewareDescriptor / MiddlewareReference
-    spec: class-string | class/method
-    parameters: exportable scalar/list/map values
-```
-
-At runtime Webrick merges parameters with `request` and `next` and delegates to `InterMixRuntime::resolveNow()`.
-
-If unavailable, Foundation may encode Foundation-owned policy parameters into route attributes read by DI-backed middleware, but that must not become a second generic middleware runtime.
+Foundation must use that descriptor rather than creating a second generic middleware runtime.
 
 ### J-7 — Empty global middleware means empty tags too
 
@@ -900,11 +890,7 @@ User closures remain supported where Webrick can serialize them, but build diagn
 
 Foundation requires logging/mapping for application exceptions, but this should not automatically force custom Request-based rendering for routine 404/405.
 
-Preferred Webrick refinement:
-
-- direct routing-control responses remain default;
-- independent custom dispatch/application exception handler;
-- custom routing-error rendering explicit opt-in.
+Webrick 5.2 keeps direct routing-control responses as the default and makes routing 404/405 through the application ErrorHandler explicit opt-in while preserving routing-control logging/security semantics.
 
 Correctness/security/observability remain higher priority than the optimization.
 
@@ -1042,7 +1028,7 @@ Never reuse one mutable builder across independently active runtimes.
 
 ### 12.1 Web
 
-After the Webrick route/graph coordination correction:
+With Webrick 5.2 route-first graph coordination:
 
 ```text
 normalized build context
@@ -1165,7 +1151,7 @@ load active generation once per scheduler process
 
 ## 14. Required Webrick lower-layer corrections
 
-These should be fixed in Webrick rather than worked around in Foundation.
+These are provided by Webrick 5.2 rather than worked around in Foundation.
 
 ### WB-1 — Parameterized runtime-backed middleware descriptor
 
@@ -1185,9 +1171,9 @@ Expose finalized RouterBuildResult/execution descriptors before InterMix compile
 
 ### WB-5 — Optional pre-routing gate, benchmark-driven only
 
-Potentially useful for maintenance or another universal operational gate, but not a Foundation prerequisite. Add only if measured benefit justifies it.
+Potentially useful for maintenance or another universal operational gate, but not a Foundation prerequisite. Benchmark evidence did not justify adding it as part of the prerequisite release, so it remains intentionally unimplemented.
 
-WB-1 through WB-4 are prerequisites before Foundation web production integration is considered final.
+WB-1 through WB-4 are available in Webrick 5.2.
 
 ---
 
@@ -1454,7 +1440,7 @@ Foundation DI tax
 Compare:
 
 1. raw PHP;
-2. standalone Webrick 5.1 compiled endpoint;
+2. standalone Webrick 5.2 compiled endpoint;
 3. Foundation 3 + Webrick compiled endpoint;
 4. minimal InfByte endpoint.
 
@@ -1887,7 +1873,7 @@ Use this section as the implementation ledger. Check an item only when its code 
 ### Overall phase status
 
 - [x] Phase 0 — Freeze baselines
-- [ ] Phase 1 — Webrick prerequisites
+- [x] Phase 1 — Webrick prerequisites
 - [ ] Phase 2 — Foundation composition root
 - [ ] Phase 3 — Provider graph migration
 - [ ] Phase 4 — Runtime state/scope redesign
@@ -1920,10 +1906,12 @@ Baseline evidence: `docs/baselines/foundation-3-phase-0/README.md`.
 - [x] WB-4: expose route-first graph-enrichment point before InterMix validation/compile.
 - [x] WB-4: prove route-referenced controllers/middleware can be added without duplicate route discovery.
 - [x] Re-run standalone Webrick correctness/static-analysis suites.
-- [ ] Re-run standalone Webrick compiled benchmarks and confirm no unexplained regression.
-- [ ] Release/tag the Webrick version carrying WB-1 through WB-4.
-- [ ] Update this plan's Webrick baseline to that exact released version.
-- [ ] Leave WB-5 unimplemented unless maintenance benchmarks justify it.
+- [x] Re-run standalone Webrick compiled benchmarks and confirm no unexplained regression.
+- [x] Release/tag the Webrick version carrying WB-1 through WB-4.
+- [x] Update this plan's Webrick baseline to that exact released version.
+- [x] Leave WB-5 unimplemented unless maintenance benchmarks justify it.
+
+Release evidence: Webrick 5.2, tag commit `b095efbad5e0284fb92d463d1616a0780667d3f2`.
 
 ### Phase 2 — Foundation composition root
 
