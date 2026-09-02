@@ -1877,3 +1877,282 @@ If the lower layer already provides the correct mechanism, Foundation uses it di
 6. do not port ContainerFactory/ContainerCacheManager/WebrickRouterFactory architecture as temporary production scaffolding;
 7. keep all four runtime paths in every composition, lifetime and release decision from the first implementation commit;
 8. keep this file as the only runtime-development plan and merge every later library pass into it.
+
+---
+
+## 29. Development progress tracker
+
+Use this section as the implementation ledger. Check an item only when its code change, required tests, static analysis, and directly associated documentation are complete. A phase is complete only when every mandatory item inside it is checked and its relevant hard gate passes.
+
+### Overall phase status
+
+- [ ] Phase 0 — Freeze baselines
+- [ ] Phase 1 — Webrick prerequisites
+- [ ] Phase 2 — Foundation composition root
+- [ ] Phase 3 — Provider graph migration
+- [ ] Phase 4 — Runtime state/scope redesign
+- [ ] Phase 5 — Webrick build/runtime integration
+- [ ] Phase 6 — Error/maintenance/filesystem cleanup
+- [ ] Phase 7 — Non-web generated runtimes
+- [ ] Phase 8 — Unified Foundation release generation
+- [ ] Phase 9 — Full regression/performance pass
+- [ ] Phase 10 — Final rescan/release readiness
+
+### Phase 0 — Freeze baselines
+
+- [ ] Record direct InterMix 10.0.3 development and generated-production DI baselines.
+- [ ] Record standalone Webrick 5.1 compiled HTTP baselines.
+- [ ] Record current Foundation representative baseline before architecture changes.
+- [ ] Pin exact InterMix/Webrick/Foundation source/tag/commit identities in benchmark output.
+- [ ] Capture semantic behavior tests that Foundation 3 must preserve.
+- [ ] Record baseline memory, throughput, latency and cold/warm boot data needed for later attribution.
+
+### Phase 1 — Webrick prerequisites
+
+- [ ] WB-1: implement artifact-safe parameterized runtime-backed middleware descriptor.
+- [ ] WB-1: cover alias parsing, artifact encode/decode, capability calculation and runtime `resolveNow()` parameters.
+- [ ] WB-2: separate direct 404/405 routing-control handling from application exception handling.
+- [ ] WB-2: preserve logging/security semantics and add direct routing-error tests.
+- [ ] WB-3: use stable `webrick.request` scope label in development and compiled production.
+- [ ] WB-3: prove sequential/Fiber/coroutine isolation with the stable scope label.
+- [ ] WB-4: expose route-first graph-enrichment point before InterMix validation/compile.
+- [ ] WB-4: prove route-referenced controllers/middleware can be added without duplicate route discovery.
+- [ ] Re-run standalone Webrick correctness/static-analysis suites.
+- [ ] Re-run standalone Webrick compiled benchmarks and confirm no unexplained regression.
+- [ ] Release/tag the Webrick version carrying WB-1 through WB-4.
+- [ ] Update this plan's Webrick baseline to that exact released version.
+- [ ] Leave WB-5 unimplemented unless maintenance benchmarks justify it.
+
+### Phase 2 — Foundation composition root
+
+- [ ] Raise Foundation InterMix floor to `^10.0.3` or the current approved release.
+- [ ] Raise Foundation Webrick floor to the release carrying WB-1 through WB-4.
+- [ ] Introduce immutable `FoundationBuildContext`.
+- [ ] Implement one builder-first Foundation graph/composition source.
+- [ ] Use fresh builders for `web`, `cli`, `worker`, and `scheduler`.
+- [ ] Replace random container aliases with deterministic runtime aliases.
+- [ ] Make normalized environment/runtime/capability input explicit in graph composition.
+- [ ] Make ConfigRepository construction compilation-friendly where possible.
+- [ ] Refactor Application into a runtime-neutral façade/coordinator.
+- [ ] Remove Application as an unnecessary service-locator dependency from generated core services.
+- [ ] Retire/remove `ContainerFactory` architecture.
+- [ ] Add development-vs-production graph parity tests for the composition root.
+
+### Phase 3 — Provider graph migration
+
+#### Provider infrastructure
+
+- [ ] Change `ServiceProviderInterface` to builder-first graph contribution.
+- [ ] Separate graph contribution from process-level boot side effects.
+- [ ] Replace closure aliases with real aliases.
+- [ ] Replace deterministic closure factories with constructor/static recipes.
+- [ ] Remove `$app->make()` factories used only for constructor injection.
+- [ ] Move capability/package discovery to build composition.
+- [ ] Remove broad production `onMissing()` provider activation.
+- [ ] Reshape `ServiceRegistry` for finalized production topology.
+- [ ] Reshape `Bootstrapper` so normal production resolution does not discover/activate providers.
+
+#### Provider-by-provider migration
+
+- [ ] PathServiceProvider.
+- [ ] JsonDispatchServiceProvider.
+- [ ] LoggingServiceProvider.
+- [ ] SecurityServiceProvider.
+- [ ] FilesystemServiceProvider.
+- [ ] CacheServiceProvider.
+- [ ] DatabaseServiceProvider.
+- [ ] ValidationServiceProvider.
+- [ ] CommunicationServiceProvider.
+- [ ] NotificationServiceProvider.
+- [ ] SessionServiceProvider.
+- [ ] RoutingServiceProvider InterMix definitions.
+- [ ] HttpServiceProvider InterMix definitions.
+- [ ] MessagingServiceProvider.
+- [ ] AuthServiceProvider.
+- [ ] AuthOtpServiceProvider.
+- [ ] AbstractAuthRegistrar.
+- [ ] Auth core registrar(s).
+- [ ] Auth store/cache registrars.
+- [ ] Auth password/token registrars.
+- [ ] Auth MFA/passkey registrars.
+- [ ] Auth notification/manager registrars.
+- [ ] Auth authorization/runtime/OAuth registrars.
+
+#### Binding/lifetime gates
+
+- [ ] Every Foundation binding classified as singleton/scoped/transient/value/alias/recipe/seed/dynamic island.
+- [ ] Every singleton reviewed for persistent/concurrent safety.
+- [ ] No singleton captures a scoped dependency from the first execution.
+- [ ] Every remaining Foundation-owned dynamic island has an explicit reason.
+- [ ] Unexpected `skipped` definitions fail build/CI.
+- [ ] Optional absent capabilities are omitted rather than represented by unnecessary throwing factories.
+
+### Phase 4 — Runtime state/scope redesign
+
+- [ ] Adopt semantic non-web scope names: `foundation.cli`, `foundation.worker`, `foundation.scheduler`.
+- [ ] Consume stable Webrick `webrick.request` for web state.
+- [ ] Move execution/request/job IDs to scope seeds/correlation data instead of scope names.
+- [ ] Convert non-web `ExecutionScope` to `withinScope()` semantics.
+- [ ] Preserve primary application exception over cleanup failures.
+- [ ] Redesign or remove mutable-singleton `RuntimeContextTracker`.
+- [ ] Make principal/current-auth state execution-scoped.
+- [ ] Make active browser-session state execution-scoped while keeping reusable store/lock infrastructure separate.
+- [ ] Make DB touched/transaction/fresh-connection cleanup bookkeeping execution-local.
+- [ ] Audit logging correlation/context lifetime.
+- [ ] Audit memoizers/caches for process-safe vs generation-bound vs execution-cleared state.
+- [ ] Add deterministic scope-leave cleanup where lifecycle semantics fit.
+- [ ] Prove sequential scope isolation.
+- [ ] Prove Fiber isolation.
+- [ ] Prove Swoole/OpenSwoole coroutine isolation where available.
+- [ ] Prove cleanup on success, exception and cancellation.
+
+### Phase 5 — Webrick build/runtime integration
+
+- [ ] Remove production `WebrickRouterFactory` path.
+- [ ] Make route registration a development/build concern only.
+- [ ] Build routes once before InterMix compile.
+- [ ] Enrich InterMix graph from finalized RouterBuildResult/ExecutionPlans.
+- [ ] Compile web InterMix exactly once through the coordinated Webrick release path.
+- [ ] Use artifact-safe middleware descriptors for Foundation middleware.
+- [ ] Use parameterized runtime-backed descriptor for role/permission/policy/OAuth middleware.
+- [ ] Default `preGlobal`, `postGlobal`, `preGlobalTags`, and `postGlobalTags` to empty.
+- [ ] Ensure Foundation-owned route artifacts contain no captured Application/container/service graphs.
+- [ ] Remove live production Registrar/Collection dependencies.
+- [ ] Move URL generation to compiled/frozen Webrick URL runtime.
+- [ ] Load `CompiledRouterKernel` in production.
+- [ ] Select RuntimeAdapter once at process boot.
+- [ ] Use Webrick RuntimeServer for native serving.
+- [ ] Keep `$app->handle(Request)` only as embedded/testing convenience.
+- [ ] Assert a minimal route remains Request-free.
+- [ ] Assert a minimal route remains scope-free.
+- [ ] Assert middleware/request/scope capabilities match compiled ExecutionPlans.
+
+### Phase 6 — Error/maintenance/filesystem cleanup
+
+- [ ] Integrate Webrick WB-2 application exception path without forcing custom routing-control rendering.
+- [ ] Preserve production-safe exception rendering/logging.
+- [ ] Remove maintenance work from the old universal Foundation HttpKernel path.
+- [ ] Implement Webrick maintenance middleware/state with bounded worker-local refresh where semantics fit.
+- [ ] Benchmark maintenance enabled/disabled overhead.
+- [ ] Decide WB-5 pre-routing gate only from benchmark evidence.
+- [ ] Remove direct `php://output` writes from Webrick response producers.
+- [ ] Use Webrick FileBody/download/inline/ranged APIs for local files where appropriate.
+- [ ] Expose non-local/custom Pathwise response bodies as BodyStream or chunk iterables.
+- [ ] Preserve X-Sendfile/X-Accel policy correctly.
+- [ ] Use RuntimeCapabilities instead of Foundation transport detection.
+- [ ] Verify exactly one layer owns native response emission.
+- [ ] Add SAPI plus persistent-runtime file/stream response tests.
+
+### Phase 7 — Non-web generated runtimes
+
+#### CLI
+
+- [ ] Build CLI graph with a fresh `foundation.cli` builder.
+- [ ] Compile/load CLI ProductionContainer.
+- [ ] Enter CLI scope only when scoped execution state is required.
+- [ ] Remove unrelated web/worker capabilities from minimal CLI graph.
+
+#### Worker
+
+- [ ] Build worker graph with a fresh `foundation.worker` builder.
+- [ ] Compile/load one worker ProductionContainer per worker process.
+- [ ] Reuse production runtime across jobs/messages.
+- [ ] Enter one worker scope per job/message.
+- [ ] Seed envelope/job/execution context.
+- [ ] Ensure success/failure/cancellation cleanup.
+- [ ] Ensure no graph rebuild per item.
+
+#### Scheduler
+
+- [ ] Build scheduler graph with a fresh `foundation.scheduler` builder.
+- [ ] Compile/load scheduler ProductionContainer.
+- [ ] Enter one scheduler scope per scheduled invocation when needed.
+- [ ] Keep scheduler graph limited to needed command/dispatch capabilities.
+- [ ] Ensure no graph rebuild per invocation.
+
+#### Non-web persistence
+
+- [ ] Run long sequential worker/scheduler execution tests.
+- [ ] Verify bounded memory.
+- [ ] Verify no transaction/context/message carry-over.
+- [ ] Verify locks/temp resources release deterministically.
+
+### Phase 8 — Unified Foundation release generation
+
+- [ ] Define immutable generation directory layout.
+- [ ] Build web bundle through Webrick coordinated release compiler.
+- [ ] Build CLI InterMix artifact directly.
+- [ ] Build worker InterMix artifact directly.
+- [ ] Build scheduler InterMix artifact directly.
+- [ ] Collect and validate all InterMix compile/skipped/digest reports.
+- [ ] Fail generation build on unexpected dynamic islands.
+- [ ] Add only useful deterministic command/scheduler/worker topology artifacts.
+- [ ] Write OPcache-friendly Foundation generation manifest.
+- [ ] Reference Webrick release manifest without duplicating its owned identity fields.
+- [ ] Verify every runtime artifact belongs to the same generation/config identity.
+- [ ] Implement atomic active-generation switch.
+- [ ] Leave previous generation active when any build/verification step fails.
+- [ ] Implement rollback/incomplete-generation tests.
+- [ ] Implement trusted-prevalidated mode only with immutable external trust metadata.
+- [ ] Implement graceful persistent-worker replacement on generation change.
+- [ ] Keep old-generation cleanup outside request/job hot paths.
+
+### Phase 9 — Full regression/performance pass
+
+- [ ] Run complete correctness test suite.
+- [ ] Run security-sensitive auth/session/CSRF/OTP/WebAuthn regression suites applicable at this stage.
+- [ ] Run static analysis/phpforge checks.
+- [ ] Run InterMix development/generated-production parity matrix.
+- [ ] Run scope/Fiber/coroutine isolation matrix.
+- [ ] Run Webrick development vs compiled-production suite.
+- [ ] Run artifact corruption/mismatch/stale-generation tests.
+- [ ] Run SAPI/FPM integration tests.
+- [ ] Run at least one persistent HTTP adapter integration suite.
+- [ ] Run long worker/scheduler persistence tests.
+- [ ] Benchmark Foundation DI tax against direct InterMix.
+- [ ] Benchmark Foundation HTTP tax against standalone compiled Webrick.
+- [ ] Repeat representative HTTP benchmark through real Apache/Nginx + PHP-FPM + OPcache.
+- [ ] Measure throughput, p50/p95/p99, memory/peak and cold/warm boot.
+- [ ] Use Webrick stage profiling only where measured overhead remains.
+- [ ] Optimize only attributable Foundation overhead.
+- [ ] Record final benchmark evidence in release documentation.
+
+### Phase 10 — Final rescan/release readiness
+
+- [ ] Rescan for direct old dynamic Container construction/mutation.
+- [ ] Rescan for `compileTo`, `useCompiled`, old `usePrevalidated` resolver-map production paths.
+- [ ] Rescan for closure aliases/deterministic closure factories.
+- [ ] Rescan for Application/container capture in generated services.
+- [ ] Rescan all dynamic islands and confirm allowlist/reasons.
+- [ ] Rescan lifetimes for mutable singleton execution state.
+- [ ] Rescan scope naming/cleanup/Fiber/coroutine safety.
+- [ ] Rescan for live production Registrar/Collection usage.
+- [ ] Rescan for RouteCacheManager/RouteCachePath production duplication.
+- [ ] Rescan for production route/provider/module/file discovery.
+- [ ] Rescan for unnecessary Request/scope/global middleware creation.
+- [ ] Rescan for direct output/native runtime handle use.
+- [ ] Rescan for repeated hashing/manifest parsing in hot paths.
+- [ ] Rescan for hidden DB/cache capability activation.
+- [ ] Rescan cleanup paths for primary-exception masking.
+- [ ] Remove stale InterMix 9/Webrick 4 configuration, tests and documentation.
+- [ ] Validate all hard implementation gates in section 24.
+- [ ] Validate final definition of done in section 25.
+- [ ] Publish migration notes and final benchmark evidence.
+
+### Future lower-library utilization tracker
+
+These remain unchecked until their dedicated deep audits are performed and merged into this same plan:
+
+- [ ] ArrayKit current-version utilization pass.
+- [ ] UID current-version utilization pass.
+- [ ] CacheLayer current-version utilization pass.
+- [ ] DBLayer current-version utilization pass.
+- [ ] ReqShield current-version utilization pass.
+- [ ] Omnibus current-version utilization pass.
+- [ ] TalkingBytes current-version utilization pass.
+- [ ] OTP current-version utilization pass.
+- [ ] Epicrypt current-version utilization pass.
+- [ ] WebAuthn integration pass.
+- [ ] Pathwise current-version utilization pass.
+
+When a later library pass changes architecture or implementation order, update both its detailed section and the applicable checkboxes here in the same commit.
