@@ -4,36 +4,27 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Http\JsonDispatch;
 
-use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Support\ValueNormalizer;
-use Infocyph\InterMix\DI\Support\LifetimeEnum;
+use Infocyph\InterMix\DI\ContainerBuilder;
+use Infocyph\InterMix\DI\Support\FactoryDefinition;
 
 final class JsonDispatchServiceProvider extends ServiceProvider
 {
-    public function register(Application $app): void
+    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        $this->bindFactory(
-            $app->container(),
+        $responses = is_array($context->config['responses'] ?? null) ? $context->config['responses'] : [];
+        $json = is_array($responses['json_dispatch'] ?? null) ? $responses['json_dispatch'] : [];
+
+        $builder->singleton(
             JsonDispatchResponseFactory::class,
-            fn() => new JsonDispatchResponseFactory(
-                vendor: ValueNormalizer::string($app->config()->get('responses.json_dispatch.vendor'), 'infocyph'),
-                applicationVersion: ValueNormalizer::string(
-                    $app->config()->get('responses.json_dispatch.application_version'),
-                    '1.0.0',
-                ),
-                tunnelErrors: ValueNormalizer::bool(
-                    $app->config()->get('responses.json_dispatch.tunnel_errors'),
-                    false,
-                ),
-            ),
-            LifetimeEnum::Singleton,
+            FactoryDefinition::construct(JsonDispatchResponseFactory::class, [
+                ValueNormalizer::string($json['vendor'] ?? null, 'infocyph'),
+                ValueNormalizer::string($json['application_version'] ?? null, '1.0.0'),
+                ValueNormalizer::bool($json['tunnel_errors'] ?? null, false),
+            ]),
         );
-        $this->bindFactory(
-            $app->container(),
-            'foundation.responses',
-            fn() => $app->make(JsonDispatchResponseFactory::class),
-            LifetimeEnum::Singleton,
-        );
+        $builder->alias('foundation.responses', JsonDispatchResponseFactory::class);
     }
 }
