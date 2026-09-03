@@ -19,6 +19,7 @@ use Infocyph\Foundation\Runtime\RuntimeContextTracker;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\ServiceReference;
+use Psr\Container\ContainerInterface;
 
 final class DatabaseServiceProvider extends ServiceProvider
 {
@@ -63,56 +64,29 @@ final class DatabaseServiceProvider extends ServiceProvider
                 [new ServiceReference(AuthTables::class)],
             ));
         }
-        $installerArguments = [
-            new ServiceReference(DBLayerFactory::class),
-            new ServiceReference(AuthSchema::class),
-            new ServiceReference(AuthMfaRevisionSchema::class),
-            new ServiceReference(AuthTables::class),
-            $oauthEnabled ? new ServiceReference(AuthOAuthRevisionSchema::class) : null,
-            $oauthEnabled,
-        ];
         $builder->singleton(AuthSchemaInstaller::class, FactoryDefinition::construct(
             AuthSchemaInstaller::class,
-            $installerArguments,
+            [
+                new ServiceReference(DBLayerFactory::class),
+                new ServiceReference(AuthSchema::class),
+                new ServiceReference(AuthMfaRevisionSchema::class),
+                new ServiceReference(AuthTables::class),
+                $oauthEnabled ? new ServiceReference(AuthOAuthRevisionSchema::class) : null,
+                $oauthEnabled,
+            ],
         ));
 
-        $this->registerMigrationManager($builder);
+        $builder->singleton(DatabaseMigrationManager::class, FactoryDefinition::construct(
+            DatabaseMigrationManager::class,
+            [
+                new ServiceReference(ConfigRepository::class),
+                new ServiceReference(DBLayerFactory::class),
+                new ServiceReference(ContainerInterface::class),
+                $builder->definitions()->has(CacheLayerFactory::class)
+                    ? new ServiceReference(CacheLayerFactory::class)
+                    : null,
+            ],
+        ));
         $builder->alias('foundation.db', Connection::class);
-    }
-
-    private function registerMigrationManager(ContainerBuilder $builder): void
-    {
-        $container = $builder->development();
-        $hasCache = $builder->definitions()->has(CacheLayerFactory::class);
-
-        $builder->bindFactory(DatabaseMigrationManager::class, static function () use ($container, $hasCache): DatabaseMigrationManager {
-            $config = $container->get(ConfigRepository::class);
-            $database = $container->get(DBLayerFactory::class);
-            if (!$config instanceof ConfigRepository || !$database instanceof DBLayerFactory) {
-                throw new \LogicException('Database migration graph dependencies are invalid.');
-            }
-
-            $cache = $hasCache ? $container->get(CacheLayerFactory::class) : null;
-            if ($cache !== null && !$cache instanceof CacheLayerFactory) {
-                throw new \LogicException('CacheLayerFactory binding is invalid.');
-            }
-
-            return new DatabaseMigrationManager(
-                config: $config,
-                factory: $database,
-                resolver: static function (string $service) use ($container): object {
-                    $resolved = $container->make($service);
-                    if (!is_object($resolved)) {
-                        throw new \UnexpectedValueException(sprintf(
-                            'Database definition "%s" did not resolve to an object.',
-                            $service,
-                        ));
-                    }
-
-                    return $resolved;
-                },
-                cache: $cache,
-            );
-        });
     }
 }
