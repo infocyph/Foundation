@@ -11,12 +11,15 @@ use Infocyph\Pathwise\StreamHandler\DownloadProcessor;
 use Infocyph\Pathwise\Utils\PathHelper;
 use Infocyph\Webrick\Constants\HttpMethodEnum;
 use Infocyph\Webrick\Request\Request;
+use Infocyph\Webrick\Response\Body\FileBody;
 use Infocyph\Webrick\Response\Conditional\ConditionalValidator;
 use Infocyph\Webrick\Response\Conditional\Outcome;
 use Infocyph\Webrick\Response\Response;
 
 final readonly class FilesystemResponseFactory
 {
+    private const int STREAM_CHUNK_SIZE = 65_536;
+
     public function __construct(
         private ConfigRepository $config,
         private FilesystemTransferFactory $transfers,
@@ -159,6 +162,11 @@ final readonly class FilesystemResponseFactory
             || $method === HttpMethodEnum::HEAD->value;
     }
 
+    private function isHead(Request $request): bool
+    {
+        return HttpMethodEnum::normalize($request->getMethod()) === HttpMethodEnum::HEAD->value;
+    }
+
     private function localPath(string $path, ?string $disk): string
     {
         if ($path !== '' && PathHelper::hasScheme($path)) {
@@ -169,6 +177,19 @@ final readonly class FilesystemResponseFactory
         }
 
         return $this->storage->localPath($path, $disk);
+    }
+
+    private function localBodyPath(string $path, ?string $disk): ?string
+    {
+        if ($path !== '' && PathHelper::hasScheme($path)) {
+            return null;
+        }
+
+        try {
+            return $this->storage->localPath($path, $disk);
+        } catch (\InvalidArgumentException) {
+            return null;
+        }
     }
 
     /**
@@ -294,29 +315,86 @@ final readonly class FilesystemResponseFactory
 
         $rangeHeader = $this->freshRangeHeader($request, $baseManifest);
         $manifest = $processor->prepareDownload($resolvedPath, $downloadName, $rangeHeader);
+        $mergedHeaders = $this->mergeHeaders($manifest->headers, $headers);
+
+        if ($this->isHead($request)) {
+            return new Response($manifest->status, '', $mergedHeaders);
+        }
+
+        $localPath = $this->localBodyPath($path, $disk);
+        if ($localPath !== null) {
+            return new Response(
+                $manifest->status,
+                new FileBody(
+                    $localPath,
+                    $manifest->range->start,
+                    $manifest->range->contentLength,
+                ),
+                $mergedHeaders,
+            );
+        }
+
         $response = Response::stream(
-            producer: function () use ($processor, $resolvedPath, $downloadName, $rangeHeader): string {
-                $output = fopen('php://output', 'wb');
-                if (!is_resource($output)) {
-                    throw new \RuntimeException('Unable to open php://output for download streaming.');
-                }
-
-                try {
-                    $processor->streamDownload($resolvedPath, $output, $downloadName, $rangeHeader);
-                } finally {
-                    fclose($output);
-                }
-
-                return '';
-            },
+            producer: fn (): iterable => $this->streamChunks($resolvedPath, $manifest),
             status: $manifest->status,
         );
 
-        foreach ($this->mergeHeaders($manifest->headers, $headers) as $name => $value) {
+        foreach ($mergedHeaders as $name => $value) {
             $response = $response->withHeader($name, $value);
         }
 
         return $response;
+    }
+
+    /** @return iterable<string> */
+    private function streamChunks(string $resolvedPath, DownloadPreparation $manifest): iterable
+    {
+        $stream = fopen($resolvedPath, 'rb');
+        if (!is_resource($stream)) {
+            throw new \RuntimeException(sprintf('Unable to open download stream "%s".', $resolvedPath));
+        }
+
+        try {
+            $start = $manifest->range->start;
+            $remaining = $manifest->range->contentLength;
+            $metadata = stream_get_meta_data($stream);
+            $seekable = ($metadata['seekable'] ?? false) === true;
+
+            if ($start > 0) {
+                if ($seekable) {
+                    if (fseek($stream, $start) !== 0) {
+                        throw new \RuntimeException('Unable to seek download stream to requested range.');
+                    }
+                } else {
+                    $discard = $start;
+                    while ($discard > 0) {
+                        $chunk = fread($stream, min(self::STREAM_CHUNK_SIZE, $discard));
+                        if ($chunk === false || $chunk === '') {
+                            throw new \RuntimeException('Unable to advance download stream to requested range.');
+                        }
+                        $discard -= strlen($chunk);
+                    }
+                }
+            }
+
+            while ($remaining > 0) {
+                $chunk = fread($stream, min(self::STREAM_CHUNK_SIZE, $remaining));
+                if ($chunk === false) {
+                    throw new \RuntimeException('Unable to read download stream.');
+                }
+                if ($chunk === '') {
+                    if (feof($stream)) {
+                        throw new \RuntimeException('Download stream ended before the prepared response range.');
+                    }
+                    continue;
+                }
+
+                $remaining -= strlen($chunk);
+                yield $chunk;
+            }
+        } finally {
+            fclose($stream);
+        }
     }
 
     /** @param array<string, string|list<string>> $headers */
