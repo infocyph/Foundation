@@ -15,6 +15,7 @@ use Infocyph\Webrick\Router\Build\RouterArtifactLoader;
 use Infocyph\Webrick\Router\Kernel\CompiledRouterKernel;
 use Infocyph\Webrick\Router\Kernel\ErrorHandler;
 use Infocyph\Webrick\Runtime\Http\RuntimeAdapterInterface;
+use Infocyph\Webrick\Runtime\Http\RuntimeCapabilities;
 use Infocyph\Webrick\Runtime\Http\RuntimeServer;
 use Infocyph\Webrick\Runtime\Http\SapiRuntimeAdapter;
 use Psr\Log\LoggerInterface;
@@ -27,6 +28,7 @@ final readonly class WebReleaseRuntime
         public ProductionContainer $container,
         public CompiledRouterKernel $kernel,
         public RuntimeServer $server,
+        public RuntimeCapabilities $capabilities,
     ) {}
 
     /** @param array<string, mixed> $config */
@@ -160,12 +162,11 @@ final readonly class WebReleaseRuntime
                 signedDefaultTtl: $settings->signedDefaultTtl(),
                 signedUrlConfig: $settings->signedUrlConfig(),
             );
-        $server = new RuntimeServer(
-            $kernel,
-            $adapter ?? SapiRuntimeAdapter::current(),
-        );
+        $runtimeAdapter = $adapter ?? SapiRuntimeAdapter::current();
+        $capabilities = $runtimeAdapter->capabilities();
+        $server = new RuntimeServer($kernel, $runtimeAdapter);
 
-        return new self($container, $kernel, $server);
+        return new self($container, $kernel, $server, $capabilities);
     }
 
     private static function assertTrustedManifest(string $releaseManifestPath, string $trustedSha256): void
