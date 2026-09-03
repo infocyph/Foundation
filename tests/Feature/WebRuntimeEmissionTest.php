@@ -102,6 +102,7 @@ it('emits file and stream bodies through the real SAPI response writer', functio
         throw new RuntimeException('Unable to allocate SAPI response fixture.');
     }
     file_put_contents($file, 'sapi-file-body');
+    $initialBufferLevel = ob_get_level();
 
     $adapter = SapiRuntimeAdapter::current();
     $context = new RuntimeRequestContext(
@@ -126,7 +127,7 @@ it('emits file and stream bodies through the real SAPI response writer', functio
             ->and($streamBody)->toBe('sapi-stream')
             ->and($adapter->capabilities()->nativeStreaming)->toBeTrue();
     } finally {
-        if (ob_get_level() > 0) {
+        while (ob_get_level() > $initialBufferLevel) {
             ob_end_clean();
         }
         if (is_file($file)) {
