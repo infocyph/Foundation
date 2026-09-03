@@ -65,6 +65,7 @@
         "sort-packages": true
     },
     "scripts": {
+        "benchmark:maintenance": "@php benchmarks/maintenance-overhead.php",
         "benchmark:representative": "@php benchmarks/run-representative.php"
     }
 }
