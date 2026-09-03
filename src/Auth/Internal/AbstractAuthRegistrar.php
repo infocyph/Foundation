@@ -144,13 +144,17 @@ abstract readonly class AbstractAuthRegistrar
     /**
      * @template T of object
      * @param class-string<T> $id
-     * @return object
-     * @phpstan-return T
-     * @psalm-return T
+     * @return T
      */
     protected function service(string $id): object
     {
-        return $this->container()->get($id);
+        $service = $this->container()->get($id);
+        if (!is_object($service)) {
+            throw new \UnexpectedValueException(sprintf('Auth service "%s" did not resolve to an object.', $id));
+        }
+
+        /** @var T $service */
+        return $service;
     }
 
     protected function singleton(string $id, mixed $concrete): void
