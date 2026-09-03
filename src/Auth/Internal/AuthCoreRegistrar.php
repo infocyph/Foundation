@@ -55,7 +55,9 @@ final readonly class AuthCoreRegistrar
             );
         }
 
-        // Resolve once during composition so invalid driver config fails before runtime creation.
-        $drivers->summary();
+        // Force driver normalization during composition so invalid configuration
+        // fails before any runtime container is created.
+        $validatedDrivers = $drivers->summary();
+        unset($validatedDrivers);
     }
 }
