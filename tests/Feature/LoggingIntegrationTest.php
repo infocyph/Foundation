@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Foundation;
-use Infocyph\Foundation\Logging\HttpExceptionLogger;
 use Infocyph\Foundation\Logging\ExceptionReporter;
+use Infocyph\Foundation\Logging\HttpExceptionLogger;
 use Infocyph\Foundation\Logging\JsonLogger;
-use Infocyph\InterMix\DI\Support\LifetimeEnum;
+use Infocyph\InterMix\DI\ContainerBuilder;
 use Psr\Log\AbstractLogger;
 use Psr\Log\LoggerInterface;
 
@@ -76,9 +76,11 @@ it('uses an application supplied PSR logger at the HTTP reporting boundary', fun
     $provider = new class($logger) extends ServiceProvider {
         public function __construct(private readonly LoggerInterface $logger) {}
 
-        public function register(Application $app): void
+        public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
         {
-            $app->container()->bind(LoggerInterface::class, $this->logger, LifetimeEnum::Singleton);
+            unset($context);
+
+            $builder->value(LoggerInterface::class, $this->logger);
         }
     };
     $app = Foundation::web([
