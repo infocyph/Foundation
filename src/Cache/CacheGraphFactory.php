@@ -33,6 +33,8 @@ final class CacheGraphFactory
             config: $config,
             paths: $paths,
             database: static function (?string $name = null): never {
+                unset($name);
+
                 throw new \LogicException(
                     'The selected cache topology requires the Foundation database capability.',
                 );
@@ -53,6 +55,8 @@ final class CacheGraphFactory
         return new CacheManager(
             factory: $factory,
             database: static function (?string $name = null): never {
+                unset($name);
+
                 throw new \LogicException(
                     'Transactional cache invalidation requires the Foundation database capability.',
                 );
