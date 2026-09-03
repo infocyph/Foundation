@@ -17,7 +17,9 @@ final class AuthStoreGraphFactory
     ): AuditEventStoreInterface {
         return new ForwardingAuditEventStore(
             $storage,
-            static fn(AuthEvent $event): object => $dispatcher->dispatch($event),
+            static function (AuthEvent $event) use ($dispatcher): void {
+                $dispatcher->dispatch($event);
+            },
         );
     }
 }
