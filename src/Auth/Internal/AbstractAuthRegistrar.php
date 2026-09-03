@@ -164,6 +164,24 @@ abstract readonly class AbstractAuthRegistrar
         $this->builder->bind($id, $concrete, LifetimeEnum::Singleton);
     }
 
+    /**
+     * @param class-string $factoryClass
+     * @param list<scalar|array<array-key, mixed>|ServiceReference|null> $arguments
+     */
+    protected function staticRecipe(
+        string $id,
+        string $factoryClass,
+        string $method,
+        array $arguments = [],
+        LifetimeEnum $lifetime = LifetimeEnum::Singleton,
+    ): void {
+        $this->builder->bind(
+            $id,
+            FactoryDefinition::staticFactory($factoryClass, $method, $arguments),
+            $lifetime,
+        );
+    }
+
     protected function stringConfig(string $key, string $default): string
     {
         return ValueNormalizer::string($this->app->config()->get($key, $default), $default);
