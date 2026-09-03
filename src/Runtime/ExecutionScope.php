@@ -39,6 +39,7 @@ final readonly class ExecutionScope
         $seeds[RuntimeMode::class] ??= $this->runtime;
 
         $result = null;
+        $resultSet = false;
         $primaryFailure = null;
         $cleanupFailure = null;
         $scopeFailure = null;
@@ -50,11 +51,13 @@ final readonly class ExecutionScope
                     $callback,
                     $executionId,
                     &$result,
+                    &$resultSet,
                     &$primaryFailure,
                     &$cleanupFailure,
                 ): void {
                     try {
                         $result = $callback($executionId);
+                        $resultSet = true;
                     } catch (\Throwable $exception) {
                         $primaryFailure = $exception;
                     }
@@ -84,7 +87,11 @@ final readonly class ExecutionScope
         if ($scopeFailure !== null) {
             throw $scopeFailure;
         }
+        if (!$resultSet) {
+            throw new \LogicException('Execution scope completed without producing a callback result.');
+        }
 
+        /** @var T $result */
         return $result;
     }
 
