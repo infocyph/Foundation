@@ -116,7 +116,7 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
             $this->ref(ClockInterface::class),
             $this->epicrypt->issuer(),
             $this->epicrypt->audience(),
-            $this->epicrypt->algorithm(),
+            $this->epicrypt->algorithm()->value,
             $this->epicrypt->maximumLifetimeSeconds(),
             $this->epicrypt->leewaySeconds(),
         ]);
