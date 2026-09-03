@@ -10,6 +10,7 @@ use Infocyph\Foundation\Runtime\ExecutionId;
 use Infocyph\InterMix\DI\Container;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
+use Infocyph\InterMix\Exceptions\ContainerException;
 
 final class FoundationExecutionScopeProbe {}
 
@@ -46,7 +47,7 @@ final class FoundationFailingScopeLeaveProvider extends ServiceProvider
     }
 }
 
-it('isolates same-label CLI scopes across interleaved Fibers and restores nested parents', function (): void {
+it('isolates same-label CLI scopes across interleaved Fibers and sequential executions', function (): void {
     $app = Foundation::cli([
         'app' => ['env' => 'testing'],
         'providers' => ['common' => [FoundationExecutionScopeProvider::class]],
@@ -97,31 +98,66 @@ it('isolates same-label CLI scopes across interleaved Fibers and restores nested
         ->and($firstAfter['probe'])->toBe($firstBefore['probe'])
         ->and($secondAfter['probe'])->toBe($secondBefore['probe']);
 
-    $nested = $app->execution()->run(
-        static function () use ($app): array {
-            $outerProbe = $app->make(FoundationExecutionScopeProbe::class);
-            $inner = $app->execution()->run(
-                static fn(): array => [
-                    (string) $app->make(ExecutionId::class),
-                    spl_object_id($app->make(FoundationExecutionScopeProbe::class)),
-                ],
-                executionId: new ExecutionId('nested-inner'),
-            );
-
-            return [
-                'outer_id' => (string) $app->make(ExecutionId::class),
-                'outer_probe' => spl_object_id($app->make(FoundationExecutionScopeProbe::class)),
-                'outer_same' => $outerProbe === $app->make(FoundationExecutionScopeProbe::class),
-                'inner' => $inner,
-            ];
-        },
-        executionId: new ExecutionId('nested-outer'),
+    $sequentialFirst = $app->execution()->run(
+        static fn(ExecutionId $executionId): array => [
+            (string) $executionId,
+            spl_object_id($app->make(FoundationExecutionScopeProbe::class)),
+        ],
+        executionId: new ExecutionId('sequential-one'),
+    );
+    $sequentialSecond = $app->execution()->run(
+        static fn(ExecutionId $executionId): array => [
+            (string) $executionId,
+            spl_object_id($app->make(FoundationExecutionScopeProbe::class)),
+        ],
+        executionId: new ExecutionId('sequential-two'),
     );
 
-    expect($nested['outer_id'])->toBe('nested-outer')
-        ->and($nested['outer_same'])->toBeTrue()
-        ->and($nested['inner'][0])->toBe('nested-inner')
-        ->and($nested['inner'][1])->not->toBe($nested['outer_probe'])
+    expect($sequentialFirst[0])->toBe('sequential-one')
+        ->and($sequentialSecond[0])->toBe('sequential-two')
+        ->and($sequentialFirst[1])->not->toBe($sequentialSecond[1]);
+
+    expect(fn() => $app->execution()->run(
+        static fn(): mixed => $app->execution()->run(
+            static fn(): null => null,
+            executionId: new ExecutionId('nested-inner'),
+        ),
+        executionId: new ExecutionId('nested-outer'),
+    ))->toThrow(ContainerException::class, 'already active')
+        ->and(fn() => $app->make(ExecutionId::class))->toThrow(Throwable::class);
+});
+
+it('cleans a suspended Fiber execution when it is aborted by an injected exception', function (): void {
+    $app = Foundation::cli([
+        'app' => ['env' => 'testing'],
+        'providers' => ['common' => [FoundationExecutionScopeProvider::class]],
+    ])->boot();
+
+    $fiber = new Fiber(static function () use ($app): never {
+        $app->execution()->run(
+            static function () use ($app): never {
+                $app->make(FoundationExecutionScopeProbe::class);
+                Fiber::suspend();
+
+                throw new LogicException('unreachable');
+            },
+            executionId: new ExecutionId('aborted-fiber'),
+        );
+
+        throw new LogicException('unreachable');
+    });
+
+    $fiber->start();
+
+    expect(fn() => $fiber->throw(new RuntimeException('fiber aborted')))
+        ->toThrow(RuntimeException::class, 'fiber aborted');
+
+    $after = $app->execution()->run(
+        static fn(ExecutionId $executionId): string => (string) $executionId,
+        executionId: new ExecutionId('after-abort'),
+    );
+
+    expect($after)->toBe('after-abort')
         ->and(fn() => $app->make(ExecutionId::class))->toThrow(Throwable::class);
 });
 
