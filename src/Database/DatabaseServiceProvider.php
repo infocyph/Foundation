@@ -15,7 +15,6 @@ use Infocyph\Foundation\Database\AuthSchema\AuthOAuthRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchemaInstaller;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
-use Infocyph\Foundation\Runtime\RuntimeContextTracker;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\ServiceReference;
@@ -41,9 +40,9 @@ final class DatabaseServiceProvider extends ServiceProvider
         ));
         $builder->singleton(DBLayerFactory::class, FactoryDefinition::construct(DBLayerFactory::class, [
             new ServiceReference(DatabaseConnectionResolver::class),
-            new ServiceReference(RuntimeContextTracker::class),
+            new ServiceReference(ContainerInterface::class),
         ]));
-        $builder->singleton(Connection::class, FactoryDefinition::staticFactory(
+        $builder->scoped(Connection::class, FactoryDefinition::staticFactory(
             DatabaseGraphFactory::class,
             'connection',
             [new ServiceReference(DBLayerFactory::class)],

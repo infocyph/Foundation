@@ -13,7 +13,6 @@ use Infocyph\Foundation\Exception\ServiceResolutionException;
 use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\Foundation\Http\HttpKernel;
 use Infocyph\Foundation\Runtime\ExecutionScope;
-use Infocyph\Foundation\Runtime\RuntimeContextTracker;
 use Infocyph\InterMix\DI\Container;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Webrick\Request\Request;
@@ -275,21 +274,6 @@ final class Application
             $container->bind(
                 ContainerCacheManager::class,
                 new ContainerCacheManager($this),
-                LifetimeEnum::Singleton,
-            );
-        }
-
-        if (!$container->definitions()->has(RuntimeContextTracker::class)) {
-            $container->bind(RuntimeContextTracker::class, new RuntimeContextTracker(), LifetimeEnum::Singleton);
-        }
-        if (!$container->definitions()->has(ExecutionScope::class)) {
-            $externalState = $container->get(RuntimeContextTracker::class);
-            if (!$externalState instanceof RuntimeContextTracker) {
-                throw new \LogicException('RuntimeContextTracker binding is invalid.');
-            }
-            $container->bind(
-                ExecutionScope::class,
-                new ExecutionScope($container, $externalState, $this->runtimeMode),
                 LifetimeEnum::Singleton,
             );
         }

@@ -18,16 +18,22 @@ use Infocyph\Foundation\Auth\Contract\Storage\AuditEventStoreInterface;
 use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
 use Infocyph\Foundation\Auth\Http\AuthActions;
 use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
+use Infocyph\Foundation\Auth\Principal\CurrentPrincipalState;
 use Infocyph\Foundation\Config\ConfigRepository;
-use Infocyph\Foundation\Runtime\RuntimeContextTracker;
+use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Psr\Container\ContainerInterface;
 
 final readonly class AuthRuntimeRegistrar extends AbstractAuthRegistrar
 {
     public function register(): void
     {
+        $this->recipe(
+            CurrentPrincipalState::class,
+            CurrentPrincipalState::class,
+            lifetime: LifetimeEnum::Scoped,
+        );
         $this->recipe(CurrentPrincipalContext::class, CurrentPrincipalContext::class, [
-            $this->ref(RuntimeContextTracker::class),
+            $this->ref(ContainerInterface::class),
         ]);
         $this->recipe(Authenticator::class, Authenticator::class, [
             $this->ref(AccountProviderInterface::class),

@@ -6,28 +6,18 @@ namespace Infocyph\Foundation\Session;
 
 use Closure;
 use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
-use Infocyph\Foundation\Runtime\RuntimeContextTracker;
+use Psr\Container\ContainerInterface;
 
 final class SessionManager
 {
-    /** @var \WeakMap<object, list<BrowserSession>> */
-    private \WeakMap $fiberActive;
-
-    /** @var list<BrowserSession> */
-    private array $mainActive = [];
-
-    private ?SessionStoreInterface $store = null;
-
     public function __construct(
         private readonly SessionConfig $config,
         /** @var Closure():SessionStoreInterface */
         private readonly Closure $storeFactory,
         /** @var Closure():(LockProviderInterface|null) */
         private readonly Closure $lockFactory,
-        private readonly ?RuntimeContextTracker $contexts = null,
-    ) {
-        $this->fiberActive = new \WeakMap();
-    }
+        private readonly ContainerInterface $container,
+    ) {}
 
     public function config(): SessionConfig
     {
@@ -36,7 +26,7 @@ final class SessionManager
 
     public function current(): BrowserSession
     {
-        $active = $this->active();
+        $active = $this->state()->active;
 
         if ($active === []) {
             throw new \LogicException('No browser session is active for the current request.');
@@ -47,23 +37,19 @@ final class SessionManager
 
     public function enter(BrowserSession $session): void
     {
-        $this->contexts?->markSession($this);
-        $active = $this->active();
-        $active[] = $session;
-        $this->replaceActive($active);
+        $state = $this->state();
+        $state->active[] = $session;
     }
 
     public function leave(BrowserSession $session): void
     {
-        $sessions = $this->active();
-        $active = array_pop($sessions);
+        $state = $this->state();
+        $active = array_pop($state->active);
         if ($active !== $session) {
-            $this->replaceActive([]);
+            $state->active = [];
 
             throw new \LogicException('Browser session request scopes were left out of order.');
         }
-
-        $this->replaceActive($sessions);
     }
 
     public function open(mixed $candidateId): BrowserSession
@@ -75,7 +61,7 @@ final class SessionManager
 
         return new BrowserSession(
             $id,
-            fn(): SessionStoreInterface => $this->store ??= ($this->storeFactory)(),
+            fn(): SessionStoreInterface => $this->store(),
             $this->lockFactory,
             $this->config,
         );
@@ -83,47 +69,28 @@ final class SessionManager
 
     public function prune(int $limit = 1_000): int
     {
-        return ($this->store ??= ($this->storeFactory)())->prune(time(), $limit);
+        return $this->store()->prune(time(), $limit);
     }
 
     public function resetContext(): void
     {
-        foreach (array_reverse($this->active()) as $session) {
-            $session->release();
-        }
-        $this->replaceActive([]);
+        $this->state()->reset();
     }
 
-    /**
-     * @return list<BrowserSession>
-     */
-    private function active(): array
+    private function state(): SessionExecutionState
     {
-        $fiber = \Fiber::getCurrent();
+        $state = $this->container->get(SessionExecutionState::class);
+        if (!$state instanceof SessionExecutionState) {
+            throw new \LogicException('SessionExecutionState binding is invalid.');
+        }
 
-        return $fiber === null
-            ? $this->mainActive
-            : ($this->fiberActive[$fiber] ?? []);
+        return $state;
     }
 
-    /**
-     * @param list<BrowserSession> $active
-     */
-    private function replaceActive(array $active): void
+    private function store(): SessionStoreInterface
     {
-        $fiber = \Fiber::getCurrent();
-        if ($fiber === null) {
-            $this->mainActive = $active;
+        $state = $this->state();
 
-            return;
-        }
-
-        if ($active === []) {
-            unset($this->fiberActive[$fiber]);
-
-            return;
-        }
-
-        $this->fiberActive[$fiber] = $active;
+        return $state->store ??= ($this->storeFactory)();
     }
 }

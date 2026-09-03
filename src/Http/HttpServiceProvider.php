@@ -13,7 +13,6 @@ use Infocyph\Foundation\Http\Response\ValidationExceptionMapper;
 use Infocyph\Foundation\Logging\HttpExceptionLogger;
 use Infocyph\Foundation\Operations\MaintenanceManager;
 use Infocyph\Foundation\Routing\WebrickRouterFactory;
-use Infocyph\Foundation\Runtime\ExecutionScope;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\ServiceReference;
@@ -66,7 +65,6 @@ final class HttpServiceProvider extends ServiceProvider
             HttpKernel::class,
             [
                 new ServiceReference(RouterKernel::class),
-                new ServiceReference(ExecutionScope::class),
                 new ServiceReference(MaintenanceManager::class),
             ],
         ));

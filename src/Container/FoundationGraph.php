@@ -9,9 +9,12 @@ use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\RuntimeModeFactory;
 use Infocyph\Foundation\Config\ConfigExportValidator;
 use Infocyph\Foundation\Config\ConfigRepository;
-use Infocyph\Foundation\Runtime\RuntimeContextTracker;
+use Infocyph\Foundation\Runtime\ExecutionScope;
+use Infocyph\Foundation\Runtime\RuntimeExecutionState;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\ServiceReference;
+use Psr\Container\ContainerInterface;
 
 final class FoundationGraph
 {
@@ -20,23 +23,22 @@ final class FoundationGraph
         return self::contributeTo(self::createBuilder($context), $context);
     }
 
-    public static function contributeTo(
-        ContainerBuilder $builder,
-        FoundationBuildContext $context,
-    ): ContainerBuilder {
+    public static function contributeTo(ContainerBuilder $builder, FoundationBuildContext $context): ContainerBuilder
+    {
         self::registerConfigRepository($builder, $context);
-        $builder->singleton(
-            RuntimeMode::class,
-            FactoryDefinition::staticFactory(
-                RuntimeModeFactory::class,
-                'from',
-                [$context->runtimeMode->value],
-            ),
-        );
-        $builder->singleton(
-            RuntimeContextTracker::class,
-            FactoryDefinition::construct(RuntimeContextTracker::class),
-        );
+        $builder->singleton(RuntimeMode::class, FactoryDefinition::staticFactory(
+            RuntimeModeFactory::class,
+            'from',
+            [$context->runtimeMode->value],
+        ));
+        $builder->scoped(RuntimeExecutionState::class, FactoryDefinition::construct(RuntimeExecutionState::class));
+        $builder->singleton(ExecutionScope::class, FactoryDefinition::construct(
+            ExecutionScope::class,
+            [
+                new ServiceReference(ContainerInterface::class),
+                new ServiceReference(RuntimeMode::class),
+            ],
+        ));
 
         return $builder;
     }
@@ -44,15 +46,12 @@ final class FoundationGraph
     public static function createBuilder(FoundationBuildContext $context): ContainerBuilder
     {
         $builder = ContainerBuilder::create($context->runtimeMode->containerAlias());
-
         if ($context->environment !== null) {
             $builder->setEnvironment($context->environment);
         }
-
         if ($context->lazyLoading) {
             $builder->enableLazyLoading();
         }
-
         if ($context->debugTracing) {
             $builder->options()->enableDebugTracing(true, $context->debugTraceLevel);
         }
@@ -60,25 +59,16 @@ final class FoundationGraph
         return $builder;
     }
 
-    private static function registerConfigRepository(
-        ContainerBuilder $builder,
-        FoundationBuildContext $context,
-    ): void {
+    private static function registerConfigRepository(ContainerBuilder $builder, FoundationBuildContext $context): void
+    {
         if (ConfigExportValidator::isExportable($context->config)) {
-            $builder->singleton(
+            $builder->singleton(ConfigRepository::class, FactoryDefinition::construct(
                 ConfigRepository::class,
-                FactoryDefinition::construct(
-                    ConfigRepository::class,
-                    [$context->config, $context->compiledConfig],
-                ),
-            );
-
+                [$context->config, $context->compiledConfig],
+            ));
             return;
         }
 
-        $builder->value(
-            ConfigRepository::class,
-            new ConfigRepository($context->config, $context->compiledConfig),
-        );
+        $builder->value(ConfigRepository::class, new ConfigRepository($context->config, $context->compiledConfig));
     }
 }

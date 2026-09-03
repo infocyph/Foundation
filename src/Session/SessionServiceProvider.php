@@ -5,19 +5,21 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Session;
 
 use Infocyph\Foundation\Application\FoundationBuildContext;
+use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Cache\CacheLayerFactory;
 use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Filesystem\PathManager;
-use Infocyph\Foundation\Runtime\RuntimeContextTracker;
 use Infocyph\Foundation\Session\Middleware\CsrfMiddleware;
 use Infocyph\Foundation\Session\Middleware\SessionMiddleware;
+use Infocyph\InterMix\DI\Container;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\InterMix\DI\Support\ServiceReference;
+use Psr\Container\ContainerInterface;
 
 final class SessionServiceProvider extends ServiceProvider
 {
@@ -33,6 +35,22 @@ final class SessionServiceProvider extends ServiceProvider
             'config',
             [new ServiceReference(ConfigRepository::class), new ServiceReference(PathManager::class)],
         ));
+        $builder->scoped(
+            SessionExecutionState::class,
+            FactoryDefinition::construct(SessionExecutionState::class),
+        );
+        if ($context->runtimeMode === RuntimeMode::Web) {
+            $builder->onScopeLeave(
+                $context->runtimeMode->scopeName(),
+                static function (string $scope, Container $container): void {
+                    unset($scope);
+                    $state = $container->get(SessionExecutionState::class);
+                    if ($state instanceof SessionExecutionState) {
+                        $state->reset(false);
+                    }
+                },
+            );
+        }
 
         $storeArguments = [new ServiceReference(SessionConfig::class)];
         if ($driver === 'cache') {
@@ -70,7 +88,7 @@ final class SessionServiceProvider extends ServiceProvider
                     new ServiceReference(SessionConfig::class),
                     new ServiceReference(SessionStoreFactory::class),
                     new ServiceReference(CacheLayerFactory::class),
-                    new ServiceReference(RuntimeContextTracker::class),
+                    new ServiceReference(ContainerInterface::class),
                 ],
             ));
         } else {
@@ -80,7 +98,7 @@ final class SessionServiceProvider extends ServiceProvider
                 [
                     new ServiceReference(SessionConfig::class),
                     new ServiceReference(SessionStoreFactory::class),
-                    new ServiceReference(RuntimeContextTracker::class),
+                    new ServiceReference(ContainerInterface::class),
                 ],
             ));
         }

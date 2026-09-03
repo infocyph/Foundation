@@ -7,7 +7,7 @@ namespace Infocyph\Foundation\Session;
 use Infocyph\Foundation\Cache\CacheLayerFactory;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Filesystem\PathManager;
-use Infocyph\Foundation\Runtime\RuntimeContextTracker;
+use Psr\Container\ContainerInterface;
 
 final class SessionGraphFactory
 {
@@ -22,13 +22,13 @@ final class SessionGraphFactory
     public static function manager(
         SessionConfig $config,
         SessionStoreFactory $stores,
-        RuntimeContextTracker $contexts,
+        ContainerInterface $container,
     ): SessionManager {
         return new SessionManager(
             $config,
             static fn(): SessionStoreInterface => $stores->make(),
             static fn() => null,
-            $contexts,
+            $container,
         );
     }
 
@@ -36,13 +36,13 @@ final class SessionGraphFactory
         SessionConfig $config,
         SessionStoreFactory $stores,
         CacheLayerFactory $cache,
-        RuntimeContextTracker $contexts,
+        ContainerInterface $container,
     ): SessionManager {
         return new SessionManager(
             $config,
             static fn(): SessionStoreInterface => $stores->make(),
             static fn() => $cache->lock($config->lockStore),
-            $contexts,
+            $container,
         );
     }
 
