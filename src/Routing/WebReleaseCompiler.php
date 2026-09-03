@@ -46,7 +46,7 @@ final readonly class WebReleaseCompiler
             routerPath: $routerPath,
             releaseManifestPath: $releaseManifestPath,
             registrarOptions: $settings->registrarOptions(),
-            preGlobal: [],
+            preGlobal: $settings->preGlobal(),
             postGlobal: [],
             preGlobalTags: [],
             postGlobalTags: [],
