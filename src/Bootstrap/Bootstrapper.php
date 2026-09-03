@@ -32,6 +32,7 @@ use Infocyph\Foundation\Session\SessionServiceProvider;
 use Infocyph\Foundation\Validation\ValidationServiceProvider;
 use Infocyph\InterMix\DI\Container;
 use Infocyph\InterMix\DI\ContainerBuilder;
+use Infocyph\Webrick\Router\Definition\Registrar;
 
 final class Bootstrapper
 {
@@ -66,7 +67,7 @@ final class Bootstrapper
             && $app->has(RouteFileLoader::class)
             && !RouteCachePath::isWarm($app->config())
         ) {
-            $app->make(RouteFileLoader::class)->load();
+            $app->make(RouteFileLoader::class)->load($app->make(Registrar::class));
         }
     }
 

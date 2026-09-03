@@ -18,16 +18,15 @@ final readonly class RouteFileLoader
     public function __construct(
         private PathManager $paths,
         private ConfigRepository $config,
-        private Registrar $router,
         private RoutePresetRegistrar $presets,
         private OAuthRouteRegistrar $oauth,
         private array $files = ['web.php', 'api.php', 'auth.php'],
     ) {}
 
-    public function load(): void
+    public function load(Registrar $router): void
     {
         $this->presets->register();
-        $this->oauth->register($this->router);
+        $this->oauth->register($router);
 
         foreach ($this->files as $file) {
             $path = $this->paths->routes($file);
@@ -36,18 +35,15 @@ final readonly class RouteFileLoader
                 continue;
             }
 
-            $router = $this->router;
             $presets = $this->presets;
 
             require $path;
         }
 
-        $this->loadAttributeRoutes();
+        $this->loadAttributeRoutes($router);
     }
 
-    /**
-     * @return list<class-string>
-     */
+    /** @return list<class-string> */
     private function attributeClasses(mixed $classes): array
     {
         $resolved = [];
@@ -64,9 +60,7 @@ final readonly class RouteFileLoader
         return $resolved;
     }
 
-    /**
-     * @return array<string, string>
-     */
+    /** @return array<string, string> */
     private function attributeDirectories(mixed $directories): array
     {
         if (!is_array($directories)) {
@@ -86,7 +80,7 @@ final readonly class RouteFileLoader
         return $resolved;
     }
 
-    private function loadAttributeRoutes(): void
+    private function loadAttributeRoutes(Registrar $router): void
     {
         $attributes = ValueNormalizer::associativeArray($this->config->get('router.attributes', []));
         if (!ValueNormalizer::bool($attributes['enabled'] ?? false, false)) {
@@ -96,7 +90,7 @@ final readonly class RouteFileLoader
         $classes = $this->attributeClasses($attributes['classes'] ?? []);
 
         if ($classes !== []) {
-            AttributeRouteLoader::register($this->router, $classes);
+            AttributeRouteLoader::register($router, $classes);
         }
 
         $directories = $this->attributeDirectories($attributes['directories'] ?? []);
@@ -110,6 +104,6 @@ final readonly class RouteFileLoader
             ? AttributeRouteLoader::controllerFileFilter()
             : null;
 
-        AttributeRouteLoader::registerFromDirs($this->router, $directories, $filter);
+        AttributeRouteLoader::registerFromDirs($router, $directories, $filter);
     }
 }

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Routing;
 
-use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Config\ConfigRepository;
@@ -25,7 +24,8 @@ final class RoutingServiceProvider extends ServiceProvider
         new MiddlewareConfigValidator($app->config())->validate();
         $container = $builder->development();
 
-        // Live Webrick router composition is an explicit Phase-5 handoff boundary.
+        // Live Webrick router composition is development-only until the compiled
+        // runtime replaces these final live-router definitions later in Phase 5.
         $builder->bindFactory(WebrickMiddlewareFactory::class, fn() => new WebrickMiddlewareFactory(
             app: $app,
             config: $app->config(),
@@ -33,7 +33,7 @@ final class RoutingServiceProvider extends ServiceProvider
         ));
         $builder->singleton(RouteMiddlewareRegistrar::class, FactoryDefinition::construct(
             RouteMiddlewareRegistrar::class,
-            [new ServiceReference(Application::class)],
+            [new ServiceReference(WebrickMiddlewareFactory::class)],
         ));
         $builder->bindFactory(WebrickRouterFactory::class, fn() => new WebrickRouterFactory(
             $app->config(),
@@ -63,7 +63,6 @@ final class RoutingServiceProvider extends ServiceProvider
             [
                 new ServiceReference(PathManager::class),
                 new ServiceReference(ConfigRepository::class),
-                new ServiceReference(Registrar::class),
                 new ServiceReference(RoutePresetRegistrar::class),
                 new ServiceReference(OAuthRouteRegistrar::class),
                 $this->routeFiles($context->config['router']['files'] ?? ['web.php', 'api.php', 'auth.php']),
