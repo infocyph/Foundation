@@ -15,12 +15,12 @@ use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\InterMix\DI\Support\ServiceReference;
 use Infocyph\TalkingBytes\Grpc\GrpcInboundDispatcher;
-use Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundHandlerInterface;
 use Infocyph\TalkingBytes\Http\HttpClient;
 use Infocyph\TalkingBytes\Http\HttpClientConfig;
 use Infocyph\TalkingBytes\Webhook\WebhookReceiver;
 use Infocyph\TalkingBytes\Webhook\WebhookSender;
 use Infocyph\TalkingBytes\Webhook\WebhookVerifier;
+use Psr\Container\ContainerInterface;
 
 final class CommunicationServiceProvider extends ServiceProvider
 {
@@ -87,47 +87,18 @@ final class CommunicationServiceProvider extends ServiceProvider
         $communication = is_array($context->config['communication'] ?? null) ? $context->config['communication'] : [];
         $grpc = is_array($communication['grpc'] ?? null) ? $communication['grpc'] : [];
         $inbound = is_array($grpc['inbound'] ?? null) ? $grpc['inbound'] : [];
-        $configured = $inbound['handlers'] ?? [];
-        if (!is_array($configured)) {
-            throw new \InvalidArgumentException('communication.grpc.inbound.handlers must be a method-to-service map.');
-        }
 
-        $container = $builder->development();
-        $builder->bindFactory(
+        $builder->bind(
             GrpcInboundDispatcher::class,
-            static function () use ($container, $configured): GrpcInboundDispatcher {
-                $profiles = $container->get(CommunicationProfiles::class);
-                if (!$profiles instanceof CommunicationProfiles) {
-                    throw new \LogicException('CommunicationProfiles binding is invalid.');
-                }
-
-                $handlers = [];
-                foreach ($configured as $method => $service) {
-                    if (!is_string($method) || trim($method) === '' || !is_string($service) || trim($service) === '') {
-                        throw new \InvalidArgumentException(
-                            'communication.grpc.inbound.handlers must map non-empty method names to service identifiers.',
-                        );
-                    }
-
-                    $handler = $container->get($service);
-                    if ($handler instanceof GrpcInboundHandlerInterface) {
-                        $handlers[$method] = $handler->handle(...);
-                        continue;
-                    }
-                    if (is_callable($handler)) {
-                        $handlers[$method] = $handler;
-                        continue;
-                    }
-
-                    throw new \InvalidArgumentException(sprintf(
-                        'Configured gRPC handler service "%s" must be callable or implement %s.',
-                        $service,
-                        GrpcInboundHandlerInterface::class,
-                    ));
-                }
-
-                return $profiles->grpcInbound($handlers);
-            },
+            FactoryDefinition::staticFactory(
+                CommunicationGraphFactory::class,
+                'grpcInbound',
+                [
+                    new ServiceReference(CommunicationProfiles::class),
+                    new ServiceReference(ContainerInterface::class),
+                    $inbound['handlers'] ?? [],
+                ],
+            ),
             LifetimeEnum::Scoped,
         );
     }
