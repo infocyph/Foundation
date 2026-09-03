@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Database;
 
-use Closure;
 use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
 use Infocyph\DBLayer\Migration\Migration;
 use Infocyph\DBLayer\Migration\MigrationRunner;
@@ -13,14 +12,14 @@ use Infocyph\DBLayer\Migration\SeedRunner;
 use Infocyph\Foundation\Cache\CacheLayerFactory;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Support\ValueNormalizer;
+use Psr\Container\ContainerInterface;
 
 final readonly class DatabaseMigrationManager
 {
-    /** @param Closure(string):object $resolver */
     public function __construct(
         private ConfigRepository $config,
         private DBLayerFactory $factory,
-        private Closure $resolver,
+        private ContainerInterface $services,
         private ?CacheLayerFactory $cache = null,
     ) {}
 
@@ -109,7 +108,7 @@ final readonly class DatabaseMigrationManager
 
     private function resolve(string $definition): object
     {
-        $resolved = ($this->resolver)($definition);
+        $resolved = $this->services->get($definition);
         if (!is_object($resolved)) {
             throw new \UnexpectedValueException(sprintf(
                 'Database definition "%s" did not resolve to an object.',
