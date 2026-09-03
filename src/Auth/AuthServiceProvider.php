@@ -173,10 +173,7 @@ final class AuthServiceProvider extends ServiceProvider
         return $this->withOAuthResolver($order, $oauthEnabled);
     }
 
-    /**
-     * @param mixed $configured
-     * @return list<string>
-     */
+    /** @return list<string> */
     private function resolverNames(mixed $configured): array
     {
         if (!is_array($configured)) {
