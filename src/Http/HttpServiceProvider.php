@@ -15,7 +15,7 @@ use Infocyph\Foundation\Operations\MaintenanceManager;
 use Infocyph\Foundation\Routing\WebrickRouterFactory;
 use Infocyph\Foundation\Runtime\ExecutionScope;
 use Infocyph\InterMix\DI\ContainerBuilder;
-use Infocyph\InterMix\DI\Support\LifetimeEnum;
+use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\ServiceReference;
 use Infocyph\Webrick\Router\Kernel\ErrorHandler;
 use Infocyph\Webrick\Router\Kernel\RouterKernel;
@@ -26,28 +26,28 @@ final class HttpServiceProvider extends ServiceProvider
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         $app = $this->application($builder, $context);
-        $container = $builder->development();
 
-        $this->bindRecipe($container, AuthResponseFactory::class, AuthResponseFactory::class);
-        $this->bindRecipe($container, AuthExceptionMapper::class, AuthExceptionMapper::class, [
-            new ServiceReference(AuthResponseFactory::class),
-        ]);
-        $this->bindRecipe($container, ValidationExceptionMapper::class, ValidationExceptionMapper::class);
-        $this->bindRecipe($container, ExceptionRenderer::class, ExceptionRenderer::class, [
-            new ServiceReference(AuthExceptionMapper::class),
-            new ServiceReference(ValidationExceptionMapper::class),
-        ]);
+        $builder->singleton(AuthResponseFactory::class, FactoryDefinition::construct(AuthResponseFactory::class));
+        $builder->singleton(AuthExceptionMapper::class, FactoryDefinition::construct(
+            AuthExceptionMapper::class,
+            [new ServiceReference(AuthResponseFactory::class)],
+        ));
+        $builder->singleton(ValidationExceptionMapper::class, FactoryDefinition::construct(
+            ValidationExceptionMapper::class,
+        ));
+        $builder->singleton(ExceptionRenderer::class, FactoryDefinition::construct(
+            ExceptionRenderer::class,
+            [
+                new ServiceReference(AuthExceptionMapper::class),
+                new ServiceReference(ValidationExceptionMapper::class),
+            ],
+        ));
 
-        // Maintenance remains a Phase-6 dynamic island until it moves out of the universal HTTP kernel.
-        $this->bindFactory(
-            $container,
-            MaintenanceManager::class,
-            fn() => new MaintenanceManager($app),
-            LifetimeEnum::Singleton,
-        );
+        // Maintenance is a Phase-6 handoff boundary until it leaves the universal HTTP kernel.
+        $builder->bindFactory(MaintenanceManager::class, fn() => new MaintenanceManager($app));
 
         // Error-handler and live RouterKernel ownership move to the compiled Webrick runtime in Phase 5.
-        $this->bindFactory($container, ErrorHandler::class, fn() => new ErrorHandler(
+        $builder->bindFactory(ErrorHandler::class, fn() => new ErrorHandler(
             logger: static fn(): LoggerInterface => $app->make(HttpExceptionLogger::class),
             debug: (bool) ($context->config['app']['debug'] ?? false),
             requestIdHeader: 'X-Request-Id',
@@ -57,19 +57,20 @@ final class HttpServiceProvider extends ServiceProvider
             ): ?\Infocyph\Webrick\Response\Response => ExceptionRenderer::supports($exception)
                 ? $app->make(ExceptionRenderer::class)->render($request, $exception)
                 : null,
-        ), LifetimeEnum::Singleton);
-        $this->bindFactory(
-            $container,
+        ));
+        $builder->bindFactory(
             RouterKernel::class,
             fn() => $app->make(WebrickRouterFactory::class)->kernel($app->make(ErrorHandler::class)),
-            LifetimeEnum::Singleton,
         );
-        $this->bindRecipe($container, HttpKernel::class, HttpKernel::class, [
-            new ServiceReference(RouterKernel::class),
-            new ServiceReference(ExecutionScope::class),
-            new ServiceReference(MaintenanceManager::class),
-        ]);
+        $builder->singleton(HttpKernel::class, FactoryDefinition::construct(
+            HttpKernel::class,
+            [
+                new ServiceReference(RouterKernel::class),
+                new ServiceReference(ExecutionScope::class),
+                new ServiceReference(MaintenanceManager::class),
+            ],
+        ));
 
-        $container->alias('foundation.http', HttpKernel::class, LifetimeEnum::Singleton);
+        $builder->alias('foundation.http', HttpKernel::class);
     }
 }
