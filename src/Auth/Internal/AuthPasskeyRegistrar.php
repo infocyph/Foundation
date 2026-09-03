@@ -43,31 +43,50 @@ final readonly class AuthPasskeyRegistrar extends AbstractAuthRegistrar
             $this->recipe(WebAuthnChallengeStore::class, WebAuthnChallengeStore::class, [
                 $this->ref(TtlStoreInterface::class),
             ]);
-
-            // Resolved WebAuthn library objects and host attestation policy remain adapter dynamic islands.
-            $this->singleton(WebAuthnRuntime::class, fn() => new WebAuthnRuntime(
-                $this->service(WebAuthnConfigResolver::class)->resolve(),
-                $this->attestationPolicy(),
-            ));
+            if (!$this->hasExplicitBinding(WebAuthnAttestationPolicyInterface::class)) {
+                $this->recipe(
+                    WebAuthnAttestationPolicyInterface::class,
+                    NoneWebAuthnAttestationPolicy::class,
+                );
+            }
+            $this->staticRecipe(
+                WebAuthnRuntime::class,
+                AuthPasskeyGraphFactory::class,
+                'runtime',
+                [
+                    $this->ref(WebAuthnConfigResolver::class),
+                    $this->ref(WebAuthnAttestationPolicyInterface::class),
+                ],
+            );
             $this->recipe(WebAuthnCredentialMapper::class, WebAuthnCredentialMapper::class, [
                 $this->ref(AuthIdGeneratorInterface::class),
                 $this->ref(ClockInterface::class),
                 $this->ref(WebAuthnRuntime::class),
             ]);
-            $this->singleton(WebAuthnPublicKeyOptionsFactory::class, fn() => new WebAuthnPublicKeyOptionsFactory(
-                $this->service(WebAuthnConfigResolver::class)->resolve(),
-                $this->service(WebAuthnRuntime::class),
-            ));
-            $this->singleton(PasskeyServiceInterface::class, fn() => new WebAuthnPasskeyService(
-                config: $this->service(WebAuthnConfigResolver::class)->resolve(),
-                challenges: $this->service(WebAuthnChallengeStore::class),
-                credentials: $this->service(PasskeyCredentialStoreInterface::class),
-                ids: $this->service(AuthIdGeneratorInterface::class),
-                clock: $this->service(ClockInterface::class),
-                options: $this->service(WebAuthnPublicKeyOptionsFactory::class),
-                mapper: $this->service(WebAuthnCredentialMapper::class),
-                runtime: $this->service(WebAuthnRuntime::class),
-            ));
+            $this->staticRecipe(
+                WebAuthnPublicKeyOptionsFactory::class,
+                AuthPasskeyGraphFactory::class,
+                'options',
+                [
+                    $this->ref(WebAuthnConfigResolver::class),
+                    $this->ref(WebAuthnRuntime::class),
+                ],
+            );
+            $this->staticRecipe(
+                PasskeyServiceInterface::class,
+                AuthPasskeyGraphFactory::class,
+                'service',
+                [
+                    $this->ref(WebAuthnConfigResolver::class),
+                    $this->ref(WebAuthnChallengeStore::class),
+                    $this->ref(PasskeyCredentialStoreInterface::class),
+                    $this->ref(AuthIdGeneratorInterface::class),
+                    $this->ref(ClockInterface::class),
+                    $this->ref(WebAuthnPublicKeyOptionsFactory::class),
+                    $this->ref(WebAuthnCredentialMapper::class),
+                    $this->ref(WebAuthnRuntime::class),
+                ],
+            );
             return;
         }
 
@@ -76,17 +95,5 @@ final readonly class AuthPasskeyRegistrar extends AbstractAuthRegistrar
             $this->ref(ClockInterface::class),
             $this->intConfig('auth.passkey_challenge_ttl', 300),
         ]);
-    }
-
-    private function attestationPolicy(): WebAuthnAttestationPolicyInterface
-    {
-        if ($this->hasExplicitBinding(WebAuthnAttestationPolicyInterface::class)) {
-            $policy = $this->service(WebAuthnAttestationPolicyInterface::class);
-            if ($policy instanceof WebAuthnAttestationPolicyInterface) {
-                return $policy;
-            }
-        }
-
-        return new NoneWebAuthnAttestationPolicy();
     }
 }
