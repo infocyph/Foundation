@@ -15,8 +15,10 @@ abstract class ServiceProvider implements ServiceProviderInterface
 {
     public function boot(Application $app): void {}
 
-    final protected function application(ContainerBuilder $builder): Application
-    {
+    final protected function application(
+        ContainerBuilder $builder,
+        ?FoundationBuildContext $context = null,
+    ): Application {
         $container = $builder->development();
         if (!$container->definitions()->has(Application::class)) {
             throw new \LogicException('Foundation Application must exist before provider contribution.');
