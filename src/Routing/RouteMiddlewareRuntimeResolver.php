@@ -18,6 +18,8 @@ use Infocyph\Foundation\Http\Middleware\PolicyMiddleware;
 use Infocyph\Foundation\Http\Middleware\RoleMiddleware;
 use Infocyph\Foundation\Http\Response\AuthExceptionMapper;
 use Infocyph\Foundation\Http\Response\AuthResponseFactory;
+use Infocyph\Foundation\Operations\MaintenanceRuntimeState;
+use Infocyph\Webrick\Middleware\MaintenanceModeMiddleware;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 
@@ -119,6 +121,20 @@ final class RouteMiddlewareRuntimeResolver
             $store = is_string($configured) && $configured !== '' ? $configured : null;
 
             return ($factory->forEndpoint($endpoint, $cache->store($store)))($request, $next);
+        };
+    }
+
+    public static function maintenance(): Closure
+    {
+        return static function (
+            Request $request,
+            Closure $next,
+            MaintenanceRuntimeState $state,
+        ): Response {
+            return (new MaintenanceModeMiddleware(
+                retryAfter: $state->retryAfter(),
+                state: $state,
+            ))($request, $next);
         };
     }
 }
