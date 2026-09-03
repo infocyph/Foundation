@@ -54,6 +54,14 @@ final readonly class WebReleaseConfiguration
         return $this->graph->context->environment ?? 'production';
     }
 
+    public function maintenanceMiddlewareEnabled(): bool
+    {
+        return ValueNormalizer::bool(
+            $this->config()->get('operations.maintenance.web.enabled', false),
+            false,
+        );
+    }
+
     public function matcher(): MatcherInterface
     {
         return match (strtolower($this->string('router.matcher', 'fused'))) {
@@ -61,6 +69,14 @@ final readonly class WebReleaseConfiguration
             'sharded' => ShardedMatcher::make(),
             default => FusedMatcher::make(),
         };
+    }
+
+    /** @return list<mixed> */
+    public function preGlobal(): array
+    {
+        return $this->maintenanceMiddlewareEnabled()
+            ? [[RouteMiddlewareRuntimeResolver::class, 'maintenance']]
+            : [];
     }
 
     public function resolvePath(string $path): string
