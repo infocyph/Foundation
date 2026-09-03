@@ -36,7 +36,7 @@ final class AuthOtpServiceProvider extends ServiceProvider
 
         new AuthMfaRegistrar(
             $app,
-            $builder->development(),
+            $builder,
             new AuthSecretResolver($app),
         )->registerOtpSupport();
     }
