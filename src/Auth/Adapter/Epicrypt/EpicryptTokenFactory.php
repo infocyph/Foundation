@@ -12,15 +12,19 @@ use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface as AuthClockInterface
 
 final readonly class EpicryptTokenFactory
 {
+    private SymmetricJwtAlgorithm $algorithm;
+
     public function __construct(
         private string $key,
         private AuthClockInterface $clock,
         private string $issuer,
         private string $audience,
-        private SymmetricJwtAlgorithm $algorithm = SymmetricJwtAlgorithm::HS256,
+        string $algorithm = 'HS256',
         private int $maximumLifetimeSeconds = 1209600,
         private int $leewaySeconds = 0,
-    ) {}
+    ) {
+        $this->algorithm = SymmetricJwtAlgorithm::from($algorithm);
+    }
 
     public function audience(): string
     {
