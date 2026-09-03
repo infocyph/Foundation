@@ -36,84 +36,74 @@ final class RouteMiddlewareRuntimeResolver
     {
         $roles = array_values($roles);
 
-        return static function (
+        return static fn (
             Request $request,
             Closure $next,
             CurrentPrincipalContext $principals,
             RoleManager $roleManager,
             AuthResponseFactory $responses,
-        ) use ($roles): Response {
-            return (new RoleMiddleware($principals, $roleManager, $responses, $roles))($request, $next);
-        };
+        ): Response => (new RoleMiddleware($principals, $roleManager, $responses, $roles))($request, $next);
     }
 
     public static function permission(string ...$abilities): Closure
     {
         $abilities = array_values($abilities);
 
-        return static function (
+        return static fn (
             Request $request,
             Closure $next,
             CurrentPrincipalContext $principals,
             AuthorizerInterface $authorizer,
             AuthExceptionMapper $exceptions,
             AuthResponseFactory $responses,
-        ) use ($abilities): Response {
-            return (new PermissionMiddleware(
-                $principals,
-                $authorizer,
-                $exceptions,
-                $responses,
-                $abilities,
-            ))($request, $next);
-        };
+        ): Response => (new PermissionMiddleware(
+            $principals,
+            $authorizer,
+            $exceptions,
+            $responses,
+            $abilities,
+        ))($request, $next);
     }
 
     public static function policy(string $ability, ?string $resourceKey = null): Closure
     {
-        return static function (
+        return static fn (
             Request $request,
             Closure $next,
             CurrentPrincipalContext $principals,
             AuthorizerInterface $authorizer,
             AuthExceptionMapper $exceptions,
             AuthResponseFactory $responses,
-        ) use ($ability, $resourceKey): Response {
-            return (new PolicyMiddleware(
-                $principals,
-                $authorizer,
-                $exceptions,
-                $responses,
-                $ability,
-                $resourceKey,
-            ))($request, $next);
-        };
+        ): Response => (new PolicyMiddleware(
+            $principals,
+            $authorizer,
+            $exceptions,
+            $responses,
+            $ability,
+            $resourceKey,
+        ))($request, $next);
     }
 
     public static function oauthScope(string ...$scopes): Closure
     {
         $scopes = array_values($scopes);
 
-        return static function (
+        return static fn (
             Request $request,
             Closure $next,
             CurrentPrincipalContext $principals,
-        ) use ($scopes): Response {
-            return (new OAuthScopeMiddleware($principals, $scopes))($request, $next);
-        };
+        ): Response => (new OAuthScopeMiddleware($principals, $scopes))($request, $next);
     }
 
     public static function oauthAudience(string ...$audiences): Closure
     {
         $audiences = array_values($audiences);
 
-        return static function (
+        return static fn (
             Request $request,
             Closure $next,
             CurrentPrincipalContext $principals,
-        ) use ($audiences): Response {
-            return (new OAuthAudienceMiddleware($principals, $audiences))($request, $next);
-        };
+        ): Response => (new OAuthAudienceMiddleware($principals, $audiences))($request, $next);
     }
 
     public static function oauthThrottle(string $endpoint): Closure
