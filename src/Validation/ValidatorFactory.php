@@ -24,7 +24,7 @@ final readonly class ValidatorFactory
     public function __construct(
         private ConfigRepository $config,
         private ValidationSchemaRegistry $schemas,
-        private DatabaseProvider $database,
+        private ?DatabaseProvider $database = null,
     ) {}
 
     public function compile(string $schema): CompiledValidator
