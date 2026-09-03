@@ -206,27 +206,44 @@ final class Bootstrapper
             return [];
         }
 
-        $config = $context->config;
-        $app = is_array($config['app'] ?? null) ? $config['app'] : [];
-        $paths = is_array($config['paths'] ?? null) ? $config['paths'] : [];
-        $basePath = $app['base_path'] ?? null;
-        $basePath = is_string($basePath) && $basePath !== ''
-            ? rtrim($basePath, DIRECTORY_SEPARATOR)
-            : (getcwd() ?: dirname(__DIR__, 2));
-
-        $normalizedPaths = [];
-        foreach ($paths as $key => $path) {
-            if (is_string($key) && is_string($path) && $path !== '') {
-                $normalizedPaths[$key] = $path;
-            }
-        }
-
+        $loader = new ProviderFileLoader(new PathManager(
+            $this->providerBasePath($context->config),
+            $this->providerPaths($context->config),
+        ));
         $providers = [];
-        foreach (new ProviderFileLoader(new PathManager($basePath, $normalizedPaths))->providers($context->runtimeMode) as $provider) {
+        foreach ($loader->providers($context->runtimeMode) as $provider) {
             $instance = $this->instantiateProvider($provider);
             $providers[$instance::class] = $instance;
         }
 
         return array_values($providers);
+    }
+
+    /** @param array<string, mixed> $config */
+    private function providerBasePath(array $config): string
+    {
+        $app = is_array($config['app'] ?? null) ? $config['app'] : [];
+        $basePath = $app['base_path'] ?? null;
+
+        return is_string($basePath) && $basePath !== ''
+            ? rtrim($basePath, DIRECTORY_SEPARATOR)
+            : (getcwd() ?: dirname(__DIR__, 2));
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     * @return array<string, string>
+     */
+    private function providerPaths(array $config): array
+    {
+        $paths = is_array($config['paths'] ?? null) ? $config['paths'] : [];
+        $normalized = [];
+        foreach ($paths as $key => $path) {
+            if (is_string($key) && is_string($path) && $path !== '') {
+                $normalized[$key] = $path;
+            }
+        }
+
+        return $normalized;
     }
 }
