@@ -37,6 +37,13 @@ final class MessagingServiceProvider extends ServiceProvider
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         $messaging = is_array($context->config['messaging'] ?? null) ? $context->config['messaging'] : [];
+        $handlers = $this->arrayValue($messaging, 'handlers');
+        $handlerMiddleware = $this->arrayValue($messaging, 'handler_middleware');
+        $jobMiddleware = $this->arrayValue($messaging, 'job_middleware');
+        $listeners = $this->arrayValue($messaging, 'listeners');
+        $routes = $this->arrayValue($messaging, 'routes');
+        $defaultRoute = $this->arrayValue($messaging, 'default_route');
+        $scheduledMessages = $this->arrayValue($messaging, 'scheduled_messages');
 
         $builder->singleton(MessagingRuntimeResolver::class, FactoryDefinition::construct(
             MessagingRuntimeResolver::class,
@@ -46,10 +53,7 @@ final class MessagingServiceProvider extends ServiceProvider
         $builder->singleton(HandlerMap::class, FactoryDefinition::staticFactory(
             MessagingGraphFactory::class,
             'handlerMap',
-            [
-                new ServiceReference(MessagingRuntimeResolver::class),
-                $messaging['handlers'] ?? [],
-            ],
+            [new ServiceReference(MessagingRuntimeResolver::class), $handlers],
         ));
         if (!$builder->definitions()->has(HandlerInvoker::class)) {
             $builder->singleton(HandlerInvoker::class, FactoryDefinition::staticFactory(
@@ -58,18 +62,15 @@ final class MessagingServiceProvider extends ServiceProvider
                 [
                     new ServiceReference(MessagingRuntimeResolver::class),
                     new ServiceReference(HandlerMap::class),
-                    $messaging['handler_middleware'] ?? [],
-                    $messaging['job_middleware'] ?? [],
+                    $handlerMiddleware,
+                    $jobMiddleware,
                 ],
             ));
         }
         $builder->singleton(ListenerMap::class, FactoryDefinition::staticFactory(
             MessagingGraphFactory::class,
             'listenerMap',
-            [
-                new ServiceReference(MessagingRuntimeResolver::class),
-                $messaging['listeners'] ?? [],
-            ],
+            [new ServiceReference(MessagingRuntimeResolver::class), $listeners],
         ));
         if (!$builder->definitions()->has(ListenerProviderInterface::class)) {
             $builder->alias(ListenerProviderInterface::class, ListenerMap::class);
@@ -78,10 +79,7 @@ final class MessagingServiceProvider extends ServiceProvider
         $builder->singleton(RouteMap::class, FactoryDefinition::staticFactory(
             MessagingGraphFactory::class,
             'routeMap',
-            [
-                $messaging['routes'] ?? [],
-                $messaging['default_route'] ?? [],
-            ],
+            [$routes, $defaultRoute],
         ));
         $builder->singleton(InMemoryTransport::class, FactoryDefinition::construct(
             InMemoryTransport::class,
@@ -119,7 +117,6 @@ final class MessagingServiceProvider extends ServiceProvider
             $builder->singleton(FailureStore::class, FactoryDefinition::construct(InMemoryFailureStore::class));
         }
 
-        // Scope semantics are still Phase 4, but the bridge no longer depends on Application.
         $builder->singleton(InterMixExecutionScope::class, FactoryDefinition::construct(
             InterMixExecutionScope::class,
             [new ServiceReference(FoundationExecutionScope::class)],
@@ -156,15 +153,23 @@ final class MessagingServiceProvider extends ServiceProvider
         $builder->singleton(MessageFactoryMap::class, FactoryDefinition::staticFactory(
             MessagingGraphFactory::class,
             'messageFactoryMap',
-            [
-                new ServiceReference(MessagingRuntimeResolver::class),
-                $messaging['scheduled_messages'] ?? [],
-            ],
+            [new ServiceReference(MessagingRuntimeResolver::class), $scheduledMessages],
         ));
         $builder->singleton(ScheduledMessageDispatcher::class, FactoryDefinition::construct(
             ScheduledMessageDispatcher::class,
             [new ServiceReference(MessageFactoryMap::class), new ServiceReference(MessageBus::class)],
         ));
         $builder->alias('foundation.messaging', MessageBus::class);
+    }
+
+    /**
+     * @param array<string, mixed> $source
+     * @return array<array-key, mixed>
+     */
+    private function arrayValue(array $source, string $key): array
+    {
+        $value = $source[$key] ?? null;
+
+        return is_array($value) ? $value : [];
     }
 }
