@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use Infocyph\CacheLayer\Cache\Lock\FileLockProvider;
-use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Command\CommandDispatcher;
 use Infocyph\Foundation\Command\CommandIO;
@@ -14,7 +14,8 @@ use Infocyph\Foundation\Operations\RuntimeControl;
 use Infocyph\Foundation\Operations\RuntimeProcessRegistry;
 use Infocyph\Foundation\Scheduling\ScheduleManager;
 use Infocyph\Foundation\Scheduling\SchedulerRuntime;
-use Infocyph\InterMix\DI\Support\LifetimeEnum;
+use Infocyph\InterMix\DI\ContainerBuilder;
+use Infocyph\InterMix\DI\Support\FactoryDefinition;
 
 final class FoundationSchedulerRuntimeIO implements CommandIO
 {
@@ -127,12 +128,13 @@ final class FoundationSchedulerScopedProbe
 
 final class FoundationSchedulerServiceProvider extends ServiceProvider
 {
-    public function register(Application $app): void
+    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        $app->container()->bind(
+        unset($context);
+
+        $builder->scoped(
             'scheduler.runtime.scoped',
-            static fn(): FoundationSchedulerScopedProbe => new FoundationSchedulerScopedProbe(),
-            LifetimeEnum::Scoped,
+            FactoryDefinition::construct(FoundationSchedulerScopedProbe::class),
         );
     }
 }
