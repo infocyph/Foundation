@@ -21,7 +21,7 @@ final readonly class ExecutionScope
      * Web request scope ownership belongs to Webrick.
      *
      * The primary application failure always wins over cleanup failures. When
-     * execution succeeds, the first cleanup failure is surfaced to the caller.
+     * execution succeeds, explicit runtime cleanup wins over scope-leave cleanup.
      *
      * @template T
      * @param callable(ExecutionId):T $callback
@@ -37,42 +37,55 @@ final readonly class ExecutionScope
         $executionId ??= ExecutionId::generate();
         $seeds[ExecutionId::class] = $executionId;
         $seeds[RuntimeMode::class] ??= $this->runtime;
-        $scope = $this->runtime->scopeName();
 
-        return $this->withinScope(
-            $scope,
-            function (ContainerInterface $runtime) use ($callback, $executionId): mixed {
-                $result = null;
-                $primaryFailure = null;
+        $result = null;
+        $primaryFailure = null;
+        $cleanupFailure = null;
+        $scopeFailure = null;
 
-                try {
-                    $result = $callback($executionId);
-                } catch (\Throwable $exception) {
-                    $primaryFailure = $exception;
-                }
-
-                $cleanupFailure = null;
-                try {
-                    $state = $runtime->get(RuntimeExecutionState::class);
-                    if (!$state instanceof RuntimeExecutionState) {
-                        throw new \LogicException('RuntimeExecutionState binding is invalid.');
+        try {
+            $this->withinScope(
+                $this->runtime->scopeName(),
+                function (ContainerInterface $runtime) use (
+                    $callback,
+                    $executionId,
+                    &$result,
+                    &$primaryFailure,
+                    &$cleanupFailure,
+                ): void {
+                    try {
+                        $result = $callback($executionId);
+                    } catch (\Throwable $exception) {
+                        $primaryFailure = $exception;
                     }
-                    $state->cleanup();
-                } catch (\Throwable $exception) {
-                    $cleanupFailure = $exception;
-                }
 
-                if ($primaryFailure !== null) {
-                    throw $primaryFailure;
-                }
-                if ($cleanupFailure !== null) {
-                    throw $cleanupFailure;
-                }
+                    try {
+                        $state = $runtime->get(RuntimeExecutionState::class);
+                        if (!$state instanceof RuntimeExecutionState) {
+                            throw new \LogicException('RuntimeExecutionState binding is invalid.');
+                        }
+                        $state->cleanup();
+                    } catch (\Throwable $exception) {
+                        $cleanupFailure = $exception;
+                    }
+                },
+                $seeds,
+            );
+        } catch (\Throwable $exception) {
+            $scopeFailure = $exception;
+        }
 
-                return $result;
-            },
-            $seeds,
-        );
+        if ($primaryFailure !== null) {
+            throw $primaryFailure;
+        }
+        if ($cleanupFailure !== null) {
+            throw $cleanupFailure;
+        }
+        if ($scopeFailure !== null) {
+            throw $scopeFailure;
+        }
+
+        return $result;
     }
 
     /**
