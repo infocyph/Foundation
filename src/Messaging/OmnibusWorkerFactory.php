@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Messaging;
 
-use Closure;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\Omnibus\Consumer\Worker;
@@ -13,10 +12,9 @@ use Infocyph\Omnibus\Consumer\WorkerOptions;
 
 final readonly class OmnibusWorkerFactory
 {
-    /** @param Closure():ConsumerFactory $consumers */
     public function __construct(
         private ConfigRepository $config,
-        private Closure $consumers,
+        private ConsumerFactory $consumers,
     ) {}
 
     /** @return array<string, array<string, mixed>> */
@@ -48,7 +46,7 @@ final readonly class OmnibusWorkerFactory
     public function make(string $name, ?WorkerLifecycle $lifecycle = null): Worker
     {
         return new Worker(
-            ($this->consumers)()->make($this->transport($name)),
+            $this->consumers->make($this->transport($name)),
             $this->options($name),
             $lifecycle,
         );
