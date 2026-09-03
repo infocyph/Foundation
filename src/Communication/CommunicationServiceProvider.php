@@ -87,6 +87,7 @@ final class CommunicationServiceProvider extends ServiceProvider
         $communication = is_array($context->config['communication'] ?? null) ? $context->config['communication'] : [];
         $grpc = is_array($communication['grpc'] ?? null) ? $communication['grpc'] : [];
         $inbound = is_array($grpc['inbound'] ?? null) ? $grpc['inbound'] : [];
+        $handlers = is_array($inbound['handlers'] ?? null) ? $inbound['handlers'] : [];
 
         $builder->bind(
             GrpcInboundDispatcher::class,
@@ -96,7 +97,7 @@ final class CommunicationServiceProvider extends ServiceProvider
                 [
                     new ServiceReference(CommunicationProfiles::class),
                     new ServiceReference(ContainerInterface::class),
-                    $inbound['handlers'] ?? [],
+                    $handlers,
                 ],
             ),
             LifetimeEnum::Scoped,
