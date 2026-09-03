@@ -30,6 +30,8 @@ final class NotificationServiceProvider extends ServiceProvider
 {
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
+        unset($context);
+
         $builder->singleton(NotificationTemplateRegistry::class, FactoryDefinition::construct(
             NotificationTemplateRegistry::class,
             [new ServiceReference(ConfigRepository::class)],
