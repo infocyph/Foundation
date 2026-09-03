@@ -2,18 +2,21 @@
 
 declare(strict_types=1);
 
-use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Foundation;
+use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 
 final class FoundationPersistentRuntimeSoakProbe {}
 
 final class FoundationPersistentRuntimeSoakProvider extends ServiceProvider
 {
-    public function register(Application $app): void
+    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        $app->container()->bind(
+        unset($context);
+
+        $builder->bindFactory(
             'persistent.runtime.soak.probe',
             static fn(): FoundationPersistentRuntimeSoakProbe => new FoundationPersistentRuntimeSoakProbe(),
             LifetimeEnum::Scoped,
