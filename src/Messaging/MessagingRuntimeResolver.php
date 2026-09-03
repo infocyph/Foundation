@@ -9,8 +9,8 @@ use Psr\Container\ContainerInterface;
 
 /**
  * Explicit dynamic island for application-configured messaging service IDs.
- * The provider graph itself remains generated; only user-selected callables are
- * resolved from the finalized runtime container.
+ * The provider graph itself remains generated; user-selected callables and
+ * middleware resolve from the finalized runtime container inside execution.
  */
 final readonly class MessagingRuntimeResolver
 {
@@ -52,15 +52,7 @@ final readonly class MessagingRuntimeResolver
                 );
             }
 
-            $resolved = $this->container->get($definition);
-            if (!$resolved instanceof HandlerMiddleware) {
-                throw new \InvalidArgumentException(sprintf(
-                    'Messaging handler middleware "%s" must implement %s.',
-                    $definition,
-                    HandlerMiddleware::class,
-                ));
-            }
-            $middleware[] = $resolved;
+            $middleware[] = new ResolvingHandlerMiddleware($this->container, $definition);
         }
 
         $jobs = $this->jobMiddleware($configuredJobs);
@@ -104,15 +96,7 @@ final readonly class MessagingRuntimeResolver
                 );
             }
 
-            $resolved = $this->container->get($definition);
-            if (!$resolved instanceof JobMiddleware) {
-                throw new \InvalidArgumentException(sprintf(
-                    'Messaging job middleware "%s" must implement %s.',
-                    $definition,
-                    JobMiddleware::class,
-                ));
-            }
-            $middleware[] = $resolved;
+            $middleware[] = new ResolvingJobMiddleware($this->container, $definition);
         }
 
         return $middleware;
