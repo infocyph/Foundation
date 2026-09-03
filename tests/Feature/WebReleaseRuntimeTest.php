@@ -8,6 +8,7 @@ use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 use Infocyph\Webrick\Router\Build\CompiledRouterArtifact;
 use Infocyph\Webrick\Router\Build\RouteCapability;
+use Infocyph\Webrick\Router\Url\UrlGeneratorRegistry;
 
 final class FoundationCompiledReleaseHandler
 {
@@ -81,6 +82,9 @@ it('compiles and boots a trusted route-first Webrick release without live router
             ->and(RouteCapability::has($middlewarePlan->capabilities, RouteCapability::MIDDLEWARE))->toBeTrue();
 
         $runtime = WebReleaseRuntime::loadPrevalidated($config, $manifest, $trustedSha256);
+        expect(UrlGeneratorRegistry::frozen())->toBeTrue()
+            ->and(UrlGeneratorRegistry::get()->urlFor('plain.show'))->toBe('/plain');
+
         $response = $runtime->kernel->handle(Request::fake(
             headers: ['Host' => 'release.test'],
             uri: 'https://release.test/compiled',
