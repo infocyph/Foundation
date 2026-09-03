@@ -9,8 +9,6 @@ use Infocyph\CacheLayer\Cache\Cache;
 use Infocyph\CacheLayer\Cache\CacheInterface;
 use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
 use Infocyph\CacheLayer\Counter\AtomicCounterStoreInterface;
-use Infocyph\CacheLayer\Memoize\Memoizer;
-use Infocyph\CacheLayer\Memoize\OnceMemoizer;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Config\ConfigRepository;
@@ -72,8 +70,10 @@ final class CacheServiceProvider extends ServiceProvider
             'lock',
             [new ServiceReference(CacheLayerFactory::class)],
         ));
-        $builder->singleton(Memoizer::class, FactoryDefinition::staticFactory(Memoizer::class, 'instance'));
-        $builder->singleton(OnceMemoizer::class, FactoryDefinition::staticFactory(OnceMemoizer::class, 'instance'));
+
+        // CacheLayer memoizers are explicit process-local utilities. Foundation
+        // deliberately does not promote their global instance() state into the
+        // application graph where it could be mistaken for execution-local state.
 
         $cache = is_array($context->config['cache'] ?? null) ? $context->config['cache'] : [];
         $counter = $cache['default_counter'] ?? null;
