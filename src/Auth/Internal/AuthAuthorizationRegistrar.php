@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Internal;
 
+use Infocyph\Foundation\Auth\Authorization\Gate\AbilityMatcher;
 use Infocyph\Foundation\Auth\Authorization\Gate\AuditingAuthorizer;
 use Infocyph\Foundation\Auth\Authorization\Gate\AuthorizerInterface;
 use Infocyph\Foundation\Auth\Authorization\Gate\Gate;
@@ -51,8 +52,10 @@ final readonly class AuthAuthorizationRegistrar extends AbstractAuthRegistrar
             $this->ref(RoleStoreInterface::class),
             $this->ref(PermissionStoreInterface::class),
         ]);
+        $this->recipe(AbilityMatcher::class, AbilityMatcher::class);
         $this->recipe(GrantResolver::class, GrantResolver::class, [
             $this->ref(GrantStoreInterface::class),
+            $this->ref(AbilityMatcher::class),
             $this->ref(ClockInterface::class),
         ]);
         $this->recipe(PermissionAuthorizer::class, PermissionAuthorizer::class, [
