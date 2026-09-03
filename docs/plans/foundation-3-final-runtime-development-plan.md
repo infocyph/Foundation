@@ -215,7 +215,7 @@ Recipe args must be service references or exportable scalar/null/array values. D
 
 A closure/`DirectFactory` may be reflection-free but is still a dynamic production island.
 
-No InterMix 10.0.3 code change is currently required for the Foundation architecture described here.
+**Phase 7 integration correction:** InterMix 10.0.3 seeds `Psr\Container\ContainerInterface` with the development `Container`, but its static planner currently treats that intrinsic object value as a dynamic definition. A generated runtime that legitimately injects the finalized PSR container therefore reports the intrinsic binding and dependent services as skipped. This is a general lower-layer compiler defect, not a Foundation-specific runtime concern. Before Phase 7 generated-runtime acceptance can close, InterMix requires a patch release that compiles only its intrinsic `ContainerInterface` binding to the generated `ProductionContainer` itself (the generated value expression is `$this`) and proves zero skipped definitions for a consumer that injects `ContainerInterface`. Foundation must not add a service-locator proxy or dynamic-fallback workaround for this defect. Keep `^10.0.3` as the current released baseline until that patch release exists, then raise the floor here and in `composer.json` in the same Foundation commit.
 
 ---
 
@@ -1855,7 +1855,7 @@ If the lower layer already provides the correct mechanism, Foundation uses it di
 
 ## 28. Development starting checklist
 
-1. keep InterMix 10.0.3 as the current DI baseline;
+1. keep InterMix 10.0.3 as the current DI baseline until the Phase 7 intrinsic-container static-runtime compiler patch is released, then raise the Foundation floor immediately;
 2. implement/release Webrick WB-1 through WB-4;
 3. capture lower-layer benchmark baselines;
 4. update Foundation dependency floors to exact released versions;
@@ -1876,10 +1876,10 @@ Use this section as the implementation ledger. A checked **overall phase** means
 - [x] Phase 1 — Webrick prerequisites
 - [x] Phase 2 — Foundation composition root — development implementation complete; deferred QA/static-analysis closure remains open
 - [x] Phase 3 — Provider graph migration — development implementation complete; skipped-definition/QA closure remains open
-- [ ] Phase 4 — Runtime state/scope redesign — core execution-state redesign implemented; lifecycle/cache audits and isolation proof matrix remain
-- [ ] Phase 5 — Webrick build/runtime integration — compiled release/runtime path substantially implemented; URL/runtime and execution-plan proof remain
-- [ ] Phase 6 — Error/maintenance/filesystem cleanup
-- [ ] Phase 7 — Non-web generated runtimes
+- [x] Phase 4 — Runtime state/scope redesign — development implementation and lifecycle/cache audits complete; Swoole/OpenSwoole acceptance remains conditional on an available runtime
+- [x] Phase 5 — Webrick build/runtime integration — development implementation complete; broader release/regression closure remains under Phases 9–10
+- [ ] Phase 6 — Error/maintenance/filesystem cleanup — implementation substantially complete; maintenance benchmark decision and remaining output/offload audit stay open
+- [ ] Phase 7 — Non-web generated runtimes — graph/compiler/runtime implementation started; strict generated-runtime acceptance is blocked by the InterMix 10.0.3 intrinsic `ContainerInterface` static-compilation defect documented in section 4
 - [ ] Phase 8 — Unified Foundation release generation
 - [ ] Phase 9 — Full regression/performance pass
 - [ ] Phase 10 — Final rescan/release readiness
@@ -2002,13 +2002,15 @@ Phase 3 development audit / dynamic-boundary ledger:
 - [x] Make principal/current-auth state execution-scoped.
 - [x] Make active browser-session state execution-scoped while keeping reusable store/lock infrastructure separate.
 - [x] Make DB touched/transaction/fresh-connection cleanup bookkeeping execution-local.
-- [ ] Audit logging correlation/context lifetime.
-- [ ] Audit memoizers/caches for process-safe vs generation-bound vs execution-cleared state.
+- [x] Audit logging correlation/context lifetime.
+- [x] Audit memoizers/caches for process-safe vs generation-bound vs execution-cleared state.
 - [x] Add deterministic scope-leave cleanup where lifecycle semantics fit.
-- [ ] Prove sequential scope isolation.
-- [ ] Prove Fiber isolation.
+- [x] Prove sequential scope isolation.
+- [x] Prove Fiber isolation.
 - [ ] Prove Swoole/OpenSwoole coroutine isolation where available.
-- [ ] Prove cleanup on success, exception and cancellation.
+- [x] Prove cleanup on success, exception and cancellation.
+
+Phase 4 audit evidence: `JsonLogger` keeps no execution context; `ExceptionReporter` retains only a bounded process-local throttle-signature window. Cache stores and explicit memoizers are process-level/generation-safe reusable state, while DB connections, principal/session state and other mutable execution bookkeeping live in scoped `RuntimeExecutionState`. `ExecutionScopeIsolationTest` and `PersistentExecutionStateIsolationTest` cover sequential isolation, interleaved Fiber isolation, scope cleanup, primary-error preservation, aborted Fiber cleanup, transaction rollback and context reset.
 
 ### Phase 5 — Webrick build/runtime integration
 
@@ -2022,43 +2024,49 @@ Phase 3 development audit / dynamic-boundary ledger:
 - [x] Default `preGlobal`, `postGlobal`, `preGlobalTags`, and `postGlobalTags` to empty.
 - [x] Ensure Foundation-owned route artifacts contain no captured Application/container/service graphs.
 - [x] Remove live production Registrar/Collection dependencies.
-- [ ] Move URL generation to compiled/frozen Webrick URL runtime.
+- [x] Move URL generation to compiled/frozen Webrick URL runtime.
 - [x] Load the compiled Webrick router with `Router::fromCompiled()` and construct `ServerKernel` in production (Webrick 5.2 runtime path).
 - [x] Select RuntimeAdapter once at production runtime/process boot.
 - [x] Use Webrick RuntimeServer for native serving.
 - [x] Keep `$app->handle(Request)` only as embedded/testing convenience.
-- [ ] Assert a minimal route remains Request-free.
-- [ ] Assert a minimal route remains scope-free.
-- [ ] Assert middleware/request/scope capabilities match compiled ExecutionPlans.
+- [x] Assert a minimal route remains Request-free.
+- [x] Assert a minimal route remains scope-free.
+- [x] Assert middleware/request/scope capabilities match compiled ExecutionPlans.
+
+Phase 5 proof: `WebReleaseRuntimeTest` verifies frozen compiled URL generation, Request-free/scope-free minimal execution plans, middleware Request/scope capabilities and production route/runtime behavior.
 
 ### Phase 6 — Error/maintenance/filesystem cleanup
 
-- [ ] Integrate Webrick WB-2 application exception path without forcing custom routing-control rendering.
-- [ ] Preserve production-safe exception rendering/logging.
-- [ ] Remove maintenance work from the old universal Foundation HttpKernel path.
-- [ ] Implement Webrick maintenance middleware/state with bounded worker-local refresh where semantics fit.
+- [x] Integrate Webrick WB-2 application exception path without forcing custom routing-control rendering.
+- [x] Preserve production-safe exception rendering/logging.
+- [x] Remove maintenance work from the old universal Foundation HttpKernel path.
+- [x] Implement Webrick maintenance middleware/state with bounded worker-local refresh where semantics fit.
 - [ ] Benchmark maintenance enabled/disabled overhead.
 - [ ] Decide WB-5 pre-routing gate only from benchmark evidence.
 - [ ] Remove direct `php://output` writes from Webrick response producers.
-- [ ] Use Webrick FileBody/download/inline/ranged APIs for local files where appropriate.
-- [ ] Expose non-local/custom Pathwise response bodies as BodyStream or chunk iterables.
+- [x] Use Webrick FileBody/download/inline/ranged APIs for local files where appropriate.
+- [x] Expose non-local/custom Pathwise response bodies as BodyStream or chunk iterables.
 - [ ] Preserve X-Sendfile/X-Accel policy correctly.
-- [ ] Use RuntimeCapabilities instead of Foundation transport detection.
-- [ ] Verify exactly one layer owns native response emission.
-- [ ] Add SAPI plus persistent-runtime file/stream response tests.
+- [x] Use RuntimeCapabilities instead of Foundation transport detection.
+- [x] Verify exactly one layer owns native response emission.
+- [x] Add SAPI plus persistent-runtime file/stream response tests.
+
+Phase 6 implementation evidence: the embedded `HttpKernel` is a thin Webrick delegate; `WebReleaseRuntimeTest` proves direct 404/405 ownership, safe application-exception rendering/logging and compiled maintenance behavior; `FilesystemResponseFactory` emits Webrick `FileBody` or portable chunk iterables; `FilesystemHttpBridgeTest` covers local range/HEAD/conditional and non-local stream semantics; `WebRuntimeEmissionTest` proves SAPI/persistent adapter ownership and exactly one native write. The remaining boxes require an actual maintenance benchmark decision, a tree-wide direct-output rescan, and explicit offload-policy closure.
 
 ### Phase 7 — Non-web generated runtimes
 
+**Current lower-layer gate:** strict Phase 7 acceptance cannot close on InterMix 10.0.3 because its static planner reports the intrinsic `Psr\Container\ContainerInterface` development-container value as dynamic and consequently prunes dependent generated services. The fix belongs in InterMix: compile that intrinsic binding to the generated `ProductionContainer` itself and release a patch version. Foundation will then raise its dependency floor and run the production tests below. No Foundation proxy/service-locator workaround is permitted.
+
 #### CLI
 
-- [ ] Build CLI graph with a fresh `foundation.cli` builder.
+- [x] Build CLI graph with a fresh `foundation.cli` builder.
 - [ ] Compile/load CLI ProductionContainer.
 - [ ] Enter CLI scope only when scoped execution state is required.
-- [ ] Remove unrelated web/worker capabilities from minimal CLI graph.
+- [x] Remove unrelated web/worker capabilities from minimal CLI graph.
 
 #### Worker
 
-- [ ] Build worker graph with a fresh `foundation.worker` builder.
+- [x] Build worker graph with a fresh `foundation.worker` builder.
 - [ ] Compile/load one worker ProductionContainer per worker process.
 - [ ] Reuse production runtime across jobs/messages.
 - [ ] Enter one worker scope per job/message.
@@ -2068,10 +2076,10 @@ Phase 3 development audit / dynamic-boundary ledger:
 
 #### Scheduler
 
-- [ ] Build scheduler graph with a fresh `foundation.scheduler` builder.
+- [x] Build scheduler graph with a fresh `foundation.scheduler` builder.
 - [ ] Compile/load scheduler ProductionContainer.
 - [ ] Enter one scheduler scope per scheduled invocation when needed.
-- [ ] Keep scheduler graph limited to needed command/dispatch capabilities.
+- [x] Keep scheduler graph limited to needed command/dispatch capabilities.
 - [ ] Ensure no graph rebuild per invocation.
 
 #### Non-web persistence
@@ -2080,6 +2088,8 @@ Phase 3 development audit / dynamic-boundary ledger:
 - [ ] Verify bounded memory.
 - [ ] Verify no transaction/context/message carry-over.
 - [ ] Verify locks/temp resources release deterministically.
+
+Implemented Phase 7 groundwork: `NonWebGraphFactory` composes fresh deterministic non-web graphs with explicit optional-capability topology; `GeneratedRuntimeCompiler` stages artifacts before publication, validates strict InterMix reports and preserves the last good release on failure; `GeneratedRuntimeMetadata` binds runtime/environment/config/capability/provider identity to the InterMix digest; `GeneratedRuntime` provides a reusable process runtime. These remain acceptance-incomplete until the lower-layer intrinsic-container compiler fix is available and the generated-runtime tests can prove zero skipped definitions end-to-end.
 
 ### Phase 8 — Unified Foundation release generation
 
