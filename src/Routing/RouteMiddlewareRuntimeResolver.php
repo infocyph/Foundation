@@ -34,6 +34,8 @@ final class RouteMiddlewareRuntimeResolver
 
     public static function role(string ...$roles): Closure
     {
+        $roles = array_values($roles);
+
         return static function (
             Request $request,
             Closure $next,
@@ -47,6 +49,8 @@ final class RouteMiddlewareRuntimeResolver
 
     public static function permission(string ...$abilities): Closure
     {
+        $abilities = array_values($abilities);
+
         return static function (
             Request $request,
             Closure $next,
@@ -88,6 +92,8 @@ final class RouteMiddlewareRuntimeResolver
 
     public static function oauthScope(string ...$scopes): Closure
     {
+        $scopes = array_values($scopes);
+
         return static function (
             Request $request,
             Closure $next,
@@ -99,6 +105,8 @@ final class RouteMiddlewareRuntimeResolver
 
     public static function oauthAudience(string ...$audiences): Closure
     {
+        $audiences = array_values($audiences);
+
         return static function (
             Request $request,
             Closure $next,
