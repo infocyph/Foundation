@@ -38,11 +38,7 @@ final readonly class WebReleaseCompiler
         return $this->compiler->compile(
             builder: $graph->builder,
             register: static function (Registrar $registrar) use ($graph): void {
-                $loader = $graph->application->make(RouteFileLoader::class);
-                if (!$loader instanceof RouteFileLoader) {
-                    throw new \LogicException('Foundation web graph did not produce a RouteFileLoader.');
-                }
-                $loader->load($registrar);
+                $graph->application->make(RouteFileLoader::class)->load($registrar);
             },
             environment: $settings->environment(),
             configFingerprint: $settings->configFingerprint(),
