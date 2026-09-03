@@ -50,9 +50,7 @@ final readonly class WebReleaseRuntime
         return self::boot($config, $releaseManifestPath, $adapter, true);
     }
 
-    /**
-     * @param array<string, mixed> $config
-     */
+    /** @param array<string, mixed> $config */
     private static function boot(
         array $config,
         string $releaseManifestPath,
@@ -142,7 +140,6 @@ final readonly class WebReleaseRuntime
                 signKey: $settings->signKey(),
                 signedDefaultTtl: $settings->signedDefaultTtl(),
                 signedUrlConfig: $settings->signedUrlConfig(),
-                routeErrorsThroughErrorHandler: true,
             )
             : CompiledRouterKernel::fromCompiledArtifact(
                 log: $logger,
@@ -156,7 +153,6 @@ final readonly class WebReleaseRuntime
                 signKey: $settings->signKey(),
                 signedDefaultTtl: $settings->signedDefaultTtl(),
                 signedUrlConfig: $settings->signedUrlConfig(),
-                routeErrorsThroughErrorHandler: true,
             );
         $server = new RuntimeServer(
             $kernel,
