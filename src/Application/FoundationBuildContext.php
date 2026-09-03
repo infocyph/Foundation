@@ -23,15 +23,19 @@ final readonly class FoundationBuildContext
         public bool $lazyLoading,
         public bool $debugTracing,
         public TraceLevelEnum $debugTraceLevel,
+        public bool $capabilitiesExplicit = false,
     ) {}
 
     /**
-     * @param array<int|string, mixed> $capabilities
+     * Passing null preserves development's installed-package discovery. Passing
+     * an array, including an empty one, makes the capability topology explicit.
+     *
+     * @param array<int|string, mixed>|null $capabilities
      */
     public static function fromConfig(
         ConfigRepository $config,
         RuntimeMode $runtimeMode,
-        array $capabilities = [],
+        ?array $capabilities = null,
     ): self {
         return new self(
             runtimeMode: $runtimeMode,
@@ -39,7 +43,7 @@ final readonly class FoundationBuildContext
                 ?? ValueNormalizer::nullableString($config->get('app.env')),
             config: $config->all(),
             compiledConfig: $config->isCompiled(),
-            capabilities: self::normalizeCapabilities($capabilities),
+            capabilities: self::normalizeCapabilities($capabilities ?? []),
             lazyLoading: ValueNormalizer::bool($config->get('app.container.lazy_loading'), true),
             debugTracing: ValueNormalizer::bool(
                 $config->get('app.container.debug_tracing.enabled'),
@@ -48,6 +52,7 @@ final readonly class FoundationBuildContext
             debugTraceLevel: self::traceLevel(
                 ValueNormalizer::string($config->get('app.container.debug_tracing.level'), 'node'),
             ),
+            capabilitiesExplicit: $capabilities !== null,
         );
     }
 

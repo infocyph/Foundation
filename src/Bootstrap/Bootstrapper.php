@@ -51,6 +51,19 @@ final class Bootstrapper
         MessagingServiceProvider::class,
     ];
 
+    /** @var array<class-string<ServiceProviderInterface>, string> */
+    private const array OPTIONAL_CAPABILITIES = [
+        DatabaseServiceProvider::class => 'database',
+        CacheServiceProvider::class => 'cache',
+        SecurityServiceProvider::class => 'security',
+        FilesystemServiceProvider::class => 'filesystem',
+        ValidationServiceProvider::class => 'validation',
+        CommunicationServiceProvider::class => 'communication',
+        NotificationServiceProvider::class => 'notifications',
+        SessionServiceProvider::class => 'session',
+        MessagingServiceProvider::class => 'messaging',
+    ];
+
     /** @var list<class-string<ServiceProviderInterface>> */
     private const array WEB_BUILT_INS = [
         LoggingServiceProvider::class,
@@ -80,9 +93,13 @@ final class Bootstrapper
         $registry->add(new PathServiceProvider());
 
         foreach (self::OPTIONAL_BUILT_INS as $provider) {
-            if ($this->providerDependencyAvailable($provider)) {
-                $registry->add($this->instantiateProvider($provider));
+            if (!$this->providerDependencyAvailable($provider)
+                || ($context->capabilitiesExplicit
+                    && !$context->hasCapability(self::OPTIONAL_CAPABILITIES[$provider]))
+            ) {
+                continue;
             }
+            $registry->add($this->instantiateProvider($provider));
         }
 
         $registry->add(new AuthServiceProvider());

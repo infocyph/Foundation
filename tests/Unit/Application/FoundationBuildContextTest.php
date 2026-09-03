@@ -37,11 +37,23 @@ it('normalizes immutable build input once before graph composition', function ()
             'database' => true,
             'messaging' => true,
         ])
+        ->and($context->capabilitiesExplicit)->toBeTrue()
         ->and($context->hasCapability('database'))->toBeTrue()
         ->and($context->hasCapability('cache'))->toBeFalse()
         ->and($context->lazyLoading)->toBeFalse()
         ->and($context->debugTracing)->toBeTrue()
         ->and($context->debugTraceLevel)->toBe(TraceLevelEnum::Warn);
+});
+
+it('distinguishes automatic development discovery from an explicitly empty capability graph', function (): void {
+    $config = new ConfigRepository(['app' => ['env' => 'testing']]);
+    $automatic = FoundationBuildContext::fromConfig($config, RuntimeMode::Cli);
+    $minimal = FoundationBuildContext::fromConfig($config, RuntimeMode::Cli, []);
+
+    expect($automatic->capabilities)->toBe([])
+        ->and($automatic->capabilitiesExplicit)->toBeFalse()
+        ->and($minimal->capabilities)->toBe([])
+        ->and($minimal->capabilitiesExplicit)->toBeTrue();
 });
 
 it('uses deterministic aliases for every foundation runtime', function (): void {
