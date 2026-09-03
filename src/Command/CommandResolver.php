@@ -85,7 +85,7 @@ final readonly class CommandResolver
     /** @param class-string<CommandHandlerInterface> $handler */
     private function resolve(string $handler): CommandHandlerInterface
     {
-        $resolved = $this->application->container()->make($handler);
+        $resolved = $this->application->make($handler);
 
         if (!$resolved instanceof CommandHandlerInterface) {
             throw new \LogicException(sprintf(
