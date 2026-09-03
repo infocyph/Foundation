@@ -28,8 +28,15 @@ final class SessionServiceProvider extends ServiceProvider
         $session = is_array($context->config['session'] ?? null) ? $context->config['session'] : [];
         $driver = is_string($session['driver'] ?? null) ? $session['driver'] : 'file';
         $lock = is_array($session['lock'] ?? null) ? $session['lock'] : [];
-        $lockEnabled = ($lock['enabled'] ?? false) === true;
 
+        $this->registerCore($builder, $context);
+        $this->registerStore($builder, $driver);
+        $this->registerManager($builder, ($lock['enabled'] ?? false) === true);
+        $this->registerMiddleware($builder);
+    }
+
+    private function registerCore(ContainerBuilder $builder, FoundationBuildContext $context): void
+    {
         $builder->singleton(SessionConfig::class, FactoryDefinition::staticFactory(
             SessionGraphFactory::class,
             'config',
@@ -39,19 +46,25 @@ final class SessionServiceProvider extends ServiceProvider
             SessionExecutionState::class,
             FactoryDefinition::construct(SessionExecutionState::class),
         );
-        if ($context->runtimeMode === RuntimeMode::Web) {
-            $builder->onScopeLeave(
-                $context->runtimeMode->scopeName(),
-                static function (string $scope, Container $container): void {
-                    unset($scope);
-                    $state = $container->get(SessionExecutionState::class);
-                    if ($state instanceof SessionExecutionState) {
-                        $state->reset(false);
-                    }
-                },
-            );
+
+        if ($context->runtimeMode !== RuntimeMode::Web) {
+            return;
         }
 
+        $builder->onScopeLeave(
+            $context->runtimeMode->scopeName(),
+            static function (string $scope, Container $container): void {
+                unset($scope);
+                $state = $container->get(SessionExecutionState::class);
+                if ($state instanceof SessionExecutionState) {
+                    $state->reset(false);
+                }
+            },
+        );
+    }
+
+    private function registerStore(ContainerBuilder $builder, string $driver): void
+    {
         $storeArguments = [new ServiceReference(SessionConfig::class)];
         if ($driver === 'cache') {
             if (!$builder->definitions()->has(CacheManager::class)) {
@@ -65,6 +78,7 @@ final class SessionServiceProvider extends ServiceProvider
             $storeArguments[] = null;
             $storeArguments[] = new ServiceReference(DBLayerFactory::class);
         }
+
         $builder->singleton(SessionStoreFactory::class, FactoryDefinition::construct(
             SessionStoreFactory::class,
             $storeArguments,
@@ -76,7 +90,10 @@ final class SessionServiceProvider extends ServiceProvider
                 [new ServiceReference(SessionConfig::class), new ServiceReference(DBLayerFactory::class)],
             ));
         }
+    }
 
+    private function registerManager(ContainerBuilder $builder, bool $lockEnabled): void
+    {
         if ($lockEnabled) {
             if (!$builder->definitions()->has(CacheLayerFactory::class)) {
                 throw new \LogicException('Session locking requires the Foundation cache capability.');
@@ -91,18 +108,23 @@ final class SessionServiceProvider extends ServiceProvider
                     new ServiceReference(ContainerInterface::class),
                 ],
             ));
-        } else {
-            $builder->singleton(SessionManager::class, FactoryDefinition::staticFactory(
-                SessionGraphFactory::class,
-                'manager',
-                [
-                    new ServiceReference(SessionConfig::class),
-                    new ServiceReference(SessionStoreFactory::class),
-                    new ServiceReference(ContainerInterface::class),
-                ],
-            ));
+
+            return;
         }
 
+        $builder->singleton(SessionManager::class, FactoryDefinition::staticFactory(
+            SessionGraphFactory::class,
+            'manager',
+            [
+                new ServiceReference(SessionConfig::class),
+                new ServiceReference(SessionStoreFactory::class),
+                new ServiceReference(ContainerInterface::class),
+            ],
+        ));
+    }
+
+    private function registerMiddleware(ContainerBuilder $builder): void
+    {
         $builder->singleton(SessionMiddleware::class, FactoryDefinition::construct(
             SessionMiddleware::class,
             [new ServiceReference(SessionManager::class), new ServiceReference(SessionConfig::class)],
