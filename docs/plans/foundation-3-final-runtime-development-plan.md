@@ -81,7 +81,8 @@ Webrick owns only the **web** HTTP path. It must never become the build/runtime 
                          one Foundation graph/composition source
                                       |
           +---------------------------+---------------------------+
-          |                           |                           v
+          |                           |                           |
+          v                           v                           v
         web                         cli                        worker                 scheduler
           |                           |                           |                       |
  fresh ContainerBuilder       fresh ContainerBuilder       fresh ContainerBuilder   fresh ContainerBuilder
