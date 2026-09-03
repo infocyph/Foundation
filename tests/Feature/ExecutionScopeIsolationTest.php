@@ -124,7 +124,7 @@ it('isolates same-label CLI scopes across interleaved Fibers and sequential exec
         ),
         executionId: new ExecutionId('nested-outer'),
     ))->toThrow(ContainerException::class, 'already active')
-        ->and(fn() => $app->make(ExecutionId::class))->toThrow(Throwable::class);
+        ->and(fn() => $app->make(ExecutionId::class))->toThrow(ContainerException::class);
 });
 
 it('cleans a suspended Fiber execution when it is aborted by an injected exception', function (): void {
@@ -158,7 +158,7 @@ it('cleans a suspended Fiber execution when it is aborted by an injected excepti
     );
 
     expect($after)->toBe('after-abort')
-        ->and(fn() => $app->make(ExecutionId::class))->toThrow(Throwable::class);
+        ->and(fn() => $app->make(ExecutionId::class))->toThrow(ContainerException::class);
 });
 
 it('keeps the primary execution exception when explicit or scope-leave cleanup also fails', function (): void {
