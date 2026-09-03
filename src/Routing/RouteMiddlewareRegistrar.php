@@ -30,6 +30,7 @@ final class RouteMiddlewareRegistrar
         'oauth-scope' => [RouteMiddlewareRuntimeResolver::class, 'oauthScope'],
         'oauth-audience' => [RouteMiddlewareRuntimeResolver::class, 'oauthAudience'],
         'oauth-throttle' => [RouteMiddlewareRuntimeResolver::class, 'oauthThrottle'],
+        'maintenance' => [RouteMiddlewareRuntimeResolver::class, 'maintenance'],
         'session' => SessionMiddleware::class,
         'csrf' => CsrfMiddleware::class,
     ];
