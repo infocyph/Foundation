@@ -19,6 +19,7 @@ final readonly class WebReleaseCompiler
 
     /**
      * @param array<string, mixed> $config
+     * @param array<int|string, mixed>|null $capabilities Null preserves installed-package discovery; [] is minimal.
      * @return array<string, mixed>
      */
     public function compile(
@@ -26,8 +27,9 @@ final readonly class WebReleaseCompiler
         string $intermixPath,
         string $routerPath,
         string $releaseManifestPath,
+        ?array $capabilities = null,
     ): array {
-        $graph = $this->graphs->compose($config);
+        $graph = $this->graphs->compose($config, $capabilities);
         $settings = new WebReleaseConfiguration($graph);
         $settings->assertArtifactSafeMiddleware();
 
@@ -62,9 +64,10 @@ final readonly class WebReleaseCompiler
             throw new \RuntimeException('Unable to fingerprint the compiled Foundation web release manifest.');
         }
 
-        // This value is returned to deployment tooling but is deliberately not
-        // written into the release manifest whose identity it authenticates.
+        // Returned to trusted deployment tooling, never written into the Webrick
+        // manifest whose exact runtime representation it authenticates.
         $release['release_runtime_manifest_sha256'] = $runtimeManifestSha256;
+        $release['foundation_capabilities'] = $graph->context->capabilities;
 
         return $release;
     }

@@ -68,6 +68,9 @@ final class FoundationReleaseManifest
         $web = self::section($manifest, 'web');
         self::relativePath($web['release_manifest'] ?? null, 'web.release_manifest');
         self::digest($web['runtime_manifest_sha256'] ?? null, 64, 'web.runtime_manifest_sha256');
+        if (!is_array($web['capabilities'] ?? null)) {
+            throw new \UnexpectedValueException('Foundation release field "web.capabilities" is invalid.');
+        }
 
         foreach (['cli', 'worker', 'scheduler'] as $runtime) {
             $section = self::section($manifest, $runtime);

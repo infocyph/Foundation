@@ -31,13 +31,17 @@ final readonly class WebReleaseRuntime
         public RuntimeCapabilities $capabilities,
     ) {}
 
-    /** @param array<string, mixed> $config */
+    /**
+     * @param array<string, mixed> $config
+     * @param array<int|string, mixed>|null $foundationCapabilities Must match compile-time topology when explicit.
+     */
     public static function load(
         array $config,
         string $releaseManifestPath,
         ?RuntimeAdapterInterface $adapter = null,
+        ?array $foundationCapabilities = null,
     ): self {
-        return self::boot($config, $releaseManifestPath, $adapter, false);
+        return self::boot($config, $releaseManifestPath, $adapter, false, $foundationCapabilities);
     }
 
     /**
@@ -46,26 +50,32 @@ final readonly class WebReleaseRuntime
      * metadata, never from the release directory being validated.
      *
      * @param array<string, mixed> $config
+     * @param array<int|string, mixed>|null $foundationCapabilities Must match compile-time topology when explicit.
      */
     public static function loadPrevalidated(
         array $config,
         string $releaseManifestPath,
         string $trustedManifestSha256,
         ?RuntimeAdapterInterface $adapter = null,
+        ?array $foundationCapabilities = null,
     ): self {
         self::assertTrustedManifest($releaseManifestPath, $trustedManifestSha256);
 
-        return self::boot($config, $releaseManifestPath, $adapter, true);
+        return self::boot($config, $releaseManifestPath, $adapter, true, $foundationCapabilities);
     }
 
-    /** @param array<string, mixed> $config */
+    /**
+     * @param array<string, mixed> $config
+     * @param array<int|string, mixed>|null $foundationCapabilities
+     */
     private static function boot(
         array $config,
         string $releaseManifestPath,
         ?RuntimeAdapterInterface $adapter,
         bool $prevalidated,
+        ?array $foundationCapabilities,
     ): self {
-        $graph = new WebGraphFactory()->compose($config);
+        $graph = new WebGraphFactory()->compose($config, $foundationCapabilities);
         $settings = new WebReleaseConfiguration($graph);
         $settings->assertArtifactSafeMiddleware();
         $releaseManifestPath = $settings->resolvePath($releaseManifestPath);

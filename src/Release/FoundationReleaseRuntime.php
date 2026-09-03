@@ -26,6 +26,7 @@ final readonly class FoundationReleaseRuntime
             $config,
             $directory . DIRECTORY_SEPARATOR . $this->relative($manifest['web']['release_manifest']),
             $adapter,
+            $manifest['web']['capabilities'],
         );
     }
 
@@ -36,17 +37,17 @@ final readonly class FoundationReleaseRuntime
         string $trustedFoundationManifestSha256,
         ?RuntimeAdapterInterface $adapter = null,
     ): WebReleaseRuntime {
-        [, $manifest, $directory, $manifestPath] = $this->trustedActiveManifest(
+        [, $manifest, $directory] = $this->trustedActiveManifest(
             $releaseRoot,
             $trustedFoundationManifestSha256,
         );
-        unset($manifestPath);
 
         return WebReleaseRuntime::loadPrevalidated(
             $config,
             $directory . DIRECTORY_SEPARATOR . $this->relative($manifest['web']['release_manifest']),
             $manifest['web']['runtime_manifest_sha256'],
             $adapter,
+            $manifest['web']['capabilities'],
         );
     }
 

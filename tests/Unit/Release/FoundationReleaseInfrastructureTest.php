@@ -41,11 +41,12 @@ it('requires external trust for prevalidated Foundation generation loading', fun
             throw new RuntimeException('Unable to hash release fixture.');
         }
 
-        $trusted = new FoundationReleaseRuntime()->trustedActiveManifest($root, $sha);
+        $runtime = new FoundationReleaseRuntime();
+        $trusted = $runtime->trustedActiveManifest($root, $sha);
         expect($trusted[0])->toBe('trusted')
             ->and($trusted[1]['generation'])->toBe('trusted');
 
-        expect(fn() => new FoundationReleaseRuntime()->trustedActiveManifest($root, str_repeat('0', 64)))
+        expect(fn() => $runtime->trustedActiveManifest($root, str_repeat('0', 64)))
             ->toThrow(RuntimeException::class, 'trust identity mismatch');
     } finally {
         foundationReleaseInfrastructureRemove($root);
@@ -98,6 +99,7 @@ function foundationReleaseInfrastructureManifest(string $generation): array
         'web' => [
             'release_manifest' => 'web/release.json',
             'runtime_manifest_sha256' => str_repeat('d', 64),
+            'capabilities' => [],
         ],
         'cli' => $runtime('cli'),
         'worker' => $runtime('worker'),

@@ -126,6 +126,7 @@ PHP);
         $project . '/bootstrap/cache/intermix.php',
         $project . '/bootstrap/cache/router.php',
         $manifest,
+        capabilities: [],
     );
     $trustedSha256 = $release['release_runtime_manifest_sha256'] ?? null;
     if (!is_string($trustedSha256)) {
@@ -133,7 +134,13 @@ PHP);
     }
 
     $adapter = new FoundationMaintenanceBenchmarkAdapter();
-    $runtime = WebReleaseRuntime::loadPrevalidated($config, $manifest, $trustedSha256, $adapter);
+    $runtime = WebReleaseRuntime::loadPrevalidated(
+        $config,
+        $manifest,
+        $trustedSha256,
+        $adapter,
+        foundationCapabilities: [],
+    );
     $samples = [];
 
     try {

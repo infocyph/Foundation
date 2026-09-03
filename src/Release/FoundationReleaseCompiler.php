@@ -19,6 +19,9 @@ final readonly class FoundationReleaseCompiler
     ) {}
 
     /**
+     * Capability topology is explicit for every generated runtime. Omitted runtime
+     * entries therefore mean a deliberately minimal optional-capability graph.
+     *
      * @param array<string,mixed> $config
      * @param array<string,array<int|string,mixed>> $capabilities
      * @return array{generation:string,manifest:string,active_pointer:string,release:array<string,mixed>}
@@ -43,7 +46,9 @@ final readonly class FoundationReleaseCompiler
         if (file_exists($final)) {
             throw new \RuntimeException(sprintf('Foundation release generation "%s" already exists.', $generation));
         }
-        mkdir($stage, 0775, true);
+        if (!mkdir($stage, 0775, true) && !is_dir($stage)) {
+            throw new \RuntimeException(sprintf('Unable to create Foundation staging generation "%s".', $stage));
+        }
 
         try {
             $this->mkdir($stage . '/web');
@@ -52,10 +57,15 @@ final readonly class FoundationReleaseCompiler
                 $stage . '/web/container.php',
                 $stage . '/web/router.php',
                 $stage . '/web/release.json',
+                $capabilities['web'] ?? [],
             );
             $environment = $this->stringField($web, 'environment');
             $configFingerprint = $this->digestField($web, 'config_fingerprint', 64);
             $runtimeManifestSha256 = $this->digestField($web, 'release_runtime_manifest_sha256', 64);
+            $webCapabilities = $web['foundation_capabilities'] ?? null;
+            if (!is_array($webCapabilities)) {
+                throw new \UnexpectedValueException('Foundation web release capability topology is unavailable.');
+            }
 
             $runtimeSections = [];
             foreach ([RuntimeMode::Cli, RuntimeMode::Worker, RuntimeMode::Scheduler] as $runtime) {
@@ -97,6 +107,7 @@ final readonly class FoundationReleaseCompiler
                 'web' => [
                     'release_manifest' => 'web/release.json',
                     'runtime_manifest_sha256' => $runtimeManifestSha256,
+                    'capabilities' => $webCapabilities,
                 ],
                 'cli' => $runtimeSections['cli'],
                 'worker' => $runtimeSections['worker'],
@@ -140,7 +151,7 @@ final readonly class FoundationReleaseCompiler
         try {
             $active = $this->active->current($releaseRoot)['generation'];
         } catch (\Throwable) {
-            // Pruning is still safe when no active pointer exists: newest generations are retained.
+            // No active pointer: retain newest immutable generations only.
         }
 
         $entries = [];
