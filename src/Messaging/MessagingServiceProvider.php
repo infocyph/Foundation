@@ -163,7 +163,7 @@ final class MessagingServiceProvider extends ServiceProvider
     }
 
     /**
-     * @param array<string, mixed> $source
+     * @param array<array-key, mixed> $source
      * @return array<array-key, mixed>
      */
     private function arrayValue(array $source, string $key): array
