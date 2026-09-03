@@ -54,6 +54,7 @@ final readonly class WebReleaseCompiler
                 new WebProductionGraph()->prepareBuild($builder, $routes);
             },
         );
+        $this->assertNoSkippedDefinitions($release);
 
         $runtimeManifestPath = WebrickReleaseCompiler::runtimeManifestPath($releaseManifestPath);
         $runtimeManifestSha256 = hash_file('sha256', $runtimeManifestPath);
@@ -66,5 +67,32 @@ final readonly class WebReleaseCompiler
         $release['release_runtime_manifest_sha256'] = $runtimeManifestSha256;
 
         return $release;
+    }
+
+    /** @param array<string, mixed> $release */
+    private function assertNoSkippedDefinitions(array $release): void
+    {
+        $intermix = $release['intermix'] ?? null;
+        $skipped = is_array($intermix) ? ($intermix['skipped'] ?? null) : null;
+        if (!is_array($skipped)) {
+            throw new \UnexpectedValueException('Foundation web release is missing the InterMix skipped-definition report.');
+        }
+        if ($skipped === []) {
+            return;
+        }
+
+        $details = [];
+        foreach ($skipped as $id => $reason) {
+            $details[] = sprintf(
+                '%s: %s',
+                is_string($id) ? $id : (string) $id,
+                is_string($reason) ? $reason : 'unknown static-compilation failure',
+            );
+        }
+
+        throw new \RuntimeException(
+            'Foundation web release contains definitions that were not statically compiled: '
+            . implode('; ', $details),
+        );
     }
 }
