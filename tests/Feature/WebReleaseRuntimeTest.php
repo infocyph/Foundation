@@ -6,6 +6,8 @@ use Infocyph\Foundation\Routing\WebReleaseCompiler;
 use Infocyph\Foundation\Routing\WebReleaseRuntime;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
+use Infocyph\Webrick\Router\Build\CompiledRouterArtifact;
+use Infocyph\Webrick\Router\Build\RouteCapability;
 
 final class FoundationCompiledReleaseHandler
 {
@@ -13,6 +15,21 @@ final class FoundationCompiledReleaseHandler
     {
         return Response::json(['compiled' => true]);
     }
+}
+
+final class FoundationCompiledReleaseMiddleware
+{
+    public function __invoke(Request $request, Closure $next): Response
+    {
+        unset($request);
+
+        return $next();
+    }
+}
+
+function foundationWebReleasePlainHandler(): Response
+{
+    return Response::json(['plain' => true]);
 }
 
 it('compiles and boots a trusted route-first Webrick release without live router construction', function (): void {
@@ -42,6 +59,26 @@ it('compiles and boots a trusted route-first Webrick release without live router
 
         expect($trustedSha256)->toBeString()
             ->and($trustedSha256)->toMatch('/^[a-f0-9]{64}$/D');
+
+        $payload = require $router;
+        expect($payload)->toBeArray();
+        $artifact = CompiledRouterArtifact::fromPayload($payload);
+        $plansByPath = [];
+        foreach ($artifact->routes() as $route) {
+            $plansByPath[$route->getPath()] = $artifact->planForIndex($route->getIndex());
+        }
+
+        $plainPlan = $plansByPath['/plain'] ?? null;
+        expect($plainPlan)->not->toBeNull()
+            ->and($plainPlan->requiresRequest())->toBeFalse()
+            ->and($plainPlan->requiresScope())->toBeFalse()
+            ->and(RouteCapability::has($plainPlan->capabilities, RouteCapability::MIDDLEWARE))->toBeFalse();
+
+        $middlewarePlan = $plansByPath['/middleware'] ?? null;
+        expect($middlewarePlan)->not->toBeNull()
+            ->and($middlewarePlan->requiresRequest())->toBeTrue()
+            ->and($middlewarePlan->requiresScope())->toBeTrue()
+            ->and(RouteCapability::has($middlewarePlan->capabilities, RouteCapability::MIDDLEWARE))->toBeTrue();
 
         $runtime = WebReleaseRuntime::loadPrevalidated($config, $manifest, $trustedSha256);
         $response = $runtime->kernel->handle(Request::fake(
@@ -88,6 +125,11 @@ declare(strict_types=1);
 
 use Infocyph\Webrick\Router\Facade\Router;
 
+Router::get('/plain', 'foundationWebReleasePlainHandler', ['name' => 'plain.show']);
+Router::get('/middleware', 'foundationWebReleasePlainHandler', [
+    'name' => 'middleware.show',
+    'middleware' => [FoundationCompiledReleaseMiddleware::class],
+]);
 Router::get('/compiled', FoundationCompiledReleaseHandler::class, ['name' => 'compiled.show']);
 PHP);
 
