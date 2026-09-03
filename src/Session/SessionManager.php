@@ -8,15 +8,15 @@ use Closure;
 use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
 use Psr\Container\ContainerInterface;
 
-final class SessionManager
+final readonly class SessionManager
 {
     public function __construct(
-        private readonly SessionConfig $config,
+        private SessionConfig $config,
         /** @var Closure():SessionStoreInterface */
-        private readonly Closure $storeFactory,
+        private Closure $storeFactory,
         /** @var Closure():(LockProviderInterface|null) */
-        private readonly Closure $lockFactory,
-        private readonly ContainerInterface $container,
+        private Closure $lockFactory,
+        private ContainerInterface $container,
     ) {}
 
     public function config(): SessionConfig
