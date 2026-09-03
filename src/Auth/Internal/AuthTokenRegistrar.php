@@ -29,16 +29,17 @@ use Infocyph\Foundation\Auth\Support\SimplePasswordlessTokenService;
 use Infocyph\Foundation\Auth\Support\SimplePasswordResetTokenService;
 use Infocyph\Foundation\Auth\Support\SimpleRefreshTokenService;
 use Infocyph\Foundation\Auth\Support\SimpleRememberTokenService;
+use Infocyph\InterMix\DI\ContainerBuilder;
 
 final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
 {
     public function __construct(
         Application $app,
-        \Infocyph\InterMix\DI\Container $container,
+        ContainerBuilder $builder,
         private AuthSecretResolver $secrets,
         private EpicryptTokenPolicyResolver $epicrypt,
     ) {
-        parent::__construct($app, $container);
+        parent::__construct($app, $builder);
     }
 
     public function register(AuthDriverResolver $drivers): void
