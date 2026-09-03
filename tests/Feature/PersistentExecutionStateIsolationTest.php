@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Infocyph\CacheLayer\Memoize\Memoizer;
 use Infocyph\CacheLayer\Memoize\OnceMemoizer;
 use Infocyph\DBLayer\DB;
-use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
 use Infocyph\Foundation\Auth\Principal\PrincipalInterface;
@@ -14,6 +14,7 @@ use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Runtime\ExecutionId;
 use Infocyph\Foundation\Session\SessionManager;
+use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Omnibus\Consumer\ExecutionScope as OmnibusExecutionScope;
 use Infocyph\Omnibus\Envelope\Envelope;
@@ -58,9 +59,11 @@ final class FoundationPersistentScopedProbe
 
 final class FoundationPersistentStateProvider extends ServiceProvider
 {
-    public function register(Application $app): void
+    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        $app->container()->bind(
+        unset($context);
+
+        $builder->bindFactory(
             'persistent.execution.scoped',
             static fn(): FoundationPersistentScopedProbe => new FoundationPersistentScopedProbe(),
             LifetimeEnum::Scoped,
@@ -80,7 +83,7 @@ final class FoundationPersistentMemoCalls
     public int $once = 0;
 }
 
-it('cleans all request-local state between persistent execution units including failure paths', function (): void {
+it('cleans execution-local state between persistent worker units including failure paths', function (): void {
     DB::purge();
     Memoizer::instance()->flush();
     OnceMemoizer::instance()->flush();
@@ -88,7 +91,7 @@ it('cleans all request-local state between persistent execution units including 
     $memoCalls = new FoundationPersistentMemoCalls();
 
     try {
-        $app = Foundation::web([
+        $app = Foundation::worker([
             'app' => [
                 'base_path' => $project,
                 'env' => 'testing',
