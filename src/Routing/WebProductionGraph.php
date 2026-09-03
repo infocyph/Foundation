@@ -7,7 +7,6 @@ namespace Infocyph\Foundation\Routing;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Container\ContainerCacheManager;
 use Infocyph\Foundation\Http\HttpKernel;
-use Infocyph\Foundation\Operations\MaintenanceManager;
 use Infocyph\InterMix\DI\Container;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\Webrick\Router\Build\CompiledRouterArtifact;
@@ -36,7 +35,6 @@ final class WebProductionGraph
         ErrorHandler::class,
         RouterKernel::class,
         HttpKernel::class,
-        MaintenanceManager::class,
         'foundation.router',
         'foundation.http',
     ];
