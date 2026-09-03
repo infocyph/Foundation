@@ -15,7 +15,7 @@ use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Runtime\ExecutionId;
 use Infocyph\Foundation\Session\SessionManager;
 use Infocyph\InterMix\DI\ContainerBuilder;
-use Infocyph\InterMix\DI\Support\LifetimeEnum;
+use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\Omnibus\Consumer\ExecutionScope as OmnibusExecutionScope;
 use Infocyph\Omnibus\Envelope\Envelope;
 use Infocyph\Omnibus\Envelope\MessageIdStamp;
@@ -63,10 +63,9 @@ final class FoundationPersistentStateProvider extends ServiceProvider
     {
         unset($context);
 
-        $builder->bindFactory(
+        $builder->scoped(
             'persistent.execution.scoped',
-            static fn(): FoundationPersistentScopedProbe => new FoundationPersistentScopedProbe(),
-            LifetimeEnum::Scoped,
+            FactoryDefinition::construct(FoundationPersistentScopedProbe::class),
         );
     }
 }
@@ -83,7 +82,7 @@ final class FoundationPersistentMemoCalls
     public int $once = 0;
 }
 
-it('cleans execution-local state between persistent worker units including failure paths', function (): void {
+it('isolates execution state while preserving bounded process-local memoizers', function (): void {
     DB::purge();
     Memoizer::instance()->flush();
     OnceMemoizer::instance()->flush();
@@ -170,7 +169,7 @@ it('cleans execution-local state between persistent worker units including failu
             ->and(fn() => $sessions->current())->toThrow(LogicException::class)
             ->and($database->transactionLevel())->toBe(0)
             ->and((int) $database->getPdo()->query('SELECT COUNT(*) FROM runtime_state')->fetchColumn())->toBe(0)
-            ->and(Memoizer::instance()->stats())->toBe(['hits' => 0, 'misses' => 0, 'total' => 0]);
+            ->and(Memoizer::instance()->stats())->toBe(['hits' => 0, 'misses' => 1, 'total' => 1]);
 
         $secondScoped = null;
         $app->execution()->run(function () use (
@@ -189,15 +188,17 @@ it('cleans execution-local state between persistent worker units including failu
             $secondScoped = $scoped->sequence;
             $connection = $databaseFactory->connection();
             expect($connection->transactionLevel())->toBe(0)
-                ->and(foundationPersistentMemoized($memoCalls))->toBe(2)
-                ->and(Memoizer::instance()->stats())->toBe(['hits' => 0, 'misses' => 1, 'total' => 1])
-                ->and(foundationPersistentOnce($memoCalls))->toBe(2);
+                ->and(foundationPersistentMemoized($memoCalls))->toBe(1)
+                ->and(Memoizer::instance()->stats())->toBe(['hits' => 1, 'misses' => 1, 'total' => 2])
+                ->and(foundationPersistentOnce($memoCalls))->toBe(1);
         });
 
         expect($firstScoped)->toBeInt()
             ->and($secondScoped)->toBeInt()
             ->and($secondScoped)->not->toBe($firstScoped)
-            ->and(Memoizer::instance()->stats())->toBe(['hits' => 0, 'misses' => 0, 'total' => 0]);
+            ->and($memoCalls->memo)->toBe(1)
+            ->and($memoCalls->once)->toBe(1)
+            ->and(Memoizer::instance()->stats())->toBe(['hits' => 1, 'misses' => 1, 'total' => 2]);
 
         $messagingScope = $app->make(OmnibusExecutionScope::class);
         $seen = [];
