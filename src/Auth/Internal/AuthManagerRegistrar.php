@@ -38,6 +38,7 @@ use Infocyph\Foundation\Auth\Device\{DeviceManager, DeviceStoreInterface};
 use Infocyph\Foundation\Auth\Mfa\{MfaFactorStoreInterface, MfaManager, MfaVerifierInterface, RecoveryCodeServiceInterface};
 use Infocyph\Foundation\Auth\Otp\OtpManager;
 use Infocyph\Foundation\Auth\Passkey\{PasskeyCredentialStoreInterface, PasskeyManager, PasskeyServiceInterface};
+use Infocyph\InterMix\DI\Support\LifetimeEnum;
 
 final readonly class AuthManagerRegistrar extends AbstractAuthRegistrar
 {
@@ -72,22 +73,22 @@ final readonly class AuthManagerRegistrar extends AbstractAuthRegistrar
             $this->ref(PasswordVerifierInterface::class), $this->ref(AuditEventStoreInterface::class),
             $this->ref(AuthNotifierInterface::class), $this->ref(AuthIdGeneratorInterface::class),
             $this->ref(ClockInterface::class),
-        ]);
+        ], LifetimeEnum::Scoped);
         $this->recipe(PasswordResetManager::class, PasswordResetManager::class, [
             $this->ref(PasswordResetTokenServiceInterface::class), $this->ref(PasswordResetStoreInterface::class),
             $this->ref(AccountStoreInterface::class), $this->ref(AuthNotifierInterface::class),
             $this->ref(AuditEventStoreInterface::class), $this->ref(AuthIdGeneratorInterface::class),
             $this->intConfig('auth.password_reset_ttl', 3600), $this->ref(ClockInterface::class),
-        ]);
+        ], LifetimeEnum::Scoped);
         $this->recipe(EmailVerificationManager::class, EmailVerificationManager::class, [
             $this->ref(EmailVerificationTokenServiceInterface::class), $this->ref(EmailVerificationStoreInterface::class),
             $this->ref(AccountStoreInterface::class), $this->ref(AuthNotifierInterface::class),
             $this->ref(AuditEventStoreInterface::class), $this->ref(AuthIdGeneratorInterface::class),
             $this->intConfig('auth.email_verification_ttl', 3600), $this->ref(ClockInterface::class),
-        ]);
+        ], LifetimeEnum::Scoped);
         $this->recipe(PasswordlessManager::class, PasswordlessManager::class, [
             $this->ref(PasswordlessTokenServiceInterface::class), $this->ref(AuthNotifierInterface::class),
-        ]);
+        ], LifetimeEnum::Scoped);
         $this->recipe(RememberMeManager::class, RememberMeManager::class, [
             $this->ref(RememberTokenServiceInterface::class), $this->ref(RememberTokenStoreInterface::class),
             $this->ref(AuditEventStoreInterface::class), $this->ref(AuthIdGeneratorInterface::class),
@@ -105,18 +106,18 @@ final readonly class AuthManagerRegistrar extends AbstractAuthRegistrar
             $this->ref(AuditEventStoreInterface::class), $this->ref(AuthNotifierInterface::class),
             $this->ref(AuthIdGeneratorInterface::class), $this->intConfig('auth.mfa_challenge_ttl', 300),
             $this->intConfig('auth.mfa_satisfied_ttl', 900), $this->ref(ClockInterface::class),
-        ]);
+        ], LifetimeEnum::Scoped);
         $this->recipe(OtpManager::class, OtpManager::class, [
             $this->ref(MfaManager::class), $this->ref(MfaFactorStoreInterface::class),
             $this->ref(OtpProvisioningService::class), $this->ref(OtpMfaVerifier::class),
-        ]);
+        ], LifetimeEnum::Scoped);
         $this->recipe(PasskeyManager::class, PasskeyManager::class, [
             $this->ref(PasskeyServiceInterface::class), $this->ref(PasskeyCredentialStoreInterface::class),
             $this->ref(AuditEventStoreInterface::class), $this->ref(AuthNotifierInterface::class),
             $this->ref(AuthIdGeneratorInterface::class),
             $this->hasExplicitBinding(LockoutManager::class) ? $this->ref(LockoutManager::class) : null,
             $this->ref(ClockInterface::class),
-        ]);
+        ], LifetimeEnum::Scoped);
         $this->recipe(DeviceManager::class, DeviceManager::class, [
             $this->ref(DeviceStoreInterface::class), $this->ref(AuthIdGeneratorInterface::class),
             $this->ref(ClockInterface::class),
