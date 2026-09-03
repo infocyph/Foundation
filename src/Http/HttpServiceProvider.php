@@ -25,6 +25,7 @@ final class HttpServiceProvider extends ServiceProvider
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         $app = $this->application($builder, $context);
+        $appConfig = is_array($context->config['app'] ?? null) ? $context->config['app'] : [];
 
         $builder->singleton(AuthResponseFactory::class, FactoryDefinition::construct(AuthResponseFactory::class));
         $builder->singleton(AuthExceptionMapper::class, FactoryDefinition::construct(
@@ -48,7 +49,7 @@ final class HttpServiceProvider extends ServiceProvider
         // Error-handler and live RouterKernel ownership move to the compiled Webrick runtime in Phase 5.
         $builder->bindFactory(ErrorHandler::class, fn() => new ErrorHandler(
             logger: static fn(): LoggerInterface => $app->make(HttpExceptionLogger::class),
-            debug: (bool) ($context->config['app']['debug'] ?? false),
+            debug: ($appConfig['debug'] ?? false) === true,
             requestIdHeader: 'X-Request-Id',
             responseRenderer: static fn(
                 \Infocyph\Webrick\Request\Request $request,
