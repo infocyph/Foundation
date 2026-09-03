@@ -21,12 +21,13 @@ final readonly class FoundationReleaseRuntime
         ?RuntimeAdapterInterface $adapter = null,
     ): WebReleaseRuntime {
         [, $manifest, $directory] = $this->activeManifest($releaseRoot);
+        $web = FoundationReleaseManifest::section($manifest, 'web');
 
         return WebReleaseRuntime::load(
             $config,
-            $directory . DIRECTORY_SEPARATOR . $this->relative($manifest['web']['release_manifest']),
+            $directory . DIRECTORY_SEPARATOR . $this->relative($web['release_manifest'] ?? null),
             $adapter,
-            $manifest['web']['capabilities'],
+            FoundationReleaseManifest::capabilities($web['capabilities'] ?? null, 'web.capabilities'),
         );
     }
 
@@ -41,13 +42,18 @@ final readonly class FoundationReleaseRuntime
             $releaseRoot,
             $trustedFoundationManifestSha256,
         );
+        $web = FoundationReleaseManifest::section($manifest, 'web');
 
         return WebReleaseRuntime::loadPrevalidated(
             $config,
-            $directory . DIRECTORY_SEPARATOR . $this->relative($manifest['web']['release_manifest']),
-            $manifest['web']['runtime_manifest_sha256'],
+            $directory . DIRECTORY_SEPARATOR . $this->relative($web['release_manifest'] ?? null),
+            FoundationReleaseManifest::digest(
+                $web['runtime_manifest_sha256'] ?? null,
+                64,
+                'web.runtime_manifest_sha256',
+            ),
             $adapter,
-            $manifest['web']['capabilities'],
+            FoundationReleaseManifest::capabilities($web['capabilities'] ?? null, 'web.capabilities'),
         );
     }
 
@@ -59,13 +65,16 @@ final readonly class FoundationReleaseRuntime
     ): GeneratedRuntime {
         $this->assertNonWeb($runtime);
         [, $manifest, $directory] = $this->activeManifest($releaseRoot);
-        $section = $manifest[$runtime->value];
+        $section = FoundationReleaseManifest::section($manifest, $runtime->value);
 
         return GeneratedRuntime::load(
             $config,
             $runtime,
-            $directory . DIRECTORY_SEPARATOR . $this->relative($section['intermix_path']),
-            $section['capabilities'],
+            $directory . DIRECTORY_SEPARATOR . $this->relative($section['intermix_path'] ?? null),
+            FoundationReleaseManifest::capabilities(
+                $section['capabilities'] ?? null,
+                $runtime->value . '.capabilities',
+            ),
         );
     }
 
@@ -78,15 +87,26 @@ final readonly class FoundationReleaseRuntime
     ): GeneratedRuntime {
         $this->assertNonWeb($runtime);
         [, $manifest, $directory] = $this->trustedActiveManifest($releaseRoot, $trustedFoundationManifestSha256);
-        $section = $manifest[$runtime->value];
+        $section = FoundationReleaseManifest::section($manifest, $runtime->value);
 
         return GeneratedRuntime::loadPrevalidated(
             $config,
             $runtime,
-            $directory . DIRECTORY_SEPARATOR . $this->relative($section['intermix_path']),
-            $section['metadata_sha256'],
-            $section['digest'],
-            $section['capabilities'],
+            $directory . DIRECTORY_SEPARATOR . $this->relative($section['intermix_path'] ?? null),
+            FoundationReleaseManifest::digest(
+                $section['metadata_sha256'] ?? null,
+                64,
+                $runtime->value . '.metadata_sha256',
+            ),
+            FoundationReleaseManifest::digest(
+                $section['digest'] ?? null,
+                32,
+                $runtime->value . '.digest',
+            ),
+            FoundationReleaseManifest::capabilities(
+                $section['capabilities'] ?? null,
+                $runtime->value . '.capabilities',
+            ),
         );
     }
 
@@ -126,10 +146,10 @@ final readonly class FoundationReleaseRuntime
 
     private function relative(mixed $path): string
     {
-        if (!is_string($path) || $path === '') {
-            throw new \UnexpectedValueException('Foundation release runtime path is invalid.');
-        }
-
-        return str_replace('/', DIRECTORY_SEPARATOR, $path);
+        return str_replace(
+            '/',
+            DIRECTORY_SEPARATOR,
+            FoundationReleaseManifest::relativePath($path, 'runtime path'),
+        );
     }
 }

@@ -46,10 +46,11 @@ final class FoundationReleaseManifest
             throw new \RuntimeException(sprintf('Foundation release manifest is not readable: "%s".', $path));
         }
 
-        $manifest = require $path;
-        if (!is_array($manifest)) {
+        $loaded = require $path;
+        if (!is_array($loaded)) {
             throw new \UnexpectedValueException('Foundation release manifest must return an array.');
         }
+        $manifest = self::stringMap($loaded, 'manifest');
         self::assertValid($manifest);
 
         return $manifest;
@@ -68,9 +69,7 @@ final class FoundationReleaseManifest
         $web = self::section($manifest, 'web');
         self::relativePath($web['release_manifest'] ?? null, 'web.release_manifest');
         self::digest($web['runtime_manifest_sha256'] ?? null, 64, 'web.runtime_manifest_sha256');
-        if (!is_array($web['capabilities'] ?? null)) {
-            throw new \UnexpectedValueException('Foundation release field "web.capabilities" is invalid.');
-        }
+        self::capabilities($web['capabilities'] ?? null, 'web.capabilities');
 
         foreach (['cli', 'worker', 'scheduler'] as $runtime) {
             $section = self::section($manifest, $runtime);
@@ -78,13 +77,21 @@ final class FoundationReleaseManifest
             self::digest($section['digest'] ?? null, 32, $runtime . '.digest');
             self::relativePath($section['metadata_path'] ?? null, $runtime . '.metadata_path');
             self::digest($section['metadata_sha256'] ?? null, 64, $runtime . '.metadata_sha256');
-            if (!is_array($section['capabilities'] ?? null)) {
-                throw new \UnexpectedValueException(sprintf('Foundation release field "%s.capabilities" is invalid.', $runtime));
-            }
+            self::capabilities($section['capabilities'] ?? null, $runtime . '.capabilities');
         }
     }
 
-    private static function digest(mixed $value, int $length, string $field): string
+    /** @return array<int|string,mixed> */
+    public static function capabilities(mixed $value, string $field): array
+    {
+        if (!is_array($value)) {
+            throw new \UnexpectedValueException(sprintf('Foundation release field "%s" is invalid.', $field));
+        }
+
+        return $value;
+    }
+
+    public static function digest(mixed $value, int $length, string $field): string
     {
         if (!is_string($value) || preg_match('/^[a-f0-9]{' . $length . '}$/D', $value) !== 1) {
             throw new \UnexpectedValueException(sprintf('Foundation release field "%s" is invalid.', $field));
@@ -93,17 +100,7 @@ final class FoundationReleaseManifest
         return $value;
     }
 
-    private static function identifier(mixed $value, string $field): string
-    {
-        $value = self::nonEmptyString($value, $field);
-        if (preg_match('/^[A-Za-z0-9][A-Za-z0-9._-]*$/D', $value) !== 1) {
-            throw new \UnexpectedValueException(sprintf('Foundation release field "%s" is invalid.', $field));
-        }
-
-        return $value;
-    }
-
-    private static function nonEmptyString(mixed $value, string $field): string
+    public static function nonEmptyString(mixed $value, string $field): string
     {
         if (!is_string($value) || trim($value) === '') {
             throw new \UnexpectedValueException(sprintf('Foundation release field "%s" is invalid.', $field));
@@ -112,7 +109,7 @@ final class FoundationReleaseManifest
         return $value;
     }
 
-    private static function relativePath(mixed $value, string $field): string
+    public static function relativePath(mixed $value, string $field): string
     {
         $value = self::nonEmptyString($value, $field);
         if (str_contains($value, "\0")
@@ -126,13 +123,37 @@ final class FoundationReleaseManifest
     }
 
     /** @param array<string,mixed> $manifest @return array<string,mixed> */
-    private static function section(array $manifest, string $name): array
+    public static function section(array $manifest, string $name): array
     {
         $section = $manifest[$name] ?? null;
         if (!is_array($section)) {
             throw new \UnexpectedValueException(sprintf('Foundation release section "%s" is invalid.', $name));
         }
 
-        return $section;
+        return self::stringMap($section, $name);
+    }
+
+    private static function identifier(mixed $value, string $field): string
+    {
+        $value = self::nonEmptyString($value, $field);
+        if (preg_match('/^[A-Za-z0-9][A-Za-z0-9._-]*$/D', $value) !== 1) {
+            throw new \UnexpectedValueException(sprintf('Foundation release field "%s" is invalid.', $field));
+        }
+
+        return $value;
+    }
+
+    /** @param array<array-key,mixed> $value @return array<string,mixed> */
+    private static function stringMap(array $value, string $field): array
+    {
+        $mapped = [];
+        foreach ($value as $key => $entry) {
+            if (!is_string($key)) {
+                throw new \UnexpectedValueException(sprintf('Foundation release field "%s" must use string keys.', $field));
+            }
+            $mapped[$key] = $entry;
+        }
+
+        return $mapped;
     }
 }

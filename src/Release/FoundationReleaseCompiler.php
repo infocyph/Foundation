@@ -35,90 +35,13 @@ final readonly class FoundationReleaseCompiler
         $releaseRoot = $this->root($releaseRoot);
         $generation ??= gmdate('YmdHis') . '-' . bin2hex(random_bytes(8));
         $this->assertGeneration($generation);
-
-        $generations = $releaseRoot . DIRECTORY_SEPARATOR . 'generations';
-        if (!is_dir($generations) && !mkdir($generations, 0775, true) && !is_dir($generations)) {
-            throw new \RuntimeException(sprintf('Unable to create Foundation generations directory "%s".', $generations));
-        }
-
-        $stage = $generations . DIRECTORY_SEPARATOR . '.staging-' . $generation . '-' . bin2hex(random_bytes(4));
-        $final = $generations . DIRECTORY_SEPARATOR . $generation;
-        if (file_exists($final)) {
-            throw new \RuntimeException(sprintf('Foundation release generation "%s" already exists.', $generation));
-        }
-        if (!mkdir($stage, 0775, true) && !is_dir($stage)) {
-            throw new \RuntimeException(sprintf('Unable to create Foundation staging generation "%s".', $stage));
-        }
+        [$stage, $final] = $this->generationPaths($releaseRoot, $generation);
 
         try {
-            $this->mkdir($stage . '/web');
-            $web = $this->web->compile(
-                $config,
-                $stage . '/web/container.php',
-                $stage . '/web/router.php',
-                $stage . '/web/release.json',
-                $capabilities['web'] ?? [],
-            );
-            $environment = $this->stringField($web, 'environment');
-            $configFingerprint = $this->digestField($web, 'config_fingerprint', 64);
-            $runtimeManifestSha256 = $this->digestField($web, 'release_runtime_manifest_sha256', 64);
-            $webCapabilities = $web['foundation_capabilities'] ?? null;
-            if (!is_array($webCapabilities)) {
-                throw new \UnexpectedValueException('Foundation web release capability topology is unavailable.');
-            }
-
-            $runtimeSections = [];
-            foreach ([RuntimeMode::Cli, RuntimeMode::Worker, RuntimeMode::Scheduler] as $runtime) {
-                $name = $runtime->value;
-                $this->mkdir($stage . '/' . $name);
-                $report = $this->nonWeb->compile(
-                    $config,
-                    $runtime,
-                    $stage . '/' . $name . '/container.php',
-                    $capabilities[$name] ?? [],
-                );
-                $metadata = GeneratedRuntimeMetadata::read($report['path']);
-                if (($metadata['environment'] ?? null) !== $environment
-                    || ($metadata['config_fingerprint'] ?? null) !== $configFingerprint
-                ) {
-                    throw new \RuntimeException(sprintf(
-                        'Foundation %s runtime identity does not match the web release generation.',
-                        $name,
-                    ));
-                }
-                if (($report['skipped'] ?? null) !== []) {
-                    throw new \RuntimeException(sprintf('Foundation %s runtime contains skipped definitions.', $name));
-                }
-
-                $runtimeSections[$name] = [
-                    'intermix_path' => $name . '/container.php',
-                    'digest' => $this->digestField($report, 'digest', 32),
-                    'metadata_path' => $name . '/container.php.foundation.json',
-                    'metadata_sha256' => $this->digestField($report, 'metadata_sha256', 64),
-                    'capabilities' => is_array($report['capabilities'] ?? null) ? $report['capabilities'] : [],
-                ];
-            }
-
-            $manifest = [
-                'format' => FoundationReleaseManifest::FORMAT,
-                'generation' => $generation,
-                'environment' => $environment,
-                'config_fingerprint' => $configFingerprint,
-                'web' => [
-                    'release_manifest' => 'web/release.json',
-                    'runtime_manifest_sha256' => $runtimeManifestSha256,
-                    'capabilities' => $webCapabilities,
-                ],
-                'cli' => $runtimeSections['cli'],
-                'worker' => $runtimeSections['worker'],
-                'scheduler' => $runtimeSections['scheduler'],
-            ];
+            $manifest = $this->compileGeneration($config, $stage, $generation, $capabilities);
             FoundationReleaseManifest::write($stage . '/foundation.php', $manifest);
             $this->verifyStage($stage, $manifest);
-
-            if (!rename($stage, $final)) {
-                throw new \RuntimeException(sprintf('Unable to publish Foundation release generation "%s".', $generation));
-            }
+            $this->publishStage($stage, $final, $generation);
             $stage = '';
             $activePointer = $this->active->activate($releaseRoot, $generation);
 
@@ -147,23 +70,10 @@ final readonly class FoundationReleaseCompiler
             return [];
         }
 
-        $active = null;
-        try {
-            $active = $this->active->current($releaseRoot)['generation'];
-        } catch (\Throwable) {
-            // No active pointer: retain newest immutable generations only.
-        }
-
-        $entries = [];
-        foreach (new \DirectoryIterator($generations) as $entry) {
-            if (!$entry->isDir() || $entry->isDot() || str_starts_with($entry->getFilename(), '.staging-')) {
-                continue;
-            }
-            $entries[$entry->getFilename()] = $entry->getMTime();
-        }
-        arsort($entries, SORT_NUMERIC);
+        $active = $this->activeGenerationOrNull($releaseRoot);
+        $entries = $this->generationTimes($generations);
         $retain = array_fill_keys(array_slice(array_keys($entries), 0, $keep), true);
-        if (is_string($active)) {
+        if ($active !== null) {
             $retain[$active] = true;
         }
 
@@ -179,50 +89,191 @@ final readonly class FoundationReleaseCompiler
         return $removed;
     }
 
+    /**
+     * @param array<string,mixed> $config
+     * @param array<string,array<int|string,mixed>> $capabilities
+     * @return array<string,mixed>
+     */
+    private function compileGeneration(
+        array $config,
+        string $stage,
+        string $generation,
+        array $capabilities,
+    ): array {
+        $this->mkdir($stage . '/web');
+        $web = $this->web->compile(
+            $config,
+            $stage . '/web/container.php',
+            $stage . '/web/router.php',
+            $stage . '/web/release.json',
+            $capabilities['web'] ?? [],
+        );
+        $environment = $this->stringField($web, 'environment');
+        $configFingerprint = $this->digestField($web, 'config_fingerprint', 64);
+        $webCapabilities = FoundationReleaseManifest::capabilities(
+            $web['foundation_capabilities'] ?? null,
+            'web.capabilities',
+        );
+
+        $runtimeSections = [];
+        foreach ([RuntimeMode::Cli, RuntimeMode::Worker, RuntimeMode::Scheduler] as $runtime) {
+            $runtimeSections[$runtime->value] = $this->compileNonWebSection(
+                $config,
+                $stage,
+                $runtime,
+                $capabilities[$runtime->value] ?? [],
+                $environment,
+                $configFingerprint,
+            );
+        }
+
+        return [
+            'format' => FoundationReleaseManifest::FORMAT,
+            'generation' => $generation,
+            'environment' => $environment,
+            'config_fingerprint' => $configFingerprint,
+            'web' => [
+                'release_manifest' => 'web/release.json',
+                'runtime_manifest_sha256' => $this->digestField($web, 'release_runtime_manifest_sha256', 64),
+                'capabilities' => $webCapabilities,
+            ],
+            'cli' => $runtimeSections['cli'],
+            'worker' => $runtimeSections['worker'],
+            'scheduler' => $runtimeSections['scheduler'],
+        ];
+    }
+
+    /**
+     * @param array<string,mixed> $config
+     * @param array<int|string,mixed> $capabilities
+     * @return array<string,mixed>
+     */
+    private function compileNonWebSection(
+        array $config,
+        string $stage,
+        RuntimeMode $runtime,
+        array $capabilities,
+        string $environment,
+        string $configFingerprint,
+    ): array {
+        $name = $runtime->value;
+        $this->mkdir($stage . '/' . $name);
+        $report = $this->nonWeb->compile(
+            $config,
+            $runtime,
+            $stage . '/' . $name . '/container.php',
+            $capabilities,
+        );
+        $metadata = GeneratedRuntimeMetadata::read($report['path']);
+        if (($metadata['environment'] ?? null) !== $environment
+            || ($metadata['config_fingerprint'] ?? null) !== $configFingerprint
+        ) {
+            throw new \RuntimeException(sprintf(
+                'Foundation %s runtime identity does not match the web release generation.',
+                $name,
+            ));
+        }
+        if ($report['skipped'] !== []) {
+            throw new \RuntimeException(sprintf('Foundation %s runtime contains skipped definitions.', $name));
+        }
+
+        return [
+            'intermix_path' => $name . '/container.php',
+            'digest' => $report['digest'],
+            'metadata_path' => $name . '/container.php.foundation.json',
+            'metadata_sha256' => $report['metadata_sha256'],
+            'capabilities' => $report['capabilities'],
+        ];
+    }
+
+    /** @return array{0:string,1:string} */
+    private function generationPaths(string $releaseRoot, string $generation): array
+    {
+        $generations = $releaseRoot . DIRECTORY_SEPARATOR . 'generations';
+        $this->mkdir($generations);
+        $stage = $generations . DIRECTORY_SEPARATOR . '.staging-' . $generation . '-' . bin2hex(random_bytes(4));
+        $final = $generations . DIRECTORY_SEPARATOR . $generation;
+        if (file_exists($final)) {
+            throw new \RuntimeException(sprintf('Foundation release generation "%s" already exists.', $generation));
+        }
+        $this->mkdir($stage);
+
+        return [$stage, $final];
+    }
+
     /** @param array<string,mixed> $manifest */
     private function verifyStage(string $stage, array $manifest): void
     {
         FoundationReleaseManifest::assertValid($manifest);
-        foreach ([
-            'foundation.php',
-            $manifest['web']['release_manifest'],
-            $manifest['cli']['intermix_path'],
-            $manifest['cli']['metadata_path'],
-            $manifest['worker']['intermix_path'],
-            $manifest['worker']['metadata_path'],
-            $manifest['scheduler']['intermix_path'],
-            $manifest['scheduler']['metadata_path'],
-        ] as $relative) {
-            if (!is_string($relative) || !is_file($stage . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relative))) {
-                throw new \RuntimeException(sprintf('Foundation release generation is incomplete at "%s".', (string) $relative));
+        $web = FoundationReleaseManifest::section($manifest, 'web');
+        $paths = ['foundation.php', FoundationReleaseManifest::relativePath(
+            $web['release_manifest'] ?? null,
+            'web.release_manifest',
+        )];
+        foreach (['cli', 'worker', 'scheduler'] as $runtime) {
+            $section = FoundationReleaseManifest::section($manifest, $runtime);
+            $paths[] = FoundationReleaseManifest::relativePath(
+                $section['intermix_path'] ?? null,
+                $runtime . '.intermix_path',
+            );
+            $paths[] = FoundationReleaseManifest::relativePath(
+                $section['metadata_path'] ?? null,
+                $runtime . '.metadata_path',
+            );
+        }
+
+        foreach ($paths as $relative) {
+            $path = $stage . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relative);
+            if (!is_file($path)) {
+                throw new \RuntimeException(sprintf('Foundation release generation is incomplete at "%s".', $relative));
             }
         }
-        $loaded = FoundationReleaseManifest::load($stage . '/foundation.php');
-        if ($loaded !== $manifest) {
+        if (FoundationReleaseManifest::load($stage . '/foundation.php') !== $manifest) {
             throw new \RuntimeException('Foundation release manifest did not round-trip exactly before publication.');
         }
+    }
+
+    private function publishStage(string $stage, string $final, string $generation): void
+    {
+        if (!rename($stage, $final)) {
+            throw new \RuntimeException(sprintf('Unable to publish Foundation release generation "%s".', $generation));
+        }
+    }
+
+    private function activeGenerationOrNull(string $releaseRoot): ?string
+    {
+        try {
+            return $this->active->current($releaseRoot)['generation'];
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /** @return array<string,int> */
+    private function generationTimes(string $generations): array
+    {
+        $entries = [];
+        foreach (new \DirectoryIterator($generations) as $entry) {
+            if (!$entry->isDir() || $entry->isDot() || str_starts_with($entry->getFilename(), '.staging-')) {
+                continue;
+            }
+            $entries[$entry->getFilename()] = $entry->getMTime();
+        }
+        arsort($entries, SORT_NUMERIC);
+
+        return $entries;
     }
 
     /** @param array<string,mixed> $source */
     private function digestField(array $source, string $field, int $length): string
     {
-        $value = $source[$field] ?? null;
-        if (!is_string($value) || preg_match('/^[a-f0-9]{' . $length . '}$/D', $value) !== 1) {
-            throw new \UnexpectedValueException(sprintf('Foundation release field "%s" is invalid.', $field));
-        }
-
-        return $value;
+        return FoundationReleaseManifest::digest($source[$field] ?? null, $length, $field);
     }
 
     /** @param array<string,mixed> $source */
     private function stringField(array $source, string $field): string
     {
-        $value = $source[$field] ?? null;
-        if (!is_string($value) || $value === '') {
-            throw new \UnexpectedValueException(sprintf('Foundation release field "%s" is invalid.', $field));
-        }
-
-        return $value;
+        return FoundationReleaseManifest::nonEmptyString($source[$field] ?? null, $field);
     }
 
     private function assertGeneration(string $generation): void
@@ -249,6 +300,7 @@ final readonly class FoundationReleaseCompiler
             \RecursiveIteratorIterator::CHILD_FIRST,
         );
         foreach ($files as $file) {
+            /** @var \SplFileInfo $file */
             $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
         }
         rmdir($directory);

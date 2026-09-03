@@ -74,12 +74,20 @@ final class GeneratedRuntimeMetadata
         }
 
         try {
-            $metadata = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
+            $decoded = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
         } catch (JsonException $exception) {
             throw new \RuntimeException('Foundation generated runtime metadata is invalid JSON.', 0, $exception);
         }
-        if (!is_array($metadata)) {
+        if (!is_array($decoded)) {
             throw new \UnexpectedValueException('Foundation generated runtime metadata must decode to an object.');
+        }
+
+        $metadata = [];
+        foreach ($decoded as $key => $value) {
+            if (!is_string($key)) {
+                throw new \UnexpectedValueException('Foundation generated runtime metadata must use string keys.');
+            }
+            $metadata[$key] = $value;
         }
 
         return $metadata;

@@ -85,16 +85,6 @@ final readonly class CommandResolver
     /** @param class-string<CommandHandlerInterface> $handler */
     private function resolve(string $handler): CommandHandlerInterface
     {
-        $resolved = $this->application->make($handler);
-
-        if (!$resolved instanceof CommandHandlerInterface) {
-            throw new \LogicException(sprintf(
-                'Resolved command "%s" must implement %s.',
-                $handler,
-                CommandHandlerInterface::class,
-            ));
-        }
-
-        return $resolved;
+        return $this->application->make($handler);
     }
 }

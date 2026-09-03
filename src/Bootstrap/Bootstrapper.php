@@ -40,6 +40,7 @@ final class Bootstrapper
 
     /** @var list<class-string<ServiceProviderInterface>> */
     private const array OPTIONAL_BUILT_INS = [
+        AuthServiceProvider::class,
         DatabaseServiceProvider::class,
         CacheServiceProvider::class,
         SecurityServiceProvider::class,
@@ -53,6 +54,7 @@ final class Bootstrapper
 
     /** @var array<class-string<ServiceProviderInterface>, string> */
     private const array OPTIONAL_CAPABILITIES = [
+        AuthServiceProvider::class => 'auth',
         DatabaseServiceProvider::class => 'database',
         CacheServiceProvider::class => 'cache',
         SecurityServiceProvider::class => 'security',
@@ -101,8 +103,6 @@ final class Bootstrapper
             }
             $registry->add($this->instantiateProvider($provider));
         }
-
-        $registry->add(new AuthServiceProvider());
 
         if ($context->runtimeMode === RuntimeMode::Web) {
             foreach (self::WEB_BUILT_INS as $provider) {
