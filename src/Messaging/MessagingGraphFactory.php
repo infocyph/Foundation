@@ -26,8 +26,8 @@ final class MessagingGraphFactory
     public static function handlerInvoker(
         MessagingRuntimeResolver $resolver,
         HandlerMap $handlers,
-        array $handlerMiddleware,
-        array $jobMiddleware,
+        mixed $handlerMiddleware,
+        mixed $jobMiddleware,
     ): HandlerInvoker {
         return new HandlerInvoker(
             $handlers,
@@ -35,25 +35,32 @@ final class MessagingGraphFactory
         );
     }
 
-    public static function handlerMap(MessagingRuntimeResolver $resolver, array $configured): HandlerMap
+    public static function handlerMap(MessagingRuntimeResolver $resolver, mixed $configured): HandlerMap
     {
         return new HandlerMap($resolver->handlers($configured));
     }
 
-    public static function listenerMap(MessagingRuntimeResolver $resolver, array $configured): ListenerMap
+    public static function listenerMap(MessagingRuntimeResolver $resolver, mixed $configured): ListenerMap
     {
         return new ListenerMap($resolver->listeners($configured));
     }
 
     public static function messageFactoryMap(
         MessagingRuntimeResolver $resolver,
-        array $configured,
+        mixed $configured,
     ): MessageFactoryMap {
         return new MessageFactoryMap($resolver->scheduledMessages($configured));
     }
 
-    public static function routeMap(array $configured, array $default): RouteMap
+    public static function routeMap(mixed $configured, mixed $default): RouteMap
     {
+        if (!is_array($configured)) {
+            $configured = [];
+        }
+        if (!is_array($default)) {
+            $default = [];
+        }
+
         $routes = [];
         foreach ($configured as $message => $definition) {
             if (!is_string($message) || (!class_exists($message) && !interface_exists($message))) {
