@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailVerificationManager;
 use Infocyph\Foundation\Auth\Authentication\Login\Authenticator;
@@ -40,6 +41,7 @@ use Infocyph\Foundation\Routing\RouteCachePath;
 use Infocyph\Foundation\Routing\WebrickMiddlewareFactory;
 use Infocyph\Foundation\Session\SessionManager;
 use Infocyph\Foundation\Testing\TestKit;
+use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Webrick\Middleware\MaintenanceModeMiddleware;
 use Infocyph\Webrick\Request\Request;
@@ -85,9 +87,11 @@ final class FoundationScopedProbe
 
 it('applies InterMix environment bindings from the application environment', function (): void {
     $provider = new class extends ServiceProvider {
-        public function register(Application $app): void
+        public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
         {
-            $app->container()->options()
+            unset($context);
+
+            $builder->options()
                 ->bindInterfaceForEnv('local', FoundationTestGateway::class, LocalFoundationGateway::class)
                 ->bindInterfaceForEnv('production', FoundationTestGateway::class, ProductionFoundationGateway::class);
         }
@@ -103,9 +107,15 @@ it('applies InterMix environment bindings from the application environment', fun
 
 it('scopes request-lifetime services through the HTTP kernel', function (): void {
     $provider = new class extends ServiceProvider {
-        public function register(Application $app): void
+        public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
         {
-            $app->container()->bind('scoped.probe', fn() => new FoundationScopedProbe(), LifetimeEnum::Scoped);
+            unset($context);
+
+            $builder->bindFactory(
+                'scoped.probe',
+                static fn(): FoundationScopedProbe => new FoundationScopedProbe(),
+                LifetimeEnum::Scoped,
+            );
         }
     };
     $project = foundationIntegrationProject([
