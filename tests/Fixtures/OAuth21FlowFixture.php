@@ -42,7 +42,8 @@ use Infocyph\Foundation\Database\AuthSchema\AuthOAuthRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DatabaseConnectionResolver;
 use Infocyph\Foundation\Database\DBLayerFactory;
-use Infocyph\Foundation\Runtime\RuntimeContextTracker;
+use Infocyph\Foundation\Runtime\RuntimeExecutionState;
+use Psr\Container\ContainerInterface;
 
 final class OAuth21FlowFixture
 {
@@ -93,7 +94,25 @@ final class OAuth21FlowFixture
             ],
             'auth' => ['oauth' => ['scope_permissions' => []]],
         ]);
-        $this->factory = new DBLayerFactory(new DatabaseConnectionResolver($config), new RuntimeContextTracker());
+        $state = new RuntimeExecutionState();
+        $container = new readonly class($state) implements ContainerInterface {
+            public function __construct(private RuntimeExecutionState $state) {}
+
+            public function get(string $id): mixed
+            {
+                if ($id === RuntimeExecutionState::class) {
+                    return $this->state;
+                }
+
+                throw new \LogicException(sprintf('Fixture container has no service "%s".', $id));
+            }
+
+            public function has(string $id): bool
+            {
+                return $id === RuntimeExecutionState::class;
+            }
+        };
+        $this->factory = new DBLayerFactory(new DatabaseConnectionResolver($config), $container);
         $this->tables = new AuthTables();
         new MigrationRunner($this->factory->connection(), [new AuthOAuthRevisionSchema($this->tables)])->run();
 
