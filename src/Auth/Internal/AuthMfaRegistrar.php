@@ -19,6 +19,7 @@ use Infocyph\Foundation\Auth\Mfa\RecoveryCodeServiceInterface;
 use Infocyph\Foundation\Auth\Support\InMemoryRecoveryCodeService;
 use Infocyph\Foundation\Auth\Support\SimpleMfaVerifier;
 use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\OTP\Contracts\RecoveryCodeStoreInterface;
 use Infocyph\OTP\RecoveryCodes;
 use Infocyph\OTP\TOTP;
@@ -27,10 +28,10 @@ final readonly class AuthMfaRegistrar extends AbstractAuthRegistrar
 {
     public function __construct(
         Application $app,
-        \Infocyph\InterMix\DI\Container $container,
+        ContainerBuilder $builder,
         private AuthSecretResolver $secrets,
     ) {
-        parent::__construct($app, $container);
+        parent::__construct($app, $builder);
     }
 
     public function register(AuthDriverResolver $drivers): void
