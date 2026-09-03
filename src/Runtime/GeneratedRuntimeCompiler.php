@@ -30,6 +30,7 @@ final class GeneratedRuntimeCompiler
         array $capabilities = [],
     ): array {
         $graph = new NonWebGraphFactory()->compose($config, $runtime, $capabilities);
+        $stagedPath = null;
 
         try {
             new NonWebProductionGraph()->prepare($graph->builder);
@@ -39,17 +40,21 @@ final class GeneratedRuntimeCompiler
                 throw new \RuntimeException(sprintf('Unable to create generated runtime directory "%s".', $directory));
             }
 
+            $stagedPath = $directory . DIRECTORY_SEPARATOR . '.foundation-'
+                . basename($artifactPath) . '-' . bin2hex(random_bytes(6));
             $graph->builder->validate(strict: true);
-            $report = $graph->builder->compile($artifactPath);
+            $report = $graph->builder->compile($stagedPath);
             $this->assertNoSkippedDefinitions($report['skipped']);
-            $metadataPath = GeneratedRuntimeMetadata::write(
-                $artifactPath,
+            GeneratedRuntimeMetadata::write(
+                $stagedPath,
                 GeneratedRuntimeMetadata::create($graph, $report),
             );
-            $metadataSha256 = hash_file('sha256', $metadataPath);
+            $metadataSha256 = hash_file('sha256', GeneratedRuntimeMetadata::path($stagedPath));
             if (!is_string($metadataSha256)) {
                 throw new \RuntimeException('Unable to hash generated runtime metadata.');
             }
+
+            $this->publish($stagedPath, $artifactPath);
 
             return [
                 'runtime' => $runtime->value,
@@ -57,11 +62,14 @@ final class GeneratedRuntimeCompiler
                 'digest' => $report['digest'],
                 'compiled' => $report['compiled'],
                 'skipped' => $report['skipped'],
-                'metadata_path' => $metadataPath,
+                'metadata_path' => GeneratedRuntimeMetadata::path($artifactPath),
                 'metadata_sha256' => $metadataSha256,
                 'capabilities' => $graph->context->capabilities,
             ];
         } finally {
+            if (is_string($stagedPath)) {
+                $this->removeStaged($stagedPath);
+            }
             $graph->application->container()->unset();
         }
     }
@@ -82,5 +90,36 @@ final class GeneratedRuntimeCompiler
             'Foundation generated runtime contains definitions that were not statically compiled: '
             . implode('; ', $details),
         );
+    }
+
+    private function publish(string $stagedPath, string $artifactPath): void
+    {
+        $pairs = [
+            [$stagedPath, $artifactPath],
+            [$stagedPath . '.meta.json', $artifactPath . '.meta.json'],
+            [GeneratedRuntimeMetadata::path($stagedPath), GeneratedRuntimeMetadata::path($artifactPath)],
+        ];
+
+        foreach ($pairs as [$source, $target]) {
+            if (!is_file($source) || !rename($source, $target)) {
+                throw new \RuntimeException(sprintf(
+                    'Unable to publish generated runtime artifact "%s".',
+                    $target,
+                ));
+            }
+        }
+    }
+
+    private function removeStaged(string $stagedPath): void
+    {
+        foreach ([
+            $stagedPath,
+            $stagedPath . '.meta.json',
+            GeneratedRuntimeMetadata::path($stagedPath),
+        ] as $path) {
+            if (is_file($path)) {
+                unlink($path);
+            }
+        }
     }
 }

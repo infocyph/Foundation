@@ -29,6 +29,15 @@ final class FoundationGeneratedRuntimeScopedProbe
     }
 }
 
+final class FoundationGeneratedRuntimeDynamicProvider extends ServiceProvider
+{
+    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
+    {
+        unset($context);
+        $builder->bindFactory('foundation.generated.dynamic', static fn(): stdClass => new stdClass());
+    }
+}
+
 final class FoundationGeneratedRuntimeProvider extends ServiceProvider
 {
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
@@ -127,6 +136,35 @@ it('builds a worker only with explicitly selected messaging capability and keeps
 
         expect(spl_object_id($runtime->container))->toBe($containerId)
             ->and(array_unique($seen))->toHaveCount(64);
+    } finally {
+        foundationGeneratedRuntimeRemove($project);
+    }
+});
+
+it('keeps the last good artifact when a new build contains skipped definitions', function (): void {
+    $project = foundationGeneratedRuntimeProject();
+    $config = foundationGeneratedRuntimeConfig($project);
+    $artifact = $project . '/bootstrap/cache/cli.php';
+    $compiler = new GeneratedRuntimeCompiler();
+
+    try {
+        $compiler->compile($config, RuntimeMode::Cli, $artifact);
+        $before = [
+            hash_file('sha256', $artifact),
+            hash_file('sha256', $artifact . '.meta.json'),
+            hash_file('sha256', $artifact . '.foundation.json'),
+        ];
+
+        $invalid = $config;
+        $invalid['providers']['common'][] = FoundationGeneratedRuntimeDynamicProvider::class;
+        expect(fn() => $compiler->compile($invalid, RuntimeMode::Cli, $artifact))
+            ->toThrow(RuntimeException::class, 'not statically compiled');
+
+        expect([
+            hash_file('sha256', $artifact),
+            hash_file('sha256', $artifact . '.meta.json'),
+            hash_file('sha256', $artifact . '.foundation.json'),
+        ])->toBe($before);
     } finally {
         foundationGeneratedRuntimeRemove($project);
     }
