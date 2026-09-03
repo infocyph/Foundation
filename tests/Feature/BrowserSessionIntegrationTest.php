@@ -16,14 +16,19 @@ use Infocyph\Foundation\Session\BrowserSession;
 use Infocyph\Foundation\Session\Middleware\CsrfMiddleware;
 use Infocyph\Foundation\Session\Middleware\SessionMiddleware;
 use Infocyph\Foundation\Session\SessionConfig;
+use Infocyph\Foundation\Session\SessionExecutionState;
 use Infocyph\Foundation\Session\SessionManager;
 use Infocyph\Foundation\Session\SessionStoreInterface;
 use Infocyph\Foundation\Session\Store\ArraySessionStore;
 use Infocyph\Foundation\Session\Store\CacheSessionStore;
 use Infocyph\Foundation\Session\Store\DatabaseSessionStore;
 use Infocyph\Foundation\Session\Store\FileSessionStore;
+use Infocyph\InterMix\DI\Container;
+use Infocyph\InterMix\DI\ContainerBuilder;
+use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
+use Infocyph\Webrick\Runtime\Http\RuntimeRequestContext;
 
 it('persists session data and expires flash data after its next request', function (): void {
     [$middleware] = browserSessionStack();
@@ -62,7 +67,7 @@ it('persists session data and expires flash data after its next request', functi
 });
 
 it('regenerates identifiers without retaining the old session record', function (): void {
-    [$middleware, $manager, $store] = browserSessionStack();
+    [$middleware, $manager, $store, , $container] = browserSessionStack();
 
     $first = $middleware(
         Request::fake(headers: ['Host' => 'example.test'], uri: 'https://example.test/login'),
@@ -82,10 +87,14 @@ it('regenerates identifiers without retaining the old session record', function 
         },
     );
     $newId = browserSessionCookieId($second);
+    $before = browserSessionWithinScope(
+        $container,
+        static fn(): mixed => $manager->open($newId)->get('before'),
+    );
 
     expect($newId)->not->toBe($oldId)
         ->and($store->load($oldId, time()))->toBeNull()
-        ->and($manager->open($newId)->get('before'))->toBeTrue();
+        ->and($before)->toBeTrue();
 });
 
 it('accepts CSRF tokens only from the configured header or body', function (): void {
@@ -288,14 +297,27 @@ it('releases CacheLayer session locks when request handling fails', function ():
             }
         }
     };
+    $container = browserSessionContainer();
     $manager = new SessionManager(
         $config,
         static fn(): SessionStoreInterface => $store,
         static fn(): LockProviderInterface => $locks,
+        $container,
     );
     $middleware = new SessionMiddleware($manager, $config);
+    $run = static function (Request $request, callable $next) use ($container, $middleware): Response {
+        $response = browserSessionWithinScope(
+            $container,
+            static fn(): Response => $middleware($request, $next),
+        );
+        if (!$response instanceof Response) {
+            throw new LogicException('Session request scope must return a response.');
+        }
 
-    expect(fn() => $middleware(
+        return $response;
+    };
+
+    expect(fn() => $run(
         Request::fake(headers: ['Host' => 'example.test'], uri: 'https://example.test/fail')
             ->withCookieParams(['infbyte_session' => $id]),
         static function (Request $request): never {
@@ -305,10 +327,11 @@ it('releases CacheLayer session locks when request handling fails', function ():
     ))->toThrow(RuntimeException::class, 'handler failed')
         ->and($locks->acquired)->toBe(1)
         ->and($locks->released)->toBe(1);
-    expect(fn() => $manager->current())->toThrow(LogicException::class);
+    expect(fn() => browserSessionWithinScope($container, static fn(): BrowserSession => $manager->current()))
+        ->toThrow(LogicException::class);
 
     $locks->owned = false;
-    expect(fn() => $middleware(
+    expect(fn() => $run(
         Request::fake(headers: ['Host' => 'example.test'], uri: 'https://example.test/lost-lock')
             ->withCookieParams(['infbyte_session' => $id]),
         static function (Request $request): Response {
@@ -321,16 +344,20 @@ it('releases CacheLayer session locks when request handling fails', function ():
 });
 
 it('isolates active sessions between concurrent fibers', function (): void {
-    [, $manager] = browserSessionStack();
-    $run = static function () use ($manager): bool {
-        $session = $manager->open(null);
-        $manager->enter($session);
-        try {
-            Fiber::suspend();
-            return $manager->current() === $session;
-        } finally {
-            $manager->leave($session);
-        }
+    [, $manager, , , $container] = browserSessionStack();
+    $run = static function () use ($container, $manager): bool {
+        $result = browserSessionWithinScope($container, static function () use ($manager): bool {
+            $session = $manager->open(null);
+            $manager->enter($session);
+            try {
+                Fiber::suspend();
+                return $manager->current() === $session;
+            } finally {
+                $manager->leave($session);
+            }
+        });
+
+        return $result === true;
     };
     $first = new Fiber($run);
     $second = new Fiber($run);
@@ -340,22 +367,54 @@ it('isolates active sessions between concurrent fibers', function (): void {
     $second->resume();
     expect($first->getReturn())->toBeTrue()
         ->and($second->getReturn())->toBeTrue()
-        ->and(fn() => $manager->current())->toThrow(LogicException::class);
+        ->and(fn() => browserSessionWithinScope($container, static fn(): BrowserSession => $manager->current()))
+        ->toThrow(LogicException::class);
 });
 
-/** @return array{SessionMiddleware,SessionManager,ArraySessionStore,SessionConfig} */
+/** @return array{Closure,SessionManager,ArraySessionStore,SessionConfig,Container} */
 function browserSessionStack(): array
 {
     $config = SessionConfig::fromRepository(new ConfigRepository([
         'session' => ['driver' => 'array', 'cookie' => ['secure' => true]],
     ]), sys_get_temp_dir() . '/foundation-browser-sessions');
     $store = new ArraySessionStore();
+    $container = browserSessionContainer();
     $manager = new SessionManager(
         $config,
         static fn(): SessionStoreInterface => $store,
         static fn(): null => null,
+        $container,
     );
-    return [new SessionMiddleware($manager, $config), $manager, $store, $config];
+    $middleware = new SessionMiddleware($manager, $config);
+    $run = static function (Request $request, callable $next) use ($container, $middleware): Response {
+        $response = browserSessionWithinScope(
+            $container,
+            static fn(): Response => $middleware($request, $next),
+        );
+        if (!$response instanceof Response) {
+            throw new LogicException('Session request scope must return a response.');
+        }
+
+        return $response;
+    };
+
+    return [$run, $manager, $store, $config, $container];
+}
+
+function browserSessionContainer(): Container
+{
+    $builder = ContainerBuilder::create('foundation-browser-session-test');
+    $builder->scoped(
+        SessionExecutionState::class,
+        FactoryDefinition::construct(SessionExecutionState::class),
+    );
+
+    return $builder->development();
+}
+
+function browserSessionWithinScope(Container $container, callable $callback): mixed
+{
+    return $container->withinScope(RuntimeRequestContext::REQUEST_SCOPE, static fn(): mixed => $callback());
 }
 
 function browserSessionCookieId(Response $response): string
