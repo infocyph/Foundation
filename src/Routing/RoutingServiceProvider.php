@@ -23,9 +23,10 @@ final class RoutingServiceProvider extends ServiceProvider
         $app = $this->application($builder, $context);
         new MiddlewareConfigValidator($app->config())->validate();
         $container = $builder->development();
+        $router = is_array($context->config['router'] ?? null) ? $context->config['router'] : [];
 
-        // Live Webrick router composition is development-only until the compiled
-        // runtime replaces these final live-router definitions later in Phase 5.
+        // Live Webrick router composition remains a development/test path. Production
+        // releases use WebReleaseCompiler + WebReleaseRuntime and never resolve this factory.
         $builder->bindFactory(WebrickMiddlewareFactory::class, fn() => new WebrickMiddlewareFactory(
             app: $app,
             config: $app->config(),
@@ -65,7 +66,7 @@ final class RoutingServiceProvider extends ServiceProvider
                 new ServiceReference(ConfigRepository::class),
                 new ServiceReference(RoutePresetRegistrar::class),
                 new ServiceReference(OAuthRouteRegistrar::class),
-                $this->routeFiles($context->config['router']['files'] ?? ['web.php', 'api.php', 'auth.php']),
+                $this->routeFiles($router['files'] ?? ['web.php', 'api.php', 'auth.php']),
             ],
         ));
 
