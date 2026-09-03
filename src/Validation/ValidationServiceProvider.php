@@ -27,37 +27,28 @@ final class ValidationServiceProvider extends ServiceProvider
         $validation = is_array($context->config['validation'] ?? null) ? $context->config['validation'] : [];
         $connection = $validation['database_connection'] ?? null;
         $connection = is_string($connection) && $connection !== '' ? $connection : null;
+        $hasDatabase = $builder->definitions()->has(DBLayerFactory::class);
 
         $builder->singleton(ValidationSchemaRegistry::class, FactoryDefinition::construct(
             ValidationSchemaRegistry::class,
             [new ServiceReference(ConfigRepository::class), AuthRequestSchemas::all()],
         ));
 
-        if ($builder->definitions()->has(DBLayerFactory::class)) {
+        if ($hasDatabase) {
             $builder->singleton(ReqShieldDatabaseProvider::class, FactoryDefinition::staticFactory(
                 ValidationGraphFactory::class,
                 'databaseProvider',
                 [new ServiceReference(DBLayerFactory::class), $connection],
             ));
-        } else {
-            $builder->bindFactory(ReqShieldDatabaseProvider::class, static function (): ReqShieldDatabaseProvider {
-                return new ReqShieldDatabaseProvider(
-                    connection: static function (): never {
-                        throw new \LogicException(
-                            'Database-backed validation rules require the Foundation database capability.',
-                        );
-                    },
-                );
-            });
+            $builder->alias(DatabaseProvider::class, ReqShieldDatabaseProvider::class);
         }
 
-        $builder->alias(DatabaseProvider::class, ReqShieldDatabaseProvider::class);
         $builder->singleton(ValidatorFactory::class, FactoryDefinition::construct(
             ValidatorFactory::class,
             [
                 new ServiceReference(ConfigRepository::class),
                 new ServiceReference(ValidationSchemaRegistry::class),
-                new ServiceReference(DatabaseProvider::class),
+                $hasDatabase ? new ServiceReference(DatabaseProvider::class) : null,
             ],
         ));
         $builder->alias('foundation.validator', ValidatorFactory::class);
