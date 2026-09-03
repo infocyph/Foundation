@@ -116,6 +116,84 @@ it('compiles and boots a trusted route-first Webrick release without live router
     }
 });
 
+it('compiles maintenance as an opt-in Webrick gate with bounded runtime refresh', function (): void {
+    $project = foundationWebReleaseProject();
+    $manifest = $project . '/bootstrap/cache/release.json';
+    $intermix = $project . '/bootstrap/cache/intermix.php';
+    $router = $project . '/bootstrap/cache/router.php';
+    $maintenancePath = $project . '/storage/framework/maintenance.json';
+    mkdir(dirname($maintenancePath), 0777, true);
+    file_put_contents($maintenancePath, json_encode([
+        'enabled' => true,
+        'enabled_at' => gmdate(DATE_ATOM),
+        'retry_after' => 17,
+        'message' => 'Foundation maintenance window.',
+    ], JSON_THROW_ON_ERROR));
+
+    $config = [
+        'app' => [
+            'base_path' => $project,
+            'env' => 'production',
+            'debug' => false,
+        ],
+        '_config_cache' => false,
+        'operations' => [
+            'maintenance' => [
+                'driver' => 'file',
+                'path' => 'storage/framework/maintenance.json',
+                'refresh_milliseconds' => 0,
+                'retry_after' => 3600,
+                'web' => ['enabled' => true],
+            ],
+        ],
+        'router' => [
+            'files' => ['web.php'],
+            'matcher' => 'fused',
+            'middleware' => [
+                'globals' => ['pre' => [], 'post' => []],
+            ],
+        ],
+    ];
+
+    try {
+        $release = new WebReleaseCompiler()->compile($config, $intermix, $router, $manifest);
+        $trustedSha256 = $release['release_runtime_manifest_sha256'] ?? null;
+        expect($trustedSha256)->toBeString();
+
+        $payload = require $router;
+        expect($payload)->toBeArray();
+        $artifact = CompiledRouterArtifact::fromPayload($payload);
+        $plainPlan = null;
+        foreach ($artifact->routes() as $route) {
+            if ($route->getPath() === '/plain') {
+                $plainPlan = $artifact->planForIndex($route->getIndex());
+                break;
+            }
+        }
+
+        expect($plainPlan)->not->toBeNull()
+            ->and($plainPlan->requiresRequest())->toBeTrue()
+            ->and($plainPlan->requiresScope())->toBeTrue()
+            ->and(RouteCapability::has($plainPlan->capabilities, RouteCapability::MIDDLEWARE))->toBeTrue();
+
+        $runtime = WebReleaseRuntime::loadPrevalidated($config, $manifest, $trustedSha256);
+        $request = Request::fake(
+            headers: ['Host' => 'release.test'],
+            uri: 'https://release.test/plain',
+        );
+        $maintenance = $runtime->kernel->handle($request);
+        expect($maintenance->getStatusCode())->toBe(503)
+            ->and($maintenance->getHeaderLine('Retry-After'))->toBe('17');
+
+        unlink($maintenancePath);
+        $available = $runtime->kernel->handle($request);
+        expect($available->getStatusCode())->toBe(200)
+            ->and((string) $available->getBody())->toBe('{"plain":true}');
+    } finally {
+        foundationWebReleaseRemove($project);
+    }
+});
+
 function foundationWebReleaseProject(): string
 {
     $project = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR
