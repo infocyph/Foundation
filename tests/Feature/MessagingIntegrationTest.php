@@ -3,10 +3,12 @@
 declare(strict_types=1);
 
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Testing\TestKit;
-use Infocyph\InterMix\DI\Support\LifetimeEnum;
+use Infocyph\InterMix\DI\ContainerBuilder;
+use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\Omnibus\Consumer\Command\ConsumeRequest;
 use Infocyph\Omnibus\Consumer\Command\ConsumerTask;
 use Infocyph\Omnibus\Envelope\Envelope;
@@ -95,12 +97,13 @@ final class FoundationScheduledMessageFactory
 function foundationMessagingApplication(array $messaging = []): Application
 {
     $provider = new class extends ServiceProvider {
-        public function register(Application $app): void
+        public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
         {
-            $app->container()->bind(
+            unset($context);
+
+            $builder->scoped(
                 FoundationMessageProbe::class,
-                static fn() => new FoundationMessageProbe(),
-                LifetimeEnum::Scoped,
+                FactoryDefinition::construct(FoundationMessageProbe::class),
             );
         }
     };
