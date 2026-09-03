@@ -18,6 +18,14 @@ final class FoundationCompiledReleaseHandler
     }
 }
 
+final class FoundationCompiledReleaseFailureHandler
+{
+    public function __invoke(): never
+    {
+        throw new RuntimeException('sensitive-foundation-runtime-failure');
+    }
+}
+
 final class FoundationCompiledReleaseMiddleware
 {
     public function __invoke(Request $request, Closure $next): Response
@@ -38,6 +46,7 @@ it('compiles and boots a trusted route-first Webrick release without live router
     $manifest = $project . '/bootstrap/cache/release.json';
     $intermix = $project . '/bootstrap/cache/intermix.php';
     $router = $project . '/bootstrap/cache/router.php';
+    $log = $project . '/storage/logs/web-release.log';
     $config = [
         'app' => [
             'base_path' => $project,
@@ -45,6 +54,15 @@ it('compiles and boots a trusted route-first Webrick release without live router
             'debug' => false,
         ],
         '_config_cache' => false,
+        'logging' => [
+            'driver' => 'file',
+            'level' => 'warning',
+            'path' => $log,
+            'exceptions' => [
+                'include_message' => false,
+                'include_trace' => false,
+            ],
+        ],
         'router' => [
             'files' => ['web.php'],
             'matcher' => 'fused',
@@ -59,7 +77,8 @@ it('compiles and boots a trusted route-first Webrick release without live router
         $trustedSha256 = $release['release_runtime_manifest_sha256'] ?? null;
 
         expect($trustedSha256)->toBeString()
-            ->and($trustedSha256)->toMatch('/^[a-f0-9]{64}$/D');
+            ->and($trustedSha256)->toMatch('/^[a-f0-9]{64}$/D')
+            ->and($release['intermix']['skipped'] ?? null)->toBe([]);
 
         $payload = require $router;
         expect($payload)->toBeArray();
@@ -105,6 +124,19 @@ it('compiles and boots a trusted route-first Webrick release without live router
         ));
         expect($methodNotAllowed->getStatusCode())->toBe(405)
             ->and($methodNotAllowed->getHeaderLine('Allow'))->toContain('GET');
+
+        $failure = $runtime->kernel->handle(Request::fake(
+            headers: ['Accept' => 'application/json', 'Host' => 'release.test'],
+            uri: 'https://release.test/failure',
+        ));
+        expect($failure->getStatusCode())->toBe(500)
+            ->and((string) $failure->getBody())->toContain('Internal Server Error')
+            ->and((string) $failure->getBody())->not->toContain('sensitive-foundation-runtime-failure')
+            ->and(is_file($log))->toBeTrue();
+        $logged = file_get_contents($log);
+        expect($logged)->toBeString()
+            ->and($logged)->toContain(RuntimeException::class)
+            ->and($logged)->not->toContain('sensitive-foundation-runtime-failure');
 
         expect(fn() => WebReleaseRuntime::loadPrevalidated(
             $config,
@@ -158,7 +190,8 @@ it('compiles maintenance as an opt-in Webrick gate with bounded runtime refresh'
     try {
         $release = new WebReleaseCompiler()->compile($config, $intermix, $router, $manifest);
         $trustedSha256 = $release['release_runtime_manifest_sha256'] ?? null;
-        expect($trustedSha256)->toBeString();
+        expect($trustedSha256)->toBeString()
+            ->and($release['intermix']['skipped'] ?? null)->toBe([]);
 
         $payload = require $router;
         expect($payload)->toBeArray();
@@ -213,6 +246,7 @@ Router::get('/middleware', 'foundationWebReleasePlainHandler', [
     'middleware' => [FoundationCompiledReleaseMiddleware::class],
 ]);
 Router::get('/compiled', FoundationCompiledReleaseHandler::class, ['name' => 'compiled.show']);
+Router::get('/failure', FoundationCompiledReleaseFailureHandler::class);
 PHP);
 
     return $project;
