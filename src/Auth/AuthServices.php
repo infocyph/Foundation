@@ -187,6 +187,7 @@ final readonly class AuthServices
             throw new \UnexpectedValueException(sprintf('Auth service "%s" did not resolve to an object.', $id));
         }
 
+        /** @var T $service */
         return $service;
     }
 }
