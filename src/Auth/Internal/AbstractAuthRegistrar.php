@@ -17,6 +17,7 @@ use Infocyph\Foundation\Auth\Contract\Storage\AccountStoreInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AuditEventStoreInterface;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\InterMix\DI\Container;
+use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\InterMix\DI\Support\ServiceReference;
@@ -25,7 +26,7 @@ abstract readonly class AbstractAuthRegistrar
 {
     public function __construct(
         protected Application $app,
-        protected Container $container,
+        protected ContainerBuilder $builder,
     ) {}
 
     protected function accountProvider(): AccountProviderInterface
@@ -40,7 +41,7 @@ abstract readonly class AbstractAuthRegistrar
 
     protected function alias(string $id, string $target): void
     {
-        $this->container->alias($id, $target, LifetimeEnum::Singleton);
+        $this->builder->alias($id, $target);
     }
 
     protected function auditStore(): AuditEventStoreInterface
@@ -58,9 +59,15 @@ abstract readonly class AbstractAuthRegistrar
         return $this->service(ClockInterface::class);
     }
 
+    /** Mutable development resolution is reserved for explicit dynamic islands. */
+    protected function container(): Container
+    {
+        return $this->builder->development();
+    }
+
     protected function hasExplicitBinding(string $id): bool
     {
-        return $this->container->definitions()->has($id);
+        return $this->builder->definitions()->has($id);
     }
 
     protected function idGenerator(): AuthIdGeneratorInterface
@@ -108,7 +115,7 @@ abstract readonly class AbstractAuthRegistrar
         array $arguments = [],
         LifetimeEnum $lifetime = LifetimeEnum::Singleton,
     ): void {
-        $this->container->bind(
+        $this->builder->bind(
             $id,
             FactoryDefinition::construct($class, $arguments),
             $lifetime,
@@ -143,18 +150,18 @@ abstract readonly class AbstractAuthRegistrar
      */
     protected function service(string $id): object
     {
-        return $this->container->get($id);
+        return $this->container()->get($id);
     }
 
     protected function singleton(string $id, mixed $concrete): void
     {
         if ($concrete instanceof Closure) {
-            $this->container->factory($id, $concrete)->singleton();
+            $this->builder->bindFactory($id, $concrete, LifetimeEnum::Singleton);
 
             return;
         }
 
-        $this->container->bind($id, $concrete, LifetimeEnum::Singleton);
+        $this->builder->bind($id, $concrete, LifetimeEnum::Singleton);
     }
 
     protected function stringConfig(string $key, string $default): string
