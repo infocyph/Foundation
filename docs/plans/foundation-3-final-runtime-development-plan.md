@@ -1868,14 +1868,14 @@ If the lower layer already provides the correct mechanism, Foundation uses it di
 
 ## 29. Development progress tracker
 
-Use this section as the implementation ledger. Check an item only when its code change, required tests, static analysis, and directly associated documentation are complete. A phase is complete only when every mandatory item inside it is checked and its relevant hard gate passes.
+Use this section as the implementation ledger. During the current development-first pass, a checked implementation item means the source change and directly associated design/documentation work are committed and source-audited. Deferred QA, static analysis, runtime verification, and CI closure are tracked explicitly and still prevent an overall phase from being marked complete.
 
 ### Overall phase status
 
 - [x] Phase 0 — Freeze baselines
 - [x] Phase 1 — Webrick prerequisites
-- [ ] Phase 2 — Foundation composition root
-- [ ] Phase 3 — Provider graph migration
+- [ ] Phase 2 — Foundation composition root — development complete; QA/static-analysis closure deferred
+- [ ] Phase 3 — Provider graph migration — development complete; skipped-definition/QA closure deferred
 - [ ] Phase 4 — Runtime state/scope redesign
 - [ ] Phase 5 — Webrick build/runtime integration
 - [ ] Phase 6 — Error/maintenance/filesystem cleanup
@@ -1915,67 +1915,81 @@ Release evidence: Webrick 5.2, tag commit `b095efbad5e0284fb92d463d1616a0780667d
 
 ### Phase 2 — Foundation composition root
 
-- [ ] Raise Foundation InterMix floor to `^10.0.3` or the current approved release.
-- [ ] Raise Foundation Webrick floor to the release carrying WB-1 through WB-4.
-- [ ] Introduce immutable `FoundationBuildContext`.
-- [ ] Implement one builder-first Foundation graph/composition source.
-- [ ] Use fresh builders for `web`, `cli`, `worker`, and `scheduler`.
-- [ ] Replace random container aliases with deterministic runtime aliases.
-- [ ] Make normalized environment/runtime/capability input explicit in graph composition.
-- [ ] Make ConfigRepository construction compilation-friendly where possible.
-- [ ] Refactor Application into a runtime-neutral façade/coordinator.
-- [ ] Remove Application as an unnecessary service-locator dependency from generated core services.
-- [ ] Retire/remove `ContainerFactory` architecture.
-- [ ] Add development-vs-production graph parity tests for the composition root.
+- [x] Raise Foundation InterMix floor to `^10.0.3` or the current approved release.
+- [x] Raise Foundation Webrick floor to the release carrying WB-1 through WB-4.
+- [x] Introduce immutable `FoundationBuildContext`.
+- [x] Implement one builder-first Foundation graph/composition source.
+- [x] Use fresh builders for `web`, `cli`, `worker`, and `scheduler`.
+- [x] Replace random container aliases with deterministic runtime aliases.
+- [x] Make normalized environment/runtime/capability input explicit in graph composition.
+- [x] Make ConfigRepository construction compilation-friendly where possible.
+- [x] Refactor Application into a runtime-neutral façade/coordinator.
+- [x] Remove Application as an unnecessary service-locator dependency from generated core services.
+- [x] Retire/remove `ContainerFactory` architecture.
+- [x] Add development-vs-production graph parity tests for the composition root.
+- [ ] Run deferred Phase 2 QA/static-analysis closure against the final development state.
 
 ### Phase 3 — Provider graph migration
 
 #### Provider infrastructure
 
-- [ ] Change `ServiceProviderInterface` to builder-first graph contribution.
-- [ ] Separate graph contribution from process-level boot side effects.
-- [ ] Replace closure aliases with real aliases.
-- [ ] Replace deterministic closure factories with constructor/static recipes.
-- [ ] Remove `$app->make()` factories used only for constructor injection.
-- [ ] Move capability/package discovery to build composition.
-- [ ] Remove broad production `onMissing()` provider activation.
-- [ ] Reshape `ServiceRegistry` for finalized production topology.
-- [ ] Reshape `Bootstrapper` so normal production resolution does not discover/activate providers.
+- [x] Change `ServiceProviderInterface` to builder-first graph contribution.
+- [x] Separate graph contribution from process-level boot side effects.
+- [x] Replace closure aliases with real aliases.
+- [x] Replace deterministic closure factories with constructor/static recipes.
+- [x] Remove `$app->make()` factories used only for constructor injection.
+- [x] Move capability/package discovery to build composition.
+- [x] Remove broad production `onMissing()` provider activation.
+- [x] Reshape `ServiceRegistry` for finalized production topology.
+- [x] Reshape `Bootstrapper` so normal production resolution does not discover/activate providers.
 
 #### Provider-by-provider migration
 
-- [ ] PathServiceProvider.
-- [ ] JsonDispatchServiceProvider.
-- [ ] LoggingServiceProvider.
-- [ ] SecurityServiceProvider.
-- [ ] FilesystemServiceProvider.
-- [ ] CacheServiceProvider.
-- [ ] DatabaseServiceProvider.
-- [ ] ValidationServiceProvider.
-- [ ] CommunicationServiceProvider.
-- [ ] NotificationServiceProvider.
-- [ ] SessionServiceProvider.
-- [ ] RoutingServiceProvider InterMix definitions.
-- [ ] HttpServiceProvider InterMix definitions.
-- [ ] MessagingServiceProvider.
-- [ ] AuthServiceProvider.
-- [ ] AuthOtpServiceProvider.
-- [ ] AbstractAuthRegistrar.
-- [ ] Auth core registrar(s).
-- [ ] Auth store/cache registrars.
-- [ ] Auth password/token registrars.
-- [ ] Auth MFA/passkey registrars.
-- [ ] Auth notification/manager registrars.
-- [ ] Auth authorization/runtime/OAuth registrars.
+- [x] PathServiceProvider.
+- [x] JsonDispatchServiceProvider.
+- [x] LoggingServiceProvider.
+- [x] SecurityServiceProvider.
+- [x] FilesystemServiceProvider.
+- [x] CacheServiceProvider.
+- [x] DatabaseServiceProvider.
+- [x] ValidationServiceProvider.
+- [x] CommunicationServiceProvider.
+- [x] NotificationServiceProvider.
+- [x] SessionServiceProvider.
+- [x] RoutingServiceProvider InterMix definitions.
+- [x] HttpServiceProvider InterMix definitions.
+- [x] MessagingServiceProvider.
+- [x] AuthServiceProvider.
+- [x] AuthOtpServiceProvider.
+- [x] AbstractAuthRegistrar.
+- [x] Auth core registrar(s).
+- [x] Auth store/cache registrars.
+- [x] Auth password/token registrars.
+- [x] Auth MFA/passkey registrars.
+- [x] Auth notification/manager registrars.
+- [x] Auth authorization/runtime/OAuth registrars.
 
 #### Binding/lifetime gates
 
-- [ ] Every Foundation binding classified as singleton/scoped/transient/value/alias/recipe/seed/dynamic island.
-- [ ] Every singleton reviewed for persistent/concurrent safety.
-- [ ] No singleton captures a scoped dependency from the first execution.
-- [ ] Every remaining Foundation-owned dynamic island has an explicit reason.
+- [x] Every Foundation binding classified as singleton/scoped/transient/value/alias/recipe/seed/dynamic island for the Phase 3 graph.
+- [x] Every Phase 3 singleton reviewed for persistent/concurrent safety; execution-state redesigns identified by that review remain assigned to Phase 4.
+- [x] No Phase 3 singleton captures a scoped dependency from the first execution; auth notifier consumers are scoped and configured messaging middleware resolves inside execution.
+- [x] Every remaining Foundation-owned dynamic island has an explicit reason and phase handoff.
 - [ ] Unexpected `skipped` definitions fail build/CI.
-- [ ] Optional absent capabilities are omitted rather than represented by unnecessary throwing factories.
+- [x] Optional absent capabilities are omitted rather than represented by unnecessary throwing factories.
+- [ ] Run deferred Phase 3 QA/static-analysis closure against the final development state.
+
+Phase 3 development audit / dynamic-boundary ledger:
+
+- Deterministic provider construction now uses `FactoryDefinition::construct()`, `FactoryDefinition::staticFactory()`, real aliases, explicit lifetimes, and build-context branches instead of constructor-only `$app->make()` factories.
+- `ConfigRepository` uses an exportable recipe when possible; non-exportable application configuration remains an explicit value/dynamic boundary rather than being silently serialized.
+- Development `Application`/mutable-container identity plus the legacy `ContainerCacheManager`/non-web execution bridge remain temporary development/transition boundaries for the Phase 4 and Phase 8 redesigns; they are not provider-activation mechanisms.
+- `RoutingServiceProvider` intentionally retains live `WebrickMiddlewareFactory`, `WebrickRouterFactory`, `Registrar`, and `Collection` factories until Phase 5 replaces the live production router path with coordinated Webrick compilation.
+- `HttpServiceProvider` intentionally retains `MaintenanceManager`, `ErrorHandler`, and live `RouterKernel` factories until Phases 5–6 move production HTTP ownership to compiled Webrick/runtime-adapter paths.
+- `MessagingRuntimeResolver` is the explicit application-configured handler/listener/middleware/scheduled-message service-ID boundary. Its surrounding Omnibus graph is generated, and configured middleware service IDs resolve inside the active execution instead of being captured by singleton topology.
+- `DatabaseMigrationManager` is recipe-built and uses the finalized PSR container only for application-configured migration/seeder class IDs at execution time.
+- gRPC inbound dispatch is recipe-built/scoped and uses the finalized PSR container only for application-configured handler service IDs.
+- The lifetime review intentionally hands `RuntimeContextTracker`, principal/current-auth state, active browser-session state, DB execution bookkeeping, and the Foundation/Omnibus execution-scope bridge to Phase 4; those are execution-state redesign tasks, not unresolved Phase 3 provider composition work.
 
 ### Phase 4 — Runtime state/scope redesign
 
