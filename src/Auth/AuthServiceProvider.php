@@ -165,29 +165,53 @@ final class AuthServiceProvider extends ServiceProvider
     {
         $auth = is_array($context->config['auth'] ?? null) ? $context->config['auth'] : [];
         $http = is_array($auth['http'] ?? null) ? $auth['http'] : [];
-        $configured = $http['principal_resolvers'] ?? [];
-        $order = [];
-        if (is_array($configured)) {
-            foreach ($configured as $name) {
-                if (is_string($name) && $name !== '' && !in_array($name, $order, true)) {
-                    $order[] = $name;
-                }
-            }
-        }
+        $order = $this->resolverNames($http['principal_resolvers'] ?? null);
         if ($order === []) {
             $order = ['session', 'bearer', 'remember'];
         }
+
+        return $this->withOAuthResolver($order, $oauthEnabled);
+    }
+
+    /**
+     * @param mixed $configured
+     * @return list<string>
+     */
+    private function resolverNames(mixed $configured): array
+    {
+        if (!is_array($configured)) {
+            return [];
+        }
+
+        $order = [];
+        foreach ($configured as $name) {
+            if (is_string($name) && $name !== '' && !in_array($name, $order, true)) {
+                $order[] = $name;
+            }
+        }
+
+        return $order;
+    }
+
+    /**
+     * @param list<string> $order
+     * @return list<string>
+     */
+    private function withOAuthResolver(array $order, bool $oauthEnabled): array
+    {
         if (!$oauthEnabled || in_array('oauth_bearer', $order, true)) {
             return $order;
         }
 
         $bearer = array_search('bearer', $order, true);
-        if (is_int($bearer)) {
-            array_splice($order, $bearer, 0, ['oauth_bearer']);
+        if ($bearer === false) {
+            $order[] = 'oauth_bearer';
+
             return $order;
         }
 
-        $order[] = 'oauth_bearer';
+        array_splice($order, $bearer, 0, ['oauth_bearer']);
+
         return $order;
     }
 }
