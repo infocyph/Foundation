@@ -138,6 +138,18 @@ final readonly class FilesystemResponseFactory
         ));
     }
 
+    /** @param resource $stream */
+    private function discardStream($stream, int $bytes): void
+    {
+        while ($bytes > 0) {
+            $chunk = fread($stream, min(self::STREAM_CHUNK_SIZE, $bytes));
+            if ($chunk === false || $chunk === '') {
+                throw new \RuntimeException('Unable to advance download stream to requested range.');
+            }
+            $bytes -= strlen($chunk);
+        }
+    }
+
     private function freshRangeHeader(Request $request, DownloadPreparation $manifest): ?string
     {
         if (!$this->isGetOrHead($request)) {
@@ -245,6 +257,27 @@ final readonly class FilesystemResponseFactory
     }
 
     /**
+     * @param resource $stream
+     */
+    private function positionStream($stream, int $offset): void
+    {
+        if ($offset <= 0) {
+            return;
+        }
+
+        $metadata = stream_get_meta_data($stream);
+        if ($metadata['seekable']) {
+            if (fseek($stream, $offset) !== 0) {
+                throw new \RuntimeException('Unable to seek download stream to requested range.');
+            }
+
+            return;
+        }
+
+        $this->discardStream($stream, $offset);
+    }
+
+    /**
      * @param array<string, string|list<string>> $headers
      * @return array{0:DownloadProcessor,1:string,2:DownloadPreparation,3:?Response}
      */
@@ -274,6 +307,20 @@ final readonly class FilesystemResponseFactory
         $processor->setForceAttachment(!$inline);
 
         return [$processor, $this->resolvedDownloadPath($path, $disk)];
+    }
+
+    /** @param resource $stream */
+    private function readStreamChunk($stream, int $length): string
+    {
+        $chunk = fread($stream, $length);
+        if ($chunk === false) {
+            throw new \RuntimeException('Unable to read download stream.');
+        }
+        if ($chunk === '' && feof($stream)) {
+            throw new \RuntimeException('Download stream ended before the prepared response range.');
+        }
+
+        return $chunk;
     }
 
     private function resolvedDownloadPath(string $path, ?string $disk): string
@@ -327,7 +374,7 @@ final readonly class FilesystemResponseFactory
                 $manifest->status,
                 new FileBody(
                     $localPath,
-                    $manifest->range->start,
+                    $manifest->range->start ?? 0,
                     $manifest->range->contentLength,
                 ),
                 $mergedHeaders,
@@ -355,37 +402,12 @@ final readonly class FilesystemResponseFactory
         }
 
         try {
-            $start = $manifest->range->start;
+            $this->positionStream($stream, $manifest->range->start ?? 0);
             $remaining = $manifest->range->contentLength;
-            $metadata = stream_get_meta_data($stream);
-            $seekable = ($metadata['seekable'] ?? false) === true;
-
-            if ($start > 0) {
-                if ($seekable) {
-                    if (fseek($stream, $start) !== 0) {
-                        throw new \RuntimeException('Unable to seek download stream to requested range.');
-                    }
-                } else {
-                    $discard = $start;
-                    while ($discard > 0) {
-                        $chunk = fread($stream, min(self::STREAM_CHUNK_SIZE, $discard));
-                        if ($chunk === false || $chunk === '') {
-                            throw new \RuntimeException('Unable to advance download stream to requested range.');
-                        }
-                        $discard -= strlen($chunk);
-                    }
-                }
-            }
 
             while ($remaining > 0) {
-                $chunk = fread($stream, min(self::STREAM_CHUNK_SIZE, $remaining));
-                if ($chunk === false) {
-                    throw new \RuntimeException('Unable to read download stream.');
-                }
+                $chunk = $this->readStreamChunk($stream, min(self::STREAM_CHUNK_SIZE, $remaining));
                 if ($chunk === '') {
-                    if (feof($stream)) {
-                        throw new \RuntimeException('Download stream ended before the prepared response range.');
-                    }
                     continue;
                 }
 
