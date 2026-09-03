@@ -20,6 +20,8 @@ final class FilesystemServiceProvider extends ServiceProvider
 {
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
+        unset($context);
+
         if (!class_exists(PathwiseFacade::class)) {
             throw new \LogicException(
                 'Foundation filesystem services require infocyph/pathwise; run "php infbyte module:install filesystem".',
