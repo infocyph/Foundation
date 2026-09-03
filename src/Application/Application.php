@@ -31,13 +31,9 @@ final class Application
         private readonly Bootstrapper $bootstrapper,
         private readonly RuntimeMode $runtimeMode,
         bool $bindDevelopmentCore = true,
-        bool $enableDynamicProviderActivation = false,
     ) {
         if ($bindDevelopmentCore && $this->container instanceof Container) {
             $this->bindDevelopmentCoreServices();
-        }
-        if ($enableDynamicProviderActivation) {
-            throw new \LogicException('Dynamic provider activation is not supported by the Foundation 3 runtime graph.');
         }
     }
 
@@ -205,13 +201,6 @@ final class Application
     public function publicPath(string $path = ''): string
     {
         return $this->paths()->public($path);
-    }
-
-    public function register(ServiceProviderInterface $provider): self
-    {
-        throw new \LogicException(
-            'Providers must be selected and composed before a Foundation runtime is created.',
-        );
     }
 
     public function resourcesPath(string $path = ''): string
