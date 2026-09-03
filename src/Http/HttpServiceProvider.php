@@ -6,18 +6,22 @@ namespace Infocyph\Foundation\Http;
 
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
+use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\Foundation\Http\Response\AuthExceptionMapper;
 use Infocyph\Foundation\Http\Response\AuthResponseFactory;
 use Infocyph\Foundation\Http\Response\ExceptionRenderer;
 use Infocyph\Foundation\Http\Response\ValidationExceptionMapper;
 use Infocyph\Foundation\Logging\HttpExceptionLogger;
 use Infocyph\Foundation\Operations\MaintenanceManager;
+use Infocyph\Foundation\Operations\MaintenanceRuntimeState;
 use Infocyph\Foundation\Routing\WebrickRouterFactory;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\ServiceReference;
 use Infocyph\Webrick\Router\Kernel\ErrorHandler;
 use Infocyph\Webrick\Router\Kernel\RouterKernel;
+use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 
 final class HttpServiceProvider extends ServiceProvider
@@ -26,6 +30,10 @@ final class HttpServiceProvider extends ServiceProvider
     {
         $app = $this->application($builder, $context);
         $appConfig = is_array($context->config['app'] ?? null) ? $context->config['app'] : [];
+        $operations = is_array($context->config['operations'] ?? null) ? $context->config['operations'] : [];
+        $maintenance = is_array($operations['maintenance'] ?? null) ? $operations['maintenance'] : [];
+        $refreshMilliseconds = $this->nonNegativeInt($maintenance['refresh_milliseconds'] ?? null, 1000);
+        $retryAfter = $this->nonNegativeInt($maintenance['retry_after'] ?? null, 3600);
 
         $builder->singleton(AuthResponseFactory::class, FactoryDefinition::construct(AuthResponseFactory::class));
         $builder->singleton(AuthExceptionMapper::class, FactoryDefinition::construct(
@@ -43,10 +51,25 @@ final class HttpServiceProvider extends ServiceProvider
             ],
         ));
 
-        // Maintenance is a Phase-6 handoff boundary until it leaves the universal HTTP kernel.
-        $builder->bindFactory(MaintenanceManager::class, fn() => new MaintenanceManager($app));
+        $builder->singleton(MaintenanceManager::class, FactoryDefinition::construct(
+            MaintenanceManager::class,
+            [
+                new ServiceReference(ConfigRepository::class),
+                new ServiceReference(PathManager::class),
+                new ServiceReference(ContainerInterface::class),
+            ],
+        ));
+        $builder->singleton(MaintenanceRuntimeState::class, FactoryDefinition::construct(
+            MaintenanceRuntimeState::class,
+            [
+                new ServiceReference(MaintenanceManager::class),
+                $refreshMilliseconds,
+                $retryAfter,
+            ],
+        ));
 
-        // Error-handler and live RouterKernel ownership move to the compiled Webrick runtime in Phase 5.
+        // Error-handler and live RouterKernel ownership remain development/embedded-only.
+        // Production web execution uses the compiled Webrick release runtime.
         $builder->bindFactory(ErrorHandler::class, fn() => new ErrorHandler(
             logger: static fn(): LoggerInterface => $app->make(HttpExceptionLogger::class),
             debug: ($appConfig['debug'] ?? false) === true,
@@ -64,12 +87,21 @@ final class HttpServiceProvider extends ServiceProvider
         );
         $builder->singleton(HttpKernel::class, FactoryDefinition::construct(
             HttpKernel::class,
-            [
-                new ServiceReference(RouterKernel::class),
-                new ServiceReference(MaintenanceManager::class),
-            ],
+            [new ServiceReference(RouterKernel::class)],
         ));
 
         $builder->alias('foundation.http', HttpKernel::class);
+    }
+
+    private function nonNegativeInt(mixed $value, int $default): int
+    {
+        if (is_int($value)) {
+            return max(0, $value);
+        }
+        if (is_string($value) && preg_match('/^\d+$/D', $value) === 1) {
+            return (int) $value;
+        }
+
+        return $default;
     }
 }
