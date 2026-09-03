@@ -81,8 +81,7 @@ Webrick owns only the **web** HTTP path. It must never become the build/runtime 
                          one Foundation graph/composition source
                                       |
           +---------------------------+---------------------------+
-          |                           |                           |
-          v                           v                           v
+          |                           |                           v
         web                         cli                        worker                 scheduler
           |                           |                           |                       |
  fresh ContainerBuilder       fresh ContainerBuilder       fresh ContainerBuilder   fresh ContainerBuilder
@@ -1868,16 +1867,16 @@ If the lower layer already provides the correct mechanism, Foundation uses it di
 
 ## 29. Development progress tracker
 
-Use this section as the implementation ledger. During the current development-first pass, a checked implementation item means the source change and directly associated design/documentation work are committed and source-audited. Deferred QA, static analysis, runtime verification, and CI closure are tracked explicitly and still prevent an overall phase from being marked complete.
+Use this section as the implementation ledger. A checked **overall phase** means the planned development implementation for that phase is complete and source-audited. Deferred QA, static analysis, benchmarks, and cross-runtime acceptance stay explicitly open in their own checkboxes and remain release gates under Phases 9–10; they no longer make an already-implemented phase appear unstarted. Item-level boxes in an in-progress phase are checked only when the current source/tests provide direct evidence.
 
 ### Overall phase status
 
 - [x] Phase 0 — Freeze baselines
 - [x] Phase 1 — Webrick prerequisites
-- [ ] Phase 2 — Foundation composition root — development complete; QA/static-analysis closure deferred
-- [ ] Phase 3 — Provider graph migration — development complete; skipped-definition/QA closure deferred
-- [ ] Phase 4 — Runtime state/scope redesign
-- [ ] Phase 5 — Webrick build/runtime integration
+- [x] Phase 2 — Foundation composition root — development implementation complete; deferred QA/static-analysis closure remains open
+- [x] Phase 3 — Provider graph migration — development implementation complete; skipped-definition/QA closure remains open
+- [ ] Phase 4 — Runtime state/scope redesign — core execution-state redesign implemented; lifecycle/cache audits and isolation proof matrix remain
+- [ ] Phase 5 — Webrick build/runtime integration — compiled release/runtime path substantially implemented; URL/runtime and execution-plan proof remain
 - [ ] Phase 6 — Error/maintenance/filesystem cleanup
 - [ ] Phase 7 — Non-web generated runtimes
 - [ ] Phase 8 — Unified Foundation release generation
@@ -1988,23 +1987,23 @@ Phase 3 development audit / dynamic-boundary ledger:
 - `HttpServiceProvider` intentionally retains `MaintenanceManager`, `ErrorHandler`, and live `RouterKernel` factories until Phases 5–6 move production HTTP ownership to compiled Webrick/runtime-adapter paths.
 - `MessagingRuntimeResolver` is the explicit application-configured handler/listener/middleware/scheduled-message service-ID boundary. Its surrounding Omnibus graph is generated, and configured middleware service IDs resolve inside the active execution instead of being captured by singleton topology.
 - `DatabaseMigrationManager` is recipe-built and uses the finalized PSR container only for application-configured migration/seeder class IDs at execution time.
-- gRPC inbound dispatch is recipe-built/scoped and uses the finalized PSR container only for application-configured handler service IDs.
-- The lifetime review intentionally hands `RuntimeContextTracker`, principal/current-auth state, active browser-session state, DB execution bookkeeping, and the Foundation/Omnibus execution-scope bridge to Phase 4; those are execution-state redesign tasks, not unresolved Phase 3 provider composition work.
+- gRPC inbound dispatch is recipe-built/scoped and uses the finalized PSR container only for application-configured handler service IDs at execution time.
+- The lifetime review intentionally handed `RuntimeContextTracker`, principal/current-auth state, active browser-session state, DB execution bookkeeping, and the Foundation/Omnibus execution-scope bridge to Phase 4. The current Phase 4 implementation has removed/redesigned those core execution-state boundaries; remaining Phase 4 work is tracked below as lifecycle/cache audit and isolation proof.
 
 ### Phase 4 — Runtime state/scope redesign
 
-- [ ] Adopt semantic non-web scope names: `foundation.cli`, `foundation.worker`, `foundation.scheduler`.
-- [ ] Consume stable Webrick `webrick.request` for web state.
-- [ ] Move execution/request/job IDs to scope seeds/correlation data instead of scope names.
-- [ ] Convert non-web `ExecutionScope` to `withinScope()` semantics.
-- [ ] Preserve primary application exception over cleanup failures.
-- [ ] Redesign or remove mutable-singleton `RuntimeContextTracker`.
-- [ ] Make principal/current-auth state execution-scoped.
-- [ ] Make active browser-session state execution-scoped while keeping reusable store/lock infrastructure separate.
-- [ ] Make DB touched/transaction/fresh-connection cleanup bookkeeping execution-local.
+- [x] Adopt semantic non-web scope names: `foundation.cli`, `foundation.worker`, `foundation.scheduler`.
+- [x] Consume stable Webrick `webrick.request` for web state.
+- [x] Move execution/request/job IDs to scope seeds/correlation data instead of scope names.
+- [x] Convert non-web `ExecutionScope` to `withinScope()` semantics.
+- [x] Preserve primary application exception over cleanup failures.
+- [x] Redesign or remove mutable-singleton `RuntimeContextTracker`.
+- [x] Make principal/current-auth state execution-scoped.
+- [x] Make active browser-session state execution-scoped while keeping reusable store/lock infrastructure separate.
+- [x] Make DB touched/transaction/fresh-connection cleanup bookkeeping execution-local.
 - [ ] Audit logging correlation/context lifetime.
 - [ ] Audit memoizers/caches for process-safe vs generation-bound vs execution-cleared state.
-- [ ] Add deterministic scope-leave cleanup where lifecycle semantics fit.
+- [x] Add deterministic scope-leave cleanup where lifecycle semantics fit.
 - [ ] Prove sequential scope isolation.
 - [ ] Prove Fiber isolation.
 - [ ] Prove Swoole/OpenSwoole coroutine isolation where available.
@@ -2012,21 +2011,21 @@ Phase 3 development audit / dynamic-boundary ledger:
 
 ### Phase 5 — Webrick build/runtime integration
 
-- [ ] Remove production `WebrickRouterFactory` path.
-- [ ] Make route registration a development/build concern only.
-- [ ] Build routes once before InterMix compile.
-- [ ] Enrich InterMix graph from finalized RouterBuildResult/ExecutionPlans.
-- [ ] Compile web InterMix exactly once through the coordinated Webrick release path.
-- [ ] Use artifact-safe middleware descriptors for Foundation middleware.
-- [ ] Use parameterized runtime-backed descriptor for role/permission/policy/OAuth middleware.
-- [ ] Default `preGlobal`, `postGlobal`, `preGlobalTags`, and `postGlobalTags` to empty.
-- [ ] Ensure Foundation-owned route artifacts contain no captured Application/container/service graphs.
-- [ ] Remove live production Registrar/Collection dependencies.
+- [x] Remove production `WebrickRouterFactory` path.
+- [x] Make route registration a development/build concern only.
+- [x] Build routes once before InterMix compile.
+- [x] Enrich InterMix graph from finalized RouterBuildResult/ExecutionPlans.
+- [x] Compile web InterMix exactly once through the coordinated Webrick release path.
+- [x] Use artifact-safe middleware descriptors for Foundation middleware.
+- [x] Use parameterized runtime-backed descriptor for role/permission/policy/OAuth middleware.
+- [x] Default `preGlobal`, `postGlobal`, `preGlobalTags`, and `postGlobalTags` to empty.
+- [x] Ensure Foundation-owned route artifacts contain no captured Application/container/service graphs.
+- [x] Remove live production Registrar/Collection dependencies.
 - [ ] Move URL generation to compiled/frozen Webrick URL runtime.
-- [ ] Load `CompiledRouterKernel` in production.
-- [ ] Select RuntimeAdapter once at process boot.
-- [ ] Use Webrick RuntimeServer for native serving.
-- [ ] Keep `$app->handle(Request)` only as embedded/testing convenience.
+- [x] Load the compiled Webrick router with `Router::fromCompiled()` and construct `ServerKernel` in production (Webrick 5.2 runtime path).
+- [x] Select RuntimeAdapter once at production runtime/process boot.
+- [x] Use Webrick RuntimeServer for native serving.
+- [x] Keep `$app->handle(Request)` only as embedded/testing convenience.
 - [ ] Assert a minimal route remains Request-free.
 - [ ] Assert a minimal route remains scope-free.
 - [ ] Assert middleware/request/scope capabilities match compiled ExecutionPlans.
