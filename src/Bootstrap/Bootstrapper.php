@@ -118,16 +118,18 @@ final class Bootstrapper
         }
 
         $registry->contribute($builder, $context);
-        $builder->onScopeLeave(
-            $context->runtimeMode->scopeName(),
-            static function (string $scope, Container $container): void {
-                unset($scope);
-                $state = $container->get(RuntimeExecutionState::class);
-                if ($state instanceof RuntimeExecutionState) {
-                    $state->cleanup(false);
-                }
-            },
-        );
+        if ($context->runtimeMode === RuntimeMode::Web) {
+            $builder->onScopeLeave(
+                $context->runtimeMode->scopeName(),
+                static function (string $scope, Container $container): void {
+                    unset($scope);
+                    $state = $container->get(RuntimeExecutionState::class);
+                    if ($state instanceof RuntimeExecutionState) {
+                        $state->cleanup(false);
+                    }
+                },
+            );
+        }
 
         return $registry;
     }
