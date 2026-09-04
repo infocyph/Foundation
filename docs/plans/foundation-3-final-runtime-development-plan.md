@@ -3,11 +3,11 @@
 **Status:** Final implementation baseline / canonical plan  
 **Foundation target:** 3.x  
 **Foundation source baseline:** `main`  
-**InterMix baseline:** `^10.0.3`  
+**InterMix baseline:** `^10.0.4`  
 **Webrick baseline:** `^5.2`  
 **Priority:** correctness → hot-path performance → persistent-runtime safety → scalability → ergonomics
 
-> This is the single source of truth for Foundation 3 runtime development. It merges the complete InterMix 10.0.3 audit, the complete Webrick 5.1 audit plus the released Webrick 5.2 prerequisite corrections, and the final joint runtime architecture into one document. There are no separate InterMix/Webrick runtime-plan files to keep synchronized.
+> This is the single source of truth for Foundation 3 runtime development. It merges the complete InterMix 10.0.3 audit plus the released InterMix 10.0.4 intrinsic-container planner correction, the complete Webrick 5.1 audit plus the released Webrick 5.2 prerequisite corrections, and the final joint runtime architecture into one document. There are no separate InterMix/Webrick runtime-plan files to keep synchronized.
 
 ---
 
@@ -165,7 +165,7 @@ Foundation owns:
 
 ---
 
-## 4. Exact InterMix 10.0.3 contract
+## 4. Exact InterMix 10.0.4 contract
 
 Foundation must design against the InterMix 10 builder/runtime split, not the InterMix 9 resolver-map model.
 
@@ -203,7 +203,7 @@ Rules:
 - safe default is `production()`; use `productionPrevalidated()` only with a digest from trusted immutable deployment metadata;
 - the artifact directory cannot serve as the trust source for its own expected digest.
 
-Compilation-safe recipe capabilities in 10.0.3 are exactly:
+Compilation-safe recipe capabilities in 10.0.4 are exactly:
 
 ```text
 FactoryDefinition::construct(...)
@@ -215,7 +215,7 @@ Recipe args must be service references or exportable scalar/null/array values. D
 
 A closure/`DirectFactory` may be reflection-free but is still a dynamic production island.
 
-**Phase 7 integration correction:** InterMix 10.0.3 seeds `Psr\Container\ContainerInterface` with the development `Container`, but its static planner currently treats that intrinsic object value as a dynamic definition. A generated runtime that legitimately injects the finalized PSR container therefore reports the intrinsic binding and dependent services as skipped. This is a general lower-layer compiler defect, not a Foundation-specific runtime concern. Before Phase 7 generated-runtime acceptance can close, InterMix requires a patch release that compiles only its intrinsic `ContainerInterface` binding to the generated `ProductionContainer` itself (the generated value expression is `$this`) and proves zero skipped definitions for a consumer that injects `ContainerInterface`. Foundation must not add a service-locator proxy or dynamic-fallback workaround for this defect. Keep `^10.0.3` as the current released baseline until that patch release exists, then raise the floor here and in `composer.json` in the same Foundation commit.
+**Phase 7 integration correction — resolved:** InterMix 10.0.4 compiles its intrinsic `Psr\Container\ContainerInterface` binding to the generated `ProductionContainer` itself instead of treating the development-container value as a dynamic definition. Foundation therefore requires `^10.0.4` and can resume strict generated-runtime acceptance without a Foundation proxy, service-locator bridge, or dynamic-fallback workaround. Any future regression that again reports this intrinsic binding or its dependent deterministic services as skipped is a lower-layer release blocker.
 
 ---
 
@@ -1407,7 +1407,7 @@ Worker/scheduler tests run hundreds/thousands of sequential executions plus conc
 
 Compare:
 
-1. direct InterMix 10.0.3 development graph;
+1. direct InterMix 10.0.4 development graph;
 2. direct InterMix generated production graph;
 3. equivalent Foundation runtime graph.
 
@@ -1577,7 +1577,7 @@ Rescan every class/function for:
 
 **IM-1 — Composition root/core**
 
-- InterMix `^10.0.3`;
+- InterMix `^10.0.4`;
 - builder-first composition;
 - deterministic aliases;
 - runtime/build context;
@@ -1855,7 +1855,7 @@ If the lower layer already provides the correct mechanism, Foundation uses it di
 
 ## 28. Development starting checklist
 
-1. keep InterMix 10.0.3 as the current DI baseline until the Phase 7 intrinsic-container static-runtime compiler patch is released, then raise the Foundation floor immediately;
+1. use InterMix 10.0.4 as the current DI baseline and keep the intrinsic `ContainerInterface` planner regression covered rather than introducing any Foundation workaround;
 2. implement/release Webrick WB-1 through WB-4;
 3. capture lower-layer benchmark baselines;
 4. update Foundation dependency floors to exact released versions;
@@ -1875,12 +1875,12 @@ Use this section as the implementation ledger. A checked **overall phase** means
 - [x] Phase 0 — Freeze baselines
 - [x] Phase 1 — Webrick prerequisites
 - [x] Phase 2 — Foundation composition root — development implementation complete; deferred QA/static-analysis closure remains open
-- [x] Phase 3 — Provider graph migration — development implementation complete; skipped-definition/QA closure remains open
+- [x] Phase 3 — Provider graph migration — development implementation complete; final QA closure remains open
 - [x] Phase 4 — Runtime state/scope redesign — development implementation and lifecycle/cache audits complete; Swoole/OpenSwoole acceptance remains conditional on an available runtime
 - [x] Phase 5 — Webrick build/runtime integration — development implementation complete; broader release/regression closure remains under Phases 9–10
-- [ ] Phase 6 — Error/maintenance/filesystem cleanup — implementation substantially complete; maintenance benchmark decision and remaining output/offload audit stay open
-- [ ] Phase 7 — Non-web generated runtimes — graph/compiler/runtime implementation started; strict generated-runtime acceptance is blocked by the InterMix 10.0.3 intrinsic `ContainerInterface` static-compilation defect documented in section 4
-- [ ] Phase 8 — Unified Foundation release generation
+- [ ] Phase 6 — Error/maintenance/filesystem cleanup — implementation complete apart from the maintenance benchmark/WB-5 evidence decision
+- [ ] Phase 7 — Non-web generated runtimes — InterMix 10.0.4 lower-layer gate resolved; strict generated-runtime acceptance is active
+- [ ] Phase 8 — Unified Foundation release generation — immutable-generation/manifest/activation/trust infrastructure implemented; end-to-end all-runtime generation acceptance remains open
 - [ ] Phase 9 — Full regression/performance pass
 - [ ] Phase 10 — Final rescan/release readiness
 
@@ -1915,7 +1915,7 @@ Release evidence: Webrick 5.2, tag commit `b095efbad5e0284fb92d463d1616a0780667d
 
 ### Phase 2 — Foundation composition root
 
-- [x] Raise Foundation InterMix floor to `^10.0.3` or the current approved release.
+- [x] Raise Foundation InterMix floor to `^10.0.4`.
 - [x] Raise Foundation Webrick floor to the release carrying WB-1 through WB-4.
 - [x] Introduce immutable `FoundationBuildContext`.
 - [x] Implement one builder-first Foundation graph/composition source.
@@ -1975,7 +1975,7 @@ Release evidence: Webrick 5.2, tag commit `b095efbad5e0284fb92d463d1616a0780667d
 - [x] Every Phase 3 singleton reviewed for persistent/concurrent safety; execution-state redesigns identified by that review remain assigned to Phase 4.
 - [x] No Phase 3 singleton captures a scoped dependency from the first execution; auth notifier consumers are scoped and configured messaging middleware resolves inside execution.
 - [x] Every remaining Foundation-owned dynamic island has an explicit reason and phase handoff.
-- [ ] Unexpected `skipped` definitions fail build/CI.
+- [x] Unexpected `skipped` definitions fail generation build/CI gates.
 - [x] Optional absent capabilities are omitted rather than represented by unnecessary throwing factories.
 - [ ] Run deferred Phase 3 QA/static-analysis closure against the final development state.
 
@@ -2043,19 +2043,19 @@ Phase 5 proof: `WebReleaseRuntimeTest` verifies frozen compiled URL generation, 
 - [x] Implement Webrick maintenance middleware/state with bounded worker-local refresh where semantics fit.
 - [ ] Benchmark maintenance enabled/disabled overhead.
 - [ ] Decide WB-5 pre-routing gate only from benchmark evidence.
-- [ ] Remove direct `php://output` writes from Webrick response producers.
+- [x] Remove direct `php://output`/native-output writes from Foundation portable response producers and guard the production tree against regressions.
 - [x] Use Webrick FileBody/download/inline/ranged APIs for local files where appropriate.
 - [x] Expose non-local/custom Pathwise response bodies as BodyStream or chunk iterables.
-- [ ] Preserve X-Sendfile/X-Accel policy correctly.
+- [x] Preserve X-Sendfile/X-Accel policy correctly.
 - [x] Use RuntimeCapabilities instead of Foundation transport detection.
 - [x] Verify exactly one layer owns native response emission.
 - [x] Add SAPI plus persistent-runtime file/stream response tests.
 
-Phase 6 implementation evidence: the embedded `HttpKernel` is a thin Webrick delegate; `WebReleaseRuntimeTest` proves direct 404/405 ownership, safe application-exception rendering/logging and compiled maintenance behavior; `FilesystemResponseFactory` emits Webrick `FileBody` or portable chunk iterables; `FilesystemHttpBridgeTest` covers local range/HEAD/conditional and non-local stream semantics; `WebRuntimeEmissionTest` proves SAPI/persistent adapter ownership and exactly one native write. The remaining boxes require an actual maintenance benchmark decision, a tree-wide direct-output rescan, and explicit offload-policy closure.
+Phase 6 implementation evidence: the embedded `HttpKernel` is a thin Webrick delegate; `WebReleaseRuntimeTest` proves direct 404/405 ownership, safe application-exception rendering/logging and compiled maintenance behavior; `FilesystemResponseFactory` emits Webrick `FileBody` or portable chunk iterables; `FilesystemHttpBridgeTest` covers local range/HEAD/conditional and non-local stream semantics; `FilesystemOffloadPolicyTest` proves default portable bodies plus explicit X-Sendfile/X-Accel behavior and rejects non-local X-Sendfile use; `PortableResponseOutputBoundaryTest` performs the tree-wide direct-output guard; `WebRuntimeEmissionTest` proves SAPI/persistent adapter ownership and exactly one native write. The remaining Phase 6 work is the measured maintenance overhead result and the resulting WB-5 decision.
 
 ### Phase 7 — Non-web generated runtimes
 
-**Current lower-layer gate:** strict Phase 7 acceptance cannot close on InterMix 10.0.3 because its static planner reports the intrinsic `Psr\Container\ContainerInterface` development-container value as dynamic and consequently prunes dependent generated services. The fix belongs in InterMix: compile that intrinsic binding to the generated `ProductionContainer` itself and release a patch version. Foundation will then raise its dependency floor and run the production tests below. No Foundation proxy/service-locator workaround is permitted.
+**Lower-layer gate resolved:** InterMix 10.0.4 contains the intrinsic `Psr\Container\ContainerInterface` static-runtime correction required by Foundation. The Foundation dependency floor is now `^10.0.4`; strict generated-runtime acceptance can proceed directly, and no Foundation proxy/service-locator workaround is present or permitted.
 
 #### CLI
 
@@ -2089,27 +2089,29 @@ Phase 6 implementation evidence: the embedded `HttpKernel` is a thin Webrick del
 - [ ] Verify no transaction/context/message carry-over.
 - [ ] Verify locks/temp resources release deterministically.
 
-Implemented Phase 7 groundwork: `NonWebGraphFactory` composes fresh deterministic non-web graphs with explicit optional-capability topology; `GeneratedRuntimeCompiler` stages artifacts before publication, validates strict InterMix reports and preserves the last good release on failure; `GeneratedRuntimeMetadata` binds runtime/environment/config/capability/provider identity to the InterMix digest; `GeneratedRuntime` provides a reusable process runtime. These remain acceptance-incomplete until the lower-layer intrinsic-container compiler fix is available and the generated-runtime tests can prove zero skipped definitions end-to-end.
+Implemented Phase 7 groundwork: `NonWebGraphFactory` composes fresh deterministic non-web graphs with explicit optional-capability topology; `GeneratedRuntimeCompiler` stages artifacts before publication, validates strict InterMix reports and preserves the last good release on failure; `GeneratedRuntimeMetadata` binds runtime/environment/config/capability/provider identity to the InterMix digest; `GeneratedRuntime` provides a reusable process runtime including trusted-prevalidated loading from external Foundation trust metadata. InterMix 10.0.4 has removed the former lower-layer blocker; the remaining boxes are now Foundation acceptance/runtime-orchestration work and stay open until their production tests pass.
 
 ### Phase 8 — Unified Foundation release generation
 
-- [ ] Define immutable generation directory layout.
-- [ ] Build web bundle through Webrick coordinated release compiler.
-- [ ] Build CLI InterMix artifact directly.
-- [ ] Build worker InterMix artifact directly.
-- [ ] Build scheduler InterMix artifact directly.
-- [ ] Collect and validate all InterMix compile/skipped/digest reports.
-- [ ] Fail generation build on unexpected dynamic islands.
+- [x] Define immutable generation directory layout.
+- [ ] Build web bundle through Webrick coordinated release compiler end-to-end.
+- [ ] Build CLI InterMix artifact directly end-to-end.
+- [ ] Build worker InterMix artifact directly end-to-end.
+- [ ] Build scheduler InterMix artifact directly end-to-end.
+- [x] Collect and validate InterMix compile/skipped/digest metadata in the unified compiler.
+- [x] Fail generation build on unexpected dynamic islands/skipped definitions.
 - [ ] Add only useful deterministic command/scheduler/worker topology artifacts.
-- [ ] Write OPcache-friendly Foundation generation manifest.
-- [ ] Reference Webrick release manifest without duplicating its owned identity fields.
-- [ ] Verify every runtime artifact belongs to the same generation/config identity.
-- [ ] Implement atomic active-generation switch.
-- [ ] Leave previous generation active when any build/verification step fails.
-- [ ] Implement rollback/incomplete-generation tests.
-- [ ] Implement trusted-prevalidated mode only with immutable external trust metadata.
+- [x] Write OPcache-friendly Foundation generation manifest.
+- [x] Reference Webrick release manifest without duplicating its owned identity fields.
+- [x] Verify runtime environment/config identity belongs to the same Foundation generation before publication.
+- [x] Implement atomic active-generation switch.
+- [x] Leave previous generation active when any build/verification step fails.
+- [x] Implement rollback/incomplete-generation tests for the active pointer/generation infrastructure.
+- [x] Implement trusted-prevalidated mode only with immutable external Foundation trust metadata.
 - [ ] Implement graceful persistent-worker replacement on generation change.
-- [ ] Keep old-generation cleanup outside request/job hot paths.
+- [x] Keep old-generation cleanup outside request/job hot paths.
+
+Phase 8 implementation evidence: `FoundationReleaseCompiler` stages under `generations/.staging-*`, coordinates Webrick plus non-web artifact metadata, verifies identity/completeness, publishes an immutable generation and switches only after verification; `FoundationReleaseManifest` provides the OPcache-friendly Foundation manifest; `ActiveGeneration` provides the atomic pointer and generation-change detection; `FoundationReleaseRuntime` and `GeneratedRuntime::loadPrevalidated()` require an externally trusted Foundation manifest SHA before using subordinate trusted digests; `FoundationReleaseInfrastructureTest` covers activation, incomplete-target rejection, trust mismatch, traversal rejection and explicit out-of-band pruning. End-to-end all-four-runtime build/load acceptance remains open and is now running against InterMix 10.0.4.
 
 ### Phase 9 — Full regression/performance pass
 
