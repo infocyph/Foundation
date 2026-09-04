@@ -8,7 +8,7 @@ final class ActiveGeneration
 {
     private const int FORMAT = 1;
 
-    private const string POINTER = 'active.php';
+    private const string POINTER = 'active.json';
 
     public function activate(string $releaseRoot, string $generation): string
     {
@@ -28,11 +28,11 @@ final class ActiveGeneration
             throw new \RuntimeException(sprintf('Unable to create Foundation release root "%s".', $releaseRoot));
         }
         $pointerPath = $releaseRoot . DIRECTORY_SEPARATOR . self::POINTER;
-        $contents = "<?php\n\ndeclare(strict_types=1);\n\nreturn " . var_export([
+        $contents = json_encode([
             'format' => self::FORMAT,
             'generation' => $generation,
             'manifest' => $relativeManifest,
-        ], true) . ";\n";
+        ], JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n";
         $temporary = tempnam($releaseRoot, '.foundation-active-');
         if ($temporary === false) {
             throw new \RuntimeException('Unable to stage Foundation active-generation pointer.');
@@ -58,12 +58,36 @@ final class ActiveGeneration
     public function current(string $releaseRoot): array
     {
         $releaseRoot = $this->root($releaseRoot);
+        $pointer = $this->pointer($releaseRoot);
+        $manifestPath = $releaseRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $pointer['manifest']);
+        $release = FoundationReleaseManifest::load($manifestPath);
+        if (($release['generation'] ?? null) !== $pointer['generation']) {
+            throw new \RuntimeException('Foundation active-generation pointer does not match its release manifest.');
+        }
+
+        return ['generation' => $pointer['generation'], 'manifest' => $manifestPath];
+    }
+
+    public function replacementRequired(string $releaseRoot, string $loadedGeneration): bool
+    {
+        $pointer = $this->pointer($this->root($releaseRoot));
+
+        return !hash_equals($loadedGeneration, $pointer['generation']);
+    }
+
+    /** @return array{generation:string,manifest:string} */
+    private function pointer(string $releaseRoot): array
+    {
         $pointerPath = $releaseRoot . DIRECTORY_SEPARATOR . self::POINTER;
         if (!is_file($pointerPath) || !is_readable($pointerPath)) {
             throw new \RuntimeException('Foundation active-generation pointer is unavailable.');
         }
 
-        $pointer = require $pointerPath;
+        $contents = file_get_contents($pointerPath);
+        if (!is_string($contents)) {
+            throw new \RuntimeException('Unable to read Foundation active-generation pointer.');
+        }
+        $pointer = json_decode($contents, true, 16, JSON_THROW_ON_ERROR);
         if (!is_array($pointer) || ($pointer['format'] ?? null) !== self::FORMAT) {
             throw new \UnexpectedValueException('Foundation active-generation pointer is invalid.');
         }
@@ -77,18 +101,7 @@ final class ActiveGeneration
             throw new \UnexpectedValueException('Foundation active-generation pointer identity is invalid.');
         }
 
-        $manifestPath = $releaseRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $manifest);
-        $release = FoundationReleaseManifest::load($manifestPath);
-        if (($release['generation'] ?? null) !== $generation) {
-            throw new \RuntimeException('Foundation active-generation pointer does not match its release manifest.');
-        }
-
-        return ['generation' => $generation, 'manifest' => $manifestPath];
-    }
-
-    public function replacementRequired(string $releaseRoot, string $loadedGeneration): bool
-    {
-        return !hash_equals($loadedGeneration, $this->current($releaseRoot)['generation']);
+        return ['generation' => $generation, 'manifest' => $manifest];
     }
 
     private function root(string $releaseRoot): string
