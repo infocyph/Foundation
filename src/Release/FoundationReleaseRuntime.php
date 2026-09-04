@@ -7,6 +7,7 @@ namespace Infocyph\Foundation\Release;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Routing\WebReleaseRuntime;
 use Infocyph\Foundation\Runtime\GeneratedRuntime;
+use Infocyph\Foundation\Runtime\LoadedReleaseGeneration;
 use Infocyph\Webrick\Runtime\Http\RuntimeAdapterInterface;
 
 /** Process-boot loader for the active immutable Foundation generation. */
@@ -21,10 +22,9 @@ final readonly class FoundationReleaseRuntime
         string $releaseRoot,
     ): GeneratedRuntime {
         $this->assertNonWeb($runtime);
-        [, $manifest, $directory] = $this->activeManifest($releaseRoot);
+        [$generation, $manifest, $directory] = $this->activeManifest($releaseRoot);
         $section = FoundationReleaseManifest::section($manifest, $runtime->value);
-
-        return GeneratedRuntime::load(
+        $loaded = GeneratedRuntime::load(
             $config,
             $runtime,
             $directory . DIRECTORY_SEPARATOR . $this->relative($section['intermix_path'] ?? null),
@@ -33,6 +33,8 @@ final readonly class FoundationReleaseRuntime
                 $runtime->value . '.capabilities',
             ),
         );
+
+        return $this->attachGeneration($loaded, $releaseRoot, $generation);
     }
 
     /** @param array<string,mixed> $config */
@@ -43,10 +45,12 @@ final readonly class FoundationReleaseRuntime
         string $trustedFoundationManifestSha256,
     ): GeneratedRuntime {
         $this->assertNonWeb($runtime);
-        [, $manifest, $directory] = $this->trustedActiveManifest($releaseRoot, $trustedFoundationManifestSha256);
+        [$generation, $manifest, $directory] = $this->trustedActiveManifest(
+            $releaseRoot,
+            $trustedFoundationManifestSha256,
+        );
         $section = FoundationReleaseManifest::section($manifest, $runtime->value);
-
-        return GeneratedRuntime::loadPrevalidated(
+        $loaded = GeneratedRuntime::loadPrevalidated(
             $config,
             $runtime,
             $directory . DIRECTORY_SEPARATOR . $this->relative($section['intermix_path'] ?? null),
@@ -64,6 +68,13 @@ final readonly class FoundationReleaseRuntime
                 $section['capabilities'] ?? null,
                 $runtime->value . '.capabilities',
             ),
+        );
+
+        return $this->attachGeneration(
+            $loaded,
+            $releaseRoot,
+            $generation,
+            strtolower(trim($trustedFoundationManifestSha256)),
         );
     }
 
@@ -142,6 +153,21 @@ final readonly class FoundationReleaseRuntime
         if ($runtime === RuntimeMode::Web) {
             throw new \InvalidArgumentException('Web runtime must use the coordinated Webrick release loader.');
         }
+    }
+
+    private function attachGeneration(
+        GeneratedRuntime $runtime,
+        string $releaseRoot,
+        string $generation,
+        ?string $trustedFoundationManifestSha256 = null,
+    ): GeneratedRuntime {
+        $runtime->application->attachLoadedReleaseGeneration(new LoadedReleaseGeneration(
+            $releaseRoot,
+            $generation,
+            $trustedFoundationManifestSha256,
+        ));
+
+        return $runtime;
     }
 
     private function relative(mixed $path): string
