@@ -5,12 +5,17 @@ declare(strict_types=1);
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceProvider;
+use Infocyph\Foundation\Exception\ServiceResolutionException;
+use Infocyph\Foundation\Messaging\InterMixExecutionScope;
 use Infocyph\Foundation\Runtime\ExecutionId;
 use Infocyph\Foundation\Runtime\GeneratedRuntime;
 use Infocyph\Foundation\Runtime\GeneratedRuntimeCompiler;
+use Infocyph\Foundation\Worker\WorkerRuntime;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\ServiceReference;
+use Infocyph\Omnibus\Envelope\Envelope;
+use Infocyph\Omnibus\Envelope\MessageIdStamp;
 
 final readonly class FoundationGeneratedRuntimeProbe
 {
@@ -149,7 +154,7 @@ it('loads and scopes a trusted CLI production container without rebuilding the s
     }
 });
 
-it('builds a worker only with explicitly selected messaging capability and keeps one runtime across executions', function (): void {
+it('keeps one trusted worker container hot while isolating provider jobs and Omnibus messages', function (): void {
     if (!class_exists(\Infocyph\Omnibus\MessageBus::class)) {
         $this->markTestSkipped('Install the messaging module to run the generated worker integration test.');
     }
@@ -168,22 +173,125 @@ it('builds a worker only with explicitly selected messaging capability and keeps
         expect($report['skipped'])->toBe([])
             ->and($report['capabilities'])->toBe(['messaging' => true]);
 
-        $runtime = GeneratedRuntime::load($config, RuntimeMode::Worker, $artifact, ['messaging']);
+        file_put_contents(
+            $project . '/bootstrap/providers.php',
+            "<?php\n\nthrow new RuntimeException('generated worker rebuilt source providers');\n",
+        );
+        $runtime = GeneratedRuntime::loadPrevalidated(
+            $config,
+            RuntimeMode::Worker,
+            $artifact,
+            $report['metadata_sha256'],
+            $report['digest'],
+            ['messaging'],
+        );
         expect($runtime->container->has('foundation.messaging'))->toBeTrue()
             ->and($runtime->container->has('foundation.http'))->toBeFalse()
             ->and($runtime->container->has('foundation.cache'))->toBeFalse();
 
         $containerId = spl_object_id($runtime->container);
+        $worker = new WorkerRuntime($runtime->application);
         $seen = [];
-        foreach (range(1, 64) as $index) {
-            $seen[] = $runtime->application->execution()->run(
-                static fn(): int => $runtime->application->make(FoundationGeneratedRuntimeScopedProbe::class)->sequence,
-                executionId: new ExecutionId('worker-' . $index),
+        foreach (range(1, 128) as $index) {
+            $job = 'job-' . $index;
+            $seen[] = $worker->execute(
+                static fn(ExecutionId $id): array => [
+                    (string) $id,
+                    $runtime->application->make('foundation.worker.job'),
+                    $runtime->application->make(FoundationGeneratedRuntimeScopedProbe::class)->sequence,
+                ],
+                ['foundation.worker.job' => $job],
+                new ExecutionId('worker-' . $index),
             );
         }
 
         expect(spl_object_id($runtime->container))->toBe($containerId)
-            ->and(array_unique($seen))->toHaveCount(64);
+            ->and($seen[0][0])->toBe('worker-1')
+            ->and($seen[0][1])->toBe('job-1')
+            ->and($seen[127][0])->toBe('worker-128')
+            ->and($seen[127][1])->toBe('job-128')
+            ->and(array_unique(array_column($seen, 2)))->toHaveCount(128);
+
+        $failedReference = null;
+        try {
+            $worker->execute(
+                static function () use ($runtime, &$failedReference): never {
+                    $probe = $runtime->application->make(FoundationGeneratedRuntimeScopedProbe::class);
+                    $failedReference = WeakReference::create($probe);
+
+                    throw new RuntimeException('generated worker item failure');
+                },
+                ['foundation.worker.job' => 'failed-job'],
+                new ExecutionId('worker-failed'),
+            );
+        } catch (RuntimeException $exception) {
+            expect($exception->getMessage())->toBe('generated worker item failure');
+        }
+        gc_collect_cycles();
+
+        expect($failedReference)->toBeInstanceOf(WeakReference::class)
+            ->and($failedReference?->get())->toBeNull()
+            ->and(fn() => $runtime->application->make(ExecutionId::class))
+            ->toThrow(ServiceResolutionException::class);
+
+        $afterFailure = $worker->execute(
+            static fn(ExecutionId $id): array => [
+                (string) $id,
+                $runtime->application->make('foundation.worker.job'),
+                $runtime->application->make(FoundationGeneratedRuntimeScopedProbe::class)->sequence,
+            ],
+            ['foundation.worker.job' => 'after-failure'],
+            new ExecutionId('worker-after-failure'),
+        );
+        expect($afterFailure[0])->toBe('worker-after-failure')
+            ->and($afterFailure[1])->toBe('after-failure')
+            ->and(spl_object_id($runtime->container))->toBe($containerId);
+
+        $messageScope = $runtime->application->make(InterMixExecutionScope::class);
+        $messageOne = new stdClass();
+        $envelopeOne = new Envelope($messageOne, [new MessageIdStamp('message-one')]);
+        $firstMessage = $messageScope->run(
+            $envelopeOne,
+            static fn(object $message, Envelope $delivery): array => [
+                (string) $runtime->application->make(ExecutionId::class),
+                $message === $messageOne,
+                $delivery === $envelopeOne,
+                $runtime->application->make(Envelope::class) === $envelopeOne,
+                $runtime->application->make('omnibus.message') === $messageOne,
+                $runtime->application->make(FoundationGeneratedRuntimeScopedProbe::class)->sequence,
+            ],
+        );
+
+        $messageTwo = new stdClass();
+        $envelopeTwo = new Envelope($messageTwo, [new MessageIdStamp('message-two')]);
+        $secondMessage = $messageScope->run(
+            $envelopeTwo,
+            static fn(object $message, Envelope $delivery): array => [
+                (string) $runtime->application->make(ExecutionId::class),
+                $message === $messageTwo,
+                $delivery === $envelopeTwo,
+                $runtime->application->make(Envelope::class) === $envelopeTwo,
+                $runtime->application->make('omnibus.message') === $messageTwo,
+                $runtime->application->make(FoundationGeneratedRuntimeScopedProbe::class)->sequence,
+            ],
+        );
+
+        expect($firstMessage)->toMatchArray([
+            'omnibus:message-one',
+            true,
+            true,
+            true,
+            true,
+        ])->and($secondMessage)->toMatchArray([
+            'omnibus:message-two',
+            true,
+            true,
+            true,
+            true,
+        ])->and($firstMessage[5])->not->toBe($secondMessage[5])
+            ->and(spl_object_id($runtime->container))->toBe($containerId)
+            ->and(fn() => $runtime->application->make(ExecutionId::class))
+            ->toThrow(ServiceResolutionException::class);
     } finally {
         foundationGeneratedRuntimeRemove($project);
     }
