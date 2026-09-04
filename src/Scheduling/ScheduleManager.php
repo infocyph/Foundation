@@ -192,25 +192,18 @@ final readonly class ScheduleManager
             : dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'infbyte';
     }
 
-    private function executeProcess(
-        ScheduledCommand $entry,
-        ExecutionId $executionId,
-        ?Closure $heartbeat,
-    ): ProcessResult {
-        return new SchedulerRuntime($this->application)->execute(
-            fn(): ProcessResult => new ProcessRunner()->run(
-                $this->processCommand($entry),
-                new ProcessOptions(
-                    cwd: $this->application->basePath(),
-                    timeoutSeconds: $entry->timeoutSeconds(),
-                    interactive: false,
-                    captureOutput: false,
-                    passthrough: true,
-                    heartbeat: $heartbeat,
-                ),
+    private function executeProcess(ScheduledCommand $entry, ?Closure $heartbeat): ProcessResult
+    {
+        return new ProcessRunner()->run(
+            $this->processCommand($entry),
+            new ProcessOptions(
+                cwd: $this->application->basePath(),
+                timeoutSeconds: $entry->timeoutSeconds(),
+                interactive: false,
+                captureOutput: false,
+                passthrough: true,
+                heartbeat: $heartbeat,
             ),
-            [ScheduledCommand::class => $entry],
-            $executionId,
         );
     }
 
@@ -379,6 +372,16 @@ final readonly class ScheduleManager
     private function runEntry(ScheduledCommand $entry): ScheduleRun
     {
         $executionId = ExecutionId::generate();
+
+        return new SchedulerRuntime($this->application)->execute(
+            fn(): ScheduleRun => $this->runScopedEntry($entry, $executionId),
+            [ScheduledCommand::class => $entry],
+            $executionId,
+        );
+    }
+
+    private function runScopedEntry(ScheduledCommand $entry, ExecutionId $executionId): ScheduleRun
+    {
         $history = new ExecutionHistory($this->application);
         $name = $entry->command();
         $identity = ['schedule_identity' => $entry->identity()];
@@ -398,7 +401,6 @@ final readonly class ScheduleManager
             $this->record($history, $executionId, $name, CommandStatus::Running, metadata: $identity);
             $result = $this->executeProcess(
                 $entry,
-                $executionId,
                 $this->processHeartbeat($entry, $lock, $handle),
             );
             $this->record(
