@@ -8,6 +8,7 @@ use Infocyph\Foundation\Config\ConfigExportValidator;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Exception\ConfigurationException;
 use Infocyph\Foundation\Support\ValueNormalizer;
+use Infocyph\Webrick\Router\Dispatch\RuntimeMiddlewareDescriptor;
 use Infocyph\Webrick\Router\Matching\FusedMatcher;
 use Infocyph\Webrick\Router\Matching\GeneratedMatcher;
 use Infocyph\Webrick\Router\Matching\MatcherInterface;
@@ -82,7 +83,7 @@ final readonly class WebReleaseConfiguration
     public function preGlobal(): array
     {
         return $this->maintenanceMiddlewareEnabled()
-            ? [[RouteMiddlewareRuntimeResolver::class, 'maintenance']]
+            ? [new RuntimeMiddlewareDescriptor([RouteMiddlewareRuntimeResolver::class, 'maintenance'])]
             : [];
     }
 
