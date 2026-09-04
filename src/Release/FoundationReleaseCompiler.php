@@ -378,7 +378,9 @@ final readonly class FoundationReleaseCompiler
     {
         $temporary = $path . '.' . bin2hex(random_bytes(6)) . '.tmp';
         if (file_put_contents($temporary, $contents, LOCK_EX) === false || !rename($temporary, $path)) {
-            @unlink($temporary);
+            if (is_file($temporary)) {
+                unlink($temporary);
+            }
 
             throw new \RuntimeException(sprintf('Unable to publish Foundation release metadata "%s".', $path));
         }
