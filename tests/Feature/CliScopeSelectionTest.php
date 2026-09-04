@@ -13,11 +13,11 @@ use Infocyph\Foundation\Command\TerminalIO;
 use Infocyph\Foundation\Exception\ServiceResolutionException;
 use Infocyph\Foundation\Runtime\ExecutionId;
 
-final readonly class FoundationCliScopeFreeCommand implements CommandHandlerInterface
+final class FoundationCliScopeFreeCommand implements CommandHandlerInterface
 {
     public static bool $executionIdVisible = false;
 
-    public function __construct(private Application $application) {}
+    public function __construct(private readonly Application $application) {}
 
     public static function define(CommandDefinition $command): void
     {
@@ -39,7 +39,7 @@ final readonly class FoundationCliScopeFreeCommand implements CommandHandlerInte
     }
 }
 
-final readonly class FoundationCliScopedCommand implements CommandHandlerInterface
+final class FoundationCliScopedCommand implements CommandHandlerInterface
 {
     public static bool $contextSeedMatches = false;
 
@@ -47,7 +47,7 @@ final readonly class FoundationCliScopedCommand implements CommandHandlerInterfa
 
     public static ?string $executionId = null;
 
-    public function __construct(private Application $application) {}
+    public function __construct(private readonly Application $application) {}
 
     public static function define(CommandDefinition $command): void
     {
