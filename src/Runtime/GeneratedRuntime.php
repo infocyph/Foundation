@@ -6,6 +6,9 @@ namespace Infocyph\Foundation\Runtime;
 
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\RuntimeMode;
+use Infocyph\Foundation\Application\ServiceProviderInterface;
+use Infocyph\Foundation\Application\ServiceRegistry;
+use Infocyph\Foundation\Bootstrap\Bootstrapper;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\InterMix\DI\ProductionContainer;
 
@@ -30,14 +33,15 @@ final readonly class GeneratedRuntime
         string $artifactPath,
         array $capabilities = [],
     ): self {
-        return self::boot($config, $runtime, $artifactPath, $capabilities, null, null);
+        return self::bootValidated($config, $runtime, $artifactPath, $capabilities);
     }
 
     /**
      * Trusted loading is valid only when both identities originate outside the
      * writable release directory (normally a trusted Foundation generation manifest).
+     * This path deliberately does not rebuild the Foundation source graph.
      *
-     * @param array<string,mixed> $config
+     * @param array<string,mixed> $config Used only to resolve a relative artifact path.
      * @param array<int|string,mixed> $capabilities
      */
     public static function loadPrevalidated(
@@ -48,6 +52,10 @@ final readonly class GeneratedRuntime
         string $trustedIntermixDigest,
         array $capabilities = [],
     ): self {
+        if ($runtime === RuntimeMode::Web) {
+            throw new \InvalidArgumentException('Web production runtime must use the coordinated Webrick release loader.');
+        }
+
         $trustedMetadataSha256 = strtolower(trim($trustedMetadataSha256));
         $trustedIntermixDigest = strtolower(trim($trustedIntermixDigest));
         if (preg_match('/^[a-f0-9]{64}$/D', $trustedMetadataSha256) !== 1
@@ -56,13 +64,23 @@ final readonly class GeneratedRuntime
             throw new \InvalidArgumentException('Trusted generated-runtime identity is invalid.');
         }
 
-        return self::boot(
-            $config,
-            $runtime,
+        $artifactPath = self::resolvePrevalidatedPath($config, $artifactPath);
+        self::assertTrustedMetadata($artifactPath, $trustedMetadataSha256);
+        $metadata = GeneratedRuntimeMetadata::read($artifactPath);
+        GeneratedRuntimeMetadata::assertPrevalidatedIdentity(
             $artifactPath,
+            $metadata,
+            $runtime,
             $capabilities,
-            $trustedMetadataSha256,
             $trustedIntermixDigest,
+        );
+
+        return self::finishBoot(
+            $runtime,
+            self::loadArtifact($artifactPath),
+            self::providerRegistry($metadata),
+            new Bootstrapper(),
+            $metadata,
         );
     }
 
@@ -82,13 +100,11 @@ final readonly class GeneratedRuntime
      * @param array<string,mixed> $config
      * @param array<int|string,mixed> $capabilities
      */
-    private static function boot(
+    private static function bootValidated(
         array $config,
         RuntimeMode $runtime,
         string $artifactPath,
         array $capabilities,
-        ?string $trustedMetadataSha256,
-        ?string $trustedIntermixDigest,
     ): self {
         if ($runtime === RuntimeMode::Web) {
             throw new \InvalidArgumentException('Web production runtime must use the coordinated Webrick release loader.');
@@ -99,25 +115,30 @@ final readonly class GeneratedRuntime
         try {
             new NonWebProductionGraph()->prepare($graph->builder);
             $artifactPath = GeneratedRuntimeMetadata::resolvePath($graph->application, $artifactPath);
-            if ($trustedMetadataSha256 !== null) {
-                self::assertTrustedMetadata($artifactPath, $trustedMetadataSha256);
-            }
             $metadata = GeneratedRuntimeMetadata::read($artifactPath);
             GeneratedRuntimeMetadata::assertMatches($artifactPath, $metadata, $graph);
-
-            if ($trustedIntermixDigest !== null) {
-                $metadataDigest = $metadata['intermix_digest'] ?? null;
-                if (!is_string($metadataDigest) || !hash_equals($trustedIntermixDigest, $metadataDigest)) {
-                    throw new \RuntimeException('Trusted generated-runtime digest does not match Foundation metadata.');
-                }
-                $container = $graph->builder->productionPrevalidated($artifactPath, $trustedIntermixDigest);
-            } else {
-                $container = $graph->builder->production($artifactPath);
-            }
+            $container = $graph->builder->production($artifactPath);
         } finally {
             $graph->application->container()->unset();
         }
 
+        return self::finishBoot(
+            $runtime,
+            $container,
+            $graph->providers,
+            $graph->bootstrapper,
+            $metadata,
+        );
+    }
+
+    /** @param array<string,mixed> $metadata */
+    private static function finishBoot(
+        RuntimeMode $runtime,
+        ProductionContainer $container,
+        ServiceRegistry $providers,
+        Bootstrapper $bootstrapper,
+        array $metadata,
+    ): self {
         $runtimeConfig = $container->get(ConfigRepository::class);
         if (!$runtimeConfig instanceof ConfigRepository) {
             throw new \LogicException('Generated Foundation runtime did not produce a ConfigRepository.');
@@ -126,13 +147,85 @@ final readonly class GeneratedRuntime
         $application = new Application(
             config: $runtimeConfig,
             container: $container,
-            providers: $graph->providers,
-            bootstrapper: $graph->bootstrapper,
+            providers: $providers,
+            bootstrapper: $bootstrapper,
             runtimeMode: $runtime,
             bindDevelopmentCore: false,
         );
         $application->boot();
 
         return new self($runtime, $container, $application, $metadata);
+    }
+
+    private static function loadArtifact(string $artifactPath): ProductionContainer
+    {
+        if (!is_file($artifactPath) || !is_readable($artifactPath)) {
+            throw new \RuntimeException(sprintf(
+                'Foundation generated runtime artifact is not readable: "%s".',
+                $artifactPath,
+            ));
+        }
+
+        $container = require $artifactPath;
+        if (!$container instanceof ProductionContainer) {
+            throw new \RuntimeException('Foundation generated runtime artifact must return a ProductionContainer.');
+        }
+
+        return $container;
+    }
+
+    /** @param array<string,mixed> $metadata */
+    private static function providerRegistry(array $metadata): ServiceRegistry
+    {
+        $classes = $metadata['provider_boot_order'] ?? null;
+        if (!is_array($classes) || !array_is_list($classes)) {
+            throw new \UnexpectedValueException(
+                'Foundation generated runtime metadata has no deterministic provider boot order.',
+            );
+        }
+
+        $registry = new ServiceRegistry();
+        foreach ($classes as $provider) {
+            if (!is_string($provider)
+                || $provider === ''
+                || !class_exists($provider)
+                || !is_a($provider, ServiceProviderInterface::class, true)
+            ) {
+                throw new \UnexpectedValueException(
+                    'Foundation generated runtime metadata contains an invalid service provider.',
+                );
+            }
+
+            $instance = new $provider();
+            if (!$instance instanceof ServiceProviderInterface) {
+                throw new \UnexpectedValueException(
+                    'Foundation generated runtime provider could not be instantiated.',
+                );
+            }
+            $registry->add($instance);
+        }
+
+        return $registry;
+    }
+
+    /** @param array<string,mixed> $config */
+    private static function resolvePrevalidatedPath(array $config, string $path): string
+    {
+        if ($path === '') {
+            throw new \InvalidArgumentException('Generated runtime artifact path must not be empty.');
+        }
+        if (preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1) {
+            return $path;
+        }
+
+        $app = is_array($config['app'] ?? null) ? $config['app'] : [];
+        $basePath = $app['base_path'] ?? $config['base_path'] ?? null;
+        if (!is_string($basePath) || $basePath === '') {
+            $basePath = getcwd() ?: dirname(__DIR__, 2);
+        }
+
+        return rtrim($basePath, DIRECTORY_SEPARATOR)
+            . DIRECTORY_SEPARATOR
+            . ltrim($path, DIRECTORY_SEPARATOR);
     }
 }

@@ -101,6 +101,35 @@ it('compiles and reuses minimal generated CLI and scheduler runtimes', function 
     }
 });
 
+it('loads a trusted CLI production container without rebuilding the source graph', function (): void {
+    $project = foundationGeneratedRuntimeProject();
+    $config = foundationGeneratedRuntimeConfig($project);
+    $artifact = $project . '/bootstrap/cache/cli.php';
+
+    try {
+        $report = new GeneratedRuntimeCompiler()->compile($config, RuntimeMode::Cli, $artifact);
+        file_put_contents(
+            $project . '/bootstrap/providers.php',
+            "<?php\n\nthrow new RuntimeException('generated runtime rebuilt source providers');\n",
+        );
+
+        $runtime = GeneratedRuntime::loadPrevalidated(
+            $config,
+            RuntimeMode::Cli,
+            $artifact,
+            $report['metadata_sha256'],
+            $report['digest'],
+        );
+
+        expect($runtime->application->runtimeMode())->toBe(RuntimeMode::Cli)
+            ->and($runtime->application->make(FoundationGeneratedRuntimeProbe::class)->runtime)
+            ->toBe(RuntimeMode::Cli)
+            ->and($runtime->container->has('foundation.http'))->toBeFalse();
+    } finally {
+        foundationGeneratedRuntimeRemove($project);
+    }
+});
+
 it('builds a worker only with explicitly selected messaging capability and keeps one runtime across executions', function (): void {
     if (!class_exists(\Infocyph\Omnibus\MessageBus::class)) {
         $this->markTestSkipped('Install the messaging module to run the generated worker integration test.');

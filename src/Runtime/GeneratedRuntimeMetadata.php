@@ -5,13 +5,15 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Runtime;
 
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Config\ConfigExportValidator;
+use Infocyph\Foundation\Support\ValueNormalizer;
 use JsonException;
 
 /** @internal Foundation identity sidecar for one generated non-web InterMix artifact. */
 final class GeneratedRuntimeMetadata
 {
-    private const int SCHEMA_VERSION = 1;
+    private const int SCHEMA_VERSION = 2;
 
     /** @param array<string,mixed> $metadata */
     public static function assertMatches(
@@ -19,7 +21,8 @@ final class GeneratedRuntimeMetadata
         array $metadata,
         NonWebGraphComposition $graph,
     ): void {
-        $providers = $graph->providers->classes();
+        $providerBootOrder = $graph->providers->classes();
+        $providers = $providerBootOrder;
         sort($providers, SORT_STRING);
 
         if (($metadata['schema_version'] ?? null) !== self::SCHEMA_VERSION
@@ -28,33 +31,48 @@ final class GeneratedRuntimeMetadata
             || ($metadata['config_fingerprint'] ?? null) !== self::configFingerprint($graph)
             || ($metadata['capabilities'] ?? null) !== $graph->context->capabilities
             || ($metadata['providers'] ?? null) !== $providers
+            || ($metadata['provider_boot_order'] ?? null) !== $providerBootOrder
         ) {
             throw new \RuntimeException('Foundation generated runtime identity does not match the current build inputs.');
         }
 
-        $digest = $metadata['intermix_digest'] ?? null;
-        if (!is_string($digest) || preg_match('/^[a-f0-9]{32}$/D', $digest) !== 1) {
-            throw new \UnexpectedValueException('Foundation generated runtime InterMix digest is invalid.');
+        self::assertIntermixManifestDigest($artifactPath, $metadata['intermix_digest'] ?? null);
+    }
+
+    /**
+     * Validate only identities already anchored by externally trusted immutable
+     * Foundation release metadata. No source graph/config/provider discovery occurs here.
+     *
+     * @param array<string,mixed> $metadata
+     * @param array<int|string,mixed> $capabilities
+     */
+    public static function assertPrevalidatedIdentity(
+        string $artifactPath,
+        array $metadata,
+        RuntimeMode $runtime,
+        array $capabilities,
+        string $trustedIntermixDigest,
+    ): void {
+        if (($metadata['schema_version'] ?? null) !== self::SCHEMA_VERSION
+            || ($metadata['runtime'] ?? null) !== $runtime->value
+            || ($metadata['capabilities'] ?? null) !== self::normalizeCapabilities($capabilities)
+        ) {
+            throw new \RuntimeException('Foundation generated runtime identity does not match trusted runtime inputs.');
         }
 
-        $manifestPath = $artifactPath . '.meta.json';
-        if (!is_file($manifestPath) || !is_readable($manifestPath)) {
-            throw new \RuntimeException(sprintf('InterMix runtime manifest is not readable: "%s".', $manifestPath));
-        }
-        $contents = file_get_contents($manifestPath);
-        if (!is_string($contents)) {
-            throw new \RuntimeException(sprintf('Unable to read InterMix runtime manifest: "%s".', $manifestPath));
+        $metadataDigest = $metadata['intermix_digest'] ?? null;
+        if (!is_string($metadataDigest) || !hash_equals($trustedIntermixDigest, $metadataDigest)) {
+            throw new \RuntimeException('Trusted generated-runtime digest does not match Foundation metadata.');
         }
 
-        try {
-            $manifest = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
-        } catch (JsonException $exception) {
-            throw new \RuntimeException('InterMix runtime manifest is invalid JSON.', 0, $exception);
+        $bootOrder = $metadata['provider_boot_order'] ?? null;
+        if (!is_array($bootOrder) || !array_is_list($bootOrder)) {
+            throw new \UnexpectedValueException(
+                'Foundation generated runtime metadata has no deterministic provider boot order.',
+            );
         }
-        $manifestDigest = is_array($manifest) ? ($manifest['digest'] ?? null) : null;
-        if (!is_string($manifestDigest) || !hash_equals($digest, $manifestDigest)) {
-            throw new \RuntimeException('Foundation generated runtime metadata does not match the InterMix artifact manifest.');
-        }
+
+        self::assertIntermixManifestDigest($artifactPath, $trustedIntermixDigest);
     }
 
     /**
@@ -66,13 +84,15 @@ final class GeneratedRuntimeMetadata
      *   config_fingerprint:string,
      *   capabilities:array<string,bool>,
      *   providers:list<string>,
+     *   provider_boot_order:list<string>,
      *   intermix_digest:string,
      *   compiled_count:int
      * }
      */
     public static function create(NonWebGraphComposition $graph, array $report): array
     {
-        $providers = $graph->providers->classes();
+        $providerBootOrder = $graph->providers->classes();
+        $providers = $providerBootOrder;
         sort($providers, SORT_STRING);
 
         return [
@@ -82,6 +102,7 @@ final class GeneratedRuntimeMetadata
             'config_fingerprint' => self::configFingerprint($graph),
             'capabilities' => $graph->context->capabilities,
             'providers' => $providers,
+            'provider_boot_order' => $providerBootOrder,
             'intermix_digest' => $report['digest'],
             'compiled_count' => count($report['compiled']),
         ];
@@ -176,6 +197,32 @@ final class GeneratedRuntimeMetadata
         return $path;
     }
 
+    private static function assertIntermixManifestDigest(string $artifactPath, mixed $digest): void
+    {
+        if (!is_string($digest) || preg_match('/^[a-f0-9]{32}$/D', $digest) !== 1) {
+            throw new \UnexpectedValueException('Foundation generated runtime InterMix digest is invalid.');
+        }
+
+        $manifestPath = $artifactPath . '.meta.json';
+        if (!is_file($manifestPath) || !is_readable($manifestPath)) {
+            throw new \RuntimeException(sprintf('InterMix runtime manifest is not readable: "%s".', $manifestPath));
+        }
+        $contents = file_get_contents($manifestPath);
+        if (!is_string($contents)) {
+            throw new \RuntimeException(sprintf('Unable to read InterMix runtime manifest: "%s".', $manifestPath));
+        }
+
+        try {
+            $manifest = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
+        } catch (JsonException $exception) {
+            throw new \RuntimeException('InterMix runtime manifest is invalid JSON.', 0, $exception);
+        }
+        $manifestDigest = is_array($manifest) ? ($manifest['digest'] ?? null) : null;
+        if (!is_string($manifestDigest) || !hash_equals($digest, $manifestDigest)) {
+            throw new \RuntimeException('Foundation generated runtime metadata does not match the InterMix artifact manifest.');
+        }
+    }
+
     private static function canonicalize(mixed $value): mixed
     {
         if (!is_array($value)) {
@@ -198,5 +245,30 @@ final class GeneratedRuntimeMetadata
         ConfigExportValidator::assertExportable($graph->context->config);
 
         return hash('sha256', serialize(self::canonicalize($graph->context->config)));
+    }
+
+    /**
+     * @param array<int|string,mixed> $capabilities
+     * @return array<string,bool>
+     */
+    private static function normalizeCapabilities(array $capabilities): array
+    {
+        $normalized = [];
+        foreach ($capabilities as $name => $enabled) {
+            if (is_int($name)) {
+                if (is_string($enabled) && $enabled !== '') {
+                    $normalized[$enabled] = true;
+                }
+
+                continue;
+            }
+
+            if ($name !== '') {
+                $normalized[$name] = ValueNormalizer::bool($enabled, false);
+            }
+        }
+        ksort($normalized);
+
+        return $normalized;
     }
 }
