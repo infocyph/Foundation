@@ -188,13 +188,7 @@ final readonly class GeneratedRuntime
                 );
             }
 
-            $instance = new $provider();
-            if (!$instance instanceof ServiceProviderInterface) {
-                throw new \UnexpectedValueException(
-                    'Foundation generated runtime provider could not be instantiated.',
-                );
-            }
-            $registry->add($instance);
+            $registry->add(new $provider());
         }
 
         return $registry;
