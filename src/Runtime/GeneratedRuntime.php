@@ -10,6 +10,7 @@ use Infocyph\Foundation\Application\ServiceProviderInterface;
 use Infocyph\Foundation\Application\ServiceRegistry;
 use Infocyph\Foundation\Bootstrap\Bootstrapper;
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\InterMix\DI\Build\StaticRuntimeGenerator;
 use Infocyph\InterMix\DI\ProductionContainer;
 
 /** One generated CLI, worker, or scheduler runtime reused for its process lifetime. */
@@ -77,7 +78,7 @@ final readonly class GeneratedRuntime
 
         return self::finishBoot(
             $runtime,
-            self::loadArtifact($artifactPath),
+            self::loadArtifact($artifactPath, $trustedIntermixDigest),
             self::providerRegistry($metadata),
             new Bootstrapper(),
             $metadata,
@@ -157,21 +158,12 @@ final readonly class GeneratedRuntime
         return new self($runtime, $container, $application, $metadata);
     }
 
-    private static function loadArtifact(string $artifactPath): ProductionContainer
+    private static function loadArtifact(string $artifactPath, string $trustedIntermixDigest): ProductionContainer
     {
-        if (!is_file($artifactPath) || !is_readable($artifactPath)) {
-            throw new \RuntimeException(sprintf(
-                'Foundation generated runtime artifact is not readable: "%s".',
-                $artifactPath,
-            ));
-        }
-
-        $container = require $artifactPath;
-        if (!$container instanceof ProductionContainer) {
-            throw new \RuntimeException('Foundation generated runtime artifact must return a ProductionContainer.');
-        }
-
-        return $container;
+        return new StaticRuntimeGenerator()->loadPrevalidated(
+            $artifactPath,
+            $trustedIntermixDigest,
+        );
     }
 
     /** @param array<string,mixed> $metadata */
