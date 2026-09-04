@@ -118,18 +118,7 @@ final class Bootstrapper
         }
 
         $registry->contribute($builder, $context);
-        if ($context->runtimeMode === RuntimeMode::Web) {
-            $builder->onScopeLeave(
-                $context->runtimeMode->scopeName(),
-                static function (string $scope, Container $container): void {
-                    unset($scope);
-                    $state = $container->get(RuntimeExecutionState::class);
-                    if ($state instanceof RuntimeExecutionState) {
-                        $state->cleanup(false);
-                    }
-                },
-            );
-        }
+        $this->registerScopeCleanup($builder, $context);
 
         return $registry;
     }
@@ -264,5 +253,23 @@ final class Bootstrapper
         }
 
         return $normalized;
+    }
+
+    private function registerScopeCleanup(ContainerBuilder $builder, FoundationBuildContext $context): void
+    {
+        if ($context->runtimeMode !== RuntimeMode::Web) {
+            return;
+        }
+
+        $builder->onScopeLeave(
+            $context->runtimeMode->scopeName(),
+            static function (string $scope, Container $container): void {
+                unset($scope);
+                $state = $container->get(RuntimeExecutionState::class);
+                if ($state instanceof RuntimeExecutionState) {
+                    $state->cleanup(false);
+                }
+            },
+        );
     }
 }
