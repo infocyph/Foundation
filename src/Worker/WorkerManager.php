@@ -10,6 +10,7 @@ use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Messaging\OmnibusWorkerFactory;
 use Infocyph\Foundation\Operations\RuntimeControl;
 use Infocyph\Foundation\Operations\RuntimeProcessRegistry;
+use Infocyph\Foundation\Release\ActiveGeneration;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\Omnibus\Consumer\Worker;
 use Infocyph\Omnibus\Consumer\WorkerLifecycle;
@@ -72,9 +73,11 @@ final readonly class WorkerManager
         $runtimeToken = $control->token('runtime');
         $workerToken = $control->token('worker');
         $namedToken = $control->token('worker', $name);
+        $generationStopRequested = $this->generationStopRequested();
         $stopRequested = static fn(): bool => $control->changed('runtime', null, $runtimeToken)
             || $control->changed('worker', null, $workerToken)
-            || $control->changed('worker', $name, $namedToken);
+            || $control->changed('worker', $name, $namedToken)
+            || $generationStopRequested();
 
         $registry = new RuntimeProcessRegistry($this->application);
         $process = $registry->register('worker', $name);
@@ -192,6 +195,27 @@ final readonly class WorkerManager
         }
 
         throw new \UnexpectedValueException(sprintf('Worker %s must be numeric.', $key));
+    }
+
+    /** @return \Closure():bool */
+    private function generationStopRequested(): \Closure
+    {
+        $release = $this->application->loadedReleaseGeneration();
+        if ($release === null) {
+            return static fn(): bool => false;
+        }
+
+        $active = new ActiveGeneration();
+
+        return static function () use ($active, $release): bool {
+            try {
+                return $active->replacementRequired($release->releaseRoot, $release->generation);
+            } catch (\Throwable) {
+                // A release-loaded process must not keep consuming work when its
+                // deployment coordination pointer disappears or becomes corrupt.
+                return true;
+            }
+        };
     }
 
     /** @return array<string, array<string, mixed>> */
