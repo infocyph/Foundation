@@ -57,6 +57,10 @@ final readonly class CommandResolver
             return $run();
         }
 
+        if (!$definition->requiresExecutionScope()) {
+            return $run();
+        }
+
         return $this->application->execution()->run(
             $run,
             [
