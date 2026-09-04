@@ -21,6 +21,7 @@ final class CommandCatalog
     public function all(): array
     {
         $connection = static fn(CommandDefinition $command): CommandDefinition => $command
+            ->capability('db')
             ->option('connection', 'Configured database connection name.', acceptsValue: true);
         $destructive = static fn(CommandDefinition $command): CommandDefinition => $connection($command)
             ->option('force', 'Authorize the destructive operation without prompting.');
@@ -227,9 +228,10 @@ final class CommandCatalog
                     ->option('dry-run', 'Preview Composer changes without modifying the project.'),
             ),
             new CommandDefinition('module:list', 'List Foundation modules.', 'Modules'),
-            new CommandDefinition('module:show', 'Show detailed module package/config/schema state.', 'Modules')
-                ->argument('module', 'Module name.', required: true)
-                ->option('connection', 'Database connection for schema inspection.', acceptsValue: true),
+            $connection(
+                new CommandDefinition('module:show', 'Show detailed module package/config/schema state.', 'Modules')
+                    ->argument('module', 'Module name.', required: true),
+            ),
             new CommandDefinition('module:config:publish', 'Publish config owned by a Foundation module.', 'Modules')
                 ->argument('module', 'Module name.', required: true)
                 ->option('force', 'Replace existing module config.'),
