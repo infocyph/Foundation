@@ -101,7 +101,7 @@ it('compiles and reuses minimal generated CLI and scheduler runtimes', function 
     }
 });
 
-it('loads a trusted CLI production container without rebuilding the source graph', function (): void {
+it('loads and scopes a trusted CLI production container without rebuilding the source graph', function (): void {
     $project = foundationGeneratedRuntimeProject();
     $config = foundationGeneratedRuntimeConfig($project);
     $artifact = $project . '/bootstrap/cache/cli.php';
@@ -125,6 +125,25 @@ it('loads a trusted CLI production container without rebuilding the source graph
             ->and($runtime->application->make(FoundationGeneratedRuntimeProbe::class)->runtime)
             ->toBe(RuntimeMode::Cli)
             ->and($runtime->container->has('foundation.http'))->toBeFalse();
+
+        $first = $runtime->application->execution()->run(
+            static fn(ExecutionId $id): array => [
+                (string) $id,
+                $runtime->application->make(FoundationGeneratedRuntimeScopedProbe::class)->sequence,
+            ],
+            executionId: new ExecutionId('trusted-cli-one'),
+        );
+        $second = $runtime->application->execution()->run(
+            static fn(ExecutionId $id): array => [
+                (string) $id,
+                $runtime->application->make(FoundationGeneratedRuntimeScopedProbe::class)->sequence,
+            ],
+            executionId: new ExecutionId('trusted-cli-two'),
+        );
+
+        expect($first[0])->toBe('trusted-cli-one')
+            ->and($second[0])->toBe('trusted-cli-two')
+            ->and($first[1])->not->toBe($second[1]);
     } finally {
         foundationGeneratedRuntimeRemove($project);
     }
