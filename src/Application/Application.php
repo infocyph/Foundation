@@ -13,6 +13,7 @@ use Infocyph\Foundation\Exception\ServiceResolutionException;
 use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\Foundation\Http\HttpKernel;
 use Infocyph\Foundation\Runtime\ExecutionScope;
+use Infocyph\Foundation\Runtime\LoadedReleaseGeneration;
 use Infocyph\InterMix\DI\Container;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Webrick\Request\Request;
@@ -22,6 +23,8 @@ use Psr\Container\ContainerInterface;
 final class Application
 {
     private bool $booted = false;
+
+    private ?LoadedReleaseGeneration $loadedReleaseGeneration = null;
 
     public function __construct(
         private readonly ConfigRepository $config,
@@ -65,6 +68,22 @@ final class Application
     public function appPath(string $path = ''): string
     {
         return $this->paths()->app($path);
+    }
+
+    public function attachLoadedReleaseGeneration(LoadedReleaseGeneration $release): self
+    {
+        $current = $this->loadedReleaseGeneration;
+        if ($current !== null
+            && ($current->releaseRoot !== $release->releaseRoot
+                || $current->generation !== $release->generation
+                || $current->trustedFoundationManifestSha256 !== $release->trustedFoundationManifestSha256)
+        ) {
+            throw new \LogicException('A Foundation process cannot change its loaded release generation in place.');
+        }
+
+        $this->loadedReleaseGeneration = $release;
+
+        return $this;
     }
 
     public function basePath(string $path = ''): string
@@ -161,6 +180,11 @@ final class Application
     public function isProduction(): bool
     {
         return $this->config->isProduction();
+    }
+
+    public function loadedReleaseGeneration(): ?LoadedReleaseGeneration
+    {
+        return $this->loadedReleaseGeneration;
     }
 
     public function logsPath(string $path = ''): string
