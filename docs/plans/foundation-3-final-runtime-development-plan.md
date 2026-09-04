@@ -1874,7 +1874,7 @@ Use this section as the implementation ledger. A checked **overall phase** means
 - [X] Phase 4 — Runtime state/scope redesign — implementation and lifecycle/cache audits complete; coroutine acceptance is explicitly conditional on an available Swoole/OpenSwoole runtime
 - [X] Phase 5 — Webrick build/runtime integration — development implementation complete; broader release/regression closure remains under Phases 9–10
 - [X] Phase 6 — Error/maintenance/filesystem cleanup — implementation and benchmark-driven WB-5 decision complete
-- [ ] Phase 7 — Non-web generated runtimes — InterMix 10.0.4 lower-layer gate resolved; strict generated-runtime acceptance is active
+- [X] Phase 7 — Non-web generated runtimes — generated CLI/worker/scheduler production-container loading, scoped execution, graph-free reuse, persistence and cleanup acceptance complete
 - [ ] Phase 8 — Unified Foundation release generation — immutable-generation/manifest/activation/trust infrastructure implemented; end-to-end all-runtime generation acceptance remains open
 - [ ] Phase 9 — Full regression/performance pass
 - [ ] Phase 10 — Final rescan/release readiness
@@ -2055,36 +2055,36 @@ Phase 6 implementation evidence: the embedded `HttpKernel` is a thin Webrick del
 #### CLI
 
 - [X] Build CLI graph with a fresh `foundation.cli` builder.
-- [ ] Compile/load CLI ProductionContainer.
-- [ ] Enter CLI scope only when scoped execution state is required.
+- [X] Compile/load CLI ProductionContainer.
+- [X] Enter CLI scope only when scoped execution state is required.
 - [X] Remove unrelated web/worker capabilities from minimal CLI graph.
 
 #### Worker
 
 - [X] Build worker graph with a fresh `foundation.worker` builder.
-- [ ] Compile/load one worker ProductionContainer per worker process.
-- [ ] Reuse production runtime across jobs/messages.
-- [ ] Enter one worker scope per job/message.
-- [ ] Seed envelope/job/execution context.
-- [ ] Ensure success/failure/cancellation cleanup.
-- [ ] Ensure no graph rebuild per item.
+- [X] Compile/load one worker ProductionContainer per worker process.
+- [X] Reuse production runtime across jobs/messages.
+- [X] Enter one worker scope per job/message.
+- [X] Seed envelope/job/execution context.
+- [X] Ensure success/failure/cancellation cleanup.
+- [X] Ensure no graph rebuild per item.
 
 #### Scheduler
 
 - [X] Build scheduler graph with a fresh `foundation.scheduler` builder.
-- [ ] Compile/load scheduler ProductionContainer.
-- [ ] Enter one scheduler scope per scheduled invocation when needed.
+- [X] Compile/load scheduler ProductionContainer.
+- [X] Enter one scheduler scope per scheduled invocation when needed.
 - [X] Keep scheduler graph limited to needed command/dispatch capabilities.
-- [ ] Ensure no graph rebuild per invocation.
+- [X] Ensure no graph rebuild per invocation.
 
 #### Non-web persistence
 
-- [ ] Run long sequential worker/scheduler execution tests.
-- [ ] Verify bounded memory.
-- [ ] Verify no transaction/context/message carry-over.
-- [ ] Verify locks/temp resources release deterministically.
+- [X] Run long sequential worker/scheduler execution tests.
+- [X] Verify bounded memory.
+- [X] Verify no transaction/context/message carry-over.
+- [X] Verify locks/temp resources release deterministically.
 
-Implemented Phase 7 groundwork: `NonWebGraphFactory` composes fresh deterministic non-web graphs with explicit optional-capability topology; `GeneratedRuntimeCompiler` stages artifacts before publication, validates strict InterMix reports and preserves the last good release on failure; `GeneratedRuntimeMetadata` binds runtime/environment/config/capability/provider identity to the InterMix digest; `GeneratedRuntime` provides a reusable process runtime including trusted-prevalidated loading from external Foundation trust metadata. InterMix 10.0.4 has removed the former lower-layer blocker; the remaining boxes are now Foundation acceptance/runtime-orchestration work and stay open until their production tests pass.
+Phase 7 acceptance evidence: `NonWebGraphFactory` composes fresh deterministic runtime graphs and `GeneratedRuntimeCompiler` strictly compiles them with `skipped=[]`, staged atomic publication and last-good preservation. Trusted `GeneratedRuntime::loadPrevalidated()` verifies external Foundation metadata plus the InterMix artifact ABI/digest without rebuilding the source graph; generated CLI acceptance poisons source-provider discovery after compilation and proves scoped state is entered only when explicitly requested. `WorkerRuntime` reuses one generated ProductionContainer across jobs/messages while `GeneratedNonWebRuntimeTest` and `GeneratedWorkerCancellationTest` prove job/envelope/execution seeding plus success/failure/restart cleanup with no source-graph rebuild. The existing `ScheduleManager`/`SchedulerRuntime` path now owns one complete `foundation.scheduler` scope per scheduled entry, including history, overlap/single-server lock ownership and process execution; generated scheduler acceptance proves cached topology, source-discovery poisoning, hot-container reuse and deterministic lock release. `GeneratedPhase7RuntimeClosureTest` runs long sequential generated worker/scheduler loops, verifies bounded memory, transaction rollback, job/message/schedule context isolation and deterministic deferred temp/lock cleanup. Phase 7 generated-runtime acceptance passes on the lowest supported dependency matrix; remaining suite failures are pre-existing web/session compatibility items assigned outside Phase 7.
 
 ### Phase 8 — Unified Foundation release generation
 
