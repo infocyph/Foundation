@@ -122,7 +122,10 @@ final class FoundationReleaseManifest
         return str_replace('\\', '/', $value);
     }
 
-    /** @param array<string,mixed> $manifest @return array<string,mixed> */
+    /**
+     * @param array<string,mixed> $manifest
+     * @return array<string,mixed>
+     */
     public static function section(array $manifest, string $name): array
     {
         $section = $manifest[$name] ?? null;
@@ -143,7 +146,10 @@ final class FoundationReleaseManifest
         return $value;
     }
 
-    /** @param array<array-key,mixed> $value @return array<string,mixed> */
+    /**
+     * @param array<array-key,mixed> $value
+     * @return array<string,mixed>
+     */
     private static function stringMap(array $value, string $field): array
     {
         $mapped = [];

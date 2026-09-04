@@ -58,7 +58,11 @@ final readonly class FoundationReleaseCompiler
         }
     }
 
-    /** Explicit housekeeping; never called from request/job hot paths. @return list<string> */
+    /**
+     * Explicit housekeeping; never called from request/job hot paths.
+     *
+     * @return list<string>
+     */
     public function prune(string $releaseRoot, int $keep = 2): array
     {
         if ($keep < 1) {

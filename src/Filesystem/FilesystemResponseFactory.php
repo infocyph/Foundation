@@ -309,7 +309,10 @@ final readonly class FilesystemResponseFactory
         return [$processor, $this->resolvedDownloadPath($path, $disk)];
     }
 
-    /** @param resource $stream */
+    /**
+     * @param resource $stream
+     * @param positive-int $length
+     */
     private function readStreamChunk($stream, int $length): string
     {
         $chunk = fread($stream, $length);

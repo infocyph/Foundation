@@ -17,6 +17,11 @@ use Infocyph\Webrick\Router\Url\SignedUrlConfig;
 /** Immutable release/runtime settings derived from normalized Foundation config. */
 final readonly class WebReleaseConfiguration
 {
+    private const array BUILT_IN_ALIASES = [
+        'signed' => 'verify_signed_url',
+        'throttle' => 'throttle',
+    ];
+
     public function __construct(private WebGraphComposition $graph) {}
 
     public function assertArtifactSafeMiddleware(): void
@@ -25,9 +30,11 @@ final readonly class WebReleaseConfiguration
         $pre = $this->config()->get('router.middleware.globals.pre', []);
         $post = $this->config()->get('router.middleware.globals.post', []);
 
-        if ((is_array($aliases) && $aliases !== [])
-            || (is_array($pre) && $pre !== [])
-            || (is_array($post) && $post !== [])
+        if (!$this->artifactSafeAliases($aliases)
+            || !is_array($pre)
+            || $pre !== []
+            || !is_array($post)
+            || $post !== []
         ) {
             throw new ConfigurationException(
                 'Configured Webrick aliases/global middleware are not yet eligible for Foundation compiled releases; '
@@ -126,6 +133,19 @@ final readonly class WebReleaseConfiguration
     public function urlBaseUri(): string
     {
         return $this->string('router.url_base_uri');
+    }
+
+    private function artifactSafeAliases(mixed $aliases): bool
+    {
+        if (!is_array($aliases) || $aliases === []) {
+            return is_array($aliases);
+        }
+
+        $expected = self::BUILT_IN_ALIASES;
+        ksort($aliases, SORT_STRING);
+        ksort($expected, SORT_STRING);
+
+        return $aliases === $expected;
     }
 
     private function canonicalize(mixed $value): mixed
