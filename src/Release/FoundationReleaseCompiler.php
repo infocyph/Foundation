@@ -8,6 +8,7 @@ use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Routing\WebReleaseCompiler;
 use Infocyph\Foundation\Runtime\GeneratedRuntimeCompiler;
 use Infocyph\Foundation\Runtime\GeneratedRuntimeMetadata;
+use Infocyph\Webrick\Router\Build\ReleaseCompiler as WebrickReleaseCompiler;
 
 /** Coordinates one immutable Foundation release generation across all runtimes. */
 final readonly class FoundationReleaseCompiler
@@ -38,7 +39,7 @@ final readonly class FoundationReleaseCompiler
         [$stage, $final] = $this->generationPaths($releaseRoot, $generation);
 
         try {
-            $manifest = $this->compileGeneration($config, $stage, $generation, $capabilities);
+            $manifest = $this->compileGeneration($config, $stage, $final, $generation, $capabilities);
             FoundationReleaseManifest::write($stage . '/foundation.php', $manifest);
             $this->verifyStage($stage, $manifest);
             $this->publishStage($stage, $final, $generation);
@@ -117,6 +118,7 @@ final readonly class FoundationReleaseCompiler
     private function compileGeneration(
         array $config,
         string $stage,
+        string $final,
         string $generation,
         array $capabilities,
     ): array {
@@ -128,6 +130,7 @@ final readonly class FoundationReleaseCompiler
             $stage . '/web/release.json',
             $capabilities['web'] ?? [],
         );
+        $runtimeManifestSha256 = $this->rebaseWebReleaseManifest($stage, $final);
         $environment = $this->stringField($web, 'environment');
         $configFingerprint = $this->digestField($web, 'config_fingerprint', 64);
         $webCapabilities = FoundationReleaseManifest::capabilities(
@@ -154,7 +157,7 @@ final readonly class FoundationReleaseCompiler
             'config_fingerprint' => $configFingerprint,
             'web' => [
                 'release_manifest' => 'web/release.json',
-                'runtime_manifest_sha256' => $this->digestField($web, 'release_runtime_manifest_sha256', 64),
+                'runtime_manifest_sha256' => $runtimeManifestSha256,
                 'capabilities' => $webCapabilities,
             ],
             'cli' => $runtimeSections['cli'],
@@ -256,6 +259,46 @@ final readonly class FoundationReleaseCompiler
         }
     }
 
+    private function rebaseWebReleaseManifest(string $stage, string $final): string
+    {
+        $releasePath = $stage . '/web/release.json';
+        $json = file_get_contents($releasePath);
+        if (!is_string($json)) {
+            throw new \RuntimeException('Unable to read staged Webrick release manifest.');
+        }
+        $manifest = json_decode($json, true, 32, JSON_THROW_ON_ERROR);
+        if (!is_array($manifest)) {
+            throw new \UnexpectedValueException('Staged Webrick release manifest is malformed.');
+        }
+
+        $intermix = $manifest['intermix'] ?? null;
+        $webrick = $manifest['webrick'] ?? null;
+        if (!is_array($intermix) || !is_array($webrick)) {
+            throw new \UnexpectedValueException('Staged Webrick release manifest is incomplete.');
+        }
+        $intermix['path'] = $final . '/web/container.php';
+        $webrick['path'] = $final . '/web/router.php';
+        $webrick['meta'] = $final . '/web/router.php.meta.json';
+        $manifest['intermix'] = $intermix;
+        $manifest['webrick'] = $webrick;
+
+        $this->writeAtomic(
+            $releasePath,
+            json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n",
+        );
+        $runtimePath = WebrickReleaseCompiler::runtimeManifestPath($releasePath);
+        $this->writeAtomic(
+            $runtimePath,
+            "<?php\n\ndeclare(strict_types=1);\n\nreturn " . var_export($manifest, true) . ";\n",
+        );
+        $sha256 = hash_file('sha256', $runtimePath);
+        if (!is_string($sha256)) {
+            throw new \RuntimeException('Unable to fingerprint staged Webrick runtime manifest.');
+        }
+
+        return $sha256;
+    }
+
     private function removeDirectory(string $directory): void
     {
         if (!is_dir($directory)) {
@@ -293,10 +336,11 @@ final readonly class FoundationReleaseCompiler
     {
         FoundationReleaseManifest::assertValid($manifest);
         $web = FoundationReleaseManifest::section($manifest, 'web');
-        $paths = ['foundation.php', FoundationReleaseManifest::relativePath(
+        $webRelease = FoundationReleaseManifest::relativePath(
             $web['release_manifest'] ?? null,
             'web.release_manifest',
-        )];
+        );
+        $paths = ['foundation.php', $webRelease];
         foreach (['cli', 'worker', 'scheduler'] as $runtime) {
             $section = FoundationReleaseManifest::section($manifest, $runtime);
             $paths[] = FoundationReleaseManifest::relativePath(
@@ -315,8 +359,28 @@ final readonly class FoundationReleaseCompiler
                 throw new \RuntimeException(sprintf('Foundation release generation is incomplete at "%s".', $relative));
             }
         }
+
+        $webReleasePath = $stage . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $webRelease);
+        $webRuntimePath = WebrickReleaseCompiler::runtimeManifestPath($webReleasePath);
+        $actualWebRuntimeSha256 = is_file($webRuntimePath) ? hash_file('sha256', $webRuntimePath) : false;
+        $expectedWebRuntimeSha256 = $this->digestField($web, 'runtime_manifest_sha256', 64);
+        if (!is_string($actualWebRuntimeSha256)
+            || !hash_equals($expectedWebRuntimeSha256, $actualWebRuntimeSha256)
+        ) {
+            throw new \RuntimeException('Foundation staged Webrick runtime manifest trust identity mismatch.');
+        }
         if (FoundationReleaseManifest::load($stage . '/foundation.php') !== $manifest) {
             throw new \RuntimeException('Foundation release manifest did not round-trip exactly before publication.');
+        }
+    }
+
+    private function writeAtomic(string $path, string $contents): void
+    {
+        $temporary = $path . '.' . bin2hex(random_bytes(6)) . '.tmp';
+        if (file_put_contents($temporary, $contents, LOCK_EX) === false || !rename($temporary, $path)) {
+            @unlink($temporary);
+
+            throw new \RuntimeException(sprintf('Unable to publish Foundation release metadata "%s".', $path));
         }
     }
 }
