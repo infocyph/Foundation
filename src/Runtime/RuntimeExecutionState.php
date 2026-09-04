@@ -58,6 +58,13 @@ final class RuntimeExecutionState
         }
     }
 
+    public function connection(string $name, ConnectionConfig $config): Connection
+    {
+        $this->assertOpen();
+
+        return $this->connections[$name] ??= new Connection($config, $name);
+    }
+
     /**
      * Register scope-owned cleanup such as releasing a lock or removing a
      * temporary resource. Callbacks run once in reverse acquisition order.
@@ -68,13 +75,6 @@ final class RuntimeExecutionState
     {
         $this->assertOpen();
         $this->cleanupCallbacks[] = Closure::fromCallable($cleanup);
-    }
-
-    public function connection(string $name, ConnectionConfig $config): Connection
-    {
-        $this->assertOpen();
-
-        return $this->connections[$name] ??= new Connection($config, $name);
     }
 
     public function freshConnection(string $name, ConnectionConfig $config): Connection
@@ -100,23 +100,6 @@ final class RuntimeExecutionState
     }
 
     /**
-     * @param list<Closure():void> $callbacks
-     */
-    private function cleanupDeferred(array $callbacks): ?Throwable
-    {
-        $failure = null;
-        foreach ($callbacks as $cleanup) {
-            try {
-                $cleanup();
-            } catch (Throwable $exception) {
-                $failure ??= $exception;
-            }
-        }
-
-        return $failure;
-    }
-
-    /**
      * @param list<Connection> $connections
      */
     private function cleanupConnections(array $connections, ?Throwable $failure): ?Throwable
@@ -132,6 +115,23 @@ final class RuntimeExecutionState
 
             try {
                 $connection->disconnect();
+            } catch (Throwable $exception) {
+                $failure ??= $exception;
+            }
+        }
+
+        return $failure;
+    }
+
+    /**
+     * @param list<Closure():void> $callbacks
+     */
+    private function cleanupDeferred(array $callbacks): ?Throwable
+    {
+        $failure = null;
+        foreach ($callbacks as $cleanup) {
+            try {
+                $cleanup();
             } catch (Throwable $exception) {
                 $failure ??= $exception;
             }
