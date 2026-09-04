@@ -12,7 +12,7 @@ use Infocyph\Foundation\Database\AuthSchema\AuthSchemaInstaller;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DatabaseConnectionResolver;
 use Infocyph\Foundation\Database\DBLayerFactory;
-use Infocyph\Foundation\Runtime\RuntimeContextTracker;
+use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
 
 it('upgrades an installed Foundation 2.0 auth schema to OAuth 2.1 without disturbing existing auth state', function (): void {
     DB::purge();
@@ -24,7 +24,7 @@ it('upgrades an installed Foundation 2.0 auth schema to OAuth 2.1 without distur
             ],
         ],
     ]);
-    $factory = new DBLayerFactory(new DatabaseConnectionResolver($config), new RuntimeContextTracker());
+    $factory = new DBLayerFactory(new DatabaseConnectionResolver($config), RuntimeStateContainer::execution());
     $connection = $factory->connection();
     $tables = new AuthTables();
     $base = new AuthSchema($tables);

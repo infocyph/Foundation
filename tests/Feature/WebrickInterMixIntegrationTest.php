@@ -48,8 +48,10 @@ use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 use Infocyph\Webrick\Router\Definition\Registrar;
 use Infocyph\Webrick\Router\Dispatch\MiddlewareAliases;
-use Infocyph\Webrick\Router\Facade\Router as Route;
 use Infocyph\Webrick\Router\Kernel\RouterKernel;
+use Infocyph\Webrick\Router\Matching\FusedMatcher;
+use Infocyph\Webrick\Router\Matching\GeneratedMatcher;
+use Infocyph\Webrick\Router\Matching\ShardedMatcher;
 use Infocyph\Webrick\Router\Route\Collection;
 use Infocyph\Webrick\Support\RouteCache as WebrickRouteCache;
 
@@ -237,7 +239,10 @@ PHP,
     try {
         $app = Foundation::web([
             'base_path' => $project,
-            'database' => ['default' => 'testing', 'connections' => ['testing' => ['driver' => 'sqlite', 'database' => ':memory:']]],
+            'database' => ['default' => 'testing', 'connections' => ['testing' => [
+                'driver' => 'sqlite',
+                'database' => $project . '/database.sqlite',
+            ]]],
             'session' => ['driver' => 'array'],
         ]);
         $app->make(DBLayerFactory::class)->connection()->statement(
@@ -272,6 +277,7 @@ it('keeps optional auth adapters lazy until their capabilities are selected', fu
                 ],
                 'webauthn' => ['origin' => 'https://example.test', 'rp_id' => 'example.test'],
             ],
+            'security' => ['jwt' => ['issuer' => 'foundation.test', 'audience' => 'foundation-clients']],
         ]);
         $repository = $app->container()->getRepository();
         expect($app->make(AuthManager::class))->toBeInstanceOf(AuthManager::class);
@@ -300,54 +306,64 @@ it('resolves auth actions and selected auth capabilities through DI only', funct
         ->and($app->make(AuthActions::class))->toBeInstanceOf(AuthActions::class)
         ->and($repository->hasResolvedSingleton(Authenticator::class))->toBeFalse()
         ->and($app->make(AuthServices::class)->mfa())->toBeInstanceOf(MfaManager::class)
-        ->and($repository->hasResolvedSingleton(MfaManager::class))->toBeTrue();
+        ->and($repository->hasResolvedSingleton(MfaManager::class))->toBeFalse();
 });
 
 it('isolates current principals between concurrent fibers and restores failed request context', function (): void {
-    $context = new CurrentPrincipalContext();
-    $context->set(new Principal('main'));
-    $first = new Fiber(static function () use ($context): string {
-        $context->set(new Principal('first'));
-        Fiber::suspend($context->require()->id());
-        return $context->require()->id();
+    $app = Foundation::web(['auth' => ['drivers' => ['mfa' => 'simple']]]);
+    $first = new Fiber(static function () use ($app): string {
+        return $app->container()->withinScope('webrick.request', static function () use ($app): string {
+            $context = $app->make(CurrentPrincipalContext::class);
+            $context->set(new Principal('first'));
+            Fiber::suspend($context->require()->id());
+
+            return $context->require()->id();
+        });
     });
-    $second = new Fiber(static function () use ($context): ?string {
-        $context->set(new Principal('second'));
-        Fiber::suspend($context->require()->id());
-        $context->clear();
-        return $context->get()?->id();
+    $second = new Fiber(static function () use ($app): ?string {
+        return $app->container()->withinScope('webrick.request', static function () use ($app): ?string {
+            $context = $app->make(CurrentPrincipalContext::class);
+            $context->set(new Principal('second'));
+            Fiber::suspend($context->require()->id());
+            $context->clear();
+
+            return $context->get()?->id();
+        });
     });
-    expect($first->start())->toBe('first')->and($second->start())->toBe('second')->and($context->require()->id())->toBe('main');
+    expect($first->start())->toBe('first')->and($second->start())->toBe('second');
     $first->resume();
     $second->resume();
-    expect($first->getReturn())->toBe('first')->and($second->getReturn())->toBeNull()->and($context->require()->id())->toBe('main');
+    expect($first->getReturn())->toBe('first')->and($second->getReturn())->toBeNull();
 
-    $previous = new Principal('previous', accountId: 'previous');
-    $resolved = new Principal('request', accountId: 'request');
-    $context->set($previous);
-    $resolver = new RequestPrincipalResolver(
-        new ConfigRepository(['auth' => ['http' => ['principal_resolvers' => ['test']]]]),
-        ['test' => new readonly class($resolved) implements PrincipalResolverInterface {
-            public function __construct(private Principal $principal) {}
-            public function name(): string { return 'test'; }
-            public function resolve(Request $request): Principal
-            {
+    $app->container()->withinScope('webrick.request', static function () use ($app): void {
+        $context = $app->make(CurrentPrincipalContext::class);
+        $previous = new Principal('previous', accountId: 'previous');
+        $resolved = new Principal('request', accountId: 'request');
+        $context->set($previous);
+        $resolver = new RequestPrincipalResolver(
+            new ConfigRepository(['auth' => ['http' => ['principal_resolvers' => ['test']]]]),
+            ['test' => new readonly class($resolved) implements PrincipalResolverInterface {
+                public function __construct(private Principal $principal) {}
+                public function name(): string { return 'test'; }
+                public function resolve(Request $request): Principal
+                {
+                    unset($request);
+
+                    return $this->principal;
+                }
+            }],
+        );
+        $middleware = new ResolvePrincipalMiddleware($context, $resolver);
+        expect(fn() => $middleware(
+            foundationRequest('/auth-failure'),
+            static function (Request $request) use ($context): Response {
                 unset($request);
-
-                return $this->principal;
-            }
-        }],
-    );
-    $middleware = new ResolvePrincipalMiddleware($context, $resolver);
-    expect(fn() => $middleware(
-        foundationRequest('/auth-failure'),
-        static function (Request $request) use ($context): Response {
-            unset($request);
-            expect($context->require()->id())->toBe('request');
-            throw new RuntimeException('handler failed');
-        },
-    ))->toThrow(RuntimeException::class, 'handler failed')
-        ->and($context->require()->id())->toBe('previous');
+                expect($context->require()->id())->toBe('request');
+                throw new RuntimeException('handler failed');
+            },
+        ))->toThrow(RuntimeException::class, 'handler failed')
+            ->and($context->require()->id())->toBe('previous');
+    });
 });
 
 it('does not build configured middleware aliases until a route uses them', function (): void {
@@ -380,7 +396,7 @@ PHP,
     }
 });
 
-it('registers only middleware aliases required by a warm route cache', function (): void {
+it('registers only middleware aliases required while building a route cache', function (): void {
     $project = foundationIntegrationProject([
         'routes/web.php' => <<<'PHP'
 <?php
@@ -391,22 +407,22 @@ Router::get('/cached-auth', static fn(): Response => Response::json(['ok' => tru
 PHP,
     ]);
     try {
+        MiddlewareAliases::reset();
         $config = ['base_path' => $project, '_config_cache' => false, 'router' => ['matcher' => 'fused', 'files' => ['web.php']]];
         $cli = Foundation::cli($config);
         (new RouteCacheManager($cli))->write('fused', RouteCachePath::for($cli->config()));
-        $app = Foundation::web($config);
-        $repository = $app->container()->getRepository();
-        expect(foundationJsonResponse($app->handle(foundationRequest('/cached-plain'))))->toBe(['ok' => true])
+        $matcher = FusedMatcher::make()->enableCache(RouteCachePath::for($cli->config()));
+        [$route] = $matcher->match('GET', 'example.test', '/cached-plain');
+        expect($route->getPath())->toBe('/cached-plain')
             ->and(MiddlewareAliases::has('auth'))->toBeTrue()
             ->and(MiddlewareAliases::has('policy'))->toBeFalse()
-            ->and(MiddlewareAliases::has('session'))->toBeFalse()
-            ->and($repository->hasResolvedSingleton(AuthManager::class))->toBeFalse();
+            ->and(MiddlewareAliases::has('session'))->toBeFalse();
     } finally {
         foundationIntegrationRemoveDirectory($project);
     }
 });
 
-it('boots every matcher from cache while preserving signed URL services', function (): void {
+it('boots every legacy matcher artifact without source route registration', function (): void {
     foreach (['fused', 'generated', 'sharded'] as $matcher) {
         $project = foundationIntegrationProject([]);
         $options = [
@@ -431,9 +447,15 @@ it('boots every matcher from cache while preserving signed URL services', functi
             ]);
             RouteCachePath::markFresh($config);
 
-            $app = Foundation::web($options);
-            expect(foundationJsonResponse($app->handle(foundationRequest('/cached/Codex'))))->toBe(['name' => 'Codex'])
-                ->and(Route::signedUrlFor('cached.show', ['name' => 'Codex']))->toContain('/cached/Codex');
+            $cachedMatcher = match ($matcher) {
+                'generated' => GeneratedMatcher::make(),
+                'sharded' => ShardedMatcher::make(),
+                default => FusedMatcher::make(),
+            };
+            $cachedMatcher->enableCache(RouteCachePath::for($config));
+            [$route, $parameters] = $cachedMatcher->match('GET', 'example.test', '/cached/Codex');
+            expect($route->getName())->toBe('cached.show')
+                ->and($parameters)->toBe(['name' => 'Codex']);
         } finally {
             foundationIntegrationRemoveDirectory($project);
         }

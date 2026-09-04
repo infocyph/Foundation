@@ -15,49 +15,6 @@ final readonly class FoundationReleaseRuntime
     public function __construct(private ActiveGeneration $active = new ActiveGeneration()) {}
 
     /** @param array<string,mixed> $config */
-    public function web(
-        array $config,
-        string $releaseRoot,
-        ?RuntimeAdapterInterface $adapter = null,
-    ): WebReleaseRuntime {
-        [, $manifest, $directory] = $this->activeManifest($releaseRoot);
-        $web = FoundationReleaseManifest::section($manifest, 'web');
-
-        return WebReleaseRuntime::load(
-            $config,
-            $directory . DIRECTORY_SEPARATOR . $this->relative($web['release_manifest'] ?? null),
-            $adapter,
-            FoundationReleaseManifest::capabilities($web['capabilities'] ?? null, 'web.capabilities'),
-        );
-    }
-
-    /** @param array<string,mixed> $config */
-    public function webPrevalidated(
-        array $config,
-        string $releaseRoot,
-        string $trustedFoundationManifestSha256,
-        ?RuntimeAdapterInterface $adapter = null,
-    ): WebReleaseRuntime {
-        [, $manifest, $directory] = $this->trustedActiveManifest(
-            $releaseRoot,
-            $trustedFoundationManifestSha256,
-        );
-        $web = FoundationReleaseManifest::section($manifest, 'web');
-
-        return WebReleaseRuntime::loadPrevalidated(
-            $config,
-            $directory . DIRECTORY_SEPARATOR . $this->relative($web['release_manifest'] ?? null),
-            FoundationReleaseManifest::digest(
-                $web['runtime_manifest_sha256'] ?? null,
-                64,
-                'web.runtime_manifest_sha256',
-            ),
-            $adapter,
-            FoundationReleaseManifest::capabilities($web['capabilities'] ?? null, 'web.capabilities'),
-        );
-    }
-
-    /** @param array<string,mixed> $config */
     public function nonWeb(
         array $config,
         RuntimeMode $runtime,
@@ -125,6 +82,49 @@ final readonly class FoundationReleaseRuntime
         }
 
         return [$generation, $manifest, $directory, $manifestPath];
+    }
+
+    /** @param array<string,mixed> $config */
+    public function web(
+        array $config,
+        string $releaseRoot,
+        ?RuntimeAdapterInterface $adapter = null,
+    ): WebReleaseRuntime {
+        [, $manifest, $directory] = $this->activeManifest($releaseRoot);
+        $web = FoundationReleaseManifest::section($manifest, 'web');
+
+        return WebReleaseRuntime::load(
+            $config,
+            $directory . DIRECTORY_SEPARATOR . $this->relative($web['release_manifest'] ?? null),
+            $adapter,
+            FoundationReleaseManifest::capabilities($web['capabilities'] ?? null, 'web.capabilities'),
+        );
+    }
+
+    /** @param array<string,mixed> $config */
+    public function webPrevalidated(
+        array $config,
+        string $releaseRoot,
+        string $trustedFoundationManifestSha256,
+        ?RuntimeAdapterInterface $adapter = null,
+    ): WebReleaseRuntime {
+        [, $manifest, $directory] = $this->trustedActiveManifest(
+            $releaseRoot,
+            $trustedFoundationManifestSha256,
+        );
+        $web = FoundationReleaseManifest::section($manifest, 'web');
+
+        return WebReleaseRuntime::loadPrevalidated(
+            $config,
+            $directory . DIRECTORY_SEPARATOR . $this->relative($web['release_manifest'] ?? null),
+            FoundationReleaseManifest::digest(
+                $web['runtime_manifest_sha256'] ?? null,
+                64,
+                'web.runtime_manifest_sha256',
+            ),
+            $adapter,
+            FoundationReleaseManifest::capabilities($web['capabilities'] ?? null, 'web.capabilities'),
+        );
     }
 
     /** @return array{0:string,1:array<string,mixed>,2:string,3:string} */

@@ -66,6 +66,7 @@ final class FoundationGraph
                 ConfigRepository::class,
                 [$context->config, $context->compiledConfig],
             ));
+
             return;
         }
 

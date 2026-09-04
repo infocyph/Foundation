@@ -73,7 +73,13 @@ it('compiles and boots a trusted route-first Webrick release without live router
     ];
 
     try {
-        $release = new WebReleaseCompiler()->compile($config, $intermix, $router, $manifest);
+        $release = new WebReleaseCompiler()->compile(
+            $config,
+            $intermix,
+            $router,
+            $manifest,
+            capabilities: [],
+        );
         $trustedSha256 = $release['release_runtime_manifest_sha256'] ?? null;
 
         expect($trustedSha256)->toBeString()
@@ -100,7 +106,12 @@ it('compiles and boots a trusted route-first Webrick release without live router
             ->and($middlewarePlan->requiresScope())->toBeTrue()
             ->and(RouteCapability::has($middlewarePlan->capabilities, RouteCapability::MIDDLEWARE))->toBeTrue();
 
-        $runtime = WebReleaseRuntime::loadPrevalidated($config, $manifest, $trustedSha256);
+        $runtime = WebReleaseRuntime::loadPrevalidated(
+            $config,
+            $manifest,
+            $trustedSha256,
+            foundationCapabilities: [],
+        );
         expect(UrlGeneratorRegistry::frozen())->toBeTrue()
             ->and(UrlGeneratorRegistry::get()->urlFor('plain.show'))->toBe('/plain');
 
@@ -142,8 +153,10 @@ it('compiles and boots a trusted route-first Webrick release without live router
             $config,
             $manifest,
             str_repeat('0', 64),
+            foundationCapabilities: [],
         ))->toThrow(RuntimeException::class, 'trust identity mismatch');
     } finally {
+        foundationResetWebrickProductionRegistries();
         foundationWebReleaseRemove($project);
     }
 });
@@ -188,7 +201,13 @@ it('compiles maintenance as an opt-in Webrick gate with bounded runtime refresh'
     ];
 
     try {
-        $release = new WebReleaseCompiler()->compile($config, $intermix, $router, $manifest);
+        $release = new WebReleaseCompiler()->compile(
+            $config,
+            $intermix,
+            $router,
+            $manifest,
+            capabilities: [],
+        );
         $trustedSha256 = $release['release_runtime_manifest_sha256'] ?? null;
         expect($trustedSha256)->toBeString()
             ->and($release['intermix']['skipped'] ?? null)->toBe([]);
@@ -205,11 +224,17 @@ it('compiles maintenance as an opt-in Webrick gate with bounded runtime refresh'
         }
 
         expect($plainPlan)->not->toBeNull()
-            ->and($plainPlan->requiresRequest())->toBeTrue()
-            ->and($plainPlan->requiresScope())->toBeTrue()
-            ->and(RouteCapability::has($plainPlan->capabilities, RouteCapability::MIDDLEWARE))->toBeTrue();
+            ->and($plainPlan->requiresRequest())->toBeFalse()
+            ->and($plainPlan->requiresScope())->toBeFalse()
+            ->and(RouteCapability::has($plainPlan->capabilities, RouteCapability::MIDDLEWARE))->toBeFalse()
+            ->and($artifact->hasGlobalMiddleware())->toBeTrue();
 
-        $runtime = WebReleaseRuntime::loadPrevalidated($config, $manifest, $trustedSha256);
+        $runtime = WebReleaseRuntime::loadPrevalidated(
+            $config,
+            $manifest,
+            $trustedSha256,
+            foundationCapabilities: [],
+        );
         $request = Request::fake(
             headers: ['Host' => 'release.test'],
             uri: 'https://release.test/plain',
@@ -223,6 +248,7 @@ it('compiles maintenance as an opt-in Webrick gate with bounded runtime refresh'
         expect($available->getStatusCode())->toBe(200)
             ->and((string) $available->getBody())->toBe('{"plain":true}');
     } finally {
+        foundationResetWebrickProductionRegistries();
         foundationWebReleaseRemove($project);
     }
 });

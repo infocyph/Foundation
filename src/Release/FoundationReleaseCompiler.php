@@ -93,6 +93,22 @@ final readonly class FoundationReleaseCompiler
         return $removed;
     }
 
+    private function activeGenerationOrNull(string $releaseRoot): ?string
+    {
+        try {
+            return $this->active->current($releaseRoot)['generation'];
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function assertGeneration(string $generation): void
+    {
+        if (preg_match('/^[A-Za-z0-9][A-Za-z0-9._-]*$/D', $generation) !== 1) {
+            throw new \InvalidArgumentException('Foundation release generation identifier is invalid.');
+        }
+    }
+
     /**
      * @param array<string,mixed> $config
      * @param array<string,array<int|string,mixed>> $capabilities
@@ -190,6 +206,12 @@ final readonly class FoundationReleaseCompiler
         ];
     }
 
+    /** @param array<string,mixed> $source */
+    private function digestField(array $source, string $field, int $length): string
+    {
+        return FoundationReleaseManifest::digest($source[$field] ?? null, $length, $field);
+    }
+
     /** @return array{0:string,1:string} */
     private function generationPaths(string $releaseRoot, string $generation): array
     {
@@ -203,6 +225,67 @@ final readonly class FoundationReleaseCompiler
         $this->mkdir($stage);
 
         return [$stage, $final];
+    }
+
+    /** @return array<string,int> */
+    private function generationTimes(string $generations): array
+    {
+        $entries = [];
+        foreach (new \DirectoryIterator($generations) as $entry) {
+            if (!$entry->isDir() || $entry->isDot() || str_starts_with($entry->getFilename(), '.staging-')) {
+                continue;
+            }
+            $entries[$entry->getFilename()] = $entry->getMTime();
+        }
+        arsort($entries, SORT_NUMERIC);
+
+        return $entries;
+    }
+
+    private function mkdir(string $directory): void
+    {
+        if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
+            throw new \RuntimeException(sprintf('Unable to create Foundation release directory "%s".', $directory));
+        }
+    }
+
+    private function publishStage(string $stage, string $final, string $generation): void
+    {
+        if (!rename($stage, $final)) {
+            throw new \RuntimeException(sprintf('Unable to publish Foundation release generation "%s".', $generation));
+        }
+    }
+
+    private function removeDirectory(string $directory): void
+    {
+        if (!is_dir($directory)) {
+            return;
+        }
+        $files = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::CHILD_FIRST,
+        );
+        foreach ($files as $file) {
+            /** @var \SplFileInfo $file */
+            $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
+        }
+        rmdir($directory);
+    }
+
+    private function root(string $releaseRoot): string
+    {
+        $releaseRoot = rtrim($releaseRoot, DIRECTORY_SEPARATOR);
+        if ($releaseRoot === '') {
+            throw new \InvalidArgumentException('Foundation release root must not be empty.');
+        }
+
+        return $releaseRoot;
+    }
+
+    /** @param array<string,mixed> $source */
+    private function stringField(array $source, string $field): string
+    {
+        return FoundationReleaseManifest::nonEmptyString($source[$field] ?? null, $field);
     }
 
     /** @param array<string,mixed> $manifest */
@@ -235,88 +318,5 @@ final readonly class FoundationReleaseCompiler
         if (FoundationReleaseManifest::load($stage . '/foundation.php') !== $manifest) {
             throw new \RuntimeException('Foundation release manifest did not round-trip exactly before publication.');
         }
-    }
-
-    private function publishStage(string $stage, string $final, string $generation): void
-    {
-        if (!rename($stage, $final)) {
-            throw new \RuntimeException(sprintf('Unable to publish Foundation release generation "%s".', $generation));
-        }
-    }
-
-    private function activeGenerationOrNull(string $releaseRoot): ?string
-    {
-        try {
-            return $this->active->current($releaseRoot)['generation'];
-        } catch (\Throwable) {
-            return null;
-        }
-    }
-
-    /** @return array<string,int> */
-    private function generationTimes(string $generations): array
-    {
-        $entries = [];
-        foreach (new \DirectoryIterator($generations) as $entry) {
-            if (!$entry->isDir() || $entry->isDot() || str_starts_with($entry->getFilename(), '.staging-')) {
-                continue;
-            }
-            $entries[$entry->getFilename()] = $entry->getMTime();
-        }
-        arsort($entries, SORT_NUMERIC);
-
-        return $entries;
-    }
-
-    /** @param array<string,mixed> $source */
-    private function digestField(array $source, string $field, int $length): string
-    {
-        return FoundationReleaseManifest::digest($source[$field] ?? null, $length, $field);
-    }
-
-    /** @param array<string,mixed> $source */
-    private function stringField(array $source, string $field): string
-    {
-        return FoundationReleaseManifest::nonEmptyString($source[$field] ?? null, $field);
-    }
-
-    private function assertGeneration(string $generation): void
-    {
-        if (preg_match('/^[A-Za-z0-9][A-Za-z0-9._-]*$/D', $generation) !== 1) {
-            throw new \InvalidArgumentException('Foundation release generation identifier is invalid.');
-        }
-    }
-
-    private function mkdir(string $directory): void
-    {
-        if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
-            throw new \RuntimeException(sprintf('Unable to create Foundation release directory "%s".', $directory));
-        }
-    }
-
-    private function removeDirectory(string $directory): void
-    {
-        if (!is_dir($directory)) {
-            return;
-        }
-        $files = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::CHILD_FIRST,
-        );
-        foreach ($files as $file) {
-            /** @var \SplFileInfo $file */
-            $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
-        }
-        rmdir($directory);
-    }
-
-    private function root(string $releaseRoot): string
-    {
-        $releaseRoot = rtrim($releaseRoot, DIRECTORY_SEPARATOR);
-        if ($releaseRoot === '') {
-            throw new \InvalidArgumentException('Foundation release root must not be empty.');
-        }
-
-        return $releaseRoot;
     }
 }

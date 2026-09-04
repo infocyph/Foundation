@@ -36,8 +36,6 @@ use Infocyph\Webrick\Router\Definition\Registrar;
 
 final class Bootstrapper
 {
-    private const array PROVIDER_GROUPS = ['common', 'web', 'cli', 'worker', 'scheduler'];
-
     /** @var list<class-string<ServiceProviderInterface>> */
     private const array OPTIONAL_BUILT_INS = [
         AuthServiceProvider::class,
@@ -65,6 +63,8 @@ final class Bootstrapper
         SessionServiceProvider::class => 'session',
         MessagingServiceProvider::class => 'messaging',
     ];
+
+    private const array PROVIDER_GROUPS = ['common', 'web', 'cli', 'worker', 'scheduler'];
 
     /** @var list<class-string<ServiceProviderInterface>> */
     private const array WEB_BUILT_INS = [
@@ -199,6 +199,17 @@ final class Bootstrapper
         return new $provider();
     }
 
+    /** @param array<string, mixed> $config */
+    private function providerBasePath(array $config): string
+    {
+        $app = is_array($config['app'] ?? null) ? $config['app'] : [];
+        $basePath = $app['base_path'] ?? null;
+
+        return is_string($basePath) && $basePath !== ''
+            ? rtrim($basePath, DIRECTORY_SEPARATOR)
+            : (getcwd() ?: dirname(__DIR__, 2));
+    }
+
     /** @param class-string<ServiceProviderInterface> $provider */
     private function providerDependencyAvailable(string $provider): bool
     {
@@ -234,17 +245,6 @@ final class Bootstrapper
         }
 
         return array_values($providers);
-    }
-
-    /** @param array<string, mixed> $config */
-    private function providerBasePath(array $config): string
-    {
-        $app = is_array($config['app'] ?? null) ? $config['app'] : [];
-        $basePath = $app['base_path'] ?? null;
-
-        return is_string($basePath) && $basePath !== ''
-            ? rtrim($basePath, DIRECTORY_SEPARATOR)
-            : (getcwd() ?: dirname(__DIR__, 2));
     }
 
     /**

@@ -7,6 +7,7 @@ namespace Infocyph\Foundation\Routing;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Filesystem\PathManager;
+use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\Webrick\Constants\MatcherModeEnum;
 use Infocyph\Webrick\Router\Definition\Attribute\AttributeRouteLoader;
@@ -64,6 +65,10 @@ final readonly class RouteCacheManager
 
     public function routes(?string $routes = null): Collection
     {
+        if (!$this->application->runningInWeb()) {
+            return $this->webManager()->routes($routes);
+        }
+
         $config = $this->application->config();
         $collection = new Collection();
         $registrar = new Registrar($collection);
@@ -76,6 +81,10 @@ final readonly class RouteCacheManager
 
     public function write(string $matcher, string $cache, ?string $routes = null): string
     {
+        if (!$this->application->runningInWeb()) {
+            return $this->webManager()->write($matcher, $cache, $routes);
+        }
+
         $config = $this->application->config();
         $middleware = $this->application->make(WebrickMiddlewareFactory::class);
 
@@ -83,7 +92,12 @@ final readonly class RouteCacheManager
             'matcher' => $this->matcher($matcher),
             'cache' => $cache,
             'register' => function (Registrar $registrar) use ($config, $routes): void {
-                $this->loadRoutes($registrar, $config, $this->routeFiles($config, $routes));
+                $this->loadRoutes(
+                    $registrar,
+                    $config,
+                    $this->routeFiles($config, $routes),
+                    registerRequiredAliasesOnly: true,
+                );
             },
             'signKey' => ValueNormalizer::nullableString($config->get('router.signed_urls.key')),
             'signedDefaultTtl' => $this->optionalInt($config->get('router.signed_urls.default_ttl')),
@@ -152,11 +166,17 @@ final readonly class RouteCacheManager
     }
 
     /** @param list<string> $files */
-    private function loadRoutes(Registrar $registrar, ConfigRepository $config, array $files): void
-    {
+    private function loadRoutes(
+        Registrar $registrar,
+        ConfigRepository $config,
+        array $files,
+        bool $registerRequiredAliasesOnly = false,
+    ): void {
         $paths = $this->application->make(PathManager::class);
         $presets = $this->application->make(RoutePresetRegistrar::class);
-        $presets->register();
+        if (!$registerRequiredAliasesOnly) {
+            $presets->register();
+        }
         $this->application->make(OAuthRouteRegistrar::class)->register($registrar);
         $router = $registrar;
 
@@ -172,6 +192,32 @@ final readonly class RouteCacheManager
         }
 
         $this->loadAttributeRoutes($registrar, $config, $paths);
+
+        if ($registerRequiredAliasesOnly) {
+            $this->application->make(RouteMiddlewareRegistrar::class)->register(
+                $this->middlewareRequirements($registrar),
+            );
+        }
+    }
+
+    /** @return list<string> */
+    private function middlewareRequirements(Registrar $registrar): array
+    {
+        $requirements = [];
+        foreach ($registrar->compile()->all() as $route) {
+            foreach ($route->getMiddlewares() as $middleware) {
+                if (!is_string($middleware)) {
+                    continue;
+                }
+
+                $alias = strtolower(trim(explode(':', $middleware, 2)[0]));
+                if ($alias !== '') {
+                    $requirements[$alias] = true;
+                }
+            }
+        }
+
+        return array_keys($requirements);
     }
 
     private function optionalInt(mixed $value): ?int
@@ -216,5 +262,13 @@ final readonly class RouteCacheManager
         }
 
         return $normalized;
+    }
+
+    private function webManager(): self
+    {
+        $config = $this->application->config()->all();
+        $config['_config_cache'] = false;
+
+        return new self(Foundation::web($config));
     }
 }

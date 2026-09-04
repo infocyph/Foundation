@@ -8,6 +8,7 @@ use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\Pathwise\Results\DownloadPreparation;
 use Infocyph\Pathwise\StreamHandler\DownloadProcessor;
+use Infocyph\Pathwise\Utils\FlysystemHelper;
 use Infocyph\Pathwise\Utils\PathHelper;
 use Infocyph\Webrick\Constants\HttpMethodEnum;
 use Infocyph\Webrick\Request\Request;
@@ -179,18 +180,6 @@ final readonly class FilesystemResponseFactory
         return HttpMethodEnum::normalize($request->getMethod()) === HttpMethodEnum::HEAD->value;
     }
 
-    private function localPath(string $path, ?string $disk): string
-    {
-        if ($path !== '' && PathHelper::hasScheme($path)) {
-            throw new \InvalidArgumentException('X-Sendfile requires a local filesystem path.');
-        }
-        if ($path !== '' && PathHelper::isAbsolute($path)) {
-            return PathHelper::normalize($path);
-        }
-
-        return $this->storage->localPath($path, $disk);
-    }
-
     private function localBodyPath(string $path, ?string $disk): ?string
     {
         if ($path !== '' && PathHelper::hasScheme($path)) {
@@ -202,6 +191,18 @@ final readonly class FilesystemResponseFactory
         } catch (\InvalidArgumentException) {
             return null;
         }
+    }
+
+    private function localPath(string $path, ?string $disk): string
+    {
+        if ($path !== '' && PathHelper::hasScheme($path)) {
+            throw new \InvalidArgumentException('X-Sendfile requires a local filesystem path.');
+        }
+        if ($path !== '' && PathHelper::isAbsolute($path)) {
+            return PathHelper::normalize($path);
+        }
+
+        return $this->storage->localPath($path, $disk);
     }
 
     /**
@@ -385,7 +386,7 @@ final readonly class FilesystemResponseFactory
         }
 
         $response = Response::stream(
-            producer: fn (): iterable => $this->streamChunks($resolvedPath, $manifest),
+            producer: fn(): iterable => $this->streamChunks($resolvedPath, $manifest),
             status: $manifest->status,
         );
 
@@ -396,10 +397,28 @@ final readonly class FilesystemResponseFactory
         return $response;
     }
 
+    /** @param array<string, string|list<string>> $headers */
+    private function shortCircuitResponse(Request $request, DownloadPreparation $manifest, array $headers): ?Response
+    {
+        $validator = new ConditionalValidator($manifest->etag, $manifest->lastModified);
+        $outcome = $validator->evaluate($request);
+        if ($outcome->state === Outcome::PASS) {
+            return null;
+        }
+
+        $status = !$this->isGetOrHead($request) && $outcome->http === 304 ? 412 : $outcome->http;
+        $response = Response::empty($status);
+        foreach ($this->mergeHeaders($outcome->headers, $headers) as $name => $value) {
+            $response = $response->withHeader($name, $value);
+        }
+
+        return $response;
+    }
+
     /** @return iterable<string> */
     private function streamChunks(string $resolvedPath, DownloadPreparation $manifest): iterable
     {
-        $stream = fopen($resolvedPath, 'rb');
+        $stream = FlysystemHelper::readStream($resolvedPath);
         if (!is_resource($stream)) {
             throw new \RuntimeException(sprintf('Unable to open download stream "%s".', $resolvedPath));
         }
@@ -420,23 +439,5 @@ final readonly class FilesystemResponseFactory
         } finally {
             fclose($stream);
         }
-    }
-
-    /** @param array<string, string|list<string>> $headers */
-    private function shortCircuitResponse(Request $request, DownloadPreparation $manifest, array $headers): ?Response
-    {
-        $validator = new ConditionalValidator($manifest->etag, $manifest->lastModified);
-        $outcome = $validator->evaluate($request);
-        if ($outcome->state === Outcome::PASS) {
-            return null;
-        }
-
-        $status = !$this->isGetOrHead($request) && $outcome->http === 304 ? 412 : $outcome->http;
-        $response = Response::empty($status);
-        foreach ($this->mergeHeaders($outcome->headers, $headers) as $name => $value) {
-            $response = $response->withHeader($name, $value);
-        }
-
-        return $response;
     }
 }

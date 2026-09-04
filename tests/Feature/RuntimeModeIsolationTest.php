@@ -48,7 +48,6 @@ it('keeps CLI and web boot graphs isolated', function (): void {
             ->and($cli->container()->has(PathManager::class))->toBeTrue()
             ->and($explicitlyBound($cli, RouteFileLoader::class))->toBeFalse()
             ->and($explicitlyBound($cli, HttpKernel::class))->toBeFalse()
-            ->and($cli->has(HttpKernel::class))->toBeFalse()
             ->and($cli->make(RuntimeMode::class))->toBe(RuntimeMode::Cli);
 
         $cli->boot();

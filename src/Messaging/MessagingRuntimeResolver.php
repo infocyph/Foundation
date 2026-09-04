@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Messaging;
 
+use Infocyph\InterMix\DI\Container;
+use Infocyph\InterMix\DI\ProductionContainer;
 use Infocyph\Omnibus\Handler\HandlerMiddleware;
 use Psr\Container\ContainerInterface;
 
@@ -25,7 +27,11 @@ final readonly class MessagingRuntimeResolver
             throw new \InvalidArgumentException('Messaging definitions must be callables or service class names.');
         }
 
-        $service = $this->container->get($definition);
+        $service = match (true) {
+            $this->container instanceof Container,
+            $this->container instanceof ProductionContainer => $this->container->make($definition, false),
+            default => $this->container->get($definition),
+        };
         if (!is_callable($service)) {
             throw new \InvalidArgumentException(sprintf('Messaging service "%s" is not callable.', $definition));
         }
@@ -44,6 +50,7 @@ final readonly class MessagingRuntimeResolver
         foreach ($configured as $definition) {
             if ($definition instanceof HandlerMiddleware) {
                 $middleware[] = $definition;
+
                 continue;
             }
             if (!is_string($definition) || $definition === '') {
@@ -88,6 +95,7 @@ final readonly class MessagingRuntimeResolver
         foreach ($configured as $definition) {
             if ($definition instanceof JobMiddleware) {
                 $middleware[] = $definition;
+
                 continue;
             }
             if (!is_string($definition) || $definition === '') {

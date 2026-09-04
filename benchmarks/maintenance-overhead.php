@@ -15,9 +15,9 @@ require dirname(__DIR__) . '/vendor/autoload.php';
 
 final class FoundationMaintenanceBenchmarkAdapter implements RuntimeAdapterInterface
 {
-    public int $requestMaterializations = 0;
-
     private readonly RuntimeCapabilities $runtimeCapabilities;
+
+    public int $requestMaterializations = 0;
 
     public function __construct()
     {
@@ -61,7 +61,11 @@ final class FoundationMaintenanceBenchmarkAdapter implements RuntimeAdapterInter
     {
         unset($context);
         if ($response->getStatusCode() !== 200 || $response->getStringBody() !== 'ok') {
-            throw new LogicException('Maintenance benchmark produced an invalid response.');
+            throw new LogicException(sprintf(
+                'Maintenance benchmark produced status %d with body %s.',
+                $response->getStatusCode(),
+                json_encode($response->getStringBody(), JSON_THROW_ON_ERROR),
+            ));
         }
     }
 }
@@ -233,7 +237,8 @@ foreach (array_slice($argv, 1) as $argument) {
 
 if (is_string($mode) && $mode !== '') {
     fwrite(STDOUT, json_encode(foundationMaintenanceBenchmarkMode($mode), JSON_THROW_ON_ERROR) . "\n");
-    exit(0);
+
+    return;
 }
 
 $disabled = foundationMaintenanceBenchmarkChild('disabled');

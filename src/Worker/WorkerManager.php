@@ -87,7 +87,7 @@ final readonly class WorkerManager
                 return $this->runProvider($name, $providers[$name], $stopRequested, $heartbeat);
             }
 
-            return $this->runMessaging($name, $stopRequested, $heartbeat);
+            return $this->runMessaging($name, $messaging[$name], $stopRequested, $heartbeat);
         } catch (WorkerRestartRequested) {
             return 0;
         } finally {
@@ -160,6 +160,17 @@ final readonly class WorkerManager
                     'Pooled workers must fork before resolving process-bound service "%s".',
                     $service,
                 ));
+            }
+        }
+
+        if ($container->isResolved(\Infocyph\Foundation\Runtime\RuntimeExecutionState::class)) {
+            $state = $container->get(\Infocyph\Foundation\Runtime\RuntimeExecutionState::class);
+            if ($state instanceof \Infocyph\Foundation\Runtime\RuntimeExecutionState
+                && $state->hasDatabaseConnections()
+            ) {
+                throw new \LogicException(
+                    'Pooled workers must fork before opening DBLayer connections in the parent process.',
+                );
             }
         }
 
@@ -283,13 +294,23 @@ final readonly class WorkerManager
     }
 
     /**
+     * @param array<string, mixed> $definition
      * @param callable():bool $stopRequested
      * @param callable():void $processHeartbeat
      */
-    private function runMessaging(string $name, callable $stopRequested, callable $processHeartbeat): int
-    {
+    private function runMessaging(
+        string $name,
+        array $definition,
+        callable $stopRequested,
+        callable $processHeartbeat,
+    ): int {
         if (!class_exists(Worker::class) || !interface_exists(WorkerLifecycle::class)) {
             throw new \LogicException('Messaging workers require infocyph/omnibus ^2.5.');
+        }
+
+        $configuredPool = ValueNormalizer::associativeArray($definition['pool'] ?? []);
+        if (ValueNormalizer::bool($configuredPool['enabled'] ?? null, false)) {
+            $this->assertPoolParentClean();
         }
 
         /** @var OmnibusWorkerFactory $factory */
@@ -338,7 +359,6 @@ final readonly class WorkerManager
             throw new \LogicException('Pooled workers require a receiving transport; sync cannot receive messages.');
         }
 
-        $this->assertPoolParentClean();
         $config = $this->application->config()->all();
         $this->assertForkSafeConfig($config);
 

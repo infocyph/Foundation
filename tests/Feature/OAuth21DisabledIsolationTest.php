@@ -52,19 +52,21 @@ it('keeps OAuth fully inert when disabled', function (): void {
             ->and($app->has(BearerTokenPrincipalResolver::class))->toBeTrue()
             ->and($app->has(RequestPrincipalResolver::class))->toBeTrue();
 
-        $auth = new AuthServices($app);
+        $auth = $app->make(AuthServices::class);
         expect(fn() => $auth->oauth())
             ->toThrow(LogicException::class, 'OAuth is disabled. Enable auth.oauth.enabled before requesting OAuth services.');
 
-        $installer = $app->make(AuthSchemaInstaller::class);
-        $installer->install();
-        $tables = $app->make(AuthTables::class);
-        $schema = new SchemaManager($app->make(DBLayerFactory::class)->connection());
+        $app->container()->withinScope('webrick.request', static function () use ($app): void {
+            $installer = $app->make(AuthSchemaInstaller::class);
+            $installer->install();
+            $tables = $app->make(AuthTables::class);
+            $schema = new SchemaManager($app->make(DBLayerFactory::class)->connection());
 
-        expect($installer->readiness()['installed'])->toBeTrue();
-        foreach ($tables->oauth() as $oauthTable) {
-            expect($schema->hasTable($oauthTable))->toBeFalse();
-        }
+            expect($installer->readiness()['installed'])->toBeTrue();
+            foreach ($tables->oauth() as $oauthTable) {
+                expect($schema->hasTable($oauthTable))->toBeFalse();
+            }
+        });
     } finally {
         DB::purge();
     }

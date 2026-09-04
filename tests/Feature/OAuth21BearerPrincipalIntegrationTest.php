@@ -20,6 +20,7 @@ use Infocyph\Foundation\Http\Middleware\PermissionMiddleware;
 use Infocyph\Foundation\Http\Resolver\OAuthBearerTokenPrincipalResolver;
 use Infocyph\Foundation\Http\Response\AuthExceptionMapper;
 use Infocyph\Foundation\Http\Response\AuthResponseFactory;
+use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
 use Infocyph\Foundation\Tests\Fixtures\OAuth21FlowFixture;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
@@ -87,7 +88,7 @@ it('resolves account and service OAuth bearer tokens into the existing principal
         };
         $responses = new AuthResponseFactory();
         $exceptions = new AuthExceptionMapper($responses);
-        $context = new CurrentPrincipalContext();
+        $context = new CurrentPrincipalContext(RuntimeStateContainer::principal());
         $auth = new AuthMiddleware($context, $responses);
         $permission = new PermissionMiddleware($context, $authorizer, $exceptions, $responses, ['resource.read']);
         $next = static function (Request $request): Response {

@@ -23,6 +23,8 @@ final readonly class WebReleaseConfiguration
         'throttle' => 'throttle',
     ];
 
+    private const array MAINTENANCE_RESOLVER = [RouteMiddlewareRuntimeResolver::class, 'maintenance'];
+
     public function __construct(private WebGraphComposition $graph) {}
 
     public function assertArtifactSafeMiddleware(): void
@@ -83,20 +85,8 @@ final readonly class WebReleaseConfiguration
     public function preGlobal(): array
     {
         return $this->maintenanceMiddlewareEnabled()
-            ? [new RuntimeMiddlewareDescriptor([RouteMiddlewareRuntimeResolver::class, 'maintenance'])]
+            ? [new RuntimeMiddlewareDescriptor(self::MAINTENANCE_RESOLVER)]
             : [];
-    }
-
-    public function resolvePath(string $path): string
-    {
-        if ($path === '') {
-            throw new \InvalidArgumentException('Web release artifact path must not be empty.');
-        }
-        if (preg_match('/^(?:[A-Z]:[\\\\\\/]|\\\\\\\\|\/)/i', $path) === 1) {
-            return $path;
-        }
-
-        return $this->graph->application->basePath($path);
     }
 
     /** @return array<string, mixed> */
@@ -112,9 +102,16 @@ final readonly class WebReleaseConfiguration
         ];
     }
 
-    public function signKey(): ?string
+    public function resolvePath(string $path): string
     {
-        return ValueNormalizer::nullableString($this->config()->get('router.signed_urls.key'));
+        if ($path === '') {
+            throw new \InvalidArgumentException('Web release artifact path must not be empty.');
+        }
+        if (preg_match('/^(?:[A-Z]:[\\\\\\/]|\\\\\\\\|\/)/i', $path) === 1) {
+            return $path;
+        }
+
+        return $this->graph->application->basePath($path);
     }
 
     public function signedDefaultTtl(): ?int
@@ -129,6 +126,11 @@ final readonly class WebReleaseConfiguration
         $options = $this->signedUrlOptions();
 
         return $options !== null ? SignedUrlConfig::fromArray($options) : null;
+    }
+
+    public function signKey(): ?string
+    {
+        return ValueNormalizer::nullableString($this->config()->get('router.signed_urls.key'));
     }
 
     public function urlBaseUri(): string

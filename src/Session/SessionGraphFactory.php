@@ -19,17 +19,9 @@ final class SessionGraphFactory
         return $session;
     }
 
-    public static function manager(
-        SessionConfig $config,
-        SessionStoreFactory $stores,
-        ContainerInterface $container,
-    ): SessionManager {
-        return new SessionManager(
-            $config,
-            static fn(): SessionStoreInterface => $stores->make(),
-            static fn() => null,
-            $container,
-        );
+    public static function current(SessionManager $sessions): BrowserSession
+    {
+        return $sessions->current();
     }
 
     public static function lockedManager(
@@ -46,8 +38,16 @@ final class SessionGraphFactory
         );
     }
 
-    public static function current(SessionManager $sessions): BrowserSession
-    {
-        return $sessions->current();
+    public static function manager(
+        SessionConfig $config,
+        SessionStoreFactory $stores,
+        ContainerInterface $container,
+    ): SessionManager {
+        return new SessionManager(
+            $config,
+            static fn(): SessionStoreInterface => $stores->make(),
+            static fn() => null,
+            $container,
+        );
     }
 }

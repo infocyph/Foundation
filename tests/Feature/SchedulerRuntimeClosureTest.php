@@ -211,8 +211,10 @@ it('executes due work once and schedule:test runs a named entry regardless of du
         ]]);
         $dispatcher = foundationSchedulerDispatcher($project);
 
-        expect($dispatcher->run(['infbyte', 'schedule:run', '--json'], new FoundationSchedulerRuntimeIO()))
-            ->toBe(ExitCode::SUCCESS)
+        $io = new FoundationSchedulerRuntimeIO();
+        $exit = $dispatcher->run(['infbyte', 'schedule:run', '--json'], $io);
+        expect($io->errors)->toBe([])
+            ->and($exit)->toBe(ExitCode::SUCCESS)
             ->and(foundationSchedulerLines($marker))->toBe(['once']);
 
         foundationSchedulerRoutes($project, [[
@@ -356,10 +358,13 @@ it('interrupts schedule work on schedule or runtime control changes and cleans t
             $config = foundationSchedulerConfig($project);
             $dispatcher = CommandDispatcher::project($config, displayName: 'Foundation Scheduler Test');
 
-            expect($dispatcher->run(
+            $io = new FoundationSchedulerRuntimeIO();
+            $exit = $dispatcher->run(
                 ['infbyte', 'schedule:work', '--sleep=1', '--max-iterations=2'],
-                new FoundationSchedulerRuntimeIO(),
-            ))->toBe(ExitCode::SUCCESS)
+                $io,
+            );
+            expect($io->errors)->toBe([])
+                ->and($exit)->toBe(ExitCode::SUCCESS)
                 ->and(foundationSchedulerLines($marker))->toBe([$scope]);
 
             $app = Foundation::scheduler($config);

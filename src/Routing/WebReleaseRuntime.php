@@ -64,6 +64,25 @@ final readonly class WebReleaseRuntime
         return self::boot($config, $releaseManifestPath, $adapter, true, $foundationCapabilities);
     }
 
+    private static function assertTrustedManifest(string $releaseManifestPath, string $trustedSha256): void
+    {
+        $trustedSha256 = strtolower(trim($trustedSha256));
+        if (preg_match('/^[a-f0-9]{64}$/D', $trustedSha256) !== 1) {
+            throw new \InvalidArgumentException('Trusted Foundation web release manifest SHA-256 is invalid.');
+        }
+
+        $runtimePath = WebrickReleaseCompiler::runtimeManifestPath($releaseManifestPath);
+        $selectedPath = is_file($runtimePath) ? $runtimePath : $releaseManifestPath;
+        if (!is_file($selectedPath)) {
+            throw new \RuntimeException('Foundation web release manifest is missing.');
+        }
+
+        $actualSha256 = hash_file('sha256', $selectedPath);
+        if (!is_string($actualSha256) || !hash_equals($trustedSha256, $actualSha256)) {
+            throw new \RuntimeException('Foundation web release manifest trust identity mismatch.');
+        }
+    }
+
     /**
      * @param array<string, mixed> $config
      * @param array<int|string, mixed>|null $foundationCapabilities
@@ -177,25 +196,6 @@ final readonly class WebReleaseRuntime
         $server = new RuntimeServer($kernel, $runtimeAdapter);
 
         return new self($container, $kernel, $server, $capabilities);
-    }
-
-    private static function assertTrustedManifest(string $releaseManifestPath, string $trustedSha256): void
-    {
-        $trustedSha256 = strtolower(trim($trustedSha256));
-        if (preg_match('/^[a-f0-9]{64}$/D', $trustedSha256) !== 1) {
-            throw new \InvalidArgumentException('Trusted Foundation web release manifest SHA-256 is invalid.');
-        }
-
-        $runtimePath = WebrickReleaseCompiler::runtimeManifestPath($releaseManifestPath);
-        $selectedPath = is_file($runtimePath) ? $runtimePath : $releaseManifestPath;
-        if (!is_file($selectedPath)) {
-            throw new \RuntimeException('Foundation web release manifest is missing.');
-        }
-
-        $actualSha256 = hash_file('sha256', $selectedPath);
-        if (!is_string($actualSha256) || !hash_equals($trustedSha256, $actualSha256)) {
-            throw new \RuntimeException('Foundation web release manifest trust identity mismatch.');
-        }
     }
 
     /** @param array<array-key, mixed> $source */

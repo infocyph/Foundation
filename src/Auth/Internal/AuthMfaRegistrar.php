@@ -37,6 +37,7 @@ final readonly class AuthMfaRegistrar extends AbstractAuthRegistrar
             $this->requirePackage(TOTP::class, 'infocyph/otp', 'otp');
             $this->registerOtpSupport();
             $this->registerOtpDriver();
+
             return;
         }
 

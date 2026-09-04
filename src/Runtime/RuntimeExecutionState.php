@@ -16,29 +16,17 @@ use Infocyph\DBLayer\Connection\ConnectionConfig;
  */
 final class RuntimeExecutionState
 {
+    private bool $cleaned = false;
+
     /** @var array<string, Connection> */
     private array $connections = [];
 
     /** @var array<int, Connection> */
     private array $freshConnections = [];
 
-    private bool $cleaned = false;
-
-    public function connection(string $name, ConnectionConfig $config): Connection
+    public function __destruct()
     {
-        $this->assertOpen();
-
-        return $this->connections[$name] ??= new Connection($config, $name);
-    }
-
-    public function freshConnection(string $name, ConnectionConfig $config): Connection
-    {
-        $this->assertOpen();
-
-        $connection = new Connection($config, $name);
-        $this->freshConnections[spl_object_id($connection)] = $connection;
-
-        return $connection;
+        $this->cleanup(false);
     }
 
     public function cleanup(bool $throw = true): void
@@ -77,9 +65,26 @@ final class RuntimeExecutionState
         }
     }
 
-    public function __destruct()
+    public function connection(string $name, ConnectionConfig $config): Connection
     {
-        $this->cleanup(false);
+        $this->assertOpen();
+
+        return $this->connections[$name] ??= new Connection($config, $name);
+    }
+
+    public function freshConnection(string $name, ConnectionConfig $config): Connection
+    {
+        $this->assertOpen();
+
+        $connection = new Connection($config, $name);
+        $this->freshConnections[spl_object_id($connection)] = $connection;
+
+        return $connection;
+    }
+
+    public function hasDatabaseConnections(): bool
+    {
+        return $this->connections !== [] || $this->freshConnections !== [];
     }
 
     private function assertOpen(): void

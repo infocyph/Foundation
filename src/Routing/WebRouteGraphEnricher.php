@@ -26,10 +26,10 @@ final class WebRouteGraphEnricher
             $this->contributePlan($builder, $plan);
         }
         foreach ($routes->preGlobal as $middleware) {
-            $this->contributeResolver($builder, $middleware);
+            $this->contributeResolver($builder, $middleware, ['request' => null, 'next' => null]);
         }
         foreach ($routes->postGlobal as $middleware) {
-            $this->contributeResolver($builder, $middleware);
+            $this->contributeResolver($builder, $middleware, ['request' => null, 'next' => null]);
         }
     }
 
@@ -39,33 +39,62 @@ final class WebRouteGraphEnricher
             $this->contributePlan($builder, $artifact->planForIndex($route->getIndex()));
         }
         foreach ($artifact->preGlobal() as $middleware) {
-            $this->contributeResolver($builder, $middleware);
+            $this->contributeResolver($builder, $middleware, ['request' => null, 'next' => null]);
         }
         foreach ($artifact->postGlobal() as $middleware) {
-            $this->contributeResolver($builder, $middleware);
+            $this->contributeResolver($builder, $middleware, ['request' => null, 'next' => null]);
         }
+    }
+
+    /**
+     * @param class-string $class
+     * @param array<int|string, mixed> $runtimeArguments
+     */
+    private function contributeMethod(
+        ContainerBuilder $builder,
+        string $class,
+        string $method,
+        array $runtimeArguments,
+    ): void {
+        $key = $class . '::' . $method;
+        if (isset($this->registeredMethods[$key])) {
+            return;
+        }
+        $this->registeredMethods[$key] = true;
+
+        $reflection = new ReflectionMethod($class, $method);
+        if (!$reflection->isStatic() && !$builder->definitions()->has($class)) {
+            $builder->transient($class);
+        }
+
+        $builder->registration()->registerMethod($class, $method, $runtimeArguments);
     }
 
     private function contributePlan(ContainerBuilder $builder, ExecutionPlan $plan): void
     {
-        $this->contributeResolver($builder, $plan->resolverSpec());
+        $runtimeArguments = array_fill_keys($plan->routeArguments, null);
+        if ($plan->requiresRequest()) {
+            $runtimeArguments['request'] = null;
+        }
+        $this->contributeResolver($builder, $plan->resolverSpec(), $runtimeArguments);
 
         foreach ($plan->middleware as $middleware) {
-            $this->contributeResolver($builder, $middleware);
+            $this->contributeResolver($builder, $middleware, ['request' => null, 'next' => null]);
         }
     }
 
-    private function contributeResolver(ContainerBuilder $builder, mixed $resolver): void
+    /** @param array<int|string, mixed> $runtimeArguments */
+    private function contributeResolver(ContainerBuilder $builder, mixed $resolver, array $runtimeArguments = []): void
     {
         if ($resolver instanceof RuntimeMiddlewareDescriptor) {
-            $this->contributeResolver($builder, $resolver->resolverSpec());
+            $this->contributeResolver($builder, $resolver->resolverSpec(), $resolver->parameters);
 
             return;
         }
 
         if (is_string($resolver)) {
             if (class_exists($resolver) && method_exists($resolver, '__invoke')) {
-                $this->contributeMethod($builder, $resolver, '__invoke');
+                $this->contributeMethod($builder, $resolver, '__invoke', $runtimeArguments);
             }
 
             return;
@@ -82,23 +111,6 @@ final class WebRouteGraphEnricher
             return;
         }
 
-        $this->contributeMethod($builder, $resolver[0], $resolver[1]);
-    }
-
-    /** @param class-string $class */
-    private function contributeMethod(ContainerBuilder $builder, string $class, string $method): void
-    {
-        $key = $class . '::' . $method;
-        if (isset($this->registeredMethods[$key])) {
-            return;
-        }
-        $this->registeredMethods[$key] = true;
-
-        $reflection = new ReflectionMethod($class, $method);
-        if (!$reflection->isStatic() && !$builder->definitions()->has($class)) {
-            $builder->transient($class);
-        }
-
-        $builder->registration()->registerMethod($class, $method);
+        $this->contributeMethod($builder, $resolver[0], $resolver[1], $runtimeArguments);
     }
 }

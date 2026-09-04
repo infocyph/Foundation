@@ -223,7 +223,7 @@ final readonly class ContainerCacheManager
         $compiled = $container['compiled'] ?? null;
         if (!is_string($path)
             || !is_string($fingerprint)
-            || preg_match('/^[a-f0-9]{64}$/D', $fingerprint) !== 1
+            || preg_match('/^[a-f0-9]{32}$/D', $fingerprint) !== 1
             || !is_int($compiled)
             || $compiled < 0
         ) {

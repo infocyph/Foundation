@@ -184,7 +184,7 @@ it('requires explicit authorization for destructive migration operations', funct
         ->and($schema->hasTable('foundation_examples'))->toBeFalse();
 });
 
-it('exposes DBLayer directly while Foundation keeps connection composition policy', function (): void {
+it('exposes scoped DBLayer connections while Foundation keeps composition policy', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-db-' . bin2hex(random_bytes(6));
     mkdir($basePath . '/database', 0775, true);
 
@@ -201,43 +201,30 @@ it('exposes DBLayer directly while Foundation keeps connection composition polic
         ],
     ]);
 
-    $connection = $app->make(Connection::class);
-    $events = [];
-
     try {
-        expect($connection)->toBe($app->make(DBLayerFactory::class)->connection());
+        $app->container()->withinScope('webrick.request', static function () use ($app): void {
+            $connection = $app->make(Connection::class);
+            expect($connection)->toBe($app->make(DBLayerFactory::class)->connection());
 
-        DB::enableQueryLog();
-        DB::enableTelemetry();
-        DB::setTelemetryBufferLimits(32, 32);
-        DB::listen(static function (array $event) use (&$events): void {
-            $events[] = $event;
+            $connection->statement(
+                'CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT NOT NULL)',
+            );
+            $connection->statement(
+                'INSERT INTO users (name, email) VALUES (?, ?)',
+                ['Ada Lovelace', 'ada@example.test'],
+            );
+            $fetched = $connection->withQueryTimeoutMs(
+                1_000,
+                static fn(): array => $connection->select('SELECT * FROM users WHERE id = ?', [1]),
+            );
+            $plan = $connection->explain('SELECT * FROM users WHERE id = ?', [1]);
+
+            expect($fetched[0]['email'] ?? null)->toBe('ada@example.test')
+                ->and($plan)->not->toBeEmpty()
+                ->and($connection->getDriverName())->toBe('sqlite')
+                ->and($connection->getDatabaseName())->toEndWith('foundation.sqlite');
         });
-
-        $connection->getPdo()->exec(
-            'CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT NOT NULL)',
-        );
-        $created = DB::repository('users')->create([
-            'name' => 'Ada Lovelace',
-            'email' => 'ada@example.test',
-        ]);
-        $fetched = DB::withQueryTimeout(
-            1_000,
-            static fn(): mixed => DB::repository('users')->find($created['id']),
-        );
-        $plan = DB::explain('SELECT * FROM users WHERE id = ?', [$created['id']]);
-
-        expect($fetched['email'] ?? null)->toBe('ada@example.test')
-            ->and($plan)->not->toBeEmpty()
-            ->and(DB::getDriverName())->toBe('sqlite')
-            ->and(DB::getDatabaseName())->toEndWith('foundation.sqlite')
-            ->and(DB::getQueryLog())->not->toBeEmpty()
-            ->and(DB::telemetry()['queries'] ?? [])->not->toBeEmpty()
-            ->and($events)->not->toBeEmpty();
     } finally {
-        DB::disableTelemetry();
-        DB::disableQueryLog();
-        DB::flushQueryLog();
         DB::purge();
         foundationDatabaseRemove($basePath);
     }

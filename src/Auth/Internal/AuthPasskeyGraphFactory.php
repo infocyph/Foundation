@@ -18,18 +18,18 @@ use Infocyph\Foundation\Auth\Passkey\PasskeyServiceInterface;
 
 final class AuthPasskeyGraphFactory
 {
-    public static function runtime(
-        WebAuthnConfigResolver $config,
-        WebAuthnAttestationPolicyInterface $attestation,
-    ): WebAuthnRuntime {
-        return new WebAuthnRuntime($config->resolve(), $attestation);
-    }
-
     public static function options(
         WebAuthnConfigResolver $config,
         WebAuthnRuntime $runtime,
     ): WebAuthnPublicKeyOptionsFactory {
         return new WebAuthnPublicKeyOptionsFactory($config->resolve(), $runtime);
+    }
+
+    public static function runtime(
+        WebAuthnConfigResolver $config,
+        WebAuthnAttestationPolicyInterface $attestation,
+    ): WebAuthnRuntime {
+        return new WebAuthnRuntime($config->resolve(), $attestation);
     }
 
     public static function service(

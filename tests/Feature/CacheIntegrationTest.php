@@ -171,8 +171,8 @@ it('keeps bounded process-local memoizers warm without clearing the shared cache
     ]);
 
     $cache = $app->make(CacheInterface::class);
-    $memoizer = $app->make(Memoizer::class);
-    $once = $app->make(OnceMemoizer::class);
+    $memoizer = Memoizer::instance();
+    $once = OnceMemoizer::instance();
     $memoizer->flush();
     $once->flush();
 

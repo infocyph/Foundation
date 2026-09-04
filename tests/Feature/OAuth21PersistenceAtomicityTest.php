@@ -23,7 +23,7 @@ use Infocyph\Foundation\Database\AuthSchema\AuthOAuthRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DatabaseConnectionResolver;
 use Infocyph\Foundation\Database\DBLayerFactory;
-use Infocyph\Foundation\Runtime\RuntimeContextTracker;
+use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
 
 it('regrants revoked consent and rolls back partial client registration atomically', function (): void {
     DB::purge();
@@ -33,7 +33,7 @@ it('regrants revoked consent and rolls back partial client registration atomical
             'connections' => ['oauth' => ['driver' => 'sqlite', 'database' => ':memory:']],
         ],
     ]);
-    $factory = new DBLayerFactory(new DatabaseConnectionResolver($config), new RuntimeContextTracker());
+    $factory = new DBLayerFactory(new DatabaseConnectionResolver($config), RuntimeStateContainer::execution());
     $tables = new AuthTables();
     $runner = new MigrationRunner($factory->connection(), [new AuthOAuthRevisionSchema($tables)]);
     $clients = new DBLayerOAuthClientStore($factory, $tables);

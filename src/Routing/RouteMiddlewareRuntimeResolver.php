@@ -20,6 +20,7 @@ use Infocyph\Foundation\Http\Response\AuthExceptionMapper;
 use Infocyph\Foundation\Http\Response\AuthResponseFactory;
 use Infocyph\Foundation\Operations\MaintenanceRuntimeState;
 use Infocyph\Webrick\Middleware\MaintenanceModeMiddleware;
+use Infocyph\Webrick\Middleware\Throttle\AtomicCounterInterface;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 
@@ -32,26 +33,58 @@ use Infocyph\Webrick\Response\Response;
  */
 final class RouteMiddlewareRuntimeResolver
 {
-    private function __construct() {}
-
-    public static function role(string ...$roles): Closure
+    public static function maintenance(): Closure
     {
-        $roles = array_values($roles);
+        return static fn(Request $request, Closure $next, MaintenanceRuntimeState $state): Response => (new MaintenanceModeMiddleware(
+            retryAfter: $state->retryAfter(),
+            state: $state,
+        ))($request, $next);
+    }
 
-        return static fn (
+    public static function oauthAudience(string ...$audiences): Closure
+    {
+        $audiences = array_values($audiences);
+
+        return static fn(
             Request $request,
             Closure $next,
             CurrentPrincipalContext $principals,
-            RoleManager $roleManager,
-            AuthResponseFactory $responses,
-        ): Response => (new RoleMiddleware($principals, $roleManager, $responses, $roles))($request, $next);
+        ): Response => (new OAuthAudienceMiddleware($principals, $audiences))($request, $next);
+    }
+
+    public static function oauthScope(string ...$scopes): Closure
+    {
+        $scopes = array_values($scopes);
+
+        return static fn(
+            Request $request,
+            Closure $next,
+            CurrentPrincipalContext $principals,
+        ): Response => (new OAuthScopeMiddleware($principals, $scopes))($request, $next);
+    }
+
+    public static function oauthThrottle(string $endpoint): Closure
+    {
+        return static function (
+            Request $request,
+            Closure $next,
+            OAuthHttpThrottleFactory $factory,
+            CacheManager $cache,
+            ConfigRepository $config,
+            ?AtomicCounterInterface $counterStore = null,
+        ) use ($endpoint): Response {
+            $configured = $config->get('auth.oauth.rate_limit_store');
+            $store = is_string($configured) && $configured !== '' ? $configured : null;
+
+            return ($factory->forEndpoint($endpoint, $cache->store($store), $counterStore))($request, $next);
+        };
     }
 
     public static function permission(string ...$abilities): Closure
     {
         $abilities = array_values($abilities);
 
-        return static fn (
+        return static fn(
             Request $request,
             Closure $next,
             CurrentPrincipalContext $principals,
@@ -69,7 +102,7 @@ final class RouteMiddlewareRuntimeResolver
 
     public static function policy(string $ability, ?string $resourceKey = null): Closure
     {
-        return static fn (
+        return static fn(
             Request $request,
             Closure $next,
             CurrentPrincipalContext $principals,
@@ -86,55 +119,16 @@ final class RouteMiddlewareRuntimeResolver
         ))($request, $next);
     }
 
-    public static function oauthScope(string ...$scopes): Closure
+    public static function role(string ...$roles): Closure
     {
-        $scopes = array_values($scopes);
+        $roles = array_values($roles);
 
-        return static fn (
+        return static fn(
             Request $request,
             Closure $next,
             CurrentPrincipalContext $principals,
-        ): Response => (new OAuthScopeMiddleware($principals, $scopes))($request, $next);
-    }
-
-    public static function oauthAudience(string ...$audiences): Closure
-    {
-        $audiences = array_values($audiences);
-
-        return static fn (
-            Request $request,
-            Closure $next,
-            CurrentPrincipalContext $principals,
-        ): Response => (new OAuthAudienceMiddleware($principals, $audiences))($request, $next);
-    }
-
-    public static function oauthThrottle(string $endpoint): Closure
-    {
-        return static function (
-            Request $request,
-            Closure $next,
-            OAuthHttpThrottleFactory $factory,
-            CacheManager $cache,
-            ConfigRepository $config,
-        ) use ($endpoint): Response {
-            $configured = $config->get('auth.oauth.rate_limit_store');
-            $store = is_string($configured) && $configured !== '' ? $configured : null;
-
-            return ($factory->forEndpoint($endpoint, $cache->store($store)))($request, $next);
-        };
-    }
-
-    public static function maintenance(): Closure
-    {
-        return static function (
-            Request $request,
-            Closure $next,
-            MaintenanceRuntimeState $state,
-        ): Response {
-            return (new MaintenanceModeMiddleware(
-                retryAfter: $state->retryAfter(),
-                state: $state,
-            ))($request, $next);
-        };
+            RoleManager $roleManager,
+            AuthResponseFactory $responses,
+        ): Response => (new RoleMiddleware($principals, $roleManager, $responses, $roles))($request, $next);
     }
 }

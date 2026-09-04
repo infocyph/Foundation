@@ -23,16 +23,16 @@ final class ServiceRegistry
         }
     }
 
+    /** @return list<class-string<ServiceProviderInterface>> */
+    public function classes(): array
+    {
+        return array_keys($this->providers);
+    }
+
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         foreach ($this->providers as $provider) {
             $provider->contribute($builder, $context);
         }
-    }
-
-    /** @return list<class-string<ServiceProviderInterface>> */
-    public function classes(): array
-    {
-        return array_keys($this->providers);
     }
 }

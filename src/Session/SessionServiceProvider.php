@@ -63,35 +63,6 @@ final class SessionServiceProvider extends ServiceProvider
         );
     }
 
-    private function registerStore(ContainerBuilder $builder, string $driver): void
-    {
-        $storeArguments = [new ServiceReference(SessionConfig::class)];
-        if ($driver === 'cache') {
-            if (!$builder->definitions()->has(CacheManager::class)) {
-                throw new \LogicException('Cache-backed sessions require the Foundation cache capability.');
-            }
-            $storeArguments[] = new ServiceReference(CacheManager::class);
-        } elseif ($driver === 'database') {
-            if (!$builder->definitions()->has(DBLayerFactory::class)) {
-                throw new \LogicException('Database-backed sessions require the Foundation database capability.');
-            }
-            $storeArguments[] = null;
-            $storeArguments[] = new ServiceReference(DBLayerFactory::class);
-        }
-
-        $builder->singleton(SessionStoreFactory::class, FactoryDefinition::construct(
-            SessionStoreFactory::class,
-            $storeArguments,
-        ));
-
-        if ($builder->definitions()->has(DBLayerFactory::class)) {
-            $builder->singleton(SessionDatabaseSchema::class, FactoryDefinition::construct(
-                SessionDatabaseSchema::class,
-                [new ServiceReference(SessionConfig::class), new ServiceReference(DBLayerFactory::class)],
-            ));
-        }
-    }
-
     private function registerManager(ContainerBuilder $builder, bool $lockEnabled): void
     {
         if ($lockEnabled) {
@@ -143,5 +114,34 @@ final class SessionServiceProvider extends ServiceProvider
             [new ServiceReference(SessionConfig::class)],
         ));
         $builder->alias('foundation.session', SessionManager::class);
+    }
+
+    private function registerStore(ContainerBuilder $builder, string $driver): void
+    {
+        $storeArguments = [new ServiceReference(SessionConfig::class)];
+        if ($driver === 'cache') {
+            if (!$builder->definitions()->has(CacheManager::class)) {
+                throw new \LogicException('Cache-backed sessions require the Foundation cache capability.');
+            }
+            $storeArguments[] = new ServiceReference(CacheManager::class);
+        } elseif ($driver === 'database') {
+            if (!$builder->definitions()->has(DBLayerFactory::class)) {
+                throw new \LogicException('Database-backed sessions require the Foundation database capability.');
+            }
+            $storeArguments[] = null;
+            $storeArguments[] = new ServiceReference(DBLayerFactory::class);
+        }
+
+        $builder->singleton(SessionStoreFactory::class, FactoryDefinition::construct(
+            SessionStoreFactory::class,
+            $storeArguments,
+        ));
+
+        if ($builder->definitions()->has(DBLayerFactory::class)) {
+            $builder->singleton(SessionDatabaseSchema::class, FactoryDefinition::construct(
+                SessionDatabaseSchema::class,
+                [new ServiceReference(SessionConfig::class), new ServiceReference(DBLayerFactory::class)],
+            ));
+        }
     }
 }

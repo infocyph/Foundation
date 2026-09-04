@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use Infocyph\Foundation\Routing\WebReleaseCompiler;
 use Infocyph\Foundation\Routing\WebReleaseRuntime;
+use Infocyph\Foundation\Process\ProcessOptions;
+use Infocyph\Foundation\Process\ProcessRunner;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 use Infocyph\Webrick\Router\Runtime\RoutingInput;
@@ -102,39 +104,60 @@ it('emits file and stream bodies through the real SAPI response writer', functio
         throw new RuntimeException('Unable to allocate SAPI response fixture.');
     }
     file_put_contents($file, 'sapi-file-body');
-    $initialBufferLevel = ob_get_level();
-
-    $adapter = SapiRuntimeAdapter::current();
-    $context = new RuntimeRequestContext(
-        new RoutingInput('GET', '/download'),
-        static fn(): Request => Request::fake(
-            headers: ['Host' => 'runtime.test'],
-            uri: 'https://runtime.test/download',
-        ),
-        $adapter->capabilities(),
-    );
-
     try {
-        ob_start();
-        $adapter->write(Response::download($file), $context);
-        $fileBody = ob_get_clean();
-
-        ob_start();
-        $adapter->write(Response::stream(static fn(): iterable => ['sapi-', 'stream']), $context);
-        $streamBody = ob_get_clean();
+        $fileBody = foundationSapiEmission($file, false);
+        $streamBody = foundationSapiEmission($file, true);
 
         expect($fileBody)->toBe('sapi-file-body')
             ->and($streamBody)->toBe('sapi-stream')
-            ->and($adapter->capabilities()->nativeStreaming)->toBeTrue();
+            ->and(SapiRuntimeAdapter::current()->capabilities()->nativeStreaming)->toBeTrue();
     } finally {
-        while (ob_get_level() > $initialBufferLevel) {
-            ob_end_clean();
-        }
         if (is_file($file)) {
             unlink($file);
         }
     }
 });
+
+function foundationSapiEmission(string $file, bool $stream): string
+{
+    $autoload = dirname(__DIR__, 2) . '/vendor/autoload.php';
+    $response = $stream
+        ? "Response::stream(static fn(): iterable => ['sapi-', 'stream'])"
+        : 'Response::download(' . var_export($file, true) . ')';
+    $source = sprintf(<<<'PHP'
+require %s;
+
+use Infocyph\Webrick\Request\Request;
+use Infocyph\Webrick\Response\Response;
+use Infocyph\Webrick\Router\Runtime\RoutingInput;
+use Infocyph\Webrick\Runtime\Http\RuntimeRequestContext;
+use Infocyph\Webrick\Runtime\Http\SapiRuntimeAdapter;
+
+$adapter = SapiRuntimeAdapter::current();
+$context = new RuntimeRequestContext(
+    new RoutingInput('GET', '/download'),
+    static fn(): Request => Request::fake(
+        headers: ['Host' => 'runtime.test'],
+        uri: 'https://runtime.test/download',
+    ),
+    $adapter->capabilities(),
+);
+$adapter->write(%s, $context);
+PHP, var_export($autoload, true), $response);
+    $result = new ProcessRunner()->run(
+        [PHP_BINARY, '-r', $source],
+        new ProcessOptions(timeoutSeconds: 10.0),
+    );
+    if (!$result->successful() || $result->stderr !== '') {
+        throw new RuntimeException(sprintf(
+            'SAPI emission probe failed with exit %d: %s',
+            $result->exitCode,
+            $result->stderr,
+        ));
+    }
+
+    return $result->stdout;
+}
 
 it('lets RuntimeServer own exactly one persistent native write for file and stream responses', function (): void {
     $project = foundationRuntimeEmissionProject();
@@ -160,12 +183,24 @@ it('lets RuntimeServer own exactly one persistent native write for file and stre
     ];
 
     try {
-        $release = new WebReleaseCompiler()->compile($config, $intermix, $router, $manifest);
+        $release = new WebReleaseCompiler()->compile(
+            $config,
+            $intermix,
+            $router,
+            $manifest,
+            capabilities: [],
+        );
         $trustedSha256 = $release['release_runtime_manifest_sha256'] ?? null;
         expect($trustedSha256)->toBeString();
 
         $adapter = new FoundationPersistentEmissionAdapter();
-        $runtime = WebReleaseRuntime::loadPrevalidated($config, $manifest, $trustedSha256, $adapter);
+        $runtime = WebReleaseRuntime::loadPrevalidated(
+            $config,
+            $manifest,
+            $trustedSha256,
+            $adapter,
+            foundationCapabilities: [],
+        );
 
         $direct = $runtime->kernel->handle(Request::fake(
             headers: ['Host' => 'runtime.test'],
@@ -188,6 +223,7 @@ it('lets RuntimeServer own exactly one persistent native write for file and stre
             ->and($runtime->capabilities->nativeStreaming)->toBeTrue();
     } finally {
         FoundationRuntimeEmissionFixture::$file = '';
+        foundationResetWebrickProductionRegistries();
         foundationRuntimeEmissionRemove($project);
     }
 });

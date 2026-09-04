@@ -189,27 +189,22 @@ it('requires declarative fork-safe configuration before starting a worker pool',
         DB::purge();
     }
 
-    $app = Foundation::worker([
-        'messaging' => [
-            'handlers' => [FoundationWorkerMessage::class => static fn(): null => null],
-            'workers' => [
-                'parallel' => [
-                    'transport' => 'shared',
-                    'queue' => 'default',
-                    'pool' => [
-                        'enabled' => true,
-                        'concurrency' => 2,
+    expect(static fn(): Application => Foundation::worker([
+            'messaging' => [
+                'handlers' => [FoundationWorkerMessage::class => static fn(): null => null],
+                'workers' => [
+                    'parallel' => [
+                        'transport' => 'shared',
+                        'queue' => 'default',
+                        'pool' => [
+                            'enabled' => true,
+                            'concurrency' => 2,
+                        ],
                     ],
                 ],
             ],
-        ],
-    ]);
-
-    $messages = $app->make(ConfigValidator::class)->validate()->messages();
-
-    expect($messages)->toContain(
-        'Pooled messaging workers require scalar/array declarative configuration; config.messaging.handlers.'
-        . FoundationWorkerMessage::class . ' (Closure) contains runtime state.',
-    )->and(fn() => new WorkerManager($app)->run('parallel'))
-        ->toThrow(LogicException::class, 'scalar/array configuration');
+        ]))->toThrow(
+            InvalidArgumentException::class,
+            'Declarative factory arguments must be service references or exportable values.',
+        );
 });

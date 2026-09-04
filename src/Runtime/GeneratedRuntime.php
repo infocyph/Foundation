@@ -66,6 +66,18 @@ final readonly class GeneratedRuntime
         );
     }
 
+    private static function assertTrustedMetadata(string $artifactPath, string $trustedSha256): void
+    {
+        $metadataPath = GeneratedRuntimeMetadata::path($artifactPath);
+        if (!is_file($metadataPath)) {
+            throw new \RuntimeException('Foundation generated-runtime metadata is missing.');
+        }
+        $actualSha256 = hash_file('sha256', $metadataPath);
+        if (!is_string($actualSha256) || !hash_equals($trustedSha256, $actualSha256)) {
+            throw new \RuntimeException('Foundation generated-runtime metadata trust identity mismatch.');
+        }
+    }
+
     /**
      * @param array<string,mixed> $config
      * @param array<int|string,mixed> $capabilities
@@ -122,17 +134,5 @@ final readonly class GeneratedRuntime
         $application->boot();
 
         return new self($runtime, $container, $application, $metadata);
-    }
-
-    private static function assertTrustedMetadata(string $artifactPath, string $trustedSha256): void
-    {
-        $metadataPath = GeneratedRuntimeMetadata::path($artifactPath);
-        if (!is_file($metadataPath)) {
-            throw new \RuntimeException('Foundation generated-runtime metadata is missing.');
-        }
-        $actualSha256 = hash_file('sha256', $metadataPath);
-        if (!is_string($actualSha256) || !hash_equals($trustedSha256, $actualSha256)) {
-            throw new \RuntimeException('Foundation generated-runtime metadata trust identity mismatch.');
-        }
     }
 }

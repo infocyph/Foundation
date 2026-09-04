@@ -12,7 +12,7 @@ use Infocyph\Foundation\Database\AuthSchema\AuthSchemaInstaller;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DatabaseConnectionResolver;
 use Infocyph\Foundation\Database\DBLayerFactory;
-use Infocyph\Foundation\Runtime\RuntimeContextTracker;
+use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
 
 it('prunes OAuth expiry state idempotently without deleting active authorizations or live replay evidence', function (): void {
     DB::purge();
@@ -24,7 +24,7 @@ it('prunes OAuth expiry state idempotently without deleting active authorization
             ],
         ],
     ]);
-    $factory = new DBLayerFactory(new DatabaseConnectionResolver($config), new RuntimeContextTracker());
+    $factory = new DBLayerFactory(new DatabaseConnectionResolver($config), RuntimeStateContainer::execution());
     $tables = new AuthTables();
     $schema = new AuthSchema($tables);
     $mfa = new AuthMfaRevisionSchema($tables);

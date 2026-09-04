@@ -38,10 +38,12 @@ final class CommunicationGraphFactory
             $handler = $services->get($service);
             if ($handler instanceof GrpcInboundHandlerInterface) {
                 $handlers[$method] = $handler->handle(...);
+
                 continue;
             }
             if (is_callable($handler)) {
                 $handlers[$method] = $handler;
+
                 continue;
             }
 
@@ -55,34 +57,14 @@ final class CommunicationGraphFactory
         return $profiles->grpcInbound($handlers);
     }
 
-    public static function httpConfig(CommunicationProfiles $profiles): HttpClientConfig
-    {
-        return $profiles->httpConfig();
-    }
-
     public static function http(CommunicationProfiles $profiles): HttpClient
     {
         return $profiles->http();
     }
 
-    public static function webhookSender(CommunicationProfiles $profiles): WebhookSender
+    public static function httpConfig(CommunicationProfiles $profiles): HttpClientConfig
     {
-        return $profiles->webhookSender();
-    }
-
-    public static function webhookVerifier(CommunicationProfiles $profiles): WebhookVerifier
-    {
-        return $profiles->webhookVerifier();
-    }
-
-    public static function webhookReceiver(
-        CommunicationProfiles $profiles,
-        ConfigRepository $config,
-    ): WebhookReceiver {
-        $profile = $config->get('communication.webhooks.default_inbound', 'default');
-        $profile = is_string($profile) && trim($profile) !== '' ? trim($profile) : 'default';
-
-        return $profiles->webhookReceiver($profile);
+        return $profiles->httpConfig();
     }
 
     public static function protectedWebhookReceiver(
@@ -108,5 +90,25 @@ final class CommunicationGraphFactory
         );
 
         return $profiles->webhookReceiver($profile, $replayStore, $ttl);
+    }
+
+    public static function webhookReceiver(
+        CommunicationProfiles $profiles,
+        ConfigRepository $config,
+    ): WebhookReceiver {
+        $profile = $config->get('communication.webhooks.default_inbound', 'default');
+        $profile = is_string($profile) && trim($profile) !== '' ? trim($profile) : 'default';
+
+        return $profiles->webhookReceiver($profile);
+    }
+
+    public static function webhookSender(CommunicationProfiles $profiles): WebhookSender
+    {
+        return $profiles->webhookSender();
+    }
+
+    public static function webhookVerifier(CommunicationProfiles $profiles): WebhookVerifier
+    {
+        return $profiles->webhookVerifier();
     }
 }

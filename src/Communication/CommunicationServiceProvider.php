@@ -129,6 +129,7 @@ final class CommunicationServiceProvider extends ServiceProvider
                     new ServiceReference(ConfigRepository::class),
                 ],
             ));
+
             return;
         }
         if (!class_exists(Cache::class) || !$builder->definitions()->has(CacheLayerFactory::class)) {

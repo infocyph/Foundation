@@ -9,54 +9,6 @@ final class FoundationReleaseManifest
     public const int FORMAT = 1;
 
     /** @param array<string,mixed> $manifest */
-    public static function write(string $path, array $manifest): string
-    {
-        self::assertValid($manifest);
-        $directory = dirname($path);
-        if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
-            throw new \RuntimeException(sprintf('Unable to create Foundation release manifest directory "%s".', $directory));
-        }
-
-        $contents = "<?php\n\ndeclare(strict_types=1);\n\nreturn " . var_export($manifest, true) . ";\n";
-        $temporary = tempnam($directory, '.foundation-release-');
-        if ($temporary === false) {
-            throw new \RuntimeException(sprintf('Unable to stage Foundation release manifest in "%s".', $directory));
-        }
-
-        try {
-            if (file_put_contents($temporary, $contents, LOCK_EX) !== strlen($contents)
-                || !chmod($temporary, 0644)
-                || !rename($temporary, $path)
-            ) {
-                throw new \RuntimeException(sprintf('Unable to publish Foundation release manifest "%s".', $path));
-            }
-        } finally {
-            if (is_file($temporary)) {
-                unlink($temporary);
-            }
-        }
-
-        return $path;
-    }
-
-    /** @return array<string,mixed> */
-    public static function load(string $path): array
-    {
-        if (!is_file($path) || !is_readable($path)) {
-            throw new \RuntimeException(sprintf('Foundation release manifest is not readable: "%s".', $path));
-        }
-
-        $loaded = require $path;
-        if (!is_array($loaded)) {
-            throw new \UnexpectedValueException('Foundation release manifest must return an array.');
-        }
-        $manifest = self::stringMap($loaded, 'manifest');
-        self::assertValid($manifest);
-
-        return $manifest;
-    }
-
-    /** @param array<string,mixed> $manifest */
     public static function assertValid(array $manifest): void
     {
         if (($manifest['format'] ?? null) !== self::FORMAT) {
@@ -100,6 +52,23 @@ final class FoundationReleaseManifest
         return $value;
     }
 
+    /** @return array<string,mixed> */
+    public static function load(string $path): array
+    {
+        if (!is_file($path) || !is_readable($path)) {
+            throw new \RuntimeException(sprintf('Foundation release manifest is not readable: "%s".', $path));
+        }
+
+        $loaded = require $path;
+        if (!is_array($loaded)) {
+            throw new \UnexpectedValueException('Foundation release manifest must return an array.');
+        }
+        $manifest = self::stringMap($loaded, 'manifest');
+        self::assertValid($manifest);
+
+        return $manifest;
+    }
+
     public static function nonEmptyString(mixed $value, string $field): string
     {
         if (!is_string($value) || trim($value) === '') {
@@ -134,6 +103,37 @@ final class FoundationReleaseManifest
         }
 
         return self::stringMap($section, $name);
+    }
+
+    /** @param array<string,mixed> $manifest */
+    public static function write(string $path, array $manifest): string
+    {
+        self::assertValid($manifest);
+        $directory = dirname($path);
+        if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
+            throw new \RuntimeException(sprintf('Unable to create Foundation release manifest directory "%s".', $directory));
+        }
+
+        $contents = "<?php\n\ndeclare(strict_types=1);\n\nreturn " . var_export($manifest, true) . ";\n";
+        $temporary = tempnam($directory, '.foundation-release-');
+        if ($temporary === false) {
+            throw new \RuntimeException(sprintf('Unable to stage Foundation release manifest in "%s".', $directory));
+        }
+
+        try {
+            if (file_put_contents($temporary, $contents, LOCK_EX) !== strlen($contents)
+                || !chmod($temporary, 0644)
+                || !rename($temporary, $path)
+            ) {
+                throw new \RuntimeException(sprintf('Unable to publish Foundation release manifest "%s".', $path));
+            }
+        } finally {
+            if (is_file($temporary)) {
+                unlink($temporary);
+            }
+        }
+
+        return $path;
     }
 
     private static function identifier(mixed $value, string $field): string

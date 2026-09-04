@@ -122,6 +122,11 @@ abstract readonly class AbstractAuthRegistrar
         );
     }
 
+    protected function ref(string $id): ServiceReference
+    {
+        return new ServiceReference($id);
+    }
+
     /** @param class-string $class */
     protected function requirePackage(string $class, string $package, string $module): void
     {
@@ -134,11 +139,6 @@ abstract readonly class AbstractAuthRegistrar
             $package,
             $module,
         ));
-    }
-
-    protected function ref(string $id): ServiceReference
-    {
-        return new ServiceReference($id);
     }
 
     /**

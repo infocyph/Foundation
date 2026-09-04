@@ -36,21 +36,29 @@ final readonly class CommandResolver
         $executionId ??= ExecutionId::generate();
         $context = new CommandContext($input, $io, $executionId, $descriptor);
 
-        return $this->application->execution()->run(
-            function () use ($descriptor, $context): int {
-                $this->activateCapabilities($descriptor->definition);
-                $command = $this->resolve($descriptor->handler);
-                $exitCode = $command->run($context);
-                if ($exitCode < 0 || $exitCode > 255) {
-                    throw new \UnexpectedValueException(sprintf(
-                        'Command "%s" returned invalid exit code %d.',
-                        $descriptor->definition->commandName(),
-                        $exitCode,
-                    ));
-                }
+        $run = function () use ($descriptor, $context): int {
+            $this->activateCapabilities($descriptor->definition);
+            $command = $this->resolve($descriptor->handler);
+            $exitCode = $command->run($context);
+            if ($exitCode < 0 || $exitCode > 255) {
+                throw new \UnexpectedValueException(sprintf(
+                    'Command "%s" returned invalid exit code %d.',
+                    $descriptor->definition->commandName(),
+                    $exitCode,
+                ));
+            }
 
-                return $exitCode;
-            },
+            return $exitCode;
+        };
+
+        // Scheduler and worker commands own persistent control loops. Their
+        // individual schedule/job executions enter fresh scopes themselves.
+        if ($this->application->runningInScheduler() || $this->application->runningInWorker()) {
+            return $run();
+        }
+
+        return $this->application->execution()->run(
+            $run,
             [
                 ParsedInput::class => $input,
                 CommandIO::class => $io,

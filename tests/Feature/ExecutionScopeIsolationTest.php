@@ -7,6 +7,7 @@ use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Runtime\ExecutionId;
+use Infocyph\Foundation\Exception\ServiceResolutionException;
 use Infocyph\InterMix\DI\Container;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
@@ -124,7 +125,7 @@ it('isolates same-label CLI scopes across interleaved Fibers and sequential exec
         ),
         executionId: new ExecutionId('nested-outer'),
     ))->toThrow(ContainerException::class, 'already active')
-        ->and(fn() => $app->make(ExecutionId::class))->toThrow(ContainerException::class);
+        ->and(fn() => $app->make(ExecutionId::class))->toThrow(ServiceResolutionException::class);
 });
 
 it('cleans a suspended Fiber execution when it is aborted by an injected exception', function (): void {
@@ -158,7 +159,7 @@ it('cleans a suspended Fiber execution when it is aborted by an injected excepti
     );
 
     expect($after)->toBe('after-abort')
-        ->and(fn() => $app->make(ExecutionId::class))->toThrow(ContainerException::class);
+        ->and(fn() => $app->make(ExecutionId::class))->toThrow(ServiceResolutionException::class);
 });
 
 it('keeps the primary execution exception when explicit or scope-leave cleanup also fails', function (): void {

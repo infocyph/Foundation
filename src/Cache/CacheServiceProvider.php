@@ -17,6 +17,7 @@ use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\ServiceReference;
+use Infocyph\Webrick\Middleware\Throttle\AtomicCounterInterface as WebrickAtomicCounterInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\SimpleCache\CacheInterface as SimpleCacheInterface;
 
@@ -82,6 +83,10 @@ final class CacheServiceProvider extends ServiceProvider
                 CacheGraphFactory::class,
                 'counters',
                 [new ServiceReference(CacheLayerFactory::class), $counter],
+            ));
+            $builder->singleton(WebrickAtomicCounterInterface::class, FactoryDefinition::construct(
+                WebrickAtomicCounter::class,
+                [new ServiceReference(AtomicCounterStoreInterface::class)],
             ));
         }
 

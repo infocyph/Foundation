@@ -76,8 +76,9 @@ final class NotificationServiceProvider extends ServiceProvider
             ));
         }
         if (!$builder->definitions()->has(RawEmailParser::class)) {
-            $builder->singleton(RawEmailParser::class, FactoryDefinition::construct(
-                RawEmailParser::class,
+            $builder->singleton(RawEmailParser::class, FactoryDefinition::staticFactory(
+                NotificationGraphFactory::class,
+                'rawEmailParser',
                 [new ServiceReference(EmailLimits::class)],
             ));
         }

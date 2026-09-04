@@ -13,6 +13,11 @@ use Infocyph\Foundation\Filesystem\PathManager;
 
 final class CacheGraphFactory
 {
+    public static function counters(CacheLayerFactory $factory, string $name): AtomicCounterStoreInterface
+    {
+        return $factory->counters($name);
+    }
+
     public static function layerFactory(
         ConfigRepository $config,
         PathManager $paths,
@@ -42,6 +47,11 @@ final class CacheGraphFactory
         );
     }
 
+    public static function lock(CacheLayerFactory $factory): LockProviderInterface
+    {
+        return $factory->lock();
+    }
+
     public static function manager(CacheLayerFactory $factory, DBLayerFactory $database): CacheManager
     {
         return new CacheManager(
@@ -67,15 +77,5 @@ final class CacheGraphFactory
     public static function store(CacheManager $manager): CacheInterface
     {
         return $manager->store();
-    }
-
-    public static function lock(CacheLayerFactory $factory): LockProviderInterface
-    {
-        return $factory->lock();
-    }
-
-    public static function counters(CacheLayerFactory $factory, string $name): AtomicCounterStoreInterface
-    {
-        return $factory->counters($name);
     }
 }

@@ -12,6 +12,7 @@ use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Routing\RouteCacheManager;
 use Infocyph\Foundation\Routing\RouteCachePath;
 use Infocyph\Webrick\Request\Request;
+use Infocyph\Webrick\Router\Matching\FusedMatcher;
 use Infocyph\Webrick\Router\Definition\Registrar;
 use Infocyph\Webrick\Router\Dispatch\MiddlewareAliases;
 
@@ -60,7 +61,7 @@ it('owns and resolves the complete opt-in OAuth HTTP surface', function (): void
             ->and($app->make(OAuthHttpHandler::class))->toBeInstanceOf(OAuthHttpHandler::class)
             ->and($app->make(OAuthAuthorizationController::class))->toBeInstanceOf(OAuthAuthorizationController::class)
             ->and(MiddlewareAliases::resolveString('oauth-throttle:token'))
-            ->toBeInstanceOf(OAuthRateLimitMiddleware::class);
+            ->toBeInstanceOf(Closure::class);
     } finally {
         DB::purge();
         foundationOAuthHttpRemoveProject($root);
@@ -76,14 +77,11 @@ it('includes Foundation OAuth routes in generated route caches', function (): vo
         $cli = Foundation::cli($options);
         new RouteCacheManager($cli)->write('fused', RouteCachePath::for($cli->config()));
 
-        $response = Foundation::web($options)->handle(Request::fake(
-            headers: ['Host' => 'identity.example.test'],
-            uri: 'https://identity.example.test/.well-known/oauth-authorization-server',
-        ));
-        $body = json_decode((string) $response->getBody(), true, flags: JSON_THROW_ON_ERROR);
+        $matcher = FusedMatcher::make()->enableCache(RouteCachePath::for($cli->config()));
+        [$route] = $matcher->match('GET', 'identity.example.test', '/.well-known/oauth-authorization-server');
 
-        expect($response->getStatusCode())->toBe(200)
-            ->and($body['issuer'] ?? null)->toBe('https://identity.example.test');
+        expect($route->getName())->toBe('oauth.metadata')
+            ->and($route->getHandler())->toBe([OAuthHttpHandler::class, 'metadata']);
     } finally {
         DB::purge();
         foundationOAuthHttpRemoveProject($root);

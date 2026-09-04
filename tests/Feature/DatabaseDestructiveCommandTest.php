@@ -231,9 +231,9 @@ it('requires force for destructive database commands in production even when con
         expect(foundationDestructiveCommandRun($dispatcher, ['infbyte', 'db:wipe'], $io))
             ->toBe(ExitCode::FAILURE)
             ->and($io->confirmations)->toBe(0)
-            ->and($io->errors)->toContain(
+            ->and($io->errors)->toBe([
                 'db:wipe is destructive in production; rerun with --force after explicit approval.',
-            )
+            ])
             ->and(foundationDestructiveCommandTableExists($databasePath, 'foundation_production_probe'))->toBeTrue();
     } finally {
         DB::purge();
@@ -272,6 +272,60 @@ function foundationDestructiveCommandFixture(string $name, string $environment =
             'seeders' => [],
         ],
     ];
+    if ($environment === 'production') {
+        $config['auth'] = [
+            'drivers' => [
+                'cache' => 'cache',
+                'mfa' => 'otp',
+                'notifications' => 'talkingbytes',
+                'passkey' => 'disabled',
+                'storage' => 'database',
+                'tokens' => 'security',
+            ],
+            'token_secret' => str_repeat('foundation-production-test-secret-', 2),
+        ];
+        $config['cache'] = [
+            'default' => 'auth-state',
+            'default_counter' => 'auth-lockouts',
+            'stores' => [
+                'auth-state' => ['driver' => 'file', 'path' => 'storage/cache/auth'],
+            ],
+            'counters' => [
+                'auth-lockouts' => ['driver' => 'redis'],
+            ],
+        ];
+        $config['security'] = [
+            'jwt' => [
+                'issuer' => 'foundation-production-test',
+                'audience' => 'foundation-production-test-api',
+            ],
+        ];
+        $config['notifications'] = [
+            'auth' => ['sender' => 'auth'],
+            'email' => [
+                'default_sender' => 'auth',
+                'senders' => [
+                    'auth' => ['transport' => 'log'],
+                ],
+                'transports' => [
+                    'log' => ['driver' => 'log'],
+                ],
+            ],
+        ];
+        $config['communication'] = [
+            'webhooks' => [
+                'default_inbound' => 'default',
+                'inbound' => [
+                    'default' => [
+                        'replay' => [
+                            'enabled' => true,
+                            'store' => 'auth-state',
+                        ],
+                    ],
+                ],
+            ],
+        ];
+    }
 
     return [
         $basePath,

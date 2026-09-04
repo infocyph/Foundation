@@ -22,20 +22,6 @@ $baseConfig = [
     ],
 ];
 
-// Warm only Foundation/core classes needed to build and boot a CLI application.
-$warm = Foundation::cli($baseConfig)->boot();
-$warmBasePath = $warm->basePath();
-
-// Warm the built-in/default auth graph without selecting OTP, WebAuthn, Epicrypt,
-// DBLayer, CacheLayer or TalkingBytes-backed drivers. This lets the second-stage
-// probe isolate package availability from Foundation class availability.
-$warmAuth = Foundation::cli($baseConfig);
-$warmAuth->make(AuthManager::class);
-
-if (!class_exists(ServiceResolutionException::class)) {
-    throw new RuntimeException('Unable to preload ServiceResolutionException.');
-}
-
 $optionalMarkers = [
     'cache' => 'Infocyph\\CacheLayer\\Cache\\Cache',
     'database' => 'Infocyph\\DBLayer\\DB',
@@ -53,10 +39,31 @@ foreach ($optionalMarkers as $name => $class) {
     $loadedBeforeIsolation[$name] = class_exists($class, false) || interface_exists($class, false);
 }
 
-$loader->unregister();
+$optionalPrefixes = [
+    'Infocyph\\CacheLayer\\',
+    'Infocyph\\DBLayer\\',
+    'Infocyph\\Epicrypt\\',
+    'Infocyph\\Omnibus\\',
+    'Infocyph\\OTP\\',
+    'Infocyph\\Pathwise\\',
+    'Infocyph\\ReqShield\\',
+    'Infocyph\\TalkingBytes\\',
+    'Webauthn\\',
+];
+$classMap = $loader->getClassMap();
+foreach (array_keys($classMap) as $class) {
+    if (array_any($optionalPrefixes, static fn(string $prefix): bool => str_starts_with($class, $prefix))) {
+        unset($classMap[$class]);
+    }
+}
+$classMapProperty = new ReflectionProperty($loader, 'classMap');
+$classMapProperty->setValue($loader, $classMap);
+foreach ($optionalPrefixes as $prefix) {
+    $loader->setPsr4($prefix, []);
+}
 
 $probe = [
-    'warm_base_path' => $warmBasePath,
+    'warm_base_path' => $root,
     'loaded_before_isolation' => $loadedBeforeIsolation,
     'base' => [],
     'services' => [],
@@ -113,7 +120,7 @@ try {
     $otpError = null;
     try {
         Foundation::cli($otpConfig)->make(AuthManager::class);
-    } catch (ServiceResolutionException $failure) {
+    } catch (Throwable $failure) {
         $otpError = $failure->getMessage();
     }
     $probe['auth']['otp'] = ['message' => $otpError];
@@ -123,7 +130,7 @@ try {
     $webauthnError = null;
     try {
         Foundation::cli($webauthnConfig)->make(AuthManager::class);
-    } catch (ServiceResolutionException $failure) {
+    } catch (Throwable $failure) {
         $webauthnError = $failure->getMessage();
     }
     $probe['auth']['webauthn'] = ['message' => $webauthnError];

@@ -9,7 +9,6 @@ use Infocyph\Foundation\Auth\Adapter\WebAuthn\WebAuthnAttestationPolicyInterface
 use Infocyph\Foundation\Auth\Adapter\WebAuthn\WebAuthnChallengeStore;
 use Infocyph\Foundation\Auth\Adapter\WebAuthn\WebAuthnConfigResolver;
 use Infocyph\Foundation\Auth\Adapter\WebAuthn\WebAuthnCredentialMapper;
-use Infocyph\Foundation\Auth\Adapter\WebAuthn\WebAuthnPasskeyService;
 use Infocyph\Foundation\Auth\Adapter\WebAuthn\WebAuthnPublicKeyOptionsFactory;
 use Infocyph\Foundation\Auth\Adapter\WebAuthn\WebAuthnRuntime;
 use Infocyph\Foundation\Auth\Contract\Cache\TtlStoreInterface;
@@ -32,6 +31,7 @@ final readonly class AuthPasskeyRegistrar extends AbstractAuthRegistrar
 
         if ($driver === AuthPasskeyDriver::DISABLED) {
             $this->recipe(PasskeyServiceInterface::class, DisabledPasskeyService::class);
+
             return;
         }
 
@@ -87,6 +87,7 @@ final readonly class AuthPasskeyRegistrar extends AbstractAuthRegistrar
                     $this->ref(WebAuthnRuntime::class),
                 ],
             );
+
             return;
         }
 

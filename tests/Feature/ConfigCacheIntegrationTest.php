@@ -232,7 +232,7 @@ it('keeps production requirements limited to the Foundation runtime core', funct
         'php' => '^8.4',
         'composer-runtime-api' => '^2.0',
         'infocyph/arraykit' => '^5.1.1',
-        'infocyph/intermix' => '^10.0.3',
+        'infocyph/intermix' => '^10.0.4',
         'infocyph/uid' => '^5.0',
         'infocyph/webrick' => '^5.2',
         'psr/log' => '^3.0.2',
