@@ -7,6 +7,7 @@ namespace Infocyph\Foundation\Command;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Foundation;
+use Infocyph\Foundation\Release\FoundationReleaseBootstrap;
 use Infocyph\Foundation\Runtime\ExecutionId;
 
 final readonly class CommandDispatcher
@@ -18,6 +19,7 @@ final readonly class CommandDispatcher
         private array $config,
         private CommandRegistry $registry,
         private string $displayName = 'Foundation',
+        private ?FoundationReleaseBootstrap $releaseBootstrap = null,
     ) {}
 
     /**
@@ -32,12 +34,14 @@ final readonly class CommandDispatcher
         ?string $manifestPath = null,
         ?string $routesPath = null,
         string $displayName = 'Foundation',
+        ?FoundationReleaseBootstrap $releaseBootstrap = null,
     ): self {
         $basePath = $config['base_path'] ?? getcwd();
         if (!is_string($basePath) || $basePath === '') {
             throw new \InvalidArgumentException('Command dispatcher requires a non-empty base_path.');
         }
         $config['base_path'] = $basePath;
+        $releaseBootstrap ??= FoundationReleaseBootstrap::fromEnvironment($config);
 
         $manifestPath ??= $basePath . '/bootstrap/cache/commands.php';
         $routesPath ??= $basePath . '/routes/console.php';
@@ -49,6 +53,7 @@ final readonly class CommandDispatcher
                         $config,
                         CommandRegistry::fromManifest(self::associative($manifest)),
                         $displayName,
+                        $releaseBootstrap,
                     );
                 }
             } catch (\Throwable) {
@@ -67,7 +72,12 @@ final readonly class CommandDispatcher
             }
         }
 
-        return new self($config, new CommandRegistry($commands), $displayName);
+        return new self(
+            $config,
+            new CommandRegistry($commands),
+            $displayName,
+            $releaseBootstrap,
+        );
     }
 
     public function registry(): CommandRegistry
@@ -129,7 +139,10 @@ final readonly class CommandDispatcher
 
         try {
             $application = $this->application($descriptor->definition->commandRuntime(), $input);
-            $inline = static fn(ExecutionId $executionId): int => new CommandResolver($application->boot())
+            $resolverApplication = $this->unbootedWorkerSupervisor($descriptor)
+                ? $application
+                : $application->boot();
+            $inline = static fn(ExecutionId $executionId): int => new CommandResolver($resolverApplication)
                 ->run($descriptor, $input, $io, $executionId);
 
             $exit = new CommandExecutionCoordinator(
@@ -169,12 +182,24 @@ final readonly class CommandDispatcher
         $config = $this->config;
         $environment = $input->option('env');
         if ($environment !== null && $environment !== '') {
+            if ($this->releaseBootstrap !== null) {
+                throw new \InvalidArgumentException(
+                    'Immutable Foundation release runtimes do not support the --env override.',
+                );
+            }
             $app = $config['app'] ?? [];
             if (!is_array($app)) {
                 throw new \UnexpectedValueException('Inline app configuration must be an array.');
             }
             $app['env'] = $environment;
             $config['app'] = $app;
+        }
+
+        if ($this->releaseBootstrap !== null
+            && $runtime !== RuntimeMode::Web
+            && !($runtime === RuntimeMode::Worker && $input->command === 'worker:run')
+        ) {
+            return $this->releaseBootstrap->nonWeb($config, $runtime);
         }
 
         return match ($runtime) {
@@ -230,5 +255,11 @@ final readonly class CommandDispatcher
             $profile['verbosity'],
             PHP_EOL,
         ));
+    }
+
+    private function unbootedWorkerSupervisor(CommandDescriptor $descriptor): bool
+    {
+        return $descriptor->definition->commandRuntime() === RuntimeMode::Worker
+            && $descriptor->definition->commandName() === 'worker:run';
     }
 }
