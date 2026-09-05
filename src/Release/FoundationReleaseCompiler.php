@@ -27,7 +27,13 @@ final readonly class FoundationReleaseCompiler
      *
      * @param array<string,mixed> $config
      * @param array<string,array<int|string,mixed>> $capabilities
-     * @return array{generation:string,manifest:string,active_pointer:string,release:array<string,mixed>}
+     * @return array{
+     *   generation:string,
+     *   manifest:string,
+     *   manifest_sha256:string,
+     *   active_pointer:string,
+     *   release:array<string,mixed>
+     * }
      */
     public function buildAndActivate(
         array $config,
@@ -46,11 +52,14 @@ final readonly class FoundationReleaseCompiler
             $this->verifyStage($stage, $manifest);
             $this->publishStage($stage, $final, $generation);
             $stage = '';
+            $manifestPath = $final . '/foundation.php';
+            $manifestSha256 = $this->sha256($manifestPath, 'Foundation release manifest');
             $activePointer = $this->active->activate($releaseRoot, $generation);
 
             return [
                 'generation' => $generation,
-                'manifest' => $final . '/foundation.php',
+                'manifest' => $manifestPath,
+                'manifest_sha256' => $manifestSha256,
                 'active_pointer' => $activePointer,
                 'release' => $manifest,
             ];
@@ -59,6 +68,20 @@ final readonly class FoundationReleaseCompiler
                 $this->removeDirectory($stage);
             }
         }
+    }
+
+    /** Explicitly remove Foundation-owned release generations and the active pointer. */
+    public function clear(string $releaseRoot): bool
+    {
+        $releaseRoot = $this->root($releaseRoot);
+        $removed = $this->active->clear($releaseRoot);
+        $generations = $releaseRoot . DIRECTORY_SEPARATOR . 'generations';
+        if (is_dir($generations)) {
+            $this->removeDirectory($generations);
+            $removed = true;
+        }
+
+        return $removed;
     }
 
     /**
@@ -94,6 +117,42 @@ final readonly class FoundationReleaseCompiler
         }
 
         return $removed;
+    }
+
+    /**
+     * Build-plane diagnostic only. Corrupt active metadata raises instead of
+     * being flattened into a false "not ready" status.
+     *
+     * @return array{
+     *   ready:bool,
+     *   release_root:string,
+     *   generation:?string,
+     *   manifest:?string,
+     *   manifest_sha256:?string
+     * }
+     */
+    public function status(string $releaseRoot): array
+    {
+        $releaseRoot = $this->root($releaseRoot);
+        if (!$this->active->exists($releaseRoot)) {
+            return [
+                'ready' => false,
+                'release_root' => $releaseRoot,
+                'generation' => null,
+                'manifest' => null,
+                'manifest_sha256' => null,
+            ];
+        }
+
+        $active = $this->active->current($releaseRoot);
+
+        return [
+            'ready' => true,
+            'release_root' => $releaseRoot,
+            'generation' => $active['generation'],
+            'manifest' => $active['manifest'],
+            'manifest_sha256' => $this->sha256($active['manifest'], 'Foundation active release manifest'),
+        ];
     }
 
     private function activeGenerationOrNull(string $releaseRoot): ?string
@@ -329,6 +388,16 @@ final readonly class FoundationReleaseCompiler
         }
 
         return $releaseRoot;
+    }
+
+    private function sha256(string $path, string $artifact): string
+    {
+        $sha256 = hash_file('sha256', $path);
+        if (!is_string($sha256)) {
+            throw new \RuntimeException(sprintf('Unable to fingerprint %s.', $artifact));
+        }
+
+        return $sha256;
     }
 
     /** @param array<string,mixed> $source */

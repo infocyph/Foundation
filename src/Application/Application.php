@@ -7,7 +7,6 @@ namespace Infocyph\Foundation\Application;
 use Infocyph\Foundation\Bootstrap\Bootstrapper;
 use Infocyph\Foundation\Config\ConfigLoader;
 use Infocyph\Foundation\Config\ConfigRepository;
-use Infocyph\Foundation\Container\ContainerCacheManager;
 use Infocyph\Foundation\Container\FoundationGraph;
 use Infocyph\Foundation\Exception\ServiceResolutionException;
 use Infocyph\Foundation\Filesystem\PathManager;
@@ -293,13 +292,6 @@ final class Application
         }
         if (!$container->definitions()->has(Container::class)) {
             $container->bind(Container::class, $container, LifetimeEnum::Singleton);
-        }
-        if (!$container->definitions()->has(ContainerCacheManager::class)) {
-            $container->bind(
-                ContainerCacheManager::class,
-                new ContainerCacheManager($this),
-                LifetimeEnum::Singleton,
-            );
         }
     }
 }

@@ -86,6 +86,25 @@ final class Bootstrapper
         }
     }
 
+    /**
+     * Resolve the optional package-backed topology once on the build plane so a
+     * release can freeze it explicitly for all generated runtimes.
+     *
+     * @return array<string, bool>
+     */
+    public function discoveredCapabilities(): array
+    {
+        $capabilities = [];
+        foreach (self::OPTIONAL_BUILT_INS as $provider) {
+            if ($this->providerDependencyAvailable($provider)) {
+                $capabilities[self::OPTIONAL_CAPABILITIES[$provider]] = true;
+            }
+        }
+        ksort($capabilities);
+
+        return $capabilities;
+    }
+
     public function compose(
         ContainerBuilder $builder,
         FoundationBuildContext $context,

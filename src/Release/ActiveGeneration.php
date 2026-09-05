@@ -54,6 +54,19 @@ final class ActiveGeneration
         return $pointerPath;
     }
 
+    public function clear(string $releaseRoot): bool
+    {
+        $pointerPath = $this->root($releaseRoot) . DIRECTORY_SEPARATOR . self::POINTER;
+        if (!is_file($pointerPath)) {
+            return false;
+        }
+        if (!unlink($pointerPath)) {
+            throw new \RuntimeException('Unable to remove Foundation active-generation pointer.');
+        }
+
+        return true;
+    }
+
     /** @return array{generation:string,manifest:string} */
     public function current(string $releaseRoot): array
     {
@@ -66,6 +79,11 @@ final class ActiveGeneration
         }
 
         return ['generation' => $pointer['generation'], 'manifest' => $manifestPath];
+    }
+
+    public function exists(string $releaseRoot): bool
+    {
+        return is_file($this->root($releaseRoot) . DIRECTORY_SEPARATOR . self::POINTER);
     }
 
     public function replacementRequired(string $releaseRoot, string $loadedGeneration): bool

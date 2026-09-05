@@ -80,6 +80,41 @@ it('prunes old generations explicitly while preserving active and newest release
     }
 });
 
+it('reports and clears active release generations through build-plane APIs', function (): void {
+    $root = foundationReleaseInfrastructureRoot();
+    $compiler = new FoundationReleaseCompiler();
+    $active = new ActiveGeneration();
+
+    try {
+        $manifestPath = foundationReleaseInfrastructureGeneration($root, 'reportable');
+        $active->activate($root, 'reportable');
+        $expectedSha256 = hash_file('sha256', $manifestPath);
+        if (!is_string($expectedSha256)) {
+            throw new RuntimeException('Unable to hash release fixture.');
+        }
+
+        $status = $compiler->status($root);
+        expect($active->exists($root))->toBeTrue()
+            ->and($status['ready'])->toBeTrue()
+            ->and($status['generation'])->toBe('reportable')
+            ->and($status['manifest'])->toBe($manifestPath)
+            ->and($status['manifest_sha256'])->toBe($expectedSha256);
+
+        expect($compiler->clear($root))->toBeTrue()
+            ->and($active->exists($root))->toBeFalse()
+            ->and(is_dir($root . '/generations'))->toBeFalse()
+            ->and($compiler->clear($root))->toBeFalse();
+
+        $cleared = $compiler->status($root);
+        expect($cleared['ready'])->toBeFalse()
+            ->and($cleared['generation'])->toBeNull()
+            ->and($cleared['manifest'])->toBeNull()
+            ->and($cleared['manifest_sha256'])->toBeNull();
+    } finally {
+        foundationReleaseInfrastructureRemove($root);
+    }
+});
+
 /** @return array<string,mixed> */
 function foundationReleaseInfrastructureManifest(string $generation): array
 {

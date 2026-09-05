@@ -34,6 +34,15 @@ final readonly class FoundationReleaseBootstrap
             return null;
         }
 
+        return new self(
+            self::resolveReleaseRoot($config),
+            strtolower(trim($trustedSha256)),
+        );
+    }
+
+    /** @param array<string,mixed> $config */
+    public static function resolveReleaseRoot(array $config = []): string
+    {
         $basePath = self::basePath($config);
         $releaseRoot = self::environment(self::RELEASE_ROOT_ENV)
             ?? $basePath . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'releases';
@@ -41,10 +50,7 @@ final readonly class FoundationReleaseBootstrap
             $releaseRoot = $basePath . DIRECTORY_SEPARATOR . trim($releaseRoot, DIRECTORY_SEPARATOR);
         }
 
-        return new self(
-            rtrim($releaseRoot, DIRECTORY_SEPARATOR),
-            strtolower(trim($trustedSha256)),
-        );
+        return rtrim($releaseRoot, DIRECTORY_SEPARATOR);
     }
 
     /** @param array<string,mixed> $config */
