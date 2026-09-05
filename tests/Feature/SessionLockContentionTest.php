@@ -175,7 +175,7 @@ function sessionPdoLockProviders(string $dsnKey, string $userKey, string $passwo
     };
 
     return [
-        new PdoLockProvider($connect(), 'foundation_test_locks', 'foundation:test:'),
-        new PdoLockProvider($connect(), 'foundation_test_locks', 'foundation:test:'),
+        new PdoLockProvider($connect(), 'foundation:test:'),
+        new PdoLockProvider($connect(), 'foundation:test:'),
     ];
 }
