@@ -2103,7 +2103,7 @@ Phase 7 acceptance evidence: `NonWebGraphFactory` composes fresh deterministic r
 - [X] Leave previous generation active when any build/verification step fails.
 - [X] Implement rollback/incomplete-generation tests for the active pointer/generation infrastructure.
 - [X] Implement trusted-prevalidated mode only with immutable external Foundation trust metadata.
-- [ ] Implement graceful persistent-worker replacement on generation change.
+- [X] Implement graceful persistent-worker replacement on generation change.
 - [X] Keep old-generation cleanup outside request/job hot paths.
 
 Phase 8 implementation evidence: `FoundationReleaseCompiler` stages under `generations/.staging-*`, coordinates Webrick plus non-web artifact metadata, verifies identity/completeness, publishes an immutable generation and switches only after verification; `FoundationReleaseManifest` provides the OPcache-friendly Foundation manifest; `ActiveGeneration` provides the atomic pointer and generation-change detection; `FoundationReleaseRuntime` and `GeneratedRuntime::loadPrevalidated()` require an externally trusted Foundation manifest SHA before using subordinate trusted digests; `FoundationReleaseInfrastructureTest` covers activation, incomplete-target rejection, trust mismatch, traversal rejection and explicit out-of-band pruning. End-to-end all-four-runtime build/load acceptance remains open and is now running against InterMix 10.0.4.
