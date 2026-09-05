@@ -64,13 +64,7 @@ final readonly class WorkerManager
             throw new \LogicException('Workers must run from a Foundation worker runtime.');
         }
 
-        $providers = $this->providerDefinitions($routes);
         $messaging = $this->messagingDefinitions();
-        $this->assertDistinctNames($providers, $messaging);
-        if (!isset($providers[$name]) && !isset($messaging[$name])) {
-            throw new \InvalidArgumentException(sprintf('Worker "%s" is not defined.', $name));
-        }
-
         $release = $this->application->loadedReleaseGeneration() === null
             ? FoundationReleaseBootstrap::fromEnvironment($this->application->config()->all())
             : null;
@@ -79,6 +73,12 @@ final readonly class WorkerManager
                 $this->application->config()->all(),
                 RuntimeMode::Worker,
             ))->run($name, $routes);
+        }
+
+        $providers = $this->providerDefinitions($routes);
+        $this->assertDistinctNames($providers, $messaging);
+        if (!isset($providers[$name]) && !isset($messaging[$name])) {
+            throw new \InvalidArgumentException(sprintf('Worker "%s" is not defined.', $name));
         }
 
         $control = new RuntimeControl($this->application);
@@ -197,18 +197,6 @@ final readonly class WorkerManager
         }
     }
 
-    private function floatValue(mixed $value, float $default, string $key): float
-    {
-        if ($value === null || $value === '') {
-            return $default;
-        }
-        if (is_int($value) || is_float($value) || (is_string($value) && is_numeric($value))) {
-            return (float) $value;
-        }
-
-        throw new \UnexpectedValueException(sprintf('Worker %s must be numeric.', $key));
-    }
-
     /** @return \Closure():bool */
     private function generationStopRequested(): \Closure
     {
@@ -273,23 +261,6 @@ final readonly class WorkerManager
         return $workers;
     }
 
-    private function nonNegativeFloat(mixed $value, float $default, string $key): float
-    {
-        $resolved = $this->floatValue($value, $default, $key);
-        if (!is_finite($resolved) || $resolved < 0.0) {
-            throw new \UnexpectedValueException(sprintf('Worker %s must be finite and non-negative.', $key));
-        }
-
-        return $resolved;
-    }
-
-    private function path(string $path): string
-    {
-        return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1
-            ? $path
-            : $this->application->basePath(trim($path, DIRECTORY_SEPARATOR));
-    }
-
     /** @param array<string,mixed>|null $definition */
     private function pooledMessagingWorker(?array $definition): bool
     {
@@ -302,65 +273,21 @@ final readonly class WorkerManager
         return ValueNormalizer::bool($pool['enabled'] ?? null, false);
     }
 
-    private function positiveFloat(mixed $value, float $default, string $key): float
-    {
-        $resolved = $this->floatValue($value, $default, $key);
-        if (!is_finite($resolved) || $resolved <= 0.0) {
-            throw new \UnexpectedValueException(sprintf('Worker %s must be positive and finite.', $key));
-        }
-
-        return $resolved;
-    }
-
     /**
      * @return array<string, array{provider:class-string<WorkerProvider>,singleton:bool,lock_wait_seconds:float,lock_lease_seconds:float}>
      */
     private function providerDefinitions(string $routes): array
     {
-        $path = $this->path($routes);
-        if (!is_file($path)) {
-            return [];
+        $loaded = $this->application->loadedReleaseGeneration();
+        if ($loaded !== null) {
+            return new WorkerTopology()->loadGeneration($loaded);
         }
 
-        $configured = require $path;
-        if (!is_array($configured)) {
-            throw new \UnexpectedValueException(sprintf('Worker route file "%s" must return a worker map.', $path));
-        }
-
-        $workers = [];
-        foreach ($configured as $name => $definition) {
-            if (!is_string($name) || $name === '') {
-                throw new \UnexpectedValueException('Worker route names must be non-empty strings.');
-            }
-
-            $options = is_array($definition) ? $definition : ['provider' => $definition];
-            $provider = $options['provider'] ?? null;
-            if (!is_string($provider) || $provider === '' || !is_a($provider, WorkerProvider::class, true)) {
-                throw new \UnexpectedValueException(sprintf(
-                    'Worker "%s" must define a %s provider.',
-                    $name,
-                    WorkerProvider::class,
-                ));
-            }
-
-            /** @var class-string<WorkerProvider> $provider */
-            $workers[$name] = [
-                'provider' => $provider,
-                'singleton' => ValueNormalizer::bool($options['singleton'] ?? null, false),
-                'lock_wait_seconds' => $this->nonNegativeFloat(
-                    $options['lock_wait_seconds'] ?? $this->application->config()->get('worker.lock_wait_seconds'),
-                    0.0,
-                    'lock_wait_seconds',
-                ),
-                'lock_lease_seconds' => $this->positiveFloat(
-                    $options['lock_lease_seconds'] ?? $this->application->config()->get('worker.lock_lease_seconds'),
-                    300.0,
-                    'lock_lease_seconds',
-                ),
-            ];
-        }
-
-        return $workers;
+        return new WorkerTopology()->source(
+            $this->application->basePath(trim($routes, DIRECTORY_SEPARATOR)),
+            $this->application->config()->get('worker.lock_wait_seconds'),
+            $this->application->config()->get('worker.lock_lease_seconds'),
+        );
     }
 
     /**
