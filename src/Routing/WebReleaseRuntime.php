@@ -34,13 +34,13 @@ final readonly class WebReleaseRuntime
 
     /**
      * @param array<string, mixed> $config
-     * @param array<int|string, mixed>|null $foundationCapabilities Must match compile-time topology when explicit.
+     * @param array<int|string, mixed> $foundationCapabilities Must match compile-time topology; [] is minimal.
      */
     public static function load(
         array $config,
         string $releaseManifestPath,
         ?RuntimeAdapterInterface $adapter = null,
-        ?array $foundationCapabilities = null,
+        array $foundationCapabilities = [],
     ): self {
         return self::boot($config, $releaseManifestPath, $adapter, false, $foundationCapabilities);
     }
@@ -48,13 +48,13 @@ final readonly class WebReleaseRuntime
     /**
      * Load one release from a trusted normalized config snapshot without source discovery.
      *
-     * @param array<int|string, mixed>|null $foundationCapabilities Must match compile-time topology when explicit.
+     * @param array<int|string, mixed> $foundationCapabilities Must match compile-time topology; [] is minimal.
      */
     public static function loadCompiled(
         ConfigRepository $config,
         string $releaseManifestPath,
         ?RuntimeAdapterInterface $adapter = null,
-        ?array $foundationCapabilities = null,
+        array $foundationCapabilities = [],
     ): self {
         self::assertCompiledConfig($config);
 
@@ -67,14 +67,14 @@ final readonly class WebReleaseRuntime
      * metadata, never from the release directory being validated.
      *
      * @param array<string, mixed> $config
-     * @param array<int|string, mixed>|null $foundationCapabilities Must match compile-time topology when explicit.
+     * @param array<int|string, mixed> $foundationCapabilities Must match compile-time topology; [] is minimal.
      */
     public static function loadPrevalidated(
         array $config,
         string $releaseManifestPath,
         string $trustedManifestSha256,
         ?RuntimeAdapterInterface $adapter = null,
-        ?array $foundationCapabilities = null,
+        array $foundationCapabilities = [],
     ): self {
         self::assertTrustedManifest($releaseManifestPath, $trustedManifestSha256);
 
@@ -84,14 +84,14 @@ final readonly class WebReleaseRuntime
     /**
      * Trusted load from a normalized config snapshot owned by the same Foundation generation.
      *
-     * @param array<int|string, mixed>|null $foundationCapabilities Must match compile-time topology when explicit.
+     * @param array<int|string, mixed> $foundationCapabilities Must match compile-time topology; [] is minimal.
      */
     public static function loadPrevalidatedCompiled(
         ConfigRepository $config,
         string $releaseManifestPath,
         string $trustedManifestSha256,
         ?RuntimeAdapterInterface $adapter = null,
-        ?array $foundationCapabilities = null,
+        array $foundationCapabilities = [],
     ): self {
         self::assertCompiledConfig($config);
         self::assertTrustedManifest($releaseManifestPath, $trustedManifestSha256);
@@ -127,14 +127,14 @@ final readonly class WebReleaseRuntime
 
     /**
      * @param array<string, mixed>|ConfigRepository $config
-     * @param array<int|string, mixed>|null $foundationCapabilities
+     * @param array<int|string, mixed> $foundationCapabilities
      */
     private static function boot(
         array|ConfigRepository $config,
         string $releaseManifestPath,
         ?RuntimeAdapterInterface $adapter,
         bool $prevalidated,
-        ?array $foundationCapabilities,
+        array $foundationCapabilities,
     ): self {
         $graph = new WebGraphFactory()->compose($config, $foundationCapabilities);
         $settings = new WebReleaseConfiguration($graph);
