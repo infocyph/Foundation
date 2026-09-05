@@ -327,12 +327,28 @@ final class ApplicationSystemCommand extends SystemCommand
             return $this->emit(['endpoint' => $endpoint, 'document_root' => $public], sprintf('%s -> %s', $endpoint, $public));
         }
 
-        $this->io()->info('Development server listening on ' . $endpoint);
+        $config = $this->releaseConfig();
+        $releaseRoot = FoundationReleaseBootstrap::resolveReleaseRoot($config);
+        $release = new FoundationReleaseCompiler()->buildAndActivate(
+            config: $config,
+            releaseRoot: $releaseRoot,
+            capabilities: $this->releaseCapabilities(),
+        );
+
+        $this->io()->info(sprintf(
+            'Development server listening on %s using Foundation generation %s.',
+            $endpoint,
+            $release['generation'],
+        ));
 
         return new ProcessRunner()->run(
             [PHP_BINARY, '-S', $host . ':' . $port, '-t', $public],
             new ProcessOptions(
                 cwd: $this->application->basePath(),
+                environment: [
+                    FoundationReleaseBootstrap::RELEASE_ROOT_ENV => $releaseRoot,
+                    FoundationReleaseBootstrap::MANIFEST_SHA256_ENV => $release['manifest_sha256'],
+                ],
                 interactive: true,
             ),
         )->exitCode;
