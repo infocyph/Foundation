@@ -284,7 +284,8 @@ function phase9HttpSpawn(string $variant): array
 if (($argv[1] ?? null) === '--child') {
     $result = phase9HttpChild((string) ($argv[2] ?? ''));
     fwrite(STDOUT, json_encode($result, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
-    exit(0);
+
+    return;
 }
 
 $direct = phase9HttpSpawn('webrick');
