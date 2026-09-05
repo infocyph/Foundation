@@ -79,11 +79,11 @@ final readonly class FoundationPhase8ReleaseSchedulerCommand implements CommandH
     }
 }
 
-final readonly class FoundationPhase8ReleaseWorkerProvider implements WorkerProvider
+final class FoundationPhase8ReleaseWorkerProvider implements WorkerProvider
 {
     public static ?RuntimeMode $observedRuntime = null;
 
-    public function __construct(private FoundationPhase8ReleaseProbe $probe) {}
+    public function __construct(private readonly FoundationPhase8ReleaseProbe $probe) {}
 
     public function run(WorkerRuntime $runtime): int
     {
