@@ -18,7 +18,12 @@ rm -rf "$RESULTS"
 mkdir -p "$RESULTS" "$ROOT/build"
 
 PHASE9_SERVER_APP="$APP" php "$ROOT/benchmarks/phase9-server-compile.php"
-chmod -R a+rX "$APP" "$ROOT/vendor"
+chmod -R a+rX "$ROOT"
+current="$ROOT"
+while [[ "$current" != "/" ]]; do
+    sudo chmod o+x "$current"
+    current="$(dirname "$current")"
+done
 
 sudo mkdir -p "$FPM_INI_DIR" "$FPM_POOL_DIR"
 cat <<'INI' | sudo tee "$FPM_INI_DIR/99-foundation-phase9.ini" >/dev/null
