@@ -6,8 +6,8 @@ namespace Infocyph\Foundation\Command\System;
 
 use Composer\InstalledVersions;
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
-use Infocyph\Foundation\Bootstrap\Bootstrapper;
 use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Command\CommandCacheManager;
 use Infocyph\Foundation\Command\ExitCode;
@@ -276,10 +276,25 @@ final class ApplicationSystemCommand extends SystemCommand
     /** @return array<string, array<string, bool>> */
     private function releaseCapabilities(): array
     {
-        $discovered = new Bootstrapper()->discoveredCapabilities();
+        if (!$this->application->config()->has('app.capabilities')) {
+            throw new \RuntimeException(
+                'Production optimization requires an explicit app.capabilities list or map.',
+            );
+        }
+
+        $configured = $this->application->config()->get('app.capabilities');
+        if (!is_array($configured)) {
+            throw new \UnexpectedValueException('app.capabilities must be a capability list or map.');
+        }
+        $resolved = FoundationBuildContext::fromConfig(
+            $this->application->config(),
+            RuntimeMode::Cli,
+            $configured,
+        )->capabilities;
+
         $capabilities = [];
         foreach (RuntimeMode::cases() as $runtime) {
-            $capabilities[$runtime->value] = $discovered;
+            $capabilities[$runtime->value] = $resolved;
         }
 
         return $capabilities;
