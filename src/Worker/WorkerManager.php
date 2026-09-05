@@ -13,6 +13,7 @@ use Infocyph\Foundation\Operations\RuntimeControl;
 use Infocyph\Foundation\Operations\RuntimeProcessRegistry;
 use Infocyph\Foundation\Release\ActiveGeneration;
 use Infocyph\Foundation\Release\FoundationReleaseBootstrap;
+use Infocyph\Foundation\Runtime\LoadedReleaseGeneration;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\Omnibus\Consumer\Worker;
 use Infocyph\Omnibus\Consumer\WorkerLifecycle;
@@ -75,7 +76,7 @@ final readonly class WorkerManager
             ))->run($name, $routes);
         }
 
-        $providers = $this->providerDefinitions($routes);
+        $providers = $this->providerDefinitions($routes, $release);
         $this->assertDistinctNames($providers, $messaging);
         if (!isset($providers[$name]) && !isset($messaging[$name])) {
             throw new \InvalidArgumentException(sprintf('Worker "%s" is not defined.', $name));
@@ -209,19 +210,9 @@ final readonly class WorkerManager
         if ($bootstrap === null) {
             return static fn(): bool => false;
         }
+        $selected = $this->selectedGeneration($bootstrap);
 
-        $active = new ActiveGeneration();
-        $current = $active->current($bootstrap->releaseRoot);
-        $manifestSha256 = hash_file('sha256', $current['manifest']);
-        if (!is_string($manifestSha256)
-            || !hash_equals($bootstrap->trustedFoundationManifestSha256, $manifestSha256)
-        ) {
-            throw new \RuntimeException(
-                'Trusted Foundation generation manifest does not match the active release selected for the worker supervisor.',
-            );
-        }
-
-        return $this->watchGeneration($bootstrap->releaseRoot, $current['generation']);
+        return $this->watchGeneration($selected->releaseRoot, $selected->generation);
     }
 
     /** @return \Closure():bool */
@@ -276,17 +267,45 @@ final readonly class WorkerManager
     /**
      * @return array<string, array{provider:class-string<WorkerProvider>,singleton:bool,lock_wait_seconds:float,lock_lease_seconds:float}>
      */
-    private function providerDefinitions(string $routes): array
-    {
+    private function providerDefinitions(
+        string $routes,
+        ?FoundationReleaseBootstrap $bootstrap = null,
+    ): array {
         $loaded = $this->application->loadedReleaseGeneration();
         if ($loaded !== null) {
             return new WorkerTopology()->loadGeneration($loaded);
         }
+        if ($bootstrap !== null) {
+            return new WorkerTopology()->loadGeneration($this->selectedGeneration($bootstrap));
+        }
+
+        $routePath = preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $routes) === 1
+            ? $routes
+            : $this->application->basePath(trim($routes, DIRECTORY_SEPARATOR));
 
         return new WorkerTopology()->source(
-            $this->application->basePath(trim($routes, DIRECTORY_SEPARATOR)),
+            $routePath,
             $this->application->config()->get('worker.lock_wait_seconds'),
             $this->application->config()->get('worker.lock_lease_seconds'),
+        );
+    }
+
+    private function selectedGeneration(FoundationReleaseBootstrap $bootstrap): LoadedReleaseGeneration
+    {
+        $current = new ActiveGeneration()->current($bootstrap->releaseRoot);
+        $manifestSha256 = hash_file('sha256', $current['manifest']);
+        if (!is_string($manifestSha256)
+            || !hash_equals($bootstrap->trustedFoundationManifestSha256, $manifestSha256)
+        ) {
+            throw new \RuntimeException(
+                'Trusted Foundation generation manifest does not match the active release selected for the worker supervisor.',
+            );
+        }
+
+        return new LoadedReleaseGeneration(
+            $bootstrap->releaseRoot,
+            $current['generation'],
+            $bootstrap->trustedFoundationManifestSha256,
         );
     }
 
