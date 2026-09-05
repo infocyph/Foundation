@@ -139,9 +139,7 @@ final readonly class CommandDispatcher
 
         try {
             $application = $this->application($descriptor->definition->commandRuntime(), $input);
-            $resolverApplication = $this->unbootedWorkerSupervisor($descriptor)
-                ? $application
-                : $application->boot();
+            $resolverApplication = $this->resolverApplication($application, $descriptor);
             $inline = static fn(ExecutionId $executionId): int => new CommandResolver($resolverApplication)
                 ->run($descriptor, $input, $io, $executionId);
 
@@ -255,6 +253,11 @@ final readonly class CommandDispatcher
             $profile['verbosity'],
             PHP_EOL,
         ));
+    }
+
+    private function resolverApplication(Application $application, CommandDescriptor $descriptor): Application
+    {
+        return $this->unbootedWorkerSupervisor($descriptor) ? $application : $application->boot();
     }
 
     private function unbootedWorkerSupervisor(CommandDescriptor $descriptor): bool
