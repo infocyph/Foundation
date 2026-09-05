@@ -30,6 +30,10 @@ final class FoundationReleaseManifest
             self::relativePath($section['metadata_path'] ?? null, $runtime . '.metadata_path');
             self::digest($section['metadata_sha256'] ?? null, 64, $runtime . '.metadata_sha256');
             self::capabilities($section['capabilities'] ?? null, $runtime . '.capabilities');
+
+            if ($runtime === 'worker') {
+                self::workerTopology($section);
+            }
         }
     }
 
@@ -161,5 +165,23 @@ final class FoundationReleaseManifest
         }
 
         return $mapped;
+    }
+
+    /** @param array<string,mixed> $section */
+    private static function workerTopology(array $section): void
+    {
+        $hasPath = array_key_exists('provider_topology', $section);
+        $hasDigest = array_key_exists('provider_topology_sha256', $section);
+        if (!$hasPath && !$hasDigest) {
+            return;
+        }
+        if (!$hasPath || !$hasDigest) {
+            throw new \UnexpectedValueException(
+                'Foundation worker topology path and trust identity must be declared together.',
+            );
+        }
+
+        self::relativePath($section['provider_topology'], 'worker.provider_topology');
+        self::digest($section['provider_topology_sha256'], 64, 'worker.provider_topology_sha256');
     }
 }
