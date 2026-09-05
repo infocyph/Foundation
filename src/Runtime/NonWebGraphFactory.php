@@ -18,16 +18,21 @@ use Infocyph\Foundation\Container\FoundationGraph;
 final class NonWebGraphFactory
 {
     /**
-     * @param array<string, mixed> $config
+     * @param array<string, mixed>|ConfigRepository $config
      * @param array<int|string, mixed> $capabilities
      */
-    public function compose(array $config, RuntimeMode $runtime, array $capabilities = []): NonWebGraphComposition
-    {
+    public function compose(
+        array|ConfigRepository $config,
+        RuntimeMode $runtime,
+        array $capabilities = [],
+    ): NonWebGraphComposition {
         if ($runtime === RuntimeMode::Web) {
             throw new \InvalidArgumentException('Web runtime compilation must use the coordinated Webrick release path.');
         }
 
-        $sourceConfig = new ConfigLoader()->load($config);
+        $sourceConfig = $config instanceof ConfigRepository
+            ? $config
+            : new ConfigLoader()->load($config);
         $context = FoundationBuildContext::fromConfig($sourceConfig, $runtime, $capabilities);
         $builder = FoundationGraph::compose($context);
         $container = $builder->development();
