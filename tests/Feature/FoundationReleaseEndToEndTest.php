@@ -250,12 +250,16 @@ it('builds activates and boots all four runtimes from one immutable Foundation g
         );
 
         $generation = $releaseRoot . '/generations/phase8-e2e';
+        $foundationManifest = require $generation . '/foundation.php';
         expect($release['generation'])->toBe('phase8-e2e')
             ->and(new ActiveGeneration()->current($releaseRoot)['generation'])->toBe('phase8-e2e')
             ->and(is_file($generation . '/foundation.php'))->toBeTrue()
             ->and(is_file($generation . '/web/release.json'))->toBeTrue()
             ->and(is_file($generation . '/web/container.php'))->toBeTrue()
-            ->and(is_file($generation . '/web/router.php'))->toBeTrue();
+            ->and(is_file($generation . '/web/router.php'))->toBeTrue()
+            ->and(is_file($generation . '/worker/providers.php'))->toBeTrue()
+            ->and($foundationManifest['worker']['provider_topology'] ?? null)->toBe('worker/providers.php')
+            ->and($foundationManifest['worker']['provider_topology_sha256'] ?? null)->toMatch('/^[a-f0-9]{64}$/D');
 
         foreach (['cli', 'worker', 'scheduler'] as $runtime) {
             expect(is_file($generation . '/' . $runtime . '/container.php'))->toBeTrue()
@@ -290,10 +294,15 @@ it('builds activates and boots all four runtimes from one immutable Foundation g
         expect($response->getStatusCode())->toBe(200)
             ->and((string) $response->getBody())->toBe('{"generation":"phase8-e2e"}');
 
-        // Trusted non-web process boot must not reconstruct its source graph.
+        // Trusted non-web process boot must not reconstruct its source graph or
+        // rediscover provider-worker topology after publication.
         file_put_contents(
             $project . '/bootstrap/providers.php',
             "<?php\n\nthrow new RuntimeException('active release rediscovered source providers');\n",
+        );
+        file_put_contents(
+            $project . '/routes/workers.php',
+            "<?php\n\nthrow new RuntimeException('active release rediscovered source worker topology');\n",
         );
 
         $cli = $loader->nonWebPrevalidated(
