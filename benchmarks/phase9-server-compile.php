@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Infocyph\Foundation\Benchmarks\Phase9ServerHandler;
+use Infocyph\Foundation\Config\ConfigLoader;
 use Infocyph\Foundation\Routing\WebReleaseCompiler;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
@@ -47,13 +48,12 @@ Router::get('/json', [Phase9ServerHandler::class, 'json']);
 PHP;
 file_put_contents($app . '/routes/web.php', $routeSource . PHP_EOL, LOCK_EX);
 
-$config = [
+$sourceConfig = [
     'app' => [
         'base_path' => $app,
         'env' => 'production',
         'debug' => false,
     ],
-    '_config_cache' => false,
     'router' => [
         'files' => ['web.php'],
         'matcher' => 'fused',
@@ -65,6 +65,16 @@ $config = [
         ],
     ],
 ];
+$configCache = $app . '/bootstrap/cache/config';
+$configLoader = new ConfigLoader();
+$normalizedConfig = $configLoader->load($sourceConfig + ['_config_cache' => false]);
+$configLoader->writeCache(
+    $normalizedConfig,
+    $configCache,
+    ConfigLoader::TYPE_SINGLE,
+    $app,
+);
+$config = $sourceConfig + ['_config_cache' => $configCache];
 
 $manifest = $app . '/bootstrap/cache/release.json';
 $release = new WebReleaseCompiler()->compile(
@@ -137,6 +147,7 @@ $result = [
     'schema' => 1,
     'app' => $app,
     'document_root' => $app . '/public',
+    'config_cache' => $configCache,
     'manifest' => $manifest,
     'trusted_manifest_sha256' => $trustedSha256,
     'intermix_skipped' => $skipped,
