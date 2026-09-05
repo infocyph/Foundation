@@ -8,6 +8,7 @@ use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Routing\WebReleaseCompiler;
 use Infocyph\Foundation\Runtime\GeneratedRuntimeCompiler;
 use Infocyph\Foundation\Runtime\GeneratedRuntimeMetadata;
+use Infocyph\Foundation\Worker\WorkerTopology;
 use Infocyph\Webrick\Router\Build\ReleaseCompiler as WebrickReleaseCompiler;
 
 /** Coordinates one immutable Foundation release generation across all runtimes. */
@@ -17,6 +18,7 @@ final readonly class FoundationReleaseCompiler
         private WebReleaseCompiler $web = new WebReleaseCompiler(),
         private GeneratedRuntimeCompiler $nonWeb = new GeneratedRuntimeCompiler(),
         private ActiveGeneration $active = new ActiveGeneration(),
+        private WorkerTopology $workerTopology = new WorkerTopology(),
     ) {}
 
     /**
@@ -149,6 +151,10 @@ final readonly class FoundationReleaseCompiler
                 $configFingerprint,
             );
         }
+
+        $topology = $this->workerTopology->compile($config, $stage . '/worker/providers.php');
+        $runtimeSections['worker']['provider_topology'] = 'worker/providers.php';
+        $runtimeSections['worker']['provider_topology_sha256'] = $topology['sha256'];
 
         return [
             'format' => FoundationReleaseManifest::FORMAT,
@@ -353,12 +359,29 @@ final readonly class FoundationReleaseCompiler
             );
         }
 
+        $worker = FoundationReleaseManifest::section($manifest, 'worker');
+        $workerTopology = FoundationReleaseManifest::relativePath(
+            $worker['provider_topology'] ?? null,
+            'worker.provider_topology',
+        );
+        $workerTopologySha256 = FoundationReleaseManifest::digest(
+            $worker['provider_topology_sha256'] ?? null,
+            64,
+            'worker.provider_topology_sha256',
+        );
+        $paths[] = $workerTopology;
+
         foreach ($paths as $relative) {
             $path = $stage . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relative);
             if (!is_file($path)) {
                 throw new \RuntimeException(sprintf('Foundation release generation is incomplete at "%s".', $relative));
             }
         }
+
+        $this->workerTopology->load(
+            $stage . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $workerTopology),
+            $workerTopologySha256,
+        );
 
         $webReleasePath = $stage . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $webRelease);
         $webRuntimePath = WebrickReleaseCompiler::runtimeManifestPath($webReleasePath);
