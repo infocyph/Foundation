@@ -258,11 +258,6 @@ final class CommandCatalog
 
             new CommandDefinition('runtime:reload', 'Request graceful reload of persistent Foundation runtimes.', 'Operations'),
 
-            new CommandDefinition('route:cache', 'Compile application routes.', 'Routing', capabilities: ['web'])
-                ->option('matcher', 'Webrick matcher strategy.', acceptsValue: true)
-                ->option('cache', 'Compiled route cache path.', acceptsValue: true)
-                ->option('routes', 'Comma-separated route files.', acceptsValue: true),
-            new CommandDefinition('route:clear', 'Clear compiled routes.', 'Routing'),
             new CommandDefinition('route:list', 'List application routes.', 'Routing', capabilities: ['web'])
                 ->option('routes', 'Comma-separated route files.', acceptsValue: true),
 
