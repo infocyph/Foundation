@@ -38,6 +38,24 @@ final readonly class GeneratedRuntime
     }
 
     /**
+     * Load from an already-normalized compiled release config without source discovery.
+     *
+     * @param array<int|string,mixed> $capabilities Must match the compile-time topology.
+     */
+    public static function loadCompiled(
+        ConfigRepository $config,
+        RuntimeMode $runtime,
+        string $artifactPath,
+        array $capabilities = [],
+    ): self {
+        if (!$config->isCompiled()) {
+            throw new \InvalidArgumentException('Generated runtime compiled config must be marked compiled.');
+        }
+
+        return self::bootValidated($config, $runtime, $artifactPath, $capabilities);
+    }
+
+    /**
      * Trusted loading is valid only when both identities originate outside the
      * writable release directory (normally a trusted Foundation generation manifest).
      * This path deliberately does not rebuild the Foundation source graph.
@@ -98,11 +116,11 @@ final readonly class GeneratedRuntime
     }
 
     /**
-     * @param array<string,mixed> $config
+     * @param array<string,mixed>|ConfigRepository $config
      * @param array<int|string,mixed> $capabilities
      */
     private static function bootValidated(
-        array $config,
+        array|ConfigRepository $config,
         RuntimeMode $runtime,
         string $artifactPath,
         array $capabilities,
