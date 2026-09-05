@@ -437,8 +437,87 @@ function foundationPhase8ReleaseConfig(string $project): array
             'base_path' => $project,
             'env' => 'production',
             'debug' => false,
+            'topology' => 'single_node',
         ],
         '_config_cache' => false,
+        'auth' => [
+            'token_secret' => bin2hex(random_bytes(32)),
+            'drivers' => [
+                'cache' => 'cache',
+                'mfa' => 'otp',
+                'notifications' => 'talkingbytes',
+                'passkey' => 'webauthn',
+                'passwords' => 'security',
+                'storage' => 'database',
+                'tokens' => 'security',
+            ],
+            'password_policy' => [
+                'min_length' => 12,
+                'max_length' => 1024,
+            ],
+            'otp' => [
+                'replay' => ['store' => 'auth-state'],
+            ],
+            'webauthn' => [
+                'rp_id' => 'phase8.test',
+                'origin' => 'https://phase8.test',
+                'attestation' => 'none',
+                'user_verification' => 'required',
+                'resident_key' => 'preferred',
+                'algorithms' => ['ES256', 'RS256'],
+                'transports' => ['internal', 'hybrid'],
+            ],
+        ],
+        'database' => [
+            'default' => 'primary',
+            'connections' => [
+                'primary' => ['driver' => 'sqlite', 'database' => ':memory:'],
+            ],
+        ],
+        'cache' => [
+            'default' => 'auth-state',
+            'default_counter' => 'auth-lockouts',
+            'stores' => [
+                'auth-state' => ['driver' => 'file'],
+            ],
+            'counters' => [
+                'auth-lockouts' => ['driver' => 'redis'],
+            ],
+            'lock' => ['driver' => 'file', 'store' => 'auth-state'],
+        ],
+        'notifications' => [
+            'auth' => ['sender' => 'auth'],
+            'email' => [
+                'default_sender' => 'auth',
+                'senders' => [
+                    'auth' => ['transport' => 'log'],
+                ],
+                'transports' => [
+                    'log' => ['driver' => 'log'],
+                ],
+            ],
+        ],
+        'security' => [
+            'jwt' => [
+                'algorithm' => 'HS256',
+                'issuer' => 'phase8.test',
+                'audience' => 'phase8-clients',
+                'maximum_lifetime_seconds' => 3600,
+                'leeway_seconds' => 30,
+            ],
+        ],
+        'communication' => [
+            'webhooks' => [
+                'inbound' => [
+                    'default' => [
+                        'replay' => [
+                            'enabled' => true,
+                            'store' => 'auth-state',
+                        ],
+                    ],
+                ],
+            ],
+        ],
         'router' => [
             'files' => ['web.php'],
             'matcher' => 'fused',
