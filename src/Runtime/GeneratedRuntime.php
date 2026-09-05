@@ -151,7 +151,6 @@ final readonly class GeneratedRuntime
             providers: $providers,
             bootstrapper: $bootstrapper,
             runtimeMode: $runtime,
-            bindDevelopmentCore: false,
         );
         $application->boot();
 

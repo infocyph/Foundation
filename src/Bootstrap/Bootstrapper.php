@@ -25,11 +25,10 @@ use Infocyph\Foundation\Messaging\MessagingServiceProvider;
 use Infocyph\Foundation\Notifications\NotificationServiceProvider;
 use Infocyph\Foundation\Routing\RouteFileLoader;
 use Infocyph\Foundation\Routing\RoutingServiceProvider;
-use Infocyph\Foundation\Runtime\RuntimeExecutionState;
+use Infocyph\Foundation\Runtime\RuntimeScopeCleanup;
 use Infocyph\Foundation\Security\SecurityServiceProvider;
 use Infocyph\Foundation\Session\SessionServiceProvider;
 use Infocyph\Foundation\Validation\ValidationServiceProvider;
-use Infocyph\InterMix\DI\Container;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\Webrick\Router\Definition\Registrar;
 
@@ -259,13 +258,7 @@ final class Bootstrapper
 
         $builder->onScopeLeave(
             $context->runtimeMode->scopeName(),
-            static function (string $scope, Container $container): void {
-                unset($scope);
-                $state = $container->get(RuntimeExecutionState::class);
-                if ($state instanceof RuntimeExecutionState) {
-                    $state->cleanup(false);
-                }
-            },
+            [RuntimeScopeCleanup::class, 'handle'],
         );
     }
 }

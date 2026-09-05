@@ -7,6 +7,7 @@ namespace Infocyph\Foundation\Application;
 use Infocyph\Foundation\Bootstrap\Bootstrapper;
 use Infocyph\Foundation\Config\ConfigLoader;
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Container\DevelopmentRuntimeBindings;
 use Infocyph\Foundation\Container\FoundationGraph;
 use Infocyph\Foundation\Exception\ServiceResolutionException;
 use Infocyph\Foundation\Filesystem\PathManager;
@@ -14,7 +15,6 @@ use Infocyph\Foundation\Http\HttpKernel;
 use Infocyph\Foundation\Runtime\ExecutionScope;
 use Infocyph\Foundation\Runtime\LoadedReleaseGeneration;
 use Infocyph\InterMix\DI\Container;
-use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 use Psr\Container\ContainerInterface;
@@ -31,12 +31,7 @@ final class Application
         private readonly ServiceRegistry $providers,
         private readonly Bootstrapper $bootstrapper,
         private readonly RuntimeMode $runtimeMode,
-        bool $bindDevelopmentCore = true,
-    ) {
-        if ($bindDevelopmentCore && $this->container instanceof Container) {
-            $this->bindDevelopmentCoreServices();
-        }
-    }
+    ) {}
 
     /** @param array<string, mixed> $config */
     public static function create(array $config, RuntimeMode $runtimeMode): self
@@ -59,6 +54,7 @@ final class Application
             bootstrapper: $bootstrapper,
             runtimeMode: $runtimeMode,
         );
+        DevelopmentRuntimeBindings::register($builder, $app, $container);
         $bootstrapper->compose($builder, $context, $providers);
 
         return $app;
@@ -278,20 +274,5 @@ final class Application
     public function uploadsPath(string $path = ''): string
     {
         return $this->paths()->uploads($path);
-    }
-
-    private function bindDevelopmentCoreServices(): void
-    {
-        $container = $this->container;
-        if (!$container instanceof Container) {
-            return;
-        }
-
-        if (!$container->definitions()->has(self::class)) {
-            $container->bind(self::class, $this, LifetimeEnum::Singleton);
-        }
-        if (!$container->definitions()->has(Container::class)) {
-            $container->bind(Container::class, $container, LifetimeEnum::Singleton);
-        }
     }
 }

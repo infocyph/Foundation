@@ -8,7 +8,9 @@ use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceRegistry;
 use Infocyph\Foundation\Bootstrap\Bootstrapper;
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Container\DevelopmentRuntimeBindings;
 use Infocyph\Foundation\Container\FoundationGraph;
+use Infocyph\InterMix\DI\Container;
 use Psr\Container\ContainerInterface;
 
 it('keeps generated production resolution behind the runtime-neutral application facade', function (): void {
@@ -95,4 +97,38 @@ it('coordinates through the PSR container contract without requiring an InterMix
 
     expect(fn() => $app->container())
         ->toThrow(LogicException::class, 'mutable InterMix development container is unavailable');
+});
+
+it('keeps mutable development identities behind an explicit builder boundary', function (): void {
+    $context = FoundationBuildContext::fromConfig(
+        new ConfigRepository(['app' => ['env' => 'testing']]),
+        RuntimeMode::Cli,
+    );
+    $builder = FoundationGraph::compose($context);
+    $container = $builder->development();
+    $config = $container->get(ConfigRepository::class);
+    if (!$config instanceof ConfigRepository) {
+        throw new RuntimeException('Development graph did not resolve ConfigRepository.');
+    }
+
+    expect($builder->definitions()->has(Application::class))->toBeFalse()
+        ->and($builder->definitions()->has(Container::class))->toBeFalse();
+
+    $app = new Application(
+        config: $config,
+        container: $container,
+        providers: new ServiceRegistry(),
+        bootstrapper: new Bootstrapper(),
+        runtimeMode: RuntimeMode::Cli,
+    );
+
+    expect($builder->definitions()->has(Application::class))->toBeFalse()
+        ->and($builder->definitions()->has(Container::class))->toBeFalse();
+
+    DevelopmentRuntimeBindings::register($builder, $app, $container);
+
+    expect($builder->definitions()->has(Application::class))->toBeTrue()
+        ->and($builder->definitions()->has(Container::class))->toBeTrue()
+        ->and($container->get(Application::class))->toBe($app)
+        ->and($container->get(Container::class))->toBe($container);
 });

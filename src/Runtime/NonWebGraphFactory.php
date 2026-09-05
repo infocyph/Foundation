@@ -11,6 +11,7 @@ use Infocyph\Foundation\Application\ServiceRegistry;
 use Infocyph\Foundation\Bootstrap\Bootstrapper;
 use Infocyph\Foundation\Config\ConfigLoader;
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Container\DevelopmentRuntimeBindings;
 use Infocyph\Foundation\Container\FoundationGraph;
 
 /** Recreates one deterministic non-web graph from normalized build inputs. */
@@ -44,6 +45,7 @@ final class NonWebGraphFactory
             bootstrapper: $bootstrapper,
             runtimeMode: $runtime,
         );
+        DevelopmentRuntimeBindings::register($builder, $application, $container);
         $bootstrapper->compose($builder, $context, $providers);
 
         return new NonWebGraphComposition(
