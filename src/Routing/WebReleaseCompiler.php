@@ -68,6 +68,7 @@ final readonly class WebReleaseCompiler
         // manifest whose exact runtime representation it authenticates.
         $release['release_runtime_manifest_sha256'] = $runtimeManifestSha256;
         $release['foundation_capabilities'] = $graph->context->capabilities;
+        $release['foundation_config'] = $graph->context->config;
 
         return $release;
     }
