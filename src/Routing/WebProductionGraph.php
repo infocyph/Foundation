@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Routing;
 
 use Infocyph\Foundation\Application\Application;
-use Infocyph\Foundation\Container\ContainerCacheManager;
 use Infocyph\Foundation\Http\HttpKernel;
 use Infocyph\InterMix\DI\Container;
 use Infocyph\InterMix\DI\ContainerBuilder;
@@ -23,7 +22,6 @@ final class WebProductionGraph
     private const array DEVELOPMENT_ONLY = [
         Application::class,
         Container::class,
-        ContainerCacheManager::class,
         WebrickMiddlewareFactory::class,
         RouteMiddlewareRegistrar::class,
         WebrickRouterFactory::class,
