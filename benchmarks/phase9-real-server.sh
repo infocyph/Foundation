@@ -8,7 +8,7 @@ REQUESTS="${PHASE9_SERVER_REQUESTS:-20000}"
 CONCURRENCY="${PHASE9_SERVER_CONCURRENCY:-32}"
 FPM_SERVICE="${PHASE9_FPM_SERVICE:-php8.4-fpm}"
 FPM_BIN="${PHASE9_FPM_BIN:-php-fpm8.4}"
-FPM_SOCKET="${PHASE9_FPM_SOCKET:-/run/php/php8.4-fpm.sock}"
+FPM_SOCKET="${PHASE9_FPM_SOCKET:-/run/php/php8.4-fpm-phase9.sock}"
 FPM_INI_DIR="${PHASE9_FPM_INI_DIR:-/etc/php/8.4/fpm/conf.d}"
 FPM_POOL_DIR="${PHASE9_FPM_POOL_DIR:-/etc/php/8.4/fpm/pool.d}"
 NGINX_URL="http://127.0.0.1:8080"
@@ -27,8 +27,14 @@ opcache.enable_cli=1
 opcache.validate_timestamps=0
 opcache.memory_consumption=128
 INI
-cat <<'POOL' | sudo tee "$FPM_POOL_DIR/99-foundation-phase9.conf" >/dev/null
-[www]
+sudo rm -f "$FPM_POOL_DIR/www.conf"
+cat <<POOL | sudo tee "$FPM_POOL_DIR/99-foundation-phase9.conf" >/dev/null
+[phase9]
+user = www-data
+group = www-data
+listen = $FPM_SOCKET
+listen.owner = www-data
+listen.group = www-data
 pm = dynamic
 pm.max_children = 16
 pm.start_servers = 4
@@ -55,7 +61,7 @@ restart_fpm() {
 }
 
 fpm_rss_kb() {
-    ps -eo rss=,args= | awk '/php-fpm: (master process|pool)/ { total += $1 } END { print total + 0 }'
+    ps -eo rss=,args= | awk '/php-fpm: (master process|pool phase9)/ { total += $1 } END { print total + 0 }'
 }
 
 start_sampler() {
