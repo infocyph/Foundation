@@ -27,8 +27,9 @@ final readonly class FoundationBuildContext
     ) {}
 
     /**
-     * Passing null preserves development's installed-package discovery. Passing
-     * an array, including an empty one, makes the capability topology explicit.
+     * Passing null preserves development's installed-package discovery unless
+     * app.capabilities is configured. Passing an array, including an empty one,
+     * makes the capability topology explicit.
      *
      * @param array<int|string, mixed>|null $capabilities
      */
@@ -37,6 +38,8 @@ final readonly class FoundationBuildContext
         RuntimeMode $runtimeMode,
         ?array $capabilities = null,
     ): self {
+        $capabilities = self::configuredCapabilities($config, $capabilities);
+
         return new self(
             runtimeMode: $runtimeMode,
             environment: ValueNormalizer::nullableString($config->get('app.container.environment'))
@@ -59,6 +62,24 @@ final readonly class FoundationBuildContext
     public function hasCapability(string $capability): bool
     {
         return $this->capabilities[$capability] ?? false;
+    }
+
+    /**
+     * @param array<int|string, mixed>|null $capabilities
+     * @return array<int|string, mixed>|null
+     */
+    private static function configuredCapabilities(ConfigRepository $config, ?array $capabilities): ?array
+    {
+        if ($capabilities !== null || !$config->has('app.capabilities')) {
+            return $capabilities;
+        }
+
+        $configured = $config->get('app.capabilities');
+        if (!is_array($configured)) {
+            throw new \UnexpectedValueException('app.capabilities must be a capability list or map.');
+        }
+
+        return $configured;
     }
 
     /**
