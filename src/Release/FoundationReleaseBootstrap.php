@@ -6,6 +6,8 @@ namespace Infocyph\Foundation\Release;
 
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\RuntimeMode;
+use Infocyph\Foundation\Routing\WebReleaseRuntime;
+use Infocyph\Webrick\Runtime\Http\RuntimeAdapterInterface;
 
 /** External deployment input selecting one trusted active Foundation generation. */
 final readonly class FoundationReleaseBootstrap
@@ -62,6 +64,24 @@ final readonly class FoundationReleaseBootstrap
             $this->releaseRoot,
             $this->trustedFoundationManifestSha256,
         )->application;
+    }
+
+    /**
+     * Load the trusted compiled web generation; its Webrick RuntimeServer owns
+     * native request adaptation and response emission.
+     *
+     * @param array<string,mixed> $config
+     */
+    public function web(
+        array $config = [],
+        ?RuntimeAdapterInterface $adapter = null,
+    ): WebReleaseRuntime {
+        return new FoundationReleaseRuntime()->webPrevalidated(
+            $config,
+            $this->releaseRoot,
+            $this->trustedFoundationManifestSha256,
+            $adapter,
+        );
     }
 
     private static function absolute(string $path): bool
