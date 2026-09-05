@@ -13,6 +13,7 @@ use Infocyph\Foundation\Operations\RuntimeControl;
 use Infocyph\Foundation\Operations\RuntimeProcessRegistry;
 use Infocyph\Foundation\Release\ActiveGeneration;
 use Infocyph\Foundation\Release\FoundationReleaseBootstrap;
+use Infocyph\Foundation\Runtime\CleanupGuard;
 use Infocyph\Foundation\Runtime\LoadedReleaseGeneration;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\Omnibus\Consumer\Worker;
@@ -97,6 +98,7 @@ final readonly class WorkerManager
         $heartbeat = static function () use ($registry, &$process): void {
             $process = $registry->heartbeat($process);
         };
+        $primaryFailure = null;
 
         try {
             if (isset($providers[$name])) {
@@ -106,8 +108,14 @@ final readonly class WorkerManager
             return $this->runMessaging($name, $messaging[$name], $stopRequested, $heartbeat);
         } catch (WorkerRestartRequested) {
             return 0;
+        } catch (\Throwable $exception) {
+            $primaryFailure = $exception;
+            throw $exception;
         } finally {
-            $registry->unregister($process);
+            CleanupGuard::run(
+                $primaryFailure,
+                static fn() => $registry->unregister($process),
+            );
         }
     }
 
@@ -409,6 +417,7 @@ final readonly class WorkerManager
                 ));
             }
         };
+        $primaryFailure = null;
 
         try {
             return $provider->run(new WorkerRuntime(
@@ -416,8 +425,14 @@ final readonly class WorkerManager
                 $heartbeat(...),
                 \Closure::fromCallable($stopRequested),
             ));
+        } catch (\Throwable $exception) {
+            $primaryFailure = $exception;
+            throw $exception;
         } finally {
-            $lock->release($handle);
+            CleanupGuard::run(
+                $primaryFailure,
+                static fn() => $lock->release($handle),
+            );
         }
     }
 
@@ -496,13 +511,20 @@ final readonly class WorkerManager
             pcntl_alarm(1);
         });
         pcntl_alarm(1);
+        $primaryFailure = null;
 
         try {
             $run();
+        } catch (\Throwable $exception) {
+            $primaryFailure = $exception;
+            throw $exception;
         } finally {
-            pcntl_alarm(0);
-            pcntl_signal($signal, $previousHandler);
-            pcntl_async_signals($previousAsync);
+            CleanupGuard::run(
+                $primaryFailure,
+                static fn() => pcntl_alarm(0),
+                static fn() => pcntl_signal($signal, $previousHandler),
+                static fn() => pcntl_async_signals($previousAsync),
+            );
         }
     }
 }
