@@ -107,3 +107,47 @@ jobs:
           path: build/phase9-di-attribution.json
           if-no-files-found: error
           retention-days: 30
+
+  phase9-http-attribution:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.4', '8.5']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          ini-values: opcache.enable_cli=1
+
+      - name: Install benchmark dependencies
+        run: composer update --no-interaction --prefer-dist --no-progress --prefer-stable
+
+      - name: Benchmark standalone Webrick versus Foundation compiled HTTP
+        env:
+          PHASE9_HTTP_OUTPUT: build/phase9-http-attribution.json
+          PHASE9_HTTP_OPERATIONS: '100000'
+          PHASE9_HTTP_REPETITIONS: '7'
+          PHASE9_HTTP_WARMUP: '1000'
+        run: composer benchmark:phase9:http
+
+      - name: Report Phase 9 HTTP attribution
+        if: always()
+        run: |
+          if [ -f build/phase9-http-attribution.json ]; then
+            cat build/phase9-http-attribution.json
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: foundation-phase9-http-${{ matrix.php }}
+          path: build/phase9-http-attribution.json
+          if-no-files-found: error
+          retention-days: 30
