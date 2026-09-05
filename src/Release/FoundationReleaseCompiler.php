@@ -198,6 +198,7 @@ final readonly class FoundationReleaseCompiler
             $web['foundation_capabilities'] ?? null,
             'web.capabilities',
         );
+        $releaseConfig = $this->releaseConfig($web, $stage);
 
         $runtimeSections = [];
         foreach ([RuntimeMode::Cli, RuntimeMode::Worker, RuntimeMode::Scheduler] as $runtime) {
@@ -220,6 +221,8 @@ final readonly class FoundationReleaseCompiler
             'generation' => $generation,
             'environment' => $environment,
             'config_fingerprint' => $configFingerprint,
+            'config_path' => $releaseConfig['path'],
+            'config_sha256' => $releaseConfig['sha256'],
             'web' => [
                 'release_manifest' => 'web/release.json',
                 'runtime_manifest_sha256' => $runtimeManifestSha256,
@@ -380,6 +383,25 @@ final readonly class FoundationReleaseCompiler
         rmdir($directory);
     }
 
+    /**
+     * @param array<string,mixed> $web
+     * @return array{path:string,sha256:string}
+     */
+    private function releaseConfig(array $web, string $stage): array
+    {
+        $config = $web['foundation_config'] ?? null;
+        if (!is_array($config)) {
+            throw new \UnexpectedValueException('Foundation web compilation did not return normalized release config.');
+        }
+
+        $path = 'config.php';
+
+        return [
+            'path' => $path,
+            'sha256' => FoundationReleaseConfig::write($stage . '/' . $path, $config),
+        ];
+    }
+
     private function root(string $releaseRoot): string
     {
         $releaseRoot = rtrim($releaseRoot, DIRECTORY_SEPARATOR);
@@ -410,12 +432,14 @@ final readonly class FoundationReleaseCompiler
     private function verifyStage(string $stage, array $manifest): void
     {
         FoundationReleaseManifest::assertValid($manifest);
+        $configPath = FoundationReleaseManifest::relativePath($manifest['config_path'] ?? null, 'config_path');
+        $configSha256 = FoundationReleaseManifest::digest($manifest['config_sha256'] ?? null, 64, 'config_sha256');
         $web = FoundationReleaseManifest::section($manifest, 'web');
         $webRelease = FoundationReleaseManifest::relativePath(
             $web['release_manifest'] ?? null,
             'web.release_manifest',
         );
-        $paths = ['foundation.php', $webRelease];
+        $paths = ['foundation.php', $configPath, $webRelease];
         foreach (['cli', 'worker', 'scheduler'] as $runtime) {
             $section = FoundationReleaseManifest::section($manifest, $runtime);
             $paths[] = FoundationReleaseManifest::relativePath(
@@ -447,6 +471,10 @@ final readonly class FoundationReleaseCompiler
             }
         }
 
+        FoundationReleaseConfig::load(
+            $stage . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $configPath),
+            $configSha256,
+        );
         $this->workerTopology->load(
             $stage . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $workerTopology),
             $workerTopologySha256,
