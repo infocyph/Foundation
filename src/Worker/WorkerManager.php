@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Worker;
 
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Cache\CacheLayerFactory;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Messaging\OmnibusWorkerFactory;
 use Infocyph\Foundation\Operations\RuntimeControl;
 use Infocyph\Foundation\Operations\RuntimeProcessRegistry;
 use Infocyph\Foundation\Release\ActiveGeneration;
+use Infocyph\Foundation\Release\FoundationReleaseBootstrap;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\Omnibus\Consumer\Worker;
 use Infocyph\Omnibus\Consumer\WorkerLifecycle;
@@ -67,6 +69,16 @@ final readonly class WorkerManager
         $this->assertDistinctNames($providers, $messaging);
         if (!isset($providers[$name]) && !isset($messaging[$name])) {
             throw new \InvalidArgumentException(sprintf('Worker "%s" is not defined.', $name));
+        }
+
+        $release = $this->application->loadedReleaseGeneration() === null
+            ? FoundationReleaseBootstrap::fromEnvironment($this->application->config()->all())
+            : null;
+        if ($release !== null && !$this->pooledMessagingWorker($messaging[$name] ?? null)) {
+            return new self($release->nonWeb(
+                $this->application->config()->all(),
+                RuntimeMode::Worker,
+            ))->run($name, $routes);
         }
 
         $control = new RuntimeControl($this->application);
@@ -256,6 +268,18 @@ final readonly class WorkerManager
             : $this->application->basePath(trim($path, DIRECTORY_SEPARATOR));
     }
 
+    /** @param array<string,mixed>|null $definition */
+    private function pooledMessagingWorker(?array $definition): bool
+    {
+        if ($definition === null) {
+            return false;
+        }
+
+        $pool = ValueNormalizer::associativeArray($definition['pool'] ?? []);
+
+        return ValueNormalizer::bool($pool['enabled'] ?? null, false);
+    }
+
     private function positiveFloat(mixed $value, float $default, string $key): float
     {
         $resolved = $this->floatValue($value, $default, $key);
@@ -389,7 +413,9 @@ final readonly class WorkerManager
         $workerPool = new WorkerPool(
             workerFactory: static function (int $_slot) use ($config, $name): Worker {
                 unset($_slot);
-                $child = Foundation::worker($config);
+                $release = FoundationReleaseBootstrap::fromEnvironment($config);
+                $child = $release?->nonWeb($config, RuntimeMode::Worker)
+                    ?? Foundation::worker($config);
                 $child->boot();
 
                 return $child->make(OmnibusWorkerFactory::class)->make($name);
