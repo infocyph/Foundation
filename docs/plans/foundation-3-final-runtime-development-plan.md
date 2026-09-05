@@ -1,6 +1,11 @@
 # Foundation 3 — Unified Runtime Development Plan
 
-**Status:** Final implementation baseline / canonical plan**Foundation target:** 3.x**Foundation source baseline:** `main`**InterMix baseline:** `^10.0.4`**Webrick baseline:** `^5.3`**Priority:** correctness → hot-path performance → persistent-runtime safety → scalability → ergonomics
+**Status:** Final implementation baseline / canonical plan
+**Foundation target:** 3.x
+**Foundation source baseline:** `main`
+**InterMix baseline:** `^10.0.4`
+**Webrick baseline:** `^5.3`
+**Priority:** correctness → hot-path performance → persistent-runtime safety → scalability → ergonomics
 
 > This is the single source of truth for Foundation 3 runtime development. It merges the complete InterMix 10.0.3 audit plus the released InterMix 10.0.4 intrinsic-container planner correction, the complete Webrick 5.1 audit plus the released Webrick 5.2 prerequisite corrections, the Webrick 5.3 SAPI/streaming correctness floor consumed by Foundation, and the final joint runtime architecture into one document. There are no separate InterMix/Webrick runtime-plan files to keep synchronized.
 
@@ -486,10 +491,10 @@ Every binding must be classified:
 | Current pattern                               | Foundation 3 form                                                    |
 | --------------------------------------------- | -------------------------------------------------------------------- |
 | class/new service                             | builder singleton/scoped/transient                                   |
-| constructor deps                              | `FactoryDefinition::construct()` + `ServiceReference`            |
-| public static factory                         | `FactoryDefinition::staticFactory()`                               |
-| interface/ID points to same service           | real`alias()`                                                      |
-| immutable scalar/array build value            | `value()` or exportable recipe arg                                 |
+| constructor deps                              | `FactoryDefinition::construct()` + `ServiceReference`                 |
+| public static factory                         | `FactoryDefinition::staticFactory()`                                 |
+| interface/ID points to same service           | real `alias()`                                                       |
+| immutable scalar/array build value            | `value()` or exportable recipe arg                                   |
 | Request/job/envelope/current execution object | scope seed                                                           |
 | feature/capability branch                     | build-context graph decision                                         |
 | user runtime callable/closure                 | explicit narrow dynamic island                                       |
@@ -2132,25 +2137,27 @@ Phase 9 acceptance evidence: corrected-head CI run `33946071733` on commit `7ce7
 
 ### Phase 10 — Final rescan/release readiness
 
-- [ ] Rescan for direct old dynamic Container construction/mutation.
+- [X] Rescan for direct old dynamic Container construction/mutation.
 - [X] Rescan for `compileTo`, `useCompiled`, old `usePrevalidated` resolver-map production paths.
-- [ ] Rescan for closure aliases/deterministic closure factories.
-- [ ] Rescan for Application/container capture in generated services.
-- [ ] Rescan all dynamic islands and confirm allowlist/reasons.
-- [ ] Rescan lifetimes for mutable singleton execution state.
-- [ ] Rescan scope naming/cleanup/Fiber/coroutine safety.
-- [ ] Rescan for live production Registrar/Collection usage.
-- [ ] Rescan for RouteCacheManager/RouteCachePath production duplication.
-- [ ] Rescan for production route/provider/module/file discovery.
-- [ ] Rescan for unnecessary Request/scope/global middleware creation.
-- [ ] Rescan for direct output/native runtime handle use.
-- [ ] Rescan for repeated hashing/manifest parsing in hot paths.
-- [ ] Rescan for hidden DB/cache capability activation.
-- [ ] Rescan cleanup paths for primary-exception masking.
-- [ ] Remove stale InterMix 9/Webrick 4 configuration, tests and documentation.
+- [X] Rescan for closure aliases/deterministic closure factories.
+- [X] Rescan for Application/container capture in generated services.
+- [X] Rescan all dynamic islands and confirm allowlist/reasons.
+- [X] Rescan lifetimes for mutable singleton execution state.
+- [X] Rescan scope naming/cleanup/Fiber/coroutine safety.
+- [X] Rescan for live production Registrar/Collection usage.
+- [X] Rescan for RouteCacheManager/RouteCachePath production duplication.
+- [X] Rescan for production route/provider/module/file discovery.
+- [X] Rescan for unnecessary Request/scope/global middleware creation.
+- [X] Rescan for direct output/native runtime handle use.
+- [X] Rescan for repeated hashing/manifest parsing in hot paths.
+- [X] Rescan for hidden DB/cache capability activation.
+- [X] Rescan cleanup paths for primary-exception masking.
+- [X] Remove stale InterMix 9/Webrick 4 configuration, tests and documentation.
 - [ ] Validate all hard implementation gates in section 24.
 - [ ] Validate final definition of done in section 25.
-- [ ] Publish migration notes and final benchmark evidence.
+- [X] Publish migration notes and final benchmark evidence.
+
+Phase 10 rescan evidence: the final three audit batches removed hidden development-container mutation, made release runtime configuration generation-owned and source-discovery-free, kept optional capability activation explicit/minimal, hardened scheduler/worker cleanup so secondary cleanup failures cannot replace primary failures, removed stale resolver/cache switches, and refreshed the runtime/migration documentation. The two aggregate closure gates remain open only for final current-head CI confirmation and the InfByte skeleton handoff to the trusted Foundation 3 runtime lifecycle.
 
 ### Future lower-library utilization tracker
 
