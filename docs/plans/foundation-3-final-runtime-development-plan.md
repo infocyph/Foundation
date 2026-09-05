@@ -1,8 +1,8 @@
 # Foundation 3 — Unified Runtime Development Plan
 
-**Status:** Final implementation baseline / canonical plan**Foundation target:** 3.x**Foundation source baseline:** `main`**InterMix baseline:** `^10.0.4`**Webrick baseline:** `^5.2`**Priority:** correctness → hot-path performance → persistent-runtime safety → scalability → ergonomics
+**Status:** Final implementation baseline / canonical plan**Foundation target:** 3.x**Foundation source baseline:** `main`**InterMix baseline:** `^10.0.4`**Webrick baseline:** `^5.3`**Priority:** correctness → hot-path performance → persistent-runtime safety → scalability → ergonomics
 
-> This is the single source of truth for Foundation 3 runtime development. It merges the complete InterMix 10.0.3 audit plus the released InterMix 10.0.4 intrinsic-container planner correction, the complete Webrick 5.1 audit plus the released Webrick 5.2 prerequisite corrections, and the final joint runtime architecture into one document. There are no separate InterMix/Webrick runtime-plan files to keep synchronized.
+> This is the single source of truth for Foundation 3 runtime development. It merges the complete InterMix 10.0.3 audit plus the released InterMix 10.0.4 intrinsic-container planner correction, the complete Webrick 5.1 audit plus the released Webrick 5.2 prerequisite corrections, the Webrick 5.3 SAPI/streaming correctness floor consumed by Foundation, and the final joint runtime architecture into one document. There are no separate InterMix/Webrick runtime-plan files to keep synchronized.
 
 ---
 
@@ -534,7 +534,7 @@ Foundation core target: zero **avoidable** islands.
 
 ## 7. Exact Webrick 5.2 contract
 
-Foundation must treat Webrick development and production as intentionally different.
+Foundation must treat Webrick development and production as intentionally different. Webrick 5.3 retains this release/runtime contract and is Foundation's current minimum because it also carries the SAPI/streaming correctness fixes required by Phase 8 acceptance.
 
 ### Development
 
@@ -1168,7 +1168,7 @@ Expose finalized RouterBuildResult/execution descriptors before InterMix compile
 
 Potentially useful for maintenance or another universal operational gate, but not a Foundation correctness prerequisite. The Phase 6 compiled-runtime microbenchmark crossed the review threshold and therefore justifies a Webrick-owned WB-5 design/representative-benchmark follow-up. Foundation does not add a competing pre-routing abstraction or lower-layer workaround.
 
-WB-1 through WB-4 are available in Webrick 5.2.
+WB-1 through WB-4 are available in Webrick 5.2. Foundation's current floor is Webrick 5.3 for the later SAPI/streaming corrections used by the final runtime path.
 
 ---
 
@@ -1435,8 +1435,8 @@ Foundation DI tax
 Compare:
 
 1. raw PHP;
-2. standalone Webrick 5.2 compiled endpoint;
-3. Foundation 3 + Webrick compiled endpoint;
+2. standalone Webrick 5.3 compiled endpoint;
+3. Foundation 3 + Webrick 5.3 compiled endpoint;
 4. minimal InfByte endpoint.
 
 ```text
@@ -1875,7 +1875,7 @@ Use this section as the implementation ledger. A checked **overall phase** means
 - [X] Phase 5 — Webrick build/runtime integration — development implementation complete; broader release/regression closure remains under Phases 9–10
 - [X] Phase 6 — Error/maintenance/filesystem cleanup — implementation and benchmark-driven WB-5 decision complete
 - [X] Phase 7 — Non-web generated runtimes — generated CLI/worker/scheduler production-container loading, scoped execution, graph-free reuse, persistence and cleanup acceptance complete
-- [ ] Phase 8 — Unified Foundation release generation — immutable-generation/manifest/activation/trust infrastructure implemented; end-to-end all-runtime generation acceptance remains open
+- [X] Phase 8 — Unified Foundation release generation — immutable all-runtime generation build/load, trust, activation, rollback, generation-owned worker topology and graceful worker replacement accepted end-to-end
 - [ ] Phase 9 — Full regression/performance pass
 - [ ] Phase 10 — Final rescan/release readiness
 
@@ -2089,13 +2089,13 @@ Phase 7 acceptance evidence: `NonWebGraphFactory` composes fresh deterministic r
 ### Phase 8 — Unified Foundation release generation
 
 - [X] Define immutable generation directory layout.
-- [ ] Build web bundle through Webrick coordinated release compiler end-to-end.
-- [ ] Build CLI InterMix artifact directly end-to-end.
-- [ ] Build worker InterMix artifact directly end-to-end.
-- [ ] Build scheduler InterMix artifact directly end-to-end.
+- [X] Build web bundle through Webrick coordinated release compiler end-to-end.
+- [X] Build CLI InterMix artifact directly end-to-end.
+- [X] Build worker InterMix artifact directly end-to-end.
+- [X] Build scheduler InterMix artifact directly end-to-end.
 - [X] Collect and validate InterMix compile/skipped/digest metadata in the unified compiler.
 - [X] Fail generation build on unexpected dynamic islands/skipped definitions.
-- [ ] Add only useful deterministic command/scheduler/worker topology artifacts.
+- [X] Add only useful deterministic command/scheduler/worker topology artifacts.
 - [X] Write OPcache-friendly Foundation generation manifest.
 - [X] Reference Webrick release manifest without duplicating its owned identity fields.
 - [X] Verify runtime environment/config identity belongs to the same Foundation generation before publication.
@@ -2106,7 +2106,7 @@ Phase 7 acceptance evidence: `NonWebGraphFactory` composes fresh deterministic r
 - [X] Implement graceful persistent-worker replacement on generation change.
 - [X] Keep old-generation cleanup outside request/job hot paths.
 
-Phase 8 implementation evidence: `FoundationReleaseCompiler` stages under `generations/.staging-*`, coordinates Webrick plus non-web artifact metadata, verifies identity/completeness, publishes an immutable generation and switches only after verification; `FoundationReleaseManifest` provides the OPcache-friendly Foundation manifest; `ActiveGeneration` provides the atomic pointer and generation-change detection; `FoundationReleaseRuntime` and `GeneratedRuntime::loadPrevalidated()` require an externally trusted Foundation manifest SHA before using subordinate trusted digests; `FoundationReleaseInfrastructureTest` covers activation, incomplete-target rejection, trust mismatch, traversal rejection and explicit out-of-band pruning. End-to-end all-four-runtime build/load acceptance remains open and is now running against InterMix 10.0.4.
+Phase 8 acceptance evidence: `FoundationReleaseCompiler` stages under `generations/.staging-*`, compiles the Webrick web bundle plus direct InterMix CLI/worker/scheduler artifacts, records and validates runtime identities/compile metadata, compiles the deterministic `worker/providers.php` topology, verifies its manifest SHA before publication, publishes one immutable generation and switches the active pointer only after complete verification. `FoundationReleaseManifest`, `ActiveGeneration`, `FoundationReleaseRuntime` and `GeneratedRuntime::loadPrevalidated()` enforce the Foundation trust boundary and subordinate artifact identities; infrastructure tests cover activation, incomplete targets, rollback/trust mismatch, traversal rejection and out-of-band pruning. `FoundationReleaseEndToEndTest` builds and boots all four runtimes from one generation, then poisons source web routes, provider discovery and worker topology files to prove release-owned runtime independence. `WorkerTopologyTrustTest` rejects missing/tampered topology, and worker replacement acceptance proves generation A→B graceful restart behavior. Webrick is now floored at `^5.3` so the accepted SAPI/streaming path includes the lower-layer correctness fixes rather than a Foundation workaround.
 
 ### Phase 9 — Full regression/performance pass
 
