@@ -12,6 +12,32 @@ final class FoundationReleaseConfig
 {
     private const int FORMAT = 1;
 
+    public static function load(string $path, string $trustedSha256): ConfigRepository
+    {
+        $trustedSha256 = FoundationReleaseManifest::digest($trustedSha256, 64, 'config_sha256');
+        if (!is_file($path) || !is_readable($path)) {
+            throw new \RuntimeException(sprintf('Foundation release config is not readable: "%s".', $path));
+        }
+
+        $actualSha256 = hash_file('sha256', $path);
+        if (!is_string($actualSha256) || !hash_equals($trustedSha256, $actualSha256)) {
+            throw new \RuntimeException('Foundation release config trust identity mismatch.');
+        }
+
+        $payload = require $path;
+        if (!is_array($payload)
+            || ($payload['format'] ?? null) !== self::FORMAT
+            || !is_array($payload['config'] ?? null)
+        ) {
+            throw new \UnexpectedValueException('Foundation release config snapshot is malformed.');
+        }
+
+        /** @var array<string, mixed> $config */
+        $config = $payload['config'];
+
+        return new ConfigRepository($config, compiled: true);
+    }
+
     /** @param array<string, mixed> $config */
     public static function write(string $path, array $config): string
     {
@@ -47,31 +73,5 @@ final class FoundationReleaseConfig
         }
 
         return $sha256;
-    }
-
-    public static function load(string $path, string $trustedSha256): ConfigRepository
-    {
-        $trustedSha256 = FoundationReleaseManifest::digest($trustedSha256, 64, 'config_sha256');
-        if (!is_file($path) || !is_readable($path)) {
-            throw new \RuntimeException(sprintf('Foundation release config is not readable: "%s".', $path));
-        }
-
-        $actualSha256 = hash_file('sha256', $path);
-        if (!is_string($actualSha256) || !hash_equals($trustedSha256, $actualSha256)) {
-            throw new \RuntimeException('Foundation release config trust identity mismatch.');
-        }
-
-        $payload = require $path;
-        if (!is_array($payload)
-            || ($payload['format'] ?? null) !== self::FORMAT
-            || !is_array($payload['config'] ?? null)
-        ) {
-            throw new \UnexpectedValueException('Foundation release config snapshot is malformed.');
-        }
-
-        /** @var array<string, mixed> $config */
-        $config = $payload['config'];
-
-        return new ConfigRepository($config, compiled: true);
     }
 }
