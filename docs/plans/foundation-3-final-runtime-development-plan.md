@@ -513,7 +513,7 @@ Audit especially controllers, DB/default connections, auth/session managers, tra
 
 **Scoped** for state shared inside one execution but isolated across requests/jobs/commands/schedules.
 
-**Transient** for cheap/stateful one-use services where sharing is undesirable.
+**Transient** for cheap/stateful one-use objects where sharing is undesirable.
 
 Every migrated provider requires an explicit lifetime review. “It was singleton in Foundation 2” is not justification.
 
@@ -1876,7 +1876,7 @@ Use this section as the implementation ledger. A checked **overall phase** means
 - [X] Phase 6 — Error/maintenance/filesystem cleanup — implementation and benchmark-driven WB-5 decision complete
 - [X] Phase 7 — Non-web generated runtimes — generated CLI/worker/scheduler production-container loading, scoped execution, graph-free reuse, persistence and cleanup acceptance complete
 - [X] Phase 8 — Unified Foundation release generation — immutable all-runtime generation build/load, trust, activation, rollback, generation-owned worker topology and graceful worker replacement accepted end-to-end
-- [ ] Phase 9 — Full regression/performance pass
+- [X] Phase 9 — Full regression/performance pass — correctness, parity, static analysis, attribution benchmarks and real PHP-FPM acceptance complete
 - [ ] Phase 10 — Final rescan/release readiness
 
 ### Phase 0 — Freeze baselines
@@ -2110,23 +2110,25 @@ Phase 8 acceptance evidence: `FoundationReleaseCompiler` stages under `generatio
 
 ### Phase 9 — Full regression/performance pass
 
-- [ ] Run complete correctness test suite.
-- [ ] Run security-sensitive auth/session/CSRF/OTP/WebAuthn regression suites applicable at this stage.
-- [ ] Run static analysis/phpforge checks.
-- [ ] Run InterMix development/generated-production parity matrix.
-- [ ] Run scope/Fiber/coroutine isolation matrix.
-- [ ] Run Webrick development vs compiled-production suite.
-- [ ] Run artifact corruption/mismatch/stale-generation tests.
-- [ ] Run SAPI/FPM integration tests.
-- [ ] Run at least one persistent HTTP adapter integration suite.
-- [ ] Run long worker/scheduler persistence tests.
-- [ ] Benchmark Foundation DI tax against direct InterMix.
-- [ ] Benchmark Foundation HTTP tax against standalone compiled Webrick.
-- [ ] Repeat representative HTTP benchmark through real Apache/Nginx + PHP-FPM + OPcache.
-- [ ] Measure throughput, p50/p95/p99, memory/peak and cold/warm boot.
-- [ ] Use Webrick stage profiling only where measured overhead remains.
-- [ ] Optimize only attributable Foundation overhead.
-- [ ] Record final benchmark evidence in release documentation.
+- [X] Run complete correctness test suite.
+- [X] Run security-sensitive auth/session/CSRF/OTP/WebAuthn regression suites applicable at this stage.
+- [X] Run static analysis/phpforge checks.
+- [X] Run InterMix development/generated-production parity matrix.
+- [X] Run scope/Fiber/coroutine isolation matrix.
+- [X] Run Webrick development vs compiled-production suite.
+- [X] Run artifact corruption/mismatch/stale-generation tests.
+- [X] Run SAPI/FPM integration tests.
+- [X] Run at least one persistent HTTP adapter integration suite.
+- [X] Run long worker/scheduler persistence tests.
+- [X] Benchmark Foundation DI tax against direct InterMix.
+- [X] Benchmark Foundation HTTP tax against standalone compiled Webrick.
+- [X] Repeat representative HTTP benchmark through real Apache/Nginx + PHP-FPM + OPcache.
+- [X] Measure throughput, p50/p95/p99, memory/peak and cold/warm boot.
+- [X] Use Webrick stage profiling only where measured overhead remains.
+- [X] Optimize only attributable Foundation overhead.
+- [X] Record final benchmark evidence in release documentation.
+
+Phase 9 acceptance evidence: corrected-head CI run `33946071733` on commit `7ce759d36e71e469314fdfa0ca54f75f24e78d9c` is green across PHP 8.4/8.5 stable and prefer-lowest QA with skipped tests forbidden, PHP 8.4/8.5 analyzers, clean install, representative benchmarks, maintenance benchmark, DI attribution, HTTP attribution, and the real PHP-FPM server gate. `Phase9RuntimeParityTest` compares identical explicit capability topology between development and generated production for CLI/worker/scheduler plus Webrick development/compiled production; the production auth guard remains unchanged and the parity fixture no longer activates unrelated discovered auth capabilities. Existing scope/isolation, release-trust/corruption, persistent adapter, and long worker/scheduler suites provide the remaining correctness gates; Swoole/OpenSwoole coroutine execution remains conditional on extension availability as recorded in Phase 4. The PHP 8.4 DI attribution run measured direct InterMix resolution at 221.8 ns median, Foundation generated-container resolution at 218.67 ns, `Application::make()` at 240.67 ns, and the Foundation execution boundary at 5,113.29 ns versus 1,404.21 ns for bare InterMix `withinScope()`—about 3.709 µs absolute additional execution-boundary cost. The PHP 8.5 compiled HTTP attribution measured standalone Webrick at 4,570.43 ns/request and Foundation at 4,614.67 ns/request, a 44.24 ns / 0.97% warm-request tax with equal 8 MiB final / 10 MiB peak process memory; the larger compile and runtime-boot differences are build/boot-plane costs, not persistent request hot-path cost. Real PHP 8.4.25 `fpm-fcgi` with OPcache enabled handled 20,000 requests at concurrency 32 with zero failures: Nginx 1.24 delivered 2,089.04 req/s at p50/p95/p99 15/22/26 ms, while Apache 2.4.58 delivered 1,782.89 req/s at 17/25/29 ms; cold-first and warm-sequential latency plus aggregate FPM-pool RSS were recorded in the uploaded benchmark artifact, with RSS explicitly treated as aggregate per-process RSS rather than unique physical memory. Because the attributable hot-path tax is approximately 1%, DI façade cost is tens of nanoseconds, and the execution-boundary tax is only a few microseconds, no production-code optimization or Webrick stage profiling is justified; preserving the simpler lifecycle/scope semantics is the accepted optimization decision.
 
 ### Phase 10 — Final rescan/release readiness
 
