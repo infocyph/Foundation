@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-it('contains no legacy InterMix resolver-map production path', function (): void {
+it('contains no retired runtime cache paths', function (): void {
     $source = dirname(__DIR__, 2) . '/src';
     $forbidden = [
         'ContainerCacheManager' => 'legacy Foundation container cache manager',
@@ -10,6 +10,10 @@ it('contains no legacy InterMix resolver-map production path', function (): void
         '->useCompiled(' => 'legacy InterMix useCompiled resolver-map activation',
         '->usePrevalidated(' => 'legacy InterMix usePrevalidated resolver-map activation',
         '->compilationReport(' => 'legacy InterMix resolver-map compilation report',
+        'RouteCacheManager' => 'retired Foundation standalone route cache manager',
+        'RouteCachePath' => 'retired Foundation route cache freshness/path layer',
+        "'route:cache'" => 'retired standalone route cache command',
+        "'route:clear'" => 'retired standalone route cache clear command',
     ];
     $violations = [];
     $files = new RecursiveIteratorIterator(
