@@ -6,7 +6,7 @@ namespace Infocyph\Foundation\Release;
 
 final class FoundationReleaseManifest
 {
-    public const int FORMAT = 1;
+    public const int FORMAT = 2;
 
     /** @param array<string,mixed> $manifest */
     public static function assertValid(array $manifest): void
@@ -17,6 +17,8 @@ final class FoundationReleaseManifest
         self::identifier($manifest['generation'] ?? null, 'generation');
         self::nonEmptyString($manifest['environment'] ?? null, 'environment');
         self::digest($manifest['config_fingerprint'] ?? null, 64, 'config_fingerprint');
+        self::relativePath($manifest['config_path'] ?? null, 'config_path');
+        self::digest($manifest['config_sha256'] ?? null, 64, 'config_sha256');
 
         $web = self::section($manifest, 'web');
         self::relativePath($web['release_manifest'] ?? null, 'web.release_manifest');
