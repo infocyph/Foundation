@@ -17,6 +17,7 @@ use Infocyph\Foundation\Process\ProcessOptions;
 use Infocyph\Foundation\Process\ProcessResult;
 use Infocyph\Foundation\Process\ProcessRunner;
 use Infocyph\Foundation\Process\ProcessTerminationReason;
+use Infocyph\Foundation\Runtime\CleanupGuard;
 use Infocyph\Foundation\Runtime\ExecutionId;
 
 final readonly class ScheduleManager
@@ -115,6 +116,7 @@ final readonly class ScheduleManager
         $runtimeToken = $control->token('runtime');
         $scheduleToken = $control->token('schedule');
         $process = $registry->register('schedule', 'default');
+        $primaryFailure = null;
 
         try {
             while ($maxIterations === null || $iterations < $maxIterations) {
@@ -139,8 +141,14 @@ final readonly class ScheduleManager
             }
 
             return 0;
+        } catch (\Throwable $exception) {
+            $primaryFailure = $exception;
+            throw $exception;
         } finally {
-            $registry->unregister($process);
+            CleanupGuard::run(
+                $primaryFailure,
+                static fn() => $registry->unregister($process),
+            );
         }
     }
 
@@ -389,6 +397,7 @@ final readonly class ScheduleManager
 
         $lock = null;
         $handle = null;
+        $primaryFailure = null;
 
         try {
             if ($entry->preventsOverlap() || $entry->requiresSingleServer()) {
@@ -418,14 +427,21 @@ final readonly class ScheduleManager
 
             return new ScheduleRun($entry, $result->exitCode);
         } catch (\Throwable $exception) {
-            $this->record($history, $executionId, $name, CommandStatus::Failed, metadata: $identity + [
-                'exception' => $exception::class,
-            ]);
+            $primaryFailure = $exception;
+            CleanupGuard::run(
+                $primaryFailure,
+                fn() => $this->record($history, $executionId, $name, CommandStatus::Failed, metadata: $identity + [
+                    'exception' => $exception::class,
+                ]),
+            );
 
             throw $exception;
         } finally {
             if ($lock !== null && $handle !== null) {
-                $lock->release($handle);
+                CleanupGuard::run(
+                    $primaryFailure,
+                    static fn() => $lock->release($handle),
+                );
             }
         }
     }
