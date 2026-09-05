@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Routing;
 
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Http\Response\ExceptionRenderer;
 use Infocyph\Foundation\Logging\HttpExceptionLogger;
 use Infocyph\InterMix\DI\ProductionContainer;
@@ -45,6 +46,22 @@ final readonly class WebReleaseRuntime
     }
 
     /**
+     * Load one release from a trusted normalized config snapshot without source discovery.
+     *
+     * @param array<int|string, mixed>|null $foundationCapabilities Must match compile-time topology when explicit.
+     */
+    public static function loadCompiled(
+        ConfigRepository $config,
+        string $releaseManifestPath,
+        ?RuntimeAdapterInterface $adapter = null,
+        ?array $foundationCapabilities = null,
+    ): self {
+        self::assertCompiledConfig($config);
+
+        return self::boot($config, $releaseManifestPath, $adapter, false, $foundationCapabilities);
+    }
+
+    /**
      * Load using an externally trusted SHA-256 identity for the exact manifest
      * selected by Webrick. The digest must come from immutable deployment
      * metadata, never from the release directory being validated.
@@ -62,6 +79,31 @@ final readonly class WebReleaseRuntime
         self::assertTrustedManifest($releaseManifestPath, $trustedManifestSha256);
 
         return self::boot($config, $releaseManifestPath, $adapter, true, $foundationCapabilities);
+    }
+
+    /**
+     * Trusted load from a normalized config snapshot owned by the same Foundation generation.
+     *
+     * @param array<int|string, mixed>|null $foundationCapabilities Must match compile-time topology when explicit.
+     */
+    public static function loadPrevalidatedCompiled(
+        ConfigRepository $config,
+        string $releaseManifestPath,
+        string $trustedManifestSha256,
+        ?RuntimeAdapterInterface $adapter = null,
+        ?array $foundationCapabilities = null,
+    ): self {
+        self::assertCompiledConfig($config);
+        self::assertTrustedManifest($releaseManifestPath, $trustedManifestSha256);
+
+        return self::boot($config, $releaseManifestPath, $adapter, true, $foundationCapabilities);
+    }
+
+    private static function assertCompiledConfig(ConfigRepository $config): void
+    {
+        if (!$config->isCompiled()) {
+            throw new \InvalidArgumentException('Foundation web release config must be marked compiled.');
+        }
     }
 
     private static function assertTrustedManifest(string $releaseManifestPath, string $trustedSha256): void
@@ -84,11 +126,11 @@ final readonly class WebReleaseRuntime
     }
 
     /**
-     * @param array<string, mixed> $config
+     * @param array<string, mixed>|ConfigRepository $config
      * @param array<int|string, mixed>|null $foundationCapabilities
      */
     private static function boot(
-        array $config,
+        array|ConfigRepository $config,
         string $releaseManifestPath,
         ?RuntimeAdapterInterface $adapter,
         bool $prevalidated,
