@@ -2133,7 +2133,7 @@ Phase 9 acceptance evidence: corrected-head CI run `33946071733` on commit `7ce7
 ### Phase 10 — Final rescan/release readiness
 
 - [ ] Rescan for direct old dynamic Container construction/mutation.
-- [ ] Rescan for `compileTo`, `useCompiled`, old `usePrevalidated` resolver-map production paths.
+- [X] Rescan for `compileTo`, `useCompiled`, old `usePrevalidated` resolver-map production paths.
 - [ ] Rescan for closure aliases/deterministic closure factories.
 - [ ] Rescan for Application/container capture in generated services.
 - [ ] Rescan all dynamic islands and confirm allowlist/reasons.
