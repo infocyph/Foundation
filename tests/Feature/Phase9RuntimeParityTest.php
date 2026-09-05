@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceProvider;
-use Infocyph\Foundation\Foundation;
+use Infocyph\Foundation\Routing\WebGraphFactory;
 use Infocyph\Foundation\Routing\WebReleaseCompiler;
 use Infocyph\Foundation\Routing\WebReleaseRuntime;
 use Infocyph\Foundation\Runtime\GeneratedRuntime;
@@ -163,7 +163,8 @@ PHP);
     );
 
     try {
-        $development = Foundation::web($config)->boot()->handle($request);
+        $developmentGraph = new WebGraphFactory()->compose($config, []);
+        $development = $developmentGraph->application->boot()->handle($request);
 
         $manifest = $root . '/web/bootstrap/cache/release.json';
         $release = new WebReleaseCompiler()->compile(
