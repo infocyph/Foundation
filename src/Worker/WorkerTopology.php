@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Worker;
 
 use Infocyph\Foundation\Config\ConfigLoader;
+use Infocyph\Foundation\Release\FoundationReleaseManifest;
+use Infocyph\Foundation\Runtime\LoadedReleaseGeneration;
 use Infocyph\Foundation\Support\ValueNormalizer;
 
 /** Builds and loads the generation-owned provider-worker topology. */
@@ -72,6 +74,46 @@ final class WorkerTopology
         }
 
         return $this->normalize($providers, 0.0, 300.0);
+    }
+
+    /**
+     * @return array<string,array{provider:class-string<WorkerProvider>,singleton:bool,lock_wait_seconds:float,lock_lease_seconds:float}>
+     */
+    public function loadGeneration(LoadedReleaseGeneration $release): array
+    {
+        $directory = $release->releaseRoot
+            . DIRECTORY_SEPARATOR . 'generations'
+            . DIRECTORY_SEPARATOR . $release->generation;
+        $manifestPath = $directory . DIRECTORY_SEPARATOR . 'foundation.php';
+
+        if ($release->trustedFoundationManifestSha256 !== null) {
+            $actualManifestSha256 = is_file($manifestPath) ? hash_file('sha256', $manifestPath) : false;
+            if (!is_string($actualManifestSha256)
+                || !hash_equals($release->trustedFoundationManifestSha256, $actualManifestSha256)
+            ) {
+                throw new \RuntimeException('Foundation generation manifest trust identity mismatch.');
+            }
+        }
+
+        $manifest = FoundationReleaseManifest::load($manifestPath);
+        if (($manifest['generation'] ?? null) !== $release->generation) {
+            throw new \RuntimeException('Loaded Foundation worker topology belongs to a different release generation.');
+        }
+        $worker = FoundationReleaseManifest::section($manifest, 'worker');
+        $relative = FoundationReleaseManifest::relativePath(
+            $worker['provider_topology'] ?? null,
+            'worker.provider_topology',
+        );
+        $sha256 = FoundationReleaseManifest::digest(
+            $worker['provider_topology_sha256'] ?? null,
+            64,
+            'worker.provider_topology_sha256',
+        );
+
+        return $this->load(
+            $directory . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relative),
+            $sha256,
+        );
     }
 
     /**
