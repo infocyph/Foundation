@@ -19,7 +19,7 @@ final readonly class WebReleaseCompiler
 
     /**
      * @param array<string, mixed> $config
-     * @param array<int|string, mixed>|null $capabilities Null preserves installed-package discovery; [] is minimal.
+     * @param array<int|string, mixed> $capabilities Explicit production capability topology; [] is minimal.
      * @return array<string, mixed>
      */
     public function compile(
@@ -27,7 +27,7 @@ final readonly class WebReleaseCompiler
         string $intermixPath,
         string $routerPath,
         string $releaseManifestPath,
-        ?array $capabilities = null,
+        array $capabilities = [],
     ): array {
         $graph = $this->graphs->compose($config, $capabilities);
         $settings = new WebReleaseConfiguration($graph);
