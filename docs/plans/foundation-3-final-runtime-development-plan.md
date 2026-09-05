@@ -1807,15 +1807,198 @@ Foundation 3 runtime architecture is complete only when:
 
 ## 26. Subsequent lower-library passes
 
-After InterMix + Webrick implementation contracts are frozen, run the same dedicated current-version utilization process for:
+After InterMix + Webrick implementation contracts are frozen, run the same dedicated current-version utilization process for each lower library. Every pass must distinguish lower-layer primitives from Foundation policy, measure any proposed hot-path change, update this same document, and leave its progress-tracker box unchecked until code/tests/benchmarks prove the pass complete.
 
-1. ArrayKit — config/environment parsing, sealed compiled config and scan/cache strategy;
-2. UID — execution/correlation ID cost and lazy/reused identities;
-3. CacheLayer / DBLayer — capability boundaries, store/connection lifetimes and optional graph cost;
-4. ReqShield — remove unnecessary unconditional DB coupling;
-5. Omnibus — messaging topology and worker integration;
-6. TalkingBytes — HTTP/email/webhook/gRPC profile graph and scope behavior;
-7. OTP / Epicrypt / WebAuthn / Pathwise — specialist security/filesystem integration boundaries.
+### 26.1 ArrayKit 5.1.1 utilization pass
+
+**Baseline**
+
+- package: `infocyph/arraykit` `^5.1.1`;
+- audited release: ArrayKit 5.1.1;
+- tag commit: `dd0eb07a9f623fbbb9235cd9e4302f0f588bcf23`.
+
+**Ownership decision**
+
+ArrayKit owns generic data/configuration primitives. Foundation must consume these directly rather than maintain parallel implementations.
+
+ArrayKit owns:
+
+- `.env` syntax parsing through `Config\EnvParser`;
+- variable-reference/interpolation resolution and raw parsing modes;
+- BOM/NUL safety validation for environment files/lines;
+- raw environment access through `Config\Support\Environment` over `$_ENV`, non-HTTP `$_SERVER`, and `getenv()`;
+- `EnvReference` deferred environment references;
+- `Config` storage/access primitives;
+- `LazyFileConfig` lazy namespace/file loading and its namespace-cache primitives;
+- `DotNotation` path lookup/mutation behavior;
+- generic array merge/path/config mechanics where their semantics match Foundation requirements.
+
+Foundation owns only framework/application policy above those primitives:
+
+- whether environment-file loading is enabled (`app.load_env`);
+- the configured environment-file list and default `.env` / `.env.local` precedence;
+- relative/absolute path resolution for application environment files;
+- protection of already-present host/process environment variables;
+- hydration of parsed values into `$_ENV`, `$_SERVER`, and `putenv()` when Foundation elects to load files;
+- Foundation-specific typed environment conveniences (`env_bool`, `env_int`, `env_string`) only where their coercion semantics are intentionally part of the framework API;
+- normalized application configuration, capability/module topology and validation policy;
+- Foundation release-generation `config.php`, its immutable trust identity and production source-discovery boundary;
+- deployment/diagnostic policy rather than low-level parsing/storage.
+
+Current Foundation direction already partially follows this boundary: `EnvironmentLoader` uses ArrayKit `EnvParser` and `Environment`, while `ConfigRepository` extends ArrayKit `Config` and uses `LazyFileConfig`/`DotNotation`. The pass must finish the duplication audit rather than replace working lower-layer use with another Foundation abstraction.
+
+**Audit and implementation checklist**
+
+- [ ] Rescan Foundation for any manual `.env` syntax parsing, interpolation, quoting, reference expansion, BOM/NUL handling or file-line parsing that duplicates `EnvParser`.
+- [ ] Rescan Foundation for direct/raw environment lookup that bypasses ArrayKit `Environment` without a documented runtime-boundary reason.
+- [ ] Verify Foundation's global `env()` helper delegates raw lookup to ArrayKit and retains only intentionally framework-specific value coercion.
+- [ ] Review `EnvironmentLoader` for policy-only responsibilities: source selection/precedence, host-value protection and process hydration; do not move those framework choices into ArrayKit.
+- [ ] Review `ConfigRepository` against ArrayKit `Config`, `DotNotation` and `LazyFileConfig`; remove duplicated generic get/set/path/cache behavior while retaining Foundation fallback/override/compiled-release semantics.
+- [ ] Review `ConfigLoader` so source file discovery remains development/build-plane only and delegates generic lazy file mechanics to ArrayKit where appropriate.
+- [ ] Review `ConfigCacheManager` against ArrayKit lazy namespace-cache facilities; retain only Foundation-owned artifact/deployment coordination that ArrayKit cannot correctly own.
+- [ ] Review `ConfigMerger` against ArrayKit merge primitives. Reuse ArrayKit only when precedence/list/associative semantics are exactly equivalent; do not trade correctness for API uniformity.
+- [ ] Verify the trusted generated `config.php` path constructs a compiled `ConfigRepository` without `.env`, config-directory, provider or module source discovery.
+- [ ] Ensure no request/job/schedule hot path scans environment/config files or reparses `.env`.
+- [ ] Audit `ConfigExportValidator`/release config normalization for generic ArrayKit functionality before retaining Foundation-local traversal logic.
+- [ ] Preserve a small Foundation façade only where it expresses application semantics or protects the release trust boundary.
+
+**Correctness acceptance**
+
+- [ ] Test `.env` and `.env.local` precedence plus configured `app.env_files` order.
+- [ ] Test protection of host-provided `$_ENV`, `$_SERVER` and process variables from unintended file override.
+- [ ] Test ArrayKit interpolation/reference behavior through Foundation, including raw/literal-dollar cases where Foundation exposes them.
+- [ ] Test BOM/NUL rejection through the Foundation load path.
+- [ ] Test missing optional environment files and explicit environment-loading disablement.
+- [ ] Test lazy namespace fallback/source/override precedence and cache-corruption fallback behavior.
+- [ ] Test source config versus compiled release config observable parity.
+- [ ] Poison `.env`, config directories and provider/module source discovery after release compilation and prove production generation boot remains source-independent.
+
+**Performance acceptance**
+
+Benchmark at minimum:
+
+1. source configuration composition from application files;
+2. first lazy namespace lookup;
+3. warm lazy namespace lookup;
+4. full materialization when `all()` is required;
+5. trusted compiled `config.php` load;
+6. representative warm `ConfigRepository::get()`/dot-path access;
+7. environment bootstrap with no env files, one env file and `.env` + `.env.local`.
+
+Do not add another cache layer merely because ArrayKit exposes one. Adopt a lower-layer primitive only when it reduces duplication or measured cost without weakening Foundation's immutable production-generation model.
+
+**Completion gate**
+
+The ArrayKit tracker can be checked only when the full config/environment source tree has been rescanned, any duplicate generic behavior has been removed or explicitly justified, production remains source-discovery-free, correctness tests pass and benchmark evidence records the final boundary.
+
+### 26.2 UID 5.0 utilization pass
+
+**Baseline**
+
+- package: `infocyph/uid` `^5.0`;
+- audited release: UID 5.0;
+- tag commit: `4a95eb8058e73c72e74e44fedd25755198899eae`.
+
+UID 5.0 provides the Foundation-relevant identifier primitives directly: UUID v1-v8 generation/validation/parsing, monotonic/fork-aware UUIDv7 state, NanoID, ObjectID, RandomId, deterministic IDs and opaque IDs. Foundation must not recreate those algorithms.
+
+**Ownership decision**
+
+UID owns identifier generation, encoding, validation/parsing and algorithm-specific monotonic/fork-safe state.
+
+Foundation owns identifier **lifecycle**:
+
+- deciding whether a logical execution needs a correlation identity at all;
+- choosing the algorithm/format according to semantics rather than API uniformity;
+- preserving and reusing an incoming request/message/job/execution identity where one already exists;
+- generating at most one fallback execution ID per logical execution;
+- propagating that identity through InterMix scope seeds, history, logging/events and nested execution boundaries;
+- keeping DI aliases and scope names semantic/stable rather than random;
+- keeping release/artifact trust identities as cryptographic digests/fingerprints rather than random UIDs;
+- distinguishing persisted/business/public IDs from transient staging/temp entropy.
+
+Current Foundation centralizes non-web correlation generation in `Runtime\ExecutionId`, backed by `Id::uuid7()`. This is the correct architectural boundary. The utilization pass should optimize **when** that generation occurs and how identities are reused before considering a different UID algorithm.
+
+**Current reuse findings to preserve**
+
+- Omnibus-backed `InterMixExecutionScope` normalizes and reuses the message ID instead of generating a second Foundation correlation ID.
+- `WorkerRuntime` accepts a supplied execution identity and passes it through unchanged.
+- scheduler execution creates one identity per scheduled entry and reuses it for the scope/history/event lifecycle.
+- nested command execution inherits the active `ExecutionId` where available instead of creating a new one.
+- stable InterMix scope labels remain `foundation.cli`, `foundation.worker`, `foundation.scheduler`; execution IDs are seeds/correlation data and must never return to scope-name construction.
+- the minimal Webrick path does not need a Foundation-generated UUID merely to serve a request; do not add universal web correlation-ID generation unless an explicit feature requires it.
+
+**Algorithm/performance baseline**
+
+UID 5.0's published PHP 8.4 hotspot benchmark records approximately:
+
+| Generator | Average |
+| --- | ---: |
+| ObjectID | 0.662 µs |
+| NanoID | 0.777 µs |
+| UUID v4 | 1.136 µs |
+| UUID v7 | 2.067 µs |
+| RandomId | 4.358 µs |
+
+Therefore `RandomId` is **not** a faster fallback than UUIDv7 in UID 5.0. NanoID/ObjectID are faster in that benchmark but change representation/semantics. Foundation must not switch algorithms solely for shorter output or microbenchmark ranking.
+
+UUIDv7 remains the default candidate where standard UUID interoperability, temporal ordering, operator familiarity and one correlation representation across subsystems are valuable. A compact alternative is acceptable only if the relevant Foundation boundary has no UUID/time-order contract and Foundation-specific measurement shows a meaningful gain.
+
+**Audit and implementation checklist**
+
+- [ ] Inventory every Foundation identifier/randomness creation and classify it as execution correlation, domain/public identity, release-generation identity, artifact hash/fingerprint, lock/token/security randomness, or transient staging/temp suffix.
+- [ ] Route semantic ID generation through UID primitives; do not route hashes, cryptographic secrets, nonces or pure temp entropy through UID merely for consistency.
+- [ ] Verify every request/message/job/command/schedule boundary reuses an upstream identity when one is already authoritative.
+- [ ] Preserve Omnibus message-ID reuse in `InterMixExecutionScope`.
+- [ ] Preserve supplied worker execution IDs without normalization into a second generated value.
+- [ ] Preserve nested command execution-ID inheritance.
+- [ ] Verify scheduler creates exactly one execution ID per logical scheduled run and reuses it across scope/history/events.
+- [ ] Review generic `ExecutionScope::run()` eager UUIDv7 fallback. Keep eager creation if its callback/history contract always requires an ID; make it lazy only if semantics remain clean and measurements justify additional complexity.
+- [ ] Review release generation IDs separately. Timestamp + cryptographic entropy may remain Foundation-owned build-plane formatting; do not replace transient `.staging-*` random suffixes merely to eliminate `random_bytes()` calls.
+- [ ] Ensure artifact/config/router/container trust continues to use digest/fingerprint identities, never UID randomness.
+- [ ] Rescan for accidental random IDs in DI aliases, provider IDs, scope names or other deterministic graph topology.
+- [ ] Check whether any Foundation-owned public/persisted IDs should deliberately use UID deterministic/opaque/NanoID/ObjectID primitives; document semantics before changing format.
+
+**Correctness acceptance**
+
+- [ ] Test supplied execution-ID preservation byte-for-byte.
+- [ ] Test fallback generation uniqueness and UUIDv7 validity for the default execution path.
+- [ ] Test nested execution/command reuse rather than ID multiplication.
+- [ ] Test Omnibus message-ID propagation into Foundation execution state.
+- [ ] Test scheduler scope/history/event identity equality for the same run.
+- [ ] Test sequential and interleaved Fiber executions do not cross-contaminate IDs.
+- [ ] Test persistent worker reuse does not retain a previous job's identity.
+- [ ] Exercise UID UUIDv7 fork-state behavior where `pcntl_fork` is available and ensure Foundation adds no process-local wrapper state that defeats UID's fork reset.
+
+**Performance acceptance**
+
+Benchmark the actual Foundation execution boundary rather than only raw generators:
+
+1. `ExecutionScope` with a caller-supplied ID;
+2. `ExecutionScope` with generated UUIDv7 fallback;
+3. raw UID UUIDv7 generation as attribution baseline;
+4. NanoID/ObjectID candidates only when their semantics are acceptable for the same boundary;
+5. repeated worker/scheduler executions under persistent runtime;
+6. nested command/message execution where identity is reused.
+
+Attribute the existing Phase 9 execution-boundary overhead before optimizing ID generation. If UUIDv7 contributes only a small absolute fraction, preserve the simpler standard identity model.
+
+**Completion gate**
+
+The UID tracker can be checked only after all Foundation ID/randomness sites are classified, upstream identity reuse is proven, any eager-generation change is benchmark-driven, isolation/persistence tests pass and the final identity lifecycle is documented. No format change is required merely to complete the pass.
+
+### 26.3 Remaining lower-library passes
+
+After ArrayKit and UID, continue in this order:
+
+1. CacheLayer — capability boundaries, cache/store/lock lifetimes, native bulk paths and absent-capability cost;
+2. DBLayer — connection/transaction/runtime lifetimes, optional graph cost, query-cache integration and generated-runtime behavior;
+3. ReqShield — validation/sanitization/schema integration and removal of unnecessary unconditional DB coupling;
+4. Omnibus — messaging topology, message-ID propagation, handler middleware and Foundation worker integration;
+5. TalkingBytes — HTTP, inbound/outbound email, webhook and gRPC profile graph plus execution-scope behavior;
+6. OTP — MFA state/replay/storage boundaries and Foundation auth integration;
+7. Epicrypt — cryptographic/key/token/password boundaries and configuration/secrets lifecycle;
+8. WebAuthn — passkey request/state/session boundaries and auth graph integration;
+9. Pathwise — filesystem/storage policy, stream/upload/download boundaries and Webrick writer ownership.
 
 Each pass updates **this same document**. Do not create another standalone runtime-plan file.
 
@@ -2163,8 +2346,8 @@ Phase 10 rescan evidence: the final three audit batches removed hidden developme
 
 These remain unchecked until their dedicated deep audits are performed and merged into this same plan:
 
-- [ ] ArrayKit current-version utilization pass.
-- [ ] UID current-version utilization pass.
+- [ ] ArrayKit 5.1.1 current-version utilization pass.
+- [ ] UID 5.0 current-version utilization pass.
 - [ ] CacheLayer current-version utilization pass.
 - [ ] DBLayer current-version utilization pass.
 - [ ] ReqShield current-version utilization pass.
