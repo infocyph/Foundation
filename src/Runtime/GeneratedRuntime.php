@@ -56,6 +56,43 @@ final readonly class GeneratedRuntime
     }
 
     /**
+     * Load one immutable Foundation release without rebuilding its source graph.
+     * The generated artifact is still fully hash-validated by InterMix.
+     *
+     * @param array<int|string,mixed> $capabilities
+     */
+    public static function loadRelease(
+        RuntimeMode $runtime,
+        string $artifactPath,
+        string $expectedEnvironment,
+        string $expectedConfigFingerprint,
+        string $expectedIntermixDigest,
+        array $capabilities = [],
+    ): self {
+        if ($runtime === RuntimeMode::Web) {
+            throw new \InvalidArgumentException('Web production runtime must use the coordinated Webrick release loader.');
+        }
+
+        $metadata = GeneratedRuntimeMetadata::read($artifactPath);
+        self::assertReleaseMetadata($metadata, $expectedEnvironment, $expectedConfigFingerprint);
+        GeneratedRuntimeMetadata::assertPrevalidatedIdentity(
+            $artifactPath,
+            $metadata,
+            $runtime,
+            $capabilities,
+            $expectedIntermixDigest,
+        );
+
+        return self::finishBoot(
+            $runtime,
+            new StaticRuntimeGenerator()->load($artifactPath),
+            self::providerRegistry($metadata),
+            new Bootstrapper(),
+            $metadata,
+        );
+    }
+
+    /**
      * Trusted loading is valid only when both identities originate outside the
      * writable release directory (normally a trusted Foundation generation manifest).
      * This path deliberately does not rebuild the Foundation source graph.
@@ -70,6 +107,8 @@ final readonly class GeneratedRuntime
         string $trustedMetadataSha256,
         string $trustedIntermixDigest,
         array $capabilities = [],
+        ?string $expectedEnvironment = null,
+        ?string $expectedConfigFingerprint = null,
     ): self {
         if ($runtime === RuntimeMode::Web) {
             throw new \InvalidArgumentException('Web production runtime must use the coordinated Webrick release loader.');
@@ -86,6 +125,7 @@ final readonly class GeneratedRuntime
         $artifactPath = self::resolvePrevalidatedPath($config, $artifactPath);
         self::assertTrustedMetadata($artifactPath, $trustedMetadataSha256);
         $metadata = GeneratedRuntimeMetadata::read($artifactPath);
+        self::assertReleaseMetadata($metadata, $expectedEnvironment, $expectedConfigFingerprint);
         GeneratedRuntimeMetadata::assertPrevalidatedIdentity(
             $artifactPath,
             $metadata,
@@ -101,6 +141,29 @@ final readonly class GeneratedRuntime
             new Bootstrapper(),
             $metadata,
         );
+    }
+
+    /** @param array<string,mixed> $metadata */
+    private static function assertReleaseMetadata(
+        array $metadata,
+        ?string $expectedEnvironment,
+        ?string $expectedConfigFingerprint,
+    ): void {
+        if ($expectedEnvironment !== null && ($metadata['environment'] ?? null) !== $expectedEnvironment) {
+            throw new \RuntimeException('Foundation generated runtime environment does not match the release generation.');
+        }
+        if ($expectedConfigFingerprint === null) {
+            return;
+        }
+
+        $expectedConfigFingerprint = strtolower(trim($expectedConfigFingerprint));
+        if (preg_match('/^[a-f0-9]{64}$/D', $expectedConfigFingerprint) !== 1) {
+            throw new \InvalidArgumentException('Expected generated-runtime config fingerprint is invalid.');
+        }
+        $actual = $metadata['config_fingerprint'] ?? null;
+        if (!is_string($actual) || !hash_equals($expectedConfigFingerprint, $actual)) {
+            throw new \RuntimeException('Foundation generated runtime config identity does not match the release generation.');
+        }
     }
 
     private static function assertTrustedMetadata(string $artifactPath, string $trustedSha256): void
