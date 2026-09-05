@@ -215,22 +215,6 @@ final readonly class WorkerManager
         return $this->watchGeneration($selected->releaseRoot, $selected->generation);
     }
 
-    /** @return \Closure():bool */
-    private function watchGeneration(string $releaseRoot, string $generation): \Closure
-    {
-        $active = new ActiveGeneration();
-
-        return static function () use ($active, $releaseRoot, $generation): bool {
-            try {
-                return $active->replacementRequired($releaseRoot, $generation);
-            } catch (\Throwable) {
-                // A release-selected process must not keep consuming work when its
-                // deployment coordination pointer disappears or becomes corrupt.
-                return true;
-            }
-        };
-    }
-
     /** @return array<string, array<string, mixed>> */
     private function messagingDefinitions(): array
     {
@@ -287,25 +271,6 @@ final readonly class WorkerManager
             $routePath,
             $this->application->config()->get('worker.lock_wait_seconds'),
             $this->application->config()->get('worker.lock_lease_seconds'),
-        );
-    }
-
-    private function selectedGeneration(FoundationReleaseBootstrap $bootstrap): LoadedReleaseGeneration
-    {
-        $current = new ActiveGeneration()->current($bootstrap->releaseRoot);
-        $manifestSha256 = hash_file('sha256', $current['manifest']);
-        if (!is_string($manifestSha256)
-            || !hash_equals($bootstrap->trustedFoundationManifestSha256, $manifestSha256)
-        ) {
-            throw new \RuntimeException(
-                'Trusted Foundation generation manifest does not match the active release selected for the worker supervisor.',
-            );
-        }
-
-        return new LoadedReleaseGeneration(
-            $bootstrap->releaseRoot,
-            $current['generation'],
-            $bootstrap->trustedFoundationManifestSha256,
         );
     }
 
@@ -454,6 +419,41 @@ final readonly class WorkerManager
         } finally {
             $lock->release($handle);
         }
+    }
+
+    private function selectedGeneration(FoundationReleaseBootstrap $bootstrap): LoadedReleaseGeneration
+    {
+        $current = new ActiveGeneration()->current($bootstrap->releaseRoot);
+        $manifestSha256 = hash_file('sha256', $current['manifest']);
+        if (!is_string($manifestSha256)
+            || !hash_equals($bootstrap->trustedFoundationManifestSha256, $manifestSha256)
+        ) {
+            throw new \RuntimeException(
+                'Trusted Foundation generation manifest does not match the active release selected for the worker supervisor.',
+            );
+        }
+
+        return new LoadedReleaseGeneration(
+            $bootstrap->releaseRoot,
+            $current['generation'],
+            $bootstrap->trustedFoundationManifestSha256,
+        );
+    }
+
+    /** @return \Closure():bool */
+    private function watchGeneration(string $releaseRoot, string $generation): \Closure
+    {
+        $active = new ActiveGeneration();
+
+        return static function () use ($active, $releaseRoot, $generation): bool {
+            try {
+                return $active->replacementRequired($releaseRoot, $generation);
+            } catch (\Throwable) {
+                // A release-selected process must not keep consuming work when its
+                // deployment coordination pointer disappears or becomes corrupt.
+                return true;
+            }
+        };
     }
 
     /**
