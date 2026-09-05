@@ -6,19 +6,23 @@ namespace Infocyph\Foundation\Database;
 
 use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\DB;
-use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
+use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthMfaRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthOAuthRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchemaInstaller;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
-use Infocyph\Foundation\Runtime\RuntimeContextTracker;
-use Infocyph\InterMix\DI\Support\LifetimeEnum;
+use Infocyph\InterMix\DI\ContainerBuilder;
+use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\ServiceReference;
+use Psr\Container\ContainerInterface;
 
 final class DatabaseServiceProvider extends ServiceProvider
 {
-    public function register(Application $app): void
+    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         if (!class_exists(DB::class)) {
             throw new \LogicException(
@@ -26,55 +30,62 @@ final class DatabaseServiceProvider extends ServiceProvider
             );
         }
 
-        $container = $app->container();
-        $oauthEnabled = $app->config()->get('auth.oauth.enabled', false) === true;
+        $auth = is_array($context->config['auth'] ?? null) ? $context->config['auth'] : [];
+        $oauth = is_array($auth['oauth'] ?? null) ? $auth['oauth'] : [];
+        $oauthEnabled = ($oauth['enabled'] ?? false) === true;
 
-        $this->bindFactory($container, DatabaseConnectionResolver::class, fn() => new DatabaseConnectionResolver(
-            $app->config(),
-        ), LifetimeEnum::Singleton);
+        $builder->singleton(DatabaseConnectionResolver::class, FactoryDefinition::construct(
+            DatabaseConnectionResolver::class,
+            [new ServiceReference(ConfigRepository::class)],
+        ));
+        $builder->singleton(DBLayerFactory::class, FactoryDefinition::construct(DBLayerFactory::class, [
+            new ServiceReference(DatabaseConnectionResolver::class),
+            new ServiceReference(ContainerInterface::class),
+        ]));
+        $builder->scoped(Connection::class, FactoryDefinition::staticFactory(
+            DatabaseGraphFactory::class,
+            'connection',
+            [new ServiceReference(DBLayerFactory::class)],
+        ));
 
-        $this->bindFactory($container, DBLayerFactory::class, fn() => new DBLayerFactory(
-            $app->make(DatabaseConnectionResolver::class),
-            $app->make(RuntimeContextTracker::class),
-        ), LifetimeEnum::Singleton);
-
-        $this->bindFactory(
-            $container,
-            Connection::class,
-            fn() => $app->make(DBLayerFactory::class)->connection(),
-            LifetimeEnum::Singleton,
-        );
-
-        $container->bind(AuthTables::class, new AuthTables(), LifetimeEnum::Singleton);
-        $this->bindFactory($container, AuthSchema::class, fn() => new AuthSchema(
-            $app->make(AuthTables::class),
-        ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, AuthMfaRevisionSchema::class, fn() => new AuthMfaRevisionSchema(
-            $app->make(AuthTables::class),
-        ), LifetimeEnum::Singleton);
+        $builder->singleton(AuthTables::class, FactoryDefinition::construct(AuthTables::class));
+        $builder->singleton(AuthSchema::class, FactoryDefinition::construct(
+            AuthSchema::class,
+            [new ServiceReference(AuthTables::class)],
+        ));
+        $builder->singleton(AuthMfaRevisionSchema::class, FactoryDefinition::construct(
+            AuthMfaRevisionSchema::class,
+            [new ServiceReference(AuthTables::class)],
+        ));
         if ($oauthEnabled) {
-            $this->bindFactory($container, AuthOAuthRevisionSchema::class, fn() => new AuthOAuthRevisionSchema(
-                $app->make(AuthTables::class),
-            ), LifetimeEnum::Singleton);
+            $builder->singleton(AuthOAuthRevisionSchema::class, FactoryDefinition::construct(
+                AuthOAuthRevisionSchema::class,
+                [new ServiceReference(AuthTables::class)],
+            ));
         }
-        $this->bindFactory($container, AuthSchemaInstaller::class, fn() => new AuthSchemaInstaller(
-            $app->make(DBLayerFactory::class),
-            $app->make(AuthSchema::class),
-            $app->make(AuthMfaRevisionSchema::class),
-            $app->make(AuthTables::class),
-            $oauthEnabled ? $app->make(AuthOAuthRevisionSchema::class) : null,
-            $oauthEnabled,
-        ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, DatabaseMigrationManager::class, fn() => new DatabaseMigrationManager(
-            $app,
-            $app->make(DBLayerFactory::class),
-        ), LifetimeEnum::Singleton);
+        $builder->singleton(AuthSchemaInstaller::class, FactoryDefinition::construct(
+            AuthSchemaInstaller::class,
+            [
+                new ServiceReference(DBLayerFactory::class),
+                new ServiceReference(AuthSchema::class),
+                new ServiceReference(AuthMfaRevisionSchema::class),
+                new ServiceReference(AuthTables::class),
+                $oauthEnabled ? new ServiceReference(AuthOAuthRevisionSchema::class) : null,
+                $oauthEnabled,
+            ],
+        ));
 
-        $this->bindFactory(
-            $container,
-            'foundation.db',
-            fn() => $container->get(Connection::class),
-            LifetimeEnum::Singleton,
-        );
+        $builder->singleton(DatabaseMigrationManager::class, FactoryDefinition::construct(
+            DatabaseMigrationManager::class,
+            [
+                new ServiceReference(ConfigRepository::class),
+                new ServiceReference(DBLayerFactory::class),
+                new ServiceReference(ContainerInterface::class),
+                $builder->definitions()->has(CacheLayerFactory::class)
+                    ? new ServiceReference(CacheLayerFactory::class)
+                    : null,
+            ],
+        ));
+        $builder->alias('foundation.db', Connection::class);
     }
 }

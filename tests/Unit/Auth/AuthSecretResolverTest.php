@@ -20,9 +20,10 @@ it('keeps the development fallback in runtime policy instead of application conf
 });
 
 it('rejects a missing production token secret at the point of use', function (): void {
-    $application = Foundation::preset(RuntimeMode::Cli, new ProductionPreset(), [
+    $application = Foundation::preset(RuntimeMode::Cli, new LocalPreset(), [
         '_config_cache' => false,
     ]);
+    $application->config()->set('app.env', 'production');
 
     expect(fn(): string => (new AuthSecretResolver($application))->tokenSecret())
         ->toThrow(ConfigurationException::class, 'auth.token_secret must be configured in production.');
@@ -30,12 +31,13 @@ it('rejects a missing production token secret at the point of use', function ():
 
 it('accepts an explicit high-entropy production token secret', function (): void {
     $secret = bin2hex(random_bytes(32));
-    $application = Foundation::preset(RuntimeMode::Cli, new ProductionPreset(), [
+    $application = Foundation::preset(RuntimeMode::Cli, new LocalPreset(), [
         '_config_cache' => false,
         'auth' => [
             'token_secret' => $secret,
         ],
     ]);
+    $application->config()->set('app.env', 'production');
 
     expect((new AuthSecretResolver($application))->tokenSecret())->toBe($secret);
 });

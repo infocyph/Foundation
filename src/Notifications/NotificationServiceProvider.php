@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Notifications;
 
-use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
-use Infocyph\Foundation\Support\ValueNormalizer;
+use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Filesystem\PathManager;
+use Infocyph\InterMix\DI\ContainerBuilder;
+use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
+use Infocyph\InterMix\DI\Support\ServiceReference;
 use Infocyph\TalkingBytes\Email\Config\EmailLimits;
 use Infocyph\TalkingBytes\Email\Dkim\DkimPublicKeyResolver;
 use Infocyph\TalkingBytes\Email\Dkim\DkimVerifier;
@@ -20,178 +24,131 @@ use Infocyph\TalkingBytes\Email\Parser\AuthenticationResultsParser;
 use Infocyph\TalkingBytes\Email\Parser\BounceParser;
 use Infocyph\TalkingBytes\Email\Parser\RawEmailParser;
 use Infocyph\TalkingBytes\Email\Receiver\SpoolEmailReceiver;
+use Psr\Container\ContainerInterface;
 
 final class NotificationServiceProvider extends ServiceProvider
 {
-    public function register(Application $app): void
+    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        $container = $app->container();
+        unset($context);
 
-        $this->bindFactory($container, NotificationTemplateRegistry::class, fn() => new NotificationTemplateRegistry(
-            $app->config(),
-        ), LifetimeEnum::Singleton);
+        $builder->singleton(NotificationTemplateRegistry::class, FactoryDefinition::construct(
+            NotificationTemplateRegistry::class,
+            [new ServiceReference(ConfigRepository::class)],
+        ));
 
-        if (class_exists(Emailer::class)) {
-            $this->registerMail($app);
-        } else {
-            $this->registerUnavailableMail($app);
+        $mailAvailable = class_exists(Emailer::class);
+        if ($mailAvailable) {
+            $this->registerMail($builder);
         }
 
-        $this->bindFactory($container, NotificationChannelRegistry::class, fn() => new NotificationChannelRegistry(
-            config: $app->config(),
-            mail: class_exists(Emailer::class) ? $app->make(MailNotificationChannel::class) : null,
-            resolver: fn(string $service): mixed => $app->make($service),
-        ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, NotificationDispatcher::class, fn() => new NotificationDispatcher(
-            $app->make(NotificationChannelRegistry::class),
-        ), LifetimeEnum::Singleton);
-        $this->bindFactory(
-            $container,
-            'foundation.notifications',
-            fn() => $app->make(NotificationDispatcher::class),
-            LifetimeEnum::Singleton,
-        );
+        $builder->singleton(NotificationChannelRegistry::class, FactoryDefinition::construct(
+            NotificationChannelRegistry::class,
+            [
+                new ServiceReference(ConfigRepository::class),
+                $mailAvailable ? new ServiceReference(MailNotificationChannel::class) : null,
+                new ServiceReference(ContainerInterface::class),
+            ],
+        ));
+        $builder->singleton(NotificationDispatcher::class, FactoryDefinition::construct(
+            NotificationDispatcher::class,
+            [new ServiceReference(NotificationChannelRegistry::class)],
+        ));
+        $builder->alias('foundation.notifications', NotificationDispatcher::class);
     }
 
-    private function emailLimits(Application $app): EmailLimits
+    private function registerMail(ContainerBuilder $builder): void
     {
-        $config = ValueNormalizer::associativeArray(
-            $app->config()->get('notifications.email.parsing.limits', []),
-        );
-
-        return new EmailLimits(
-            maxMessageBytes: ValueNormalizer::int($config['maxMessageBytes'] ?? 10 * 1024 * 1024, 10 * 1024 * 1024),
-            maxAttachmentBytes: ValueNormalizer::int($config['maxAttachmentBytes'] ?? 25 * 1024 * 1024, 25 * 1024 * 1024),
-            maxAttachmentCount: ValueNormalizer::int($config['maxAttachmentCount'] ?? 500, 500),
-            maxDecodedBodyBytes: ValueNormalizer::int($config['maxDecodedBodyBytes'] ?? 10 * 1024 * 1024, 10 * 1024 * 1024),
-            maxMimeDepth: ValueNormalizer::int($config['maxMimeDepth'] ?? 20, 20),
-            maxMimeParts: ValueNormalizer::int($config['maxMimeParts'] ?? 500, 500),
-            maxHeaderBytes: ValueNormalizer::int($config['maxHeaderBytes'] ?? 131072, 131072),
-            maxHeaderCount: ValueNormalizer::int($config['maxHeaderCount'] ?? 2000, 2000),
-        );
-    }
-
-    private function registerMail(Application $app): void
-    {
-        $container = $app->container();
-
-        if (!$this->hasExplicitBinding($container, EmailSenderFactory::class)) {
-            $container->bind(EmailSenderFactory::class, new EmailSenderFactory(), LifetimeEnum::Singleton);
+        if (!$builder->definitions()->has(EmailSenderFactory::class)) {
+            $builder->singleton(EmailSenderFactory::class, FactoryDefinition::construct(EmailSenderFactory::class));
         }
-        if (!$this->hasExplicitBinding($container, EmailReceiverFactory::class)) {
-            $container->bind(EmailReceiverFactory::class, new EmailReceiverFactory(), LifetimeEnum::Singleton);
+        if (!$builder->definitions()->has(EmailReceiverFactory::class)) {
+            $builder->singleton(EmailReceiverFactory::class, FactoryDefinition::construct(EmailReceiverFactory::class));
         }
-        if (!$this->hasExplicitBinding($container, EmailMailboxFactory::class)) {
-            $container->bind(EmailMailboxFactory::class, new EmailMailboxFactory(), LifetimeEnum::Singleton);
+        if (!$builder->definitions()->has(EmailMailboxFactory::class)) {
+            $builder->singleton(EmailMailboxFactory::class, FactoryDefinition::construct(EmailMailboxFactory::class));
         }
-        if (!$this->hasExplicitBinding($container, EmailLimits::class)) {
-            $this->bindFactory(
-                $container,
-                EmailLimits::class,
-                fn(): EmailLimits => $this->emailLimits($app),
-                LifetimeEnum::Singleton,
+        if (!$builder->definitions()->has(EmailLimits::class)) {
+            $builder->singleton(EmailLimits::class, FactoryDefinition::staticFactory(
+                NotificationGraphFactory::class,
+                'emailLimits',
+                [new ServiceReference(ConfigRepository::class)],
+            ));
+        }
+        if (!$builder->definitions()->has(RawEmailParser::class)) {
+            $builder->singleton(RawEmailParser::class, FactoryDefinition::staticFactory(
+                NotificationGraphFactory::class,
+                'rawEmailParser',
+                [new ServiceReference(EmailLimits::class)],
+            ));
+        }
+        if (!$builder->definitions()->has(BounceParser::class)) {
+            $builder->singleton(BounceParser::class, FactoryDefinition::construct(BounceParser::class));
+        }
+        if (!$builder->definitions()->has(AuthenticationResultsParser::class)) {
+            $builder->singleton(
+                AuthenticationResultsParser::class,
+                FactoryDefinition::construct(AuthenticationResultsParser::class),
             );
         }
-        if (!$this->hasExplicitBinding($container, RawEmailParser::class)) {
-            $this->bindFactory(
-                $container,
-                RawEmailParser::class,
-                fn(): RawEmailParser => new RawEmailParser(limits: $app->make(EmailLimits::class)),
-                LifetimeEnum::Singleton,
+        if (!$builder->definitions()->has(DkimPublicKeyResolver::class)) {
+            $builder->singleton(
+                DkimPublicKeyResolver::class,
+                FactoryDefinition::construct(DnsDkimPublicKeyResolver::class),
             );
         }
-        if (!$this->hasExplicitBinding($container, BounceParser::class)) {
-            $container->bind(BounceParser::class, new BounceParser(), LifetimeEnum::Singleton);
-        }
-        if (!$this->hasExplicitBinding($container, AuthenticationResultsParser::class)) {
-            $container->bind(AuthenticationResultsParser::class, new AuthenticationResultsParser(), LifetimeEnum::Singleton);
-        }
-        if (!$this->hasExplicitBinding($container, DkimPublicKeyResolver::class)) {
-            $container->bind(DkimPublicKeyResolver::class, new DnsDkimPublicKeyResolver(), LifetimeEnum::Singleton);
-        }
-        if (!$this->hasExplicitBinding($container, DkimVerifier::class)) {
-            $this->bindFactory(
-                $container,
+        if (!$builder->definitions()->has(DkimVerifier::class)) {
+            $builder->singleton(DkimVerifier::class, FactoryDefinition::construct(
                 DkimVerifier::class,
-                fn(): DkimVerifier => new DkimVerifier($app->make(DkimPublicKeyResolver::class)),
-                LifetimeEnum::Singleton,
-            );
+                [new ServiceReference(DkimPublicKeyResolver::class)],
+            ));
         }
 
-        $this->bindFactory($container, EmailProfiles::class, fn() => new EmailProfiles(
-            config: $app->config(),
-            paths: $app->paths(),
-            senders: $app->make(EmailSenderFactory::class),
-            receivers: $app->make(EmailReceiverFactory::class),
-            mailboxes: $app->make(EmailMailboxFactory::class),
-            parser: $app->make(RawEmailParser::class),
-        ), LifetimeEnum::Singleton);
+        $builder->singleton(EmailProfiles::class, FactoryDefinition::construct(
+            EmailProfiles::class,
+            [
+                new ServiceReference(ConfigRepository::class),
+                new ServiceReference(PathManager::class),
+                new ServiceReference(EmailSenderFactory::class),
+                new ServiceReference(EmailReceiverFactory::class),
+                new ServiceReference(EmailMailboxFactory::class),
+                new ServiceReference(RawEmailParser::class),
+            ],
+        ));
 
-        if (!$this->hasExplicitBinding($container, Emailer::class)) {
-            $this->bindFactory(
-                $container,
+        if (!$builder->definitions()->has(Emailer::class)) {
+            $builder->bind(
                 Emailer::class,
-                fn(): Emailer => $app->make(EmailProfiles::class)->sender(),
+                FactoryDefinition::staticFactory(
+                    NotificationGraphFactory::class,
+                    'emailer',
+                    [new ServiceReference(EmailProfiles::class)],
+                ),
                 LifetimeEnum::Scoped,
             );
         }
-        if (!$this->hasExplicitBinding($container, SpoolEmailReceiver::class)) {
-            $this->bindFactory(
-                $container,
+        if (!$builder->definitions()->has(SpoolEmailReceiver::class)) {
+            $builder->bind(
                 SpoolEmailReceiver::class,
-                fn(): SpoolEmailReceiver => $app->make(EmailProfiles::class)->spoolReceiver(),
+                FactoryDefinition::staticFactory(
+                    NotificationGraphFactory::class,
+                    'spoolReceiver',
+                    [new ServiceReference(EmailProfiles::class)],
+                ),
                 LifetimeEnum::Scoped,
             );
         }
 
-        $this->bindFactory($container, Mailer::class, fn() => new Mailer(
-            $app->make(EmailProfiles::class),
-            $app->config(),
-        ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, MailNotificationChannel::class, fn() => new MailNotificationChannel(
-            $app->make(Mailer::class),
-        ), LifetimeEnum::Singleton);
-
-        $this->bindFactory(
-            $container,
-            'foundation.notifications.emailer',
-            fn() => $app->make(Emailer::class),
-            LifetimeEnum::Scoped,
-        );
-        $this->bindFactory(
-            $container,
-            'foundation.email',
-            fn() => $app->make(Mailer::class),
-            LifetimeEnum::Singleton,
-        );
-    }
-
-    private function registerUnavailableMail(Application $app): void
-    {
-        $unavailable = static function (): never {
-            throw new \LogicException(
-                'Foundation mail services require infocyph/talkingbytes; run "php infbyte module:install communication".',
-            );
-        };
-        $container = $app->container();
-        foreach ([
+        $builder->singleton(Mailer::class, FactoryDefinition::construct(
             Mailer::class,
+            [new ServiceReference(EmailProfiles::class), new ServiceReference(ConfigRepository::class)],
+        ));
+        $builder->singleton(MailNotificationChannel::class, FactoryDefinition::construct(
             MailNotificationChannel::class,
-            Emailer::class,
-            EmailSenderFactory::class,
-            EmailReceiverFactory::class,
-            EmailMailboxFactory::class,
-            EmailLimits::class,
-            RawEmailParser::class,
-            BounceParser::class,
-            AuthenticationResultsParser::class,
-            DkimPublicKeyResolver::class,
-            DkimVerifier::class,
-            SpoolEmailReceiver::class,
-            'foundation.email',
-            'foundation.notifications.emailer',
-        ] as $service) {
-            $this->bindFactory($container, $service, $unavailable, LifetimeEnum::Singleton);
-        }
+            [new ServiceReference(Mailer::class)],
+        ));
+
+        $builder->alias('foundation.notifications.emailer', Emailer::class, LifetimeEnum::Scoped);
+        $builder->alias('foundation.email', Mailer::class);
     }
 }

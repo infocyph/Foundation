@@ -8,10 +8,12 @@ use Infocyph\CacheLayer\Cache\Lock\PdoLockProvider;
 use Infocyph\CacheLayer\Cache\Lock\RedisLockProvider;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Session\SessionConfig;
+use Infocyph\Foundation\Session\SessionExecutionState;
 use Infocyph\Foundation\Session\SessionManager;
 use Infocyph\Foundation\Session\SessionPayload;
 use Infocyph\Foundation\Session\SessionStoreInterface;
 use Infocyph\Foundation\Session\Store\ArraySessionStore;
+use Psr\Container\ContainerInterface;
 
 it('enforces browser-session contention through every configured shared lock backend', function (Closure $providers): void {
     $pair = $providers();
@@ -44,6 +46,23 @@ it('enforces browser-session contention through every configured shared lock bac
         $config($wait),
         static fn(): SessionStoreInterface => $store,
         static fn(): LockProviderInterface => $contender,
+        new class(new SessionExecutionState()) implements ContainerInterface {
+            public function __construct(private readonly SessionExecutionState $state) {}
+
+            public function get(string $id): mixed
+            {
+                if ($id === SessionExecutionState::class) {
+                    return $this->state;
+                }
+
+                throw new RuntimeException(sprintf('Unexpected test service "%s".', $id));
+            }
+
+            public function has(string $id): bool
+            {
+                return $id === SessionExecutionState::class;
+            }
+        },
     );
 
     try {
@@ -141,14 +160,19 @@ function sessionPdoLockProviders(string $dsnKey, string $userKey, string $passwo
         return null;
     }
 
-    $username = getenv($userKey);
+    $user = getenv($userKey);
     $password = getenv($passwordKey);
-    $connect = static fn(): PDO => new PDO(
-        $dsn,
-        is_string($username) ? $username : '',
-        is_string($password) ? $password : '',
-        [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION],
-    );
+    $connect = static function () use ($dsn, $user, $password): PDO {
+        return new PDO(
+            $dsn,
+            is_string($user) ? $user : '',
+            is_string($password) ? $password : '',
+            [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            ],
+        );
+    };
 
     return [
         new PdoLockProvider($connect(), 'foundation:test:'),

@@ -6,21 +6,20 @@ namespace Infocyph\Foundation\Command\System;
 
 use Composer\InstalledVersions;
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Command\CommandCacheManager;
 use Infocyph\Foundation\Command\ExitCode;
 use Infocyph\Foundation\Config\ConfigCacheManager;
 use Infocyph\Foundation\Config\ConfigurationRedactor;
-use Infocyph\Foundation\Container\ContainerCacheManager;
 use Infocyph\Foundation\Diagnostics\ReadinessReport;
 use Infocyph\Foundation\Module\ModuleCatalog;
 use Infocyph\Foundation\Module\ModuleManager;
 use Infocyph\Foundation\Process\ProcessOptions;
 use Infocyph\Foundation\Process\ProcessRunner;
-use Infocyph\Foundation\Routing\RouteCacheManager;
-use Infocyph\Foundation\Routing\RouteCachePath;
-use Infocyph\Foundation\Scheduling\ScheduleManager;
+use Infocyph\Foundation\Release\FoundationReleaseBootstrap;
+use Infocyph\Foundation\Release\FoundationReleaseCompiler;
 use Infocyph\Foundation\Security\EnvironmentSecretManager;
 
 final class ApplicationSystemCommand extends SystemCommand
@@ -195,83 +194,55 @@ final class ApplicationSystemCommand extends SystemCommand
 
     private function optimize(): int
     {
-        $config = new ConfigCacheManager($this->application);
-        $routes = new RouteCacheManager($this->application);
-        $commands = new CommandCacheManager($this->application);
-        $schedule = new ScheduleManager($this->application);
-        $containers = $this->application->make(ContainerCacheManager::class);
-
-        $artifacts = [
-            'config' => $config->write(),
-            'routes' => $routes->write($routes->configuredMatcher(), $routes->cachePath(null)),
-            'commands' => $commands->write(),
-            'schedule' => $schedule->write(),
-        ];
-        $compiled = $containers->compileAll();
-        $manifest = $containers->publishManifest($artifacts, $compiled);
+        $config = $this->releaseConfig();
+        $releaseRoot = FoundationReleaseBootstrap::resolveReleaseRoot($config);
+        $release = new FoundationReleaseCompiler()->buildAndActivate(
+            config: $config,
+            releaseRoot: $releaseRoot,
+            capabilities: $this->releaseCapabilities(),
+        );
 
         return $this->emit(
-            ['manifest' => $manifest, 'artifacts' => $artifacts, 'containers' => $compiled],
-            'Foundation runtime artifacts optimized.',
+            [
+                'release_root' => $releaseRoot,
+                'generation' => $release['generation'],
+                'manifest' => $release['manifest'],
+                'manifest_sha256' => $release['manifest_sha256'],
+                'active_pointer' => $release['active_pointer'],
+            ],
+            sprintf('Foundation release generation %s optimized and activated.', $release['generation']),
         );
     }
 
     private function optimizeClear(): int
     {
-        $results = [
-            'config' => new ConfigCacheManager($this->application)->clear(),
-            'routes' => new RouteCacheManager($this->application)->clearAll(),
-            'commands' => new CommandCacheManager($this->application)->clear(),
-            'schedule' => new ScheduleManager($this->application)->clear(),
-            'containers' => $this->application->make(ContainerCacheManager::class)->clear(),
-        ];
+        $releaseRoot = FoundationReleaseBootstrap::resolveReleaseRoot($this->releaseConfig());
+        $removed = new FoundationReleaseCompiler()->clear($releaseRoot);
 
-        return $this->emit($results, array_any($results, static fn(bool $removed): bool => $removed)
-            ? 'Optimized runtime artifacts cleared.'
-            : 'Optimized runtime artifacts are already clear.');
+        return $this->emit(
+            ['release_root' => $releaseRoot, 'removed' => $removed],
+            $removed
+                ? 'Foundation release generations cleared.'
+                : 'Foundation release generations are already clear.',
+        );
     }
 
     private function optimizeReport(): int
     {
-        $container = $this->application->make(ContainerCacheManager::class);
-        $containers = [];
-        foreach (RuntimeMode::cases() as $runtime) {
-            $containers[$runtime->value] = $container->status($runtime);
-        }
-        $data = [
-            'config' => is_dir($this->application->bootstrapPath('cache/config')),
-            'routes' => RouteCachePath::isWarm($this->application->config()),
-            'commands' => is_file($this->application->bootstrapPath('cache/commands.php')),
-            'schedule' => is_file($this->application->bootstrapPath('cache/schedule.php')),
-            'optimize_manifest' => is_file($this->application->bootstrapPath('cache/optimize.php')),
-            'containers' => $containers,
-        ];
+        $releaseRoot = FoundationReleaseBootstrap::resolveReleaseRoot($this->releaseConfig());
+        $data = new FoundationReleaseCompiler()->status($releaseRoot);
 
         if ($this->io()->machineReadable()) {
             return $this->emit($data);
         }
         $this->io()->table(
-            ['Artifact', 'Ready'],
-            [
-                ['config', $data['config']],
-                ['routes', $data['routes']],
-                ['commands', $data['commands']],
-                ['schedule', $data['schedule']],
-                ['optimize manifest', $data['optimize_manifest']],
-            ],
-        );
-        $this->io()->writeln();
-        $this->io()->table(
-            ['Runtime', 'Ready', 'Compiled', 'Activation'],
-            array_map(
-                static fn(array $status): array => [
-                    $status['runtime'],
-                    $status['ready'],
-                    $status['compiled'],
-                    $status['activation'],
-                ],
-                array_values($containers),
-            ),
+            ['Release root', 'Ready', 'Generation', 'Manifest SHA-256'],
+            [[
+                $data['release_root'],
+                $data['ready'],
+                $data['generation'] ?? '',
+                $data['manifest_sha256'] ?? '',
+            ]],
         );
 
         return ExitCode::SUCCESS;
@@ -302,6 +273,46 @@ final class ApplicationSystemCommand extends SystemCommand
         return $report['ready'] ? ExitCode::SUCCESS : ExitCode::FAILURE;
     }
 
+    /** @return array<string, array<string, bool>> */
+    private function releaseCapabilities(): array
+    {
+        if (!$this->application->config()->has('app.capabilities')) {
+            throw new \RuntimeException(
+                'Production optimization requires an explicit app.capabilities list or map.',
+            );
+        }
+
+        $configured = $this->application->config()->get('app.capabilities');
+        if (!is_array($configured)) {
+            throw new \UnexpectedValueException('app.capabilities must be a capability list or map.');
+        }
+        $resolved = FoundationBuildContext::fromConfig(
+            $this->application->config(),
+            RuntimeMode::Cli,
+            $configured,
+        )->capabilities;
+
+        $capabilities = [];
+        foreach (RuntimeMode::cases() as $runtime) {
+            $capabilities[$runtime->value] = $resolved;
+        }
+
+        return $capabilities;
+    }
+
+    /** @return array<string, mixed> */
+    private function releaseConfig(): array
+    {
+        $config = $this->application->config()->all();
+        $config['_config_cache'] = false;
+        $config['base_path'] = $this->application->basePath();
+        $app = is_array($config['app'] ?? null) ? $config['app'] : [];
+        $app['base_path'] = $this->application->basePath();
+        $config['app'] = $app;
+
+        return $config;
+    }
+
     private function serve(): int
     {
         $host = $this->option('host', '127.0.0.1') ?? '127.0.0.1';
@@ -316,12 +327,28 @@ final class ApplicationSystemCommand extends SystemCommand
             return $this->emit(['endpoint' => $endpoint, 'document_root' => $public], sprintf('%s -> %s', $endpoint, $public));
         }
 
-        $this->io()->info('Development server listening on ' . $endpoint);
+        $config = $this->releaseConfig();
+        $releaseRoot = FoundationReleaseBootstrap::resolveReleaseRoot($config);
+        $release = new FoundationReleaseCompiler()->buildAndActivate(
+            config: $config,
+            releaseRoot: $releaseRoot,
+            capabilities: $this->releaseCapabilities(),
+        );
+
+        $this->io()->info(sprintf(
+            'Development server listening on %s using Foundation generation %s.',
+            $endpoint,
+            $release['generation'],
+        ));
 
         return new ProcessRunner()->run(
             [PHP_BINARY, '-S', $host . ':' . $port, '-t', $public],
             new ProcessOptions(
                 cwd: $this->application->basePath(),
+                environment: [
+                    FoundationReleaseBootstrap::RELEASE_ROOT_ENV => $releaseRoot,
+                    FoundationReleaseBootstrap::MANIFEST_SHA256_ENV => $release['manifest_sha256'],
+                ],
                 interactive: true,
             ),
         )->exitCode;

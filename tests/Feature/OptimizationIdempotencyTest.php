@@ -76,7 +76,7 @@ final class FoundationOptimizationCommandIO implements CommandIO
     public function writeln(string $message = ''): void {}
 }
 
-it('keeps optimize and optimize clear idempotent across every runtime artifact', function (): void {
+it('keeps optimize and optimize clear idempotent across release generations', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-optimize-' . bin2hex(random_bytes(6));
     mkdir($basePath . '/routes', 0775, true);
     file_put_contents($basePath . '/routes/web.php', <<<'PHP'
@@ -85,98 +85,78 @@ use Infocyph\Webrick\Router\Facade\Router;
 Router::get('/health', static fn(): array => ['ok' => true], ['name' => 'health']);
 PHP);
 
-    $dispatcher = CommandDispatcher::project(
-        [
-            'base_path' => $basePath,
-            'app' => [
-                'base_path' => $basePath,
-                'env' => 'testing',
-                'container' => [
-                    'compiled_activation' => 'off',
-                ],
-            ],
-        ],
-        manifestPath: $basePath . '/bootstrap/cache/commands.php',
-        routesPath: $basePath . '/routes/console.php',
-    );
+    $dispatcher = foundationOptimizationDispatcher($basePath, []);
 
     try {
-        $firstPayload = foundationOptimizationPayload(foundationOptimizationRun($dispatcher, 'optimize'));
-        $secondPayload = foundationOptimizationPayload(foundationOptimizationRun($dispatcher, 'optimize'));
-        $secondContainers = $secondPayload['containers'] ?? null;
-        if (!is_array($secondContainers)) {
-            throw new RuntimeException('Second optimization did not expose compiled runtime containers.');
-        }
-        $secondRuntimeKeys = array_keys($secondContainers);
-        sort($secondRuntimeKeys);
+        $first = foundationOptimizationPayload(foundationOptimizationRun($dispatcher, 'optimize'));
+        $second = foundationOptimizationPayload(foundationOptimizationRun($dispatcher, 'optimize'));
 
-        expect($firstPayload['artifacts'] ?? null)->toBe($secondPayload['artifacts'] ?? null)
-            ->and($secondRuntimeKeys)->toBe(['cli', 'scheduler', 'web', 'worker']);
+        expect($first['generation'] ?? null)->toBeString()->not->toBe('')
+            ->and($second['generation'] ?? null)->toBeString()->not->toBe('')
+            ->and($second['generation'] ?? null)->not->toBe($first['generation'] ?? null)
+            ->and($second['manifest_sha256'] ?? null)->toBeString()->toHaveLength(64)
+            ->and(is_file((string) ($second['manifest'] ?? '')))->toBeTrue()
+            ->and(is_file((string) ($second['active_pointer'] ?? '')))->toBeTrue();
 
         $warm = foundationOptimizationPayload(foundationOptimizationRun($dispatcher, 'optimize:report'));
-        expect($warm['config'] ?? null)->toBeTrue()
-            ->and($warm['routes'] ?? null)->toBeTrue()
-            ->and($warm['commands'] ?? null)->toBeTrue()
-            ->and($warm['schedule'] ?? null)->toBeTrue()
-            ->and($warm['optimize_manifest'] ?? null)->toBeTrue();
-        foundationOptimizationExpectContainers($warm, true);
+        expect($warm['ready'] ?? null)->toBeTrue()
+            ->and($warm['generation'] ?? null)->toBe($second['generation'] ?? null)
+            ->and($warm['manifest'] ?? null)->toBe($second['manifest'] ?? null)
+            ->and($warm['manifest_sha256'] ?? null)->toBe($second['manifest_sha256'] ?? null);
 
         $firstClear = foundationOptimizationPayload(foundationOptimizationRun($dispatcher, 'optimize:clear'));
-        expect($firstClear)->toBe([
-            'config' => true,
-            'routes' => true,
-            'commands' => true,
-            'schedule' => true,
-            'containers' => true,
-        ]);
+        expect($firstClear['removed'] ?? null)->toBeTrue();
 
         $secondClear = foundationOptimizationPayload(foundationOptimizationRun($dispatcher, 'optimize:clear'));
-        expect($secondClear)->toBe([
-            'config' => false,
-            'routes' => false,
-            'commands' => false,
-            'schedule' => false,
-            'containers' => false,
-        ]);
+        expect($secondClear['removed'] ?? null)->toBeFalse();
 
         $cold = foundationOptimizationPayload(foundationOptimizationRun($dispatcher, 'optimize:report'));
-        expect($cold['config'] ?? null)->toBeFalse()
-            ->and($cold['routes'] ?? null)->toBeFalse()
-            ->and($cold['commands'] ?? null)->toBeFalse()
-            ->and($cold['schedule'] ?? null)->toBeFalse()
-            ->and($cold['optimize_manifest'] ?? null)->toBeFalse();
-        foundationOptimizationExpectContainers($cold, false);
+        expect($cold['ready'] ?? null)->toBeFalse()
+            ->and($cold['generation'] ?? null)->toBeNull()
+            ->and($cold['manifest'] ?? null)->toBeNull()
+            ->and($cold['manifest_sha256'] ?? null)->toBeNull();
     } finally {
         foundationOptimizationRemove($basePath);
     }
 });
 
-/** @param array<string, mixed> $payload */
-function foundationOptimizationExpectContainers(array $payload, bool $ready): void
+it('requires explicit production capability topology for optimize', function (): void {
+    $basePath = sys_get_temp_dir() . '/foundation-optimize-capabilities-' . bin2hex(random_bytes(6));
+    $dispatcher = foundationOptimizationDispatcher($basePath, null);
+
+    try {
+        $io = new FoundationOptimizationCommandIO();
+        $exit = $dispatcher->run(['infbyte', 'optimize'], $io);
+
+        expect($exit)->toBe(ExitCode::FAILURE)
+            ->and($io->errors)->toContain('Production optimization requires an explicit app.capabilities list or map.');
+    } finally {
+        foundationOptimizationRemove($basePath);
+    }
+});
+
+/** @param list<string>|null $capabilities */
+function foundationOptimizationDispatcher(string $basePath, ?array $capabilities): CommandDispatcher
 {
-    $containers = $payload['containers'] ?? null;
-    if (!is_array($containers)) {
-        throw new RuntimeException('Optimization report did not expose container status.');
+    $app = [
+        'base_path' => $basePath,
+        'env' => 'testing',
+        'container' => [
+            'compiled_activation' => 'off',
+        ],
+    ];
+    if ($capabilities !== null) {
+        $app['capabilities'] = $capabilities;
     }
-    $runtimeKeys = array_keys($containers);
-    sort($runtimeKeys);
 
-    expect($runtimeKeys)->toBe(['cli', 'scheduler', 'web', 'worker']);
-    foreach ($containers as $runtime => $status) {
-        if (!is_array($status)) {
-            throw new RuntimeException(sprintf('Optimization status for %s is invalid.', (string) $runtime));
-        }
-
-        expect($status['runtime'] ?? null)->toBe($runtime)
-            ->and($status['ready'] ?? null)->toBe($ready);
-
-        $compiled = $status['compiled'] ?? null;
-        if ($ready) {
-            expect($compiled)->toBeInt()->toBeGreaterThanOrEqual(0);
-        } else {
-            expect($compiled)->toBe(0);
-        }
-    }
+    return CommandDispatcher::project(
+        [
+            'base_path' => $basePath,
+            'app' => $app,
+        ],
+        manifestPath: $basePath . '/bootstrap/cache/commands.php',
+        routesPath: $basePath . '/routes/console.php',
+    );
 }
 
 /** @return array<string, mixed> */

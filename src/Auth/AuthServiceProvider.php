@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth;
 
-use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Auth\Authentication\RememberMe\RememberMeManager;
 use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
@@ -15,6 +15,7 @@ use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
 use Infocyph\Foundation\Auth\Internal\AuthAuthorizationRegistrar;
 use Infocyph\Foundation\Auth\Internal\AuthCacheRegistrar;
 use Infocyph\Foundation\Auth\Internal\AuthCoreRegistrar;
+use Infocyph\Foundation\Auth\Internal\AuthHttpGraphFactory;
 use Infocyph\Foundation\Auth\Internal\AuthManagerRegistrar;
 use Infocyph\Foundation\Auth\Internal\AuthMfaRegistrar;
 use Infocyph\Foundation\Auth\Internal\AuthNotificationRegistrar;
@@ -29,6 +30,7 @@ use Infocyph\Foundation\Auth\Internal\AuthTokenRegistrar;
 use Infocyph\Foundation\Auth\Internal\EpicryptTokenPolicyResolver;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthAccessTokenValidator;
 use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Http\Middleware\AuthMiddleware;
 use Infocyph\Foundation\Http\Middleware\GuestMiddleware;
 use Infocyph\Foundation\Http\Middleware\MfaRequiredMiddleware;
@@ -37,140 +39,176 @@ use Infocyph\Foundation\Http\Middleware\ResolvePrincipalMiddleware;
 use Infocyph\Foundation\Http\Middleware\VerifiedMiddleware;
 use Infocyph\Foundation\Http\Resolver\BearerTokenPrincipalResolver;
 use Infocyph\Foundation\Http\Resolver\OAuthBearerTokenPrincipalResolver;
-use Infocyph\Foundation\Http\Resolver\PrincipalResolverInterface;
 use Infocyph\Foundation\Http\Resolver\RememberMePrincipalResolver;
 use Infocyph\Foundation\Http\Resolver\RequestPrincipalResolver;
 use Infocyph\Foundation\Http\Resolver\SessionPrincipalResolver;
 use Infocyph\Foundation\Http\Response\AuthResponseFactory;
-use Infocyph\InterMix\DI\Support\LifetimeEnum;
+use Infocyph\InterMix\DI\ContainerBuilder;
+use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\ServiceReference;
 
 final class AuthServiceProvider extends ServiceProvider
 {
-    public function register(Application $app): void
+    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        $container = $app->container();
+        $app = $this->application($builder, $context);
         $drivers = new AuthDriverResolver($app->config());
         $secrets = new AuthSecretResolver($app);
         $epicryptTokens = new EpicryptTokenPolicyResolver($app);
 
-        new AuthCoreRegistrar($container)->register($drivers);
+        new AuthCoreRegistrar($builder)->register($drivers);
         new AuthProductionGuard($app)->guard($drivers);
-        new AuthStoreRegistrar($app, $container)->register($drivers->storage());
-        new AuthCacheRegistrar($app, $container)->register($drivers);
-        new AuthPasswordRegistrar($app, $container)->register($drivers);
-        new AuthTokenRegistrar($app, $container, $secrets, $epicryptTokens)->register($drivers);
-        new AuthMfaRegistrar($app, $container, $secrets)->register($drivers);
-        new AuthPasskeyRegistrar($app, $container)->register($drivers);
-        new AuthNotificationRegistrar($app, $container)->register($drivers);
-        new AuthManagerRegistrar($app, $container)->register();
-        new AuthAuthorizationRegistrar($app, $container)->register();
-        new AuthRuntimeRegistrar($app, $container)->register();
-        $oauth = new AuthOAuthRegistrar($app, $container);
+        new AuthStoreRegistrar($app, $builder)->register($drivers->storage());
+        new AuthCacheRegistrar($app, $builder)->register($drivers);
+        new AuthPasswordRegistrar($app, $builder)->register($drivers);
+        new AuthTokenRegistrar($app, $builder, $secrets, $epicryptTokens)->register($drivers);
+        new AuthMfaRegistrar($app, $builder, $secrets)->register($drivers);
+        new AuthPasskeyRegistrar($app, $builder)->register($drivers);
+        new AuthNotificationRegistrar($app, $builder)->register($drivers);
+        new AuthManagerRegistrar($app, $builder)->register();
+        new AuthAuthorizationRegistrar($app, $builder)->register();
+        new AuthRuntimeRegistrar($app, $builder)->register();
+        $oauth = new AuthOAuthRegistrar($app, $builder);
         $oauth->register();
 
-        if ($app->runningInWeb()) {
-            $this->registerHttpServices($app, $oauth->enabled());
+        if ($context->runtimeMode->value === 'web') {
+            $this->contributeHttp($builder, $context, $oauth->enabled());
         }
+
+        $builder->alias('foundation.auth', AuthDriverResolver::class);
+    }
+
+    private function contributeHttp(
+        ContainerBuilder $builder,
+        FoundationBuildContext $context,
+        bool $oauthEnabled,
+    ): void {
+        $builder->singleton(SessionPrincipalResolver::class, FactoryDefinition::construct(
+            SessionPrincipalResolver::class,
+            [
+                new ServiceReference(ConfigRepository::class),
+                new ServiceReference(SessionStoreInterface::class),
+                new ServiceReference(AccountProviderInterface::class),
+                new ServiceReference(ClockInterface::class),
+            ],
+        ));
+        $builder->singleton(BearerTokenPrincipalResolver::class, FactoryDefinition::construct(
+            BearerTokenPrincipalResolver::class,
+            [
+                new ServiceReference(ConfigRepository::class),
+                new ServiceReference(AccessTokenServiceInterface::class),
+                new ServiceReference(AccountProviderInterface::class),
+            ],
+        ));
+        $builder->singleton(RememberMePrincipalResolver::class, FactoryDefinition::construct(
+            RememberMePrincipalResolver::class,
+            [
+                new ServiceReference(ConfigRepository::class),
+                new ServiceReference(RememberMeManager::class),
+                new ServiceReference(AccountProviderInterface::class),
+            ],
+        ));
+        if ($oauthEnabled) {
+            $builder->singleton(OAuthBearerTokenPrincipalResolver::class, FactoryDefinition::construct(
+                OAuthBearerTokenPrincipalResolver::class,
+                [
+                    new ServiceReference(ConfigRepository::class),
+                    new ServiceReference(OAuthAccessTokenValidator::class),
+                ],
+            ));
+        }
+
+        $builder->singleton(RequestPrincipalResolver::class, FactoryDefinition::staticFactory(
+            AuthHttpGraphFactory::class,
+            'requestPrincipalResolver',
+            [
+                new ServiceReference(ConfigRepository::class),
+                new ServiceReference(SessionPrincipalResolver::class),
+                new ServiceReference(BearerTokenPrincipalResolver::class),
+                new ServiceReference(RememberMePrincipalResolver::class),
+                $oauthEnabled ? new ServiceReference(OAuthBearerTokenPrincipalResolver::class) : null,
+                $this->principalResolverOrder($context, $oauthEnabled),
+            ],
+        ));
+        $builder->singleton(ResolvePrincipalMiddleware::class, FactoryDefinition::construct(
+            ResolvePrincipalMiddleware::class,
+            [new ServiceReference(CurrentPrincipalContext::class), new ServiceReference(RequestPrincipalResolver::class)],
+        ));
+        $builder->singleton(AuthMiddleware::class, FactoryDefinition::construct(
+            AuthMiddleware::class,
+            [new ServiceReference(CurrentPrincipalContext::class), new ServiceReference(AuthResponseFactory::class)],
+        ));
+        $builder->singleton(GuestMiddleware::class, FactoryDefinition::construct(
+            GuestMiddleware::class,
+            [new ServiceReference(CurrentPrincipalContext::class), new ServiceReference(AuthResponseFactory::class)],
+        ));
+        $builder->singleton(VerifiedMiddleware::class, FactoryDefinition::construct(
+            VerifiedMiddleware::class,
+            [
+                new ServiceReference(CurrentPrincipalContext::class),
+                new ServiceReference(AccountProviderInterface::class),
+                new ServiceReference(AuthResponseFactory::class),
+            ],
+        ));
+        $builder->singleton(MfaRequiredMiddleware::class, FactoryDefinition::construct(
+            MfaRequiredMiddleware::class,
+            [new ServiceReference(CurrentPrincipalContext::class), new ServiceReference(AuthResponseFactory::class)],
+        ));
+        $builder->singleton(RecentAuthMiddleware::class, FactoryDefinition::construct(
+            RecentAuthMiddleware::class,
+            [new ServiceReference(CurrentPrincipalContext::class), new ServiceReference(AuthResponseFactory::class)],
+        ));
     }
 
     /** @return list<string> */
-    private function principalResolverOrder(Application $app, bool $oauthEnabled): array
+    private function principalResolverOrder(FoundationBuildContext $context, bool $oauthEnabled): array
     {
-        $configured = $app->config()->get('auth.http.principal_resolvers', []);
-        $order = [];
-        if (is_array($configured)) {
-            foreach ($configured as $name) {
-                if (is_string($name) && $name !== '' && !in_array($name, $order, true)) {
-                    $order[] = $name;
-                }
-            }
-        }
+        $auth = is_array($context->config['auth'] ?? null) ? $context->config['auth'] : [];
+        $http = is_array($auth['http'] ?? null) ? $auth['http'] : [];
+        $order = $this->resolverNames($http['principal_resolvers'] ?? null);
         if ($order === []) {
             $order = ['session', 'bearer', 'remember'];
         }
+
+        return $this->withOAuthResolver($order, $oauthEnabled);
+    }
+
+    /** @return list<string> */
+    private function resolverNames(mixed $configured): array
+    {
+        if (!is_array($configured)) {
+            return [];
+        }
+
+        $order = [];
+        foreach ($configured as $name) {
+            if (is_string($name) && $name !== '' && !in_array($name, $order, true)) {
+                $order[] = $name;
+            }
+        }
+
+        return $order;
+    }
+
+    /**
+     * @param list<string> $order
+     * @return list<string>
+     */
+    private function withOAuthResolver(array $order, bool $oauthEnabled): array
+    {
         if (!$oauthEnabled || in_array('oauth_bearer', $order, true)) {
             return $order;
         }
 
         $bearer = array_search('bearer', $order, true);
-        if (is_int($bearer)) {
-            array_splice($order, $bearer, 0, ['oauth_bearer']);
+        if ($bearer === false) {
+            $order[] = 'oauth_bearer';
 
             return $order;
         }
 
-        $order[] = 'oauth_bearer';
+        array_splice($order, $bearer, 0, ['oauth_bearer']);
 
         return $order;
-    }
-
-    private function registerHttpServices(Application $app, bool $oauthEnabled): void
-    {
-        $container = $app->container();
-
-        $this->bindFactory($container, SessionPrincipalResolver::class, fn() => new SessionPrincipalResolver(
-            config: $app->config(),
-            sessions: $app->make(SessionStoreInterface::class),
-            accounts: $app->make(AccountProviderInterface::class),
-            clock: $app->make(ClockInterface::class),
-        ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, BearerTokenPrincipalResolver::class, fn() => new BearerTokenPrincipalResolver(
-            config: $app->config(),
-            tokens: $app->make(AccessTokenServiceInterface::class),
-            accounts: $app->make(AccountProviderInterface::class),
-        ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, RememberMePrincipalResolver::class, fn() => new RememberMePrincipalResolver(
-            config: $app->config(),
-            rememberMe: $app->make(RememberMeManager::class),
-            accounts: $app->make(AccountProviderInterface::class),
-        ), LifetimeEnum::Singleton);
-        if ($oauthEnabled) {
-            $this->bindFactory($container, OAuthBearerTokenPrincipalResolver::class, fn() => new OAuthBearerTokenPrincipalResolver(
-                config: $app->config(),
-                validator: $app->make(OAuthAccessTokenValidator::class),
-            ), LifetimeEnum::Singleton);
-        }
-        $this->bindFactory($container, RequestPrincipalResolver::class, function () use ($app, $oauthEnabled): RequestPrincipalResolver {
-            /** @var array<string, PrincipalResolverInterface> $resolvers */
-            $resolvers = [
-                'session' => $app->make(SessionPrincipalResolver::class),
-                'bearer' => $app->make(BearerTokenPrincipalResolver::class),
-                'remember' => $app->make(RememberMePrincipalResolver::class),
-            ];
-            if ($oauthEnabled) {
-                $resolvers['oauth_bearer'] = $app->make(OAuthBearerTokenPrincipalResolver::class);
-            }
-
-            return new RequestPrincipalResolver(
-                config: $app->config(),
-                resolvers: $resolvers,
-                order: $this->principalResolverOrder($app, $oauthEnabled),
-            );
-        }, LifetimeEnum::Singleton);
-        $this->bindFactory($container, ResolvePrincipalMiddleware::class, fn() => new ResolvePrincipalMiddleware(
-            principals: $app->make(CurrentPrincipalContext::class),
-            resolver: $app->make(RequestPrincipalResolver::class),
-        ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, AuthMiddleware::class, fn() => new AuthMiddleware(
-            $app->make(CurrentPrincipalContext::class),
-            $app->make(AuthResponseFactory::class),
-        ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, GuestMiddleware::class, fn() => new GuestMiddleware(
-            $app->make(CurrentPrincipalContext::class),
-            $app->make(AuthResponseFactory::class),
-        ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, VerifiedMiddleware::class, fn() => new VerifiedMiddleware(
-            $app->make(CurrentPrincipalContext::class),
-            $app->make(AccountProviderInterface::class),
-            $app->make(AuthResponseFactory::class),
-        ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, MfaRequiredMiddleware::class, fn() => new MfaRequiredMiddleware(
-            $app->make(CurrentPrincipalContext::class),
-            $app->make(AuthResponseFactory::class),
-        ), LifetimeEnum::Singleton);
-        $this->bindFactory($container, RecentAuthMiddleware::class, fn() => new RecentAuthMiddleware(
-            $app->make(CurrentPrincipalContext::class),
-            $app->make(AuthResponseFactory::class),
-        ), LifetimeEnum::Singleton);
     }
 }

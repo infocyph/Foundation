@@ -5,6 +5,7 @@ owns application lifecycle and integration policy; standalone libraries retain
 their domain behavior.
 
 - [Architecture and lifecycle](architecture.md)
+- [Foundation 3 runtime migration](foundation-3-migration.md)
 - [Configuration](configuration.md)
 - [HTTP and optional capabilities](http-and-capabilities.md)
 - [Communication and email](communication.md)
@@ -26,4 +27,5 @@ their domain behavior.
 The configuration templates under `resources/config/` are the canonical
 key-by-key reference for publishable configuration. Runtime behavior and public
 command/module names in these guides follow the Foundation source on the current
-branch; full release verification is a separate phase.
+branch; release verification is enforced by the Foundation runtime plan and CI
+release gates.

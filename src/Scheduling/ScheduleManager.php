@@ -17,6 +17,7 @@ use Infocyph\Foundation\Process\ProcessOptions;
 use Infocyph\Foundation\Process\ProcessResult;
 use Infocyph\Foundation\Process\ProcessRunner;
 use Infocyph\Foundation\Process\ProcessTerminationReason;
+use Infocyph\Foundation\Runtime\CleanupGuard;
 use Infocyph\Foundation\Runtime\ExecutionId;
 
 final readonly class ScheduleManager
@@ -115,6 +116,7 @@ final readonly class ScheduleManager
         $runtimeToken = $control->token('runtime');
         $scheduleToken = $control->token('schedule');
         $process = $registry->register('schedule', 'default');
+        $primaryFailure = null;
 
         try {
             while ($maxIterations === null || $iterations < $maxIterations) {
@@ -139,8 +141,14 @@ final readonly class ScheduleManager
             }
 
             return 0;
+        } catch (\Throwable $exception) {
+            $primaryFailure = $exception;
+            throw $exception;
         } finally {
-            $registry->unregister($process);
+            CleanupGuard::run(
+                $primaryFailure,
+                static fn() => $registry->unregister($process),
+            );
         }
     }
 
@@ -192,25 +200,18 @@ final readonly class ScheduleManager
             : dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'infbyte';
     }
 
-    private function executeProcess(
-        ScheduledCommand $entry,
-        ExecutionId $executionId,
-        ?Closure $heartbeat,
-    ): ProcessResult {
-        return new SchedulerRuntime($this->application)->execute(
-            fn(): ProcessResult => new ProcessRunner()->run(
-                $this->processCommand($entry),
-                new ProcessOptions(
-                    cwd: $this->application->basePath(),
-                    timeoutSeconds: $entry->timeoutSeconds(),
-                    interactive: false,
-                    captureOutput: false,
-                    passthrough: true,
-                    heartbeat: $heartbeat,
-                ),
+    private function executeProcess(ScheduledCommand $entry, ?Closure $heartbeat): ProcessResult
+    {
+        return new ProcessRunner()->run(
+            $this->processCommand($entry),
+            new ProcessOptions(
+                cwd: $this->application->basePath(),
+                timeoutSeconds: $entry->timeoutSeconds(),
+                interactive: false,
+                captureOutput: false,
+                passthrough: true,
+                heartbeat: $heartbeat,
             ),
-            [ScheduledCommand::class => $entry],
-            $executionId,
         );
     }
 
@@ -379,6 +380,16 @@ final readonly class ScheduleManager
     private function runEntry(ScheduledCommand $entry): ScheduleRun
     {
         $executionId = ExecutionId::generate();
+
+        return new SchedulerRuntime($this->application)->execute(
+            fn(): ScheduleRun => $this->runScopedEntry($entry, $executionId),
+            [ScheduledCommand::class => $entry],
+            $executionId,
+        );
+    }
+
+    private function runScopedEntry(ScheduledCommand $entry, ExecutionId $executionId): ScheduleRun
+    {
         $history = new ExecutionHistory($this->application);
         $name = $entry->command();
         $identity = ['schedule_identity' => $entry->identity()];
@@ -386,6 +397,7 @@ final readonly class ScheduleManager
 
         $lock = null;
         $handle = null;
+        $primaryFailure = null;
 
         try {
             if ($entry->preventsOverlap() || $entry->requiresSingleServer()) {
@@ -398,7 +410,6 @@ final readonly class ScheduleManager
             $this->record($history, $executionId, $name, CommandStatus::Running, metadata: $identity);
             $result = $this->executeProcess(
                 $entry,
-                $executionId,
                 $this->processHeartbeat($entry, $lock, $handle),
             );
             $this->record(
@@ -416,14 +427,21 @@ final readonly class ScheduleManager
 
             return new ScheduleRun($entry, $result->exitCode);
         } catch (\Throwable $exception) {
-            $this->record($history, $executionId, $name, CommandStatus::Failed, metadata: $identity + [
-                'exception' => $exception::class,
-            ]);
+            $primaryFailure = $exception;
+            CleanupGuard::run(
+                $primaryFailure,
+                fn() => $this->record($history, $executionId, $name, CommandStatus::Failed, metadata: $identity + [
+                    'exception' => $exception::class,
+                ]),
+            );
 
             throw $exception;
         } finally {
             if ($lock !== null && $handle !== null) {
-                $lock->release($handle);
+                CleanupGuard::run(
+                    $primaryFailure,
+                    static fn() => $lock->release($handle),
+                );
             }
         }
     }

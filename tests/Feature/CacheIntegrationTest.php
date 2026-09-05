@@ -160,7 +160,7 @@ it('exposes the configured CacheLayer lock provider directly', function (): void
     $sharedLock->release($handle);
 });
 
-it('flushes process-local memoizers without clearing the shared cache between execution units', function (): void {
+it('keeps bounded process-local memoizers warm without clearing the shared cache', function (): void {
     $app = Foundation::web([
         'cache' => [
             'default' => 'memory',
@@ -171,8 +171,11 @@ it('flushes process-local memoizers without clearing the shared cache between ex
     ]);
 
     $cache = $app->make(CacheInterface::class);
-    $memoizer = $app->make(Memoizer::class);
-    $once = $app->make(OnceMemoizer::class);
+    $memoizer = Memoizer::instance();
+    $once = OnceMemoizer::instance();
+    $memoizer->flush();
+    $once->flush();
+
     $memoCalls = 0;
     $onceCalls = 0;
     $resolver = static function () use (&$memoCalls): int {
@@ -181,26 +184,23 @@ it('flushes process-local memoizers without clearing the shared cache between ex
 
     $cache->set('persistent', 'shared');
 
-    $first = $app->execution()->run(static function () use ($memoizer, $once, $resolver, &$onceCalls): array {
-        return [
-            $memoizer->get($resolver),
-            $memoizer->get($resolver),
-            foundationCacheOnceValue($once, $onceCalls),
-            foundationCacheOnceValue($once, $onceCalls),
-        ];
-    });
-
-    $second = $app->execution()->run(static function () use ($memoizer, $once, $resolver, &$onceCalls): array {
-        return [
-            $memoizer->get($resolver),
-            $memoizer->get($resolver),
-            foundationCacheOnceValue($once, $onceCalls),
-            foundationCacheOnceValue($once, $onceCalls),
-        ];
-    });
+    $first = [
+        $memoizer->get($resolver),
+        $memoizer->get($resolver),
+        foundationCacheOnceValue($once, $onceCalls),
+        foundationCacheOnceValue($once, $onceCalls),
+    ];
+    $second = [
+        $memoizer->get($resolver),
+        $memoizer->get($resolver),
+        foundationCacheOnceValue($once, $onceCalls),
+        foundationCacheOnceValue($once, $onceCalls),
+    ];
 
     expect($first)->toBe([1, 1, 1, 1])
-        ->and($second)->toBe([2, 2, 2, 2])
+        ->and($second)->toBe([1, 1, 1, 1])
+        ->and($memoCalls)->toBe(1)
+        ->and($onceCalls)->toBe(1)
         ->and($cache->get('persistent'))->toBe('shared');
 });
 

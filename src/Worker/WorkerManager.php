@@ -5,11 +5,16 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Worker;
 
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Cache\CacheLayerFactory;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Messaging\OmnibusWorkerFactory;
 use Infocyph\Foundation\Operations\RuntimeControl;
 use Infocyph\Foundation\Operations\RuntimeProcessRegistry;
+use Infocyph\Foundation\Release\ActiveGeneration;
+use Infocyph\Foundation\Release\FoundationReleaseBootstrap;
+use Infocyph\Foundation\Runtime\CleanupGuard;
+use Infocyph\Foundation\Runtime\LoadedReleaseGeneration;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\Omnibus\Consumer\Worker;
 use Infocyph\Omnibus\Consumer\WorkerLifecycle;
@@ -61,8 +66,18 @@ final readonly class WorkerManager
             throw new \LogicException('Workers must run from a Foundation worker runtime.');
         }
 
-        $providers = $this->providerDefinitions($routes);
         $messaging = $this->messagingDefinitions();
+        $release = $this->application->loadedReleaseGeneration() === null
+            ? FoundationReleaseBootstrap::fromEnvironment($this->application->config()->all())
+            : null;
+        if ($release !== null && !$this->pooledMessagingWorker($messaging[$name] ?? null)) {
+            return new self($release->nonWeb(
+                $this->application->config()->all(),
+                RuntimeMode::Worker,
+            ))->run($name, $routes);
+        }
+
+        $providers = $this->providerDefinitions($routes, $release);
         $this->assertDistinctNames($providers, $messaging);
         if (!isset($providers[$name]) && !isset($messaging[$name])) {
             throw new \InvalidArgumentException(sprintf('Worker "%s" is not defined.', $name));
@@ -72,26 +87,35 @@ final readonly class WorkerManager
         $runtimeToken = $control->token('runtime');
         $workerToken = $control->token('worker');
         $namedToken = $control->token('worker', $name);
+        $generationStopRequested = $this->generationStopRequested();
         $stopRequested = static fn(): bool => $control->changed('runtime', null, $runtimeToken)
             || $control->changed('worker', null, $workerToken)
-            || $control->changed('worker', $name, $namedToken);
+            || $control->changed('worker', $name, $namedToken)
+            || $generationStopRequested();
 
         $registry = new RuntimeProcessRegistry($this->application);
         $process = $registry->register('worker', $name);
         $heartbeat = static function () use ($registry, &$process): void {
             $process = $registry->heartbeat($process);
         };
+        $primaryFailure = null;
 
         try {
             if (isset($providers[$name])) {
                 return $this->runProvider($name, $providers[$name], $stopRequested, $heartbeat);
             }
 
-            return $this->runMessaging($name, $stopRequested, $heartbeat);
+            return $this->runMessaging($name, $messaging[$name], $stopRequested, $heartbeat);
         } catch (WorkerRestartRequested) {
             return 0;
+        } catch (\Throwable $exception) {
+            $primaryFailure = $exception;
+            throw $exception;
         } finally {
-            $registry->unregister($process);
+            CleanupGuard::run(
+                $primaryFailure,
+                static fn() => $registry->unregister($process),
+            );
         }
     }
 
@@ -163,6 +187,17 @@ final readonly class WorkerManager
             }
         }
 
+        if ($container->isResolved(\Infocyph\Foundation\Runtime\RuntimeExecutionState::class)) {
+            $state = $container->get(\Infocyph\Foundation\Runtime\RuntimeExecutionState::class);
+            if ($state instanceof \Infocyph\Foundation\Runtime\RuntimeExecutionState
+                && $state->hasDatabaseConnections()
+            ) {
+                throw new \LogicException(
+                    'Pooled workers must fork before opening DBLayer connections in the parent process.',
+                );
+            }
+        }
+
         $db = \Infocyph\DBLayer\DB::class;
         if (class_exists($db, false) && $db::getConnections() !== []) {
             throw new \LogicException(
@@ -171,16 +206,21 @@ final readonly class WorkerManager
         }
     }
 
-    private function floatValue(mixed $value, float $default, string $key): float
+    /** @return \Closure():bool */
+    private function generationStopRequested(): \Closure
     {
-        if ($value === null || $value === '') {
-            return $default;
-        }
-        if (is_int($value) || is_float($value) || (is_string($value) && is_numeric($value))) {
-            return (float) $value;
+        $loaded = $this->application->loadedReleaseGeneration();
+        if ($loaded !== null) {
+            return $this->watchGeneration($loaded->releaseRoot, $loaded->generation);
         }
 
-        throw new \UnexpectedValueException(sprintf('Worker %s must be numeric.', $key));
+        $bootstrap = FoundationReleaseBootstrap::fromEnvironment($this->application->config()->all());
+        if ($bootstrap === null) {
+            return static fn(): bool => false;
+        }
+        $selected = $this->selectedGeneration($bootstrap);
+
+        return $this->watchGeneration($selected->releaseRoot, $selected->generation);
     }
 
     /** @return array<string, array<string, mixed>> */
@@ -204,92 +244,62 @@ final readonly class WorkerManager
         return $workers;
     }
 
-    private function nonNegativeFloat(mixed $value, float $default, string $key): float
+    /** @param array<string,mixed>|null $definition */
+    private function pooledMessagingWorker(?array $definition): bool
     {
-        $resolved = $this->floatValue($value, $default, $key);
-        if (!is_finite($resolved) || $resolved < 0.0) {
-            throw new \UnexpectedValueException(sprintf('Worker %s must be finite and non-negative.', $key));
+        if ($definition === null) {
+            return false;
         }
 
-        return $resolved;
-    }
+        $pool = ValueNormalizer::associativeArray($definition['pool'] ?? []);
 
-    private function path(string $path): string
-    {
-        return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1
-            ? $path
-            : $this->application->basePath(trim($path, DIRECTORY_SEPARATOR));
-    }
-
-    private function positiveFloat(mixed $value, float $default, string $key): float
-    {
-        $resolved = $this->floatValue($value, $default, $key);
-        if (!is_finite($resolved) || $resolved <= 0.0) {
-            throw new \UnexpectedValueException(sprintf('Worker %s must be positive and finite.', $key));
-        }
-
-        return $resolved;
+        return ValueNormalizer::bool($pool['enabled'] ?? null, false);
     }
 
     /**
      * @return array<string, array{provider:class-string<WorkerProvider>,singleton:bool,lock_wait_seconds:float,lock_lease_seconds:float}>
      */
-    private function providerDefinitions(string $routes): array
-    {
-        $path = $this->path($routes);
-        if (!is_file($path)) {
-            return [];
+    private function providerDefinitions(
+        string $routes,
+        ?FoundationReleaseBootstrap $bootstrap = null,
+    ): array {
+        $loaded = $this->application->loadedReleaseGeneration();
+        if ($loaded !== null) {
+            return new WorkerTopology()->loadGeneration($loaded);
+        }
+        if ($bootstrap !== null) {
+            return new WorkerTopology()->loadGeneration($this->selectedGeneration($bootstrap));
         }
 
-        $configured = require $path;
-        if (!is_array($configured)) {
-            throw new \UnexpectedValueException(sprintf('Worker route file "%s" must return a worker map.', $path));
-        }
+        $routePath = preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $routes) === 1
+            ? $routes
+            : $this->application->basePath(trim($routes, DIRECTORY_SEPARATOR));
 
-        $workers = [];
-        foreach ($configured as $name => $definition) {
-            if (!is_string($name) || $name === '') {
-                throw new \UnexpectedValueException('Worker route names must be non-empty strings.');
-            }
-
-            $options = is_array($definition) ? $definition : ['provider' => $definition];
-            $provider = $options['provider'] ?? null;
-            if (!is_string($provider) || $provider === '' || !is_a($provider, WorkerProvider::class, true)) {
-                throw new \UnexpectedValueException(sprintf(
-                    'Worker "%s" must define a %s provider.',
-                    $name,
-                    WorkerProvider::class,
-                ));
-            }
-
-            /** @var class-string<WorkerProvider> $provider */
-            $workers[$name] = [
-                'provider' => $provider,
-                'singleton' => ValueNormalizer::bool($options['singleton'] ?? null, false),
-                'lock_wait_seconds' => $this->nonNegativeFloat(
-                    $options['lock_wait_seconds'] ?? $this->application->config()->get('worker.lock_wait_seconds'),
-                    0.0,
-                    'lock_wait_seconds',
-                ),
-                'lock_lease_seconds' => $this->positiveFloat(
-                    $options['lock_lease_seconds'] ?? $this->application->config()->get('worker.lock_lease_seconds'),
-                    300.0,
-                    'lock_lease_seconds',
-                ),
-            ];
-        }
-
-        return $workers;
+        return new WorkerTopology()->source(
+            $routePath,
+            $this->application->config()->get('worker.lock_wait_seconds'),
+            $this->application->config()->get('worker.lock_lease_seconds'),
+        );
     }
 
     /**
+     * @param array<string, mixed> $definition
      * @param callable():bool $stopRequested
      * @param callable():void $processHeartbeat
      */
-    private function runMessaging(string $name, callable $stopRequested, callable $processHeartbeat): int
-    {
+    private function runMessaging(
+        string $name,
+        array $definition,
+        callable $stopRequested,
+        callable $processHeartbeat,
+    ): int {
         if (!class_exists(Worker::class) || !interface_exists(WorkerLifecycle::class)) {
             throw new \LogicException('Messaging workers require infocyph/omnibus ^2.5.');
+        }
+
+        $configuredPool = ValueNormalizer::associativeArray($definition['pool'] ?? []);
+        if (ValueNormalizer::bool($configuredPool['enabled'] ?? null, false)) {
+            $this->assertPoolParentClean();
         }
 
         /** @var OmnibusWorkerFactory $factory */
@@ -338,14 +348,15 @@ final readonly class WorkerManager
             throw new \LogicException('Pooled workers require a receiving transport; sync cannot receive messages.');
         }
 
-        $this->assertPoolParentClean();
         $config = $this->application->config()->all();
         $this->assertForkSafeConfig($config);
 
         $workerPool = new WorkerPool(
             workerFactory: static function (int $_slot) use ($config, $name): Worker {
                 unset($_slot);
-                $child = Foundation::worker($config);
+                $release = FoundationReleaseBootstrap::fromEnvironment($config);
+                $child = $release?->nonWeb($config, RuntimeMode::Worker)
+                    ?? Foundation::worker($config);
                 $child->boot();
 
                 return $child->make(OmnibusWorkerFactory::class)->make($name);
@@ -406,6 +417,7 @@ final readonly class WorkerManager
                 ));
             }
         };
+        $primaryFailure = null;
 
         try {
             return $provider->run(new WorkerRuntime(
@@ -413,9 +425,50 @@ final readonly class WorkerManager
                 $heartbeat(...),
                 \Closure::fromCallable($stopRequested),
             ));
+        } catch (\Throwable $exception) {
+            $primaryFailure = $exception;
+            throw $exception;
         } finally {
-            $lock->release($handle);
+            CleanupGuard::run(
+                $primaryFailure,
+                static fn() => $lock->release($handle),
+            );
         }
+    }
+
+    private function selectedGeneration(FoundationReleaseBootstrap $bootstrap): LoadedReleaseGeneration
+    {
+        $current = new ActiveGeneration()->current($bootstrap->releaseRoot);
+        $manifestSha256 = hash_file('sha256', $current['manifest']);
+        if (!is_string($manifestSha256)
+            || !hash_equals($bootstrap->trustedFoundationManifestSha256, $manifestSha256)
+        ) {
+            throw new \RuntimeException(
+                'Trusted Foundation generation manifest does not match the active release selected for the worker supervisor.',
+            );
+        }
+
+        return new LoadedReleaseGeneration(
+            $bootstrap->releaseRoot,
+            $current['generation'],
+            $bootstrap->trustedFoundationManifestSha256,
+        );
+    }
+
+    /** @return \Closure():bool */
+    private function watchGeneration(string $releaseRoot, string $generation): \Closure
+    {
+        $active = new ActiveGeneration();
+
+        return static function () use ($active, $releaseRoot, $generation): bool {
+            try {
+                return $active->replacementRequired($releaseRoot, $generation);
+            } catch (\Throwable) {
+                // A release-selected process must not keep consuming work when its
+                // deployment coordination pointer disappears or becomes corrupt.
+                return true;
+            }
+        };
     }
 
     /**
@@ -458,13 +511,20 @@ final readonly class WorkerManager
             pcntl_alarm(1);
         });
         pcntl_alarm(1);
+        $primaryFailure = null;
 
         try {
             $run();
+        } catch (\Throwable $exception) {
+            $primaryFailure = $exception;
+            throw $exception;
         } finally {
-            pcntl_alarm(0);
-            pcntl_signal($signal, $previousHandler);
-            pcntl_async_signals($previousAsync);
+            CleanupGuard::run(
+                $primaryFailure,
+                static fn() => pcntl_alarm(0),
+                static fn() => pcntl_signal($signal, $previousHandler),
+                static fn() => pcntl_async_signals($previousAsync),
+            );
         }
     }
 }

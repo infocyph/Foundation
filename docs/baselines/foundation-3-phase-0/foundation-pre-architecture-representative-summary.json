@@ -1,0 +1,133 @@
+{
+    "schema": 1,
+    "source": {
+        "foundation_commit": "b6fce52d5580f6940f2a2647dff3040e351e15a3",
+        "foundation_tree": "2f6ccc9bf406b841b60c2e25bfc919c35070dd96",
+        "resolved_dependencies": {
+            "intermix": {
+                "version": "9.2",
+                "reference": "7f4c71920471a53f11609ed6ae9ca4e26e83c487"
+            },
+            "webrick": {
+                "version": "4.0.2",
+                "reference": "417a1c62f4899e7a2a72960920d59fb44c636192"
+            }
+        }
+    },
+    "runtime": {
+        "php_version": "8.4.25",
+        "php_sapi": "cli",
+        "operating_system": "Linux 6.17.0-1022-azure",
+        "cpu_model": "AMD EPYC 7763 64-Core Processor",
+        "opcache": true,
+        "jit": true,
+        "xdebug": false,
+        "runner": "foundation-representative 2"
+    },
+    "configuration": {
+        "repetitions": 5,
+        "timed_operations_per_workload": 5000,
+        "warmup_operations_per_workload": 500,
+        "environment_fingerprint": "53f9c4e485bda27864d153fb2d8c6e2d472e8a796339fe36a58500a62b99752f",
+        "stability": "unverified",
+        "note": "GitHub-hosted attribution microbenchmark; absolute values are not release acceptance evidence."
+    },
+    "workloads": [
+        {
+            "name": "minimal-json-warm",
+            "successful_rpm": 1498515.2111881464,
+            "failed_operations": 0,
+            "timeouts": 0,
+            "error_rate": 0,
+            "latency_ms": {
+                "minimum": 0.034104,
+                "average": 0.039895209799999914,
+                "p50": 0.035325,
+                "p95": 0.0535,
+                "p99": 0.07523,
+                "maximum": 1.053659
+            },
+            "memory": {
+                "average_mb": 8,
+                "peak_mb": 8,
+                "growth_mb": 0
+            },
+            "stability": {
+                "status": "unverified",
+                "spread_percent": 30.06222337064448
+            }
+        },
+        {
+            "name": "route-selected-array-session-warm",
+            "successful_rpm": 614616.9808387215,
+            "failed_operations": 0,
+            "timeouts": 0,
+            "error_rate": 0,
+            "latency_ms": {
+                "minimum": 0.088364,
+                "average": 0.09730683399999976,
+                "p50": 0.090247,
+                "p95": 0.116307,
+                "p99": 0.132256,
+                "maximum": 4.272113
+            },
+            "memory": {
+                "average_mb": 10.2,
+                "peak_mb": 12,
+                "growth_mb": 2
+            },
+            "stability": {
+                "status": "unverified",
+                "spread_percent": 16.097861787479292
+            }
+        },
+        {
+            "name": "oauth-disabled-application-bearer-warm",
+            "successful_rpm": 939368.8067238441,
+            "failed_operations": 0,
+            "timeouts": 0,
+            "error_rate": 0,
+            "latency_ms": {
+                "minimum": 0.058449,
+                "average": 0.06363543860000012,
+                "p50": 0.059892,
+                "p95": 0.082874,
+                "p99": 0.092562,
+                "maximum": 0.992977
+            },
+            "memory": {
+                "average_mb": 12,
+                "peak_mb": 12,
+                "growth_mb": 0
+            },
+            "stability": {
+                "status": "unverified",
+                "spread_percent": 9.771792321838516
+            }
+        },
+        {
+            "name": "oauth-client-credentials-bearer-resolution-warm",
+            "successful_rpm": 73669.47500541646,
+            "failed_operations": 0,
+            "timeouts": 0,
+            "error_rate": 0,
+            "latency_ms": {
+                "minimum": 0.77482,
+                "average": 0.8140423105999989,
+                "p50": 0.806629,
+                "p95": 0.839942,
+                "p99": 1.072394,
+                "maximum": 3.052705
+            },
+            "memory": {
+                "average_mb": 14,
+                "peak_mb": 14,
+                "growth_mb": 0
+            },
+            "stability": {
+                "status": "unverified",
+                "spread_percent": 1.8926295099359514
+            }
+        }
+    ]
+}

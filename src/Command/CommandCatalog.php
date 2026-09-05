@@ -21,6 +21,7 @@ final class CommandCatalog
     public function all(): array
     {
         $connection = static fn(CommandDefinition $command): CommandDefinition => $command
+            ->capability('db')
             ->option('connection', 'Configured database connection name.', acceptsValue: true);
         $destructive = static fn(CommandDefinition $command): CommandDefinition => $connection($command)
             ->option('force', 'Authorize the destructive operation without prompting.');
@@ -227,9 +228,10 @@ final class CommandCatalog
                     ->option('dry-run', 'Preview Composer changes without modifying the project.'),
             ),
             new CommandDefinition('module:list', 'List Foundation modules.', 'Modules'),
-            new CommandDefinition('module:show', 'Show detailed module package/config/schema state.', 'Modules')
-                ->argument('module', 'Module name.', required: true)
-                ->option('connection', 'Database connection for schema inspection.', acceptsValue: true),
+            $connection(
+                new CommandDefinition('module:show', 'Show detailed module package/config/schema state.', 'Modules')
+                    ->argument('module', 'Module name.', required: true),
+            ),
             new CommandDefinition('module:config:publish', 'Publish config owned by a Foundation module.', 'Modules')
                 ->argument('module', 'Module name.', required: true)
                 ->option('force', 'Replace existing module config.'),
@@ -256,11 +258,6 @@ final class CommandCatalog
 
             new CommandDefinition('runtime:reload', 'Request graceful reload of persistent Foundation runtimes.', 'Operations'),
 
-            new CommandDefinition('route:cache', 'Compile application routes.', 'Routing', capabilities: ['web'])
-                ->option('matcher', 'Webrick matcher strategy.', acceptsValue: true)
-                ->option('cache', 'Compiled route cache path.', acceptsValue: true)
-                ->option('routes', 'Comma-separated route files.', acceptsValue: true),
-            new CommandDefinition('route:clear', 'Clear compiled routes.', 'Routing'),
             new CommandDefinition('route:list', 'List application routes.', 'Routing', capabilities: ['web'])
                 ->option('routes', 'Comma-separated route files.', acceptsValue: true),
 

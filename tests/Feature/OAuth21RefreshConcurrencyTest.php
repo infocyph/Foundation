@@ -12,7 +12,7 @@ use Infocyph\Foundation\Database\AuthSchema\AuthOAuthRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DatabaseConnectionResolver;
 use Infocyph\Foundation\Database\DBLayerFactory;
-use Infocyph\Foundation\Runtime\RuntimeContextTracker;
+use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
 
 it('allows exactly one refresh rotation and revokes the family after concurrent replay', function (): void {
     DB::purge();
@@ -51,7 +51,7 @@ use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DatabaseConnectionResolver;
 use Infocyph\Foundation\Database\DBLayerFactory;
-use Infocyph\Foundation\Runtime\RuntimeContextTracker;
+use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
 
 [$database, $barrier, $result, $name, $currentHash, $replacementHash, $replacementId, $familyId, $now] = array_slice($argv, 2);
 DB::purge();
@@ -61,7 +61,7 @@ $config = new ConfigRepository([
         'connections' => [$name => ['driver' => 'sqlite', 'database' => $database]],
     ],
 ]);
-$factory = new DBLayerFactory(new DatabaseConnectionResolver($config), new RuntimeContextTracker());
+$factory = new DBLayerFactory(new DatabaseConnectionResolver($config), RuntimeStateContainer::execution());
 $factory->connection()->setQueryTimeoutMs(5000);
 $store = new DBLayerOAuthRefreshTokenStore($factory, new AuthTables());
 $replacement = new OAuthRefreshTokenRecord(
@@ -170,7 +170,7 @@ function oauth21RefreshConcurrencyFactory(string $database, string $name): DBLay
             'default' => $name,
             'connections' => [$name => ['driver' => 'sqlite', 'database' => $database]],
         ],
-    ])), new RuntimeContextTracker());
+    ])), RuntimeStateContainer::execution());
 }
 
 function oauth21ReadRefreshContentionResult(string $path): string

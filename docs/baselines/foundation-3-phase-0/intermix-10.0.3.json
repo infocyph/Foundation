@@ -1,0 +1,50 @@
+{
+    "schema": 1,
+    "captured_at_utc": "2026-09-02T06:36:01+00:00",
+    "runtime": {
+        "php": "8.4.25",
+        "php_sapi": "cli",
+        "os": "Linux",
+        "opcache_cli": true
+    },
+    "source": {
+        "intermix_version": "10.0.3",
+        "intermix_reference": "a9ec6d5852eae34e4829108a811b68fc6be6baa5"
+    },
+    "configuration": {
+        "operations": 200000,
+        "repetitions": 7,
+        "warmup_per_repetition": 1000,
+        "graph": "singleton leaf + transient constructor-recipe node"
+    },
+    "development": {
+        "cold_build_and_first_resolve_ns": 15461375,
+        "warm_transient_resolve": {
+            "median_ns": 1297.75,
+            "ops_per_second": 770563.5,
+            "min_ns": 1296.64,
+            "max_ns": 1361.68
+        }
+    },
+    "generated_production": {
+        "validate_errors": [],
+        "compile_ns": 8656872,
+        "load_and_first_resolve_ns": 601247,
+        "compiled_count": 2,
+        "skipped": {
+            "Psr\\Container\\ContainerInterface": "definition requires the dynamic runtime"
+        },
+        "digest": "b6c6d04648bcddbd1a0b6b22d79fcc9f",
+        "warm_transient_resolve": {
+            "median_ns": 211.27,
+            "ops_per_second": 4733173.61,
+            "min_ns": 210.13,
+            "max_ns": 212.46
+        }
+    },
+    "memory": {
+        "baseline_bytes": 2097152,
+        "final_bytes": 2097152,
+        "peak_bytes": 2097152
+    }
+}

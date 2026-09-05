@@ -6,12 +6,13 @@ namespace Infocyph\Foundation\Command\System;
 
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Command\ExitCode;
-use Infocyph\Foundation\Container\ContainerCacheManager;
 use Infocyph\Foundation\Module\ModuleCatalog;
 use Infocyph\Foundation\Module\ModuleManager;
 use Infocyph\Foundation\Module\ModuleSchemaManager;
 use Infocyph\Foundation\Process\ProcessOptions;
 use Infocyph\Foundation\Process\ProcessRunner;
+use Infocyph\Foundation\Release\FoundationReleaseBootstrap;
+use Infocyph\Foundation\Release\FoundationReleaseCompiler;
 
 final class ModuleSystemCommand extends SystemCommand
 {
@@ -86,7 +87,15 @@ final class ModuleSystemCommand extends SystemCommand
 
     private function invalidateCompiledRuntime(): void
     {
-        $this->application->make(ContainerCacheManager::class)->clear();
+        $config = $this->application->config()->all();
+        $config['base_path'] = $this->application->basePath();
+        $app = is_array($config['app'] ?? null) ? $config['app'] : [];
+        $app['base_path'] = $this->application->basePath();
+        $config['app'] = $app;
+
+        new FoundationReleaseCompiler()->clear(
+            FoundationReleaseBootstrap::resolveReleaseRoot($config),
+        );
     }
 
     private function listing(): int

@@ -10,7 +10,7 @@ use Infocyph\Foundation\Routing\RoutePresetRegistrar;
 it('normalizes built-in aliases and configured route preset stacks', function (): void {
     $application = Foundation::web(['_config_cache' => false]);
     $presets = new RoutePresetRegistrar(
-        new RouteMiddlewareRegistrar($application),
+        $application->make(RouteMiddlewareRegistrar::class),
         new ConfigRepository([
             'router' => [
                 'middleware' => [

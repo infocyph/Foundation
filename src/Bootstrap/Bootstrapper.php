@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Bootstrap;
 
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ProviderFileLoader;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceProviderInterface;
-use Infocyph\Foundation\Auth\AuthOtpServiceProvider;
+use Infocyph\Foundation\Application\ServiceRegistry;
 use Infocyph\Foundation\Auth\AuthServiceProvider;
 use Infocyph\Foundation\Cache\CacheServiceProvider;
 use Infocyph\Foundation\Communication\CommunicationServiceProvider;
@@ -22,117 +23,99 @@ use Infocyph\Foundation\Http\JsonDispatch\JsonDispatchServiceProvider;
 use Infocyph\Foundation\Logging\LoggingServiceProvider;
 use Infocyph\Foundation\Messaging\MessagingServiceProvider;
 use Infocyph\Foundation\Notifications\NotificationServiceProvider;
-use Infocyph\Foundation\Routing\RouteCachePath;
 use Infocyph\Foundation\Routing\RouteFileLoader;
 use Infocyph\Foundation\Routing\RoutingServiceProvider;
+use Infocyph\Foundation\Runtime\RuntimeScopeCleanup;
 use Infocyph\Foundation\Security\SecurityServiceProvider;
 use Infocyph\Foundation\Session\SessionServiceProvider;
 use Infocyph\Foundation\Validation\ValidationServiceProvider;
-use Psr\Log\LoggerInterface;
+use Infocyph\InterMix\DI\ContainerBuilder;
+use Infocyph\Webrick\Router\Definition\Registrar;
 
 final class Bootstrapper
 {
     /** @var list<class-string<ServiceProviderInterface>> */
-    private const array COMMON_EAGER_PROVIDERS = [PathServiceProvider::class];
+    private const array OPTIONAL_BUILT_INS = [
+        AuthServiceProvider::class,
+        DatabaseServiceProvider::class,
+        CacheServiceProvider::class,
+        SecurityServiceProvider::class,
+        FilesystemServiceProvider::class,
+        ValidationServiceProvider::class,
+        CommunicationServiceProvider::class,
+        NotificationServiceProvider::class,
+        SessionServiceProvider::class,
+        MessagingServiceProvider::class,
+    ];
+
+    /** @var array<class-string<ServiceProviderInterface>, string> */
+    private const array OPTIONAL_CAPABILITIES = [
+        AuthServiceProvider::class => 'auth',
+        DatabaseServiceProvider::class => 'database',
+        CacheServiceProvider::class => 'cache',
+        SecurityServiceProvider::class => 'security',
+        FilesystemServiceProvider::class => 'filesystem',
+        ValidationServiceProvider::class => 'validation',
+        CommunicationServiceProvider::class => 'communication',
+        NotificationServiceProvider::class => 'notifications',
+        SessionServiceProvider::class => 'session',
+        MessagingServiceProvider::class => 'messaging',
+    ];
 
     private const array PROVIDER_GROUPS = ['common', 'web', 'cli', 'worker', 'scheduler'];
 
     /** @var list<class-string<ServiceProviderInterface>> */
-    private const array WEB_EAGER_PROVIDERS = [
-        RoutingServiceProvider::class,
+    private const array WEB_BUILT_INS = [
         LoggingServiceProvider::class,
+        JsonDispatchServiceProvider::class,
+        RoutingServiceProvider::class,
         HttpServiceProvider::class,
     ];
-
-    public function activateProviderFor(Application $app, string $service): bool
-    {
-        $provider = $this->providerFor($service);
-        if ($provider === null || !$this->providerAllowed($app, $service, $provider)) {
-            return false;
-        }
-
-        if ($provider === AuthOtpServiceProvider::class) {
-            return $this->activateProvider($app, $provider)
-                && $this->activateProvider($app, AuthServiceProvider::class);
-        }
-
-        return $this->activateProvider($app, $provider);
-    }
 
     public function boot(Application $app): void
     {
         $app->providers()->boot($app);
 
-        if ($app->runningInWeb()
-            && $app->has(RouteFileLoader::class)
-            && !RouteCachePath::isWarm($app->config())
-        ) {
-            $app->make(RouteFileLoader::class)->load();
+        if ($app->runningInWeb() && $app->has(RouteFileLoader::class)) {
+            $app->make(RouteFileLoader::class)->load($app->make(Registrar::class));
         }
     }
 
-    public function canProvide(Application $app, string $service): bool
-    {
-        $provider = $this->providerFor($service);
+    public function compose(
+        ContainerBuilder $builder,
+        FoundationBuildContext $context,
+        ?ServiceRegistry $registry = null,
+    ): ServiceRegistry {
+        $registry ??= new ServiceRegistry();
+        $registry->add(new PathServiceProvider());
 
-        return $provider !== null && $this->providerAllowed($app, $service, $provider);
-    }
+        foreach (self::OPTIONAL_BUILT_INS as $provider) {
+            if (!$this->providerDependencyAvailable($provider)
+                || ($context->capabilitiesExplicit
+                    && !$context->hasCapability(self::OPTIONAL_CAPABILITIES[$provider]))
+            ) {
+                continue;
+            }
+            $registry->add($this->instantiateProvider($provider));
+        }
 
-    public function manages(string $service): bool
-    {
-        return $this->providerFor($service) !== null;
-    }
-
-    public function prepare(Application $app): void
-    {
-        $eager = self::COMMON_EAGER_PROVIDERS;
-        if ($app->runtimeMode() === RuntimeMode::Web) {
-            $eager = [...$eager, ...self::WEB_EAGER_PROVIDERS];
-            if ($app->config()->get('auth.oauth.enabled', false) === true) {
-                $eager = [...$eager, CacheServiceProvider::class, AuthServiceProvider::class];
+        if ($context->runtimeMode === RuntimeMode::Web) {
+            foreach (self::WEB_BUILT_INS as $provider) {
+                $registry->add($this->instantiateProvider($provider));
             }
         }
 
-        foreach ($eager as $provider) {
-            $app->register($this->instantiateProvider($provider));
+        foreach ($this->configuredProviders($context) as $provider) {
+            $registry->add($provider);
         }
-        $app->providers()->register($app);
-
-        foreach ($this->configuredProviders($app) as $provider) {
-            $app->register($provider);
-        }
-        foreach ($this->providerFileProviders($app) as $provider) {
-            $app->register($provider);
-        }
-        $app->providers()->register($app);
-    }
-
-    public function unavailableServiceMessage(string $service): ?string
-    {
-        $provider = $this->providerFor($service);
-        $dependency = $provider === null ? null : $this->providerDependency($provider);
-        if ($dependency === null || class_exists($dependency['class'])) {
-            return null;
+        foreach ($this->providerFileProviders($context) as $provider) {
+            $registry->add($provider);
         }
 
-        return sprintf(
-            'Foundation service "%s" requires %s; install module "%s".',
-            $service,
-            $dependency['package'],
-            $dependency['module'],
-        );
-    }
+        $registry->contribute($builder, $context);
+        $this->registerScopeCleanup($builder, $context);
 
-    /** @param class-string<ServiceProviderInterface> $provider */
-    private function activateProvider(Application $app, string $provider): bool
-    {
-        if ($app->providers()->activate($provider, $app)) {
-            return true;
-        }
-
-        $app->providers()->addDeferred($provider);
-
-        return $app->providers()->activate($provider, $app);
+        return $registry;
     }
 
     private function assertProviderGroup(int|string $group, mixed $entries): void
@@ -152,9 +135,9 @@ final class Bootstrapper
     }
 
     /** @return list<ServiceProviderInterface> */
-    private function configuredProviders(Application $app): array
+    private function configuredProviders(FoundationBuildContext $context): array
     {
-        $configured = $app->config()->get('providers', []);
+        $configured = $context->config['providers'] ?? [];
         if (!is_array($configured)) {
             throw new BootstrapException('Configured providers must be a grouped provider array.');
         }
@@ -169,13 +152,10 @@ final class Bootstrapper
         }
 
         $providers = [];
-        foreach (['common', $app->runtimeMode()->value] as $group) {
+        foreach (['common', $context->runtimeMode->value] as $group) {
             $entries = $configured[$group] ?? [];
             if (!is_array($entries)) {
-                throw new BootstrapException(sprintf(
-                    'Configured provider group "%s" must be a provider list.',
-                    $group,
-                ));
+                continue;
             }
             foreach ($entries as $provider) {
                 $instance = $this->instantiateProvider($provider);
@@ -205,64 +185,47 @@ final class Bootstrapper
         return new $provider();
     }
 
-    /** @param class-string<ServiceProviderInterface> $provider */
-    private function providerAllowed(Application $app, string $service, string $provider): bool
+    /** @param array<string, mixed> $config */
+    private function providerBasePath(array $config): string
     {
-        if (!$this->providerDependencyAvailable($provider)) {
-            return false;
-        }
+        $app = is_array($config['app'] ?? null) ? $config['app'] : [];
+        $basePath = $app['base_path'] ?? null;
 
-        if ($provider !== HttpServiceProvider::class) {
-            return true;
-        }
-
-        return $app->runningInWeb()
-            && (
-                $service === 'foundation.http'
-                || str_starts_with($service, 'Infocyph\\Foundation\\Http\\')
-                || in_array($service, [
-                    \Infocyph\Webrick\Router\Kernel\ErrorHandler::class,
-                    \Infocyph\Webrick\Router\Kernel\RouterKernel::class,
-                ], true)
-            );
-    }
-
-    /**
-     * @param class-string<ServiceProviderInterface> $provider
-     * @return array{class:class-string,module:string,package:string}|null
-     */
-    private function providerDependency(string $provider): ?array
-    {
-        return match ($provider) {
-            AuthOtpServiceProvider::class => ['class' => \Infocyph\OTP\TOTP::class, 'module' => 'auth', 'package' => 'infocyph/otp'],
-            CacheServiceProvider::class => ['class' => \Infocyph\CacheLayer\Cache\Cache::class, 'module' => 'cache', 'package' => 'infocyph/cachelayer'],
-            CommunicationServiceProvider::class => ['class' => \Infocyph\TalkingBytes\Http\HttpClient::class, 'module' => 'communication', 'package' => 'infocyph/talkingbytes'],
-            DatabaseServiceProvider::class => ['class' => \Infocyph\DBLayer\DB::class, 'module' => 'database', 'package' => 'infocyph/dblayer'],
-            MessagingServiceProvider::class => ['class' => \Infocyph\Omnibus\MessageBus::class, 'module' => 'messaging', 'package' => 'infocyph/omnibus ^2.5'],
-            FilesystemServiceProvider::class => ['class' => \Infocyph\Pathwise\PathwiseFacade::class, 'module' => 'filesystem', 'package' => 'infocyph/pathwise'],
-            SecurityServiceProvider::class => ['class' => \Infocyph\Epicrypt\Crypto\AeadCipher::class, 'module' => 'security', 'package' => 'infocyph/epicrypt'],
-            ValidationServiceProvider::class => ['class' => \Infocyph\ReqShield\Validator::class, 'module' => 'validation', 'package' => 'infocyph/reqshield'],
-            default => null,
-        };
+        return is_string($basePath) && $basePath !== ''
+            ? rtrim($basePath, DIRECTORY_SEPARATOR)
+            : (getcwd() ?: dirname(__DIR__, 2));
     }
 
     /** @param class-string<ServiceProviderInterface> $provider */
     private function providerDependencyAvailable(string $provider): bool
     {
-        $dependency = $this->providerDependency($provider);
+        $dependency = match ($provider) {
+            CacheServiceProvider::class => \Infocyph\CacheLayer\Cache\Cache::class,
+            CommunicationServiceProvider::class => \Infocyph\TalkingBytes\Http\HttpClient::class,
+            DatabaseServiceProvider::class => \Infocyph\DBLayer\DB::class,
+            FilesystemServiceProvider::class => \Infocyph\Pathwise\PathwiseFacade::class,
+            MessagingServiceProvider::class => \Infocyph\Omnibus\MessageBus::class,
+            SecurityServiceProvider::class => \Infocyph\Epicrypt\Crypto\AeadCipher::class,
+            ValidationServiceProvider::class => \Infocyph\ReqShield\Validator::class,
+            default => null,
+        };
 
-        return $dependency === null || class_exists($dependency['class']);
+        return $dependency === null || class_exists($dependency);
     }
 
     /** @return list<ServiceProviderInterface> */
-    private function providerFileProviders(Application $app): array
+    private function providerFileProviders(FoundationBuildContext $context): array
     {
-        if ($app->config()->isCompiled()) {
+        if ($context->compiledConfig) {
             return [];
         }
 
+        $loader = new ProviderFileLoader(new PathManager(
+            $this->providerBasePath($context->config),
+            $this->providerPaths($context->config),
+        ));
         $providers = [];
-        foreach (new ProviderFileLoader($app->make(PathManager::class))->providers($app->runtimeMode()) as $provider) {
+        foreach ($loader->providers($context->runtimeMode) as $provider) {
             $instance = $this->instantiateProvider($provider);
             $providers[$instance::class] = $instance;
         }
@@ -270,137 +233,32 @@ final class Bootstrapper
         return array_values($providers);
     }
 
-    /** @return class-string<ServiceProviderInterface>|null */
-    private function providerFor(string $service): ?string
+    /**
+     * @param array<string, mixed> $config
+     * @return array<string, string>
+     */
+    private function providerPaths(array $config): array
     {
-        $aliases = [
-            'foundation.auth' => AuthServiceProvider::class,
-            'foundation.cache' => CacheServiceProvider::class,
-            'foundation.communication' => CommunicationServiceProvider::class,
-            'foundation.crypto' => SecurityServiceProvider::class,
-            'foundation.db' => DatabaseServiceProvider::class,
-            'foundation.email' => NotificationServiceProvider::class,
-            'foundation.files' => FilesystemServiceProvider::class,
-            'foundation.filesystem' => FilesystemServiceProvider::class,
-            'foundation.logging' => LoggingServiceProvider::class,
-            'foundation.messaging' => MessagingServiceProvider::class,
-            'foundation.notifications' => NotificationServiceProvider::class,
-            'foundation.paths' => PathServiceProvider::class,
-            'foundation.router' => RoutingServiceProvider::class,
-            'foundation.responses' => JsonDispatchServiceProvider::class,
-            'foundation.security' => SecurityServiceProvider::class,
-            'foundation.session' => SessionServiceProvider::class,
-            'foundation.validator' => ValidationServiceProvider::class,
-        ];
+        $paths = is_array($config['paths'] ?? null) ? $config['paths'] : [];
+        $normalized = [];
+        foreach ($paths as $key => $path) {
+            if (is_string($key) && is_string($path) && $path !== '') {
+                $normalized[$key] = $path;
+            }
+        }
 
-        return $aliases[$service] ?? match (true) {
-            str_starts_with($service, 'Infocyph\\Foundation\\Auth\\Adapter\\Otp\\'),
-            str_starts_with($service, 'Infocyph\\Foundation\\Auth\\Otp\\'),
-            $service === \Infocyph\OTP\RecoveryCodes::class,
-            $service === \Infocyph\OTP\Contracts\RecoveryCodeStoreInterface::class => AuthOtpServiceProvider::class,
+        return $normalized;
+    }
 
-            str_starts_with($service, 'Infocyph\\Foundation\\Auth\\') => AuthServiceProvider::class,
+    private function registerScopeCleanup(ContainerBuilder $builder, FoundationBuildContext $context): void
+    {
+        if ($context->runtimeMode !== RuntimeMode::Web) {
+            return;
+        }
 
-            str_starts_with($service, 'Infocyph\\Foundation\\Cache\\'),
-            in_array($service, [
-                \Infocyph\CacheLayer\Cache\Cache::class,
-                \Infocyph\CacheLayer\Cache\CacheInterface::class,
-                \Infocyph\CacheLayer\Cache\AuthenticationStateCacheInterface::class,
-                \Infocyph\CacheLayer\Cache\Lock\LockProviderInterface::class,
-                \Infocyph\CacheLayer\Counter\AtomicCounterStoreInterface::class,
-                \Infocyph\CacheLayer\Memoize\Memoizer::class,
-                \Infocyph\CacheLayer\Memoize\OnceMemoizer::class,
-            ], true) => CacheServiceProvider::class,
-
-            str_starts_with($service, 'Infocyph\\Foundation\\Communication\\'),
-            in_array($service, [
-                \Infocyph\TalkingBytes\Http\HttpClient::class,
-                \Infocyph\TalkingBytes\Http\HttpClientConfig::class,
-                \Infocyph\TalkingBytes\Webhook\WebhookSender::class,
-                \Infocyph\TalkingBytes\Webhook\WebhookVerifier::class,
-                \Infocyph\TalkingBytes\Webhook\WebhookReceiver::class,
-                \Infocyph\TalkingBytes\Grpc\GrpcInboundDispatcher::class,
-            ], true) => CommunicationServiceProvider::class,
-
-            str_starts_with($service, 'Infocyph\\Foundation\\Database\\'),
-            $service === \Infocyph\DBLayer\Connection\Connection::class => DatabaseServiceProvider::class,
-
-            $service === PathManager::class,
-            $service === PathServiceProvider::class => PathServiceProvider::class,
-            str_starts_with($service, 'Infocyph\\Foundation\\Filesystem\\'),
-            $service === \League\Flysystem\FilesystemOperator::class,
-            $service === \Infocyph\Pathwise\StreamHandler\UploadProcessor::class,
-            $service === \Infocyph\Pathwise\StreamHandler\DownloadProcessor::class => FilesystemServiceProvider::class,
-
-            str_starts_with($service, 'Infocyph\\Foundation\\Logging\\'),
-            $service === LoggerInterface::class => LoggingServiceProvider::class,
-
-            str_starts_with($service, 'Infocyph\\Foundation\\Messaging\\'),
-            in_array($service, [
-                \Infocyph\Omnibus\Clock\SystemClock::class,
-                \Infocyph\Omnibus\Handler\HandlerMap::class,
-                \Infocyph\Omnibus\Handler\HandlerInvoker::class,
-                \Infocyph\Omnibus\Event\ListenerMap::class,
-                \Infocyph\Omnibus\Routing\RouteMap::class,
-                \Infocyph\Omnibus\Transport\InMemoryTransport::class,
-                \Infocyph\Omnibus\Transport\SyncTransport::class,
-                \Infocyph\Omnibus\Transport\TransportRegistry::class,
-                \Infocyph\Omnibus\MessageBus::class,
-                \Infocyph\Omnibus\Event\EventDispatcher::class,
-                \Infocyph\Omnibus\Failure\FailureStore::class,
-                \Infocyph\Omnibus\Consumer\ExecutionScope::class,
-                \Infocyph\Omnibus\Consumer\Consumer::class,
-                \Infocyph\Omnibus\Consumer\Command\ConsumerTask::class,
-                \Infocyph\Omnibus\Scheduling\MessageFactoryMap::class,
-                \Infocyph\Omnibus\Scheduling\ScheduledMessageDispatcher::class,
-                \Psr\EventDispatcher\EventDispatcherInterface::class,
-                \Psr\EventDispatcher\ListenerProviderInterface::class,
-            ], true) => MessagingServiceProvider::class,
-
-            str_starts_with($service, 'Infocyph\\Foundation\\Notifications\\'),
-            in_array($service, [
-                \Infocyph\TalkingBytes\Email\Emailer::class,
-                \Infocyph\TalkingBytes\Email\EmailSenderFactory::class,
-                \Infocyph\TalkingBytes\Email\EmailReceiverFactory::class,
-                \Infocyph\TalkingBytes\Email\EmailMailboxFactory::class,
-                \Infocyph\TalkingBytes\Email\Config\EmailLimits::class,
-                \Infocyph\TalkingBytes\Email\Parser\RawEmailParser::class,
-                \Infocyph\TalkingBytes\Email\Parser\BounceParser::class,
-                \Infocyph\TalkingBytes\Email\Parser\AuthenticationResultsParser::class,
-                \Infocyph\TalkingBytes\Email\Dkim\DkimPublicKeyResolver::class,
-                \Infocyph\TalkingBytes\Email\Dkim\DkimVerifier::class,
-                \Infocyph\TalkingBytes\Email\Receiver\SpoolEmailReceiver::class,
-            ], true) => NotificationServiceProvider::class,
-
-            str_starts_with($service, 'Infocyph\\Foundation\\Http\\JsonDispatch\\'),
-            str_starts_with($service, 'Infocyph\\Foundation\\Http\\Resource\\') => JsonDispatchServiceProvider::class,
-            str_starts_with($service, 'Infocyph\\Foundation\\Http\\Middleware\\'),
-            str_starts_with($service, 'Infocyph\\Foundation\\Http\\Resolver\\') => AuthServiceProvider::class,
-            str_starts_with($service, 'Infocyph\\Foundation\\Http\\'),
-            in_array($service, [
-                \Infocyph\Webrick\Router\Kernel\ErrorHandler::class,
-                \Infocyph\Webrick\Router\Kernel\RouterKernel::class,
-            ], true) => HttpServiceProvider::class,
-
-            str_starts_with($service, 'Infocyph\\Foundation\\Routing\\'),
-            in_array($service, [
-                \Infocyph\Webrick\Router\Definition\Registrar::class,
-                \Infocyph\Webrick\Router\Route\Collection::class,
-            ], true) => RoutingServiceProvider::class,
-
-            str_starts_with($service, 'Infocyph\\Foundation\\Security\\'),
-            in_array($service, [
-                \Infocyph\Epicrypt\Password\PasswordHashOptions::class,
-                \Infocyph\Epicrypt\Password\PasswordHasher::class,
-                \Infocyph\Epicrypt\Crypto\AeadCipher::class,
-            ], true) => SecurityServiceProvider::class,
-
-            str_starts_with($service, 'Infocyph\\Foundation\\Session\\') => SessionServiceProvider::class,
-
-            str_starts_with($service, 'Infocyph\\Foundation\\Validation\\'),
-            $service === \Infocyph\ReqShield\Contracts\DatabaseProvider::class => ValidationServiceProvider::class,
-
-            default => null,
-        };
+        $builder->onScopeLeave(
+            $context->runtimeMode->scopeName(),
+            RuntimeScopeCleanup::handle(...),
+        );
     }
 }

@@ -138,9 +138,7 @@ PHP);
         }
     }
 
-    /**
-     * @param string $basePath Temporary application root.
-     */
+    /** @param string $basePath Temporary application root. */
     private function application(string $basePath): Application
     {
         return Foundation::web([
@@ -167,7 +165,7 @@ PHP);
     /** @return callable():bool */
     private function applicationBearerOperation(Application $application): callable
     {
-        $services = new AuthServices($application);
+        $services = $application->make(AuthServices::class);
         $created = $services->accounts()->create(
             'representative-bearer@example.test',
             $services->passwordHasher()->hash('benchmark-secret'),
@@ -216,9 +214,7 @@ PHP);
         return php_uname('m');
     }
 
-    /**
-     * @return array<string, mixed>
-     */
+    /** @return array<string, mixed> */
     private function environment(): array
     {
         $stable = getenv('FOUNDATION_BENCHMARK_STABLE') === '1';
@@ -443,9 +439,7 @@ PHP);
         return $values[$index];
     }
 
-    /**
-     * @param string $directory Temporary application root.
-     */
+    /** @param string $directory Temporary application root. */
     private function removeDirectory(string $directory): void
     {
         if (!is_dir($directory)) {
@@ -483,9 +477,7 @@ PHP);
         };
     }
 
-    /**
-     * @param list<float> $values Per-repetition successful-RPM samples.
-     */
+    /** @param list<float> $values Per-repetition successful-RPM samples. */
     private function spread(array $values): float
     {
         if ($values === []) {

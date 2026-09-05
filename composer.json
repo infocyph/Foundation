@@ -7,9 +7,9 @@
         "php": "^8.4",
         "composer-runtime-api": "^2.0",
         "infocyph/arraykit": "^5.1.1",
-        "infocyph/intermix": "^9.2",
+        "infocyph/intermix": "^10.0.4",
         "infocyph/uid": "^5.0",
-        "infocyph/webrick": "^4.0.2",
+        "infocyph/webrick": "^5.3",
         "psr/log": "^3.0.2"
     },
     "require-dev": {
@@ -22,6 +22,7 @@
         "infocyph/phpforge": "dev-main@dev",
         "infocyph/reqshield": "^3.1",
         "infocyph/talkingbytes": "^2.0",
+        "opis/closure": "^4.5",
         "web-auth/webauthn-lib": "^5.3.5"
     },
     "suggest": {
@@ -64,6 +65,9 @@
         "sort-packages": true
     },
     "scripts": {
+        "benchmark:maintenance": "@php benchmarks/maintenance-overhead.php",
+        "benchmark:phase9:di": "@php benchmarks/phase9-di-attribution.php",
+        "benchmark:phase9:http": "@php benchmarks/phase9-http-attribution.php",
         "benchmark:representative": "@php benchmarks/run-representative.php"
     }
 }

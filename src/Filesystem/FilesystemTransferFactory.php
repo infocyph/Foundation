@@ -27,19 +27,25 @@ final readonly class FilesystemTransferFactory
     {
         $config = $this->section('downloads');
         $disk = $this->targetDisk($disk, $this->string($config, 'disk', 'uploads'));
-        $directoryPath = $this->operationPath(
-            $disk,
-            $directory ?? $this->string($config, 'directory'),
-        );
+        $directory ??= $this->string($config, 'directory');
         $allowedRoots = [];
-        foreach (ValueNormalizer::stringList($config['allowed_roots'] ?? []) as $root) {
-            $allowedRoots[] = PathHelper::isAbsolute($root)
-                ? PathHelper::normalize($root)
-                : $this->operationPath($disk, $root);
+        $configuredRoots = ValueNormalizer::stringList($config['allowed_roots'] ?? []);
+        foreach ($configuredRoots !== [] ? $configuredRoots : [$directory] as $root) {
+            if (PathHelper::isAbsolute($root) || PathHelper::hasScheme($root)) {
+                $allowedRoots[] = PathHelper::normalize($root);
+
+                continue;
+            }
+
+            $allowedRoots[] = $this->operationPath($disk, $root);
+            $mounted = $this->storage->path($root, $disk);
+            if ($mounted !== $allowedRoots[array_key_last($allowedRoots)]) {
+                $allowedRoots[] = $mounted;
+            }
         }
 
         $processor = PathwiseFacade::download();
-        $processor->setAllowedRoots($allowedRoots !== [] ? $allowedRoots : [$directoryPath]);
+        $processor->setAllowedRoots(array_values(array_unique($allowedRoots)));
         $processor->setBlockHiddenFiles($this->bool($config, 'block_hidden_files', true));
         $processor->setChunkSize($this->int($config, 'chunk_size', 8192));
         $processor->setDefaultDownloadName($this->string($config, 'default_name', 'download.bin'));

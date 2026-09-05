@@ -51,6 +51,7 @@ use Infocyph\Foundation\Auth\OAuth\Token\OAuthSigningKeyResolver;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthSigningKeySet;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthTokenManager;
 use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Session\SessionConfig;
@@ -85,138 +86,145 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
 
     private function registerCrypto(): void
     {
-        $this->singleton(OpaqueToken::class, fn() => new OpaqueToken());
-        $this->singleton(OAuthSigningKeyResolver::class, fn() => new OAuthSigningKeyResolver(
-            $this->app->config(),
-            $this->service(OAuthAuditRecorder::class),
-        ));
-        $this->singleton(OAuthSigningKeySet::class, fn() => $this->service(OAuthSigningKeyResolver::class)->resolve());
-        $this->singleton(JwkSetProviderInterface::class, fn() => new EpicryptOAuthJwkSetProvider(
-            $this->service(OAuthSigningKeySet::class),
-        ));
-        $this->singleton(OAuthAccessTokenServiceInterface::class, fn() => new EpicryptOAuthAccessTokenService(
-            keys: $this->service(OAuthSigningKeySet::class),
-            maximumLifetimeSeconds: $this->intConfig('auth.oauth.access_token_ttl', 300),
-            leewaySeconds: 30,
-        ));
+        $this->recipe(OpaqueToken::class, OpaqueToken::class);
+        $this->recipe(OAuthSigningKeyResolver::class, OAuthSigningKeyResolver::class, [
+            $this->ref(ConfigRepository::class),
+            $this->ref(OAuthAuditRecorder::class),
+        ]);
+        $this->staticRecipe(
+            OAuthSigningKeySet::class,
+            AuthOAuthGraphFactory::class,
+            'signingKeySet',
+            [$this->ref(OAuthSigningKeyResolver::class)],
+        );
+        $this->recipe(JwkSetProviderInterface::class, EpicryptOAuthJwkSetProvider::class, [
+            $this->ref(OAuthSigningKeySet::class),
+        ]);
+        $this->recipe(OAuthAccessTokenServiceInterface::class, EpicryptOAuthAccessTokenService::class, [
+            $this->ref(OAuthSigningKeySet::class),
+            $this->intConfig('auth.oauth.access_token_ttl', 300),
+            30,
+        ]);
     }
 
     private function registerProtocolServices(): void
     {
-        $this->singleton(OAuthAuditRecorder::class, fn() => new OAuthAuditRecorder(
-            $this->service(AuditEventStoreInterface::class),
-            $this->service(AuthIdGeneratorInterface::class),
-            $this->service(ClockInterface::class),
-        ));
-        $this->singleton(OAuthClientManager::class, fn() => new OAuthClientManager(
-            clients: $this->service(OAuthClientStoreInterface::class),
-            hasher: $this->service(PasswordHasherInterface::class),
-            verifier: $this->service(PasswordVerifierInterface::class),
-            clock: $this->service(ClockInterface::class),
-            tokens: $this->service(OpaqueToken::class),
-            production: $this->app->config()->isProduction(),
-        ));
-        $this->singleton(OAuthScopeResolver::class, fn() => new OAuthScopeResolver(
-            $this->service(OAuthClientStoreInterface::class),
-            $this->app->config(),
-        ));
-        $this->singleton(AuthorizationRequestValidator::class, fn() => new AuthorizationRequestValidator(
-            $this->service(OAuthClientManager::class),
-            $this->service(OAuthScopeResolver::class),
-        ));
-        $this->singleton(ConsentManager::class, fn() => new ConsentManager(
-            $this->service(OAuthConsentStoreInterface::class),
-            $this->service(AuthorizerInterface::class),
-            $this->service(ClockInterface::class),
-        ));
-        $this->singleton(AuthorizationCodeManager::class, fn() => new AuthorizationCodeManager(
-            codes: $this->service(OAuthAuthorizationCodeStoreInterface::class),
-            authorizations: $this->service(OAuthAuthorizationStoreInterface::class),
-            authorizer: $this->service(AuthorizerInterface::class),
-            clock: $this->service(ClockInterface::class),
-            tokens: $this->service(OpaqueToken::class),
-            ttlSeconds: $this->intConfig('auth.oauth.authorization_code_ttl', 60),
-            audit: $this->service(OAuthAuditRecorder::class),
-        ));
-        $this->singleton(OAuthRefreshTokenCoordinator::class, fn() => new OAuthRefreshTokenCoordinator(
-            refreshTokens: $this->service(OAuthRefreshTokenStoreInterface::class),
-            authorizations: $this->service(OAuthAuthorizationStoreInterface::class),
-            clients: $this->service(OAuthClientManager::class),
-            scopes: $this->service(OAuthScopeResolver::class),
-            accounts: $this->service(AccountProviderInterface::class),
-            clock: $this->service(ClockInterface::class),
-            tokens: $this->service(OpaqueToken::class),
-            ttlSeconds: $this->intConfig('auth.oauth.refresh_token_ttl', 1209600),
-            audit: $this->service(OAuthAuditRecorder::class),
-        ));
-        $this->singleton(OAuthAccessTokenValidator::class, fn() => new OAuthAccessTokenValidator(
-            tokens: $this->service(OAuthAccessTokenServiceInterface::class),
-            clients: $this->service(OAuthClientManager::class),
-            authorizations: $this->service(OAuthAuthorizationStoreInterface::class),
-            revocations: $this->service(OAuthAccessRevocationStoreInterface::class),
-            scopes: $this->service(OAuthScopeResolver::class),
-            accounts: $this->service(AccountProviderInterface::class),
-            clock: $this->service(ClockInterface::class),
-        ));
-        $this->singleton(OAuthTokenManager::class, fn() => new OAuthTokenManager(
-            clients: $this->service(OAuthClientManager::class),
-            codes: $this->service(AuthorizationCodeManager::class),
-            authorizations: $this->service(OAuthAuthorizationStoreInterface::class),
-            scopes: $this->service(OAuthScopeResolver::class),
-            accessTokens: $this->service(OAuthAccessTokenServiceInterface::class),
-            refreshTokens: $this->service(OAuthRefreshTokenCoordinator::class),
-            accounts: $this->service(AccountProviderInterface::class),
-            clock: $this->service(ClockInterface::class),
-            keys: $this->service(OAuthSigningKeySet::class),
-            accessTokenTtl: $this->intConfig('auth.oauth.access_token_ttl', 300),
-        ));
-        $this->singleton(OAuthRevocationManager::class, fn() => new OAuthRevocationManager(
-            clients: $this->service(OAuthClientManager::class),
-            accessTokens: $this->service(OAuthAccessTokenServiceInterface::class),
-            revocations: $this->service(OAuthAccessRevocationStoreInterface::class),
-            refreshTokens: $this->service(OAuthRefreshTokenCoordinator::class),
-            clock: $this->service(ClockInterface::class),
-            audit: $this->service(OAuthAuditRecorder::class),
-        ));
-        $this->singleton(OAuthIntrospectionManager::class, fn() => new OAuthIntrospectionManager(
-            clients: $this->service(OAuthClientManager::class),
-            accessTokens: $this->service(OAuthAccessTokenValidator::class),
-            refreshTokens: $this->service(OAuthRefreshTokenStoreInterface::class),
-            authorizations: $this->service(OAuthAuthorizationStoreInterface::class),
-            scopes: $this->service(OAuthScopeResolver::class),
-            accounts: $this->service(AccountProviderInterface::class),
-            clock: $this->service(ClockInterface::class),
-            opaqueTokens: $this->service(OpaqueToken::class),
-        ));
-        $this->singleton(AuthorizationServerMetadata::class, fn() => new AuthorizationServerMetadata($this->app->config()));
-        $this->singleton(OAuthManager::class, fn() => new OAuthManager(
-            authorizationRequests: $this->service(AuthorizationRequestValidator::class),
-            consents: $this->service(ConsentManager::class),
-            authorizationCodes: $this->service(AuthorizationCodeManager::class),
-            tokens: $this->service(OAuthTokenManager::class),
-            revocations: $this->service(OAuthRevocationManager::class),
-            introspection: $this->service(OAuthIntrospectionManager::class),
-            metadata: $this->service(AuthorizationServerMetadata::class),
-            jwks: $this->service(JwkSetProviderInterface::class),
-            clients: $this->service(OAuthClientManager::class),
-            audit: $this->service(OAuthAuditRecorder::class),
-        ));
-        $this->singleton(OAuthHttpInput::class, fn() => new OAuthHttpInput());
-        $this->singleton(OAuthHttpResponseFactory::class, fn() => new OAuthHttpResponseFactory());
-        $this->singleton(OAuthHttpThrottleFactory::class, fn() => new OAuthHttpThrottleFactory(
-            $this->app->config(),
-            $this->service(OAuthAuditRecorder::class),
-        ));
-        $this->singleton(OAuthHttpHandler::class, fn() => new OAuthHttpHandler(
-            $this->service(OAuthManager::class),
-            $this->service(OAuthHttpInput::class),
-            $this->service(OAuthHttpResponseFactory::class),
-        ));
-        $this->singleton(OAuthAuthorizationController::class, fn() => new OAuthAuthorizationController(
-            $this->service(OAuthHttpHandler::class),
-            $this->service(CurrentPrincipalContext::class),
-            $this->service(SessionConfig::class),
-        ));
+        $this->recipe(OAuthAuditRecorder::class, OAuthAuditRecorder::class, [
+            $this->ref(AuditEventStoreInterface::class),
+            $this->ref(AuthIdGeneratorInterface::class),
+            $this->ref(ClockInterface::class),
+        ]);
+        $this->recipe(OAuthClientManager::class, OAuthClientManager::class, [
+            $this->ref(OAuthClientStoreInterface::class),
+            $this->ref(PasswordHasherInterface::class),
+            $this->ref(PasswordVerifierInterface::class),
+            $this->ref(ClockInterface::class),
+            $this->ref(OpaqueToken::class),
+            $this->app->config()->isProduction(),
+        ]);
+        $this->recipe(OAuthScopeResolver::class, OAuthScopeResolver::class, [
+            $this->ref(OAuthClientStoreInterface::class),
+            $this->ref(ConfigRepository::class),
+        ]);
+        $this->recipe(AuthorizationRequestValidator::class, AuthorizationRequestValidator::class, [
+            $this->ref(OAuthClientManager::class),
+            $this->ref(OAuthScopeResolver::class),
+        ]);
+        $this->recipe(ConsentManager::class, ConsentManager::class, [
+            $this->ref(OAuthConsentStoreInterface::class),
+            $this->ref(AuthorizerInterface::class),
+            $this->ref(ClockInterface::class),
+        ]);
+        $this->recipe(AuthorizationCodeManager::class, AuthorizationCodeManager::class, [
+            $this->ref(OAuthAuthorizationCodeStoreInterface::class),
+            $this->ref(OAuthAuthorizationStoreInterface::class),
+            $this->ref(AuthorizerInterface::class),
+            $this->ref(ClockInterface::class),
+            $this->ref(OpaqueToken::class),
+            $this->intConfig('auth.oauth.authorization_code_ttl', 60),
+            $this->ref(OAuthAuditRecorder::class),
+        ]);
+        $this->recipe(OAuthRefreshTokenCoordinator::class, OAuthRefreshTokenCoordinator::class, [
+            $this->ref(OAuthRefreshTokenStoreInterface::class),
+            $this->ref(OAuthAuthorizationStoreInterface::class),
+            $this->ref(OAuthClientManager::class),
+            $this->ref(OAuthScopeResolver::class),
+            $this->ref(AccountProviderInterface::class),
+            $this->ref(ClockInterface::class),
+            $this->ref(OpaqueToken::class),
+            $this->intConfig('auth.oauth.refresh_token_ttl', 1209600),
+            $this->ref(OAuthAuditRecorder::class),
+        ]);
+        $this->recipe(OAuthAccessTokenValidator::class, OAuthAccessTokenValidator::class, [
+            $this->ref(OAuthAccessTokenServiceInterface::class),
+            $this->ref(OAuthClientManager::class),
+            $this->ref(OAuthAuthorizationStoreInterface::class),
+            $this->ref(OAuthAccessRevocationStoreInterface::class),
+            $this->ref(OAuthScopeResolver::class),
+            $this->ref(AccountProviderInterface::class),
+            $this->ref(ClockInterface::class),
+        ]);
+        $this->recipe(OAuthTokenManager::class, OAuthTokenManager::class, [
+            $this->ref(OAuthClientManager::class),
+            $this->ref(AuthorizationCodeManager::class),
+            $this->ref(OAuthAuthorizationStoreInterface::class),
+            $this->ref(OAuthScopeResolver::class),
+            $this->ref(OAuthAccessTokenServiceInterface::class),
+            $this->ref(OAuthRefreshTokenCoordinator::class),
+            $this->ref(AccountProviderInterface::class),
+            $this->ref(ClockInterface::class),
+            $this->ref(OAuthSigningKeySet::class),
+            $this->intConfig('auth.oauth.access_token_ttl', 300),
+        ]);
+        $this->recipe(OAuthRevocationManager::class, OAuthRevocationManager::class, [
+            $this->ref(OAuthClientManager::class),
+            $this->ref(OAuthAccessTokenServiceInterface::class),
+            $this->ref(OAuthAccessRevocationStoreInterface::class),
+            $this->ref(OAuthRefreshTokenCoordinator::class),
+            $this->ref(ClockInterface::class),
+            $this->ref(OAuthAuditRecorder::class),
+        ]);
+        $this->recipe(OAuthIntrospectionManager::class, OAuthIntrospectionManager::class, [
+            $this->ref(OAuthClientManager::class),
+            $this->ref(OAuthAccessTokenValidator::class),
+            $this->ref(OAuthRefreshTokenStoreInterface::class),
+            $this->ref(OAuthAuthorizationStoreInterface::class),
+            $this->ref(OAuthScopeResolver::class),
+            $this->ref(AccountProviderInterface::class),
+            $this->ref(ClockInterface::class),
+            $this->ref(OpaqueToken::class),
+        ]);
+        $this->recipe(AuthorizationServerMetadata::class, AuthorizationServerMetadata::class, [
+            $this->ref(ConfigRepository::class),
+        ]);
+        $this->recipe(OAuthManager::class, OAuthManager::class, [
+            $this->ref(AuthorizationRequestValidator::class),
+            $this->ref(ConsentManager::class),
+            $this->ref(AuthorizationCodeManager::class),
+            $this->ref(OAuthTokenManager::class),
+            $this->ref(OAuthRevocationManager::class),
+            $this->ref(OAuthIntrospectionManager::class),
+            $this->ref(AuthorizationServerMetadata::class),
+            $this->ref(JwkSetProviderInterface::class),
+            $this->ref(OAuthClientManager::class),
+            $this->ref(OAuthAuditRecorder::class),
+        ]);
+        $this->recipe(OAuthHttpInput::class, OAuthHttpInput::class);
+        $this->recipe(OAuthHttpResponseFactory::class, OAuthHttpResponseFactory::class);
+        $this->recipe(OAuthHttpThrottleFactory::class, OAuthHttpThrottleFactory::class, [
+            $this->ref(ConfigRepository::class),
+            $this->ref(OAuthAuditRecorder::class),
+        ]);
+        $this->recipe(OAuthHttpHandler::class, OAuthHttpHandler::class, [
+            $this->ref(OAuthManager::class),
+            $this->ref(OAuthHttpInput::class),
+            $this->ref(OAuthHttpResponseFactory::class),
+        ]);
+        $this->recipe(OAuthAuthorizationController::class, OAuthAuthorizationController::class, [
+            $this->ref(OAuthHttpHandler::class),
+            $this->ref(CurrentPrincipalContext::class),
+            $this->ref(SessionConfig::class),
+        ]);
     }
 
     private function registerStores(): void
@@ -232,11 +240,11 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
         ];
 
         foreach ($stores as $id => $implementation) {
-            $this->singleton($id, fn() => new $implementation(
-                $this->service(DBLayerFactory::class),
-                $this->service(AuthTables::class),
+            $this->recipe($id, $implementation, [
+                $this->ref(DBLayerFactory::class),
+                $this->ref(AuthTables::class),
                 $connection,
-            ));
+            ]);
         }
     }
 }

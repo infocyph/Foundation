@@ -21,7 +21,6 @@ use Infocyph\Foundation\Auth\Adapter\DBLayer\{
     DBLayerRoleStore,
     DBLayerSessionStore
 };
-use Infocyph\Foundation\Auth\Audit\AuthEvent;
 use Infocyph\Foundation\Auth\Authorization\Grant\GrantStoreInterface;
 use Infocyph\Foundation\Auth\Authorization\Permission\{PermissionAssignmentStoreInterface, PermissionStoreInterface};
 use Infocyph\Foundation\Auth\Authorization\Role\{RoleAssignmentStoreInterface, RoleStoreInterface};
@@ -42,7 +41,6 @@ use Infocyph\Foundation\Auth\Driver\AuthStorageDriver;
 use Infocyph\Foundation\Auth\Mfa\MfaFactorStoreInterface;
 use Infocyph\Foundation\Auth\Passkey\PasskeyCredentialStoreInterface;
 use Infocyph\Foundation\Auth\Support\{
-    ForwardingAuditEventStore,
     InMemoryAccountStore,
     InMemoryAuditEventStore,
     InMemoryDeviceStore,
@@ -81,30 +79,28 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
     {
         $default = $this->app->config()->get('database.default');
 
-        return is_string($default) && $default !== ''
-            ? $default
-            : null;
+        return is_string($default) && $default !== '' ? $default : null;
     }
 
     /** @param class-string $storeClass */
     private function bindClockedDbStore(string $id, string $storeClass, ?string $connection): void
     {
-        $this->singleton($id, fn() => new $storeClass(
-            $this->service(DBLayerFactory::class),
-            $this->service(AuthTables::class),
-            $this->service(ClockInterface::class),
+        $this->recipe($id, $storeClass, [
+            $this->ref(DBLayerFactory::class),
+            $this->ref(AuthTables::class),
+            $this->ref(ClockInterface::class),
             $connection,
-        ));
+        ]);
     }
 
     /** @param class-string $storeClass */
     private function bindPlainDbStore(string $id, string $storeClass, ?string $connection): void
     {
-        $this->singleton($id, fn() => new $storeClass(
-            $this->service(DBLayerFactory::class),
-            $this->service(AuthTables::class),
+        $this->recipe($id, $storeClass, [
+            $this->ref(DBLayerFactory::class),
+            $this->ref(AuthTables::class),
             $connection,
-        ));
+        ]);
     }
 
     /** @return array<string, class-string> */
@@ -180,12 +176,10 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
     private function registerMemoryStores(): void
     {
         foreach ($this->plainMemoryStores() as $id => $storeClass) {
-            $this->singleton($id, fn() => new $storeClass());
+            $this->recipe($id, $storeClass);
         }
         foreach ($this->clockedMemoryStores() as $id => $storeClass) {
-            $this->singleton($id, fn() => new $storeClass(
-                $this->service(ClockInterface::class),
-            ));
+            $this->recipe($id, $storeClass, [$this->ref(ClockInterface::class)]);
         }
 
         $this->registerStoreAliases();
@@ -193,22 +187,20 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
 
     private function registerStoreAliases(): void
     {
-        $this->singleton(AuditEventStoreInterface::class, function (): AuditEventStoreInterface {
-            $storage = $this->container->get(self::AUDIT_STORAGE);
-            if (!$storage instanceof AuditEventStoreInterface) {
-                throw new \LogicException('Configured auth audit storage does not implement its contract.');
-            }
-            if (!$this->boolConfig('messaging.forward_auth_events', false)) {
-                return $storage;
-            }
-
-            return new ForwardingAuditEventStore(
-                $storage,
-                function (AuthEvent $event): void {
-                    $this->app->make(EventDispatcherInterface::class)->dispatch($event);
-                },
+        if ($this->boolConfig('messaging.forward_auth_events', false)) {
+            $this->staticRecipe(
+                AuditEventStoreInterface::class,
+                AuthStoreGraphFactory::class,
+                'forwardingAuditStore',
+                [
+                    $this->ref(self::AUDIT_STORAGE),
+                    $this->ref(EventDispatcherInterface::class),
+                ],
             );
-        });
+        } else {
+            $this->alias(AuditEventStoreInterface::class, self::AUDIT_STORAGE);
+        }
+
         $this->alias(AccountProviderInterface::class, AccountStoreInterface::class);
         $this->alias(RoleAssignmentStoreInterface::class, RoleStoreInterface::class);
         $this->alias(PermissionAssignmentStoreInterface::class, PermissionStoreInterface::class);

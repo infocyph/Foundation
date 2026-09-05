@@ -20,11 +20,12 @@ it('resets shared and fresh DBLayer connections at execution boundaries', functi
         ],
     ]);
 
-    $shared = $app->make(Connection::class);
+    $shared = null;
     $fresh = null;
 
     try {
-        $app->execution()->run(static function () use ($app, $shared, &$fresh): void {
+        $app->execution()->run(static function () use ($app, &$shared, &$fresh): void {
+            $shared = $app->make(Connection::class);
             $shared->begin();
             $fresh = $app->make(DBLayerFactory::class)->connection(fresh: true);
             $fresh->begin();
@@ -33,7 +34,8 @@ it('resets shared and fresh DBLayer connections at execution boundaries', functi
                 ->and($fresh->transactionLevel())->toBe(1);
         });
 
-        expect($shared->transactionLevel())->toBe(0)
+        expect($shared)->toBeInstanceOf(Connection::class)
+            ->and($shared->transactionLevel())->toBe(0)
             ->and($fresh)->toBeInstanceOf(Connection::class)
             ->and($fresh->transactionLevel())->toBe(0);
     } finally {

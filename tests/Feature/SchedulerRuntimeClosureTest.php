@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use Infocyph\CacheLayer\Cache\Lock\FileLockProvider;
-use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Command\CommandDispatcher;
 use Infocyph\Foundation\Command\CommandIO;
@@ -14,7 +14,8 @@ use Infocyph\Foundation\Operations\RuntimeControl;
 use Infocyph\Foundation\Operations\RuntimeProcessRegistry;
 use Infocyph\Foundation\Scheduling\ScheduleManager;
 use Infocyph\Foundation\Scheduling\SchedulerRuntime;
-use Infocyph\InterMix\DI\Support\LifetimeEnum;
+use Infocyph\InterMix\DI\ContainerBuilder;
+use Infocyph\InterMix\DI\Support\FactoryDefinition;
 
 final class FoundationSchedulerRuntimeIO implements CommandIO
 {
@@ -127,12 +128,13 @@ final class FoundationSchedulerScopedProbe
 
 final class FoundationSchedulerServiceProvider extends ServiceProvider
 {
-    public function register(Application $app): void
+    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        $app->container()->bind(
+        unset($context);
+
+        $builder->scoped(
             'scheduler.runtime.scoped',
-            static fn(): FoundationSchedulerScopedProbe => new FoundationSchedulerScopedProbe(),
-            LifetimeEnum::Scoped,
+            FactoryDefinition::construct(FoundationSchedulerScopedProbe::class),
         );
     }
 }
@@ -209,8 +211,10 @@ it('executes due work once and schedule:test runs a named entry regardless of du
         ]]);
         $dispatcher = foundationSchedulerDispatcher($project);
 
-        expect($dispatcher->run(['infbyte', 'schedule:run', '--json'], new FoundationSchedulerRuntimeIO()))
-            ->toBe(ExitCode::SUCCESS)
+        $io = new FoundationSchedulerRuntimeIO();
+        $exit = $dispatcher->run(['infbyte', 'schedule:run', '--json'], $io);
+        expect($io->errors)->toBe([])
+            ->and($exit)->toBe(ExitCode::SUCCESS)
             ->and(foundationSchedulerLines($marker))->toBe(['once']);
 
         foundationSchedulerRoutes($project, [[
@@ -354,10 +358,13 @@ it('interrupts schedule work on schedule or runtime control changes and cleans t
             $config = foundationSchedulerConfig($project);
             $dispatcher = CommandDispatcher::project($config, displayName: 'Foundation Scheduler Test');
 
-            expect($dispatcher->run(
+            $io = new FoundationSchedulerRuntimeIO();
+            $exit = $dispatcher->run(
                 ['infbyte', 'schedule:work', '--sleep=1', '--max-iterations=2'],
-                new FoundationSchedulerRuntimeIO(),
-            ))->toBe(ExitCode::SUCCESS)
+                $io,
+            );
+            expect($io->errors)->toBe([])
+                ->and($exit)->toBe(ExitCode::SUCCESS)
                 ->and(foundationSchedulerLines($marker))->toBe([$scope]);
 
             $app = Foundation::scheduler($config);
