@@ -23,7 +23,6 @@ use Infocyph\Foundation\Http\JsonDispatch\JsonDispatchServiceProvider;
 use Infocyph\Foundation\Logging\LoggingServiceProvider;
 use Infocyph\Foundation\Messaging\MessagingServiceProvider;
 use Infocyph\Foundation\Notifications\NotificationServiceProvider;
-use Infocyph\Foundation\Routing\RouteCachePath;
 use Infocyph\Foundation\Routing\RouteFileLoader;
 use Infocyph\Foundation\Routing\RoutingServiceProvider;
 use Infocyph\Foundation\Runtime\RuntimeExecutionState;
@@ -78,10 +77,7 @@ final class Bootstrapper
     {
         $app->providers()->boot($app);
 
-        if ($app->runningInWeb()
-            && $app->has(RouteFileLoader::class)
-            && !RouteCachePath::isWarm($app->config())
-        ) {
+        if ($app->runningInWeb() && $app->has(RouteFileLoader::class)) {
             $app->make(RouteFileLoader::class)->load($app->make(Registrar::class));
         }
     }
