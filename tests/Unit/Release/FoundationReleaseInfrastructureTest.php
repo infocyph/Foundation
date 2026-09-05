@@ -131,6 +131,8 @@ function foundationReleaseInfrastructureManifest(string $generation): array
         'generation' => $generation,
         'environment' => 'production',
         'config_fingerprint' => str_repeat('c', 64),
+        'config_path' => 'config.php',
+        'config_sha256' => str_repeat('e', 64),
         'web' => [
             'release_manifest' => 'web/release.json',
             'runtime_manifest_sha256' => str_repeat('d', 64),
