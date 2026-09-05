@@ -212,18 +212,40 @@ final readonly class WorkerManager
     /** @return \Closure():bool */
     private function generationStopRequested(): \Closure
     {
-        $release = $this->application->loadedReleaseGeneration();
-        if ($release === null) {
+        $loaded = $this->application->loadedReleaseGeneration();
+        if ($loaded !== null) {
+            return $this->watchGeneration($loaded->releaseRoot, $loaded->generation);
+        }
+
+        $bootstrap = FoundationReleaseBootstrap::fromEnvironment($this->application->config()->all());
+        if ($bootstrap === null) {
             return static fn(): bool => false;
         }
 
         $active = new ActiveGeneration();
+        $current = $active->current($bootstrap->releaseRoot);
+        $manifestSha256 = hash_file('sha256', $current['manifest']);
+        if (!is_string($manifestSha256)
+            || !hash_equals($bootstrap->trustedFoundationManifestSha256, $manifestSha256)
+        ) {
+            throw new \RuntimeException(
+                'Trusted Foundation generation manifest does not match the active release selected for the worker supervisor.',
+            );
+        }
 
-        return static function () use ($active, $release): bool {
+        return $this->watchGeneration($bootstrap->releaseRoot, $current['generation']);
+    }
+
+    /** @return \Closure():bool */
+    private function watchGeneration(string $releaseRoot, string $generation): \Closure
+    {
+        $active = new ActiveGeneration();
+
+        return static function () use ($active, $releaseRoot, $generation): bool {
             try {
-                return $active->replacementRequired($release->releaseRoot, $release->generation);
+                return $active->replacementRequired($releaseRoot, $generation);
             } catch (\Throwable) {
-                // A release-loaded process must not keep consuming work when its
+                // A release-selected process must not keep consuming work when its
                 // deployment coordination pointer disappears or becomes corrupt.
                 return true;
             }
