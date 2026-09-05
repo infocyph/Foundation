@@ -258,7 +258,7 @@ final class Bootstrapper
 
         $builder->onScopeLeave(
             $context->runtimeMode->scopeName(),
-            [RuntimeScopeCleanup::class, 'handle'],
+            RuntimeScopeCleanup::handle(...),
         );
     }
 }
