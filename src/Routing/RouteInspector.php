@@ -7,6 +7,7 @@ namespace Infocyph\Foundation\Routing;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Webrick\Router\Definition\Registrar;
+use Infocyph\Webrick\Router\Facade\Router;
 use Infocyph\Webrick\Router\Route\Collection;
 
 final readonly class RouteInspector
@@ -25,10 +26,14 @@ final readonly class RouteInspector
         }
 
         $application = Foundation::web($config);
-        $registrar = $application->make(Registrar::class);
-        $application->make(RouteFileLoader::class)->load($registrar);
+        $collection = new Collection();
+        $registrar = new Registrar($collection);
+        Router::withScopedInstance(
+            $registrar,
+            static fn() => $application->make(RouteFileLoader::class)->load($registrar),
+        );
 
-        return $application->make(Collection::class);
+        return $collection;
     }
 
     /** @return list<string> */
