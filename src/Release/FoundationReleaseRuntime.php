@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Release;
 
 use Infocyph\Foundation\Application\RuntimeMode;
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Routing\WebReleaseRuntime;
 use Infocyph\Foundation\Runtime\GeneratedRuntime;
 use Infocyph\Foundation\Runtime\LoadedReleaseGeneration;
@@ -15,19 +16,30 @@ final readonly class FoundationReleaseRuntime
 {
     public function __construct(private ActiveGeneration $active = new ActiveGeneration()) {}
 
-    /** @param array<string,mixed> $config */
+    /** @param array<string,mixed> $config Retained for the public bootstrap contract; release inputs own runtime config. */
     public function nonWeb(
         array $config,
         RuntimeMode $runtime,
         string $releaseRoot,
     ): GeneratedRuntime {
+        unset($config);
         $this->assertNonWeb($runtime);
         [$generation, $manifest, $directory] = $this->activeManifest($releaseRoot);
         $section = FoundationReleaseManifest::section($manifest, $runtime->value);
-        $loaded = GeneratedRuntime::load(
-            $config,
+        $loaded = GeneratedRuntime::loadRelease(
             $runtime,
             $directory . DIRECTORY_SEPARATOR . $this->relative($section['intermix_path'] ?? null),
+            FoundationReleaseManifest::nonEmptyString($manifest['environment'] ?? null, 'environment'),
+            FoundationReleaseManifest::digest(
+                $manifest['config_fingerprint'] ?? null,
+                64,
+                'config_fingerprint',
+            ),
+            FoundationReleaseManifest::digest(
+                $section['digest'] ?? null,
+                32,
+                $runtime->value . '.digest',
+            ),
             FoundationReleaseManifest::capabilities(
                 $section['capabilities'] ?? null,
                 $runtime->value . '.capabilities',
@@ -37,13 +49,14 @@ final readonly class FoundationReleaseRuntime
         return $this->attachGeneration($loaded, $releaseRoot, $generation);
     }
 
-    /** @param array<string,mixed> $config */
+    /** @param array<string,mixed> $config Retained for the public bootstrap contract; release inputs own runtime config. */
     public function nonWebPrevalidated(
         array $config,
         RuntimeMode $runtime,
         string $releaseRoot,
         string $trustedFoundationManifestSha256,
     ): GeneratedRuntime {
+        unset($config);
         $this->assertNonWeb($runtime);
         [$generation, $manifest, $directory] = $this->trustedActiveManifest(
             $releaseRoot,
@@ -51,7 +64,7 @@ final readonly class FoundationReleaseRuntime
         );
         $section = FoundationReleaseManifest::section($manifest, $runtime->value);
         $loaded = GeneratedRuntime::loadPrevalidated(
-            $config,
+            [],
             $runtime,
             $directory . DIRECTORY_SEPARATOR . $this->relative($section['intermix_path'] ?? null),
             FoundationReleaseManifest::digest(
@@ -67,6 +80,12 @@ final readonly class FoundationReleaseRuntime
             FoundationReleaseManifest::capabilities(
                 $section['capabilities'] ?? null,
                 $runtime->value . '.capabilities',
+            ),
+            FoundationReleaseManifest::nonEmptyString($manifest['environment'] ?? null, 'environment'),
+            FoundationReleaseManifest::digest(
+                $manifest['config_fingerprint'] ?? null,
+                64,
+                'config_fingerprint',
             ),
         );
 
@@ -95,38 +114,40 @@ final readonly class FoundationReleaseRuntime
         return [$generation, $manifest, $directory, $manifestPath];
     }
 
-    /** @param array<string,mixed> $config */
+    /** @param array<string,mixed> $config Retained for the public bootstrap contract; release inputs own runtime config. */
     public function web(
         array $config,
         string $releaseRoot,
         ?RuntimeAdapterInterface $adapter = null,
     ): WebReleaseRuntime {
+        unset($config);
         [, $manifest, $directory] = $this->activeManifest($releaseRoot);
         $web = FoundationReleaseManifest::section($manifest, 'web');
 
-        return WebReleaseRuntime::load(
-            $config,
+        return WebReleaseRuntime::loadCompiled(
+            $this->releaseConfig($manifest, $directory),
             $directory . DIRECTORY_SEPARATOR . $this->relative($web['release_manifest'] ?? null),
             $adapter,
             FoundationReleaseManifest::capabilities($web['capabilities'] ?? null, 'web.capabilities'),
         );
     }
 
-    /** @param array<string,mixed> $config */
+    /** @param array<string,mixed> $config Retained for the public bootstrap contract; release inputs own runtime config. */
     public function webPrevalidated(
         array $config,
         string $releaseRoot,
         string $trustedFoundationManifestSha256,
         ?RuntimeAdapterInterface $adapter = null,
     ): WebReleaseRuntime {
+        unset($config);
         [, $manifest, $directory] = $this->trustedActiveManifest(
             $releaseRoot,
             $trustedFoundationManifestSha256,
         );
         $web = FoundationReleaseManifest::section($manifest, 'web');
 
-        return WebReleaseRuntime::loadPrevalidated(
-            $config,
+        return WebReleaseRuntime::loadPrevalidatedCompiled(
+            $this->releaseConfig($manifest, $directory),
             $directory . DIRECTORY_SEPARATOR . $this->relative($web['release_manifest'] ?? null),
             FoundationReleaseManifest::digest(
                 $web['runtime_manifest_sha256'] ?? null,
@@ -168,6 +189,15 @@ final readonly class FoundationReleaseRuntime
         ));
 
         return $runtime;
+    }
+
+    /** @param array<string,mixed> $manifest */
+    private function releaseConfig(array $manifest, string $directory): ConfigRepository
+    {
+        return FoundationReleaseConfig::load(
+            $directory . DIRECTORY_SEPARATOR . $this->relative($manifest['config_path'] ?? null),
+            FoundationReleaseManifest::digest($manifest['config_sha256'] ?? null, 64, 'config_sha256'),
+        );
     }
 
     private function relative(mixed $path): string
