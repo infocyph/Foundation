@@ -67,6 +67,7 @@
     "scripts": {
         "benchmark:maintenance": "@php benchmarks/maintenance-overhead.php",
         "benchmark:phase9:di": "@php benchmarks/phase9-di-attribution.php",
+        "benchmark:phase9:http": "@php benchmarks/phase9-http-attribution.php",
         "benchmark:representative": "@php benchmarks/run-representative.php"
     }
 }
