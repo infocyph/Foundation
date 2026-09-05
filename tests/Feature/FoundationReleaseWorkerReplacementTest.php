@@ -5,8 +5,10 @@ declare(strict_types=1);
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceProvider;
+use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Operations\RuntimeProcessRegistry;
 use Infocyph\Foundation\Release\ActiveGeneration;
+use Infocyph\Foundation\Release\FoundationReleaseBootstrap;
 use Infocyph\Foundation\Release\FoundationReleaseCompiler;
 use Infocyph\Foundation\Release\FoundationReleaseRuntime;
 use Infocyph\Foundation\Runtime\ExecutionId;
@@ -139,6 +141,78 @@ it('gracefully replaces a release worker when the active Foundation generation c
     }
 });
 
+it('keeps an unbooted release-selected pool supervisor generation-aware', function (): void {
+    $project = foundationReleaseReplacementProject();
+    $releaseRoot = $project . '/storage/releases';
+    $config = foundationReleaseReplacementConfig($project);
+    $compiler = new FoundationReleaseCompiler();
+    $previousRoot = getenv(FoundationReleaseBootstrap::RELEASE_ROOT_ENV);
+    $previousSha256 = getenv(FoundationReleaseBootstrap::MANIFEST_SHA256_ENV);
+
+    try {
+        $releaseA = $compiler->buildAndActivate(
+            $config,
+            $releaseRoot,
+            capabilities: [
+                'web' => [],
+                'cli' => [],
+                'worker' => [],
+                'scheduler' => [],
+            ],
+            generation: 'pool-supervisor-a',
+        );
+        $trustedA = hash_file('sha256', $releaseA['manifest']);
+        expect($trustedA)->toBeString()->toMatch('/^[a-f0-9]{64}$/D');
+        if (!is_string($trustedA)) {
+            throw new RuntimeException('Unable to hash pool supervisor generation A manifest.');
+        }
+
+        foundationReleaseReplacementSetEnvironment(FoundationReleaseBootstrap::RELEASE_ROOT_ENV, $releaseRoot);
+        foundationReleaseReplacementSetEnvironment(FoundationReleaseBootstrap::MANIFEST_SHA256_ENV, $trustedA);
+
+        $supervisor = Foundation::worker($config);
+        $method = new ReflectionMethod(WorkerManager::class, 'generationStopRequested');
+        $watch = $method->invoke(new WorkerManager($supervisor));
+        expect($watch)->toBeInstanceOf(Closure::class)
+            ->and($supervisor->booted())->toBeFalse();
+        if (!$watch instanceof Closure) {
+            throw new RuntimeException('Worker generation watch was not created.');
+        }
+        expect($watch())->toBeFalse();
+
+        $compiler->buildAndActivate(
+            $config,
+            $releaseRoot,
+            capabilities: [
+                'web' => [],
+                'cli' => [],
+                'worker' => [],
+                'scheduler' => [],
+            ],
+            generation: 'pool-supervisor-b',
+        );
+
+        expect($watch())->toBeTrue()
+            ->and($supervisor->booted())->toBeFalse()
+            ->and(fn() => $method->invoke(new WorkerManager($supervisor)))
+            ->toThrow(
+                RuntimeException::class,
+                'Trusted Foundation generation manifest does not match the active release selected for the worker supervisor.',
+            );
+    } finally {
+        foundationReleaseReplacementSetEnvironment(
+            FoundationReleaseBootstrap::RELEASE_ROOT_ENV,
+            is_string($previousRoot) ? $previousRoot : null,
+        );
+        foundationReleaseReplacementSetEnvironment(
+            FoundationReleaseBootstrap::MANIFEST_SHA256_ENV,
+            is_string($previousSha256) ? $previousSha256 : null,
+        );
+        foundationResetWebrickProductionRegistries();
+        foundationReleaseReplacementRemove($project);
+    }
+});
+
 /** @return array<string,mixed> */
 function foundationReleaseReplacementConfig(string $project): array
 {
@@ -208,4 +282,18 @@ function foundationReleaseReplacementRemove(string $directory): void
         $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($directory);
+}
+
+function foundationReleaseReplacementSetEnvironment(string $name, ?string $value): void
+{
+    if ($value === null) {
+        unset($_ENV[$name], $_SERVER[$name]);
+        putenv($name);
+
+        return;
+    }
+
+    $_ENV[$name] = $value;
+    $_SERVER[$name] = $value;
+    putenv($name . '=' . $value);
 }
