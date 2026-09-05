@@ -40,7 +40,7 @@ final readonly class RouteInspector
     private static function routeFiles(string $routes): array
     {
         return array_values(array_filter(
-            array_map('trim', explode(',', $routes)),
+            array_map(trim(...), explode(',', $routes)),
             static fn(string $route): bool => $route !== '',
         ));
     }
