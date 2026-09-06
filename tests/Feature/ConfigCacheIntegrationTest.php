@@ -231,7 +231,7 @@ it('keeps production requirements limited to the Foundation runtime core', funct
     expect($composer['require'])->toBe([
         'php' => '^8.4',
         'composer-runtime-api' => '^2.0',
-        'infocyph/arraykit' => '^5.1.1',
+        'infocyph/arraykit' => '^5.2',
         'infocyph/intermix' => '^10.0.4',
         'infocyph/uid' => '^5.0',
         'infocyph/webrick' => '^5.3',
