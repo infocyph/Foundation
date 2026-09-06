@@ -160,11 +160,14 @@ try {
 
     $encoded = json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
     file_put_contents($buildDirectory . '/arraykit-5.2-benchmark.json', $encoded . PHP_EOL);
-    echo $encoded . PHP_EOL;
+    fwrite(STDOUT, $encoded . PHP_EOL);
 
     foreach ($workloads as $workload) {
         if ($workload['result']['failed_operations'] > 0) {
-            exit(1);
+            throw new RuntimeException(sprintf(
+                'Benchmark workload "%s" reported failed operations.',
+                $workload['name'],
+            ));
         }
     }
 } finally {
