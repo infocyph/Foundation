@@ -717,7 +717,7 @@ Production action:
 
 - retire from readiness/boot;
 - use Webrick release/router artifact identity;
-- Foundation config fingerprint may stay SHA-256 if desired, but it is distinct from xxh128 artifact identities;
+- Foundation-owned route/config freshness fingerprints are non-security identities and **must use XXH128**; SHA3-256 is reserved for Foundation-owned hash derivation where cryptographic collision resistance is part of a security boundary;
 - any dev matcher cache is isolated from production readiness.
 
 ### 8.7 `src/Routing/RouteFileLoader.php`
@@ -1276,6 +1276,18 @@ Rules:
 - rollback/incomplete builds leave previous generation active;
 - trusted/prevalidated mode requires an immutable trust source external to writable artifact storage.
 
+### 17.1 Canonical Foundation hashing policy
+
+Foundation 3 chooses the hash primitive by semantic requirement rather than using a cryptographic hash everywhere:
+
+- Foundation-owned **security-sensitive** hash derivation uses **SHA3-256** when collision resistance is part of the security boundary or attacker-influenced logical identities must not be able to alias the same security state. Replay, nonce, challenge and authentication-state physical-key derivation are examples.
+- Foundation-owned **non-security** deterministic fingerprints, freshness identities, structural identities and key compaction use **XXH128**.
+- Do not introduce new Foundation-owned SHA-256 hashing. Existing Foundation-owned SHA-256 sites are migration targets: classify the purpose and replace them with SHA3-256 or XXH128.
+- Use explicit domain separation before security-sensitive hashing whenever the same primitive serves multiple Foundation namespaces.
+- For CacheLayer security-state physical keys, use the complete SHA3-256 digest and an encoding that satisfies CacheLayer's key grammar/length limit. Unpadded Base64URL is preferred when a readable legal prefix must fit within the limit; do not truncate the digest merely to make room for a prefix.
+- Lower-layer, protocol, interoperability and persisted-format digest choices remain owned by their defining contracts. Foundation must not silently replace InterMix/Webrick/third-party digest formats.
+- SHA3-256/XXH128 selection does not replace MACs, signatures, encryption or KDFs; those remain with Epicrypt or the owning lower layer.
+
 ---
 
 ## 18. Testing matrix
@@ -1565,6 +1577,7 @@ Rescan every class/function for:
 - runtime filesystem scans;
 - direct output/emission;
 - repeated hashing/manifest parsing;
+- Foundation-owned SHA-256 that should be SHA3-256 or XXH128 under section 17.1;
 - hidden DB/cache activation;
 - cleanup masking primary exceptions;
 - stale old docs/tests/config.
@@ -1799,6 +1812,7 @@ Foundation 3 runtime architecture is complete only when:
 - every dynamic island intentional/reported;
 - all four runtime artifacts publish as one atomic generation;
 - persistent runtimes do not leak state and replace safely on deploy;
+- Foundation-owned hashing follows section 17.1: SHA3-256 for security-sensitive derivation and XXH128 for non-security fingerprinting/compaction;
 - real HTTP and non-web benchmarks show attributable Foundation overhead;
 - complete source tree rescanned after implementation;
 - InfByte consumes Foundation's final build/runtime lifecycle directly instead of recreating another framework runtime.
@@ -1977,17 +1991,19 @@ All Foundation ID/randomness sites are classified, upstream identity reuse is pr
 
 **UID 5.0 completion evidence:** `Runtime\ExecutionId::generate()` delegates to `Id::ulid()` while arbitrary supplied correlation IDs remain byte-for-byte authoritative. `UidRuntimeBoundaryTest`, `ExecutionScopeIsolationTest`, `PersistentExecutionStateIsolationTest`, existing command/message lifecycle coverage and scheduler history coverage prove fallback uniqueness/ULID validity, supplied-ID preservation, Fiber/persistent isolation, Omnibus propagation, nested reuse, successful scheduler lifecycle reuse and fork safety. `benchmarks/uid-runtime-utilization.php` records the direct UID-versus-Foundation attribution boundary and emits `build/uid-5-runtime-benchmark.json`. PHPForge `Security & Standards` run `34027855290` on implementation commit `4bf85922b845510fa96105d8d2af9d8ec2a4a43c` passed PHP 8.4/8.5 stable and prefer-lowest QA, PHPStan/Psalm analysis, clean production install, UID benchmark execution and PHPForge benchmark-schema validation on both PHP versions. Section 26.2 is complete; no UID 5.0 library change is required.
 
-### 26.3 CacheLayer 3.2.0 utilization pass
+### 26.3 CacheLayer 3.2.0 audit / 3.3.0 atomic-capability prerequisite
 
 **Baseline**
 
-* package: `infocyph/cachelayer` `^3.2.0`;
+* current Foundation package target: `infocyph/cachelayer` `^3.2.0`;
 * audited release: CacheLayer 3.2.0;
-* tag commit: `481c664e7431fb1f901346046e34b31beb722854`.
+* tag commit: `481c664e7431fb1f901346046e34b31beb722854`;
+* required lower-layer follow-up: CacheLayer 3.3.0 additive atomic-capability release;
+* Foundation raises its package floor to `^3.3` only after that release is available and verified.
 
 **Ownership decision**
 
-CacheLayer owns generic cache/storage mechanics and their correctness contracts. Foundation must compose them and add application/security policy rather than maintain competing cache, lock, counter, invalidation or cluster runtimes.
+CacheLayer owns generic cache/storage mechanics and their correctness contracts. Foundation must compose them and add application/security policy rather than maintain competing cache, lock, conditional-write, atomic-consume, compare-and-set, counter, invalidation or cluster runtimes.
 
 CacheLayer owns:
 
@@ -1996,10 +2012,11 @@ CacheLayer owns:
 * per-cache serialization/compression/integrity policy through `CacheOptions`;
 * native bulk cache operations;
 * cache-native lock providers and lease handles;
+* generic atomic cache capabilities and backend-specific correctness;
 * atomic counter stores;
 * tiering and memoization primitives;
 * Node Cache and Cluster Cache invalidation/outbox behavior;
-* `AuthenticationStateCacheInterface` and its effective security-capability contract;
+* `AuthenticationStateCacheInterface` and its security-capability contract;
 * backend-specific fail-open/authoritative/integrity/coordination semantics.
 
 Foundation owns:
@@ -2010,70 +2027,135 @@ Foundation owns:
 * application-level shared-state topology validation;
 * security policy deciding which cache may hold authentication state;
 * logical-to-physical key encoding where Foundation owns the logical namespace;
+* the SHA3-256-versus-XXH128 choice under section 17.1;
 * DI lifetime and release-generation participation;
 * deciding whether a subsystem may use generic cache semantics, authoritative security-state semantics, or a durable non-cache store.
 
-Generic caches must remain flexible. Do **not** globally force every Foundation cache to be fail-closed, authoritative, signed or object-free merely because authentication state requires stricter semantics.
+Generic caches remain flexible. Do **not** globally force every Foundation cache to be fail-closed, authoritative, signed or object-free merely because authentication state requires stricter semantics.
 
-**Confirmed current findings**
+**Required CacheLayer 3.3.0 atomic capability**
 
-1. Foundation's CacheLayer auth adapters currently use physical prefixes such as `foundation:auth:ttl:` and `foundation:auth:counter:`. CacheLayer 3.2.0 accepts only 1–64 character keys matching `[A-Za-z0-9_.-]+`; `:` is invalid and raw Foundation logical keys can also exceed the length limit. This is a real compatibility bug.
-2. `CacheLayerTtlStore::pull()` performs `get()` followed by `delete()`. That is not safe as one-time consumption when two executions race.
-3. `CacheLayerFactory` already exposes the important CacheLayer 3.2 options and can validate an explicitly marked authentication-state store, but `AuthCacheRegistrar` consumes plain `CacheInterface`. Production auth must therefore prove that the **selected** auth-state cache satisfies the native capability contract rather than assuming the application's default cache is safe.
-4. Foundation MFA challenge storage currently serializes an `MfaChallenge` object through the TTL store. A hardened auth-state cache should be able to run with native object payloads disabled; Foundation should prefer a scalar/array record plus rehydration unless there is a measured reason to require object serialization.
-5. Native CacheLayer atomic counters, locks, Node/Cluster cache and invalidation/outbox facilities are already the correct lower-layer ownership. Do not mirror them in Foundation.
+Prefer one coherent optional `AtomicCacheInterface` (or equivalent) exposing:
+
+```php
+interface AtomicCacheInterface
+{
+    public function setIfAbsent(
+        string $key,
+        mixed $value,
+        null|int|\DateInterval|\DateTimeInterface $ttl = null,
+    ): bool;
+
+    public function getAndDelete(
+        string $key,
+        mixed $default = null,
+    ): mixed;
+
+    public function compareAndSet(
+        string $key,
+        mixed $expected,
+        mixed $replacement,
+        null|int|\DateInterval|\DateTimeInterface $ttl = null,
+    ): bool;
+}
+```
+
+Semantics:
+
+* `setIfAbsent()` inserts only when absent and applies TTL as part of the same atomic operation; exactly one contender wins.
+* `getAndDelete()` reads/consumes one value atomically; concurrent consumers cannot both receive it.
+* `compareAndSet()` updates only when the current value matches the expected value under one atomic backend operation/transaction.
+* Do not advertise fake atomicity through `has()+set()`, `get()+delete()` or `get()+compare+set()` fallbacks.
+* Use backend-native primitives or a lower-layer coordination mechanism with equivalent documented semantics. An adapter that cannot satisfy the contract must not claim the capability.
+* Capability discovery belongs in CacheLayer; Foundation must not branch on concrete adapter classes.
+* Keep `AuthenticationStateCacheInterface`; it adds fail-open/integrity/authoritative/security semantics beyond generic atomicity.
+* Keep increment/decrement with the existing atomic-counter contract unless another real consumer proves a broader abstraction is needed.
+
+**Confirmed current Foundation findings**
+
+1. Foundation logical cache/auth/webhook identifiers can violate CacheLayer 3.2.0's physical key grammar/length. Foundation therefore needs one canonical Foundation-owned logical-to-physical key encoder rather than raw colon-prefixed keys.
+2. Security-sensitive physical-key derivation follows section 17.1: use explicit domain separation + **SHA3-256**, never SHA-256. Preserve the complete digest; unpadded Base64URL is preferred where it permits the full digest plus a short legal prefix to fit CacheLayer's key limit.
+3. Non-security cache-key compaction/fingerprinting uses **XXH128** instead of paying for cryptographic hashing without a cryptographic requirement.
+4. `CacheLayerTtlStore::pull()` currently performs `get()` followed by `delete()` and is race-prone for one-time state. After CacheLayer 3.3 it should use `getAndDelete()`.
+5. `CacheLayerWebhookReplayStore` currently composes a generic lock around `has()` + `set()` to manufacture an atomic claim and uses SHA-256 for key hashing. After CacheLayer 3.3 it should use `setIfAbsent()` directly, remove the replay-store lock dependency, and derive the physical replay key with domain-separated SHA3-256.
+6. A generic Foundation lock and a configured cache can use different coordination authorities. Foundation must not imply cache atomicity merely because a lock surrounded non-atomic cache calls. CacheLayer owns the atomicity guarantee and capability truth.
+7. Production auth must prove the selected auth-state cache satisfies `AuthenticationStateCacheInterface` and any required generic atomic capability.
+8. Hardened auth-state caches should not require native object payloads merely because Foundation currently stores an `MfaChallenge` object; prefer scalar/array records plus rehydration where practical.
+9. Native CacheLayer counters, locks, Node/Cluster cache and invalidation/outbox remain lower-layer-owned.
+10. Do not add a generic key encoder/namespace abstraction to CacheLayer merely for Foundation; CacheLayer's restrictive physical-key contract remains deliberate and Foundation adapts its richer logical identities at its boundary.
+
+**Canonical Foundation cache-key policy**
+
+For Foundation-owned security state, use a stable semantic domain and hash the domain-separated logical identity with SHA3-256. A conceptual implementation is:
+
+```php
+$input = $domain . "\0" . $logicalKey;
+$digest = hash('sha3-256', $input, true);
+$encoded = rtrim(strtr(base64_encode($digest), '+/', '-_'), '=');
+$physicalKey = $shortLegalPrefix . '.' . $encoded;
+```
+
+Rules:
+
+* `$domain` participates in the digest input; the readable prefix is only an operational hint.
+* preserve the complete SHA3-256 digest; do not truncate it merely for naming convenience.
+* neither logical keys nor security secrets should leak into security-state physical keys.
+* non-security equivalent helpers use XXH128 according to section 17.1.
+* final keys must satisfy the currently supported CacheLayer grammar and length contract.
 
 **Audit and implementation checklist**
 
-* [ ] Introduce one canonical Foundation auth-state physical-key encoder shared by TTL and counter adapters.
-* [ ] Encode/hash arbitrary Foundation logical auth keys into legal deterministic CacheLayer keys no longer than 64 characters; do not scatter ad-hoc character replacement across adapters.
-* [ ] Preserve domain separation in the physical namespace, for example short legal prefixes for TTL state versus counters followed by a full collision-resistant digest.
-* [ ] Require the production auth-state cache to implement `AuthenticationStateCacheInterface` and prove `isFailOpen() === false`, `hasPayloadIntegrity() === true`, `isAuthoritative() === true`, and a same-domain `authenticationStateLock()` is available where one-time/replay semantics require coordination.
-* [ ] Fail insecure auth-cache topology during composition/release validation, not on the first authentication request.
-* [ ] Allow an explicit dedicated auth-state cache/store so ordinary application caching does not inherit unnecessary security cost; the default cache may be reused only when it satisfies the full contract.
-* [ ] Make one-time `pull()`/consume operations race-safe through CacheLayer's native authentication-state lock or a stronger native atomic primitive if CacheLayer exposes one; do not build another Foundation lock runtime.
-* [ ] Require `AtomicCounterStoreInterface` for production security counters/rate/replay state. Keep the get+set counter adapter only for semantics where non-atomic behavior is explicitly acceptable.
-* [ ] Replace object-valued MFA challenge payloads with an exportable scalar/array record where practical so the auth-state cache can keep `allowObjects=false`.
-* [ ] Verify generic cache stores remain process/generation-safe singletons and do not capture request/job execution state.
-* [ ] Keep CacheLayer process memoizers/static convenience state out of Foundation execution-scoped DI unless an explicit subsystem contract requires it.
-* [ ] Use CacheLayer native bulk APIs for Foundation bulk get/set/delete work instead of per-key loops where semantics match.
-* [ ] Keep Node Cache / Cluster Cache invalidation, cursor/outbox and poison-event behavior lower-layer-owned; Foundation only supplies topology/configuration and application invalidation policy.
-* [ ] Keep optional CacheLayer capability activation explicit in `FoundationBuildContext`; package installation alone must not activate cache services in a production graph.
-* [ ] Recheck local/file/php-files/Redis/Valkey/PDO and tiered-store configuration against CacheLayer 3.2 security guidance without duplicating adapter-specific validation in Foundation.
+* [ ] Implement/release CacheLayer 3.3.0 with true optional atomic `setIfAbsent()`, `getAndDelete()` and `compareAndSet()` capability.
+* [ ] Add adapter conformance, TTL, contention and failure-path tests; do not expose fake read-then-write atomic fallbacks.
+* [ ] Raise Foundation's CacheLayer floor to `^3.3` only after the release and adapter matrix are verified.
+* [ ] Introduce one canonical Foundation physical-key encoder for Foundation-owned cache namespaces where the semantics match.
+* [ ] Use domain-separated SHA3-256 for security-state key derivation and XXH128 for non-security compaction/fingerprinting.
+* [ ] Remove Foundation-owned SHA-256 from these key paths.
+* [ ] Preserve distinct semantic domains for TTL state, counters, webhook replay, WebAuthn challenge and other security state.
+* [ ] Require production auth-state caches to satisfy `AuthenticationStateCacheInterface` with fail-closed, payload-integrity and authoritative semantics.
+* [ ] Require generic atomic capability wherever Foundation needs atomic consume/claim/CAS semantics.
+* [ ] Fail insecure/non-atomic auth or replay topology during composition/release validation, not first request.
+* [ ] Replace `CacheLayerTtlStore::pull()` read+delete with `getAndDelete()`.
+* [ ] Replace `CacheLayerWebhookReplayStore` lock+has+set with `setIfAbsent()` and remove its generic lock dependency.
+* [ ] Use generic CAS only where Foundation has genuine CAS semantics; retain specialized domain contracts where they add stronger meaning.
+* [ ] Require `AtomicCounterStoreInterface` for production security counters where atomicity matters.
+* [ ] Prefer scalar/array MFA challenge records so hardened auth caches can keep `allowObjects=false`.
+* [ ] Keep optional CacheLayer activation explicit and cold when unused.
 
 **Correctness and security acceptance**
 
-* [ ] Test legal physical key shape and <=64-character bound for long, Unicode-adjacent, colon-heavy and attacker-controlled logical auth keys.
-* [ ] Test deterministic mapping and collision resistance across TTL/counter domains.
-* [ ] Test production auth-cache rejection for fail-open, unsigned, non-authoritative and missing-lock profiles.
-* [ ] Test a valid dedicated authentication-state cache boots successfully while an unrelated default cache remains permissive.
-* [ ] Test concurrent one-time consumption so at most one execution receives the value.
-* [ ] Test lock release on success/failure/cancellation and ensure lock-cleanup errors cannot mask the primary auth failure.
-* [ ] Test atomic counter races under the production counter adapter.
+* [ ] Test SHA3-256 security physical-key derivation is deterministic, domain-separated, legal and within the CacheLayer key limit for long/attacker-controlled logical keys.
+* [ ] Test distinct security domains cannot alias the same physical key for the same logical input.
+* [ ] Test XXH128 non-security paths separately and prove they are not used for security-sensitive alias resistance.
+* [ ] Test production auth-cache rejection for fail-open, unsigned, non-authoritative and missing-required-atomic-capability profiles.
+* [ ] Test concurrent `setIfAbsent()` replay claims so exactly one execution wins.
+* [ ] Test concurrent `getAndDelete()` one-time consumption so at most one execution receives the value.
+* [ ] Test `compareAndSet()` contention/stale expected values.
+* [ ] Test TTL belongs to the atomic insertion/update and cannot leave an unintended immortal value after partial failure.
 * [ ] Test hardened challenge serialization with native object payloads disabled.
-* [ ] Test sequential/Fiber/persistent-worker reuse does not leak cache coordination state between executions.
-* [ ] Test disabled CacheLayer capability leaves unrelated runtime graphs free of CacheLayer services/connections.
-* [ ] Test Cluster/Node integration through CacheLayer's own invalidation contracts rather than Foundation-specific replicas of them.
+* [ ] Test persistent/Fiber execution does not leak cache coordination state.
+* [ ] Add a final source scan proving no Foundation-owned SHA-256 remains except explicit protocol/persisted/lower-layer compatibility references.
 
 **Performance acceptance**
 
 Benchmark at minimum:
 
-1. production graph with CacheLayer capability absent versus present-but-unused;
-2. first named-store construction and warm named-store lookup;
-3. direct CacheLayer get/set/delete versus the Foundation manager/adapter boundary;
-4. native CacheLayer bulk operations versus any previous Foundation loop;
-5. authentication-state key encoding overhead;
-6. coordinated one-time pull versus plain get/delete;
-7. atomic counter increment/reset;
-8. repeated cache operations in persistent worker/scheduler runtimes with memory measurement;
-9. Node/Cluster invalidation only where Foundation actually exposes that topology.
+1. CacheLayer capability absent versus present-but-unused;
+2. first named-store construction and warm lookup;
+3. direct CacheLayer get/set/delete versus Foundation boundary;
+4. native CacheLayer bulk operations versus previous Foundation loops;
+5. SHA3-256 security-key encoding;
+6. XXH128 non-security key/fingerprint encoding;
+7. direct `setIfAbsent()` versus Foundation lock+has+set replay claim;
+8. direct `getAndDelete()` versus prior pull path;
+9. `compareAndSet()` and atomic counters;
+10. persistent worker/scheduler cache operations with memory measurement.
 
-Do not optimize away CacheLayer's security checks for auth state. Any hot-path optimization must be measured against direct CacheLayer and must preserve the lower-layer capability contract.
+Do not optimize away CacheLayer security checks. Prefer XXH128 over SHA3-256 only when the hash is not carrying a cryptographic restriction/security-aliasing requirement.
 
 **Completion gate**
 
-The CacheLayer tracker can be checked only when physical auth-key compatibility is fixed, the selected production auth-state cache is validated against CacheLayer's native capability contract, one-time state/counters have proven concurrency semantics, optional-capability cost remains cold, persistent-runtime tests pass and attribution benchmarks record the final Foundation overhead.
+The CacheLayer tracker can be checked only when CacheLayer 3.3's atomic capability is released and consumed, Foundation physical keys follow the SHA3-256/XXH128 policy, selected production auth state satisfies CacheLayer security + atomic contracts, replay/one-time state/counters have proven concurrency semantics, the Foundation replay lock workaround is removed, optional-capability cost remains cold, and attribution benchmarks record the final boundary.
 
 ### 26.4 OTP 6.0 utilization pass
 
@@ -2082,7 +2164,7 @@ The CacheLayer tracker can be checked only when physical auth-key compatibility 
 * package: `infocyph/otp` `^6.0` (Foundation development/integration dependency);
 * audited release: OTP 6.0;
 * tag commit: `524a94d7ac71d5d385f35596a89c472c8e1ba33f`;
-* OTP 6.0 requires PHP >=8.4 and integrates with CacheLayer `^3.1.1`; Foundation's CacheLayer floor is already newer at `^3.2.0`.
+* OTP 6.0 requires PHP >=8.4 and integrates with CacheLayer `^3.1.1`; Foundation's current CacheLayer floor is newer at `^3.2.0` and will move to `^3.3` after section 26.3's atomic-capability prerequisite is released.
 
 **Ownership decision**
 
@@ -2125,11 +2207,11 @@ Foundation must not reimplement TOTP/HOTP/OCRA math, time-window scanning, provi
 **Confirmed current issues / required audits**
 
 1. `OtpMfaVerifier` catches broad `Throwable` failures and maps them to the generic external reason `invalid_configuration`. This is fail-closed but destroys the operational distinction between bad user input/configuration and unavailable security state, lock failure, cache/backend outage, CAS failure or an unexpected OTP runtime error.
-2. Production TOTP and non-counter OCRA depend on CacheLayer's authoritative/fail-closed/integrity/lock contract. That contract must become a release/composition gate through the CacheLayer pass rather than depending on first-use verification failure.
+2. Production TOTP and non-counter OCRA depend on CacheLayer's authoritative/fail-closed/integrity/atomic security-state contract. That contract must become a release/composition gate through the CacheLayer pass rather than depending on first-use verification failure.
 3. `MfaFactor` carries the OTP secret as a string value. That does not prove plaintext persistence, but every production factor-store adapter must be audited to prove MFA secrets are protected at rest and never exposed through logs/cache keys/errors. Exact cryptographic/key-lifecycle design remains coordinated with the Epicrypt pass.
 4. Recovery-code HMAC currently derives a domain-separated key from the auth token secret. Keep the domain separation, but explicitly decide whether Foundation 3 should use a dedicated recovery-code key or a proper subkey derivation from a master secret; finalize this with the Epicrypt pass rather than silently coupling unrelated secret lifecycles.
 5. OTP rotation primitives can plan/describe secret rotation, but Foundation still owns atomic persistence/activation and concurrent verification policy during a rotation window.
-6. MFA challenge storage intersects the CacheLayer pass: logical challenge keys require the new legal physical key encoder, and a hardened auth-state cache should not require native object payloads merely because Foundation currently stores an object.
+6. MFA challenge storage intersects the CacheLayer pass: logical challenge keys require the canonical Foundation security-state encoder using domain-separated SHA3-256, and a hardened auth-state cache should not require native object payloads merely because Foundation currently stores an object.
 
 **Audit and implementation checklist**
 
@@ -2933,8 +3015,8 @@ Foundation must not create another HTTP client, mail parser/transport, webhook s
 1. `CommunicationProfiles::http()` correctly rejects production profiles that disable TLS peer or host verification. Preserve this fail-closed policy.
 2. `HttpClient` and `WebhookSender` are currently execution-scoped, while `CommunicationProfiles` is process-safe configuration state. This is safer than a blanket singleton because cookie jars and some resilience components are mutable, but the pass must explicitly classify profile state: cookie/session state must never leak across executions, while rate-limit/circuit-breaker semantics that are intended to span calls must not be accidentally reset every execution.
 3. If TalkingBytes needs a shareable resilience-state primitive, fix/consume that lower-layer primitive rather than introducing Foundation global mutable state.
-4. `CacheLayerWebhookReplayStore` currently constructs physical cache keys with `foundation:webhook:replay:`. CacheLayer 3.2.0 forbids `:` and limits keys to 64 characters. Reuse the canonical legal Foundation security-state key encoder from section 26.3 instead of inventing another webhook-specific encoder.
-5. The current replay claim uses lock → `has()` → `set()` and fails closed when coordination or persistence fails. Preserve atomic claim semantics, but prove the lock and cache belong to the same authoritative security-state domain and that cleanup cannot mask the primary verification failure.
+4. `CacheLayerWebhookReplayStore` must use the canonical Foundation security-state key encoder from section 26.3: explicit domain separation + SHA3-256, not SHA-256 or ad-hoc character replacement.
+5. After CacheLayer 3.3, replay claim must use CacheLayer's true atomic `setIfAbsent()` capability. Remove Foundation's lock → `has()` → `set()` orchestration rather than retaining two atomicity mechanisms.
 6. Production `WebhookReceiver` correctly requires replay protection by default. Do not weaken this merely to make webhook composition optional.
 7. gRPC inbound dispatch is a narrow configured-service-ID boundary. Handler service IDs should be fixed during graph composition; actual handler resolution remains inside the active execution.
 8. An inbound gRPC server/process belongs to the existing worker runtime/lifecycle rather than creating a fifth Foundation runtime graph.
@@ -2948,9 +3030,10 @@ Foundation must not create another HTTP client, mail parser/transport, webhook s
 * [ ] Classify every TalkingBytes-backed binding as immutable process state, execution-scoped state or intentionally shared concurrency-safe resilience state.
 * [ ] Keep cookie-bearing/session-bearing HTTP clients execution isolated; prove no cookie/header/auth mutation leaks between requests/jobs/Fibers.
 * [ ] Determine whether configured `RateLimiter`/`CircuitBreaker` state is intended to span executions. If yes, consume a lower-layer safe sharing mechanism; do not solve it with an unsafe Foundation singleton client.
-* [ ] Replace webhook replay physical keys with the section-26.3 security-state key encoder and keep TTL/replay namespaces domain-separated.
-* [ ] Validate production webhook replay topology during composition/release build, including authoritative store and usable same-domain lock.
-* [ ] Preserve fail-closed replay claiming and deterministic lock release.
+* [ ] Replace webhook replay physical keys with the section-26.3 domain-separated SHA3-256 security-state encoder.
+* [ ] Require CacheLayer 3.3 atomic `setIfAbsent()` for production webhook replay and remove the Foundation replay-store lock dependency.
+* [ ] Validate production replay topology during composition/release build, including authoritative security-state store and atomic capability.
+* [ ] Preserve fail-closed replay claiming.
 * [ ] Keep gRPC retry/streaming/native/generated-stub behavior lower-layer-owned.
 * [ ] Run each inbound gRPC call/stream execution through the existing worker execution scope/correlation lifecycle when Foundation owns the server process.
 * [ ] Add build-time validation for configured gRPC handler service IDs without eagerly instantiating handlers during graph compilation.
@@ -3184,14 +3267,15 @@ Foundation must not reimplement assertion-counter, origin/RP, attestation, signa
 5. Two valid concurrent assertions against the same old credential state can therefore lose ordering/state or overwrite a newer record.
 6. Section 26.6 must provide an atomic passkey credential-state persistence primitive using compare-and-swap, a version/counter condition, transaction/row locking, or an equivalent DBLayer-native mechanism.
 7. WebAuthn challenge state is one-time authentication state.
-8. Any CacheLayer-backed challenge consume path must use the atomic security-state claim/consume mechanics from section 26.3 rather than plain `get()` + `delete()`.
-9. Foundation has local Base64URL-style conversion at passkey boundaries.
-10. Compare its exact behavior against WebAuthn 5.3.8's own codec/utilities and remove the Foundation helper when genuinely redundant.
-11. Do not change persisted credential-ID representation solely for code deduplication.
-12. Validator/logger/event-dispatcher wiring is process configuration.
-13. If validator instances are shared, finalize mutable setters before traffic and never mutate logger/event-dispatcher state per request.
-14. Challenge/options/ceremony request state remains execution-local.
-15. Backup-eligible/backed-up credentials can legitimately affect signature-counter behavior. Foundation must trust WebAuthn's successful ceremony result rather than impose a simplistic Foundation counter rule.
+8. Any CacheLayer-backed challenge consume path must use section 26.3's atomic `getAndDelete()` security-state mechanics rather than plain `get()` + `delete()`.
+9. Foundation challenge physical keys use the section-26.3 security-state encoder: domain-separated SHA3-256 under CacheLayer's key grammar/length contract.
+10. Foundation has local Base64URL-style conversion at passkey boundaries.
+11. Compare its exact behavior against WebAuthn 5.3.8's own codec/utilities and remove the Foundation helper when genuinely redundant.
+12. Do not change persisted credential-ID representation solely for code deduplication.
+13. Validator/logger/event-dispatcher wiring is process configuration.
+14. If validator instances are shared, finalize mutable setters before traffic and never mutate logger/event-dispatcher state per request.
+15. Challenge/options/ceremony request state remains execution-local.
+16. Backup-eligible/backed-up credentials can legitimately affect signature-counter behavior. Foundation must trust WebAuthn's successful ceremony result rather than impose a simplistic Foundation counter rule.
 
 **Audit and implementation checklist**
 
@@ -3200,8 +3284,8 @@ Foundation must not reimplement assertion-counter, origin/RP, attestation, signa
 * [ ] Remove stale/deprecated `PublicKeyCredentialSource` assumptions where the 5.3.8 `CredentialRecord` contract is the correct boundary.
 * [ ] Keep creation/assertion validation entirely in WebAuthn validators/ceremony logic.
 * [ ] Keep Foundation responsible only for repositories, options/policy, lifecycle and persistence.
-* [ ] Make challenge issuance/consume state short-lived, execution-safe and one-time under concurrency using section 26.3's hardened CacheLayer contract.
-* [ ] Ensure challenge namespace keys use the legal Foundation security-state physical-key encoder.
+* [ ] Make challenge issuance/consume state short-lived, execution-safe and one-time under concurrency using section 26.3's CacheLayer 3.3 atomic `getAndDelete()` capability.
+* [ ] Ensure challenge namespace keys use the section-26.3 domain-separated SHA3-256 security-state physical-key encoder.
 * [ ] Persist the exact credential record returned after successful assertion.
 * [ ] Persist sign counter, backup state and user-verification state required by the returned record.
 * [ ] Implement atomic credential-state persistence through the DBLayer 26.6 pass.
@@ -3292,6 +3376,7 @@ For every Foundation DI/runtime change ask:
 8. Is every dynamic island truly necessary and visible?
 9. Can a scope seed carry runtime context without graph mutation?
 10. Is lower-layer-vs-Foundation cost measured?
+11. If Foundation owns a hash, is cryptographic collision resistance part of the requirement? Use SHA3-256 only when it is; otherwise use XXH128.
 
 For every web/routing change also ask:
 
@@ -3607,6 +3692,7 @@ Phase 9 acceptance evidence: corrected-head CI run `33946071733` on commit `7ce7
 - [X] Rescan for unnecessary Request/scope/global middleware creation.
 - [X] Rescan for direct output/native runtime handle use.
 - [X] Rescan for repeated hashing/manifest parsing in hot paths.
+- [ ] Enforce section 17.1 across final Foundation source: migrate Foundation-owned security-sensitive hashes to SHA3-256, non-security fingerprints/compaction to XXH128, and retain SHA-256 only for explicit protocol/persisted/lower-layer compatibility.
 - [X] Rescan for hidden DB/cache capability activation.
 - [X] Rescan cleanup paths for primary-exception masking.
 - [X] Remove stale InterMix 9/Webrick 4 configuration, tests and documentation.
@@ -3622,7 +3708,7 @@ Each item remains unchecked until its dedicated deep audit is performed and merg
 
 - [X] ArrayKit 5.2.0 current-version utilization pass.
 - [X] UID 5.0 current-version utilization pass.
-- [ ] CacheLayer 3.2.0 current-version utilization pass.
+- [ ] CacheLayer 3.2.0 audit / CacheLayer 3.3.0 atomic-capability prerequisite and Foundation integration pass.
 - [ ] DBLayer current-version utilization pass.
 - [ ] ReqShield current-version utilization pass.
 - [ ] Omnibus current-version utilization pass.
