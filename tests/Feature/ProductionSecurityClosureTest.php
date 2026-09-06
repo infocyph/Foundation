@@ -210,11 +210,6 @@ it('accepts cluster-visible database cache lock counter and OTP replay policy fo
         'username' => 'foundation',
         'password' => 'secret',
     ];
-    $config['cache']['stores']['auth-state'] = [
-        'driver' => 'redis',
-        'fail_open' => false,
-    ];
-    $config['cache']['lock'] = ['driver' => 'redis', 'store' => 'auth-state'];
 
     $app = Foundation::cli($config);
 
@@ -279,14 +274,14 @@ function foundationSecureProductionConfig(string $topology): array
             ],
             'stores' => [
                 'auth-state' => [
-                    'driver' => 'shared_memory',
+                    'driver' => 'redis',
                     'fail_open' => false,
                 ],
             ],
             'counters' => [
                 'auth-lockouts' => ['driver' => 'redis'],
             ],
-            'lock' => ['driver' => 'file', 'store' => 'auth-state'],
+            'lock' => ['driver' => 'redis', 'store' => 'auth-state'],
         ],
         'notifications' => [
             'auth' => ['sender' => 'auth'],
