@@ -1809,13 +1809,13 @@ Foundation 3 runtime architecture is complete only when:
 
 After InterMix + Webrick implementation contracts are frozen, run the same dedicated current-version utilization process for each lower library. Every pass must distinguish lower-layer primitives from Foundation policy, measure any proposed hot-path change, update this same document, and leave its progress-tracker box unchecked until code/tests/benchmarks prove the pass complete.
 
-### 26.1 ArrayKit 5.1.1 utilization pass
+### 26.1 ArrayKit 5.2.0 utilization pass
 
 **Baseline**
 
-* package: `infocyph/arraykit` `^5.1.1`;
-* audited release: ArrayKit 5.1.1;
-* tag commit: `dd0eb07a9f623fbbb9235cd9e4302f0f588bcf23`.
+* package: `infocyph/arraykit` `^5.2`;
+* audited release: ArrayKit 5.2.0;
+* tag commit: `053440b61071a17332b18879b12026f54a0ad144`.
 
 **Ownership decision**
 
@@ -1845,33 +1845,33 @@ Foundation owns only framework/application policy above those primitives:
 * Foundation release-generation `config.php`, its immutable trust identity and production source-discovery boundary;
 * deployment/diagnostic policy rather than low-level parsing/storage.
 
-Current Foundation direction already partially follows this boundary: `EnvironmentLoader` uses ArrayKit `EnvParser` and `Environment`, while `ConfigRepository` extends ArrayKit `Config` and uses `LazyFileConfig`/`DotNotation`. The pass must finish the duplication audit rather than replace working lower-layer use with another Foundation abstraction.
+Foundation now follows this boundary directly: `EnvironmentLoader` uses ArrayKit `EnvParser`/`Environment` while retaining only Foundation file-order, host-protection and hydration policy; `ConfigRepository` remains the thin Foundation façade over ArrayKit `Config` and delegates layered lazy source/fallback/override resolution plus resilient namespace-cache behavior to ArrayKit 5.2 `LayeredLazyFileConfig`; `ConfigLoader` uses ArrayKit `ConfigMerge`; the duplicate Foundation `ConfigMerger` has been removed; and `ConfigExportValidator` remains Foundation-owned because release exportability is part of Foundation's immutable generation trust boundary rather than generic ArrayKit config storage.
 
 **Audit and implementation checklist**
 
-* [ ] Rescan Foundation for any manual `.env` syntax parsing, interpolation, quoting, reference expansion, BOM/NUL handling or file-line parsing that duplicates `EnvParser`.
-* [ ] Rescan Foundation for direct/raw environment lookup that bypasses ArrayKit `Environment` without a documented runtime-boundary reason.
-* [ ] Verify Foundation's global `env()` helper delegates raw lookup to ArrayKit and retains only intentionally framework-specific value coercion.
-* [ ] Review `EnvironmentLoader` for policy-only responsibilities: source selection/precedence, host-value protection and process hydration; do not move those framework choices into ArrayKit.
-* [ ] Review `ConfigRepository` against ArrayKit `Config`, `DotNotation` and `LazyFileConfig`; remove duplicated generic get/set/path/cache behavior while retaining Foundation fallback/override/compiled-release semantics.
-* [ ] Review `ConfigLoader` so source file discovery remains development/build-plane only and delegates generic lazy file mechanics to ArrayKit where appropriate.
-* [ ] Review `ConfigCacheManager` against ArrayKit lazy namespace-cache facilities; retain only Foundation-owned artifact/deployment coordination that ArrayKit cannot correctly own.
-* [ ] Review `ConfigMerger` against ArrayKit merge primitives. Reuse ArrayKit only when precedence/list/associative semantics are exactly equivalent; do not trade correctness for API uniformity.
-* [ ] Verify the trusted generated `config.php` path constructs a compiled `ConfigRepository` without `.env`, config-directory, provider or module source discovery.
-* [ ] Ensure no request/job/schedule hot path scans environment/config files or reparses `.env`.
-* [ ] Audit `ConfigExportValidator`/release config normalization for generic ArrayKit functionality before retaining Foundation-local traversal logic.
-* [ ] Preserve a small Foundation façade only where it expresses application semantics or protects the release trust boundary.
+* [X] Rescan Foundation for any manual `.env` syntax parsing, interpolation, quoting, reference expansion, BOM/NUL handling or file-line parsing that duplicates `EnvParser`.
+* [X] Rescan Foundation for direct/raw environment lookup that bypasses ArrayKit `Environment` without a documented runtime-boundary reason.
+* [X] Verify Foundation's global `env()` helper delegates raw lookup to ArrayKit and retains only intentionally framework-specific value coercion.
+* [X] Review `EnvironmentLoader` for policy-only responsibilities: source selection/precedence, host-value protection and process hydration; do not move those framework choices into ArrayKit.
+* [X] Review `ConfigRepository` against ArrayKit `Config`, `DotNotation` and `LazyFileConfig`; remove duplicated generic get/set/path/cache behavior while retaining Foundation fallback/override/compiled-release semantics.
+* [X] Review `ConfigLoader` so source file discovery remains development/build-plane only and delegates generic lazy file mechanics to ArrayKit where appropriate.
+* [X] Review `ConfigCacheManager` against ArrayKit lazy namespace-cache facilities; retain only Foundation-owned artifact/deployment coordination that ArrayKit cannot correctly own.
+* [X] Review `ConfigMerger` against ArrayKit merge primitives. Reuse ArrayKit only when precedence/list/associative semantics are exactly equivalent; do not trade correctness for API uniformity.
+* [X] Verify the trusted generated `config.php` path constructs a compiled `ConfigRepository` without `.env`, config-directory, provider or module source discovery.
+* [X] Ensure no request/job/schedule hot path scans environment/config files or reparses `.env`.
+* [X] Audit `ConfigExportValidator`/release config normalization for generic ArrayKit functionality before retaining Foundation-local traversal logic.
+* [X] Preserve a small Foundation façade only where it expresses application semantics or protects the release trust boundary.
 
 **Correctness acceptance**
 
-* [ ] Test `.env` and `.env.local` precedence plus configured `app.env_files` order.
-* [ ] Test protection of host-provided `$_ENV`, `$_SERVER` and process variables from unintended file override.
-* [ ] Test ArrayKit interpolation/reference behavior through Foundation, including raw/literal-dollar cases where Foundation exposes them.
-* [ ] Test BOM/NUL rejection through the Foundation load path.
-* [ ] Test missing optional environment files and explicit environment-loading disablement.
-* [ ] Test lazy namespace fallback/source/override precedence and cache-corruption fallback behavior.
-* [ ] Test source config versus compiled release config observable parity.
-* [ ] Poison `.env`, config directories and provider/module source discovery after release compilation and prove production generation boot remains source-independent.
+* [X] Test `.env` and `.env.local` precedence plus configured `app.env_files` order.
+* [X] Test protection of host-provided `$_ENV`, `$_SERVER` and process variables from unintended file override.
+* [X] Test ArrayKit interpolation/reference behavior through Foundation, including raw/literal-dollar cases where Foundation exposes them.
+* [X] Test BOM/NUL rejection through the Foundation load path.
+* [X] Test missing optional environment files and explicit environment-loading disablement.
+* [X] Test lazy namespace fallback/source/override precedence and cache-corruption fallback behavior.
+* [X] Test source config versus compiled release config observable parity.
+* [X] Poison `.env`, config directories and provider/module source discovery after release compilation and prove production generation boot remains source-independent.
 
 **Performance acceptance**
 
@@ -1890,6 +1890,8 @@ Do not add another cache layer merely because ArrayKit exposes one. Adopt a lowe
 **Completion gate**
 
 The ArrayKit tracker can be checked only when the full config/environment source tree has been rescanned, any duplicate generic behavior has been removed or explicitly justified, production remains source-discovery-free, correctness tests pass and benchmark evidence records the final boundary.
+
+**ArrayKit 5.2.0 completion evidence:** Foundation requires `^5.2` and consumes the released `053440b61071a17332b18879b12026f54a0ad144` tag. `ConfigRepository` delegates layered lazy configuration to ArrayKit `LayeredLazyFileConfig`; `ConfigLoader` uses `ConfigMerge`; the local `ConfigMerger` and Foundation-owned cache-corruption reconstruction path are gone; raw `APP_CONFIG_CACHE` access uses ArrayKit `Environment`; and Foundation retains only application/release policy. `ArrayKit52ConfigIntegrationTest` covers list/scalar ancestor shadowing, fallback/source/override precedence, environment ordering/interpolation, process-only host protection, BOM/NUL rejection, optional files and corrupt-cache recovery, while existing release source-isolation tests prove generated production remains independent of `.env`, config/provider/module source discovery. `benchmarks/arraykit-config-utilization.php` records source composition, first/warm lazy lookup, full materialization, trusted compiled load, warm dot-path access and zero/one/two-file environment bootstrap. PHPForge `Security & Standards` run `34023093003` on implementation commit `76b80daca5d0f79268594862fe021422fe3eb12d` passed PHP 8.4/8.5 stable and prefer-lowest QA, PHPStan/Psalm, clean-install validation and the ArrayKit 5.2 benchmark contract on both PHP versions.
 
 ### 26.2 UID 5.0 utilization pass
 
@@ -3627,9 +3629,9 @@ Phase 10 rescan evidence: the final three audit batches removed hidden developme
 
 ### Future lower-library utilization tracker
 
-These remain unchecked until their dedicated deep audits are performed and merged into this same plan:
+Each item remains unchecked until its dedicated deep audit is performed and merged into this same plan:
 
-- [ ] ArrayKit 5.1.1 current-version utilization pass.
+- [X] ArrayKit 5.2.0 current-version utilization pass.
 - [ ] UID 5.0 current-version utilization pass.
 - [ ] CacheLayer 3.2.0 current-version utilization pass.
 - [ ] DBLayer current-version utilization pass.
