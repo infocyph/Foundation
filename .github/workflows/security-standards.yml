@@ -20,3 +20,5 @@ jobs:
       fail_on_skipped_tests: true
       integration_services: '["mysql","postgres","sqlite","redis","valkey","memcached"]'
       service_topologies: '{}'
+      benchmark_composer_script: "benchmark:arraykit"
+      benchmark_result_file: "build/arraykit-5.2-benchmark.json"
