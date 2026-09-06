@@ -139,13 +139,15 @@ try {
         }),
     ];
 
+    $arrayKitVersion = InstalledVersions::getPrettyVersion('infocyph/arraykit') ?? 'unknown';
+    $environment = arrayKitBenchmarkRuntimeEnvironment($arrayKitVersion);
     $result = [
         'schema_version' => 1,
         'generated_at' => gmdate(DATE_ATOM),
+        'environment' => $environment,
         'metadata' => [
             'suite' => 'foundation-arraykit-config-utilization',
-            'arraykit' => InstalledVersions::getPrettyVersion('infocyph/arraykit') ?? 'unknown',
-            'php' => PHP_VERSION,
+            'arraykit' => $arrayKitVersion,
             'boundary' => 'ArrayKit generic config/env primitives with Foundation application policy',
         ],
         'workloads' => $workloads,
@@ -161,7 +163,7 @@ try {
     echo $encoded . PHP_EOL;
 
     foreach ($workloads as $workload) {
-        if ($workload['failed_operations'] > 0) {
+        if ($workload['result']['failed_operations'] > 0) {
             exit(1);
         }
     }
@@ -171,7 +173,27 @@ try {
 }
 
 /**
- * @return array{name:string,iterations:int,duration_ns:int,ops_per_second:float,successful_operations:int,failed_operations:int}
+ * @return array{
+ *     name:string,
+ *     type:string,
+ *     metadata:array<string, mixed>,
+ *     repetitions:int,
+ *     warmup_operations:int,
+ *     duration_seconds:float,
+ *     concurrency:int,
+ *     result:array{
+ *         attempted_operations:int,
+ *         successful_operations:int,
+ *         failed_operations:int,
+ *         timeouts:int,
+ *         successful_rpm:float,
+ *         error_rate:float,
+ *         latency_ms:array{minimum:null,average:float,p50:null,p95:null,p99:null,maximum:null},
+ *         cpu:array{average_percent:null,peak_percent:null},
+ *         memory:array{average_mb:null,peak_mb:null,growth_mb:null},
+ *         stability:array{status:string,spread_percent:float}
+ *     }
+ * }
  */
 function arrayKitBenchmarkMeasure(string $name, int $iterations, Closure $operation): array
 {
@@ -188,15 +210,88 @@ function arrayKitBenchmarkMeasure(string $name, int $iterations, Closure $operat
         }
     }
 
-    $duration = max(1, hrtime(true) - $started);
+    $durationNanoseconds = max(1, hrtime(true) - $started);
+    $durationSeconds = $durationNanoseconds / 1_000_000_000;
+    $attempted = $successful + $failed;
+    $averageLatencyMilliseconds = $attempted > 0
+        ? $durationNanoseconds / $attempted / 1_000_000
+        : 0.0;
 
     return [
         'name' => $name,
-        'iterations' => $iterations,
-        'duration_ns' => $duration,
-        'ops_per_second' => $successful * 1_000_000_000 / $duration,
-        'successful_operations' => $successful,
-        'failed_operations' => $failed,
+        'type' => 'component',
+        'metadata' => [
+            'operation' => $name,
+            'measured_operations' => $iterations,
+        ],
+        'repetitions' => 1,
+        'warmup_operations' => 0,
+        'duration_seconds' => $durationSeconds,
+        'concurrency' => 1,
+        'result' => [
+            'attempted_operations' => $attempted,
+            'successful_operations' => $successful,
+            'failed_operations' => $failed,
+            'timeouts' => 0,
+            'successful_rpm' => $durationSeconds > 0.0 ? $successful * 60 / $durationSeconds : 0.0,
+            'error_rate' => $attempted > 0 ? $failed / $attempted : 0.0,
+            'latency_ms' => [
+                'minimum' => null,
+                'average' => $averageLatencyMilliseconds,
+                'p50' => null,
+                'p95' => null,
+                'p99' => null,
+                'maximum' => null,
+            ],
+            'cpu' => [
+                'average_percent' => null,
+                'peak_percent' => null,
+            ],
+            'memory' => [
+                'average_mb' => null,
+                'peak_mb' => null,
+                'growth_mb' => null,
+            ],
+            'stability' => [
+                'status' => 'unverified',
+                'spread_percent' => 0.0,
+            ],
+        ],
+    ];
+}
+
+/** @return array<string, mixed> */
+function arrayKitBenchmarkRuntimeEnvironment(string $arrayKitVersion): array
+{
+    $extensions = get_loaded_extensions();
+    sort($extensions, SORT_STRING);
+    $cpuModel = 'unknown';
+    if (is_readable('/proc/cpuinfo')) {
+        $cpuInfo = file_get_contents('/proc/cpuinfo');
+        if (is_string($cpuInfo) && preg_match('/^model name\s*:\s*(.+)$/m', $cpuInfo, $matches) === 1) {
+            $cpuModel = trim($matches[1]);
+        }
+    }
+
+    $runner = getenv('GITHUB_ACTIONS') === 'true' ? 'github-actions' : 'local-cli';
+    $runtime = [
+        'php_version' => PHP_VERSION,
+        'php_sapi' => PHP_SAPI,
+        'operating_system' => php_uname(),
+        'cpu_model' => $cpuModel,
+        'memory_limit' => ini_get('memory_limit') ?: 'unknown',
+        'opcache' => extension_loaded('Zend OPcache'),
+        'jit' => ini_get('opcache.jit') ?: false,
+        'xdebug' => extension_loaded('xdebug'),
+        'extensions' => $extensions,
+        'runner' => $runner,
+        'release' => $arrayKitVersion,
+    ];
+
+    return [
+        'stable' => false,
+        'fingerprint' => hash('sha256', json_encode($runtime, JSON_THROW_ON_ERROR)),
+        ...$runtime,
     ];
 }
 
