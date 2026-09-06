@@ -116,6 +116,23 @@ function cacheLayer33Environment(string $cacheLayerVersion): array
     ];
 }
 
+function cacheLayer33RedisDsn(): string
+{
+    $explicit = getenv('CACHELAYER_BENCH_REDIS_DSN');
+    if (is_string($explicit) && $explicit !== '') {
+        return $explicit;
+    }
+
+    $host = getenv('IC_REDIS_HOST') ?: '127.0.0.1';
+    $port = getenv('IC_REDIS_PORT') ?: '6379';
+    $password = getenv('IC_REDIS_PASSWORD');
+    $credentials = is_string($password) && $password !== ''
+        ? ':' . rawurlencode($password) . '@'
+        : '';
+
+    return sprintf('redis://%s%s:%s', $credentials, $host, $port);
+}
+
 $operations = max(1_000, (int) (getenv('CACHELAYER_BENCH_OPERATIONS') ?: 10_000));
 $repetitions = max(3, (int) (getenv('CACHELAYER_BENCH_REPETITIONS') ?: 7));
 $warmup = max(100, (int) (getenv('CACHELAYER_BENCH_WARMUP') ?: 500));
@@ -278,8 +295,12 @@ $workloads = [
         'component',
         static function () use ($cache, $batch, $batchKeys): array {
             $cache->setMultiple($batch, 60);
+            $result = [];
+            foreach ($cache->getMultiple($batchKeys) as $key => $value) {
+                $result[(string) $key] = $value;
+            }
 
-            return $cache->getMultiple($batchKeys);
+            return $result;
         },
         max(100, intdiv($operations, 32)),
         $repetitions,
@@ -305,10 +326,9 @@ $workloads = [
     ),
 ];
 
-$redisDsn = getenv('CACHELAYER_BENCH_REDIS_DSN') ?: 'redis://127.0.0.1:6379';
 if (class_exists(Redis::class)) {
     $counterNamespace = 'foundation-cachelayer-33-benchmark-' . bin2hex(random_bytes(4));
-    $nativeCounters = AtomicCounters::redis($counterNamespace, $redisDsn);
+    $nativeCounters = AtomicCounters::redis($counterNamespace, cacheLayer33RedisDsn());
     $foundationCounters = new AtomicCounterStore($nativeCounters);
     $nativeCounters->delete('direct-counter');
     $foundationCounters->reset('auth:counter');
@@ -335,11 +355,13 @@ if (class_exists(Redis::class)) {
 
 $soakOperations = max(10_000, $operations);
 $before = memory_get_usage(true);
+$soakStarted = hrtime(true);
 for ($i = 0; $i < $soakOperations; ++$i) {
     $key = 'soak:' . ($i % 256);
     $ttl->put($key, $i, 60);
     $ttl->pull($key);
 }
+$soakSeconds = max(1, hrtime(true) - $soakStarted) / 1_000_000_000;
 $after = memory_get_usage(true);
 $workloads[] = [
     'name' => 'persistent-auth-state-memory-soak',
@@ -350,14 +372,14 @@ $workloads[] = [
     ],
     'repetitions' => 1,
     'warmup_operations' => 0,
-    'duration_seconds' => 0.0,
+    'duration_seconds' => $soakSeconds,
     'concurrency' => 1,
     'result' => [
         'attempted_operations' => $soakOperations,
         'successful_operations' => $soakOperations,
         'failed_operations' => 0,
         'timeouts' => 0,
-        'successful_rpm' => null,
+        'successful_rpm' => ($soakOperations / $soakSeconds) * 60,
         'error_rate' => 0.0,
         'latency_ms' => null,
         'cpu' => ['average_percent' => null, 'peak_percent' => null],
