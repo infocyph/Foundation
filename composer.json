@@ -13,7 +13,7 @@
         "psr/log": "^3.0.2"
     },
     "require-dev": {
-        "infocyph/cachelayer": "^3.2.0",
+        "infocyph/cachelayer": "^3.3",
         "infocyph/dblayer": "^5.0",
         "infocyph/epicrypt": "^2.1",
         "infocyph/omnibus": "^2.5",
@@ -26,7 +26,7 @@
         "web-auth/webauthn-lib": "^5.3.5"
     },
     "suggest": {
-        "infocyph/cachelayer": "Adds cache stores, native bulk paths, locks, counters, node/cluster cache, and shared authentication/runtime state.",
+        "infocyph/cachelayer": "Adds cache stores, native bulk paths, optional atomic claim/consume/CAS, locks, counters, node/cluster cache, and shared authentication/runtime state.",
         "infocyph/dblayer": "Adds database services, persistence, migrations, query caching, replicas, and MySQL/MariaDB/PostgreSQL/SQLite/SQL Server support.",
         "infocyph/epicrypt": "Adds cryptography, secrets, password, token, and key security services.",
         "infocyph/omnibus": "Adds events, messages, durable queues, handler middleware, workers, optional process pools, retries, workflows, and scheduled-message dispatch.",
@@ -66,6 +66,7 @@
     },
     "scripts": {
         "benchmark:arraykit": "@php benchmarks/arraykit-config-utilization.php",
+        "benchmark:cachelayer": "@php benchmarks/cachelayer-33-utilization.php",
         "benchmark:maintenance": "@php benchmarks/maintenance-overhead.php",
         "benchmark:phase9:di": "@php benchmarks/phase9-di-attribution.php",
         "benchmark:phase9:http": "@php benchmarks/phase9-http-attribution.php",
