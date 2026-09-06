@@ -77,7 +77,6 @@ it('resolves command handlers through the runtime-neutral application facade', f
         providers: new ServiceRegistry(),
         bootstrapper: new Bootstrapper(),
         runtimeMode: RuntimeMode::Cli,
-        bindDevelopmentCore: false,
     );
     $descriptor = CommandDescriptor::fromClass(FoundationProductionCommandResolverProbe::class);
     $input = ParsedInput::fromArgv(
