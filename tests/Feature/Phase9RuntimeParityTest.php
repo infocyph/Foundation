@@ -165,6 +165,7 @@ PHP);
     try {
         $developmentGraph = new WebGraphFactory()->compose($config, []);
         $development = $developmentGraph->application->boot()->handle($request);
+        foundationResetWebrickProductionRegistries();
 
         $manifest = $root . '/web/bootstrap/cache/release.json';
         $release = new WebReleaseCompiler()->compile(
