@@ -2300,62 +2300,608 @@ Do not add another filesystem cache or response-stream abstraction unless the at
 
 The Pathwise tracker can be checked only when Foundation-owned upload temps are deterministically cleaned, required malware scanning has a real build-time composition path, static mount/driver lifecycle is proven generation-safe, local/non-local Webrick response ownership remains correct, security regression tests pass and Foundation-vs-direct-Pathwise benchmarks record the final bridge overhead.
 
-### 26.6 DBLayer utilization pass
+### 26.6 DBLayer 5.0 utilization pass
 
-This slot is reserved for the dedicated DBLayer audit in the next three-library batch.
+**Baseline**
 
-The DBLayer pass must follow the same complete format as 26.1–26.5:
+* package: `infocyph/dblayer` `^5.0`;
+* audited release: DBLayer 5.0;
+* tag commit: `0a599814b09f9d922d017a9c2ef80d99726061a2`;
+* DBLayer 5.0 requires ArrayKit `^5.1.1` and CacheLayer `^3.1.3`; Foundation already targets newer compatible CacheLayer 3.2.x behavior.
 
-* pin the latest released DBLayer tag and exact commit directly from `infocyph/DBLayer`;
-* establish DBLayer-versus-Foundation ownership;
-* audit every Foundation database adapter and repository;
-* audit connection and transaction lifetimes;
-* audit generated-runtime behavior;
-* audit execution-local touched/transaction/fresh-connection state;
-* audit query-cache integration with CacheLayer;
-* audit migration/schema lifecycle;
-* audit atomic compare-and-swap requirements used by OTP/MFA;
-* audit atomic passkey credential-state persistence required by section 26.11;
-* add correctness/concurrency/persistent-runtime acceptance;
-* add direct-DBLayer-versus-Foundation attribution benchmarks;
-* keep the tracker unchecked until implementation/tests/benchmarks are complete.
+**Ownership decision**
 
-### 26.7 ReqShield utilization pass
+DBLayer owns database mechanics and database-specific runtime behavior. Foundation owns application database topology, capability composition and execution-lifecycle policy around DBLayer.
 
-This slot is reserved for the dedicated ReqShield audit in the next three-library batch.
+DBLayer owns:
 
-The ReqShield pass must follow the same complete format:
+* `ConnectionConfig` and database connection/security primitives;
+* `Connection` lifecycle mechanics;
+* PDO/write/read-replica handling;
+* transactions, nested transactions/savepoints and `afterCommit()` behavior;
+* query execution and `QueryBuilder`;
+* prepared-statement caching;
+* driver capability detection;
+* retry/deadline/cancellation behavior implemented by DBLayer;
+* connection pooling through `Pool` / `PoolManager`;
+* connection-state sanitation through `resetRuntimeStateForReuse()`;
+* query-result caching semantics and query/table cache-tag behavior;
+* query-cache invalidation semantics;
+* repositories, result processing and pagination;
+* schema manipulation;
+* migration and seeding primitives;
+* database security validation;
+* database query monitoring/profiling/telemetry primitives;
+* lower-level batch/query optimization.
 
-* pin the latest released ReqShield tag and exact commit directly from `infocyph/ReqShield`;
-* establish validation/sanitization/schema ownership;
-* audit `ValidatorFactory`, `ValidationSchemaRegistry`, `FormRequest` and every ReqShield integration surface;
-* audit `ReqShieldDatabaseProvider` and remove unnecessary unconditional DB coupling;
-* ensure validation-only applications do not activate DBLayer;
-* audit request/execution lifetimes and persistent-runtime safety;
-* keep request parsing/HTTP concerns in Webrick where appropriate;
-* preserve ReqShield-native validation and sanitization primitives rather than recreate them in Foundation;
-* add correctness/security acceptance;
-* add capability-absent and direct-ReqShield attribution benchmarks;
-* keep the tracker unchecked until implementation/tests/benchmarks are complete.
+Foundation owns:
 
-### 26.8 Omnibus utilization pass
+* `database.connections` application configuration and default-connection selection;
+* application-relative SQLite path resolution;
+* deciding which runtime graphs need database capability;
+* InterMix lifetime/scope policy for checked-out connections;
+* execution-local ownership of a checked-out connection;
+* deterministic release/build validation of database topology;
+* selecting whether connection pooling is enabled;
+* selecting whether DBLayer query caching is enabled and which CacheLayer store is used;
+* application/auth schema definitions;
+* application migration/seeder class topology;
+* migration locking policy;
+* application-facing repository/adaptor composition;
+* cleanup integration with Foundation execution scopes;
+* account/auth concurrency policy such as MFA compare-and-swap and passkey credential persistence.
 
-This slot is reserved for the dedicated Omnibus audit in the next three-library batch.
+Foundation must not create a second query builder, transaction manager, connection pool, result cache, database retry runtime, schema engine or migration engine above DBLayer.
 
-The Omnibus pass must follow the same complete format:
+Foundation should also avoid adopting DBLayer's process-static `DB` façade as its normal runtime database boundary. Foundation already has InterMix execution isolation; normal application connections should remain explicit instance-owned objects rather than process-global mutable connection state.
 
-* pin the latest released Omnibus tag and exact commit directly from `infocyph/Omnibus`;
-* establish Omnibus-versus-Foundation messaging ownership;
-* audit `ConsumerFactory`, `InterMixExecutionScope`, `MessagingRuntimeResolver`, `OmnibusWorkerFactory` and handler middleware;
-* preserve Omnibus message-ID propagation as the authoritative Foundation execution identity when available;
-* audit queue/topic/RPC/fanout/retry/delivery semantics;
-* audit handler/listener/middleware resolution inside the active execution scope;
-* audit worker cancellation/restart/retry behavior;
-* ensure Foundation does not create a parallel message/queue runtime;
-* coordinate scheduler-to-message dispatch without merging scheduler and worker runtime ownership;
-* add correctness/concurrency/persistent-worker acceptance;
-* add direct-Omnibus-versus-Foundation attribution benchmarks;
-* keep the tracker unchecked until implementation/tests/benchmarks are complete.
+**Current integration findings to preserve**
+
+1. `DatabaseConnectionResolver` correctly keeps Foundation-specific configuration policy outside DBLayer, including named connections, default selection and application-relative SQLite paths.
+2. `DBLayerFactory` caches normalized `ConnectionConfig` objects rather than repeatedly rebuilding configuration.
+3. `Connection::class` is execution-scoped rather than a process singleton.
+4. `RuntimeExecutionState` currently owns each connection used during an execution and rolls back active transactions before cleanup.
+5. Fresh connections are explicitly tracked separately from ordinary named connections.
+6. `DatabaseMigrationManager` already delegates actual migration and seed execution to DBLayer's `MigrationRunner` / `SeedRunner` rather than reimplementing migration mechanics.
+7. `DBLayerMfaFactorStore::compareAndSwap()` already performs real optimistic concurrency using the factor revision and must remain the authoritative path for HOTP/counter-OCRA/recovery-state updates.
+
+**Confirmed current issues / required decisions**
+
+1. Foundation currently creates a new DBLayer `Connection` for an execution and disconnects it during scope cleanup. This is extremely safe for transaction/sticky-state isolation, but it prevents PDO, prepared-statement and lower-layer connection reuse between persistent executions.
+2. DBLayer 5.0 already provides `Pool` / `PoolManager`. Pool release calls DBLayer's connection sanitation before reuse and rejects unsafe/unhealthy/expired connections. Foundation should therefore benchmark DBLayer-native pooling before retaining unconditional per-execution disconnect behavior in persistent runtimes.
+3. A pooled connection must still belong to exactly one active Foundation execution at a time. Pooling is a reuse strategy between executions, not permission to make `Connection` a shared singleton.
+4. DBLayer's pool itself is mutable process state. Fiber/coroutine/concurrent checkout safety must be proven before Foundation enables one shared pool under persistent concurrent runtimes. If the lower-layer pool needs stronger concurrency semantics, fix DBLayer rather than adding a Foundation pool wrapper.
+5. DBLayer's process-static `DB` façade deliberately maintains shared connections, cache state, pool state, query logs, listeners, profiler and other process-global state. Switching Foundation's normal connection service to that façade would conflict with Foundation's InterMix execution-isolation model.
+6. DBLayer result caching is already sophisticated: caching is disabled for locking queries, managed transactions, sticky-write state and unresolved complex/raw dependency graphs. Foundation must preserve those lower-layer safety decisions.
+7. DBLayer 5.0 query-write invalidation currently reaches `DB::invalidateCacheTagsAfterCommit(...)`. Foundation normally creates `Connection` instances directly instead of registering them through the static `DB` façade. Before Foundation enables DBLayer query caching, verify that cache lookup and post-commit invalidation are fully correct for this instance-owned connection model. If they are not, add an instance-oriented lower-layer DBLayer cache/invalidation contract rather than registering Foundation execution connections into process-global `DB` merely as a workaround.
+8. CacheLayer being a DBLayer package dependency does not mean Foundation's application cache capability should activate whenever database capability activates. Query caching and migration locking remain explicitly selected features.
+9. `DBLayerPasskeyCredentialStore::updateUsage()` currently performs an ordinary update of passkey usage/sign-count state without an expected version/counter condition. This does not meet the atomic persistence requirement established by WebAuthn section 26.11.
+10. MFA factor compare-and-swap is already properly conditional. Do not replace that path with a generic `save()` merely for repository uniformity.
+11. Read/write-replica sticky state, transaction state, query comments/context, deadline/cancellation state and statement-cache state all belong to DBLayer's connection runtime and must be clean before a pooled connection crosses an execution boundary.
+12. Migration/schema execution is administrative/build/CLI work. It must not add discovery or lock/cache work to normal request/job hot paths.
+
+**Audit and implementation checklist**
+
+* [ ] Rescan every Foundation `Infocyph\DBLayer` usage against DBLayer 5.0 tagged APIs.
+* [ ] Keep `DatabaseConnectionResolver` limited to Foundation application configuration/topology policy.
+* [ ] Keep normalized `ConnectionConfig` construction outside execution hot paths.
+* [ ] Preserve execution ownership: one ordinary named `Connection` per Foundation execution/name unless an explicitly safe lower-layer mechanism proves otherwise.
+* [ ] Benchmark current create/use/disconnect behavior against DBLayer-native pool checkout/use/release.
+* [ ] If pooling wins materially, introduce one process/generation-level DBLayer pool and make `RuntimeExecutionState` own checked-out connections until scope cleanup.
+* [ ] Release pooled connections through DBLayer's native pool sanitation path rather than manually reproducing transaction/sticky/prepared-state cleanup in Foundation.
+* [ ] Keep `freshConnection()` semantics dedicated/non-pooled unless an explicit caller contract says otherwise.
+* [ ] Ensure a connection with an active/unrecoverable transaction can never be returned to the pool as healthy reusable state.
+* [ ] Prove the selected pool implementation is safe for the concurrency model in which it is enabled; do not share one connection concurrently between Fibers/coroutines.
+* [ ] Do not make Foundation's normal `foundation.db` service resolve through DBLayer's static `DB::connection()` process-global registry.
+* [ ] Use DBLayer-native transactions, savepoints, retry/deadline/cancellation and `afterCommit()` behavior directly.
+* [ ] Audit every Foundation manual transaction/retry helper for duplicate DBLayer functionality.
+* [ ] Keep DBLayer's read/write sticky behavior lower-layer-owned and prove pool release clears execution-specific sticky state.
+* [ ] Keep DBLayer prepared-statement caching lower-layer-owned; pooling may preserve its benefit where safe.
+* [ ] Keep query-result caching opt-in.
+* [ ] Before enabling query caching, prove DBLayer 5.0's cache reads and post-commit tag invalidation work with Foundation's instance-owned connections.
+* [ ] If tagged DBLayer query-cache invalidation assumes static `DB` registration, implement/release the missing instance-level lower-layer contract in DBLayer rather than introducing Foundation global-state coupling.
+* [ ] When query caching is selected, use DBLayer's `cacheFor()`, cache key, tags and invalidation mechanics rather than a Foundation query-cache wrapper.
+* [ ] Preserve DBLayer's automatic disabling of unsafe result-cache cases.
+* [ ] Require explicit tags for complex/raw dependency graphs where DBLayer requires them.
+* [ ] Keep application CacheLayer capability separate from database capability unless a selected DB feature actually needs CacheLayer.
+* [ ] Preserve DBLayer-backed MFA factor compare-and-swap and verify every counter-sensitive auth path uses it.
+* [ ] Replace passkey plain usage updates with atomic credential-record persistence satisfying section 26.11.
+* [ ] Prefer optimistic compare-and-swap/version conditions for passkey state where practical; alternatively use DBLayer-native transaction/row-lock semantics when the store contract requires them.
+* [ ] A stale passkey credential update must fail rather than overwrite a newer authenticator state.
+* [ ] Keep DBLayer Schema/MigrationRunner/SeedRunner as the lower-layer implementation for Foundation-owned auth/application schema policy.
+* [ ] Normalize migration/seeder topology at build/release/CLI boot instead of discovering application classes on request paths.
+* [ ] Keep migration locking optional and use the selected CacheLayer coordination primitive rather than a database-specific Foundation lock subsystem.
+* [ ] Recheck DBLayer security/TLS/raw-SQL/identifier configuration against Foundation production defaults without duplicating DBLayer's validator.
+* [ ] Keep database logging/telemetry integrations process-safe and bounded; do not activate DBLayer's global static query log merely because Foundation logging exists.
+* [ ] Ensure database capability remains absent from web/CLI/worker/scheduler graphs that do not require it.
+
+**Correctness and security acceptance**
+
+* [ ] Test named/default connection resolution and SQLite relative-path policy.
+* [ ] Test no database connection is opened merely because the database graph was compiled.
+* [ ] Test normal transaction commit and rollback.
+* [ ] Test nested transactions/savepoints.
+* [ ] Test `afterCommit()` behavior.
+* [ ] Test scope cleanup rolls back every remaining active transaction before connection reuse/disconnect.
+* [ ] Test primary execution exceptions are not masked by database cleanup failures.
+* [ ] Test sequential executions never inherit transaction state, sticky-write state, query comment/context, deadlines or cancellation state.
+* [ ] Test interleaved Fiber executions never receive the same active checked-out connection unless DBLayer explicitly supports that exact concurrency model.
+* [ ] If pooling is enabled, test checkout/release, unhealthy connection removal, idle/lifetime expiry and reconnection.
+* [ ] If pooling is enabled, test a connection with incomplete transaction state is rejected/sanitized before reuse.
+* [ ] Test persistent workers across hundreds/thousands of jobs for bounded connection/pool memory.
+* [ ] Test read/write replica behavior and sticky reads across writes without sticky state leaking into the next execution.
+* [ ] Test query caching only after its instance-owned cache/invalidation contract is proven.
+* [ ] Test cached SELECT hit/miss behavior.
+* [ ] Test INSERT/UPDATE/DELETE invalidation only after successful surrounding transaction commit.
+* [ ] Test rolled-back writes do not invalidate as committed writes.
+* [ ] Test locking/transaction/sticky-write/complex-query cases bypass caching exactly as DBLayer specifies.
+* [ ] Test MFA factor compare-and-swap under concurrency so exactly one stale-state transition wins.
+* [ ] Test passkey credential-state atomic update under concurrent assertions so a stale write cannot overwrite a newer counter/backup-state record.
+* [ ] Test stale passkey persistence failure remains an authentication failure rather than being silently ignored.
+* [ ] Test migration locking, migration failure rollback semantics and concurrent migration attempts.
+* [ ] Test production database security/TLS/raw-query policy across supported drivers.
+* [ ] Test database capability absence leaves unrelated runtime graphs free of connections, pools and cache/query infrastructure.
+
+**Performance acceptance**
+
+Benchmark at minimum:
+
+1. database capability absent versus present-but-unused graph/boot cost;
+2. normalized `ConnectionConfig` lookup;
+3. current first connection construction/open;
+4. current execution create/use/disconnect lifecycle;
+5. DBLayer pool checkout/use/release lifecycle;
+6. warm pooled connection versus new connection;
+7. prepared-statement reuse with and without safe pooling;
+8. simple direct DBLayer query versus Foundation scoped connection/query;
+9. transaction begin/commit/rollback through Foundation;
+10. direct DBLayer query caching versus Foundation-selected DBLayer query caching;
+11. result-cache hit/miss/invalidation;
+12. MFA compare-and-swap;
+13. passkey atomic credential persistence;
+14. migration/seeder boot as an administrative path;
+15. repeated persistent web/worker database executions with memory and connection-count measurement.
+
+Do not enable pooling merely because it exists. Adopt it only when the persistent-runtime benchmark shows meaningful benefit and its concurrency/isolation guarantees are proven.
+
+Do not create a Foundation query-cache layer merely to avoid fixing an instance-level DBLayer cache/invalidation gap.
+
+**Completion gate**
+
+The DBLayer tracker can be checked only when:
+
+* every Foundation database integration has been classified against DBLayer 5.0 ownership;
+* normal runtime code does not depend on the process-static `DB` façade for execution state;
+* the final connection lifecycle is benchmarked and explicitly chosen;
+* any pooling path is proven execution-isolated and concurrency-safe;
+* transaction/sticky/deadline/cancellation state cannot cross executions;
+* query caching, if exposed, has a correct instance-owned post-commit invalidation path;
+* DBLayer-native query-cache semantics are used rather than duplicated;
+* MFA CAS remains atomic;
+* WebAuthn credential-state persistence is atomic;
+* migrations/schema remain administrative and lower-layer-backed;
+* optional database/cache capabilities remain cold when unused;
+* direct-DBLayer versus Foundation attribution benchmarks record the final database bridge overhead.
+
+### 26.7 ReqShield 3.1 utilization pass
+
+**Baseline**
+
+* package: `infocyph/reqshield` `^3.1`;
+* audited release: ReqShield 3.1;
+* tag commit: `07e9e0a2465409e33c140b0cee920f821ca49c79`;
+* ReqShield's production package does not require DBLayer; DBLayer is a development/integration dependency and database validation is exposed through ReqShield's small `DatabaseProvider` contract.
+
+**Ownership decision**
+
+ReqShield owns validation, sanitization, schema/rule compilation and validation execution. Foundation owns named application schemas, application policy/configuration and framework integration around ReqShield.
+
+ReqShield owns:
+
+* validation rule parsing/compilation;
+* built-in validation rules;
+* `ValidationPlan` and rule execution;
+* validation result/error/failure objects;
+* sanitization;
+* input casting;
+* nested/wildcard validation mechanics;
+* validation limits;
+* field aliases/messages/locale behavior;
+* strict/unknown-field behavior;
+* DTO/result mapping where exposed by ReqShield;
+* schema composition;
+* JSON-schema export behavior;
+* process-level rule/plan caching supplied by ReqShield;
+* `CompiledValidator`;
+* database-rule definitions;
+* `DatabaseBatchRule`;
+* `DatabaseProvider` contract;
+* batching/grouping/execution of expensive database rules through `BatchExecutor`.
+
+Foundation owns:
+
+* named application validation schemas;
+* built-in Foundation auth request schemas;
+* application schema extension policy;
+* `validation.defaults` / named overrides;
+* choosing whether validation is enabled in a runtime graph;
+* Webrick request/input adaptation;
+* FormRequest/application convenience APIs;
+* selection of an optional ReqShield database provider;
+* selection of the DBLayer connection used by database rules;
+* mapping validation failures to application/HTTP behavior;
+* DI lifetime and build/runtime composition;
+* deciding which configured custom callbacks/rules/sanitizers are acceptable dynamic inputs.
+
+Foundation must not reimplement rule parsing, rule execution, sanitization, schema compilation, wildcard expansion, validation batching or JSON-schema generation above ReqShield.
+
+**Current integration findings to preserve**
+
+1. `ValidationServiceProvider` only installs validation when the validation capability is selected.
+2. Validation does not automatically create a database graph.
+3. Foundation checks whether `DBLayerFactory` is already present and only then contributes `ReqShieldDatabaseProvider`.
+4. `ValidatorFactory` accepts `?DatabaseProvider`; ordinary validation therefore remains valid without DBLayer.
+5. `ReqShieldDatabaseProvider` resolves its DBLayer connection only when a database rule is actually executed.
+6. `ValidatorFactory::make()` and `makeRules()` produce a new ReqShield `Validator`, avoiding shared mutable validator state between executions.
+7. `ValidationSchemaRegistry::extend()` delegates generic schema composition to `Validator::composeSchemas()` instead of maintaining another schema-composition algorithm.
+8. Foundation's DB adapter already batches values using DBLayer's safe parameter limits instead of issuing one query per field/value.
+
+**Confirmed current issues / required decisions**
+
+1. ReqShield 3.1 deliberately keeps DBLayer out of its production dependencies. Foundation must preserve this modular boundary; validation-only applications must not gain DBLayer simply because ReqShield supports `exists` / `unique`.
+2. The current Foundation graph provides a DB adapter to all validators when the database capability is already present. This is acceptable because connection resolution remains lazy, but do not add per-validation DB initialization merely for API uniformity.
+3. ReqShield itself detects whether a validation plan actually contains database rules and only needs `DatabaseProvider` for that expensive batch. Preserve that behavior.
+4. Database `exists` / `unique` checks are validation-time observations, not database constraints. They cannot guarantee uniqueness against a concurrent write. Foundation persistence code must still rely on real DB constraints/transactions and correctly map constraint violations.
+5. `CompiledValidator` is readonly, but in ReqShield 3.1 it wraps a closure capturing a `Validator` and delegates repeated validation to that captured object. Foundation must not assume this automatically makes one compiled validator safe as a process-wide concurrent singleton.
+6. ReqShield already maintains bounded process-level plan caching internally. Do not add a Foundation validation-plan cache until benchmarks prove a real missing layer.
+7. If Foundation needs an immutable/exportable precompiled validation artifact for generated releases and ReqShield does not expose one, add that general capability to ReqShield rather than serializing Foundation's captured validator closure.
+8. `ValidationSchemaRegistry` is mutable through `define()` / `extend()`. In generated production, configured/Foundation schemas should be finalized before traffic; request/job code should not mutate one process-wide schema registry.
+9. Application-defined callable rules, conditions and sanitizers can be legitimate dynamic inputs. They must remain explicit dynamic islands rather than being silently serialized into generated artifacts.
+10. Validation limits such as depth, field count, wildcard expansions and flattened paths are security/DoS controls. Foundation must not disable or inflate them simply to avoid validation failures.
+11. ReqShield already batches expensive database rules by operation/table. Foundation must not regress to field-by-field `exists`/`unique` queries.
+12. Foundation's DB adapter performs its own query construction because ReqShield intentionally exposes a framework-neutral contract. Keep that adapter narrow.
+13. HTTP request construction/parsing remains Webrick-owned. Foundation should feed ReqShield normalized application input rather than introduce a second generic HTTP request parser through validation.
+14. File/content validation and file storage remain different responsibilities: ReqShield validates input; Pathwise owns storage/upload processing. Foundation should not merge those runtimes.
+
+**Audit and implementation checklist**
+
+* [ ] Rescan every Foundation `Infocyph\ReqShield` use against ReqShield 3.1 tagged APIs.
+* [ ] Keep named schema/application policy in `ValidationSchemaRegistry`; keep rule execution in ReqShield.
+* [ ] Keep Foundation schema extension based on `Validator::composeSchemas()` rather than generic array merging where ReqShield semantics differ.
+* [ ] Finalize configured production validation schemas before traffic.
+* [ ] Prevent normal production request/job code from mutating the shared schema registry.
+* [ ] Retain development/tooling schema mutability only where genuinely useful.
+* [ ] Keep `ValidatorFactory` as a thin configuration/profile mapper.
+* [ ] Audit every `ValidatorFactory` setter/config option against ReqShield's native API and remove Foundation transformations that add no application semantics.
+* [ ] Keep per-call Validator construction unless a lower-layer immutable/reentrant compiled form is proven safe and measurably faster.
+* [ ] Do not cache `CompiledValidator` process-wide merely because its wrapper is readonly.
+* [ ] Benchmark ReqShield's own bounded plan cache before adding any Foundation cache.
+* [ ] If generated immutable validation plans would materially improve boot/hot-path cost, first add/release a generic exportable plan contract in ReqShield.
+* [ ] Keep database validation optional.
+* [ ] Do not activate DBLayer merely because validation is enabled.
+* [ ] Keep DB connection acquisition lazy until a validation plan actually executes DB-backed rules.
+* [ ] Preserve ReqShield's native `DatabaseProvider` contract as the only coupling from ReqShield into Foundation's database adapter.
+* [ ] Preserve ReqShield `BatchExecutor` grouping/batching semantics.
+* [ ] Keep DBLayer batch-size calculation in the Foundation adapter for actual backend parameter limits.
+* [ ] Review `ReqShieldDatabaseProvider` query grouping for `exists`, `unique`, ignored IDs, nullable values and soft-delete policy.
+* [ ] Treat database validation as advisory validation only; enforce authoritative uniqueness/integrity at database write time.
+* [ ] Preserve validation depth/field/wildcard/path limits and fail safely when limits are exceeded.
+* [ ] Keep custom callable rules/sanitizers/conditions as explicit dynamic configuration where needed.
+* [ ] Avoid capturing request/principal/container state into long-lived validator instances.
+* [ ] Feed ReqShield arrays/normalized values from the existing Webrick request boundary; do not add a second HTTP parsing layer.
+* [ ] Preserve ReqShield's structured `ValidationResult`, failures and validated-input objects internally rather than reducing everything to booleans prematurely.
+* [ ] Keep JSON-schema generation lower-layer-owned when Foundation exposes it.
+* [ ] Ensure validation capability is absent from runtime graphs that do not select it.
+
+**Correctness and security acceptance**
+
+* [ ] Test named Foundation schemas and application-defined schemas.
+* [ ] Test schema extension/composition behavior against direct ReqShield.
+* [ ] Test required/type/string/numeric/date/array/conditional representative rules through Foundation.
+* [ ] Test sanitizers and casts.
+* [ ] Test nested/wildcard validation.
+* [ ] Test strict/strip/allow-unknown behavior.
+* [ ] Test aliases/custom messages/locales.
+* [ ] Test DTO/result behavior where Foundation exposes it.
+* [ ] Test max depth.
+* [ ] Test max fields.
+* [ ] Test max wildcard expansions.
+* [ ] Test max flattened paths.
+* [ ] Test malformed or attacker-controlled deeply nested input fails within bounded resource usage.
+* [ ] Test a validation-only application with no DBLayer validates successfully and contains no database definitions/connections.
+* [ ] Test an application with database capability but a non-DB schema performs zero DB connection/query work during validation.
+* [ ] Test a schema using `exists` requires a database provider.
+* [ ] Test a schema using `unique` requires a database provider.
+* [ ] Test batched `exists` across repeated values/columns.
+* [ ] Test batched `unique`, ignored IDs and soft-delete options.
+* [ ] Test nullable database-rule values.
+* [ ] Test database provider failure is surfaced as a validation infrastructure failure rather than silently converted to successful validation.
+* [ ] Test DB uniqueness validation cannot replace an authoritative database unique constraint in persistence tests.
+* [ ] Test repeated validation through a persistent worker does not retain prior validated data/errors.
+* [ ] Test interleaved Fiber validations remain isolated.
+* [ ] If compiled validators are ever shared, add explicit concurrency/reentrancy tests before adopting that lifetime.
+* [ ] Test production schema registry topology remains unchanged across executions.
+* [ ] Test custom callable rule/sanitizer dynamic islands do not leak execution state.
+* [ ] Test disabled validation capability adds no ReqShield services to unrelated graphs.
+
+**Performance acceptance**
+
+Benchmark at minimum:
+
+1. validation capability absent versus enabled-but-unused graph/boot cost;
+2. direct ReqShield Validator construction versus Foundation `ValidatorFactory::make()`;
+3. first named-schema validation;
+4. warm repeated named-schema validation using ReqShield's internal plan cache;
+5. Foundation `compile()` / `CompiledValidator` path without unsafe singleton caching;
+6. representative scalar schema;
+7. nested/wildcard schema;
+8. sanitization/casting-heavy schema;
+9. strict/unknown-field handling;
+10. direct ReqShield DB batch versus Foundation ReqShield→DBLayer adapter;
+11. multiple `exists` checks showing batched behavior;
+12. multiple `unique` checks showing batched behavior;
+13. non-DB validation while database capability is present, proving zero DB I/O;
+14. repeated validations under persistent runtime with memory measurement.
+
+Do not introduce a Foundation validation cache simply because repeated schema construction appears in profiles. First attribute cost against ReqShield's own bounded compiled-plan cache.
+
+Do not replace per-call mutable validators with shared compiled validators without concurrency proof.
+
+**Completion gate**
+
+The ReqShield tracker can be checked only when:
+
+* all validation/sanitization/schema mechanics remain ReqShield-owned;
+* Foundation contains only application schema/profile/request-boundary policy;
+* validation does not activate DBLayer on its own;
+* non-DB schemas perform no database I/O even when DB capability exists;
+* DB rules retain ReqShield-native batching;
+* validation-time uniqueness is not mistaken for authoritative database integrity;
+* production schema topology is finalized;
+* mutable validators cannot leak state across executions;
+* any compiled/shared validator optimization is explicitly proven reentrant;
+* validation limits/security behavior remain intact;
+* direct-ReqShield versus Foundation attribution benchmarks record the final validation bridge overhead.
+
+### 26.8 Omnibus 2.5 utilization pass
+
+**Baseline**
+
+* package: `infocyph/omnibus` `^2.5`;
+* audited release: Omnibus 2.5;
+* tag commit: `7686de11b75ec4e02cbebd2080d6c470c1c314cf`;
+* Omnibus 2.5 directly requires UID 5.0 and exposes optional CacheLayer/DBLayer integrations for coordination, durable queues, failure stores, workflows and after-commit behavior.
+
+**Ownership decision**
+
+Omnibus owns messaging/event/queue/worker mechanics. Foundation owns application messaging topology, service resolution and integration of Omnibus workers with the Foundation release/execution lifecycle.
+
+Omnibus owns:
+
+* `Envelope` and stamps;
+* `MessageIdStamp` message identity;
+* `MessageBus`;
+* message routing and `RouteMap`;
+* transport contracts and `TransportRegistry`;
+* synchronous and in-memory transports;
+* DBLayer durable transport;
+* Redis/Valkey transport;
+* broker transport abstraction;
+* AMQP/SQS integration boundaries;
+* reservation/visibility/acknowledge/release/reject semantics;
+* `Consumer`;
+* retry strategy behavior;
+* failed-message behavior and failure-store contracts;
+* `Worker`, `WorkerOptions`, `WorkerLifecycle` and built-in `WorkerPool`;
+* `HandlerMap`;
+* `HandlerInvoker`;
+* Omnibus `HandlerMiddleware` pipeline;
+* event dispatch/listener maps and queued listeners;
+* envelope/message/stamp serialization;
+* uniqueness/overlap/rate-limit/circuit-breaker behavior supplied by Omnibus + CacheLayer;
+* DBLayer-backed failure storage;
+* DBLayer-backed workflow storage;
+* DBLayer queue schema and transport mechanics;
+* workflow coordination;
+* after-commit messaging integration;
+* Omnibus telemetry wrappers;
+* scheduled-message dispatch primitives;
+* message transport/consumer soak/runtime semantics.
+
+Foundation owns:
+
+* `messaging.handlers` application service IDs;
+* listener service IDs;
+* handler/job middleware service IDs;
+* application message routes;
+* selected transport profiles and queue names;
+* application retry configuration;
+* selected durable failure-store profile;
+* selected Omnibus workflow/coordination capabilities;
+* mapping configured application service IDs into the finalized InterMix runtime;
+* Foundation worker graph inclusion;
+* Foundation release-generation worker topology;
+* graceful generation replacement policy;
+* Foundation execution scope and cleanup around one delivered message;
+* propagation of Omnibus message identity into Foundation logging/correlation state;
+* selection of the DBLayer/CacheLayer instances used by Omnibus integrations;
+* application operational defaults and build-time validation.
+
+Foundation must not create a competing event bus, queue runtime, retry engine, reservation protocol, failure queue, uniqueness system, overlap lock system, workflow engine or worker message loop above Omnibus.
+
+**Current integration findings to preserve**
+
+1. `MessagingServiceProvider` already builds native Omnibus `HandlerMap`, `HandlerInvoker`, `ListenerMap`, `RouteMap`, `TransportRegistry`, `MessageBus`, `EventDispatcher`, `Consumer`, worker and scheduled-message services rather than wrapping Omnibus behind a second Foundation messaging abstraction.
+2. `MessagingRuntimeResolver` is an explicit dynamic island for application-configured service IDs. The surrounding messaging graph remains generated.
+3. Handler and listener service instances are resolved from the finalized container during actual execution rather than being captured when the process singleton messaging topology is built.
+4. `ResolvingHandlerMiddleware` resolves application middleware inside the active execution scope.
+5. Omnibus `HandlerInvoker` itself prebuilds the middleware pipeline structure once, so Foundation does not need another middleware pipeline runtime.
+6. `InterMixExecutionScope` correctly reuses `MessageIdStamp` as the Foundation execution correlation identity instead of generating an unrelated second execution ID.
+7. `ConsumerFactory` correctly delegates retry decisions to Omnibus `ExponentialRetryStrategy`.
+8. `OmnibusWorkerFactory` correctly maps application worker configuration into native `WorkerOptions` / `Worker`.
+9. Scheduler-to-message behavior already uses Omnibus `ScheduledMessageDispatcher`.
+
+**Confirmed current issues / required expansion**
+
+1. Foundation's default `TransportRegistry` currently contains only `sync` and `memory`. Omnibus 2.5 exposes substantially more lower-layer transport functionality, including DBLayer durable queues and native Redis/Broker boundaries. Foundation should expose selected Omnibus transports through configuration rather than leave users to rebuild integration outside Foundation.
+2. The default `FailureStore` is `InMemoryFailureStore`. That is appropriate for local/testing/synchronous/in-memory use but is not a durable production failed-message store for an asynchronous durable queue.
+3. A production durable worker should require an explicitly suitable failure-store policy, normally Omnibus's own durable integration when failure retention/retry operations are required.
+4. DBLayer and CacheLayer are optional Omnibus integrations. Selecting `sync`/`memory` must not activate either dependency graph.
+5. Selecting DBLayer transport/workflow/failure storage should consume the already-selected Foundation DBLayer capability and its safe execution/connection lifecycle from section 26.6.
+6. Selecting uniqueness/overlap/rate-limit/circuit policies should consume Omnibus's CacheLayer integration rather than Foundation-auth cache adapters or a new Foundation policy implementation.
+7. Omnibus already provides its own bounded/legal CacheLayer policy key encoder. Do not reuse Foundation's auth-state physical-key namespace for messaging coordination.
+8. Omnibus DBLayer `AfterCommitDispatcher` binds to an actual `Connection`. Under Foundation's execution-scoped DB model this integration must resolve/use the current execution connection and must never be a process singleton that captures the first scoped database connection.
+9. Omnibus `Consumer` already owns the receive → execute → retry/release → failure/reject → acknowledge lifecycle. Foundation must not add a second retry/settlement decision outside it.
+10. Failure/retry and transport settlement errors have different semantics. Foundation logging/observability may classify them, but it must not acknowledge a message Omnibus decided should be released/rejected.
+11. Handler/listener/middleware topology is known during Foundation composition. Service IDs should be validated/enriched into the generated graph before release, while actual scoped service resolution remains execution-time behavior.
+12. `MessagingRuntimeResolver` currently accepts arbitrary callables in addition to service IDs. User-provided callables are legitimate dynamic islands, but Foundation-owned configured class/service handlers should prefer deterministic service IDs.
+13. Foundation currently parses worker configuration repeatedly in `OmnibusWorkerFactory::all()` / `options()`. This is not per-message work, but Foundation already has generation-owned worker topology. Normalize worker topology at build/process boot rather than making source configuration discovery part of worker hot lifecycle.
+14. Foundation owns cross-generation worker replacement; Omnibus owns worker execution mechanics. Do not create two independent supervisors competing over restart/shutdown semantics.
+15. Omnibus's built-in `WorkerPool` is process orchestration for same-generation worker concurrency. Foundation must explicitly decide how it composes beneath Foundation generation supervision instead of independently supervising the same worker twice.
+16. Omnibus workflows, chains/batches and durable state already include atomic/claim semantics. If Foundation exposes them, use Omnibus contracts/stores directly rather than creating Foundation workflow records.
+17. Omnibus 2.5 includes serializer registries/codecs. Foundation must require explicit message/stamp serialization topology for durable transports instead of serializing arbitrary service/runtime objects.
+18. Message envelopes may contain application data that is sensitive. Foundation diagnostics must not dump complete serialized envelopes indiscriminately.
+19. The messaging capability is optional. A web-only/application runtime that does not select messaging must not pay for transports, consumers, DB queue tables, CacheLayer policies or worker topology.
+
+**Audit and implementation checklist**
+
+* [ ] Rescan every Foundation `Infocyph\Omnibus` usage against Omnibus 2.5 tagged APIs.
+* [ ] Keep `MessageBus`, route maps, handler maps, consumer, workers, retries, failure stores and transport settlement Omnibus-owned.
+* [ ] Keep Omnibus `MessageIdStamp` as the authoritative Foundation execution correlation identity when present.
+* [ ] Preserve one `foundation.worker` execution scope per delivered message.
+* [ ] Continue seeding the Omnibus `Envelope` and message into the InterMix execution scope.
+* [ ] Ensure scope cleanup completes before Omnibus acknowledges/releases/rejects according to the consumer result path.
+* [ ] Preserve primary handler failure over Foundation cleanup failures while still allowing Omnibus to perform the correct retry/failure settlement.
+* [ ] Prevalidate configured handler/listener/middleware service IDs during graph/release build without eagerly instantiating execution-scoped services.
+* [ ] Prefer service IDs for Foundation-owned messaging topology; retain raw callables only as documented dynamic islands.
+* [ ] Keep `ResolvingHandlerMiddleware`/equivalent resolution inside the active execution so scoped dependencies remain scoped.
+* [ ] Verify singleton `HandlerInvoker` only captures immutable topology/resolver wrappers, never an execution-scoped handler instance.
+* [ ] Expand Foundation transport configuration around Omnibus-native transports instead of implementing transport-specific queue code in Foundation.
+* [ ] Keep `sync` and `memory` as zero-external-dependency transports.
+* [ ] Add DBLayer durable transport composition only when explicitly configured.
+* [ ] Add native Redis/Valkey transport composition only when explicitly configured and the required extension/client is available.
+* [ ] Add broker/AMQP/SQS integrations through Omnibus's published boundaries when selected; do not embed vendor protocol logic into Foundation.
+* [ ] Validate transport capabilities such as receive/delay/visibility at build/process boot where possible.
+* [ ] Keep DBLayer/CacheLayer graphs absent unless the selected Omnibus features actually require them.
+* [ ] For DBLayer durable transport, consume section-26.6 connection lifecycle rather than registering a separate process-global database connection.
+* [ ] For Omnibus DBLayer after-commit dispatch, bind the current execution connection safely; do not capture a scoped Connection in a process singleton.
+* [ ] Use Omnibus DBLayer failure/workflow stores directly when those capabilities are selected.
+* [ ] Keep Omnibus QueueSchema ownership for its durable queue tables; Foundation only chooses deployment/migration policy.
+* [ ] Keep `InMemoryFailureStore` for appropriate development/local/non-durable profiles.
+* [ ] Require an explicit durable failure-store choice for production durable queues where failed-message retention/retry is expected.
+* [ ] Use Omnibus CacheLayer uniqueness, overlap, rate-limit and circuit-breaker integrations directly.
+* [ ] Use Omnibus's own policy-key/storage-key semantics for messaging coordination.
+* [ ] Do not route messaging coordination through Foundation's authentication-state cache adapters.
+* [ ] Keep Omnibus retry strategy authoritative; Foundation only maps retry configuration.
+* [ ] Keep transport acknowledgement/release/reject decisions inside Omnibus Consumer.
+* [ ] Preserve Omnibus visibility/reservation semantics and cancellation/deadline behavior.
+* [ ] Normalize worker topology into Foundation generation metadata/build output and avoid source configuration discovery during steady worker execution.
+* [ ] Define exact ownership between Foundation generation supervision and Omnibus `Worker` / optional `WorkerPool`.
+* [ ] Foundation owns generation A→B replacement; Omnibus owns execution and same-generation worker loop semantics.
+* [ ] Do not run a Foundation process supervisor and Omnibus WorkerPool as independent owners of the same child processes.
+* [ ] If process concurrency uses Omnibus WorkerPool, treat it as an implementation beneath one Foundation generation-owned worker provider.
+* [ ] Keep scheduled-message factories as build-known service IDs resolved only when a scheduled dispatch executes.
+* [ ] Keep scheduler runtime and worker runtime separate even when a scheduler dispatches an Omnibus message.
+* [ ] Use Omnibus workflow/chain/batch facilities directly if Foundation exposes them.
+* [ ] Keep workflow durable state, claims, retries and failure recovery Omnibus-owned.
+* [ ] Define durable serializer/message-codec/stamp-codec topology explicitly for each non-memory transport.
+* [ ] Prohibit serialization of live container/Application/Connection/request/principal/service objects into durable envelopes.
+* [ ] Keep message/failure diagnostics redaction-aware.
+* [ ] Use Omnibus telemetry sinks/wrappers where the semantics fit instead of wrapping every transport/consumer with another Foundation telemetry runtime.
+* [ ] Keep messaging services entirely absent from runtime graphs that do not select messaging.
+
+**Correctness and reliability acceptance**
+
+* [ ] Test synchronous dispatch.
+* [ ] Test in-memory asynchronous transport.
+* [ ] Test configured route/default route behavior.
+* [ ] Test handler resolution.
+* [ ] Test listener/event dispatch.
+* [ ] Test handler middleware ordering.
+* [ ] Test job middleware ordering.
+* [ ] Test execution-scoped handler/middleware dependencies are fresh between messages.
+* [ ] Test Omnibus `MessageIdStamp` maps to the same Foundation execution identity throughout handler/logging/history state.
+* [ ] Test missing message IDs receive exactly one Foundation fallback execution identity.
+* [ ] Test sequential messages do not retain the previous envelope/message/principal/DB state.
+* [ ] Test interleaved Fiber execution where supported.
+* [ ] Test handler success acknowledges exactly once.
+* [ ] Test retryable failure releases with Omnibus's retry delay.
+* [ ] Test terminal failure records the failure and rejects according to Omnibus semantics.
+* [ ] Test decode failure follows Omnibus undecodable-message failure semantics.
+* [ ] Test Foundation cleanup failure cannot cause an already-successful/failed message to be settled incorrectly.
+* [ ] Test cancellation and worker shutdown.
+* [ ] Test visibility timeout behavior.
+* [ ] Test worker `max_messages`, runtime and memory limits.
+* [ ] Test graceful Foundation generation replacement while Omnibus worker execution is active.
+* [ ] Test optional WorkerPool shutdown/restart ownership without double supervision.
+* [ ] Test durable DBLayer transport enqueue/reserve/ack/release/reject.
+* [ ] Test DB queue contention using Omnibus's native DBLayer transport.
+* [ ] Test DBLayer after-commit dispatch sends only after successful outer commit and does not send after rollback.
+* [ ] Test durable failure-store retry claims/concurrent retry handling.
+* [ ] Test workflow atomic claims/transitions if workflow support is enabled.
+* [ ] Test Redis/Valkey transport when enabled.
+* [ ] Test broker transport capability checks when enabled.
+* [ ] Test unique-message protection.
+* [ ] Test overlap protection and lost-lease behavior.
+* [ ] Test rate-limit behavior.
+* [ ] Test circuit-breaker behavior.
+* [ ] Test Omnibus messaging policy keys remain legal under the selected CacheLayer backend.
+* [ ] Test `sync`/`memory` topology activates neither DBLayer nor CacheLayer solely because those packages are installed.
+* [ ] Test DB-backed messaging activates only the required DB graph.
+* [ ] Test CacheLayer-backed policy features activate only the required cache graph.
+* [ ] Test durable serialization round trips for message + core stamps.
+* [ ] Test unknown/malformed message types fail safely.
+* [ ] Test durable envelopes cannot deserialize arbitrary Foundation runtime service objects.
+* [ ] Test failed-message logs/telemetry avoid unintended sensitive payload disclosure.
+* [ ] Run long persistent-consumer soak tests proving bounded memory and no scoped state leakage.
+
+**Performance acceptance**
+
+Benchmark Foundation against direct Omnibus for the same semantic workload:
+
+1. messaging capability absent versus enabled-but-unused graph/boot cost;
+2. direct synchronous Omnibus dispatch versus Foundation `foundation.messaging`;
+3. handler-map resolution;
+4. zero-middleware invocation;
+5. one and representative multiple handler middleware;
+6. service-ID resolution through the Foundation execution scope;
+7. execution-scope/message-ID bridge overhead;
+8. in-memory send/receive/ack cycle;
+9. retryable failure/release path;
+10. terminal failure-store path;
+11. durable DBLayer enqueue/reserve/ack;
+12. DBLayer queue contention;
+13. Redis/Valkey send/receive when enabled;
+14. uniqueness/overlap/rate-limit/circuit policy overhead separately;
+15. durable serialization encode/decode;
+16. worker construction/boot from generation-owned topology;
+17. steady-state worker message throughput;
+18. optional WorkerPool same-generation concurrency;
+19. repeated persistent worker execution with memory measurement;
+20. workflow/chain/batch paths only when Foundation actually exposes them.
+
+Use Omnibus's own `benchmark`, handler-middleware, DB contention and soak workloads as lower-layer attribution baselines where they match Foundation behavior.
+
+Do not bypass Foundation execution scope merely to improve message throughput; the scope is required for DB/auth/principal/temp-resource cleanup and state isolation.
+
+Do not create faster Foundation-specific queue paths that skip Omnibus retry/reservation/failure semantics.
+
+**Completion gate**
+
+The Omnibus tracker can be checked only when:
+
+* Foundation remains a thin topology/service-resolution/lifecycle adapter around Omnibus;
+* Omnibus owns routing, transport, retry, settlement, failure and workflow mechanics;
+* message IDs are reused as Foundation execution identity;
+* handler/middleware resolution remains execution-scoped without singleton capture;
+* Foundation exposes required Omnibus-native durable transports rather than reimplementing them;
+* DBLayer/CacheLayer integrations activate only when selected;
+* durable workers have durable failure semantics;
+* DB after-commit dispatch uses the correct current execution connection;
+* Foundation generation supervision and Omnibus worker/WorkerPool ownership do not conflict;
+* serialization boundaries contain data rather than live runtime services;
+* persistent consumer isolation and cancellation/replacement tests pass;
+* direct-Omnibus versus Foundation attribution benchmarks record the final messaging bridge overhead.
 
 ### 26.9 TalkingBytes 2.0.0 utilization pass
 
