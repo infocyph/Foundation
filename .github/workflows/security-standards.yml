@@ -4,7 +4,7 @@ on:
   schedule:
     - cron: "0 0 * * 0"
   push:
-    branches: [ "main", "master" ]
+    branches: [ "main", "master", "foundation-3/runtime-architecture-plan" ]
   pull_request:
     branches: [ "main", "master", "develop", "development" ]
 
@@ -16,9 +16,10 @@ jobs:
       actions: read
       contents: read
     with:
+      php_versions: '["8.4","8.5"]'
       php_extensions: "mbstring, pdo, pdo_mysql, pdo_pgsql, pdo_sqlite, redis, memcached"
       fail_on_skipped_tests: true
       integration_services: '["mysql","postgres","sqlite","redis","valkey","memcached"]'
       service_topologies: '{}'
-      benchmark_composer_script: "benchmark:uid"
-      benchmark_result_file: "build/uid-5-runtime-benchmark.json"
+      benchmark_composer_script: "benchmark:release"
+      benchmark_result_file: "build/cachelayer-33-utilization.json"
