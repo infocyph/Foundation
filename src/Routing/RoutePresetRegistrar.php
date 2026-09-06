@@ -55,9 +55,10 @@ final readonly class RoutePresetRegistrar
         );
     }
 
-    public function register(): void
+    /** @param list<string>|null $requirements */
+    public function register(?array $requirements = null): void
     {
-        $this->middleware->register();
+        $this->middleware->register($requirements);
     }
 
     /** @return list<string> */
