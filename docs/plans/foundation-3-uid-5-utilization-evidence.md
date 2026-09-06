@@ -6,17 +6,19 @@ This document records the concrete evidence for section 26.2 of `foundation-3-fi
 
 No UID 5.0 source change is required.
 
-UID remains the owner of generic identifier mechanics: generation, encoding, validation/parsing, UUIDv7 monotonic state and fork-state reset. Foundation remains the owner of correlation lifecycle and semantic identifier policy.
+UID remains the owner of generic identifier mechanics: generation, encoding, validation/parsing, monotonic algorithm state and fork-state reset. Foundation remains the owner of correlation lifecycle and semantic identifier policy.
 
-Foundation's default non-web execution fallback remains `Runtime\ExecutionId::generate() -> Infocyph\UID\Id::uuid7()`.
+Foundation's default non-web execution fallback is `Runtime\ExecutionId::generate() -> Infocyph\UID\Id::ulid()`.
 
-Externally supplied execution/correlation identifiers remain arbitrary non-empty Foundation correlation strings. They are preserved byte-for-byte and are not normalized into UUIDs merely because Foundation's fallback happens to use UUIDv7.
+UID's default ULID mode is monotonic. Foundation therefore gets a compact 26-character, lexicographically sortable execution fallback without introducing machine IDs, filesystem sequence coordination or Foundation-owned generator state.
+
+Externally supplied execution/correlation identifiers remain arbitrary non-empty Foundation correlation strings. They are preserved byte-for-byte and are not normalized into ULIDs merely because Foundation's fallback uses ULID.
 
 ## Classified Foundation identity/randomness boundaries
 
 | Boundary | Classification | Final ownership/decision |
 | --- | --- | --- |
-| `Runtime\ExecutionId::generate()` | execution correlation fallback | UID UUIDv7 generation; Foundation lifecycle wrapper |
+| `Runtime\ExecutionId::generate()` | execution correlation fallback | UID monotonic ULID generation; Foundation lifecycle wrapper |
 | supplied worker/scheduler/command/message IDs | upstream execution correlation | reuse verbatim; never generate a second ID |
 | nested command execution | inherited execution correlation | reuse active `ExecutionId` |
 | Omnibus message execution | message correlation | preserve normalized authoritative message ID (`omnibus:<message-id>`) |
@@ -28,7 +30,9 @@ Externally supplied execution/correlation identifiers remain arbitrary non-empty
 | security secrets/nonces/tokens | cryptographic security randomness | security primitive owner remains responsible; UID is not a secret generator |
 | DI aliases/provider IDs/scope names | deterministic graph topology | semantic/stable names; never randomize |
 
-No Foundation boundary discovered during the UID pass requires NanoID/ObjectID/RandomId solely for API uniformity. UUIDv7 remains the non-web fallback because the correlation boundary benefits from a standard sortable UUID representation. UID 5.0's published hotspot results also show `RandomId` is not a performance replacement for UUIDv7; NanoID/ObjectID have different representation semantics and are therefore not equivalent candidates for this boundary.
+No Foundation boundary discovered during the UID pass requires Sonyflake/TBSL/NanoID/ObjectID/RandomId solely for API uniformity.
+
+For `ExecutionId`, ULID is preferred over UUIDv7 because the Foundation boundary needs a compact sortable correlation identifier rather than an externally standardized UUID shape. ULID keeps 128-bit identifier space and sortable time semantics while reducing the canonical textual form from 36 characters to 26. Sonyflake and sequenced TBSL are intentionally not used for this boundary because their coordinated machine/sequence model adds operational state that Foundation execution correlation does not require.
 
 ## Correctness evidence
 
@@ -43,14 +47,15 @@ Existing Foundation coverage already proves:
 
 `tests/Feature/UidRuntimeBoundaryTest.php` adds direct section-26.2 contract coverage for:
 
-- Foundation-generated fallbacks being valid UUIDv7 values;
+- Foundation-generated fallbacks being valid 26-character ULIDs;
+- consecutive generated fallbacks preserving monotonic lexical order;
 - independent fallback generation producing distinct values;
 - arbitrary externally supplied correlation values being preserved byte-for-byte;
 - independent worker units receiving fresh fallback identities;
 - independent scheduler units receiving fresh fallback identities;
 - supplied worker/scheduler identities being preserved;
-- a successful scheduler run using one UUIDv7 identity across `pending -> running -> succeeded` history records;
-- UID UUIDv7 fork-state uniqueness when `pcntl_fork` is available, without Foundation adding process-local generator state.
+- a successful scheduler run using one ULID identity across `pending -> running -> succeeded` history records;
+- UID ULID fork-state uniqueness when `pcntl_fork` is available, without Foundation adding process-local generator state.
 
 ## Performance evidence
 
@@ -68,22 +73,21 @@ build/uid-5-runtime-benchmark.json
 
 The benchmark measures:
 
-1. raw UID UUIDv7 generation;
-2. the Foundation `ExecutionId::generate()` wrapper;
-3. worker execution with a caller-supplied identity;
-4. worker execution with generated UUIDv7 fallback;
-5. scheduler execution with a caller-supplied identity;
-6. scheduler execution with generated UUIDv7 fallback.
+1. raw UID UUIDv7 generation as the previous-format comparison;
+2. raw UID monotonic ULID generation;
+3. the Foundation `ExecutionId::generate()` ULID wrapper;
+4. worker execution with a caller-supplied identity;
+5. worker execution with generated ULID fallback;
+6. scheduler execution with a caller-supplied identity;
+7. scheduler execution with generated ULID fallback.
 
 Nested correlation reuse is intentionally not microbenchmarked by recursively entering `ExecutionScope` from inside an active worker scope. InterMix correctly rejects duplicate activation of the same scope; nested identity reuse is a higher-level command/message lifecycle behavior and remains covered by the existing lifecycle tests instead.
 
-NanoID/ObjectID are intentionally not compared as replacement candidates because their compact representation is a semantic format change, not an equivalent implementation of Foundation's chosen UUID correlation contract.
-
-The active PHPForge workflow benchmark gate is switched from the already-completed ArrayKit pass to `benchmark:uid`. The ArrayKit completion evidence and prior successful CI run remain recorded in the canonical plan.
+The active PHPForge workflow benchmark gate uses `benchmark:uid`. The ArrayKit completion evidence and prior successful CI run remain recorded in the canonical plan.
 
 ## Production-code decision
 
-No production Foundation identity source change is required for this pass. The current implementation already has the correct ownership split:
+Foundation now uses UID monotonic ULID for generated execution fallback while preserving the same ownership split:
 
 ```text
 UID 5.0
@@ -95,12 +99,12 @@ Foundation 3
 
 In particular, do not:
 
-- validate every incoming `ExecutionId` as a UUID;
+- validate every incoming `ExecutionId` as a ULID;
 - regenerate message/job/command/scheduler identities that are already authoritative;
 - replace release/staging entropy with UID merely to remove `random_bytes()`;
 - replace deterministic artifact digests with random identifiers;
-- switch to NanoID/ObjectID solely because a raw generator microbenchmark is faster.
+- introduce Sonyflake/TBSL sequence coordination for a correlation boundary that does not need it.
 
 ## Completion condition
 
-Section 26.2 can be marked complete after the current-head PHPForge matrix passes the new correctness tests and validates `build/uid-5-runtime-benchmark.json`. At that point the canonical section-26.2 checklist/tracker should be reconciled to completed state and this evidence linked from the plan.
+Section 26.2 can be marked complete after the current-head PHPForge matrix passes the ULID correctness tests and validates `build/uid-5-runtime-benchmark.json`. At that point the canonical section-26.2 checklist/tracker should be reconciled to completed state and this evidence linked from the plan.
