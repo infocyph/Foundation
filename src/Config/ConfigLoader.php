@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Config;
 
+use Infocyph\ArrayKit\Config\ConfigMerge;
 use Infocyph\ArrayKit\Config\LazyFileConfig;
 
 final class ConfigLoader
@@ -34,14 +35,14 @@ final class ConfigLoader
         $cacheDirectory = $this->configCacheEnabled($cacheControl)
             ? $this->configuredCachePath($cacheControl, $basePath)
             : null;
-        $overrides = ConfigMerger::mergeMany([$preset, $normalized]);
+        $overrides = ConfigMerge::mergeMany([$preset, $normalized]);
 
         $cached = $cacheDirectory === null
             ? null
             : $this->loadCacheManifest($cacheDirectory);
         if (($cached['type'] ?? null) === self::TYPE_SINGLE) {
             return new ConfigRepository(
-                ConfigMerger::mergeMany([$cached['data'], $overrides]),
+                ConfigMerge::mergeMany([$cached['data'], $overrides]),
                 compiled: true,
             );
         }
@@ -177,7 +178,7 @@ final class ConfigLoader
     /** @return array<string, mixed> */
     private function defaults(): array
     {
-        return ConfigMerger::mergeMany([FoundationDefaults::all(), AuthDefaults::all()]);
+        return ConfigMerge::mergeMany([FoundationDefaults::all(), AuthDefaults::all()]);
     }
 
     private function ensureCacheDirectory(string $directory): void
