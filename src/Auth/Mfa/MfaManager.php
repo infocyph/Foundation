@@ -110,7 +110,7 @@ final readonly class MfaManager
             metadata: $context,
         );
 
-        $this->ttl->put($this->challengeKey($challenge->id), $challenge, $this->challengeTtlSeconds);
+        $this->ttl->put($this->challengeKey($challenge->id), $challenge->toArray(), $this->challengeTtlSeconds);
         $this->record(AuthEventType::MFA_CHALLENGED, $accountId, ['challenge_id' => $challenge->id, 'factor_id' => $factor->id] + $context);
         $this->notifier->send(new AuthNotification(
             AuthNotificationType::MFA_CHALLENGE_REQUESTED,
@@ -146,7 +146,7 @@ final readonly class MfaManager
      */
     public function verifyChallenge(string $challengeId, string $code, array $context = []): MfaChallengeResult
     {
-        $challenge = $this->ttl->get($this->challengeKey($challengeId));
+        $challenge = $this->challenge($this->ttl->get($this->challengeKey($challengeId)));
 
         if (!$challenge instanceof MfaChallenge) {
             return new MfaChallengeResult(MfaStatus::INVALID, code: 'mfa_challenge_not_found', context: $context);
@@ -164,7 +164,17 @@ final readonly class MfaManager
             return new MfaChallengeResult(MfaStatus::INVALID, $challenge, $verification, code: $verification->reason ?? 'mfa_code_invalid', context: $context);
         }
 
-        $this->ttl->delete($this->challengeKey($challengeId));
+        $consumed = $this->challenge($this->ttl->pull($this->challengeKey($challengeId)));
+        if (!$consumed instanceof MfaChallenge || $consumed->toArray() !== $challenge->toArray()) {
+            return new MfaChallengeResult(
+                MfaStatus::INVALID,
+                $challenge,
+                $verification,
+                code: 'mfa_challenge_already_used',
+                context: $context,
+            );
+        }
+
         $this->markSatisfied($challenge->accountId, ContextValue::stringOrNull($context, 'session_id'));
 
         return new MfaChallengeResult(MfaStatus::VERIFIED, $challenge, $verification, $challenge->factorId !== null ? $this->findFactor($challenge->accountId, $challenge->factorId) : null, 'mfa_verified', $context);
@@ -189,6 +199,22 @@ final readonly class MfaManager
         $this->record(AuthEventType::RECOVERY_CODE_USED, $accountId, $context, AuthEventSeverity::WARNING);
 
         return new MfaChallengeResult(MfaStatus::RECOVERY_CODE_VERIFIED, verification: new MfaVerificationResult(true, recoveryCodeUsed: true, context: $context), code: 'recovery_code_verified', context: $context);
+    }
+
+    private function challenge(mixed $payload): ?MfaChallenge
+    {
+        if (!is_array($payload)) {
+            return null;
+        }
+
+        $normalized = [];
+        foreach ($payload as $key => $value) {
+            if (is_string($key)) {
+                $normalized[$key] = $value;
+            }
+        }
+
+        return MfaChallenge::fromArray($normalized);
     }
 
     private function challengeKey(string $challengeId): string
