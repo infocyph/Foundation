@@ -8,15 +8,18 @@ use Infocyph\Foundation\Runtime\ExecutionId;
 use Infocyph\Foundation\Scheduling\ScheduleManager;
 use Infocyph\Foundation\Scheduling\SchedulerRuntime;
 use Infocyph\Foundation\Worker\WorkerRuntime;
-use Infocyph\UID\UUID;
+use Infocyph\UID\ULID;
 
-it('uses UID uuid7 only for Foundation-generated execution fallbacks', function (): void {
+it('uses UID monotonic ULID only for Foundation-generated execution fallbacks', function (): void {
     $first = ExecutionId::generate();
     $second = ExecutionId::generate();
     $supplied = new ExecutionId('external-correlation-id:/42');
 
-    expect(foundationUidRuntimeIsUuid7($first->value))->toBeTrue()
-        ->and(foundationUidRuntimeIsUuid7($second->value))->toBeTrue()
+    expect(ULID::isValid($first->value))->toBeTrue()
+        ->and(ULID::isValid($second->value))->toBeTrue()
+        ->and(strlen($first->value))->toBe(26)
+        ->and(strlen($second->value))->toBe(26)
+        ->and(strcmp($first->value, $second->value))->toBeLessThan(0)
         ->and($first->value)->not->toBe($second->value)
         ->and($supplied->value)->toBe('external-correlation-id:/42');
 });
@@ -44,12 +47,12 @@ it('uses fresh UID-backed ids per worker and scheduler unit while preserving sup
             executionId: new ExecutionId('scheduler:external-correlation'),
         );
 
-        expect(foundationUidRuntimeIsUuid7($workerFirst))->toBeTrue()
-            ->and(foundationUidRuntimeIsUuid7($workerSecond))->toBeTrue()
+        expect(ULID::isValid($workerFirst))->toBeTrue()
+            ->and(ULID::isValid($workerSecond))->toBeTrue()
             ->and($workerFirst)->not->toBe($workerSecond)
             ->and($workerSupplied)->toBe('worker:external-correlation')
-            ->and(foundationUidRuntimeIsUuid7($schedulerFirst))->toBeTrue()
-            ->and(foundationUidRuntimeIsUuid7($schedulerSecond))->toBeTrue()
+            ->and(ULID::isValid($schedulerFirst))->toBeTrue()
+            ->and(ULID::isValid($schedulerSecond))->toBeTrue()
             ->and($schedulerFirst)->not->toBe($schedulerSecond)
             ->and($schedulerSupplied)->toBe('scheduler:external-correlation');
     } finally {
@@ -95,7 +98,7 @@ PHP);
         expect($run->successful())->toBeTrue()
             ->and($latest['status'] ?? null)->toBe('succeeded')
             ->and($executionId)->toBeString()
-            ->and(foundationUidRuntimeIsUuid7($executionId))->toBeTrue();
+            ->and(ULID::isValid($executionId))->toBeTrue();
 
         $records = $history->find($executionId);
         expect(array_column($records, 'status'))->toBe(['pending', 'running', 'succeeded'])
@@ -147,8 +150,8 @@ it('keeps UID-backed fallback generation unique across a fork when pcntl is avai
 
         expect(pcntl_wifexited($status))->toBeTrue()
             ->and(pcntl_wexitstatus($status))->toBe(0)
-            ->and(foundationUidRuntimeIsUuid7($parent))->toBeTrue()
-            ->and(foundationUidRuntimeIsUuid7($child))->toBeTrue()
+            ->and(ULID::isValid($parent))->toBeTrue()
+            ->and(ULID::isValid($child))->toBeTrue()
             ->and($beforeFork)->not->toBe($parent)
             ->and($beforeFork)->not->toBe($child)
             ->and($parent)->not->toBe($child);
@@ -170,19 +173,6 @@ function foundationUidRuntimeConfig(string $project): array
             'env' => 'testing',
         ],
     ];
-}
-
-function foundationUidRuntimeIsUuid7(string $value): bool
-{
-    if (!UUID::isValid($value)) {
-        return false;
-    }
-
-    try {
-        return (UUID::parse($value)['version'] ?? null) === 7;
-    } catch (Throwable) {
-        return false;
-    }
 }
 
 function foundationUidRuntimeProject(): string
