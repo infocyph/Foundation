@@ -84,10 +84,7 @@ final class CommunicationGraphFactory
         }
 
         $ttl = max(1, ValueNormalizer::int($replay['ttl_seconds'] ?? null, 86_400));
-        $replayStore = new CacheLayerWebhookReplayStore(
-            $cache->make($store),
-            $cache->lock($store),
-        );
+        $replayStore = new CacheLayerWebhookReplayStore($cache->make($store));
 
         return $profiles->webhookReceiver($profile, $replayStore, $ttl);
     }
