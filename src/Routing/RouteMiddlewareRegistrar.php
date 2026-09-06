@@ -35,8 +35,6 @@ final class RouteMiddlewareRegistrar
         'csrf' => CsrfMiddleware::class,
     ];
 
-    private bool $fullyRegistered = false;
-
     public function __construct(private readonly WebrickMiddlewareFactory $webrick) {}
 
     /**
@@ -45,14 +43,14 @@ final class RouteMiddlewareRegistrar
      * A null requirement list represents dynamic development routes. An empty
      * list is authoritative and registers no Foundation route aliases.
      *
+     * Registration is intentionally idempotent at the process-registry level.
+     * Do not cache registration state on this object: Webrick's build/test
+     * registry may be reset independently of the Foundation service instance.
+     *
      * @param list<string>|null $requirements
      */
     public function register(?array $requirements = null): void
     {
-        if ($this->fullyRegistered) {
-            return;
-        }
-
         $required = $requirements === null
             ? null
             : array_fill_keys(array_map(strtolower(...), $requirements), true);
@@ -66,6 +64,5 @@ final class RouteMiddlewareRegistrar
         }
 
         $this->webrick->registerAliases($requirements);
-        $this->fullyRegistered = $requirements === null;
     }
 }
