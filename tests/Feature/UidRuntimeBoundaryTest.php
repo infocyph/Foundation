@@ -110,6 +110,7 @@ it('keeps UID-backed fallback generation unique across a fork when pcntl is avai
         || !function_exists('pcntl_waitpid')
         || !function_exists('pcntl_wifexited')
         || !function_exists('pcntl_wexitstatus')
+        || !function_exists('pcntl_exec')
     ) {
         expect(true)->toBeTrue();
 
@@ -124,14 +125,18 @@ it('keeps UID-backed fallback generation unique across a fork when pcntl is avai
     $beforeFork = ExecutionId::generate()->value;
     $pid = pcntl_fork();
     if ($pid === -1) {
-        @unlink($exchange);
+        unlink($exchange);
         throw new RuntimeException('Unable to fork UID runtime test process.');
     }
 
     if ($pid === 0) {
         $child = ExecutionId::generate()->value;
-        $written = file_put_contents($exchange, $child, LOCK_EX);
-        exit($written === false || !foundationUidRuntimeIsUuid7($child) ? 1 : 0);
+        if (file_put_contents($exchange, $child, LOCK_EX) === false) {
+            throw new RuntimeException('Unable to write child UID to fork exchange file.');
+        }
+
+        pcntl_exec(PHP_BINARY, ['-r', '']);
+        throw new RuntimeException('Unable to replace forked UID test process.');
     }
 
     try {
@@ -148,7 +153,9 @@ it('keeps UID-backed fallback generation unique across a fork when pcntl is avai
             ->and($beforeFork)->not->toBe($child)
             ->and($parent)->not->toBe($child);
     } finally {
-        @unlink($exchange);
+        if (is_file($exchange)) {
+            unlink($exchange);
+        }
     }
 });
 
@@ -203,10 +210,10 @@ function foundationUidRuntimeRemove(string $project): void
     );
     foreach ($iterator as $entry) {
         if ($entry->isDir()) {
-            @rmdir($entry->getPathname());
+            rmdir($entry->getPathname());
         } else {
-            @unlink($entry->getPathname());
+            unlink($entry->getPathname());
         }
     }
-    @rmdir($project);
+    rmdir($project);
 }
