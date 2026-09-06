@@ -14,7 +14,7 @@ final readonly class CacheLayerWebhookReplayStore implements WebhookReplayStore
 {
     private AtomicCacheInterface $atomic;
 
-    public function __construct(private CacheInterface $cache)
+    public function __construct(CacheInterface $cache)
     {
         if (!$cache instanceof AtomicCacheProviderInterface || ($atomic = $cache->atomic()) === null) {
             throw new \LogicException(
