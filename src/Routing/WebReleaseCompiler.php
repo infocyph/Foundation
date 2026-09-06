@@ -40,7 +40,7 @@ final readonly class WebReleaseCompiler
         $release = $this->compiler->compile(
             builder: $graph->builder,
             register: static function (Registrar $registrar) use ($graph): void {
-                $graph->application->make(RouteFileLoader::class)->load($registrar);
+                $graph->application->make(RouteFileLoader::class)->loadForRelease($registrar);
             },
             environment: $settings->environment(),
             configFingerprint: $settings->configFingerprint(),
