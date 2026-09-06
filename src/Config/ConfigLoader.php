@@ -36,14 +36,14 @@ final class ConfigLoader
         $cacheDirectory = $this->configCacheEnabled($cacheControl)
             ? $this->configuredCachePath($cacheControl, $basePath)
             : null;
-        $overrides = ConfigMerge::mergeMany([$preset, $normalized]);
+        $overrides = $this->mergeConfigLayers([$preset, $normalized]);
 
         $cached = $cacheDirectory === null
             ? null
             : $this->loadCacheManifest($cacheDirectory);
         if (($cached['type'] ?? null) === self::TYPE_SINGLE) {
             return new ConfigRepository(
-                ConfigMerge::mergeMany([$cached['data'], $overrides]),
+                $this->mergeConfigLayers([$cached['data'], $overrides]),
                 compiled: true,
             );
         }
@@ -179,7 +179,7 @@ final class ConfigLoader
     /** @return array<string, mixed> */
     private function defaults(): array
     {
-        return ConfigMerge::mergeMany([FoundationDefaults::all(), AuthDefaults::all()]);
+        return $this->mergeConfigLayers([FoundationDefaults::all(), AuthDefaults::all()]);
     }
 
     private function ensureCacheDirectory(string $directory): void
@@ -249,6 +249,15 @@ final class ConfigLoader
         }
 
         return $map;
+    }
+
+    /**
+     * @param iterable<array<array-key, mixed>> $layers
+     * @return array<string, mixed>
+     */
+    private function mergeConfigLayers(iterable $layers): array
+    {
+        return $this->map(ConfigMerge::mergeMany($layers));
     }
 
     /**
