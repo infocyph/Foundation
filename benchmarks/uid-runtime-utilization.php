@@ -156,12 +156,12 @@ function uidRuntimeRemove(string $directory): void
     );
     foreach ($entries as $entry) {
         if ($entry->isDir()) {
-            @rmdir($entry->getPathname());
+            rmdir($entry->getPathname());
         } else {
-            @unlink($entry->getPathname());
+            unlink($entry->getPathname());
         }
     }
-    @rmdir($directory);
+    rmdir($directory);
 }
 
 $operations = max(1_000, (int) (getenv('UID_RUNTIME_OPERATIONS') ?: 25_000));
