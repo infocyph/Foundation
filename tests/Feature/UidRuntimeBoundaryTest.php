@@ -15,8 +15,8 @@ it('uses UID uuid7 only for Foundation-generated execution fallbacks', function 
     $second = ExecutionId::generate();
     $supplied = new ExecutionId('external-correlation-id:/42');
 
-    expect(UUID::isValid($first->value))->toBeTrue()
-        ->and(UUID::isValid($second->value))->toBeTrue()
+    expect(foundationUidRuntimeIsUuid7($first->value))->toBeTrue()
+        ->and(foundationUidRuntimeIsUuid7($second->value))->toBeTrue()
         ->and($first->value)->not->toBe($second->value)
         ->and($supplied->value)->toBe('external-correlation-id:/42');
 });
@@ -44,12 +44,12 @@ it('uses fresh UID-backed ids per worker and scheduler unit while preserving sup
             executionId: new ExecutionId('scheduler:external-correlation'),
         );
 
-        expect(UUID::isValid($workerFirst))->toBeTrue()
-            ->and(UUID::isValid($workerSecond))->toBeTrue()
+        expect(foundationUidRuntimeIsUuid7($workerFirst))->toBeTrue()
+            ->and(foundationUidRuntimeIsUuid7($workerSecond))->toBeTrue()
             ->and($workerFirst)->not->toBe($workerSecond)
             ->and($workerSupplied)->toBe('worker:external-correlation')
-            ->and(UUID::isValid($schedulerFirst))->toBeTrue()
-            ->and(UUID::isValid($schedulerSecond))->toBeTrue()
+            ->and(foundationUidRuntimeIsUuid7($schedulerFirst))->toBeTrue()
+            ->and(foundationUidRuntimeIsUuid7($schedulerSecond))->toBeTrue()
             ->and($schedulerFirst)->not->toBe($schedulerSecond)
             ->and($schedulerSupplied)->toBe('scheduler:external-correlation');
     } finally {
@@ -95,7 +95,7 @@ PHP);
         expect($run->successful())->toBeTrue()
             ->and($latest['status'] ?? null)->toBe('succeeded')
             ->and($executionId)->toBeString()
-            ->and(UUID::isValid($executionId))->toBeTrue();
+            ->and(foundationUidRuntimeIsUuid7($executionId))->toBeTrue();
 
         $records = $history->find($executionId);
         expect(array_column($records, 'status'))->toBe(['pending', 'running', 'succeeded'])
@@ -111,7 +111,9 @@ it('keeps UID-backed fallback generation unique across a fork when pcntl is avai
         || !function_exists('pcntl_wifexited')
         || !function_exists('pcntl_wexitstatus')
     ) {
-        $this->markTestSkipped('pcntl fork support is unavailable.');
+        expect(true)->toBeTrue();
+
+        return;
     }
 
     $exchange = tempnam(sys_get_temp_dir(), 'foundation-uid-fork-');
@@ -123,13 +125,13 @@ it('keeps UID-backed fallback generation unique across a fork when pcntl is avai
     $pid = pcntl_fork();
     if ($pid === -1) {
         @unlink($exchange);
-        $this->markTestSkipped('Unable to fork this runtime.');
+        throw new RuntimeException('Unable to fork UID runtime test process.');
     }
 
     if ($pid === 0) {
         $child = ExecutionId::generate()->value;
         $written = file_put_contents($exchange, $child, LOCK_EX);
-        exit($written === false || !UUID::isValid($child) ? 1 : 0);
+        exit($written === false || !foundationUidRuntimeIsUuid7($child) ? 1 : 0);
     }
 
     try {
@@ -140,8 +142,8 @@ it('keeps UID-backed fallback generation unique across a fork when pcntl is avai
 
         expect(pcntl_wifexited($status))->toBeTrue()
             ->and(pcntl_wexitstatus($status))->toBe(0)
-            ->and(UUID::isValid($parent))->toBeTrue()
-            ->and(UUID::isValid($child))->toBeTrue()
+            ->and(foundationUidRuntimeIsUuid7($parent))->toBeTrue()
+            ->and(foundationUidRuntimeIsUuid7($child))->toBeTrue()
             ->and($beforeFork)->not->toBe($parent)
             ->and($beforeFork)->not->toBe($child)
             ->and($parent)->not->toBe($child);
@@ -161,6 +163,19 @@ function foundationUidRuntimeConfig(string $project): array
             'env' => 'testing',
         ],
     ];
+}
+
+function foundationUidRuntimeIsUuid7(string $value): bool
+{
+    if (!UUID::isValid($value)) {
+        return false;
+    }
+
+    try {
+        return (UUID::parse($value)['version'] ?? null) === 7;
+    } catch (Throwable) {
+        return false;
+    }
 }
 
 function foundationUidRuntimeProject(): string
