@@ -1,0 +1,369 @@
+name: Patch Foundation plan once
+
+on:
+  push:
+    branches:
+      - foundation-3/runtime-architecture-plan
+    paths:
+      - .github/workflows/patch-foundation-plan-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: foundation-3/runtime-architecture-plan
+          fetch-depth: 0
+
+      - name: Patch canonical Foundation 3 plan
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('docs/plans/foundation-3-final-runtime-development-plan.md')
+          text = path.read_text(encoding='utf-8')
+
+          old = """### 26.6 Remaining lower-library passes
+
+With ArrayKit, UID, CacheLayer, OTP and Pathwise now carrying dedicated audit plans, continue the remaining specialist passes in this order:
+
+1. DBLayer — connection/transaction/runtime lifetimes, optional graph cost, query-cache integration and generated-runtime behavior;
+2. ReqShield — validation/sanitization/schema integration and removal of unnecessary unconditional DB coupling;
+3. Omnibus — messaging topology, message-ID propagation, handler middleware and Foundation worker integration;
+4. TalkingBytes — HTTP, inbound/outbound email, webhook and gRPC profile graph plus execution-scope behavior;
+5. Epicrypt — cryptographic/key/token/password boundaries and configuration/secrets lifecycle, including final OTP MFA/recovery secret derivation decisions;
+6. WebAuthn — passkey request/state/session boundaries and auth graph integration.
+
+Each pass updates **this same document**. Do not create another standalone runtime-plan file.
+"""
+
+          new = """### 26.6 DBLayer utilization pass — reserved next batch
+
+This slot is reserved for the DBLayer specialist pass. Before implementation, pin the current released DBLayer tag/commit directly from `infocyph/DBLayer`, then audit connection/transaction/runtime lifetimes, optional graph cost, query-cache integration, generated-runtime behavior, passkey atomic persistence and every Foundation database adapter. Do not infer this pass from older DBLayer reviews or package-index metadata.
+
+### 26.7 ReqShield utilization pass — reserved next batch
+
+This slot is reserved for the ReqShield specialist pass. Before implementation, pin the current released ReqShield tag/commit directly from `infocyph/ReqShield`, then audit validation/sanitization/schema ownership, request-boundary integration, optional capability cost and removal of unnecessary unconditional DB coupling.
+
+### 26.8 Omnibus utilization pass — reserved next batch
+
+This slot is reserved for the Omnibus specialist pass. Before implementation, pin the current released Omnibus tag/commit directly from `infocyph/Omnibus`, then audit messaging topology, message-ID propagation, handler middleware, retry/delivery semantics, execution-scope ownership and Foundation worker integration. Omnibus remains the messaging runtime; Foundation must not create a competing queue/message runtime.
+
+### 26.9 TalkingBytes 2.0.0 utilization pass
+
+**Baseline**
+
+- package: `infocyph/talkingbytes` `^2.0`;
+- audited release: TalkingBytes 2.0.0;
+- tag commit: `86d0e9dde8124ddeacea8ba7f81911af584b879b`.
+
+**Ownership decision**
+
+TalkingBytes owns communication protocol execution. Foundation owns application profile selection/composition and execution-lifecycle policy around those protocol objects.
+
+TalkingBytes owns:
+
+- HTTP request/response execution and client configuration;
+- retry, rate-limit, circuit-breaker, idempotency and cookie behavior supplied by TalkingBytes;
+- inbound/outbound email protocol, parsing/serialization and transport behavior;
+- webhook signing, verification, sender/receiver behavior and the `WebhookReplayStore` contract;
+- gRPC client invocation, generated-stub/native invocation, streaming and inbound dispatch contracts;
+- protocol-specific result/error objects and lower-layer transport semantics.
+
+Foundation owns:
+
+- named HTTP/email/webhook/gRPC application profiles;
+- build-time capability/profile selection and validation;
+- mapping configured gRPC/email/webhook handlers to application service IDs;
+- InterMix lifetime/scope selection for profile objects;
+- selecting the CacheLayer-backed webhook replay implementation;
+- production secret/reference policy for credentials, API keys and signing secrets;
+- deciding whether inbound gRPC/email processing participates in the existing worker execution boundary;
+- observability/correlation policy without duplicating TalkingBytes protocol logic.
+
+Foundation must not create another HTTP client, mail parser/transport, webhook signature runtime or gRPC protocol layer above TalkingBytes.
+
+**Confirmed current findings**
+
+1. `CommunicationProfiles::http()` correctly rejects production profiles that disable TLS peer or host verification. Preserve this fail-closed policy.
+2. `HttpClient` and `WebhookSender` are currently execution-scoped, while `CommunicationProfiles` is process-safe configuration state. This is safer than a blanket singleton because cookie jars and some resilience components are mutable, but the pass must explicitly classify profile state: cookie/session state must never leak across executions, while rate-limit/circuit-breaker semantics that are intended to span calls must not be accidentally reset every execution. If TalkingBytes needs a shareable resilience-state primitive, fix/consume that lower-layer primitive rather than introducing Foundation global mutable state.
+3. `CacheLayerWebhookReplayStore` currently constructs physical cache keys with `foundation:webhook:replay:`. CacheLayer 3.2.0 forbids `:` and limits keys to 64 characters. Reuse the canonical legal Foundation security-state key encoder from section 26.3 instead of inventing another webhook-specific encoder.
+4. The current replay claim uses lock → `has()` → `set()` and fails closed when coordination or persistence fails. Preserve the atomic claim semantics, but prove the lock and cache belong to the same authoritative security-state domain and that cleanup cannot mask the primary verification failure.
+5. Production `WebhookReceiver` correctly requires replay protection by default. Do not weaken this merely to make webhook composition optional.
+6. gRPC inbound dispatch is a narrow configured-service-ID boundary. Handler service IDs should be fixed during graph composition; actual handler resolution remains inside the active execution. An inbound gRPC server/process belongs to the existing worker runtime/lifecycle rather than creating a fifth Foundation runtime graph.
+7. Foundation currently exposes the HTTP/webhook/gRPC profile graph directly. Add TalkingBytes email profile integration only where application functionality requires inbound/outbound email; do not recreate MIME, SMTP/IMAP-style or chain behavior in Foundation.
+8. Communication credentials/signing secrets are configuration secrets, not release identities. Do not log them, place them in cache/replay keys or unnecessarily bake raw secret material into generated runtime metadata. Coordinate the final secret-source/protection policy with section 26.10.
+
+**Audit and implementation checklist**
+
+- [ ] Rescan every Foundation `Infocyph\\TalkingBytes` usage against the 2.0.0 tagged API and remove wrappers that add no application policy.
+- [ ] Keep `CommunicationProfiles` as the thin profile mapper and normalize/validate profile topology before production runtime load.
+- [ ] Classify every TalkingBytes-backed binding as immutable process state, execution-scoped state or intentionally shared concurrency-safe resilience state.
+- [ ] Keep cookie-bearing/session-bearing HTTP clients execution isolated; prove no cookie/header/auth mutation leaks between requests/jobs/Fibers.
+- [ ] Determine whether configured `RateLimiter`/`CircuitBreaker` state is intended to span executions. If yes, consume a lower-layer safe sharing mechanism; do not solve it with an unsafe Foundation singleton client.
+- [ ] Replace webhook replay physical keys with the section-26.3 security-state key encoder and keep TTL/replay namespaces domain-separated.
+- [ ] Validate production webhook replay topology during composition/release build, including authoritative store and usable same-domain lock.
+- [ ] Preserve fail-closed replay claiming and deterministic lock release.
+- [ ] Keep gRPC retry/streaming/native/generated-stub behavior lower-layer-owned.
+- [ ] Run each inbound gRPC call/stream execution through the existing worker execution scope/correlation lifecycle when Foundation owns the server process.
+- [ ] Add build-time validation for configured gRPC handler service IDs without eagerly instantiating handlers during graph compilation.
+- [ ] Add named inbound/outbound email profiles only through TalkingBytes native email APIs; keep message-chain/protocol ownership in TalkingBytes.
+- [ ] Keep outbound webhook HTTP-profile selection and retry/idempotency behavior delegated to TalkingBytes.
+- [ ] Ensure communication profile secrets remain `SensitiveParameter`/redaction-safe at Foundation logging and exception boundaries.
+- [ ] Keep the communication capability entirely absent from runtime graphs that do not select it.
+
+**Correctness and security acceptance**
+
+- [ ] Test production TLS peer/host verification cannot be disabled through a named HTTP profile.
+- [ ] Test HTTP profile auth modes, retry, idempotency, rate-limit/circuit behavior and cookie isolation through the Foundation bridge.
+- [ ] Test sequential and interleaved Fiber HTTP executions do not leak cookie/auth/request state.
+- [ ] Test webhook signature verification, age validation, replay acceptance once and concurrent duplicate rejection.
+- [ ] Test long/attacker-controlled webhook delivery IDs map to legal deterministic CacheLayer physical keys.
+- [ ] Test replay lock/cache failures fail closed and lock cleanup does not mask the primary failure.
+- [ ] Test production composition rejects replay-enabled webhook topology without the required secure CacheLayer capability.
+- [ ] Test gRPC unary/native/generated-stub and supported streaming paths without Foundation protocol duplication.
+- [ ] Test inbound gRPC service resolution occurs inside the correct execution scope and does not retain the previous call's state in a persistent worker.
+- [ ] Test inbound/outbound email profiles, once exposed, preserve TalkingBytes parsing/transport behavior and execution isolation.
+- [ ] Test secrets are absent from logs, exceptions, cache keys, generated route/container diagnostics and benchmark output.
+
+**Performance acceptance**
+
+Benchmark at minimum:
+
+1. communication capability absent versus enabled-but-unused graph/boot cost;
+2. direct TalkingBytes HTTP request construction/execution versus the Foundation profile bridge;
+3. warm stateless profile lookup and scoped client creation;
+4. cookie-enabled profile execution;
+5. retry/rate-limit/circuit-enabled profile execution with state attribution;
+6. direct webhook verification versus Foundation + CacheLayer replay claim;
+7. gRPC unary and representative streaming dispatch through the Foundation scope boundary;
+8. inbound/outbound email operations once integrated;
+9. repeated communication operations in a persistent worker with memory/state-isolation measurement.
+
+Do not cache or singletonize a mutable TalkingBytes client merely to improve a microbenchmark. Any lifetime optimization must preserve isolation and the intended resilience-state semantics.
+
+**Completion gate**
+
+The TalkingBytes tracker can be checked only when profile lifetimes are explicitly safe, webhook replay keys/claims conform to the hardened CacheLayer contract, production replay remains fail-closed, gRPC/email integrations use the existing Foundation execution lifecycle without protocol duplication, secret handling is proven safe and Foundation-vs-direct-TalkingBytes benchmarks record the final bridge overhead.
+
+### 26.10 Epicrypt 2.1 utilization pass
+
+**Baseline**
+
+- package: `infocyph/epicrypt` `^2.1`;
+- audited release: Epicrypt 2.1;
+- tag commit: `f80092978328cccaef0d2233b08ce95b453dd90a`.
+
+**Ownership decision**
+
+Epicrypt owns cryptographic primitives and high-level data-protection/key-derivation behavior. Foundation owns application key purpose, secret sourcing, persistence boundaries and auth-policy integration.
+
+Epicrypt owns, where semantics match the Foundation requirement:
+
+- purpose-isolated key derivation through `Generate\\KeyMaterial\\KeyDeriver`/HKDF;
+- key-material generation helpers;
+- high-level string/file/envelope data protection (`StringProtector`, `FileProtector`, `EnvelopeProtector`);
+- protection algorithms/options/results and protected-payload encoding;
+- password-hashing primitives/policy helpers;
+- MAC/signature/integrity primitives;
+- token/JOSE/certificate/key-exchange primitives when Foundation actually needs those protocols;
+- crypto-specific validation/error behavior and key/algorithm details.
+
+Foundation owns:
+
+- which application secrets exist and their semantic purposes;
+- mapping secret references to externally supplied key material at process boot;
+- purpose labels/domain separation between token signing, MFA-secret protection, recovery-code HMAC and other auth uses;
+- storage schema/key-version metadata and rotation rollout policy;
+- when protected values are decrypted/reprotected;
+- authorization/account behavior after cryptographic verification;
+- redaction/observability policy and keeping secrets out of generated release artifacts;
+- build-time validation that configured keys/algorithms are usable without performing sensitive request-time work during graph compilation.
+
+Foundation must not maintain parallel HKDF, encryption-envelope, MAC or password-hashing implementations when Epicrypt already provides the required contract.
+
+**Confirmed cross-pass findings**
+
+1. OTP recovery-code authentication currently domain-separates an HMAC key from the auth token secret. Domain separation is good, but unrelated security functions should not silently share one root-secret lifecycle. Foundation 3 should use a dedicated recovery key or derive purpose-specific subkeys from a deliberate master key through Epicrypt `KeyDeriver`.
+2. MFA factors expose OTP secrets as strings at the application boundary. Every durable store must protect those secrets at rest. Epicrypt's high-level data-protection layer is the canonical candidate; Foundation should not add a bespoke AES/Sodium wrapper.
+3. Token-signing keys, recovery-code HMAC keys and MFA-encryption keys must have different purpose labels/derived material even when one externally managed master secret is intentionally used.
+4. Release-generation config/artifacts are not a secret vault. Prefer stable secret references/identifiers in generated metadata and resolve key material from the deployment secret boundary at process boot.
+5. Key rotation must support decrypt/verify with still-valid previous key material while new writes use the active key, with durable key/version metadata sufficient for deterministic reprotection. Do not rely on trial-decrypting arbitrary unrelated keys without a bounded explicit key ring.
+6. Use Epicrypt high-level DataProtection services before assembling lower-level crypto primitives. Foundation policy should remain thin and purpose-oriented.
+
+**Audit and implementation checklist**
+
+- [ ] Inventory every Foundation cryptographic operation: password hashing, token signing/verification, recovery-code HMAC, MFA/passkey-related secret protection, encrypted configuration/domain values, integrity checks and random key generation.
+- [ ] Classify each operation as Epicrypt-owned primitive/high-level service or Foundation-owned policy; remove duplicate lower-level implementations only when semantics are exactly equivalent.
+- [ ] Introduce explicit purpose labels/versioning for every derived key, for example separate `foundation.auth.mfa-secret.v1`, `foundation.auth.recovery-hmac.v1` and token-signing purposes.
+- [ ] Use Epicrypt `KeyDeriver` for deliberate subkey derivation instead of ad-hoc HMAC-based derivation scattered across auth classes.
+- [ ] Decide whether recovery-code HMAC uses a dedicated externally supplied key or a derived subkey from one intentional auth master key; document the choice and rotation semantics.
+- [ ] Protect OTP MFA secrets at rest with Epicrypt high-level data protection and retain plaintext only for the narrow verification/provisioning execution window.
+- [ ] Carry key/version/purpose metadata sufficient for deterministic decryption and rotation without exposing raw key material.
+- [ ] Support active + bounded previous decryption/verification keys during rotation; new writes must use only the active key.
+- [ ] Keep secret material out of InterMix generated artifacts, Foundation generation manifests, cache keys, logs, exception messages and metrics labels.
+- [ ] Resolve external secret references once at process/runtime boot where practical; do not perform file/env/secret-provider discovery on request hot paths.
+- [ ] Keep cryptographic service objects singleton only when immutable/concurrency-safe and free of mutable per-execution secret state.
+- [ ] Prefer Epicrypt password APIs for password hashing/rehash policy where they match Foundation's public contract; never use reversible encryption for passwords.
+- [ ] Use Epicrypt token/JOSE/certificate primitives only for Foundation features that genuinely require those protocols. Do not increase dependency surface merely to maximize package usage.
+- [ ] Preserve structured Epicrypt exceptions internally while mapping them to non-sensitive application/auth failures externally.
+- [ ] Coordinate OTP secret/recovery decisions with section 26.4 and WebAuthn/application-secret decisions with section 26.11.
+
+**Correctness and security acceptance**
+
+- [ ] Test purpose-derived keys are deterministic for the same master/purpose and distinct across every Foundation security purpose.
+- [ ] Test recovery-code verification remains stable across the intended rotation window and rejects use of a key outside that window.
+- [ ] Test MFA secrets persist only in protected form for every production store and decrypt correctly for authorized verification/provisioning flows.
+- [ ] Test active-key writes plus previous-key reads/reprotection during rotation, including interrupted rotation/rollback behavior.
+- [ ] Test tampered protected payloads fail closed with no plaintext disclosure.
+- [ ] Test wrong purpose/key/version cannot decrypt or authenticate another Foundation domain's payload.
+- [ ] Test password hash/verify/rehash behavior through Foundation matches the selected Epicrypt policy.
+- [ ] Test generated runtime/release artifacts and normal logs contain no raw configured key or decrypted MFA secret.
+- [ ] Test sequential/Fiber/persistent-worker auth operations do not retain one execution's plaintext secret in reusable mutable state.
+- [ ] Test missing/malformed/unsupported production key configuration fails before traffic where composition-time validation is possible.
+
+**Performance acceptance**
+
+Benchmark at minimum:
+
+1. crypto capability absent versus enabled-but-unused graph/boot cost;
+2. direct Epicrypt key derivation versus Foundation purpose-key lookup/derivation;
+3. direct `StringProtector` protect/unprotect versus the Foundation MFA-secret storage bridge;
+4. active-key and previous-key decrypt/reprotect paths;
+5. password verify/rehash through direct Epicrypt versus Foundation auth adapter;
+6. recovery-code HMAC derivation/verification after the final key-lifecycle decision;
+7. repeated auth operations under persistent runtime with memory measurement.
+
+Cryptographic work is intentionally more expensive than ordinary application plumbing. Optimize Foundation wrapper/config lookup overhead, not away authentication, integrity, KDF or encryption guarantees.
+
+**Completion gate**
+
+The Epicrypt tracker can be checked only when all Foundation crypto sites are classified, duplicated key-derivation/data-protection code is removed or justified, MFA/recovery/token key purposes have explicit independent derivation/lifecycle, durable MFA secrets are protected at rest, rotation and redaction tests pass and Foundation-vs-direct-Epicrypt benchmarks record the final adapter overhead.
+
+### 26.11 WebAuthn 5.3.8 integration pass
+
+**Baseline**
+
+- package: `web-auth/webauthn-lib`;
+- current Foundation line: WebAuthn 5.3.x;
+- audited release: WebAuthn 5.3.8;
+- tag commit: `85d8ae791c87a34be91a7ff5cdb5606f67dedaab`;
+- target: raise/normalize the Foundation 3 floor to the audited 5.3.8 patch while preserving dependency compatibility.
+
+**Ownership decision**
+
+WebAuthn owns WebAuthn ceremony/protocol validation. Foundation owns challenge/credential persistence, account mapping, application policy and runtime composition around the library.
+
+WebAuthn owns:
+
+- public-key credential creation/request option objects and protocol parsing;
+- attestation/assertion response validation;
+- RP ID/origin/challenge/user-presence/user-verification/extension ceremony checks;
+- authenticator signature-counter validation rules;
+- credential record mutation resulting from a successful assertion, including new sign counter and backup state;
+- WebAuthn-specific codecs/value objects/events/exceptions.
+
+Foundation owns:
+
+- generating/storing/expiring/one-time-consuming ceremony challenge state;
+- mapping authenticated Foundation users/accounts to WebAuthn user handles;
+- durable credential record repository/schema;
+- atomically persisting the credential record returned by a successful ceremony;
+- registration/login/account policy, passkey naming and authorization;
+- CacheLayer/DBLayer topology and InterMix lifetime selection;
+- secret/redaction/observability policy and application-facing error mapping.
+
+Foundation must not reimplement assertion-counter, origin/RP, attestation, signature or challenge-validation algorithms already owned by WebAuthn.
+
+**Confirmed current findings**
+
+1. WebAuthn 5.3.8 `AuthenticatorAssertionResponseValidator::check()` performs ceremony validation and then mutates the verified `CredentialRecord` with the authenticator `signCount`, backup eligibility/status and initialized user-verification state before returning it. Foundation must persist that returned record correctly; it must not independently recreate the counter rules.
+2. The current Foundation DB-backed passkey usage path performs an ordinary update. Two valid concurrent assertions against the same old credential state can therefore lose ordering/state or overwrite a newer record. Coordinate section 26.6 so successful assertion persistence is atomic through compare-and-swap, an explicit version/counter condition, or an equivalent DBLayer transaction/row-lock primitive.
+3. WebAuthn challenge state is one-time authentication state. Any CacheLayer-backed consume path must use the atomic security-state claim/consume mechanics from section 26.3 rather than plain `get()` + `delete()`.
+4. Foundation has local Base64URL-style conversion at passkey boundaries. Compare exact semantics with WebAuthn 5.3.8's own codec/utilities and remove Foundation duplication when error/normalization behavior matches; do not change persisted credential IDs merely for code deduplication.
+5. Validator/logger/event-dispatcher wiring is process configuration. If validator instances are shared, finalize mutable setters before traffic and never mutate logger/event dispatcher per request. Challenge/options/ceremony request state remains execution-local.
+6. Backup-eligible/backed-up credentials can legitimately affect counter behavior. Foundation must trust the lower-layer ceremony result and atomically persist the returned state rather than impose a simplistic Foundation counter rule.
+
+**Audit and implementation checklist**
+
+- [ ] Pin Foundation's WebAuthn dependency floor to the audited 5.3.8 patch after confirming the complete suite on PHP 8.4/8.5 and the existing dependency matrix.
+- [ ] Rescan every Foundation WebAuthn class/import against 5.3.8 tagged APIs and remove stale/deprecated `PublicKeyCredentialSource` assumptions where the newer `CredentialRecord` contract applies.
+- [ ] Keep creation/assertion validation entirely in WebAuthn validators/ceremony steps; Foundation supplies repositories, options/policy and persistence only.
+- [ ] Make challenge issuance/consume state short-lived, execution-safe and one-time under concurrency using the hardened section-26.3 CacheLayer contract.
+- [ ] Ensure challenge namespace keys use the legal Foundation security-state physical-key encoder.
+- [ ] Persist the exact credential record returned after successful assertion, including counter/backup/UV state required by the library.
+- [ ] Implement atomic credential-state update through the DBLayer 26.6 pass; stale concurrent updates must fail/reload/revalidate according to a documented bounded policy rather than silently overwrite.
+- [ ] Keep credential repository services process-safe while user/challenge/ceremony request objects remain scoped/transient.
+- [ ] Review discoverable/resident-credential and user-handle lookup so a credential cannot be rebound to the wrong Foundation principal.
+- [ ] Compare Foundation Base64URL helpers with WebAuthn's tagged codec behavior and delete only genuinely redundant helpers.
+- [ ] Freeze validator logger/event-dispatcher configuration before production traffic; do not use mutable shared validator state as request context.
+- [ ] Preserve WebAuthn structured events/exceptions internally while returning non-sensitive authentication errors externally.
+- [ ] Keep credential public-key material, challenge values and attestation/assertion payloads out of ordinary logs unless an explicit safe diagnostic representation exists.
+- [ ] Keep WebAuthn capability absent from graphs when passkeys are disabled.
+
+**Correctness and security acceptance**
+
+- [ ] Test registration and assertion ceremonies through Foundation against WebAuthn 5.3.8 with valid/invalid origin, RP ID, challenge, user presence and user verification cases.
+- [ ] Test challenge expiry, one-time consumption and concurrent duplicate assertion so only one execution can consume the ceremony state.
+- [ ] Test successful assertion persists the returned sign counter, backup flags/status and UV-initialized state.
+- [ ] Test concurrent assertions against the same stored credential cannot lose a newer counter/state update.
+- [ ] Test stale atomic-update failure follows the documented bounded retry/reload policy and never converts a failed ceremony/state race into success.
+- [ ] Test backup-eligible/backed-up credential scenarios through the library rather than a Foundation-invented counter shortcut.
+- [ ] Test discoverable credential/user-handle mapping cannot cross principals.
+- [ ] Test Base64URL/credential-ID round trips before removing any Foundation helper.
+- [ ] Test validator configuration is immutable during persistent traffic and sequential/Fiber executions do not leak challenge/principal state.
+- [ ] Test disabled passkey capability adds no WebAuthn challenge/repository services to unrelated runtime graphs.
+- [ ] Test logs/errors contain no raw challenge, private secret or unnecessarily complete assertion payload.
+
+**Performance acceptance**
+
+Benchmark at minimum:
+
+1. passkey capability absent versus enabled-but-unused graph/boot cost;
+2. direct WebAuthn option/challenge construction versus the Foundation issuance bridge;
+3. direct assertion validation versus Foundation validation + challenge consume;
+4. credential lookup + successful atomic persistence;
+5. contention/stale-update path under representative concurrent assertions;
+6. discoverable-credential lookup where supported;
+7. repeated assertions in persistent runtime with memory/state-isolation measurement.
+
+Do not optimize by bypassing WebAuthn ceremony checks or weakening one-time challenge/counter persistence. Attribute Foundation cache/DB/policy overhead separately from the cryptographic/protocol cost already owned by WebAuthn.
+
+**Completion gate**
+
+The WebAuthn tracker can be checked only when Foundation is pinned/tested against 5.3.8, challenge consumption is atomic, credential state returned by WebAuthn is persisted atomically without duplicated counter logic, stale/deprecated integration assumptions are removed, persistent/concurrent isolation tests pass and direct-WebAuthn versus Foundation integration benchmarks record the final overhead.
+
+Each pass updates **this same document**. Do not create another standalone runtime-plan file.
+"""
+
+          if old not in text:
+              raise SystemExit('Expected 26.6 lower-library block was not found; refusing to patch.')
+
+          text = text.replace(old, new, 1)
+          replacements = {
+              '- [ ] TalkingBytes current-version utilization pass.': '- [ ] TalkingBytes 2.0.0 current-version utilization pass.',
+              '- [ ] Epicrypt current-version utilization pass.': '- [ ] Epicrypt 2.1 current-version utilization pass.',
+              '- [ ] WebAuthn integration pass.': '- [ ] WebAuthn 5.3.8 integration pass.',
+          }
+          for source, target in replacements.items():
+              if source not in text:
+                  raise SystemExit(f'Expected tracker line not found: {source}')
+              text = text.replace(source, target, 1)
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Commit plan update
+        shell: bash
+        run: |
+          git config user.name "abmmhasan"
+          git config user.email "7711128+abmmhasan@users.noreply.github.com"
+          git add docs/plans/foundation-3-final-runtime-development-plan.md
+          git diff --cached --check
+          git commit -m "add TalkingBytes Epicrypt and WebAuthn utilization plans"
+          git push origin HEAD:foundation-3/runtime-architecture-plan
