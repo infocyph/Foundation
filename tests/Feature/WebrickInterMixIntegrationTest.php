@@ -36,8 +36,8 @@ use Infocyph\Foundation\Http\Resolver\PrincipalResolverInterface;
 use Infocyph\Foundation\Http\Resolver\RequestPrincipalResolver;
 use Infocyph\Foundation\Http\Response\ExceptionRenderer;
 use Infocyph\Foundation\Logging\HttpExceptionLogger;
-use Infocyph\Foundation\Routing\RouteCacheManager;
-use Infocyph\Foundation\Routing\RouteCachePath;
+use Infocyph\Foundation\Routing\WebReleaseCompiler;
+use Infocyph\Foundation\Routing\WebReleaseRuntime;
 use Infocyph\Foundation\Routing\WebrickMiddlewareFactory;
 use Infocyph\Foundation\Session\SessionManager;
 use Infocyph\Foundation\Testing\TestKit;
@@ -46,14 +46,10 @@ use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Webrick\Middleware\MaintenanceModeMiddleware;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
-use Infocyph\Webrick\Router\Definition\Registrar;
+use Infocyph\Webrick\Router\Build\CompiledRouterArtifact;
 use Infocyph\Webrick\Router\Dispatch\MiddlewareAliases;
 use Infocyph\Webrick\Router\Kernel\RouterKernel;
-use Infocyph\Webrick\Router\Matching\FusedMatcher;
-use Infocyph\Webrick\Router\Matching\GeneratedMatcher;
-use Infocyph\Webrick\Router\Matching\ShardedMatcher;
 use Infocyph\Webrick\Router\Route\Collection;
-use Infocyph\Webrick\Support\RouteCache as WebrickRouteCache;
 
 interface FoundationTestGateway
 {
@@ -396,7 +392,7 @@ PHP,
     }
 });
 
-it('registers only middleware aliases required while building a route cache', function (): void {
+it('registers only middleware aliases required while compiling a Webrick release', function (): void {
     $project = foundationIntegrationProject([
         'routes/web.php' => <<<'PHP'
 <?php
@@ -406,59 +402,98 @@ Router::get('/cached-plain', static fn(): Response => Response::json(['ok' => tr
 Router::get('/cached-auth', static fn(): Response => Response::json(['ok' => true]), ['middleware' => ['auth']]);
 PHP,
     ]);
+    mkdir($project . '/bootstrap/cache', 0775, true);
+    $router = $project . '/bootstrap/cache/router.php';
+
     try {
-        MiddlewareAliases::reset();
-        $config = ['base_path' => $project, '_config_cache' => false, 'router' => ['matcher' => 'fused', 'files' => ['web.php']]];
-        $cli = Foundation::cli($config);
-        (new RouteCacheManager($cli))->write('fused', RouteCachePath::for($cli->config()));
-        $matcher = FusedMatcher::make()->enableCache(RouteCachePath::for($cli->config()));
-        [$route] = $matcher->match('GET', 'example.test', '/cached-plain');
-        expect($route->getPath())->toBe('/cached-plain')
+        foundationResetWebrickProductionRegistries();
+        $config = [
+            'app' => ['base_path' => $project, 'env' => 'production', 'debug' => false],
+            '_config_cache' => false,
+            'router' => [
+                'matcher' => 'fused',
+                'files' => ['web.php'],
+                'middleware' => ['globals' => ['pre' => [], 'post' => []]],
+            ],
+        ];
+        $release = new WebReleaseCompiler()->compile(
+            $config,
+            $project . '/bootstrap/cache/intermix.php',
+            $router,
+            $project . '/bootstrap/cache/release.json',
+            [],
+        );
+        expect($release['intermix']['skipped'] ?? null)->toBe([]);
+
+        $payload = require $router;
+        expect($payload)->toBeArray();
+        $artifact = CompiledRouterArtifact::fromPayload($payload);
+        $plain = null;
+        foreach ($artifact->routes() as $route) {
+            if ($route->getPath() === '/cached-plain') {
+                $plain = $route;
+                break;
+            }
+        }
+
+        expect($plain)->not->toBeNull()
             ->and(MiddlewareAliases::has('auth'))->toBeTrue()
             ->and(MiddlewareAliases::has('policy'))->toBeFalse()
             ->and(MiddlewareAliases::has('session'))->toBeFalse();
     } finally {
+        foundationResetWebrickProductionRegistries();
         foundationIntegrationRemoveDirectory($project);
     }
 });
 
-it('boots every legacy matcher artifact without source route registration', function (): void {
-    foreach (['fused', 'generated', 'sharded'] as $matcher) {
-        $project = foundationIntegrationProject([]);
-        $options = [
-            'base_path' => $project,
-            '_config_cache' => false,
-            'router' => [
-                'matcher' => $matcher,
-                'signed_urls' => ['key' => 'foundation-cache-signing-secret'],
-            ],
-        ];
-        $cacheApplication = Foundation::cli($options);
-        $config = $cacheApplication->config();
-        try {
-            WebrickRouteCache::build([
-                'cache' => RouteCachePath::for($config),
-                'matcher' => $matcher,
-                'register' => static function (Registrar $router): void {
-                    $router->get('/cached/{name}', 'foundationCachedRouteHandler', ['name' => 'cached.show']);
-                },
-                'signKey' => 'foundation-cache-signing-secret',
-                'fallbackAliasesFromRegistrar' => false,
-            ]);
-            RouteCachePath::markFresh($config);
+it('boots a compiled Webrick release without source route registration', function (): void {
+    $project = foundationIntegrationProject([
+        'routes/web.php' => <<<'PHP'
+<?php
+use Infocyph\Webrick\Router\Facade\Router;
+Router::get('/cached/{name}', 'foundationCachedRouteHandler', ['name' => 'cached.show']);
+PHP,
+    ]);
+    mkdir($project . '/bootstrap/cache', 0775, true);
+    $manifest = $project . '/bootstrap/cache/release.json';
 
-            $cachedMatcher = match ($matcher) {
-                'generated' => GeneratedMatcher::make(),
-                'sharded' => ShardedMatcher::make(),
-                default => FusedMatcher::make(),
-            };
-            $cachedMatcher->enableCache(RouteCachePath::for($config));
-            [$route, $parameters] = $cachedMatcher->match('GET', 'example.test', '/cached/Codex');
-            expect($route->getName())->toBe('cached.show')
-                ->and($parameters)->toBe(['name' => 'Codex']);
-        } finally {
-            foundationIntegrationRemoveDirectory($project);
-        }
+    $config = [
+        'app' => ['base_path' => $project, 'env' => 'production', 'debug' => false],
+        '_config_cache' => false,
+        'router' => [
+            'matcher' => 'fused',
+            'files' => ['web.php'],
+            'middleware' => ['globals' => ['pre' => [], 'post' => []]],
+        ],
+    ];
+
+    try {
+        $release = new WebReleaseCompiler()->compile(
+            $config,
+            $project . '/bootstrap/cache/intermix.php',
+            $project . '/bootstrap/cache/router.php',
+            $manifest,
+            [],
+        );
+        expect($release['intermix']['skipped'] ?? null)->toBe([]);
+        unlink($project . '/routes/web.php');
+
+        $runtime = WebReleaseRuntime::loadPrevalidated(
+            $config,
+            $manifest,
+            (string) $release['release_runtime_manifest_sha256'],
+            foundationCapabilities: [],
+        );
+        $response = $runtime->kernel->handle(Request::fake(
+            headers: ['Host' => 'example.test'],
+            uri: 'https://example.test/cached/Codex',
+        ));
+
+        expect($response->getStatusCode())->toBe(200)
+            ->and(foundationJsonResponse($response))->toBe(['name' => 'Codex']);
+    } finally {
+        foundationResetWebrickProductionRegistries();
+        foundationIntegrationRemoveDirectory($project);
     }
 });
 
