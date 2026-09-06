@@ -25,17 +25,19 @@ it('attempts every cleanup while preserving an existing primary failure', functi
 it('throws the first cleanup failure only when no primary failure exists', function (): void {
     $calls = [];
 
-    expect(fn() => CleanupGuard::run(
-        null,
-        static function () use (&$calls): void {
-            $calls[] = 'first';
-            throw new LogicException('first cleanup');
-        },
-        static function () use (&$calls): void {
-            $calls[] = 'second';
-            throw new RuntimeException('second cleanup');
-        },
-    ))->toThrow(LogicException::class, 'first cleanup');
+    expect(function () use (&$calls): void {
+        CleanupGuard::run(
+            null,
+            static function () use (&$calls): void {
+                $calls[] = 'first';
+                throw new LogicException('first cleanup');
+            },
+            static function () use (&$calls): void {
+                $calls[] = 'second';
+                throw new RuntimeException('second cleanup');
+            },
+        );
+    })->toThrow(LogicException::class, 'first cleanup');
 
     expect($calls)->toBe(['first', 'second']);
 });
