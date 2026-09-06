@@ -191,21 +191,21 @@ final readonly class FoundationReleaseRuntime
         return $runtime;
     }
 
-    /** @param array<string,mixed> $manifest */
-    private function releaseConfig(array $manifest, string $directory): ConfigRepository
-    {
-        return FoundationReleaseConfig::load(
-            $directory . DIRECTORY_SEPARATOR . $this->relative($manifest['config_path'] ?? null),
-            FoundationReleaseManifest::digest($manifest['config_sha256'] ?? null, 64, 'config_sha256'),
-        );
-    }
-
     private function relative(mixed $path): string
     {
         return str_replace(
             '/',
             DIRECTORY_SEPARATOR,
             FoundationReleaseManifest::relativePath($path, 'runtime path'),
+        );
+    }
+
+    /** @param array<string,mixed> $manifest */
+    private function releaseConfig(array $manifest, string $directory): ConfigRepository
+    {
+        return FoundationReleaseConfig::load(
+            $directory . DIRECTORY_SEPARATOR . $this->relative($manifest['config_path'] ?? null),
+            FoundationReleaseManifest::digest($manifest['config_sha256'] ?? null, 64, 'config_sha256'),
         );
     }
 }
