@@ -1615,7 +1615,7 @@ MessagingServiceProvider, InterMixExecutionScope→withinScope, deterministic Fo
 
 **IM-7 — Routing/HTTP InterMix boundary**
 
-Remove dynamic Container from Webrick boundary, place controller/middleware definitions before runtime creation and ensure HTTP services resolve from ProductionContainer.
+Remove dynamic Container from Webrick boundary, place controller/middleware/service definitions before runtime creation and ensure HTTP services resolve from ProductionContainer.
 
 **IM-8 — Optimize/artifacts**
 
@@ -1986,19 +1986,330 @@ Attribute the existing Phase 9 execution-boundary overhead before optimizing ID 
 
 The UID tracker can be checked only after all Foundation ID/randomness sites are classified, upstream identity reuse is proven, any eager-generation change is benchmark-driven, isolation/persistence tests pass and the final identity lifecycle is documented. No format change is required merely to complete the pass.
 
-### 26.3 Remaining lower-library passes
+### 26.3 CacheLayer 3.2.0 utilization pass
 
-After ArrayKit and UID, continue in this order:
+**Baseline**
 
-1. CacheLayer — capability boundaries, cache/store/lock lifetimes, native bulk paths and absent-capability cost;
-2. DBLayer — connection/transaction/runtime lifetimes, optional graph cost, query-cache integration and generated-runtime behavior;
-3. ReqShield — validation/sanitization/schema integration and removal of unnecessary unconditional DB coupling;
-4. Omnibus — messaging topology, message-ID propagation, handler middleware and Foundation worker integration;
-5. TalkingBytes — HTTP, inbound/outbound email, webhook and gRPC profile graph plus execution-scope behavior;
-6. OTP — MFA state/replay/storage boundaries and Foundation auth integration;
-7. Epicrypt — cryptographic/key/token/password boundaries and configuration/secrets lifecycle;
-8. WebAuthn — passkey request/state/session boundaries and auth graph integration;
-9. Pathwise — filesystem/storage policy, stream/upload/download boundaries and Webrick writer ownership.
+- package: `infocyph/cachelayer` `^3.2.0`;
+- audited release: CacheLayer 3.2.0;
+- tag commit: `481c664e7431fb1f901346046e34b31beb722854`.
+
+**Ownership decision**
+
+CacheLayer owns generic cache/storage mechanics and their correctness contracts. Foundation must compose them and add application/security policy rather than maintain competing cache, lock, counter, invalidation or cluster runtimes.
+
+CacheLayer owns:
+
+- PSR cache/simple-cache behavior and adapter implementation;
+- key/namespace validation;
+- per-cache serialization/compression/integrity policy through `CacheOptions`;
+- native bulk cache operations;
+- cache-native lock providers and lease handles;
+- atomic counter stores;
+- tiering and memoization primitives;
+- Node Cache and Cluster Cache invalidation/outbox behavior;
+- `AuthenticationStateCacheInterface` and its effective security-capability contract;
+- backend-specific fail-open/authoritative/integrity/coordination semantics.
+
+Foundation owns:
+
+- named application cache/store configuration;
+- explicit runtime/capability activation;
+- store selection per subsystem;
+- application-level shared-state topology validation;
+- security policy deciding which cache may hold authentication state;
+- logical-to-physical key encoding where Foundation owns the logical namespace;
+- DI lifetime and release-generation participation;
+- deciding whether a subsystem may use generic cache semantics, authoritative security-state semantics, or a durable non-cache store.
+
+Generic caches must remain flexible. Do **not** globally force every Foundation cache to be fail-closed, authoritative, signed or object-free merely because authentication state requires stricter semantics.
+
+**Confirmed current findings**
+
+1. Foundation's CacheLayer auth adapters currently use physical prefixes such as `foundation:auth:ttl:` and `foundation:auth:counter:`. CacheLayer 3.2.0 accepts only 1–64 character keys matching `[A-Za-z0-9_.-]+`; `:` is invalid and raw Foundation logical keys can also exceed the length limit. This is a real compatibility bug.
+2. `CacheLayerTtlStore::pull()` performs `get()` followed by `delete()`. That is not safe as one-time consumption when two executions race.
+3. `CacheLayerFactory` already exposes the important CacheLayer 3.2 options and can validate an explicitly marked authentication-state store, but `AuthCacheRegistrar` consumes plain `CacheInterface`. Production auth must therefore prove that the **selected** auth-state cache satisfies the native capability contract rather than assuming the application's default cache is safe.
+4. Foundation MFA challenge storage currently serializes an `MfaChallenge` object through the TTL store. A hardened auth-state cache should be able to run with native object payloads disabled; Foundation should prefer a scalar/array record plus rehydration unless there is a measured reason to require object serialization.
+5. Native CacheLayer atomic counters, locks, Node/Cluster cache and invalidation/outbox facilities are already the correct lower-layer ownership. Do not mirror them in Foundation.
+
+**Audit and implementation checklist**
+
+- [ ] Introduce one canonical Foundation auth-state physical-key encoder shared by TTL and counter adapters.
+- [ ] Encode/hash arbitrary Foundation logical auth keys into legal deterministic CacheLayer keys no longer than 64 characters; do not scatter ad-hoc character replacement across adapters.
+- [ ] Preserve domain separation in the physical namespace, for example short legal prefixes for TTL state versus counters followed by a full collision-resistant digest.
+- [ ] Require the production auth-state cache to implement `AuthenticationStateCacheInterface` and prove `isFailOpen() === false`, `hasPayloadIntegrity() === true`, `isAuthoritative() === true`, and a same-domain `authenticationStateLock()` is available where one-time/replay semantics require coordination.
+- [ ] Fail insecure auth-cache topology during composition/release validation, not on the first authentication request.
+- [ ] Allow an explicit dedicated auth-state cache/store so ordinary application caching does not inherit unnecessary security cost; the default cache may be reused only when it satisfies the full contract.
+- [ ] Make one-time `pull()`/consume operations race-safe through CacheLayer's native authentication-state lock or a stronger native atomic primitive if CacheLayer exposes one; do not build another Foundation lock runtime.
+- [ ] Require `AtomicCounterStoreInterface` for production security counters/rate/replay state. Keep the get+set counter adapter only for semantics where non-atomic behavior is explicitly acceptable.
+- [ ] Replace object-valued MFA challenge payloads with an exportable scalar/array record where practical so the auth-state cache can keep `allowObjects=false`.
+- [ ] Verify generic cache stores remain process/generation-safe singletons and do not capture request/job execution state.
+- [ ] Keep CacheLayer process memoizers/static convenience state out of Foundation execution-scoped DI unless an explicit subsystem contract requires it.
+- [ ] Use CacheLayer native bulk APIs for Foundation bulk get/set/delete work instead of per-key loops where semantics match.
+- [ ] Keep Node Cache / Cluster Cache invalidation, cursor/outbox and poison-event behavior lower-layer-owned; Foundation only supplies topology/configuration and application invalidation policy.
+- [ ] Keep optional CacheLayer capability activation explicit in `FoundationBuildContext`; package installation alone must not activate cache services in a production graph.
+- [ ] Recheck local/file/php-files/Redis/Valkey/PDO and tiered-store configuration against CacheLayer 3.2 security guidance without duplicating adapter-specific validation in Foundation.
+
+**Correctness and security acceptance**
+
+- [ ] Test legal physical key shape and <=64-character bound for long, Unicode-adjacent, colon-heavy and attacker-controlled logical auth keys.
+- [ ] Test deterministic mapping and collision resistance across TTL/counter domains.
+- [ ] Test production auth-cache rejection for fail-open, unsigned, non-authoritative and missing-lock profiles.
+- [ ] Test a valid dedicated authentication-state cache boots successfully while an unrelated default cache remains permissive.
+- [ ] Test concurrent one-time consumption so at most one execution receives the value.
+- [ ] Test lock release on success/failure/cancellation and ensure lock-cleanup errors cannot mask the primary auth failure.
+- [ ] Test atomic counter races under the production counter adapter.
+- [ ] Test hardened challenge serialization with native object payloads disabled.
+- [ ] Test sequential/Fiber/persistent-worker reuse does not leak cache coordination state between executions.
+- [ ] Test disabled CacheLayer capability leaves unrelated runtime graphs free of CacheLayer services/connections.
+- [ ] Test Cluster/Node integration through CacheLayer's own invalidation contracts rather than Foundation-specific replicas of them.
+
+**Performance acceptance**
+
+Benchmark at minimum:
+
+1. production graph with CacheLayer capability absent versus present-but-unused;
+2. first named-store construction and warm named-store lookup;
+3. direct CacheLayer get/set/delete versus the Foundation manager/adapter boundary;
+4. native CacheLayer bulk operations versus any previous Foundation loop;
+5. authentication-state key encoding overhead;
+6. coordinated one-time pull versus plain get/delete;
+7. atomic counter increment/reset;
+8. repeated cache operations in persistent worker/scheduler runtimes with memory measurement;
+9. Node/Cluster invalidation only where Foundation actually exposes that topology.
+
+Do not optimize away CacheLayer's security checks for auth state. Any hot-path optimization must be measured against direct CacheLayer and must preserve the lower-layer capability contract.
+
+**Completion gate**
+
+The CacheLayer tracker can be checked only when physical auth-key compatibility is fixed, the selected production auth-state cache is validated against CacheLayer's native capability contract, one-time state/counters have proven concurrency semantics, optional-capability cost remains cold, persistent-runtime tests pass and attribution benchmarks record the final Foundation overhead.
+
+### 26.4 OTP 6.0 utilization pass
+
+**Baseline**
+
+- package: `infocyph/otp` `^6.0` (Foundation development/integration dependency);
+- audited release: OTP 6.0;
+- tag commit: `524a94d7ac71d5d385f35596a89c472c8e1ba33f`;
+- OTP 6.0 requires PHP >=8.4 and integrates with CacheLayer `^3.1.1`; Foundation's CacheLayer floor is already newer at `^3.2.0`.
+
+**Ownership decision**
+
+OTP owns OTP algorithms and their algorithm-specific security mechanics. Foundation owns application auth policy, persistence and capability composition around them.
+
+OTP owns:
+
+- TOTP/HOTP/OCRA algorithm implementation;
+- verification windows, periods/counters and result objects;
+- provisioning URI/enrollment payload primitives;
+- replay-protection mechanics exposed by OTP over a secure CacheLayer authentication-state cache;
+- recovery-code generation/verification primitives and usage-store contract;
+- secret-rotation planning/result primitives;
+- GenericOtp one-time-code behavior when a true generic-code workflow is required;
+- OTP-specific encoding/parsing/validation details.
+
+Foundation owns:
+
+- whether OTP MFA is enabled and which OTP mode is selected;
+- normalized auth configuration and build-time validation;
+- factor persistence and authoritative compare-and-swap semantics;
+- selection/validation of the CacheLayer authentication-state backend;
+- challenge/session/application lifecycle around OTP verification;
+- operational logging/metrics and safe external error mapping;
+- protection/rotation lifecycle of persisted MFA secrets;
+- authorization/account policy after successful verification;
+- release/runtime capability activation so applications not using OTP pay no meaningful cost.
+
+Foundation must not reimplement TOTP/HOTP/OCRA math, time-window scanning, provisioning URI logic, recovery-code algorithms or OTP replay-key algorithms.
+
+**Current integration findings to preserve**
+
+- `AuthOtpServiceProvider` contributes OTP services only when the explicit OTP capability is present.
+- `OtpMfaVerifier` correctly uses OTP's cache-backed replay protection for TOTP and challenge/time OCRA.
+- HOTP disables redundant cache replay state and advances the authoritative factor counter through compare-and-swap; counter-based OCRA follows the same ownership. This split is correct and must be preserved.
+- `OtpRecoveryCodeStore` adapts OTP recovery-code usage state onto Foundation factor-store compare-and-swap rather than inventing a second recovery-code state database.
+- `OtpProvisioningService` already consumes OTP's TOTP/HOTP/OCRA/enrollment/recovery/rotation primitives instead of duplicating the algorithms.
+- `OtpConfigValidator` and `SharedStateTopology` already push important OTP/topology mistakes toward build/config validation rather than request-time surprises.
+
+**Confirmed current issues / required audits**
+
+1. `OtpMfaVerifier` catches broad `Throwable` failures and maps them to the generic external reason `invalid_configuration`. This is fail-closed but destroys the operational distinction between bad user input/configuration and unavailable security state, lock failure, cache/backend outage, CAS failure or an unexpected OTP runtime error.
+2. Production TOTP and non-counter OCRA depend on CacheLayer's authoritative/fail-closed/integrity/lock contract. That contract must become a release/composition gate through the CacheLayer pass rather than depending on first-use verification failure.
+3. `MfaFactor` carries the OTP secret as a string value. That does not prove plaintext persistence, but every production factor-store adapter must be audited to prove MFA secrets are protected at rest and never exposed through logs/cache keys/errors. Exact cryptographic/key-lifecycle design remains coordinated with the Epicrypt pass.
+4. Recovery-code HMAC currently derives a domain-separated key from the auth token secret. Keep the domain separation, but explicitly decide whether Foundation 3 should use a dedicated recovery-code key or a proper subkey derivation from a master secret; finalize this with the Epicrypt pass rather than silently coupling unrelated secret lifecycles.
+5. OTP rotation primitives can plan/describe secret rotation, but Foundation still owns atomic persistence/activation and concurrent verification policy during a rotation window.
+6. MFA challenge storage intersects the CacheLayer pass: logical challenge keys require the new legal physical key encoder, and a hardened auth-state cache should not require native object payloads merely because Foundation currently stores an object.
+
+**Audit and implementation checklist**
+
+- [ ] Keep OTP graph activation explicit and absent when `auth.drivers.mfa` does not select OTP/TOTP/HOTP/OCRA behavior.
+- [ ] Make secure CacheLayer authentication-state capability a build/release prerequisite for OTP modes that need replay/challenge state.
+- [ ] Preserve TOTP and non-counter OCRA replay ownership in OTP + CacheLayer; do not add duplicate Foundation replay bookkeeping.
+- [ ] Preserve HOTP and counter-OCRA monotonic state in the authoritative Foundation factor store with atomic compare-and-swap; do not maintain a second cache counter for the same semantic counter.
+- [ ] Verify every production `MfaFactorCompareAndSwapStoreInterface` implementation provides authoritative reads and truly atomic CAS under concurrency.
+- [ ] Keep OTP `RecoveryCodes` as the recovery-code algorithm/usage primitive and prove Foundation's adapter satisfies OTP's authoritative committed-count + atomic consumption contract.
+- [ ] Replace broad `catch (Throwable)` classification with a safe failure taxonomy that distinguishes invalid code/replay/configuration from security-state backend unavailable/lock failure/CAS exhaustion/unexpected internal failure for logs/metrics, while still returning a non-sensitive external authentication failure.
+- [ ] Ensure backend/lock failures stay fail-closed and are never converted into successful or retry-unbounded verification.
+- [ ] Audit every production MFA factor-store adapter for secret-at-rest protection, read/write rotation behavior and accidental secret disclosure. Do not assume the value object's string property describes storage format.
+- [ ] Keep OTP secrets out of cache keys, exception messages, logs, metrics labels and generated runtime artifacts.
+- [ ] Decide the recovery-code HMAC key lifecycle explicitly; keep domain separation and coordinate final cryptographic derivation with Epicrypt.
+- [ ] Use OTP's rotation planner/result types for OTP-specific rotation rules while Foundation owns durable CAS/transactional activation and account-policy transitions.
+- [ ] Prove concurrent secret rotation cannot lose a newer factor state or accept an unintended stale counter/recovery-code state.
+- [ ] Use OTP clock/window semantics directly; do not add Foundation manual TOTP period/skew calculations.
+- [ ] Keep provisioning URI/enrollment payload construction lower-layer-owned and Foundation mapping/persistence-only.
+- [ ] Adopt `GenericOtp` only for an actual generic one-time-code feature; do not route TOTP/HOTP/OCRA through it simply to increase API utilization.
+- [ ] Review OTP result objects and failure reasons so Foundation preserves useful structured data internally instead of reducing everything to booleans/strings too early.
+- [ ] Keep OTP service objects stateless/process-safe where possible; replay/counter/challenge state belongs in external authoritative stores, not mutable singletons.
+
+**Correctness and security acceptance**
+
+- [ ] Test TOTP valid/invalid verification, configured skew/window and deterministic test-clock behavior.
+- [ ] Test TOTP replay rejection and a concurrent replay race against the hardened authentication-state cache.
+- [ ] Test enrollment verification separately from steady-state replay semantics.
+- [ ] Test HOTP next-counter persistence and concurrent CAS races; exactly one valid state advance must win.
+- [ ] Test counter-based OCRA with durable CAS and challenge/time OCRA with OTP replay state.
+- [ ] Test recovery-code success, reuse rejection and concurrent consumption.
+- [ ] Test cache/backend outage, authentication-state lock failure, factor-store CAS exhaustion and unexpected OTP exceptions all fail closed while preserving the correct internal operational category.
+- [ ] Test production release/build rejects insecure or absent auth-state cache for OTP modes that require it.
+- [ ] Test secret rotation success, stale-CAS rejection, rollback/failure behavior and concurrent verification policy.
+- [ ] Test persisted secret protection for every production factor-store adapter without exposing secret material in test diagnostics.
+- [ ] Test sequential and interleaved Fiber verifications plus persistent-worker reuse for state isolation.
+- [ ] Test OTP capability absence leaves non-OTP auth graphs free of OTP/CacheLayer replay-state overhead unless CacheLayer is independently required.
+
+**Performance acceptance**
+
+Benchmark Foundation against direct OTP for the same semantic operation:
+
+1. graph/boot cost with OTP capability absent versus enabled;
+2. direct TOTP verification versus `OtpMfaVerifier` without replay I/O attribution hidden;
+3. replay-protected TOTP with CacheLayer lock/read/write;
+4. HOTP verification + factor-store CAS;
+5. representative OCRA counter and challenge/time suites;
+6. recovery-code verification/consumption;
+7. provisioning and secret rotation as administrative/build-plane paths rather than request-hot-path targets;
+8. repeated verification under a persistent runtime with memory measurement.
+
+Published OTP microbenchmarks are lower-layer evidence only. Foundation acceptance must measure the actual Foundation adapter/state-store boundary and attribute cache/CAS cost separately before optimizing wrapper code.
+
+**Completion gate**
+
+The OTP tracker can be checked only when OTP modes preserve the correct state-owner split, secure CacheLayer replay state is a release gate, all production factor stores prove authoritative atomic counter/recovery semantics and protected secret persistence, operational failure taxonomy is no longer collapsed, rotation/concurrency tests pass, optional activation stays cold and Foundation-vs-direct-OTP benchmarks are recorded.
+
+### 26.5 Pathwise 3.1 utilization pass
+
+**Baseline**
+
+- package: `infocyph/pathwise` `^3.1`;
+- audited release: Pathwise 3.1;
+- tag commit: `8226cf42747ae131486063cad39335d6dfc1c7f7`.
+
+**Ownership decision**
+
+Pathwise/Flysystem own filesystem/storage mechanics. Foundation owns application storage/security policy and Webrick owns HTTP transport/output.
+
+Pathwise owns:
+
+- filesystem creation through `StorageFactory` and Flysystem adapters;
+- path/mount resolution helpers;
+- file/directory copy/move/read/write/stream mechanics;
+- upload and download processors;
+- typed/readonly transfer result objects such as `DownloadPreparation` and `ChunkUploadState`;
+- upload validation, chunk handling, naming and optional malware-scanner invocation;
+- lower-level archive/path/symlink/traversal protections;
+- static mount/custom-driver registries as Pathwise process-level infrastructure.
+
+Foundation owns:
+
+- `filesystem.disks` application configuration and default-disk selection;
+- application-root relative path policy;
+- download allowed roots/extensions/size/attachment policy;
+- upload allowed types/extensions/size/image/chunk policy;
+- scanner capability/service composition;
+- ownership/cleanup of temporary files Foundation itself creates;
+- deciding which configured disks belong in each runtime graph;
+- offload policy such as X-Sendfile/X-Accel eligibility;
+- the bridge from Pathwise transfer results to Webrick response bodies.
+
+Webrick exclusively owns native HTTP response emission. Pathwise and Foundation may produce file/stream semantics but must never become competing SAPI/persistent-adapter writers.
+
+**Current integration findings to preserve**
+
+- `FilesystemResponseFactory` uses Pathwise's typed download result and emits Webrick `FileBody` for appropriate local files or portable stream/chunk bodies for mounted/non-local storage.
+- The current branch already returns `ChunkUploadState` directly; do not regress to array normalization/wrappers around Pathwise result objects.
+- `StorageRegistry` lazily builds configured filesystems and gives Foundation-scoped mount names. Process-level mount state is acceptable under Foundation's one compiled application/generation per production process rule.
+- `FilesystemTransferFactory` correctly applies Foundation policy to transient Pathwise upload/download processors rather than moving storage mechanics into Foundation.
+
+**Confirmed current issues**
+
+1. `FilesystemUploadRequestHandler` materializes a Webrick uploaded file into a Foundation-owned `foundation-upload-*` temporary path before passing it to Pathwise. If Pathwise validation/processing throws before consuming/moving that source, Foundation currently has no `finally` cleanup and can leak the temp file.
+2. Foundation exposes `filesystem.uploads.require_malware_scan` and sets `UploadProcessor::setRequireMalwareScan()`, but the normal graph does not inject a scanner with `setMalwareScanner()`. Pathwise correctly fails closed when scanning is required without a scanner, so enabling the Foundation flag currently leaves no complete composition path.
+3. Pathwise's mount and custom-driver registries are static process state. Foundation must treat them as generation/process boot state, never per-request/job mutable state; deployment generation changes should replace the process rather than hot-remount generation A into generation B.
+
+**Audit and implementation checklist**
+
+- [ ] Make ownership of Foundation-materialized upload temp files explicit from `moveTo()` until Pathwise has consumed/moved them.
+- [ ] Wrap normal and chunk-upload ingestion in deterministic cleanup; in `finally`, remove the Foundation temp file if it still exists.
+- [ ] Use the same primary-exception preservation semantics as `CleanupGuard`: cleanup failure may surface only when no primary upload/validation failure already exists.
+- [ ] Add explicit malware-scanner capability/service composition. When scanning is disabled, omit scanner graph/cost; when required, scanner availability must be validated before traffic.
+- [ ] Adapt the configured scanner to Pathwise's callable contract at a narrow compile-friendly boundary; do not create a parallel malware-scanning framework.
+- [ ] Preserve Pathwise fail-closed behavior when scanning is required and scanner execution fails/denies the file.
+- [ ] Keep `StorageRegistry` process/generation-scoped and initialize mounts once; prohibit request/job code from replacing global mounts or custom drivers.
+- [ ] Make custom Pathwise driver registration a build/process-boot concern with deterministic configuration and explicit package capability checks.
+- [ ] Treat generation replacement as process replacement for Pathwise static registries rather than adding production reset/unfreeze APIs merely for deploys.
+- [ ] Continue using Pathwise readonly result/domain objects directly where they express the operation; Foundation wrappers should exist only for real application policy.
+- [ ] Preserve local-file capability detection: Webrick `FileBody`/range/conditional handling for true local paths, portable streaming for mounted/non-local storage.
+- [ ] Permit X-Sendfile only for a true local file known to the web server; keep X-Accel explicit and configuration/policy driven.
+- [ ] Propagate unsupported storage-operation errors instead of silently pretending remote/mounted stores support local-path behavior.
+- [ ] Preserve Pathwise archive/traversal/symlink/bomb protections and ensure Foundation normalization never bypasses them.
+- [ ] Treat Pathwise local file-job/process helpers as local filesystem tooling, not as a replacement for Omnibus or Foundation distributed worker orchestration.
+- [ ] Audit all stream ownership so each resource is closed by exactly one documented layer and Webrick remains the sole native response writer.
+
+**Correctness and security acceptance**
+
+- [ ] Test Foundation temp cleanup after successful normal upload when the temporary source remains, and after every validation/storage exception path.
+- [ ] Test chunk-upload materialization cleanup for success, rejected chunk, invalid metadata and finalize failure.
+- [ ] Test cleanup failure cannot mask the primary Pathwise validation/storage exception.
+- [ ] Test `require_malware_scan=false` requires no scanner and `true` fails during composition/boot when scanner capability is absent.
+- [ ] Test scanner allow/deny/error behavior through the Foundation bridge without weakening Pathwise fail-closed semantics.
+- [ ] Test local, mounted and remote-style download paths including HEAD/range/conditional semantics through Webrick.
+- [ ] Test X-Sendfile rejection for mounted/non-local storage and explicit X-Accel policy.
+- [ ] Test typed `DownloadPreparation`/`ChunkUploadState` contracts are preserved.
+- [ ] Test repeated persistent-runtime access does not mutate/leak mount/driver topology between executions.
+- [ ] Test configured multi-disk mounts initialize deterministically and cannot be silently replaced at request/job runtime.
+- [ ] Test traversal/archive/symlink security cases through the Foundation-configured path rather than only standalone Pathwise.
+- [ ] Test stream/resource closure on success, partial read, exception and client-abort-style paths where the adapter permits simulation.
+
+**Performance acceptance**
+
+Benchmark at minimum:
+
+1. filesystem capability absent versus present-but-unused graph/boot cost;
+2. first `StorageRegistry` initialization and warm disk lookup;
+3. warm mounted/local path resolution;
+4. direct Pathwise upload versus Foundation request-materialization + Pathwise ingestion;
+5. failure-path temp cleanup overhead;
+6. chunk upload and finalize;
+7. direct Pathwise download preparation versus Foundation response bridge;
+8. remote/mounted stream setup and iteration through Webrick body abstractions;
+9. one-time mount/custom-driver boot cost;
+10. repeated persistent-runtime filesystem operations with memory measurement.
+
+Do not add another filesystem cache or response-stream abstraction unless the attribution shows measurable Foundation overhead that Pathwise/Webrick cannot already eliminate.
+
+**Completion gate**
+
+The Pathwise tracker can be checked only when Foundation-owned upload temps are deterministically cleaned, required malware scanning has a real build-time composition path, static mount/driver lifecycle is proven generation-safe, local/non-local Webrick response ownership remains correct, security regression tests pass and Foundation-vs-direct-Pathwise benchmarks record the final bridge overhead.
+
+### 26.6 Remaining lower-library passes
+
+With ArrayKit, UID, CacheLayer, OTP and Pathwise now carrying dedicated audit plans, continue the remaining specialist passes in this order:
+
+1. DBLayer — connection/transaction/runtime lifetimes, optional graph cost, query-cache integration and generated-runtime behavior;
+2. ReqShield — validation/sanitization/schema integration and removal of unnecessary unconditional DB coupling;
+3. Omnibus — messaging topology, message-ID propagation, handler middleware and Foundation worker integration;
+4. TalkingBytes — HTTP, inbound/outbound email, webhook and gRPC profile graph plus execution-scope behavior;
+5. Epicrypt — cryptographic/key/token/password boundaries and configuration/secrets lifecycle, including final OTP MFA/recovery secret derivation decisions;
+6. WebAuthn — passkey request/state/session boundaries and auth graph integration.
 
 Each pass updates **this same document**. Do not create another standalone runtime-plan file.
 
@@ -2348,14 +2659,14 @@ These remain unchecked until their dedicated deep audits are performed and merge
 
 - [ ] ArrayKit 5.1.1 current-version utilization pass.
 - [ ] UID 5.0 current-version utilization pass.
-- [ ] CacheLayer current-version utilization pass.
+- [ ] CacheLayer 3.2.0 current-version utilization pass.
 - [ ] DBLayer current-version utilization pass.
 - [ ] ReqShield current-version utilization pass.
 - [ ] Omnibus current-version utilization pass.
 - [ ] TalkingBytes current-version utilization pass.
-- [ ] OTP current-version utilization pass.
+- [ ] OTP 6.0 current-version utilization pass.
 - [ ] Epicrypt current-version utilization pass.
 - [ ] WebAuthn integration pass.
-- [ ] Pathwise current-version utilization pass.
+- [ ] Pathwise 3.1 current-version utilization pass.
 
 When a later library pass changes architecture or implementation order, update both its detailed section and the applicable checkboxes here in the same commit.
