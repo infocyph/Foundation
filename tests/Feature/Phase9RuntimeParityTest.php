@@ -163,6 +163,7 @@ PHP);
     );
 
     try {
+        foundationResetWebrickProductionRegistries();
         $developmentGraph = new WebGraphFactory()->compose($config, []);
         $development = $developmentGraph->application->boot()->handle($request);
         foundationResetWebrickProductionRegistries();
