@@ -173,7 +173,16 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y software-properties-common
-          sudo add-apt-repository -y ppa:ondrej/php
+          for attempt in 1 2 3 4 5; do
+            if sudo add-apt-repository -y ppa:ondrej/php; then
+              break
+            fi
+            if [ "$attempt" -eq 5 ]; then
+              echo "Unable to add the PHP package repository after ${attempt} attempts." >&2
+              exit 1
+            fi
+            sleep $((attempt * 5))
+          done
           sudo apt-get update
           sudo apt-get install -y apache2 apache2-utils nginx php8.4-fpm php8.4-opcache
 
