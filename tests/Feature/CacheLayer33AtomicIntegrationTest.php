@@ -58,7 +58,7 @@ it('fails composition when the selected CacheLayer store cannot provide atomic s
 });
 
 it('allows exactly one replay claimant one consume recipient and one CAS winner under contention', function (): void {
-    $dsn = getenv('FOUNDATION_TEST_REDIS_DSN') ?: 'redis://127.0.0.1:6379';
+    $dsn = foundationCacheLayer33RedisDsn();
     $namespace = 'foundation-33-' . bin2hex(random_bytes(8));
     $cache = Cache::redis(
         namespace: $namespace,
@@ -88,6 +88,23 @@ it('allows exactly one replay claimant one consume recipient and one CAS winner 
     }
 });
 
+function foundationCacheLayer33RedisDsn(): string
+{
+    $explicit = getenv('FOUNDATION_TEST_REDIS_DSN');
+    if (is_string($explicit) && $explicit !== '') {
+        return $explicit;
+    }
+
+    $host = getenv('IC_REDIS_HOST') ?: '127.0.0.1';
+    $port = getenv('IC_REDIS_PORT') ?: '6379';
+    $password = getenv('IC_REDIS_PASSWORD');
+    $credentials = is_string($password) && $password !== ''
+        ? ':' . rawurlencode($password) . '@'
+        : '';
+
+    return sprintf('redis://%s%s:%s', $credentials, $host, $port);
+}
+
 /** @return list<string> */
 function foundationCacheLayer33Workers(
     string $mode,
@@ -102,7 +119,7 @@ function foundationCacheLayer33Workers(
     for ($i = 0; $i < $count; ++$i) {
         $pipes = [];
         $process = proc_open(
-            [PHP_BINARY, $worker, $mode, $namespace, $dsn, $argument, '-'],
+            [PHP_BINARY, $worker, $mode, $namespace, $dsn, $argument],
             [
                 0 => ['pipe', 'r'],
                 1 => ['pipe', 'w'],
