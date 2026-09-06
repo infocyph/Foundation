@@ -6,12 +6,14 @@ namespace Infocyph\Foundation\Auth\Adapter\CacheLayer;
 
 use Infocyph\CacheLayer\Counter\AtomicCounterStoreInterface;
 use Infocyph\Foundation\Auth\Contract\Cache\CounterStoreInterface;
+use Infocyph\Foundation\Cache\FoundationCacheKey;
 
 final readonly class AtomicCounterStore implements CounterStoreInterface
 {
     public function __construct(
         private AtomicCounterStoreInterface $counters,
-        private string $prefix = 'foundation:auth:counter:',
+        private string $domain = 'foundation.auth.counter.v1',
+        private string $prefix = 'ac',
     ) {}
 
     public function increment(string $key, int $by = 1, ?int $ttlSeconds = null): int
@@ -26,6 +28,6 @@ final readonly class AtomicCounterStore implements CounterStoreInterface
 
     private function key(string $key): string
     {
-        return $this->prefix . $key;
+        return FoundationCacheKey::security($this->prefix, $this->domain, $key);
     }
 }
