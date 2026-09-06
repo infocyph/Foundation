@@ -105,6 +105,6 @@ In particular, do not:
 - replace deterministic artifact digests with random identifiers;
 - introduce Sonyflake/TBSL sequence coordination for a correlation boundary that does not need it.
 
-## Completion condition
+## Completion condition — satisfied
 
-Section 26.2 can be marked complete after the current-head PHPForge matrix passes the ULID correctness tests and validates `build/uid-5-runtime-benchmark.json`. At that point the canonical section-26.2 checklist/tracker should be reconciled to completed state and this evidence linked from the plan.
+Section 26.2 is complete. PHPForge `Security & Standards` run `34027855290` on implementation commit `4bf85922b845510fa96105d8d2af9d8ec2a4a43c` passed PHP 8.4/8.5 stable and prefer-lowest QA, PHPStan/Psalm analysis, clean production install, UID runtime benchmarks, and benchmark-schema validation on both PHP versions. The canonical Section 26.2 checklist and lower-library tracker are therefore checked complete.

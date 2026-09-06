@@ -1901,92 +1901,81 @@ The ArrayKit tracker can be checked only when the full config/environment source
 * audited release: UID 5.0;
 * tag commit: `4a95eb8058e73c72e74e44fedd25755198899eae`.
 
-UID 5.0 provides the Foundation-relevant identifier primitives directly: UUID v1-v8 generation/validation/parsing, monotonic/fork-aware UUIDv7 state, NanoID, ObjectID, RandomId, deterministic IDs and opaque IDs. Foundation must not recreate those algorithms.
+UID 5.0 owns the generic identifier mechanics Foundation needs: UUIDs, ULID, TypeID/ObjectID, random/opaque identifiers, deterministic identifiers, validation/parsing/encoding, and algorithm-specific monotonic/fork-aware state. Foundation must not recreate those mechanics.
 
 **Ownership decision**
 
-UID owns identifier generation, encoding, validation/parsing and algorithm-specific monotonic/fork-safe state.
+UID owns identifier generation and generic identifier mechanics. Foundation owns identifier **meaning and lifecycle**:
 
-Foundation owns identifier **lifecycle**:
-
-* deciding whether a logical execution needs a correlation identity at all;
-* choosing the algorithm/format according to semantics rather than API uniformity;
-* preserving and reusing an incoming request/message/job/execution identity where one already exists;
+* deciding whether a logical execution needs a correlation identity;
+* choosing the UID algorithm according to that semantic boundary;
+* preserving an authoritative incoming request/message/job/execution identity verbatim;
 * generating at most one fallback execution ID per logical execution;
-* propagating that identity through InterMix scope seeds, history, logging/events and nested execution boundaries;
-* keeping DI aliases and scope names semantic/stable rather than random;
-* keeping release/artifact trust identities as cryptographic digests/fingerprints rather than random UIDs;
-* distinguishing persisted/business/public IDs from transient staging/temp entropy.
+* propagating it through InterMix seeds, history, logging/events and nested command/message boundaries;
+* keeping DI aliases and scope names deterministic/semantic rather than random;
+* keeping release/artifact trust identities as cryptographic digests rather than random UIDs;
+* keeping security secrets/nonces and pure staging/temp entropy with their owning security/native primitives.
 
-Current Foundation centralizes non-web correlation generation in `Runtime\ExecutionId`, backed by `Id::uuid7()`. This is the correct architectural boundary. The utilization pass should optimize **when** that generation occurs and how identities are reused before considering a different UID algorithm.
+Foundation centralizes generated non-web correlation identity in `Runtime\ExecutionId`. The final Foundation 3 fallback is UID's default monotonic ULID through `Id::ulid()`. The semantic wrapper remains Foundation-owned, and its public constructor continues accepting any non-empty externally supplied correlation string.
+
+ULID is preferred here over UUIDv7 because this boundary needs a compact sortable correlation value rather than UUID interoperability: the generated representation is 26 characters, lexicographically sortable, monotonic and fork-aware without machine/sequence coordination. UUIDv7 remains a benchmark comparator and may still be selected by other Foundation domain-ID policies. Sonyflake/TBSL are not introduced for `ExecutionId` because their coordinated machine/sequence model is unnecessary for this correlation boundary.
 
 **Current reuse findings to preserve**
 
-* Omnibus-backed `InterMixExecutionScope` normalizes and reuses the message ID instead of generating a second Foundation correlation ID.
-* `WorkerRuntime` accepts a supplied execution identity and passes it through unchanged.
-* scheduler execution creates one identity per scheduled entry and reuses it for the scope/history/event lifecycle.
-* nested command execution inherits the active `ExecutionId` where available instead of creating a new one.
-* stable InterMix scope labels remain `foundation.cli`, `foundation.worker`, `foundation.scheduler`; execution IDs are seeds/correlation data and must never return to scope-name construction.
-* the minimal Webrick path does not need a Foundation-generated UUID merely to serve a request; do not add universal web correlation-ID generation unless an explicit feature requires it.
-
-**Algorithm/performance baseline**
-
-UID 5.0's published PHP 8.4 hotspot benchmark records approximately:
-
-| Generator |  Average |
-| --------- | -------: |
-| ObjectID  | 0.662 µs |
-| NanoID    | 0.777 µs |
-| UUID v4   | 1.136 µs |
-| UUID v7   | 2.067 µs |
-| RandomId  | 4.358 µs |
-
-Therefore `RandomId` is **not** a faster fallback than UUIDv7 in UID 5.0. NanoID/ObjectID are faster in that benchmark but change representation/semantics. Foundation must not switch algorithms solely for shorter output or microbenchmark ranking.
-
-UUIDv7 remains the default candidate where standard UUID interoperability, temporal ordering, operator familiarity and one correlation representation across subsystems are valuable. A compact alternative is acceptable only if the relevant Foundation boundary has no UUID/time-order contract and Foundation-specific measurement shows a meaningful gain.
+* Omnibus-backed `InterMixExecutionScope` normalizes and reuses the message ID (`omnibus:<message-id>`) instead of generating a second Foundation ID.
+* `WorkerRuntime` and `SchedulerRuntime` preserve a caller-supplied `ExecutionId` unchanged and generate a fallback only when none is supplied.
+* scheduler execution creates one identity per scheduled entry and reuses it across scope/history/event lifecycle.
+* nested command execution inherits the active `ExecutionId` instead of multiplying IDs.
+* stable InterMix scope labels remain `foundation.cli`, `foundation.worker`, `foundation.scheduler`; execution IDs are correlation seeds, never scope names.
+* the minimal Webrick path does not generate a Foundation execution ID merely to serve a request.
+* release generation names and `.staging-*` suffixes remain Foundation/native build-plane formatting where generic UID semantics are not the correct abstraction.
+* artifact/config/router/container trust remains digest/fingerprint based, and security randomness remains owned by its security subsystem.
 
 **Audit and implementation checklist**
 
-* [ ] Inventory every Foundation identifier/randomness creation and classify it as execution correlation, domain/public identity, release-generation identity, artifact hash/fingerprint, lock/token/security randomness, or transient staging/temp suffix.
-* [ ] Route semantic ID generation through UID primitives; do not route hashes, cryptographic secrets, nonces or pure temp entropy through UID merely for consistency.
-* [ ] Verify every request/message/job/command/schedule boundary reuses an upstream identity when one is already authoritative.
-* [ ] Preserve Omnibus message-ID reuse in `InterMixExecutionScope`.
-* [ ] Preserve supplied worker execution IDs without normalization into a second generated value.
-* [ ] Preserve nested command execution-ID inheritance.
-* [ ] Verify scheduler creates exactly one execution ID per logical scheduled run and reuses it across scope/history/events.
-* [ ] Review generic `ExecutionScope::run()` eager UUIDv7 fallback. Keep eager creation if its callback/history contract always requires an ID; make it lazy only if semantics remain clean and measurements justify additional complexity.
-* [ ] Review release generation IDs separately. Timestamp + cryptographic entropy may remain Foundation-owned build-plane formatting; do not replace transient `.staging-*` random suffixes merely to eliminate `random_bytes()` calls.
-* [ ] Ensure artifact/config/router/container trust continues to use digest/fingerprint identities, never UID randomness.
-* [ ] Rescan for accidental random IDs in DI aliases, provider IDs, scope names or other deterministic graph topology.
-* [ ] Check whether any Foundation-owned public/persisted IDs should deliberately use UID deterministic/opaque/NanoID/ObjectID primitives; document semantics before changing format.
+* [X] Inventory every Foundation identifier/randomness creation and classify it as execution correlation, domain/public identity, release-generation identity, artifact hash/fingerprint, lock/token/security randomness, or transient staging/temp suffix.
+* [X] Route semantic ID generation through UID primitives; do not route hashes, cryptographic secrets, nonces or pure temp entropy through UID merely for consistency.
+* [X] Verify every request/message/job/command/schedule boundary reuses an upstream identity when one is already authoritative.
+* [X] Preserve Omnibus message-ID reuse in `InterMixExecutionScope`.
+* [X] Preserve supplied worker execution IDs without normalization into a second generated value.
+* [X] Preserve nested command execution-ID inheritance.
+* [X] Verify scheduler creates exactly one execution ID per logical scheduled run and reuses it across scope/history/events.
+* [X] Review generic `ExecutionScope::run()` fallback generation. Keep one eager ULID fallback for a logical non-web execution because the execution callback/history contract requires the identity and measurement does not justify a second lazy-generation mechanism.
+* [X] Review release generation IDs separately. Timestamp + cryptographic entropy remains valid Foundation-owned build-plane formatting; transient `.staging-*` suffixes remain native entropy.
+* [X] Ensure artifact/config/router/container trust continues to use digest/fingerprint identities, never UID randomness.
+* [X] Rescan for accidental random IDs in DI aliases, provider IDs, scope names or other deterministic graph topology.
+* [X] Review Foundation-owned public/persisted ID policies. Existing auth ID policy continues delegating UUIDv7/ULID generation to UID; no additional format migration is required for this pass.
 
 **Correctness acceptance**
 
-* [ ] Test supplied execution-ID preservation byte-for-byte.
-* [ ] Test fallback generation uniqueness and UUIDv7 validity for the default execution path.
-* [ ] Test nested execution/command reuse rather than ID multiplication.
-* [ ] Test Omnibus message-ID propagation into Foundation execution state.
-* [ ] Test scheduler scope/history/event identity equality for the same run.
-* [ ] Test sequential and interleaved Fiber executions do not cross-contaminate IDs.
-* [ ] Test persistent worker reuse does not retain a previous job's identity.
-* [ ] Exercise UID UUIDv7 fork-state behavior where `pcntl_fork` is available and ensure Foundation adds no process-local wrapper state that defeats UID's fork reset.
+* [X] Test supplied execution-ID preservation byte-for-byte.
+* [X] Test fallback generation uniqueness, 26-character ULID validity and monotonic lexical ordering for the default execution path.
+* [X] Test nested execution/command reuse rather than ID multiplication.
+* [X] Test Omnibus message-ID propagation into Foundation execution state.
+* [X] Test scheduler scope/history/event identity equality for the same run, including `pending -> running -> succeeded`.
+* [X] Test sequential and interleaved Fiber executions do not cross-contaminate IDs.
+* [X] Test persistent worker reuse does not retain a previous job's identity.
+* [X] Exercise UID ULID fork-state behavior where `pcntl_fork` is available and ensure Foundation adds no process-local wrapper state that defeats UID's fork reset.
 
 **Performance acceptance**
 
-Benchmark the actual Foundation execution boundary rather than only raw generators:
+The final attribution benchmark is `benchmarks/uid-runtime-utilization.php` / `composer benchmark:uid`. It records:
 
-1. `ExecutionScope` with a caller-supplied ID;
-2. `ExecutionScope` with generated UUIDv7 fallback;
-3. raw UID UUIDv7 generation as attribution baseline;
-4. NanoID/ObjectID candidates only when their semantics are acceptable for the same boundary;
-5. repeated worker/scheduler executions under persistent runtime;
-6. nested command/message execution where identity is reused.
+1. raw UID UUIDv7 generation as the previous-format comparator;
+2. raw UID monotonic ULID generation;
+3. Foundation `ExecutionId::generate()` ULID wrapper cost;
+4. worker execution with caller-supplied identity;
+5. worker execution with generated ULID fallback;
+6. scheduler execution with caller-supplied identity;
+7. scheduler execution with generated ULID fallback.
 
-Attribute the existing Phase 9 execution-boundary overhead before optimizing ID generation. If UUIDv7 contributes only a small absolute fraction, preserve the simpler standard identity model.
+Nested command/message reuse remains a correctness/lifecycle contract rather than an invalid recursive `ExecutionScope` microbenchmark; InterMix correctly rejects duplicate entry of the same active scope.
 
-**Completion gate**
+**Completion gate — satisfied**
 
-The UID tracker can be checked only after all Foundation ID/randomness sites are classified, upstream identity reuse is proven, any eager-generation change is benchmark-driven, isolation/persistence tests pass and the final identity lifecycle is documented. No format change is required merely to complete the pass.
+All Foundation ID/randomness sites are classified, upstream identity reuse is proven, generated execution fallback is finalized as UID monotonic ULID, release/security/temp randomness ownership is documented, isolation/persistent/fork tests pass, and the final Foundation-vs-UID attribution benchmark is recorded in `docs/plans/foundation-3-uid-5-utilization-evidence.md`.
+
+**UID 5.0 completion evidence:** `Runtime\ExecutionId::generate()` delegates to `Id::ulid()` while arbitrary supplied correlation IDs remain byte-for-byte authoritative. `UidRuntimeBoundaryTest`, `ExecutionScopeIsolationTest`, `PersistentExecutionStateIsolationTest`, existing command/message lifecycle coverage and scheduler history coverage prove fallback uniqueness/ULID validity, supplied-ID preservation, Fiber/persistent isolation, Omnibus propagation, nested reuse, successful scheduler lifecycle reuse and fork safety. `benchmarks/uid-runtime-utilization.php` records the direct UID-versus-Foundation attribution boundary and emits `build/uid-5-runtime-benchmark.json`. PHPForge `Security & Standards` run `34027855290` on implementation commit `4bf85922b845510fa96105d8d2af9d8ec2a4a43c` passed PHP 8.4/8.5 stable and prefer-lowest QA, PHPStan/Psalm analysis, clean production install, UID benchmark execution and PHPForge benchmark-schema validation on both PHP versions. Section 26.2 is complete; no UID 5.0 library change is required.
 
 ### 26.3 CacheLayer 3.2.0 utilization pass
 
@@ -3632,7 +3621,7 @@ Phase 10 rescan evidence: the final three audit batches removed hidden developme
 Each item remains unchecked until its dedicated deep audit is performed and merged into this same plan:
 
 - [X] ArrayKit 5.2.0 current-version utilization pass.
-- [ ] UID 5.0 current-version utilization pass.
+- [X] UID 5.0 current-version utilization pass.
 - [ ] CacheLayer 3.2.0 current-version utilization pass.
 - [ ] DBLayer current-version utilization pass.
 - [ ] ReqShield current-version utilization pass.
