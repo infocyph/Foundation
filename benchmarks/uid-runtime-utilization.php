@@ -193,9 +193,17 @@ try {
 
     $workloads = [
         uidRuntimeMeasure(
-            'raw-uid-uuid7',
+            'raw-uid-uuid7-comparison',
             'component',
             static fn(): string => Id::uuid7(),
+            $operations,
+            $repetitions,
+            $warmup,
+        ),
+        uidRuntimeMeasure(
+            'raw-uid-ulid',
+            'component',
+            static fn(): string => Id::ulid(),
             $operations,
             $repetitions,
             $warmup,
@@ -220,7 +228,7 @@ try {
             $scopeWarmup,
         ),
         uidRuntimeMeasure(
-            'worker-generated-uuid7-fallback',
+            'worker-generated-ulid-fallback',
             'persistent-worker',
             static fn(): string => $workerRuntime->execute(
                 static fn(ExecutionId $id): string => $id->value,
@@ -241,7 +249,7 @@ try {
             $scopeWarmup,
         ),
         uidRuntimeMeasure(
-            'scheduler-generated-uuid7-fallback',
+            'scheduler-generated-ulid-fallback',
             'custom',
             static fn(): string => $schedulerRuntime->execute(
                 static fn(ExecutionId $id): string => $id->value,
@@ -263,7 +271,7 @@ try {
             'uid_reference' => InstalledVersions::getReference('infocyph/uid'),
             'foundation_commit' => getenv('GITHUB_SHA') ?: 'working-tree',
             'boundary' => 'UID generic generation with Foundation execution-correlation lifecycle',
-            'algorithm_decision' => 'Keep UUIDv7. NanoID/ObjectID are not equivalent correlation formats and are therefore not benchmark candidates for this boundary.',
+            'algorithm_decision' => 'Use monotonic ULID for Foundation-generated ExecutionId fallback: 26-character sortable representation with no machine/sequence coordination. UUIDv7 remains measured only as the previous-format comparison.',
             'nested_reuse_evidence' => 'Covered by command/message lifecycle tests; raw nested ExecutionScope entry is intentionally invalid while a worker scope is active.',
         ],
         'workloads' => $workloads,
