@@ -367,6 +367,29 @@ final readonly class FoundationReleaseCompiler
         return $sha256;
     }
 
+    private function releaseConfig(array $web, string $stage): array
+    {
+        $config = $web['foundation_config'] ?? null;
+        if (!is_array($config)) {
+            throw new \UnexpectedValueException('Foundation web compilation did not return normalized release config.');
+        }
+
+        $normalized = [];
+        foreach ($config as $key => $value) {
+            if (!is_string($key)) {
+                throw new \UnexpectedValueException('Foundation normalized release config must use string keys.');
+            }
+            $normalized[$key] = $value;
+        }
+
+        $path = 'config.php';
+
+        return [
+            'path' => $path,
+            'sha256' => FoundationReleaseConfig::write($stage . '/' . $path, $normalized),
+        ];
+    }
+
     private function removeDirectory(string $directory): void
     {
         if (!is_dir($directory)) {
@@ -381,25 +404,6 @@ final readonly class FoundationReleaseCompiler
             $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
         }
         rmdir($directory);
-    }
-
-    /**
-     * @param array<string,mixed> $web
-     * @return array{path:string,sha256:string}
-     */
-    private function releaseConfig(array $web, string $stage): array
-    {
-        $config = $web['foundation_config'] ?? null;
-        if (!is_array($config)) {
-            throw new \UnexpectedValueException('Foundation web compilation did not return normalized release config.');
-        }
-
-        $path = 'config.php';
-
-        return [
-            'path' => $path,
-            'sha256' => FoundationReleaseConfig::write($stage . '/' . $path, $config),
-        ];
     }
 
     private function root(string $releaseRoot): string
