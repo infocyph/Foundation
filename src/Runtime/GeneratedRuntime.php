@@ -56,43 +56,6 @@ final readonly class GeneratedRuntime
     }
 
     /**
-     * Load one immutable Foundation release without rebuilding its source graph.
-     * The generated artifact is still fully hash-validated by InterMix.
-     *
-     * @param array<int|string,mixed> $capabilities
-     */
-    public static function loadRelease(
-        RuntimeMode $runtime,
-        string $artifactPath,
-        string $expectedEnvironment,
-        string $expectedConfigFingerprint,
-        string $expectedIntermixDigest,
-        array $capabilities = [],
-    ): self {
-        if ($runtime === RuntimeMode::Web) {
-            throw new \InvalidArgumentException('Web production runtime must use the coordinated Webrick release loader.');
-        }
-
-        $metadata = GeneratedRuntimeMetadata::read($artifactPath);
-        self::assertReleaseMetadata($metadata, $expectedEnvironment, $expectedConfigFingerprint);
-        GeneratedRuntimeMetadata::assertPrevalidatedIdentity(
-            $artifactPath,
-            $metadata,
-            $runtime,
-            $capabilities,
-            $expectedIntermixDigest,
-        );
-
-        return self::finishBoot(
-            $runtime,
-            new StaticRuntimeGenerator()->load($artifactPath),
-            self::providerRegistry($metadata),
-            new Bootstrapper(),
-            $metadata,
-        );
-    }
-
-    /**
      * Trusted loading is valid only when both identities originate outside the
      * writable release directory (normally a trusted Foundation generation manifest).
      * This path deliberately does not rebuild the Foundation source graph.
@@ -137,6 +100,43 @@ final readonly class GeneratedRuntime
         return self::finishBoot(
             $runtime,
             self::loadArtifact($artifactPath, $trustedIntermixDigest),
+            self::providerRegistry($metadata),
+            new Bootstrapper(),
+            $metadata,
+        );
+    }
+
+    /**
+     * Load one immutable Foundation release without rebuilding its source graph.
+     * The generated artifact is still fully hash-validated by InterMix.
+     *
+     * @param array<int|string,mixed> $capabilities
+     */
+    public static function loadRelease(
+        RuntimeMode $runtime,
+        string $artifactPath,
+        string $expectedEnvironment,
+        string $expectedConfigFingerprint,
+        string $expectedIntermixDigest,
+        array $capabilities = [],
+    ): self {
+        if ($runtime === RuntimeMode::Web) {
+            throw new \InvalidArgumentException('Web production runtime must use the coordinated Webrick release loader.');
+        }
+
+        $metadata = GeneratedRuntimeMetadata::read($artifactPath);
+        self::assertReleaseMetadata($metadata, $expectedEnvironment, $expectedConfigFingerprint);
+        GeneratedRuntimeMetadata::assertPrevalidatedIdentity(
+            $artifactPath,
+            $metadata,
+            $runtime,
+            $capabilities,
+            $expectedIntermixDigest,
+        );
+
+        return self::finishBoot(
+            $runtime,
+            new StaticRuntimeGenerator()->load($artifactPath),
             self::providerRegistry($metadata),
             new Bootstrapper(),
             $metadata,
