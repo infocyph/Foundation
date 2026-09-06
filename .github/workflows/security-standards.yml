@@ -4,7 +4,7 @@ on:
   schedule:
     - cron: "0 0 * * 0"
   push:
-    branches: [ "main", "master", "foundation-3/runtime-architecture-plan" ]
+    branches: [ "main", "master" ]
   pull_request:
     branches: [ "main", "master", "develop", "development" ]
 
@@ -20,5 +20,3 @@ jobs:
       fail_on_skipped_tests: true
       integration_services: '["mysql","postgres","sqlite","redis","valkey","memcached"]'
       service_topologies: '{}'
-      benchmark_composer_script: "benchmark:representative"
-      benchmark_result_file: "build/benchmark-result.json"
