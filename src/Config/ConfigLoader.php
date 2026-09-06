@@ -6,6 +6,7 @@ namespace Infocyph\Foundation\Config;
 
 use Infocyph\ArrayKit\Config\ConfigMerge;
 use Infocyph\ArrayKit\Config\LazyFileConfig;
+use Infocyph\ArrayKit\Config\Support\Environment;
 
 final class ConfigLoader
 {
@@ -168,7 +169,7 @@ final class ConfigLoader
             return $this->cachePath($basePath, $control);
         }
 
-        $configured = $_ENV['APP_CONFIG_CACHE'] ?? $_SERVER['APP_CONFIG_CACHE'] ?? getenv('APP_CONFIG_CACHE');
+        $configured = Environment::get('APP_CONFIG_CACHE');
 
         return is_string($configured) && $this->configCacheEnabled($configured) && $configured !== ''
             ? $this->cachePath($basePath, $configured)
