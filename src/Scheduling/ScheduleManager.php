@@ -143,6 +143,7 @@ final readonly class ScheduleManager
             return 0;
         } catch (\Throwable $exception) {
             $primaryFailure = $exception;
+
             throw $exception;
         } finally {
             CleanupGuard::run(

@@ -40,8 +40,7 @@ final readonly class FoundationReleaseCompiler
         string $releaseRoot,
         array $capabilities = [],
         ?string $generation = null,
-    ): array
-    {
+    ): array {
         $releaseRoot = $this->root($releaseRoot);
         $generation ??= gmdate('YmdHis') . '-' . bin2hex(random_bytes(8));
         $this->assertGeneration($generation);
@@ -183,8 +182,7 @@ final readonly class FoundationReleaseCompiler
         string $final,
         string $generation,
         array $capabilities,
-    ): array
-    {
+    ): array {
         $this->mkdir($stage . '/web');
         $web = $this->web->compile(
             $config,
@@ -248,8 +246,7 @@ final readonly class FoundationReleaseCompiler
         array $capabilities,
         string $environment,
         string $configFingerprint,
-    ): array
-    {
+    ): array {
         $name = $runtime->value;
         $this->mkdir($stage . '/' . $name);
         $report = $this->nonWeb->compile(

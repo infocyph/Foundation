@@ -110,6 +110,7 @@ final readonly class WorkerManager
             return 0;
         } catch (\Throwable $exception) {
             $primaryFailure = $exception;
+
             throw $exception;
         } finally {
             CleanupGuard::run(
@@ -427,6 +428,7 @@ final readonly class WorkerManager
             ));
         } catch (\Throwable $exception) {
             $primaryFailure = $exception;
+
             throw $exception;
         } finally {
             CleanupGuard::run(
@@ -517,6 +519,7 @@ final readonly class WorkerManager
             $run();
         } catch (\Throwable $exception) {
             $primaryFailure = $exception;
+
             throw $exception;
         } finally {
             CleanupGuard::run(
