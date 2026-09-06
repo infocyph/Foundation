@@ -14,7 +14,7 @@ use Infocyph\Foundation\Session\Middleware\CsrfMiddleware;
 use Infocyph\Foundation\Session\Middleware\SessionMiddleware;
 use Infocyph\Webrick\Router\Dispatch\MiddlewareAliases;
 
-final class RouteMiddlewareRegistrar
+final readonly class RouteMiddlewareRegistrar
 {
     /** @var array<string, callable|string> */
     private const array ALIASES = [
@@ -35,7 +35,7 @@ final class RouteMiddlewareRegistrar
         'csrf' => CsrfMiddleware::class,
     ];
 
-    public function __construct(private readonly WebrickMiddlewareFactory $webrick) {}
+    public function __construct(private WebrickMiddlewareFactory $webrick) {}
 
     /**
      * Register only middleware aliases required by the selected route topology.
