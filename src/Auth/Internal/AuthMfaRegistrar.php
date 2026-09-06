@@ -10,6 +10,7 @@ use Infocyph\Foundation\Auth\Adapter\Otp\OtpProvisioningService;
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpRecoveryCodeService;
 use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
 use Infocyph\Foundation\Auth\Driver\AuthMfaDriver;
+use Infocyph\Foundation\Auth\Mfa\MfaFactorCompareAndSwapStoreInterface;
 use Infocyph\Foundation\Auth\Mfa\MfaFactorStoreInterface;
 use Infocyph\Foundation\Auth\Mfa\MfaVerifierInterface;
 use Infocyph\Foundation\Auth\Mfa\RecoveryCodeServiceInterface;
@@ -49,6 +50,10 @@ final readonly class AuthMfaRegistrar extends AbstractAuthRegistrar
 
     public function registerOtpSupport(): void
     {
+        if (!$this->hasExplicitBinding(MfaFactorCompareAndSwapStoreInterface::class)) {
+            $this->alias(MfaFactorCompareAndSwapStoreInterface::class, MfaFactorStoreInterface::class);
+        }
+
         if (!$this->hasExplicitBinding(OtpProvisioningService::class)) {
             $this->recipe(OtpProvisioningService::class, OtpProvisioningService::class, [
                 $this->stringConfig('auth.otp.issuer', 'Foundation'),
