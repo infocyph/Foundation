@@ -95,8 +95,10 @@ it('includes Foundation OAuth routes in compiled Webrick releases', function ():
         }
 
         expect($oauthMetadata)->not->toBeNull()
-            ->and($oauthMetadata->getPath())->toBe('/.well-known/oauth-authorization-server')
-            ->and($oauthMetadata->getHandler())->toBe([OAuthHttpHandler::class, 'metadata']);
+            ->and($oauthMetadata->getPath())->toBe('/.well-known/oauth-authorization-server');
+
+        $oauthPlan = $artifact->planForIndex($oauthMetadata->getIndex());
+        expect($oauthPlan->resolverSpec())->toBe([OAuthHttpHandler::class, 'metadata']);
     } finally {
         foundationResetWebrickProductionRegistries();
         DB::purge();
