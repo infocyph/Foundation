@@ -151,6 +151,44 @@ it('rejects host-local auth persistence cache coordination and OTP replay in dis
         ->and($otpIssues[0]->message)->toContain('cluster-visible');
 });
 
+it('rejects non-atomic fail-open unsigned or object-enabled production auth state', function (): void {
+    $config = new ConfigLoader()->load([
+        '_config_cache' => false,
+        'app' => [
+            'base_path' => sys_get_temp_dir(),
+            'env' => 'production',
+            'topology' => 'single_node',
+        ],
+        'auth' => [
+            'drivers' => ['cache' => 'cache'],
+        ],
+        'cache' => [
+            'default' => 'auth-state',
+            'default_counter' => 'auth-lockouts',
+            'stores' => [
+                'auth-state' => [
+                    'driver' => 'file',
+                    'fail_open' => true,
+                    'serialization' => ['allow_object_payloads' => true],
+                ],
+            ],
+            'counters' => [
+                'auth-lockouts' => ['driver' => 'redis'],
+            ],
+        ],
+    ]);
+
+    $issues = new ProductionSecurityValidator($config)->validate();
+    $messages = implode('; ', array_map(static fn(ConfigIssue $issue): string => $issue->message, $issues));
+
+    expect($messages)->toContain(
+        'atomic cache operations',
+        'fail_open must be false',
+        'enable payload integrity',
+        'disable object payloads',
+    );
+});
+
 it('accepts a secure single-node production posture and reports production configuration ready', function (): void {
     $app = Foundation::cli(foundationSecureProductionConfig('single_node'));
 
@@ -172,7 +210,10 @@ it('accepts cluster-visible database cache lock counter and OTP replay policy fo
         'username' => 'foundation',
         'password' => 'secret',
     ];
-    $config['cache']['stores']['auth-state'] = ['driver' => 'redis'];
+    $config['cache']['stores']['auth-state'] = [
+        'driver' => 'redis',
+        'fail_open' => false,
+    ];
     $config['cache']['lock'] = ['driver' => 'redis', 'store' => 'auth-state'];
 
     $app = Foundation::cli($config);
@@ -229,8 +270,18 @@ function foundationSecureProductionConfig(string $topology): array
         'cache' => [
             'default' => 'auth-state',
             'default_counter' => 'auth-lockouts',
+            'security' => [
+                'integrity_key' => bin2hex(random_bytes(32)),
+            ],
+            'serialization' => [
+                'allow_closure_payloads' => false,
+                'allow_object_payloads' => false,
+            ],
             'stores' => [
-                'auth-state' => ['driver' => 'file'],
+                'auth-state' => [
+                    'driver' => 'shared_memory',
+                    'fail_open' => false,
+                ],
             ],
             'counters' => [
                 'auth-lockouts' => ['driver' => 'redis'],
