@@ -10,6 +10,9 @@ namespace Infocyph\Foundation\Cache;
  * CacheLayer owns physical key grammar. Foundation owns the semantic domains
  * of its logical state and therefore derives compact, non-revealing keys at
  * the integration boundary instead of weakening CacheLayer's PSR key rules.
+ *
+ * XXH128 is used here only for fast opaque key mapping. It is not a
+ * cryptographic authentication, secret-derivation, or password primitive.
  */
 final class FoundationCacheKey
 {
@@ -19,18 +22,17 @@ final class FoundationCacheKey
 
     public static function fingerprint(string $prefix, string $domain, string $logicalKey): string
     {
-        return self::physical(
-            $prefix,
-            hash('xxh128', self::material($domain, $logicalKey)),
-        );
+        return self::physical($prefix, self::digest($domain, $logicalKey));
     }
 
     public static function security(string $prefix, string $domain, string $logicalKey): string
     {
-        $digest = hash('sha3-256', self::material($domain, $logicalKey), true);
-        $encoded = rtrim(strtr(base64_encode($digest), '+/', '-_'), '=');
+        return self::physical($prefix, self::digest($domain, $logicalKey));
+    }
 
-        return self::physical($prefix, $encoded);
+    private static function digest(string $domain, string $logicalKey): string
+    {
+        return hash('xxh128', self::material($domain, $logicalKey));
     }
 
     private static function material(string $domain, string $logicalKey): string
