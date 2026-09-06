@@ -73,8 +73,9 @@ The benchmark measures:
 3. worker execution with a caller-supplied identity;
 4. worker execution with generated UUIDv7 fallback;
 5. scheduler execution with a caller-supplied identity;
-6. scheduler execution with generated UUIDv7 fallback;
-7. nested execution with an explicitly reused identity.
+6. scheduler execution with generated UUIDv7 fallback.
+
+Nested correlation reuse is intentionally not microbenchmarked by recursively entering `ExecutionScope` from inside an active worker scope. InterMix correctly rejects duplicate activation of the same scope; nested identity reuse is a higher-level command/message lifecycle behavior and remains covered by the existing lifecycle tests instead.
 
 NanoID/ObjectID are intentionally not compared as replacement candidates because their compact representation is a semantic format change, not an equivalent implementation of Foundation's chosen UUID correlation contract.
 
