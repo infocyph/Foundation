@@ -22,6 +22,6 @@ final readonly class ExecutionId implements \Stringable
 
     public static function generate(): self
     {
-        return new self(Id::uuid7());
+        return new self(Id::ulid());
     }
 }
