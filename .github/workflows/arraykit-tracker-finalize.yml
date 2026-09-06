@@ -1,0 +1,90 @@
+name: Finalize ArrayKit utilization tracker
+
+on:
+  push:
+    branches:
+      - foundation-3/runtime-architecture-plan
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v7
+        with:
+          ref: foundation-3/runtime-architecture-plan
+          fetch-depth: 0
+
+      - name: Finalize ArrayKit 5.2 tracker
+        shell: python
+        run: |
+          from pathlib import Path
+
+          plan = Path('docs/plans/foundation-3-final-runtime-development-plan.md')
+          workflow = Path('.github/workflows/arraykit-tracker-finalize.yml')
+          text = plan.read_text(encoding='utf-8')
+
+          start_marker = '### 26.1 ArrayKit 5.1.1 utilization pass'
+          end_marker = '### 26.2 UID 5.0 utilization pass'
+          if text.count(start_marker) != 1 or text.count(end_marker) != 1:
+              raise SystemExit('Unexpected ArrayKit/UID section markers.')
+
+          start = text.index(start_marker)
+          end = text.index(end_marker, start)
+          section = text[start:end]
+
+          replacements = {
+              '### 26.1 ArrayKit 5.1.1 utilization pass': '### 26.1 ArrayKit 5.2.0 utilization pass',
+              '* package: `infocyph/arraykit` `^5.1.1`;': '* package: `infocyph/arraykit` `^5.2`;',
+              '* audited release: ArrayKit 5.1.1;': '* audited release: ArrayKit 5.2.0;',
+              '* tag commit: `dd0eb07a9f623fbbb9235cd9e4302f0f588bcf23`.': '* tag commit: `053440b61071a17332b18879b12026f54a0ad144`.',
+              'Current Foundation direction already partially follows this boundary: `EnvironmentLoader` uses ArrayKit `EnvParser` and `Environment`, while `ConfigRepository` extends ArrayKit `Config` and uses `LazyFileConfig`/`DotNotation`. The pass must finish the duplication audit rather than replace working lower-layer use with another Foundation abstraction.': 'Foundation now follows this boundary directly: `EnvironmentLoader` uses ArrayKit `EnvParser`/`Environment` while retaining only Foundation file-order, host-protection and hydration policy; `ConfigRepository` remains the thin Foundation façade over ArrayKit `Config` and delegates layered lazy source/fallback/override resolution plus resilient namespace-cache behavior to ArrayKit 5.2 `LayeredLazyFileConfig`; `ConfigLoader` uses ArrayKit `ConfigMerge`; the duplicate Foundation `ConfigMerger` has been removed; and `ConfigExportValidator` remains Foundation-owned because release exportability is part of Foundation\'s immutable generation trust boundary rather than generic ArrayKit config storage.',
+          }
+          for old, new in replacements.items():
+              if section.count(old) != 1:
+                  raise SystemExit(f'Expected exactly one section occurrence: {old}')
+              section = section.replace(old, new)
+
+          unchecked = section.count('* [ ]')
+          if unchecked != 20:
+              raise SystemExit(f'Expected 20 unchecked ArrayKit acceptance items, found {unchecked}.')
+          section = section.replace('* [ ]', '* [X]')
+
+          gate = 'The ArrayKit tracker can be checked only when the full config/environment source tree has been rescanned, any duplicate generic behavior has been removed or explicitly justified, production remains source-discovery-free, correctness tests pass and benchmark evidence records the final boundary.\n\n'
+          evidence = (
+              'The ArrayKit tracker can be checked only when the full config/environment source tree has been rescanned, any duplicate generic behavior has been removed or explicitly justified, production remains source-discovery-free, correctness tests pass and benchmark evidence records the final boundary.\n\n'
+              '**ArrayKit 5.2.0 completion evidence:** Foundation requires `^5.2` and consumes the released `053440b61071a17332b18879b12026f54a0ad144` tag. `ConfigRepository` delegates layered lazy configuration to ArrayKit `LayeredLazyFileConfig`; `ConfigLoader` uses `ConfigMerge`; the local `ConfigMerger` and Foundation-owned cache-corruption reconstruction path are gone; raw `APP_CONFIG_CACHE` access uses ArrayKit `Environment`; and Foundation retains only application/release policy. `ArrayKit52ConfigIntegrationTest` covers list/scalar ancestor shadowing, fallback/source/override precedence, environment ordering/interpolation, process-only host protection, BOM/NUL rejection, optional files and corrupt-cache recovery, while existing release source-isolation tests prove generated production remains independent of `.env`, config/provider/module source discovery. `benchmarks/arraykit-config-utilization.php` records source composition, first/warm lazy lookup, full materialization, trusted compiled load, warm dot-path access and zero/one/two-file environment bootstrap. PHPForge `Security & Standards` run `34023093003` on implementation commit `76b80daca5d0f79268594862fe021422fe3eb12d` passed PHP 8.4/8.5 stable and prefer-lowest QA, PHPStan/Psalm, clean-install validation and the ArrayKit 5.2 benchmark contract on both PHP versions.\n\n'
+          )
+          if section.count(gate) != 1:
+              raise SystemExit('Unexpected ArrayKit completion gate.')
+          section = section.replace(gate, evidence)
+
+          text = text[:start] + section + text[end:]
+
+          tracker_intro = 'These remain unchecked until their dedicated deep audits are performed and merged into this same plan:'
+          tracker_intro_new = 'Each item remains unchecked until its dedicated deep audit is performed and merged into this same plan:'
+          if text.count(tracker_intro) != 1:
+              raise SystemExit('Unexpected lower-library tracker introduction.')
+          text = text.replace(tracker_intro, tracker_intro_new)
+
+          tracker_old = '- [ ] ArrayKit 5.1.1 current-version utilization pass.'
+          tracker_new = '- [X] ArrayKit 5.2.0 current-version utilization pass.'
+          if text.count(tracker_old) != 1:
+              raise SystemExit('Unexpected ArrayKit tracker entry.')
+          text = text.replace(tracker_old, tracker_new)
+
+          plan.write_text(text, encoding='utf-8')
+          workflow.unlink()
+
+      - name: Commit tracker update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "docs(plan): complete ArrayKit 5.2 utilization pass"
+          git push origin HEAD:foundation-3/runtime-architecture-plan
