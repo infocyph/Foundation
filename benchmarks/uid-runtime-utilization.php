@@ -51,7 +51,7 @@ function uidRuntimeMeasure(
     sort($samples, SORT_NUMERIC);
     $median = $samples[intdiv(count($samples), 2)];
     $minimum = $samples[0];
-    $maximum = $samples[array_key_last($samples)];
+    $maximum = $samples[count($samples) - 1];
     $spread = (($maximum - $minimum) / max(0.000001, $median)) * 100;
     $attempted = $operations * $repetitions;
 
@@ -105,8 +105,9 @@ function uidRuntimeMeasure(
 function uidRuntimePercentile(array $samples, float $percentile): float
 {
     $index = (int) ceil($percentile * count($samples)) - 1;
+    $lastIndex = count($samples) - 1;
 
-    return $samples[max(0, min(array_key_last($samples), $index))];
+    return $samples[max(0, min($lastIndex, $index))];
 }
 
 /** @return array<string,mixed> */
@@ -253,7 +254,7 @@ try {
             'nested-execution-id-reuse',
             'persistent-worker',
             static fn(): string => $workerRuntime->execute(
-                static fn(ExecutionId $outer) use ($worker): string => $worker->execution()->run(
+                static fn(ExecutionId $outer): string => $worker->execution()->run(
                     static fn(ExecutionId $inner): string => $inner->value,
                     executionId: $outer,
                 ),
