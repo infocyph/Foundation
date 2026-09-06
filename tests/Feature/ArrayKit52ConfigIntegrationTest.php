@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Config\EnvironmentLoader;
-use UnexpectedValueException;
 
 it('delegates layered config precedence and structural shadowing to ArrayKit 5.2', function (): void {
     $project = arrayKit52ConfigProject([
@@ -121,9 +120,9 @@ it('propagates ArrayKit BOM and NUL rejection through the Foundation environment
 
     try {
         expect(fn() => new EnvironmentLoader()->load($bom))
-            ->toThrow(UnexpectedValueException::class);
+            ->toThrow(\UnexpectedValueException::class);
         expect(fn() => new EnvironmentLoader()->load($nul))
-            ->toThrow(UnexpectedValueException::class);
+            ->toThrow(\UnexpectedValueException::class);
     } finally {
         arrayKit52ConfigRemove($bom);
         arrayKit52ConfigRemove($nul);
