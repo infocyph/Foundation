@@ -9,10 +9,9 @@ use Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpHandler;
 use Infocyph\Foundation\Auth\OAuth\Http\OAuthRateLimitMiddleware;
 use Infocyph\Foundation\Auth\OAuth\OAuthManager;
 use Infocyph\Foundation\Foundation;
-use Infocyph\Foundation\Routing\RouteCacheManager;
-use Infocyph\Foundation\Routing\RouteCachePath;
+use Infocyph\Foundation\Routing\WebReleaseCompiler;
 use Infocyph\Webrick\Request\Request;
-use Infocyph\Webrick\Router\Matching\FusedMatcher;
+use Infocyph\Webrick\Router\Build\CompiledRouterArtifact;
 use Infocyph\Webrick\Router\Definition\Registrar;
 use Infocyph\Webrick\Router\Dispatch\MiddlewareAliases;
 
@@ -68,21 +67,38 @@ it('owns and resolves the complete opt-in OAuth HTTP surface', function (): void
     }
 });
 
-it('includes Foundation OAuth routes in generated route caches', function (): void {
+it('includes Foundation OAuth routes in compiled Webrick releases', function (): void {
     [$root, $privateKey, $publicKey] = foundationOAuthHttpKeyProject();
     $options = foundationOAuthHttpOptions($root, $privateKey, $publicKey);
-    $options['router']['cache'] = true;
+    mkdir($root . '/bootstrap/cache', 0775, true);
+    $router = $root . '/bootstrap/cache/router.php';
 
     try {
-        $cli = Foundation::cli($options);
-        new RouteCacheManager($cli)->write('fused', RouteCachePath::for($cli->config()));
+        $release = new WebReleaseCompiler()->compile(
+            $options,
+            $root . '/bootstrap/cache/intermix.php',
+            $router,
+            $root . '/bootstrap/cache/release.json',
+            [],
+        );
+        expect($release['intermix']['skipped'] ?? null)->toBe([]);
 
-        $matcher = FusedMatcher::make()->enableCache(RouteCachePath::for($cli->config()));
-        [$route] = $matcher->match('GET', 'identity.example.test', '/.well-known/oauth-authorization-server');
+        $payload = require $router;
+        expect($payload)->toBeArray();
+        $artifact = CompiledRouterArtifact::fromPayload($payload);
+        $oauthMetadata = null;
+        foreach ($artifact->routes() as $route) {
+            if ($route->getName() === 'oauth.metadata') {
+                $oauthMetadata = $route;
+                break;
+            }
+        }
 
-        expect($route->getName())->toBe('oauth.metadata')
-            ->and($route->getHandler())->toBe([OAuthHttpHandler::class, 'metadata']);
+        expect($oauthMetadata)->not->toBeNull()
+            ->and($oauthMetadata->getPath())->toBe('/.well-known/oauth-authorization-server')
+            ->and($oauthMetadata->getHandler())->toBe([OAuthHttpHandler::class, 'metadata']);
     } finally {
+        foundationResetWebrickProductionRegistries();
         DB::purge();
         foundationOAuthHttpRemoveProject($root);
     }
