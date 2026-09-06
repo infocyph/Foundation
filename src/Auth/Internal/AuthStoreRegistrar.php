@@ -38,7 +38,7 @@ use Infocyph\Foundation\Auth\Contract\Storage\{
 };
 use Infocyph\Foundation\Auth\Device\DeviceStoreInterface;
 use Infocyph\Foundation\Auth\Driver\AuthStorageDriver;
-use Infocyph\Foundation\Auth\Mfa\MfaFactorStoreInterface;
+use Infocyph\Foundation\Auth\Mfa\{MfaFactorCompareAndSwapStoreInterface, MfaFactorStoreInterface};
 use Infocyph\Foundation\Auth\Passkey\PasskeyCredentialStoreInterface;
 use Infocyph\Foundation\Auth\Support\{
     InMemoryAccountStore,
@@ -135,7 +135,7 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
         return [
             AccountStoreInterface::class => DBLayerAccountStore::class,
             SessionStoreInterface::class => DBLayerSessionStore::class,
-            MfaFactorStoreInterface::class => DBLayerMfaFactorStore::class,
+            MfaFactorCompareAndSwapStoreInterface::class => DBLayerMfaFactorStore::class,
             self::AUDIT_STORAGE => DBLayerAuditEventStore::class,
         ];
     }
@@ -150,7 +150,7 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
             EmailVerificationStoreInterface::class => InMemoryEmailVerificationStore::class,
             RememberTokenStoreInterface::class => InMemoryRememberTokenStore::class,
             RefreshTokenStoreInterface::class => InMemoryRefreshTokenStore::class,
-            MfaFactorStoreInterface::class => InMemoryMfaFactorStore::class,
+            MfaFactorCompareAndSwapStoreInterface::class => InMemoryMfaFactorStore::class,
             PasskeyCredentialStoreInterface::class => InMemoryPasskeyCredentialStore::class,
             RoleStoreInterface::class => InMemoryRoleStore::class,
             PermissionStoreInterface::class => InMemoryPermissionStore::class,
@@ -202,6 +202,7 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
         }
 
         $this->alias(AccountProviderInterface::class, AccountStoreInterface::class);
+        $this->alias(MfaFactorStoreInterface::class, MfaFactorCompareAndSwapStoreInterface::class);
         $this->alias(RoleAssignmentStoreInterface::class, RoleStoreInterface::class);
         $this->alias(PermissionAssignmentStoreInterface::class, PermissionStoreInterface::class);
     }
