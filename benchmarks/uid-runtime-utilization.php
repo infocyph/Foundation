@@ -250,20 +250,6 @@ try {
             $repetitions,
             $scopeWarmup,
         ),
-        uidRuntimeMeasure(
-            'nested-execution-id-reuse',
-            'persistent-worker',
-            static fn(): string => $workerRuntime->execute(
-                static fn(ExecutionId $outer): string => $worker->execution()->run(
-                    static fn(ExecutionId $inner): string => $inner->value,
-                    executionId: $outer,
-                ),
-                executionId: $supplied,
-            ),
-            $scopeOperations,
-            $repetitions,
-            $scopeWarmup,
-        ),
     ];
 
     $uidVersion = InstalledVersions::getPrettyVersion('infocyph/uid') ?? 'unknown';
@@ -278,6 +264,7 @@ try {
             'foundation_commit' => getenv('GITHUB_SHA') ?: 'working-tree',
             'boundary' => 'UID generic generation with Foundation execution-correlation lifecycle',
             'algorithm_decision' => 'Keep UUIDv7. NanoID/ObjectID are not equivalent correlation formats and are therefore not benchmark candidates for this boundary.',
+            'nested_reuse_evidence' => 'Covered by command/message lifecycle tests; raw nested ExecutionScope entry is intentionally invalid while a worker scope is active.',
         ],
         'workloads' => $workloads,
     ];
