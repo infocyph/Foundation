@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Auth\Adapter\DBLayer;
 
 use Infocyph\DBLayer\Connection\Connection;
+use Infocyph\DBLayer\Query\QueryBuilder;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DBLayerFactory;
 
@@ -46,13 +47,12 @@ abstract readonly class DBLayerStore
      */
     protected function deleteWhere(string $table, string $where, array $bindings = []): void
     {
-        $this->execute(
-            sprintf('DELETE FROM %s WHERE %s', $this->table($table), $where),
-            $bindings,
-        );
+        $this->query($table)->whereRaw($where, $bindings)->delete();
     }
 
     /**
+     * Execute intentionally raw SQL that is not a generic CRUD operation.
+     *
      * @param list<mixed> $bindings
      */
     protected function execute(string $sql, array $bindings = []): void
@@ -95,18 +95,7 @@ abstract readonly class DBLayerStore
      */
     protected function insertRecord(string $table, array $record): void
     {
-        $columns = array_keys($record);
-        $placeholders = implode(', ', array_fill(0, count($columns), '?'));
-
-        $this->execute(
-            sprintf(
-                'INSERT INTO %s (%s) VALUES (%s)',
-                $this->table($table),
-                implode(', ', $columns),
-                $placeholders,
-            ),
-            array_values($record),
-        );
+        $this->query($table)->insert($record);
     }
 
     protected function int(mixed $value, int $default = 0): int
@@ -117,6 +106,11 @@ abstract readonly class DBLayerStore
     protected function intOrNull(mixed $value): ?int
     {
         return is_numeric($value) ? (int) $value : null;
+    }
+
+    protected function query(string $table): QueryBuilder
+    {
+        return $this->connection()->table($this->table($table));
     }
 
     protected function string(mixed $value, string $default = ''): string
@@ -160,15 +154,7 @@ abstract readonly class DBLayerStore
      */
     protected function updateWhere(string $table, array $values, string $where, array $bindings = []): void
     {
-        $assignments = implode(', ', array_map(
-            static fn(string $column): string => sprintf('%s = ?', $column),
-            array_keys($values),
-        ));
-
-        $this->execute(
-            sprintf('UPDATE %s SET %s WHERE %s', $this->table($table), $assignments, $where),
-            [...array_values($values), ...$bindings],
-        );
+        $this->query($table)->whereRaw($where, $bindings)->update($values);
     }
 
     /**
@@ -184,25 +170,7 @@ abstract readonly class DBLayerStore
             ));
         }
 
-        $tableName = $this->table($table);
-        $keyValue = $record[$keyColumn];
-        $columns = $record;
-        unset($columns[$keyColumn]);
-
-        if ($this->exists(sprintf('SELECT %s FROM %s WHERE %s = ?', $keyColumn, $tableName, $keyColumn), [$keyValue])) {
-            $assignments = implode(', ', array_map(
-                static fn(string $column): string => sprintf('%s = ?', $column),
-                array_keys($columns),
-            ));
-
-            $this->execute(
-                sprintf('UPDATE %s SET %s WHERE %s = ?', $tableName, $assignments, $keyColumn),
-                [...array_values($columns), $keyValue],
-            );
-
-            return;
-        }
-
-        $this->insertRecord($table, $record);
+        $updateColumns = array_values(array_diff(array_keys($record), [$keyColumn]));
+        $this->query($table)->upsert($record, [$keyColumn], $updateColumns);
     }
 }
