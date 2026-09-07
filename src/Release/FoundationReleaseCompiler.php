@@ -193,7 +193,7 @@ final readonly class FoundationReleaseCompiler
         );
         $runtimeManifestSha256 = $this->rebaseWebReleaseManifest($stage, $final);
         $environment = $this->stringField($web, 'environment');
-        $configFingerprint = $this->digestField($web, 'config_fingerprint', 64);
+        $configFingerprint = $this->digestField($web, 'config_fingerprint', 32);
         $webCapabilities = FoundationReleaseManifest::capabilities(
             $web['foundation_capabilities'] ?? null,
             'web.capabilities',
