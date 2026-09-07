@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Infocyph\CacheLayer\Cache\Lock\FileLockProvider;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
+use Infocyph\Foundation\Cache\FoundationCacheKey;
 use Infocyph\Foundation\Command\CommandDispatcher;
 use Infocyph\Foundation\Command\CommandIO;
 use Infocyph\Foundation\Command\ExitCode;
@@ -309,7 +310,7 @@ it('skips overlapping scheduled work under shared CacheLayer ownership and recor
         $entry = $manager->entries()[0];
         $locks = new FileLockProvider($lockPath);
         $held = $locks->acquire(
-            'foundation-schedule-' . substr(hash('sha256', $entry->identity()), 0, 44),
+            FoundationCacheKey::fingerprint('schedule-lock', 'scheduled-command', $entry->identity()),
             0.0,
             5.0,
         );
