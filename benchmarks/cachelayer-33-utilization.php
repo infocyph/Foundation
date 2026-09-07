@@ -137,6 +137,20 @@ function cacheLayer33RedisDsn(): string
     return sprintf('redis://%s%s:%s', $credentials, $host, $port);
 }
 
+/** @return array{0:?AtomicCounters,1:?string} */
+function cacheLayer33RedisCounters(string $namespace): array
+{
+    if (!class_exists(Redis::class)) {
+        return [null, 'phpredis extension unavailable'];
+    }
+
+    try {
+        return [AtomicCounters::redis($namespace, cacheLayer33RedisDsn()), null];
+    } catch (Throwable $exception) {
+        return [null, $exception::class . ': ' . $exception->getMessage()];
+    }
+}
+
 $operations = max(1_000, (int) (getenv('CACHELAYER_BENCH_OPERATIONS') ?: 10_000));
 $repetitions = max(3, (int) (getenv('CACHELAYER_BENCH_REPETITIONS') ?: 7));
 $warmup = max(100, (int) (getenv('CACHELAYER_BENCH_WARMUP') ?: 500));
@@ -395,9 +409,9 @@ $workloads = [
     ),
 ];
 
-if (class_exists(Redis::class)) {
-    $counterNamespace = 'foundation-cachelayer-33-benchmark-' . bin2hex(random_bytes(4));
-    $nativeCounters = AtomicCounters::redis($counterNamespace, cacheLayer33RedisDsn());
+$counterNamespace = 'foundation-cachelayer-33-benchmark-' . bin2hex(random_bytes(4));
+[$nativeCounters, $redisCounterSkipReason] = cacheLayer33RedisCounters($counterNamespace);
+if ($nativeCounters instanceof AtomicCounters) {
     $foundationCounters = new AtomicCounterStore($nativeCounters);
     $nativeCounters->delete('direct-counter');
     $foundationCounters->reset('auth:counter');
@@ -473,6 +487,9 @@ $result = [
         'foundation_commit' => getenv('GITHUB_SHA') ?: 'working-tree',
         'boundary' => 'Foundation logical state/key policy over CacheLayer 3.3 native atomic and bulk capabilities',
         'key_policy' => 'SHA3-256/Base64URL is used for security-sensitive physical keys; XXH128 is used for non-security fingerprinting and compaction.',
+        'redis_counter_workloads' => $redisCounterSkipReason === null
+            ? 'executed'
+            : 'skipped: ' . $redisCounterSkipReason,
     ],
     'workloads' => $workloads,
 ];
