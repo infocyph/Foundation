@@ -101,6 +101,21 @@ return [
     'default' => env_string('DB_CONNECTION', 'sqlite'),
 
     /**
+     * DBLayer connection pooling is an explicit persistent-runtime optimization.
+     * It remains disabled by default until application benchmarks justify it.
+     * When enabled, each Foundation execution owns an exclusive DBLayer lease;
+     * DBLayer owns release sanitation and the underlying process-local pool.
+     */
+    'pool' => [
+        'enabled' => env_bool('DB_POOL_ENABLED', false),
+        'min_connections' => env_int('DB_POOL_MIN_CONNECTIONS', 0),
+        'max_connections' => env_int('DB_POOL_MAX_CONNECTIONS', 10),
+        'idle_timeout' => env_int('DB_POOL_IDLE_TIMEOUT', 60),
+        'max_lifetime' => env_int('DB_POOL_MAX_LIFETIME', 3_600),
+        'health_check_interval' => env_int('DB_POOL_HEALTH_CHECK_INTERVAL', 30),
+    ],
+
+    /**
      * DBLayer query-result caching is a separate opt-in from database capability.
      * When enabled, `store` must explicitly name a Foundation CacheLayer store.
      * The cache capability remains cold when this feature is disabled.
