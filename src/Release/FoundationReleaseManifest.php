@@ -16,7 +16,7 @@ final class FoundationReleaseManifest
         }
         self::identifier($manifest['generation'] ?? null, 'generation');
         self::nonEmptyString($manifest['environment'] ?? null, 'environment');
-        self::digest($manifest['config_fingerprint'] ?? null, 64, 'config_fingerprint');
+        self::digest($manifest['config_fingerprint'] ?? null, 32, 'config_fingerprint');
         self::relativePath($manifest['config_path'] ?? null, 'config_path');
         self::digest($manifest['config_sha256'] ?? null, 64, 'config_sha256');
 
