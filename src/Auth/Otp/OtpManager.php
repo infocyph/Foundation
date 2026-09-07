@@ -260,7 +260,7 @@ final readonly class OtpManager
         int $ttlSeconds = 120,
     ): AotpChallenge {
         $factor = $this->requireFactor($accountId, $factorId, MfaFactorType::AOTP);
-        $context = 'foundation:aotp:enrollment:v1:' . hash('sha256', $accountId . "\0" . $factorId);
+        $context = 'foundation:aotp:enrollment:v1:' . hash('sha3-256', $accountId . "\0" . $factorId);
 
         return $this->verifier->challengeFactors()->issueAotp($factor, $context, $ttlSeconds);
     }
