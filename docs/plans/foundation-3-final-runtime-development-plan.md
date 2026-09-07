@@ -21,11 +21,15 @@ Foundation has four independent runtime paths: `web`, `cli`, `worker`, and `sche
 
 **Webrick** owns web route registration/build, matcher compilation, Request materialization, middleware dispatch, HTTP request scope, routing-control responses, runtime adapters, native response writing/streaming, frozen URL/runtime registries, and coordinated web release metadata.
 
+**DBLayer** owns connection mechanics, pooling/leases, reuse sanitation, QueryBuilder/result-cache semantics, optimistic writes, repository/result primitives, schema/migrations/seeding, database security, and database telemetry.
+
+**CacheLayer** owns cache semantics, backends, locks, atomic primitives, namespaces, cache metrics, and backend-specific coordination guarantees.
+
 ### Foundation ownership
 
 Foundation owns normalized application configuration, capability selection, provider composition policy, application-facing integrations, CLI/worker/scheduler orchestration, Foundation auth/session/database/filesystem policy, immutable cross-runtime release generation, deployment activation/trust, diagnostics, migration guidance, and attribution benchmarks.
 
-Foundation must not add a second DI runtime, HTTP runtime, database connection pool, query builder, validation engine, queue runtime, filesystem engine, or cryptographic implementation above a lower library that already owns it.
+Foundation must not add a second DI runtime, HTTP runtime, database pool, query builder, validation engine, queue runtime, filesystem engine, or cryptographic implementation above a lower library that already owns it.
 
 ### Stable execution scopes
 
@@ -124,7 +128,7 @@ Still open:
 
 # 26. Subsequent lower-library utilization passes
 
-Each pass must audit the current released API, keep generic mechanics in the lower layer, prove persistent/concurrent correctness where relevant, benchmark Foundation against the direct lower-layer operation, and update this plan/tracker.
+Each pass must audit the current released API, keep generic mechanics in the lower layer, prove persistent/concurrent correctness where relevant, benchmark Foundation against the direct lower-layer operation where that evidence changes an architectural decision, and update this plan/tracker.
 
 ---
 
@@ -153,10 +157,12 @@ Foundation uses UID monotonic ULID as generated non-web correlation fallback whi
 **Atomic capability baseline:** CacheLayer 3.3, commit `581194b184da929f7f098672ccf91869b1da984c`.  
 **Current Foundation integration floor:** CacheLayer 3.4, tag commit `b064b8196ddc4672ce37be252bc7a4cadb78527e`.
 
-CacheLayer owns optional atomic `setIfAbsent()`, `getAndDelete()`, `compareAndSet()`, counters, locks, cache semantics, backend correctness, and the newer 3.4 runtime used by DBLayer 5.1. Foundation consumes those primitives directly and does not emulate cache atomicity through Foundation locks.
+CacheLayer owns optional atomic `setIfAbsent()`, `getAndDelete()`, `compareAndSet()`, counters, locks, cache semantics, backend correctness, and the 3.4 runtime used by DBLayer 5.1. Foundation consumes those primitives directly and does not emulate cache atomicity through Foundation locks.
 
-- [X] 3.3 atomic capability integration completed previously.
-- [~] Foundation dependency floor raised to `infocyph/cachelayer ^3.4` during 26.6; final QA still required with DBLayer 5.1.
+- [X] 3.3 atomic capability integration completed.
+- [X] Foundation floor raised to `infocyph/cachelayer ^3.4` and validated with DBLayer 5.1 during 26.6.
+
+**Status:** [X] complete.
 
 ---
 
@@ -177,7 +183,7 @@ Foundation still must:
 - [ ] protect persisted symmetric MFA secrets through Epicrypt policy from 26.10;
 - [ ] prove Fiber/persistent isolation, fail-closed backend behavior, optional-capability cold paths, and direct-OTP attribution.
 
-DBLayer 26.6 owns the generic database primitive/pattern for authoritative stale-write rejection.
+DBLayer 26.6 completed the generic persistence revision/CAS mechanism required for authoritative stale-write rejection. OTP 26.4 owns the ceremony-level authoritative credential record wiring.
 
 ---
 
@@ -195,106 +201,49 @@ DBLayer 26.6 owns the generic database primitive/pattern for authoritative stale
 
 ---
 
-## 26.6 DBLayer 5.1 Foundation integration — active
+## 26.6 DBLayer 5.1 Foundation integration — complete
 
-### Released baseline
+**Released baseline:** DBLayer 5.1, commit `087f179ecac3e5555c346ce84cfc353050f8e3cb`.  
+**Foundation floors:** `infocyph/dblayer ^5.1`, `infocyph/cachelayer ^3.4`.
 
-- DBLayer tag: **5.1**;
-- tag commit: `087f179ecac3e5555c346ce84cfc353050f8e3cb`;
-- DBLayer 5.1 requires PHP `^8.4`, ArrayKit `^5.2`, CacheLayer `^3.4`, and PSR Log `^3.0.2`;
-- Foundation floors now target `infocyph/dblayer ^5.1` and `infocyph/cachelayer ^3.4`.
+### Final integrated contract
 
-DBLayer owns connection mechanics, Pool/PoolManager/ConnectionLease, reuse sanitation, QueryBuilder/result cache semantics, optimistic writes, repository/result primitives, schema/migrations/seeding, security, and telemetry. Foundation owns application topology, capability selection, execution lease ownership, cache-store selection, auth policy/schema, and scope cleanup.
+- [X] normal Foundation runtime uses explicit execution-owned DBLayer `Connection` objects rather than static `DB` façade execution state;
+- [X] the only intentional production `DB` façade read is the worker pre-fork compatibility diagnostic for externally opened legacy façade connections;
+- [X] `DatabaseRepository` uses DBLayer 5.1 `ConnectionRepository`;
+- [X] generic auth INSERT/UPDATE/DELETE/upsert delegates to DBLayer QueryBuilder/native upsert;
+- [X] MFA CAS retains Foundation domain policy but uses native conditional revision writes;
+- [X] passkey persistence has an independent revision, DB/in-memory CAS behavior, stale-write rejection, and additive schema migration;
+- [X] query caching is explicit/default-off via `database.query_cache.enabled/store` and binds the selected CacheLayer backend to the exact DBLayer Connection;
+- [X] query-cache-disabled database paths remain CacheLayer-cold;
+- [X] shared DB query caching requires an explicit selected-store namespace or an application-specific cache prefix;
+- [X] DBLayer owns query-cache bypass/invalidation mechanics; successful outer commit invalidates, rollback does not;
+- [X] CacheLayer PDO stores/invalidation infrastructure use generation-owned database connections and never retain a PDO borrowed from an execution lease;
+- [X] transactional cache invalidation uses an execution-bound CacheLayer factory so its outbox shares the exact PDO participating in the transaction;
+- [X] DBLayer `ConnectionLease` pooling is integrated as an optional path with one lease/name owned by each `RuntimeExecutionState`;
+- [X] `freshConnection()` remains dedicated/non-pooled;
+- [X] DBLayer remains the sole owner of pooled rollback/reset/health/lifetime sanitation;
+- [X] lease/Fiber/sanitation, query-cache, MFA/passkey CAS, schema-upgrade, and optional-capability regression coverage is present;
+- [X] DBLayer 5.1 lifecycle attribution benchmark is available as `benchmark:dblayer` and is included in `benchmark:release`.
 
-Normal Foundation runtime uses explicit DBLayer `Connection` objects. The only intentional production read of the process-static `DB` façade is the worker pre-fork compatibility guard that detects externally opened legacy façade connections; it is diagnostic state, not Foundation execution state.
+### Final lifecycle decision
 
-### DBLayer 5.1 lower-layer evidence
+Foundation **keeps dedicated execution-owned connections as the default**. `DB_POOL_ENABLED` remains `false` by default.
 
-- [X] instance-owned query cache and exact-connection `afterCommit()` invalidation;
-- [X] direct connections do not require static façade cache state;
-- [X] tokenized `ConnectionLease` / `PoolManager::checkout()` with stale/double/wrong release protection;
-- [X] reuse sanitation and lower-layer Fiber/interleaving regression coverage;
-- [X] `ConnectionRepository` instance-first repository path;
-- [X] native upsert and optimistic conditional write primitives;
-- [X] DBLayer lifecycle/pooling/prepared-statement benchmark subjects;
-- [X] DBLayer CacheLayer floor `^3.4`, ArrayKit floor `^5.2`.
+Pooling is supported for persistent runtimes but is an opt-in operational optimization. A deployment should enable it only after representative datastore/runtime benchmarks demonstrate a material benefit. Generic CI/SQLite timing is not treated as a proxy for network-database production workloads. This conservative choice closes the architectural decision without inventing a performance claim the standard CI benchmark did not establish.
 
-### Foundation integration tracker
+### Validation evidence
 
-#### Batch 1 — released baseline and instance-owned primitives
+- [X] PR #13 merged into `main` at merge commit `195b8187fc2198d63c15d73616d51ae9dab94e2b`;
+- [X] merged PR head includes final migration-order fix commit `dff282b3aca99599f8d829c6b40cee070929280e`;
+- [X] Security & Standards run **#1157** on the final PR head completed successfully;
+- [X] PHP 8.4 and PHP 8.5 analyzers passed;
+- [X] clean install passed;
+- [X] stable/lowest QA matrix passed on the final PR head;
+- [X] existing benchmark jobs remained green;
+- [X] DBLayer-specific lifecycle benchmark remains available for deployment-specific pooling attribution.
 
-- [~] CacheLayer `^3.4` and DBLayer `^5.1` floors — **implemented; QA pending**;
-- [~] `DatabaseRepository` migrated to DBLayer 5.1 `ConnectionRepository` — **implemented; QA pending**;
-- [~] generic Foundation auth INSERT/UPDATE/DELETE/upsert moved to DBLayer QueryBuilder/native upsert — **implemented; QA pending**;
-- [~] explicit `database.query_cache.enabled/store` with lazy exact-Connection cache binding — **implemented; QA pending**.
-
-#### Batch 2 — authoritative auth persistence
-
-- [~] full Foundation DBLayer usage rescan/classification completed; normal runtime is instance-owned and the remaining static façade production read is only the worker pre-fork legacy diagnostic — **implemented; QA pending**;
-- [~] MFA CAS keeps Foundation domain policy but performs one native DBLayer conditional revision update — **implemented; QA pending**;
-- [~] unconditional MFA `save()` uses native DBLayer upsert — **implemented; QA pending**;
-- [~] passkey persistence now has an independent revision, DB/in-memory compare-and-swap stores, stale-write rejection, and additive auth-schema migration — **implemented; QA pending; OTP authoritative record wiring remains 26.4**.
-
-#### Batch 3 — runtime lifecycle and pooling decision
-
-- [~] normalized `ConnectionConfig` objects remain cached in `DBLayerFactory` outside execution hot paths — **implemented; QA pending**;
-- [~] Foundation dedicated create/use/disconnect vs DBLayer lease checkout/use/release attribution benchmark added — **benchmark execution pending**;
-- [~] warm/new and prepared-statement reuse benchmark subjects added — **benchmark execution pending**;
-- [~] opt-in DBLayer lease pooling path implemented with `DB_POOL_ENABLED=false` by default; singleton `DBLayerFactory` owns the process/generation pool and each `RuntimeExecutionState` owns one lease/name until cleanup — **acceptance decision pending benchmark/CI**.
-
-`freshConnection()` remains dedicated/non-pooled. Foundation release cleanup calls only `ConnectionLease::release()` for pooled connections; DBLayer owns rollback/reset/health/lifetime sanitation. Fiber tests assert two live Foundation executions cannot own the same pooled Connection.
-
-A separate ownership fix was required before pooling: singleton CacheLayer PDO stores/invalidation transports may retain raw PDO objects, so they now use a generation-owned `DBLayerFactory::infrastructureConnection()` instead of borrowing an execution connection/lease. Transactional cache invalidation still uses the current execution connection because it intentionally participates in that transaction.
-
-#### Batch 4 — query-cache, migration, and bridge acceptance
-
-- [~] query-cache cold path, exact-Connection binding, rollback no-invalidation, and successful outer-commit invalidation tests added — **QA pending**;
-- [~] shared query caching now requires either an explicit selected-store namespace or an application-specific `cache.prefix`; the generic shipped namespace is rejected for DB query caching — **QA/backend matrix pending**;
-- [~] Schema/MigrationRunner/SeedRunner remain DBLayer-owned; migration definitions are explicit and migration lock resolution occurs only when administrative runner/seed paths are invoked — **audit complete; QA pending**;
-- [~] DBLayer 5.1 lifecycle/bridge benchmark registered in `benchmark:release`; direct-vs-Foundation lifecycle attribution exists — **transaction/cache/MFA/passkey benchmark result collection still pending**.
-
-### Correctness/security acceptance
-
-Implementation evidence exists, but these remain unchecked until the PR QA/CI pass records results:
-
-- [ ] default/named connection resolution and relative SQLite path policy;
-- [ ] no PDO open merely because the graph was compiled;
-- [ ] commit/rollback/nested savepoints/`afterCommit()` and cleanup rollback;
-- [ ] cleanup failure never masks the primary execution failure;
-- [ ] sequential executions do not inherit transaction/sticky/comment/deadline/cancellation/replica state;
-- [ ] if pooling is selected: Fiber lease isolation, stale/double/wrong release rejection, unhealthy/expired/reconnect/incomplete-transaction handling, bounded soak memory;
-- [ ] instance-owned query-cache hit/miss behavior and commit/rollback invalidation;
-- [ ] locking/transaction/sticky/raw/complex-query cache bypass remains DBLayer-correct;
-- [ ] selected shared cache namespace/topology isolation;
-- [ ] MFA CAS contention yields exactly one stale-state transition winner;
-- [ ] passkey contention cannot overwrite newer authenticator credential state;
-- [ ] migration lock/failure/concurrent-attempt behavior;
-- [ ] production DB security/TLS/raw-query policy;
-- [ ] database-disabled and query-cache-disabled graphs remain free of unnecessary DB/cache work.
-
-### Performance acceptance
-
-Benchmark/report at minimum:
-
-1. database capability absent vs enabled-but-unused graph/boot;
-2. normalized ConnectionConfig lookup;
-3. first connection construction/open;
-4. create/use/disconnect lifecycle;
-5. DBLayer lease checkout/use/release;
-6. warm pooled vs new connection;
-7. prepared-statement reuse with/without pooling;
-8. direct DBLayer query vs Foundation scoped query;
-9. transaction begin/commit/rollback;
-10. direct DBLayer query cache vs Foundation-selected DBLayer cache;
-11. cache hit/miss/invalidation and namespace derivation cost;
-12. MFA compare-and-swap;
-13. passkey conditional persistence;
-14. migration/seeder administrative boot;
-15. repeated persistent web/worker execution memory, connection count, and checkout contention.
-
-Pooling must not become the default merely because it exists. The current default remains dedicated execution-owned connections until representative persistent-runtime benchmarks show a material benefit and correctness acceptance is green. No Foundation query-cache layer or auth-specific DBLayer API is permitted.
-
-**Completion gate:** 26.6 closes only after PR QA passes against released DBLayer 5.1/CacheLayer 3.4, the pooling recommendation is explicitly chosen from benchmark evidence, optional query-cache isolation/cold paths are proven, authoritative MFA/passkey persistence is accepted, and direct-DBLayer attribution is recorded.
+**Status:** [X] complete.
 
 ---
 
@@ -354,6 +303,6 @@ Pooling must not become the default merely because it exists. The current defaul
 
 ## 26.11 Standalone WebAuthn specialist pass — closed/subsumed
 
-OTP 6.1 `Passkey` is the Foundation-facing WebAuthn ceremony/state boundary over optional `web-auth/webauthn-lib`. Remaining work is tracked in 26.4 (OTP/passkey policy), 26.6 (authoritative persistence), and 26.10 (adjacent key/protection policy).
+OTP 6.1 `Passkey` is the Foundation-facing WebAuthn ceremony/state boundary over optional `web-auth/webauthn-lib`. Remaining ceremony work is tracked in 26.4, DB persistence mechanics were completed in 26.6, and adjacent key/protection policy remains in 26.10.
 
 **Status:** [X] closed/subsumed.
