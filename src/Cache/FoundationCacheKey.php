@@ -11,8 +11,9 @@ namespace Infocyph\Foundation\Cache;
  * of its logical state and therefore derives compact, non-revealing keys at
  * the integration boundary instead of weakening CacheLayer's PSR key rules.
  *
- * XXH128 is used here only for fast opaque key mapping. It is not a
- * cryptographic authentication, secret-derivation, or password primitive.
+ * Non-security fingerprints use XXH128 for speed. Security-sensitive state
+ * uses domain-separated SHA3-256 encoded as unpadded Base64URL. Neither path
+ * replaces authentication, secret-derivation, or password primitives.
  */
 final class FoundationCacheKey
 {
@@ -22,17 +23,18 @@ final class FoundationCacheKey
 
     public static function fingerprint(string $prefix, string $domain, string $logicalKey): string
     {
-        return self::physical($prefix, self::digest($domain, $logicalKey));
+        return self::physical(
+            $prefix,
+            hash('xxh128', self::material($domain, $logicalKey)),
+        );
     }
 
     public static function security(string $prefix, string $domain, string $logicalKey): string
     {
-        return self::physical($prefix, self::digest($domain, $logicalKey));
-    }
+        $digest = hash('sha3-256', self::material($domain, $logicalKey), true);
+        $encoded = rtrim(strtr(base64_encode($digest), '+/', '-_'), '=');
 
-    private static function digest(string $domain, string $logicalKey): string
-    {
-        return hash('xxh128', self::material($domain, $logicalKey));
+        return self::physical($prefix, $encoded);
     }
 
     private static function material(string $domain, string $logicalKey): string
