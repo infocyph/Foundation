@@ -84,7 +84,7 @@ it('upgrades an installed Foundation 2.0 auth schema to current revisions withou
             expect($before['missing_tables'])->toContain($oauthTable);
         }
 
-        expect($installer->runner()->run())->toBe([$passkey->id(), $oauth->id()]);
+        expect($installer->runner()->run())->toBe([$oauth->id(), $passkey->id()]);
         $after = $installer->readiness();
 
         expect($after['installed'])->toBeTrue()
