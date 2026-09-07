@@ -211,6 +211,8 @@ it('builds PDO-backed CacheLayer infrastructure without borrowing an execution c
 
         $state->cleanup();
     } finally {
-        @rmdir($basePath);
+        if (is_dir($basePath)) {
+            rmdir($basePath);
+        }
     }
 });
