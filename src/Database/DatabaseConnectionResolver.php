@@ -9,6 +9,8 @@ use Infocyph\Foundation\Exception\ConfigurationException;
 
 final readonly class DatabaseConnectionResolver
 {
+    private const string GENERIC_CACHE_PREFIX = 'foundation:cache:';
+
     public function __construct(
         private ConfigRepository $config,
     ) {}
@@ -108,12 +110,38 @@ final readonly class DatabaseConnectionResolver
             );
         }
 
-        return trim($store);
+        $store = trim($store);
+        $this->assertQueryCacheIsolation($store);
+
+        return $store;
     }
 
     private function absolute(string $path): bool
     {
         return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1;
+    }
+
+    private function assertQueryCacheIsolation(string $store): void
+    {
+        $namespace = $this->config->get('cache.stores.' . $store . '.namespace');
+        if (is_string($namespace) && trim($namespace) !== '') {
+            return;
+        }
+
+        $prefix = $this->config->get('cache.prefix');
+        if (
+            is_string($prefix)
+            && trim($prefix) !== ''
+            && trim($prefix) !== self::GENERIC_CACHE_PREFIX
+        ) {
+            return;
+        }
+
+        throw new ConfigurationException(sprintf(
+            'Database query cache store "%s" requires an isolated CacheLayer namespace: configure cache.stores.%s.namespace or an application-specific cache.prefix.',
+            $store,
+            $store,
+        ));
     }
 
     private function basePath(): string
