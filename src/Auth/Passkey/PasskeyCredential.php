@@ -67,8 +67,11 @@ final readonly class PasskeyCredential
         );
     }
 
-    public function withCredentialRecord(string $credentialRecordJson, int $timestamp): self
-    {
+    public function withCredentialRecord(
+        string $credentialRecordJson,
+        int $timestamp,
+        ?int $signCount = null,
+    ): self {
         if ($credentialRecordJson === '') {
             throw new \InvalidArgumentException('Passkey credential record must not be empty.');
         }
@@ -79,7 +82,7 @@ final readonly class PasskeyCredential
             credentialId: $this->credentialId,
             credentialRecordJson: $credentialRecordJson,
             publicKey: $this->publicKey,
-            signCount: $this->signCount,
+            signCount: $signCount ?? $this->signCount,
             transports: $this->transports,
             createdAt: $this->createdAt,
             lastUsedAt: $timestamp,
