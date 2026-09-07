@@ -297,7 +297,7 @@ final class ConfigLoader
         $app['base_path'] = '<application-base>';
         $defaults['app'] = $app;
 
-        return hash('sha256', serialize($defaults));
+        return hash('xxh128', serialize($defaults));
     }
 
     /**
@@ -379,7 +379,7 @@ final class ConfigLoader
         foreach ($files as $file) {
             $stat = stat($file);
             if ($stat === false) {
-                return hash('sha256', 'unreadable:' . $file);
+                return hash('xxh128', 'unreadable:' . $file);
             }
             $metadata[] = implode(':', [
                 str_starts_with($file, rtrim($basePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR)
@@ -391,7 +391,7 @@ final class ConfigLoader
             ]);
         }
 
-        return hash('sha256', implode('|', $metadata));
+        return hash('xxh128', implode('|', $metadata));
     }
 
     /** @param array<string, mixed> $payload */
