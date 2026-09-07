@@ -47,8 +47,7 @@ $operations = max(100, (int) (getenv('OTP_RUNTIME_OPERATIONS') ?: 1_000));
 $repetitions = max(3, (int) (getenv('OTP_RUNTIME_REPETITIONS') ?: 7));
 $warmup = max(20, (int) (getenv('OTP_RUNTIME_WARMUP') ?: 100));
 
-$secret = TOTP::generateSecret(20);
-$direct = new TOTP($secret, 6, 30, 'sha1');
+$metadataSecret = TOTP::generateSecret(20);
 $foundation = new OtpProvisioningService(
     issuer: 'Foundation',
     algorithm: 'sha1',
@@ -58,14 +57,18 @@ $foundation = new OtpProvisioningService(
 );
 
 $subjects = [];
-$subjects['direct_totp_enrollment_payload'] = otp61Measure(
-    static fn() => $direct->getEnrollmentPayload('benchmark@example.test', 'Foundation'),
+$subjects['direct_totp_provisioning'] = otp61Measure(
+    static function (): void {
+        $secret = TOTP::generateSecret(20);
+        new TOTP($secret, 6, 30, 'sha1')
+            ->getEnrollmentPayload('benchmark@example.test', 'Foundation');
+    },
     $operations,
     $repetitions,
     $warmup,
 );
 $subjects['foundation_totp_metadata_bridge'] = otp61Measure(
-    static fn() => $foundation->factorMetadata($secret, 'benchmark@example.test'),
+    static fn() => $foundation->factorMetadata($metadataSecret, 'benchmark@example.test'),
     $operations,
     $repetitions,
     $warmup,
@@ -77,7 +80,7 @@ $subjects['foundation_totp_provisioning'] = otp61Measure(
     $warmup,
 );
 
-$directNs = (float) $subjects['direct_totp_enrollment_payload']['median_ns'];
+$directNs = (float) $subjects['direct_totp_provisioning']['median_ns'];
 $foundationNs = (float) $subjects['foundation_totp_provisioning']['median_ns'];
 
 $report = [
@@ -95,7 +98,7 @@ $report = [
     'ratios' => [
         'foundation_provisioning_vs_direct_otp' => otp61Ratio($foundationNs, $directNs),
     ],
-    'note' => 'This isolates Foundation enrollment-adapter attribution. Replay, cache coordination, durable CAS, and WebAuthn cryptography remain owned and benchmarked by their specialist layers.',
+    'note' => 'Native and Foundation provisioning both include fresh secret generation, TOTP construction, and enrollment payload creation. Replay, cache coordination, durable CAS, and WebAuthn cryptography remain specialist-layer costs.',
     'peak_memory_mb' => round(memory_get_peak_usage(true) / 1_048_576, 3),
 ];
 
