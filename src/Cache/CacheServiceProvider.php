@@ -53,6 +53,8 @@ final class CacheServiceProvider extends ServiceProvider
                 ? [
                     new ServiceReference(CacheLayerFactory::class),
                     new ServiceReference(DBLayerFactory::class),
+                    new ServiceReference(ConfigRepository::class),
+                    new ServiceReference(PathManager::class),
                 ]
                 : [new ServiceReference(CacheLayerFactory::class)],
         ));
