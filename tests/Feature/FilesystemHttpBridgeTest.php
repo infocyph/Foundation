@@ -38,7 +38,7 @@ it('preserves conditional and ranged local files as native Webrick file bodies',
     $responses = $app->make(FilesystemResponseFactory::class);
     $transfers = $app->make(FilesystemTransferFactory::class);
     $disk = $storage->disk('uploads');
-    $directory = 'tests/http-' . uniqid('', true);
+    $directory = 'tests/http-' . bin2hex(random_bytes(8));
     $relativePath = $directory . '/payload.txt';
     $contents = 'Foundation ranged download bridge';
 
@@ -107,7 +107,7 @@ it('exposes mounted Pathwise responses as Webrick chunk iterables without direct
     $storage = $app->make(StorageRegistry::class);
     $responses = $app->make(FilesystemResponseFactory::class);
     $disk = $storage->disk('uploads');
-    $directory = 'tests/stream-' . uniqid('', true);
+    $directory = 'tests/stream-' . bin2hex(random_bytes(8));
     $relativePath = $directory . '/payload.txt';
     $contents = str_repeat('stream-body-', 64);
     $disk->write($relativePath, $contents);
@@ -142,7 +142,7 @@ it('handles normal and chunked upload requests through the dedicated upload brid
     $uploads = $app->make(FilesystemUploadRequestHandler::class);
     $storage = $app->make(StorageRegistry::class);
     $disk = $storage->disk('uploads');
-    $directory = 'tests/uploads-' . uniqid('', true);
+    $directory = 'tests/uploads-' . bin2hex(random_bytes(8));
 
     $uploadTemp = tempnam(sys_get_temp_dir(), 'foundation-upload-');
     $chunkOne = tempnam(sys_get_temp_dir(), 'foundation-chunk-');
