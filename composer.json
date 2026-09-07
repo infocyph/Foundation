@@ -67,12 +67,14 @@
     "scripts": {
         "benchmark:arraykit": "@php benchmarks/arraykit-config-utilization.php",
         "benchmark:cachelayer": "@php benchmarks/cachelayer-33-utilization.php",
+        "benchmark:dblayer": "@php benchmarks/dblayer-51-utilization.php",
         "benchmark:maintenance": "@php benchmarks/maintenance-overhead.php",
         "benchmark:phase9:di": "@php benchmarks/phase9-di-attribution.php",
         "benchmark:phase9:http": "@php benchmarks/phase9-http-attribution.php",
         "benchmark:release": [
             "@benchmark:uid",
-            "@benchmark:cachelayer"
+            "@benchmark:cachelayer",
+            "@benchmark:dblayer"
         ],
         "benchmark:representative": "@php benchmarks/run-representative.php",
         "benchmark:uid": "@php benchmarks/uid-runtime-utilization.php"
