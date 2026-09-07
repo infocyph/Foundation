@@ -202,7 +202,7 @@ final class Bootstrapper
         $dependency = match ($provider) {
             CacheServiceProvider::class => \Infocyph\CacheLayer\Cache\Cache::class,
             CommunicationServiceProvider::class => \Infocyph\TalkingBytes\Http\HttpClient::class,
-            DatabaseServiceProvider::class => \Infocyph\DBLayer\DB::class,
+            DatabaseServiceProvider::class => \Infocyph\DBLayer\Connection\Connection::class,
             FilesystemServiceProvider::class => \Infocyph\Pathwise\PathwiseFacade::class,
             MessagingServiceProvider::class => \Infocyph\Omnibus\MessageBus::class,
             SecurityServiceProvider::class => \Infocyph\Epicrypt\Crypto\AeadCipher::class,
