@@ -15,7 +15,7 @@ use Infocyph\Foundation\Foundation;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\SimpleCache\CacheInterface as SimpleCacheInterface;
 
-it('exposes one native CacheLayer store through Foundation PSR and DBLayer bindings', function (): void {
+it('exposes one native CacheLayer store through Foundation and PSR bindings', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-cache-' . uniqid('', true);
     mkdir($basePath . '/storage/cache/locks', 0775, true);
     mkdir($basePath . '/database', 0775, true);
@@ -69,7 +69,6 @@ it('exposes one native CacheLayer store through Foundation PSR and DBLayer bindi
             ->and($app->make(SimpleCacheInterface::class))->toBe($cache)
             ->and($app->make(CacheItemPoolInterface::class))->toBe($cache)
             ->and($app->make('foundation.cache'))->toBe($cache)
-            ->and(DB::cache())->toBe($cache)
             ->and($cache->set('name', 'Ada'))->toBeTrue()
             ->and($cache->get('name'))->toBe('Ada')
             ->and($cache->exportMetrics())->toHaveKey('pdo')
