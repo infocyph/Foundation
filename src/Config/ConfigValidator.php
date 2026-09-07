@@ -86,6 +86,20 @@ final readonly class ConfigValidator
             || (is_string($value) && preg_match('/^[1-9]\d*$/D', $value) === 1);
     }
 
+    private function positiveIntegerValue(mixed $value): ?int
+    {
+        if (is_int($value)) {
+            return $value > 0 ? $value : null;
+        }
+        if (!is_string($value) || preg_match('/^[1-9]\d*$/D', $value) !== 1) {
+            return null;
+        }
+
+        $validated = filter_var($value, FILTER_VALIDATE_INT);
+
+        return is_int($validated) && $validated > 0 ? $validated : null;
+    }
+
     /** @return array<string,mixed>|null */
     private function notificationSenderProfile(): ?array
     {
@@ -430,7 +444,8 @@ final readonly class ConfigValidator
             );
         }
 
-        if (!$this->isPositiveInteger($challengeTtl) || (int) $challengeTtl > 600) {
+        $ttl = $this->positiveIntegerValue($challengeTtl);
+        if ($ttl === null || $ttl > 600) {
             $issues[] = new ConfigIssue(
                 'auth.webauthn.challenge_ttl must be between 1 and 600 seconds.',
                 'auth.webauthn.challenge_ttl',
@@ -470,9 +485,15 @@ final readonly class ConfigValidator
             return null;
         }
 
+        $scheme = $parts['scheme'] ?? null;
+        $host = $parts['host'] ?? null;
+        if (!is_string($scheme) || !is_string($host)) {
+            return null;
+        }
+
         return [
-            'scheme' => strtolower((string) $parts['scheme']),
-            'host' => (string) $parts['host'],
+            'scheme' => strtolower($scheme),
+            'host' => $host,
         ];
     }
 }
