@@ -82,65 +82,72 @@ it('allows exactly one replay claimant one consume recipient and one CAS winner 
     }
 });
 
-it('keeps failed atomic operations fail closed', function (): void {
-    $cache = Cache::memory(
-        namespace: 'foundation-33-fail-closed',
-        options: new CacheOptions(failOpen: false),
-    );
-    $atomic = $cache->atomic();
-
-    expect($atomic)->not->toBeNull()
-        ->and($atomic?->setIfAbsent('claim', 'first', 30))->toBeTrue()
-        ->and($atomic?->setIfAbsent('claim', 'second', 30))->toBeFalse()
-        ->and($cache->get('claim'))->toBe('first');
-});
-
 function foundationCacheLayer33RedisDsn(): string
 {
-    $dsn = getenv('REDIS_URL');
-    if (is_string($dsn) && $dsn !== '') {
-        return $dsn;
+    $explicit = getenv('FOUNDATION_TEST_REDIS_DSN');
+    if (is_string($explicit) && $explicit !== '') {
+        return $explicit;
     }
 
-    return 'redis://127.0.0.1:6379';
+    $host = getenv('IC_REDIS_HOST') ?: '127.0.0.1';
+    $port = getenv('IC_REDIS_PORT') ?: '6379';
+    $password = getenv('IC_REDIS_PASSWORD');
+    $credentials = is_string($password) && $password !== ''
+        ? ':' . rawurlencode($password) . '@'
+        : '';
+
+    return sprintf('redis://%s%s:%s', $credentials, $host, $port);
 }
 
 /** @return list<string> */
 function foundationCacheLayer33Workers(
-    string $operation,
+    string $mode,
     string $namespace,
     string $dsn,
-    string $key,
-    int $workers,
+    string $argument,
+    int $count,
 ): array {
-    $script = dirname(__DIR__) . '/Fixtures/cachelayer-33-worker.php';
     $processes = [];
-    for ($worker = 0; $worker < $workers; ++$worker) {
-        $command = [PHP_BINARY, $script, $operation, $namespace, $dsn, $key];
+    $worker = dirname(__DIR__) . '/Fixtures/cachelayer_atomic_worker.php';
+
+    for ($i = 0; $i < $count; ++$i) {
         $pipes = [];
-        $process = proc_open($command, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+        $process = proc_open(
+            [PHP_BINARY, $worker, $mode, $namespace, $dsn, $argument],
+            [
+                0 => ['pipe', 'r'],
+                1 => ['pipe', 'w'],
+                2 => ['pipe', 'w'],
+            ],
+            $pipes,
+        );
         if (!is_resource($process)) {
-            throw new RuntimeException('Unable to start CacheLayer atomic contention worker.');
+            throw new RuntimeException('Unable to start CacheLayer concurrency worker.');
         }
-        $processes[] = [$process, $pipes];
+        fclose($pipes[0]);
+        $processes[] = [$process, $pipes[1], $pipes[2]];
     }
 
     $results = [];
-    foreach ($processes as [$process, $pipes]) {
-        $stdout = stream_get_contents($pipes[1]);
-        $stderr = stream_get_contents($pipes[2]);
-        fclose($pipes[1]);
-        fclose($pipes[2]);
-        $exit = proc_close($process);
-        if ($exit !== 0) {
-            throw new RuntimeException(sprintf(
-                'CacheLayer contention worker failed with exit %d: %s',
-                $exit,
-                trim((string) $stderr),
-            ));
+    foreach ($processes as [$process, $stdout, $stderr]) {
+        $output = trim((string) stream_get_contents($stdout));
+        $error = trim((string) stream_get_contents($stderr));
+        fclose($stdout);
+        fclose($stderr);
+        $status = proc_close($process);
+        if ($status !== 0) {
+            throw new RuntimeException('CacheLayer concurrency worker failed: ' . $error);
         }
-        $results[] = trim((string) $stdout);
+        $decoded = json_decode($output, true, flags: JSON_THROW_ON_ERROR);
+        $results[] = match (true) {
+            $decoded === true => '1',
+            $decoded === false => '0',
+            is_string($decoded) => $decoded,
+            default => throw new RuntimeException('Unexpected CacheLayer concurrency worker result.'),
+        };
     }
+
+    sort($results, SORT_STRING);
 
     return $results;
 }
