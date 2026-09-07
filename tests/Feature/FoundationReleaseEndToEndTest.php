@@ -274,13 +274,9 @@ it('builds activates and boots all four runtimes from one immutable Foundation g
             throw new RuntimeException('Unable to hash the generated Foundation manifest.');
         }
 
-        // Build the worker supervisor while source topology is still readable.
-        // It must remain unbooted until WorkerManager decides whether a fork is required.
         $sourceWorkerSupervisor = Foundation::worker($config);
         expect($sourceWorkerSupervisor->booted())->toBeFalse();
 
-        // The active web runtime must consume the compiled router rather than
-        // rediscovering application routes after publication.
         file_put_contents(
             $project . '/routes/web.php',
             "<?php\n\nthrow new RuntimeException('active release rediscovered source routes');\n",
@@ -294,8 +290,6 @@ it('builds activates and boots all four runtimes from one immutable Foundation g
         expect($response->getStatusCode())->toBe(200)
             ->and((string) $response->getBody())->toBe('{"generation":"phase8-e2e"}');
 
-        // Trusted non-web process boot must not reconstruct its source graph or
-        // rediscover provider-worker topology after publication.
         file_put_contents(
             $project . '/bootstrap/providers.php',
             "<?php\n\nthrow new RuntimeException('active release rediscovered source providers');\n",
@@ -305,24 +299,9 @@ it('builds activates and boots all four runtimes from one immutable Foundation g
             "<?php\n\nthrow new RuntimeException('active release rediscovered source worker topology');\n",
         );
 
-        $cli = $loader->nonWebPrevalidated(
-            $config,
-            RuntimeMode::Cli,
-            $releaseRoot,
-            $trustedFoundationSha256,
-        );
-        $worker = $loader->nonWebPrevalidated(
-            $config,
-            RuntimeMode::Worker,
-            $releaseRoot,
-            $trustedFoundationSha256,
-        );
-        $scheduler = $loader->nonWebPrevalidated(
-            $config,
-            RuntimeMode::Scheduler,
-            $releaseRoot,
-            $trustedFoundationSha256,
-        );
+        $cli = $loader->nonWebPrevalidated($config, RuntimeMode::Cli, $releaseRoot, $trustedFoundationSha256);
+        $worker = $loader->nonWebPrevalidated($config, RuntimeMode::Worker, $releaseRoot, $trustedFoundationSha256);
+        $scheduler = $loader->nonWebPrevalidated($config, RuntimeMode::Scheduler, $releaseRoot, $trustedFoundationSha256);
 
         expect($cli->application->runtimeMode())->toBe(RuntimeMode::Cli)
             ->and($worker->application->runtimeMode())->toBe(RuntimeMode::Worker)
@@ -487,12 +466,21 @@ function foundationPhase8ReleaseConfig(string $project): array
             'default' => 'auth-state',
             'default_counter' => 'auth-lockouts',
             'stores' => [
-                'auth-state' => ['driver' => 'file'],
+                'auth-state' => [
+                    'driver' => 'redis',
+                    'fail_open' => false,
+                    'security' => [
+                        'integrity_key' => str_repeat('f', 64),
+                    ],
+                    'serialization' => [
+                        'allow_object_payloads' => false,
+                    ],
+                ],
             ],
             'counters' => [
                 'auth-lockouts' => ['driver' => 'redis'],
             ],
-            'lock' => ['driver' => 'file', 'store' => 'auth-state'],
+            'lock' => ['driver' => 'redis', 'store' => 'auth-state'],
         ],
         'notifications' => [
             'auth' => ['sender' => 'auth'],
