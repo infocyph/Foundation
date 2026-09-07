@@ -48,6 +48,23 @@ final readonly class ConfigValidator
         return is_string($first) && $first !== '' ? $first : null;
     }
 
+    /** @param array<string, mixed> $parts */
+    private function isExactWebAuthnOrigin(array $parts): bool
+    {
+        $scheme = $parts['scheme'] ?? null;
+        $host = $parts['host'] ?? null;
+        $path = $parts['path'] ?? '';
+
+        return is_string($scheme)
+            && is_string($host)
+            && in_array(strtolower($scheme), ['http', 'https'], true)
+            && !isset($parts['user'])
+            && !isset($parts['pass'])
+            && !isset($parts['query'])
+            && !isset($parts['fragment'])
+            && $path === '';
+    }
+
     private function isLocalWebAuthnHost(mixed $host): bool
     {
         if (!is_string($host) || $host === '') {
@@ -391,7 +408,6 @@ final readonly class ConfigValidator
     private function validateWebAuthn(array &$issues, bool $assumeProduction): void
     {
         $rpId = $this->config->get('auth.webauthn.rp_id');
-        $origin = $this->config->get('auth.webauthn.origin');
         $challengeTtl = $this->config->get('auth.webauthn.challenge_ttl', 300);
         $allowSubdomains = $this->config->get('auth.webauthn.allow_subdomains', false);
 
@@ -402,51 +418,19 @@ final readonly class ConfigValidator
             );
         }
 
-        if (!is_string($origin) || $origin === '') {
-            $issues[] = new ConfigIssue(
-                'auth.webauthn.origin must be configured when auth.drivers.passkey uses webauthn.',
-                'auth.webauthn.origin',
-            );
-
+        $origin = $this->webAuthnOrigin($issues, $this->config->get('auth.webauthn.origin'));
+        if ($origin === null) {
             return;
         }
 
-        $scheme = parse_url($origin, PHP_URL_SCHEME);
-        $host = parse_url($origin, PHP_URL_HOST);
-        $path = parse_url($origin, PHP_URL_PATH);
-        $user = parse_url($origin, PHP_URL_USER);
-        $pass = parse_url($origin, PHP_URL_PASS);
-        $query = parse_url($origin, PHP_URL_QUERY);
-        $fragment = parse_url($origin, PHP_URL_FRAGMENT);
-        if (
-            !is_string($scheme)
-            || !is_string($host)
-            || !in_array(strtolower($scheme), ['http', 'https'], true)
-            || $user !== null
-            || $pass !== null
-            || $query !== null
-            || $fragment !== null
-            || ($path !== null && $path !== '')
-        ) {
-            $issues[] = new ConfigIssue(
-                'auth.webauthn.origin must be an exact HTTP(S) origin without path, credentials, query, or fragment.',
-                'auth.webauthn.origin',
-            );
-
-            return;
-        }
-
-        if ($assumeProduction && strtolower($scheme) !== 'https' && !$this->isLocalWebAuthnHost($host)) {
+        if ($assumeProduction && $origin['scheme'] !== 'https' && !$this->isLocalWebAuthnHost($origin['host'])) {
             $issues[] = new ConfigIssue(
                 'auth.webauthn.origin must use https outside localhost/local development.',
                 'auth.webauthn.origin',
             );
         }
 
-        $ttl = is_int($challengeTtl)
-            ? $challengeTtl
-            : (is_string($challengeTtl) && preg_match('/^[1-9]\d*$/D', $challengeTtl) === 1 ? (int) $challengeTtl : 0);
-        if ($ttl < 1 || $ttl > 600) {
+        if (!$this->isPositiveInteger($challengeTtl) || (int) $challengeTtl > 600) {
             $issues[] = new ConfigIssue(
                 'auth.webauthn.challenge_ttl must be between 1 and 600 seconds.',
                 'auth.webauthn.challenge_ttl',
@@ -459,5 +443,36 @@ final readonly class ConfigValidator
                 'auth.webauthn.allow_subdomains',
             );
         }
+    }
+
+    /**
+     * @param list<ConfigIssue> $issues
+     * @return array{scheme:string,host:string}|null
+     */
+    private function webAuthnOrigin(array &$issues, mixed $origin): ?array
+    {
+        if (!is_string($origin) || $origin === '') {
+            $issues[] = new ConfigIssue(
+                'auth.webauthn.origin must be configured when auth.drivers.passkey uses webauthn.',
+                'auth.webauthn.origin',
+            );
+
+            return null;
+        }
+
+        $parts = parse_url($origin);
+        if (!is_array($parts) || !$this->isExactWebAuthnOrigin($parts)) {
+            $issues[] = new ConfigIssue(
+                'auth.webauthn.origin must be an exact HTTP(S) origin without path, credentials, query, or fragment.',
+                'auth.webauthn.origin',
+            );
+
+            return null;
+        }
+
+        return [
+            'scheme' => strtolower((string) $parts['scheme']),
+            'host' => (string) $parts['host'],
+        ];
     }
 }
