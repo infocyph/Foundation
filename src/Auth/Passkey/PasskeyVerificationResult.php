@@ -16,5 +16,8 @@ final readonly class PasskeyVerificationResult
         public ?int $signCount = null,
         public ?string $reason = null,
         public array $context = [],
+        #[\SensitiveParameter]
+        public ?string $credentialRecordJson = null,
+        public ?int $expectedRevision = null,
     ) {}
 }
