@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Auth\Internal;
 
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Auth\Adapter\Otp\OtpChallengeFactorService;
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpMfaVerifier;
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpProvisioningService;
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpRecoveryCodeService;
@@ -80,17 +81,28 @@ final readonly class AuthMfaRegistrar extends AbstractAuthRegistrar
             ]);
         }
 
+        $configured = $this->app->config()->get('auth.otp.replay.store');
+        $storeName = is_string($configured) && trim($configured) !== '' ? trim($configured) : null;
+        if (!$this->hasExplicitBinding(OtpChallengeFactorService::class)) {
+            $this->staticRecipe(
+                OtpChallengeFactorService::class,
+                AuthMfaGraphFactory::class,
+                'challengeFactors',
+                [
+                    $this->ref(CacheLayerFactory::class),
+                    $storeName,
+                ],
+            );
+        }
+
         if (!$this->hasExplicitBinding(OtpMfaVerifier::class)) {
-            $configured = $this->app->config()->get('auth.otp.replay.store');
-            $storeName = is_string($configured) && trim($configured) !== '' ? trim($configured) : null;
             $this->staticRecipe(
                 OtpMfaVerifier::class,
                 AuthMfaGraphFactory::class,
                 'verifier',
                 [
                     $this->ref(MfaFactorStoreInterface::class),
-                    $this->ref(CacheLayerFactory::class),
-                    $storeName,
+                    $this->ref(OtpChallengeFactorService::class),
                     $this->intConfig('auth.otp.totp.window', 1),
                     $this->intConfig('auth.otp.replay.ttl', 90),
                 ],
