@@ -169,6 +169,7 @@ final readonly class AuthSchema implements Migration
             $table->bigInteger('last_used_at')->nullable();
             $table->bigInteger('revoked_at')->nullable();
             $table->json('metadata')->nullable();
+            $table->bigInteger('revision')->default(0);
         });
     }
 
