@@ -157,7 +157,7 @@ final readonly class GeneratedRuntime
         }
 
         $expectedConfigFingerprint = strtolower(trim($expectedConfigFingerprint));
-        if (preg_match('/^[a-f0-9]{64}$/D', $expectedConfigFingerprint) !== 1) {
+        if (preg_match('/^[a-f0-9]{32}$/D', $expectedConfigFingerprint) !== 1) {
             throw new \InvalidArgumentException('Expected generated-runtime config fingerprint is invalid.');
         }
         $actual = $metadata['config_fingerprint'] ?? null;
