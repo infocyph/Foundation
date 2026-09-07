@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Database;
 
 use Infocyph\DBLayer\Connection\Connection;
-use Infocyph\DBLayer\DB;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Cache\CacheLayerFactory;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthMfaRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthOAuthRevisionSchema;
+use Infocyph\Foundation\Database\AuthSchema\AuthPasskeyRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchemaInstaller;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
@@ -24,7 +24,7 @@ final class DatabaseServiceProvider extends ServiceProvider
 {
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        if (!class_exists(DB::class)) {
+        if (!class_exists(Connection::class)) {
             throw new \LogicException(
                 'Foundation database services require infocyph/dblayer; run "php infbyte module:install database".',
             );
@@ -57,6 +57,10 @@ final class DatabaseServiceProvider extends ServiceProvider
             AuthMfaRevisionSchema::class,
             [new ServiceReference(AuthTables::class)],
         ));
+        $builder->singleton(AuthPasskeyRevisionSchema::class, FactoryDefinition::construct(
+            AuthPasskeyRevisionSchema::class,
+            [new ServiceReference(AuthTables::class)],
+        ));
         if ($oauthEnabled) {
             $builder->singleton(AuthOAuthRevisionSchema::class, FactoryDefinition::construct(
                 AuthOAuthRevisionSchema::class,
@@ -69,6 +73,7 @@ final class DatabaseServiceProvider extends ServiceProvider
                 new ServiceReference(DBLayerFactory::class),
                 new ServiceReference(AuthSchema::class),
                 new ServiceReference(AuthMfaRevisionSchema::class),
+                new ServiceReference(AuthPasskeyRevisionSchema::class),
                 new ServiceReference(AuthTables::class),
                 $oauthEnabled ? new ServiceReference(AuthOAuthRevisionSchema::class) : null,
                 $oauthEnabled,
