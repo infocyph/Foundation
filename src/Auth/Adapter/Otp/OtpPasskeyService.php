@@ -64,10 +64,11 @@ final readonly class OtpPasskeyService implements PasskeyServiceInterface
             reason: null,
             context: [
                 'otp_reason' => $verification->reason->value,
-                'credential_record_json' => $verification->credentialRecordJson,
                 'user_handle' => $verification->userHandle,
                 'replay_detected' => $verification->replayDetected,
             ],
+            credentialRecordJson: $verification->credentialRecordJson,
+            expectedRevision: $credential->revision,
         );
     }
 
@@ -89,15 +90,13 @@ final readonly class OtpPasskeyService implements PasskeyServiceInterface
 
         $metadata = $result->metadata;
         unset($metadata['credential'], $metadata['credential_json']);
-        $metadata['otp_passkey'] = [
-            'credential_record_json' => $verification->credentialRecordJson,
-            'user_handle' => $verification->userHandle,
-        ];
+        $metadata['otp_passkey'] = ['user_handle' => $verification->userHandle];
 
         return new PasskeyCredential(
             id: $this->ids->credentialId(),
             accountId: $result->accountId,
             credentialId: $verification->credentialId,
+            credentialRecordJson: $verification->credentialRecordJson,
             publicKey: '',
             signCount: 0,
             transports: $result->transports,
@@ -210,6 +209,10 @@ final readonly class OtpPasskeyService implements PasskeyServiceInterface
 
     private function credentialRecordJson(PasskeyCredential $credential): string
     {
+        if (is_string($credential->credentialRecordJson) && $credential->credentialRecordJson !== '') {
+            return $credential->credentialRecordJson;
+        }
+
         $otp = ValueNormalizer::associativeArray($credential->metadata['otp_passkey'] ?? null);
         $record = $otp['credential_record_json'] ?? null;
         if (is_string($record) && $record !== '') {
