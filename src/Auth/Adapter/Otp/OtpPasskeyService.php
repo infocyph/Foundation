@@ -229,12 +229,12 @@ final readonly class OtpPasskeyService implements PasskeyServiceInterface
 
     private function registrationBinding(string $accountId): string
     {
-        return 'foundation:passkey:registration:v1:' . hash('sha256', $accountId);
+        return 'foundation:passkey:registration:v1:' . hash('sha3-256', $accountId);
     }
 
     private function userHandle(string $accountId): string
     {
-        return hash('sha256', "foundation:passkey:user:v1\0" . $accountId, true);
+        return hash('sha3-256', "foundation:passkey:user:v1\0" . $accountId, true);
     }
 
     private function verificationFailure(PasskeyCredential $credential, PasskeyResult $result): PasskeyVerificationResult
