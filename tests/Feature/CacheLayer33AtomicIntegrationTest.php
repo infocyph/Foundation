@@ -31,7 +31,7 @@ it('uses CacheLayer 3.3 native claim consume CAS and TTL semantics', function ()
         ->and($cache->get('cas-key'))->toBe(1);
 
     $ttl->put('ttl:expires', 'short-lived', 1);
-    sleep(2);
+    usleep(2_000_000);
     expect($ttl->get('ttl:expires', '__expired__'))->toBe('__expired__');
 });
 
