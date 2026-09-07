@@ -37,7 +37,11 @@ use Infocyph\Foundation\Auth\Contract\Storage\{
 use Infocyph\Foundation\Auth\Device\{DeviceManager, DeviceStoreInterface};
 use Infocyph\Foundation\Auth\Mfa\{MfaFactorStoreInterface, MfaManager, MfaVerifierInterface, RecoveryCodeServiceInterface};
 use Infocyph\Foundation\Auth\Otp\OtpManager;
-use Infocyph\Foundation\Auth\Passkey\{PasskeyCredentialStoreInterface, PasskeyManager, PasskeyServiceInterface};
+use Infocyph\Foundation\Auth\Passkey\{
+    PasskeyCredentialCompareAndSwapStoreInterface,
+    PasskeyManager,
+    PasskeyServiceInterface
+};
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 
 final readonly class AuthManagerRegistrar extends AbstractAuthRegistrar
@@ -112,7 +116,7 @@ final readonly class AuthManagerRegistrar extends AbstractAuthRegistrar
             $this->ref(OtpProvisioningService::class), $this->ref(OtpMfaVerifier::class),
         ], LifetimeEnum::Scoped);
         $this->recipe(PasskeyManager::class, PasskeyManager::class, [
-            $this->ref(PasskeyServiceInterface::class), $this->ref(PasskeyCredentialStoreInterface::class),
+            $this->ref(PasskeyServiceInterface::class), $this->ref(PasskeyCredentialCompareAndSwapStoreInterface::class),
             $this->ref(AuditEventStoreInterface::class), $this->ref(AuthNotifierInterface::class),
             $this->ref(AuthIdGeneratorInterface::class),
             $this->hasExplicitBinding(LockoutManager::class) ? $this->ref(LockoutManager::class) : null,
