@@ -54,8 +54,10 @@ final readonly class OtpChallengeFactorService
             return $this->invalid($factor, 'mfa_factor_invalid_configuration');
         }
 
-        $response = json_decode($responseJson, true, 512, JSON_THROW_ON_ERROR);
-        if (!is_array($response)) {
+        $response = ValueNormalizer::associativeArray(
+            json_decode($responseJson, true, 512, JSON_THROW_ON_ERROR),
+        );
+        if ($response === []) {
             return $this->invalid($factor, 'mfa_code_invalid');
         }
 
@@ -125,7 +127,7 @@ final readonly class OtpChallengeFactorService
             offsetSteps: $this->integer($config, 'offset_steps', 0),
             cache: $this->stateCache,
             factorId: hash(
-                'sha256',
+                'sha3-256',
                 "foundation:otp-mobile:v1\0" . $factor->id . "\0" . $this->requiredString($config, 'secret'),
             ),
         );
@@ -146,6 +148,7 @@ final readonly class OtpChallengeFactorService
         );
     }
 
+    /** @param array<string, mixed> $config */
     private function integer(array $config, string $key, int $default): int
     {
         $value = $config[$key] ?? $default;
@@ -172,6 +175,7 @@ final readonly class OtpChallengeFactorService
         return $config;
     }
 
+    /** @param array<string, mixed> $config */
     private function requiredString(array $config, string $key): string
     {
         $value = $config[$key] ?? null;
