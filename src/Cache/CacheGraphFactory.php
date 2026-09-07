@@ -26,7 +26,7 @@ final class CacheGraphFactory
         return new CacheLayerFactory(
             config: $config,
             paths: $paths,
-            database: static fn(?string $name = null) => $database->connection($name),
+            database: static fn(?string $name = null) => $database->infrastructureConnection($name),
         );
     }
 
