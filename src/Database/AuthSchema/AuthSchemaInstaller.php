@@ -16,6 +16,7 @@ final readonly class AuthSchemaInstaller
         private AuthSchema $schema,
         private AuthMfaRevisionSchema $mfaRevisionSchema,
         private AuthPasskeyRevisionSchema $passkeyRevisionSchema,
+        private AuthPasskeyRecordSchema $passkeyRecordSchema,
         private AuthTables $tables,
         private ?AuthOAuthRevisionSchema $oauthRevisionSchema = null,
         private bool $oauthEnabled = false,
@@ -62,6 +63,7 @@ final readonly class AuthSchemaInstaller
         $requiredColumns = [
             [$this->tables->mfaFactors(), 'revision'],
             [$this->tables->passkeyCredentials(), 'revision'],
+            [$this->tables->passkeyCredentials(), 'credential_record'],
         ];
         foreach ($requiredColumns as [$table, $column]) {
             if ($schema->hasTable($table) && !$schema->hasColumn($table, $column)) {
@@ -79,7 +81,12 @@ final readonly class AuthSchemaInstaller
 
     public function runner(?string $connection = null): MigrationRunner
     {
-        $migrations = [$this->schema, $this->mfaRevisionSchema, $this->passkeyRevisionSchema];
+        $migrations = [
+            $this->schema,
+            $this->mfaRevisionSchema,
+            $this->passkeyRevisionSchema,
+            $this->passkeyRecordSchema,
+        ];
         if ($this->oauthEnabled) {
             $migrations[] = $this->oauthSchema();
         }
