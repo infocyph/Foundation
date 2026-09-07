@@ -9,125 +9,48 @@ use Infocyph\Foundation\Support\ValueNormalizer;
 
 final readonly class WebAuthnConfig
 {
-    /**
-     * @param list<string> $algorithms
-     * @param list<string> $transports
-     */
     public function __construct(
         public ?string $rpId,
-        public string $rpName,
         public ?string $origin,
-        public int $timeout,
         public int $challengeTtl,
-        public string $userVerification,
-        public string $residentKey,
-        public string $attestation,
-        public array $algorithms,
-        public array $transports,
+        public bool $allowSubdomains = false,
     ) {}
 
-    /**
-     * @param array<string, mixed> $config
-     */
+    /** @param array<string, mixed> $config */
     public static function fromArray(array $config): self
     {
-        $attestation = self::enumString(
-            $config['attestation'] ?? null,
-            ['none', 'direct', 'indirect', 'enterprise'],
-            'none',
-            'auth.webauthn.attestation',
-        );
-
-        $userVerification = self::enumString(
-            $config['user_verification'] ?? null,
-            ['required', 'preferred', 'discouraged'],
-            'preferred',
-            'auth.webauthn.user_verification',
-        );
-        $residentKey = self::enumString(
-            $config['resident_key'] ?? null,
-            ['required', 'preferred', 'discouraged'],
-            'preferred',
-            'auth.webauthn.resident_key',
-        );
-        $algorithms = ValueNormalizer::stringList($config['algorithms'] ?? ['ES256', 'RS256']);
-        self::assertAllowedStrings(
-            $algorithms,
-            ['ES256', 'RS256'],
-            'auth.webauthn.algorithms',
-        );
-        $transports = ValueNormalizer::stringList($config['transports'] ?? ['internal', 'hybrid', 'usb', 'nfc', 'ble']);
-        self::assertAllowedStrings(
-            $transports,
-            ['internal', 'hybrid', 'usb', 'nfc', 'ble'],
-            'auth.webauthn.transports',
-        );
+        $challengeTtl = self::integer($config['challenge_ttl'] ?? null, 300);
+        if ($challengeTtl < 1 || $challengeTtl > 600) {
+            throw new ConfigurationException('auth.webauthn.challenge_ttl must be between 1 and 600 seconds.');
+        }
 
         return new self(
             rpId: ValueNormalizer::nullableString($config['rp_id'] ?? null),
-            rpName: self::string($config['rp_name'] ?? null, 'Foundation'),
             origin: ValueNormalizer::nullableString($config['origin'] ?? null),
-            timeout: max(1, self::int($config['timeout'] ?? null, 60000)),
-            challengeTtl: max(1, self::int($config['challenge_ttl'] ?? null, 300)),
-            userVerification: $userVerification,
-            residentKey: $residentKey,
-            attestation: $attestation,
-            algorithms: $algorithms,
-            transports: $transports,
+            challengeTtl: $challengeTtl,
+            allowSubdomains: self::boolean($config['allow_subdomains'] ?? false),
         );
     }
 
-    /**
-     * @param list<string> $values
-     * @param list<string> $allowed
-     */
-    private static function assertAllowedStrings(array $values, array $allowed, string $key): void
+    private static function boolean(mixed $value): bool
     {
-        if ($values === []) {
-            throw new ConfigurationException(sprintf('%s must not be empty.', $key));
-        }
-
-        foreach ($values as $value) {
-            if (in_array($value, $allowed, true)) {
-                continue;
-            }
-
-            throw new ConfigurationException(sprintf(
-                '%s contains unsupported value "%s". Allowed values: %s.',
-                $key,
-                $value,
-                implode(', ', $allowed),
-            ));
-        }
+        return match (true) {
+            is_bool($value) => $value,
+            is_int($value) => $value !== 0,
+            is_string($value) => in_array(strtolower(trim($value)), ['1', 'true', 'yes', 'on'], true),
+            default => false,
+        };
     }
 
-    /**
-     * @param list<string> $allowed
-     */
-    private static function enumString(mixed $value, array $allowed, string $default, string $key): string
+    private static function integer(mixed $value, int $default): int
     {
-        $resolved = self::string($value, $default);
-
-        if (!in_array($resolved, $allowed, true)) {
-            throw new ConfigurationException(sprintf(
-                '%s must be one of: %s.',
-                $key,
-                implode(', ', $allowed),
-            ));
+        if (is_int($value)) {
+            return $value;
+        }
+        if (is_string($value) && preg_match('/^(?:0|[1-9]\d*)$/D', $value) === 1) {
+            return (int) $value;
         }
 
-        return $resolved;
-    }
-
-    private static function int(mixed $value, int $default): int
-    {
-        return is_numeric($value) ? (int) $value : $default;
-    }
-
-    private static function string(mixed $value, string $default): string
-    {
-        return is_string($value) && $value !== ''
-            ? $value
-            : $default;
+        return $default;
     }
 }
