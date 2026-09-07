@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpPasskeyService;
 use Infocyph\Foundation\Auth\Passkey\PasskeyServiceInterface;
+use Infocyph\Foundation\Exception\ServiceResolutionException;
 use Infocyph\Foundation\Foundation;
 use Infocyph\OTP\Passkey;
 
@@ -53,5 +54,8 @@ it('fails closed when passkey ceremony storage lacks authentication-state capabi
     $app = Foundation::web(foundationOtpPasskeyConfig('null_store'))->boot();
 
     expect(fn() => $app->make(Passkey::class))
-        ->toThrow(LogicException::class, 'Authentication state caches must use one authoritative direct backend.');
+        ->toThrow(
+            ServiceResolutionException::class,
+            'Authentication state caches must use one authoritative direct backend.',
+        );
 });
