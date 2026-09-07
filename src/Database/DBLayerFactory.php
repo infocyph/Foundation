@@ -124,11 +124,6 @@ final class DBLayerFactory
         return $state;
     }
 
-    private function poolManager(): PoolManager
-    {
-        return $this->poolManager ??= new PoolManager(new Pool($this->resolver->poolOptions()));
-    }
-
     private function pooledConnection(
         RuntimeExecutionState $state,
         string $name,
@@ -141,6 +136,11 @@ final class DBLayerFactory
         }
 
         return $state->leasedConnection($name, $pool);
+    }
+
+    private function poolManager(): PoolManager
+    {
+        return $this->poolManager ??= new PoolManager(new Pool($this->resolver->poolOptions()));
     }
 
     private function queryCache(): CacheInterface

@@ -26,11 +26,11 @@ final class RuntimeExecutionState
     /** @var list<Closure():void> */
     private array $cleanupCallbacks = [];
 
-    /** @var array<string, Connection> */
-    private array $connections = [];
-
     /** @var array<string, ConnectionLease> */
     private array $connectionLeases = [];
+
+    /** @var array<string, Connection> */
+    private array $connections = [];
 
     /** @var array<int, Connection> */
     private array $freshConnections = [];
