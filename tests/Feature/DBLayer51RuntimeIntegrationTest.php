@@ -216,6 +216,7 @@ it('rejects stale MFA and passkey credential replacements through DBLayer single
         id: 'passkey-1',
         accountId: 'account-1',
         credentialId: 'credential-1',
+        credentialRecordJson: null,
         publicKey: 'public-key',
         signCount: 0,
         transports: ['internal'],
