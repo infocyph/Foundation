@@ -69,6 +69,31 @@ final readonly class DatabaseConnectionResolver
         return $resolved;
     }
 
+    public function poolEnabled(): bool
+    {
+        return $this->config->get('database.pool.enabled', false) === true;
+    }
+
+    /**
+     * @return array{
+     *   min_connections:int,
+     *   max_connections:int,
+     *   idle_timeout:int,
+     *   max_lifetime:int,
+     *   health_check_interval:int
+     * }
+     */
+    public function poolOptions(): array
+    {
+        return [
+            'min_connections' => $this->poolInt('min_connections', 0),
+            'max_connections' => $this->poolInt('max_connections', 10),
+            'idle_timeout' => $this->poolInt('idle_timeout', 60),
+            'max_lifetime' => $this->poolInt('max_lifetime', 3_600),
+            'health_check_interval' => $this->poolInt('health_check_interval', 30),
+        ];
+    }
+
     public function queryCacheEnabled(): bool
     {
         return $this->config->get('database.query_cache.enabled', false) === true;
@@ -139,5 +164,12 @@ final readonly class DatabaseConnectionResolver
         }
 
         return $config;
+    }
+
+    private function poolInt(string $key, int $default): int
+    {
+        $value = $this->config->get('database.pool.' . $key, $default);
+
+        return is_int($value) || is_numeric($value) ? (int) $value : $default;
     }
 }
