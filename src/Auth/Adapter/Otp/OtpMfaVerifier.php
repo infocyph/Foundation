@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Adapter\Otp;
 
-use Infocyph\CacheLayer\Cache\AuthenticationStateCacheInterface;
 use Infocyph\Foundation\Auth\Mfa\MfaChallenge;
 use Infocyph\Foundation\Auth\Mfa\MfaFactor;
 use Infocyph\Foundation\Auth\Mfa\MfaFactorCompareAndSwapStoreInterface;
@@ -22,10 +21,15 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
 {
     public function __construct(
         private MfaFactorCompareAndSwapStoreInterface $factors,
-        private AuthenticationStateCacheInterface $stateCache,
+        private OtpChallengeFactorService $challengeFactors,
         private int $window = 1,
         private int $ocraReplayTtl = 90,
     ) {}
+
+    public function challengeFactors(): OtpChallengeFactorService
+    {
+        return $this->challengeFactors;
+    }
 
     public function verify(MfaChallenge $challenge, string $code): MfaVerificationResult
     {
@@ -43,9 +47,12 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
 
         try {
             return match ($factor->type) {
-                MfaFactorType::TOTP->value => $this->verifyTotp($factor, $code),
+                MfaFactorType::AOTP->value => $this->challengeFactors->verifyAotp($factor, $challenge, $code),
+                MfaFactorType::GRID_OTP->value => $this->challengeFactors->verifyGrid($factor, $challenge, $code),
                 MfaFactorType::HOTP->value => $this->verifyHotp($factor, $code),
+                MfaFactorType::MOBILE_OTP->value => $this->challengeFactors->verifyLegacyMobile($factor, $code),
                 MfaFactorType::OCRA->value => $this->verifyOcra($challenge, $factor, $code),
+                MfaFactorType::TOTP->value => $this->verifyTotp($factor, $code),
                 default => new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_factor_unsupported'),
             };
         } catch (\Throwable) {
@@ -53,12 +60,6 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         }
     }
 
-    /**
-     * Verify the initial code for a disabled TOTP factor before activation.
-     *
-     * Enrollment verification deliberately uses the same canonical parser,
-     * validation window and replay protection as normal OTP verification.
-     */
     public function verifyEnrollment(MfaFactor $factor, string $code): MfaVerificationResult
     {
         if ($factor->type !== MfaFactorType::TOTP->value) {
@@ -237,7 +238,7 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
             $session,
             $timestamp,
             $window,
-            cache: $suite->counterEnabled ? null : $this->stateCache,
+            cache: $suite->counterEnabled ? null : $this->challengeFactors->stateCache(),
             factorId: $suite->counterEnabled ? null : $this->factorBinding($factor, $config['secret']),
             replayTtl: $suite->counterEnabled ? null : $this->ocraReplayTtl,
         );
@@ -280,7 +281,7 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         )->verifyWithWindow(
             $code,
             window: VerificationWindow::symmetric($config['window']),
-            cache: $this->stateCache,
+            cache: $this->challengeFactors->stateCache(),
             factorId: $this->factorBinding($factor, $config['secret']),
         );
 
