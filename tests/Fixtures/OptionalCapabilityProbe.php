@@ -24,7 +24,7 @@ $baseConfig = [
 
 $optionalMarkers = [
     'cache' => 'Infocyph\\CacheLayer\\Cache\\Cache',
-    'database' => 'Infocyph\\DBLayer\\DB',
+    'database' => 'Infocyph\\DBLayer\\Connection\\Connection',
     'communication' => 'Infocyph\\TalkingBytes\\Http\\HttpClient',
     'filesystem' => 'Infocyph\\Pathwise\\PathwiseFacade',
     'messaging' => 'Infocyph\\Omnibus\\MessageBus',
