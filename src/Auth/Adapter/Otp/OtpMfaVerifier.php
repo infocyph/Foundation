@@ -62,12 +62,12 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
 
     public function verifyEnrollment(MfaFactor $factor, string $code): MfaVerificationResult
     {
-        if ($factor->type !== MfaFactorType::TOTP->value) {
-            return new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_factor_unsupported');
-        }
-
         try {
-            return $this->verifyTotp($factor, $code);
+            return match ($factor->type) {
+                MfaFactorType::MOBILE_OTP->value => $this->challengeFactors->verifyLegacyMobile($factor, $code),
+                MfaFactorType::TOTP->value => $this->verifyTotp($factor, $code),
+                default => new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_factor_unsupported'),
+            };
         } catch (\Throwable) {
             return new MfaVerificationResult(false, factorId: $factor->id, reason: 'mfa_factor_invalid_configuration');
         }
