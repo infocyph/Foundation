@@ -10,6 +10,4 @@ namespace Infocyph\Foundation\Auth\Adapter\WebAuthn;
  * Retained temporarily as a compatibility/cold-path sentinel for Foundation 3
  * integration checks. It must not acquire WebAuthn runtime state or services.
  */
-final class WebAuthnRuntime
-{
-}
+final class WebAuthnRuntime {}

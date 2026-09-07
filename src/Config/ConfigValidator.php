@@ -165,49 +165,6 @@ final readonly class ConfigValidator
         return is_string($value) ? $value : $default;
     }
 
-    /**
-     * @param list<ConfigIssue> $issues
-     * @param list<string> $allowed
-     */
-    private function validateAllowedString(array &$issues, string $key, mixed $value, array $allowed): void
-    {
-        if (!is_string($value) || !in_array($value, $allowed, true)) {
-            $issues[] = new ConfigIssue(
-                sprintf('%s must be one of: %s.', $key, implode(', ', $allowed)),
-                $key,
-            );
-        }
-    }
-
-    /**
-     * @param list<ConfigIssue> $issues
-     * @param list<string> $allowed
-     */
-    private function validateAllowedStringList(array &$issues, string $key, mixed $value, array $allowed): void
-    {
-        if (!is_array($value) || $value === []) {
-            $issues[] = new ConfigIssue(
-                sprintf('%s must be a non-empty list of: %s.', $key, implode(', ', $allowed)),
-                $key,
-            );
-
-            return;
-        }
-
-        foreach ($value as $item) {
-            if (is_string($item) && in_array($item, $allowed, true)) {
-                continue;
-            }
-
-            $issues[] = new ConfigIssue(
-                sprintf('%s contains unsupported value. Allowed values: %s.', $key, implode(', ', $allowed)),
-                $key,
-            );
-
-            return;
-        }
-    }
-
     /** @param list<ConfigIssue> $issues */
     private function validateCacheStore(array &$issues): void
     {

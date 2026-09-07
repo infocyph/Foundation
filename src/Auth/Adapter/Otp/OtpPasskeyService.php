@@ -61,7 +61,6 @@ final readonly class OtpPasskeyService implements PasskeyServiceInterface
             true,
             accountId: $credential->accountId,
             credentialId: $verification->credentialId,
-            reason: null,
             context: [
                 'otp_reason' => $verification->reason->value,
                 'user_handle' => $verification->userHandle,

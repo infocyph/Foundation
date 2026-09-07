@@ -182,6 +182,20 @@ final readonly class PasskeyManager
         );
     }
 
+    private function persistenceFailure(
+        PasskeyVerificationResult $verification,
+        string $reason,
+    ): PasskeyVerificationResult {
+        return new PasskeyVerificationResult(
+            false,
+            accountId: $verification->accountId,
+            credentialId: $verification->credentialId,
+            reason: $reason,
+            context: $verification->context,
+            expectedRevision: $verification->expectedRevision,
+        );
+    }
+
     private function persistVerifiedCredential(PasskeyVerificationResult $verification): ?PasskeyVerificationResult
     {
         if (
@@ -209,20 +223,6 @@ final readonly class PasskeyManager
         return $this->credentials->compareAndSwap($expected, $updated)
             ? null
             : $this->persistenceFailure($verification, 'passkey_state_stale');
-    }
-
-    private function persistenceFailure(
-        PasskeyVerificationResult $verification,
-        string $reason,
-    ): PasskeyVerificationResult {
-        return new PasskeyVerificationResult(
-            false,
-            accountId: $verification->accountId,
-            credentialId: $verification->credentialId,
-            reason: $reason,
-            context: $verification->context,
-            expectedRevision: $verification->expectedRevision,
-        );
     }
 
     /**
