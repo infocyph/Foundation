@@ -13,8 +13,8 @@
         "psr/log": "^3.0.2"
     },
     "require-dev": {
-        "infocyph/cachelayer": "^3.3",
-        "infocyph/dblayer": "^5.0",
+        "infocyph/cachelayer": "^3.4",
+        "infocyph/dblayer": "^5.1",
         "infocyph/epicrypt": "^2.1",
         "infocyph/omnibus": "^2.5",
         "infocyph/otp": "^6.0",
