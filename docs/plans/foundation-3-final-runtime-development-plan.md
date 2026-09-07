@@ -428,7 +428,7 @@ Rules:
 - only truly runtime-dependent secrets/callables remain narrow dynamic inputs;
 - every auth singleton gets persistent/concurrency lifetime review;
 - security behavior may not be weakened merely to improve compilation;
-- OTP/Epicrypt/WebAuthn exact package semantics remain for their specialist passes.
+- OTP/Epicrypt exact package semantics remain for their specialist passes; WebAuthn ceremony ownership is consumed through OTP 6.1 Passkey.
 
 ### 5.14 Provider families requiring compileability migration
 
@@ -1229,7 +1229,7 @@ Mandatory review targets:
 - messaging current envelope/message state;
 - notification state;
 - filesystem temp/upload state;
-- WebAuthn/OTP request state;
+- OTP/Passkey request state;
 - static registries/facades.
 
 ---
@@ -2162,116 +2162,147 @@ CacheLayer 3.3's atomic capability is released and consumed, Foundation physical
 
 **CacheLayer 3.3 completion evidence:** CacheLayer tag `3.3` at commit `581194b184da929f7f098672ccf91869b1da984c` released truthful optional atomic capability discovery plus backend-correct `setIfAbsent()`, `getAndDelete()` and strict logical-value `compareAndSet()` semantics; CacheLayer `Security & Standards` run `34045164761` passed. Foundation now requires `^3.3`, centralizes physical-key derivation in `FoundationCacheKey`, uses SHA3-256/Base64URL for security state and XXH128 for non-security fingerprints, consumes atomic pull/replay primitives directly, requires atomic fail-closed integrity-protected object-free production auth state plus CacheLayer atomic security counters, and stores MFA challenges as arrays. `FoundationCacheKeyTest`, `CacheLayer33AtomicIntegrationTest`, `ProductionSecurityClosureTest` and `FoundationOwnedSha256BoundaryTest` prove key policy, topology rejection, real Redis process contention and source-hash boundaries. `benchmarks/cachelayer-33-utilization.php` records the direct CacheLayer-versus-Foundation attribution boundary and persistent-memory soak. Foundation PHPForge run `34076802494` on implementation head `d470f32f8b90666d329e4e03e952487ccf67f18a` passed PHP 8.4/8.5 stable and prefer-lowest QA, PHPStan/Psalm analysis, clean install, benchmark execution and schema validation. Section 26.3 is complete.
 
-### 26.4 OTP 6.0 utilization pass
+### 26.4 OTP 6.1 + Passkey/WebAuthn utilization pass
 
 **Baseline**
 
-* package: `infocyph/otp` `^6.0` (Foundation development/integration dependency);
-* audited release: OTP 6.0;
-* tag commit: `524a94d7ac71d5d385f35596a89c472c8e1ba33f`;
-* OTP 6.0 requires PHP >=8.4 and integrates with CacheLayer `^3.1.1`; Foundation's CacheLayer floor is now `^3.3` following section 26.3's completed atomic-capability integration pass.
+* package: `infocyph/otp` `^6.1` (Foundation development/integration dependency);
+* audited/released version: OTP 6.1;
+* tag commit: `c7faf376b96611638e7bc0da6cd081496768d34f`;
+* OTP 6.1 requires CacheLayer `^3.3` and keeps AOTP (`ext-sodium`) plus Passkey/WebAuthn (`web-auth/webauthn-lib ^5.3`) as optional capabilities;
+* Foundation's CacheLayer floor is already `^3.3` from section 26.3, so OTP's released authentication-state contract can be consumed directly.
 
-**Ownership decision**
+**Ownership decision after OTP 6.1**
 
-OTP owns OTP algorithms and their algorithm-specific security mechanics. Foundation owns application auth policy, persistence and capability composition around them.
+OTP 6.1 is now the lower-layer authentication-mechanics package, not only a TOTP/HOTP/OCRA package. Foundation must consume it as the protocol/mechanics owner and retain only application policy, persistence and composition.
 
 OTP owns:
 
-* TOTP/HOTP/OCRA algorithm implementation;
-* verification windows, periods/counters and result objects;
-* provisioning URI/enrollment payload primitives;
-* replay-protection mechanics exposed by OTP over a secure CacheLayer authentication-state cache;
-* recovery-code generation/verification primitives and usage-store contract;
+* TOTP, HOTP and OCRA algorithms, verification windows, periods/counters and result objects;
+* `GenericOtp` state/attempt semantics;
+* AOTP Ed25519 challenge-response mechanics, challenge issuance/consumption and verification;
+* GridOTP enrollment/challenge/response mechanics and challenge-state handling;
+* MobileOTP/mOTP compatibility semantics, including its legacy protocol calculation and verification window;
+* provisioning URI/enrollment payload construction and parsing where the protocol supports it;
+* recovery-code generation/verification and the recovery-code usage-store contract;
 * secret-rotation planning/result primitives;
-* GenericOtp one-time-code behavior when a true generic-code workflow is required;
-* OTP-specific encoding/parsing/validation details.
+* OTP-owned replay/state-key formats and CacheLayer 3.3 coordination;
+* native atomic replay/monotonic transitions where CacheLayer exposes them and coordinated-lock fallback where required;
+* Passkey/WebAuthn registration/authentication option construction, ceremony challenge issuance/persistence/one-time consumption, upstream WebAuthn validation, credential-record serialization/mutation and `PasskeyResult` mapping;
+* WebAuthn origin/RP/challenge/user-presence/user-verification/signature-counter/backup-state protocol decisions through the upstream library;
+* OTP/Passkey-specific encoding, parsing, validation, versioned state domains and safe diagnostic redaction.
 
 Foundation owns:
 
-* whether OTP MFA is enabled and which OTP mode is selected;
-* normalized auth configuration and build-time validation;
-* factor persistence and authoritative compare-and-swap semantics;
-* selection/validation of the CacheLayer authentication-state backend;
-* challenge/session/application lifecycle around OTP verification;
-* operational logging/metrics and safe external error mapping;
-* protection/rotation lifecycle of persisted MFA secrets;
-* authorization/account policy after successful verification;
-* release/runtime capability activation so applications not using OTP pay no meaningful cost.
+* whether MFA/passkeys are enabled and which factor type/mode is permitted for an application/account;
+* normalized auth configuration and release/build validation;
+* the policy that MobileOTP is legacy-only/explicit opt-in rather than a new-deployment default;
+* optional capability availability (`ext-sodium` for AOTP and `web-auth/webauthn-lib` for OTP Passkey) and graph activation;
+* selection/validation of the CacheLayer `AuthenticationStateCacheInterface` backend supplied to OTP stateful modes;
+* durable factor persistence and authoritative compare-and-swap semantics where persisted factor state is Foundation-owned;
+* durable passkey credential-record repository/schema and atomic replacement of the credential record returned by OTP Passkey;
+* Foundation principal/account ↔ passkey user-handle mapping, discoverable-credential account policy, passkey naming/management and authorization;
+* protection/rotation lifecycle for persisted symmetric OTP/GridOTP/MobileOTP secrets;
+* recovery-code key lifecycle and Foundation's durable adapter to OTP's recovery-store contract;
+* operational logging/metrics and non-sensitive external error mapping;
+* release/runtime capability activation so unused OTP/AOTP/GridOTP/MobileOTP/Passkey features remain cold.
 
-Foundation must not reimplement TOTP/HOTP/OCRA math, time-window scanning, provisioning URI logic, recovery-code algorithms or OTP replay-key algorithms.
+Foundation must not reimplement OTP math, AOTP signatures, GridOTP challenge algorithms, MobileOTP wire compatibility, provisioning URI logic, recovery algorithms, OTP replay-key algorithms, WebAuthn option construction, WebAuthn ceremony validation, signature-counter rules, origin/RP validation or challenge-consumption mechanics now owned by OTP 6.1.
 
-**Current integration findings to preserve**
+**Closed in OTP 6.1 — lower-layer work**
 
-* `AuthOtpServiceProvider` contributes OTP services only when the explicit OTP capability is present.
-* `OtpMfaVerifier` correctly uses OTP's cache-backed replay protection for TOTP and challenge/time OCRA.
-* HOTP disables redundant cache replay state and advances the authoritative factor counter through compare-and-swap; counter-based OCRA follows the same ownership. This split is correct and must be preserved.
-* `OtpRecoveryCodeStore` adapts OTP recovery-code usage state onto Foundation factor-store compare-and-swap rather than inventing a second recovery-code state database.
-* `OtpProvisioningService` already consumes OTP's TOTP/HOTP/OCRA/enrollment/recovery/rotation primitives instead of duplicating the algorithms.
-* `OtpConfigValidator` and `SharedStateTopology` already push important OTP/topology mistakes toward build/config validation rather than request-time surprises.
+* [X] Raise OTP's CacheLayer floor to `^3.3` and consume native `setIfAbsent()` / `compareAndSet()` replay-state primitives where the state transition is safely atomic.
+* [X] Preserve coordinated-lock fallback for authoritative CacheLayer backends without the required atomic capability.
+* [X] Keep `GenericOtp` on its lock-coordinated multi-field state machine rather than forcing an unsafe partial-CAS conversion.
+* [X] Preserve the existing TOTP/HOTP/OCRA v1 replay/state namespaces and bounded contention behavior.
+* [X] Prove TOTP/HOTP/OCRA same-value and higher/lower contention semantics, including real Redis concurrency and fallback coordination.
+* [X] Keep malformed/security-state backend failures exceptional/fail-closed rather than converting them to credential mismatch/replay results.
+* [X] Harden secret-bearing OTP value-object debug output without changing normal public access semantics.
+* [X] Preserve provisioning, recovery-code and secret-rotation lower-layer behavior and concurrency contracts.
+* [X] Add AOTP as an optional Ed25519 challenge-response factor with server-side public-key verification and one-time challenge state.
+* [X] Add GridOTP as a dynamic-grid knowledge factor with OTP-owned challenge/state mechanics.
+* [X] Add MobileOTP as explicit legacy mOTP compatibility with its protocol-defined MD5 calculation isolated to that compatibility mode.
+* [X] Add OTP `Passkey` as the optional WebAuthn ceremony/state wrapper over `web-auth/webauthn-lib`.
+* [X] Move passkey registration/authentication challenge issuance, expiry and one-time consumption into OTP's secure CacheLayer state boundary.
+* [X] Return the upstream-mutated WebAuthn credential record from successful OTP Passkey ceremonies for application persistence rather than duplicating WebAuthn counter rules.
+* [X] Keep AOTP/GridOTP/MobileOTP/Passkey in distinct versioned state domains that do not collide with TOTP/HOTP/OCRA replay history.
+* [X] Add lower-layer unit/concurrency/compatibility tests and benchmark attribution for CacheLayer 3.3 replay coordination and the new authentication mechanics.
 
-**Confirmed current issues / required audits**
+**Foundation implementation checklist**
 
-1. `OtpMfaVerifier` catches broad `Throwable` failures and maps them to the generic external reason `invalid_configuration`. This is fail-closed but destroys the operational distinction between bad user input/configuration and unavailable security state, lock failure, cache/backend outage, CAS failure or an unexpected OTP runtime error.
-2. Production TOTP and non-counter OCRA depend on CacheLayer's authoritative/fail-closed/integrity/atomic security-state contract. That contract must become a release/composition gate through the CacheLayer pass rather than depending on first-use verification failure.
-3. `MfaFactor` carries the OTP secret as a string value. That does not prove plaintext persistence, but every production factor-store adapter must be audited to prove MFA secrets are protected at rest and never exposed through logs/cache keys/errors. Exact cryptographic/key-lifecycle design remains coordinated with the Epicrypt pass.
-4. Recovery-code HMAC currently derives a domain-separated key from the auth token secret. Keep the domain separation, but explicitly decide whether Foundation 3 should use a dedicated recovery-code key or a proper subkey derivation from a master secret; finalize this with the Epicrypt pass rather than silently coupling unrelated secret lifecycles.
-5. OTP rotation primitives can plan/describe secret rotation, but Foundation still owns atomic persistence/activation and concurrent verification policy during a rotation window.
-6. MFA challenge storage intersects the CacheLayer pass: logical challenge keys require the canonical Foundation security-state encoder using domain-separated SHA3-256, and a hardened auth-state cache should not require native object payloads merely because Foundation currently stores an object.
-
-**Audit and implementation checklist**
-
-* [ ] Keep OTP graph activation explicit and absent when `auth.drivers.mfa` does not select OTP/TOTP/HOTP/OCRA behavior.
-* [ ] Make secure CacheLayer authentication-state capability a build/release prerequisite for OTP modes that need replay/challenge state.
-* [ ] Preserve TOTP and non-counter OCRA replay ownership in OTP + CacheLayer; do not add duplicate Foundation replay bookkeeping.
-* [ ] Preserve HOTP and counter-OCRA monotonic state in the authoritative Foundation factor store with atomic compare-and-swap; do not maintain a second cache counter for the same semantic counter.
+* [ ] Raise Foundation's OTP floor from `^6.0` to `^6.1` and test the exact released tag under PHP 8.4/8.5 and prefer-lowest/prefer-stable.
+* [ ] Treat OTP as the single Foundation lower-layer MFA/passkey mechanics boundary; remove direct Foundation ceremony/validator/codec logic that OTP 6.1 now owns.
+* [ ] Route Foundation passkey registration/authentication through `Infocyph\OTP\Passkey` rather than constructing upstream WebAuthn validators/options directly.
+* [ ] Keep `web-auth/webauthn-lib` only as the optional package required to activate OTP Passkey; it must no longer define a separate Foundation integration architecture.
+* [ ] Extend normalized Foundation MFA/factor configuration to expose AOTP and GridOTP deliberately and MobileOTP only behind an explicit legacy-compatibility selection.
+* [ ] Preserve existing TOTP/HOTP/OCRA application behavior while delegating all protocol/window/replay mechanics to OTP 6.1.
+* [ ] Keep `GenericOtp` available only for actual generic one-time-code workflows; do not route protocol OTP modes through it merely for API uniformity.
+* [ ] Require secure CacheLayer authentication-state capability during composition/release validation for every selected OTP mode that needs OTP-owned replay/challenge state, including AOTP/GridOTP/Passkey and replay-protected MobileOTP/TOTP/OCRA paths.
+* [ ] Do not add a second Foundation replay/challenge store for OTP-owned state.
+* [ ] Preserve HOTP and counter-OCRA durable factor counters in the authoritative Foundation factor store when those persisted counters are the application source of truth; do not maintain a second semantic counter merely because OTP also supports direct replay state.
 * [ ] Verify every production `MfaFactorCompareAndSwapStoreInterface` implementation provides authoritative reads and truly atomic CAS under concurrency.
-* [ ] Keep OTP `RecoveryCodes` as the recovery-code algorithm/usage primitive and prove Foundation's adapter satisfies OTP's authoritative committed-count + atomic consumption contract.
-* [ ] Replace broad `catch (Throwable)` classification with a safe failure taxonomy that distinguishes invalid code/replay/configuration from security-state backend unavailable/lock failure/CAS exhaustion/unexpected internal failure for logs/metrics, while still returning a non-sensitive external authentication failure.
-* [ ] Ensure backend/lock failures stay fail-closed and are never converted into successful or retry-unbounded verification.
-* [ ] Audit every production MFA factor-store adapter for secret-at-rest protection, read/write rotation behavior and accidental secret disclosure. Do not assume the value object's string property describes storage format.
-* [ ] Keep OTP secrets out of cache keys, exception messages, logs, metrics labels and generated runtime artifacts.
-* [ ] Decide the recovery-code HMAC key lifecycle explicitly; keep domain separation and coordinate final cryptographic derivation with Epicrypt.
-* [ ] Use OTP's rotation planner/result types for OTP-specific rotation rules while Foundation owns durable CAS/transactional activation and account-policy transitions.
-* [ ] Prove concurrent secret rotation cannot lose a newer factor state or accept an unintended stale counter/recovery-code state.
-* [ ] Use OTP clock/window semantics directly; do not add Foundation manual TOTP period/skew calculations.
-* [ ] Keep provisioning URI/enrollment payload construction lower-layer-owned and Foundation mapping/persistence-only.
-* [ ] Adopt `GenericOtp` only for an actual generic one-time-code feature; do not route TOTP/HOTP/OCRA through it simply to increase API utilization.
-* [ ] Review OTP result objects and failure reasons so Foundation preserves useful structured data internally instead of reducing everything to booleans/strings too early.
-* [ ] Keep OTP service objects stateless/process-safe where possible; replay/counter/challenge state belongs in external authoritative stores, not mutable singletons.
+* [ ] Keep OTP `RecoveryCodes` as the recovery algorithm/usage primitive and prove Foundation's adapter satisfies committed-count and atomic-consumption semantics.
+* [ ] Replace broad `catch (Throwable)` OTP classification with an internal operational taxonomy that distinguishes credential mismatch/replay/configuration from CacheLayer/backend failure, factor-store CAS exhaustion and unexpected runtime faults while returning non-sensitive external auth failures.
+* [ ] Ensure all backend/coordination/persistence failures remain fail-closed and bounded.
+* [ ] Protect durable symmetric OTP/GridOTP/MobileOTP secrets at rest through the Epicrypt policy finalized in section 26.10; plaintext exists only inside the narrow enrollment/verification execution window.
+* [ ] Treat AOTP private-key material as client/device-owned. Foundation persists only the enrolled public verification key plus application metadata and never requests/stores the client's private key.
+* [ ] Treat WebAuthn credential records as public-key credential state rather than symmetric MFA secrets, but preserve integrity/access controls and redact user handles/raw ceremony payloads from normal diagnostics.
+* [ ] Decide the recovery-code HMAC key lifecycle explicitly with Epicrypt; do not silently couple it to unrelated token-secret rotation.
+* [ ] Use OTP rotation planner/result types for algorithm-specific rotation while Foundation owns durable CAS/transactional activation and account-policy transitions.
+* [ ] Prove concurrent secret/factor rotation cannot lose newer factor/counter/recovery state.
+* [ ] Map OTP result objects/reasons into Foundation internal auth results without reducing useful structured state to booleans too early.
+* [ ] Keep OTP/Passkey service lifetimes immutable/stateless where possible; execution state remains in OTP's external CacheLayer state or Foundation's durable stores, never mutable process singletons.
+* [ ] Keep all OTP-related capability graphs absent when no OTP/AOTP/GridOTP/MobileOTP/Passkey factor is selected.
+
+**Passkey/WebAuthn Foundation handoff**
+
+OTP 6.1 changes the old ownership boundary materially. Foundation no longer owns ceremony challenge generation/storage/consumption, creation/request option construction, direct attestation/assertion validator wiring, Base64URL protocol conversion or WebAuthn signature-counter rules. Those now sit behind OTP `Passkey`.
+
+Foundation still owns the durable application record returned by the ceremony. After successful registration/authentication it must atomically persist the exact `credentialRecordJson` returned by OTP, bind it to the correct Foundation principal/user handle, reject stale concurrent replacement and apply passkey/account policy. Section 26.6 remains responsible for the DBLayer primitive used to make that persistence authoritative.
 
 **Correctness and security acceptance**
 
-* [ ] Test TOTP valid/invalid verification, configured skew/window and deterministic test-clock behavior.
-* [ ] Test TOTP replay rejection and a concurrent replay race against the hardened authentication-state cache.
-* [ ] Test enrollment verification separately from steady-state replay semantics.
-* [ ] Test HOTP next-counter persistence and concurrent CAS races; exactly one valid state advance must win.
-* [ ] Test counter-based OCRA with durable CAS and challenge/time OCRA with OTP replay state.
-* [ ] Test recovery-code success, reuse rejection and concurrent consumption.
-* [ ] Test cache/backend outage, authentication-state lock failure, factor-store CAS exhaustion and unexpected OTP exceptions all fail closed while preserving the correct internal operational category.
-* [ ] Test production release/build rejects insecure or absent auth-state cache for OTP modes that require it.
-* [ ] Test secret rotation success, stale-CAS rejection, rollback/failure behavior and concurrent verification policy.
-* [ ] Test persisted secret protection for every production factor-store adapter without exposing secret material in test diagnostics.
-* [ ] Test sequential and interleaved Fiber verifications plus persistent-worker reuse for state isolation.
-* [ ] Test OTP capability absence leaves non-OTP auth graphs free of OTP/CacheLayer replay-state overhead unless CacheLayer is independently required.
+* [ ] Test TOTP valid/invalid verification, configured skew/window, replay rejection and concurrent replay through the hardened auth-state cache.
+* [ ] Test HOTP next-counter persistence and concurrent factor-store CAS; exactly one stale state advance may win.
+* [ ] Test counter-OCRA durable CAS and non-counter/time/challenge OCRA through OTP replay state.
+* [ ] Test recovery-code success, reuse rejection, replacement and concurrent consumption through the Foundation adapter.
+* [ ] Test AOTP enrollment/public-key persistence, issuance, valid/invalid signature and one-time challenge replay; prove no private key reaches Foundation persistence/logs/artifacts.
+* [ ] Test GridOTP enrollment, challenge issuance, valid/invalid response, challenge expiry/replay and persistent/Fiber isolation through OTP-owned state.
+* [ ] Test MobileOTP against OTP's legacy compatibility vectors/window, replay behavior where enabled, and explicit production opt-in policy; never advertise it as the preferred new-deployment mode.
+* [ ] Test Passkey registration and authentication through OTP `Passkey`, including valid/invalid RP ID, origin, challenge, user presence and user verification as observable Foundation integration behavior without duplicating validator logic.
+* [ ] Test OTP Passkey challenge expiry and concurrent duplicate ceremony consumption so at most one execution succeeds.
+* [ ] Persist the exact successful `credentialRecordJson` returned by OTP and prove sign-counter/backup-state/user-verification updates are not recreated manually by Foundation.
+* [ ] Test concurrent assertions against one stored passkey credential so a stale credential-record write cannot overwrite newer state.
+* [ ] Test discoverable credential/user-handle mapping cannot bind a passkey to the wrong Foundation principal.
+* [ ] Test cache/backend outage, factor-store CAS exhaustion, stale passkey persistence and unexpected OTP exceptions all fail closed while retaining the correct internal operational category.
+* [ ] Test production release/build rejects missing/insecure auth-state topology for every selected OTP mode that requires it.
+* [ ] Test persisted secret protection for every production MFA factor store without exposing secret material in diagnostics.
+* [ ] Test sequential/interleaved Fiber verification and persistent-worker reuse across representative TOTP/AOTP/GridOTP/Passkey paths for state isolation.
+* [ ] Test capability absence leaves unrelated auth graphs free of OTP, CacheLayer replay and optional WebAuthn/Sodium overhead.
 
 **Performance acceptance**
 
-Benchmark Foundation against direct OTP for the same semantic operation:
+Benchmark Foundation against direct OTP 6.1 for the same semantic operation:
 
-1. graph/boot cost with OTP capability absent versus enabled;
-2. direct TOTP verification versus `OtpMfaVerifier` without replay I/O attribution hidden;
-3. replay-protected TOTP with CacheLayer lock/read/write;
-4. HOTP verification + factor-store CAS;
-5. representative OCRA counter and challenge/time suites;
+1. graph/boot cost with all OTP capabilities absent versus enabled-but-unused;
+2. direct TOTP verification versus `OtpMfaVerifier`, separating replay I/O from wrapper cost;
+3. replay-protected TOTP through OTP's CacheLayer 3.3 atomic path;
+4. HOTP verification + Foundation factor-store CAS;
+5. representative OCRA counter and challenge/time paths;
 6. recovery-code verification/consumption;
-7. provisioning and secret rotation as administrative/build-plane paths rather than request-hot-path targets;
-8. repeated verification under a persistent runtime with memory measurement.
+7. AOTP issue + verify;
+8. GridOTP challenge + verify;
+9. MobileOTP verification as a compatibility path;
+10. direct OTP Passkey registration/authentication versus Foundation policy + credential lookup/atomic persistence;
+11. passkey stale-contention persistence path;
+12. repeated representative verification under a persistent runtime with memory measurement.
 
-Published OTP microbenchmarks are lower-layer evidence only. Foundation acceptance must measure the actual Foundation adapter/state-store boundary and attribute cache/CAS cost separately before optimizing wrapper code.
+OTP's published microbenchmarks remain lower-layer evidence. Foundation acceptance must measure the Foundation policy/persistence boundary and attribute CacheLayer/DBLayer cost separately before optimizing wrapper code.
 
 **Completion gate**
 
-The OTP tracker can be checked only when OTP modes preserve the correct state-owner split, secure CacheLayer replay state is a release gate, all production factor stores prove authoritative atomic counter/recovery semantics and protected secret persistence, operational failure taxonomy is no longer collapsed, rotation/concurrency tests pass, optional activation stays cold and Foundation-vs-direct-OTP benchmarks are recorded.
+Section 26.4 can be checked only when Foundation consumes OTP 6.1 as the single OTP/AOTP/GridOTP/MobileOTP/Passkey mechanics boundary, direct WebAuthn ceremony duplication is removed, secure OTP auth-state topology is a release gate, all Foundation-owned factor/credential stores prove authoritative atomic persistence, persisted symmetric MFA secrets are protected, operational failure taxonomy is preserved, new-mode and rotation/concurrency tests pass, optional activation stays cold, and direct-OTP-versus-Foundation benchmarks record the final adapter/persistence overhead.
+
 
 ### 26.5 Pathwise 3.1 utilization pass
 
@@ -2453,7 +2484,7 @@ Foundation should also avoid adopting DBLayer's process-static `DB` façade as i
 6. DBLayer result caching is already sophisticated: caching is disabled for locking queries, managed transactions, sticky-write state and unresolved complex/raw dependency graphs. Foundation must preserve those lower-layer safety decisions.
 7. DBLayer 5.0 query-write invalidation currently reaches `DB::invalidateCacheTagsAfterCommit(...)`. Foundation normally creates `Connection` instances directly instead of registering them through the static `DB` façade. Before Foundation enables DBLayer query caching, verify that cache lookup and post-commit invalidation are fully correct for this instance-owned connection model. If they are not, add an instance-oriented lower-layer DBLayer cache/invalidation contract rather than registering Foundation execution connections into process-global `DB` merely as a workaround.
 8. CacheLayer being a DBLayer package dependency does not mean Foundation's application cache capability should activate whenever database capability activates. Query caching and migration locking remain explicitly selected features.
-9. `DBLayerPasskeyCredentialStore::updateUsage()` currently performs an ordinary update of passkey usage/sign-count state without an expected version/counter condition. This does not meet the atomic persistence requirement established by WebAuthn section 26.11.
+9. `DBLayerPasskeyCredentialStore::updateUsage()` currently performs an ordinary update of passkey usage/sign-count state without an expected version/counter condition. This does not meet the atomic persistence requirement established by OTP/Passkey section 26.4 and the section 26.11 ownership handoff.
 10. MFA factor compare-and-swap is already properly conditional. Do not replace that path with a generic `save()` merely for repository uniformity.
 11. Read/write-replica sticky state, transaction state, query comments/context, deadline/cancellation state and statement-cache state all belong to DBLayer's connection runtime and must be clean before a pooled connection crosses an execution boundary.
 12. Migration/schema execution is administrative/build/CLI work. It must not add discovery or lock/cache work to normal request/job hot paths.
@@ -2483,7 +2514,7 @@ Foundation should also avoid adopting DBLayer's process-static `DB` façade as i
 * [ ] Require explicit tags for complex/raw dependency graphs where DBLayer requires them.
 * [ ] Keep application CacheLayer capability separate from database capability unless a selected DB feature actually needs CacheLayer.
 * [ ] Preserve DBLayer-backed MFA factor compare-and-swap and verify every counter-sensitive auth path uses it.
-* [ ] Replace passkey plain usage updates with atomic credential-record persistence satisfying section 26.11.
+* [ ] Replace passkey plain usage updates with atomic credential-record persistence satisfying OTP/Passkey section 26.4 and the section 26.11 handoff.
 * [ ] Prefer optimistic compare-and-swap/version conditions for passkey state where practical; alternatively use DBLayer-native transaction/row-lock semantics when the store contract requires them.
 * [ ] A stale passkey credential update must fail rather than overwrite a newer authenticator state.
 * [ ] Keep DBLayer Schema/MigrationRunner/SeedRunner as the lower-layer implementation for Foundation-owned auth/application schema policy.
@@ -2556,7 +2587,7 @@ The DBLayer tracker can be checked only when:
 * query caching, if exposed, has a correct instance-owned post-commit invalidation path;
 * DBLayer-native query-cache semantics are used rather than duplicated;
 * MFA CAS remains atomic;
-* WebAuthn credential-state persistence is atomic;
+* OTP Passkey credential-state persistence is atomic;
 * migrations/schema remain administrative and lower-layer-backed;
 * optional database/cache capabilities remain cold when unused;
 * direct-DBLayer versus Foundation attribution benchmarks record the final database bridge overhead.
@@ -3171,7 +3202,7 @@ Foundation must not maintain parallel HKDF, encryption-envelope, MAC or password
 * [ ] Do not increase dependency surface merely to maximize package usage.
 * [ ] Preserve structured Epicrypt exceptions internally while mapping them to non-sensitive application/auth failures externally.
 * [ ] Coordinate OTP secret/recovery decisions with section 26.4.
-* [ ] Coordinate persisted secret and passkey-adjacent application-key decisions with section 26.11 where relevant.
+* [ ] Coordinate persisted secret and passkey-adjacent application-key decisions with sections 26.4 and 26.11 where relevant.
 
 **Correctness and security acceptance**
 
@@ -3218,150 +3249,36 @@ The Epicrypt tracker can be checked only when:
 * persistent-runtime secret isolation is proven;
 * direct-Epicrypt versus Foundation attribution benchmarks record the final adapter overhead.
 
-### 26.11 WebAuthn 5.3.8 integration pass
+### 26.11 WebAuthn specialist pass — closed and subsumed by OTP 6.1
 
-**Baseline**
+**Status: lower-layer ownership migration closed; Foundation implementation remains in sections 26.4 and 26.6.**
 
-* package: `web-auth/webauthn-lib`;
-* current Foundation constraint line: `^5.3.5`;
-* audited compatible release: WebAuthn 5.3.8;
-* tag commit: `85d8ae791c87a34be91a7ff5cdb5606f67dedaab`;
-* target: raise the Foundation 3 minimum to the audited 5.3.8 patch while preserving dependency compatibility.
+OTP 6.1 now exposes `Infocyph\OTP\Passkey` as the Foundation-facing WebAuthn ceremony/state wrapper over optional `web-auth/webauthn-lib ^5.3`. The standalone Foundation-vs-WebAuthn architecture described by the previous version of this section is therefore retired.
 
-**Ownership decision**
+**Closed ownership decisions**
 
-WebAuthn owns WebAuthn ceremony/protocol validation. Foundation owns challenge/credential persistence, account mapping, application policy and runtime composition around the library.
+* [X] WebAuthn creation/request option construction is lower-layer-owned through OTP `Passkey`.
+* [X] Attestation/assertion parsing and validation remain upstream-WebAuthn-owned and are invoked by OTP rather than reimplemented in Foundation.
+* [X] RP ID, origin, challenge, user-presence, user-verification, extension and authenticator signature-counter rules remain lower-layer-owned.
+* [X] Passkey ceremony challenge issuance, expiry and one-time consumption are now OTP-owned secure CacheLayer authentication state.
+* [X] OTP returns the serialized credential record resulting from a successful registration/authentication ceremony for application persistence.
+* [X] Foundation no longer needs a separate WebAuthn ceremony service/validator layer, separate ceremony challenge store or protocol codec bridge.
+* [X] The standalone WebAuthn lower-library tracker is closed as **subsumed by OTP 6.1**, not as evidence that Foundation's durable credential persistence work is already finished.
 
-WebAuthn owns:
+**Remaining Foundation work — tracked elsewhere**
 
-* public-key credential creation/request option objects and protocol parsing;
-* attestation response validation;
-* assertion response validation;
-* RP ID validation;
-* origin validation;
-* challenge validation;
-* user-presence/user-verification checks;
-* extension handling;
-* authenticator signature-counter validation rules;
-* credential-record mutation resulting from a successful assertion;
-* updated sign counter;
-* backup eligibility/status state;
-* WebAuthn-specific codecs/value objects/events/exceptions.
+* [ ] Remove/retire direct Foundation WebAuthn validator/options/challenge/codec implementations and route the passkey feature through OTP `Passkey` — section 26.4.
+* [ ] Keep `web-auth/webauthn-lib` available only when the OTP Passkey capability is selected; package availability is composition policy, not a second integration architecture — section 26.4.
+* [ ] Map Foundation principals/accounts to passkey user handles and enforce discoverable-credential/account policy — section 26.4.
+* [ ] Persist the exact credential record returned by OTP using authoritative atomic stale-write rejection — sections 26.4 and 26.6.
+* [ ] Preserve passkey naming/management/authorization and redaction/observability policy — section 26.4.
+* [ ] Prove passkey-disabled graphs remain cold and benchmark direct OTP Passkey versus the Foundation persistence/policy bridge — section 26.4.
 
-Foundation owns:
+DBLayer section 26.6 remains the owner of the persistence primitive needed for atomic passkey credential replacement. Epicrypt section 26.10 remains the owner of any application-key/protection policy adjacent to persisted authentication data. Neither section should reintroduce WebAuthn ceremony logic.
 
-* generating/storing/expiring/one-time-consuming ceremony challenge state;
-* mapping authenticated Foundation users/accounts to WebAuthn user handles;
-* durable credential-record repository/schema;
-* atomically persisting the credential record returned by a successful ceremony;
-* registration/login/account policy;
-* passkey naming/management and authorization;
-* CacheLayer/DBLayer topology;
-* InterMix lifetime selection;
-* redaction/observability policy;
-* application-facing error mapping.
+**Completion gate — satisfied for the standalone specialist pass**
 
-Foundation must not reimplement assertion-counter, origin/RP, attestation, signature or challenge-validation algorithms already owned by WebAuthn.
-
-**Confirmed current findings**
-
-1. WebAuthn 5.3.8 `AuthenticatorAssertionResponseValidator::check()` performs ceremony validation and then updates the verified credential record with authenticator state before returning it.
-2. The returned record includes the new authenticator `signCount` and relevant backup/user-verification state.
-3. Foundation must persist that returned record correctly; it must not independently recreate WebAuthn counter rules.
-4. The current Foundation DB-backed passkey usage path performs an ordinary update.
-5. Two valid concurrent assertions against the same old credential state can therefore lose ordering/state or overwrite a newer record.
-6. Section 26.6 must provide an atomic passkey credential-state persistence primitive using compare-and-swap, a version/counter condition, transaction/row locking, or an equivalent DBLayer-native mechanism.
-7. WebAuthn challenge state is one-time authentication state.
-8. Any CacheLayer-backed challenge consume path must use section 26.3's atomic `getAndDelete()` security-state mechanics rather than plain `get()` + `delete()`.
-9. Foundation challenge physical keys use the section-26.3 security-state encoder: domain-separated SHA3-256 under CacheLayer's key grammar/length contract.
-10. Foundation has local Base64URL-style conversion at passkey boundaries.
-11. Compare its exact behavior against WebAuthn 5.3.8's own codec/utilities and remove the Foundation helper when genuinely redundant.
-12. Do not change persisted credential-ID representation solely for code deduplication.
-13. Validator/logger/event-dispatcher wiring is process configuration.
-14. If validator instances are shared, finalize mutable setters before traffic and never mutate logger/event-dispatcher state per request.
-15. Challenge/options/ceremony request state remains execution-local.
-16. Backup-eligible/backed-up credentials can legitimately affect signature-counter behavior. Foundation must trust WebAuthn's successful ceremony result rather than impose a simplistic Foundation counter rule.
-
-**Audit and implementation checklist**
-
-* [ ] Raise Foundation's WebAuthn dependency floor to `^5.3.8` after confirming the complete dependency/test matrix.
-* [ ] Rescan every Foundation WebAuthn class/import against 5.3.8 tagged APIs.
-* [ ] Remove stale/deprecated `PublicKeyCredentialSource` assumptions where the 5.3.8 `CredentialRecord` contract is the correct boundary.
-* [ ] Keep creation/assertion validation entirely in WebAuthn validators/ceremony logic.
-* [ ] Keep Foundation responsible only for repositories, options/policy, lifecycle and persistence.
-* [ ] Make challenge issuance/consume state short-lived, execution-safe and one-time under concurrency using section 26.3's CacheLayer 3.3 atomic `getAndDelete()` capability.
-* [ ] Ensure challenge namespace keys use the section-26.3 domain-separated SHA3-256 security-state physical-key encoder.
-* [ ] Persist the exact credential record returned after successful assertion.
-* [ ] Persist sign counter, backup state and user-verification state required by the returned record.
-* [ ] Implement atomic credential-state persistence through the DBLayer 26.6 pass.
-* [ ] Require stale concurrent updates to fail rather than silently overwrite.
-* [ ] Define a bounded stale-update/reload policy; do not create an unbounded retry loop.
-* [ ] Keep credential repositories process-safe while user/challenge/ceremony request state remains scoped/transient.
-* [ ] Review discoverable/resident-credential handling.
-* [ ] Verify user-handle lookup cannot bind a credential to the wrong Foundation principal.
-* [ ] Compare Foundation Base64URL helpers with WebAuthn's tagged codec behavior.
-* [ ] Delete only genuinely redundant conversion helpers.
-* [ ] Freeze validator logger/event-dispatcher configuration before production traffic.
-* [ ] Do not use mutable shared validator state as request context.
-* [ ] Preserve WebAuthn structured events/exceptions internally while returning non-sensitive authentication errors externally.
-* [ ] Keep credential public-key material, challenge values and complete attestation/assertion payloads out of ordinary logs unless an explicit safe diagnostic representation exists.
-* [ ] Keep WebAuthn capability absent from graphs when passkeys are disabled.
-
-**Correctness and security acceptance**
-
-* [ ] Test registration ceremony through Foundation against WebAuthn 5.3.8.
-* [ ] Test assertion ceremony through Foundation against WebAuthn 5.3.8.
-* [ ] Test valid/invalid origin.
-* [ ] Test valid/invalid RP ID.
-* [ ] Test valid/invalid challenge.
-* [ ] Test user presence.
-* [ ] Test user verification.
-* [ ] Test challenge expiry.
-* [ ] Test challenge one-time consumption.
-* [ ] Test concurrent duplicate assertion so only one execution consumes the ceremony state.
-* [ ] Test successful assertion persists the returned sign counter.
-* [ ] Test successful assertion persists returned backup eligibility/status.
-* [ ] Test successful assertion persists relevant user-verification state.
-* [ ] Test concurrent assertions against the same stored credential cannot lose a newer counter/state update.
-* [ ] Test stale atomic-update failure follows the documented bounded policy.
-* [ ] Test a stale state race never converts a failed persistence condition into successful authentication.
-* [ ] Test backup-eligible/backed-up credential scenarios through WebAuthn rather than a Foundation-invented counter shortcut.
-* [ ] Test discoverable credential/user-handle mapping cannot cross principals.
-* [ ] Test Base64URL/credential-ID round trips before removing any Foundation helper.
-* [ ] Test validator configuration remains immutable during persistent traffic.
-* [ ] Test sequential/Fiber executions do not leak challenge/principal state.
-* [ ] Test disabled passkey capability adds no WebAuthn challenge/repository services to unrelated runtime graphs.
-* [ ] Test logs/errors contain no raw challenge, private secret or unnecessarily complete assertion payload.
-
-**Performance acceptance**
-
-Benchmark at minimum:
-
-1. passkey capability absent versus enabled-but-unused graph/boot cost;
-2. direct WebAuthn creation-option construction versus the Foundation issuance bridge;
-3. direct WebAuthn assertion validation versus Foundation validation + challenge consume;
-4. credential lookup + successful atomic persistence;
-5. contention/stale-update path under representative concurrent assertions;
-6. discoverable-credential lookup where supported;
-7. challenge issue/consume overhead through the hardened CacheLayer path;
-8. repeated assertions in persistent runtime with memory/state-isolation measurement.
-
-Do not optimize by bypassing WebAuthn ceremony checks or weakening one-time challenge/counter persistence. Attribute Foundation cache/DB/policy overhead separately from the cryptographic/protocol cost already owned by WebAuthn.
-
-**Completion gate**
-
-The WebAuthn tracker can be checked only when:
-
-* Foundation is pinned and tested against WebAuthn 5.3.8;
-* challenge consumption is atomic;
-* challenge keys conform to the hardened CacheLayer contract;
-* credential state returned by WebAuthn is persisted atomically;
-* Foundation contains no duplicate signature-counter logic;
-* concurrent credential updates cannot silently overwrite newer state;
-* stale/deprecated integration assumptions are removed;
-* validator/request lifetimes are persistent-runtime safe;
-* passkey-disabled graphs remain cold;
-* direct-WebAuthn versus Foundation integration benchmarks record the final overhead.
+There is no longer a separate Foundation WebAuthn-protocol integration pass. OTP 6.1 is the protocol/ceremony boundary. All unfinished Foundation passkey work is explicitly carried by sections 26.4 and 26.6, so this tracker is closed without falsely marking the Foundation passkey feature complete.
 
 Each lower-library pass updates **this same canonical document**. Do not create another standalone runtime-plan file.
 
@@ -3718,9 +3635,10 @@ Each item remains unchecked until its dedicated deep audit is performed and merg
 - [ ] ReqShield current-version utilization pass.
 - [ ] Omnibus current-version utilization pass.
 - [ ] TalkingBytes current-version utilization pass.
-- [ ] OTP 6.0 current-version utilization pass.
+- [X] OTP 6.1 lower-layer capability/release audit — TOTP/HOTP/OCRA/GenericOtp, AOTP, GridOTP, MobileOTP, CacheLayer 3.3 replay hardening and Passkey/WebAuthn ceremony ownership are closed in OTP; Foundation integration remains open in section 26.4.
+- [ ] Foundation OTP 6.1 + Passkey integration pass — policy, protected/durable factor state, credential CAS, error taxonomy, integration tests and attribution benchmarks (section 26.4).
 - [ ] Epicrypt current-version utilization pass.
-- [ ] WebAuthn integration pass.
+- [X] Standalone WebAuthn specialist pass retired/subsumed by OTP 6.1 Passkey; remaining Foundation persistence/policy work is tracked in sections 26.4 and 26.6.
 - [ ] Pathwise 3.1 current-version utilization pass.
 
 When a later library pass changes architecture or implementation order, update both its detailed section and the applicable checkboxes here in the same commit.
