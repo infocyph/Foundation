@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Internal;
 
-use Infocyph\DBLayer\DB;
+use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\Epicrypt\Token\Jwt\AsymmetricJwt;
 use Infocyph\Epicrypt\Token\Opaque\OpaqueToken;
 use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerOAuthAccessRevocationStore;
@@ -69,7 +69,7 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
             return;
         }
 
-        $this->requirePackage(DB::class, 'infocyph/dblayer', 'database');
+        $this->requirePackage(Connection::class, 'infocyph/dblayer', 'database');
         $this->requirePackage(AsymmetricJwt::class, 'infocyph/epicrypt', 'crypto');
         $this->requirePackage(\Infocyph\CacheLayer\Cache\Cache::class, 'infocyph/cachelayer', 'cache');
         $this->registerStores();
