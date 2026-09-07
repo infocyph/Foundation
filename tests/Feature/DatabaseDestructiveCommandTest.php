@@ -288,11 +288,21 @@ function foundationDestructiveCommandFixture(string $name, string $environment =
             'default' => 'auth-state',
             'default_counter' => 'auth-lockouts',
             'stores' => [
-                'auth-state' => ['driver' => 'file', 'path' => 'storage/cache/auth'],
+                'auth-state' => [
+                    'driver' => 'redis',
+                    'fail_open' => false,
+                    'security' => [
+                        'integrity_key' => str_repeat('f', 64),
+                    ],
+                    'serialization' => [
+                        'allow_object_payloads' => false,
+                    ],
+                ],
             ],
             'counters' => [
                 'auth-lockouts' => ['driver' => 'redis'],
             ],
+            'lock' => ['driver' => 'redis', 'store' => 'auth-state'],
         ];
         $config['security'] = [
             'jwt' => [
