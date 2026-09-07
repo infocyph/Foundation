@@ -130,7 +130,7 @@ function foundationReleaseInfrastructureManifest(string $generation): array
         'format' => FoundationReleaseManifest::FORMAT,
         'generation' => $generation,
         'environment' => 'production',
-        'config_fingerprint' => str_repeat('c', 64),
+        'config_fingerprint' => str_repeat('c', 32),
         'config_path' => 'config.php',
         'config_sha256' => str_repeat('e', 64),
         'web' => [
