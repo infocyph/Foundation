@@ -13,6 +13,7 @@
         "psr/log": "^3.0.2"
     },
     "require-dev": {
+        "ext-sodium": "*",
         "infocyph/cachelayer": "^3.4",
         "infocyph/dblayer": "^5.1",
         "infocyph/epicrypt": "^2.1",
@@ -26,6 +27,7 @@
         "web-auth/webauthn-lib": "^5.3.5"
     },
     "suggest": {
+        "ext-sodium": "Required when OTP AOTP/Ed25519 factors are enabled.",
         "infocyph/cachelayer": "Adds cache stores, native bulk paths, optional atomic claim/consume/CAS, locks, counters, node/cluster cache, and shared authentication/runtime state.",
         "infocyph/dblayer": "Adds database services, persistence, migrations, query caching, replicas, and MySQL/MariaDB/PostgreSQL/SQLite/SQL Server support.",
         "infocyph/epicrypt": "Adds cryptography, secrets, password, token, and key security services.",
