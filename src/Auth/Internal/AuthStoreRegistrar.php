@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Internal;
 
-use Infocyph\DBLayer\DB;
+use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\Foundation\Auth\Adapter\DBLayer\{
     DBLayerAccountStore,
     DBLayerAuditEventStore,
@@ -39,7 +39,10 @@ use Infocyph\Foundation\Auth\Contract\Storage\{
 use Infocyph\Foundation\Auth\Device\DeviceStoreInterface;
 use Infocyph\Foundation\Auth\Driver\AuthStorageDriver;
 use Infocyph\Foundation\Auth\Mfa\{MfaFactorCompareAndSwapStoreInterface, MfaFactorStoreInterface};
-use Infocyph\Foundation\Auth\Passkey\PasskeyCredentialStoreInterface;
+use Infocyph\Foundation\Auth\Passkey\{
+    PasskeyCredentialCompareAndSwapStoreInterface,
+    PasskeyCredentialStoreInterface
+};
 use Infocyph\Foundation\Auth\Support\{
     InMemoryAccountStore,
     InMemoryAuditEventStore,
@@ -67,7 +70,7 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
     public function register(AuthStorageDriver $driver): void
     {
         if ($driver === AuthStorageDriver::DATABASE) {
-            $this->requirePackage(DB::class, 'infocyph/dblayer', 'db');
+            $this->requirePackage(Connection::class, 'infocyph/dblayer', 'db');
             $this->registerDBLayerStores();
 
             return;
@@ -111,7 +114,7 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
             EmailVerificationStoreInterface::class => DBLayerEmailVerificationStore::class,
             RememberTokenStoreInterface::class => DBLayerRememberTokenStore::class,
             RefreshTokenStoreInterface::class => DBLayerRefreshTokenStore::class,
-            PasskeyCredentialStoreInterface::class => DBLayerPasskeyCredentialStore::class,
+            PasskeyCredentialCompareAndSwapStoreInterface::class => DBLayerPasskeyCredentialStore::class,
             RoleStoreInterface::class => DBLayerRoleStore::class,
             PermissionStoreInterface::class => DBLayerPermissionStore::class,
             GrantStoreInterface::class => DBLayerGrantStore::class,
@@ -151,7 +154,7 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
             RememberTokenStoreInterface::class => InMemoryRememberTokenStore::class,
             RefreshTokenStoreInterface::class => InMemoryRefreshTokenStore::class,
             MfaFactorCompareAndSwapStoreInterface::class => InMemoryMfaFactorStore::class,
-            PasskeyCredentialStoreInterface::class => InMemoryPasskeyCredentialStore::class,
+            PasskeyCredentialCompareAndSwapStoreInterface::class => InMemoryPasskeyCredentialStore::class,
             RoleStoreInterface::class => InMemoryRoleStore::class,
             PermissionStoreInterface::class => InMemoryPermissionStore::class,
             DeviceStoreInterface::class => InMemoryDeviceStore::class,
@@ -203,6 +206,7 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
 
         $this->alias(AccountProviderInterface::class, AccountStoreInterface::class);
         $this->alias(MfaFactorStoreInterface::class, MfaFactorCompareAndSwapStoreInterface::class);
+        $this->alias(PasskeyCredentialStoreInterface::class, PasskeyCredentialCompareAndSwapStoreInterface::class);
         $this->alias(RoleAssignmentStoreInterface::class, RoleStoreInterface::class);
         $this->alias(PermissionAssignmentStoreInterface::class, PermissionStoreInterface::class);
     }
