@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Auth\Internal;
 
 use Infocyph\CacheLayer\Cache\AuthenticationStateCacheInterface;
+use Infocyph\Foundation\Auth\Adapter\Otp\OtpChallengeFactorService;
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpMfaVerifier;
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpRecoveryCodeStore;
 use Infocyph\Foundation\Auth\Mfa\MfaFactorCompareAndSwapStoreInterface;
@@ -14,6 +15,20 @@ use Infocyph\OTP\Contracts\RecoveryCodeStoreInterface;
 
 final class AuthMfaGraphFactory
 {
+    public static function challengeFactors(
+        CacheLayerFactory $cache,
+        ?string $storeName,
+    ): OtpChallengeFactorService {
+        $store = $cache->make($storeName);
+        if (!$store instanceof AuthenticationStateCacheInterface) {
+            throw new \LogicException(
+                'OTP authentication state requires a CacheLayer AuthenticationStateCacheInterface store.',
+            );
+        }
+
+        return new OtpChallengeFactorService($store);
+    }
+
     public static function recoveryCodeStore(MfaFactorStoreInterface $factors): RecoveryCodeStoreInterface
     {
         if (!$factors instanceof MfaFactorCompareAndSwapStoreInterface) {
@@ -27,8 +42,7 @@ final class AuthMfaGraphFactory
 
     public static function verifier(
         MfaFactorStoreInterface $factors,
-        CacheLayerFactory $cache,
-        ?string $storeName,
+        OtpChallengeFactorService $challengeFactors,
         int $window,
         int $ocraReplayTtl,
     ): OtpMfaVerifier {
@@ -38,16 +52,9 @@ final class AuthMfaGraphFactory
             );
         }
 
-        $store = $cache->make($storeName);
-        if (!$store instanceof AuthenticationStateCacheInterface) {
-            throw new \LogicException(
-                'OTP replay protection requires a CacheLayer AuthenticationStateCacheInterface store.',
-            );
-        }
-
         return new OtpMfaVerifier(
             factors: $factors,
-            stateCache: $store,
+            challengeFactors: $challengeFactors,
             window: $window,
             ocraReplayTtl: $ocraReplayTtl,
         );
