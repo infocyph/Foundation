@@ -69,6 +69,23 @@ final readonly class DatabaseConnectionResolver
         return $resolved;
     }
 
+    public function queryCacheEnabled(): bool
+    {
+        return $this->config->get('database.query_cache.enabled', false) === true;
+    }
+
+    public function queryCacheStore(): string
+    {
+        $store = $this->config->get('database.query_cache.store');
+        if (!is_string($store) || trim($store) === '') {
+            throw new ConfigurationException(
+                'database.query_cache.store must name an explicit CacheLayer store when database query caching is enabled.',
+            );
+        }
+
+        return trim($store);
+    }
+
     private function absolute(string $path): bool
     {
         return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1;
