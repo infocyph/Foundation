@@ -53,5 +53,5 @@ it('fails closed when passkey ceremony storage lacks authentication-state capabi
     $app = Foundation::web(foundationOtpPasskeyConfig('null_store'))->boot();
 
     expect(fn() => $app->make(Passkey::class))
-        ->toThrow(LogicException::class, 'AuthenticationStateCacheInterface');
+        ->toThrow(LogicException::class, 'Authentication state caches must use one authoritative direct backend.');
 });
