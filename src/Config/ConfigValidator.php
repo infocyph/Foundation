@@ -54,7 +54,7 @@ final readonly class ConfigValidator
             return false;
         }
 
-        return in_array(strtolower($host), ['localhost', '127.0.0.1'], true);
+        return in_array(strtolower($host), ['localhost', '127.0.0.1', '::1'], true);
     }
 
     private function isNonNegativeInteger(mixed $value): bool
@@ -435,11 +435,8 @@ final readonly class ConfigValidator
     {
         $rpId = $this->config->get('auth.webauthn.rp_id');
         $origin = $this->config->get('auth.webauthn.origin');
-        $attestation = $this->config->get('auth.webauthn.attestation', 'none');
-        $userVerification = $this->config->get('auth.webauthn.user_verification', 'preferred');
-        $residentKey = $this->config->get('auth.webauthn.resident_key', 'preferred');
-        $algorithms = $this->config->get('auth.webauthn.algorithms', ['ES256', 'RS256']);
-        $transports = $this->config->get('auth.webauthn.transports', ['internal', 'hybrid', 'usb', 'nfc', 'ble']);
+        $challengeTtl = $this->config->get('auth.webauthn.challenge_ttl', 300);
+        $allowSubdomains = $this->config->get('auth.webauthn.allow_subdomains', false);
 
         if (!is_string($rpId) || $rpId === '') {
             $issues[] = new ConfigIssue(
@@ -459,10 +456,23 @@ final readonly class ConfigValidator
 
         $scheme = parse_url($origin, PHP_URL_SCHEME);
         $host = parse_url($origin, PHP_URL_HOST);
-
-        if (!is_string($scheme) || !in_array(strtolower($scheme), ['http', 'https'], true)) {
+        $path = parse_url($origin, PHP_URL_PATH);
+        $user = parse_url($origin, PHP_URL_USER);
+        $pass = parse_url($origin, PHP_URL_PASS);
+        $query = parse_url($origin, PHP_URL_QUERY);
+        $fragment = parse_url($origin, PHP_URL_FRAGMENT);
+        if (
+            !is_string($scheme)
+            || !is_string($host)
+            || !in_array(strtolower($scheme), ['http', 'https'], true)
+            || $user !== null
+            || $pass !== null
+            || $query !== null
+            || $fragment !== null
+            || ($path !== null && $path !== '')
+        ) {
             $issues[] = new ConfigIssue(
-                'auth.webauthn.origin must be a valid http or https origin.',
+                'auth.webauthn.origin must be an exact HTTP(S) origin without path, credentials, query, or fragment.',
                 'auth.webauthn.origin',
             );
 
@@ -476,36 +486,21 @@ final readonly class ConfigValidator
             );
         }
 
-        if (!is_string($attestation) || !in_array($attestation, ['none', 'direct', 'indirect', 'enterprise'], true)) {
+        $ttl = is_int($challengeTtl)
+            ? $challengeTtl
+            : (is_string($challengeTtl) && preg_match('/^[1-9]\d*$/D', $challengeTtl) === 1 ? (int) $challengeTtl : 0);
+        if ($ttl < 1 || $ttl > 600) {
             $issues[] = new ConfigIssue(
-                'auth.webauthn.attestation must be one of: none, direct, indirect, enterprise.',
-                'auth.webauthn.attestation',
+                'auth.webauthn.challenge_ttl must be between 1 and 600 seconds.',
+                'auth.webauthn.challenge_ttl',
             );
         }
 
-        $this->validateAllowedString(
-            $issues,
-            'auth.webauthn.user_verification',
-            $userVerification,
-            ['required', 'preferred', 'discouraged'],
-        );
-        $this->validateAllowedString(
-            $issues,
-            'auth.webauthn.resident_key',
-            $residentKey,
-            ['required', 'preferred', 'discouraged'],
-        );
-        $this->validateAllowedStringList(
-            $issues,
-            'auth.webauthn.algorithms',
-            $algorithms,
-            ['ES256', 'RS256'],
-        );
-        $this->validateAllowedStringList(
-            $issues,
-            'auth.webauthn.transports',
-            $transports,
-            ['internal', 'hybrid', 'usb', 'nfc', 'ble'],
-        );
+        if (!is_bool($allowSubdomains)) {
+            $issues[] = new ConfigIssue(
+                'auth.webauthn.allow_subdomains must be a boolean.',
+                'auth.webauthn.allow_subdomains',
+            );
+        }
     }
 }
