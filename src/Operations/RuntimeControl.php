@@ -7,6 +7,7 @@ namespace Infocyph\Foundation\Operations;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Cache\CacheLayerFactory;
 use Infocyph\Foundation\Cache\CacheManager;
+use Infocyph\Foundation\Cache\FoundationCacheKey;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\UID\Id;
 
@@ -77,9 +78,11 @@ final readonly class RuntimeControl
 
     private function cacheKey(): string
     {
-        $key = $this->application->config()->get('operations.runtime_control.key', 'foundation:runtime-control');
-
-        return is_string($key) && $key !== '' ? $key : 'foundation:runtime-control';
+        return FoundationCacheKey::fingerprint(
+            'runtime-state',
+            'runtime-control',
+            $this->logicalCacheKey(),
+        );
     }
 
     private function cacheStore(): ?string
@@ -126,6 +129,13 @@ final readonly class RuntimeControl
         return $scope . ':' . $name;
     }
 
+    private function logicalCacheKey(): string
+    {
+        $key = $this->application->config()->get('operations.runtime_control.key', 'foundation:runtime-control');
+
+        return is_string($key) && $key !== '' ? $key : 'foundation:runtime-control';
+    }
+
     /** @param callable(array<string,mixed>):array<string,mixed> $mutation */
     private function mutate(callable $mutation): void
     {
@@ -138,7 +148,11 @@ final readonly class RuntimeControl
 
             $lock = $this->application->make(CacheLayerFactory::class)->lock();
             $handle = $lock->acquire(
-                'foundation:runtime-control:' . substr(hash('sha256', $this->cacheKey()), 0, 48),
+                FoundationCacheKey::fingerprint(
+                    'runtime-lock',
+                    'runtime-control',
+                    $this->logicalCacheKey(),
+                ),
                 5.0,
                 15.0,
             );
