@@ -7,6 +7,7 @@ use Infocyph\DBLayer\Migration\MigrationRunner;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthMfaRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthOAuthRevisionSchema;
+use Infocyph\Foundation\Database\AuthSchema\AuthPasskeyRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchemaInstaller;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
@@ -14,7 +15,7 @@ use Infocyph\Foundation\Database\DatabaseConnectionResolver;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
 
-it('upgrades an installed Foundation 2.0 auth schema to OAuth 2.1 without disturbing existing auth state', function (): void {
+it('upgrades an installed Foundation 2.0 auth schema to current revisions without disturbing existing auth state', function (): void {
     DB::purge();
     $config = new ConfigRepository([
         'database' => [
@@ -29,9 +30,10 @@ it('upgrades an installed Foundation 2.0 auth schema to OAuth 2.1 without distur
     $tables = new AuthTables();
     $base = new AuthSchema($tables);
     $mfa = new AuthMfaRevisionSchema($tables);
+    $passkey = new AuthPasskeyRevisionSchema($tables);
     $oauth = new AuthOAuthRevisionSchema($tables);
     $releasedRunner = new MigrationRunner($connection, [$base, $mfa]);
-    $installer = new AuthSchemaInstaller($factory, $base, $mfa, $tables, $oauth, true);
+    $installer = new AuthSchemaInstaller($factory, $base, $mfa, $passkey, $tables, $oauth, true);
     $now = time();
 
     try {
@@ -69,12 +71,13 @@ it('upgrades an installed Foundation 2.0 auth schema to OAuth 2.1 without distur
         ]);
 
         $before = $installer->readiness();
-        expect($before['installed'])->toBeFalse();
+        expect($before['installed'])->toBeFalse()
+            ->and($before['missing_columns'])->toContain($tables->passkeyCredentials() . '.revision');
         foreach ($tables->oauth() as $oauthTable) {
             expect($before['missing_tables'])->toContain($oauthTable);
         }
 
-        expect($installer->runner()->run())->toBe([$oauth->id()]);
+        expect($installer->runner()->run())->toBe([$passkey->id(), $oauth->id()]);
         $after = $installer->readiness();
 
         expect($after['installed'])->toBeTrue()
