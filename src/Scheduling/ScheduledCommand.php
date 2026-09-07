@@ -126,7 +126,7 @@ final class ScheduledCommand
 
     public function identity(): string
     {
-        return $this->key ?? hash('sha256', json_encode([
+        return $this->key ?? hash('xxh128', json_encode([
             $this->command,
             $this->arguments,
             $this->cron->expression(),
