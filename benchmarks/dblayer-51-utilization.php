@@ -12,8 +12,7 @@ use Infocyph\Foundation\Runtime\RuntimeExecutionState;
 require dirname(__DIR__) . '/vendor/autoload.php';
 
 if (!extension_loaded('pdo_sqlite')) {
-    fwrite(STDERR, "DBLayer 5.1 utilization benchmark requires pdo_sqlite.\n");
-    exit(2);
+    throw new RuntimeException('DBLayer 5.1 utilization benchmark requires pdo_sqlite.');
 }
 
 /** @return array{median_ns:float,min_ns:float,max_ns:float,spread_percent:float} */
@@ -179,4 +178,7 @@ $report = [
 $dedicated->disconnect();
 $pool->closeAll();
 
-echo json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), PHP_EOL;
+file_put_contents(
+    'php://stdout',
+    json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL,
+);
