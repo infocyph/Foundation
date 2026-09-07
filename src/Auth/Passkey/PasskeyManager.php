@@ -203,6 +203,7 @@ final readonly class PasskeyManager
         $updated = $expected->withCredentialRecord(
             $verification->credentialRecordJson,
             $this->clock->now(),
+            $verification->signCount,
         );
 
         return $this->credentials->compareAndSwap($expected, $updated)
