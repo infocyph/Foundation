@@ -52,11 +52,20 @@ final class CacheGraphFactory
         return $factory->lock();
     }
 
-    public static function manager(CacheLayerFactory $factory, DBLayerFactory $database): CacheManager
-    {
+    public static function manager(
+        CacheLayerFactory $factory,
+        DBLayerFactory $database,
+        ConfigRepository $config,
+        PathManager $paths,
+    ): CacheManager {
         return new CacheManager(
             factory: $factory,
             database: static fn(?string $name = null) => $database->connection($name),
+            transactionalFactory: new CacheLayerFactory(
+                config: $config,
+                paths: $paths,
+                database: static fn(?string $name = null) => $database->connection($name),
+            ),
         );
     }
 
