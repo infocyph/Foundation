@@ -7,6 +7,8 @@ namespace Infocyph\Foundation\Database;
 use Infocyph\CacheLayer\Cache\CacheInterface;
 use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\Connection\ConnectionConfig;
+use Infocyph\DBLayer\Connection\Pool;
+use Infocyph\DBLayer\Connection\PoolManager;
 use Infocyph\Foundation\Cache\CacheLayerFactory;
 use Infocyph\Foundation\Exception\ConfigurationException;
 use Infocyph\Foundation\Runtime\RuntimeExecutionState;
@@ -26,6 +28,11 @@ final class DBLayerFactory
      */
     private array $infrastructureConnections = [];
 
+    /** @var array<string, true> */
+    private array $pooledConfigurations = [];
+
+    private ?PoolManager $poolManager = null;
+
     private ?CacheInterface $queryCache = null;
 
     private bool $queryCacheResolved = false;
@@ -39,6 +46,12 @@ final class DBLayerFactory
 
     public function __destruct()
     {
+        try {
+            $this->poolManager?->getPool()->closeAll();
+        } catch (\Throwable) {
+            // Destructors must not surface shutdown failures.
+        }
+
         foreach ($this->infrastructureConnections as $connection) {
             try {
                 $connection->disconnect();
@@ -53,8 +66,13 @@ final class DBLayerFactory
         $name = $this->resolver->connectionName($name);
         $config = $this->configuration($name);
         $state = $this->executionState();
-        $connection = $fresh
-            ? $state->freshConnection($name, $config)
+
+        if ($fresh) {
+            return $this->bindQueryCache($state->freshConnection($name, $config));
+        }
+
+        $connection = $this->resolver->poolEnabled()
+            ? $this->pooledConnection($state, $name, $config)
             : $state->connection($name, $config);
 
         return $this->bindQueryCache($connection);
@@ -104,6 +122,25 @@ final class DBLayerFactory
         }
 
         return $state;
+    }
+
+    private function poolManager(): PoolManager
+    {
+        return $this->poolManager ??= new PoolManager(new Pool($this->resolver->poolOptions()));
+    }
+
+    private function pooledConnection(
+        RuntimeExecutionState $state,
+        string $name,
+        ConnectionConfig $config,
+    ): Connection {
+        $pool = $this->poolManager();
+        if (!isset($this->pooledConfigurations[$name])) {
+            $pool->getPool()->addConfig($name, $config);
+            $this->pooledConfigurations[$name] = true;
+        }
+
+        return $state->leasedConnection($name, $pool);
     }
 
     private function queryCache(): CacheInterface
