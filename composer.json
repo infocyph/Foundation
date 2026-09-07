@@ -17,7 +17,7 @@
         "infocyph/dblayer": "^5.1",
         "infocyph/epicrypt": "^2.1",
         "infocyph/omnibus": "^2.5",
-        "infocyph/otp": "^6.0",
+        "infocyph/otp": "^6.1",
         "infocyph/pathwise": "^3.1",
         "infocyph/phpforge": "dev-main@dev",
         "infocyph/reqshield": "^3.1",
@@ -30,11 +30,11 @@
         "infocyph/dblayer": "Adds database services, persistence, migrations, query caching, replicas, and MySQL/MariaDB/PostgreSQL/SQLite/SQL Server support.",
         "infocyph/epicrypt": "Adds cryptography, secrets, password, token, and key security services.",
         "infocyph/omnibus": "Adds events, messages, durable queues, handler middleware, workers, optional process pools, retries, workflows, and scheduled-message dispatch.",
-        "infocyph/otp": "Adds OTP-backed multi-factor authentication with atomic replay-safe state integration.",
+        "infocyph/otp": "Adds OTP-backed multi-factor authentication and Passkey/WebAuthn ceremony integration with CacheLayer-backed replay-safe state.",
         "infocyph/pathwise": "Adds filesystem, storage, upload, download, archive, sync, retention, and storage capability enforcement.",
         "infocyph/reqshield": "Adds request, command, configuration, schema, sanitization, typed input, and database validation services.",
         "infocyph/talkingbytes": "Adds HTTP, inbound/outbound email, webhook, and gRPC communication services.",
-        "web-auth/webauthn-lib": "Adds WebAuthn passkey authentication."
+        "web-auth/webauthn-lib": "Required by OTP Passkey when the WebAuthn passkey driver is selected."
     },
     "minimum-stability": "stable",
     "prefer-stable": true,
