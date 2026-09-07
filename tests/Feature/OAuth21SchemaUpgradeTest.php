@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use Infocyph\DBLayer\DB;
 use Infocyph\DBLayer\Migration\MigrationRunner;
+use Infocyph\DBLayer\Schema\Blueprint;
+use Infocyph\DBLayer\Schema\SchemaManager;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthMfaRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthOAuthRevisionSchema;
@@ -38,6 +40,11 @@ it('upgrades an installed Foundation 2.0 auth schema to current revisions withou
 
     try {
         expect($releasedRunner->run())->toBe([$base->id(), $mfa->id()]);
+
+        $schema = new SchemaManager($connection);
+        $schema->table($tables->passkeyCredentials(), static function (Blueprint $table): void {
+            $table->dropColumn('revision');
+        });
 
         $connection->table($tables->accounts())->insert([
             'id' => 'account-2-0',
