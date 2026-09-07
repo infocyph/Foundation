@@ -35,7 +35,13 @@ use Infocyph\Foundation\Auth\Contract\Storage\{
     SessionStoreInterface
 };
 use Infocyph\Foundation\Auth\Device\{DeviceManager, DeviceStoreInterface};
-use Infocyph\Foundation\Auth\Mfa\{MfaFactorStoreInterface, MfaManager, MfaVerifierInterface, RecoveryCodeServiceInterface};
+use Infocyph\Foundation\Auth\Mfa\{
+    MfaFactorCompareAndSwapStoreInterface,
+    MfaFactorStoreInterface,
+    MfaManager,
+    MfaVerifierInterface,
+    RecoveryCodeServiceInterface
+};
 use Infocyph\Foundation\Auth\Otp\OtpManager;
 use Infocyph\Foundation\Auth\Passkey\{
     PasskeyCredentialCompareAndSwapStoreInterface,
@@ -105,7 +111,7 @@ final readonly class AuthManagerRegistrar extends AbstractAuthRegistrar
             $this->ref(ClockInterface::class),
         ]);
         $this->recipe(MfaManager::class, MfaManager::class, [
-            $this->ref(MfaFactorStoreInterface::class), $this->ref(MfaVerifierInterface::class),
+            $this->ref(MfaFactorCompareAndSwapStoreInterface::class), $this->ref(MfaVerifierInterface::class),
             $this->ref(RecoveryCodeServiceInterface::class), $this->ref(TtlStoreInterface::class),
             $this->ref(AuditEventStoreInterface::class), $this->ref(AuthNotifierInterface::class),
             $this->ref(AuthIdGeneratorInterface::class), $this->intConfig('auth.mfa_challenge_ttl', 300),
