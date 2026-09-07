@@ -26,6 +26,7 @@ final class CacheManager
         private readonly CacheLayerFactory $factory,
         /** @var Closure(?string):Connection */
         private readonly Closure $database,
+        private readonly ?CacheLayerFactory $transactionalFactory = null,
     ) {}
 
     public function store(?string $name = null): CacheInterface
@@ -41,6 +42,12 @@ final class CacheManager
     /**
      * Couple a DB transaction with CacheLayer's cluster invalidation outbox.
      *
+     * The ordinary factory is infrastructure-owned because its products may
+     * retain native clients beyond one execution. Transactional invalidation is
+     * different: CacheLayer's PDO outbox must bind to the exact PDO that owns
+     * the application transaction, so this path uses the execution-bound
+     * factory supplied by CacheGraphFactory.
+     *
      * @param callable(Connection, ClusterOutbox):mixed $callback
      */
     public function transactionalInvalidation(
@@ -49,8 +56,8 @@ final class CacheManager
         ?string $connection = null,
         int $attempts = 1,
     ): mixed {
-        $runtime = $this->factory->cluster($cluster);
         $database = ($this->database)($connection);
+        $runtime = ($this->transactionalFactory ?? $this->factory)->cluster($cluster);
 
         return $database->transaction(
             function (Connection $connection) use ($callback, $runtime): mixed {
