@@ -51,7 +51,7 @@ final readonly class WebReleaseConfiguration
         $config = $this->graph->context->config;
         ConfigExportValidator::assertExportable($config);
 
-        return hash('sha256', serialize($this->canonicalize($config)));
+        return hash('xxh128', serialize($this->canonicalize($config)));
     }
 
     public function debug(): bool
