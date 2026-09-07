@@ -8,7 +8,11 @@ use Infocyph\CacheLayer\Cache\CacheOptions;
 use Infocyph\CacheLayer\Counter\AtomicCounters;
 use Infocyph\Foundation\Auth\Adapter\CacheLayer\AtomicCounterStore;
 use Infocyph\Foundation\Auth\Adapter\CacheLayer\CacheLayerTtlStore;
+use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Cache\FoundationCacheKey;
+use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Filesystem\PathManager;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -136,15 +140,17 @@ function cacheLayer33RedisDsn(): string
 $operations = max(1_000, (int) (getenv('CACHELAYER_BENCH_OPERATIONS') ?: 10_000));
 $repetitions = max(3, (int) (getenv('CACHELAYER_BENCH_REPETITIONS') ?: 7));
 $warmup = max(100, (int) (getenv('CACHELAYER_BENCH_WARMUP') ?: 500));
+$options = new CacheOptions(
+    integrityKey: 'foundation-cachelayer-33-benchmark-integrity',
+    allowClosures: false,
+    allowObjects: false,
+    failOpen: false,
+);
 $cache = Cache::memory(
     namespace: 'foundation-cachelayer-33-benchmark',
-    options: new CacheOptions(
-        integrityKey: 'foundation-cachelayer-33-benchmark-integrity',
-        allowClosures: false,
-        allowObjects: false,
-        failOpen: false,
-    ),
+    options: $options,
 );
+$nonAtomic = Cache::nullStore($options);
 $atomic = $cache->atomic() ?? throw new RuntimeException('Memory cache must expose CacheLayer 3.3 atomic capability.');
 $ttl = new CacheLayerTtlStore($cache);
 $logical = 'mfa:challenge:' . str_repeat('attacker-controlled-segment:', 8);
@@ -155,6 +161,27 @@ $oldClaimSequence = 0;
 $newClaimSequence = 0;
 $oldConsumeSequence = 0;
 $newConsumeSequence = 0;
+
+$benchmarkConfig = new ConfigRepository([
+    'app' => ['base_path' => dirname(__DIR__)],
+    'cache' => [
+        'default' => 'bench',
+        'prefix' => 'foundation.',
+        'stores' => [
+            'bench' => [
+                'driver' => 'memory',
+                'fail_open' => false,
+            ],
+        ],
+    ],
+]);
+$database = static fn(?string $connection = null): never => throw new RuntimeException(sprintf(
+    'Benchmark cache path unexpectedly requested database connection %s.',
+    $connection ?? '<default>',
+));
+$factory = new CacheLayerFactory($benchmarkConfig, new PathManager(dirname(__DIR__)), $database);
+$warmManager = new CacheManager($factory, $database);
+$warmManager->store('bench');
 
 $batch = [];
 for ($i = 0; $i < 32; ++$i) {
@@ -188,9 +215,51 @@ $workloads = [
         $warmup,
     ),
     cacheLayer33Measure(
-        'foundation-cache-key-xxh128-boundary',
+        'foundation-cache-key-xxh128-fingerprint-boundary',
+        'component',
+        static fn(): string => FoundationCacheKey::fingerprint('fp', 'foundation.cache.fingerprint.v1', $logical),
+        $operations,
+        $repetitions,
+        $warmup,
+    ),
+    cacheLayer33Measure(
+        'foundation-cache-key-sha3-security-boundary',
         'component',
         static fn(): string => FoundationCacheKey::security('at', 'foundation.auth.ttl.v1', $logical),
+        $operations,
+        $repetitions,
+        $warmup,
+    ),
+    cacheLayer33Measure(
+        'atomic-capability-present-discovery',
+        'optional-capability',
+        static fn(): bool => $cache->atomic() !== null,
+        $operations,
+        $repetitions,
+        $warmup,
+    ),
+    cacheLayer33Measure(
+        'atomic-capability-absent-discovery',
+        'optional-capability',
+        static fn(): bool => $nonAtomic->atomic() === null,
+        $operations,
+        $repetitions,
+        $warmup,
+    ),
+    cacheLayer33Measure(
+        'foundation-named-store-first-construction',
+        'composition',
+        static function () use ($factory, $database): object {
+            return (new CacheManager($factory, $database))->store('bench');
+        },
+        max(500, intdiv($operations, 10)),
+        $repetitions,
+        max(50, intdiv($warmup, 10)),
+    ),
+    cacheLayer33Measure(
+        'foundation-named-store-warm-lookup',
+        'composition',
+        static fn(): object => $warmManager->store('bench'),
         $operations,
         $repetitions,
         $warmup,
@@ -403,7 +472,7 @@ $result = [
         'cachelayer_reference' => InstalledVersions::getReference('infocyph/cachelayer'),
         'foundation_commit' => getenv('GITHUB_SHA') ?: 'working-tree',
         'boundary' => 'Foundation logical state/key policy over CacheLayer 3.3 native atomic and bulk capabilities',
-        'key_policy' => 'XXH128 is the Foundation physical-cache-key mapping hash; SHA-256/SHA3-256 are benchmark comparisons only and remain reserved for actual protocol/cryptographic needs.',
+        'key_policy' => 'SHA3-256/Base64URL is used for security-sensitive physical keys; XXH128 is used for non-security fingerprinting and compaction.',
     ],
     'workloads' => $workloads,
 ];
