@@ -265,13 +265,22 @@ function foundationReleaseReplacementConfig(string $project): array
             'default' => 'auth-state',
             'default_counter' => 'auth-lockouts',
             'stores' => [
-                'auth-state' => ['driver' => 'file'],
+                'auth-state' => [
+                    'driver' => 'redis',
+                    'fail_open' => false,
+                    'security' => [
+                        'integrity_key' => str_repeat('f', 64),
+                    ],
+                    'serialization' => [
+                        'allow_object_payloads' => false,
+                    ],
+                ],
             ],
             'counters' => [
                 'auth-lockouts' => ['driver' => 'redis'],
             ],
             'lock' => [
-                'driver' => 'file',
+                'driver' => 'redis',
                 'store' => 'auth-state',
             ],
         ],
