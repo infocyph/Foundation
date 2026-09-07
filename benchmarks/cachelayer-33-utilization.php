@@ -52,6 +52,7 @@ function cacheLayer33Measure(
         'name' => $name,
         'type' => $type,
         'metadata' => [
+            'operation' => $name,
             'operations_per_repetition' => $operations,
             'median_ns' => round($median, 2),
             'minimum_ns' => round($minimum, 2),
@@ -101,14 +102,26 @@ function cacheLayer33Percentile(array $samples, float $percentile): float
 /** @return array<string,mixed> */
 function cacheLayer33Environment(string $cacheLayerVersion): array
 {
+    $extensions = get_loaded_extensions();
+    sort($extensions, SORT_STRING);
+    $cpuModel = 'unknown';
+    if (is_readable('/proc/cpuinfo')) {
+        $cpuInfo = file_get_contents('/proc/cpuinfo');
+        if (is_string($cpuInfo) && preg_match('/^model name\s*:\s*(.+)$/m', $cpuInfo, $matches) === 1) {
+            $cpuModel = trim($matches[1]);
+        }
+    }
+
     $runtime = [
         'php_version' => PHP_VERSION,
         'php_sapi' => PHP_SAPI,
         'operating_system' => php_uname(),
+        'cpu_model' => $cpuModel,
         'memory_limit' => ini_get('memory_limit') ?: 'unknown',
         'opcache' => extension_loaded('Zend OPcache'),
         'jit' => ini_get('opcache.jit') ?: false,
         'xdebug' => extension_loaded('xdebug'),
+        'extensions' => $extensions,
         'runner' => getenv('GITHUB_ACTIONS') === 'true' ? 'github-actions' : 'local-cli',
         'cachelayer' => $cacheLayerVersion,
     ];
@@ -214,7 +227,7 @@ $workloads = [
     ),
     cacheLayer33Measure(
         'physical-key-sha256-comparison',
-        'comparison',
+        'component',
         static fn(): string => hash('sha256', $material),
         $operations,
         $repetitions,
@@ -222,7 +235,7 @@ $workloads = [
     ),
     cacheLayer33Measure(
         'physical-key-sha3-256-comparison',
-        'comparison',
+        'component',
         static fn(): string => hash('sha3-256', $material),
         $operations,
         $repetitions,
@@ -246,7 +259,7 @@ $workloads = [
     ),
     cacheLayer33Measure(
         'atomic-capability-present-discovery',
-        'optional-capability',
+        'component',
         static fn(): bool => $cache->atomic() !== null,
         $operations,
         $repetitions,
@@ -254,7 +267,7 @@ $workloads = [
     ),
     cacheLayer33Measure(
         'atomic-capability-absent-discovery',
-        'optional-capability',
+        'component',
         static fn(): bool => $nonAtomic->atomic() === null,
         $operations,
         $repetitions,
@@ -262,7 +275,7 @@ $workloads = [
     ),
     cacheLayer33Measure(
         'foundation-named-store-first-construction',
-        'composition',
+        'component',
         static function () use ($factory, $database): object {
             return (new CacheManager($factory, $database))->store('bench');
         },
@@ -272,7 +285,7 @@ $workloads = [
     ),
     cacheLayer33Measure(
         'foundation-named-store-warm-lookup',
-        'composition',
+        'component',
         static fn(): object => $warmManager->store('bench'),
         $operations,
         $repetitions,
@@ -280,7 +293,7 @@ $workloads = [
     ),
     cacheLayer33Measure(
         'direct-cachelayer-set-get',
-        'boundary',
+        'component',
         static function () use ($cache, &$directSequence): mixed {
             $key = 'direct-' . (++$directSequence % 1024);
             $cache->set($key, 1, 60);
@@ -293,7 +306,7 @@ $workloads = [
     ),
     cacheLayer33Measure(
         'foundation-ttl-set-get',
-        'boundary',
+        'component',
         static function () use ($ttl, &$foundationSequence): mixed {
             $key = 'mfa:challenge:' . (++$foundationSequence % 1024);
             $ttl->put($key, 1, 60);
@@ -306,7 +319,7 @@ $workloads = [
     ),
     cacheLayer33Measure(
         'legacy-replay-has-set-cycle',
-        'comparison',
+        'component',
         static function () use ($cache, &$oldClaimSequence): bool {
             $key = 'legacy-claim-' . (++$oldClaimSequence % 1024);
             $cache->delete($key);
@@ -335,7 +348,7 @@ $workloads = [
     ),
     cacheLayer33Measure(
         'legacy-consume-get-delete-cycle',
-        'comparison',
+        'component',
         static function () use ($cache, &$oldConsumeSequence): mixed {
             $key = 'legacy-consume-' . (++$oldConsumeSequence % 1024);
             $cache->set($key, 1, 60);
@@ -391,7 +404,7 @@ $workloads = [
     ),
     cacheLayer33Measure(
         'bulk-loop-32-keys-comparison',
-        'comparison',
+        'component',
         static function () use ($cache, $batch): array {
             $result = [];
             foreach ($batch as $key => $value) {
@@ -426,7 +439,7 @@ if ($nativeCounters instanceof AtomicCounters) {
     );
     $workloads[] = cacheLayer33Measure(
         'foundation-auth-counter-boundary',
-        'boundary',
+        'component',
         static fn(): int => $foundationCounters->increment('auth:counter', 1, 300),
         max(1_000, intdiv($operations, 4)),
         $repetitions,
@@ -445,11 +458,13 @@ for ($i = 0; $i < $soakOperations; ++$i) {
     $ttl->pull($key);
 }
 $soakSeconds = max(1, hrtime(true) - $soakStarted) / 1_000_000_000;
+$soakLatencyMs = ($soakSeconds * 1_000) / $soakOperations;
 $after = memory_get_usage(true);
 $workloads[] = [
     'name' => 'persistent-auth-state-memory-soak',
     'type' => 'persistent-worker',
     'metadata' => [
+        'operation' => 'persistent-auth-state-memory-soak',
         'operations' => $soakOperations,
         'bounded_key_cardinality' => 256,
     ],
@@ -464,14 +479,24 @@ $workloads[] = [
         'timeouts' => 0,
         'successful_rpm' => ($soakOperations / $soakSeconds) * 60,
         'error_rate' => 0.0,
-        'latency_ms' => null,
+        'latency_ms' => [
+            'minimum' => $soakLatencyMs,
+            'average' => $soakLatencyMs,
+            'p50' => $soakLatencyMs,
+            'p95' => $soakLatencyMs,
+            'p99' => $soakLatencyMs,
+            'maximum' => $soakLatencyMs,
+        ],
         'cpu' => ['average_percent' => null, 'peak_percent' => null],
         'memory' => [
             'average_mb' => null,
             'peak_mb' => memory_get_peak_usage(true) / 1_048_576,
             'growth_mb' => ($after - $before) / 1_048_576,
         ],
-        'stability' => ['status' => 'bounded-cardinality-soak'],
+        'stability' => [
+            'status' => 'unverified',
+            'spread_percent' => 0.0,
+        ],
     ],
 ];
 
