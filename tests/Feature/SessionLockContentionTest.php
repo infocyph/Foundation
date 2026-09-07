@@ -6,6 +6,7 @@ use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
 use Infocyph\CacheLayer\Cache\Lock\MemcachedLockProvider;
 use Infocyph\CacheLayer\Cache\Lock\PdoLockProvider;
 use Infocyph\CacheLayer\Cache\Lock\RedisLockProvider;
+use Infocyph\Foundation\Cache\FoundationCacheKey;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Session\SessionConfig;
 use Infocyph\Foundation\Session\SessionExecutionState;
@@ -23,7 +24,7 @@ it('enforces browser-session contention through every configured shared lock bac
 
     [$holder, $contender] = $pair;
     $id = bin2hex(random_bytes(32));
-    $key = hash('sha256', 'foundation-session:' . $id);
+    $key = FoundationCacheKey::security('session-lock', 'browser-session-lock', $id);
     $held = $holder->acquire($key, 0.0, 5.0);
     expect($held)->not->toBeNull();
 
