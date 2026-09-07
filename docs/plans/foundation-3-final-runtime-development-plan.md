@@ -166,24 +166,31 @@ CacheLayer owns optional atomic `setIfAbsent()`, `getAndDelete()`, `compareAndSe
 
 ---
 
-## 26.4 OTP 6.1 + Passkey/WebAuthn Foundation integration — open
+## 26.4 OTP 6.1 + Passkey/WebAuthn Foundation integration — implementation complete; closure pending
 
 **Released baseline:** OTP 6.1, commit `c7faf376b96611638e7bc0da6cd081496768d34f`.
 
-Foundation still must:
+### Integrated contract
 
-- [ ] raise OTP floor to `^6.1` and verify PHP 8.4/8.5 stable/lowest;
-- [ ] route passkey ceremony behavior exclusively through OTP `Passkey`;
-- [ ] remove direct Foundation WebAuthn ceremony/options/validator/codec duplication;
-- [ ] expose AOTP/GridOTP deliberately and MobileOTP only as legacy compatibility;
-- [ ] require secure CacheLayer auth-state capability for selected stateful OTP/Passkey modes;
-- [ ] preserve HOTP/counter-OCRA durable counters and authoritative MFA CAS;
-- [ ] atomically persist the exact passkey credential record returned by OTP and reject stale replacement;
-- [ ] keep AOTP private-key material device-owned;
+- [X] Foundation development floor raised to `infocyph/otp ^6.1` and `ext-sodium` added to the development matrix for AOTP coverage;
+- [X] selected passkey ceremony behavior routes exclusively through OTP 6.1 `Passkey`;
+- [X] direct Foundation WebAuthn ceremony/options/validator/serializer/codec duplication removed; the retained `WebAuthnRuntime` symbol is an empty deprecated cold-path compatibility sentinel only;
+- [X] Foundation WebAuthn configuration narrowed to OTP-consumed RP ID, exact trusted origin, ceremony TTL, and optional subdomain policy;
+- [X] AOTP and GridOTP are deliberately exposed; MobileOTP is available only through an explicit legacy-import workflow;
+- [X] AOTP stores only the public key server-side; private-key generation/signing remains device-owned through OTP;
+- [X] selected stateful OTP modes and Passkey require a CacheLayer `AuthenticationStateCacheInterface` and fail closed when unavailable;
+- [X] HOTP/counter-OCRA durable counters remain authoritative and transition through revision compare-and-swap;
+- [X] MFA factor creation/activation now also use authoritative CAS, and sensitive OTP secret/PIN fields are redacted from enrollment audit/result context;
+- [X] OTP's exact authoritative passkey `CredentialRecord` is persisted in a dedicated `credential_record` column and replaced only when the stored revision still matches the revision OTP verified;
+- [X] additive passkey record/revision schema migrations and readiness checks cover existing installs;
+- [X] direct OTP attribution is available as `benchmark:otp` and included in `benchmark:release`;
+- [X] focused AOTP/GridOTP/MobileOTP and selected/fail-closed OTP Passkey graph regression coverage is present;
 - [ ] protect persisted symmetric MFA secrets through Epicrypt policy from 26.10;
-- [ ] prove Fiber/persistent isolation, fail-closed backend behavior, optional-capability cold paths, and direct-OTP attribution.
+- [ ] complete final PHP 8.4/8.5 stable/lowest CI plus persistent/Fiber/cold-path regression confirmation on the final PR head.
 
-DBLayer 26.6 completed the generic persistence revision/CAS mechanism required for authoritative stale-write rejection. OTP 26.4 owns the ceremony-level authoritative credential record wiring.
+DBLayer 26.6 supplies the generic persistence revision/CAS mechanism. OTP owns algorithms, native challenge/replay behavior, and all WebAuthn ceremony/validator/serializer behavior. Foundation retains only application account/factor policy, audit/notification/lockout/satisfaction orchestration, and durable persistence policy.
+
+**Status:** implementation complete; final closure waits on 26.10 symmetric-secret protection and final CI evidence.
 
 ---
 
@@ -303,6 +310,8 @@ Pooling is supported for persistent runtimes but is an opt-in operational optimi
 
 ## 26.11 Standalone WebAuthn specialist pass — closed/subsumed
 
-OTP 6.1 `Passkey` is the Foundation-facing WebAuthn ceremony/state boundary over optional `web-auth/webauthn-lib`. Remaining ceremony work is tracked in 26.4, DB persistence mechanics were completed in 26.6, and adjacent key/protection policy remains in 26.10.
+OTP 6.1 `Passkey` is now the sole Foundation-facing WebAuthn ceremony/state runtime over optional `web-auth/webauthn-lib`. Foundation's former ceremony store, options factory, credential mapper, serializer/validator runtime, attestation policy, direct passkey service, and duplicate Base64Url codec have been removed. The retained `WebAuthnRuntime` class is an empty deprecated compatibility/cold-path sentinel and owns no WebAuthn behavior.
+
+DB persistence mechanics remain in 26.6; the integrated OTP/Passkey application work is tracked in 26.4; durable secret-protection policy remains in 26.10.
 
 **Status:** [X] closed/subsumed.
