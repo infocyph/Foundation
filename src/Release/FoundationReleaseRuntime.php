@@ -32,7 +32,7 @@ final readonly class FoundationReleaseRuntime
             FoundationReleaseManifest::nonEmptyString($manifest['environment'] ?? null, 'environment'),
             FoundationReleaseManifest::digest(
                 $manifest['config_fingerprint'] ?? null,
-                64,
+                32,
                 'config_fingerprint',
             ),
             FoundationReleaseManifest::digest(
@@ -84,7 +84,7 @@ final readonly class FoundationReleaseRuntime
             FoundationReleaseManifest::nonEmptyString($manifest['environment'] ?? null, 'environment'),
             FoundationReleaseManifest::digest(
                 $manifest['config_fingerprint'] ?? null,
-                64,
+                32,
                 'config_fingerprint',
             ),
         );
