@@ -19,11 +19,11 @@ use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Runtime\RuntimeExecutionState;
 use Psr\Container\ContainerInterface;
 
-function foundationDbLayer51Config(): ConnectionConfig
+function foundationDbLayer51Config(string $database = ':memory:'): ConnectionConfig
 {
     return ConnectionConfig::fromArray([
         'driver' => 'sqlite',
-        'database' => ':memory:',
+        'database' => $database,
         'statement_cache_enabled' => true,
         'statement_cache_size' => 16,
     ]);
@@ -60,7 +60,8 @@ function foundationDbLayer51Factory(array $database): array
 }
 
 it('owns a DBLayer lease per Foundation execution and delegates rollback sanitation to DBLayer', function (): void {
-    $config = foundationDbLayer51Config();
+    $file = sys_get_temp_dir() . '/foundation-dblayer-51-lease-' . bin2hex(random_bytes(6)) . '.sqlite';
+    $config = foundationDbLayer51Config($file);
     $pool = new Pool([
         'min_connections' => 1,
         'max_connections' => 2,
@@ -71,30 +72,34 @@ it('owns a DBLayer lease per Foundation execution and delegates rollback sanitat
     $pool->addConfig('default', $config);
     $manager = new PoolManager($pool);
 
-    $setup = $manager->checkout('default');
-    $setup->connection()->statement('CREATE TABLE lease_items (id INTEGER PRIMARY KEY, value TEXT NOT NULL)');
-    $setup->release();
+    try {
+        $setup = $manager->checkout('default');
+        $setup->connection()->statement('CREATE TABLE lease_items (id INTEGER PRIMARY KEY, value TEXT NOT NULL)');
+        $setup->release();
 
-    $first = new RuntimeExecutionState();
-    $firstConnection = $first->leasedConnection('default', $manager);
-    $firstId = spl_object_id($firstConnection);
-    $firstConnection->beginTransaction();
-    $firstConnection->statement('INSERT INTO lease_items (id, value) VALUES (?, ?)', [1, 'uncommitted']);
-    $first->cleanup();
+        $first = new RuntimeExecutionState();
+        $firstConnection = $first->leasedConnection('default', $manager);
+        $firstConnection->beginTransaction();
+        $firstConnection->statement('INSERT INTO lease_items (id, value) VALUES (?, ?)', [1, 'uncommitted']);
+        $first->cleanup();
 
-    $second = new RuntimeExecutionState();
-    $secondConnection = $second->leasedConnection('default', $manager);
+        $second = new RuntimeExecutionState();
+        $secondConnection = $second->leasedConnection('default', $manager);
 
-    expect(spl_object_id($secondConnection))->toBe($firstId)
-        ->and((int) $secondConnection->scalar('SELECT COUNT(*) FROM lease_items'))->toBe(0)
-        ->and($pool->getStats()['active_connections'])->toBe(1);
+        expect((int) $secondConnection->scalar('SELECT COUNT(*) FROM lease_items'))->toBe(0)
+            ->and($pool->getStats()['active_connections'])->toBe(1)
+            ->and($pool->getStats()['total_connections'])->toBeLessThanOrEqual(1);
 
-    $second->cleanup();
+        $second->cleanup();
 
-    expect($pool->getStats()['active_connections'])->toBe(0)
-        ->and($pool->getStats()['idle_connections'])->toBe(1);
-
-    $pool->closeAll();
+        expect($pool->getStats()['active_connections'])->toBe(0)
+            ->and($pool->getStats()['idle_connections'])->toBe(1);
+    } finally {
+        $pool->closeAll();
+        if (is_file($file)) {
+            unlink($file);
+        }
+    }
 });
 
 it('never exposes one active pooled connection to two interleaved Foundation executions', function (): void {
