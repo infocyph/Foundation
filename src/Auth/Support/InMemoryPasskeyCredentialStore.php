@@ -6,18 +6,44 @@ namespace Infocyph\Foundation\Auth\Support;
 
 use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Auth\Passkey\PasskeyCredential;
-use Infocyph\Foundation\Auth\Passkey\PasskeyCredentialStoreInterface;
+use Infocyph\Foundation\Auth\Passkey\PasskeyCredentialCompareAndSwapStoreInterface;
 
-final class InMemoryPasskeyCredentialStore implements PasskeyCredentialStoreInterface
+final class InMemoryPasskeyCredentialStore implements PasskeyCredentialCompareAndSwapStoreInterface
 {
-    /**
-     * @var array<string, PasskeyCredential>
-     */
+    /** @var array<string, PasskeyCredential> */
     private array $credentials = [];
 
     public function __construct(
         private readonly ClockInterface $clock = new SystemClock(),
     ) {}
+
+    public function compareAndSwap(?PasskeyCredential $expected, PasskeyCredential $updated): bool
+    {
+        $current = $this->credentials[$updated->id] ?? null;
+
+        if ($expected === null) {
+            if ($updated->revision !== 0 || $current !== null) {
+                return false;
+            }
+
+            $this->credentials[$updated->id] = $updated;
+
+            return true;
+        }
+
+        if (
+            !$current instanceof PasskeyCredential
+            || $expected->id !== $updated->id
+            || $updated->revision !== $expected->revision + 1
+            || $current->revision !== $expected->revision
+        ) {
+            return false;
+        }
+
+        $this->credentials[$updated->id] = $updated;
+
+        return true;
+    }
 
     public function findByCredentialId(string $credentialId): ?PasskeyCredential
     {
@@ -54,23 +80,13 @@ final class InMemoryPasskeyCredentialStore implements PasskeyCredentialStoreInte
 
     public function updateUsage(string $credentialId, int $signCount, int $usedAt): void
     {
-        foreach ($this->credentials as $id => $credential) {
-            if ($credential->credentialId !== $credentialId || $credential->isRevoked()) {
-                continue;
-            }
+        $credential = $this->findByCredentialId($credentialId);
+        if (!$credential instanceof PasskeyCredential) {
+            return;
+        }
 
-            $this->credentials[$id] = new PasskeyCredential(
-                id: $credential->id,
-                accountId: $credential->accountId,
-                credentialId: $credential->credentialId,
-                publicKey: $credential->publicKey,
-                signCount: $signCount,
-                transports: $credential->transports,
-                createdAt: $credential->createdAt,
-                lastUsedAt: $usedAt,
-                revokedAt: $credential->revokedAt,
-                metadata: $credential->metadata,
-            );
+        if (!$this->compareAndSwap($credential, $credential->used($signCount, $usedAt))) {
+            throw new \RuntimeException('Passkey credential changed concurrently during usage persistence.');
         }
     }
 }
