@@ -41,7 +41,7 @@ final class StorageRegistry
         $this->defaultDisk = is_string($configured) && trim($configured) !== ''
             ? $this->normalizeDiskName($configured)
             : 'local';
-        $this->mountScope = 'foundation-' . substr(hash('sha256', $paths->base()), 0, 12);
+        $this->mountScope = 'foundation-' . substr(hash('xxh128', $paths->base()), 0, 12);
 
         if (!isset($this->configurations[$this->defaultDisk])) {
             throw new \InvalidArgumentException(sprintf(
