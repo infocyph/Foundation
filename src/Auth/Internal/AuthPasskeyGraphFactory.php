@@ -36,6 +36,7 @@ final class AuthPasskeyGraphFactory
             rpId: (string) $resolved->rpId,
             allowedOrigins: [(string) $resolved->origin],
             ttlSeconds: $resolved->challengeTtl,
+            allowSubdomains: $resolved->allowSubdomains,
         );
     }
 
