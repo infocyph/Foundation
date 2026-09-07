@@ -244,7 +244,7 @@ final class GeneratedRuntimeMetadata
     {
         ConfigExportValidator::assertExportable($graph->context->config);
 
-        return hash('sha256', serialize(self::canonicalize($graph->context->config)));
+        return hash('xxh128', serialize(self::canonicalize($graph->context->config)));
     }
 
     /**
