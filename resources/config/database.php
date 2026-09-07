@@ -101,6 +101,16 @@ return [
     'default' => env_string('DB_CONNECTION', 'sqlite'),
 
     /**
+     * DBLayer query-result caching is a separate opt-in from database capability.
+     * When enabled, `store` must explicitly name a Foundation CacheLayer store.
+     * The cache capability remains cold when this feature is disabled.
+     */
+    'query_cache' => [
+        'enabled' => env_bool('DB_QUERY_CACHE_ENABLED', false),
+        'store' => env('DB_QUERY_CACHE_STORE'),
+    ],
+
+    /**
      * Migrations and Seeders
      *
      * Foundation only supplies application conventions. DBLayer remains the
