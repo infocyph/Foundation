@@ -18,6 +18,6 @@ final class CacheNamespace
             return $normalized;
         }
 
-        return substr($normalized, 0, 47) . '.' . substr(hash('sha256', $namespace), 0, 16);
+        return substr($normalized, 0, 47) . '.' . substr(hash('xxh128', $namespace), 0, 16);
     }
 }

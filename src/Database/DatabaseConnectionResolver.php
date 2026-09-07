@@ -9,6 +9,8 @@ use Infocyph\Foundation\Exception\ConfigurationException;
 
 final readonly class DatabaseConnectionResolver
 {
+    private const string GENERIC_CACHE_PREFIX = 'foundation:cache:';
+
     public function __construct(
         private ConfigRepository $config,
     ) {}
@@ -69,9 +71,77 @@ final readonly class DatabaseConnectionResolver
         return $resolved;
     }
 
+    public function poolEnabled(): bool
+    {
+        return $this->config->get('database.pool.enabled', false) === true;
+    }
+
+    /**
+     * @return array{
+     *   min_connections:int,
+     *   max_connections:int,
+     *   idle_timeout:int,
+     *   max_lifetime:int,
+     *   health_check_interval:int
+     * }
+     */
+    public function poolOptions(): array
+    {
+        return [
+            'min_connections' => $this->poolInt('min_connections', 0),
+            'max_connections' => $this->poolInt('max_connections', 10),
+            'idle_timeout' => $this->poolInt('idle_timeout', 60),
+            'max_lifetime' => $this->poolInt('max_lifetime', 3_600),
+            'health_check_interval' => $this->poolInt('health_check_interval', 30),
+        ];
+    }
+
+    public function queryCacheEnabled(): bool
+    {
+        return $this->config->get('database.query_cache.enabled', false) === true;
+    }
+
+    public function queryCacheStore(): string
+    {
+        $store = $this->config->get('database.query_cache.store');
+        if (!is_string($store) || trim($store) === '') {
+            throw new ConfigurationException(
+                'database.query_cache.store must name an explicit CacheLayer store when database query caching is enabled.',
+            );
+        }
+
+        $store = trim($store);
+        $this->assertQueryCacheIsolation($store);
+
+        return $store;
+    }
+
     private function absolute(string $path): bool
     {
         return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $path) === 1;
+    }
+
+    private function assertQueryCacheIsolation(string $store): void
+    {
+        $namespace = $this->config->get('cache.stores.' . $store . '.namespace');
+        if (is_string($namespace) && trim($namespace) !== '') {
+            return;
+        }
+
+        $prefix = $this->config->get('cache.prefix');
+        if (
+            is_string($prefix)
+            && trim($prefix) !== ''
+            && trim($prefix) !== self::GENERIC_CACHE_PREFIX
+        ) {
+            return;
+        }
+
+        throw new ConfigurationException(sprintf(
+            'Database query cache store "%s" requires an isolated CacheLayer namespace: configure cache.stores.%s.namespace or an application-specific cache.prefix.',
+            $store,
+            $store,
+        ));
     }
 
     private function basePath(): string
@@ -122,5 +192,12 @@ final readonly class DatabaseConnectionResolver
         }
 
         return $config;
+    }
+
+    private function poolInt(string $key, int $default): int
+    {
+        $value = $this->config->get('database.pool.' . $key, $default);
+
+        return is_int($value) || is_numeric($value) ? (int) $value : $default;
     }
 }

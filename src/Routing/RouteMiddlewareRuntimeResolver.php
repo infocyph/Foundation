@@ -1,0 +1,134 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Infocyph\Foundation\Routing;
+
+use Closure;
+use Infocyph\Foundation\Auth\Authorization\Gate\AuthorizerInterface;
+use Infocyph\Foundation\Auth\Authorization\Role\RoleManager;
+use Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpThrottleFactory;
+use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
+use Infocyph\Foundation\Cache\CacheManager;
+use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Http\Middleware\OAuthAudienceMiddleware;
+use Infocyph\Foundation\Http\Middleware\OAuthScopeMiddleware;
+use Infocyph\Foundation\Http\Middleware\PermissionMiddleware;
+use Infocyph\Foundation\Http\Middleware\PolicyMiddleware;
+use Infocyph\Foundation\Http\Middleware\RoleMiddleware;
+use Infocyph\Foundation\Http\Response\AuthExceptionMapper;
+use Infocyph\Foundation\Http\Response\AuthResponseFactory;
+use Infocyph\Foundation\Operations\MaintenanceRuntimeState;
+use Infocyph\Webrick\Middleware\MaintenanceModeMiddleware;
+use Infocyph\Webrick\Middleware\Throttle\AtomicCounterInterface;
+use Infocyph\Webrick\Request\Request;
+use Infocyph\Webrick\Response\Response;
+
+/**
+ * Build-artifact-safe parameterized middleware resolvers.
+ *
+ * Webrick persists only these static resolver descriptors plus scalar route
+ * parameters. The returned closure is created inside the active request scope,
+ * where InterMix injects the Foundation services needed by the middleware.
+ */
+final class RouteMiddlewareRuntimeResolver
+{
+    public static function maintenance(): Closure
+    {
+        return static fn(Request $request, Closure $next, MaintenanceRuntimeState $state): Response => (new MaintenanceModeMiddleware(
+            retryAfter: $state->retryAfter(),
+            state: $state,
+        ))($request, $next);
+    }
+
+    public static function oauthAudience(string ...$audiences): Closure
+    {
+        $audiences = array_values($audiences);
+
+        return static fn(
+            Request $request,
+            Closure $next,
+            CurrentPrincipalContext $principals,
+        ): Response => (new OAuthAudienceMiddleware($principals, $audiences))($request, $next);
+    }
+
+    public static function oauthScope(string ...$scopes): Closure
+    {
+        $scopes = array_values($scopes);
+
+        return static fn(
+            Request $request,
+            Closure $next,
+            CurrentPrincipalContext $principals,
+        ): Response => (new OAuthScopeMiddleware($principals, $scopes))($request, $next);
+    }
+
+    public static function oauthThrottle(string $endpoint): Closure
+    {
+        return static function (
+            Request $request,
+            Closure $next,
+            OAuthHttpThrottleFactory $factory,
+            CacheManager $cache,
+            ConfigRepository $config,
+            ?AtomicCounterInterface $counterStore = null,
+        ) use ($endpoint): Response {
+            $configured = $config->get('auth.oauth.rate_limit_store');
+            $store = is_string($configured) && $configured !== '' ? $configured : null;
+
+            return ($factory->forEndpoint($endpoint, $cache->store($store), $counterStore))($request, $next);
+        };
+    }
+
+    public static function permission(string ...$abilities): Closure
+    {
+        $abilities = array_values($abilities);
+
+        return static fn(
+            Request $request,
+            Closure $next,
+            CurrentPrincipalContext $principals,
+            AuthorizerInterface $authorizer,
+            AuthExceptionMapper $exceptions,
+            AuthResponseFactory $responses,
+        ): Response => (new PermissionMiddleware(
+            $principals,
+            $authorizer,
+            $exceptions,
+            $responses,
+            $abilities,
+        ))($request, $next);
+    }
+
+    public static function policy(string $ability, ?string $resourceKey = null): Closure
+    {
+        return static fn(
+            Request $request,
+            Closure $next,
+            CurrentPrincipalContext $principals,
+            AuthorizerInterface $authorizer,
+            AuthExceptionMapper $exceptions,
+            AuthResponseFactory $responses,
+        ): Response => (new PolicyMiddleware(
+            $principals,
+            $authorizer,
+            $exceptions,
+            $responses,
+            $ability,
+            $resourceKey,
+        ))($request, $next);
+    }
+
+    public static function role(string ...$roles): Closure
+    {
+        $roles = array_values($roles);
+
+        return static fn(
+            Request $request,
+            Closure $next,
+            CurrentPrincipalContext $principals,
+            RoleManager $roleManager,
+            AuthResponseFactory $responses,
+        ): Response => (new RoleMiddleware($principals, $roleManager, $responses, $roles))($request, $next);
+    }
+}

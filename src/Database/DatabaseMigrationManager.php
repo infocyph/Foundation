@@ -9,15 +9,18 @@ use Infocyph\DBLayer\Migration\Migration;
 use Infocyph\DBLayer\Migration\MigrationRunner;
 use Infocyph\DBLayer\Migration\Seeder;
 use Infocyph\DBLayer\Migration\SeedRunner;
-use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Support\ValueNormalizer;
+use Psr\Container\ContainerInterface;
 
 final readonly class DatabaseMigrationManager
 {
     public function __construct(
-        private Application $application,
+        private ConfigRepository $config,
         private DBLayerFactory $factory,
+        private ContainerInterface $services,
+        private ?CacheLayerFactory $cache = null,
     ) {}
 
     public function runner(?string $connection = null): MigrationRunner
@@ -27,7 +30,7 @@ final readonly class DatabaseMigrationManager
             migrations: $this->migrations(),
             locks: $this->locks(),
             table: ValueNormalizer::string(
-                $this->application->config()->get('database.migrations.table'),
+                $this->config->get('database.migrations.table'),
                 'migrations',
             ),
             lockWaitSeconds: $this->floatConfig('database.migrations.lock_wait_seconds', 10.0),
@@ -43,12 +46,10 @@ final readonly class DatabaseMigrationManager
         );
     }
 
-    /**
-     * @return list<class-string>
-     */
+    /** @return list<class-string> */
     private function definitions(string $key): array
     {
-        $configured = $this->application->config()->get($key, []);
+        $configured = $this->config->get($key, []);
         if (!is_array($configured)) {
             throw new \InvalidArgumentException($key . ' must be an explicit class list.');
         }
@@ -66,31 +67,27 @@ final readonly class DatabaseMigrationManager
 
     private function floatConfig(string $key, float $default): float
     {
-        $value = $this->application->config()->get($key, $default);
+        $value = $this->config->get($key, $default);
 
         return is_numeric($value) ? (float) $value : $default;
     }
 
     private function locks(): ?LockProviderInterface
     {
-        $store = ValueNormalizer::nullableString(
-            $this->application->config()->get('database.migrations.lock_store'),
-        );
+        $store = ValueNormalizer::nullableString($this->config->get('database.migrations.lock_store'));
         if ($store === null) {
             return null;
         }
-        if (!class_exists(\Infocyph\CacheLayer\Cache\Cache::class)) {
+        if (!$this->cache instanceof CacheLayerFactory) {
             throw new \LogicException(
-                'Database migration locks require infocyph/cachelayer; run "php infbyte module:install cache".',
+                'Database migration locks require the Foundation cache capability.',
             );
         }
 
-        return $this->application->make(CacheLayerFactory::class)->lock($store);
+        return $this->cache->lock($store);
     }
 
-    /**
-     * @return list<Migration>
-     */
+    /** @return list<Migration> */
     private function migrations(): array
     {
         $migrations = [];
@@ -111,7 +108,7 @@ final readonly class DatabaseMigrationManager
 
     private function resolve(string $definition): object
     {
-        $resolved = $this->application->container()->make($definition);
+        $resolved = $this->services->get($definition);
         if (!is_object($resolved)) {
             throw new \UnexpectedValueException(sprintf(
                 'Database definition "%s" did not resolve to an object.',
@@ -122,9 +119,7 @@ final readonly class DatabaseMigrationManager
         return $resolved;
     }
 
-    /**
-     * @return list<Seeder|callable>
-     */
+    /** @return list<Seeder|callable> */
     private function seeders(): array
     {
         $seeders = [];

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Session\Store;
 
 use Infocyph\CacheLayer\Cache\CacheInterface;
+use Infocyph\Foundation\Cache\FoundationCacheKey;
 use Infocyph\Foundation\Session\SessionPayload;
 use Infocyph\Foundation\Session\SessionStoreInterface;
 
@@ -51,6 +52,10 @@ final readonly class CacheSessionStore implements SessionStoreInterface
 
     private function key(string $id): string
     {
-        return hash('sha256', $this->prefix . $id);
+        return FoundationCacheKey::security(
+            'session',
+            'browser-session-cache:' . $this->prefix,
+            $id,
+        );
     }
 }

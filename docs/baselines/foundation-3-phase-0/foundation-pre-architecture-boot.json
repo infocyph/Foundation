@@ -1,0 +1,91 @@
+{
+    "schema": 1,
+    "captured_at_utc": "2026-09-02T06:36:15+00:00",
+    "repetitions": 15,
+    "cold_process_boot": {
+        "samples": 15,
+        "autoload_ns": {
+            "minimum": 28709337,
+            "average": 32969596.333333332,
+            "p50": 31176053,
+            "p95": 42334399,
+            "p99": 42334399,
+            "maximum": 42334399
+        },
+        "application_boot_ns": {
+            "minimum": 44915527,
+            "average": 46388444.46666667,
+            "p50": 46555737,
+            "p95": 47775114,
+            "p99": 47775114,
+            "maximum": 47775114
+        },
+        "total_ns": {
+            "minimum": 74879678,
+            "average": 79358040.8,
+            "p50": 78298534,
+            "p95": 89908846,
+            "p99": 89908846,
+            "maximum": 89908846
+        },
+        "memory_bytes": {
+            "minimum": 8388608,
+            "average": 8388608,
+            "p50": 8388608,
+            "p95": 8388608,
+            "p99": 8388608,
+            "maximum": 8388608
+        },
+        "peak_memory_bytes": {
+            "minimum": 10485760,
+            "average": 10485760,
+            "p50": 10485760,
+            "p95": 10485760,
+            "p99": 10485760,
+            "maximum": 10485760
+        }
+    },
+    "warm_in_process_boot": {
+        "samples": 15,
+        "autoload_ns": {
+            "minimum": 0,
+            "average": 0,
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "maximum": 0
+        },
+        "application_boot_ns": {
+            "minimum": 983237,
+            "average": 3296454.1333333333,
+            "p50": 3167980,
+            "p95": 6841440,
+            "p99": 6841440,
+            "maximum": 6841440
+        },
+        "total_ns": {
+            "minimum": 983237,
+            "average": 3296454.1333333333,
+            "p50": 3167980,
+            "p95": 6841440,
+            "p99": 6841440,
+            "maximum": 6841440
+        },
+        "memory_bytes": {
+            "minimum": 8388608,
+            "average": 8388608,
+            "p50": 8388608,
+            "p95": 8388608,
+            "p99": 8388608,
+            "maximum": 8388608
+        },
+        "peak_memory_bytes": {
+            "minimum": 8388608,
+            "average": 8388608,
+            "p50": 8388608,
+            "p95": 8388608,
+            "p99": 8388608,
+            "maximum": 8388608
+        }
+    }
+}

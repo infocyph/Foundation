@@ -33,11 +33,14 @@ final readonly class WorkerRuntime
      * @param array<string, mixed> $context
      * @return T
      */
-    public function execute(callable $handler, array $context = []): mixed
-    {
+    public function execute(
+        callable $handler,
+        array $context = [],
+        ?ExecutionId $executionId = null,
+    ): mixed {
         $this->heartbeat();
 
-        return $this->application->execution()->run($handler, $context);
+        return $this->application->execution()->run($handler, $context, $executionId);
     }
 
     /**

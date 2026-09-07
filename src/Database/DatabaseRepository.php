@@ -4,24 +4,17 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Database;
 
-use Infocyph\DBLayer\DB;
-use Infocyph\DBLayer\Query\Repository;
+use Infocyph\DBLayer\Query\ConnectionRepository;
 
 /**
  * Container-facing bridge that applies Foundation connection selection to a
- * native DBLayer repository.
+ * native DBLayer instance-owned repository.
  */
-abstract class DatabaseRepository extends Repository
+abstract class DatabaseRepository extends ConnectionRepository
 {
     public function __construct(DBLayerFactory $database)
     {
-        $connection = $database->connection($this->connectionName());
-
-        parent::__construct(
-            $connection,
-            $connection->getExecutorInstance(),
-            DB::resultProcessor(),
-        );
+        parent::__construct($database->connection($this->connectionName()));
     }
 
     protected function connectionName(): ?string

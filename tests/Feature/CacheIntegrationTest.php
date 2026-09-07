@@ -15,7 +15,7 @@ use Infocyph\Foundation\Foundation;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\SimpleCache\CacheInterface as SimpleCacheInterface;
 
-it('exposes one native CacheLayer store through Foundation PSR and DBLayer bindings', function (): void {
+it('exposes one native CacheLayer store through Foundation and PSR bindings', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-cache-' . uniqid('', true);
     mkdir($basePath . '/storage/cache/locks', 0775, true);
     mkdir($basePath . '/database', 0775, true);
@@ -69,7 +69,6 @@ it('exposes one native CacheLayer store through Foundation PSR and DBLayer bindi
             ->and($app->make(SimpleCacheInterface::class))->toBe($cache)
             ->and($app->make(CacheItemPoolInterface::class))->toBe($cache)
             ->and($app->make('foundation.cache'))->toBe($cache)
-            ->and(DB::cache())->toBe($cache)
             ->and($cache->set('name', 'Ada'))->toBeTrue()
             ->and($cache->get('name'))->toBe('Ada')
             ->and($cache->exportMetrics())->toHaveKey('pdo')
@@ -160,7 +159,7 @@ it('exposes the configured CacheLayer lock provider directly', function (): void
     $sharedLock->release($handle);
 });
 
-it('flushes process-local memoizers without clearing the shared cache between execution units', function (): void {
+it('keeps bounded process-local memoizers warm without clearing the shared cache', function (): void {
     $app = Foundation::web([
         'cache' => [
             'default' => 'memory',
@@ -171,8 +170,11 @@ it('flushes process-local memoizers without clearing the shared cache between ex
     ]);
 
     $cache = $app->make(CacheInterface::class);
-    $memoizer = $app->make(Memoizer::class);
-    $once = $app->make(OnceMemoizer::class);
+    $memoizer = Memoizer::instance();
+    $once = OnceMemoizer::instance();
+    $memoizer->flush();
+    $once->flush();
+
     $memoCalls = 0;
     $onceCalls = 0;
     $resolver = static function () use (&$memoCalls): int {
@@ -181,26 +183,23 @@ it('flushes process-local memoizers without clearing the shared cache between ex
 
     $cache->set('persistent', 'shared');
 
-    $first = $app->execution()->run(static function () use ($memoizer, $once, $resolver, &$onceCalls): array {
-        return [
-            $memoizer->get($resolver),
-            $memoizer->get($resolver),
-            foundationCacheOnceValue($once, $onceCalls),
-            foundationCacheOnceValue($once, $onceCalls),
-        ];
-    });
-
-    $second = $app->execution()->run(static function () use ($memoizer, $once, $resolver, &$onceCalls): array {
-        return [
-            $memoizer->get($resolver),
-            $memoizer->get($resolver),
-            foundationCacheOnceValue($once, $onceCalls),
-            foundationCacheOnceValue($once, $onceCalls),
-        ];
-    });
+    $first = [
+        $memoizer->get($resolver),
+        $memoizer->get($resolver),
+        foundationCacheOnceValue($once, $onceCalls),
+        foundationCacheOnceValue($once, $onceCalls),
+    ];
+    $second = [
+        $memoizer->get($resolver),
+        $memoizer->get($resolver),
+        foundationCacheOnceValue($once, $onceCalls),
+        foundationCacheOnceValue($once, $onceCalls),
+    ];
 
     expect($first)->toBe([1, 1, 1, 1])
-        ->and($second)->toBe([2, 2, 2, 2])
+        ->and($second)->toBe([1, 1, 1, 1])
+        ->and($memoCalls)->toBe(1)
+        ->and($onceCalls)->toBe(1)
         ->and($cache->get('persistent'))->toBe('shared');
 });
 

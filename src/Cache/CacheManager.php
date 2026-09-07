@@ -13,9 +13,9 @@ use Infocyph\DBLayer\Connection\Connection;
  * Foundation application topology for named CacheLayer stores.
  *
  * Generic cache, locking, counter, node and cluster operations remain native
- * CacheLayer APIs. This component keeps application store identity, wires the
- * default store into an already-active DBLayer runtime, and owns the DB/cache
- * invalidation workflow.
+ * CacheLayer APIs. Database query-cache selection is owned separately by
+ * DBLayerFactory so resolving the application default store never mutates the
+ * process-static DBLayer facade.
  */
 final class CacheManager
 {
@@ -26,6 +26,7 @@ final class CacheManager
         private readonly CacheLayerFactory $factory,
         /** @var Closure(?string):Connection */
         private readonly Closure $database,
+        private readonly ?CacheLayerFactory $transactionalFactory = null,
     ) {}
 
     public function store(?string $name = null): CacheInterface
@@ -35,18 +36,17 @@ final class CacheManager
             return $this->stores[$key];
         }
 
-        $store = $this->factory->make($name);
-        $this->stores[$key] = $store;
-
-        if ($name === null) {
-            $this->wireDatabaseCache($store);
-        }
-
-        return $store;
+        return $this->stores[$key] = $this->factory->make($name);
     }
 
     /**
      * Couple a DB transaction with CacheLayer's cluster invalidation outbox.
+     *
+     * The ordinary factory is infrastructure-owned because its products may
+     * retain native clients beyond one execution. Transactional invalidation is
+     * different: CacheLayer's PDO outbox must bind to the exact PDO that owns
+     * the application transaction, so this path uses the execution-bound
+     * factory supplied by CacheGraphFactory.
      *
      * @param callable(Connection, ClusterOutbox):mixed $callback
      */
@@ -56,8 +56,8 @@ final class CacheManager
         ?string $connection = null,
         int $attempts = 1,
     ): mixed {
-        $runtime = $this->factory->cluster($cluster);
         $database = ($this->database)($connection);
+        $runtime = ($this->transactionalFactory ?? $this->factory)->cluster($cluster);
 
         return $database->transaction(
             function (Connection $connection) use ($callback, $runtime): mixed {
@@ -75,18 +75,6 @@ final class CacheManager
     {
         $this->stores[$name ?? '__default__'] = $store;
 
-        if ($name === null) {
-            $this->wireDatabaseCache($store);
-        }
-
         return $store;
-    }
-
-    private function wireDatabaseCache(CacheInterface $store): void
-    {
-        $db = \Infocyph\DBLayer\DB::class;
-        if (class_exists($db, false)) {
-            $db::setCache($store);
-        }
     }
 }

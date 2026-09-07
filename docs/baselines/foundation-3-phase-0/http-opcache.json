@@ -1,0 +1,84 @@
+{
+    "schema": 1,
+    "source": {
+        "benchmark_repo": "abmmhasan/Benchmark",
+        "benchmark_commit": "d1b130302e9f8918f81c613f6f038c35eb67ce76",
+        "run": "opcache/2026-09-02T050214Z",
+        "results_blob": "434bbc926a057ad3a45688e18236244729da1b2e",
+        "report_blob": "421d8127854b42b6c86c87ac6e1c1519d2269206",
+        "runtime": {
+            "php": "8.5.10",
+            "sapi": "apache2handler",
+            "profile": "opcache-production",
+            "opcache": true,
+            "jit": false,
+            "load_generator": "php-curl-multi"
+        },
+        "invocation": {
+            "connections": 250,
+            "count": 5000,
+            "minimum_duration_seconds": 30,
+            "repetitions": 2,
+            "stability_threshold_percent": 10,
+            "timeout_seconds": 10,
+            "warm_up_requests": 10
+        }
+    },
+    "targets": {
+        "webrick-generated": {
+            "version": "5.1",
+            "source_tag_commit": "7d1527f7b9076087549d64bf543e54c96a37911f",
+            "best_stable_concurrency": 63,
+            "best_stable_rpm": 167743,
+            "serial_latency_ms": {
+                "p50": 0.71,
+                "p95": 0.78,
+                "p99": 1.14,
+                "ttfb": 0.7
+            },
+            "concurrency_63_latency_ms": {
+                "p50": 18.48,
+                "p95": 53.37,
+                "p99": 72.48,
+                "ttfb": 22.25
+            },
+            "remote_memory_mb": 0.44,
+            "included_files_average": 74,
+            "server_execution_average_ms": 16.15145,
+            "error_rate_at_63_percent": 0.0
+        },
+        "infbyte": {
+            "foundation_version": "2.1.1",
+            "foundation_tag_commit": "f6749ebe0aa1f93c6b3586e8cb63ecc1f552d98b",
+            "best_stable_concurrency": 63,
+            "best_stable_rpm": 81375,
+            "serial_latency_ms": {
+                "p50": 1.53,
+                "p95": 1.71,
+                "p99": 2.9,
+                "ttfb": 1.55
+            },
+            "concurrency_63_latency_ms": {
+                "p50": 43.3,
+                "p95": 102.2,
+                "p99": 132.43,
+                "ttfb": 46.23
+            },
+            "remote_memory_mb": 0.55,
+            "included_files_average": 133.25003,
+            "server_execution_average_ms": 30.61315,
+            "error_rate_at_63_percent": 0.0
+        },
+        "infbyte-full": {
+            "foundation_version": "2.1.1",
+            "foundation_tag_commit": "f6749ebe0aa1f93c6b3586e8cb63ecc1f552d98b",
+            "best_stable_concurrency": 63,
+            "best_stable_rpm": 80692,
+            "serial_latency_ms": {
+                "p50": 1.54,
+                "p95": 1.75,
+                "p99": 2.37
+            }
+        }
+    }
+}

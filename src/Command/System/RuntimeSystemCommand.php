@@ -9,7 +9,7 @@ use Infocyph\Foundation\Command\ExitCode;
 use Infocyph\Foundation\Filesystem\StorageLinkManager;
 use Infocyph\Foundation\Messaging\ConsumerFactory;
 use Infocyph\Foundation\Operations\ExecutionHistory;
-use Infocyph\Foundation\Routing\RouteCacheManager;
+use Infocyph\Foundation\Routing\RouteInspector;
 use Infocyph\Foundation\Scheduling\ScheduledCommand;
 use Infocyph\Foundation\Scheduling\ScheduleManager;
 use Infocyph\Foundation\Scheduling\ScheduleRun;
@@ -27,8 +27,6 @@ final class RuntimeSystemCommand extends SystemCommand
     {
         return match ($this->canonicalName()) {
             'queue:consume' => $this->consume(),
-            'route:cache' => $this->routeCache(),
-            'route:clear' => $this->routeClear(),
             'route:list' => $this->routeList(),
             'schedule:cache' => $this->scheduleCache(),
             'schedule:clear' => $this->scheduleClear(),
@@ -162,32 +160,9 @@ final class RuntimeSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
-    private function routeCache(): int
-    {
-        $manager = new RouteCacheManager($this->application);
-        $matcher = $this->option('matcher', $manager->configuredMatcher()) ?? $manager->configuredMatcher();
-        $cache = $this->option('cache', $manager->cachePath(null)) ?? $manager->cachePath(null);
-        $path = $manager->write($matcher, $cache, $this->option('routes'));
-
-        return $this->emit(
-            ['matcher' => $matcher, 'path' => $path],
-            sprintf('Routes cached using %s matcher at %s.', $matcher, $path),
-        );
-    }
-
-    private function routeClear(): int
-    {
-        $removed = new RouteCacheManager($this->application)->clearAll();
-
-        return $this->emit(
-            ['removed' => $removed],
-            $removed ? 'Route cache cleared.' : 'Route cache is already clear.',
-        );
-    }
-
     private function routeList(): int
     {
-        $routes = new RouteCacheManager($this->application)->routes($this->option('routes'))->all();
+        $routes = new RouteInspector($this->application)->routes($this->option('routes'))->all();
         $data = array_map(
             static fn($route): array => [
                 'method' => $route->getMethod(),

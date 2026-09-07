@@ -25,11 +25,12 @@ use Infocyph\Foundation\Http\Middleware\RoleMiddleware;
 use Infocyph\Foundation\Http\Middleware\VerifiedMiddleware;
 use Infocyph\Foundation\Http\Response\AuthExceptionMapper;
 use Infocyph\Foundation\Http\Response\AuthResponseFactory;
+use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 
 it('uses ordinary account semantics for OAuth bearer principals across existing middleware', function (): void {
-    $context = new CurrentPrincipalContext();
+    $context = new CurrentPrincipalContext(RuntimeStateContainer::principal());
     $principal = new Principal(
         id: 'account-1',
         type: PrincipalType::ACCOUNT,
@@ -101,7 +102,7 @@ it('uses ordinary account semantics for OAuth bearer principals across existing 
 });
 
 it('does not give OAuth account principals alternate MFA or recent-auth semantics', function (): void {
-    $context = new CurrentPrincipalContext();
+    $context = new CurrentPrincipalContext(RuntimeStateContainer::principal());
     $context->set(new Principal(
         id: 'account-1',
         type: PrincipalType::ACCOUNT,
@@ -128,7 +129,7 @@ it('does not give OAuth account principals alternate MFA or recent-auth semantic
 });
 
 it('keeps account-only middleware account-only for OAuth service principals', function (): void {
-    $context = new CurrentPrincipalContext();
+    $context = new CurrentPrincipalContext(RuntimeStateContainer::principal());
     $context->set(new Principal(
         id: 'oc_service',
         type: PrincipalType::SERVICE,

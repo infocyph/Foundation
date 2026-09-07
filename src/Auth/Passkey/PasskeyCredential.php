@@ -21,6 +21,7 @@ final readonly class PasskeyCredential
         public ?int $lastUsedAt = null,
         public ?int $revokedAt = null,
         public array $metadata = [],
+        public int $revision = 0,
     ) {}
 
     public function isRevoked(): bool
@@ -41,6 +42,24 @@ final readonly class PasskeyCredential
             lastUsedAt: $this->lastUsedAt,
             revokedAt: $timestamp,
             metadata: $this->metadata,
+            revision: $this->revision,
+        );
+    }
+
+    public function used(int $signCount, int $timestamp): self
+    {
+        return new self(
+            id: $this->id,
+            accountId: $this->accountId,
+            credentialId: $this->credentialId,
+            publicKey: $this->publicKey,
+            signCount: $signCount,
+            transports: $this->transports,
+            createdAt: $this->createdAt,
+            lastUsedAt: $timestamp,
+            revokedAt: $this->revokedAt,
+            metadata: $this->metadata,
+            revision: $this->revision + 1,
         );
     }
 }

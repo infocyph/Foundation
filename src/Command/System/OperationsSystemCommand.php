@@ -248,7 +248,7 @@ final class OperationsSystemCommand extends SystemCommand
 
     private function maintenance(): MaintenanceManager
     {
-        return new MaintenanceManager($this->application);
+        return $this->application->make(MaintenanceManager::class);
     }
 
     private function maintenanceDisable(): int

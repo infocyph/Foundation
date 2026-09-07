@@ -10,6 +10,7 @@ use Infocyph\Foundation\Filesystem\StorageRegistry;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Pathwise\PathwiseFacade;
 use Infocyph\Webrick\Request\Request;
+use Infocyph\Webrick\Response\Body\FileBody;
 
 beforeEach(function (): void {
     if (!class_exists(PathwiseFacade::class)) {
@@ -30,7 +31,7 @@ function foundationFilesystemApp(): array
     ]), $basePath];
 }
 
-it('streams conditional and ranged responses through the Foundation filesystem bridge', function (): void {
+it('preserves conditional and ranged local files as native Webrick file bodies', function (): void {
     [$app, $basePath] = foundationFilesystemApp();
     $app->boot();
     $storage = $app->make(StorageRegistry::class);
@@ -53,14 +54,14 @@ it('streams conditional and ranged responses through the Foundation filesystem b
         expect($rangeResponse->getStatusCode())->toBe(206)
             ->and($rangeResponse->getHeaderLine('Content-Range'))->toBe('bytes 11-16/' . strlen($contents))
             ->and($rangeResponse->getHeaderLine('Accept-Ranges'))->toBe('bytes')
-            ->and($rangeResponse->getHeaderLine('Content-Disposition'))->toContain('attachment;');
+            ->and($rangeResponse->getHeaderLine('Content-Disposition'))->toContain('attachment;')
+            ->and($rangeResponse->getProducer())->toBeNull();
 
-        $producer = $rangeResponse->getProducer();
-        expect($producer)->not->toBeNull();
-        ob_start();
-        $producer();
-        $rangeBody = ob_get_clean();
-        expect($rangeBody)->toBe(substr($contents, 11, 6));
+        $rangeBody = $rangeResponse->getFileBody();
+        expect($rangeBody)->toBeInstanceOf(FileBody::class)
+            ->and($rangeBody?->offset())->toBe(11)
+            ->and($rangeBody?->length())->toBe(6)
+            ->and($rangeBody?->read(6))->toBe(substr($contents, 11, 6));
 
         $inlineResponse = $responses->inline(
             Request::fake(headers: ['Host' => 'localhost'], uri: 'http://localhost/inline'),
@@ -69,7 +70,18 @@ it('streams conditional and ranged responses through the Foundation filesystem b
             disk: 'uploads',
         );
         expect($inlineResponse->getStatusCode())->toBe(200)
-            ->and($inlineResponse->getHeaderLine('Content-Disposition'))->toContain('inline;');
+            ->and($inlineResponse->getHeaderLine('Content-Disposition'))->toContain('inline;')
+            ->and($inlineResponse->getFileBody())->toBeInstanceOf(FileBody::class);
+
+        $headResponse = $responses->download(
+            Request::fake(headers: ['Host' => 'localhost'], method: 'HEAD', uri: 'http://localhost/download'),
+            $relativePath,
+            directory: $directory,
+            disk: 'uploads',
+        );
+        expect($headResponse->getStatusCode())->toBe(200)
+            ->and($headResponse->getBodySize())->toBe(0)
+            ->and($headResponse->getHeaderLine('Content-Length'))->toBe((string) strlen($contents));
 
         $manifest = $transfers->download($directory, 'uploads')->prepareDownload($storage->localPath($relativePath, 'uploads'));
         $notModifiedResponse = $responses->download(
@@ -83,6 +95,41 @@ it('streams conditional and ranged responses through the Foundation filesystem b
         );
         expect($notModifiedResponse->getStatusCode())->toBe(304)
             ->and($notModifiedResponse->getHeaderLine('ETag'))->toBe($manifest->etag);
+    } finally {
+        $disk->deleteDirectory($directory);
+        foundationFilesystemRemoveDirectory($basePath);
+    }
+});
+
+it('exposes mounted Pathwise responses as Webrick chunk iterables without direct output', function (): void {
+    [$app, $basePath] = foundationFilesystemApp();
+    $app->boot();
+    $storage = $app->make(StorageRegistry::class);
+    $responses = $app->make(FilesystemResponseFactory::class);
+    $disk = $storage->disk('uploads');
+    $directory = 'tests/stream-' . uniqid('', true);
+    $relativePath = $directory . '/payload.txt';
+    $contents = str_repeat('stream-body-', 64);
+    $disk->write($relativePath, $contents);
+
+    try {
+        $mountedPath = $storage->path($relativePath, 'uploads');
+        $response = $responses->download(
+            Request::fake(headers: ['Host' => 'localhost'], uri: 'http://localhost/stream'),
+            $mountedPath,
+            disk: 'uploads',
+        );
+
+        expect($response->getFileBody())->toBeNull()
+            ->and($response->isStreaming())->toBeTrue();
+
+        $producer = $response->getProducer();
+        expect($producer)->not->toBeNull();
+        $body = '';
+        foreach ($producer() as $chunk) {
+            $body .= $chunk;
+        }
+        expect($body)->toBe($contents);
     } finally {
         $disk->deleteDirectory($directory);
         foundationFilesystemRemoveDirectory($basePath);

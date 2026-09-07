@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Auth\Internal;
 
 use Infocyph\Foundation\Auth\Adapter\TalkingBytes\AuthNotificationMapper;
-use Infocyph\Foundation\Auth\Adapter\TalkingBytes\TalkingBytesAuthNotifier;
 use Infocyph\Foundation\Auth\Contract\Notification\AuthNotifierInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
 use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
@@ -13,6 +12,7 @@ use Infocyph\Foundation\Auth\Driver\AuthNotificationDriver;
 use Infocyph\Foundation\Auth\Support\CollectingAuthNotifier;
 use Infocyph\Foundation\Notifications\EmailProfiles;
 use Infocyph\Foundation\Notifications\NotificationTemplateRegistry;
+use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\TalkingBytes\Email\Emailer;
 
 final readonly class AuthNotificationRegistrar extends AbstractAuthRegistrar
@@ -21,26 +21,32 @@ final readonly class AuthNotificationRegistrar extends AbstractAuthRegistrar
     {
         if ($drivers->notifications() === AuthNotificationDriver::TALKINGBYTES) {
             $this->requirePackage(Emailer::class, 'infocyph/talkingbytes', 'communication');
-            $this->singleton(AuthNotificationMapper::class, fn() => new AuthNotificationMapper(
-                $this->app->make(NotificationTemplateRegistry::class),
-            ));
-
-            $this->container->factory(AuthNotifierInterface::class, fn() => new TalkingBytesAuthNotifier(
-                emailer: $this->app->make(EmailProfiles::class)->authEmailer(),
-                mapper: $this->app->make(AuthNotificationMapper::class),
-                accounts: $this->app->make(AccountProviderInterface::class),
-                criticalTypes: $this->criticalTypes(),
-                failSilently: $this->boolConfig('notifications.auth.fail_silently', false),
-                from: $this->notificationFrom(),
-            ))->scoped();
+            $this->recipe(AuthNotificationMapper::class, AuthNotificationMapper::class, [
+                $this->ref(NotificationTemplateRegistry::class),
+            ]);
+            $this->staticRecipe(
+                AuthNotifierInterface::class,
+                AuthNotificationGraphFactory::class,
+                'talkingBytes',
+                [
+                    $this->ref(EmailProfiles::class),
+                    $this->ref(AuthNotificationMapper::class),
+                    $this->ref(AccountProviderInterface::class),
+                    $this->criticalTypes(),
+                    $this->boolConfig('notifications.auth.fail_silently', false),
+                    $this->notificationFrom(),
+                ],
+                LifetimeEnum::Scoped,
+            );
 
             return;
         }
 
-        $this->container->factory(
+        $this->recipe(
             AuthNotifierInterface::class,
-            static fn() => new CollectingAuthNotifier(),
-        )->scoped();
+            CollectingAuthNotifier::class,
+            lifetime: LifetimeEnum::Scoped,
+        );
     }
 
     /** @return list<string> */

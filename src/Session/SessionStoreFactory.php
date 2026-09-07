@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Session;
 
-use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Session\Store\ArraySessionStore;
@@ -17,8 +16,9 @@ final class SessionStoreFactory
     private ?ArraySessionStore $arrayStore = null;
 
     public function __construct(
-        private readonly Application $application,
         private readonly SessionConfig $config,
+        private readonly ?CacheManager $cache = null,
+        private readonly ?DBLayerFactory $database = null,
     ) {}
 
     public function make(): SessionStoreInterface
@@ -27,10 +27,12 @@ final class SessionStoreFactory
             'array' => $this->arrayStore ??= new ArraySessionStore(),
             'file' => new FileSessionStore($this->config->filePath),
             'cache' => new CacheSessionStore(
-                $this->application->make(CacheManager::class)->store($this->config->cacheStore),
+                $this->cache?->store($this->config->cacheStore)
+                    ?? throw new \LogicException('Cache-backed sessions require the Foundation cache capability.'),
             ),
             'database' => new DatabaseSessionStore(
-                $this->application->make(DBLayerFactory::class)->connection($this->config->databaseConnection),
+                $this->database?->connection($this->config->databaseConnection)
+                    ?? throw new \LogicException('Database-backed sessions require the Foundation database capability.'),
                 $this->config->databaseTable,
             ),
             default => throw new \LogicException(sprintf(

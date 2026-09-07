@@ -1,0 +1,138 @@
+name: Foundation 3 Phase 0 Baselines
+
+on:
+  push:
+    branches:
+      - foundation-3/runtime-architecture-plan
+    paths:
+      - benchmarks/phase0-intermix.php
+      - benchmarks/phase0-foundation-boot.php
+      - .github/workflows/phase0-baselines.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  intermix-baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          ini-values: opcache.enable_cli=1
+
+      - name: Install pinned InterMix
+        run: |
+          mkdir -p /tmp/foundation-phase0
+          cd /tmp/foundation-phase0
+          composer init --name=infocyph/foundation-phase0 --no-interaction
+          composer require infocyph/intermix:10.0.3 --prefer-dist --no-interaction --no-progress
+
+      - name: Record direct InterMix baseline
+        env:
+          PHASE0_AUTOLOAD: /tmp/foundation-phase0/vendor/autoload.php
+          PHASE0_OUTPUT: build/phase0-intermix.json
+          PHASE0_OPERATIONS: '200000'
+          PHASE0_REPETITIONS: '7'
+        run: php benchmarks/phase0-intermix.php
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: foundation-phase0-intermix
+          path: build/phase0-intermix.json
+          if-no-files-found: error
+          retention-days: 30
+
+  foundation-representative-baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: b6fce52d5580f6940f2a2647dff3040e351e15a3
+          fetch-depth: 1
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          ini-values: opcache.enable_cli=1
+
+      - name: Install pre-architecture Foundation dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Record representative Foundation baseline
+        env:
+          FOUNDATION_BENCHMARK_REPETITIONS: '5'
+          FOUNDATION_BENCHMARK_WARMUP: '100'
+          FOUNDATION_BENCHMARK_OPERATIONS: '1000'
+          FOUNDATION_BENCHMARK_OUTPUT: build/phase0-foundation-representative.json
+        run: composer benchmark:representative
+
+      - name: Record cold and warm Foundation boot baseline
+        env:
+          PHASE0_BOOT_REPETITIONS: '15'
+          PHASE0_BOOT_OUTPUT: build/phase0-foundation-boot.json
+        run: |
+          git fetch --depth=1 origin "$GITHUB_SHA"
+          git show "$GITHUB_SHA:benchmarks/phase0-foundation-boot.php" > /tmp/phase0-foundation-boot.php
+          mkdir -p /tmp/foundation-phase0-app/routes
+          cat > /tmp/foundation-phase0-app/routes/web.php <<'PHP'
+          <?php
+
+          declare(strict_types=1);
+
+          use Infocyph\Webrick\Response\Response;
+          use Infocyph\Webrick\Router\Facade\Router;
+
+          Router::get('/json', static fn(): Response => Response::json(['ok' => true]));
+          PHP
+          PHASE0_FOUNDATION_BASE=/tmp/foundation-phase0-app php /tmp/phase0-foundation-boot.php suite /tmp/foundation-phase0-app
+
+      - name: Record resolved source identities
+        run: |
+          FOUNDATION_SOURCE="$(git rev-parse HEAD)"
+          php -r '
+          require "vendor/autoload.php";
+          use Composer\InstalledVersions;
+          $data = [
+              "foundation_commit" => $argv[1],
+              "intermix_version" => InstalledVersions::getPrettyVersion("infocyph/intermix"),
+              "intermix_reference" => InstalledVersions::getReference("infocyph/intermix"),
+              "webrick_version" => InstalledVersions::getPrettyVersion("infocyph/webrick"),
+              "webrick_reference" => InstalledVersions::getReference("infocyph/webrick"),
+          ];
+          file_put_contents("build/phase0-foundation-sources.json", json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
+          ' "$FOUNDATION_SOURCE"
+
+      - name: Freeze semantic behavior suite
+        run: |
+          cat > phase0-phpunit.xml <<'XML'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <phpunit bootstrap="vendor/autoload.php" cacheDirectory=".phpunit.cache" colors="false">
+              <testsuites>
+                  <testsuite name="Foundation pre-architecture semantics">
+                      <directory>tests</directory>
+                  </testsuite>
+              </testsuites>
+          </phpunit>
+          XML
+          vendor/bin/pest --configuration=phase0-phpunit.xml --colors=never --log-junit build/phase0-semantic-tests.xml
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: foundation-phase0-representative
+          path: |
+            build/phase0-foundation-representative.json
+            build/phase0-foundation-boot.json
+            build/phase0-foundation-sources.json
+            build/phase0-semantic-tests.xml
+            composer.lock
+          if-no-files-found: warn
+          retention-days: 30

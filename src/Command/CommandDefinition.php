@@ -32,6 +32,8 @@ final class CommandDefinition
 
     private RuntimeMode $runtime = RuntimeMode::Cli;
 
+    private bool $scoped = false;
+
     /** @param list<string> $capabilities */
     public function __construct(
         string $name = '',
@@ -69,6 +71,12 @@ final class CommandDefinition
             throw new \UnexpectedValueException('Compiled command hidden metadata must be boolean.');
         }
         $definition->hidden($hidden);
+
+        $scoped = $manifest['scoped'] ?? false;
+        if (!is_bool($scoped)) {
+            throw new \UnexpectedValueException('Compiled command scoped metadata must be boolean.');
+        }
+        $definition->scope($scoped);
 
         self::applyArguments($definition, $manifest['arguments'] ?? []);
         self::applyOptions($definition, $manifest['options'] ?? []);
@@ -289,9 +297,21 @@ final class CommandDefinition
         return $this->options;
     }
 
+    public function requiresExecutionScope(): bool
+    {
+        return $this->scoped || in_array('db', $this->capabilities, true);
+    }
+
     public function runtime(RuntimeMode $runtime): self
     {
         $this->runtime = $runtime;
+
+        return $this;
+    }
+
+    public function scope(bool $scoped = true): self
+    {
+        $this->scoped = $scoped;
 
         return $this;
     }
@@ -309,6 +329,7 @@ final class CommandDefinition
             'capabilities' => $this->capabilities,
             'aliases' => $this->aliases,
             'hidden' => $this->hidden,
+            'scoped' => $this->scoped,
             'arguments' => $this->arguments,
             'options' => array_values($this->options),
             'execution' => $this->execution->toManifest(),

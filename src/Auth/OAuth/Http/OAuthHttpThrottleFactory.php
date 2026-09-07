@@ -6,6 +6,7 @@ namespace Infocyph\Foundation\Auth\OAuth\Http;
 
 use Infocyph\Foundation\Auth\OAuth\Audit\OAuthAuditRecorder;
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Webrick\Middleware\Throttle\AtomicCounterInterface;
 use Infocyph\Webrick\Middleware\ThrottleMiddleware;
 use Psr\Cache\CacheItemPoolInterface;
 
@@ -18,14 +19,19 @@ final readonly class OAuthHttpThrottleFactory
         private OAuthAuditRecorder $audit,
     ) {}
 
-    public function forEndpoint(string $endpoint, ?CacheItemPoolInterface $pool = null): OAuthRateLimitMiddleware
-    {
+    public function forEndpoint(
+        string $endpoint,
+        ?CacheItemPoolInterface $pool = null,
+        ?AtomicCounterInterface $counterStore = null,
+    ): OAuthRateLimitMiddleware {
         $policy = $this->policy($endpoint);
         $throttle = new ThrottleMiddleware(
             max: $policy['max'],
             window: $policy['window'],
             pool: $pool,
             scope: $policy['scope'],
+            counterStore: $counterStore,
+            allowApproximateFallback: !$this->config->isProduction(),
         );
 
         return new OAuthRateLimitMiddleware($endpoint, $throttle, $this->audit);

@@ -9,9 +9,9 @@ use Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpHandler;
 use Infocyph\Foundation\Auth\OAuth\Http\OAuthRateLimitMiddleware;
 use Infocyph\Foundation\Auth\OAuth\OAuthManager;
 use Infocyph\Foundation\Foundation;
-use Infocyph\Foundation\Routing\RouteCacheManager;
-use Infocyph\Foundation\Routing\RouteCachePath;
+use Infocyph\Foundation\Routing\WebReleaseCompiler;
 use Infocyph\Webrick\Request\Request;
+use Infocyph\Webrick\Router\Build\CompiledRouterArtifact;
 use Infocyph\Webrick\Router\Definition\Registrar;
 use Infocyph\Webrick\Router\Dispatch\MiddlewareAliases;
 
@@ -60,31 +60,47 @@ it('owns and resolves the complete opt-in OAuth HTTP surface', function (): void
             ->and($app->make(OAuthHttpHandler::class))->toBeInstanceOf(OAuthHttpHandler::class)
             ->and($app->make(OAuthAuthorizationController::class))->toBeInstanceOf(OAuthAuthorizationController::class)
             ->and(MiddlewareAliases::resolveString('oauth-throttle:token'))
-            ->toBeInstanceOf(OAuthRateLimitMiddleware::class);
+            ->toBeInstanceOf(Closure::class);
     } finally {
         DB::purge();
         foundationOAuthHttpRemoveProject($root);
     }
 });
 
-it('includes Foundation OAuth routes in generated route caches', function (): void {
+it('includes Foundation OAuth routes in compiled Webrick releases', function (): void {
     [$root, $privateKey, $publicKey] = foundationOAuthHttpKeyProject();
     $options = foundationOAuthHttpOptions($root, $privateKey, $publicKey);
-    $options['router']['cache'] = true;
+    mkdir($root . '/bootstrap/cache', 0775, true);
+    $router = $root . '/bootstrap/cache/router.php';
 
     try {
-        $cli = Foundation::cli($options);
-        new RouteCacheManager($cli)->write('fused', RouteCachePath::for($cli->config()));
+        $release = new WebReleaseCompiler()->compile(
+            $options,
+            $root . '/bootstrap/cache/intermix.php',
+            $router,
+            $root . '/bootstrap/cache/release.json',
+            ['auth', 'cache', 'database', 'session'],
+        );
+        expect($release['intermix']['skipped'] ?? null)->toBe([]);
 
-        $response = Foundation::web($options)->handle(Request::fake(
-            headers: ['Host' => 'identity.example.test'],
-            uri: 'https://identity.example.test/.well-known/oauth-authorization-server',
-        ));
-        $body = json_decode((string) $response->getBody(), true, flags: JSON_THROW_ON_ERROR);
+        $payload = require $router;
+        expect($payload)->toBeArray();
+        $artifact = CompiledRouterArtifact::fromPayload($payload);
+        $oauthMetadata = null;
+        foreach ($artifact->routes() as $route) {
+            if ($route->getName() === 'oauth.metadata') {
+                $oauthMetadata = $route;
+                break;
+            }
+        }
 
-        expect($response->getStatusCode())->toBe(200)
-            ->and($body['issuer'] ?? null)->toBe('https://identity.example.test');
+        expect($oauthMetadata)->not->toBeNull()
+            ->and($oauthMetadata->getPath())->toBe('/.well-known/oauth-authorization-server');
+
+        $oauthPlan = $artifact->planForIndex($oauthMetadata->getIndex());
+        expect($oauthPlan->resolverSpec())->toBe([OAuthHttpHandler::class, 'metadata']);
     } finally {
+        foundationResetWebrickProductionRegistries();
         DB::purge();
         foundationOAuthHttpRemoveProject($root);
     }

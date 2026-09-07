@@ -126,9 +126,9 @@ final readonly class DBLayerOAuthClientStore extends DBLayerStore implements OAu
     {
         foreach ($redirectUris as $uri) {
             $connection->table($this->table('oauthRedirectUris'))->insert([
-                'id' => hash('sha256', $clientId . "\0" . $uri),
+                'id' => hash('sha3-256', "foundation.oauth.redirect-uri\0" . $clientId . "\0" . $uri),
                 'client_id' => $clientId,
-                'redirect_uri_hash' => hash('sha256', $uri),
+                'redirect_uri_hash' => hash('sha3-256', "foundation.oauth.redirect-uri-value\0" . $uri),
                 'redirect_uri' => $uri,
                 'created_at' => $createdAt,
             ]);

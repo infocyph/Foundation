@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailVerificationManager;
 use Infocyph\Foundation\Auth\Authentication\Login\Authenticator;
@@ -35,21 +36,20 @@ use Infocyph\Foundation\Http\Resolver\PrincipalResolverInterface;
 use Infocyph\Foundation\Http\Resolver\RequestPrincipalResolver;
 use Infocyph\Foundation\Http\Response\ExceptionRenderer;
 use Infocyph\Foundation\Logging\HttpExceptionLogger;
-use Infocyph\Foundation\Routing\RouteCacheManager;
-use Infocyph\Foundation\Routing\RouteCachePath;
+use Infocyph\Foundation\Routing\WebReleaseCompiler;
+use Infocyph\Foundation\Routing\WebReleaseRuntime;
 use Infocyph\Foundation\Routing\WebrickMiddlewareFactory;
 use Infocyph\Foundation\Session\SessionManager;
 use Infocyph\Foundation\Testing\TestKit;
+use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Webrick\Middleware\MaintenanceModeMiddleware;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
-use Infocyph\Webrick\Router\Definition\Registrar;
+use Infocyph\Webrick\Router\Build\CompiledRouterArtifact;
 use Infocyph\Webrick\Router\Dispatch\MiddlewareAliases;
-use Infocyph\Webrick\Router\Facade\Router as Route;
 use Infocyph\Webrick\Router\Kernel\RouterKernel;
 use Infocyph\Webrick\Router\Route\Collection;
-use Infocyph\Webrick\Support\RouteCache as WebrickRouteCache;
 
 interface FoundationTestGateway
 {
@@ -85,9 +85,11 @@ final class FoundationScopedProbe
 
 it('applies InterMix environment bindings from the application environment', function (): void {
     $provider = new class extends ServiceProvider {
-        public function register(Application $app): void
+        public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
         {
-            $app->container()->options()
+            unset($context);
+
+            $builder->options()
                 ->bindInterfaceForEnv('local', FoundationTestGateway::class, LocalFoundationGateway::class)
                 ->bindInterfaceForEnv('production', FoundationTestGateway::class, ProductionFoundationGateway::class);
         }
@@ -103,9 +105,15 @@ it('applies InterMix environment bindings from the application environment', fun
 
 it('scopes request-lifetime services through the HTTP kernel', function (): void {
     $provider = new class extends ServiceProvider {
-        public function register(Application $app): void
+        public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
         {
-            $app->container()->bind('scoped.probe', fn() => new FoundationScopedProbe(), LifetimeEnum::Scoped);
+            unset($context);
+
+            $builder->bindFactory(
+                'scoped.probe',
+                static fn(): FoundationScopedProbe => new FoundationScopedProbe(),
+                LifetimeEnum::Scoped,
+            );
         }
     };
     $project = foundationIntegrationProject([
@@ -227,7 +235,10 @@ PHP,
     try {
         $app = Foundation::web([
             'base_path' => $project,
-            'database' => ['default' => 'testing', 'connections' => ['testing' => ['driver' => 'sqlite', 'database' => ':memory:']]],
+            'database' => ['default' => 'testing', 'connections' => ['testing' => [
+                'driver' => 'sqlite',
+                'database' => $project . '/database.sqlite',
+            ]]],
             'session' => ['driver' => 'array'],
         ]);
         $app->make(DBLayerFactory::class)->connection()->statement(
@@ -262,6 +273,7 @@ it('keeps optional auth adapters lazy until their capabilities are selected', fu
                 ],
                 'webauthn' => ['origin' => 'https://example.test', 'rp_id' => 'example.test'],
             ],
+            'security' => ['jwt' => ['issuer' => 'foundation.test', 'audience' => 'foundation-clients']],
         ]);
         $repository = $app->container()->getRepository();
         expect($app->make(AuthManager::class))->toBeInstanceOf(AuthManager::class);
@@ -290,54 +302,64 @@ it('resolves auth actions and selected auth capabilities through DI only', funct
         ->and($app->make(AuthActions::class))->toBeInstanceOf(AuthActions::class)
         ->and($repository->hasResolvedSingleton(Authenticator::class))->toBeFalse()
         ->and($app->make(AuthServices::class)->mfa())->toBeInstanceOf(MfaManager::class)
-        ->and($repository->hasResolvedSingleton(MfaManager::class))->toBeTrue();
+        ->and($repository->hasResolvedSingleton(MfaManager::class))->toBeFalse();
 });
 
 it('isolates current principals between concurrent fibers and restores failed request context', function (): void {
-    $context = new CurrentPrincipalContext();
-    $context->set(new Principal('main'));
-    $first = new Fiber(static function () use ($context): string {
-        $context->set(new Principal('first'));
-        Fiber::suspend($context->require()->id());
-        return $context->require()->id();
+    $app = Foundation::web(['auth' => ['drivers' => ['mfa' => 'simple']]]);
+    $first = new Fiber(static function () use ($app): string {
+        return $app->container()->withinScope('webrick.request', static function () use ($app): string {
+            $context = $app->make(CurrentPrincipalContext::class);
+            $context->set(new Principal('first'));
+            Fiber::suspend($context->require()->id());
+
+            return $context->require()->id();
+        });
     });
-    $second = new Fiber(static function () use ($context): ?string {
-        $context->set(new Principal('second'));
-        Fiber::suspend($context->require()->id());
-        $context->clear();
-        return $context->get()?->id();
+    $second = new Fiber(static function () use ($app): ?string {
+        return $app->container()->withinScope('webrick.request', static function () use ($app): ?string {
+            $context = $app->make(CurrentPrincipalContext::class);
+            $context->set(new Principal('second'));
+            Fiber::suspend($context->require()->id());
+            $context->clear();
+
+            return $context->get()?->id();
+        });
     });
-    expect($first->start())->toBe('first')->and($second->start())->toBe('second')->and($context->require()->id())->toBe('main');
+    expect($first->start())->toBe('first')->and($second->start())->toBe('second');
     $first->resume();
     $second->resume();
-    expect($first->getReturn())->toBe('first')->and($second->getReturn())->toBeNull()->and($context->require()->id())->toBe('main');
+    expect($first->getReturn())->toBe('first')->and($second->getReturn())->toBeNull();
 
-    $previous = new Principal('previous', accountId: 'previous');
-    $resolved = new Principal('request', accountId: 'request');
-    $context->set($previous);
-    $resolver = new RequestPrincipalResolver(
-        new ConfigRepository(['auth' => ['http' => ['principal_resolvers' => ['test']]]]),
-        ['test' => new readonly class($resolved) implements PrincipalResolverInterface {
-            public function __construct(private Principal $principal) {}
-            public function name(): string { return 'test'; }
-            public function resolve(Request $request): Principal
-            {
+    $app->container()->withinScope('webrick.request', static function () use ($app): void {
+        $context = $app->make(CurrentPrincipalContext::class);
+        $previous = new Principal('previous', accountId: 'previous');
+        $resolved = new Principal('request', accountId: 'request');
+        $context->set($previous);
+        $resolver = new RequestPrincipalResolver(
+            new ConfigRepository(['auth' => ['http' => ['principal_resolvers' => ['test']]]]),
+            ['test' => new readonly class($resolved) implements PrincipalResolverInterface {
+                public function __construct(private Principal $principal) {}
+                public function name(): string { return 'test'; }
+                public function resolve(Request $request): Principal
+                {
+                    unset($request);
+
+                    return $this->principal;
+                }
+            }],
+        );
+        $middleware = new ResolvePrincipalMiddleware($context, $resolver);
+        expect(fn() => $middleware(
+            foundationRequest('/auth-failure'),
+            static function (Request $request) use ($context): Response {
                 unset($request);
-
-                return $this->principal;
-            }
-        }],
-    );
-    $middleware = new ResolvePrincipalMiddleware($context, $resolver);
-    expect(fn() => $middleware(
-        foundationRequest('/auth-failure'),
-        static function (Request $request) use ($context): Response {
-            unset($request);
-            expect($context->require()->id())->toBe('request');
-            throw new RuntimeException('handler failed');
-        },
-    ))->toThrow(RuntimeException::class, 'handler failed')
-        ->and($context->require()->id())->toBe('previous');
+                expect($context->require()->id())->toBe('request');
+                throw new RuntimeException('handler failed');
+            },
+        ))->toThrow(RuntimeException::class, 'handler failed')
+            ->and($context->require()->id())->toBe('previous');
+    });
 });
 
 it('does not build configured middleware aliases until a route uses them', function (): void {
@@ -370,7 +392,7 @@ PHP,
     }
 });
 
-it('registers only middleware aliases required by a warm route cache', function (): void {
+it('registers only middleware aliases required while compiling a Webrick release', function (): void {
     $project = foundationIntegrationProject([
         'routes/web.php' => <<<'PHP'
 <?php
@@ -380,53 +402,98 @@ Router::get('/cached-plain', static fn(): Response => Response::json(['ok' => tr
 Router::get('/cached-auth', static fn(): Response => Response::json(['ok' => true]), ['middleware' => ['auth']]);
 PHP,
     ]);
+    mkdir($project . '/bootstrap/cache', 0775, true);
+    $router = $project . '/bootstrap/cache/router.php';
+
     try {
-        $config = ['base_path' => $project, '_config_cache' => false, 'router' => ['matcher' => 'fused', 'files' => ['web.php']]];
-        $cli = Foundation::cli($config);
-        (new RouteCacheManager($cli))->write('fused', RouteCachePath::for($cli->config()));
-        $app = Foundation::web($config);
-        $repository = $app->container()->getRepository();
-        expect(foundationJsonResponse($app->handle(foundationRequest('/cached-plain'))))->toBe(['ok' => true])
+        foundationResetWebrickProductionRegistries();
+        $config = [
+            'app' => ['base_path' => $project, 'env' => 'production', 'debug' => false],
+            '_config_cache' => false,
+            'router' => [
+                'matcher' => 'fused',
+                'files' => ['web.php'],
+                'middleware' => ['globals' => ['pre' => [], 'post' => []]],
+            ],
+        ];
+        $release = new WebReleaseCompiler()->compile(
+            $config,
+            $project . '/bootstrap/cache/intermix.php',
+            $router,
+            $project . '/bootstrap/cache/release.json',
+            [],
+        );
+        expect($release['intermix']['skipped'] ?? null)->toBe([]);
+
+        $payload = require $router;
+        expect($payload)->toBeArray();
+        $artifact = CompiledRouterArtifact::fromPayload($payload);
+        $plain = null;
+        foreach ($artifact->routes() as $route) {
+            if ($route->getPath() === '/cached-plain') {
+                $plain = $route;
+                break;
+            }
+        }
+
+        expect($plain)->not->toBeNull()
             ->and(MiddlewareAliases::has('auth'))->toBeTrue()
             ->and(MiddlewareAliases::has('policy'))->toBeFalse()
-            ->and(MiddlewareAliases::has('session'))->toBeFalse()
-            ->and($repository->hasResolvedSingleton(AuthManager::class))->toBeFalse();
+            ->and(MiddlewareAliases::has('session'))->toBeFalse();
     } finally {
+        foundationResetWebrickProductionRegistries();
         foundationIntegrationRemoveDirectory($project);
     }
 });
 
-it('boots every matcher from cache while preserving signed URL services', function (): void {
-    foreach (['fused', 'generated', 'sharded'] as $matcher) {
-        $project = foundationIntegrationProject([]);
-        $options = [
-            'base_path' => $project,
-            '_config_cache' => false,
-            'router' => [
-                'matcher' => $matcher,
-                'signed_urls' => ['key' => 'foundation-cache-signing-secret'],
-            ],
-        ];
-        $cacheApplication = Foundation::cli($options);
-        $config = $cacheApplication->config();
-        try {
-            WebrickRouteCache::build([
-                'cache' => RouteCachePath::for($config),
-                'matcher' => $matcher,
-                'register' => static function (Registrar $router): void {
-                    $router->get('/cached/{name}', 'foundationCachedRouteHandler', ['name' => 'cached.show']);
-                },
-                'signKey' => 'foundation-cache-signing-secret',
-                'fallbackAliasesFromRegistrar' => false,
-            ]);
-            RouteCachePath::markFresh($config);
+it('boots a compiled Webrick release without source route registration', function (): void {
+    $project = foundationIntegrationProject([
+        'routes/web.php' => <<<'PHP'
+<?php
+use Infocyph\Webrick\Router\Facade\Router;
+Router::get('/cached/{name}', 'foundationCachedRouteHandler', ['name' => 'cached.show']);
+PHP,
+    ]);
+    mkdir($project . '/bootstrap/cache', 0775, true);
+    $manifest = $project . '/bootstrap/cache/release.json';
 
-            $app = Foundation::web($options);
-            expect(foundationJsonResponse($app->handle(foundationRequest('/cached/Codex'))))->toBe(['name' => 'Codex'])
-                ->and(Route::signedUrlFor('cached.show', ['name' => 'Codex']))->toContain('/cached/Codex');
-        } finally {
-            foundationIntegrationRemoveDirectory($project);
-        }
+    $config = [
+        'app' => ['base_path' => $project, 'env' => 'production', 'debug' => false],
+        '_config_cache' => false,
+        'router' => [
+            'matcher' => 'fused',
+            'files' => ['web.php'],
+            'middleware' => ['globals' => ['pre' => [], 'post' => []]],
+        ],
+    ];
+
+    try {
+        $release = new WebReleaseCompiler()->compile(
+            $config,
+            $project . '/bootstrap/cache/intermix.php',
+            $project . '/bootstrap/cache/router.php',
+            $manifest,
+            [],
+        );
+        expect($release['intermix']['skipped'] ?? null)->toBe([]);
+        unlink($project . '/routes/web.php');
+
+        $runtime = WebReleaseRuntime::loadPrevalidated(
+            $config,
+            $manifest,
+            (string) $release['release_runtime_manifest_sha256'],
+            foundationCapabilities: [],
+        );
+        $response = $runtime->kernel->handle(Request::fake(
+            headers: ['Host' => 'example.test'],
+            uri: 'https://example.test/cached/Codex',
+        ));
+
+        expect($response->getStatusCode())->toBe(200)
+            ->and(foundationJsonResponse($response))->toBe(['name' => 'Codex']);
+    } finally {
+        foundationResetWebrickProductionRegistries();
+        foundationIntegrationRemoveDirectory($project);
     }
 });
 

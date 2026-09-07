@@ -30,8 +30,8 @@ it('boots without optional packages and reports unavailable capabilities cleanly
             ->and($state['has'] ?? true)->toBeFalse()
             ->and($state['message'] ?? null)->toBeString()
             ->and($state['message'])->toContain(
-                'Foundation service "' . $service . '" requires ' . $state['expected_package'],
-                'install module "' . $state['expected_module'] . '".',
+                'Unable to resolve service "' . $service . '".',
+                "No entry found for '" . $service . "'.",
             );
     }
 

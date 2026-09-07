@@ -15,6 +15,7 @@ final readonly class AuthSchemaInstaller
         private DBLayerFactory $factory,
         private AuthSchema $schema,
         private AuthMfaRevisionSchema $mfaRevisionSchema,
+        private AuthPasskeyRevisionSchema $passkeyRevisionSchema,
         private AuthTables $tables,
         private ?AuthOAuthRevisionSchema $oauthRevisionSchema = null,
         private bool $oauthEnabled = false,
@@ -58,9 +59,14 @@ final readonly class AuthSchemaInstaller
         }
 
         $missingColumns = [];
-        $mfaFactors = $this->tables->mfaFactors();
-        if ($schema->hasTable($mfaFactors) && !$schema->hasColumn($mfaFactors, 'revision')) {
-            $missingColumns[] = $mfaFactors . '.revision';
+        $requiredColumns = [
+            [$this->tables->mfaFactors(), 'revision'],
+            [$this->tables->passkeyCredentials(), 'revision'],
+        ];
+        foreach ($requiredColumns as [$table, $column]) {
+            if ($schema->hasTable($table) && !$schema->hasColumn($table, $column)) {
+                $missingColumns[] = $table . '.' . $column;
+            }
         }
 
         return [
@@ -73,7 +79,7 @@ final readonly class AuthSchemaInstaller
 
     public function runner(?string $connection = null): MigrationRunner
     {
-        $migrations = [$this->schema, $this->mfaRevisionSchema];
+        $migrations = [$this->schema, $this->mfaRevisionSchema, $this->passkeyRevisionSchema];
         if ($this->oauthEnabled) {
             $migrations[] = $this->oauthSchema();
         }

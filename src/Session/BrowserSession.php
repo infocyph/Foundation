@@ -7,6 +7,7 @@ namespace Infocyph\Foundation\Session;
 use Closure;
 use Infocyph\CacheLayer\Cache\Lock\LockHandle;
 use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
+use Infocyph\Foundation\Cache\FoundationCacheKey;
 use Infocyph\Webrick\Request\Request;
 
 final class BrowserSession
@@ -51,9 +52,7 @@ final class BrowserSession
         return $session;
     }
 
-    /**
-     * @return array<string, mixed>
-     */
+    /** @return array<string, mixed> */
     public function all(): array
     {
         $this->load();
@@ -118,9 +117,7 @@ final class BrowserSession
         $this->flashNext[$key] = true;
     }
 
-    /**
-     * @param array<string, mixed> $input
-     */
+    /** @param array<string, mixed> $input */
     public function flashInput(array $input): void
     {
         $this->flash('_old_input', $input);
@@ -169,9 +166,7 @@ final class BrowserSession
         $this->id = self::generateId();
     }
 
-    /**
-     * @param list<string> $keys
-     */
+    /** @param list<string> $keys */
     public function keep(array $keys): void
     {
         $this->load();
@@ -182,13 +177,10 @@ final class BrowserSession
         }
     }
 
-    /**
-     * @return array<string, mixed>
-     */
+    /** @return array<string, mixed> */
     public function oldInput(): array
     {
         $input = $this->get('_old_input', []);
-
         if (!is_array($input)) {
             return [];
         }
@@ -279,7 +271,7 @@ final class BrowserSession
         }
 
         $lock = $provider->acquire(
-            hash('sha256', 'foundation-session:' . $id),
+            FoundationCacheKey::security('session-lock', 'browser-session-lock', $id),
             $this->config->lockWaitSeconds,
             $this->config->lockLeaseSeconds,
         );

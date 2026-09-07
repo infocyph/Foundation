@@ -137,7 +137,7 @@ final readonly class FileSessionStore implements SessionStoreInterface
     {
         return rtrim($this->directory, DIRECTORY_SEPARATOR)
             . DIRECTORY_SEPARATOR
-            . hash('sha256', $id)
+            . hash('sha3-256', "foundation.session.file\0" . $id)
             . '.json';
     }
 }

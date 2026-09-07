@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 use Infocyph\DBLayer\DB;
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Config\ConfigValidator;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Messaging\OmnibusWorkerFactory;
 use Infocyph\Foundation\Worker\WorkerManager;
-use Infocyph\InterMix\DI\Support\LifetimeEnum;
+use Infocyph\InterMix\DI\ContainerBuilder;
+use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\Omnibus\Envelope\Envelope;
 use Infocyph\Omnibus\MessageBus;
 
@@ -54,12 +56,13 @@ beforeEach(function (): void {
 
 it('runs bounded Omnibus workers with a fresh Foundation execution scope per message', function (): void {
     $provider = new class extends ServiceProvider {
-        public function register(Application $app): void
+        public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
         {
-            $app->container()->bind(
+            unset($context);
+
+            $builder->scoped(
                 FoundationWorkerProbe::class,
-                static fn() => new FoundationWorkerProbe(),
-                LifetimeEnum::Scoped,
+                FactoryDefinition::construct(FoundationWorkerProbe::class),
             );
         }
     };
@@ -186,27 +189,22 @@ it('requires declarative fork-safe configuration before starting a worker pool',
         DB::purge();
     }
 
-    $app = Foundation::worker([
-        'messaging' => [
-            'handlers' => [FoundationWorkerMessage::class => static fn(): null => null],
-            'workers' => [
-                'parallel' => [
-                    'transport' => 'shared',
-                    'queue' => 'default',
-                    'pool' => [
-                        'enabled' => true,
-                        'concurrency' => 2,
+    expect(static fn(): Application => Foundation::worker([
+            'messaging' => [
+                'handlers' => [FoundationWorkerMessage::class => static fn(): null => null],
+                'workers' => [
+                    'parallel' => [
+                        'transport' => 'shared',
+                        'queue' => 'default',
+                        'pool' => [
+                            'enabled' => true,
+                            'concurrency' => 2,
+                        ],
                     ],
                 ],
             ],
-        ],
-    ]);
-
-    $messages = $app->make(ConfigValidator::class)->validate()->messages();
-
-    expect($messages)->toContain(
-        'Pooled messaging workers require scalar/array declarative configuration; config.messaging.handlers.'
-        . FoundationWorkerMessage::class . ' (Closure) contains runtime state.',
-    )->and(fn() => new WorkerManager($app)->run('parallel'))
-        ->toThrow(LogicException::class, 'scalar/array configuration');
+        ]))->toThrow(
+            InvalidArgumentException::class,
+            'Declarative factory arguments must be service references or exportable values.',
+        );
 });

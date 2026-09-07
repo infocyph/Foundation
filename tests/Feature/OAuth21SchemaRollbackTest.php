@@ -16,7 +16,7 @@ use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DatabaseConnectionResolver;
 use Infocyph\Foundation\Database\DBLayerFactory;
-use Infocyph\Foundation\Runtime\RuntimeContextTracker;
+use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
 
 it('rolls back only the additive OAuth revision and preserves the released auth schema', function (): void {
     DB::purge();
@@ -103,6 +103,6 @@ function oauth21RollbackFactory(string $name): DBLayerFactory
                 'connections' => [$name => ['driver' => 'sqlite', 'database' => ':memory:']],
             ],
         ])),
-        new RuntimeContextTracker(),
+        RuntimeStateContainer::execution(),
     );
 }

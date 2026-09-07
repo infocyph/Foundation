@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Command\CommandDispatcher;
 use Infocyph\Foundation\Command\CommandIO;
@@ -11,6 +12,7 @@ use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Operations\RuntimeControl;
 use Infocyph\Foundation\Operations\RuntimeProcessRegistry;
 use Infocyph\Foundation\Worker\WorkerManager;
+use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\Omnibus\Clock\SystemClock;
 use Infocyph\Omnibus\Envelope\Envelope;
 use Infocyph\Omnibus\Failure\FailedMessage;
@@ -31,16 +33,16 @@ final class FoundationOmnibus25CommandStateProvider extends ServiceProvider
 
     public static ?TransportRegistry $transports = null;
 
-    public function register(Application $app): void
+    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        $this->bindFactory(
-            $app->container(),
+        unset($context);
+
+        $builder->bindFactory(
             FailureStore::class,
             static fn(): FailureStore => self::$failures
                 ?? throw new LogicException('Omnibus command failure store fixture is not initialized.'),
         );
-        $this->bindFactory(
-            $app->container(),
+        $builder->bindFactory(
             TransportRegistry::class,
             static fn(): TransportRegistry => self::$transports
                 ?? throw new LogicException('Omnibus command transport registry fixture is not initialized.'),

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Infocyph\CacheLayer\Cache\Lock\FileLockProvider;
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Operations\RuntimeControl;
@@ -12,7 +13,8 @@ use Infocyph\Foundation\Runtime\ExecutionId;
 use Infocyph\Foundation\Worker\WorkerManager;
 use Infocyph\Foundation\Worker\WorkerProvider;
 use Infocyph\Foundation\Worker\WorkerRuntime;
-use Infocyph\InterMix\DI\Support\LifetimeEnum;
+use Infocyph\InterMix\DI\ContainerBuilder;
+use Infocyph\InterMix\DI\Support\FactoryDefinition;
 
 final class FoundationWorkerLifecycleScopedProbe
 {
@@ -28,12 +30,13 @@ final class FoundationWorkerLifecycleScopedProbe
 
 final class FoundationWorkerLifecycleServiceProvider extends ServiceProvider
 {
-    public function register(Application $app): void
+    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        $app->container()->bind(
+        unset($context);
+
+        $builder->scoped(
             'worker.lifecycle.scoped',
-            static fn(): FoundationWorkerLifecycleScopedProbe => new FoundationWorkerLifecycleScopedProbe(),
-            LifetimeEnum::Scoped,
+            FactoryDefinition::construct(FoundationWorkerLifecycleScopedProbe::class),
         );
     }
 }

@@ -5,39 +5,20 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Auth\Principal;
 
 use Infocyph\Foundation\Auth\Exception\AuthenticationException;
-use Infocyph\Foundation\Runtime\RuntimeContextTracker;
+use Psr\Container\ContainerInterface;
 
-final class CurrentPrincipalContext implements CurrentPrincipalProviderInterface
+final readonly class CurrentPrincipalContext implements CurrentPrincipalProviderInterface
 {
-    /** @var \WeakMap<object, PrincipalInterface> */
-    private \WeakMap $fiberPrincipals;
-
-    private ?PrincipalInterface $mainPrincipal = null;
-
-    public function __construct(private readonly ?RuntimeContextTracker $contexts = null)
-    {
-        $this->fiberPrincipals = new \WeakMap();
-    }
+    public function __construct(private ContainerInterface $container) {}
 
     public function clear(): void
     {
-        $fiber = \Fiber::getCurrent();
-        if ($fiber === null) {
-            $this->mainPrincipal = null;
-
-            return;
-        }
-
-        unset($this->fiberPrincipals[$fiber]);
+        $this->state()->principal = null;
     }
 
     public function get(): ?PrincipalInterface
     {
-        $fiber = \Fiber::getCurrent();
-
-        return $fiber === null
-            ? $this->mainPrincipal
-            : ($this->fiberPrincipals[$fiber] ?? null);
+        return $this->state()->principal;
     }
 
     public function require(): PrincipalInterface
@@ -52,21 +33,16 @@ final class CurrentPrincipalContext implements CurrentPrincipalProviderInterface
 
     public function set(?PrincipalInterface $principal): void
     {
-        if ($principal === null) {
-            $this->clear();
+        $this->state()->principal = $principal;
+    }
 
-            return;
+    private function state(): CurrentPrincipalState
+    {
+        $state = $this->container->get(CurrentPrincipalState::class);
+        if (!$state instanceof CurrentPrincipalState) {
+            throw new \LogicException('CurrentPrincipalState binding is invalid.');
         }
 
-        $this->contexts?->markPrincipal($this);
-
-        $fiber = \Fiber::getCurrent();
-        if ($fiber === null) {
-            $this->mainPrincipal = $principal;
-
-            return;
-        }
-
-        $this->fiberPrincipals[$fiber] = $principal;
+        return $state;
     }
 }

@@ -17,13 +17,16 @@ use Infocyph\Foundation\Auth\Contract\Storage\AccountStoreInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AuditEventStoreInterface;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\InterMix\DI\Container;
+use Infocyph\InterMix\DI\ContainerBuilder;
+use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
+use Infocyph\InterMix\DI\Support\ServiceReference;
 
 abstract readonly class AbstractAuthRegistrar
 {
     public function __construct(
         protected Application $app,
-        protected Container $container,
+        protected ContainerBuilder $builder,
     ) {}
 
     protected function accountProvider(): AccountProviderInterface
@@ -38,7 +41,7 @@ abstract readonly class AbstractAuthRegistrar
 
     protected function alias(string $id, string $target): void
     {
-        $this->singleton($id, fn() => $this->container->get($target));
+        $this->builder->alias($id, $target);
     }
 
     protected function auditStore(): AuditEventStoreInterface
@@ -56,9 +59,15 @@ abstract readonly class AbstractAuthRegistrar
         return $this->service(ClockInterface::class);
     }
 
+    /** Mutable development resolution is reserved for explicit dynamic islands. */
+    protected function container(): Container
+    {
+        return $this->builder->development();
+    }
+
     protected function hasExplicitBinding(string $id): bool
     {
-        return $this->container->definitions()->has($id);
+        return $this->builder->definitions()->has($id);
     }
 
     protected function idGenerator(): AuthIdGeneratorInterface
@@ -98,7 +107,27 @@ abstract readonly class AbstractAuthRegistrar
 
     /**
      * @param class-string $class
+     * @param list<scalar|array<array-key, mixed>|ServiceReference|null> $arguments
      */
+    protected function recipe(
+        string $id,
+        string $class,
+        array $arguments = [],
+        LifetimeEnum $lifetime = LifetimeEnum::Singleton,
+    ): void {
+        $this->builder->bind(
+            $id,
+            FactoryDefinition::construct($class, $arguments),
+            $lifetime,
+        );
+    }
+
+    protected function ref(string $id): ServiceReference
+    {
+        return new ServiceReference($id);
+    }
+
+    /** @param class-string $class */
     protected function requirePackage(string $class, string $package, string $module): void
     {
         if (class_exists($class) || interface_exists($class)) {
@@ -115,24 +144,46 @@ abstract readonly class AbstractAuthRegistrar
     /**
      * @template T of object
      * @param class-string<T> $id
-     * @return object Resolved container service.
-     * @phpstan-return T
-     * @psalm-return T
+     * @return T
      */
     protected function service(string $id): object
     {
-        return $this->app->make($id);
+        $service = $this->container()->get($id);
+        if (!is_object($service)) {
+            throw new \UnexpectedValueException(sprintf('Auth service "%s" did not resolve to an object.', $id));
+        }
+
+        /** @var T $service */
+        return $service;
     }
 
     protected function singleton(string $id, mixed $concrete): void
     {
         if ($concrete instanceof Closure) {
-            $this->container->factory($id, $concrete)->singleton();
+            $this->builder->bindFactory($id, $concrete, LifetimeEnum::Singleton);
 
             return;
         }
 
-        $this->container->bind($id, $concrete, LifetimeEnum::Singleton);
+        $this->builder->bind($id, $concrete, LifetimeEnum::Singleton);
+    }
+
+    /**
+     * @param class-string $factoryClass
+     * @param list<scalar|array<array-key, mixed>|ServiceReference|null> $arguments
+     */
+    protected function staticRecipe(
+        string $id,
+        string $factoryClass,
+        string $method,
+        array $arguments = [],
+        LifetimeEnum $lifetime = LifetimeEnum::Singleton,
+    ): void {
+        $this->builder->bind(
+            $id,
+            FactoryDefinition::staticFactory($factoryClass, $method, $arguments),
+            $lifetime,
+        );
     }
 
     protected function stringConfig(string $key, string $default): string
@@ -140,9 +191,7 @@ abstract readonly class AbstractAuthRegistrar
         return ValueNormalizer::string($this->app->config()->get($key, $default), $default);
     }
 
-    /**
-     * @return list<string>
-     */
+    /** @return list<string> */
     protected function stringList(mixed $value): array
     {
         return ValueNormalizer::stringList($value);

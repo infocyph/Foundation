@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Filesystem;
 
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
-use Infocyph\InterMix\DI\Support\LifetimeEnum;
+use Infocyph\InterMix\DI\ContainerBuilder;
+use Infocyph\InterMix\DI\Support\FactoryDefinition;
 
-/**
- * Core path services have no dependency on the optional filesystem module.
- */
+/** Core path services have no dependency on the optional filesystem module. */
 final class PathServiceProvider extends ServiceProvider
 {
     public function boot(Application $app): void
@@ -20,21 +20,19 @@ final class PathServiceProvider extends ServiceProvider
         }
     }
 
-    public function register(Application $app): void
+    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        $container = $app->container();
-        $config = $app->config();
+        $app = is_array($context->config['app'] ?? null) ? $context->config['app'] : [];
+        $paths = is_array($context->config['paths'] ?? null) ? $context->config['paths'] : [];
 
-        $this->bindFactory($container, PathManager::class, fn() => new PathManager(
-            basePath: $this->basePath($config->get('app.base_path')),
-            paths: $this->paths($config->get('paths', [])),
-        ), LifetimeEnum::Singleton);
-        $this->bindFactory(
-            $container,
-            'foundation.paths',
-            fn() => $container->get(PathManager::class),
-            LifetimeEnum::Singleton,
+        $builder->singleton(
+            PathManager::class,
+            FactoryDefinition::construct(PathManager::class, [
+                $this->basePath($app['base_path'] ?? null),
+                $this->paths($paths),
+            ]),
         );
+        $builder->alias('foundation.paths', PathManager::class);
     }
 
     private function basePath(mixed $value): string
@@ -46,9 +44,7 @@ final class PathServiceProvider extends ServiceProvider
         return getcwd() ?: dirname(__DIR__, 2);
     }
 
-    /**
-     * @return array<string, string>
-     */
+    /** @return array<string, string> */
     private function paths(mixed $value): array
     {
         if (!is_array($value)) {

@@ -11,7 +11,7 @@ use Infocyph\Foundation\Database\AuthSchema\AuthOAuthRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DatabaseConnectionResolver;
 use Infocyph\Foundation\Database\DBLayerFactory;
-use Infocyph\Foundation\Runtime\RuntimeContextTracker;
+use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
 
 it('allows exactly one authorization-code redemption across two independent processes', function (): void {
     DB::purge();
@@ -39,7 +39,7 @@ it('allows exactly one authorization-code redemption across two independent proc
             'connections' => ['setup' => ['driver' => 'sqlite', 'database' => $database]],
         ],
     ]);
-    $factory = new DBLayerFactory(new DatabaseConnectionResolver($config), new RuntimeContextTracker());
+    $factory = new DBLayerFactory(new DatabaseConnectionResolver($config), RuntimeStateContainer::execution());
     $tables = new AuthTables();
     $connection = $factory->connection();
     $runner = new MigrationRunner($connection, [new AuthOAuthRevisionSchema($tables)]);
@@ -58,7 +58,7 @@ use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DatabaseConnectionResolver;
 use Infocyph\Foundation\Database\DBLayerFactory;
-use Infocyph\Foundation\Runtime\RuntimeContextTracker;
+use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
 
 [$database, $barrier, $result, $name, $codeHash, $clientId, $redirectHash, $challenge, $now] = array_slice($argv, 2);
 DB::purge();
@@ -68,7 +68,7 @@ $config = new ConfigRepository([
         'connections' => [$name => ['driver' => 'sqlite', 'database' => $database]],
     ],
 ]);
-$factory = new DBLayerFactory(new DatabaseConnectionResolver($config), new RuntimeContextTracker());
+$factory = new DBLayerFactory(new DatabaseConnectionResolver($config), RuntimeStateContainer::execution());
 $factory->connection()->setQueryTimeoutMs(5000);
 $store = new DBLayerOAuthAuthorizationCodeStore($factory, new AuthTables());
 while (!is_file($barrier)) {
@@ -129,7 +129,7 @@ PHP;
                 'default' => 'verify',
                 'connections' => ['verify' => ['driver' => 'sqlite', 'database' => $database]],
             ],
-        ])), new RuntimeContextTracker());
+        ])), RuntimeStateContainer::execution());
         $rows = $verify->connection()->select(
             'SELECT consumed_at FROM ' . $tables->oauthAuthorizationCodes() . ' WHERE code_hash = ?',
             [$codeHash],

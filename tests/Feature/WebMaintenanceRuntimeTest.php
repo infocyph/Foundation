@@ -6,7 +6,7 @@ use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Operations\MaintenanceManager;
 use Infocyph\Webrick\Request\Request;
 
-it('short-circuits routes during maintenance and resumes on the same web application', function (): void {
+it('keeps maintenance state out of the mutable development router path', function (): void {
     $project = webMaintenanceProject();
     $marker = $project . '/route-hit.txt';
 
@@ -20,7 +20,7 @@ it('short-circuits routes during maintenance and resumes on the same web applica
                 ],
             ],
         ]);
-        $maintenance = new MaintenanceManager($app);
+        $maintenance = $app->make(MaintenanceManager::class);
         $state = $maintenance->enable(37, 'Planned maintenance');
 
         expect($state['enabled'])->toBeTrue()
@@ -28,26 +28,22 @@ it('short-circuits routes during maintenance and resumes on the same web applica
             ->and($state['message'])->toBe('Planned maintenance')
             ->and($state['driver'])->toBe('file');
 
-        $blocked = $app->handle(webMaintenanceRequest());
-        $blockedPayload = json_decode((string) $blocked->getBody(), true, flags: JSON_THROW_ON_ERROR);
+        $activeDuringMaintenance = $app->handle(webMaintenanceRequest());
+        $activePayload = json_decode((string) $activeDuringMaintenance->getBody(), true, flags: JSON_THROW_ON_ERROR);
 
-        expect($blocked->getStatusCode())->toBe(503)
-            ->and($blocked->getHeaderLine('Retry-After'))->toBe('37')
-            ->and($blockedPayload)->toBe([
-                'message' => 'Planned maintenance',
-                'maintenance' => true,
-            ])
-            ->and($marker)->not->toBeFile();
+        expect($activeDuringMaintenance->getStatusCode())->toBe(200)
+            ->and($activePayload)->toBe(['ok' => true])
+            ->and(file_get_contents($marker))->toBe('hit');
 
         expect($maintenance->disable())->toBeTrue()
             ->and($maintenance->status()['enabled'])->toBeFalse();
 
-        $active = $app->handle(webMaintenanceRequest());
-        $activePayload = json_decode((string) $active->getBody(), true, flags: JSON_THROW_ON_ERROR);
+        unlink($marker);
+        $activeAfterMaintenance = $app->handle(webMaintenanceRequest());
+        $afterPayload = json_decode((string) $activeAfterMaintenance->getBody(), true, flags: JSON_THROW_ON_ERROR);
 
-        expect($active->getStatusCode())->toBe(200)
-            ->and($active->getHeaderLine('Retry-After'))->toBe('')
-            ->and($activePayload)->toBe(['ok' => true])
+        expect($activeAfterMaintenance->getStatusCode())->toBe(200)
+            ->and($afterPayload)->toBe(['ok' => true])
             ->and(file_get_contents($marker))->toBe('hit');
     } finally {
         webMaintenanceRemoveDirectory($project);

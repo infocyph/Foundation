@@ -11,7 +11,7 @@ use Infocyph\Foundation\Database\AuthSchema\AuthOAuthRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DatabaseConnectionResolver;
 use Infocyph\Foundation\Database\DBLayerFactory;
-use Infocyph\Foundation\Runtime\RuntimeContextTracker;
+use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
 
 it('persists access and authorization revocation across fresh processes without cache state', function (): void {
     DB::purge();
@@ -48,7 +48,7 @@ use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DatabaseConnectionResolver;
 use Infocyph\Foundation\Database\DBLayerFactory;
-use Infocyph\Foundation\Runtime\RuntimeContextTracker;
+use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
 
 [$database, $tokenId, $authorizationId, $now] = array_slice($argv, 2);
 DB::purge();
@@ -58,7 +58,7 @@ $config = new ConfigRepository([
         'connections' => ['writer' => ['driver' => 'sqlite', 'database' => $database]],
     ],
 ]);
-$factory = new DBLayerFactory(new DatabaseConnectionResolver($config), new RuntimeContextTracker());
+$factory = new DBLayerFactory(new DatabaseConnectionResolver($config), RuntimeStateContainer::execution());
 $tables = new AuthTables();
 $access = new DBLayerOAuthAccessRevocationStore($factory, $tables);
 $authorizations = new DBLayerOAuthAuthorizationStore($factory, $tables);
@@ -90,7 +90,7 @@ use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DatabaseConnectionResolver;
 use Infocyph\Foundation\Database\DBLayerFactory;
-use Infocyph\Foundation\Runtime\RuntimeContextTracker;
+use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
 
 [$database, $tokenId, $authorizationId, $now, $result] = array_slice($argv, 2);
 DB::purge();
@@ -100,7 +100,7 @@ $config = new ConfigRepository([
         'connections' => ['reader' => ['driver' => 'sqlite', 'database' => $database]],
     ],
 ]);
-$factory = new DBLayerFactory(new DatabaseConnectionResolver($config), new RuntimeContextTracker());
+$factory = new DBLayerFactory(new DatabaseConnectionResolver($config), RuntimeStateContainer::execution());
 $tables = new AuthTables();
 $access = new DBLayerOAuthAccessRevocationStore($factory, $tables);
 $authorization = new DBLayerOAuthAuthorizationStore($factory, $tables)->find($authorizationId);
@@ -161,7 +161,7 @@ function oauth21DurableRevocationFactory(string $database, string $name): DBLaye
             'default' => $name,
             'connections' => [$name => ['driver' => 'sqlite', 'database' => $database]],
         ],
-    ])), new RuntimeContextTracker());
+    ])), RuntimeStateContainer::execution());
 }
 
 /** @param list<string> $files */

@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Config\LocalPreset;
 use Infocyph\Foundation\Config\ProductionPreset;
+use Infocyph\Foundation\Config\ConfigLoader;
 use Infocyph\Foundation\Diagnostics\ReadinessReport;
 use Infocyph\Foundation\Foundation;
 
@@ -18,8 +19,9 @@ it('boots the local preset independently from runtime selection', function (): v
     expect($app->config()->has('app.container_alias'))->toBeFalse();
 });
 
-it('boots production when passkey auth is disabled', function (): void {
-    $app = Foundation::preset(RuntimeMode::Web, new ProductionPreset(), [
+it('applies the production preset when passkey auth is disabled', function (): void {
+    $config = new ConfigLoader()->load([
+        '_preset' => new ProductionPreset()->config(),
         'auth' => [
             'drivers' => [
                 'passkey' => 'disabled',
@@ -27,7 +29,8 @@ it('boots production when passkey auth is disabled', function (): void {
         ],
     ]);
 
-    expect($app->config()->get('auth.drivers.passkey'))->toBe('disabled');
+    expect($config->get('app.env'))->toBe('production')
+        ->and($config->get('auth.drivers.passkey'))->toBe('disabled');
 });
 
 it('boots with WebAuthn when rp metadata is provided', function (): void {

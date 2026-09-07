@@ -4,13 +4,19 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Operations;
 
-use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Cache\CacheManager;
+use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\Foundation\Support\ValueNormalizer;
+use Psr\Container\ContainerInterface;
 
 final readonly class MaintenanceManager
 {
-    public function __construct(private Application $application) {}
+    public function __construct(
+        private ConfigRepository $config,
+        private PathManager $paths,
+        private ContainerInterface $container,
+    ) {}
 
     public function disable(): bool
     {
@@ -68,16 +74,25 @@ final readonly class MaintenanceManager
                 'Cache-backed maintenance mode requires the cache module; run "php infbyte module:install cache".',
             );
         }
-        $store = $this->application->config()->get('operations.maintenance.store');
+        if (!$this->container->has(CacheManager::class)) {
+            throw new \LogicException(
+                'Cache-backed maintenance mode requires the Foundation cache module to be registered.',
+            );
+        }
 
-        return $this->application->make(CacheManager::class)->store(
-            is_string($store) && $store !== '' ? $store : null,
-        );
+        $manager = $this->container->get(CacheManager::class);
+        if (!$manager instanceof CacheManager) {
+            throw new \LogicException('Foundation cache module did not resolve CacheManager.');
+        }
+
+        $store = $this->config->get('operations.maintenance.store');
+
+        return $manager->store(is_string($store) && $store !== '' ? $store : null);
     }
 
     private function cacheKey(): string
     {
-        $key = $this->application->config()->get('operations.maintenance.key', 'foundation:maintenance');
+        $key = $this->config->get('operations.maintenance.key', 'foundation:maintenance');
 
         return is_string($key) && $key !== '' ? $key : 'foundation:maintenance';
     }
@@ -85,7 +100,7 @@ final readonly class MaintenanceManager
     private function driver(): string
     {
         $driver = strtolower(ValueNormalizer::string(
-            $this->application->config()->get('operations.maintenance.driver', 'file'),
+            $this->config->get('operations.maintenance.driver', 'file'),
             'file',
         ));
         if (!in_array($driver, ['file', 'cache'], true)) {
@@ -97,7 +112,7 @@ final readonly class MaintenanceManager
 
     private function path(): string
     {
-        $configured = $this->application->config()->get(
+        $configured = $this->config->get(
             'operations.maintenance.path',
             'storage/framework/maintenance.json',
         );
@@ -105,7 +120,7 @@ final readonly class MaintenanceManager
 
         return preg_match('/^(?:[A-Z]:[\\\\\/]|\\\\\\\\|\/)/i', $configured) === 1
             ? $configured
-            : $this->application->basePath(trim($configured, DIRECTORY_SEPARATOR));
+            : $this->paths->base(trim($configured, DIRECTORY_SEPARATOR));
     }
 
     /** @return array<string,mixed> */

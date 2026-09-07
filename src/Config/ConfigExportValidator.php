@@ -16,6 +16,20 @@ final class ConfigExportValidator
         self::walk($config, '', 0);
     }
 
+    /**
+     * @param array<string, mixed> $config
+     */
+    public static function isExportable(array $config): bool
+    {
+        try {
+            self::assertExportable($config);
+        } catch (\RuntimeException) {
+            return false;
+        }
+
+        return true;
+    }
+
     private static function walk(mixed $value, string $path, int $depth): void
     {
         if ($depth > self::MAX_DEPTH) {

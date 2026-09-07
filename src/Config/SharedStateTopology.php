@@ -9,9 +9,9 @@ use Infocyph\Foundation\Exception\ConfigurationException;
 /**
  * Classifies Foundation-managed state and coordination backends by visibility.
  *
- * Specialist libraries own storage and locking mechanics. Foundation only owns
- * the deployment policy that decides whether a configured backend is visible
- * to one process, one host, or the whole deployment.
+ * Specialist libraries own storage and atomic/locking mechanics. Foundation
+ * only owns deployment policy: whether the configured authority is visible to
+ * one process, one host, or the whole deployment.
  */
 final readonly class SharedStateTopology
 {
@@ -29,7 +29,7 @@ final readonly class SharedStateTopology
         ?string $name,
         string $purpose,
         ?string $requiredScope = null,
-        bool $requireCoordination = false,
+        bool $requireAtomic = false,
     ): void {
         $requiredScope ??= $this->requiredSecurityScope();
         $actual = $this->cacheStoreScope($name);
@@ -43,20 +43,36 @@ final readonly class SharedStateTopology
             ));
         }
 
-        if (!$requireCoordination) {
+        if (!$requireAtomic) {
             return;
         }
 
-        $coordination = $this->cacheStoreCoordinationScope($name);
-        if (!$this->satisfies($coordination, $requiredScope)) {
+        $atomic = $this->cacheStoreAtomicScope($name);
+        if (!$this->satisfies($atomic, $requiredScope)) {
             throw new ConfigurationException(sprintf(
-                '%s requires %s-visible atomic coordination; cache store "%s" provides %s-visible coordination.',
+                '%s requires %s-visible atomic cache operations; cache store "%s" provides %s-visible atomicity.',
                 $purpose,
                 $requiredScope,
                 $name ?? ($this->string($this->config->get('cache.default')) ?? 'local'),
-                $coordination,
+                $atomic,
             ));
         }
+    }
+
+    public function cacheStoreAtomicScope(?string $name = null): string
+    {
+        $name ??= $this->string($this->config->get('cache.default')) ?? 'local';
+        $store = $this->cacheStore($name);
+        $driver = $this->normalizeCacheDriver(
+            $this->string($store['driver'] ?? null) ?? $name,
+        );
+
+        return match ($driver) {
+            'memory' => self::PROCESS,
+            'shared_memory' => self::HOST,
+            'redis', 'redis_cluster', 'valkey', 'mongodb' => self::CLUSTER,
+            default => self::NONE,
+        };
     }
 
     public function cacheStoreCoordinationScope(?string $name = null): string

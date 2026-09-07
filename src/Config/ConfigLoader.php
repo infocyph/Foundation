@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Config;
 
+use Infocyph\ArrayKit\Config\ConfigMerge;
 use Infocyph\ArrayKit\Config\LazyFileConfig;
+use Infocyph\ArrayKit\Config\Support\Environment;
 
 final class ConfigLoader
 {
@@ -34,14 +36,14 @@ final class ConfigLoader
         $cacheDirectory = $this->configCacheEnabled($cacheControl)
             ? $this->configuredCachePath($cacheControl, $basePath)
             : null;
-        $overrides = ConfigMerger::mergeMany([$preset, $normalized]);
+        $overrides = $this->mergeConfigLayers([$preset, $normalized]);
 
         $cached = $cacheDirectory === null
             ? null
             : $this->loadCacheManifest($cacheDirectory);
         if (($cached['type'] ?? null) === self::TYPE_SINGLE) {
             return new ConfigRepository(
-                ConfigMerger::mergeMany([$cached['data'], $overrides]),
+                $this->mergeConfigLayers([$cached['data'], $overrides]),
                 compiled: true,
             );
         }
@@ -167,7 +169,7 @@ final class ConfigLoader
             return $this->cachePath($basePath, $control);
         }
 
-        $configured = $_ENV['APP_CONFIG_CACHE'] ?? $_SERVER['APP_CONFIG_CACHE'] ?? getenv('APP_CONFIG_CACHE');
+        $configured = Environment::get('APP_CONFIG_CACHE');
 
         return is_string($configured) && $this->configCacheEnabled($configured) && $configured !== ''
             ? $this->cachePath($basePath, $configured)
@@ -177,7 +179,7 @@ final class ConfigLoader
     /** @return array<string, mixed> */
     private function defaults(): array
     {
-        return ConfigMerger::mergeMany([FoundationDefaults::all(), AuthDefaults::all()]);
+        return $this->mergeConfigLayers([FoundationDefaults::all(), AuthDefaults::all()]);
     }
 
     private function ensureCacheDirectory(string $directory): void
@@ -250,6 +252,15 @@ final class ConfigLoader
     }
 
     /**
+     * @param iterable<array<array-key, mixed>> $layers
+     * @return array<string, mixed>
+     */
+    private function mergeConfigLayers(iterable $layers): array
+    {
+        return $this->map(ConfigMerge::mergeMany($layers));
+    }
+
+    /**
      * @param array<string, mixed> $input
      * @return array<string, mixed>
      */
@@ -286,7 +297,7 @@ final class ConfigLoader
         $app['base_path'] = '<application-base>';
         $defaults['app'] = $app;
 
-        return hash('sha256', serialize($defaults));
+        return hash('xxh128', serialize($defaults));
     }
 
     /**
@@ -368,7 +379,7 @@ final class ConfigLoader
         foreach ($files as $file) {
             $stat = stat($file);
             if ($stat === false) {
-                return hash('sha256', 'unreadable:' . $file);
+                return hash('xxh128', 'unreadable:' . $file);
             }
             $metadata[] = implode(':', [
                 str_starts_with($file, rtrim($basePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR)
@@ -380,7 +391,7 @@ final class ConfigLoader
             ]);
         }
 
-        return hash('sha256', implode('|', $metadata));
+        return hash('xxh128', implode('|', $metadata));
     }
 
     /** @param array<string, mixed> $payload */

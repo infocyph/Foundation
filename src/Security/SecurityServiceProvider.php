@@ -5,17 +5,17 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Security;
 
 use Infocyph\Epicrypt\Crypto\AeadCipher;
-use Infocyph\Epicrypt\Password\Enum\PasswordHashAlgorithm;
 use Infocyph\Epicrypt\Password\PasswordHasher;
 use Infocyph\Epicrypt\Password\PasswordHashOptions;
-use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
-use Infocyph\Foundation\Support\ValueNormalizer;
-use Infocyph\InterMix\DI\Support\LifetimeEnum;
+use Infocyph\InterMix\DI\ContainerBuilder;
+use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\ServiceReference;
 
 final class SecurityServiceProvider extends ServiceProvider
 {
-    public function register(Application $app): void
+    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         if (!class_exists(AeadCipher::class)) {
             throw new \LogicException(
@@ -23,83 +23,32 @@ final class SecurityServiceProvider extends ServiceProvider
             );
         }
 
-        $container = $app->container();
+        $security = is_array($context->config['security'] ?? null) ? $context->config['security'] : [];
+        $password = is_array($security['password'] ?? null) ? $security['password'] : [];
 
-        if (!$this->hasExplicitBinding($container, PasswordHashOptions::class)) {
-            $this->bindFactory(
-                $container,
+        if (!$builder->definitions()->has(PasswordHashOptions::class)) {
+            $builder->singleton(
                 PasswordHashOptions::class,
-                fn(): PasswordHashOptions => $this->passwordOptions($app),
-                LifetimeEnum::Singleton,
+                FactoryDefinition::staticFactory(
+                    SecurityGraphFactory::class,
+                    'passwordOptions',
+                    [$password],
+                ),
             );
         }
-
-        if (!$this->hasExplicitBinding($container, PasswordHasher::class)) {
-            $this->bindFactory(
-                $container,
+        if (!$builder->definitions()->has(PasswordHasher::class)) {
+            $builder->singleton(
                 PasswordHasher::class,
-                fn(): PasswordHasher => new PasswordHasher($app->make(PasswordHashOptions::class)),
-                LifetimeEnum::Singleton,
+                FactoryDefinition::construct(PasswordHasher::class, [
+                    new ServiceReference(PasswordHashOptions::class),
+                ]),
             );
         }
-
-        if (!$this->hasExplicitBinding($container, AeadCipher::class)) {
-            $container->bind(AeadCipher::class, new AeadCipher(), LifetimeEnum::Singleton);
+        if (!$builder->definitions()->has(AeadCipher::class)) {
+            $builder->singleton(AeadCipher::class, FactoryDefinition::construct(AeadCipher::class));
         }
 
-        $this->bindFactory(
-            $container,
-            'foundation.security',
-            fn() => $app->make(AeadCipher::class),
-            LifetimeEnum::Singleton,
-        );
-        $this->bindFactory(
-            $container,
-            'foundation.crypto',
-            fn() => $app->make(AeadCipher::class),
-            LifetimeEnum::Singleton,
-        );
-    }
-
-    private function passwordOptions(Application $app): PasswordHashOptions
-    {
-        $config = ValueNormalizer::associativeArray($app->config()->get('security.password', []));
-        $algorithm = $config['algorithm'] ?? PasswordHashAlgorithm::ARGON2ID;
-        if (is_string($algorithm)) {
-            $algorithm = PasswordHashAlgorithm::tryFrom(strtolower($algorithm))
-                ?? throw new \InvalidArgumentException('Unsupported security.password.algorithm.');
-        }
-        if (!$algorithm instanceof PasswordHashAlgorithm) {
-            throw new \InvalidArgumentException('security.password.algorithm must be a valid Epicrypt password algorithm.');
-        }
-
-        return new PasswordHashOptions(
-            algorithm: $algorithm,
-            memoryCost: $this->positiveInt($config, 'memory_cost', PASSWORD_ARGON2_DEFAULT_MEMORY_COST),
-            timeCost: $this->positiveInt($config, 'time_cost', PASSWORD_ARGON2_DEFAULT_TIME_COST),
-            threads: $this->positiveInt($config, 'threads', PASSWORD_ARGON2_DEFAULT_THREADS),
-            bcryptCost: $this->positiveInt($config, 'cost', 12),
-        );
-    }
-
-    /** @param array<string, mixed> $config */
-    private function positiveInt(array $config, string $key, int $default): int
-    {
-        if (!array_key_exists($key, $config)) {
-            return $default;
-        }
-
-        $value = $config[$key];
-        if (is_int($value) && $value > 0) {
-            return $value;
-        }
-        if (is_string($value) && preg_match('/^[1-9]\d*$/D', $value) === 1) {
-            return (int) $value;
-        }
-
-        throw new \InvalidArgumentException(sprintf(
-            'security.password.%s must be a positive integer.',
-            $key,
-        ));
+        $builder->alias('foundation.security', AeadCipher::class);
+        $builder->alias('foundation.crypto', AeadCipher::class);
     }
 }

@@ -26,9 +26,27 @@ final readonly class ProductionSecurityValidator
         $this->validateAuthStorage($issues);
         $this->validateAuthState($issues);
         $this->validateAtomicCounter($issues);
+        $this->validateWebhookReplay($issues);
         $this->validateLockTopology($issues);
 
         return $issues;
+    }
+
+    /** @return array<string, mixed> */
+    private function array(mixed $value): array
+    {
+        if (!is_array($value)) {
+            return [];
+        }
+
+        $result = [];
+        foreach ($value as $key => $item) {
+            if (is_string($key)) {
+                $result[$key] = $item;
+            }
+        }
+
+        return $result;
     }
 
     private function integer(mixed $value): ?int
@@ -118,9 +136,40 @@ final readonly class ProductionSecurityValidator
                 $default,
                 'Production authentication state and WebAuthn challenges',
                 $this->state->requiredSecurityScope(),
+                true,
             );
         } catch (ConfigurationException $exception) {
             $issues[] = new ConfigIssue($exception->getMessage(), 'cache.stores.' . $default);
+        }
+
+        $store = $this->array($this->config->get('cache.stores.' . $default, []));
+        if (($store['fail_open'] ?? true) !== false) {
+            $issues[] = new ConfigIssue(
+                sprintf('cache.stores.%s.fail_open must be false for production authentication state.', $default),
+                'cache.stores.' . $default . '.fail_open',
+            );
+        }
+
+        $security = array_replace(
+            $this->array($this->config->get('cache.security', [])),
+            $this->array($store['security'] ?? []),
+        );
+        if ($this->string($security['integrity_key'] ?? null) === null) {
+            $issues[] = new ConfigIssue(
+                sprintf('cache.stores.%s must enable payload integrity for production authentication state.', $default),
+                'cache.stores.' . $default . '.security.integrity_key',
+            );
+        }
+
+        $serialization = array_replace(
+            $this->array($this->config->get('cache.serialization', [])),
+            $this->array($store['serialization'] ?? []),
+        );
+        if (($serialization['allow_object_payloads'] ?? true) !== false) {
+            $issues[] = new ConfigIssue(
+                sprintf('cache.stores.%s must disable object payloads for hardened authentication state.', $default),
+                'cache.stores.' . $default . '.serialization.allow_object_payloads',
+            );
         }
     }
 
@@ -207,6 +256,54 @@ final readonly class ProductionSecurityValidator
                 'app.topology must be one of: single_node, distributed.',
                 'app.topology',
             );
+        }
+    }
+
+    /** @param list<ConfigIssue> $issues */
+    private function validateWebhookReplay(array &$issues): void
+    {
+        $profiles = $this->array($this->config->get('communication.webhooks.inbound', []));
+        foreach ($profiles as $profile => $definition) {
+            if (!is_array($definition)) {
+                continue;
+            }
+            $replay = $this->array($definition['replay'] ?? []);
+            if (($replay['enabled'] ?? false) !== true) {
+                continue;
+            }
+
+            $store = $this->string($replay['store'] ?? null)
+                ?? $this->string($this->config->get('cache.default'));
+            if ($store === null || !$this->config->has('cache.stores.' . $store)) {
+                $issues[] = new ConfigIssue(
+                    sprintf('Webhook replay profile "%s" requires a configured CacheLayer store.', $profile),
+                    'communication.webhooks.inbound.' . $profile . '.replay.store',
+                );
+
+                continue;
+            }
+
+            try {
+                $this->state->assertCacheStore(
+                    $store,
+                    sprintf('Webhook replay profile "%s"', $profile),
+                    $this->state->requiredSecurityScope(),
+                    true,
+                );
+            } catch (ConfigurationException $exception) {
+                $issues[] = new ConfigIssue(
+                    $exception->getMessage(),
+                    'communication.webhooks.inbound.' . $profile . '.replay.store',
+                );
+            }
+
+            $storeDefinition = $this->array($this->config->get('cache.stores.' . $store, []));
+            if (($storeDefinition['fail_open'] ?? true) !== false) {
+                $issues[] = new ConfigIssue(
+                    sprintf('Webhook replay store "%s" must be fail-closed in production.', $store),
+                    'cache.stores.' . $store . '.fail_open',
+                );
+            }
         }
     }
 }

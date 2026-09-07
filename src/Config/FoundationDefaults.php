@@ -21,9 +21,6 @@ final class FoundationDefaults
             'app' => [
                 'base_path' => getcwd() ?: '.',
                 'container' => [
-                    'alias' => null,
-                    'compiled' => 'bootstrap/cache/container.php',
-                    'compiled_activation' => 'off',
                     'debug_tracing' => [
                         'enabled' => false,
                         'level' => 'node',
@@ -502,7 +499,6 @@ final class FoundationDefaults
             ],
             'router' => [
                 'auto_slash_redirect' => false,
-                'cache' => null,
                 'expose_url_services' => false,
                 'files' => ['web.php', 'api.php', 'auth.php'],
                 'attributes' => [

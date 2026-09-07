@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Infocyph\Foundation\Config\ConfigIssue;
+use Infocyph\Foundation\Config\ConfigLoader;
 use Infocyph\Foundation\Config\ConfigValidator;
 use Infocyph\Foundation\Config\OtpConfigValidator;
 use Infocyph\Foundation\Config\ProductionSecurityValidator;
@@ -10,7 +11,7 @@ use Infocyph\Foundation\Diagnostics\ReadinessReport;
 use Infocyph\Foundation\Foundation;
 
 it('rejects unsafe production auth defaults secrets email transport and WebAuthn origin', function (): void {
-    $app = Foundation::cli([
+    $config = new ConfigLoader()->load([
         '_config_cache' => false,
         'app' => [
             'base_path' => sys_get_temp_dir(),
@@ -75,12 +76,12 @@ it('rejects unsafe production auth defaults secrets email transport and WebAuthn
     ]);
 
     $issues = [
-        ...new ConfigValidator($app->config())->validateForProduction()->toArray()['issues'],
+        ...new ConfigValidator($config)->validateForProduction()->toArray()['issues'],
         ...array_map(static fn(ConfigIssue $issue): array => [
             'message' => $issue->message,
             'key' => $issue->key,
             'severity' => $issue->severity,
-        ], new ProductionSecurityValidator($app->config())->validate()),
+        ], new ProductionSecurityValidator($config)->validate()),
     ];
     $keys = array_column($issues, 'key');
     $messages = array_column($issues, 'message');
@@ -96,7 +97,7 @@ it('rejects unsafe production auth defaults secrets email transport and WebAuthn
 });
 
 it('rejects host-local auth persistence cache coordination and OTP replay in distributed production', function (): void {
-    $app = Foundation::cli([
+    $config = new ConfigLoader()->load([
         '_config_cache' => false,
         'app' => [
             'base_path' => sys_get_temp_dir(),
@@ -132,10 +133,10 @@ it('rejects host-local auth persistence cache coordination and OTP replay in dis
         ],
     ]);
 
-    $productionIssues = new ProductionSecurityValidator($app->config())->validate();
+    $productionIssues = new ProductionSecurityValidator($config)->validate();
     $productionKeys = array_map(static fn(ConfigIssue $issue): string => $issue->key, $productionIssues);
     $productionMessages = array_map(static fn(ConfigIssue $issue): string => $issue->message, $productionIssues);
-    $otpIssues = new OtpConfigValidator($app->config())->validate(true);
+    $otpIssues = new OtpConfigValidator($config)->validate(true);
 
     expect($productionKeys)->toContain(
         'database.connections.primary',
@@ -148,6 +149,44 @@ it('rejects host-local auth persistence cache coordination and OTP replay in dis
     )->and($otpIssues)->not->toBeEmpty()
         ->and($otpIssues[0]->key)->toBe('auth.otp.replay.store')
         ->and($otpIssues[0]->message)->toContain('cluster-visible');
+});
+
+it('rejects non-atomic fail-open unsigned or object-enabled production auth state', function (): void {
+    $config = new ConfigLoader()->load([
+        '_config_cache' => false,
+        'app' => [
+            'base_path' => sys_get_temp_dir(),
+            'env' => 'production',
+            'topology' => 'single_node',
+        ],
+        'auth' => [
+            'drivers' => ['cache' => 'cache'],
+        ],
+        'cache' => [
+            'default' => 'auth-state',
+            'default_counter' => 'auth-lockouts',
+            'stores' => [
+                'auth-state' => [
+                    'driver' => 'file',
+                    'fail_open' => true,
+                    'serialization' => ['allow_object_payloads' => true],
+                ],
+            ],
+            'counters' => [
+                'auth-lockouts' => ['driver' => 'redis'],
+            ],
+        ],
+    ]);
+
+    $issues = new ProductionSecurityValidator($config)->validate();
+    $messages = implode('; ', array_map(static fn(ConfigIssue $issue): string => $issue->message, $issues));
+
+    expect($messages)->toContain(
+        'atomic cache operations',
+        'fail_open must be false',
+        'enable payload integrity',
+        'disable object payloads',
+    );
 });
 
 it('accepts a secure single-node production posture and reports production configuration ready', function (): void {
@@ -171,8 +210,6 @@ it('accepts cluster-visible database cache lock counter and OTP replay policy fo
         'username' => 'foundation',
         'password' => 'secret',
     ];
-    $config['cache']['stores']['auth-state'] = ['driver' => 'redis'];
-    $config['cache']['lock'] = ['driver' => 'redis', 'store' => 'auth-state'];
 
     $app = Foundation::cli($config);
 
@@ -228,13 +265,23 @@ function foundationSecureProductionConfig(string $topology): array
         'cache' => [
             'default' => 'auth-state',
             'default_counter' => 'auth-lockouts',
+            'security' => [
+                'integrity_key' => bin2hex(random_bytes(32)),
+            ],
+            'serialization' => [
+                'allow_closure_payloads' => false,
+                'allow_object_payloads' => false,
+            ],
             'stores' => [
-                'auth-state' => ['driver' => 'file'],
+                'auth-state' => [
+                    'driver' => 'redis',
+                    'fail_open' => false,
+                ],
             ],
             'counters' => [
                 'auth-lockouts' => ['driver' => 'redis'],
             ],
-            'lock' => ['driver' => 'file', 'store' => 'auth-state'],
+            'lock' => ['driver' => 'redis', 'store' => 'auth-state'],
         ],
         'notifications' => [
             'auth' => ['sender' => 'auth'],
@@ -255,6 +302,18 @@ function foundationSecureProductionConfig(string $topology): array
                 'audience' => 'foundation-clients',
                 'maximum_lifetime_seconds' => 3600,
                 'leeway_seconds' => 30,
+            ],
+        ],
+        'communication' => [
+            'webhooks' => [
+                'inbound' => [
+                    'default' => [
+                        'replay' => [
+                            'enabled' => true,
+                            'store' => 'auth-state',
+                        ],
+                    ],
+                ],
             ],
         ],
     ];

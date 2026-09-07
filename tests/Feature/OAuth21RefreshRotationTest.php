@@ -12,7 +12,7 @@ use Infocyph\Foundation\Database\AuthSchema\AuthOAuthRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DatabaseConnectionResolver;
 use Infocyph\Foundation\Database\DBLayerFactory;
-use Infocyph\Foundation\Runtime\RuntimeContextTracker;
+use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
 
 it('rotates an OAuth refresh token exactly once and classifies replay', function (): void {
     DB::purge();
@@ -29,7 +29,7 @@ it('rotates an OAuth refresh token exactly once and classifies replay', function
     ]);
     $factory = new DBLayerFactory(
         new DatabaseConnectionResolver($config),
-        new RuntimeContextTracker(),
+        RuntimeStateContainer::execution(),
     );
     $tables = new AuthTables();
     $connection = $factory->connection();

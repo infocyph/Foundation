@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Notifications;
 
 use Infocyph\Foundation\Config\ConfigRepository;
+use Psr\Container\ContainerInterface;
 
 final readonly class NotificationChannelRegistry
 {
-    /** @param \Closure(string):mixed $resolver */
     public function __construct(
         private ConfigRepository $config,
         private ?NotificationChannel $mail,
-        private \Closure $resolver,
+        private ContainerInterface $container,
     ) {}
 
     public function channel(string $name): NotificationChannel
@@ -38,7 +38,7 @@ final readonly class NotificationChannelRegistry
             ));
         }
 
-        $channel = ($this->resolver)($definition);
+        $channel = $this->container->get($definition);
         if (!$channel instanceof NotificationChannel) {
             throw new \InvalidArgumentException(sprintf(
                 'Notification channel "%s" service "%s" must implement %s.',

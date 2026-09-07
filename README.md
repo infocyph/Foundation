@@ -1,9 +1,9 @@
 # Foundation
 
 `infocyph/foundation` is the performance-first application composition layer for
-the Infocyph PHP ecosystem. It owns application bootstrap, runtime selection,
-provider activation, and application-level policy while specialist libraries
-retain their domain engines and public APIs.
+the Infocyph PHP ecosystem. It owns application bootstrap, explicit runtime
+selection, provider graph composition, and application-level policy while
+specialist libraries retain their domain engines and public APIs.
 
 ## Install
 
@@ -38,9 +38,10 @@ $worker = Foundation::worker(['base_path' => dirname(__DIR__)]);
 $scheduler = Foundation::scheduler(['base_path' => dirname(__DIR__)]);
 ```
 
-Foundation never infers the runtime from `PHP_SAPI`. Each request, command,
-worker unit, or scheduled execution receives a fresh InterMix execution scope
-and a Foundation execution ID.
+Foundation never infers the runtime from `PHP_SAPI`. Non-web commands, worker
+units, and scheduled invocations use stable semantic InterMix scopes. Web request
+and scope ownership belongs to Webrick's compiled execution plan, so a minimal
+route can remain Request-free and scope-free.
 
 Application providers are assigned by runtime in `bootstrap/providers.php`:
 
@@ -54,13 +55,22 @@ return [
 ];
 ```
 
-See [Architecture and lifecycle](docs/architecture.md) and
-[Configuration](docs/configuration.md) for the complete bootstrap contract.
+Providers contribute deterministic graph definitions before production
+compilation; production boot does not reopen the mutable development container.
+
+See [Architecture and lifecycle](docs/architecture.md),
+[Configuration](docs/configuration.md), and the
+[Foundation 3 migration guide](docs/foundation-3-migration.md) for the complete
+runtime contract.
 
 ## Capabilities
 
 Foundation modules describe application capabilities rather than package names.
-Optional packages remain inactive until installed and selected by configuration.
+Optional packages remain inactive until the application selects the corresponding
+capability. Production release compilation uses an explicit capability topology;
+installed CacheLayer, DBLayer, Omnibus, TalkingBytes, Epicrypt, Pathwise,
+ReqShield, OTP, or WebAuthn packages do not activate themselves merely because
+they are installed.
 
 | Module | Implementation |
 | --- | --- |
@@ -107,9 +117,15 @@ php infbyte runtime:reload
 php infbyte optimize
 ```
 
-Run `php infbyte list` for the active command catalog. Generated config, route,
-command, schedule, and container artifacts are deployment-owned and should not
-be committed. Use `php infbyte optimize:clear` to remove them.
+Production deployment publishes one immutable Foundation release generation.
+The generation owns the normalized config snapshot, compiled Webrick web bundle,
+compiled InterMix CLI/worker/scheduler containers, worker topology, and trust
+metadata. Production release loading does not fall back to project route,
+provider, or config discovery when a generated artifact is missing or invalid.
+
+Run `php infbyte list` for the active command catalog. Generated artifacts are
+deployment-owned and should not be committed. Use `php infbyte optimize:clear`
+for explicit build-plane cleanup.
 
 Operational behavior and safety constraints are documented in
 [CLI, schedules, and workers](docs/console.md),
@@ -119,8 +135,8 @@ Operational behavior and safety constraints are documented in
 
 The [documentation index](docs/README.md) links the focused guides for HTTP,
 authentication, sessions, database, storage, communication, JSON resources,
-logging, testing, and security. Configuration templates under
-`resources/config/` are the canonical key-by-key reference.
+logging, testing, security, and Foundation 3 migration. Configuration templates
+under `resources/config/` are the canonical key-by-key reference.
 
 ## Verification
 

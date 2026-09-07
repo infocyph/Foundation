@@ -6,15 +6,15 @@
     "require": {
         "php": "^8.4",
         "composer-runtime-api": "^2.0",
-        "infocyph/arraykit": "^5.1.1",
-        "infocyph/intermix": "^9.2",
+        "infocyph/arraykit": "^5.2",
+        "infocyph/intermix": "^10.0.4",
         "infocyph/uid": "^5.0",
-        "infocyph/webrick": "^4.0.2",
+        "infocyph/webrick": "^5.3",
         "psr/log": "^3.0.2"
     },
     "require-dev": {
-        "infocyph/cachelayer": "^3.2.0",
-        "infocyph/dblayer": "^5.0",
+        "infocyph/cachelayer": "^3.4",
+        "infocyph/dblayer": "^5.1",
         "infocyph/epicrypt": "^2.1",
         "infocyph/omnibus": "^2.5",
         "infocyph/otp": "^6.0",
@@ -22,10 +22,11 @@
         "infocyph/phpforge": "dev-main@dev",
         "infocyph/reqshield": "^3.1",
         "infocyph/talkingbytes": "^2.0",
+        "opis/closure": "^4.5",
         "web-auth/webauthn-lib": "^5.3.5"
     },
     "suggest": {
-        "infocyph/cachelayer": "Adds cache stores, native bulk paths, locks, counters, node/cluster cache, and shared authentication/runtime state.",
+        "infocyph/cachelayer": "Adds cache stores, native bulk paths, optional atomic claim/consume/CAS, locks, counters, node/cluster cache, and shared authentication/runtime state.",
         "infocyph/dblayer": "Adds database services, persistence, migrations, query caching, replicas, and MySQL/MariaDB/PostgreSQL/SQLite/SQL Server support.",
         "infocyph/epicrypt": "Adds cryptography, secrets, password, token, and key security services.",
         "infocyph/omnibus": "Adds events, messages, durable queues, handler middleware, workers, optional process pools, retries, workflows, and scheduled-message dispatch.",
@@ -64,6 +65,18 @@
         "sort-packages": true
     },
     "scripts": {
-        "benchmark:representative": "@php benchmarks/run-representative.php"
+        "benchmark:arraykit": "@php benchmarks/arraykit-config-utilization.php",
+        "benchmark:cachelayer": "@php benchmarks/cachelayer-33-utilization.php",
+        "benchmark:dblayer": "@php benchmarks/dblayer-51-utilization.php",
+        "benchmark:maintenance": "@php benchmarks/maintenance-overhead.php",
+        "benchmark:phase9:di": "@php benchmarks/phase9-di-attribution.php",
+        "benchmark:phase9:http": "@php benchmarks/phase9-http-attribution.php",
+        "benchmark:release": [
+            "@benchmark:uid",
+            "@benchmark:cachelayer",
+            "@benchmark:dblayer"
+        ],
+        "benchmark:representative": "@php benchmarks/run-representative.php",
+        "benchmark:uid": "@php benchmarks/uid-runtime-utilization.php"
     }
 }

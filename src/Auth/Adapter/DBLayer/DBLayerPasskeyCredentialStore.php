@@ -5,10 +5,43 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Auth\Adapter\DBLayer;
 
 use Infocyph\Foundation\Auth\Passkey\PasskeyCredential;
-use Infocyph\Foundation\Auth\Passkey\PasskeyCredentialStoreInterface;
+use Infocyph\Foundation\Auth\Passkey\PasskeyCredentialCompareAndSwapStoreInterface;
 
-final readonly class DBLayerPasskeyCredentialStore extends ClockedDBLayerStore implements PasskeyCredentialStoreInterface
+final readonly class DBLayerPasskeyCredentialStore extends ClockedDBLayerStore implements PasskeyCredentialCompareAndSwapStoreInterface
 {
+    public function compareAndSwap(?PasskeyCredential $expected, PasskeyCredential $updated): bool
+    {
+        if ($expected === null) {
+            if ($updated->revision !== 0) {
+                return false;
+            }
+
+            try {
+                $this->insertRecord('passkeyCredentials', $this->record($updated));
+
+                return true;
+            } catch (\Throwable $failure) {
+                if ($this->query('passkeyCredentials')->where('id', '=', $updated->id)->exists()) {
+                    return false;
+                }
+
+                throw $failure;
+            }
+        }
+
+        if ($updated->id !== $expected->id || $updated->revision !== $expected->revision + 1) {
+            return false;
+        }
+
+        $record = $this->record($updated);
+        unset($record['id']);
+
+        return $this->query('passkeyCredentials')
+            ->where('id', '=', $expected->id)
+            ->where('revision', '=', $expected->revision)
+            ->update($record) === 1;
+    }
+
     public function findByCredentialId(string $credentialId): ?PasskeyCredential
     {
         return $this->firstMapped(
@@ -29,33 +62,32 @@ final readonly class DBLayerPasskeyCredentialStore extends ClockedDBLayerStore i
 
     public function revoke(string $credentialId): void
     {
-        $this->updateWhere('passkeyCredentials', ['revoked_at' => $this->now()], '(credential_id = ? OR id = ?) AND revoked_at IS NULL', [$credentialId, $credentialId]);
+        $this->updateWhere(
+            'passkeyCredentials',
+            ['revoked_at' => $this->now()],
+            '(credential_id = ? OR id = ?) AND revoked_at IS NULL',
+            [$credentialId, $credentialId],
+        );
     }
 
     public function save(PasskeyCredential $credential): void
     {
-        $this->upsertRecord('passkeyCredentials', 'id', [
-            'id' => $credential->id,
-            'account_id' => $credential->accountId,
-            'credential_id' => $credential->credentialId,
-            'public_key' => $credential->publicKey,
-            'sign_count' => $credential->signCount,
-            'transports' => DBLayerJson::encodeList($credential->transports),
-            'created_at' => $credential->createdAt,
-            'last_used_at' => $credential->lastUsedAt,
-            'revoked_at' => $credential->revokedAt,
-            'metadata' => DBLayerJson::encode($credential->metadata),
-        ]);
+        $this->upsertRecord('passkeyCredentials', 'id', $this->record($credential));
     }
 
     public function updateUsage(string $credentialId, int $signCount, int $usedAt): void
     {
-        $this->updateWhere('passkeyCredentials', ['sign_count' => $signCount, 'last_used_at' => $usedAt], 'credential_id = ? AND revoked_at IS NULL', [$credentialId]);
+        $credential = $this->findByCredentialId($credentialId);
+        if (!$credential instanceof PasskeyCredential) {
+            return;
+        }
+
+        if (!$this->compareAndSwap($credential, $credential->used($signCount, $usedAt))) {
+            throw new \RuntimeException('Passkey credential changed concurrently during usage persistence.');
+        }
     }
 
-    /**
-     * @param array<string, mixed> $row
-     */
+    /** @param array<string, mixed> $row */
     private function mapCredential(array $row): PasskeyCredential
     {
         return new PasskeyCredential(
@@ -69,6 +101,25 @@ final readonly class DBLayerPasskeyCredentialStore extends ClockedDBLayerStore i
             lastUsedAt: $this->intOrNull($row['last_used_at'] ?? null),
             revokedAt: $this->intOrNull($row['revoked_at'] ?? null),
             metadata: DBLayerJson::decode($row['metadata'] ?? null),
+            revision: $this->int($row['revision'] ?? 0),
         );
+    }
+
+    /** @return array<string, mixed> */
+    private function record(PasskeyCredential $credential): array
+    {
+        return [
+            'id' => $credential->id,
+            'account_id' => $credential->accountId,
+            'credential_id' => $credential->credentialId,
+            'public_key' => $credential->publicKey,
+            'sign_count' => $credential->signCount,
+            'transports' => DBLayerJson::encodeList($credential->transports),
+            'created_at' => $credential->createdAt,
+            'last_used_at' => $credential->lastUsedAt,
+            'revoked_at' => $credential->revokedAt,
+            'metadata' => DBLayerJson::encode($credential->metadata),
+            'revision' => $credential->revision,
+        ];
     }
 }

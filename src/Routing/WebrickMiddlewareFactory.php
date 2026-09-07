@@ -17,7 +17,6 @@ use Infocyph\Webrick\Middleware\GatewayHardeningMiddleware;
 use Infocyph\Webrick\Middleware\InputSanitizerMiddleware;
 use Infocyph\Webrick\Middleware\MaintenanceModeMiddleware;
 use Infocyph\Webrick\Middleware\NegotiationMiddleware;
-use Infocyph\Webrick\Middleware\NormalizeMethodMiddleware;
 use Infocyph\Webrick\Middleware\RequestLimitsMiddleware;
 use Infocyph\Webrick\Middleware\ResponseCacheMiddleware;
 use Infocyph\Webrick\Middleware\ResponseLinterMiddleware;
@@ -268,7 +267,6 @@ final readonly class WebrickMiddlewareFactory
         return new InputSanitizerMiddleware(
             touchFormBodies: ValueNormalizer::bool($definition['touch_form_bodies'] ?? null, true),
             touchJsonBodies: ValueNormalizer::bool($definition['touch_json_bodies'] ?? null, false),
-            touchUploadedNames: ValueNormalizer::bool($definition['touch_uploaded_names'] ?? null, false),
         );
     }
 
@@ -328,7 +326,7 @@ final readonly class WebrickMiddlewareFactory
                 locales: ValueNormalizer::stringList($definition['locales'] ?? ['en']),
                 localeFallback: ValueNormalizer::string($definition['locale_fallback'] ?? null, 'en'),
             ),
-            'normalize_method' => new NormalizeMethodMiddleware(),
+            'normalize_method' => null,
             'request_limits' => new RequestLimitsMiddleware(
                 maxHeaderBytes: ValueNormalizer::int($definition['max_header_bytes'] ?? null, 8192),
                 maxHeaderCount: ValueNormalizer::int($definition['max_header_count'] ?? null, 100),
@@ -336,7 +334,6 @@ final readonly class WebrickMiddlewareFactory
                     ? (int) $definition['max_body_bytes']
                     : null,
                 bodyLimitVerbs: ValueNormalizer::stringList($definition['body_limit_verbs'] ?? []),
-                violateOnUnknownBody: ValueNormalizer::bool($definition['violate_on_unknown_body'] ?? null, true),
             ),
             'response_cache' => new ResponseCacheMiddleware(
                 store: $this->cacheStore($definition['store'] ?? null),

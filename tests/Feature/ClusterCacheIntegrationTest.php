@@ -26,45 +26,55 @@ it('creates node cache stores and reports configured cluster status', function (
 
 it('publishes cache invalidations through the transactional outbox only after commit', function (): void {
     $app = foundationClusterCacheApplication();
-    $table = 'products_' . str_replace('.', '', uniqid('', true));
-    $database = $app->make(DBLayerFactory::class);
-    $cache = $app->make(CacheManager::class);
-    $database->connection()->statement('CREATE TABLE ' . $table . ' (id INTEGER PRIMARY KEY, name TEXT NOT NULL)');
+    $app->container()->withinScope('webrick.request', static function () use ($app): void {
+        $table = 'products_' . str_replace('.', '', uniqid('', true));
+        $database = $app->make(DBLayerFactory::class);
+        $cache = $app->make(CacheManager::class);
+        $database->connection()->statement(
+            'CREATE TABLE ' . $table . ' (id INTEGER PRIMARY KEY, name TEXT NOT NULL)',
+        );
 
-    $cluster = $app->make(CacheLayerFactory::class)->cluster('catalog');
-    $cluster->cache()->set('product.42', 'cached');
-    $cache->transactionalInvalidation(
-        'catalog',
-        static function ($connection, $outbox) use ($table): void {
-            $connection->table($table)->insert(['id' => 42, 'name' => 'Ada']);
-            $outbox->invalidateKey('product.42');
-        },
-    );
+        $cluster = $app->make(CacheLayerFactory::class)->cluster('catalog');
+        $cluster->cache()->set('product.42', 'cached');
+        $cache->transactionalInvalidation(
+            'catalog',
+            static function ($connection, $outbox) use ($table): void {
+                $connection->statement(
+                    'INSERT INTO ' . $table . ' (id, name) VALUES (?, ?)',
+                    [42, 'Ada'],
+                );
+                $outbox->invalidateKey('product.42');
+            },
+        );
 
-    expect($cluster->cache()->get('product.42'))->toBeNull()
-        ->and($database->connection()->table($table)->count())->toBe(1)
-        ->and($cluster->status()->pendingEventCount)->toBe(1);
+        expect($cluster->cache()->get('product.42'))->toBeNull()
+            ->and($database->connection()->select('SELECT COUNT(*) AS total FROM ' . $table)[0]['total'])
+            ->toBe(1)
+            ->and($cluster->status()->pendingEventCount)->toBe(1);
+    });
 });
 
 it('rolls back transactional outbox events without invalidating the local cache', function (): void {
     $app = foundationClusterCacheApplication();
-    $cache = $app->make(CacheManager::class);
-    $cluster = $app->make(CacheLayerFactory::class)->cluster('catalog');
-    $cluster->cache()->set('product.42', 'cached');
+    $app->container()->withinScope('webrick.request', static function () use ($app): void {
+        $cache = $app->make(CacheManager::class);
+        $cluster = $app->make(CacheLayerFactory::class)->cluster('catalog');
+        $cluster->cache()->set('product.42', 'cached');
 
-    expect(static function () use ($cache): mixed {
-        return $cache->transactionalInvalidation(
-            'catalog',
-            static function ($connection, $outbox): void {
-                expect($connection->getPdo()->inTransaction())->toBeTrue();
-                $outbox->invalidateKey('product.42');
-                throw new RuntimeException('rollback');
-            },
-        );
-    })->toThrow(TransactionException::class);
+        expect(static function () use ($cache): mixed {
+            return $cache->transactionalInvalidation(
+                'catalog',
+                static function ($connection, $outbox): void {
+                    expect($connection->getPdo()->inTransaction())->toBeTrue();
+                    $outbox->invalidateKey('product.42');
+                    throw new RuntimeException('rollback');
+                },
+            );
+        })->toThrow(TransactionException::class);
 
-    expect($cluster->cache()->get('product.42'))->toBe('cached')
-        ->and($cluster->status()->pendingEventCount)->toBe(0);
+        expect($cluster->cache()->get('product.42'))->toBe('cached')
+            ->and($cluster->status()->pendingEventCount)->toBe(0);
+    });
 });
 
 it('rejects unsafe cluster topology and non-atomic counter configuration', function (): void {

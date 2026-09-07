@@ -21,7 +21,7 @@ it('exposes the otp enrollment lifecycle through foundation', function (): void 
         ],
         'auth' => [
             'drivers' => [
-                'mfa' => 'simple',
+                'mfa' => 'otp',
             ],
             'otp' => [
                 'issuer' => 'Infbyte Test',
