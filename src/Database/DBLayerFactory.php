@@ -17,6 +17,15 @@ final class DBLayerFactory
     /** @var array<string, ConnectionConfig> */
     private array $configurations = [];
 
+    /**
+     * Generation/process-owned connections used only by infrastructure objects
+     * that intentionally retain a raw PDO beyond one execution (for example a
+     * PDO-backed CacheLayer store or invalidation transport).
+     *
+     * @var array<string, Connection>
+     */
+    private array $infrastructureConnections = [];
+
     private ?CacheInterface $queryCache = null;
 
     private bool $queryCacheResolved = false;
@@ -28,17 +37,41 @@ final class DBLayerFactory
         private readonly ContainerInterface $container,
     ) {}
 
+    public function __destruct()
+    {
+        foreach ($this->infrastructureConnections as $connection) {
+            try {
+                $connection->disconnect();
+            } catch (\Throwable) {
+                // Destructors must not surface shutdown failures.
+            }
+        }
+    }
+
     public function connection(?string $name = null, bool $fresh = false): Connection
     {
         $name = $this->resolver->connectionName($name);
-        $config = $this->configurations[$name]
-            ??= ConnectionConfig::fromArray($this->resolver->configuration($name));
+        $config = $this->configuration($name);
         $state = $this->executionState();
         $connection = $fresh
             ? $state->freshConnection($name, $config)
             : $state->connection($name, $config);
 
         return $this->bindQueryCache($connection);
+    }
+
+    /**
+     * Resolve a generation/process-owned DBLayer connection for infrastructure
+     * that retains its PDO independently of an execution scope.
+     *
+     * Application repositories and request/job work must use connection().
+     */
+    public function infrastructureConnection(?string $name = null): Connection
+    {
+        $name = $this->resolver->connectionName($name);
+
+        return $this->infrastructureConnections[$name]
+            ??= new Connection($this->configuration($name), $name);
     }
 
     public function resolver(): DatabaseConnectionResolver
@@ -55,6 +88,12 @@ final class DBLayerFactory
         $connection->setQueryCache($this->queryCache());
 
         return $connection;
+    }
+
+    private function configuration(string $name): ConnectionConfig
+    {
+        return $this->configurations[$name]
+            ??= ConnectionConfig::fromArray($this->resolver->configuration($name));
     }
 
     private function executionState(): RuntimeExecutionState
