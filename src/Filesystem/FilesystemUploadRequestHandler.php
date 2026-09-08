@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Filesystem;
 
 use Infocyph\Pathwise\Results\ChunkUploadState;
-use Infocyph\Pathwise\StreamHandler\UploadProcessor;
+use Infocyph\Pathwise\StreamHandler\UploadSource;
 use Infocyph\Webrick\Request\Core\UploadedFile;
 use Infocyph\Webrick\Request\Request;
 
@@ -32,33 +32,23 @@ final readonly class FilesystemUploadRequestHandler
         $file = $this->uploadedFile($request, $field);
         $resolvedUploadId = $this->resolveString(
             $uploadId,
-            [
-                $request->data('upload_id'),
-                $request->data('uploadId'),
-            ],
+            [$request->data('upload_id'), $request->data('uploadId')],
             'upload ID',
         );
         $resolvedChunkIndex = $this->resolveInt(
             $chunkIndex,
-            [
-                $request->data('chunk_index'),
-                $request->data('chunkIndex'),
-            ],
+            [$request->data('chunk_index'), $request->data('chunkIndex')],
             'chunk index',
         );
         $resolvedTotalChunks = $this->resolveInt(
             $totalChunks,
-            [
-                $request->data('total_chunks'),
-                $request->data('totalChunks'),
-            ],
+            [$request->data('total_chunks'), $request->data('totalChunks')],
             'total chunks',
         );
         $resolvedFilename = $this->resolveFilename($originalFilename, $request, $file, $field);
-        $payload = $this->materializeUpload($file, $processor, $resolvedFilename);
 
-        return $processor->processChunkUpload(
-            $payload,
+        return $processor->processChunkUploadSource(
+            $this->source($file, $resolvedFilename),
             $resolvedUploadId,
             $resolvedChunkIndex,
             $resolvedTotalChunks,
@@ -72,62 +62,12 @@ final readonly class FilesystemUploadRequestHandler
         ?string $directory = null,
         ?string $disk = null,
     ): string {
-        $processor = $this->transfers->upload($directory, $disk);
         $file = $this->uploadedFile($request, $field);
-        $payload = $this->materializeUpload(
-            $file,
-            $processor,
-            $file->getClientFilename() ?? $field,
-        );
+        $clientName = $file->getClientFilename() ?? $field;
 
-        return $processor->ingestFile($payload);
-    }
-
-    private function ensureDirectory(string $directory): void
-    {
-        if (is_dir($directory)) {
-            return;
-        }
-
-        if (!mkdir($directory, 0775, true) && !is_dir($directory)) {
-            throw new \RuntimeException(sprintf('Unable to create upload temp directory "%s".', $directory));
-        }
-    }
-
-    /**
-     * @return array{
-     *   error: int,
-     *   size: int,
-     *   tmp_name: string,
-     *   name: string,
-     *   type: string|null
-     * }
-     */
-    private function materializeUpload(UploadedFile $file, UploadProcessor $processor, string $fallbackName): array
-    {
-        $clientName = $file->getClientFilename() ?? $fallbackName;
-        $size = $file->getSize() ?? 0;
-        $tempDirectory = $this->tempDirectory($processor);
-        $extension = pathinfo($clientName, PATHINFO_EXTENSION);
-        $suffix = $extension === ''
-            ? ''
-            : '.' . strtolower(ltrim($extension, '.'));
-        $targetPath = rtrim($tempDirectory, DIRECTORY_SEPARATOR)
-            . DIRECTORY_SEPARATOR
-            . 'foundation-upload-'
-            . bin2hex(random_bytes(8))
-            . $suffix;
-
-        $this->ensureDirectory($tempDirectory);
-        $file->moveTo($targetPath);
-
-        return [
-            'error' => $file->getError(),
-            'size' => $size > 0 ? $size : (filesize($targetPath) ?: 0),
-            'tmp_name' => $targetPath,
-            'name' => $clientName,
-            'type' => $file->getClientMediaType(),
-        ];
+        return $this->transfers
+            ->upload($directory, $disk)
+            ->ingestSource($this->source($file, $clientName));
     }
 
     private function resolveFilename(?string $filename, Request $request, UploadedFile $file, string $field): string
@@ -137,7 +77,6 @@ final readonly class FilesystemUploadRequestHandler
         }
 
         $requestFilename = $request->data('original_filename') ?? $request->data('originalFilename');
-
         if (is_string($requestFilename) && trim($requestFilename) !== '') {
             return trim($requestFilename);
         }
@@ -156,13 +95,15 @@ final readonly class FilesystemUploadRequestHandler
             if (is_int($candidate)) {
                 return $candidate;
             }
-
             if (is_string($candidate) && is_numeric($candidate)) {
                 return (int) $candidate;
             }
         }
 
-        throw new \InvalidArgumentException(sprintf('Unable to resolve the %s for the chunk upload request.', $label));
+        throw new \InvalidArgumentException(sprintf(
+            'Unable to resolve the %s for the chunk upload request.',
+            $label,
+        ));
     }
 
     /** @param list<mixed> $candidates */
@@ -178,23 +119,33 @@ final readonly class FilesystemUploadRequestHandler
             }
         }
 
-        throw new \InvalidArgumentException(sprintf('Unable to resolve the %s for the chunk upload request.', $label));
+        throw new \InvalidArgumentException(sprintf(
+            'Unable to resolve the %s for the chunk upload request.',
+            $label,
+        ));
     }
 
-    private function tempDirectory(UploadProcessor $processor): string
+    private function source(UploadedFile $file, string $fallbackName): UploadSource
     {
-        $info = $processor->getInfo();
-        $tempDirectory = trim($info['tempDir']);
-
-        return $tempDirectory === '' ? sys_get_temp_dir() : $tempDirectory;
+        return UploadSource::fromMover(
+            static function (string $target) use ($file): void {
+                $file->moveTo($target);
+            },
+            $file->getClientFilename() ?? $fallbackName,
+            $file->getSize(),
+            $file->getClientMediaType(),
+            $file->getError(),
+        );
     }
 
     private function uploadedFile(Request $request, string $field): UploadedFile
     {
         $file = $request->file($field);
-
         if (!$file instanceof UploadedFile) {
-            throw new \InvalidArgumentException(sprintf('Uploaded file field "%s" is missing or invalid.', $field));
+            throw new \InvalidArgumentException(sprintf(
+                'Uploaded file field "%s" is missing or invalid.',
+                $field,
+            ));
         }
 
         return $file;
