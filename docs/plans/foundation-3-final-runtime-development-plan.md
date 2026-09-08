@@ -306,113 +306,157 @@ Benchmark Foundation against direct OTP 6.1 for the same semantic operation:
 
 ---
 
-## 26.5 Pathwise 3.1 utilization pass — open
+## 26.5 Pathwise filesystem integration — open; lower-layer follow-up release required
 
 ### Baseline
 
-- package: `infocyph/pathwise` `^3.1`;
-- audited release: Pathwise 3.1;
-- tag commit: `8226cf42747ae131486063cad39335d6dfc1c7f7`.
+- current Foundation package floor: `infocyph/pathwise ^3.1`;
+- audited/released Pathwise version: 3.1;
+- current Pathwise `main` and 3.1 tag baseline: commit `8226cf42747ae131486063cad39335d6dfc1c7f7`;
+- no newer Pathwise implementation exists yet for the ownership gaps below;
+- after the lower-layer work is released, Foundation should raise its Pathwise floor to that release (expected additive 3.x follow-up, e.g. 3.2, rather than carrying Foundation-only compatibility mechanics indefinitely).
 
 ### Ownership decision
 
-Pathwise/Flysystem own filesystem/storage mechanics. Foundation owns application storage/security policy and Webrick owns HTTP transport/output.
+Pathwise/Flysystem own generic filesystem/storage mechanics. Foundation owns application storage policy/configuration and runtime composition. Webrick owns HTTP request/response semantics and native response emission.
 
-Pathwise owns:
+Pathwise owns, including the lower-layer follow-up required by this pass:
 
-- filesystem creation through `StorageFactory` and Flysystem adapters;
-- path/mount resolution helpers;
+- filesystem construction and official/custom Flysystem adapter mechanics;
+- generic named-filesystem registration/resolution and default-filesystem mechanics;
+- an instance-scoped filesystem/path resolution context suitable for multiple applications/generations in one process without relying on mutable global mounts;
+- generic path/mount/local-path resolution over that context;
 - file/directory copy/move/read/write/stream mechanics;
-- upload and download processors;
-- typed/readonly transfer result objects such as `DownloadPreparation` and `ChunkUploadState`;
-- upload validation, chunk handling, naming and optional malware-scanner invocation;
-- lower-level archive/path/symlink/traversal protections;
-- static mount/custom-driver registries as Pathwise process-level infrastructure.
+- upload input/source representation, temporary materialization ownership and deterministic cleanup;
+- upload validation, chunk handling, naming, content inspection and malware-scanner invocation;
+- typed malware-scanner contract and stable fail-closed scanner error semantics;
+- download preparation, ranges and generic range-aware stream/chunk iteration;
+- typed/readonly transfer result objects such as `DownloadPreparation`, `DownloadStreamResult`, `RangeDownloadMetadata` and `ChunkUploadState`;
+- generic safe symbolic-link create/remove/status mechanics and containment/target checks;
+- archive/path/symlink/traversal/bomb protections;
+- generic stream/resource ownership inside Pathwise operations.
 
 Foundation owns:
 
-- `filesystem.disks` application configuration and default-disk selection;
-- application-root relative path policy;
-- download allowed roots/extensions/size/attachment policy;
-- upload allowed types/extensions/size/image/chunk policy;
-- scanner capability/service composition;
-- ownership/cleanup of temporary files Foundation itself creates;
-- deciding which configured disks belong in each runtime graph;
-- offload policy such as X-Sendfile/X-Accel eligibility;
-- the bridge from Pathwise transfer results to Webrick response bodies.
+- `filesystem.disks`, `filesystem.default`, upload/download/offload/link application configuration;
+- application base/public/storage path semantics through `PathManager`;
+- deciding which configured disks/capabilities are included in each runtime graph;
+- resolving relative application disk roots against the Foundation base path before passing normalized configuration to Pathwise;
+- upload/download policy values such as allowed roots/types/extensions/sizes, image/chunk limits, naming policy and scan requirement;
+- selecting/composing the application malware-scanner service and validating that a required scanner capability exists before traffic;
+- adapting Webrick `Request`/`UploadedFile` into a generic Pathwise upload source without duplicating lower-level temporary-file lifecycle;
+- Webrick conditional-request behavior, `FileBody`/stream-body selection and native response emission;
+- X-Sendfile/X-Accel application/server policy and eligibility;
+- application storage-link configuration and the allowed public/storage roots passed to Pathwise's generic link mechanic.
 
-Webrick exclusively owns native HTTP response emission. Pathwise and Foundation may produce file/stream semantics but must never become competing SAPI/persistent-adapter writers.
+Foundation must not retain a second generic named-storage registry, global-mount namespace workaround, temporary-upload lifecycle, range-stream engine or safe-symlink implementation once the corresponding Pathwise contracts are released.
 
-### Current integration findings to preserve
+### Current audit findings
 
-- `FilesystemResponseFactory` uses Pathwise's typed download result and emits Webrick `FileBody` for appropriate local files or portable stream/chunk bodies for mounted/non-local storage.
-- The current branch already returns `ChunkUploadState` directly; do not regress to array normalization/wrappers around Pathwise result objects.
-- `StorageRegistry` lazily builds configured filesystems and gives Foundation-scoped mount names. Process-level mount state is acceptable under Foundation's one compiled application/generation per production process rule.
-- `FilesystemTransferFactory` applies Foundation policy to transient Pathwise upload/download processors rather than moving storage mechanics into Foundation.
+1. **Pathwise's process-global registries are the main architecture gap.** `StorageFactory` keeps custom drivers statically and `FlysystemHelper` keeps default/local/mounted filesystems statically. Foundation therefore creates scoped mount names and calls `replaceMount()` from its own `StorageRegistry`. This works for one generation/process, but the generic named-filesystem/runtime isolation problem belongs in Pathwise rather than Foundation.
+2. **Foundation `StorageRegistry` contains lower-layer mechanics.** Application configuration/default-disk choice belongs in Foundation, but lazy filesystem creation, named operator lookup, mount/path resolution, local-path capability and mount namespace management are reusable Pathwise behavior.
+3. **Foundation's Webrick upload bridge owns a generic temporary-file lifecycle.** `FilesystemUploadRequestHandler` moves a Webrick upload into a `foundation-upload-*` file, synthesizes a `$_FILES`-shaped array, then calls Pathwise. If validation/scanning/storage fails before Pathwise consumes that source, Foundation can leave the materialized file behind. Pathwise should accept an explicit owned upload source and own any materialization it requires.
+4. **The current malware scanner is only an untyped callable.** `UploadProcessor::setMalwareScanner()` should gain a small Pathwise-owned scanner contract while callable compatibility may remain. Scanner/backend exceptions must become stable non-sensitive upload failures while retaining the previous exception internally; raw backend exception text must not become the public upload error message.
+5. **Foundation duplicates range-stream mechanics already conceptually owned by Pathwise.** `DownloadProcessor::streamDownload()` already owns range positioning, bounded copying and input-stream closure, while `FilesystemResponseFactory` independently implements seek/discard/chunk-length logic for Webrick streaming. Pathwise needs an iterator/owned-stream form usable by response adapters without becoming the HTTP writer.
+6. **Foundation `StorageLinkManager` is mostly generic safe-symlink mechanics.** Foundation should retain link configuration and public/storage root policy, but target matching, traversal/containment checks, safe creation/removal/status and temporary-link activation belong in Pathwise.
+7. **Pathwise exposes `Psr\Log\LoggerInterface` in production code without declaring `psr/log` as a production dependency.** The next Pathwise release must either require `psr/log ^3.0` directly or remove that public type dependency; requiring it directly is the preferred fix.
+8. Pathwise's mutable `UploadProcessor`/`DownloadProcessor` configuration is safe in Foundation today because processors are transient. Immutable options/builders could improve API/compile ergonomics, but they are not required to close the correctness gaps.
+9. PHP 8.4/8.5 deprecation and resource/MIME behavior must be re-audited on the lower-layer follow-up release rather than patched speculatively in Foundation.
 
-### Confirmed current issues
+### Pathwise lower-layer implementation checklist
 
-1. `FilesystemUploadRequestHandler` materializes a Webrick uploaded file into a Foundation-owned `foundation-upload-*` temporary path before passing it to Pathwise. If Pathwise validation/processing throws before consuming/moving that source, Foundation currently has no guaranteed `finally` cleanup and can leak the temp file.
-2. Foundation exposes `filesystem.uploads.require_malware_scan` and sets `UploadProcessor::setRequireMalwareScan()`, but the normal graph must provide a real scanner through `setMalwareScanner()` when the policy is enabled. Pathwise correctly fails closed when scanning is required without a scanner.
-3. Pathwise's mount and custom-driver registries are static process state. Foundation must treat them as generation/process boot state, never per-request/job mutable state; deployment generation changes should replace the process rather than hot-remount generation A into generation B.
-4. PHP 8.5 deprecation noise on filesystem HTTP/upload integration must be attributed precisely across Foundation, Pathwise, Flysystem and Webrick. Foundation-local deprecated `uniqid()` test identifiers have already been removed; the remaining Pathwise/Flysystem MIME/resource-era API surface still requires a dedicated 26.5 audit rather than speculative lower-layer patches.
+- [ ] Add `psr/log ^3.0` as a direct production dependency while `LoggerInterface` remains part of the public production API.
+- [ ] Add an instance-scoped filesystem resolution context/registry that owns named `FilesystemOperator` instances, default selection and path resolution without depending on mutable global `FlysystemHelper` mounts.
+- [ ] Keep existing static `PathwiseFacade`/`StorageFactory`/`FlysystemHelper` entry points as convenience/BC surfaces where desired, but make the new instance path the preferred integration boundary for Foundation and persistent/multi-application runtimes.
+- [ ] Allow custom driver factories to be supplied to or resolved by the instance context so one application's registrations cannot mutate another application's runtime topology.
+- [ ] Expose generic named disk/operator lookup, path resolution and local-path capability through the instance context; do not embed Foundation config keys or application paths into Pathwise.
+- [ ] Make Pathwise upload/download processors able to operate against the instance resolver/context rather than requiring process-global mount lookup.
+- [ ] Add a typed owned upload-source/input object capable of representing a caller path and stream/chunk source plus client filename, size, media type/error metadata and ownership semantics.
+- [ ] Let Pathwise materialize non-path sources into its configured temporary directory when needed and own deletion of Pathwise-created/explicitly transferred temporary sources on success and every exception path.
+- [ ] Preserve primary validation/scanner/storage exceptions if cleanup also fails; cleanup failure may surface only when no primary failure exists.
+- [ ] Add normal-upload and chunk-upload APIs that consume the typed upload source directly, removing the requirement for framework adapters to synthesize `$_FILES`-shaped arrays.
+- [ ] Add a small `MalwareScannerInterface` (or equivalently typed Pathwise contract) and allow `UploadProcessor` to consume it; retain callable compatibility only if useful for BC.
+- [ ] Keep scan invocation and fail-closed allow/deny/error mechanics in Pathwise.
+- [ ] Map scanner infrastructure exceptions to a stable non-sensitive `UploadException` message while retaining the previous exception for diagnostics; do not append raw scanner/backend exception text to the external message.
+- [ ] Add a range-aware download iterable/owned-stream API that consumes a `DownloadPreparation`, performs seek/discard/range-length accounting and closes the input resource deterministically even when the consumer stops early.
+- [ ] Keep `streamDownload()` as the output-stream convenience API; the new iterator/stream form exists for framework response bridges without making Pathwise a native HTTP writer.
+- [ ] Add a generic safe symbolic-link manager/result API for create/remove/status with explicit link/target plus allowed-link-root/allowed-target-root policy inputs.
+- [ ] Keep link traversal, containment, existing-target verification, atomic activation and safe removal Pathwise-owned; keep Foundation-specific public/storage path selection outside Pathwise.
+- [ ] Re-audit static reset/replace APIs such as `replaceMount()` so they remain tooling/compatibility mechanisms, not the required production integration model.
+- [ ] Run Pathwise PHP 8.4/8.5 stable/lowest QA, static analysis, deprecation checks and targeted benchmarks before tagging the follow-up release.
 
-### Audit and implementation checklist
+### Foundation consumption checklist after the Pathwise release
 
-- [ ] Make ownership of Foundation-materialized upload temp files explicit from `moveTo()` until Pathwise has consumed/moved them.
-- [ ] Wrap normal and chunk-upload ingestion in deterministic cleanup; in `finally`, remove the Foundation temp file if it still exists.
-- [ ] Use the same primary-exception preservation semantics as `CleanupGuard`: cleanup failure may surface only when no primary upload/validation failure already exists.
-- [ ] Add explicit malware-scanner capability/service composition. When scanning is disabled, omit scanner graph/cost; when required, scanner availability must be validated before traffic.
-- [ ] Adapt the configured scanner to Pathwise's callable contract at a narrow compile-friendly boundary; do not create a parallel malware-scanning framework.
-- [ ] Preserve Pathwise fail-closed behavior when scanning is required and scanner execution fails/denies the file.
-- [ ] Keep `StorageRegistry` process/generation-scoped and initialize mounts once; prohibit request/job code from replacing global mounts or custom drivers.
-- [ ] Make custom Pathwise driver registration a build/process-boot concern with deterministic configuration and explicit package capability checks.
-- [ ] Treat generation replacement as process replacement for Pathwise static registries rather than adding production reset/unfreeze APIs merely for deploys.
-- [ ] Continue using Pathwise readonly result/domain objects directly where they express the operation; Foundation wrappers should exist only for real application policy.
-- [ ] Preserve local-file capability detection: Webrick `FileBody`/range/conditional handling for true local paths, portable streaming for mounted/non-local storage.
-- [ ] Permit X-Sendfile only for a true local file known to the web server; keep X-Accel explicit and configuration/policy driven.
-- [ ] Propagate unsupported storage-operation errors instead of silently pretending remote/mounted stores support local-path behavior.
-- [ ] Preserve Pathwise archive/traversal/symlink/bomb protections and ensure Foundation normalization never bypasses them.
-- [ ] Treat Pathwise local file-job/process helpers as local filesystem tooling, not as a replacement for Omnibus or Foundation distributed worker orchestration.
-- [ ] Audit all stream ownership so each resource is closed by exactly one documented layer and Webrick remains the sole native response writer.
-- [ ] Audit Pathwise/Flysystem integration for PHP 8.5 deprecations, including MIME/resource-era APIs, and keep filesystem HTTP/upload paths deprecation-clean without suppressing notices.
+- [ ] Raise Foundation's Pathwise floor to the released lower-layer version.
+- [ ] Replace Foundation's generic `StorageRegistry` implementation with a thin application-config/default/base-path adapter over the Pathwise instance filesystem context; remove Foundation-owned mount scoping and `FlysystemHelper::replaceMount()` usage.
+- [ ] Keep Foundation disk-selection/config validation only where it is application policy rather than generic registry mechanics.
+- [ ] Keep `FilesystemTransferFactory` as a thin application-policy mapper to Pathwise processors/options and remove transformations made unnecessary by the new context/source contracts.
+- [ ] Reduce `FilesystemUploadRequestHandler` to Webrick request/field/chunk-metadata extraction plus construction of a Pathwise upload source; remove `ensureDirectory()`, `materializeUpload()`, `tempDirectory()` and Foundation-owned `foundation-upload-*` lifecycle.
+- [ ] Compose the selected scanner service in Foundation only when configured; fail production build/boot when scanning is required but no scanner capability exists.
+- [ ] Pass the scanner through Pathwise's typed contract and keep all scan execution semantics lower-layer-owned.
+- [ ] Remove Foundation `FilesystemResponseFactory` seek/discard/read-range duplication and consume Pathwise's range-aware iterable/stream while keeping Webrick conditional evaluation, `FileBody`, response headers/body selection and native output ownership.
+- [ ] Retain X-Sendfile only for a true local path known to the web server; keep X-Accel explicit/application-server-policy driven.
+- [ ] Replace Foundation's generic symlink mechanics with a thin `filesystem.links`/`PathManager` policy adapter over Pathwise's safe link manager.
+- [ ] Continue consuming Pathwise typed result/domain objects directly; do not normalize them into Foundation arrays/wrappers without real application semantics.
+- [ ] Preserve optional capability behavior: applications that do not select filesystem services must not activate Pathwise/Flysystem runtime objects.
+- [ ] Treat Pathwise local file-job/process helpers as local filesystem tooling, never as a replacement for Omnibus/Foundation distributed worker orchestration.
 
 ### Correctness and security acceptance
 
-- [ ] Test Foundation temp cleanup after successful normal upload when the temporary source remains, and after every validation/storage exception path.
-- [ ] Test chunk-upload materialization cleanup for success, rejected chunk, invalid metadata and finalize failure.
-- [ ] Test cleanup failure cannot mask the primary Pathwise validation/storage exception.
-- [ ] Test `require_malware_scan=false` requires no scanner and `true` fails during composition/boot when scanner capability is absent.
-- [ ] Test scanner allow/deny/error behavior through the Foundation bridge without weakening Pathwise fail-closed semantics.
-- [ ] Test local, mounted and remote-style download paths including HEAD/range/conditional semantics through Webrick.
-- [ ] Test X-Sendfile rejection for mounted/non-local storage and explicit X-Accel policy.
-- [ ] Test typed `DownloadPreparation`/`ChunkUploadState` contracts are preserved.
-- [ ] Test repeated persistent-runtime access does not mutate/leak mount/driver topology between executions.
-- [ ] Test configured multi-disk mounts initialize deterministically and cannot be silently replaced at request/job runtime.
-- [ ] Test traversal/archive/symlink security cases through the Foundation-configured path rather than only standalone Pathwise.
-- [ ] Test stream/resource closure on success, partial read, exception and client-abort-style paths where the adapter permits simulation.
-- [ ] Test PHP 8.5 filesystem HTTP/upload coverage is deprecation-clean after lower-layer attribution/fixes.
+**Pathwise lower-layer acceptance:**
+
+- [ ] Two independent instance filesystem contexts in one process can use the same logical disk/mount names with different operators/configuration without cross-talk.
+- [ ] Custom driver registration/context for one instance cannot mutate another instance or an already-frozen production context.
+- [ ] Local, mounted and remote-style operator/path resolution behaves consistently without process-global mount dependence on the new integration path.
+- [ ] Owned upload-source materialization cleans up on validation rejection, extension/type mismatch, scanner deny/error, destination failure and chunk failure.
+- [ ] Cleanup failure never masks the primary upload failure.
+- [ ] Successful source transfer has unambiguous ownership and never double-deletes caller-owned files.
+- [ ] Scanner allow/deny/error semantics are fail-closed and scanner exception messages do not leak backend-sensitive text.
+- [ ] Range iterable/owned stream produces exactly the prepared byte range for seekable and non-seekable sources and closes resources on normal completion, exception and early consumer termination.
+- [ ] Safe link create/remove/status rejects traversal, link-root escape, target-root escape, mismatched existing links and non-link replacement/removal.
+- [ ] Pathwise PHP 8.4/8.5 stable/lowest QA and static analysis are clean.
+
+**Foundation integration acceptance:**
+
+- [ ] Configured local/multi-disk/remote-style storage resolves through the Pathwise instance context with no Foundation global-mount workaround.
+- [ ] Repeated sequential and interleaved Fiber executions do not mutate storage topology or leak upload/download state.
+- [ ] Webrick normal/chunk uploads pass through the Pathwise source contract without Foundation-owned temporary-file leaks.
+- [ ] `require_malware_scan=false` adds no scanner requirement; `true` fails before traffic if the configured scanner service/capability is unavailable.
+- [ ] Scanner allow/deny/error behavior remains Pathwise-native through the Foundation bridge.
+- [ ] Local, mounted and remote-style downloads preserve HEAD/range/conditional semantics through Webrick while generic range streaming is Pathwise-owned.
+- [ ] X-Sendfile rejects non-local storage and X-Accel remains explicitly policy-driven.
+- [ ] `DownloadPreparation`, `DownloadStreamResult`, `RangeDownloadMetadata` and `ChunkUploadState` remain native Pathwise contracts at the Foundation boundary.
+- [ ] Storage-link commands/configuration preserve Foundation public/storage policy while generic link safety is delegated to Pathwise.
+- [ ] Traversal/archive/symlink protections are not weakened by Foundation path normalization.
+- [ ] Filesystem capability absence leaves unrelated runtime graphs free of Pathwise/Flysystem services.
+- [ ] Foundation PHP 8.4/8.5 filesystem integration is deprecation-clean after consuming the new Pathwise release.
 
 ### Performance acceptance
 
-Benchmark at minimum:
+Benchmark the new lower-layer path and the final Foundation bridge at minimum:
 
-1. filesystem capability absent versus present-but-unused graph/boot cost;
-2. first `StorageRegistry` initialization and warm disk lookup;
-3. warm mounted/local path resolution;
-4. direct Pathwise upload versus Foundation request-materialization + Pathwise ingestion;
-5. failure-path temp cleanup overhead;
-6. chunk upload and finalize;
-7. direct Pathwise download preparation versus Foundation response bridge;
-8. remote/mounted stream setup and iteration through Webrick body abstractions;
-9. one-time mount/custom-driver boot cost;
-10. repeated persistent-runtime filesystem operations with memory measurement.
+1. Pathwise instance-context construction with one and multiple disks;
+2. warm named-disk/operator lookup and local/mounted path resolution versus the current static-helper path;
+3. custom-driver context construction/lookup;
+4. direct Pathwise path-backed upload versus typed-source upload;
+5. stream-source materialization and failure cleanup overhead;
+6. normal/chunk upload and finalize;
+7. scanner-disabled, scanner-enabled allow and scanner failure paths;
+8. direct `DownloadProcessor::prepareDownload()` plus range iterator/stream;
+9. range streaming for seekable versus non-seekable sources;
+10. direct Pathwise link create/status/remove;
+11. Foundation filesystem capability absent versus enabled-but-unused graph/boot cost;
+12. direct Pathwise upload versus Foundation Webrick→Pathwise source bridge;
+13. direct Pathwise download preparation/range iteration versus Foundation Pathwise→Webrick response bridge;
+14. repeated persistent-runtime filesystem operations with memory/topology-isolation measurement.
 
-Do not add another filesystem cache or response-stream abstraction unless attribution shows measurable Foundation overhead that Pathwise/Webrick cannot already eliminate.
+Do not retain a Foundation filesystem cache, mount registry, upload materializer or stream engine merely because it existed before the lower-layer release. Keep Foundation overhead to configuration/policy/request-response adaptation and attribute any remaining measurable cost before adding another abstraction.
 
 ### Completion gate
 
-The Pathwise tracker can be checked only when Foundation-owned upload temps are deterministically cleaned, required malware scanning has a real build-time composition path, static mount/driver lifecycle is proven generation-safe, local/non-local Webrick response ownership remains correct, PHP 8.5 integration is deprecation-clean, security regression tests pass and Foundation-vs-direct-Pathwise benchmarks record the final bridge overhead.
+The Pathwise tracker can be checked only after the lower-layer follow-up release provides instance-scoped storage resolution, owned upload-source cleanup, typed scanner semantics, adapter-usable range streaming and generic safe-link mechanics; Pathwise declares its real production dependencies and passes PHP 8.4/8.5 acceptance; Foundation raises its floor, removes the corresponding generic `StorageRegistry`/temporary-upload/range-stream/symlink duplication, preserves Webrick-only HTTP output and Foundation-only application policy, proves optional/persistent/Fiber isolation, and records direct-Pathwise-versus-Foundation attribution for the final bridge.
+
+**Status:** open; Pathwise lower-layer changes should be implemented and released before the Foundation 26.5 integration is finalized.
 
 ---
 
@@ -421,42 +465,9 @@ The Pathwise tracker can be checked only when Foundation-owned upload temps are 
 **Released baseline:** DBLayer 5.1, commit `087f179ecac3e5555c346ce84cfc353050f8e3cb`.  
 **Foundation floors:** `infocyph/dblayer ^5.1`, `infocyph/cachelayer ^3.4`.
 
-### Final integrated contract
+Foundation uses explicit execution-owned DBLayer connections and `ConnectionRepository`, delegates generic writes/upserts and query-cache mechanics to DBLayer, retains only Foundation domain persistence/CAS policy, and supports DBLayer `ConnectionLease` pooling without sharing execution leases. Query caching remains explicit/default-off; transactional invalidation binds to the exact current execution connection; pooled rollback/reset/health/lifetime sanitation remains DBLayer-owned. Dedicated execution-owned connections remain the default, with pooling opt-in only after deployment-specific attribution.
 
-- [X] normal Foundation runtime uses explicit execution-owned DBLayer `Connection` objects rather than static `DB` façade execution state;
-- [X] the only intentional production `DB` façade read is the worker pre-fork compatibility diagnostic for externally opened legacy façade connections;
-- [X] `DatabaseRepository` uses DBLayer 5.1 `ConnectionRepository`;
-- [X] generic auth INSERT/UPDATE/DELETE/upsert delegates to DBLayer QueryBuilder/native upsert;
-- [X] MFA CAS retains Foundation domain policy but uses native conditional revision writes;
-- [X] passkey persistence has an independent revision, DB/in-memory CAS behavior, stale-write rejection, and additive schema migration;
-- [X] query caching is explicit/default-off via `database.query_cache.enabled/store` and binds the selected CacheLayer backend to the exact DBLayer Connection;
-- [X] query-cache-disabled database paths remain CacheLayer-cold;
-- [X] shared DB query caching requires an explicit selected-store namespace or an application-specific cache prefix;
-- [X] DBLayer owns query-cache bypass/invalidation mechanics; successful outer commit invalidates, rollback does not;
-- [X] CacheLayer PDO stores/invalidation infrastructure use generation-owned database connections and never retain a PDO borrowed from an execution lease;
-- [X] transactional cache invalidation uses an execution-bound CacheLayer factory so its outbox shares the exact PDO participating in the transaction;
-- [X] DBLayer `ConnectionLease` pooling is integrated as an optional path with one lease/name owned by each `RuntimeExecutionState`;
-- [X] `freshConnection()` remains dedicated/non-pooled;
-- [X] DBLayer remains the sole owner of pooled rollback/reset/health/lifetime sanitation;
-- [X] lease/Fiber/sanitation, query-cache, MFA/passkey CAS, schema-upgrade, and optional-capability regression coverage is present;
-- [X] DBLayer 5.1 lifecycle attribution benchmark is available as `benchmark:dblayer` and is included in `benchmark:release`.
-
-### Final lifecycle decision
-
-Foundation **keeps dedicated execution-owned connections as the default**. `DB_POOL_ENABLED` remains `false` by default.
-
-Pooling is supported for persistent runtimes but is an opt-in operational optimization. A deployment should enable it only after representative datastore/runtime benchmarks demonstrate a material benefit. Generic CI/SQLite timing is not treated as a proxy for network-database production workloads.
-
-### Validation evidence
-
-- [X] PR #13 merged into `main` at merge commit `195b8187fc2198d63c15d73616d51ae9dab94e2b`;
-- [X] merged PR head includes final migration-order fix commit `dff282b3aca99599f8d829c6b40cee070929280e`;
-- [X] Security & Standards run **#1157** on the final PR head completed successfully;
-- [X] PHP 8.4 and PHP 8.5 analyzers passed;
-- [X] clean install passed;
-- [X] stable/lowest QA matrix passed on the final PR head;
-- [X] existing benchmark jobs remained green;
-- [X] DBLayer-specific lifecycle benchmark remains available for deployment-specific pooling attribution.
+Final DBLayer 5.1 lifecycle, query-cache, MFA/passkey CAS, schema/migration, Fiber/isolation, clean-install, static-analysis and stable/lowest PHP 8.4/8.5 acceptance passed on PR #13. `benchmark:dblayer` remains part of `benchmark:release` for deployment-specific lifecycle/pooling attribution.
 
 **Status:** [X] complete.
 
