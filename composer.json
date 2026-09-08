@@ -19,7 +19,7 @@
         "infocyph/epicrypt": "^2.1",
         "infocyph/omnibus": "^2.5",
         "infocyph/otp": "^6.1",
-        "infocyph/pathwise": "^3.1",
+        "infocyph/pathwise": "^4.0",
         "infocyph/phpforge": "dev-main@dev",
         "infocyph/reqshield": "^3.1",
         "infocyph/talkingbytes": "^2.0",
