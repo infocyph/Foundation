@@ -204,6 +204,7 @@ DBLayer 26.6 supplies the generic persistence revision/CAS mechanism. OTP owns a
 - [ ] preserve typed transfer results and correct local/non-local response handling;
 - [ ] keep X-Sendfile/X-Accel explicit/policy-driven;
 - [ ] preserve traversal/archive/symlink/bomb protections and stream ownership;
+- [ ] audit Pathwise/Flysystem integration for PHP 8.5 deprecations, including MIME/resource-era APIs, and keep filesystem HTTP/upload paths deprecation-clean;
 - [ ] prove persistent isolation and direct-Pathwise attribution.
 
 ---
