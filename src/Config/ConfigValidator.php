@@ -86,20 +86,6 @@ final readonly class ConfigValidator
             || (is_string($value) && preg_match('/^[1-9]\d*$/D', $value) === 1);
     }
 
-    private function positiveIntegerValue(mixed $value): ?int
-    {
-        if (is_int($value)) {
-            return $value > 0 ? $value : null;
-        }
-        if (!is_string($value) || preg_match('/^[1-9]\d*$/D', $value) !== 1) {
-            return null;
-        }
-
-        $validated = filter_var($value, FILTER_VALIDATE_INT);
-
-        return is_int($validated) && $validated > 0 ? $validated : null;
-    }
-
     /** @return array<string,mixed>|null */
     private function notificationSenderProfile(): ?array
     {
@@ -124,6 +110,20 @@ final readonly class ConfigValidator
         }
 
         return $normalized;
+    }
+
+    private function positiveIntegerValue(mixed $value): ?int
+    {
+        if (is_int($value)) {
+            return $value > 0 ? $value : null;
+        }
+        if (!is_string($value) || preg_match('/^[1-9]\d*$/D', $value) !== 1) {
+            return null;
+        }
+
+        $validated = filter_var($value, FILTER_VALIDATE_INT);
+
+        return is_int($validated) && $validated > 0 ? $validated : null;
     }
 
     private function resolvedTokenSecret(): ?string
