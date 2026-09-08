@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Filesystem;
 
+use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Config\ConfigRepository;
@@ -11,10 +12,11 @@ use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\InterMix\DI\Support\ServiceReference;
-use Infocyph\Pathwise\PathwiseFacade;
+use Infocyph\Pathwise\Storage\StorageContext;
 use Infocyph\Pathwise\StreamHandler\DownloadProcessor;
 use Infocyph\Pathwise\StreamHandler\UploadProcessor;
 use League\Flysystem\FilesystemOperator;
+use Psr\Container\ContainerInterface;
 
 final class FilesystemServiceProvider extends ServiceProvider
 {
@@ -22,9 +24,9 @@ final class FilesystemServiceProvider extends ServiceProvider
     {
         unset($context);
 
-        if (!class_exists(PathwiseFacade::class)) {
+        if (!class_exists(StorageContext::class)) {
             throw new \LogicException(
-                'Foundation filesystem services require infocyph/pathwise; run "php infbyte module:install filesystem".',
+                'Foundation filesystem services require infocyph/pathwise ^4.0; run "php infbyte module:install filesystem".',
             );
         }
 
@@ -32,10 +34,18 @@ final class FilesystemServiceProvider extends ServiceProvider
             new ServiceReference(ConfigRepository::class),
             new ServiceReference(PathManager::class),
         ]));
+        $builder->singleton(
+            FilesystemMalwareScannerResolver::class,
+            FactoryDefinition::construct(FilesystemMalwareScannerResolver::class, [
+                new ServiceReference(ConfigRepository::class),
+                new ServiceReference(ContainerInterface::class),
+            ]),
+        );
         $builder->singleton(FilesystemTransferFactory::class, FactoryDefinition::construct(FilesystemTransferFactory::class, [
             new ServiceReference(ConfigRepository::class),
             new ServiceReference(PathManager::class),
             new ServiceReference(StorageRegistry::class),
+            new ServiceReference(FilesystemMalwareScannerResolver::class),
         ]));
         $builder->singleton(FilesystemOperator::class, FactoryDefinition::staticFactory(
             FilesystemGraphFactory::class,
@@ -79,5 +89,13 @@ final class FilesystemServiceProvider extends ServiceProvider
 
         $builder->alias('foundation.files', StorageRegistry::class);
         $builder->alias('foundation.filesystem', StorageRegistry::class);
+    }
+
+    public function boot(Application $app): void
+    {
+        // Validate topology and required scanner composition before traffic while
+        // preserving Pathwise's lazy filesystem/backend construction.
+        $app->make(StorageRegistry::class);
+        $app->make(FilesystemMalwareScannerResolver::class)->assertReady();
     }
 }
