@@ -114,16 +114,15 @@ final readonly class ConfigValidator
 
     private function positiveIntegerValue(mixed $value): ?int
     {
-        if (is_int($value)) {
-            return $value > 0 ? $value : null;
-        }
-        if (!is_string($value) || preg_match('/^[1-9]\d*$/D', $value) !== 1) {
+        if (!is_int($value) && !is_string($value)) {
             return null;
         }
 
-        $validated = filter_var($value, FILTER_VALIDATE_INT);
+        $validated = filter_var($value, FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1],
+        ]);
 
-        return is_int($validated) && $validated > 0 ? $validated : null;
+        return is_int($validated) ? $validated : null;
     }
 
     private function resolvedTokenSecret(): ?string
