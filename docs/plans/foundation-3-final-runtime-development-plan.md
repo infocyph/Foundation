@@ -8,6 +8,8 @@
 **Priority:** correctness → hot-path performance → persistent-runtime safety → scalability → ergonomics
 
 > This is the single source of truth for Foundation 3 runtime development. Completed work is intentionally summarized so the document stays maintainable. Open lower-library passes remain actionable and detailed. If a lower layer already owns the correct generic mechanism, Foundation consumes it directly; generic missing primitives belong in the lower layer, not in a Foundation-only workaround.
+>
+> **Plan-maintenance rule:** completed lower-library passes may be condensed after their evidence is recorded. Any open or partially open pass must retain its ownership decision, current findings/known issues, implementation checklist, correctness/security acceptance, performance acceptance, and completion gate until that pass is actually closed.
 
 ---
 
@@ -166,46 +168,251 @@ CacheLayer owns optional atomic `setIfAbsent()`, `getAndDelete()`, `compareAndSe
 
 ---
 
-## 26.4 OTP 6.1 + Passkey/WebAuthn Foundation integration — implementation complete; closure pending
+## 26.4 OTP 6.1 + Passkey/WebAuthn Foundation integration — core implementation complete; acceptance/26.10 closure pending
 
-**Released baseline:** OTP 6.1, commit `c7faf376b96611638e7bc0da6cd081496768d34f`.
+### Baseline
 
-### Integrated contract
+- package: `infocyph/otp` `^6.1`;
+- audited/released version: OTP 6.1;
+- tag commit: `c7faf376b96611638e7bc0da6cd081496768d34f`;
+- OTP 6.1 requires CacheLayer `^3.3` and keeps AOTP (`ext-sodium`) plus Passkey/WebAuthn (`web-auth/webauthn-lib ^5.3`) as optional capabilities;
+- Foundation's CacheLayer floor is `^3.4`, so OTP's released authentication-state contract is consumed directly.
 
-- [X] Foundation development floor raised to `infocyph/otp ^6.1` and `ext-sodium` added to the development matrix for AOTP coverage;
-- [X] selected passkey ceremony behavior routes exclusively through OTP 6.1 `Passkey`;
-- [X] direct Foundation WebAuthn ceremony/options/validator/serializer/codec duplication removed; the retained `WebAuthnRuntime` symbol is an empty deprecated cold-path compatibility sentinel only;
-- [X] Foundation WebAuthn configuration narrowed to OTP-consumed RP ID, exact trusted origin, ceremony TTL, and optional subdomain policy;
-- [X] AOTP and GridOTP are deliberately exposed; MobileOTP is available only through an explicit legacy-import workflow;
-- [X] AOTP stores only the public key server-side; private-key generation/signing remains device-owned through OTP;
-- [X] selected stateful OTP modes and Passkey require a CacheLayer `AuthenticationStateCacheInterface` and fail closed when unavailable;
-- [X] HOTP/counter-OCRA durable counters remain authoritative and transition through revision compare-and-swap;
-- [X] MFA factor creation/activation now also use authoritative CAS, and sensitive OTP secret/PIN fields are redacted from enrollment audit/result context;
-- [X] OTP's exact authoritative passkey `CredentialRecord` is persisted in a dedicated `credential_record` column and replaced only when the stored revision still matches the revision OTP verified;
-- [X] additive passkey record/revision schema migrations and readiness checks cover existing installs;
-- [X] direct OTP attribution is available as `benchmark:otp` and included in `benchmark:release`;
-- [X] focused AOTP/GridOTP/MobileOTP and selected/fail-closed OTP Passkey graph regression coverage is present;
-- [ ] protect persisted symmetric MFA secrets through Epicrypt policy from 26.10;
-- [ ] complete final PHP 8.4/8.5 stable/lowest CI plus persistent/Fiber/cold-path regression confirmation on the final PR head.
+### Ownership decision
 
-DBLayer 26.6 supplies the generic persistence revision/CAS mechanism. OTP owns algorithms, native challenge/replay behavior, and all WebAuthn ceremony/validator/serializer behavior. Foundation retains only application account/factor policy, audit/notification/lockout/satisfaction orchestration, and durable persistence policy.
+OTP 6.1 is the lower-layer authentication-mechanics package, not only a TOTP/HOTP/OCRA package. Foundation consumes it as the protocol/mechanics owner and retains application policy, persistence and composition.
 
-**Status:** implementation complete; final closure waits on 26.10 symmetric-secret protection and final CI evidence.
+OTP owns:
+
+- TOTP, HOTP and OCRA algorithms, verification windows, periods/counters and result objects;
+- `GenericOtp` state/attempt semantics;
+- AOTP Ed25519 challenge-response mechanics, challenge issuance/consumption and verification;
+- GridOTP enrollment/challenge/response mechanics and challenge-state handling;
+- MobileOTP/mOTP compatibility semantics, including its legacy protocol calculation and verification window;
+- provisioning URI/enrollment payload construction and parsing where the protocol supports it;
+- recovery-code generation/verification and the recovery-code usage-store contract;
+- secret-rotation planning/result primitives;
+- OTP-owned replay/state-key formats and CacheLayer coordination;
+- native atomic replay/monotonic transitions where CacheLayer exposes them and coordinated-lock fallback where required;
+- Passkey/WebAuthn registration/authentication option construction, ceremony challenge issuance/persistence/one-time consumption, upstream WebAuthn validation, credential-record serialization/mutation and `PasskeyResult` mapping;
+- WebAuthn origin/RP/challenge/user-presence/user-verification/signature-counter/backup-state protocol decisions through the upstream library;
+- OTP/Passkey-specific encoding, parsing, validation, versioned state domains and safe diagnostic redaction.
+
+Foundation owns:
+
+- whether MFA/passkeys are enabled and which factor type/mode is permitted for an application/account;
+- normalized auth configuration and release/build validation;
+- the policy that MobileOTP is legacy-only/explicit opt-in rather than a new-deployment default;
+- optional capability availability (`ext-sodium` for AOTP and `web-auth/webauthn-lib` for OTP Passkey) and graph activation;
+- selection/validation of the CacheLayer `AuthenticationStateCacheInterface` backend supplied to OTP stateful modes;
+- durable factor persistence and authoritative compare-and-swap semantics where persisted factor state is Foundation-owned;
+- durable passkey credential-record repository/schema and atomic replacement of the credential record returned by OTP Passkey;
+- Foundation principal/account ↔ passkey user-handle mapping, discoverable-credential account policy, passkey naming/management and authorization;
+- protection/rotation lifecycle for persisted symmetric OTP/GridOTP/MobileOTP secrets;
+- recovery-code key lifecycle and Foundation's durable adapter to OTP's recovery-store contract;
+- operational logging/metrics and non-sensitive external error mapping;
+- release/runtime capability activation so unused OTP/AOTP/GridOTP/MobileOTP/Passkey features remain cold.
+
+Foundation must not reimplement OTP math, AOTP signatures, GridOTP challenge algorithms, MobileOTP wire compatibility, provisioning URI logic, recovery algorithms, OTP replay-key algorithms, WebAuthn option construction, WebAuthn ceremony validation, signature-counter rules, origin/RP validation or challenge-consumption mechanics now owned by OTP 6.1.
+
+### Implemented Foundation contract
+
+- [X] Foundation OTP floor raised from `^6.0` to `^6.1` and `ext-sodium` added to the development matrix for AOTP coverage.
+- [X] OTP is the single Foundation lower-layer MFA/passkey mechanics boundary for selected OTP/Passkey modes.
+- [X] Foundation passkey registration/authentication routes through `Infocyph\OTP\Passkey`.
+- [X] Direct Foundation WebAuthn ceremony/options/validator/serializer/codec duplication removed; retained `WebAuthnRuntime` is an empty deprecated cold-path compatibility sentinel only.
+- [X] Foundation WebAuthn configuration narrowed to OTP-consumed RP ID, exact trusted origin, ceremony TTL and optional subdomain policy.
+- [X] AOTP and GridOTP are exposed deliberately; MobileOTP is available only through an explicit legacy-import workflow.
+- [X] Existing TOTP/HOTP/OCRA application paths continue to delegate protocol/window/replay mechanics to OTP.
+- [X] Selected stateful OTP modes and Passkey require CacheLayer `AuthenticationStateCacheInterface` and fail closed when unavailable.
+- [X] Foundation does not add a second replay/challenge store for OTP-owned state.
+- [X] HOTP/counter-OCRA durable counters remain authoritative and transition through revision compare-and-swap.
+- [X] MFA factor creation/activation uses authoritative CAS rather than unconditional persistence.
+- [X] Sensitive OTP secret/PIN/private-key-shaped fields are redacted from enrollment audit/result context.
+- [X] AOTP stores only the enrolled public verification key; private-key generation/signing remains device-owned through OTP.
+- [X] OTP's authoritative passkey `CredentialRecord` is persisted in a dedicated `credential_record` column.
+- [X] Successful passkey authentication replaces the credential record only when the stored revision still equals the revision OTP actually verified.
+- [X] Additive passkey record/revision migrations and readiness checks cover existing installs.
+- [X] `benchmark:otp` provides initial direct-OTP-versus-Foundation attribution and participates in `benchmark:release`.
+- [X] Focused AOTP/GridOTP/MobileOTP and selected/fail-closed OTP Passkey graph regression coverage is present.
+
+### Remaining implementation/policy checklist
+
+- [ ] Prove every production `MfaFactorCompareAndSwapStoreInterface` implementation remains authoritative under the final supported deployment/concurrency matrix.
+- [ ] Re-audit OTP recovery-code adapter semantics for committed-count, replacement and atomic consumption against OTP 6.1's current contract.
+- [ ] Replace any remaining broad OTP `catch (Throwable)` classification with an internal operational taxonomy that distinguishes credential mismatch/replay/configuration from CacheLayer/backend failure, factor-store CAS exhaustion and unexpected runtime faults while preserving non-sensitive external auth failures.
+- [ ] Keep backend/coordination/persistence failures fail-closed and bounded across all selected modes.
+- [ ] Protect durable symmetric OTP/GridOTP/MobileOTP secrets at rest through the Epicrypt policy finalized in 26.10; plaintext exists only inside the narrow enrollment/verification execution window.
+- [X] Treat WebAuthn credential records as public-key credential state rather than symmetric MFA secrets while preserving access controls and diagnostic redaction.
+- [ ] Decide the recovery-code HMAC key lifecycle explicitly with Epicrypt; do not silently couple it to unrelated token-secret rotation.
+- [ ] Use OTP rotation planner/result types for algorithm-specific rotation while Foundation owns durable CAS/transactional activation and account-policy transitions.
+- [ ] Prove concurrent secret/factor rotation cannot lose newer factor/counter/recovery state.
+- [ ] Preserve OTP structured result/reason information internally rather than reducing useful state to booleans too early.
+- [ ] Reconfirm OTP/Passkey service lifetimes are immutable/stateless or external-state-backed under persistent/Fiber execution.
+- [ ] Reconfirm OTP-related capability graphs remain absent when no OTP/AOTP/GridOTP/MobileOTP/Passkey factor is selected.
+
+### Passkey/WebAuthn Foundation handoff
+
+Foundation no longer owns ceremony challenge generation/storage/consumption, creation/request option construction, direct attestation/assertion validator wiring, Base64URL protocol conversion or WebAuthn signature-counter rules. Those sit behind OTP `Passkey`.
+
+Foundation still owns the durable application record returned by the ceremony. After successful registration/authentication it atomically persists the exact `credentialRecordJson` returned by OTP, binds it to the correct Foundation principal/user handle, rejects stale concurrent replacement and applies passkey/account policy. DBLayer 26.6 supplies the generic persistence/CAS primitive.
+
+### Correctness and security acceptance
+
+- [ ] Test TOTP valid/invalid verification, configured skew/window, replay rejection and concurrent replay through the final hardened auth-state cache topology.
+- [ ] Test HOTP next-counter persistence and concurrent factor-store CAS; exactly one stale state advance may win.
+- [ ] Test counter-OCRA durable CAS and non-counter/time/challenge OCRA through OTP replay state.
+- [ ] Test recovery-code success, reuse rejection, replacement and concurrent consumption through the Foundation adapter.
+- [X] Test AOTP enrollment/public-key persistence, issuance, valid/invalid signature and one-time challenge replay; prove no private key reaches Foundation persistence/logs/artifacts.
+- [X] Test GridOTP enrollment, challenge issuance, valid/invalid response and challenge-state behavior through OTP-owned state.
+- [X] Test MobileOTP legacy import/verification policy and ensure it is never presented as the preferred new-deployment mode.
+- [ ] Test full Passkey registration and authentication through OTP `Passkey`, including observable RP ID/origin/challenge/user-presence/user-verification behavior without duplicating validator logic.
+- [ ] Test OTP Passkey challenge expiry and concurrent duplicate ceremony consumption so at most one execution succeeds.
+- [X] Persist the exact successful `credentialRecordJson` returned by OTP and prove stale credential-record writes are rejected rather than silently overwriting newer state.
+- [ ] Test concurrent assertions against one stored passkey credential with realistic ceremony execution so a stale write cannot overwrite newer authenticator state.
+- [ ] Test discoverable credential/user-handle mapping cannot bind a passkey to the wrong Foundation principal.
+- [ ] Test cache/backend outage, factor-store CAS exhaustion, stale passkey persistence and unexpected OTP exceptions all fail closed while retaining the correct internal operational category.
+- [X] Test production composition rejects an insecure/missing authentication-state capability for the selected Passkey path.
+- [ ] Extend release/build rejection coverage to every selected stateful OTP mode that requires secure authentication-state capability.
+- [ ] Test persisted secret protection for every production symmetric MFA factor store after 26.10.
+- [ ] Complete sequential/interleaved Fiber verification and persistent-worker reuse across representative TOTP/AOTP/GridOTP/Passkey paths.
+- [X] Test capability absence leaves unrelated auth graphs free of OTP/Passkey activation where not selected.
+- [ ] Complete final PHP 8.4/8.5 stable/lowest QA and static-analysis matrix on the final PR head with deprecations resolved.
+
+### Performance acceptance
+
+Benchmark Foundation against direct OTP 6.1 for the same semantic operation:
+
+1. graph/boot cost with all OTP capabilities absent versus enabled-but-unused;
+2. direct TOTP/provisioning work versus the Foundation OTP wrapper, separating replay I/O from wrapper cost;
+3. replay-protected TOTP through OTP's CacheLayer atomic path;
+4. HOTP verification + Foundation factor-store CAS;
+5. representative OCRA counter and challenge/time paths;
+6. recovery-code verification/consumption;
+7. AOTP issue + verify;
+8. GridOTP challenge + verify;
+9. MobileOTP verification as a compatibility path;
+10. direct OTP Passkey registration/authentication versus Foundation policy + credential lookup/atomic persistence;
+11. passkey stale-contention persistence path;
+12. repeated representative verification under a persistent runtime with memory measurement.
+
+`benchmark:otp` provides the initial direct native-provisioning versus Foundation provisioning-wrapper attribution. The remaining stateful factor/passkey/persistence measurements above stay open; CacheLayer/DBLayer costs must be attributed separately before optimizing wrapper code.
+
+### Completion gate
+
+26.4 can be checked only when Foundation consumes OTP 6.1 as the single OTP/AOTP/GridOTP/MobileOTP/Passkey mechanics boundary, direct WebAuthn ceremony duplication is removed, secure OTP auth-state topology is a release gate, all Foundation-owned factor/credential stores prove authoritative atomic persistence, persisted symmetric MFA secrets are protected, operational failure taxonomy is preserved, new-mode/rotation/concurrency tests pass, optional activation stays cold, final CI is green/deprecation-clean, and direct-OTP-versus-Foundation benchmarks record the final adapter/persistence overhead.
+
+**Status:** core integration is implemented; final acceptance remains open and symmetric-secret-at-rest closure is intentionally owned by 26.10.
 
 ---
 
-## 26.5 Pathwise 3.1 — open
+## 26.5 Pathwise 3.1 utilization pass — open
 
-**Released baseline:** Pathwise 3.1, commit `8226cf42747ae131486063cad39335d6dfc1c7f7`.
+### Baseline
 
-- [ ] deterministic Foundation temp-upload cleanup on success/failure without masking the primary exception;
-- [ ] real build-time malware-scanner composition when required, zero scanner cost when disabled;
-- [ ] process/generation ownership for static mounts/custom drivers;
-- [ ] preserve typed transfer results and correct local/non-local response handling;
-- [ ] keep X-Sendfile/X-Accel explicit/policy-driven;
-- [ ] preserve traversal/archive/symlink/bomb protections and stream ownership;
-- [ ] audit Pathwise/Flysystem integration for PHP 8.5 deprecations, including MIME/resource-era APIs, and keep filesystem HTTP/upload paths deprecation-clean;
-- [ ] prove persistent isolation and direct-Pathwise attribution.
+- package: `infocyph/pathwise` `^3.1`;
+- audited release: Pathwise 3.1;
+- tag commit: `8226cf42747ae131486063cad39335d6dfc1c7f7`.
+
+### Ownership decision
+
+Pathwise/Flysystem own filesystem/storage mechanics. Foundation owns application storage/security policy and Webrick owns HTTP transport/output.
+
+Pathwise owns:
+
+- filesystem creation through `StorageFactory` and Flysystem adapters;
+- path/mount resolution helpers;
+- file/directory copy/move/read/write/stream mechanics;
+- upload and download processors;
+- typed/readonly transfer result objects such as `DownloadPreparation` and `ChunkUploadState`;
+- upload validation, chunk handling, naming and optional malware-scanner invocation;
+- lower-level archive/path/symlink/traversal protections;
+- static mount/custom-driver registries as Pathwise process-level infrastructure.
+
+Foundation owns:
+
+- `filesystem.disks` application configuration and default-disk selection;
+- application-root relative path policy;
+- download allowed roots/extensions/size/attachment policy;
+- upload allowed types/extensions/size/image/chunk policy;
+- scanner capability/service composition;
+- ownership/cleanup of temporary files Foundation itself creates;
+- deciding which configured disks belong in each runtime graph;
+- offload policy such as X-Sendfile/X-Accel eligibility;
+- the bridge from Pathwise transfer results to Webrick response bodies.
+
+Webrick exclusively owns native HTTP response emission. Pathwise and Foundation may produce file/stream semantics but must never become competing SAPI/persistent-adapter writers.
+
+### Current integration findings to preserve
+
+- `FilesystemResponseFactory` uses Pathwise's typed download result and emits Webrick `FileBody` for appropriate local files or portable stream/chunk bodies for mounted/non-local storage.
+- The current branch already returns `ChunkUploadState` directly; do not regress to array normalization/wrappers around Pathwise result objects.
+- `StorageRegistry` lazily builds configured filesystems and gives Foundation-scoped mount names. Process-level mount state is acceptable under Foundation's one compiled application/generation per production process rule.
+- `FilesystemTransferFactory` applies Foundation policy to transient Pathwise upload/download processors rather than moving storage mechanics into Foundation.
+
+### Confirmed current issues
+
+1. `FilesystemUploadRequestHandler` materializes a Webrick uploaded file into a Foundation-owned `foundation-upload-*` temporary path before passing it to Pathwise. If Pathwise validation/processing throws before consuming/moving that source, Foundation currently has no guaranteed `finally` cleanup and can leak the temp file.
+2. Foundation exposes `filesystem.uploads.require_malware_scan` and sets `UploadProcessor::setRequireMalwareScan()`, but the normal graph must provide a real scanner through `setMalwareScanner()` when the policy is enabled. Pathwise correctly fails closed when scanning is required without a scanner.
+3. Pathwise's mount and custom-driver registries are static process state. Foundation must treat them as generation/process boot state, never per-request/job mutable state; deployment generation changes should replace the process rather than hot-remount generation A into generation B.
+4. PHP 8.5 deprecation noise on filesystem HTTP/upload integration must be attributed precisely across Foundation, Pathwise, Flysystem and Webrick. Foundation-local deprecated `uniqid()` test identifiers have already been removed; the remaining Pathwise/Flysystem MIME/resource-era API surface still requires a dedicated 26.5 audit rather than speculative lower-layer patches.
+
+### Audit and implementation checklist
+
+- [ ] Make ownership of Foundation-materialized upload temp files explicit from `moveTo()` until Pathwise has consumed/moved them.
+- [ ] Wrap normal and chunk-upload ingestion in deterministic cleanup; in `finally`, remove the Foundation temp file if it still exists.
+- [ ] Use the same primary-exception preservation semantics as `CleanupGuard`: cleanup failure may surface only when no primary upload/validation failure already exists.
+- [ ] Add explicit malware-scanner capability/service composition. When scanning is disabled, omit scanner graph/cost; when required, scanner availability must be validated before traffic.
+- [ ] Adapt the configured scanner to Pathwise's callable contract at a narrow compile-friendly boundary; do not create a parallel malware-scanning framework.
+- [ ] Preserve Pathwise fail-closed behavior when scanning is required and scanner execution fails/denies the file.
+- [ ] Keep `StorageRegistry` process/generation-scoped and initialize mounts once; prohibit request/job code from replacing global mounts or custom drivers.
+- [ ] Make custom Pathwise driver registration a build/process-boot concern with deterministic configuration and explicit package capability checks.
+- [ ] Treat generation replacement as process replacement for Pathwise static registries rather than adding production reset/unfreeze APIs merely for deploys.
+- [ ] Continue using Pathwise readonly result/domain objects directly where they express the operation; Foundation wrappers should exist only for real application policy.
+- [ ] Preserve local-file capability detection: Webrick `FileBody`/range/conditional handling for true local paths, portable streaming for mounted/non-local storage.
+- [ ] Permit X-Sendfile only for a true local file known to the web server; keep X-Accel explicit and configuration/policy driven.
+- [ ] Propagate unsupported storage-operation errors instead of silently pretending remote/mounted stores support local-path behavior.
+- [ ] Preserve Pathwise archive/traversal/symlink/bomb protections and ensure Foundation normalization never bypasses them.
+- [ ] Treat Pathwise local file-job/process helpers as local filesystem tooling, not as a replacement for Omnibus or Foundation distributed worker orchestration.
+- [ ] Audit all stream ownership so each resource is closed by exactly one documented layer and Webrick remains the sole native response writer.
+- [ ] Audit Pathwise/Flysystem integration for PHP 8.5 deprecations, including MIME/resource-era APIs, and keep filesystem HTTP/upload paths deprecation-clean without suppressing notices.
+
+### Correctness and security acceptance
+
+- [ ] Test Foundation temp cleanup after successful normal upload when the temporary source remains, and after every validation/storage exception path.
+- [ ] Test chunk-upload materialization cleanup for success, rejected chunk, invalid metadata and finalize failure.
+- [ ] Test cleanup failure cannot mask the primary Pathwise validation/storage exception.
+- [ ] Test `require_malware_scan=false` requires no scanner and `true` fails during composition/boot when scanner capability is absent.
+- [ ] Test scanner allow/deny/error behavior through the Foundation bridge without weakening Pathwise fail-closed semantics.
+- [ ] Test local, mounted and remote-style download paths including HEAD/range/conditional semantics through Webrick.
+- [ ] Test X-Sendfile rejection for mounted/non-local storage and explicit X-Accel policy.
+- [ ] Test typed `DownloadPreparation`/`ChunkUploadState` contracts are preserved.
+- [ ] Test repeated persistent-runtime access does not mutate/leak mount/driver topology between executions.
+- [ ] Test configured multi-disk mounts initialize deterministically and cannot be silently replaced at request/job runtime.
+- [ ] Test traversal/archive/symlink security cases through the Foundation-configured path rather than only standalone Pathwise.
+- [ ] Test stream/resource closure on success, partial read, exception and client-abort-style paths where the adapter permits simulation.
+- [ ] Test PHP 8.5 filesystem HTTP/upload coverage is deprecation-clean after lower-layer attribution/fixes.
+
+### Performance acceptance
+
+Benchmark at minimum:
+
+1. filesystem capability absent versus present-but-unused graph/boot cost;
+2. first `StorageRegistry` initialization and warm disk lookup;
+3. warm mounted/local path resolution;
+4. direct Pathwise upload versus Foundation request-materialization + Pathwise ingestion;
+5. failure-path temp cleanup overhead;
+6. chunk upload and finalize;
+7. direct Pathwise download preparation versus Foundation response bridge;
+8. remote/mounted stream setup and iteration through Webrick body abstractions;
+9. one-time mount/custom-driver boot cost;
+10. repeated persistent-runtime filesystem operations with memory measurement.
+
+Do not add another filesystem cache or response-stream abstraction unless attribution shows measurable Foundation overhead that Pathwise/Webrick cannot already eliminate.
+
+### Completion gate
+
+The Pathwise tracker can be checked only when Foundation-owned upload temps are deterministically cleaned, required malware scanning has a real build-time composition path, static mount/driver lifecycle is proven generation-safe, local/non-local Webrick response ownership remains correct, PHP 8.5 integration is deprecation-clean, security regression tests pass and Foundation-vs-direct-Pathwise benchmarks record the final bridge overhead.
 
 ---
 
@@ -238,7 +445,7 @@ DBLayer 26.6 supplies the generic persistence revision/CAS mechanism. OTP owns a
 
 Foundation **keeps dedicated execution-owned connections as the default**. `DB_POOL_ENABLED` remains `false` by default.
 
-Pooling is supported for persistent runtimes but is an opt-in operational optimization. A deployment should enable it only after representative datastore/runtime benchmarks demonstrate a material benefit. Generic CI/SQLite timing is not treated as a proxy for network-database production workloads. This conservative choice closes the architectural decision without inventing a performance claim the standard CI benchmark did not establish.
+Pooling is supported for persistent runtimes but is an opt-in operational optimization. A deployment should enable it only after representative datastore/runtime benchmarks demonstrate a material benefit. Generic CI/SQLite timing is not treated as a proxy for network-database production workloads.
 
 ### Validation evidence
 
@@ -255,57 +462,592 @@ Pooling is supported for persistent runtimes but is an opt-in operational optimi
 
 ---
 
-## 26.7 ReqShield 3.1 — open
+## 26.7 ReqShield 3.1 utilization pass — open
 
-**Released baseline:** ReqShield 3.1, commit `07e9e0a2465409e33c140b0cee920f821ca49c79`.
+### Baseline
 
-- [ ] keep parsing/execution/sanitization/schema mechanics ReqShield-owned;
-- [ ] finalize production schema topology before traffic;
-- [ ] keep mutable Validator instances per-call unless a reentrant compiled form is proven safe;
-- [ ] do not add a Foundation validation-plan cache before measuring ReqShield's bounded plan cache;
-- [ ] acquire DBLayer only for actual DB-backed validation rules;
-- [ ] preserve `DatabaseProvider`, batching, DB constraints, limits, explicit callable dynamic islands, Fiber isolation, DB-free cold paths, and direct attribution.
+- package: `infocyph/reqshield` `^3.1`;
+- audited release: ReqShield 3.1;
+- tag commit: `07e9e0a2465409e33c140b0cee920f821ca49c79`;
+- ReqShield's production package does not require DBLayer; DBLayer is a development/integration dependency and database validation is exposed through ReqShield's small `DatabaseProvider` contract.
+
+### Ownership decision
+
+ReqShield owns validation, sanitization, schema/rule compilation and validation execution. Foundation owns named application schemas, application policy/configuration and framework integration around ReqShield.
+
+ReqShield owns:
+
+- validation rule parsing/compilation;
+- built-in validation rules;
+- `ValidationPlan` and rule execution;
+- validation result/error/failure objects;
+- sanitization;
+- input casting;
+- nested/wildcard validation mechanics;
+- validation limits;
+- field aliases/messages/locale behavior;
+- strict/unknown-field behavior;
+- DTO/result mapping where exposed by ReqShield;
+- schema composition;
+- JSON-schema export behavior;
+- process-level rule/plan caching supplied by ReqShield;
+- `CompiledValidator`;
+- database-rule definitions;
+- `DatabaseBatchRule`;
+- `DatabaseProvider` contract;
+- batching/grouping/execution of expensive database rules through `BatchExecutor`.
+
+Foundation owns:
+
+- named application validation schemas;
+- built-in Foundation auth request schemas;
+- application schema extension policy;
+- `validation.defaults` / named overrides;
+- choosing whether validation is enabled in a runtime graph;
+- Webrick request/input adaptation;
+- FormRequest/application convenience APIs;
+- selection of an optional ReqShield database provider;
+- selection of the DBLayer connection used by database rules;
+- mapping validation failures to application/HTTP behavior;
+- DI lifetime and build/runtime composition;
+- deciding which configured custom callbacks/rules/sanitizers are acceptable dynamic inputs.
+
+Foundation must not reimplement rule parsing, rule execution, sanitization, schema compilation, wildcard expansion, validation batching or JSON-schema generation above ReqShield.
+
+### Current integration findings to preserve
+
+1. `ValidationServiceProvider` only installs validation when the validation capability is selected.
+2. Validation does not automatically create a database graph.
+3. Foundation checks whether `DBLayerFactory` is already present and only then contributes `ReqShieldDatabaseProvider`.
+4. `ValidatorFactory` accepts `?DatabaseProvider`; ordinary validation remains valid without DBLayer.
+5. `ReqShieldDatabaseProvider` resolves its DBLayer connection only when a database rule is actually executed.
+6. `ValidatorFactory::make()` and `makeRules()` produce a new ReqShield `Validator`, avoiding shared mutable validator state between executions.
+7. `ValidationSchemaRegistry::extend()` delegates generic schema composition to `Validator::composeSchemas()` instead of maintaining another schema-composition algorithm.
+8. Foundation's DB adapter batches values using DBLayer's safe parameter limits instead of issuing one query per field/value.
+
+### Confirmed current issues / required decisions
+
+1. ReqShield 3.1 deliberately keeps DBLayer out of its production dependencies. Foundation must preserve this modular boundary; validation-only applications must not gain DBLayer simply because ReqShield supports `exists` / `unique`.
+2. The current Foundation graph provides a DB adapter to validators when database capability is already present. This is acceptable because connection resolution remains lazy, but do not add per-validation DB initialization merely for API uniformity.
+3. ReqShield detects whether a validation plan actually contains database rules and only needs `DatabaseProvider` for that expensive batch. Preserve that behavior.
+4. Database `exists` / `unique` checks are validation-time observations, not database constraints. They cannot guarantee uniqueness against a concurrent write. Foundation persistence code must still rely on real DB constraints/transactions and correctly map constraint violations.
+5. `CompiledValidator` is readonly, but in ReqShield 3.1 it wraps a closure capturing a `Validator` and delegates repeated validation to that captured object. Foundation must not assume this automatically makes one compiled validator safe as a process-wide concurrent singleton.
+6. ReqShield already maintains bounded process-level plan caching internally. Do not add a Foundation validation-plan cache until benchmarks prove a real missing layer.
+7. If Foundation needs an immutable/exportable precompiled validation artifact for generated releases and ReqShield does not expose one, add that general capability to ReqShield rather than serializing Foundation's captured validator closure.
+8. `ValidationSchemaRegistry` is mutable through `define()` / `extend()`. In generated production, configured/Foundation schemas should be finalized before traffic; request/job code should not mutate one process-wide schema registry.
+9. Application-defined callable rules, conditions and sanitizers can be legitimate dynamic inputs. They must remain explicit dynamic islands rather than being silently serialized into generated artifacts.
+10. Validation limits such as depth, field count, wildcard expansions and flattened paths are security/DoS controls. Foundation must not disable or inflate them simply to avoid validation failures.
+11. ReqShield already batches expensive database rules by operation/table. Foundation must not regress to field-by-field `exists`/`unique` queries.
+12. Foundation's DB adapter performs its own query construction because ReqShield intentionally exposes a framework-neutral contract. Keep that adapter narrow.
+13. HTTP request construction/parsing remains Webrick-owned. Foundation should feed ReqShield normalized application input rather than introduce a second generic HTTP request parser through validation.
+14. File/content validation and file storage remain different responsibilities: ReqShield validates input; Pathwise owns storage/upload processing. Foundation should not merge those runtimes.
+
+### Audit and implementation checklist
+
+- [ ] Rescan every Foundation `Infocyph\ReqShield` use against ReqShield 3.1 tagged APIs.
+- [ ] Keep named schema/application policy in `ValidationSchemaRegistry`; keep rule execution in ReqShield.
+- [ ] Keep Foundation schema extension based on `Validator::composeSchemas()` rather than generic array merging where ReqShield semantics differ.
+- [ ] Finalize configured production validation schemas before traffic.
+- [ ] Prevent normal production request/job code from mutating the shared schema registry.
+- [ ] Retain development/tooling schema mutability only where genuinely useful.
+- [ ] Keep `ValidatorFactory` as a thin configuration/profile mapper.
+- [ ] Audit every `ValidatorFactory` setter/config option against ReqShield's native API and remove Foundation transformations that add no application semantics.
+- [ ] Keep per-call Validator construction unless a lower-layer immutable/reentrant compiled form is proven safe and measurably faster.
+- [ ] Do not cache `CompiledValidator` process-wide merely because its wrapper is readonly.
+- [ ] Benchmark ReqShield's own bounded plan cache before adding any Foundation cache.
+- [ ] If generated immutable validation plans would materially improve boot/hot-path cost, first add/release a generic exportable plan contract in ReqShield.
+- [ ] Keep database validation optional.
+- [ ] Do not activate DBLayer merely because validation is enabled.
+- [ ] Keep DB connection acquisition lazy until a validation plan actually executes DB-backed rules.
+- [ ] Preserve ReqShield's native `DatabaseProvider` contract as the only coupling from ReqShield into Foundation's database adapter.
+- [ ] Preserve ReqShield `BatchExecutor` grouping/batching semantics.
+- [ ] Keep DBLayer batch-size calculation in the Foundation adapter for actual backend parameter limits.
+- [ ] Review `ReqShieldDatabaseProvider` query grouping for `exists`, `unique`, ignored IDs, nullable values and soft-delete policy.
+- [ ] Treat database validation as advisory validation only; enforce authoritative uniqueness/integrity at database write time.
+- [ ] Preserve validation depth/field/wildcard/path limits and fail safely when limits are exceeded.
+- [ ] Keep custom callable rules/sanitizers/conditions as explicit dynamic configuration where needed.
+- [ ] Avoid capturing request/principal/container state into long-lived validator instances.
+- [ ] Feed ReqShield arrays/normalized values from the existing Webrick request boundary; do not add a second HTTP parsing layer.
+- [ ] Preserve ReqShield's structured `ValidationResult`, failures and validated-input objects internally rather than reducing everything to booleans prematurely.
+- [ ] Keep JSON-schema generation lower-layer-owned when Foundation exposes it.
+- [ ] Ensure validation capability is absent from runtime graphs that do not select it.
+
+### Correctness and security acceptance
+
+- [ ] Test named Foundation schemas and application-defined schemas.
+- [ ] Test schema extension/composition behavior against direct ReqShield.
+- [ ] Test required/type/string/numeric/date/array/conditional representative rules through Foundation.
+- [ ] Test sanitizers and casts.
+- [ ] Test nested/wildcard validation.
+- [ ] Test strict/strip/allow-unknown behavior.
+- [ ] Test aliases/custom messages/locales.
+- [ ] Test DTO/result behavior where Foundation exposes it.
+- [ ] Test max depth, max fields, max wildcard expansions and max flattened paths.
+- [ ] Test malformed or attacker-controlled deeply nested input fails within bounded resource usage.
+- [ ] Test a validation-only application with no DBLayer validates successfully and contains no database definitions/connections.
+- [ ] Test an application with database capability but a non-DB schema performs zero DB connection/query work during validation.
+- [ ] Test schemas using `exists` / `unique` require a database provider.
+- [ ] Test batched `exists` across repeated values/columns.
+- [ ] Test batched `unique`, ignored IDs and soft-delete options.
+- [ ] Test nullable database-rule values.
+- [ ] Test database provider failure is surfaced as a validation infrastructure failure rather than silently converted to successful validation.
+- [ ] Test DB uniqueness validation cannot replace an authoritative database unique constraint in persistence tests.
+- [ ] Test repeated validation through a persistent worker does not retain prior validated data/errors.
+- [ ] Test interleaved Fiber validations remain isolated.
+- [ ] If compiled validators are ever shared, add explicit concurrency/reentrancy tests before adopting that lifetime.
+- [ ] Test production schema registry topology remains unchanged across executions.
+- [ ] Test custom callable rule/sanitizer dynamic islands do not leak execution state.
+- [ ] Test disabled validation capability adds no ReqShield services to unrelated graphs.
+
+### Performance acceptance
+
+Benchmark at minimum:
+
+1. validation capability absent versus enabled-but-unused graph/boot cost;
+2. direct ReqShield Validator construction versus Foundation `ValidatorFactory::make()`;
+3. first named-schema validation;
+4. warm repeated named-schema validation using ReqShield's internal plan cache;
+5. Foundation `compile()` / `CompiledValidator` path without unsafe singleton caching;
+6. representative scalar schema;
+7. nested/wildcard schema;
+8. sanitization/casting-heavy schema;
+9. strict/unknown-field handling;
+10. direct ReqShield DB batch versus Foundation ReqShield→DBLayer adapter;
+11. multiple `exists` checks showing batched behavior;
+12. multiple `unique` checks showing batched behavior;
+13. non-DB validation while database capability is present, proving zero DB I/O;
+14. repeated validations under persistent runtime with memory measurement.
+
+Do not introduce a Foundation validation cache simply because repeated schema construction appears in profiles. First attribute cost against ReqShield's own bounded compiled-plan cache.
+
+Do not replace per-call mutable validators with shared compiled validators without concurrency proof.
+
+### Completion gate
+
+The ReqShield tracker can be checked only when validation/sanitization/schema mechanics remain ReqShield-owned; Foundation contains only application schema/profile/request-boundary policy; validation does not activate DBLayer on its own; non-DB schemas perform no database I/O even when DB capability exists; DB rules retain ReqShield-native batching; validation-time uniqueness is not mistaken for authoritative database integrity; production schema topology is finalized; mutable validators cannot leak state across executions; any compiled/shared validator optimization is explicitly proven reentrant; validation limits/security behavior remain intact; and direct-ReqShield versus Foundation attribution benchmarks record the final bridge overhead.
 
 ---
 
-## 26.8 Omnibus 2.5 — open
+## 26.8 Omnibus 2.5 utilization pass — open
 
-**Released baseline:** Omnibus 2.5, commit `7686de11b75ec4e02cbebd2080d6c470c1c314cf`.
+### Baseline
 
-- [ ] keep routing/transport/retry/settlement/failure/workflow mechanics Omnibus-owned;
-- [ ] preserve Omnibus message ID as execution correlation identity;
-- [ ] keep handler/middleware resolution execution-scoped;
-- [ ] expose selected Omnibus-native durable transports and activate DBLayer/CacheLayer only when required;
-- [ ] bind DBLayer after-commit dispatch to the current execution connection safely;
-- [ ] define Foundation supervision vs Omnibus worker ownership without double supervision;
-- [ ] keep durable serialization data-only and prove retry/ack/release/reject correctness, persistent isolation, graceful replacement, and direct attribution.
+- package: `infocyph/omnibus` `^2.5`;
+- audited release: Omnibus 2.5;
+- tag commit: `7686de11b75ec4e02cbebd2080d6c470c1c314cf`;
+- Omnibus 2.5 directly requires UID 5.0 and exposes optional CacheLayer/DBLayer integrations for coordination, durable queues, failure stores, workflows and after-commit behavior.
+
+### Ownership decision
+
+Omnibus owns messaging/event/queue/worker mechanics. Foundation owns application messaging topology, service resolution and integration of Omnibus workers with the Foundation release/execution lifecycle.
+
+Omnibus owns:
+
+- `Envelope` and stamps;
+- `MessageIdStamp` message identity;
+- `MessageBus`;
+- message routing and `RouteMap`;
+- transport contracts and `TransportRegistry`;
+- synchronous and in-memory transports;
+- DBLayer durable transport;
+- Redis/Valkey transport;
+- broker transport abstraction;
+- AMQP/SQS integration boundaries;
+- reservation/visibility/acknowledge/release/reject semantics;
+- `Consumer`;
+- retry strategy behavior;
+- failed-message behavior and failure-store contracts;
+- `Worker`, `WorkerOptions`, `WorkerLifecycle` and built-in `WorkerPool`;
+- `HandlerMap`, `HandlerInvoker` and Omnibus handler middleware pipeline;
+- event dispatch/listener maps and queued listeners;
+- envelope/message/stamp serialization;
+- uniqueness/overlap/rate-limit/circuit-breaker behavior supplied by Omnibus + CacheLayer;
+- DBLayer-backed failure storage and workflow storage;
+- DBLayer queue schema and transport mechanics;
+- workflow coordination;
+- after-commit messaging integration;
+- Omnibus telemetry wrappers;
+- scheduled-message dispatch primitives;
+- message transport/consumer soak/runtime semantics.
+
+Foundation owns:
+
+- `messaging.handlers` application service IDs;
+- listener service IDs;
+- handler/job middleware service IDs;
+- application message routes;
+- selected transport profiles and queue names;
+- application retry configuration;
+- selected durable failure-store profile;
+- selected Omnibus workflow/coordination capabilities;
+- mapping configured application service IDs into the finalized InterMix runtime;
+- Foundation worker graph inclusion and release-generation worker topology;
+- graceful generation replacement policy;
+- Foundation execution scope and cleanup around one delivered message;
+- propagation of Omnibus message identity into Foundation logging/correlation state;
+- selection of DBLayer/CacheLayer instances used by Omnibus integrations;
+- application operational defaults and build-time validation.
+
+Foundation must not create a competing event bus, queue runtime, retry engine, reservation protocol, failure queue, uniqueness system, overlap lock system, workflow engine or worker message loop above Omnibus.
+
+### Current integration findings to preserve
+
+1. `MessagingServiceProvider` already builds native Omnibus `HandlerMap`, `HandlerInvoker`, `ListenerMap`, `RouteMap`, `TransportRegistry`, `MessageBus`, `EventDispatcher`, `Consumer`, worker and scheduled-message services rather than wrapping Omnibus behind a second Foundation messaging abstraction.
+2. `MessagingRuntimeResolver` is an explicit dynamic island for application-configured service IDs. The surrounding messaging graph remains generated.
+3. Handler and listener service instances are resolved from the finalized container during actual execution rather than being captured when the process singleton messaging topology is built.
+4. `ResolvingHandlerMiddleware` resolves application middleware inside the active execution scope.
+5. Omnibus `HandlerInvoker` prebuilds the middleware pipeline structure once, so Foundation does not need another middleware pipeline runtime.
+6. `InterMixExecutionScope` reuses `MessageIdStamp` as the Foundation execution correlation identity instead of generating an unrelated second execution ID.
+7. `ConsumerFactory` delegates retry decisions to Omnibus `ExponentialRetryStrategy`.
+8. `OmnibusWorkerFactory` maps application worker configuration into native `WorkerOptions` / `Worker`.
+9. Scheduler-to-message behavior uses Omnibus `ScheduledMessageDispatcher`.
+
+### Confirmed current issues / required expansion
+
+1. Foundation's default `TransportRegistry` currently contains only `sync` and `memory`. Omnibus 2.5 exposes more lower-layer transport functionality, including DBLayer durable queues and native Redis/Broker boundaries. Foundation should expose selected Omnibus transports through configuration rather than leave users to rebuild integration outside Foundation.
+2. The default `FailureStore` is `InMemoryFailureStore`. That is appropriate for local/testing/synchronous/in-memory use but is not a durable production failed-message store for an asynchronous durable queue.
+3. A production durable worker should require an explicitly suitable failure-store policy where failed-message retention/retry operations are required.
+4. DBLayer and CacheLayer are optional Omnibus integrations. Selecting `sync`/`memory` must not activate either dependency graph.
+5. Selecting DBLayer transport/workflow/failure storage should consume the already-selected Foundation DBLayer capability and safe lifecycle from 26.6.
+6. Selecting uniqueness/overlap/rate-limit/circuit policies should consume Omnibus's CacheLayer integration rather than Foundation-auth cache adapters or a new Foundation policy implementation.
+7. Omnibus already provides its own bounded/legal CacheLayer policy-key encoder. Do not reuse Foundation authentication-state physical-key namespaces for messaging coordination.
+8. Omnibus DBLayer `AfterCommitDispatcher` binds to an actual `Connection`. Under Foundation's execution-scoped DB model this integration must use the current execution connection and never become a process singleton that captures the first scoped database connection.
+9. Omnibus `Consumer` already owns receive → execute → retry/release → failure/reject → acknowledge lifecycle. Foundation must not add a second retry/settlement decision outside it.
+10. Failure/retry and transport settlement errors have different semantics. Foundation logging may classify them, but it must not acknowledge a message Omnibus decided should be released/rejected.
+11. Handler/listener/middleware topology is known during Foundation composition. Service IDs should be validated/enriched into the generated graph before release, while actual scoped service resolution remains execution-time behavior.
+12. `MessagingRuntimeResolver` accepts arbitrary callables in addition to service IDs. User-provided callables are legitimate dynamic islands, but Foundation-owned configured class/service handlers should prefer deterministic service IDs.
+13. Normalize worker topology at build/process boot rather than making source configuration discovery part of steady worker lifecycle.
+14. Foundation owns cross-generation worker replacement; Omnibus owns worker execution mechanics. Do not create two independent supervisors competing over restart/shutdown semantics.
+15. Omnibus's `WorkerPool` is process orchestration for same-generation worker concurrency. Foundation must explicitly compose it beneath Foundation generation supervision instead of independently supervising the same workers twice.
+16. Omnibus workflows, chains/batches and durable state already include atomic/claim semantics. If Foundation exposes them, use Omnibus contracts/stores directly rather than creating Foundation workflow records.
+17. Omnibus 2.5 includes serializer registries/codecs. Foundation must require explicit message/stamp serialization topology for durable transports instead of serializing arbitrary service/runtime objects.
+18. Message envelopes may contain sensitive application data. Foundation diagnostics must not dump complete serialized envelopes indiscriminately.
+19. Messaging is optional. A runtime that does not select messaging must not pay for transports, consumers, DB queue tables, CacheLayer policies or worker topology.
+
+### Audit and implementation checklist
+
+- [ ] Rescan every Foundation `Infocyph\Omnibus` usage against Omnibus 2.5 tagged APIs.
+- [ ] Keep `MessageBus`, route maps, handler maps, consumer, workers, retries, failure stores and transport settlement Omnibus-owned.
+- [ ] Keep Omnibus `MessageIdStamp` as the authoritative Foundation execution correlation identity when present.
+- [ ] Preserve one `foundation.worker` execution scope per delivered message.
+- [ ] Continue seeding the Omnibus `Envelope` and message into the InterMix execution scope.
+- [ ] Ensure scope cleanup completes before Omnibus acknowledges/releases/rejects according to the consumer result path.
+- [ ] Preserve primary handler failure over Foundation cleanup failures while still allowing Omnibus to perform correct retry/failure settlement.
+- [ ] Prevalidate configured handler/listener/middleware service IDs during graph/release build without eagerly instantiating execution-scoped services.
+- [ ] Prefer service IDs for Foundation-owned messaging topology; retain raw callables only as documented dynamic islands.
+- [ ] Keep execution-time resolution inside the active execution so scoped dependencies remain scoped.
+- [ ] Verify singleton `HandlerInvoker` captures immutable topology/resolver wrappers only, never an execution-scoped handler instance.
+- [ ] Expand Foundation transport configuration around Omnibus-native transports instead of implementing transport-specific queue code in Foundation.
+- [ ] Keep `sync` and `memory` as zero-external-dependency transports.
+- [ ] Add DBLayer durable transport composition only when explicitly configured.
+- [ ] Add native Redis/Valkey transport composition only when explicitly configured and required client/extension is available.
+- [ ] Add broker/AMQP/SQS integrations through Omnibus published boundaries when selected; do not embed vendor protocol logic into Foundation.
+- [ ] Validate transport capabilities such as receive/delay/visibility at build/process boot where possible.
+- [ ] Keep DBLayer/CacheLayer graphs absent unless selected Omnibus features require them.
+- [ ] For DBLayer durable transport, consume 26.6 lifecycle rather than registering a separate process-global database connection.
+- [ ] For DBLayer after-commit dispatch, bind the current execution connection safely; do not capture a scoped `Connection` in a process singleton.
+- [ ] Use Omnibus DBLayer failure/workflow stores directly when selected.
+- [ ] Keep Omnibus QueueSchema ownership for durable queue tables; Foundation chooses deployment/migration policy only.
+- [ ] Keep `InMemoryFailureStore` for appropriate development/local/non-durable profiles.
+- [ ] Require explicit durable failure-store choice for production durable queues where failed-message retention/retry is expected.
+- [ ] Use Omnibus CacheLayer uniqueness, overlap, rate-limit and circuit-breaker integrations directly.
+- [ ] Use Omnibus policy/storage-key semantics for messaging coordination; do not route through auth-state cache adapters.
+- [ ] Keep Omnibus retry strategy authoritative; Foundation only maps retry configuration.
+- [ ] Keep transport acknowledge/release/reject decisions inside Omnibus Consumer.
+- [ ] Preserve Omnibus visibility/reservation semantics and cancellation/deadline behavior.
+- [ ] Normalize worker topology into Foundation generation metadata/build output and avoid source configuration discovery during steady worker execution.
+- [ ] Define exact ownership between Foundation generation supervision and Omnibus `Worker` / optional `WorkerPool`.
+- [ ] Foundation owns generation A→B replacement; Omnibus owns same-generation execution/worker-loop semantics.
+- [ ] Do not run a Foundation supervisor and Omnibus WorkerPool as independent owners of the same child processes.
+- [ ] Keep scheduler runtime and worker runtime separate even when scheduler dispatches an Omnibus message.
+- [ ] Use Omnibus workflow/chain/batch facilities directly if Foundation exposes them.
+- [ ] Define durable serializer/message-codec/stamp-codec topology explicitly for each non-memory transport.
+- [ ] Prohibit serialization of live container/Application/Connection/request/principal/service objects into durable envelopes.
+- [ ] Keep message/failure diagnostics redaction-aware.
+- [ ] Use Omnibus telemetry sinks/wrappers where semantics fit instead of wrapping every transport/consumer with another Foundation telemetry runtime.
+- [ ] Keep messaging services entirely absent from runtime graphs that do not select messaging.
+
+### Correctness and reliability acceptance
+
+- [ ] Test synchronous dispatch and in-memory asynchronous transport.
+- [ ] Test configured route/default route behavior.
+- [ ] Test handler and listener/event resolution.
+- [ ] Test handler/job middleware ordering.
+- [ ] Test execution-scoped handler/middleware dependencies are fresh between messages.
+- [ ] Test Omnibus `MessageIdStamp` maps to the same Foundation execution identity throughout handler/logging/history state.
+- [ ] Test missing message IDs receive exactly one Foundation fallback execution identity.
+- [ ] Test sequential messages do not retain previous envelope/message/principal/DB state.
+- [ ] Test interleaved Fiber execution where supported.
+- [ ] Test handler success acknowledges exactly once.
+- [ ] Test retryable failure releases with Omnibus retry delay.
+- [ ] Test terminal failure records failure and rejects according to Omnibus semantics.
+- [ ] Test decode failure follows Omnibus undecodable-message failure semantics.
+- [ ] Test Foundation cleanup failure cannot cause an already-successful/failed message to be settled incorrectly.
+- [ ] Test cancellation, shutdown and visibility timeout behavior.
+- [ ] Test worker `max_messages`, runtime and memory limits.
+- [ ] Test graceful Foundation generation replacement while Omnibus worker execution is active.
+- [ ] Test optional WorkerPool shutdown/restart ownership without double supervision.
+- [ ] Test durable DBLayer transport enqueue/reserve/ack/release/reject and contention.
+- [ ] Test DBLayer after-commit dispatch sends only after successful outer commit and does not send after rollback.
+- [ ] Test durable failure-store retry claims/concurrent retry handling.
+- [ ] Test workflow atomic claims/transitions if workflow support is enabled.
+- [ ] Test Redis/Valkey transport when enabled and broker transport capability checks when enabled.
+- [ ] Test unique-message, overlap, lost-lease, rate-limit and circuit-breaker behavior.
+- [ ] Test `sync`/`memory` topology activates neither DBLayer nor CacheLayer solely because those packages are installed.
+- [ ] Test DB-backed messaging and CacheLayer-backed policies activate only required graphs.
+- [ ] Test durable serialization round trips for message + core stamps and rejects unknown/malformed types safely.
+- [ ] Test durable envelopes cannot deserialize arbitrary Foundation runtime service objects.
+- [ ] Test failed-message logs/telemetry avoid sensitive payload disclosure.
+- [ ] Run long persistent-consumer soak tests proving bounded memory and no scoped state leakage.
+
+### Performance acceptance
+
+Benchmark Foundation against direct Omnibus for the same semantic workload:
+
+1. messaging capability absent versus enabled-but-unused graph/boot cost;
+2. direct synchronous Omnibus dispatch versus Foundation `foundation.messaging`;
+3. handler-map resolution;
+4. zero/one/multiple handler middleware;
+5. service-ID resolution through the Foundation execution scope;
+6. execution-scope/message-ID bridge overhead;
+7. in-memory send/receive/ack cycle;
+8. retryable failure/release path;
+9. terminal failure-store path;
+10. durable DBLayer enqueue/reserve/ack and contention;
+11. Redis/Valkey send/receive when enabled;
+12. uniqueness/overlap/rate-limit/circuit policy overhead separately;
+13. durable serialization encode/decode;
+14. worker construction/boot from generation-owned topology;
+15. steady-state worker message throughput;
+16. optional WorkerPool same-generation concurrency;
+17. repeated persistent worker execution with memory measurement;
+18. workflow/chain/batch paths only when Foundation actually exposes them.
+
+Do not bypass Foundation execution scope merely to improve message throughput; scope is required for DB/auth/principal/temp-resource cleanup and state isolation. Do not create faster Foundation-specific queue paths that skip Omnibus retry/reservation/failure semantics.
+
+### Completion gate
+
+The Omnibus tracker can be checked only when Foundation remains a thin topology/service-resolution/lifecycle adapter around Omnibus; Omnibus owns routing, transport, retry, settlement, failure and workflow mechanics; message IDs are reused as Foundation execution identity; handler/middleware resolution remains execution-scoped without singleton capture; Foundation exposes required Omnibus-native durable transports rather than reimplementing them; DBLayer/CacheLayer integrations activate only when selected; durable workers have durable failure semantics; DB after-commit dispatch uses the correct current execution connection; Foundation generation supervision and Omnibus worker/WorkerPool ownership do not conflict; serialization boundaries contain data rather than live runtime services; persistent consumer isolation and cancellation/replacement tests pass; and direct-Omnibus versus Foundation attribution benchmarks record the final messaging bridge overhead.
 
 ---
 
-## 26.9 TalkingBytes 2.0.0 — open
+## 26.9 TalkingBytes 2.0.0 utilization pass — open
 
-**Released baseline:** TalkingBytes 2.0.0, commit `86d0e9dde8124ddeacea8ba7f81911af584b879b`.
+### Baseline
 
-- [ ] keep HTTP/email/webhook/gRPC protocol execution TalkingBytes-owned;
-- [ ] classify profile/client lifetime and isolate cookie/auth/request mutation;
-- [ ] keep webhook replay on CacheLayer atomic `setIfAbsent()` and Foundation security-key derivation;
-- [ ] preserve production replay fail-closed topology;
-- [ ] integrate inbound gRPC through the existing worker lifecycle;
-- [ ] add native inbound/outbound email profiles where required;
-- [ ] keep secrets out of logs/cache keys/artifacts and prove optional-capability cold paths/direct attribution.
+- package: `infocyph/talkingbytes` `^2.0`;
+- audited release: TalkingBytes 2.0.0;
+- tag commit: `86d0e9dde8124ddeacea8ba7f81911af584b879b`.
+
+### Ownership decision
+
+TalkingBytes owns communication protocol execution. Foundation owns application profile selection/composition and execution-lifecycle policy around those protocol objects.
+
+TalkingBytes owns:
+
+- HTTP request/response execution and client configuration;
+- retry, rate-limit, circuit-breaker, idempotency and cookie behavior supplied by TalkingBytes;
+- inbound/outbound email protocol, parsing/serialization and transport behavior;
+- webhook signing, verification, sender/receiver behavior and the `WebhookReplayStore` contract;
+- gRPC client invocation, generated-stub/native invocation, streaming and inbound dispatch contracts;
+- protocol-specific result/error objects and lower-layer transport semantics.
+
+Foundation owns:
+
+- named HTTP/email/webhook/gRPC application profiles;
+- build-time capability/profile selection and validation;
+- mapping configured gRPC/email/webhook handlers to application service IDs;
+- InterMix lifetime/scope selection for profile objects;
+- selecting the CacheLayer-backed webhook replay implementation;
+- production secret/reference policy for credentials, API keys and signing secrets;
+- deciding whether inbound gRPC/email processing participates in the existing worker execution boundary;
+- observability/correlation policy without duplicating TalkingBytes protocol logic.
+
+Foundation must not create another HTTP client, mail parser/transport, webhook signature runtime or gRPC protocol layer above TalkingBytes.
+
+### Confirmed current findings
+
+1. `CommunicationProfiles::http()` rejects production profiles that disable TLS peer or host verification. Preserve this fail-closed policy.
+2. `HttpClient` and `WebhookSender` are execution-scoped, while `CommunicationProfiles` is process-safe configuration state. This is safer than a blanket singleton because cookie jars and some resilience components are mutable, but the pass must explicitly classify profile state: cookie/session state must never leak across executions, while rate-limit/circuit-breaker semantics intended to span calls must not be accidentally reset every execution.
+3. If TalkingBytes needs a shareable resilience-state primitive, fix/consume that lower-layer primitive rather than introducing Foundation global mutable state.
+4. `CacheLayerWebhookReplayStore` must use the canonical Foundation security-state key encoder from 26.3: explicit domain separation + SHA3-256, not SHA-256 or ad-hoc character replacement.
+5. With CacheLayer 3.4 available, replay claim must use CacheLayer's true atomic `setIfAbsent()` capability; Foundation lock → `has()` → `set()` orchestration must remain absent.
+6. Production `WebhookReceiver` requires replay protection by default. Do not weaken this merely to make webhook composition optional.
+7. gRPC inbound dispatch is a narrow configured-service-ID boundary. Handler service IDs should be fixed during graph composition; actual handler resolution remains inside active execution.
+8. An inbound gRPC server/process belongs to the existing worker runtime/lifecycle rather than creating a fifth Foundation runtime graph.
+9. Foundation currently exposes HTTP/webhook/gRPC profile graph directly. Add TalkingBytes email profile integration where functionality requires inbound/outbound email; do not recreate MIME, mail-chain or transport behavior in Foundation.
+10. Communication credentials/signing secrets are configuration secrets, not release identities. Do not log them, place them in cache/replay keys or bake raw secret material into generated runtime metadata. Coordinate the final secret-source/protection policy with 26.10.
+
+### Audit and implementation checklist
+
+- [ ] Rescan every Foundation `Infocyph\TalkingBytes` usage against the 2.0.0 tagged API and remove wrappers that add no application policy.
+- [ ] Keep `CommunicationProfiles` as the thin profile mapper and normalize/validate profile topology before production runtime load.
+- [ ] Classify every TalkingBytes-backed binding as immutable process state, execution-scoped state or intentionally shared concurrency-safe resilience state.
+- [ ] Keep cookie-bearing/session-bearing HTTP clients execution isolated; prove no cookie/header/auth mutation leaks between requests/jobs/Fibers.
+- [ ] Determine whether configured `RateLimiter`/`CircuitBreaker` state is intended to span executions. If yes, consume a lower-layer safe sharing mechanism; do not solve it with an unsafe Foundation singleton client.
+- [ ] Keep webhook replay physical keys on the 26.3 domain-separated SHA3-256 security-state encoder.
+- [ ] Require CacheLayer atomic `setIfAbsent()` for production webhook replay and keep Foundation replay-store lock dependency removed.
+- [ ] Validate production replay topology during composition/release build, including authoritative security-state store and atomic capability.
+- [ ] Preserve fail-closed replay claiming.
+- [ ] Keep gRPC retry/streaming/native/generated-stub behavior lower-layer-owned.
+- [ ] Run each inbound gRPC call/stream execution through the existing worker execution scope/correlation lifecycle when Foundation owns the server process.
+- [ ] Add build-time validation for configured gRPC handler service IDs without eagerly instantiating handlers during graph compilation.
+- [ ] Add named inbound/outbound email profiles through TalkingBytes native email APIs.
+- [ ] Keep inbound/outbound email message-chain and protocol behavior in TalkingBytes.
+- [ ] Keep outbound webhook HTTP-profile selection and retry/idempotency behavior delegated to TalkingBytes.
+- [ ] Ensure communication profile secrets remain redaction-safe at Foundation logging and exception boundaries.
+- [ ] Keep communication capability entirely absent from runtime graphs that do not select it.
+
+### Correctness and security acceptance
+
+- [ ] Test production TLS peer/host verification cannot be disabled through a named HTTP profile.
+- [ ] Test HTTP profile auth modes, retry, idempotency, rate-limit/circuit behavior and cookie isolation through the Foundation bridge.
+- [ ] Test sequential and interleaved Fiber HTTP executions do not leak cookie/auth/request state.
+- [ ] Test webhook signature verification, age validation, replay acceptance once and concurrent duplicate rejection.
+- [ ] Test long/attacker-controlled webhook delivery IDs map to legal deterministic CacheLayer physical keys.
+- [ ] Test replay cache failures fail closed and cleanup does not mask the primary failure.
+- [ ] Test production composition rejects replay-enabled webhook topology without required secure CacheLayer capability.
+- [ ] Test gRPC unary/native/generated-stub and supported streaming paths without Foundation protocol duplication.
+- [ ] Test inbound gRPC service resolution occurs inside the correct execution scope and does not retain previous call state in a persistent worker.
+- [ ] Test inbound/outbound email profiles preserve TalkingBytes parsing/transport/message-chain behavior and execution isolation.
+- [ ] Test secrets are absent from logs, exceptions, cache keys, generated route/container diagnostics and benchmark output.
+
+### Performance acceptance
+
+Benchmark at minimum:
+
+1. communication capability absent versus enabled-but-unused graph/boot cost;
+2. direct TalkingBytes HTTP request construction/execution versus Foundation profile bridge;
+3. warm stateless profile lookup and scoped client creation;
+4. cookie-enabled profile execution;
+5. retry/rate-limit/circuit-enabled profile execution with state attribution;
+6. direct webhook verification versus Foundation + CacheLayer replay claim;
+7. gRPC unary dispatch;
+8. representative gRPC streaming dispatch through Foundation scope boundary;
+9. inbound email processing;
+10. outbound email sending;
+11. repeated communication operations in a persistent worker with memory/state-isolation measurement.
+
+Do not cache or singletonize a mutable TalkingBytes client merely to improve a microbenchmark. Any lifetime optimization must preserve isolation and intended resilience-state semantics.
+
+### Completion gate
+
+The TalkingBytes tracker can be checked only when profile lifetimes are explicitly safe; webhook replay keys/claims conform to the hardened CacheLayer contract; production replay remains fail-closed; HTTP client state does not leak across executions; resilience state has an intentional lifetime; gRPC integrates through the existing worker lifecycle; inbound/outbound email and message-chain behavior are consumed from TalkingBytes rather than recreated; communication secrets are proven safe; and direct-TalkingBytes versus Foundation attribution benchmarks record the final bridge overhead.
 
 ---
 
-## 26.10 Epicrypt 2.1 — open
+## 26.10 Epicrypt 2.1 utilization pass — open
 
-**Released baseline:** Epicrypt 2.1, commit `f80092978328cccaef0d2233b08ce95b453dd90a`.
+### Baseline
 
-- [ ] inventory every Foundation cryptographic operation;
-- [ ] use Epicrypt high-level protection/KDF/password primitives where semantics match;
-- [ ] define purpose labels/versioning and separate token/MFA/recovery key purposes;
-- [ ] protect durable symmetric MFA secrets at rest and support bounded previous keys for rotation;
-- [ ] keep secrets out of artifacts/logs/cache keys/metrics and resolve external secret refs at boot;
-- [ ] prove tamper/fail-closed behavior, purpose isolation, persistent plaintext-secret isolation, and direct attribution.
+- package: `infocyph/epicrypt` `^2.1`;
+- audited release: Epicrypt 2.1;
+- tag commit: `f80092978328cccaef0d2233b08ce95b453dd90a`.
+
+### Ownership decision
+
+Epicrypt owns cryptographic primitives and high-level data-protection/key-derivation behavior. Foundation owns application key purpose, secret sourcing, persistence boundaries and auth-policy integration.
+
+Epicrypt owns, where semantics match Foundation requirements:
+
+- purpose-isolated key derivation through `Generate\KeyMaterial\KeyDeriver`/HKDF;
+- key-material generation helpers;
+- high-level string/file/envelope data protection;
+- `StringProtector`, `FileProtector`, `EnvelopeProtector`;
+- protection algorithms/options/results and protected-payload encoding;
+- password-hashing primitives/policy helpers;
+- MAC/signature/integrity primitives;
+- token/JOSE/certificate/key-exchange primitives when Foundation actually needs those protocols;
+- crypto-specific validation/error behavior and key/algorithm details.
+
+Foundation owns:
+
+- which application secrets exist and their semantic purposes;
+- mapping secret references to externally supplied key material at process boot;
+- purpose labels/domain separation between token signing, MFA-secret protection, recovery-code HMAC and other auth uses;
+- storage schema/key-version metadata and rotation rollout policy;
+- when protected values are decrypted/reprotected;
+- authorization/account behavior after cryptographic verification;
+- redaction/observability policy;
+- keeping secrets out of generated release artifacts;
+- build-time validation that configured keys/algorithms are usable without performing sensitive request-time work during graph compilation.
+
+Foundation must not maintain parallel HKDF, encryption-envelope, MAC or password-hashing implementations when Epicrypt already provides the required contract.
+
+### Confirmed current findings
+
+1. OTP recovery-code authentication currently domain-separates an HMAC key from the auth token secret. Domain separation is good, but unrelated security functions should not silently share one root-secret lifecycle.
+2. Foundation should use either a dedicated recovery key or derive purpose-specific subkeys from a deliberate master key through Epicrypt `KeyDeriver`.
+3. MFA factors expose OTP secrets as strings at the application boundary. Every durable store must protect those secrets at rest.
+4. Epicrypt's high-level data-protection layer is the canonical protection implementation; Foundation should not add a bespoke AES/Sodium wrapper.
+5. Token-signing keys, recovery-code HMAC keys and MFA-encryption keys must have different purpose labels/derived material even when one externally managed master secret is intentionally used.
+6. Release-generation config/artifacts are not a secret vault. Prefer stable secret references/identifiers in generated metadata and resolve key material from the deployment secret boundary at process boot.
+7. Key rotation must support decrypt/verify with still-valid previous key material while new writes use the active key.
+8. Durable key/version metadata must be sufficient for deterministic decryption/reprotection.
+9. Do not rely on trial-decrypting arbitrary unrelated keys without a bounded explicit key ring.
+10. Use Epicrypt high-level DataProtection services before assembling lower-level crypto primitives. Foundation policy should remain thin and purpose-oriented.
+
+### Audit and implementation checklist
+
+- [ ] Inventory every Foundation cryptographic operation: password hashing, token signing/verification, recovery-code HMAC, MFA-secret protection, configuration/domain-value protection, integrity checks and random key generation.
+- [ ] Classify each operation as Epicrypt-owned primitive/high-level service or Foundation-owned policy.
+- [ ] Remove duplicate lower-level implementations only when semantics are exactly equivalent.
+- [ ] Introduce explicit purpose labels/versioning for every derived key.
+- [ ] Keep separate purposes such as `foundation.auth.mfa-secret.v1`, `foundation.auth.recovery-hmac.v1` and token-signing purposes.
+- [ ] Use Epicrypt `KeyDeriver` for deliberate subkey derivation instead of ad-hoc HMAC-based derivation scattered across auth classes.
+- [ ] Decide whether recovery-code HMAC uses a dedicated externally supplied key or a derived subkey from one intentional auth master key.
+- [ ] Document recovery-key rotation semantics.
+- [ ] Protect OTP MFA secrets at rest with Epicrypt high-level data protection.
+- [ ] Retain plaintext MFA secrets only for the narrow verification/provisioning execution window.
+- [ ] Carry key/version/purpose metadata sufficient for deterministic decryption and rotation without exposing raw key material.
+- [ ] Support active + bounded previous decryption/verification keys during rotation.
+- [ ] Require new writes to use only the active key.
+- [ ] Keep secret material out of InterMix generated artifacts, Foundation generation manifests, cache keys, logs, exception messages and metrics labels.
+- [ ] Resolve external secret references once at process/runtime boot where practical; do not perform file/env/secret-provider discovery on request hot paths.
+- [ ] Keep cryptographic service objects singleton only when immutable/concurrency-safe and free of mutable per-execution secret state.
+- [ ] Prefer Epicrypt password APIs for password hashing/rehash policy where they match Foundation's public contract.
+- [ ] Never use reversible encryption for passwords.
+- [ ] Use Epicrypt token/JOSE/certificate primitives only for Foundation features that genuinely require those protocols.
+- [ ] Do not increase dependency surface merely to maximize package usage.
+- [ ] Preserve structured Epicrypt exceptions internally while mapping them to non-sensitive application/auth failures externally.
+- [ ] Coordinate OTP secret/recovery decisions with 26.4.
+- [ ] Coordinate persisted secret and passkey-adjacent application-key decisions with 26.4/26.11 where relevant.
+
+### Correctness and security acceptance
+
+- [ ] Test purpose-derived keys are deterministic for the same master/purpose and distinct across every Foundation security purpose.
+- [ ] Test recovery-code verification remains stable across the intended rotation window and rejects use of a key outside that window.
+- [ ] Test MFA secrets persist only in protected form for every production store.
+- [ ] Test MFA secrets decrypt correctly for authorized verification/provisioning flows.
+- [ ] Test active-key writes plus previous-key reads/reprotection during rotation.
+- [ ] Test interrupted rotation and rollback behavior.
+- [ ] Test tampered protected payloads fail closed with no plaintext disclosure.
+- [ ] Test wrong purpose/key/version cannot decrypt or authenticate another Foundation domain's payload.
+- [ ] Test password hash/verify/rehash behavior through Foundation matches selected Epicrypt policy.
+- [ ] Test generated runtime/release artifacts contain no raw configured key or decrypted MFA secret.
+- [ ] Test normal logs contain no raw configured key or decrypted MFA secret.
+- [ ] Test sequential/Fiber/persistent-worker auth operations do not retain one execution's plaintext secret in reusable mutable state.
+- [ ] Test missing/malformed/unsupported production key configuration fails before traffic where composition-time validation is possible.
+
+### Performance acceptance
+
+Benchmark at minimum:
+
+1. crypto capability absent versus enabled-but-unused graph/boot cost;
+2. direct Epicrypt key derivation versus Foundation purpose-key lookup/derivation;
+3. direct `StringProtector` protect versus Foundation MFA-secret storage bridge;
+4. direct `StringProtector` unprotect versus Foundation MFA-secret storage bridge;
+5. active-key decrypt path;
+6. previous-key decrypt/reprotect path;
+7. password verify/rehash through direct Epicrypt versus Foundation auth adapter;
+8. recovery-code HMAC derivation/verification after final key-lifecycle decision;
+9. repeated auth operations under persistent runtime with memory measurement.
+
+Cryptographic work is intentionally more expensive than ordinary application plumbing. Optimize Foundation wrapper/config lookup overhead, not away authentication, integrity, KDF or encryption guarantees.
+
+### Completion gate
+
+The Epicrypt tracker can be checked only when every Foundation crypto site is classified; duplicated key-derivation/data-protection code is removed or explicitly justified; MFA/recovery/token purposes have explicit independent derivation/lifecycle; durable MFA secrets are protected at rest; bounded rotation works; redaction/secret-boundary tests pass; persistent-runtime secret isolation is proven; and direct-Epicrypt versus Foundation attribution benchmarks record the final adapter overhead.
 
 ---
 
