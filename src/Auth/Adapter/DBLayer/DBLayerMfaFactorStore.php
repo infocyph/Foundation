@@ -4,11 +4,23 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Adapter\DBLayer;
 
+use Infocyph\Foundation\Auth\Adapter\Epicrypt\MfaSecretProtector;
 use Infocyph\Foundation\Auth\Mfa\MfaFactor;
 use Infocyph\Foundation\Auth\Mfa\MfaFactorCompareAndSwapStoreInterface;
+use Infocyph\Foundation\Database\AuthSchema\AuthTables;
+use Infocyph\Foundation\Database\DBLayerFactory;
 
 final readonly class DBLayerMfaFactorStore extends DBLayerStore implements MfaFactorCompareAndSwapStoreInterface
 {
+    public function __construct(
+        DBLayerFactory $db,
+        AuthTables $tables,
+        ?string $connection = null,
+        private ?MfaSecretProtector $secretProtector = null,
+    ) {
+        parent::__construct($db, $tables, $connection);
+    }
+
     public function compareAndSwap(?MfaFactor $expected, MfaFactor $updated): bool
     {
         if ($expected === null) {
@@ -66,7 +78,7 @@ final readonly class DBLayerMfaFactorStore extends DBLayerStore implements MfaFa
     /** @param array<string, mixed> $row */
     private function mapFactor(array $row): MfaFactor
     {
-        return new MfaFactor(
+        $factor = new MfaFactor(
             id: $this->string($row['id'] ?? ''),
             accountId: $this->string($row['account_id'] ?? ''),
             type: $this->string($row['type'] ?? ''),
@@ -76,20 +88,24 @@ final readonly class DBLayerMfaFactorStore extends DBLayerStore implements MfaFa
             metadata: DBLayerJson::decode($row['metadata'] ?? null),
             revision: $this->int($row['revision'] ?? 0),
         );
+
+        return $this->secretProtector?->unprotect($factor) ?? $factor;
     }
 
     /** @return array<string, mixed> */
     private function record(MfaFactor $factor): array
     {
+        $stored = $this->secretProtector?->protect($factor) ?? $factor;
+
         return [
-            'id' => $factor->id,
-            'account_id' => $factor->accountId,
-            'type' => $factor->type,
-            'label' => $factor->label,
-            'enabled' => $factor->enabled ? 1 : 0,
-            'created_at' => $factor->createdAt,
-            'metadata' => DBLayerJson::encode($factor->metadata),
-            'revision' => $factor->revision,
+            'id' => $stored->id,
+            'account_id' => $stored->accountId,
+            'type' => $stored->type,
+            'label' => $stored->label,
+            'enabled' => $stored->enabled ? 1 : 0,
+            'created_at' => $stored->createdAt,
+            'metadata' => DBLayerJson::encode($stored->metadata),
+            'revision' => $stored->revision,
         ];
     }
 }
