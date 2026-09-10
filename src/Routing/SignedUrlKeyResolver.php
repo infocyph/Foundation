@@ -28,6 +28,18 @@ final readonly class SignedUrlKeyResolver
     public function __construct(private ConfigRepository $config) {}
 
     /**
+     * Return only non-secret Webrick behavior options safe for compiled artifacts.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function artifactOptions(): ?array
+    {
+        $options = $this->behaviorOptions();
+
+        return $options === [] ? null : $options;
+    }
+
+    /**
      * Resolve runtime signing material for Webrick.
      *
      * @param array<string, mixed>|null $behaviorOptions
@@ -83,18 +95,6 @@ final readonly class SignedUrlKeyResolver
             'generationKey' => $active->key,
             'verificationKeys' => $verificationKeys,
         ]);
-    }
-
-    /**
-     * Return only non-secret Webrick behavior options safe for compiled artifacts.
-     *
-     * @return array<string, mixed>|null
-     */
-    public function artifactOptions(): ?array
-    {
-        $options = $this->behaviorOptions();
-
-        return $options === [] ? null : $options;
     }
 
     /** @return array<string, mixed> */
