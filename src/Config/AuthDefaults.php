@@ -111,12 +111,26 @@ final class AuthDefaults
     }
 
     /** @return list<mixed> */
-    private static function otpSecretProtectionKeys(): array
+    private static function jsonListEnvironment(string $name, string $message): array
     {
-        return self::jsonListEnvironment(
-            'AUTH_OTP_SECRET_PROTECTION_KEYS',
-            'AUTH_OTP_SECRET_PROTECTION_KEYS must be a valid JSON list.',
-        );
+        $encoded = env($name);
+        if ($encoded === null || $encoded === '') {
+            return [];
+        }
+        if (!is_string($encoded)) {
+            throw new \UnexpectedValueException($message);
+        }
+
+        try {
+            $decoded = json_decode($encoded, true, flags: JSON_THROW_ON_ERROR);
+        } catch (\JsonException $exception) {
+            throw new \UnexpectedValueException($message, previous: $exception);
+        }
+        if (!is_array($decoded) || !array_is_list($decoded)) {
+            throw new \UnexpectedValueException($message);
+        }
+
+        return $decoded;
     }
 
     /** @return array<string, mixed> */
@@ -173,25 +187,11 @@ final class AuthDefaults
     }
 
     /** @return list<mixed> */
-    private static function jsonListEnvironment(string $name, string $message): array
+    private static function otpSecretProtectionKeys(): array
     {
-        $encoded = env($name);
-        if ($encoded === null || $encoded === '') {
-            return [];
-        }
-        if (!is_string($encoded)) {
-            throw new \UnexpectedValueException($message);
-        }
-
-        try {
-            $decoded = json_decode($encoded, true, flags: JSON_THROW_ON_ERROR);
-        } catch (\JsonException $exception) {
-            throw new \UnexpectedValueException($message, previous: $exception);
-        }
-        if (!is_array($decoded) || !array_is_list($decoded)) {
-            throw new \UnexpectedValueException($message);
-        }
-
-        return $decoded;
+        return self::jsonListEnvironment(
+            'AUTH_OTP_SECRET_PROTECTION_KEYS',
+            'AUTH_OTP_SECRET_PROTECTION_KEYS must be a valid JSON list.',
+        );
     }
 }
