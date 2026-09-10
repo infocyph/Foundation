@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Internal;
 
+use Infocyph\Epicrypt\Generate\KeyMaterial\KeyDeriver;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpChallengeFactorService;
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpMfaVerifier;
@@ -25,6 +26,8 @@ use Infocyph\OTP\TOTP;
 
 final readonly class AuthMfaRegistrar extends AbstractAuthRegistrar
 {
+    private const string RECOVERY_KEY_DOMAIN = 'foundation.auth.recovery-hmac.v1';
+
     public function __construct(
         Application $app,
         ContainerBuilder $builder,
@@ -37,6 +40,7 @@ final readonly class AuthMfaRegistrar extends AbstractAuthRegistrar
     {
         if ($drivers->mfa() === AuthMfaDriver::OTP) {
             $this->requirePackage(TOTP::class, 'infocyph/otp', 'otp');
+            $this->requirePackage(KeyDeriver::class, 'infocyph/epicrypt', 'crypto');
             $this->registerOtpSupport();
             $this->registerOtpDriver();
 
@@ -77,7 +81,10 @@ final readonly class AuthMfaRegistrar extends AbstractAuthRegistrar
         if (!$this->hasExplicitBinding(RecoveryCodes::class)) {
             $this->recipe(RecoveryCodes::class, RecoveryCodes::class, [
                 $this->ref(RecoveryCodeStoreInterface::class),
-                hash_hmac('sha256', 'foundation:otp-recovery:v1', $this->secrets->tokenSecret(), true),
+                (new KeyDeriver())->derivePurposeKeyBinary(
+                    $this->secrets->tokenSecret(32),
+                    self::RECOVERY_KEY_DOMAIN,
+                ),
             ]);
         }
 
