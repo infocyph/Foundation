@@ -100,7 +100,7 @@ function oauth21AccessTokenService(array $keys, string $issuer): EpicryptOAuthAc
             id: $keyId,
             key: $keys['public'],
             status: KeyStatus::ACTIVE,
-            purpose: KeyPurpose::JWT_SIGNING,
+            purpose: KeyPurpose::OAUTH_ACCESS_TOKEN_SIGNING,
             algorithm: $algorithm->value,
             issuer: $issuer,
         ),
