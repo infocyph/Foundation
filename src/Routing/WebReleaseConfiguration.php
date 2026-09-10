@@ -95,9 +95,11 @@ final readonly class WebReleaseConfiguration
         return [
             'autoSlashRedirect' => ValueNormalizer::bool($this->config()->get('router.auto_slash_redirect'), false),
             'exposeUrlServices' => ValueNormalizer::bool($this->config()->get('router.expose_url_services'), false),
-            'signKey' => $this->signKey(),
+            // Signing material is runtime-only. Webrick still receives its native
+            // SignedUrlConfig when the compiled kernel boots, never in artifacts.
+            'signKey' => null,
             'signedDefaultTtl' => $this->signedDefaultTtl(),
-            'signedUrlConfig' => $this->signedUrlOptions(),
+            'signedUrlConfig' => new SignedUrlKeyResolver($this->config())->artifactOptions(),
             'urlBaseUri' => $this->urlBaseUri(),
         ];
     }
@@ -123,14 +125,12 @@ final readonly class WebReleaseConfiguration
 
     public function signedUrlConfig(): ?SignedUrlConfig
     {
-        $options = $this->signedUrlOptions();
-
-        return $options !== null ? SignedUrlConfig::fromArray($options) : null;
+        return new SignedUrlKeyResolver($this->config())->resolve();
     }
 
     public function signKey(): ?string
     {
-        return ValueNormalizer::nullableString($this->config()->get('router.signed_urls.key'));
+        return null;
     }
 
     public function urlBaseUri(): string
@@ -171,34 +171,6 @@ final readonly class WebReleaseConfiguration
     private function config(): ConfigRepository
     {
         return $this->graph->config;
-    }
-
-    /** @return array<string, mixed>|null */
-    private function signedUrlOptions(): ?array
-    {
-        $configured = $this->config()->get('router.signed_urls.options');
-        if (!is_array($configured)) {
-            return null;
-        }
-
-        $normalized = [];
-        foreach ($configured as $key => $value) {
-            if (!is_string($key)) {
-                continue;
-            }
-            $normalized[match ($key) {
-                'default_ttl' => 'defaultTtl',
-                'expiry_param' => 'expiryParam',
-                'generation_key' => 'generationKey',
-                'ignored_query_params' => 'ignoredQueryParams',
-                'payload_mode' => 'payloadMode',
-                'signature_param' => 'signatureParam',
-                'verification_keys' => 'verificationKeys',
-                default => $key,
-            }] = $value;
-        }
-
-        return $normalized !== [] ? $normalized : null;
     }
 
     private function string(string $key, string $default = ''): string
