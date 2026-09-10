@@ -58,11 +58,11 @@ final class AuthServiceProvider extends ServiceProvider
 
         new AuthCoreRegistrar($builder)->register($drivers);
         new AuthProductionGuard($app)->guard($drivers);
-        new AuthStoreRegistrar($app, $builder)->register($drivers->storage());
+        new AuthStoreRegistrar($app, $builder)->register($drivers);
         new AuthCacheRegistrar($app, $builder)->register($drivers);
         new AuthPasswordRegistrar($app, $builder)->register($drivers);
         new AuthTokenRegistrar($app, $builder, $secrets, $epicryptTokens)->register($drivers);
-        new AuthMfaRegistrar($app, $builder, $secrets)->register($drivers);
+        new AuthMfaRegistrar($app, $builder)->register($drivers);
         new AuthPasskeyRegistrar($app, $builder)->register($drivers);
         new AuthNotificationRegistrar($app, $builder)->register($drivers);
         new AuthManagerRegistrar($app, $builder)->register();
@@ -160,7 +160,6 @@ final class AuthServiceProvider extends ServiceProvider
         ));
     }
 
-    /** @return list<string> */
     private function principalResolverOrder(FoundationBuildContext $context, bool $oauthEnabled): array
     {
         $auth = is_array($context->config['auth'] ?? null) ? $context->config['auth'] : [];
