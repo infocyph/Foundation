@@ -8,6 +8,7 @@ use Infocyph\ArrayKit\Config\Support\Environment;
 use Infocyph\Epicrypt\DataProtection\ProtectionAlgorithm;
 use Infocyph\Epicrypt\DataProtection\ProtectionOptions;
 use Infocyph\Epicrypt\DataProtection\StringProtector;
+use Infocyph\Epicrypt\Exception\ConfigurationException as EpicryptConfigurationException;
 use Infocyph\Epicrypt\Generate\KeyMaterial\KeyDeriver;
 use Infocyph\Epicrypt\Security\KeyPurpose;
 use Infocyph\Epicrypt\Security\KeyRing;
@@ -71,11 +72,18 @@ final readonly class AuthMfaKeyResolver
             $entries[] = $this->mfaKeyEntry($definition);
         }
 
-        $ring = new KeyRing($entries);
-        $ring->activeForWrite(
-            KeyPurpose::DATA_PROTECTION,
-            ProtectionAlgorithm::XCHACHA20_POLY1305->value,
-        );
+        try {
+            $ring = new KeyRing($entries);
+            $ring->activeForWrite(
+                KeyPurpose::DATA_PROTECTION,
+                ProtectionAlgorithm::XCHACHA20_POLY1305->value,
+            );
+        } catch (EpicryptConfigurationException $exception) {
+            throw new ConfigurationException(
+                'MFA secret-protection key ring is invalid.',
+                previous: $exception,
+            );
+        }
 
         return $ring;
     }
@@ -103,11 +111,18 @@ final readonly class AuthMfaKeyResolver
             throw new ConfigurationException('OTP recovery-code master key must contain at least 32 bytes.');
         }
 
-        return new KeyDeriver()->derivePurposeKeyBinary(
-            $resolved,
-            self::RECOVERY_KEY_DOMAIN,
-            length: 32,
-        );
+        try {
+            return new KeyDeriver()->derivePurposeKeyBinary(
+                $resolved,
+                self::RECOVERY_KEY_DOMAIN,
+                length: 32,
+            );
+        } catch (EpicryptConfigurationException $exception) {
+            throw new ConfigurationException(
+                'OTP recovery-code purpose-key derivation failed.',
+                previous: $exception,
+            );
+        }
     }
 
     private function assertProtectionKey(#[\SensitiveParameter] string $key): void
