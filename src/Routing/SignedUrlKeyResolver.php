@@ -97,7 +97,10 @@ final readonly class SignedUrlKeyResolver
         ]);
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @param array<string, mixed>|null $configured
+     * @return array<string, mixed>
+     */
     private function behaviorOptions(?array $configured = null): array
     {
         $configured ??= ValueNormalizer::associativeArray($this->config->get('router.signed_urls.options', []));
