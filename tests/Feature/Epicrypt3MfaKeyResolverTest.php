@@ -48,7 +48,7 @@ it('resolves production recovery and MFA keys from independent environment locat
 
         expect($active->id)->toBe('mfa-2026-09')
             ->and($active->key)->toBe($mfaKey)
-            ->and($recoveryKey)->toHaveLength(32)
+            ->and(strlen($recoveryKey))->toBe(32)
             ->and($recoveryKey)->not->toBe($recoveryMaster)
             ->and($resolver->allowLegacyPlaintext())->toBeFalse();
     } finally {
