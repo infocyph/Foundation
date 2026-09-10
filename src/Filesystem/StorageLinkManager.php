@@ -90,6 +90,15 @@ final readonly class StorageLinkManager
         return $statuses;
     }
 
+    private function absolute(string $path): string
+    {
+        $path = trim($path);
+
+        return PathHelper::isAbsolute($path)
+            ? PathHelper::normalize($path)
+            : $this->paths->base(trim($path, '/\\'));
+    }
+
     /** @return list<array{link:string,target:string}> */
     private function configured(): array
     {
@@ -113,14 +122,5 @@ final readonly class StorageLinkManager
         }
 
         return $links;
-    }
-
-    private function absolute(string $path): string
-    {
-        $path = trim($path);
-
-        return PathHelper::isAbsolute($path)
-            ? PathHelper::normalize($path)
-            : $this->paths->base(trim($path, '/\\'));
     }
 }
