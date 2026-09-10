@@ -20,6 +20,14 @@ use Psr\Container\ContainerInterface;
 
 final class FilesystemServiceProvider extends ServiceProvider
 {
+    public function boot(Application $app): void
+    {
+        // Validate topology and required scanner composition before traffic while
+        // preserving Pathwise's lazy filesystem/backend construction.
+        $app->make(StorageRegistry::class);
+        $app->make(FilesystemMalwareScannerResolver::class)->assertReady();
+    }
+
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($context);
@@ -89,13 +97,5 @@ final class FilesystemServiceProvider extends ServiceProvider
 
         $builder->alias('foundation.files', StorageRegistry::class);
         $builder->alias('foundation.filesystem', StorageRegistry::class);
-    }
-
-    public function boot(Application $app): void
-    {
-        // Validate topology and required scanner composition before traffic while
-        // preserving Pathwise's lazy filesystem/backend construction.
-        $app->make(StorageRegistry::class);
-        $app->make(FilesystemMalwareScannerResolver::class)->assertReady();
     }
 }
