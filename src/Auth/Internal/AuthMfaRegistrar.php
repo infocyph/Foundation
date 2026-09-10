@@ -19,6 +19,7 @@ use Infocyph\Foundation\Auth\Mfa\RecoveryCodeServiceInterface;
 use Infocyph\Foundation\Auth\Support\InMemoryRecoveryCodeService;
 use Infocyph\Foundation\Auth\Support\SimpleMfaVerifier;
 use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\OTP\Contracts\RecoveryCodeStoreInterface;
 use Infocyph\OTP\RecoveryCodes;
@@ -26,12 +27,9 @@ use Infocyph\OTP\TOTP;
 
 final readonly class AuthMfaRegistrar extends AbstractAuthRegistrar
 {
-    private const string RECOVERY_KEY_DOMAIN = 'foundation.auth.recovery-hmac.v1';
-
     public function __construct(
         Application $app,
         ContainerBuilder $builder,
-        private AuthSecretResolver $secrets,
     ) {
         parent::__construct($app, $builder);
     }
@@ -79,13 +77,15 @@ final readonly class AuthMfaRegistrar extends AbstractAuthRegistrar
             );
         }
         if (!$this->hasExplicitBinding(RecoveryCodes::class)) {
-            $this->recipe(RecoveryCodes::class, RecoveryCodes::class, [
-                $this->ref(RecoveryCodeStoreInterface::class),
-                (new KeyDeriver())->derivePurposeKeyBinary(
-                    $this->secrets->tokenSecret(32),
-                    self::RECOVERY_KEY_DOMAIN,
-                ),
-            ]);
+            $this->staticRecipe(
+                RecoveryCodes::class,
+                AuthMfaGraphFactory::class,
+                'recoveryCodes',
+                [
+                    $this->ref(RecoveryCodeStoreInterface::class),
+                    $this->ref(ConfigRepository::class),
+                ],
+            );
         }
 
         $configured = $this->app->config()->get('auth.otp.replay.store');
