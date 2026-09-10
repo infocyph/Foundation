@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Support;
 
+use Infocyph\Epicrypt\Token\Payload\PurposeTokenFailureReason;
+use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptPurposeTokenFactory;
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\IssuedRefreshToken;
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\RefreshTokenClaims;
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\RefreshTokenServiceInterface;
@@ -12,60 +14,79 @@ use Infocyph\Foundation\Auth\Contract\Security\TokenVerificationResult;
 
 final readonly class SimpleRefreshTokenService implements RefreshTokenServiceInterface
 {
+    private const string PURPOSE = 'refresh';
+
     public function __construct(
-        private HmacTokenCodec $codec,
+        private EpicryptPurposeTokenFactory $tokens,
         private ClockInterface $clock,
     ) {}
 
     public function issue(RefreshTokenClaims $claims): IssuedRefreshToken
     {
-        $token = $this->codec->encode([
-            'aid' => $claims->accountId,
+        $ttlSeconds = $claims->expiresAt - $this->clock->now();
+        if ($ttlSeconds < 1) {
+            throw new \InvalidArgumentException('Refresh token expiration must be in the future.');
+        }
+
+        $purposeToken = $this->tokens->forPurpose(self::PURPOSE, $ttlSeconds);
+        $token = $purposeToken->issue([
             'cid' => $claims->clientId,
             'did' => $claims->deviceId,
-            'exp' => $claims->expiresAt,
             'fam' => $claims->familyId,
-            'iat' => $claims->issuedAt,
             'metadata' => $claims->metadata,
-            'pur' => 'refresh',
-            'tid' => $claims->tokenId,
-        ]);
+        ], $claims->accountId);
+        $issued = $purposeToken->verify($token);
+
+        if (!$issued->verified || $issued->tokenId === null || $issued->expiresAt === null) {
+            throw new \LogicException('Epicrypt failed to verify a newly issued refresh token.');
+        }
 
         return new IssuedRefreshToken(
             value: $token,
             tokenHash: hash('sha256', $token),
-            tokenId: $claims->tokenId,
+            tokenId: $issued->tokenId,
             familyId: $claims->familyId,
-            expiresAt: $claims->expiresAt,
+            expiresAt: $issued->expiresAt,
         );
     }
 
     public function verify(string $token): TokenVerificationResult
     {
-        $claims = $this->codec->decode($token);
-
-        if ($claims === null || ($claims['pur'] ?? null) !== 'refresh') {
-            return new TokenVerificationResult(false, failureReason: 'invalid_token');
-        }
-
-        $expiresAt = is_int($claims['exp'] ?? null) ? $claims['exp'] : null;
-        if ($expiresAt !== null && $expiresAt <= $this->clock->now()) {
+        $verification = $this->tokens
+            ->forPurpose(self::PURPOSE, 3600)
+            ->verify($token);
+        if (!$verification->verified) {
             return new TokenVerificationResult(
                 verified: false,
-                subjectId: is_string($claims['aid'] ?? null) ? $claims['aid'] : null,
-                tokenId: is_string($claims['tid'] ?? null) ? $claims['tid'] : null,
-                claims: $claims,
-                expiresAt: $expiresAt,
-                failureReason: 'expired_token',
+                subjectId: $verification->subjectId,
+                tokenId: $verification->tokenId,
+                expiresAt: $verification->expiresAt,
+                failureReason: $verification->failureReason === PurposeTokenFailureReason::EXPIRED_TOKEN
+                    ? 'expired_token'
+                    : 'invalid_token',
             );
         }
 
+        $claims = [
+            'aid' => $verification->subjectId,
+            'cid' => $verification->claims['cid'] ?? null,
+            'did' => $verification->claims['did'] ?? null,
+            'exp' => $verification->expiresAt,
+            'fam' => $verification->claims['fam'] ?? null,
+            'iat' => $verification->issuedAt,
+            'metadata' => is_array($verification->claims['metadata'] ?? null)
+                ? $verification->claims['metadata']
+                : [],
+            'pur' => self::PURPOSE,
+            'tid' => $verification->tokenId,
+        ];
+
         return new TokenVerificationResult(
             verified: true,
-            subjectId: is_string($claims['aid'] ?? null) ? $claims['aid'] : null,
-            tokenId: is_string($claims['tid'] ?? null) ? $claims['tid'] : null,
+            subjectId: $verification->subjectId,
+            tokenId: $verification->tokenId,
             claims: $claims,
-            expiresAt: $expiresAt,
+            expiresAt: $verification->expiresAt,
         );
     }
 }
