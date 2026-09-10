@@ -128,7 +128,10 @@ final readonly class MfaSecretProtector
         );
     }
 
-    /** @param array<string, mixed> $metadata @return array<string, mixed>|null */
+    /**
+     * @param array<string, mixed> $metadata
+     * @return array<string, mixed>|null
+     */
     private function otpMetadata(array $metadata): ?array
     {
         $otp = $metadata['otp'] ?? null;
