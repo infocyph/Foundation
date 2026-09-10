@@ -130,7 +130,7 @@ function oauth21SigningKeySet(string $issuer, string $activeId, string $privateK
             id: $entry[0],
             key: $entry[1],
             status: $entry[2],
-            purpose: KeyPurpose::JWT_SIGNING,
+            purpose: KeyPurpose::OAUTH_ACCESS_TOKEN_SIGNING,
             algorithm: $algorithm->value,
             issuer: $issuer,
         ),
