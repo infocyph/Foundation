@@ -38,7 +38,7 @@ final class AuthMfaGraphFactory
     ): RecoveryCodes {
         return new RecoveryCodes(
             $store,
-            (new AuthMfaKeyResolver($config))->recoveryHmacKey(),
+            new AuthMfaKeyResolver($config)->recoveryHmacKey(),
         );
     }
 

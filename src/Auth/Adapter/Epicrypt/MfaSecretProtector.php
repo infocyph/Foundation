@@ -98,6 +98,7 @@ final readonly class MfaSecretProtector
                 }
 
                 $legacyPlaintext = true;
+
                 continue;
             }
 
@@ -128,6 +129,35 @@ final readonly class MfaSecretProtector
         );
     }
 
+    /** @param array<string, mixed> $metadata */
+    private function factorWithMetadata(MfaFactor $factor, array $metadata): MfaFactor
+    {
+        return new MfaFactor(
+            id: $factor->id,
+            accountId: $factor->accountId,
+            type: $factor->type,
+            label: $factor->label,
+            enabled: $factor->enabled,
+            createdAt: $factor->createdAt,
+            metadata: $metadata,
+            revision: $factor->revision,
+        );
+    }
+
+    private function options(MfaFactor $factor, string $field): ProtectionOptions
+    {
+        return new ProtectionOptions(
+            self::PURPOSE,
+            implode("\0", [
+                'foundation:mfa-factor:v1',
+                $factor->accountId,
+                $factor->id,
+                $factor->type,
+                $field,
+            ]),
+        );
+    }
+
     /**
      * @param array<string, mixed> $metadata
      * @return array<string, mixed>|null
@@ -147,35 +177,6 @@ final readonly class MfaSecretProtector
         }
 
         return $normalized;
-    }
-
-    private function options(MfaFactor $factor, string $field): ProtectionOptions
-    {
-        return new ProtectionOptions(
-            self::PURPOSE,
-            implode("\0", [
-                'foundation:mfa-factor:v1',
-                $factor->accountId,
-                $factor->id,
-                $factor->type,
-                $field,
-            ]),
-        );
-    }
-
-    /** @param array<string, mixed> $metadata */
-    private function factorWithMetadata(MfaFactor $factor, array $metadata): MfaFactor
-    {
-        return new MfaFactor(
-            id: $factor->id,
-            accountId: $factor->accountId,
-            type: $factor->type,
-            label: $factor->label,
-            enabled: $factor->enabled,
-            createdAt: $factor->createdAt,
-            metadata: $metadata,
-            revision: $factor->revision,
-        );
     }
 
     private function validMarker(mixed $marker): bool

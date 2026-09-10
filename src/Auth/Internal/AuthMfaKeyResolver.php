@@ -103,11 +103,27 @@ final readonly class AuthMfaKeyResolver
             throw new ConfigurationException('OTP recovery-code master key must contain at least 32 bytes.');
         }
 
-        return (new KeyDeriver())->derivePurposeKeyBinary(
+        return new KeyDeriver()->derivePurposeKeyBinary(
             $resolved,
             self::RECOVERY_KEY_DOMAIN,
             length: 32,
         );
+    }
+
+    private function assertProtectionKey(#[\SensitiveParameter] string $key): void
+    {
+        try {
+            new StringProtector()->protect(
+                'foundation-mfa-key-readiness',
+                $key,
+                new ProtectionOptions(MfaSecretProtector::PURPOSE),
+            );
+        } catch (\Throwable $exception) {
+            throw new ConfigurationException(
+                'MFA secret-protection key material is invalid for XChaCha20-Poly1305.',
+                previous: $exception,
+            );
+        }
     }
 
     private function environmentName(mixed $value): string
@@ -117,6 +133,17 @@ final readonly class AuthMfaKeyResolver
         }
 
         return $value;
+    }
+
+    private function keyStatus(mixed $status): KeyStatus
+    {
+        return match ($status) {
+            'active' => KeyStatus::ACTIVE,
+            'fallback' => KeyStatus::FALLBACK,
+            'disabled' => KeyStatus::DISABLED,
+            'retired' => KeyStatus::RETIRED,
+            default => throw new ConfigurationException('MFA secret-protection key status is invalid.'),
+        };
     }
 
     private function mfaKeyEntry(mixed $definition): KeyRingEntry
@@ -150,33 +177,6 @@ final readonly class AuthMfaKeyResolver
             notBefore: $this->timestamp($definition['not_before'] ?? null),
             notAfter: $this->timestamp($definition['not_after'] ?? null),
         );
-    }
-
-    private function assertProtectionKey(#[\SensitiveParameter] string $key): void
-    {
-        try {
-            (new StringProtector())->protect(
-                'foundation-mfa-key-readiness',
-                $key,
-                new ProtectionOptions(MfaSecretProtector::PURPOSE),
-            );
-        } catch (\Throwable $exception) {
-            throw new ConfigurationException(
-                'MFA secret-protection key material is invalid for XChaCha20-Poly1305.',
-                previous: $exception,
-            );
-        }
-    }
-
-    private function keyStatus(mixed $status): KeyStatus
-    {
-        return match ($status) {
-            'active' => KeyStatus::ACTIVE,
-            'fallback' => KeyStatus::FALLBACK,
-            'disabled' => KeyStatus::DISABLED,
-            'retired' => KeyStatus::RETIRED,
-            default => throw new ConfigurationException('MFA secret-protection key status is invalid.'),
-        };
     }
 
     private function timestamp(mixed $value): ?int

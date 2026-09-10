@@ -88,7 +88,7 @@ final readonly class EnvironmentSecretManager
             throw new \RuntimeException(self::VARIABLE . ' already exists; use --force to rotate it.');
         }
 
-        $secret = (new KeyMaterialGenerator())->forTokenSecret(KeyMaterialEncoding::HEX);
+        $secret = new KeyMaterialGenerator()->forTokenSecret(KeyMaterialEncoding::HEX);
         $line = self::VARIABLE . '=' . $secret;
         if ($exists) {
             $updated = preg_replace($pattern, $line, $contents, 1, $replacements);

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Support;
 
-use Infocyph\Epicrypt\Token\Payload\PurposeTokenVerificationResult;
 use Infocyph\Foundation\Auth\Authentication\PasswordReset\PasswordResetTokenServiceInterface;
 use Infocyph\Foundation\Auth\Contract\Security\TokenVerificationResult;
 

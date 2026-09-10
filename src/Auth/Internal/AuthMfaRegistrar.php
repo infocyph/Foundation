@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Auth\Internal;
 
 use Infocyph\Epicrypt\Generate\KeyMaterial\KeyDeriver;
-use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpChallengeFactorService;
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpMfaVerifier;
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpProvisioningService;
@@ -20,20 +19,12 @@ use Infocyph\Foundation\Auth\Support\InMemoryRecoveryCodeService;
 use Infocyph\Foundation\Auth\Support\SimpleMfaVerifier;
 use Infocyph\Foundation\Cache\CacheLayerFactory;
 use Infocyph\Foundation\Config\ConfigRepository;
-use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\OTP\Contracts\RecoveryCodeStoreInterface;
 use Infocyph\OTP\RecoveryCodes;
 use Infocyph\OTP\TOTP;
 
 final readonly class AuthMfaRegistrar extends AbstractAuthRegistrar
 {
-    public function __construct(
-        Application $app,
-        ContainerBuilder $builder,
-    ) {
-        parent::__construct($app, $builder);
-    }
-
     public function register(AuthDriverResolver $drivers): void
     {
         if ($drivers->mfa() === AuthMfaDriver::OTP) {

@@ -89,6 +89,16 @@ final readonly class OtpConfigValidator
         return is_int($validated) ? $validated : null;
     }
 
+    private function positiveTimestamp(mixed $value): ?int
+    {
+        if ($value === null) {
+            return null;
+        }
+        $resolved = $this->integer($value);
+
+        return $resolved !== null && $resolved > 0 ? $resolved : null;
+    }
+
     /** @param list<ConfigIssue> $issues */
     private function range(array &$issues, string $key, int $minimum, int $maximum, int $default): void
     {
@@ -199,16 +209,6 @@ final readonly class OtpConfigValidator
                 'auth.otp.secret_protection.keys',
             );
         }
-    }
-
-    private function positiveTimestamp(mixed $value): ?int
-    {
-        if ($value === null) {
-            return null;
-        }
-        $resolved = $this->integer($value);
-
-        return $resolved !== null && $resolved > 0 ? $resolved : null;
     }
 
     /** @param list<ConfigIssue> $issues */

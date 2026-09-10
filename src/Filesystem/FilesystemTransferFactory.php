@@ -33,17 +33,21 @@ final readonly class FilesystemTransferFactory
         foreach ($configuredRoots !== [] ? $configuredRoots : [$directory] as $root) {
             if (PathHelper::isAbsolute($root)) {
                 $allowedRoots[] = PathHelper::normalize($root);
+
                 continue;
             }
             if (PathHelper::hasScheme($root)) {
                 $allowedRoots[] = $this->storage->context()->path($root);
+
                 continue;
             }
 
             $allowedRoots[] = $this->storage->path($root, $disk);
+
             try {
                 $allowedRoots[] = $this->storage->localPath($root, $disk);
-            } catch (\InvalidArgumentException) {}
+            } catch (\InvalidArgumentException) {
+            }
         }
 
         $processor = new DownloadProcessor();
