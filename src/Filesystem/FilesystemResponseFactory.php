@@ -329,7 +329,7 @@ final readonly class FilesystemResponseFactory
         }
 
         $response = Response::stream(
-            producer: static fn(): iterable => $processor->streamChunks($manifest),
+            producer: $processor->streamChunks($manifest),
             status: $manifest->status,
         );
 
