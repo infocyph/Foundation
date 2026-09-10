@@ -191,7 +191,7 @@ final class OAuth21FlowFixture
                     id: $keyId,
                     key: $keyPair['public'],
                     status: KeyStatus::ACTIVE,
-                    purpose: KeyPurpose::JWT_SIGNING,
+                    purpose: KeyPurpose::OAUTH_ACCESS_TOKEN_SIGNING,
                     algorithm: $algorithm->value,
                     issuer: $issuer,
                 ),
