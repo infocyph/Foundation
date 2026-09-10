@@ -59,10 +59,15 @@ final class AuthDefaults
                     'recovery_codes' => [
                         'count' => 10,
                         'length' => 12,
+                        'hmac_key_environment' => 'AUTH_OTP_RECOVERY_HMAC_KEY',
                     ],
                     'replay' => [
                         'store' => null,
                         'ttl' => 90,
+                    ],
+                    'secret_protection' => [
+                        'allow_legacy_plaintext' => false,
+                        'keys' => [],
                     ],
                 ],
                 'password_policy' => [
