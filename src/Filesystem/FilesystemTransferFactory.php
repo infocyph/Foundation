@@ -43,9 +43,7 @@ final readonly class FilesystemTransferFactory
             $allowedRoots[] = $this->storage->path($root, $disk);
             try {
                 $allowedRoots[] = $this->storage->localPath($root, $disk);
-            } catch (\InvalidArgumentException) {
-                // Adapter-backed disks have no direct-local identity.
-            }
+            } catch (\InvalidArgumentException) {}
         }
 
         $processor = new DownloadProcessor();
