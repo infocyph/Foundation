@@ -67,7 +67,7 @@ final class AuthDefaults
                     ],
                     'secret_protection' => [
                         'allow_legacy_plaintext' => false,
-                        'keys' => [],
+                        'keys' => self::otpSecretProtectionKeys(),
                     ],
                 ],
                 'password_policy' => [
@@ -108,6 +108,15 @@ final class AuthDefaults
                 'token_secret' => null,
             ],
         ];
+    }
+
+    /** @return list<mixed> */
+    private static function otpSecretProtectionKeys(): array
+    {
+        return self::jsonListEnvironment(
+            'AUTH_OTP_SECRET_PROTECTION_KEYS',
+            'AUTH_OTP_SECRET_PROTECTION_KEYS must be a valid JSON list.',
+        );
     }
 
     /** @return array<string, mixed> */
@@ -155,24 +164,32 @@ final class AuthDefaults
     /** @return list<mixed> */
     private static function oauthPublicKeys(bool $enabled): array
     {
-        $encoded = $enabled ? env('AUTH_OAUTH_PUBLIC_KEYS') : null;
+        return $enabled
+            ? self::jsonListEnvironment(
+                'AUTH_OAUTH_PUBLIC_KEYS',
+                'AUTH_OAUTH_PUBLIC_KEYS must be a valid JSON list.',
+            )
+            : [];
+    }
+
+    /** @return list<mixed> */
+    private static function jsonListEnvironment(string $name, string $message): array
+    {
+        $encoded = env($name);
         if ($encoded === null || $encoded === '') {
             return [];
         }
         if (!is_string($encoded)) {
-            throw new \UnexpectedValueException('AUTH_OAUTH_PUBLIC_KEYS must be a JSON list.');
+            throw new \UnexpectedValueException($message);
         }
 
         try {
             $decoded = json_decode($encoded, true, flags: JSON_THROW_ON_ERROR);
         } catch (\JsonException $exception) {
-            throw new \UnexpectedValueException(
-                'AUTH_OAUTH_PUBLIC_KEYS must be a valid JSON list.',
-                previous: $exception,
-            );
+            throw new \UnexpectedValueException($message, previous: $exception);
         }
         if (!is_array($decoded) || !array_is_list($decoded)) {
-            throw new \UnexpectedValueException('AUTH_OAUTH_PUBLIC_KEYS must be a JSON list.');
+            throw new \UnexpectedValueException($message);
         }
 
         return $decoded;
