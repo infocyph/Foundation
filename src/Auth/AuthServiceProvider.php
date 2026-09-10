@@ -160,6 +160,7 @@ final class AuthServiceProvider extends ServiceProvider
         ));
     }
 
+    /** @return list<string> */
     private function principalResolverOrder(FoundationBuildContext $context, bool $oauthEnabled): array
     {
         $auth = is_array($context->config['auth'] ?? null) ? $context->config['auth'] : [];
