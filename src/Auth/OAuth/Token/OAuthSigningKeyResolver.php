@@ -4,15 +4,12 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\OAuth\Token;
 
+use Infocyph\Epicrypt\Exception\SigningKeyReadinessException;
 use Infocyph\Epicrypt\Security\KeyPurpose;
 use Infocyph\Epicrypt\Security\KeyRing;
 use Infocyph\Epicrypt\Security\KeyRingEntry;
 use Infocyph\Epicrypt\Security\KeyStatus;
-use Infocyph\Epicrypt\Token\Jwt\AsymmetricJwt;
 use Infocyph\Epicrypt\Token\Jwt\Enum\AsymmetricJwtAlgorithm;
-use Infocyph\Epicrypt\Token\Jwt\Jwks;
-use Infocyph\Epicrypt\Token\Jwt\JwtClaims;
-use Infocyph\Epicrypt\Token\Jwt\JwtPolicy;
 use Infocyph\Foundation\Auth\Audit\AuthEventSeverity;
 use Infocyph\Foundation\Auth\Audit\AuthEventType;
 use Infocyph\Foundation\Auth\OAuth\Audit\OAuthAuditRecorder;
@@ -30,6 +27,10 @@ final readonly class OAuthSigningKeyResolver
     {
         try {
             $resolved = $this->resolveConfigured();
+        } catch (SigningKeyReadinessException $exception) {
+            $this->recordReadiness(['result' => 'failure'], AuthEventSeverity::CRITICAL);
+
+            throw new ConfigurationException('OAuth signing key material is not ready.', 0, $exception);
         } catch (\Throwable $exception) {
             $this->recordReadiness(['result' => 'failure'], AuthEventSeverity::CRITICAL);
 
@@ -189,57 +190,13 @@ final readonly class OAuthSigningKeyResolver
         $issuer = $this->requiredString('auth.oauth.issuer');
         $activeKeyId = $this->requiredKeyId('auth.oauth.signing.active_key_id');
         $algorithm = $this->algorithm();
-        $privateKey = $this->readKey($this->config->get('auth.oauth.signing.private_key'));
-        $entries = $this->publicKeyEntries($issuer, $activeKeyId, $algorithm);
-        $ring = new KeyRing($entries);
-        $active = $ring->activeForWrite(KeyPurpose::OAUTH_ACCESS_TOKEN_SIGNING, $algorithm->value, $issuer);
-
-        if (!hash_equals($activeKeyId, $active->id)) {
-            throw new ConfigurationException('OAuth active signing key configuration is inconsistent.');
-        }
-
-        $this->verifyKeyPair($issuer, $activeKeyId, $privateKey, $ring, $algorithm);
-        new Jwks()->exportFromKeyRing($ring, $algorithm, $issuer);
 
         return new OAuthSigningKeySet(
             issuer: $issuer,
             activeKeyId: $activeKeyId,
-            privateKey: $privateKey,
-            publicKeys: $ring,
+            privateKey: $this->readKey($this->config->get('auth.oauth.signing.private_key')),
+            publicKeys: new KeyRing($this->publicKeyEntries($issuer, $activeKeyId, $algorithm)),
             algorithm: $algorithm,
         );
-    }
-
-    private function verifyKeyPair(
-        string $issuer,
-        string $activeKeyId,
-        #[\SensitiveParameter]
-        string $privateKey,
-        KeyRing $publicKeys,
-        AsymmetricJwtAlgorithm $algorithm,
-    ): void {
-        $audience = 'foundation-oauth-key-readiness';
-        $claims = JwtClaims::issue(
-            issuer: $issuer,
-            subject: 'foundation-oauth-key-readiness',
-            audiences: [$audience],
-            ttlSeconds: 30,
-            custom: ['client_id' => 'foundation-oauth-key-readiness'],
-        );
-        $token = AsymmetricJwt::issuer(
-            $privateKey,
-            'at+jwt',
-            $activeKeyId,
-            $algorithm,
-        )->issue($claims);
-        $valid = AsymmetricJwt::verifier(
-            $publicKeys,
-            JwtPolicy::oauthAccessToken($issuer, $audience),
-            $algorithm,
-        )->verify($token);
-
-        if (!$valid) {
-            throw new ConfigurationException('OAuth active private and public signing keys do not match.');
-        }
     }
 }
