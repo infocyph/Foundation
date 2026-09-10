@@ -258,7 +258,6 @@ final class FoundationDefaults
                     'max_image_height' => 0,
                     'max_image_width' => 0,
                     'naming_strategy' => 'hash',
-                    'require_malware_scan' => false,
                     'strict_content_type_validation' => true,
                     'temp_directory' => null,
                     'use_date_directories' => false,
