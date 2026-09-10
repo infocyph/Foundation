@@ -127,13 +127,13 @@ final class OAuth21FlowFixture
             {
                 unset($context);
 
-                return hash('sha256', $plainPassword);
+                return password_hash($plainPassword, PASSWORD_BCRYPT, ['cost' => 4]);
             }
         };
         $verifier = new class implements PasswordVerifierInterface {
             public function verify(string $plainPassword, string $storedHash): PasswordVerificationResult
             {
-                return new PasswordVerificationResult(hash_equals(hash('sha256', $plainPassword), $storedHash));
+                return new PasswordVerificationResult(password_verify($plainPassword, $storedHash));
             }
         };
         $authorizer = new class implements AuthorizerInterface {
