@@ -32,6 +32,7 @@ final readonly class AuthOAuthRevisionSchema implements Migration
         $this->createRedirectsAndScopes($schema);
         $this->createAuthorizations($schema);
         $this->createAuthorizationCodes($schema);
+        $this->createAuthorizationCodeStates($schema);
         $this->createConsents($schema);
         $this->createRefreshTokens($schema);
         $this->createAccessRevocations($schema);
@@ -68,6 +69,17 @@ final readonly class AuthOAuthRevisionSchema implements Migration
             $table->bigInteger('expires_at')->index();
             $table->bigInteger('consumed_at')->nullable();
             $table->json('metadata')->nullable();
+        });
+    }
+
+    private function createAuthorizationCodeStates(SchemaManager $schema): void
+    {
+        $schema->create($this->tables->oauthAuthorizationCodeStates(), static function (Blueprint $table): void {
+            $table->string('id', 64)->primary();
+            $table->string('authorization_id', 64)->index();
+            $table->bigInteger('expires_at')->index();
+            $table->string('state_digest', 64);
+            $table->bigInteger('consumed_at')->nullable()->index();
         });
     }
 

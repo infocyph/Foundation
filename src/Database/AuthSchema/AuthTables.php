@@ -83,6 +83,7 @@ final class AuthTables
             $this->oauthRedirectUris(),
             $this->oauthClientScopes(),
             $this->oauthAuthorizationCodes(),
+            $this->oauthAuthorizationCodeStates(),
             $this->oauthConsents(),
             $this->oauthAuthorizations(),
             $this->oauthRefreshTokens(),
@@ -98,6 +99,11 @@ final class AuthTables
     public function oauthAuthorizationCodes(): string
     {
         return 'auth_oauth_authorization_codes';
+    }
+
+    public function oauthAuthorizationCodeStates(): string
+    {
+        return 'auth_oauth_authorization_code_states';
     }
 
     public function oauthAuthorizations(): string

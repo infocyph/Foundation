@@ -143,6 +143,9 @@ final class AuthDefaults
             'issuer' => $enabled ? env('AUTH_OAUTH_ISSUER') : null,
             'access_token_ttl' => 300,
             'authorization_code_ttl' => 60,
+            'authorization_code_protection' => [
+                'keys' => self::oauthAuthorizationCodeProtectionKeys($enabled),
+            ],
             'refresh_token_ttl' => 1209600,
             'grants' => [
                 'authorization_code',
@@ -173,6 +176,17 @@ final class AuthDefaults
                 'introspection' => ['max' => 120, 'window' => 60],
             ],
         ];
+    }
+
+    /** @return list<mixed> */
+    private static function oauthAuthorizationCodeProtectionKeys(bool $enabled): array
+    {
+        return $enabled
+            ? self::jsonListEnvironment(
+                'AUTH_OAUTH_AUTHORIZATION_CODE_KEYS',
+                'AUTH_OAUTH_AUTHORIZATION_CODE_KEYS must be a valid JSON list.',
+            )
+            : [];
     }
 
     /** @return list<mixed> */

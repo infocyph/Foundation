@@ -18,6 +18,7 @@ it('keeps OAuth tables outside the released base auth table set', function (): v
             'auth_oauth_redirect_uris',
             'auth_oauth_client_scopes',
             'auth_oauth_authorization_codes',
+            'auth_oauth_authorization_code_states',
             'auth_oauth_consents',
             'auth_oauth_authorizations',
             'auth_oauth_refresh_tokens',
