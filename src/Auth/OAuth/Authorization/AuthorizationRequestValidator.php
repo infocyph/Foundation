@@ -4,12 +4,20 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\OAuth\Authorization;
 
+use Infocyph\Epicrypt\Auth\OAuth\OAuthAuthorizationRequestValidator as EpicryptAuthorizationRequestValidator;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthAuthorizationResult;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthErrorCode;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthProtocolError;
+use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\EpicryptOAuthAuthorizationAudienceResolver;
+use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\EpicryptOAuthAuthorizationClientStore;
 use Infocyph\Foundation\Auth\OAuth\Client\OAuthClient;
 use Infocyph\Foundation\Auth\OAuth\Client\OAuthClientManager;
 use Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException;
 use Infocyph\Foundation\Auth\OAuth\Scope\OAuthScopeResolver;
-use Infocyph\Foundation\Auth\OAuth\Value\OAuthGrantType;
 
+/**
+ * Foundation application-policy facade over Epicrypt's OAuth authorization protocol validator.
+ */
 final readonly class AuthorizationRequestValidator
 {
     public function __construct(
@@ -20,153 +28,118 @@ final readonly class AuthorizationRequestValidator
     /** @param array<string, mixed> $parameters */
     public function redirectContext(array $parameters): AuthorizationRedirectContext
     {
-        $clientId = $this->requiredString($parameters, 'client_id', 128, false);
-        $client = $this->clients->enabled($clientId);
-        if (!$client instanceof OAuthClient) {
-            throw OAuthProtocolException::unauthorizedClient();
+        $result = $this->protocolResult($parameters);
+        if ($result->request !== null) {
+            return $this->redirectFromAccepted($result);
         }
 
-        $redirectUri = $this->requiredString($parameters, 'redirect_uri', 2048, false);
-        if (!$this->clients->redirectUriAllowed($clientId, $redirectUri)) {
-            throw OAuthProtocolException::invalidRequest('The redirect URI is invalid.');
+        $error = $result->error;
+        if (!$error instanceof OAuthProtocolError || $error->redirectUri === null) {
+            throw $this->protocolException($error);
+        }
+
+        $clientId = $parameters['client_id'] ?? null;
+        $client = is_string($clientId) ? $this->clients->enabled($clientId) : null;
+        if (!$client instanceof OAuthClient) {
+            throw $this->protocolException($error);
         }
 
         return new AuthorizationRedirectContext(
             client: $client,
-            redirectUri: $redirectUri,
-            state: $this->safeState($parameters['state'] ?? null),
+            redirectUri: $error->redirectUri,
+            state: $error->state,
         );
     }
 
     /** @param array<string, mixed> $parameters */
     public function validate(array $parameters): AuthorizationRequest
     {
-        $redirect = $this->redirectContext($parameters);
-        $client = $redirect->client;
-
-        if (!$client->allowsGrant(OAuthGrantType::AuthorizationCode)) {
-            throw OAuthProtocolException::unauthorizedClient(true);
-        }
-        if ($this->requiredString($parameters, 'response_type', 32, redirectAllowed: true) !== 'code') {
-            throw OAuthProtocolException::unsupportedResponseType(true);
+        $result = $this->protocolResult($parameters);
+        if ($result->request === null) {
+            throw $this->protocolException($result->error);
         }
 
-        $challenge = $this->requiredString($parameters, 'code_challenge', 128, redirectAllowed: true);
-        $method = $this->requiredString($parameters, 'code_challenge_method', 16, redirectAllowed: true);
-        if ($method !== 'S256' || preg_match('/\A[A-Za-z0-9_-]{43}\z/D', $challenge) !== 1) {
-            throw OAuthProtocolException::invalidRequest('PKCE S256 is required.', true);
+        $protocol = $result->acceptedRequest();
+        $client = $this->clients->enabled($protocol->clientId);
+        if (!$client instanceof OAuthClient) {
+            throw OAuthProtocolException::unauthorizedClient();
         }
 
         try {
-            $selection = $this->scopes->resolve(
-                $client,
-                $this->spaceList($parameters, 'scope', 64, true),
-                $this->requestedAudiences($parameters, $client),
-            );
+            $selection = $this->scopes->resolve($client, $protocol->scopes, $protocol->audiences);
         } catch (\InvalidArgumentException) {
             throw OAuthProtocolException::invalidScope(true);
         }
 
         return new AuthorizationRequest(
             client: $client,
-            redirectUri: $redirect->redirectUri,
-            codeChallenge: $challenge,
+            redirectUri: $protocol->redirectUri,
+            codeChallenge: $protocol->codeChallenge,
             scopes: $selection->scopes,
             audiences: $selection->audiences,
             requiredPermissions: $selection->permissions,
-            state: $this->optionalState($parameters),
+            state: $protocol->state,
         );
     }
 
     /** @param array<string, mixed> $parameters */
-    private function optionalState(array $parameters): ?string
+    private function protocolResult(array $parameters): OAuthAuthorizationResult
     {
-        if (!array_key_exists('state', $parameters)) {
-            return null;
-        }
+        $validator = new EpicryptAuthorizationRequestValidator(
+            new EpicryptOAuthAuthorizationClientStore($this->clients),
+            new EpicryptOAuthAuthorizationAudienceResolver($parameters),
+        );
 
-        $state = $this->safeState($parameters['state']);
-        if ($state === null) {
-            throw OAuthProtocolException::invalidRequest('The state parameter is invalid.', true);
-        }
-
-        return $state;
+        return $validator->validate($parameters);
     }
 
-    /**
-     * @param array<string, mixed> $parameters
-     * @return list<string>
-     */
-    private function requestedAudiences(array $parameters, OAuthClient $client): array
+    private function redirectFromAccepted(OAuthAuthorizationResult $result): AuthorizationRedirectContext
     {
-        if (!array_key_exists('audience', $parameters)) {
-            if (count($client->audiences) === 1) {
-                return $client->audiences;
-            }
-
-            throw OAuthProtocolException::invalidRequest('An audience is required.', true);
+        $request = $result->acceptedRequest();
+        $client = $this->clients->enabled($request->clientId);
+        if (!$client instanceof OAuthClient) {
+            throw OAuthProtocolException::unauthorizedClient();
         }
 
-        return $this->spaceList($parameters, 'audience', 16, true);
+        return new AuthorizationRedirectContext(
+            client: $client,
+            redirectUri: $request->redirectUri,
+            state: $request->state,
+        );
     }
 
-    /** @param array<string, mixed> $parameters */
-    private function requiredString(
-        array $parameters,
-        string $name,
-        int $maximumBytes,
-        bool $trim = true,
-        bool $redirectAllowed = false,
-    ): string {
-        $value = $parameters[$name] ?? null;
-        if (!is_string($value) || $value === '' || strlen($value) > $maximumBytes) {
-            throw OAuthProtocolException::invalidRequest(redirectAllowed: $redirectAllowed);
-        }
-
-        if (!$trim) {
-            if (trim($value) !== $value) {
-                throw OAuthProtocolException::invalidRequest(redirectAllowed: $redirectAllowed);
-            }
-
-            return $value;
-        }
-
-        $value = trim($value);
-        if ($value === '') {
-            throw OAuthProtocolException::invalidRequest(redirectAllowed: $redirectAllowed);
-        }
-
-        return $value;
-    }
-
-    private function safeState(mixed $state): ?string
+    private function protocolException(?OAuthProtocolError $error): OAuthProtocolException
     {
-        if (!is_string($state) || $state === '' || strlen($state) > 512 || preg_match('/[\x00-\x1F\x7F]/', $state) === 1) {
-            return null;
+        if (!$error instanceof OAuthProtocolError) {
+            return OAuthProtocolException::invalidRequest();
         }
 
-        return $state;
-    }
+        $redirectAllowed = $error->mayRedirect();
 
-    /**
-     * @param array<string, mixed> $parameters
-     * @return list<string>
-     */
-    private function spaceList(array $parameters, string $name, int $maximumItems, bool $required): array
-    {
-        $value = $parameters[$name] ?? null;
-        if ($value === null && !$required) {
-            return [];
-        }
-        if (!is_string($value) || $value === '' || strlen($value) > 4096) {
-            throw new \InvalidArgumentException(sprintf('OAuth %s parameter is invalid.', $name));
-        }
-
-        $items = preg_split('/\x20+/', trim($value), -1, PREG_SPLIT_NO_EMPTY);
-        if (!is_array($items) || $items === [] || count($items) > $maximumItems) {
-            throw new \InvalidArgumentException(sprintf('OAuth %s parameter is invalid.', $name));
-        }
-
-        return $items;
+        return match ($error->code) {
+            OAuthErrorCode::ACCESS_DENIED => OAuthProtocolException::accessDenied(),
+            OAuthErrorCode::INVALID_CLIENT => OAuthProtocolException::invalidClient(),
+            OAuthErrorCode::INVALID_GRANT => OAuthProtocolException::invalidGrant(),
+            OAuthErrorCode::INVALID_SCOPE => OAuthProtocolException::invalidScope($redirectAllowed),
+            OAuthErrorCode::UNAUTHORIZED_CLIENT => OAuthProtocolException::unauthorizedClient($redirectAllowed),
+            OAuthErrorCode::UNSUPPORTED_GRANT_TYPE => OAuthProtocolException::unsupportedGrantType(),
+            OAuthErrorCode::UNSUPPORTED_RESPONSE_TYPE => OAuthProtocolException::unsupportedResponseType($redirectAllowed),
+            OAuthErrorCode::SERVER_ERROR => new OAuthProtocolException(
+                'server_error',
+                'The authorization server could not complete the request.',
+                500,
+                false,
+            ),
+            OAuthErrorCode::TEMPORARILY_UNAVAILABLE => new OAuthProtocolException(
+                'temporarily_unavailable',
+                'The authorization server is temporarily unavailable.',
+                503,
+                false,
+            ),
+            OAuthErrorCode::INVALID_DPOP_PROOF => OAuthProtocolException::invalidRequest(),
+            OAuthErrorCode::INVALID_REQUEST => OAuthProtocolException::invalidRequest(
+                redirectAllowed: $redirectAllowed,
+            ),
+        };
     }
 }

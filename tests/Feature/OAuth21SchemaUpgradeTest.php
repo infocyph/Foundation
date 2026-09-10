@@ -9,6 +9,7 @@ use Infocyph\DBLayer\Schema\SchemaManager;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthMfaRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthOAuthRevisionSchema;
+use Infocyph\Foundation\Database\AuthSchema\AuthPasskeyRecordSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthPasskeyRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchemaInstaller;
@@ -33,9 +34,19 @@ it('upgrades an installed Foundation 2.0 auth schema to current revisions withou
     $base = new AuthSchema($tables);
     $mfa = new AuthMfaRevisionSchema($tables);
     $passkey = new AuthPasskeyRevisionSchema($tables);
+    $passkeyRecord = new AuthPasskeyRecordSchema($tables);
     $oauth = new AuthOAuthRevisionSchema($tables);
     $releasedRunner = new MigrationRunner($connection, [$base, $mfa]);
-    $installer = new AuthSchemaInstaller($factory, $base, $mfa, $passkey, $tables, $oauth, true);
+    $installer = new AuthSchemaInstaller(
+        $factory,
+        $base,
+        $mfa,
+        $passkey,
+        $passkeyRecord,
+        $tables,
+        $oauth,
+        true,
+    );
     $now = time();
 
     try {
@@ -44,6 +55,7 @@ it('upgrades an installed Foundation 2.0 auth schema to current revisions withou
         $schema = new SchemaManager($connection);
         $schema->table($tables->passkeyCredentials(), static function (Blueprint $table): void {
             $table->dropColumn('revision');
+            $table->dropColumn('credential_record');
         });
 
         $connection->table($tables->accounts())->insert([
@@ -79,12 +91,13 @@ it('upgrades an installed Foundation 2.0 auth schema to current revisions withou
 
         $before = $installer->readiness();
         expect($before['installed'])->toBeFalse()
-            ->and($before['missing_columns'])->toContain($tables->passkeyCredentials() . '.revision');
+            ->and($before['missing_columns'])->toContain($tables->passkeyCredentials() . '.revision')
+            ->and($before['missing_columns'])->toContain($tables->passkeyCredentials() . '.credential_record');
         foreach ($tables->oauth() as $oauthTable) {
             expect($before['missing_tables'])->toContain($oauthTable);
         }
 
-        expect($installer->runner()->run())->toBe([$oauth->id(), $passkey->id()]);
+        expect($installer->runner()->run())->toBe([$oauth->id(), $passkey->id(), $passkeyRecord->id()]);
         $after = $installer->readiness();
 
         expect($after['installed'])->toBeTrue()

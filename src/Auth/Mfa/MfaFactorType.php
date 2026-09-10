@@ -6,11 +6,17 @@ namespace Infocyph\Foundation\Auth\Mfa;
 
 enum MfaFactorType: string
 {
+    case AOTP = 'aotp';
+
     case CUSTOM = 'custom';
 
     case EMAIL = 'email';
 
+    case GRID_OTP = 'grid_otp';
+
     case HOTP = 'hotp';
+
+    case MOBILE_OTP = 'mobile_otp';
 
     case OCRA = 'ocra';
 

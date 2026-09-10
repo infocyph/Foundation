@@ -13,6 +13,19 @@ if (!$loader instanceof ClassLoader) {
     throw new RuntimeException('Composer autoloader did not return ClassLoader.');
 }
 
+// This subprocess deliberately models a consumer with no optional auth/security
+// packages or their deployment secrets. Do not inherit the parent Pest process'
+// production-readiness fixtures into this isolation boundary.
+foreach ([
+    'AUTH_OTP_RECOVERY_HMAC_KEY',
+    'AUTH_OTP_SECRET_PROTECTION_KEYS',
+    'FOUNDATION_TEST_MFA_PROTECTION_KEY',
+] as $environmentName) {
+    unset($_ENV[$environmentName], $_SERVER[$environmentName]);
+    putenv($environmentName);
+}
+unset($environmentName);
+
 $baseConfig = [
     'base_path' => $root,
     '_config_cache' => false,

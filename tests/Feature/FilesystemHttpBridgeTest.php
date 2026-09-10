@@ -8,13 +8,13 @@ use Infocyph\Foundation\Filesystem\FilesystemTransferFactory;
 use Infocyph\Foundation\Filesystem\FilesystemUploadRequestHandler;
 use Infocyph\Foundation\Filesystem\StorageRegistry;
 use Infocyph\Foundation\Foundation;
-use Infocyph\Pathwise\PathwiseFacade;
+use Infocyph\Pathwise\Storage\StorageContext;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Body\FileBody;
 
 beforeEach(function (): void {
-    if (!class_exists(PathwiseFacade::class)) {
-        $this->markTestSkipped('Install the filesystem module to run Pathwise integration tests.');
+    if (!class_exists(StorageContext::class)) {
+        $this->markTestSkipped('Install Pathwise 4 to run filesystem integration tests.');
     }
 });
 
@@ -38,7 +38,7 @@ it('preserves conditional and ranged local files as native Webrick file bodies',
     $responses = $app->make(FilesystemResponseFactory::class);
     $transfers = $app->make(FilesystemTransferFactory::class);
     $disk = $storage->disk('uploads');
-    $directory = 'tests/http-' . uniqid('', true);
+    $directory = 'tests/http-' . bin2hex(random_bytes(8));
     $relativePath = $directory . '/payload.txt';
     $contents = 'Foundation ranged download bridge';
 
@@ -83,7 +83,8 @@ it('preserves conditional and ranged local files as native Webrick file bodies',
             ->and($headResponse->getBodySize())->toBe(0)
             ->and($headResponse->getHeaderLine('Content-Length'))->toBe((string) strlen($contents));
 
-        $manifest = $transfers->download($directory, 'uploads')->prepareDownload($storage->localPath($relativePath, 'uploads'));
+        $manifest = $transfers->download($directory, 'uploads')
+            ->prepareDownload($storage->path($relativePath, 'uploads'));
         $notModifiedResponse = $responses->download(
             Request::fake(
                 headers: ['Host' => 'localhost', 'If-None-Match' => $manifest->etag],
@@ -101,22 +102,22 @@ it('preserves conditional and ranged local files as native Webrick file bodies',
     }
 });
 
-it('exposes mounted Pathwise responses as Webrick chunk iterables without direct output', function (): void {
+it('exposes context-routed Pathwise responses as Webrick chunk iterables without direct output', function (): void {
     [$app, $basePath] = foundationFilesystemApp();
     $app->boot();
     $storage = $app->make(StorageRegistry::class);
     $responses = $app->make(FilesystemResponseFactory::class);
     $disk = $storage->disk('uploads');
-    $directory = 'tests/stream-' . uniqid('', true);
+    $directory = 'tests/stream-' . bin2hex(random_bytes(8));
     $relativePath = $directory . '/payload.txt';
     $contents = str_repeat('stream-body-', 64);
     $disk->write($relativePath, $contents);
 
     try {
-        $mountedPath = $storage->path($relativePath, 'uploads');
+        $contextPath = $storage->path($relativePath, 'uploads');
         $response = $responses->download(
             Request::fake(headers: ['Host' => 'localhost'], uri: 'http://localhost/stream'),
-            $mountedPath,
+            $contextPath,
             disk: 'uploads',
         );
 
@@ -136,17 +137,17 @@ it('exposes mounted Pathwise responses as Webrick chunk iterables without direct
     }
 });
 
-it('handles normal and chunked upload requests through the dedicated upload bridge', function (): void {
+it('handles normal and chunked upload requests through Pathwise UploadSource', function (): void {
     [$app, $basePath] = foundationFilesystemApp();
     $app->boot();
     $uploads = $app->make(FilesystemUploadRequestHandler::class);
     $storage = $app->make(StorageRegistry::class);
     $disk = $storage->disk('uploads');
-    $directory = 'tests/uploads-' . uniqid('', true);
+    $directory = 'tests/uploads-' . bin2hex(random_bytes(8));
 
-    $uploadTemp = tempnam(sys_get_temp_dir(), 'foundation-upload-');
-    $chunkOne = tempnam(sys_get_temp_dir(), 'foundation-chunk-');
-    $chunkTwo = tempnam(sys_get_temp_dir(), 'foundation-chunk-');
+    $uploadTemp = tempnam(sys_get_temp_dir(), 'foundation-source-');
+    $chunkOne = tempnam(sys_get_temp_dir(), 'foundation-source-');
+    $chunkTwo = tempnam(sys_get_temp_dir(), 'foundation-source-');
     if ($uploadTemp === false || $chunkOne === false || $chunkTwo === false) {
         throw new RuntimeException('Unable to allocate upload temp files.');
     }
@@ -164,7 +165,9 @@ it('handles normal and chunked upload requests through the dedicated upload brid
                 'type' => 'text/plain',
             ]]);
         $storedPath = $uploads->processUploadRequest($uploadRequest, directory: $directory, disk: 'uploads');
-        expect($storedPath)->toStartWith($app->uploadsPath($directory));
+        [$storedDisk, $storedLocation] = $storage->context()->resolve($storedPath, 'uploads');
+        expect($storedPath)->toStartWith('uploads://' . $directory . '/')
+            ->and($storedDisk->read($storedLocation))->toBe('single upload body');
 
         $first = Request::fake(
             post: ['uploadId' => 'bridge-upload', 'chunkIndex' => 0, 'totalChunks' => 2, 'originalFilename' => 'chunked.txt'],
@@ -184,10 +187,12 @@ it('handles normal and chunked upload requests through the dedicated upload brid
         $firstState = $uploads->processChunkUploadRequest($first, directory: $directory, disk: 'uploads');
         $secondState = $uploads->processChunkUploadRequest($second, directory: $directory, disk: 'uploads');
         $finalized = $uploads->finalizeChunkUpload('bridge-upload', $directory, 'uploads');
+        [$finalDisk, $finalLocation] = $storage->context()->resolve($finalized, 'uploads');
 
         expect($firstState->complete)->toBeFalse()
             ->and($secondState->complete)->toBeTrue()
-            ->and(file_get_contents($finalized))->toBe('chunk-one-chunk-two');
+            ->and($finalized)->toStartWith('uploads://' . $directory . '/')
+            ->and($finalDisk->read($finalLocation))->toBe('chunk-one-chunk-two');
     } finally {
         foreach ([$uploadTemp, $chunkOne, $chunkTwo] as $path) {
             if (is_file($path)) {

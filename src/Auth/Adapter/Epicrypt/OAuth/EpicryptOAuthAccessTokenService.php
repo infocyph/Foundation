@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth;
 
+use Infocyph\Epicrypt\Auth\Token\AuthTokenClass;
 use Infocyph\Epicrypt\Token\Jwt\AsymmetricJwt;
 use Infocyph\Epicrypt\Token\Jwt\JwtClaims;
 use Infocyph\Epicrypt\Token\Jwt\JwtPolicy;
@@ -28,7 +29,7 @@ final readonly class EpicryptOAuthAccessTokenService implements OAuthAccessToken
 
         $this->issuer = AsymmetricJwt::issuer(
             $this->keys->privateKey,
-            'at+jwt',
+            AuthTokenClass::OAUTH_ACCESS_TOKEN->joseType(),
             $this->keys->activeKeyId,
             $this->keys->algorithm,
         );
@@ -75,12 +76,13 @@ final readonly class EpicryptOAuthAccessTokenService implements OAuthAccessToken
         $policy = new JwtPolicy(
             expectedIssuer: $this->keys->issuer,
             expectedAudience: $expectedAudience,
-            expectedType: 'at+jwt',
+            expectedType: AuthTokenClass::OAUTH_ACCESS_TOKEN->joseType(),
             maximumLifetimeSeconds: $this->maximumLifetimeSeconds,
             leewaySeconds: $this->leewaySeconds,
             maximumFutureIssuedAtSeconds: $this->leewaySeconds,
             profile: JwtProfile::OAUTH_ACCESS_TOKEN,
             requiredClaims: ['iss', 'sub', 'aud', 'exp', 'iat', 'jti', 'client_id'],
+            tokenClass: AuthTokenClass::OAUTH_ACCESS_TOKEN,
         );
         $result = AsymmetricJwt::verifier(
             $this->keys->publicKeys,

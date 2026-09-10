@@ -11,6 +11,7 @@ use Infocyph\Foundation\Cache\CacheLayerFactory;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthMfaRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthOAuthRevisionSchema;
+use Infocyph\Foundation\Database\AuthSchema\AuthPasskeyRecordSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthPasskeyRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchemaInstaller;
@@ -61,6 +62,10 @@ final class DatabaseServiceProvider extends ServiceProvider
             AuthPasskeyRevisionSchema::class,
             [new ServiceReference(AuthTables::class)],
         ));
+        $builder->singleton(AuthPasskeyRecordSchema::class, FactoryDefinition::construct(
+            AuthPasskeyRecordSchema::class,
+            [new ServiceReference(AuthTables::class)],
+        ));
         if ($oauthEnabled) {
             $builder->singleton(AuthOAuthRevisionSchema::class, FactoryDefinition::construct(
                 AuthOAuthRevisionSchema::class,
@@ -74,6 +79,7 @@ final class DatabaseServiceProvider extends ServiceProvider
                 new ServiceReference(AuthSchema::class),
                 new ServiceReference(AuthMfaRevisionSchema::class),
                 new ServiceReference(AuthPasskeyRevisionSchema::class),
+                new ServiceReference(AuthPasskeyRecordSchema::class),
                 new ServiceReference(AuthTables::class),
                 $oauthEnabled ? new ServiceReference(AuthOAuthRevisionSchema::class) : null,
                 $oauthEnabled,

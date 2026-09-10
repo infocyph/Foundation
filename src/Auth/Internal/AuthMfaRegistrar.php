@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Internal;
 
-use Infocyph\Foundation\Application\Application;
+use Infocyph\Epicrypt\Generate\KeyMaterial\KeyDeriver;
+use Infocyph\Foundation\Auth\Adapter\Otp\OtpChallengeFactorService;
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpMfaVerifier;
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpProvisioningService;
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpRecoveryCodeService;
@@ -17,25 +18,18 @@ use Infocyph\Foundation\Auth\Mfa\RecoveryCodeServiceInterface;
 use Infocyph\Foundation\Auth\Support\InMemoryRecoveryCodeService;
 use Infocyph\Foundation\Auth\Support\SimpleMfaVerifier;
 use Infocyph\Foundation\Cache\CacheLayerFactory;
-use Infocyph\InterMix\DI\ContainerBuilder;
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\OTP\Contracts\RecoveryCodeStoreInterface;
 use Infocyph\OTP\RecoveryCodes;
 use Infocyph\OTP\TOTP;
 
 final readonly class AuthMfaRegistrar extends AbstractAuthRegistrar
 {
-    public function __construct(
-        Application $app,
-        ContainerBuilder $builder,
-        private AuthSecretResolver $secrets,
-    ) {
-        parent::__construct($app, $builder);
-    }
-
     public function register(AuthDriverResolver $drivers): void
     {
         if ($drivers->mfa() === AuthMfaDriver::OTP) {
             $this->requirePackage(TOTP::class, 'infocyph/otp', 'otp');
+            $this->requirePackage(KeyDeriver::class, 'infocyph/epicrypt', 'crypto');
             $this->registerOtpSupport();
             $this->registerOtpDriver();
 
@@ -74,23 +68,39 @@ final readonly class AuthMfaRegistrar extends AbstractAuthRegistrar
             );
         }
         if (!$this->hasExplicitBinding(RecoveryCodes::class)) {
-            $this->recipe(RecoveryCodes::class, RecoveryCodes::class, [
-                $this->ref(RecoveryCodeStoreInterface::class),
-                hash_hmac('sha256', 'foundation:otp-recovery:v1', $this->secrets->tokenSecret(), true),
-            ]);
+            $this->staticRecipe(
+                RecoveryCodes::class,
+                AuthMfaGraphFactory::class,
+                'recoveryCodes',
+                [
+                    $this->ref(RecoveryCodeStoreInterface::class),
+                    $this->ref(ConfigRepository::class),
+                ],
+            );
+        }
+
+        $configured = $this->app->config()->get('auth.otp.replay.store');
+        $storeName = is_string($configured) && trim($configured) !== '' ? trim($configured) : null;
+        if (!$this->hasExplicitBinding(OtpChallengeFactorService::class)) {
+            $this->staticRecipe(
+                OtpChallengeFactorService::class,
+                AuthMfaGraphFactory::class,
+                'challengeFactors',
+                [
+                    $this->ref(CacheLayerFactory::class),
+                    $storeName,
+                ],
+            );
         }
 
         if (!$this->hasExplicitBinding(OtpMfaVerifier::class)) {
-            $configured = $this->app->config()->get('auth.otp.replay.store');
-            $storeName = is_string($configured) && trim($configured) !== '' ? trim($configured) : null;
             $this->staticRecipe(
                 OtpMfaVerifier::class,
                 AuthMfaGraphFactory::class,
                 'verifier',
                 [
                     $this->ref(MfaFactorStoreInterface::class),
-                    $this->ref(CacheLayerFactory::class),
-                    $storeName,
+                    $this->ref(OtpChallengeFactorService::class),
                     $this->intConfig('auth.otp.totp.window', 1),
                     $this->intConfig('auth.otp.replay.ttl', 90),
                 ],

@@ -48,13 +48,30 @@ final readonly class ConfigValidator
         return is_string($first) && $first !== '' ? $first : null;
     }
 
+    /** @param array<string, mixed> $parts */
+    private function isExactWebAuthnOrigin(array $parts): bool
+    {
+        $scheme = $parts['scheme'] ?? null;
+        $host = $parts['host'] ?? null;
+        $path = $parts['path'] ?? '';
+
+        return is_string($scheme)
+            && is_string($host)
+            && in_array(strtolower($scheme), ['http', 'https'], true)
+            && !isset($parts['user'])
+            && !isset($parts['pass'])
+            && !isset($parts['query'])
+            && !isset($parts['fragment'])
+            && $path === '';
+    }
+
     private function isLocalWebAuthnHost(mixed $host): bool
     {
         if (!is_string($host) || $host === '') {
             return false;
         }
 
-        return in_array(strtolower($host), ['localhost', '127.0.0.1'], true);
+        return in_array(strtolower($host), ['localhost', '127.0.0.1', '::1'], true);
     }
 
     private function isNonNegativeInteger(mixed $value): bool
@@ -93,6 +110,19 @@ final readonly class ConfigValidator
         }
 
         return $normalized;
+    }
+
+    private function positiveIntegerValue(mixed $value): ?int
+    {
+        if (!is_int($value) && !is_string($value)) {
+            return null;
+        }
+
+        $validated = filter_var($value, FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1],
+        ]);
+
+        return is_int($validated) ? $validated : null;
     }
 
     private function resolvedTokenSecret(): ?string
@@ -163,49 +193,6 @@ final readonly class ConfigValidator
         $value = $this->config->get($key, $default);
 
         return is_string($value) ? $value : $default;
-    }
-
-    /**
-     * @param list<ConfigIssue> $issues
-     * @param list<string> $allowed
-     */
-    private function validateAllowedString(array &$issues, string $key, mixed $value, array $allowed): void
-    {
-        if (!is_string($value) || !in_array($value, $allowed, true)) {
-            $issues[] = new ConfigIssue(
-                sprintf('%s must be one of: %s.', $key, implode(', ', $allowed)),
-                $key,
-            );
-        }
-    }
-
-    /**
-     * @param list<ConfigIssue> $issues
-     * @param list<string> $allowed
-     */
-    private function validateAllowedStringList(array &$issues, string $key, mixed $value, array $allowed): void
-    {
-        if (!is_array($value) || $value === []) {
-            $issues[] = new ConfigIssue(
-                sprintf('%s must be a non-empty list of: %s.', $key, implode(', ', $allowed)),
-                $key,
-            );
-
-            return;
-        }
-
-        foreach ($value as $item) {
-            if (is_string($item) && in_array($item, $allowed, true)) {
-                continue;
-            }
-
-            $issues[] = new ConfigIssue(
-                sprintf('%s contains unsupported value. Allowed values: %s.', $key, implode(', ', $allowed)),
-                $key,
-            );
-
-            return;
-        }
     }
 
     /** @param list<ConfigIssue> $issues */
@@ -434,12 +421,8 @@ final readonly class ConfigValidator
     private function validateWebAuthn(array &$issues, bool $assumeProduction): void
     {
         $rpId = $this->config->get('auth.webauthn.rp_id');
-        $origin = $this->config->get('auth.webauthn.origin');
-        $attestation = $this->config->get('auth.webauthn.attestation', 'none');
-        $userVerification = $this->config->get('auth.webauthn.user_verification', 'preferred');
-        $residentKey = $this->config->get('auth.webauthn.resident_key', 'preferred');
-        $algorithms = $this->config->get('auth.webauthn.algorithms', ['ES256', 'RS256']);
-        $transports = $this->config->get('auth.webauthn.transports', ['internal', 'hybrid', 'usb', 'nfc', 'ble']);
+        $challengeTtl = $this->config->get('auth.webauthn.challenge_ttl', 300);
+        $allowSubdomains = $this->config->get('auth.webauthn.allow_subdomains', false);
 
         if (!is_string($rpId) || $rpId === '') {
             $issues[] = new ConfigIssue(
@@ -448,64 +431,68 @@ final readonly class ConfigValidator
             );
         }
 
-        if (!is_string($origin) || $origin === '') {
-            $issues[] = new ConfigIssue(
-                'auth.webauthn.origin must be configured when auth.drivers.passkey uses webauthn.',
-                'auth.webauthn.origin',
-            );
-
+        $origin = $this->webAuthnOrigin($issues, $this->config->get('auth.webauthn.origin'));
+        if ($origin === null) {
             return;
         }
 
-        $scheme = parse_url($origin, PHP_URL_SCHEME);
-        $host = parse_url($origin, PHP_URL_HOST);
-
-        if (!is_string($scheme) || !in_array(strtolower($scheme), ['http', 'https'], true)) {
-            $issues[] = new ConfigIssue(
-                'auth.webauthn.origin must be a valid http or https origin.',
-                'auth.webauthn.origin',
-            );
-
-            return;
-        }
-
-        if ($assumeProduction && strtolower($scheme) !== 'https' && !$this->isLocalWebAuthnHost($host)) {
+        if ($assumeProduction && $origin['scheme'] !== 'https' && !$this->isLocalWebAuthnHost($origin['host'])) {
             $issues[] = new ConfigIssue(
                 'auth.webauthn.origin must use https outside localhost/local development.',
                 'auth.webauthn.origin',
             );
         }
 
-        if (!is_string($attestation) || !in_array($attestation, ['none', 'direct', 'indirect', 'enterprise'], true)) {
+        $ttl = $this->positiveIntegerValue($challengeTtl);
+        if ($ttl === null || $ttl > 600) {
             $issues[] = new ConfigIssue(
-                'auth.webauthn.attestation must be one of: none, direct, indirect, enterprise.',
-                'auth.webauthn.attestation',
+                'auth.webauthn.challenge_ttl must be between 1 and 600 seconds.',
+                'auth.webauthn.challenge_ttl',
             );
         }
 
-        $this->validateAllowedString(
-            $issues,
-            'auth.webauthn.user_verification',
-            $userVerification,
-            ['required', 'preferred', 'discouraged'],
-        );
-        $this->validateAllowedString(
-            $issues,
-            'auth.webauthn.resident_key',
-            $residentKey,
-            ['required', 'preferred', 'discouraged'],
-        );
-        $this->validateAllowedStringList(
-            $issues,
-            'auth.webauthn.algorithms',
-            $algorithms,
-            ['ES256', 'RS256'],
-        );
-        $this->validateAllowedStringList(
-            $issues,
-            'auth.webauthn.transports',
-            $transports,
-            ['internal', 'hybrid', 'usb', 'nfc', 'ble'],
-        );
+        if (!is_bool($allowSubdomains)) {
+            $issues[] = new ConfigIssue(
+                'auth.webauthn.allow_subdomains must be a boolean.',
+                'auth.webauthn.allow_subdomains',
+            );
+        }
+    }
+
+    /**
+     * @param list<ConfigIssue> $issues
+     * @return array{scheme:string,host:string}|null
+     */
+    private function webAuthnOrigin(array &$issues, mixed $origin): ?array
+    {
+        if (!is_string($origin) || $origin === '') {
+            $issues[] = new ConfigIssue(
+                'auth.webauthn.origin must be configured when auth.drivers.passkey uses webauthn.',
+                'auth.webauthn.origin',
+            );
+
+            return null;
+        }
+
+        $parts = parse_url($origin);
+        if (!is_array($parts) || !$this->isExactWebAuthnOrigin($parts)) {
+            $issues[] = new ConfigIssue(
+                'auth.webauthn.origin must be an exact HTTP(S) origin without path, credentials, query, or fragment.',
+                'auth.webauthn.origin',
+            );
+
+            return null;
+        }
+
+        $scheme = $parts['scheme'] ?? null;
+        $host = $parts['host'] ?? null;
+        if (!is_string($scheme) || !is_string($host)) {
+            return null;
+        }
+
+        return [
+            'scheme' => strtolower($scheme),
+            'host' => $host,
+        ];
     }
 }

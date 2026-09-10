@@ -9,31 +9,37 @@ use Infocyph\Foundation\Auth\Contract\Security\TokenVerificationResult;
 
 final readonly class SimpleEmailVerificationTokenService extends AbstractSimpleTimedTokenService implements EmailVerificationTokenServiceInterface
 {
+    private const string PURPOSE = 'email_verification';
+
     public function issue(string $accountId, string $email, array $context = []): string
     {
-        return $this->issueTimedToken([
-            'ctx' => $context,
-            'email' => $email,
-            'pur' => 'email_verification',
-            'sub' => $accountId,
-        ]);
+        return $this->issueTimedToken(
+            self::PURPOSE,
+            [
+                'ctx' => $context,
+                'email' => $email,
+            ],
+            $accountId,
+        );
     }
 
     public function verify(string $token): TokenVerificationResult
     {
-        $claims = $this->verifyTimedToken($token, 'email_verification');
-        if ($claims instanceof TokenVerificationResult) {
-            return $claims;
+        $verification = $this->verifyTimedToken($token, self::PURPOSE);
+        if ($verification instanceof TokenVerificationResult) {
+            return $verification;
         }
 
-        $context = is_array($claims['ctx'] ?? null) ? $claims['ctx'] : [];
+        $context = is_array($verification->claims['ctx'] ?? null)
+            ? $verification->claims['ctx']
+            : [];
 
         return $this->verifiedResult(
-            $claims,
-            is_string($claims['sub'] ?? null) ? $claims['sub'] : null,
+            $verification,
+            $verification->subjectId,
             $this->normalizeClaims([
                 'request_id' => $context['request_id'] ?? null,
-                'email' => $claims['email'] ?? null,
+                'email' => $verification->claims['email'] ?? null,
             ] + $context),
         );
     }

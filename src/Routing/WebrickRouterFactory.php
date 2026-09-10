@@ -46,6 +46,7 @@ final class WebrickRouterFactory
         $this->middlewareRegistrar->register();
         $routes = $this->routes();
         $aliases = $this->aliasesByRoute($routes);
+        $signedConfig = $this->signedUrlConfig();
 
         return $this->kernel = RouterKernel::bootWithRegistrar(
             log: $this->logger,
@@ -63,9 +64,9 @@ final class WebrickRouterFactory
             registrarOptions: [
                 'autoSlashRedirect' => (bool) $this->config->get('router.auto_slash_redirect', false),
                 'exposeUrlServices' => (bool) $this->config->get('router.expose_url_services', false),
-                'signKey' => $this->optionalString($this->config->get('router.signed_urls.key')),
+                'signKey' => null,
                 'signedDefaultTtl' => $this->optionalInt($this->config->get('router.signed_urls.default_ttl')),
-                'signedUrlConfig' => $this->signedUrlOptions(),
+                'signedUrlConfig' => $signedConfig,
                 'urlBaseUri' => $this->stringConfig('router.url_base_uri'),
             ],
             preGlobal: $this->middleware->preGlobal(),
@@ -87,7 +88,7 @@ final class WebrickRouterFactory
             routes: $this->routes,
             autoSlashRedirect: (bool) $this->config->get('router.auto_slash_redirect', false),
             exposeUrlServices: (bool) $this->config->get('router.expose_url_services', false),
-            signKey: $this->optionalString($this->config->get('router.signed_urls.key')),
+            signKey: null,
             signedDefaultTtl: $this->optionalInt($this->config->get('router.signed_urls.default_ttl')),
             signedUrlConfig: $this->signedUrlConfig(),
             urlBaseUri: $this->stringConfig('router.url_base_uri'),
@@ -146,22 +147,20 @@ final class WebrickRouterFactory
     private function bindUrlServicesCallback(): ?\Closure
     {
         $baseUri = $this->stringConfig('router.url_base_uri');
-        $signKey = $this->optionalString($this->config->get('router.signed_urls.key'));
         $signedConfig = $this->signedUrlConfig();
         $defaultTtl = $this->optionalInt($this->config->get('router.signed_urls.default_ttl'));
         $shouldBind = (bool) $this->config->get('router.expose_url_services', false)
             || $baseUri !== ''
-            || $signKey !== null
             || $signedConfig !== null;
 
         if (!$shouldBind) {
             return null;
         }
 
-        return static function (Collection $routes) use ($signKey, $defaultTtl, $signedConfig, $baseUri): void {
+        return static function (Collection $routes) use ($defaultTtl, $signedConfig, $baseUri): void {
             Router::bindUrlServices(
                 routes: $routes,
-                signKey: $signKey,
+                signKey: null,
                 defaultTtl: $defaultTtl,
                 signedUrlConfig: $signedConfig,
                 baseUri: $baseUri,
@@ -178,35 +177,6 @@ final class WebrickRouterFactory
         };
     }
 
-    /** @return array<string, mixed> */
-    private function normalizeSignedUrlOptions(mixed $signedOptions): array
-    {
-        if (!is_array($signedOptions)) {
-            return [];
-        }
-
-        $normalized = [];
-
-        foreach ($signedOptions as $key => $value) {
-            if (!is_string($key)) {
-                continue;
-            }
-
-            $normalized[match ($key) {
-                'default_ttl' => 'defaultTtl',
-                'expiry_param' => 'expiryParam',
-                'generation_key' => 'generationKey',
-                'ignored_query_params' => 'ignoredQueryParams',
-                'payload_mode' => 'payloadMode',
-                'signature_param' => 'signatureParam',
-                'verification_keys' => 'verificationKeys',
-                default => $key,
-            }] = $value;
-        }
-
-        return $normalized;
-    }
-
     private function optionalInt(mixed $value): ?int
     {
         if (is_int($value)) {
@@ -215,13 +185,6 @@ final class WebrickRouterFactory
 
         return is_string($value) && $value !== ''
             ? (int) $value
-            : null;
-    }
-
-    private function optionalString(mixed $value): ?string
-    {
-        return is_string($value) && $value !== ''
-            ? $value
             : null;
     }
 
@@ -266,23 +229,7 @@ final class WebrickRouterFactory
 
     private function signedUrlConfig(): ?SignedUrlConfig
     {
-        $options = $this->signedUrlOptions();
-
-        return $options !== null
-            ? SignedUrlConfig::fromArray($options)
-            : null;
-    }
-
-    /** @return array<string, mixed>|null */
-    private function signedUrlOptions(): ?array
-    {
-        $signedOptions = $this->normalizeSignedUrlOptions(
-            $this->config->get('router.signed_urls.options'),
-        );
-
-        return $signedOptions !== []
-            ? $signedOptions
-            : null;
+        return new SignedUrlKeyResolver($this->config)->resolve();
     }
 
     private function stringConfig(string $key, string $default = ''): string

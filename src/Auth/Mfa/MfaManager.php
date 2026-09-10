@@ -20,7 +20,7 @@ use Infocyph\Foundation\Auth\Support\SystemClock;
 final readonly class MfaManager
 {
     public function __construct(
-        private MfaFactorStoreInterface $factors,
+        private MfaFactorCompareAndSwapStoreInterface $factors,
         private MfaVerifierInterface $verifier,
         private RecoveryCodeServiceInterface $recoveryCodes,
         private TtlStoreInterface $ttl,
@@ -32,9 +32,7 @@ final readonly class MfaManager
         private ClockInterface $clock = new SystemClock(),
     ) {}
 
-    /**
-     * @param array<string, mixed> $context
-     */
+    /** @param array<string, mixed> $context */
     public function activateFactor(string $accountId, string $factorId, array $context = []): MfaEnrollmentResult
     {
         $factor = $this->findFactor($accountId, $factorId);
@@ -45,24 +43,39 @@ final readonly class MfaManager
         if (!$this->isPrimaryFactor($factor)) {
             return new MfaEnrollmentResult(MfaStatus::INVALID, $factor, code: 'mfa_factor_not_activatable', context: $context);
         }
+        if ($factor->enabled) {
+            return new MfaEnrollmentResult(MfaStatus::ACTIVATED, $factor, code: 'mfa_factor_already_active', context: $context);
+        }
 
         $enabledFactor = $factor->activated();
-        $this->factors->save($enabledFactor);
+        if (!$this->factors->compareAndSwap($factor, $enabledFactor)) {
+            return new MfaEnrollmentResult(
+                MfaStatus::INVALID,
+                $factor,
+                code: 'mfa_factor_conflict',
+                context: $context,
+            );
+        }
 
         return new MfaEnrollmentResult(MfaStatus::ACTIVATED, $enabledFactor, code: 'mfa_factor_activated', context: $context);
     }
 
-    /**
-     * @param array<string, mixed> $metadata
-     */
-    public function enrollFactor(string $accountId, MfaFactorType|string $type, string $label, array $metadata = [], bool $enabled = false, int $recoveryCodeCount = 0): MfaEnrollmentResult
-    {
+    /** @param array<string, mixed> $metadata */
+    public function enrollFactor(
+        string $accountId,
+        MfaFactorType|string $type,
+        string $label,
+        array $metadata = [],
+        bool $enabled = false,
+        int $recoveryCodeCount = 0,
+    ): MfaEnrollmentResult {
         $resolvedType = $type instanceof MfaFactorType ? $type->value : $type;
+        $safeContext = $this->safeEnrollmentContext($metadata);
         if ($resolvedType === MfaFactorType::RECOVERY_CODE->value) {
             return new MfaEnrollmentResult(
                 MfaStatus::INVALID,
                 code: 'mfa_recovery_factor_managed_internally',
-                context: $metadata,
+                context: $safeContext,
             );
         }
 
@@ -76,11 +89,30 @@ final readonly class MfaManager
             metadata: $metadata,
         );
 
-        $this->factors->save($factor);
-        $recoveryCodes = $this->recoveryCodes->generate($accountId, $recoveryCodeCount);
-        $this->record(AuthEventType::MFA_ENROLLED, $accountId, ['factor_id' => $factor->id, 'factor_type' => $factor->type] + $metadata, AuthEventSeverity::NOTICE);
+        if (!$this->factors->compareAndSwap(null, $factor)) {
+            return new MfaEnrollmentResult(
+                MfaStatus::INVALID,
+                $factor,
+                code: 'mfa_factor_conflict',
+                context: $safeContext,
+            );
+        }
 
-        return new MfaEnrollmentResult(MfaStatus::ENROLLED, $factor, $recoveryCodes, 'mfa_factor_enrolled', $metadata);
+        $recoveryCodes = $this->recoveryCodes->generate($accountId, $recoveryCodeCount);
+        $this->record(
+            AuthEventType::MFA_ENROLLED,
+            $accountId,
+            ['factor_id' => $factor->id, 'factor_type' => $factor->type] + $safeContext,
+            AuthEventSeverity::NOTICE,
+        );
+
+        return new MfaEnrollmentResult(
+            MfaStatus::ENROLLED,
+            $factor,
+            $recoveryCodes,
+            'mfa_factor_enrolled',
+            $safeContext,
+        );
     }
 
     public function isSatisfied(string $accountId, ?string $sessionId = null): bool
@@ -88,11 +120,13 @@ final readonly class MfaManager
         return (bool) $this->ttl->get($this->satisfiedKey($accountId, $sessionId), false);
     }
 
-    /**
-     * @param array<string, mixed> $context
-     */
-    public function issueChallenge(string $accountId, MfaChallengePurpose|string $purpose = MfaChallengePurpose::LOGIN, ?string $factorId = null, array $context = []): MfaChallengeResult
-    {
+    /** @param array<string, mixed> $context */
+    public function issueChallenge(
+        string $accountId,
+        MfaChallengePurpose|string $purpose = MfaChallengePurpose::LOGIN,
+        ?string $factorId = null,
+        array $context = [],
+    ): MfaChallengeResult {
         $factor = $factorId !== null ? $this->findFactor($accountId, $factorId) : $this->firstEnabledFactor($accountId);
 
         if ($factor === null || !$this->isPrimaryFactor($factor) || !$factor->enabled) {
@@ -111,19 +145,27 @@ final readonly class MfaManager
         );
 
         $this->ttl->put($this->challengeKey($challenge->id), $challenge->toArray(), $this->challengeTtlSeconds);
-        $this->record(AuthEventType::MFA_CHALLENGED, $accountId, ['challenge_id' => $challenge->id, 'factor_id' => $factor->id] + $context);
+        $this->record(
+            AuthEventType::MFA_CHALLENGED,
+            $accountId,
+            ['challenge_id' => $challenge->id, 'factor_id' => $factor->id] + $context,
+        );
         $this->notifier->send(new AuthNotification(
             AuthNotificationType::MFA_CHALLENGE_REQUESTED,
             $accountId,
             ['challenge_id' => $challenge->id, 'factor_id' => $factor->id, 'purpose' => $challenge->purpose] + $context,
         ));
 
-        return new MfaChallengeResult(MfaStatus::CHALLENGE_ISSUED, $challenge, factor: $factor, code: 'mfa_challenge_issued', context: $context);
+        return new MfaChallengeResult(
+            MfaStatus::CHALLENGE_ISSUED,
+            $challenge,
+            factor: $factor,
+            code: 'mfa_challenge_issued',
+            context: $context,
+        );
     }
 
-    /**
-     * @param array<string, mixed> $context
-     */
+    /** @param array<string, mixed> $context */
     public function removeFactor(string $accountId, string $factorId, array $context = []): MfaEnrollmentResult
     {
         $factor = $this->findFactor($accountId, $factorId);
@@ -136,14 +178,17 @@ final readonly class MfaManager
         }
 
         $this->factors->remove($factorId);
-        $this->record(AuthEventType::MFA_DISABLED, $accountId, ['factor_id' => $factorId] + $context, AuthEventSeverity::NOTICE);
+        $this->record(
+            AuthEventType::MFA_DISABLED,
+            $accountId,
+            ['factor_id' => $factorId] + $context,
+            AuthEventSeverity::NOTICE,
+        );
 
         return new MfaEnrollmentResult(MfaStatus::REMOVED, $factor, code: 'mfa_factor_removed', context: $context);
     }
 
-    /**
-     * @param array<string, mixed> $context
-     */
+    /** @param array<string, mixed> $context */
     public function verifyChallenge(string $challengeId, string $code, array $context = []): MfaChallengeResult
     {
         $challenge = $this->challenge($this->ttl->get($this->challengeKey($challengeId)));
@@ -161,7 +206,13 @@ final readonly class MfaManager
         $verification = $this->verifier->verify($challenge, $code);
 
         if (!$verification->verified) {
-            return new MfaChallengeResult(MfaStatus::INVALID, $challenge, $verification, code: $verification->reason ?? 'mfa_code_invalid', context: $context);
+            return new MfaChallengeResult(
+                MfaStatus::INVALID,
+                $challenge,
+                $verification,
+                code: $verification->reason ?? 'mfa_code_invalid',
+                context: $context,
+            );
         }
 
         $consumed = $this->challenge($this->ttl->pull($this->challengeKey($challengeId)));
@@ -177,12 +228,17 @@ final readonly class MfaManager
 
         $this->markSatisfied($challenge->accountId, ContextValue::stringOrNull($context, 'session_id'));
 
-        return new MfaChallengeResult(MfaStatus::VERIFIED, $challenge, $verification, $challenge->factorId !== null ? $this->findFactor($challenge->accountId, $challenge->factorId) : null, 'mfa_verified', $context);
+        return new MfaChallengeResult(
+            MfaStatus::VERIFIED,
+            $challenge,
+            $verification,
+            $challenge->factorId !== null ? $this->findFactor($challenge->accountId, $challenge->factorId) : null,
+            'mfa_verified',
+            $context,
+        );
     }
 
-    /**
-     * @param array<string, mixed> $context
-     */
+    /** @param array<string, mixed> $context */
     public function verifyRecoveryCode(string $accountId, string $code, array $context = []): MfaChallengeResult
     {
         if (!$this->hasEnabledPrimaryFactor($accountId)) {
@@ -192,13 +248,22 @@ final readonly class MfaManager
         $verification = $this->recoveryCodes->verify($accountId, $code);
 
         if (!$verification->verified) {
-            return new MfaChallengeResult(MfaStatus::INVALID, code: $verification->reason ?? 'recovery_code_invalid', context: $context);
+            return new MfaChallengeResult(
+                MfaStatus::INVALID,
+                code: $verification->reason ?? 'recovery_code_invalid',
+                context: $context,
+            );
         }
 
         $this->markSatisfied($accountId, ContextValue::stringOrNull($context, 'session_id'));
         $this->record(AuthEventType::RECOVERY_CODE_USED, $accountId, $context, AuthEventSeverity::WARNING);
 
-        return new MfaChallengeResult(MfaStatus::RECOVERY_CODE_VERIFIED, verification: new MfaVerificationResult(true, recoveryCodeUsed: true, context: $context), code: 'recovery_code_verified', context: $context);
+        return new MfaChallengeResult(
+            MfaStatus::RECOVERY_CODE_VERIFIED,
+            verification: new MfaVerificationResult(true, recoveryCodeUsed: true, context: $context),
+            code: 'recovery_code_verified',
+            context: $context,
+        );
     }
 
     private function challenge(mixed $payload): ?MfaChallenge
@@ -259,11 +324,13 @@ final readonly class MfaManager
         $this->ttl->put($this->satisfiedKey($accountId, $sessionId), true, $this->satisfiedTtlSeconds);
     }
 
-    /**
-     * @param array<string, mixed> $metadata
-     */
-    private function record(AuthEventType $type, string $accountId, array $metadata = [], AuthEventSeverity $severity = AuthEventSeverity::INFO): void
-    {
+    /** @param array<string, mixed> $metadata */
+    private function record(
+        AuthEventType $type,
+        string $accountId,
+        array $metadata = [],
+        AuthEventSeverity $severity = AuthEventSeverity::INFO,
+    ): void {
         AuthEventRecorder::record(
             $this->audit,
             $this->ids,
@@ -275,6 +342,28 @@ final readonly class MfaManager
             sessionId: ContextValue::stringOrNull($metadata, 'session_id'),
             deviceId: ContextValue::stringOrNull($metadata, 'device_id'),
         );
+    }
+
+    /**
+     * @param array<string, mixed> $metadata
+     * @return array<string, mixed>
+     */
+    private function safeEnrollmentContext(array $metadata): array
+    {
+        $safe = $metadata;
+        $otp = $safe['otp'] ?? null;
+        if (!is_array($otp)) {
+            return $safe;
+        }
+
+        foreach (['credential_record_json', 'pin', 'private_key', 'secret'] as $key) {
+            if (array_key_exists($key, $otp)) {
+                $otp[$key] = '[redacted]';
+            }
+        }
+        $safe['otp'] = $otp;
+
+        return $safe;
     }
 
     private function satisfiedKey(string $accountId, ?string $sessionId): string

@@ -2,32 +2,35 @@
 
 **Status:** Canonical implementation plan  
 **Foundation target:** 3.x  
-**Foundation source baseline:** `main`  
-**InterMix baseline:** `^10.0.4`  
-**Webrick baseline:** `^5.3`  
-**Priority:** correctness → hot-path performance → persistent-runtime safety → scalability → ergonomics
+**Active branch:** `foundation-3/close-26.6`  
+**Priority:** correctness → security/persisted compatibility → hot-path performance → persistent-runtime safety → scalability → ergonomics
 
-> This is the single source of truth for Foundation 3 runtime development. Completed work is intentionally summarized so the document stays maintainable. Open lower-library passes remain actionable and detailed. If a lower layer already owns the correct generic mechanism, Foundation consumes it directly; generic missing primitives belong in the lower layer, not in a Foundation-only workaround.
+> This file is the single current source of truth for Foundation 3 runtime development. Completed historical passes are intentionally condensed; open passes retain ownership, implementation, security/correctness, performance and completion gates. If a specialist Infocyph package already owns a generic mechanism, Foundation consumes it rather than creating a Foundation-only substitute.
 
 ---
 
 ## 1. Architectural invariants
 
-Foundation has four independent runtime paths: `web`, `cli`, `worker`, and `scheduler`. There is one Foundation graph/composition source, but each runtime uses a fresh InterMix `ContainerBuilder` and its own generated artifact. Webrick owns only the web HTTP path.
+Foundation has four runtime paths: `web`, `cli`, `worker`, and `scheduler`. They share one composition source, while every independently active runtime uses a fresh InterMix builder/generated artifact. Webrick remains the sole web HTTP runtime/output owner.
 
-### Lower-layer ownership
+Foundation owns application configuration, capability selection, provider/composition policy, application persistence policy, runtime orchestration, release-generation/activation, diagnostics, and application-facing adaptation.
 
-**InterMix** owns DI graph composition/validation, lifetimes, aliases/values/contextual bindings/tags, generated production containers, scope seeds, execution isolation, lifecycle/scope leave, and compile reports.
+Lower libraries own their specialist mechanics:
 
-**Webrick** owns web route registration/build, matcher compilation, Request materialization, middleware dispatch, HTTP request scope, routing-control responses, runtime adapters, native response writing/streaming, frozen URL/runtime registries, and coordinated web release metadata.
+- **InterMix:** DI graph, lifetimes, scopes, generated containers, execution isolation.
+- **Webrick:** HTTP route/runtime/request/middleware/response mechanics.
+- **DBLayer:** connections, leases/pools, queries, repositories, migrations, DB transaction/cache mechanics.
+- **CacheLayer:** cache semantics, locks, atomic primitives, counters, backend coordination.
+- **OTP:** OTP/AOTP/GridOTP/MobileOTP/Passkey mechanics and OTP-owned replay/challenge/recovery state semantics.
+- **Pathwise:** storage contexts/adapters, uploads/downloads, safe filesystem mechanics.
+- **ReqShield:** validation/sanitization/schema/rule execution.
+- **Omnibus:** messaging/events/queues/workers/workflows.
+- **TalkingBytes:** HTTP/email/webhook/gRPC communication mechanics.
+- **Epicrypt:** cryptography, key generation/derivation/rotation, protection, passwords, JOSE/JWK/JWKS, generic signed-token/key-readiness mechanics, and the transport-neutral OAuth 2.1/OIDC/PAT protocol core with authoritative auth-state contracts.
 
-### Foundation ownership
+Foundation must not add a second DI runtime, HTTP runtime, DB pool/query builder, validation engine, messaging runtime, storage engine, OTP/WebAuthn protocol runtime, cryptographic implementation, or OAuth/OIDC/PAT protocol implementation above the specialist package that already owns it.
 
-Foundation owns normalized application configuration, capability selection, provider composition policy, application-facing integrations, CLI/worker/scheduler orchestration, Foundation auth/session/database/filesystem policy, immutable cross-runtime release generation, deployment activation/trust, diagnostics, migration guidance, and attribution benchmarks.
-
-Foundation must not add a second DI runtime, HTTP runtime, database connection pool, query builder, validation engine, queue runtime, filesystem engine, or cryptographic implementation above a lower library that already owns it.
-
-### Stable execution scopes
+Stable execution scopes remain:
 
 ```text
 webrick.request
@@ -40,99 +43,74 @@ Execution/request/job/message IDs are scope seeds/correlation values, never synt
 
 ---
 
-## 2. Production/runtime contract
+## 2. Completed runtime foundation
 
-Production uses generated InterMix `ProductionContainer` instances. Every independently active runtime uses a fresh builder; unexpected skipped definitions fail release generation. Compilation-safe recipes remain `FactoryDefinition::construct(...)`, `FactoryDefinition::staticFactory(...)`, and `ServiceReference(...)`. Closure/direct factories remain explicit dynamic islands.
-
-Web production remains:
-
-```text
-Foundation graph + route topology
- -> coordinated Webrick release compile
- -> generated InterMix web container
- -> compiled Webrick router
- -> RuntimeAdapter selected once
- -> RuntimeServer
-```
-
-The minimal compiled route must remain Request-free and scope-free when its execution plan permits it. Webrick is the sole native response writer.
-
----
-
-## 3. Immutable release generation
-
-All four runtime artifacts belong to one immutable Foundation generation:
-
-```text
-release/<generation>/
-    foundation.php
-    config.php                  optional
-    web/                        Webrick + InterMix artifacts
-    cli/                        InterMix artifact + metadata
-    worker/                     InterMix artifact + metadata
-    scheduler/                  InterMix artifact + metadata
-```
-
-Build and verify the complete generation before publication; atomically switch one active-generation pointer only after every runtime artifact validates; failed builds keep the previous generation active; persistent workers replace gracefully; old-generation cleanup stays outside request/job hot paths.
-
----
-
-## 4. Foundation hashing policy
-
-- **SHA3-256**: Foundation-owned security-sensitive derivation where collision resistance/security aliasing matters.
-- **XXH128**: non-security deterministic fingerprints, freshness identities, and key compaction.
-- No new Foundation-owned SHA-256.
-- Protocol/persisted/lower-layer digest formats remain owned by their defining contracts.
-- Hashes never replace MACs, signatures, encryption, or KDFs.
-
-Foundation-owned security CacheLayer keys are domain-separated and retain the full SHA3-256 digest in a CacheLayer-legal encoding.
-
----
-
-## 5. Completed runtime implementation summary
-
-Phases 0–9 are complete. Do not regress:
+Phases 0–9 remain complete and must not regress:
 
 - builder-first web/CLI/worker/scheduler composition;
-- InterMix `^10.0.4` generated-runtime model;
-- Webrick `^5.3` compiled production runtime;
-- scoped/execution-local principal/session/database bookkeeping;
-- stable semantic scopes and Fiber-safe isolation;
-- route-first graph enrichment and one coordinated web compile;
-- frozen routing/URL registries and execution-plan-driven Request/scope creation;
+- generated InterMix runtime model;
+- compiled Webrick production runtime;
+- execution-local principal/session/database bookkeeping;
+- stable semantic scopes and Fiber-safe cleanup;
+- route-first graph enrichment and coordinated web compile;
+- frozen routing/URL registries;
 - Webrick-only native response output;
-- generated non-web runtimes safely reused across executions;
-- immutable unified release generation with atomic activation/rollback;
-- bounded persistent worker/scheduler memory and state-isolation acceptance;
-- Phase 9 correctness/static-analysis/performance acceptance.
+- safe persistent reuse of generated non-web runtimes;
+- immutable unified release generations with atomic activation/rollback;
+- bounded persistent worker/scheduler state;
+- correctness/static-analysis/performance acceptance from the completed runtime phases.
 
-Retained attribution evidence: generated-container resolution is effectively direct InterMix cost; `Application::make()` adds only tens of nanoseconds; non-web execution boundary adds only a few microseconds over bare InterMix scope entry/leave; compiled Foundation HTTP hot-path tax measured about 1% over standalone compiled Webrick; recorded PHP-FPM + OPcache Nginx/Apache runs completed without request failures.
+Phase 10 remains the final aggregate release-readiness pass after every open lower-library integration closes.
 
 ---
 
-## 6. Phase 10 release-readiness gates
+## 3. Lower-library tracker
 
-Completed audits include dynamic-container mutation, old compile/resolver activation, closure aliases, Application/container capture, dynamic islands/singletons, Fiber cleanup, production source discovery, unnecessary Request/scope/global middleware, native output, hashing/manifest parsing, hidden DB/cache activation, cleanup exception preservation, and stale InterMix/Webrick configuration/docs.
+| Point | Library | Foundation floor / target | Status |
+| --- | --- | --- | --- |
+| 26.1 | ArrayKit | `^5.2` | **complete** |
+| 26.2 | UID | `^5.0` | **complete** |
+| 26.3 | CacheLayer | `^3.4` | **complete** |
+| 26.4 | OTP / Passkey | `^6.1` | core complete; Epicrypt-backed security acceptance **in progress** |
+| 26.5 | Pathwise | `^4.0` | implementation complete; normal-package/final QA acceptance **in progress** |
+| 26.6 | DBLayer | `^5.1` | **complete** |
+| 26.7 | ReqShield | `^3.1` | open/deferred |
+| 26.8 | Omnibus | `^2.5` | open/deferred |
+| 26.9 | TalkingBytes | `^2.0` | open/deferred |
+| 26.10 | Epicrypt | `^3.0` | **IN PROGRESS** |
+| 26.11 | standalone WebAuthn specialist pass | OTP 6.1 Passkey | **closed/subsumed** |
 
-Still open:
+Current Foundation development graph intentionally contains:
 
-- [ ] validate aggregate hard gates after lower-library passes;
-- [ ] validate final definition of done after lower-library passes;
-- [ ] complete InfByte consumption/handoff against the final Foundation 3 lifecycle.
+```text
+infocyph/epicrypt ^3.0
+infocyph/otp ^6.1
+infocyph/pathwise ^4.0
+```
+
+Epicrypt `3.0` was released on **2026-09-10**. Tag `3.0` resolves to commit `e11bb287900b2590954ef0c0ebba649bc5bf0793`. Its production requirements contain neither Pathwise nor OTP; Pathwise is development-only in Epicrypt. The old Epicrypt-2 → Pathwise-3 dependency conflict is therefore gone.
+
+---
+
+## 4. Current execution order
+
+1. Finish 26.10.2/26.10.3 crypto-wrapper/key-domain consolidation and exact-head QA.
+2. Close the remaining 26.5 normal-package/filesystem acceptance.
+3. Close the Epicrypt-dependent remainder of 26.4 OTP/Passkey security/concurrency acceptance.
+4. Execute 26.10.4 released Epicrypt OAuth/OIDC/PAT protocol-core adoption.
+5. Execute 26.10.5 security/compatibility/protocol tests and 26.10.6 performance attribution.
+6. Return to 26.7 ReqShield → 26.8 Omnibus → 26.9 TalkingBytes.
+7. Run aggregate Phase 10 / Foundation release-readiness gates.
+
+Do not reopen finalized lower-library architecture merely to make Foundation integration easier.
 
 ---
 
 # 26. Subsequent lower-library utilization passes
 
-Each pass must audit the current released API, keep generic mechanics in the lower layer, prove persistent/concurrent correctness where relevant, benchmark Foundation against the direct lower-layer operation, and update this plan/tracker.
+## 26.1 ArrayKit 5.2 — complete
 
----
-
-## 26.1 ArrayKit 5.2.0 — complete
-
-**Released baseline:** ArrayKit 5.2.0, commit `053440b61071a17332b18879b12026f54a0ad144`.
-
-Foundation delegates generic env/config parsing, raw environment access, layered lazy file config, dot notation, and merge mechanics to ArrayKit while retaining application source-order, host-protection, hydration, release-artifact, and validation policy. Production generated config remains source-discovery-free.
+Foundation delegates generic env/config parsing, raw environment access, layered/lazy file configuration, dot notation and merge mechanics to ArrayKit. Foundation retains source order, host protection, hydration, release-artifact policy and application validation.
 
 **Status:** [X] complete.
 
@@ -140,220 +118,363 @@ Foundation delegates generic env/config parsing, raw environment access, layered
 
 ## 26.2 UID 5.0 — complete
 
-**Released baseline:** UID 5.0, commit `4a95eb8058e73c72e74e44fedd25755198899eae`.
-
-Foundation uses UID monotonic ULID as generated non-web correlation fallback while preserving supplied authoritative IDs byte-for-byte. Scope labels remain semantic/deterministic; release hashes, security randomness, and temporary entropy remain with their owning primitives.
+Foundation uses UID monotonic ULID as the generated non-web correlation fallback while preserving supplied authoritative IDs. Release identities/security randomness remain with their owning mechanisms.
 
 **Status:** [X] complete.
 
 ---
 
-## 26.3 CacheLayer atomic capability — complete; current floor 3.4
+## 26.3 CacheLayer 3.4 — complete
 
-**Atomic capability baseline:** CacheLayer 3.3, commit `581194b184da929f7f098672ccf91869b1da984c`.  
-**Current Foundation integration floor:** CacheLayer 3.4, tag commit `b064b8196ddc4672ce37be252bc7a4cadb78527e`.
+Foundation consumes CacheLayer locks and true atomic operations (`setIfAbsent`, `getAndDelete`, CAS, counters) directly and does not emulate cache atomicity above the package.
 
-CacheLayer owns optional atomic `setIfAbsent()`, `getAndDelete()`, `compareAndSet()`, counters, locks, cache semantics, backend correctness, and the newer 3.4 runtime used by DBLayer 5.1. Foundation consumes those primitives directly and does not emulate cache atomicity through Foundation locks.
-
-- [X] 3.3 atomic capability integration completed previously.
-- [~] Foundation dependency floor raised to `infocyph/cachelayer ^3.4` during 26.6; final QA still required with DBLayer 5.1.
+**Status:** [X] complete.
 
 ---
 
-## 26.4 OTP 6.1 + Passkey/WebAuthn Foundation integration — open
+## 26.4 OTP 6.1 + Passkey/WebAuthn — core complete; final security acceptance in progress
 
-**Released baseline:** OTP 6.1, commit `c7faf376b96611638e7bc0da6cd081496768d34f`.
+### Ownership
 
-Foundation still must:
+OTP owns TOTP/HOTP/OCRA/AOTP/GridOTP/MobileOTP mechanics, provisioning, OTP replay/challenge semantics, recovery-code mechanics/contracts, secret-rotation primitives, and Passkey/WebAuthn ceremony validation/state. Foundation owns factor/account policy, capability activation, durable application persistence/CAS, principal mapping, secret-at-rest policy, key lifecycle selection, audit/error mapping, and application runtime composition.
 
-- [ ] raise OTP floor to `^6.1` and verify PHP 8.4/8.5 stable/lowest;
-- [ ] route passkey ceremony behavior exclusively through OTP `Passkey`;
-- [ ] remove direct Foundation WebAuthn ceremony/options/validator/codec duplication;
-- [ ] expose AOTP/GridOTP deliberately and MobileOTP only as legacy compatibility;
-- [ ] require secure CacheLayer auth-state capability for selected stateful OTP/Passkey modes;
-- [ ] preserve HOTP/counter-OCRA durable counters and authoritative MFA CAS;
-- [ ] atomically persist the exact passkey credential record returned by OTP and reject stale replacement;
-- [ ] keep AOTP private-key material device-owned;
-- [ ] protect persisted symmetric MFA secrets through Epicrypt policy from 26.10;
-- [ ] prove Fiber/persistent isolation, fail-closed backend behavior, optional-capability cold paths, and direct-OTP attribution.
+### Implemented
 
-DBLayer 26.6 owns the generic database primitive/pattern for authoritative stale-write rejection.
+- [X] Foundation OTP floor is `^6.1`.
+- [X] OTP is the sole lower-layer MFA/Passkey mechanics boundary.
+- [X] Foundation passkey routes through OTP `Passkey`; direct ceremony duplication is removed.
+- [X] AOTP/GridOTP integration exists; MobileOTP is explicit legacy compatibility.
+- [X] selected stateful modes fail closed without required CacheLayer authentication state.
+- [X] HOTP/counter-OCRA durable transitions use authoritative Foundation CAS.
+- [X] passkey credential persistence uses revision-aware replacement.
+- [X] sensitive OTP/private-key-shaped enrollment diagnostics are redacted.
+- [X] Recovery-code HMAC has an independent lifecycle and no longer derives from the generic token-signing secret.
+- [X] Recovery-code key material is resolved at runtime from `AUTH_OTP_RECOVERY_HMAC_KEY` (or an explicitly selected environment locator) and domain-separated with Epicrypt `KeyDeriver` under `foundation.auth.recovery-hmac.v1`.
+- [X] Durable DB-backed OTP symmetric material is protected at the persistence boundary through Epicrypt `StringProtector` under `foundation.auth.mfa-secret.v1`.
+- [X] MFA protection uses an explicit Epicrypt `KeyRing`: exactly one active write key, bounded fallback read keys, disabled/retired keys ineligible for read/write.
+- [X] OTP `secret` and legacy MobileOTP `pin` are selectively protected; AOTP public-key material and unrelated metadata are not encrypted as secrets.
+- [X] Protected MFA values bind account/factor/type/field through authenticated data, preventing ciphertext relocation between factors/fields.
+- [X] MFA encryption/decryption preserves `MfaFactor` revision; DB CAS remains revision-authoritative rather than ciphertext-authoritative.
+- [X] legacy plaintext reading is disabled by default and can be enabled only by explicit `auth.otp.secret_protection.allow_legacy_plaintext` migration policy; malformed/tampered protected values still fail closed.
+- [X] secret values are resolved from environment locators at runtime rather than embedded in InterMix generated definitions.
+
+### Remaining acceptance
+
+- [ ] Let the new exact-head focused protection/rotation/DB-persistence tests pass full PHPForge QA/static analysis on PHP 8.4/8.5 stable/lowest.
+- [ ] Add/verify an explicit operational migration path that turns legacy plaintext compatibility back off after old rows are rewritten.
+- [ ] Prove active→fallback→new-active rotation under concurrent HOTP/OCRA counter updates cannot lose newer factor state.
+- [ ] Re-audit recovery-store committed-count/replacement/atomic-consumption semantics against OTP 6.1 under the final independent key lifecycle.
+- [ ] Preserve OTP result/reason taxonomy internally; keep credential/replay failures distinct from coordination/persistence/runtime failures.
+- [ ] Prove every production MFA CAS store is authoritative under the supported concurrency/deployment matrix.
+- [ ] Complete representative TOTP/HOTP/OCRA/recovery/Passkey sequential, interleaved Fiber and persistent-worker isolation tests.
+- [ ] Complete direct-OTP-versus-Foundation protection/state overhead attribution.
+
+### Completion gate
+
+26.4 closes only when OTP remains the sole protocol/mechanics owner, production factor/credential stores are atomically authoritative, durable symmetric factor secrets are protected through Epicrypt 3, recovery/MFA key lifecycles are independent, rotation/concurrency tests pass, optional graphs remain cold, and final QA/performance evidence is green.
+
+**Status:** core complete; security/key-domain implementation landed; acceptance in progress.
 
 ---
 
-## 26.5 Pathwise 3.1 — open
+## 26.5 Pathwise 4 filesystem integration — implementation complete; acceptance in progress
 
-**Released baseline:** Pathwise 3.1, commit `8226cf42747ae131486063cad39335d6dfc1c7f7`.
+### Implemented
 
-- [ ] deterministic Foundation temp-upload cleanup on success/failure without masking the primary exception;
-- [ ] real build-time malware-scanner composition when required, zero scanner cost when disabled;
-- [ ] process/generation ownership for static mounts/custom drivers;
-- [ ] preserve typed transfer results and correct local/non-local response handling;
-- [ ] keep X-Sendfile/X-Accel explicit/policy-driven;
-- [ ] preserve traversal/archive/symlink/bomb protections and stream ownership;
-- [ ] prove persistent isolation and direct-Pathwise attribution.
+- [X] Foundation Composer floor is `^4.0`.
+- [X] `StorageRegistry` is a thin application adapter over Foundation-owned Pathwise `StorageContext`.
+- [X] old Pathwise process-global mount/default-namespace workaround removed.
+- [X] application/generation owns explicit storage context; same-process/Fiber isolation coverage exists.
+- [X] uploads adapt Webrick input through Pathwise `UploadSource::fromMover`.
+- [X] downloads delegate exact byte/range iteration to `DownloadProcessor::streamChunks`; Webrick retains HTTP output ownership.
+- [X] storage links delegate generic symlink safety to `SafeSymlinkManager`.
+- [X] malware scanner composition uses Pathwise scanner/mode semantics.
+- [X] Pathwise bridge benchmark coverage exists.
+- [X] Foundation now consumes released Epicrypt `^3.0`; the Epicrypt-2/Pathwise-3 conflict is removed.
+- [X] normal Composer resolution has succeeded with Epicrypt 3 + OTP 6.1 + Pathwise 4 on the active integration branch.
+- [X] stale `filesystem.uploads.require_malware_scan` usage/default is absent from the current tree.
+
+### Remaining acceptance
+
+- [ ] Complete exact-final-head filesystem suite on PHP 8.4/8.5 stable/lowest: context isolation, upload cleanup, scanner modes, ranges/early abort, links, persistent/Fiber reuse and capability absence.
+- [ ] Re-run/finalize `benchmark:pathwise` attribution on the final integration head.
+- [ ] Confirm no compatibility/VCS/path workaround is present in the final Composer graph.
+
+### Completion gate
+
+26.5 closes when the exact final head proves normal released Epicrypt 3 + OTP 6.1 + Pathwise 4 resolution, the full filesystem suite and benchmark are green, no global Pathwise state/duplicate storage mechanics return, and Webrick remains the HTTP response/output owner.
+
+**Status:** implementation/dependency closure complete; final exact-head QA/performance acceptance open.
 
 ---
 
-## 26.6 DBLayer 5.1 Foundation integration — active
+## 26.6 DBLayer 5.1 — complete
+
+Foundation uses execution-owned DBLayer connections/`ConnectionRepository`, delegates generic DB mechanics to DBLayer, retains domain persistence/CAS policy, and keeps pooling opt-in with execution isolation.
+
+**Status:** [X] complete.
+
+---
+
+## 26.7 ReqShield 3.1 utilization — open/deferred
+
+### Ownership
+
+ReqShield owns rule parsing/compilation/execution, sanitization/casting, nested/wildcard validation, limits, result/failure models, schema composition/JSON-schema export, bounded plan caching and optional database-rule batching. Foundation owns named application schemas/defaults/overrides, Webrick input adaptation, optional DBLayer provider selection and HTTP/application error mapping.
+
+### Open work
+
+- [ ] Rescan Foundation ReqShield usage against 3.1 and remove duplicated mechanics.
+- [ ] Freeze production schema topology; normal execution must not mutate process-wide registration.
+- [ ] Keep DB validation optional/lazy and reuse ReqShield database batching/DBLayer parameter limits.
+- [ ] Preserve validation bounds as security controls and structured failure results internally.
+- [ ] Prove non-DB validation does no DB I/O and persistent/Fiber validation retains no prior mutable state.
+- [ ] Benchmark direct ReqShield vs Foundation schema/factory/database bridge.
+
+**Status:** deferred until 26.10/26.4 closure.
+
+---
+
+## 26.8 Omnibus 2.5 utilization — open/deferred
+
+### Ownership
+
+Omnibus owns envelope/bus/routing/transports/consumer/retry/failure/workflow/worker/worker-pool/scheduled-message mechanics and its CacheLayer/DBLayer integrations. Foundation owns configured application IDs/routes/transports, graph inclusion, generation supervision, execution scopes, correlation and selection of lower-layer DB/cache services.
+
+### Open work
+
+- [ ] Rescan Foundation Omnibus 2.5 usage and remove duplicated mechanics.
+- [ ] Keep durable DB/cache integrations lazy and selected explicitly.
+- [ ] Require intentional durable failure-store policy for durable async workers.
+- [ ] Bind after-commit behavior to the current execution connection; never capture scoped connections in singletons.
+- [ ] Keep retry/settlement inside Omnibus Consumer and WorkerPool beneath Foundation generation supervision.
+- [ ] Prove sync/memory/durable topology, retries/failures, persistent isolation and capability-absent cold paths.
+- [ ] Benchmark direct Omnibus versus Foundation bridge.
+
+**Status:** deferred until 26.10/26.4 closure.
+
+---
+
+## 26.9 TalkingBytes 2.0 utilization — open/deferred
+
+### Ownership
+
+TalkingBytes owns HTTP client mechanics, inbound/outbound email/message chains, webhook protocol/signature behavior and gRPC request/response/stream mechanics. Foundation owns named profiles, capability selection, application service mapping, secure replay-store selection, worker-scope integration and application secret/redaction policy.
+
+### Open work
+
+- [ ] Rescan Foundation bindings against TalkingBytes 2.0.
+- [ ] Classify mutable client/profile/resilience lifetimes and prove no cross-request/job/Fiber state leakage.
+- [ ] Keep webhook replay atomic/fail-closed through CacheLayer.
+- [ ] Route inbound gRPC through the existing Foundation worker lifecycle.
+- [ ] Consume native inbound/outbound email/message-chain APIs rather than recreating protocol mechanics.
+- [ ] Keep communication secrets out of logs/cache keys/generated metadata.
+- [ ] Prove HTTP/webhook/gRPC/email behavior, optional cold graphs and direct-vs-Foundation overhead.
+
+**Status:** deferred until 26.10/26.4 closure.
+
+---
+
+## 26.10 Epicrypt 3 consumption, auth-protocol adoption and Foundation crypto-policy consolidation — IN PROGRESS
 
 ### Released baseline
 
-- DBLayer tag: **5.1**;
-- tag commit: `087f179ecac3e5555c346ce84cfc353050f8e3cb`;
-- DBLayer 5.1 requires PHP `^8.4`, ArrayKit `^5.2`, CacheLayer `^3.4`, and PSR Log `^3.0.2`;
-- Foundation floors now target `infocyph/dblayer ^5.1` and `infocyph/cachelayer ^3.4`.
+- [X] Epicrypt `3.0` is released and normally consumable.
+- [X] Release tag `3.0` resolves to `e11bb287900b2590954ef0c0ebba649bc5bf0793`.
+- [X] Released `PUBLIC_API_3.md`/3.0 source is the integration authority; intermediate architecture-plan APIs are not compatibility targets.
+- [X] Epicrypt 3 production dependencies contain no Pathwise or OTP.
+- [X] Frozen Epicrypt `ep2` protected formats remain the persisted-compatibility baseline where Foundation actually persists them.
 
-DBLayer owns connection mechanics, Pool/PoolManager/ConnectionLease, reuse sanitation, QueryBuilder/result cache semantics, optimistic writes, repository/result primitives, schema/migrations/seeding, security, and telemetry. Foundation owns application topology, capability selection, execution lease ownership, cache-store selection, auth policy/schema, and scope cleanup.
+### Ownership
 
-Normal Foundation runtime uses explicit DBLayer `Connection` objects. The only intentional production read of the process-static `DB` façade is the worker pre-fork compatibility guard that detects externally opened legacy façade connections; it is diagnostic state, not Foundation execution state.
+Epicrypt owns generic crypto/key mechanics, purpose-bound timed tokens, signed-URL cryptography, asymmetric signing readiness/JWKS validation, password primitives, JOSE/JWK/JWKS/PKI operations, and the transport-neutral OAuth 2.1/OIDC/PAT protocol/state-machine core.
 
-### DBLayer 5.1 lower-layer evidence
+Foundation owns Webrick/HTTP adaptation, login/consent application decisions, accounts/principal mapping, DBLayer/CacheLayer production store adapters/transaction boundaries, application scope/audience/tenant policy, external secret references, rollout/rotation policy, sessions/cookies, Foundation rate limits/audit/telemetry/config/path/CLI and selection/configuration of Epicrypt services.
 
-- [X] instance-owned query cache and exact-connection `afterCommit()` invalidation;
-- [X] direct connections do not require static façade cache state;
-- [X] tokenized `ConnectionLease` / `PoolManager::checkout()` with stale/double/wrong release protection;
-- [X] reuse sanitation and lower-layer Fiber/interleaving regression coverage;
-- [X] `ConnectionRepository` instance-first repository path;
-- [X] native upsert and optimistic conditional write primitives;
-- [X] DBLayer lifecycle/pooling/prepared-statement benchmark subjects;
-- [X] DBLayer CacheLayer floor `^3.4`, ArrayKit floor `^5.2`.
+Foundation must not reimplement PKCE, grant state machines, authorization-code/refresh semantics, access-token claims/validation, OIDC nonce/hash rules, DPoP, PAT ability semantics, protocol error safety, generic crypto, KDFs, protection formats or signing readiness that Epicrypt 3 already owns.
 
-### Foundation integration tracker
+### Batch 26.10.1 — consume Epicrypt 3 and close dependency graph
 
-#### Batch 1 — released baseline and instance-owned primitives
+- [X] Release Epicrypt 3.0 and make stable 3.x normally consumable.
+- [X] Re-fetch released Epicrypt 3 API/release surface before Foundation integration.
+- [X] Foundation `require-dev["infocyph/epicrypt"]` is `^3.0`.
+- [X] Normal Composer dependency resolution succeeds without Epicrypt/Pathwise compatibility shims.
+- [X] Resolved development graph includes Epicrypt 3.x, OTP 6.1 and Pathwise 4.
+- [X] Released Epicrypt production graph contains no Pathwise or OTP.
+- [X] clean production install/check-platform/autoload has passed on the integration branch before the latest MFA slice.
+- [ ] Re-prove all dependency/clean-install assertions on the exact final 26.10 head.
+- [ ] Close the remaining exact-head 26.5 filesystem QA/performance gate.
 
-- [~] CacheLayer `^3.4` and DBLayer `^5.1` floors — **implemented; QA pending**;
-- [~] `DatabaseRepository` migrated to DBLayer 5.1 `ConnectionRepository` — **implemented; QA pending**;
-- [~] generic Foundation auth INSERT/UPDATE/DELETE/upsert moved to DBLayer QueryBuilder/native upsert — **implemented; QA pending**;
-- [~] explicit `database.query_cache.enabled/store` with lazy exact-Connection cache binding — **implemented; QA pending**.
+**Batch status:** implementation complete; exact-final-head evidence pending.
 
-#### Batch 2 — authoritative auth persistence
+### Batch 26.10.2 — remove generic Foundation crypto duplication
 
-- [~] full Foundation DBLayer usage rescan/classification completed; normal runtime is instance-owned and the remaining static façade production read is only the worker pre-fork legacy diagnostic — **implemented; QA pending**;
-- [~] MFA CAS keeps Foundation domain policy but performs one native DBLayer conditional revision update — **implemented; QA pending**;
-- [~] unconditional MFA `save()` uses native DBLayer upsert — **implemented; QA pending**;
-- [~] passkey persistence now has an independent revision, DB/in-memory compare-and-swap stores, stale-write rejection, and additive auth-schema migration — **implemented; QA pending; OTP authoritative record wiring remains 26.4**.
+- [X] Replace generic `HmacTokenCodec` signing/timing/purpose mechanics with Epicrypt `PurposeToken`; `HmacTokenCodec` is removed.
+- [X] `AbstractSimpleTimedTokenService` retains Foundation claim mapping only; generic issue/expiry/purpose/token-ID/signature mechanics are Epicrypt-owned.
+- [X] Replace ad-hoc raw-HMAC recovery/application derivation with Epicrypt `KeyDeriver` and stable domain labels.
+- [X] Keep OTP recovery semantics OTP-owned; only key derivation/lifecycle is Foundation/Epicrypt integration policy.
+- [X] `EnvironmentSecretManager` uses Epicrypt `KeyMaterialGenerator` with explicit encoding for canonical auth-secret generation.
+- [X] Removed Epicrypt-2 generator usage; no `MasterSecretGenerator`/`TokenMaterialGenerator` remains.
+- [X] `EnvironmentFileProtector` is a thin Foundation path/config adapter over atomic Epicrypt `FileProtector`; duplicate staging/publication crypto protocol is removed.
+- [X] OAuth signing readiness, pair coherence, key eligibility and public JWKS validation delegate to Epicrypt `AsymmetricSigningKeySet`; Foundation retains config/file loading and audit.
+- [ ] Replace Webrick-only raw signed-URL key handling with an Epicrypt-backed dedicated `foundation.signed-url.v1` key lifecycle/rotation bridge without moving HTTP URL mechanics out of Webrick.
+- [~] Preserve stable Epicrypt result/exception detail internally while mapping only safe non-sensitive Foundation failures externally; completed for the migrated token/key/MFA paths, still required during 26.10.4 protocol replacement.
 
-#### Batch 3 — runtime lifecycle and pooling decision
+**Batch status:** all generic token/KDF/file/signing-readiness duplication removed; signed-URL bridge and protocol-result continuation remain.
 
-- [~] normalized `ConnectionConfig` objects remain cached in `DBLayerFactory` outside execution hot paths — **implemented; QA pending**;
-- [~] Foundation dedicated create/use/disconnect vs DBLayer lease checkout/use/release attribution benchmark added — **benchmark execution pending**;
-- [~] warm/new and prepared-statement reuse benchmark subjects added — **benchmark execution pending**;
-- [~] opt-in DBLayer lease pooling path implemented with `DB_POOL_ENABLED=false` by default; singleton `DBLayerFactory` owns the process/generation pool and each `RuntimeExecutionState` owns one lease/name until cleanup — **acceptance decision pending benchmark/CI**.
+### Batch 26.10.3 — explicit Foundation key domains, protection and rotation
 
-`freshConnection()` remains dedicated/non-pooled. Foundation release cleanup calls only `ConnectionLease::release()` for pooled connections; DBLayer owns rollback/reset/health/lifetime sanitation. Fiber tests assert two live Foundation executions cannot own the same pooled Connection.
+Stable domains:
 
-A separate ownership fix was required before pooling: singleton CacheLayer PDO stores/invalidation transports may retain raw PDO objects, so they now use a generation-owned `DBLayerFactory::infrastructureConnection()` instead of borrowing an execution connection/lease. Transactional cache invalidation still uses the current execution connection because it intentionally participates in that transaction.
+```text
+foundation.auth.mfa-secret.v1
+foundation.auth.recovery-hmac.v1
+foundation.auth.simple-token.<purpose>.v1
+foundation.oauth.signing.v1
+foundation.environment.file.v1
+foundation.signed-url.v1
+```
 
-#### Batch 4 — query-cache, migration, and bridge acceptance
+- [X] Recovery HMAC has a dedicated external deployment secret locator plus Epicrypt `KeyDeriver` domain separation; it no longer shares the generic token-secret lifecycle.
+- [X] MFA encryption has a dedicated external active/fallback key ring independent from recovery/simple-token/OAuth/signed-URL domains.
+- [X] Durable DB-backed OTP `secret`/MobileOTP `pin` values are protected through Epicrypt high-level string protection.
+- [X] New MFA writes use only the active key; fallback keys are read-only and exact `kid` selection prevents trial decryption.
+- [X] Bounded protection metadata/purpose/version is persisted; plaintext is exposed only in the narrow in-memory OTP execution model.
+- [X] Fallback read does not automatically write; reprotection occurs only at an explicit Foundation write/policy boundary.
+- [X] MFA/recovery raw keys are runtime-resolved from environment locators and are not DI-definition configuration values.
+- [X] OAuth access-token signing uses the released dedicated Epicrypt auth key purpose rather than generic JWT signing.
+- [ ] Move Foundation simple-token root-secret handling away from composition-time raw secret embedding if generated-artifact inspection proves the value is materialized in InterMix output.
+- [ ] Finalize independent signed-URL key lifecycle/rotation under `foundation.signed-url.v1`.
+- [ ] Inventory environment-file protection key lifecycle versus other domains and document whether it is external-only or derived; do not silently share unrelated roots.
+- [ ] Add release-artifact/generated-container assertions proving no configured raw key, passphrase, token or decrypted MFA secret appears.
+- [ ] Complete concurrent rotation/reprotection tests and explicit legacy-plaintext migration-off procedure.
 
-- [~] query-cache cold path, exact-Connection binding, rollback no-invalidation, and successful outer-commit invalidation tests added — **QA pending**;
-- [~] shared query caching now requires either an explicit selected-store namespace or an application-specific `cache.prefix`; the generic shipped namespace is rejected for DB query caching — **QA/backend matrix pending**;
-- [~] Schema/MigrationRunner/SeedRunner remain DBLayer-owned; migration definitions are explicit and migration lock resolution occurs only when administrative runner/seed paths are invoked — **audit complete; QA pending**;
-- [~] DBLayer 5.1 lifecycle/bridge benchmark registered in `benchmark:release`; direct-vs-Foundation lifecycle attribution exists — **transaction/cache/MFA/passkey benchmark result collection still pending**.
+**Persisted compatibility rule:** do not migrate crypto formats merely because the package major changed. Existing valid durable Epicrypt 2.x material remains readable where Foundation actually persists it. Any intentionally changed Foundation domain needs old/new fixtures and an explicit migration/read/write policy.
 
-### Correctness/security acceptance
+### Batch 26.10.4 — consume released Epicrypt OAuth/OIDC/PAT protocol core
 
-Implementation evidence exists, but these remain unchecked until the PR QA/CI pass records results:
+First maintain a move/keep/replace inventory of every current Foundation OAuth/OIDC/API-token class, route, store, schema and test. Delete Foundation protocol mechanics only after the corresponding application adapter and migration/concurrency evidence exists.
 
-- [ ] default/named connection resolution and relative SQLite path policy;
-- [ ] no PDO open merely because the graph was compiled;
-- [ ] commit/rollback/nested savepoints/`afterCommit()` and cleanup rollback;
-- [ ] cleanup failure never masks the primary execution failure;
-- [ ] sequential executions do not inherit transaction/sticky/comment/deadline/cancellation/replica state;
-- [ ] if pooling is selected: Fiber lease isolation, stale/double/wrong release rejection, unhealthy/expired/reconnect/incomplete-transaction handling, bounded soak memory;
-- [ ] instance-owned query-cache hit/miss behavior and commit/rollback invalidation;
-- [ ] locking/transaction/sticky/raw/complex-query cache bypass remains DBLayer-correct;
-- [ ] selected shared cache namespace/topology isolation;
-- [ ] MFA CAS contention yields exactly one stale-state transition winner;
-- [ ] passkey contention cannot overwrite newer authenticator credential state;
-- [ ] migration lock/failure/concurrent-attempt behavior;
-- [ ] production DB security/TLS/raw-query policy;
-- [ ] database-disabled and query-cache-disabled graphs remain free of unnecessary DB/cache work.
+- [ ] Replace Foundation OAuth authorization-request protocol validation with `OAuthAuthorizationRequestValidator`; preserve duplicate query occurrences so singleton duplicates are rejected, not collapsed.
+- [ ] Delegate exact redirects, `response_type=code`, PKCE S256, scope/audience bounds and safe protocol errors to Epicrypt.
+- [ ] Implement Foundation audience policy through released `OAuthAuthorizationAudienceResolverInterface` where multi-resource clients need it.
+- [ ] Use Epicrypt authorization interaction/approval DTOs; Foundation owns login, consent UI/history and actual authorization decision.
+- [ ] Delegate authorization-code issue/consume to Epicrypt; never persist raw authorization-code JWE.
+- [ ] Implement authoritative DBLayer/CacheLayer adapters for released client/code/refresh/authorization/access-status/replay contracts.
+- [ ] Reuse released `JwtReplayStoreInterface` for `private_key_jwt`/DPoP replay where applicable.
+- [ ] Delegate client authentication to `OAuthClientAuthenticator`; unregistered/embedded key locators must never become trust sources.
+- [ ] Replace Foundation grant mechanics with Epicrypt `OAuthTokenEndpoint` for Authorization Code, Client Credentials and Refresh Token.
+- [ ] Consume Epicrypt refresh rotation/reuse semantics; raw refresh JWE must never be persisted and consume/replace must be atomic.
+- [ ] Consume `OAuthAccessTokenService`, `OAuthAccessTokenInspector` and `OAuthResourceAccessTokenValidator`; add authoritative status storage only when selected.
+- [ ] Route revocation/introspection through Epicrypt endpoints; Foundation retains HTTP protection/rate-limit/audit adaptation.
+- [ ] Generate authorization-server metadata/auth JWKS through Epicrypt publisher/metadata services.
+- [ ] Integrate Epicrypt DPoP validation/binding when enabled.
+- [ ] Replace Foundation OIDC protocol mechanics with released Epicrypt request/interaction/ID-token/subject/UserInfo/provider-metadata services.
+- [ ] Replace matching personal/API-token mechanics with Epicrypt `PersonalAccessTokenManager`; persist state/metadata only, never raw PAT JWT.
+- [ ] Serialize PAT `revokeAll()` against concurrent issue for the same subject.
+- [ ] Preserve Epicrypt protocol result/error taxonomy internally while exposing only safe non-oracular failures.
+- [ ] Keep Epicrypt in-memory/conformance stores test-only; production Foundation binds authoritative stores explicitly.
+- [ ] Do not retain shims for intermediate unreleased Epicrypt 3 APIs.
 
-### Performance acceptance
+**Batch gate:** Foundation owns transport/application/persistence adapters only; released Epicrypt services own protocol validation, grants/state machines and auth cryptography.
 
-Benchmark/report at minimum:
+### Batch 26.10.5 — compatibility, protocol and security tests
 
-1. database capability absent vs enabled-but-unused graph/boot;
-2. normalized ConnectionConfig lookup;
-3. first connection construction/open;
-4. create/use/disconnect lifecycle;
-5. DBLayer lease checkout/use/release;
-6. warm pooled vs new connection;
-7. prepared-statement reuse with/without pooling;
-8. direct DBLayer query vs Foundation scoped query;
-9. transaction begin/commit/rollback;
-10. direct DBLayer query cache vs Foundation-selected DBLayer cache;
-11. cache hit/miss/invalidation and namespace derivation cost;
-12. MFA compare-and-swap;
-13. passkey conditional persistence;
-14. migration/seeder administrative boot;
-15. repeated persistent web/worker execution memory, connection count, and checkout contention.
+- [ ] Inventory durable versus ephemeral Foundation encrypted/signed/auth artifacts.
+- [ ] Freeze/read Epicrypt-2 compatibility fixtures only for durable material that must survive upgrade.
+- [X] Focused MFA protection tests cover active-key protection, AAD binding, exact fallback read, explicit reprotection, legacy plaintext policy and unchanged domain revision.
+- [X] Focused DB test asserts raw TOTP/MobileOTP secret material is absent from durable metadata while application reads remain usable and revision CAS remains authoritative.
+- [X] Focused key-resolver tests cover independent recovery/MFA secret locators, production missing-key rejection and multiple-active-key rejection.
+- [ ] Let the above focused tests pass exact-head PHP 8.4/8.5 stable/lowest QA/static analysis.
+- [ ] Add unknown/retired/tampered key handling and interrupted rotation/rollback coverage where not already lower-layer-proven.
+- [ ] Re-audit recovery-code verification/rotation/atomic consumption under the final key lifecycle.
+- [ ] Test simple PurposeToken flows for wrong purpose/context, expiry/not-before and rotation.
+- [ ] Test environment-secret generation and protected-file round-trip/failure preservation.
+- [ ] Test OAuth signing readiness/JWKS across Foundation-supported RSA/PSS/EC/EdDSA configurations.
+- [ ] Test signed URL issue/verify/rotation through dedicated lifecycle.
+- [ ] Test password legacy Argon2i/bcrypt verification/rehash compatibility where Foundation exposes it.
+- [ ] Add end-to-end Webrick→Epicrypt→Foundation-store OAuth Authorization Code + PKCE coverage.
+- [ ] Add Client Credentials/Refresh concurrency/reuse/revocation/wrong-client coverage.
+- [ ] Add registered-key `private_key_jwt` audience/time/jti/replay coverage.
+- [ ] Add access-token resource validation/status/revocation/introspection/non-oracular revocation coverage.
+- [ ] Add DPoP positive/negative/replay/binding coverage when enabled.
+- [ ] Add OIDC Authorization Code/nonce/prompt/max_age/auth_time/acr/amr/subject/ID Token/UserInfo/metadata coverage.
+- [ ] Add PAT issue/validate/list/revoke/revoke-all/ability/wildcard/concurrent issue-vs-revoke-all coverage.
+- [ ] Prove auth state stores cannot return stale active state after committed revocation/disablement.
+- [ ] Prove generated runtime/release artifacts and normal logs/exceptions contain no raw key/auth-code/refresh/PAT/decrypted-MFA material.
+- [ ] Prove sequential/Fiber/persistent-worker crypto/auth operations retain no prior plaintext/request/key/client mutable state.
+- [ ] Fail build/boot before traffic for malformed/missing production security configuration wherever safe to validate ahead of requests.
 
-Pooling must not become the default merely because it exists. The current default remains dedicated execution-owned connections until representative persistent-runtime benchmarks show a material benefit and correctness acceptance is green. No Foundation query-cache layer or auth-specific DBLayer API is permitted.
+### Batch 26.10.6 — performance attribution
 
-**Completion gate:** 26.6 closes only after PR QA passes against released DBLayer 5.1/CacheLayer 3.4, the pooling recommendation is explicitly chosen from benchmark evidence, optional query-cache isolation/cold paths are proven, authoritative MFA/passkey persistence is accepted, and direct-DBLayer attribution is recorded.
+Benchmark integration boundaries without optimizing away required security:
 
----
+1. capability absent vs enabled-but-unused graph/boot cost;
+2. direct Epicrypt `KeyDeriver` vs Foundation domain-key bridge;
+3. direct string protect/unprotect vs MFA persistence bridge;
+4. active read vs fallback read + explicit reprotection;
+5. direct `PurposeToken` issue/verify vs Foundation claim mapping;
+6. direct signing readiness/JWKS vs Foundation config/resolver bridge;
+7. direct file protection vs environment-file path/config adapter;
+8. direct signed URL crypto vs Foundation/Webrick policy bridge;
+9. direct password verify/rehash vs Foundation adapter;
+10. direct authorization validation/code issue-consume vs Webrick/Foundation/store bridge;
+11. direct token endpoint/resource validation vs Foundation adapter/store overhead;
+12. direct OIDC/PAT operations vs Foundation claims/principal/persistence bridge;
+13. repeated representative auth/crypto operations under persistent runtime with memory measurement.
 
-## 26.7 ReqShield 3.1 — open
+External secret-provider I/O, DB/cache I/O, HTTP adaptation and actual cryptographic/KDF cost must be attributed separately.
 
-**Released baseline:** ReqShield 3.1, commit `07e9e0a2465409e33c140b0cee920f821ca49c79`.
+### 26.10 completion gate
 
-- [ ] keep parsing/execution/sanitization/schema mechanics ReqShield-owned;
-- [ ] finalize production schema topology before traffic;
-- [ ] keep mutable Validator instances per-call unless a reentrant compiled form is proven safe;
-- [ ] do not add a Foundation validation-plan cache before measuring ReqShield's bounded plan cache;
-- [ ] acquire DBLayer only for actual DB-backed validation rules;
-- [ ] preserve `DatabaseProvider`, batching, DB constraints, limits, explicit callable dynamic islands, Fiber isolation, DB-free cold paths, and direct attribution.
+26.10 closes only when:
 
----
+- [ ] exact final Composer graph uses released Epicrypt 3.x + OTP 6.1 + Pathwise 4 on PHP 8.4/8.5 stable/lowest;
+- [ ] 26.5 is closed;
+- [ ] every Foundation crypto/auth site is classified as Epicrypt mechanics/protocol or Foundation application/transport/persistence policy;
+- [ ] generic timed-token/KDF/protection/signing-readiness duplication is gone or explicitly justified;
+- [ ] no Foundation OAuth/OIDC/PAT protocol implementation remains where released Epicrypt owns behavior;
+- [ ] production Epicrypt auth stores are atomic/concurrency-safe and cannot return stale active state after committed revocation/disablement;
+- [ ] raw authorization-code JWE, refresh-token JWE and PAT JWT are never persisted;
+- [ ] `private_key_jwt`/DPoP replay is authoritative and unregistered key locators cannot choose trust material;
+- [ ] OAuth/OIDC/PAT end-to-end suites pass for the selected capability set;
+- [ ] independent key lifecycles exist for MFA, recovery HMAC, simple tokens, OAuth/auth purposes, environment-file protection and signed URLs;
+- [ ] durable symmetric MFA secrets are protected at rest;
+- [ ] bounded active/fallback rotation and deterministic key selection are proven;
+- [ ] durable compatibility policy/fixtures are proven where applicable;
+- [ ] release-artifact secret leakage and runtime-isolation tests pass;
+- [ ] Foundation PHP 8.4/8.5 stable/lowest QA/static/security/protocol suites are green;
+- [ ] direct-Epicrypt-versus-Foundation overhead attribution is recorded;
+- [ ] the Epicrypt-dependent remainder of 26.4 is closed or only explicitly non-crypto work remains.
 
-## 26.8 Omnibus 2.5 — open
-
-**Released baseline:** Omnibus 2.5, commit `7686de11b75ec4e02cbebd2080d6c470c1c314cf`.
-
-- [ ] keep routing/transport/retry/settlement/failure/workflow mechanics Omnibus-owned;
-- [ ] preserve Omnibus message ID as execution correlation identity;
-- [ ] keep handler/middleware resolution execution-scoped;
-- [ ] expose selected Omnibus-native durable transports and activate DBLayer/CacheLayer only when required;
-- [ ] bind DBLayer after-commit dispatch to the current execution connection safely;
-- [ ] define Foundation supervision vs Omnibus worker ownership without double supervision;
-- [ ] keep durable serialization data-only and prove retry/ack/release/reject correctness, persistent isolation, graceful replacement, and direct attribution.
-
----
-
-## 26.9 TalkingBytes 2.0.0 — open
-
-**Released baseline:** TalkingBytes 2.0.0, commit `86d0e9dde8124ddeacea8ba7f81911af584b879b`.
-
-- [ ] keep HTTP/email/webhook/gRPC protocol execution TalkingBytes-owned;
-- [ ] classify profile/client lifetime and isolate cookie/auth/request mutation;
-- [ ] keep webhook replay on CacheLayer atomic `setIfAbsent()` and Foundation security-key derivation;
-- [ ] preserve production replay fail-closed topology;
-- [ ] integrate inbound gRPC through the existing worker lifecycle;
-- [ ] add native inbound/outbound email profiles where required;
-- [ ] keep secrets out of logs/cache keys/artifacts and prove optional-capability cold paths/direct attribution.
-
----
-
-## 26.10 Epicrypt 2.1 — open
-
-**Released baseline:** Epicrypt 2.1, commit `f80092978328cccaef0d2233b08ce95b453dd90a`.
-
-- [ ] inventory every Foundation cryptographic operation;
-- [ ] use Epicrypt high-level protection/KDF/password primitives where semantics match;
-- [ ] define purpose labels/versioning and separate token/MFA/recovery key purposes;
-- [ ] protect durable symmetric MFA secrets at rest and support bounded previous keys for rotation;
-- [ ] keep secrets out of artifacts/logs/cache keys/metrics and resolve external secret refs at boot;
-- [ ] prove tamper/fail-closed behavior, purpose isolation, persistent plaintext-secret isolation, and direct attribution.
+**Status:** [~] IN PROGRESS — 26.10.1 dependency implementation is landed; 26.10.2 generic crypto consolidation is nearly complete; 26.10.3 MFA/recovery key-domain implementation is landed and awaiting exact-head acceptance; signed URLs and 26.10.4 protocol-core adoption remain open.
 
 ---
 
 ## 26.11 Standalone WebAuthn specialist pass — closed/subsumed
 
-OTP 6.1 `Passkey` is the Foundation-facing WebAuthn ceremony/state boundary over optional `web-auth/webauthn-lib`. Remaining work is tracked in 26.4 (OTP/passkey policy), 26.6 (authoritative persistence), and 26.10 (adjacent key/protection policy).
+OTP 6.1 `Passkey` is the Foundation-facing WebAuthn ceremony/state boundary. Foundation retains application persistence, user-handle/principal mapping, passkey policy and authorization. It does not own WebAuthn ceremony construction/validation/signature-counter mechanics.
 
 **Status:** [X] closed/subsumed.
+
+---
+
+# 27. Aggregate Foundation 3 release-readiness after lower-library passes
+
+Run only after 26.4/26.5/26.7/26.8/26.9/26.10 are closed.
+
+- [ ] Composer normal install/release constraints pass on PHP 8.4/8.5, prefer-lowest and prefer-stable.
+- [ ] PHPForge quality/static/security analysis is green.
+- [ ] no unexpected skipped/deprecated tests remain under release policy.
+- [ ] capability-absent graphs remain genuinely cold for every optional lower library.
+- [ ] Fiber/persistent-worker isolation passes across auth, OAuth/OIDC/PAT, filesystem, validation, messaging and communication boundaries.
+- [ ] aggregate release generation/activation/rollback tests remain green.
+- [ ] final `benchmark:release` attributes lower-layer work versus Foundation policy/bridge overhead without hiding security/I/O costs.
+- [ ] InfByte consumption/handoff is validated against the final Foundation 3 lifecycle.
+- [ ] plan/tracker is reconciled and completed historical detail is archived/condensed.
+
+---
+
+## Immediate handoff
+
+Continue **26.10.3 exact-head MFA/recovery acceptance**, then close the remaining signed-URL/domain-separation portion of 26.10.2/26.10.3. After those are green, begin the 26.10.4 move/keep/replace inventory and replace Foundation OAuth/OIDC/PAT protocol mechanics with the released Epicrypt 3 core while retaining Foundation transport/application/persistence ownership.

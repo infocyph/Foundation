@@ -1,6 +1,6 @@
 # Filesystem and storage
 
-Foundation composes application storage; Pathwise owns filesystem behavior.
+Foundation composes application storage policy; Pathwise 4 owns filesystem mechanics.
 
 Install the optional filesystem module when the application needs configured storage, uploads, downloads, or the Webrick file-transfer bridge:
 
@@ -8,116 +8,83 @@ Install the optional filesystem module when the application needs configured sto
 php infbyte module:install filesystem
 ```
 
-`PathManager` remains part of Foundation core and does not require Pathwise. It owns application locations such as `storage/`, `public/`, `bootstrap/`, `routes/`, and `resources/`.
+`PathManager` remains Foundation core and does not require Pathwise. It owns application locations such as `storage/`, `public/`, `bootstrap/`, `routes/`, and `resources/`.
 
 ## Ownership
 
-Foundation owns only application-specific filesystem policy:
+Foundation owns application disk configuration/default selection, relative local-root resolution, upload/download/offload/link policy, Webrick adaptation, and scanner composition. Pathwise/Flysystem own filesystem operators, storage adapters, upload staging/validation/chunking, malware scan execution, download ranges/iteration, safe symlinks, archives, synchronization, retention, watching, queues, and other generic filesystem mechanics.
 
-- application disk names and `filesystem.disks` configuration;
-- selection of the default application disk;
-- resolving relative local roots against the application base path;
-- upload and download policy from `filesystem.uploads` and `filesystem.downloads`;
-- the Webrick uploaded-file and streamed-response bridge;
-- public-to-storage symbolic links;
-- explicit X-Sendfile and X-Accel-Redirect enablement.
+Foundation intentionally has no broad filesystem engine or second named-storage registry.
 
-Pathwise and Flysystem own the filesystem engine:
+## StorageContext and configured disks
 
-- reads, writes, streams, copies, moves, deletes, listings, visibility, URLs, and metadata;
-- local and remote storage adapters;
-- archives, synchronization, indexing, deduplication, retention, watching, queueing, and policy engines;
-- upload validation, chunk assembly, naming and content checks;
-- download validation, ranges, metadata and stream copying.
-
-Foundation intentionally has no broad `FilesystemManager` facade for these operations.
-
-## Configured disks
-
-`StorageRegistry` maps Foundation's configured disk names to native Flysystem operators:
+Each Foundation application/generation creates exactly one Pathwise `StorageContext`. Disk operators stay lazy inside that context, and canonical logical paths use the configured disk name directly:
 
 ```php
 use Infocyph\Foundation\Filesystem\StorageRegistry;
 
 $storage = $app->make(StorageRegistry::class);
 $public = $storage->disk('public');
-
 $public->write('reports/today.txt', 'ready');
+
+$logical = $storage->path('reports/today.txt', 'public');
+// public://reports/today.txt
 ```
 
-Requesting the native interface resolves the configured default disk:
+`StorageRegistry` is a thin application-policy adapter. It never registers Pathwise mounts, replaces a Pathwise global default, hashes application paths into mount names, or mutates another application's topology. Two applications in one persistent process may therefore both use disk names such as `uploads` without cross-talk.
 
-```php
-use League\Flysystem\FilesystemOperator;
+The native `FilesystemOperator` DI binding resolves the configured default disk. `StorageRegistry::context()` exposes the application-owned Pathwise context for advanced Pathwise workflows that explicitly need it.
 
-$files = $app->make(FilesystemOperator::class);
-$files->write('state.json', '{}');
-```
-
-For generic Pathwise workflows, use Pathwise directly. `StorageRegistry::path()` is available when a configured application disk needs to be expressed as a mounted Pathwise path:
-
-```php
-use Infocyph\Foundation\Filesystem\StorageRegistry;
-use Infocyph\Pathwise\PathwiseFacade;
-
-$storage = $app->make(StorageRegistry::class);
-$files = PathwiseFacade::at($storage->path('exports', 'public'));
-```
-
-Disk initialization is lazy. Foundation registers application-scoped internal mount names derived from the application base path rather than claiming generic names such as `public` or `uploads`. It does not reset Pathwise's mount registry or replace Pathwise's global default filesystem, so independent Pathwise configuration remains independent.
+Relative roots of local disks are resolved against the Foundation base path before `StorageContext` construction. Unknown disks, malformed names/configuration, or an invalid default fail during application boot without opening configured storage backends.
 
 ## Uploads
 
-Foundation converts `filesystem.uploads` into a native Pathwise `UploadProcessor`:
+`FilesystemTransferFactory` creates a fresh Pathwise `UploadProcessor` for each resolution and injects the application's `StorageContext`. Destination paths are canonical context paths such as `uploads://incoming`.
 
-```php
-use Infocyph\Pathwise\StreamHandler\UploadProcessor;
+For Webrick requests, `FilesystemUploadRequestHandler` adapts an `UploadedFile` directly with `UploadSource::fromMover()`. Foundation does not create `foundation-upload-*` staging files or own generic upload cleanup. Pathwise materializes the source privately, validates/scans it, and cleans staging deterministically on success or failure.
 
-$uploads = $app->make(UploadProcessor::class);
-```
+Normal and chunked uploads preserve Foundation's configured destination, extension/type/size/image limits, naming policy, and strict content validation while Pathwise owns their mechanics.
 
-The processor is transient because its policy is mutable. Foundation configures its destination, extension policy, validation limits, chunk limits, naming strategy, malware-scan requirement, and strict content checks; Pathwise performs the upload work.
+### Malware scanning
 
-Strict content-type validation is enabled by default. This preserves Pathwise's secure default and rejects MIME/extension or magic-signature mismatches unless the application explicitly opts out.
+`filesystem.uploads.malware_scan.mode` accepts:
 
-For Webrick requests, resolve `FilesystemUploadRequestHandler`. It only translates `UploadedFile` and request metadata into Pathwise's upload inputs; it does not implement an upload engine.
+- `off` — never scan;
+- `when_configured` — secure default; scan when a scanner is configured;
+- `required` — scanner configuration is mandatory and Foundation fails boot before traffic when no scanner is available.
+
+`filesystem.uploads.malware_scan.driver` may be `clamav`, `service`, or omitted. When omitted, Foundation uses an application-bound Pathwise `MalwareScannerInterface` if one exists. `service` requires that binding. `clamav` composes Pathwise's `ClamAvDaemonScanner` directly.
+
+The ClamAV integration uses bounded clamd `INSTREAM`. Prefer a Unix socket; loopback TCP is permitted by Pathwise, while remote TCP requires explicit opt-in. Foundation never launches `clamscan`, `maldet`, `sudo`, or another privileged scanner process from a request worker. LMD may integrate with ClamAV at the host/signature layer without changing this PHP boundary.
+
+Custom, ICAP, AMWScan, cloud, or other scanners should implement Pathwise `MalwareScannerInterface` in an application provider rather than adding vendor branches to Foundation.
 
 ## Downloads
 
-Foundation likewise configures the native Pathwise `DownloadProcessor`:
+Foundation creates a fresh Pathwise `DownloadProcessor`, injects the same application `StorageContext`, and maps application policy onto it. `FilesystemResponseFactory` asks Pathwise to prepare a download and uses Pathwise `streamChunks()` for adapter-backed/logical streaming.
 
-```php
-use Infocyph\Pathwise\StreamHandler\DownloadProcessor;
+Pathwise owns validation, exact range positioning, seek/discard behavior, byte iteration, and resource closure. Foundation/Webrick retain HTTP conditionals, status/headers, `FileBody` selection for eligible local files, iterable response bodies, HEAD handling, and native output.
 
-$downloads = $app->make(DownloadProcessor::class);
-```
+This keeps full, single-range, suffix/open-ended, invalid, and unsatisfiable range semantics in one lower-layer implementation while preserving Webrick as the HTTP owner.
 
-`FilesystemResponseFactory` is the Webrick bridge for normal downloads, inline responses, range/conditional handling, and optional web-server offload. Pathwise prepares and streams the file; Foundation maps that result into Webrick responses.
+## Server offload
 
-X-Sendfile is local-filesystem-only and requires:
-
-```text
-filesystem.offload.x_sendfile.enabled = true
-```
-
-X-Accel-Redirect requires:
-
-```text
-filesystem.offload.x_accel_redirect.enabled = true
-```
-
-Calling either offload method while its capability is disabled fails instead of emitting a trusted server header accidentally.
+X-Sendfile and X-Accel-Redirect are explicit application/server capabilities. Calling either while disabled fails closed. X-Sendfile accepts only a local storage identity and emits the resolved local path only after the same Pathwise download policy has been prepared. X-Accel-Redirect requires a trusted matching server-side internal location.
 
 ## Storage links
 
-`storage:link` remains Foundation-owned because it connects application layout rather than providing a generic filesystem operation:
+`storage:link`, `storage:status`, and `storage:unlink` remain Foundation commands because the mappings are application layout. The generic link mechanics are Pathwise-owned:
 
 ```bash
+php infbyte storage:status
 php infbyte storage:link
+php infbyte storage:unlink
 ```
 
-Every configured link must remain inside the public directory and every target must remain inside application storage. Existing correct links are preserved; conflicting paths are rejected.
+Foundation resolves configured mappings and supplies its public directory as the allowed link root and storage directory as the allowed target root to Pathwise `SafeSymlinkManager`. Pathwise owns traversal protection, containment, correct-link idempotency, conflicting-path rejection, broken-link status, current-target verification, and safe removal.
 
 ## Persistent runtimes and fork safety
 
-Resolving `StorageRegistry` validates and caches disk topology but does not construct configured storage backends. Native Flysystem operators are created when a disk is first needed. Custom service providers intended for pooled worker mode should therefore keep filesystem resolution out of `register()` just as they avoid opening database, cache, HTTP, or message-broker connections before fork.
+Filesystem composition is application-instance scoped. `StorageContext` caches operators only inside its owning Foundation application; upload/download processors are transient; scanner resolution contains no request/job state. No request mutates Pathwise global mount/default topology.
+
+`StorageRegistry` construction validates topology but does not construct disk backends. Operators remain lazy until first use, so provider composition remains safe before worker forks. Runtime graphs that do not select the filesystem capability contain no Foundation filesystem services.

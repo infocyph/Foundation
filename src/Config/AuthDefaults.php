@@ -59,10 +59,15 @@ final class AuthDefaults
                     'recovery_codes' => [
                         'count' => 10,
                         'length' => 12,
+                        'hmac_key_environment' => 'AUTH_OTP_RECOVERY_HMAC_KEY',
                     ],
                     'replay' => [
                         'store' => null,
                         'ttl' => 90,
+                    ],
+                    'secret_protection' => [
+                        'allow_legacy_plaintext' => false,
+                        'keys' => self::otpSecretProtectionKeys(),
                     ],
                 ],
                 'password_policy' => [
@@ -105,6 +110,29 @@ final class AuthDefaults
         ];
     }
 
+    /** @return list<mixed> */
+    private static function jsonListEnvironment(string $name, string $message): array
+    {
+        $encoded = env($name);
+        if ($encoded === null || $encoded === '') {
+            return [];
+        }
+        if (!is_string($encoded)) {
+            throw new \UnexpectedValueException($message);
+        }
+
+        try {
+            $decoded = json_decode($encoded, true, flags: JSON_THROW_ON_ERROR);
+        } catch (\JsonException $exception) {
+            throw new \UnexpectedValueException($message, previous: $exception);
+        }
+        if (!is_array($decoded) || !array_is_list($decoded)) {
+            throw new \UnexpectedValueException($message);
+        }
+
+        return $decoded;
+    }
+
     /** @return array<string, mixed> */
     private static function oauth(): array
     {
@@ -115,6 +143,9 @@ final class AuthDefaults
             'issuer' => $enabled ? env('AUTH_OAUTH_ISSUER') : null,
             'access_token_ttl' => 300,
             'authorization_code_ttl' => 60,
+            'authorization_code_protection' => [
+                'keys' => self::oauthAuthorizationCodeProtectionKeys($enabled),
+            ],
             'refresh_token_ttl' => 1209600,
             'grants' => [
                 'authorization_code',
@@ -148,28 +179,33 @@ final class AuthDefaults
     }
 
     /** @return list<mixed> */
+    private static function oauthAuthorizationCodeProtectionKeys(bool $enabled): array
+    {
+        return $enabled
+            ? self::jsonListEnvironment(
+                'AUTH_OAUTH_AUTHORIZATION_CODE_KEYS',
+                'AUTH_OAUTH_AUTHORIZATION_CODE_KEYS must be a valid JSON list.',
+            )
+            : [];
+    }
+
+    /** @return list<mixed> */
     private static function oauthPublicKeys(bool $enabled): array
     {
-        $encoded = $enabled ? env('AUTH_OAUTH_PUBLIC_KEYS') : null;
-        if ($encoded === null || $encoded === '') {
-            return [];
-        }
-        if (!is_string($encoded)) {
-            throw new \UnexpectedValueException('AUTH_OAUTH_PUBLIC_KEYS must be a JSON list.');
-        }
-
-        try {
-            $decoded = json_decode($encoded, true, flags: JSON_THROW_ON_ERROR);
-        } catch (\JsonException $exception) {
-            throw new \UnexpectedValueException(
+        return $enabled
+            ? self::jsonListEnvironment(
+                'AUTH_OAUTH_PUBLIC_KEYS',
                 'AUTH_OAUTH_PUBLIC_KEYS must be a valid JSON list.',
-                previous: $exception,
-            );
-        }
-        if (!is_array($decoded) || !array_is_list($decoded)) {
-            throw new \UnexpectedValueException('AUTH_OAUTH_PUBLIC_KEYS must be a JSON list.');
-        }
+            )
+            : [];
+    }
 
-        return $decoded;
+    /** @return list<mixed> */
+    private static function otpSecretProtectionKeys(): array
+    {
+        return self::jsonListEnvironment(
+            'AUTH_OTP_SECRET_PROTECTION_KEYS',
+            'AUTH_OTP_SECRET_PROTECTION_KEYS must be a valid JSON list.',
+        );
     }
 }

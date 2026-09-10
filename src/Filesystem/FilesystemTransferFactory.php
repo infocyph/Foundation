@@ -6,14 +6,13 @@ namespace Infocyph\Foundation\Filesystem;
 
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Support\ValueNormalizer;
-use Infocyph\Pathwise\PathwiseFacade;
 use Infocyph\Pathwise\StreamHandler\DownloadProcessor;
 use Infocyph\Pathwise\StreamHandler\UploadProcessor;
 use Infocyph\Pathwise\Utils\PathHelper;
 
 /**
- * Applies Foundation's application transfer policy to native Pathwise
- * processors. Upload/download execution remains entirely Pathwise-owned.
+ * Applies Foundation application transfer policy to native Pathwise processors.
+ * Processor state is transient; storage identity and I/O remain context-owned.
  */
 final readonly class FilesystemTransferFactory
 {
@@ -21,6 +20,7 @@ final readonly class FilesystemTransferFactory
         private ConfigRepository $config,
         private PathManager $paths,
         private StorageRegistry $storage,
+        private FilesystemMalwareScannerResolver $malware,
     ) {}
 
     public function download(?string $directory = null, ?string $disk = null): DownloadProcessor
@@ -31,20 +31,27 @@ final readonly class FilesystemTransferFactory
         $allowedRoots = [];
         $configuredRoots = ValueNormalizer::stringList($config['allowed_roots'] ?? []);
         foreach ($configuredRoots !== [] ? $configuredRoots : [$directory] as $root) {
-            if (PathHelper::isAbsolute($root) || PathHelper::hasScheme($root)) {
+            if (PathHelper::isAbsolute($root)) {
                 $allowedRoots[] = PathHelper::normalize($root);
 
                 continue;
             }
+            if (PathHelper::hasScheme($root)) {
+                $allowedRoots[] = $this->storage->context()->path($root);
 
-            $allowedRoots[] = $this->operationPath($disk, $root);
-            $mounted = $this->storage->path($root, $disk);
-            if ($mounted !== $allowedRoots[array_key_last($allowedRoots)]) {
-                $allowedRoots[] = $mounted;
+                continue;
+            }
+
+            $allowedRoots[] = $this->storage->path($root, $disk);
+
+            try {
+                $allowedRoots[] = $this->storage->localPath($root, $disk);
+            } catch (\InvalidArgumentException) {
             }
         }
 
-        $processor = PathwiseFacade::download();
+        $processor = new DownloadProcessor();
+        $processor->setStorageContext($this->storage->context());
         $processor->setAllowedRoots(array_values(array_unique($allowedRoots)));
         $processor->setBlockHiddenFiles($this->bool($config, 'block_hidden_files', true));
         $processor->setChunkSize($this->int($config, 'chunk_size', 8192));
@@ -65,9 +72,10 @@ final readonly class FilesystemTransferFactory
         $config = $this->section('uploads');
         $disk = $this->targetDisk($disk, $this->string($config, 'disk', 'uploads'));
 
-        $processor = PathwiseFacade::upload();
+        $processor = new UploadProcessor();
+        $processor->setStorageContext($this->storage->context());
         $processor->setDirectorySettings(
-            $this->operationPath($disk, $directory ?? $this->string($config, 'directory')),
+            $this->storage->path($directory ?? $this->string($config, 'directory'), $disk),
             $this->bool($config, 'use_date_directories', false),
             $this->basePath($config['temp_directory'] ?? null),
         );
@@ -95,7 +103,8 @@ final readonly class FilesystemTransferFactory
             $this->int($config, 'max_image_height', 0),
         );
         $processor->setNamingStrategy($this->string($config, 'naming_strategy', 'hash'));
-        $processor->setRequireMalwareScan($this->bool($config, 'require_malware_scan', false));
+        $processor->setMalwareScanner($this->malware->scanner());
+        $processor->setMalwareScanMode($this->malware->mode());
         $processor->setStrictContentTypeValidation(
             $this->bool($config, 'strict_content_type_validation', true),
         );
@@ -124,15 +133,6 @@ final readonly class FilesystemTransferFactory
     private function int(array $config, string $key, int $default): int
     {
         return ValueNormalizer::int($config[$key] ?? $default, $default);
-    }
-
-    private function operationPath(string $disk, string $path = ''): string
-    {
-        try {
-            return $this->storage->localPath($path, $disk);
-        } catch (\InvalidArgumentException) {
-            return $this->storage->path($path, $disk);
-        }
     }
 
     /** @return array<string, mixed> */
