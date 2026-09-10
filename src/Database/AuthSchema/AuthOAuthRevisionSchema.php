@@ -15,7 +15,7 @@ final readonly class AuthOAuthRevisionSchema implements Migration
 
     public function down(SchemaManager $schema, MigrationContext $context): void
     {
-        foreach (array_reverse($this->tables->oauth()) as $table) {
+        foreach (array_reverse($this->legacyTables()) as $table) {
             $schema->dropIfExists($table);
             $context->checkpoint();
         }
@@ -32,7 +32,6 @@ final readonly class AuthOAuthRevisionSchema implements Migration
         $this->createRedirectsAndScopes($schema);
         $this->createAuthorizations($schema);
         $this->createAuthorizationCodes($schema);
-        $this->createAuthorizationCodeStates($schema);
         $this->createConsents($schema);
         $this->createRefreshTokens($schema);
         $this->createAccessRevocations($schema);
@@ -69,17 +68,6 @@ final readonly class AuthOAuthRevisionSchema implements Migration
             $table->bigInteger('expires_at')->index();
             $table->bigInteger('consumed_at')->nullable();
             $table->json('metadata')->nullable();
-        });
-    }
-
-    private function createAuthorizationCodeStates(SchemaManager $schema): void
-    {
-        $schema->create($this->tables->oauthAuthorizationCodeStates(), static function (Blueprint $table): void {
-            $table->string('id', 64)->primary();
-            $table->string('authorization_id', 64)->index();
-            $table->bigInteger('expires_at')->index();
-            $table->string('state_digest', 64);
-            $table->bigInteger('consumed_at')->nullable()->index();
         });
     }
 
@@ -168,5 +156,20 @@ final readonly class AuthOAuthRevisionSchema implements Migration
             $table->bigInteger('revoked_at')->nullable()->index();
             $table->json('metadata')->nullable();
         });
+    }
+
+    /** @return list<string> */
+    private function legacyTables(): array
+    {
+        return [
+            $this->tables->oauthClients(),
+            $this->tables->oauthRedirectUris(),
+            $this->tables->oauthClientScopes(),
+            $this->tables->oauthAuthorizationCodes(),
+            $this->tables->oauthConsents(),
+            $this->tables->oauthAuthorizations(),
+            $this->tables->oauthRefreshTokens(),
+            $this->tables->oauthAccessRevocations(),
+        ];
     }
 }

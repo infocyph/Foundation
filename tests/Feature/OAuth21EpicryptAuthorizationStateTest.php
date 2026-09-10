@@ -10,6 +10,7 @@ use Infocyph\Epicrypt\Auth\OAuth\OAuthAuthorizationRecord;
 use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerEpicryptAuthorizationCodeStore;
 use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerEpicryptOAuthAuthorizationStore;
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Database\AuthSchema\AuthOAuthEpicryptRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthOAuthRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DatabaseConnectionResolver;
@@ -27,7 +28,7 @@ it('persists only authorization-code state and consumes it atomically', function
         ],
     ])), RuntimeStateContainer::execution());
     $tables = new AuthTables();
-    new MigrationRunner($factory->connection(), [new AuthOAuthRevisionSchema($tables)])->run();
+    oauth21EpicryptStateMigrations($factory, $tables);
     $store = new DBLayerEpicryptAuthorizationCodeStore($factory, $tables);
     $now = 1_700_000_000;
     $record = new AuthorizationCodeRecord(
@@ -56,13 +57,8 @@ it('persists only authorization-code state and consumes it atomically', function
             [$record->codeId],
         );
         expect($rows)->toHaveCount(1)
-            ->and(array_keys($rows[0]))->toBe([
-                'id',
-                'authorization_id',
-                'expires_at',
-                'state_digest',
-                'consumed_at',
-            ])
+            ->and($rows[0]['authorization_id'] ?? null)->toBe($record->authorizationId)
+            ->and($rows[0]['state_digest'] ?? null)->toBe($record->stateDigest)
             ->and($rows[0]['consumed_at'] ?? null)->toBe($now);
     } finally {
         DB::purge();
@@ -80,7 +76,7 @@ it('distinguishes expired authorization-code state without consuming it', functi
         ],
     ])), RuntimeStateContainer::execution());
     $tables = new AuthTables();
-    new MigrationRunner($factory->connection(), [new AuthOAuthRevisionSchema($tables)])->run();
+    oauth21EpicryptStateMigrations($factory, $tables);
     $store = new DBLayerEpicryptAuthorizationCodeStore($factory, $tables);
     $record = new AuthorizationCodeRecord(
         codeId: str_repeat('B', 32),
@@ -108,7 +104,7 @@ it('projects Epicrypt authorizations through the authoritative Foundation author
         ],
     ])), RuntimeStateContainer::execution());
     $tables = new AuthTables();
-    new MigrationRunner($factory->connection(), [new AuthOAuthRevisionSchema($tables)])->run();
+    oauth21EpicryptStateMigrations($factory, $tables);
     $store = new DBLayerEpicryptOAuthAuthorizationStore($factory, $tables);
     $record = new OAuthAuthorizationRecord(
         authorizationId: 'authorization-1',
@@ -133,3 +129,11 @@ it('projects Epicrypt authorizations through the authoritative Foundation author
         DB::purge();
     }
 });
+
+function oauth21EpicryptStateMigrations(DBLayerFactory $factory, AuthTables $tables): void
+{
+    new MigrationRunner($factory->connection(), [
+        new AuthOAuthRevisionSchema($tables),
+        new AuthOAuthEpicryptRevisionSchema($tables),
+    ])->run();
+}

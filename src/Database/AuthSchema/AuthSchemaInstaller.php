@@ -89,6 +89,7 @@ final readonly class AuthSchemaInstaller
         ];
         if ($this->oauthEnabled) {
             $migrations[] = $this->oauthSchema();
+            $migrations[] = new AuthOAuthEpicryptRevisionSchema($this->tables);
         }
 
         return new MigrationRunner(
