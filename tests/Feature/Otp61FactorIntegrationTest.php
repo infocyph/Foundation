@@ -13,7 +13,7 @@ use Infocyph\OTP\ValueObjects\GridChallenge;
 
 function foundationOtp61App(): \Infocyph\Foundation\Application\Application
 {
-    $basePath = sys_get_temp_dir() . '/foundation-otp61-' . uniqid('', true);
+    $basePath = sys_get_temp_dir() . '/foundation-otp61-' . bin2hex(random_bytes(8));
     mkdir($basePath . '/cache', 0775, true);
 
     return Foundation::web([
@@ -33,7 +33,7 @@ function foundationOtp61App(): \Infocyph\Foundation\Application\Application
             'stores' => [
                 'auth-state' => [
                     'driver' => 'memory',
-                    'namespace' => 'foundation-test-otp61-state-' . uniqid('', true),
+                    'namespace' => 'foundation-test-otp61-state-' . bin2hex(random_bytes(8)),
                     'fail_open' => false,
                     'security' => [
                         'integrity_key' => 'foundation-test-otp61-state-integrity-key',
