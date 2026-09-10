@@ -107,10 +107,6 @@ final readonly class SignedUrlKeyResolver
         $normalized = [];
 
         foreach ($configured as $key => $value) {
-            if (!is_string($key)) {
-                continue;
-            }
-
             $normalized[match ($key) {
                 'default_ttl' => 'defaultTtl',
                 'expiry_param' => 'expiryParam',
