@@ -12,6 +12,7 @@ use Infocyph\Epicrypt\Security\KeyRingEntry;
 use Infocyph\Epicrypt\Security\KeyStatus;
 use Infocyph\Foundation\Auth\Adapter\DBLayer\DBLayerMfaFactorStore;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\MfaSecretProtector;
+use Infocyph\Foundation\Auth\Adapter\Otp\OtpRecoveryCodeStore;
 use Infocyph\Foundation\Auth\Mfa\MfaFactor;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
@@ -218,6 +219,93 @@ it('persists only protected MFA secrets while preserving revision based DB CAS',
         ->and($store->compareAndSwap($loaded, $updated))->toBeFalse()
         ->and(($store->findForAccount('account-1')[0] ?? null)?->revision)->toBe(1)
         ->and(($store->findForAccount('account-1')[0] ?? null)?->metadata['otp']['counter'])->toBe(7);
+
+    $state->cleanup();
+});
+
+it('does not let stale fallback-key reprotection overwrite a newer OTP counter revision', function (): void {
+    [$factory, $state] = foundationEpicrypt3MfaDbFactory();
+    $tables = new AuthTables();
+    (new MigrationRunner($factory->connection(), [new AuthSchema($tables)]))->run();
+
+    $generator = new KeyMaterialGenerator();
+    $oldKey = $generator->forAead();
+    $newKey = $generator->forAead();
+    $oldStore = new DBLayerMfaFactorStore(
+        $factory,
+        $tables,
+        secretProtector: new MfaSecretProtector(foundationEpicrypt3MfaRing('old', $oldKey)),
+    );
+    $rotatedStore = new DBLayerMfaFactorStore(
+        $factory,
+        $tables,
+        secretProtector: new MfaSecretProtector(foundationEpicrypt3MfaRing('new', $newKey, 'old', $oldKey)),
+    );
+    $factor = foundationEpicrypt3MfaFactor(revision: 0);
+
+    expect($oldStore->compareAndSwap(null, $factor))->toBeTrue();
+    $stale = $rotatedStore->findForAccount('account-1')[0] ?? null;
+    $current = $rotatedStore->findForAccount('account-1')[0] ?? null;
+    expect($stale)->toBeInstanceOf(MfaFactor::class)
+        ->and($current)->toBeInstanceOf(MfaFactor::class);
+    if (!$stale instanceof MfaFactor || !$current instanceof MfaFactor) {
+        throw new RuntimeException('Rotation test failed to load MFA factors.');
+    }
+
+    $counterUpdate = $current->withMetadata(array_replace_recursive(
+        $current->metadata,
+        ['otp' => ['counter' => 11]],
+    ));
+    expect($rotatedStore->compareAndSwap($current, $counterUpdate))->toBeTrue();
+
+    $staleReprotection = $stale->withMetadata(array_replace_recursive(
+        $stale->metadata,
+        ['otp' => ['counter' => 5]],
+    ));
+    expect($rotatedStore->compareAndSwap($stale, $staleReprotection))->toBeFalse();
+
+    $latest = $rotatedStore->findForAccount('account-1')[0] ?? null;
+    expect($latest)->toBeInstanceOf(MfaFactor::class)
+        ->and($latest?->revision)->toBe(1)
+        ->and($latest?->metadata['otp']['counter'])->toBe(11)
+        ->and($latest?->metadata['otp']['secret'])->toBe('JBSWY3DPEHPK3PXP');
+
+    $state->cleanup();
+});
+
+it('atomically replaces and consumes OTP recovery digests without double consumption', function (): void {
+    [$factory, $state] = foundationEpicrypt3MfaDbFactory();
+    $tables = new AuthTables();
+    (new MigrationRunner($factory->connection(), [new AuthSchema($tables)]))->run();
+
+    $store = new DBLayerMfaFactorStore($factory, $tables);
+    $recovery = new OtpRecoveryCodeStore($store);
+    $issuedAt = new DateTimeImmutable('@1700000000');
+    $usedAt = new DateTimeImmutable('@1700000100');
+    $first = hash('sha256', 'recovery-one');
+    $second = hash('sha256', 'recovery-two');
+    $replacement = hash('sha256', 'replacement-one');
+
+    expect($recovery->replace('account:account-1', [$first, $second], $issuedAt))->toMatchArray([
+        'total' => 2,
+        'remaining' => 2,
+        'lastUsedAt' => null,
+    ]);
+
+    $consumed = $recovery->consume('account:account-1', $first, $usedAt);
+    expect($consumed['consumed'])->toBeTrue()
+        ->and($consumed['total'])->toBe(2)
+        ->and($consumed['remaining'])->toBe(1)
+        ->and($recovery->consume('account:account-1', $first, $usedAt)['consumed'])->toBeFalse()
+        ->and($recovery->metadata('account:account-1')['remaining'])->toBe(1);
+
+    expect($recovery->replace('account:account-1', [$replacement], $usedAt))->toMatchArray([
+        'total' => 1,
+        'remaining' => 1,
+        'lastUsedAt' => null,
+    ])->and($recovery->consume('account:account-1', $second, $usedAt)['consumed'])->toBeFalse()
+        ->and($recovery->consume('account:account-1', $replacement, $usedAt)['consumed'])->toBeTrue()
+        ->and($recovery->metadata('account:account-1')['remaining'])->toBe(0);
 
     $state->cleanup();
 });
