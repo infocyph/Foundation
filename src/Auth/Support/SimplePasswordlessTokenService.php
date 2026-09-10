@@ -9,26 +9,36 @@ use Infocyph\Foundation\Auth\Contract\Security\TokenVerificationResult;
 
 final readonly class SimplePasswordlessTokenService extends AbstractSimpleTimedTokenService implements PasswordlessTokenServiceInterface
 {
+    private const string PURPOSE = 'passwordless';
+
     public function issue(string $identifier, array $context = []): string
     {
-        return $this->issueTimedToken([
-            'ctx' => $context,
-            'identifier' => $identifier,
-            'pur' => 'passwordless',
-        ]);
+        return $this->issueTimedToken(
+            self::PURPOSE,
+            [
+                'ctx' => $context,
+                'identifier' => $identifier,
+            ],
+        );
     }
 
     public function verify(string $token): TokenVerificationResult
     {
-        $claims = $this->verifyTimedToken($token, 'passwordless');
-        if ($claims instanceof TokenVerificationResult) {
-            return $claims;
+        $verification = $this->verifyTimedToken($token, self::PURPOSE);
+        if ($verification instanceof TokenVerificationResult) {
+            return $verification;
         }
 
         return $this->verifiedResult(
-            $claims,
-            is_string($claims['identifier'] ?? null) ? $claims['identifier'] : null,
-            $this->normalizeClaims(is_array($claims['ctx'] ?? null) ? $claims['ctx'] : []),
+            $verification,
+            is_string($verification->claims['identifier'] ?? null)
+                ? $verification->claims['identifier']
+                : null,
+            $this->normalizeClaims(
+                is_array($verification->claims['ctx'] ?? null)
+                    ? $verification->claims['ctx']
+                    : [],
+            ),
         );
     }
 }
