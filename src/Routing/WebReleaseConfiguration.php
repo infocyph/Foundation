@@ -128,7 +128,7 @@ final readonly class WebReleaseConfiguration
         return new SignedUrlKeyResolver($this->config())->resolve();
     }
 
-    public function signKey(): ?string
+    public function signKey(): null
     {
         return null;
     }
