@@ -113,7 +113,7 @@ final readonly class OAuthSigningKeyResolver
                 id: $id,
                 key: $this->readKey($path),
                 status: $resolvedStatus,
-                purpose: KeyPurpose::JWT_SIGNING,
+                purpose: KeyPurpose::OAUTH_ACCESS_TOKEN_SIGNING,
                 algorithm: $algorithm->value,
                 notBefore: $this->nullableTimestamp($item['not_before'] ?? null),
                 notAfter: $this->nullableTimestamp($item['not_after'] ?? null),
@@ -192,7 +192,7 @@ final readonly class OAuthSigningKeyResolver
         $privateKey = $this->readKey($this->config->get('auth.oauth.signing.private_key'));
         $entries = $this->publicKeyEntries($issuer, $activeKeyId, $algorithm);
         $ring = new KeyRing($entries);
-        $active = $ring->activeForWrite(KeyPurpose::JWT_SIGNING, $algorithm->value, $issuer);
+        $active = $ring->activeForWrite(KeyPurpose::OAUTH_ACCESS_TOKEN_SIGNING, $algorithm->value, $issuer);
 
         if (!hash_equals($activeKeyId, $active->id)) {
             throw new ConfigurationException('OAuth active signing key configuration is inconsistent.');
