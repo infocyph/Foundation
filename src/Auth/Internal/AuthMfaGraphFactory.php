@@ -5,13 +5,16 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Auth\Internal;
 
 use Infocyph\CacheLayer\Cache\AuthenticationStateCacheInterface;
+use Infocyph\Foundation\Auth\Adapter\Epicrypt\MfaSecretProtector;
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpChallengeFactorService;
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpMfaVerifier;
 use Infocyph\Foundation\Auth\Adapter\Otp\OtpRecoveryCodeStore;
 use Infocyph\Foundation\Auth\Mfa\MfaFactorCompareAndSwapStoreInterface;
 use Infocyph\Foundation\Auth\Mfa\MfaFactorStoreInterface;
 use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\OTP\Contracts\RecoveryCodeStoreInterface;
+use Infocyph\OTP\RecoveryCodes;
 
 final class AuthMfaGraphFactory
 {
@@ -29,6 +32,16 @@ final class AuthMfaGraphFactory
         return new OtpChallengeFactorService($store);
     }
 
+    public static function recoveryCodes(
+        RecoveryCodeStoreInterface $store,
+        ConfigRepository $config,
+    ): RecoveryCodes {
+        return new RecoveryCodes(
+            $store,
+            (new AuthMfaKeyResolver($config))->recoveryHmacKey(),
+        );
+    }
+
     public static function recoveryCodeStore(MfaFactorStoreInterface $factors): RecoveryCodeStoreInterface
     {
         if (!$factors instanceof MfaFactorCompareAndSwapStoreInterface) {
@@ -38,6 +51,16 @@ final class AuthMfaGraphFactory
         }
 
         return new OtpRecoveryCodeStore($factors);
+    }
+
+    public static function secretProtector(ConfigRepository $config): MfaSecretProtector
+    {
+        $keys = new AuthMfaKeyResolver($config);
+
+        return new MfaSecretProtector(
+            $keys->mfaSecretKeyRing(),
+            $keys->allowLegacyPlaintext(),
+        );
     }
 
     public static function verifier(
