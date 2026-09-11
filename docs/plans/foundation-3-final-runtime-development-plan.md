@@ -2,7 +2,7 @@
 
 **Status:** Canonical implementation plan  
 **Foundation target:** 3.x  
-**Active branch:** `foundation-3/close-26.6`  
+**Active branch:** `foundation-3/runwire-launch-plan`  
 **Priority:** correctness → security/persisted compatibility → hot-path performance → persistent-runtime safety → scalability → ergonomics
 
 > This file is the single current source of truth for Foundation 3 runtime development. Completed historical passes are intentionally condensed; open passes retain ownership, implementation, security/correctness, performance and completion gates. If a specialist Infocyph package already owns a generic mechanism, Foundation consumes it rather than creating a Foundation-only substitute.
@@ -11,14 +11,14 @@
 
 ## 1. Architectural invariants
 
-Foundation has four runtime paths: `web`, `cli`, `worker`, and `scheduler`. They share one composition source, while every independently active runtime uses a fresh InterMix builder/generated artifact. Webrick remains the sole web HTTP runtime/output owner.
+Foundation has four application runtime paths: `web`, `cli`, `worker`, and `scheduler`. They share one composition source, while every independently active application runtime uses a fresh InterMix builder/generated artifact. Webrick remains the sole HTTP application-semantics/request/response owner; Runwire may own the underlying server/process/network transport according to the selected runtime driver.
 
 Foundation owns application configuration, capability selection, provider/composition policy, application persistence policy, runtime orchestration, release-generation/activation, diagnostics, and application-facing adaptation.
 
 Lower libraries own their specialist mechanics:
 
 - **InterMix:** DI graph, lifetimes, scopes, generated containers, execution isolation.
-- **Webrick:** HTTP route/runtime/request/middleware/response mechanics.
+- **Webrick:** HTTP application route/runtime/request/middleware/response mechanics.
 - **Runwire:** generic process execution/supervision, worker-process lifecycle, event loop, listener/network/connection mechanics, native HTTP wire transport, runtime-driver adaptation, signals/wait/reap and OS-process capability primitives.
 - **DBLayer:** connections, leases/pools, queries, repositories, migrations, DB transaction/cache mechanics.
 - **CacheLayer:** cache semantics, locks, atomic primitives, counters, backend coordination.
@@ -73,10 +73,10 @@ Phase 10 remains the final aggregate release-readiness pass after every open low
 | 26.2 | UID | `^5.0` | **complete** |
 | 26.3 | CacheLayer | `^3.4` | **complete** |
 | 26.4 | OTP / Passkey | `^6.1` | core complete; Epicrypt-backed security acceptance **in progress** |
-| 26.5 | Pathwise | `^4.0` | implementation complete; normal-package/final QA acceptance **in progress** |
+| 26.5 | Pathwise | `^4.1` | 4.0 integration complete; 4.1 runtime-security hardening **planned** |
 | 26.6 | DBLayer | `^5.1` | **complete** |
-| 26.7 | ReqShield | `^3.1` | open/deferred |
-| 26.8 | Omnibus | `^2.5` | open/deferred |
+| 26.7 | ReqShield | `^3.2` | open/deferred |
+| 26.8 | Omnibus | `^2.6` | open/deferred |
 | 26.9 | TalkingBytes | `^2.0` | open/deferred |
 | 26.10 | Epicrypt | `^3.0` | **IN PROGRESS** |
 | 26.11 | standalone WebAuthn specialist pass | OTP 6.1 Passkey | **closed/subsumed** |
@@ -101,9 +101,10 @@ Epicrypt `3.0` was released on **2026-09-10**. Tag `3.0` resolves to commit `e11
 3. Close the Epicrypt-dependent remainder of 26.4 OTP/Passkey security/concurrency acceptance.
 4. Execute 26.10.4 released Epicrypt OAuth/OIDC/PAT protocol-core adoption.
 5. Execute 26.10.5 security/compatibility/protocol tests and 26.10.6 performance attribution.
-6. Return to 26.7 ReqShield → 26.8 Omnibus → 26.9 TalkingBytes.
-7. Execute 26.12 Runwire 1.0 native/runtime-driver integration and close its launch acceptance.
-8. Run aggregate Phase 10 / Foundation release-readiness gates.
+6. Return to 26.7 ReqShield 3.2 and 26.9 TalkingBytes 2.0 while Runwire core can proceed in parallel.
+7. Execute 26.12 Runwire 1.0 + Webrick native adapter/runtime-driver integration and close the Runwire launch acceptance.
+8. Close 26.8 Omnibus 2.6 against released Runwire 1.0, removing duplicate raw process supervision.
+9. Run aggregate Phase 10 / Foundation release-readiness gates.
 
 Do not reopen finalized lower-library architecture merely to make Foundation integration easier.
 
@@ -180,11 +181,11 @@ OTP owns TOTP/HOTP/OCRA/AOTP/GridOTP/MobileOTP mechanics, provisioning, OTP repl
 
 ---
 
-## 26.5 Pathwise 4 filesystem integration — implementation complete; acceptance in progress
+## 26.5 Pathwise 4.1 filesystem/runtime-security integration — 4.0 integration complete; 4.1 hardening planned
 
 ### Implemented
 
-- [X] Foundation Composer floor is `^4.0`.
+- [X] Foundation integration baseline is Pathwise `^4.0`; final Foundation 3 target is `^4.1` after runtime-security hardening.
 - [X] `StorageRegistry` is a thin application adapter over Foundation-owned Pathwise `StorageContext`.
 - [X] old Pathwise process-global mount/default-namespace workaround removed.
 - [X] application/generation owns explicit storage context; same-process/Fiber isolation coverage exists.
@@ -199,15 +200,16 @@ OTP owns TOTP/HOTP/OCRA/AOTP/GridOTP/MobileOTP mechanics, provisioning, OTP repl
 
 ### Remaining acceptance
 
+- [ ] Consume released Pathwise `^4.1` and close the strict untrusted-data/Runwire filesystem-boundary acceptance before Foundation 3 final release.
 - [ ] Complete exact-final-head filesystem suite on PHP 8.4/8.5 stable/lowest: context isolation, upload cleanup, scanner modes, ranges/early abort, links, persistent/Fiber reuse and capability absence.
 - [ ] Re-run/finalize `benchmark:pathwise` attribution on the final integration head.
 - [ ] Confirm no compatibility/VCS/path workaround is present in the final Composer graph.
 
 ### Completion gate
 
-26.5 closes when the exact final head proves normal released Epicrypt 3 + OTP 6.1 + Pathwise 4 resolution, the full filesystem suite and benchmark are green, no global Pathwise state/duplicate storage mechanics return, and Webrick remains the HTTP response/output owner.
+26.5 closes when the exact final head proves normal released Epicrypt 3 + OTP 6.1 + Pathwise 4.1 resolution, the full filesystem suite and benchmark are green, no global Pathwise state/duplicate storage mechanics return, and Webrick remains the HTTP response/output owner.
 
-**Status:** implementation/dependency closure complete; final exact-head QA/performance acceptance open.
+**Status:** Pathwise 4.0 integration/dependency closure complete; Pathwise 4.1 runtime-security hardening and final acceptance remain open.
 
 ---
 
@@ -219,7 +221,7 @@ Foundation uses execution-owned DBLayer connections/`ConnectionRepository`, dele
 
 ---
 
-## 26.7 ReqShield 3.1 utilization — open/deferred
+## 26.7 ReqShield 3.2 utilization — open/deferred
 
 ### Ownership
 
@@ -227,7 +229,7 @@ ReqShield owns rule parsing/compilation/execution, sanitization/casting, nested/
 
 ### Open work
 
-- [ ] Rescan Foundation ReqShield usage against 3.1 and remove duplicated mechanics.
+- [ ] Rescan Foundation ReqShield usage against 3.2 and remove duplicated mechanics.
 - [ ] Freeze production schema topology; normal execution must not mutate process-wide registration.
 - [ ] Keep DB validation optional/lazy and reuse ReqShield database batching/DBLayer parameter limits.
 - [ ] Preserve validation bounds as security controls and structured failure results internally.
@@ -238,7 +240,7 @@ ReqShield owns rule parsing/compilation/execution, sanitization/casting, nested/
 
 ---
 
-## 26.8 Omnibus 2.5 utilization — open/deferred
+## 26.8 Omnibus 2.6 utilization — open/deferred
 
 ### Ownership
 
@@ -246,10 +248,10 @@ Omnibus owns envelope/bus/routing/transports/consumer/retry/failure/workflow/mes
 
 ### Open work
 
-- [ ] Rescan Foundation Omnibus 2.5 usage and remove duplicated mechanics.
-- [ ] Keep durable DB/cache integrations lazy and selected explicitly.
+- [ ] Rescan Foundation Omnibus 2.6 usage and remove duplicated mechanics.
+- [ ] Construct durable DB/cache integrations explicitly after fork in the child; preserve exact child-owned connection/resource semantics where required.
 - [ ] Require intentional durable failure-store policy for durable async workers.
-- [ ] Bind after-commit behavior to the current execution connection; never capture scoped connections in singletons.
+- [ ] Bind after-commit behavior to the exact transaction-owning child connection; never inherit/open durable DB/cache/broker resources in the Runwire parent before fork.
 - [ ] Keep retry/settlement and queue-worker policy inside Omnibus Consumer/WorkerPool while delegating generic fork/signal/wait/reap/termination supervision to Runwire under Foundation release-generation policy.
 - [ ] Prove sync/memory/durable topology, retries/failures, persistent isolation and capability-absent cold paths.
 - [ ] Benchmark direct Omnibus versus Foundation bridge.
@@ -1214,23 +1216,23 @@ Runwire can develop in parallel with remaining 26.7/26.8/26.9 specialist passes,
 
 ---
 
-### 30. Proposed canonical tracker update
+### 30. Canonical tracker and ownership synchronization
 
-When this addendum is reconciled into the canonical Foundation plan, add:
+The canonical tracker includes:
 
 ```text
-| 26.12 | Runwire | ^1.0 | open / launch dependency |
+| 26.12 | Runwire native process/server runtime | ^1.0 | planned / Foundation 3 launch requirement |
 ```
 
-Update the lower-library ownership list with:
+The lower-library ownership list recognizes:
 
 ```text
 Runwire: process execution, worker/process supervision, event-loop, network listener/connection/server mechanics and generic runtime control.
 ```
 
-Update the Foundation invariant so it also prohibits a second generic process/server runtime above Runwire.
+The Foundation invariant prohibits a second generic process/server runtime above Runwire.
 
-Update the current execution order so Point 27/Phase 10 runs only after **26.12** is closed.
+The current execution order keeps Point 27/Phase 10 blocked until **26.12** is closed.
 
 ---
 
@@ -1256,7 +1258,7 @@ Foundation Point 26.12 closes only when:
 
 ---
 
-### 32. Aggregate release gate change
+### 32. Aggregate release gate
 
 Foundation's final Point 27 / aggregate Phase 10 must not run to completion until:
 
@@ -1308,13 +1310,7 @@ Runwire prefork worker
 
 Only after that path is correct should Foundation add operational reload/control conveniences and broader process-operation APIs.
 
-### Integrated runtime selection and OPcache requirements
-
-### Foundation 3 — Runwire Runtime Selection Addendum
-
-**Status:** normative addendum to `foundation-3-runwire-native-runtime-launch-plan.md`  
-**Branch:** `foundation-3/runwire-launch-plan`  
-**Runwire target:** 1.0
+### 35. Runtime drivers and OPcache selection
 
 Foundation must not hard-wire Runwire 1.0 to only the Runwire-native server. Foundation selects a Runwire runtime driver while keeping the same Webrick/application execution semantics.
 
@@ -1388,7 +1384,7 @@ Add these items to the Foundation 26.12 completion gate:
 - [ ] runtime capability diagnostics identify the selected driver and important supported features;
 - [ ] benchmark direct host integration versus Foundation→Webrick→Runwire adapter overhead for each supported runtime.
 
-This addendum must be reconciled into the canonical Foundation runtime plan before Foundation 3 release.
+These runtime-selection requirements are part of Point 26.12 and must pass before Foundation 3 release.
 
 ---
 
