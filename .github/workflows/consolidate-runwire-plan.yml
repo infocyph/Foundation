@@ -1,0 +1,119 @@
+name: Consolidate Foundation Runwire Plan
+
+on:
+  push:
+    branches:
+      - foundation-3/runwire-launch-plan
+
+permissions:
+  contents: write
+
+jobs:
+  consolidate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: foundation-3/runwire-launch-plan
+      - name: Consolidate canonical plan
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+
+          canonical = Path('docs/plans/foundation-3-final-runtime-development-plan.md')
+          launch = Path('docs/plans/foundation-3-runwire-native-runtime-launch-plan.md')
+          selection = Path('docs/plans/foundation-3-runwire-runtime-selection-addendum.md')
+
+          text = canonical.read_text()
+          launch_text = launch.read_text()
+          selection_text = selection.read_text()
+
+          def body_after_front(md: str) -> str:
+              parts = md.split('\n---\n', 1)
+              return (parts[1] if len(parts) == 2 else md).strip()
+
+          def demote(md: str, by: int = 2) -> str:
+              out = []
+              for line in md.splitlines():
+                  m = re.match(r'^(#{1,6})(\s+.*)$', line)
+                  if m:
+                      level = min(6, len(m.group(1)) + by)
+                      line = '#' * level + m.group(2)
+                  out.append(line)
+              return '\n'.join(out)
+
+          # Specialist ownership: Runwire is the generic process/server/runtime owner.
+          webrix = '- **Webrick:** HTTP route/runtime/request/middleware/response mechanics.\n'
+          if '- **Runwire:**' not in text and webrix in text:
+              text = text.replace(
+                  webrix,
+                  webrix + '- **Runwire:** generic process execution/supervision, worker-process lifecycle, event loop, listener/network/connection mechanics, native HTTP wire transport, runtime-driver adaptation, signals/wait/reap and OS-process capability primitives.\n',
+                  1,
+              )
+
+          old_invariant = 'Foundation must not add a second DI runtime, HTTP runtime, DB pool/query builder, validation engine, messaging runtime, storage engine, OTP/WebAuthn protocol runtime, cryptographic implementation, or OAuth/OIDC/PAT protocol implementation above the specialist package that already owns it.'
+          new_invariant = 'Foundation must not add a second DI runtime, HTTP application runtime, generic process/server runtime, DB pool/query builder, validation engine, messaging runtime, storage engine, OTP/WebAuthn protocol runtime, cryptographic implementation, or OAuth/OIDC/PAT protocol implementation above the specialist package that already owns it. Runwire owns generic process/server/runtime mechanics; Webrick remains the HTTP application-semantics owner.'
+          text = text.replace(old_invariant, new_invariant)
+
+          tracker_row = '| 26.11 | standalone WebAuthn specialist pass | OTP 6.1 Passkey | **closed/subsumed** |\n'
+          if '| 26.12 | Runwire' not in text and tracker_row in text:
+              text = text.replace(
+                  tracker_row,
+                  tracker_row + '| 26.12 | Runwire native process/server runtime | `^1.0` | **planned / Foundation 3 launch requirement** |\n',
+                  1,
+              )
+
+          # Execution order: Runwire closes before aggregate release readiness.
+          text = text.replace(
+              '7. Run aggregate Phase 10 / Foundation release-readiness gates.',
+              '7. Execute 26.12 Runwire 1.0 native/runtime-driver integration and close its launch acceptance.\n8. Run aggregate Phase 10 / Foundation release-readiness gates.'
+          )
+
+          # Omnibus generic process mechanics are delegated to Runwire while queue semantics remain Omnibus-owned.
+          text = text.replace(
+              'Omnibus owns envelope/bus/routing/transports/consumer/retry/failure/workflow/worker/worker-pool/scheduled-message mechanics and its CacheLayer/DBLayer integrations. Foundation owns configured application IDs/routes/transports, graph inclusion, generation supervision, execution scopes, correlation and selection of lower-layer DB/cache services.',
+              'Omnibus owns envelope/bus/routing/transports/consumer/retry/failure/workflow/message-worker/worker-pool policy/scheduled-message mechanics and its CacheLayer/DBLayer integrations. Runwire owns the generic OS-process supervision primitives beneath process-backed pools. Foundation owns configured application IDs/routes/transports, graph inclusion, release-generation policy, execution scopes, correlation and selection of lower-layer DB/cache services.'
+          )
+          text = text.replace(
+              '- [ ] Keep retry/settlement inside Omnibus Consumer and WorkerPool beneath Foundation generation supervision.',
+              '- [ ] Keep retry/settlement and queue-worker policy inside Omnibus Consumer/WorkerPool while delegating generic fork/signal/wait/reap/termination supervision to Runwire under Foundation release-generation policy.'
+          )
+
+          # Insert the complete Runwire launch material into the canonical plan before aggregate release readiness.
+          marker = '# 27. Aggregate Foundation 3 release-readiness after lower-library passes'
+          if '## 26.12 Runwire 1.0 — native process/server runtime and host-runtime drivers' not in text:
+              launch_body = demote(body_after_front(launch_text), 2)
+              selection_body = demote(body_after_front(selection_text), 2)
+              section = (
+                  '## 26.12 Runwire 1.0 — native process/server runtime and host-runtime drivers\n\n'
+                  '**Status:** planned; Foundation 3 launch requirement.\n\n'
+                  'Runwire is Foundation\'s generic process/server/runtime boundary. Webrick remains the HTTP application-semantics owner; Omnibus remains the messaging/queue-semantics owner. Runwire-native is the first-party server engine, while FPM, FrankenPHP, Swoole/OpenSwoole and RoadRunner are selectable host-runtime drivers behind one Runwire lifecycle contract. OPcache is an orthogonal accelerator capability, not a runtime driver.\n\n'
+                  + launch_body + '\n\n'
+                  '### Integrated runtime selection and OPcache requirements\n\n'
+                  + selection_body + '\n\n---\n\n'
+              )
+              if marker in text:
+                  text = text.replace(marker, section + marker, 1)
+              else:
+                  text = text.rstrip() + '\n\n---\n\n' + section
+
+          text = text.replace(
+              'Run only after 26.4/26.5/26.7/26.8/26.9/26.10 are closed.',
+              'Run only after 26.4/26.5/26.7/26.8/26.9/26.10/26.12 are closed.'
+          )
+
+          canonical.write_text(text)
+          launch.unlink()
+          selection.unlink()
+          Path('.github/workflows/consolidate-runwire-plan.yml').unlink()
+          PY
+      - name: Commit consolidation
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "docs: consolidate Runwire into Foundation runtime plan"
+          git push origin HEAD:foundation-3/runwire-launch-plan
