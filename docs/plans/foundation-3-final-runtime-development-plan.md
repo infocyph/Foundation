@@ -13,13 +13,13 @@
 
 Foundation has four application runtime paths: `web`, `cli`, `worker`, and `scheduler`. They share one composition source, while every independently active application runtime uses a fresh InterMix builder/generated artifact. Webrick remains the sole HTTP application-semantics/request/response owner; Runwire may own the underlying server/process/network transport according to the selected runtime driver.
 
-Foundation owns application configuration, capability selection, provider/composition policy, application persistence policy, runtime orchestration, release-generation/activation, diagnostics, and application-facing adaptation.
+Foundation owns application configuration, capability selection, provider/composition policy, application persistence policy, runtime orchestration, release-generation/activation, diagnostics, application-facing adaptation, and explicit classification/reset of application state across persistent executions.
 
 Lower libraries own their specialist mechanics:
 
 - **InterMix:** DI graph, lifetimes, scopes, generated containers, execution isolation.
-- **Webrick:** HTTP application route/runtime/request/middleware/response mechanics.
-- **Runwire:** generic process execution/supervision, worker-process lifecycle, event loop, listener/network/connection mechanics, native HTTP wire transport, runtime-driver adaptation, signals/wait/reap and OS-process capability primitives.
+- **Webrick:** HTTP application route/runtime/request/middleware/response mechanics and request lifecycle semantics.
+- **Runwire:** generic process execution/supervision, worker-process lifecycle/recycling, event loop, listener/network/connection mechanics, native HTTP wire transport, runtime-driver adaptation, signals/wait/reap and OS-process capability primitives.
 - **DBLayer:** connections, leases/pools, queries, repositories, migrations, DB transaction/cache mechanics.
 - **CacheLayer:** cache semantics, locks, atomic primitives, counters, backend coordination.
 - **OTP:** OTP/AOTP/GridOTP/MobileOTP/Passkey mechanics and OTP-owned replay/challenge/recovery state semantics.
@@ -103,8 +103,9 @@ Epicrypt `3.0` was released on **2026-09-10**. Tag `3.0` resolves to commit `e11
 5. Execute 26.10.5 security/compatibility/protocol tests and 26.10.6 performance attribution.
 6. Return to 26.7 ReqShield 3.2 and 26.9 TalkingBytes 2.0 while Runwire core can proceed in parallel.
 7. Execute 26.12 Runwire 1.0 + Webrick native adapter/runtime-driver integration and close the Runwire launch acceptance.
-8. Close 26.8 Omnibus 2.6 against released Runwire 1.0, removing duplicate raw process supervision.
-9. Run aggregate Phase 10 / Foundation release-readiness gates.
+8. Prove Foundation/Webrick persistent-execution reset semantics through Infbyte as the end-to-end application acceptance target.
+9. Close 26.8 Omnibus 2.6 against released Runwire 1.0, removing duplicate raw process supervision.
+10. Run aggregate Phase 10 / Foundation release-readiness gates.
 
 Do not reopen finalized lower-library architecture merely to make Foundation integration easier.
 
@@ -504,7 +505,7 @@ Foundation CLI / release selection
         ↓
 Runwire Runtime + Supervisor
         ↓
-Runwire TCP/TLS + HTTP/1 transport
+Runwire TCP/TLS + HTTP/1.1 or HTTP/2 transport
         ↓
 Webrick RunwireRuntimeAdapter
         ↓
@@ -543,7 +544,7 @@ Foundation command/config layer owns:
 
 - host/port selection;
 - Runwire runtime profile selection;
-- worker count policy/defaults;
+- worker count/application recycle defaults;
 - selected Foundation release generation;
 - compiled Webrick/InterMix artifact selection;
 - logging/telemetry integration;
@@ -557,7 +558,7 @@ Runwire owns the actual:
 - event loop;
 - signal/wait/reap;
 - connection accept/read/write;
-- generic worker restart/reload/shutdown;
+- generic worker restart/reload/recycling/shutdown;
 - transport limits/backpressure.
 
 Foundation should not wrap these with another process engine.
@@ -640,10 +641,12 @@ For native HTTP:
 one Runwire worker process
     ├─ request A -> fresh Foundation/web execution A -> cleanup
     ├─ request B -> fresh Foundation/web execution B -> cleanup
-    └─ request C -> fresh Foundation/web execution C -> cleanup
+    └─ HTTP/2 connection
+          ├─ stream 1 -> fresh Foundation/web execution C -> cleanup
+          └─ stream 3 -> fresh Foundation/web execution D -> cleanup
 ```
 
-Prove no principal/session/request/input/DB transaction/validation state leaks between keep-alive requests or Fibers.
+Prove no principal/session/request/input/DB transaction/validation state leaks between keep-alive requests, concurrent HTTP/2 streams or Fibers.
 
 ---
 
@@ -791,13 +794,7 @@ pdf.inspect
 git.status
 ```
 
-Do not expose:
-
-```text
-command = "anything the requester typed"
-```
-
-as a normal Foundation API.
+Do not expose arbitrary command strings as a normal Foundation API.
 
 ---
 
@@ -805,16 +802,7 @@ as a normal Foundation API.
 
 ReqShield validates data/intent only.
 
-Foundation must not ask ReqShield to make shell/PHP code "safe" by blocking substrings such as:
-
-```text
-exec
-system
-shell_exec
-proc_open
-pcntl_fork
-posix_kill
-```
+Foundation must not ask ReqShield to make shell/PHP code safe by blocking substrings such as `exec`, `system`, `shell_exec`, `proc_open`, `pcntl_fork` or `posix_kill`.
 
 Those are ordinary strings until interpreted/executed.
 
@@ -842,11 +830,13 @@ Foundation authorization
 Runwire registered process operation, if intentionally needed
 ```
 
-Never use an upload path directly as a PHP `include`, script filename or shell fragment.
+Never use an upload path directly as a PHP include, script filename or shell fragment.
 
 Runwire does not replace Pathwise root containment, symlink/race policy, archive limits or scanner contracts.
 
 If an external executable malware scanner is needed, Foundation/application may implement Pathwise's scanner contract using Runwire's structured process runner. Pathwise itself remains independent of Runwire.
+
+For public/static assets, Foundation may compose Webrick public-asset HTTP policy with Pathwise trusted public-root resolution and then hand an already-authorized file body/range to Runwire for efficient transfer. Runwire never gets raw request-path authority over the filesystem.
 
 ---
 
@@ -868,7 +858,6 @@ separate PHP binary/php.ini / sandbox launcher
 dedicated UID/GID
       ↓
 OS isolation
-  seccomp / AppArmor / SELinux / namespaces / container / stronger boundary
 ```
 
 Never execute hostile uploaded PHP in the normal persistent Runwire application worker.
@@ -896,8 +885,6 @@ Do not use `disable_functions` alone as a claimed sandbox.
 
 Do not run the long-lived Foundation master as root merely because Runwire exposes POSIX identity APIs.
 
-If privileged bind/bootstrap is needed, keep it minimal and drop privileges before application processing wherever architecture permits.
-
 ---
 
 ### 16. Server configuration
@@ -916,13 +903,18 @@ server.backlog
 server.tls
 server.connections.max
 server.timeouts.*
-server.http.* hard/selected limits
+server.http.*
 server.reload.*
+server.worker.max_executions
+server.worker.max_lifetime
+server.worker.max_memory
+server.worker.idle_timeout
+server.worker.drain_timeout
 ```
 
-Do not mirror every Runwire internal option into Foundation configuration.
+Foundation exposes only stable application/deployment knobs. Runwire owns process mechanics and validates lower runtime capabilities.
 
-Foundation should expose stable application/deployment knobs and allow an advanced trusted configuration extension only where needed.
+Worker recycling thresholds are defense-in-depth for long-lived process health, not a substitute for correct request execution ownership/reset.
 
 Validate incompatible Webrick/Runwire limits at startup.
 
@@ -930,27 +922,83 @@ Validate incompatible Webrick/Runwire limits at startup.
 
 ### 17. Persistent HTTP request cleanup
 
-Native server acceptance must prove cleanup on:
+Native and host-persistent server acceptance must prove cleanup on:
 
 - normal response;
+- redirect;
 - exception;
 - 404/405;
 - middleware rejection;
+- validation/auth rejection;
 - streaming response completion;
 - client disconnect during request body;
 - client disconnect during response;
 - timeout/cancellation;
-- worker drain/reload.
+- HTTP/2 stream reset;
+- worker drain/reload/recycle.
 
 Every started Foundation request execution is closed exactly once.
 
 No request-scoped DB transaction, cache lock, auth principal, validation context or session state remains reachable after cleanup.
 
+#### 17.1 Persistent execution state classification audit
+
+Before Point 26.12 closes, classify mutable framework/application-facing state into exactly one intended lifetime:
+
+```text
+process lifetime
+worker/application lifetime
+connection lifetime
+execution/request lifetime
+```
+
+Audit at least:
+
+- current request and input;
+- route parameters/current route;
+- auth principal/authorization context;
+- session and queued cookies;
+- locale/timezone/request locale overrides;
+- CSRF/request-security context where applicable;
+- validation state/results;
+- pagination/current-request references;
+- URL-generator/request-context state;
+- DB transactions, execution-owned connections/leases, query logs and duration trackers;
+- CacheLayer locks/execution-local cache state;
+- logging context/processors containing request metadata;
+- PHP output-buffer levels created during execution;
+- temporary error/exception handlers installed for execution work;
+- uploaded-file/temp-file request state;
+- body/response streams;
+- mutable static caches that may capture execution data;
+- application singleton objects that capture execution-scoped dependencies;
+- Fiber/execution-local values.
+
+Anything classified as execution/request lifetime must be owned by the Foundation/InterMix execution scope or reset deterministically during termination.
+
+#### 17.2 Reset strategy
+
+Use the Octane lesson—persistent PHP requires explicit cleanup—but do not copy Laravel's clone-the-application strategy as Foundation's primary isolation model.
+
+Preferred model:
+
+```text
+frozen/generated worker graph
+        +
+correct InterMix lifetimes
+        +
+fresh execution scope
+        +
+deterministic cleanup in finally
+```
+
+Prefer eliminating accidental worker-global mutable state over adding an ever-growing reset list. Explicit reset hooks are appropriate only for unavoidable process/worker services that intentionally survive while holding execution-derived transient state.
+
+Worker recycling may contain residual process growth, but a passing recycle policy never excuses cross-request leakage before recycle.
+
 ---
 
 ### 18. After-response semantics
-
-Review Foundation/Omnibus after-response behavior under native Runwire output.
 
 Distinguish:
 
@@ -962,8 +1010,6 @@ client disconnected
 ```
 
 Define Foundation's after-response boundary intentionally.
-
-For work that must happen after application response production but need not wait for all client bytes, document that semantics. For transport completion-sensitive work, use explicit Runwire/Webrick completion state.
 
 Do not make DB transaction correctness depend on a client successfully reading all response bytes.
 
@@ -986,14 +1032,12 @@ Foundation may annotate/map a worker generation to the Foundation release it boo
 For release activation:
 
 - build/validate new Foundation release;
-- ask Runwire/Foundation supervisor policy to start replacement worker generation using new release;
+- start replacement worker generation using new release;
 - verify readiness;
 - drain old generation;
 - enforce grace deadline;
 - terminate old generation;
 - preserve rollback capability according to existing Foundation release policy.
-
-Do not overwrite Foundation's existing release-generation semantics with a generic Runwire reload ID.
 
 ---
 
@@ -1003,16 +1047,7 @@ Keep `RuntimeProcessRegistry` Foundation-owned because it expresses Foundation r
 
 Adapt Runwire lifecycle events/status into it rather than duplicating Runwire's child table manually.
 
-Foundation registry may record:
-
-- role/group;
-- PID;
-- Runwire worker generation;
-- Foundation release generation;
-- heartbeat/readiness;
-- started/draining/stopping state.
-
-Runwire remains authoritative for its actual live child/process state; Foundation remains authoritative for application/release meaning.
+Foundation registry may record role/group, PID, Runwire worker generation, Foundation release generation, heartbeat/readiness and started/draining/stopping state.
 
 Avoid two independent sources both claiming ownership of generic child liveness.
 
@@ -1020,7 +1055,7 @@ Avoid two independent sources both claiming ownership of generic child liveness.
 
 ### 21. Control plane
 
-Foundation CLI should present user-facing operational commands, while Runwire supplies generic runtime control/status primitives.
+Foundation CLI presents user-facing operational commands while Runwire supplies generic runtime control/status primitives.
 
 Potential Foundation UX:
 
@@ -1031,30 +1066,28 @@ server:reload
 server:stop
 ```
 
-Exact command names should follow existing Foundation console conventions.
-
-Foundation can translate these into Runwire control calls while adding release/application context.
-
-Do not expose a Foundation command that forwards arbitrary Runwire control payloads or shell commands from untrusted input.
+Do not expose arbitrary Runwire control payloads or shell commands from untrusted input.
 
 ---
 
 ### 22. Webrick adapter integration
 
-Foundation should consume Webrick's Runwire adapter rather than create its own parallel Runwire→HTTP request converter.
+Foundation should consume Webrick's Runwire adapter rather than create a parallel Runwire→HTTP request converter.
 
 Hard rule:
 
 > There must be one generic Runwire↔Webrick adaptation in Webrick, and Foundation only supplies application execution/composition around it.
 
-Foundation may implement a request execution callback that:
+Foundation request execution callback should:
 
-1. starts `webrick.request` execution scope;
-2. binds request/correlation state;
-3. invokes compiled Webrick kernel;
-4. maps application exceptions according to Foundation policy;
-5. cleans execution state in `finally`;
-6. returns Webrick response to adapter/Runwire writer.
+1. start `webrick.request` execution scope;
+2. bind request/correlation state;
+3. invoke compiled Webrick kernel;
+4. map application exceptions according to Foundation policy;
+5. terminate/reset execution state in `finally` exactly once;
+6. return Webrick response to adapter/Runwire writer.
+
+For trusted public/static assets, Foundation may authorize a Webrick fast path after Pathwise/public-root resolution. Dynamic requests remain on the normal execution path.
 
 ---
 
@@ -1062,11 +1095,9 @@ Foundation may implement a request execution callback that:
 
 Do not remove Webrick compatibility adapters.
 
-Foundation's **native/default persistent server** can be Runwire while advanced deployments may still integrate Webrick through another supported runtime where Foundation explicitly supports that mode.
+Foundation's native/default persistent server can be Runwire while advanced deployments may still integrate through another supported runtime.
 
-Do not make Foundation's application semantics depend on Runwire-specific request objects.
-
-Runtime portability remains a useful correctness check even though Runwire is the native path.
+Do not make Foundation application semantics depend on Runwire-specific request objects.
 
 ---
 
@@ -1086,8 +1117,6 @@ construct Omnibus Worker
 Omnibus consumes messages
 ```
 
-Queue reservation occurs using the worker-process-owned transport before per-message Foundation execution scope as Omnibus requires.
-
 Each message handler still gets a fresh Foundation `foundation.worker` execution.
 
 Do not resolve DB/cache/broker resources in the Runwire master and inherit them into queue children.
@@ -1100,18 +1129,15 @@ Foundation may add a small application-owned registry/policy mapping operation I
 
 Requirements:
 
-- registry is built from trusted application/config code;
-- frozen before normal runtime handling;
+- trusted application/config registration;
+- frozen before normal handling;
 - no user-controlled executable path;
-- executable path/identity is trusted configuration;
-- arguments are built structurally;
-- environment keys are filtered;
-- cwd is trusted/restricted;
-- timeout/output/resource profile is mandatory or has secure defaults;
-- operation authorization occurs before Runwire invocation;
-- audit metadata records operation identity, not secrets/full argv by default.
-
-Do not create another process runner inside Foundation; registry resolves policy and calls Runwire.
+- structured arguments;
+- filtered environment;
+- trusted/restricted cwd;
+- timeout/output/resource policy;
+- authorization before invocation;
+- audit operation identity without secrets/full argv by default.
 
 ---
 
@@ -1119,18 +1145,20 @@ Do not create another process runner inside Foundation; registry resolves policy
 
 Add Foundation integration tests proving:
 
-- harmless request data containing `exec(` / `pcntl_fork` / shell-looking text remains data;
-- unregistered process operation cannot execute;
-- registered operation with invalid ReqShield args is rejected before Runwire;
-- unauthorized registered operation cannot execute;
-- Pathwise artifact cannot escape allowed storage/root policy before process use;
-- no raw user shell string is constructed by process-operation bridge;
-- master application resources remain clean before fork;
+- shell-looking text remains data;
+- unregistered/unauthorized process operations cannot execute;
+- invalid ReqShield args are rejected before Runwire;
+- Pathwise artifacts cannot escape allowed storage/root policy;
+- public static fast path cannot traverse/escape trusted public roots;
+- no raw user shell string is built;
+- master resources remain clean before fork;
 - child application resources are opened post-fork;
 - repeated keep-alive requests do not share security/session/DB state;
-- client cancellation cleans request execution;
-- reload drains old release workers without serving new requests from stale application generation after cutoff;
-- untrusted-script mode cannot silently fall back to normal trusted Runwire worker execution.
+- concurrent HTTP/2 streams do not share execution state;
+- client cancellation/stream reset cleans request execution;
+- reload/recycle drains old workers without stale release serving;
+- untrusted-script mode cannot fall back to trusted Runwire worker execution;
+- state-lifetime audit/reset fixtures prove no output-buffer/log-context/locale/current-request/static-cache residue crosses requests.
 
 ---
 
@@ -1142,116 +1170,89 @@ Keep performance attribution layered:
 Runwire raw HTTP
 Runwire + Webrick
 Runwire + Webrick + Foundation
+Infbyte full application
 Workerman + Webrick reference
-existing Apache/FPM Foundation baseline where useful
+existing Apache/FPM Foundation baseline
 ```
 
-Measure:
+Measure RPS, latency percentiles, CPU, RSS/growth, connections, HTTP/1.1 keep-alive, HTTP/2 multiplexing, streaming/file output, static fast path, slow-client behavior, request execution/reset overhead, reload capacity dip and worker startup/release switch time.
 
-- RPS;
-- p50/p95/p99;
-- CPU;
-- master/worker RSS;
-- memory growth during soak;
-- connections;
-- keep-alive;
-- large/streaming response;
-- slow-client behavior;
-- request execution bridge overhead;
-- reload capacity dip;
-- worker startup/release switch time.
-
-Foundation optimizations must not bypass Webrick/InterMix/security semantics merely to improve benchmarks.
+Do not bypass Webrick/InterMix/security semantics for benchmarks.
 
 ---
 
 ### 28. Fault/soak acceptance
 
-Run native Foundation/Runwire soak scenarios:
+Run production-style scenarios:
 
 - sustained small requests;
 - keep-alive churn;
+- HTTP/2 multiplexed requests;
 - mixed authenticated/unauthenticated requests;
 - uploads/body streaming;
-- large downloads/streaming;
+- static/file/large downloads;
 - slow clients;
 - worker crash;
 - repeated worker recycle;
-- rolling reload to a new Foundation release generation;
-- DB/cache outage during active requests;
+- rolling release reload;
+- DB/cache outage during requests;
 - control stop/reload during traffic.
 
-Require:
-
-- bounded RSS/FDs;
-- no zombies;
-- no stale execution state;
-- no old release serving after completed drain;
-- no parent-inherited DB/cache/broker resource use;
-- no unbounded queues/buffers;
-- deterministic shutdown/reload.
+Require bounded RSS/FDs, no zombies, no stale execution state, no old release after drain, no parent-inherited backend resources, no unbounded buffers, and deterministic shutdown/reload.
 
 ---
 
 ### 29. Development sequence
 
-Foundation-side sequence should follow released/lower-layer readiness:
-
 ```text
 1. Runwire process/supervisor/loop/network core
-2. Runwire HTTP/1 transport
+2. Runwire HTTP/1.1 + HTTP/2 transport
 3. Webrick RunwireRuntimeAdapter
 4. Foundation server config + native serve wiring
-5. persistent request-scope/cancellation/streaming acceptance
-6. Omnibus 2.6 Runwire delegation + Foundation queue integration
-7. structured Foundation operation registry over Runwire ProcessRunner
-8. Pathwise/ReqShield boundary integration tests
-9. runtime/release-generation control integration
-10. full benchmark + soak + security acceptance
-11. Runwire 1.0 release
-12. pin Foundation final graph to released ^1.0
+5. request lifecycle/state-classification/reset acceptance
+6. Webrick/Foundation static/public asset fast path
+7. Infbyte end-to-end persistent-runtime proof
+8. Omnibus 2.6 Runwire delegation + Foundation queue integration
+9. structured Foundation operation registry over Runwire ProcessRunner
+10. Pathwise/ReqShield boundary integration tests
+11. runtime/release-generation control integration
+12. full benchmark + soak + security acceptance
+13. Runwire 1.0 release
+14. pin Foundation final graph to released ^1.0
 ```
 
-Runwire can develop in parallel with remaining 26.7/26.8/26.9 specialist passes, but Foundation final aggregate release readiness is blocked until Point 26.12 closes.
+Runwire can develop in parallel with remaining specialist passes, but Foundation final aggregate release readiness is blocked until Point 26.12 closes.
 
 ---
 
 ### 30. Canonical tracker and ownership synchronization
 
-The canonical tracker includes:
-
-```text
-| 26.12 | Runwire native process/server runtime | ^1.0 | planned / Foundation 3 launch requirement |
-```
-
-The lower-library ownership list recognizes:
-
-```text
-Runwire: process execution, worker/process supervision, event-loop, network listener/connection/server mechanics and generic runtime control.
-```
-
-The Foundation invariant prohibits a second generic process/server runtime above Runwire.
-
-The current execution order keeps Point 27/Phase 10 blocked until **26.12** is closed.
+The canonical tracker includes Point 26.12 Runwire `^1.0` as a Foundation 3 launch requirement. The lower-library ownership list recognizes Runwire as process/server/runtime owner, while Webrick owns HTTP application semantics and Foundation owns application execution/reset policy.
 
 ---
 
-### 31. Proposed Point 26.12 completion gate
+### 31. Point 26.12 completion gate
 
 Foundation Point 26.12 closes only when:
 
 - [ ] released `infocyph/runwire:^1.0` is in the final Composer graph;
 - [ ] Webrick Runwire adapter is released/consumable and is Foundation's native HTTP server path;
-- [ ] Foundation does not implement a duplicate generic socket/event-loop/process supervisor;
+- [ ] Foundation does not implement duplicate generic socket/event-loop/process supervision;
 - [ ] generic Foundation process execution uses Runwire structured process APIs;
 - [ ] normal web workers boot Foundation application resources only after fork;
-- [ ] every HTTP request receives a fresh `webrick.request` execution and deterministic cleanup;
-- [ ] keep-alive/Fiber/persistent isolation is proven;
-- [ ] Runwire backpressure and transport limits compose correctly with Webrick/Foundation limits;
+- [ ] every HTTP request/HTTP2 stream receives a fresh `webrick.request` execution and deterministic exactly-once cleanup;
+- [ ] the persistent state-lifetime classification audit is complete;
+- [ ] execution-owned request/auth/session/validation/DB/cache/log/output-buffer/temp-file/Fiber state cannot leak to another request;
+- [ ] framework isolation is based primarily on correct lifetimes/scopes, not cloning the whole application or relying on worker recycle;
+- [ ] keep-alive/Fiber/concurrent HTTP2 persistent isolation is proven;
+- [ ] Runwire worker max-execution/lifetime/memory/drain policies compose with Foundation application lifecycle;
+- [ ] trusted static/public asset fast path preserves Webrick HTTP semantics and Pathwise/public-root trust boundaries;
+- [ ] Runwire backpressure/transport limits compose correctly with Webrick/Foundation limits;
 - [ ] Foundation release generations integrate with Runwire rolling worker generations without conflating identity;
 - [ ] Omnibus process pool no longer requires Foundation raw-signal watchdog behavior;
 - [ ] process operation authorization/ReqShield/Pathwise boundaries are proven;
 - [ ] untrusted code cannot run in normal trusted workers by accidental fallback;
+- [ ] Infbyte end-to-end persistent runtime acceptance passes representative dynamic, static, HTTP/1.1, HTTP/2, recycle and reload scenarios;
 - [ ] PHP 8.4/8.5 stable/lowest QA is green;
 - [ ] native runtime benchmarks and production-style soak/fault tests are recorded and acceptable;
 - [ ] final release/security documentation describes capability profiles and OS sandbox boundary accurately.
@@ -1260,7 +1261,7 @@ Foundation Point 26.12 closes only when:
 
 ### 32. Aggregate release gate
 
-Foundation's final Point 27 / aggregate Phase 10 must not run to completion until:
+Foundation's final Point 27 / aggregate Phase 10 must not complete until:
 
 ```text
 26.4 / 26.5 / 26.7 / 26.8 / 26.9 / 26.10 / 26.12
@@ -1268,16 +1269,16 @@ Foundation's final Point 27 / aggregate Phase 10 must not run to completion unti
 
 are closed according to their final accepted plans.
 
-Runwire is therefore a **Foundation 3 launch dependency**, not an optional post-release experiment.
+Runwire is therefore a Foundation 3 launch dependency, not a post-release experiment.
 
 ---
 
 ### 33. Non-goals
 
-Do not use this move to put into Foundation:
+Do not put into Foundation:
 
 - Runwire event-loop internals;
-- raw socket parser state;
+- raw socket/HTTP2 parser state;
 - direct `pcntl` child tables;
 - generic process-result/PID abstractions;
 - a second Workerman-style server;
@@ -1285,9 +1286,8 @@ Do not use this move to put into Foundation:
 - Pathwise upload mechanics;
 - ReqShield shell scanning;
 - a fake PHP sandbox;
-- cluster/service-discovery orchestration.
-
-Foundation is the orchestrating application framework; Runwire is the low-level process/network runtime.
+- cluster/service-discovery orchestration;
+- Laravel-style full application cloning as the primary persistent-request isolation mechanism.
 
 ---
 
@@ -1295,26 +1295,29 @@ Foundation is the orchestrating application framework; Runwire is the low-level 
 
 Do not implement the Foundation adapter before Runwire's low-level HTTP transport contract and Webrick adapter boundary are sufficiently stable.
 
-The first Foundation integration milestone should prove:
+The first Foundation/Infbyte integration milestone should prove:
 
 ```text
-Runwire prefork worker
-  -> child boots Foundation application
-  -> Webrick adapter receives one native request
-  -> fresh Foundation request execution
-  -> compiled Webrick route
-  -> response streamed back through Runwire
+Runwire persistent worker
+  -> child boots Foundation/Infbyte application once
+  -> Webrick adapter receives request A
+  -> fresh Foundation execution A
+  -> compiled route
   -> exact cleanup
-  -> same connection serves second request with no leaked state
+  -> request B with different principal/input/state
+  -> prove no residue
+  -> trusted public asset fast path
+  -> worker recycle/reload
+  -> prove clean next generation
 ```
 
-Only after that path is correct should Foundation add operational reload/control conveniences and broader process-operation APIs.
+Then broaden to HTTP/2 multiplexing, uploads, backend outages and host-runtime parity.
 
 ### 35. Runtime drivers and OPcache selection
 
-Foundation must not hard-wire Runwire 1.0 to only the Runwire-native server. Foundation selects a Runwire runtime driver while keeping the same Webrick/application execution semantics.
+Foundation must not hard-wire Runwire 1.0 to only the native server. Foundation selects a Runwire runtime driver while keeping the same Webrick/application execution semantics.
 
-Supported selection values:
+Supported values:
 
 ```text
 auto
@@ -1325,7 +1328,7 @@ swoole
 roadrunner
 ```
 
-OPcache is configured separately:
+OPcache is separate:
 
 ```text
 auto
@@ -1334,7 +1337,7 @@ off
 required
 ```
 
-Recommended Foundation configuration:
+Recommended configuration:
 
 ```php
 'runwire' => [
@@ -1343,48 +1346,27 @@ Recommended Foundation configuration:
 ];
 ```
 
-Recommended CLI selection for server-capable modes:
+FPM remains host-launched. Host runtimes own their native listener/event-loop/process mechanics; Runwire adapts lifecycle/transport and must not nest a competing native server underneath them.
 
-```bash
-php foundation serve --runtime=native
-php foundation serve --runtime=frankenphp
-php foundation serve --runtime=swoole
-php foundation serve --runtime=roadrunner
-```
+Foundation consumes Runwire capability reporting instead of scattering runtime-name conditionals.
 
-FPM remains host-launched; Foundation detects/selects the FPM driver while executing inside the FPM request rather than spawning PHP-FPM itself.
+Explicit unavailable runtime selection fails before traffic; production never silently falls back.
 
-Ownership rules:
+Persistent-mode acceptance is mandatory for FrankenPHP worker mode, Swoole/OpenSwoole and RoadRunner: every request receives a fresh Foundation execution state and cleanup runs in `finally`; globals/statics/application singleton state must not become accidental request state.
 
-- Runwire `native`: Runwire owns listener/event loop/HTTP transport/process supervision.
-- FPM: PHP-FPM owns FastCGI listener and process pool; Runwire is request-bound adaptation/lifecycle only.
-- FrankenPHP: FrankenPHP owns server/thread/worker mechanics; Runwire adapts classic/worker lifecycle.
-- Swoole/OpenSwoole: host owns event loop/server/workers/coroutines; Runwire adapts lifecycle and request transport.
-- RoadRunner: RR owns external server/process pool/worker dispatch; Runwire adapts worker lifecycle/transport.
-- Webrick remains the application HTTP semantics owner in every mode.
-- Foundation remains application graph, execution-scope, release-generation, authorization and deployment-policy owner.
+OPcache is a runtime acceleration policy, not a server choice.
 
-Foundation must consume Runwire capability reporting instead of scattering runtime-name conditionals across application services.
+Add to completion:
 
-Explicit runtime selection must fail fast when unavailable; production must never silently fall back to a different engine. `auto` may detect an already active host runtime and otherwise use Runwire-native only when the platform satisfies its required capabilities.
-
-Persistent-mode acceptance is mandatory for FrankenPHP worker mode, Swoole/OpenSwoole and RoadRunner: every request gets a fresh Foundation execution state and cleanup runs in `finally`; globals/statics/application singleton state must not become accidental request state.
-
-OPcache must be treated as a runtime acceleration policy, not a server choice. Foundation/Runwire may validate whether it is enabled, but must not claim it can always enable system-level OPcache settings from application code.
-
-Add these items to the Foundation 26.12 completion gate:
-
-- [ ] select Runwire driver through config/CLI without changing the application/Webrick API;
+- [ ] select runtime through config/CLI without changing Webrick/application API;
 - [ ] support `auto|native|fpm|frankenphp|swoole|roadrunner`;
-- [ ] support separate `opcache=auto|on|off|required` policy;
-- [ ] explicit unavailable runtime fails before serving traffic;
-- [ ] host runtimes do not get nested Runwire listener/event-loop/process pools;
+- [ ] support separate `opcache=auto|on|off|required`;
+- [ ] explicit unavailable runtime fails before serving;
+- [ ] host runtimes do not get nested Runwire listeners/event loops/process pools;
 - [ ] persistent driver request-state isolation passes;
-- [ ] FPM remains request-bound and does not boot the native server;
-- [ ] runtime capability diagnostics identify the selected driver and important supported features;
-- [ ] benchmark direct host integration versus Foundation→Webrick→Runwire adapter overhead for each supported runtime.
-
-These runtime-selection requirements are part of Point 26.12 and must pass before Foundation 3 release.
+- [ ] FPM remains request-bound;
+- [ ] capability diagnostics identify selected runtime/features;
+- [ ] benchmark direct host integration versus Foundation→Webrick→Runwire overhead where practical.
 
 ---
 
@@ -1397,13 +1379,14 @@ Run only after 26.4/26.5/26.7/26.8/26.9/26.10/26.12 are closed.
 - [ ] no unexpected skipped/deprecated tests remain under release policy.
 - [ ] capability-absent graphs remain genuinely cold for every optional lower library.
 - [ ] Fiber/persistent-worker isolation passes across auth, OAuth/OIDC/PAT, filesystem, validation, messaging and communication boundaries.
+- [ ] persistent web state-lifetime/reset audit is complete and exactly-once request cleanup is proven.
 - [ ] aggregate release generation/activation/rollback tests remain green.
 - [ ] final `benchmark:release` attributes lower-layer work versus Foundation policy/bridge overhead without hiding security/I/O costs.
-- [ ] InfByte consumption/handoff is validated against the final Foundation 3 lifecycle.
+- [ ] Infbyte consumption/handoff is validated against Runwire native HTTP/1.1 + HTTP/2, persistent request isolation, worker recycle/reload, static fast path and the final Foundation 3 lifecycle.
 - [ ] plan/tracker is reconciled and completed historical detail is archived/condensed.
 
 ---
 
 ## Immediate handoff
 
-Continue **26.10.3 exact-head MFA/recovery acceptance**, then close the remaining signed-URL/domain-separation portion of 26.10.2/26.10.3. After those are green, begin the 26.10.4 move/keep/replace inventory and replace Foundation OAuth/OIDC/PAT protocol mechanics with the released Epicrypt 3 core while retaining Foundation transport/application/persistence ownership.
+Continue **26.10.3 exact-head MFA/recovery acceptance**, then close the remaining signed-URL/domain-separation portion of 26.10.2/26.10.3. After those are green, begin the 26.10.4 move/keep/replace inventory and replace Foundation OAuth/OIDC/PAT protocol mechanics with the released Epicrypt 3 core while retaining Foundation transport/application/persistence ownership. Runwire/Webrick/Infbyte runtime work may proceed in parallel against the frozen ownership boundaries above.
