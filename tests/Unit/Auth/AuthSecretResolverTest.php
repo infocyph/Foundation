@@ -2,42 +2,69 @@
 
 declare(strict_types=1);
 
-use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Auth\Internal\AuthSecretResolver;
-use Infocyph\Foundation\Config\LocalPreset;
-use Infocyph\Foundation\Config\ProductionPreset;
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Exception\ConfigurationException;
-use Infocyph\Foundation\Foundation;
 
 it('keeps the development fallback in runtime policy instead of application config', function (): void {
-    $application = Foundation::preset(RuntimeMode::Cli, new LocalPreset(), [
-        '_config_cache' => false,
+    $environment = 'FOUNDATION_TEST_MISSING_TOKEN_SECRET';
+    unset($_ENV[$environment], $_SERVER[$environment]);
+    putenv($environment);
+
+    $config = new ConfigRepository([
+        'app' => ['env' => 'local'],
+        'auth' => ['token_secret_environment' => $environment],
     ]);
 
-    expect($application->config()->get('auth.token_secret'))->toBeNull()
-        ->and((new AuthSecretResolver($application))->tokenSecret())
+    expect($config->get('auth.token_secret'))->toBeNull()
+        ->and((new AuthSecretResolver($config))->tokenSecret())
         ->toBe('foundation-development-token-secret-change-me-000000000000000000000000');
 });
 
 it('rejects a missing production token secret at the point of use', function (): void {
-    $application = Foundation::preset(RuntimeMode::Cli, new LocalPreset(), [
-        '_config_cache' => false,
-    ]);
-    $application->config()->set('app.env', 'production');
+    $environment = 'FOUNDATION_TEST_MISSING_PRODUCTION_TOKEN_SECRET';
+    unset($_ENV[$environment], $_SERVER[$environment]);
+    putenv($environment);
 
-    expect(fn(): string => (new AuthSecretResolver($application))->tokenSecret())
-        ->toThrow(ConfigurationException::class, 'auth.token_secret must be configured in production.');
+    $resolver = new AuthSecretResolver(new ConfigRepository([
+        'app' => ['env' => 'production'],
+        'auth' => ['token_secret_environment' => $environment],
+    ]));
+
+    expect(fn(): string => $resolver->tokenSecret())
+        ->toThrow(ConfigurationException::class, $environment);
 });
 
-it('accepts an explicit high-entropy production token secret', function (): void {
+it('resolves an explicit high entropy production token secret from its locator', function (): void {
+    $environment = 'FOUNDATION_TEST_PRODUCTION_TOKEN_SECRET';
     $secret = bin2hex(random_bytes(32));
-    $application = Foundation::preset(RuntimeMode::Cli, new LocalPreset(), [
-        '_config_cache' => false,
-        'auth' => [
-            'token_secret' => $secret,
-        ],
-    ]);
-    $application->config()->set('app.env', 'production');
+    $_ENV[$environment] = $secret;
+    $_SERVER[$environment] = $secret;
+    putenv($environment . '=' . $secret);
 
-    expect((new AuthSecretResolver($application))->tokenSecret())->toBe($secret);
+    try {
+        $resolver = new AuthSecretResolver(new ConfigRepository([
+            'app' => ['env' => 'production'],
+            'auth' => ['token_secret_environment' => $environment],
+        ]));
+
+        expect($resolver->environmentName())->toBe($environment)
+            ->and($resolver->tokenSecret())->toBe($secret);
+    } finally {
+        unset($_ENV[$environment], $_SERVER[$environment]);
+        putenv($environment);
+    }
+});
+
+it('rejects raw token secrets even when an environment locator also exists', function (): void {
+    $resolver = new AuthSecretResolver(new ConfigRepository([
+        'app' => ['env' => 'local'],
+        'auth' => [
+            'token_secret' => str_repeat('x', 64),
+            'token_secret_environment' => 'AUTH_TOKEN_SECRET',
+        ],
+    ]));
+
+    expect(fn(): string => $resolver->tokenSecret())
+        ->toThrow(ConfigurationException::class, 'Raw auth.token_secret values are not allowed');
 });

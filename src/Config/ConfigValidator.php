@@ -12,7 +12,6 @@ use Infocyph\Foundation\Auth\Driver\AuthPasskeyDriver;
 use Infocyph\Foundation\Auth\Driver\AuthPasswordDriver;
 use Infocyph\Foundation\Auth\Driver\AuthStorageDriver;
 use Infocyph\Foundation\Auth\Driver\AuthTokenDriver;
-use Infocyph\Foundation\Auth\Internal\AuthSecretResolver;
 use Infocyph\Foundation\Auth\OAuth\Configuration\OAuthConfigValidator;
 use Infocyph\Foundation\Config\Internal\CacheTopologyValidator;
 
@@ -135,10 +134,7 @@ final readonly class ConfigValidator
 
     private function tokenSecretEnvironment(): ?string
     {
-        $configured = $this->config->get(
-            'auth.token_secret_environment',
-            AuthSecretResolver::DEFAULT_ENVIRONMENT,
-        );
+        $configured = $this->config->get('auth.token_secret_environment', 'AUTH_TOKEN_SECRET');
         if (!is_string($configured)
             || preg_match('/\A[A-Z][A-Z0-9_]{1,127}\z/D', $configured) !== 1
         ) {

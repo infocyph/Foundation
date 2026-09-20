@@ -420,6 +420,9 @@ it('keeps worker run dispatcher parents unbooted before pooled-worker validation
 /** @return array<string,mixed> */
 function foundationPhase8ReleaseConfig(string $project): array
 {
+    $tokenEnvironment = 'FOUNDATION_TEST_PHASE8_TOKEN_SECRET';
+    foundationPhase8ReleaseSetEnvironment($tokenEnvironment, bin2hex(random_bytes(32)));
+
     return [
         'app' => [
             'base_path' => $project,
@@ -429,7 +432,7 @@ function foundationPhase8ReleaseConfig(string $project): array
         ],
         '_config_cache' => false,
         'auth' => [
-            'token_secret' => bin2hex(random_bytes(32)),
+            'token_secret_environment' => $tokenEnvironment,
             'drivers' => [
                 'cache' => 'cache',
                 'mfa' => 'otp',

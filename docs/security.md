@@ -62,8 +62,12 @@ When `auth.drivers.tokens=security`, Foundation owns auth claim/purpose mapping
 while Epicrypt owns token signing and verification.
 
 Foundation's JWT policy is configured under `security.jwt.*`, including
-algorithm, issuer, audience, maximum lifetime, and leeway. Token-secret/key
-material must satisfy the selected Epicrypt/JWT algorithm and production policy.
+algorithm, issuer, audience, maximum lifetime, and leeway. The token root is
+resolved only at runtime from the environment locator selected by
+`auth.token_secret_environment` (default `AUTH_TOKEN_SECRET`). Raw
+`auth.token_secret` values are rejected so generated InterMix/release artifacts
+contain a locator, never the token root itself. Token-secret/key material must
+satisfy the selected Epicrypt/JWT algorithm and production policy.
 
 Foundation auth adapters exist to translate Foundation authentication records
 and purposes to Epicrypt primitives; they do not reimplement signing or
@@ -99,7 +103,20 @@ Key material may instead come from an external process environment variable
 
 Destination writes are staged, forced replacement is rollback-safe, and
 symbolic-link destinations are refused. The encryption key must not live inside
-the `.env` file it protects or in `.env.example`.
+the `.env` file it protects or in `.env.example`. Environment-file
+protection is an independent external-only key domain,
+`foundation.environment.file.v1`; it is not derived from or shared with the
+auth token, MFA, recovery-code, OAuth, or signed-URL roots.
+
+## Signed URL key lifecycle
+
+Foundation selects deployment key locators and rotation state while Webrick
+remains the sole owner of URL canonicalization, signing, expiry, and
+verification. Runtime keys are derived through Epicrypt `KeyDeriver` and
+`KeyRing` under `foundation.signed-url.v1`. Exactly one active key writes;
+bounded fallback keys remain read-only for verification, and disabled/retired
+keys are ineligible. Generated release artifacts retain behavior options and
+environment locators only, never resolved signed-URL key material.
 
 ## Runtime and process safety
 

@@ -173,11 +173,15 @@ it('permits legacy plaintext only under the explicit migration policy', function
     $ring = foundationEpicrypt3MfaRing('active', (new KeyMaterialGenerator())->forAead());
     $factor = foundationEpicrypt3MfaFactor();
 
-    $migrationRead = (new MfaSecretProtector($ring, true))->unprotectResult($factor);
+    $migrationProtector = new MfaSecretProtector($ring, true);
+    $migrationRead = $migrationProtector->unprotectResult($factor);
     expect($migrationRead->legacyPlaintext)->toBeTrue()
         ->and($migrationRead->factor)->toBe($factor);
 
-    expect(fn() => (new MfaSecretProtector($ring))->unprotect($factor))
+    $rewritten = $migrationProtector->protect($migrationRead->factor);
+    $strict = new MfaSecretProtector($ring);
+    expect($strict->unprotect($rewritten)->metadata['otp']['secret'])->toBe('JBSWY3DPEHPK3PXP')
+        ->and(fn() => $strict->unprotect($factor))
         ->toThrow(DecryptionException::class);
 });
 

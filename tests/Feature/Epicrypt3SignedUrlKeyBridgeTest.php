@@ -46,6 +46,33 @@ it('feeds one active and fallback derived key into Webrick native signed URL con
     }
 });
 
+it('keeps the previous signing key readable after active key rotation', function (): void {
+    $oldEnvironment = 'FOUNDATION_TEST_SIGNED_URL_ROTATION_OLD';
+    $newEnvironment = 'FOUNDATION_TEST_SIGNED_URL_ROTATION_NEW';
+    $_ENV[$oldEnvironment] = str_repeat('o', 32);
+    $_ENV[$newEnvironment] = str_repeat('n', 32);
+
+    try {
+        $old = new SignedUrlKeyResolver(new ConfigRepository([
+            'router' => ['signed_urls' => ['keys' => [
+                ['id' => 'old', 'environment' => $oldEnvironment, 'status' => 'active'],
+            ]]],
+        ]))->resolve();
+        $rotated = new SignedUrlKeyResolver(new ConfigRepository([
+            'router' => ['signed_urls' => ['keys' => [
+                ['id' => 'new', 'environment' => $newEnvironment, 'status' => 'active'],
+                ['id' => 'old', 'environment' => $oldEnvironment, 'status' => 'fallback'],
+            ]]],
+        ]))->resolve();
+
+        expect($old)->toBeInstanceOf(SignedUrlConfig::class)
+            ->and($rotated)->toBeInstanceOf(SignedUrlConfig::class)
+            ->and($rotated?->generationKey)->not->toBe($old?->generationKey)
+            ->and($rotated?->verificationKeys)->toContain($old?->generationKey);
+    } finally {
+        unset($_ENV[$oldEnvironment], $_ENV[$newEnvironment]);
+    }
+});
 it('keeps Webrick behavior options artifact-safe and resolves keys only at runtime', function (): void {
     $resolver = new SignedUrlKeyResolver(new ConfigRepository([
         'router' => [

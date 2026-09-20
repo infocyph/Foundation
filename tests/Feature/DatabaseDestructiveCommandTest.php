@@ -273,6 +273,12 @@ function foundationDestructiveCommandFixture(string $name, string $environment =
         ],
     ];
     if ($environment === 'production') {
+        $tokenEnvironment = 'FOUNDATION_TEST_DESTRUCTIVE_TOKEN_SECRET';
+        $tokenSecret = str_repeat('foundation-production-test-secret-', 2);
+        $_ENV[$tokenEnvironment] = $tokenSecret;
+        $_SERVER[$tokenEnvironment] = $tokenSecret;
+        putenv($tokenEnvironment . '=' . $tokenSecret);
+
         $config['auth'] = [
             'drivers' => [
                 'cache' => 'cache',
@@ -282,7 +288,7 @@ function foundationDestructiveCommandFixture(string $name, string $environment =
                 'storage' => 'database',
                 'tokens' => 'security',
             ],
-            'token_secret' => str_repeat('foundation-production-test-secret-', 2),
+            'token_secret_environment' => $tokenEnvironment,
         ];
         $config['cache'] = [
             'default' => 'auth-state',

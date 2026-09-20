@@ -28,34 +28,42 @@ it('uses Epicrypt for configured Foundation password security', function (): voi
 });
 
 it('uses Epicrypt for configured Foundation token security', function (): void {
-    $app = Foundation::web([
-        'auth' => [
-            'drivers' => [
-                'tokens' => 'security',
-            ],
-            'token_secret' => str_repeat('k', 64),
-        ],
-        'security' => [
-            'jwt' => [
-                'issuer' => 'foundation-test',
-                'audience' => 'foundation-test-api',
-                'maximum_lifetime_seconds' => 3600,
-                'leeway_seconds' => 0,
-            ],
-        ],
-    ]);
+    $environment = 'FOUNDATION_TEST_EPICRYPT_TOKEN_SECRET';
+    $secret = str_repeat('k', 64);
+    $_ENV[$environment] = $secret;
 
-    $services = $app->make(AuthServices::class);
-    $now = time();
-    $issued = $services->tokens()->issueAccessToken(new AccessTokenClaims(
-        subjectId: 'account-1',
-        actorId: null,
-        issuedAt: $now,
-        expiresAt: $now + 300,
-        scopes: ['profile.read'],
-    ));
+    try {
+        $app = Foundation::web([
+            'auth' => [
+                'drivers' => [
+                    'tokens' => 'security',
+                ],
+                'token_secret_environment' => $environment,
+            ],
+            'security' => [
+                'jwt' => [
+                    'issuer' => 'foundation-test',
+                    'audience' => 'foundation-test-api',
+                    'maximum_lifetime_seconds' => 3600,
+                    'leeway_seconds' => 0,
+                ],
+            ],
+        ]);
 
-    expect($services->tokens())->toBe($app->make(TokenAuthManager::class))
-        ->and($issued->token)->not->toBeNull()
-        ->and($services->tokens()->verifyAccessToken($issued->token ?? '')->successful())->toBeTrue();
+        $services = $app->make(AuthServices::class);
+        $now = time();
+        $issued = $services->tokens()->issueAccessToken(new AccessTokenClaims(
+            subjectId: 'account-1',
+            actorId: null,
+            issuedAt: $now,
+            expiresAt: $now + 300,
+            scopes: ['profile.read'],
+        ));
+
+        expect($services->tokens())->toBe($app->make(TokenAuthManager::class))
+            ->and($issued->token)->not->toBeNull()
+            ->and($services->tokens()->verifyAccessToken($issued->token ?? '')->successful())->toBeTrue();
+    } finally {
+        unset($_ENV[$environment]);
+    }
 });
