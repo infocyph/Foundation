@@ -5,13 +5,7 @@ declare(strict_types=1);
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\Foundation\Filesystem\StorageRegistry;
-use Infocyph\Pathwise\Storage\StorageContext;
 
-beforeEach(function (): void {
-    if (!class_exists(StorageContext::class)) {
-        $this->markTestSkipped('Install Pathwise 4 to run filesystem isolation tests.');
-    }
-});
 
 it('isolates identical logical disk names across Foundation applications in one process', function (): void {
     $baseA = sys_get_temp_dir() . '/foundation-pathwise4-a-' . bin2hex(random_bytes(5));

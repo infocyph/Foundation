@@ -8,15 +8,9 @@ use Infocyph\Foundation\Filesystem\FilesystemTransferFactory;
 use Infocyph\Foundation\Filesystem\FilesystemUploadRequestHandler;
 use Infocyph\Foundation\Filesystem\StorageRegistry;
 use Infocyph\Foundation\Foundation;
-use Infocyph\Pathwise\Storage\StorageContext;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Body\FileBody;
 
-beforeEach(function (): void {
-    if (!class_exists(StorageContext::class)) {
-        $this->markTestSkipped('Install Pathwise 4 to run filesystem integration tests.');
-    }
-});
 
 /** @return array{Application,string} */
 function foundationFilesystemApp(): array

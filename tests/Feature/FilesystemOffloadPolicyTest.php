@@ -6,14 +6,8 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Filesystem\FilesystemResponseFactory;
 use Infocyph\Foundation\Filesystem\StorageRegistry;
 use Infocyph\Foundation\Foundation;
-use Infocyph\Pathwise\PathwiseFacade;
 use Infocyph\Webrick\Request\Request;
 
-beforeEach(function (): void {
-    if (!class_exists(PathwiseFacade::class)) {
-        $this->markTestSkipped('Install the filesystem module to run Pathwise integration tests.');
-    }
-});
 
 /**
  * @param array<string, array{enabled:bool}> $offload
