@@ -38,11 +38,12 @@ return [
         'allowed_extensions' => [],
         'blocked_extensions' => ['php', 'phtml', 'phar', 'exe', 'sh', 'bat', 'cmd', 'com'],
         'max_file_size' => env('FILESYSTEM_UPLOAD_MAX_FILE_SIZE', 5 * 1024 * 1024),
-        'max_chunk_count' => env('FILESYSTEM_UPLOAD_MAX_CHUNK_COUNT', 0),
-        'max_chunk_size' => env('FILESYSTEM_UPLOAD_MAX_CHUNK_SIZE', 0),
+        // Pathwise 4.1 UNTRUSTED_DATA requires finite chunk limits. Explicit
+        // zero values remain safe: the trust profile restores bounded defaults.
+        'max_chunk_count' => env('FILESYSTEM_UPLOAD_MAX_CHUNK_COUNT', 1_000),
+        'max_chunk_size' => env('FILESYSTEM_UPLOAD_MAX_CHUNK_SIZE', 8 * 1024 * 1024),
         'max_image_width' => env('FILESYSTEM_UPLOAD_MAX_IMAGE_WIDTH', 0),
         'max_image_height' => env('FILESYSTEM_UPLOAD_MAX_IMAGE_HEIGHT', 0),
-        'naming_strategy' => env('FILESYSTEM_UPLOAD_NAMING_STRATEGY', 'hash'),
 
         // off | when_configured | required. The default scans whenever an
         // application scanner is configured without making scanner software a
@@ -62,7 +63,12 @@ return [
                 'allow_remote_tcp' => env('FILESYSTEM_UPLOAD_CLAMAV_ALLOW_REMOTE_TCP', false),
             ],
         ],
-        'strict_content_type_validation' => env('FILESYSTEM_UPLOAD_STRICT_CONTENT_TYPE_VALIDATION', true),
+    ],
+
+    // Foundation selects the public root; Pathwise 4.1 owns containment.
+    'public_files' => [
+        'root' => env('FILESYSTEM_PUBLIC_ROOT', 'public'),
+        'symlink_policy' => env('FILESYSTEM_PUBLIC_SYMLINK_POLICY', 'reject'),
     ],
 
     'downloads' => [

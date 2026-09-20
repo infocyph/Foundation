@@ -57,7 +57,7 @@ it('preserves explicit X-Sendfile and X-Accel policy without Foundation body emi
     $storage = $app->make(StorageRegistry::class);
     $responses = $app->make(FilesystemResponseFactory::class);
     $disk = $storage->disk('uploads');
-    $directory = 'tests/offload-' . uniqid('', true);
+    $directory = 'tests/offload-' . bin2hex(random_bytes(8));
     $relativePath = $directory . '/payload.txt';
     $contents = 'Foundation native offload policy';
     $disk->write($relativePath, $contents);

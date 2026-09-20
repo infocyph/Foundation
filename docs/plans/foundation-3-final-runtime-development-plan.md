@@ -72,7 +72,7 @@ Phase 10 remains the final aggregate release-readiness pass after every open low
 | 26.2 | UID | `^5.0` | **complete** |
 | 26.3 | CacheLayer | `^3.4` | **complete** |
 | 26.4 | OTP / Passkey | `^6.1` | core complete; Epicrypt-backed security acceptance **in progress** |
-| 26.5 | Pathwise | `^4.0` | implementation complete; normal-package/final QA acceptance **in progress** |
+| 26.5 | Pathwise | `^4.1` | 4.1 trust-boundary adoption landed; exact-head QA/performance acceptance **in progress** |
 | 26.6 | DBLayer | `^5.1` | **complete** |
 | 26.7 | ReqShield | `^3.1` | open/deferred |
 | 26.8 | Omnibus | `^2.5` | open/deferred |
@@ -85,7 +85,7 @@ Current Foundation development graph intentionally contains:
 ```text
 infocyph/epicrypt ^3.0
 infocyph/otp ^6.1
-infocyph/pathwise ^4.0
+infocyph/pathwise ^4.1
 ```
 
 Epicrypt `3.0` was released on **2026-09-10**. Tag `3.0` resolves to commit `e11bb287900b2590954ef0c0ebba649bc5bf0793`. Its production requirements contain neither Pathwise nor OTP; Pathwise is development-only in Epicrypt. The old Epicrypt-2 → Pathwise-3 dependency conflict is therefore gone.
@@ -177,11 +177,11 @@ OTP owns TOTP/HOTP/OCRA/AOTP/GridOTP/MobileOTP mechanics, provisioning, OTP repl
 
 ---
 
-## 26.5 Pathwise 4 filesystem integration — implementation complete; acceptance in progress
+## 26.5 Pathwise 4.1 filesystem integration — implementation complete; acceptance in progress
 
 ### Implemented
 
-- [X] Foundation Composer floor is `^4.0`.
+- [X] Foundation Composer floor is `^4.1`.
 - [X] `StorageRegistry` is a thin application adapter over Foundation-owned Pathwise `StorageContext`.
 - [X] old Pathwise process-global mount/default-namespace workaround removed.
 - [X] application/generation owns explicit storage context; same-process/Fiber isolation coverage exists.
@@ -193,6 +193,8 @@ OTP owns TOTP/HOTP/OCRA/AOTP/GridOTP/MobileOTP mechanics, provisioning, OTP repl
 - [X] Foundation now consumes released Epicrypt `^3.0`; the Epicrypt-2/Pathwise-3 conflict is removed.
 - [X] normal Composer resolution has succeeded with Epicrypt 3 + OTP 6.1 + Pathwise 4 on the active integration branch.
 - [X] stale `filesystem.uploads.require_malware_scan` usage/default is absent from the current tree.
+- [X] Webrick-facing uploads use Pathwise 4.1 `UNTRUSTED_DATA`; finite chunk bounds, server-generated hash names and strict content validation cannot be downgraded by Foundation upload configuration.
+- [X] trusted public/static resolution delegates canonical containment and symlink policy to Pathwise 4.1 `PublicFileResolver` before existing Pathwise download/Webrick response handling.
 
 ### Remaining acceptance
 
@@ -204,7 +206,7 @@ OTP owns TOTP/HOTP/OCRA/AOTP/GridOTP/MobileOTP mechanics, provisioning, OTP repl
 
 26.5 closes when the exact final head proves normal released Epicrypt 3 + OTP 6.1 + Pathwise 4 resolution, the full filesystem suite and benchmark are green, no global Pathwise state/duplicate storage mechanics return, and Webrick remains the HTTP response/output owner.
 
-**Status:** implementation/dependency closure complete; final exact-head QA/performance acceptance open.
+**Status:** Pathwise 4.1 integration/dependency implementation complete; final exact-head QA/performance acceptance open.
 
 ---
 
@@ -429,7 +431,7 @@ External secret-provider I/O, DB/cache I/O, HTTP adaptation and actual cryptogra
 
 26.10 closes only when:
 
-- [ ] exact final Composer graph uses released Epicrypt 3.x + OTP 6.1 + Pathwise 4 on PHP 8.4/8.5 stable/lowest;
+- [ ] exact final Composer graph uses released Epicrypt 3.x + OTP 6.1 + Pathwise 4.1 on PHP 8.4/8.5 stable/lowest;
 - [ ] 26.5 is closed;
 - [ ] every Foundation crypto/auth site is classified as Epicrypt mechanics/protocol or Foundation application/transport/persistence policy;
 - [ ] generic timed-token/KDF/protection/signing-readiness duplication is gone or explicitly justified;

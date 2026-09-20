@@ -34,7 +34,7 @@ final class FilesystemServiceProvider extends ServiceProvider
 
         if (!class_exists(StorageContext::class)) {
             throw new \LogicException(
-                'Foundation filesystem services require infocyph/pathwise ^4.0; run "php infbyte module:install filesystem".',
+                'Foundation filesystem services require infocyph/pathwise ^4.1; run "php infbyte module:install filesystem".',
             );
         }
 
@@ -82,12 +82,17 @@ final class FilesystemServiceProvider extends ServiceProvider
             FilesystemUploadRequestHandler::class,
             [new ServiceReference(FilesystemTransferFactory::class)],
         ));
+        $builder->singleton(FilesystemPublicFileResolver::class, FactoryDefinition::construct(
+            FilesystemPublicFileResolver::class,
+            [new ServiceReference(ConfigRepository::class), new ServiceReference(PathManager::class)],
+        ));
         $builder->singleton(FilesystemResponseFactory::class, FactoryDefinition::construct(
             FilesystemResponseFactory::class,
             [
                 new ServiceReference(ConfigRepository::class),
                 new ServiceReference(FilesystemTransferFactory::class),
                 new ServiceReference(StorageRegistry::class),
+                new ServiceReference(FilesystemPublicFileResolver::class),
             ],
         ));
         $builder->singleton(StorageLinkManager::class, FactoryDefinition::construct(StorageLinkManager::class, [

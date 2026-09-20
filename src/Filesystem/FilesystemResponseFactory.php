@@ -22,6 +22,7 @@ final readonly class FilesystemResponseFactory
         private ConfigRepository $config,
         private FilesystemTransferFactory $transfers,
         private StorageRegistry $storage,
+        private FilesystemPublicFileResolver $publicFiles,
     ) {}
 
     /** @param array<string, string|list<string>> $headers */
@@ -59,6 +60,22 @@ final readonly class FilesystemResponseFactory
             downloadName: $downloadName,
             directory: $directory,
             disk: $disk,
+            headers: $headers,
+            inline: true,
+        );
+    }
+
+    /** @param array<string, string|list<string>> $headers */
+    public function publicFile(Request $request, string $relativePath, array $headers = []): Response
+    {
+        $resolved = $this->publicFiles->resolve($relativePath);
+
+        return $this->respond(
+            request: $request,
+            path: $resolved->path,
+            downloadName: basename($resolved->relativePath),
+            directory: $this->publicFiles->root(),
+            disk: null,
             headers: $headers,
             inline: true,
         );
@@ -167,6 +184,9 @@ final readonly class FilesystemResponseFactory
 
     private function localBodyPath(string $path, ?string $disk): ?string
     {
+        if ($path !== '' && PathHelper::isAbsolute($path)) {
+            return PathHelper::normalize($path);
+        }
         if ($path !== '' && PathHelper::hasScheme($path)) {
             return null;
         }

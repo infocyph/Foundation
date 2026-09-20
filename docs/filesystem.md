@@ -1,6 +1,6 @@
 # Filesystem and storage
 
-Foundation composes application storage policy; Pathwise 4 owns filesystem mechanics.
+Foundation composes application storage policy; Pathwise 4.1 owns filesystem mechanics.
 
 Install the optional filesystem module when the application needs configured storage, uploads, downloads, or the Webrick file-transfer bridge:
 
@@ -43,7 +43,7 @@ Relative roots of local disks are resolved against the Foundation base path befo
 
 For Webrick requests, `FilesystemUploadRequestHandler` adapts an `UploadedFile` directly with `UploadSource::fromMover()`. Foundation does not create `foundation-upload-*` staging files or own generic upload cleanup. Pathwise materializes the source privately, validates/scans it, and cleans staging deterministically on success or failure.
 
-Normal and chunked uploads preserve Foundation's configured destination, extension/type/size/image limits, naming policy, and strict content validation while Pathwise owns their mechanics.
+Normal and chunked Webrick uploads always use Pathwise 4.1 `UploadTrustProfile::UNTRUSTED_DATA`. Foundation may configure stricter extension/type/size/image and finite chunk limits, but it does not expose knobs that downgrade server-generated hash naming or strict content validation. Defaults are bounded to 1,000 chunks and 8 MiB per chunk; an explicit zero is converted back to Pathwise's bounded strict-profile default rather than meaning unlimited.
 
 ### Malware scanning
 
@@ -58,6 +58,12 @@ Normal and chunked uploads preserve Foundation's configured destination, extensi
 The ClamAV integration uses bounded clamd `INSTREAM`. Prefer a Unix socket; loopback TCP is permitted by Pathwise, while remote TCP requires explicit opt-in. Foundation never launches `clamscan`, `maldet`, `sudo`, or another privileged scanner process from a request worker. LMD may integrate with ClamAV at the host/signature layer without changing this PHP boundary.
 
 Custom, ICAP, AMWScan, cloud, or other scanners should implement Pathwise `MalwareScannerInterface` in an application provider rather than adding vendor branches to Foundation.
+
+## Public/static files
+
+Foundation selects the application public root and symlink policy, then delegates path trust to Pathwise 4.1 `PublicFileResolver`. `FilesystemResponseFactory::publicFile()` accepts only a relative candidate below that configured root. Traversal, absolute/drive/UNC input and root escape fail closed; the default symlink policy is `reject`. The resolved local artifact then flows through the existing Pathwise download policy and Webrick `FileBody` response path, so Foundation does not create a second static-file resolver or emit response bytes directly.
+
+`filesystem.public_files.root` defaults to the Foundation `public/` directory. `filesystem.public_files.symlink_policy` accepts `reject` or `allow_within_root`; allowing links still requires canonical containment inside the trusted root.
 
 ## Downloads
 
@@ -85,6 +91,6 @@ Foundation resolves configured mappings and supplies its public directory as the
 
 ## Persistent runtimes and fork safety
 
-Filesystem composition is application-instance scoped. `StorageContext` caches operators only inside its owning Foundation application; upload/download processors are transient; scanner resolution contains no request/job state. No request mutates Pathwise global mount/default topology.
+Filesystem composition is application-instance scoped. Public-file trust resolution is stateless and request-derived paths are never cached by Foundation. `StorageContext` caches operators only inside its owning Foundation application; upload/download processors are transient; scanner resolution contains no request/job state. No request mutates Pathwise global mount/default topology.
 
 `StorageRegistry` construction validates topology but does not construct disk backends. Operators remain lazy until first use, so provider composition remains safe before worker forks. Runtime graphs that do not select the filesystem capability contain no Foundation filesystem services.

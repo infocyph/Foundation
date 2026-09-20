@@ -8,6 +8,7 @@ use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\Pathwise\StreamHandler\DownloadProcessor;
 use Infocyph\Pathwise\StreamHandler\UploadProcessor;
+use Infocyph\Pathwise\StreamHandler\UploadTrustProfile;
 use Infocyph\Pathwise\Utils\PathHelper;
 
 /**
@@ -84,8 +85,8 @@ final readonly class FilesystemTransferFactory
             ValueNormalizer::stringList($config['blocked_extensions'] ?? []),
         );
         $processor->setChunkLimits(
-            $this->int($config, 'max_chunk_count', 0),
-            $this->int($config, 'max_chunk_size', 0),
+            $this->int($config, 'max_chunk_count', 1_000),
+            $this->int($config, 'max_chunk_size', 8 * 1024 * 1024),
         );
 
         $profile = $config['validation_profile'] ?? null;
@@ -102,12 +103,9 @@ final readonly class FilesystemTransferFactory
             $this->int($config, 'max_image_width', 0),
             $this->int($config, 'max_image_height', 0),
         );
-        $processor->setNamingStrategy($this->string($config, 'naming_strategy', 'hash'));
         $processor->setMalwareScanner($this->malware->scanner());
         $processor->setMalwareScanMode($this->malware->mode());
-        $processor->setStrictContentTypeValidation(
-            $this->bool($config, 'strict_content_type_validation', true),
-        );
+        $processor->setTrustProfile(UploadTrustProfile::UNTRUSTED_DATA);
 
         return $processor;
     }
