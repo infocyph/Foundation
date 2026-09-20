@@ -7,6 +7,7 @@ namespace Infocyph\Foundation\Auth\Adapter\Epicrypt;
 use Infocyph\Epicrypt\Generate\KeyMaterial\KeyDeriver;
 use Infocyph\Epicrypt\Token\Payload\PurposeToken;
 use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
+use Infocyph\Foundation\Auth\Internal\AuthSecretResolver;
 
 final readonly class EpicryptPurposeTokenFactory
 {
@@ -21,8 +22,7 @@ final readonly class EpicryptPurposeTokenFactory
     private KeyDeriver $deriver;
 
     public function __construct(
-        #[\SensitiveParameter]
-        private string $masterKey,
+        private AuthSecretResolver $secrets,
         ClockInterface $clock,
     ) {
         $this->clock = new EpicryptClockAdapter($clock);
@@ -35,7 +35,7 @@ final readonly class EpicryptPurposeTokenFactory
 
         return new PurposeToken(
             keys: $this->deriver->derivePurposeKeyBinary(
-                $this->masterKey,
+                $this->secrets->tokenSecret(32),
                 $domain,
                 self::CONTEXT,
                 self::KEY_BYTES,

@@ -12,6 +12,7 @@ use Infocyph\Foundation\Auth\Driver\AuthPasskeyDriver;
 use Infocyph\Foundation\Auth\Driver\AuthPasswordDriver;
 use Infocyph\Foundation\Auth\Driver\AuthStorageDriver;
 use Infocyph\Foundation\Auth\Driver\AuthTokenDriver;
+use Infocyph\Foundation\Auth\Internal\AuthSecretResolver;
 use Infocyph\Foundation\Auth\OAuth\Configuration\OAuthConfigValidator;
 use Infocyph\Foundation\Config\Internal\CacheTopologyValidator;
 
@@ -125,16 +126,26 @@ final readonly class ConfigValidator
         return is_int($validated) ? $validated : null;
     }
 
-    private function resolvedTokenSecret(): ?string
+    private function resolvedTokenSecret(string $environment): ?string
     {
-        $configured = $this->config->get('auth.token_secret');
-        if (is_string($configured) && $configured !== '') {
-            return $configured;
+        $resolved = Environment::get($environment);
+
+        return is_string($resolved) && $resolved !== '' ? $resolved : null;
+    }
+
+    private function tokenSecretEnvironment(): ?string
+    {
+        $configured = $this->config->get(
+            'auth.token_secret_environment',
+            AuthSecretResolver::DEFAULT_ENVIRONMENT,
+        );
+        if (!is_string($configured)
+            || preg_match('/\A[A-Z][A-Z0-9_]{1,127}\z/D', $configured) !== 1
+        ) {
+            return null;
         }
 
-        $environment = Environment::get('AUTH_TOKEN_SECRET');
-
-        return is_string($environment) && $environment !== '' ? $environment : null;
+        return $configured;
     }
 
     private function runChecks(bool $assumeProduction): ConfigValidationResult
@@ -387,12 +398,30 @@ final readonly class ConfigValidator
     /** @param list<ConfigIssue> $issues */
     private function validateTokenSecret(array &$issues, int $minimumBytes, bool $required = true): void
     {
-        $secret = $this->resolvedTokenSecret();
+        $raw = $this->config->get('auth.token_secret');
+        if ($raw !== null && $raw !== '') {
+            $issues[] = new ConfigIssue(
+                'Raw auth.token_secret values are not allowed; use auth.token_secret_environment.',
+                'auth.token_secret',
+            );
+        }
+
+        $environment = $this->tokenSecretEnvironment();
+        if ($environment === null) {
+            $issues[] = new ConfigIssue(
+                'auth.token_secret_environment must use uppercase shell-variable syntax.',
+                'auth.token_secret_environment',
+            );
+
+            return;
+        }
+
+        $secret = $this->resolvedTokenSecret($environment);
         if ($secret === null) {
             if ($required) {
                 $issues[] = new ConfigIssue(
-                    'AUTH_TOKEN_SECRET or auth.token_secret must be configured for the selected production token policy.',
-                    'auth.token_secret',
+                    sprintf('%s must provide the authentication token secret for the selected production token policy.', $environment),
+                    'auth.token_secret_environment',
                 );
             }
 
@@ -404,7 +433,10 @@ final readonly class ConfigValidator
             'foundation-development-token-secret-change-me',
             'foundation-development-token-secret-change-me-000000000000000000000000',
         ], true)) {
-            $issues[] = new ConfigIssue('The authentication token secret must not use a development placeholder.', 'auth.token_secret');
+            $issues[] = new ConfigIssue(
+                'The authentication token secret must not use a development placeholder.',
+                'auth.token_secret_environment',
+            );
 
             return;
         }
@@ -412,7 +444,7 @@ final readonly class ConfigValidator
         if (strlen($secret) < $minimumBytes) {
             $issues[] = new ConfigIssue(
                 sprintf('Authentication token secret must be at least %d bytes for the selected token policy.', $minimumBytes),
-                'auth.token_secret',
+                'auth.token_secret_environment',
             );
         }
     }

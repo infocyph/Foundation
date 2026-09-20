@@ -53,7 +53,7 @@ final class AuthServiceProvider extends ServiceProvider
     {
         $app = $this->application($builder, $context);
         $drivers = new AuthDriverResolver($app->config());
-        $secrets = new AuthSecretResolver($app);
+        $secrets = new AuthSecretResolver($app->config());
         $epicryptTokens = new EpicryptTokenPolicyResolver($app);
 
         new AuthCoreRegistrar($builder)->register($drivers);

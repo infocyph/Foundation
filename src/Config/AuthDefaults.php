@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Config;
 
+use Infocyph\Foundation\Auth\Internal\AuthSecretResolver;
+
 final class AuthDefaults
 {
     /**
@@ -105,7 +107,7 @@ final class AuthDefaults
                 'refresh_token_ttl' => 1209600,
                 'remember_me_ttl' => 2592000,
                 'session_ttl' => 3600,
-                'token_secret' => null,
+                'token_secret_environment' => AuthSecretResolver::DEFAULT_ENVIRONMENT,
             ],
         ];
     }
