@@ -184,11 +184,11 @@ final readonly class FilesystemResponseFactory
 
     private function localBodyPath(string $path, ?string $disk): ?string
     {
-        if ($path !== '' && PathHelper::isAbsolute($path)) {
-            return PathHelper::normalize($path);
-        }
         if ($path !== '' && PathHelper::hasScheme($path)) {
             return null;
+        }
+        if ($path !== '' && PathHelper::isAbsolute($path)) {
+            return PathHelper::normalize($path);
         }
 
         try {

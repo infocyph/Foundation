@@ -100,7 +100,8 @@ it('resolves public files through Pathwise before Webrick owns the response', fu
             ->toThrow(DownloadException::class, 'traversal');
 
         $link = $basePath . '/public/assets/private-link.txt';
-        if (@symlink($basePath . '/private.txt', $link)) {
+        if (PHP_OS_FAMILY !== 'Windows') {
+            expect(symlink($basePath . '/private.txt', $link))->toBeTrue();
             expect(fn() => $responses->publicFile($request, 'assets/private-link.txt'))
                 ->toThrow(DownloadException::class, 'symbolic link');
             unlink($link);

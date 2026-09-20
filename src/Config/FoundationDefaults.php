@@ -225,6 +225,10 @@ final class FoundationDefaults
                 'links' => [
                     'public/storage' => 'storage/app/public',
                 ],
+                'public_files' => [
+                    'root' => 'public',
+                    'symlink_policy' => 'reject',
+                ],
                 'downloads' => [
                     'allowed_extensions' => [],
                     'allowed_roots' => [],
@@ -252,13 +256,11 @@ final class FoundationDefaults
                     'blocked_extensions' => ['php', 'phtml', 'phar', 'exe', 'sh', 'bat', 'cmd', 'com'],
                     'directory' => '',
                     'disk' => 'uploads',
-                    'max_chunk_count' => 0,
-                    'max_chunk_size' => 0,
+                    'max_chunk_count' => 1_000,
+                    'max_chunk_size' => 8 * 1024 * 1024,
                     'max_file_size' => 5 * 1024 * 1024,
                     'max_image_height' => 0,
                     'max_image_width' => 0,
-                    'naming_strategy' => 'hash',
-                    'strict_content_type_validation' => true,
                     'temp_directory' => null,
                     'use_date_directories' => false,
                     'validation_profile' => null,

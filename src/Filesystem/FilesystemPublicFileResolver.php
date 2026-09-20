@@ -20,7 +20,7 @@ final readonly class FilesystemPublicFileResolver
 
     public function resolve(string $relativePath): PublicFileResolution
     {
-        return (new PublicFileResolver())->resolve(
+        return new PublicFileResolver()->resolve(
             $this->root(),
             $relativePath,
             $this->symlinkPolicy(),

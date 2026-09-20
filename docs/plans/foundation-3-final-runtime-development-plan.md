@@ -72,7 +72,7 @@ Phase 10 remains the final aggregate release-readiness pass after every open low
 | 26.2 | UID | `^5.0` | **complete** |
 | 26.3 | CacheLayer | `^3.4` | **complete** |
 | 26.4 | OTP / Passkey | `^6.1` | core complete; Epicrypt-backed security acceptance **in progress** |
-| 26.5 | Pathwise | `^4.1` | 4.1 trust-boundary adoption landed; exact-head QA/performance acceptance **in progress** |
+| 26.5 | Pathwise | `^4.1` | **complete** |
 | 26.6 | DBLayer | `^5.1` | **complete** |
 | 26.7 | ReqShield | `^3.1` | open/deferred |
 | 26.8 | Omnibus | `^2.5` | open/deferred |
@@ -177,7 +177,7 @@ OTP owns TOTP/HOTP/OCRA/AOTP/GridOTP/MobileOTP mechanics, provisioning, OTP repl
 
 ---
 
-## 26.5 Pathwise 4.1 filesystem integration — implementation complete; acceptance in progress
+## 26.5 Pathwise 4.1 filesystem integration — complete
 
 ### Implemented
 
@@ -191,7 +191,7 @@ OTP owns TOTP/HOTP/OCRA/AOTP/GridOTP/MobileOTP mechanics, provisioning, OTP repl
 - [X] malware scanner composition uses Pathwise scanner/mode semantics.
 - [X] Pathwise bridge benchmark coverage exists.
 - [X] Foundation now consumes released Epicrypt `^3.0`; the Epicrypt-2/Pathwise-3 conflict is removed.
-- [X] normal Composer resolution has succeeded with Epicrypt 3 + OTP 6.1 + Pathwise 4 on the active integration branch.
+- [X] normal Composer resolution has succeeded with Epicrypt 3 + OTP 6.1 + Pathwise 4.1 on the active integration branch.
 - [X] stale `filesystem.uploads.require_malware_scan` usage/default is absent from the current tree.
 - [X] Webrick-facing uploads use Pathwise 4.1 `UNTRUSTED_DATA`; finite chunk bounds, server-generated hash names and strict content validation cannot be downgraded by Foundation upload configuration.
 - [X] trusted public/static resolution delegates canonical containment and symlink policy to Pathwise 4.1 `PublicFileResolver` before existing Pathwise download/Webrick response handling.
@@ -206,7 +206,7 @@ OTP owns TOTP/HOTP/OCRA/AOTP/GridOTP/MobileOTP mechanics, provisioning, OTP repl
 
 26.5 closes when the exact final head proves normal released Epicrypt 3 + OTP 6.1 + Pathwise 4 resolution, the full filesystem suite and benchmark are green, no global Pathwise state/duplicate storage mechanics return, and Webrick remains the HTTP response/output owner.
 
-**Status:** Pathwise 4.1 integration/dependency implementation complete; final exact-head QA/performance acceptance open.
+**Status:** [X] COMPLETE — released Pathwise 4.1 resolves normally; the Foundation filesystem suite, static analysis, clean install and Pathwise 4.1 bridge benchmarks prove the final filesystem integration while Webrick remains the HTTP response/output owner.
 
 ---
 
