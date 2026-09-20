@@ -95,12 +95,11 @@ Epicrypt `3.0` was released on **2026-09-10**. Tag `3.0` resolves to commit `e11
 ## 4. Current execution order
 
 1. Finish 26.10.2/26.10.3 crypto-wrapper/key-domain consolidation and exact-head QA.
-2. Close the remaining 26.5 normal-package/filesystem acceptance.
-3. Close the Epicrypt-dependent remainder of 26.4 OTP/Passkey security/concurrency acceptance.
-4. Execute 26.10.4 released Epicrypt OAuth/OIDC/PAT protocol-core adoption.
-5. Execute 26.10.5 security/compatibility/protocol tests and 26.10.6 performance attribution.
-6. Return to 26.7 ReqShield → 26.8 Omnibus → 26.9 TalkingBytes.
-7. Run aggregate Phase 10 / Foundation release-readiness gates.
+2. Close the Epicrypt-dependent remainder of 26.4 OTP/Passkey security/concurrency acceptance.
+3. Execute 26.10.4 released Epicrypt OAuth/OIDC/PAT protocol-core adoption.
+4. Execute 26.10.5 security/compatibility/protocol tests and 26.10.6 performance attribution.
+5. Return to 26.7 ReqShield → 26.8 Omnibus → 26.9 TalkingBytes.
+6. Run aggregate Phase 10 / Foundation release-readiness gates.
 
 Do not reopen finalized lower-library architecture merely to make Foundation integration easier.
 
