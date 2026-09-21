@@ -67,6 +67,63 @@ final readonly class OAuthHttpInput
         return $this->bodyAuthentication($parameters);
     }
 
+    /** @return array<string, string> */
+    public function form(Request $request): array
+    {
+        $query = $this->parseEncoded($request->getUri()->getQuery(), $this->maximumQueryBytes);
+        if ($query !== []) {
+            throw OAuthProtocolException::invalidRequest('OAuth protocol endpoint parameters must be sent in the request body.');
+        }
+
+        $contentType = strtolower(trim(explode(';', $request->getHeaderLine('Content-Type'), 2)[0]));
+        if ($contentType !== 'application/x-www-form-urlencoded') {
+            throw OAuthProtocolException::invalidRequest('OAuth protocol endpoints require application/x-www-form-urlencoded.');
+        }
+
+        return $this->parseEncoded((string) $request->getBody(), $this->maximumFormBytes);
+    }
+
+    /** @return array<string, string> */
+    public function parseEncoded(string $encoded, int $maximumBytes): array
+    {
+        if (strlen($encoded) > $maximumBytes) {
+            throw OAuthProtocolException::invalidRequest('OAuth request parameters exceed the supported size.');
+        }
+        if ($encoded === '') {
+            return [];
+        }
+
+        $parameters = [];
+        $pairs = explode('&', $encoded);
+        if (count($pairs) > $this->maximumParameters) {
+            throw OAuthProtocolException::invalidRequest('OAuth request contains too many parameters.');
+        }
+
+        foreach ($pairs as $pair) {
+            if ($pair === '') {
+                throw OAuthProtocolException::invalidRequest('OAuth request contains an empty parameter.');
+            }
+            [$encodedName, $encodedValue] = array_pad(explode('=', $pair, 2), 2, '');
+            $name = $this->decodeComponent($encodedName);
+            $value = $this->decodeComponent($encodedValue);
+            if (
+                $name === ''
+                || strlen($name) > $this->maximumNameBytes
+                || strlen($value) > $this->maximumValueBytes
+                || preg_match('/\A[A-Za-z0-9._~-]+\z/D', $name) !== 1
+                || preg_match('/[\x00-\x1F\x7F]/', $value) === 1
+            ) {
+                throw OAuthProtocolException::invalidRequest('OAuth request contains an invalid parameter.');
+            }
+            if (array_key_exists($name, $parameters)) {
+                throw OAuthProtocolException::invalidRequest('OAuth request contains a duplicate parameter.');
+            }
+            $parameters[$name] = $value;
+        }
+
+        return $parameters;
+    }
+
     /** @param array<string, string> $parameters */
     private function basicAuthentication(string $authorization, array $parameters): OAuthClientAuthentication
     {
@@ -131,6 +188,24 @@ final readonly class OAuthHttpInput
         return new OAuthClientAuthentication(OAuthClientAuthenticationMethod::None, $clientId);
     }
 
+    /** @param array<string, string> $parameters */
+    private function containsBodyCredentials(array $parameters): bool
+    {
+        return array_any(
+            self::CREDENTIAL_PARAMETERS,
+            static fn(string $name): bool => array_key_exists($name, $parameters),
+        );
+    }
+
+    private function decodeComponent(string $value): string
+    {
+        if (preg_match('/%(?![0-9A-Fa-f]{2})/', $value) === 1) {
+            throw OAuthProtocolException::invalidRequest('OAuth request contains malformed percent encoding.');
+        }
+
+        return rawurldecode(str_replace('+', ' ', $value));
+    }
+
     private function privateKeyJwtAuthentication(
         string $clientId,
         ?string $assertion,
@@ -148,81 +223,6 @@ final readonly class OAuthHttpInput
             OAuthClientAuthenticationMethod::PrivateKeyJwt,
             $clientId,
             assertion: $assertion,
-        );
-    }
-
-    /** @return array<string, string> */
-    public function form(Request $request): array
-    {
-        $query = $this->parseEncoded($request->getUri()->getQuery(), $this->maximumQueryBytes);
-        if ($query !== []) {
-            throw OAuthProtocolException::invalidRequest('OAuth protocol endpoint parameters must be sent in the request body.');
-        }
-
-        $contentType = strtolower(trim(explode(';', $request->getHeaderLine('Content-Type'), 2)[0]));
-        if ($contentType !== 'application/x-www-form-urlencoded') {
-            throw OAuthProtocolException::invalidRequest('OAuth protocol endpoints require application/x-www-form-urlencoded.');
-        }
-
-        return $this->parseEncoded((string) $request->getBody(), $this->maximumFormBytes);
-    }
-
-    /** @return array<string, string> */
-    public function parseEncoded(string $encoded, int $maximumBytes): array
-    {
-        if (strlen($encoded) > $maximumBytes) {
-            throw OAuthProtocolException::invalidRequest('OAuth request parameters exceed the supported size.');
-        }
-        if ($encoded === '') {
-            return [];
-        }
-
-        $parameters = [];
-        $pairs = explode('&', $encoded);
-        if (count($pairs) > $this->maximumParameters) {
-            throw OAuthProtocolException::invalidRequest('OAuth request contains too many parameters.');
-        }
-
-        foreach ($pairs as $pair) {
-            if ($pair === '') {
-                throw OAuthProtocolException::invalidRequest('OAuth request contains an empty parameter.');
-            }
-            [$encodedName, $encodedValue] = array_pad(explode('=', $pair, 2), 2, '');
-            $name = $this->decodeComponent($encodedName);
-            $value = $this->decodeComponent($encodedValue);
-            if (
-                $name === ''
-                || strlen($name) > $this->maximumNameBytes
-                || strlen($value) > $this->maximumValueBytes
-                || preg_match('/\A[A-Za-z0-9._~-]+\z/D', $name) !== 1
-                || preg_match('/[\x00-\x1F\x7F]/', $value) === 1
-            ) {
-                throw OAuthProtocolException::invalidRequest('OAuth request contains an invalid parameter.');
-            }
-            if (array_key_exists($name, $parameters)) {
-                throw OAuthProtocolException::invalidRequest('OAuth request contains a duplicate parameter.');
-            }
-            $parameters[$name] = $value;
-        }
-
-        return $parameters;
-    }
-
-    private function decodeComponent(string $value): string
-    {
-        if (preg_match('/%(?![0-9A-Fa-f]{2})/', $value) === 1) {
-            throw OAuthProtocolException::invalidRequest('OAuth request contains malformed percent encoding.');
-        }
-
-        return rawurldecode(str_replace('+', ' ', $value));
-    }
-
-    /** @param array<string, string> $parameters */
-    private function containsBodyCredentials(array $parameters): bool
-    {
-        return array_any(
-            self::CREDENTIAL_PARAMETERS,
-            static fn(string $name): bool => array_key_exists($name, $parameters),
         );
     }
 

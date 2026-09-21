@@ -37,6 +37,41 @@ final readonly class OpenIdConfigValidator
         ];
     }
 
+    /** @param list<ConfigIssue> $issues */
+    private function activeKeyId(array &$issues): ?string
+    {
+        $activeId = $this->config->get('auth.oauth.oidc.signing.active_key_id');
+        if (is_string($activeId) && preg_match('/\A[A-Za-z0-9_-]{1,128}\z/D', $activeId) === 1) {
+            return $activeId;
+        }
+
+        $issues[] = new ConfigIssue(
+            'auth.oauth.oidc.signing.active_key_id must be a Base64URL-safe key id.',
+            'auth.oauth.oidc.signing.active_key_id',
+        );
+
+        return null;
+    }
+
+    /** @return list<string>|null */
+    private function stringList(string $key): ?array
+    {
+        $values = $this->config->get($key);
+        if (!is_array($values) || !array_is_list($values)) {
+            return null;
+        }
+
+        $normalized = [];
+        foreach ($values as $value) {
+            if (!is_string($value) || $value === '') {
+                return null;
+            }
+            $normalized[] = $value;
+        }
+
+        return $normalized;
+    }
+
     /** @return list<ConfigIssue> */
     private function validateDiscoveryLists(): array
     {
@@ -79,46 +114,6 @@ final readonly class OpenIdConfigValidator
     }
 
     /** @return list<ConfigIssue> */
-    private function validateSigning(): array
-    {
-        $issues = [];
-        $algorithm = $this->config->get('auth.oauth.oidc.signing.algorithm');
-        if (!is_string($algorithm) || !in_array($algorithm, self::SIGNING_ALGORITHMS, true)) {
-            $issues[] = new ConfigIssue(
-                'auth.oauth.oidc.signing.algorithm must select a supported asymmetric JWT algorithm.',
-                'auth.oauth.oidc.signing.algorithm',
-            );
-        }
-
-        $activeId = $this->activeKeyId($issues);
-        $private = $this->config->get('auth.oauth.oidc.signing.private_key');
-        if (!is_string($private) || trim($private) === '') {
-            $issues[] = new ConfigIssue(
-                'auth.oauth.oidc.signing.private_key must contain a deployment-owned key locator.',
-                'auth.oauth.oidc.signing.private_key',
-            );
-        }
-
-        return [...$issues, ...$this->validatePublicKeys($activeId)];
-    }
-
-    /** @param list<ConfigIssue> $issues */
-    private function activeKeyId(array &$issues): ?string
-    {
-        $activeId = $this->config->get('auth.oauth.oidc.signing.active_key_id');
-        if (is_string($activeId) && preg_match('/\A[A-Za-z0-9_-]{1,128}\z/D', $activeId) === 1) {
-            return $activeId;
-        }
-
-        $issues[] = new ConfigIssue(
-            'auth.oauth.oidc.signing.active_key_id must be a Base64URL-safe key id.',
-            'auth.oauth.oidc.signing.active_key_id',
-        );
-
-        return null;
-    }
-
-    /** @return list<ConfigIssue> */
     private function validatePublicKeys(?string $activeId): array
     {
         $public = $this->config->get('auth.oauth.oidc.signing.public_keys');
@@ -146,6 +141,53 @@ final readonly class OpenIdConfigValidator
                 'auth.oauth.oidc.signing.public_keys must contain exactly one active key.',
                 'auth.oauth.oidc.signing.public_keys',
             )];
+    }
+
+    /** @return list<ConfigIssue> */
+    private function validateSigning(): array
+    {
+        $issues = [];
+        $algorithm = $this->config->get('auth.oauth.oidc.signing.algorithm');
+        if (!is_string($algorithm) || !in_array($algorithm, self::SIGNING_ALGORITHMS, true)) {
+            $issues[] = new ConfigIssue(
+                'auth.oauth.oidc.signing.algorithm must select a supported asymmetric JWT algorithm.',
+                'auth.oauth.oidc.signing.algorithm',
+            );
+        }
+
+        $activeId = $this->activeKeyId($issues);
+        $private = $this->config->get('auth.oauth.oidc.signing.private_key');
+        if (!is_string($private) || trim($private) === '') {
+            $issues[] = new ConfigIssue(
+                'auth.oauth.oidc.signing.private_key must contain a deployment-owned key locator.',
+                'auth.oauth.oidc.signing.private_key',
+            );
+        }
+
+        return [...$issues, ...$this->validatePublicKeys($activeId)];
+    }
+
+    /** @return list<ConfigIssue> */
+    private function validateUserInfo(): array
+    {
+        $issues = [];
+        $route = $this->config->get('auth.oauth.oidc.userinfo_route');
+        if (!is_string($route) || !$this->validRoutePath($route)) {
+            $issues[] = new ConfigIssue(
+                'auth.oauth.oidc.userinfo_route must be a local absolute path.',
+                'auth.oauth.oidc.userinfo_route',
+            );
+        }
+
+        $audience = $this->config->get('auth.oauth.oidc.userinfo_audience');
+        if ($audience !== null && (!is_string($audience) || $audience === '' || strlen($audience) > 2_048)) {
+            $issues[] = new ConfigIssue(
+                'auth.oauth.oidc.userinfo_audience must be null or a bounded non-empty string.',
+                'auth.oauth.oidc.userinfo_audience',
+            );
+        }
+
+        return $issues;
     }
 
     /** @param array<string, true> $seen */
@@ -176,48 +218,6 @@ final readonly class OpenIdConfigValidator
         ++$activeCount;
 
         return is_string($activeId) && hash_equals($activeId, $id);
-    }
-
-    /** @return list<string>|null */
-    private function stringList(string $key): ?array
-    {
-        $values = $this->config->get($key);
-        if (!is_array($values) || !array_is_list($values)) {
-            return null;
-        }
-
-        $normalized = [];
-        foreach ($values as $value) {
-            if (!is_string($value) || $value === '') {
-                return null;
-            }
-            $normalized[] = $value;
-        }
-
-        return $normalized;
-    }
-
-    /** @return list<ConfigIssue> */
-    private function validateUserInfo(): array
-    {
-        $issues = [];
-        $route = $this->config->get('auth.oauth.oidc.userinfo_route');
-        if (!is_string($route) || !$this->validRoutePath($route)) {
-            $issues[] = new ConfigIssue(
-                'auth.oauth.oidc.userinfo_route must be a local absolute path.',
-                'auth.oauth.oidc.userinfo_route',
-            );
-        }
-
-        $audience = $this->config->get('auth.oauth.oidc.userinfo_audience');
-        if ($audience !== null && (!is_string($audience) || $audience === '' || strlen($audience) > 2_048)) {
-            $issues[] = new ConfigIssue(
-                'auth.oauth.oidc.userinfo_audience must be null or a bounded non-empty string.',
-                'auth.oauth.oidc.userinfo_audience',
-            );
-        }
-
-        return $issues;
     }
 
     private function validRoutePath(string $path): bool

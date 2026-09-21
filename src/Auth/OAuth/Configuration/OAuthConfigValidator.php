@@ -139,7 +139,6 @@ final readonly class OAuthConfigValidator
         }
     }
 
-
     /** @param list<ConfigIssue> $issues */
     private function validatePkce(array &$issues): void
     {

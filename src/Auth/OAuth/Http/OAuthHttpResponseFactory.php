@@ -82,6 +82,16 @@ final readonly class OAuthHttpResponseFactory
         return Response::json($metadata, 200);
     }
 
+    public function revocation(): Response
+    {
+        return Response::empty(200, self::NO_STORE_HEADERS);
+    }
+
+    public function token(OAuthTokenResponse $token): Response
+    {
+        return Response::json($token->toArray(), 200, self::NO_STORE_HEADERS);
+    }
+
     /** @param array<string, mixed> $claims */
     public function userInfo(array $claims): Response
     {
@@ -97,16 +107,6 @@ final readonly class OAuthHttpResponseFactory
             ...self::NO_STORE_HEADERS,
             'WWW-Authenticate' => sprintf('Bearer error="%s"', $exception->error),
         ]);
-    }
-
-    public function revocation(): Response
-    {
-        return Response::empty(200, self::NO_STORE_HEADERS);
-    }
-
-    public function token(OAuthTokenResponse $token): Response
-    {
-        return Response::json($token->toArray(), 200, self::NO_STORE_HEADERS);
     }
 
     /** @param array<string, string> $parameters */

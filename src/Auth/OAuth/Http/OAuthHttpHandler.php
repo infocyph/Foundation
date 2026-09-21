@@ -47,17 +47,6 @@ final readonly class OAuthHttpHandler
         return $this->responses->authorizationSuccess($request, $issue->code, $this->issuer());
     }
 
-    public function authorizationFailure(
-        AuthorizationRequest $request,
-        OAuthProtocolException $exception,
-    ): Response {
-        return $this->responses->authorizationError(
-            new AuthorizationRedirectContext($request->client, $request->redirectUri, $request->state),
-            $exception,
-            $this->issuer(),
-        );
-    }
-
     public function authorizationDenied(AuthorizationRequest $request, ?PrincipalInterface $principal = null): Response
     {
         $this->oauth->deny($request, $principal);
@@ -65,6 +54,17 @@ final readonly class OAuthHttpHandler
         return $this->responses->authorizationError(
             new AuthorizationRedirectContext($request->client, $request->redirectUri, $request->state),
             OAuthProtocolException::accessDenied(),
+            $this->issuer(),
+        );
+    }
+
+    public function authorizationFailure(
+        AuthorizationRequest $request,
+        OAuthProtocolException $exception,
+    ): Response {
+        return $this->responses->authorizationError(
+            new AuthorizationRedirectContext($request->client, $request->redirectUri, $request->state),
+            $exception,
             $this->issuer(),
         );
     }
@@ -124,6 +124,22 @@ final readonly class OAuthHttpHandler
         }
     }
 
+    public function token(Request $request): Response
+    {
+        try {
+            $parameters = $this->input->form($request);
+            $authentication = $this->input->clientAuthentication($request, $parameters);
+
+            return $this->responses->token($this->oauth->exchange(
+                $parameters,
+                $authentication,
+                $this->dpopProof($request),
+            ));
+        } catch (OAuthProtocolException $exception) {
+            return $this->responses->error($exception);
+        }
+    }
+
     public function userInfo(Request $request): Response
     {
         try {
@@ -139,22 +155,6 @@ final readonly class OAuthHttpHandler
             ));
         } catch (OAuthProtocolException $exception) {
             return $this->responses->userInfoError($exception);
-        }
-    }
-
-    public function token(Request $request): Response
-    {
-        try {
-            $parameters = $this->input->form($request);
-            $authentication = $this->input->clientAuthentication($request, $parameters);
-
-            return $this->responses->token($this->oauth->exchange(
-                $parameters,
-                $authentication,
-                $this->dpopProof($request),
-            ));
-        } catch (OAuthProtocolException $exception) {
-            return $this->responses->error($exception);
         }
     }
 
@@ -174,6 +174,16 @@ final readonly class OAuthHttpHandler
         }
 
         return $proof;
+    }
+
+    private function issuer(): string
+    {
+        $issuer = $this->oauth->metadata()['issuer'] ?? null;
+        if (!is_string($issuer) || $issuer === '') {
+            throw new \LogicException('OAuth authorization-server metadata does not expose a valid issuer.');
+        }
+
+        return $issuer;
     }
 
     private function openIdUserInfoAudience(string $fallback): string
@@ -204,29 +214,6 @@ final readonly class OAuthHttpHandler
         return $origin . $route;
     }
 
-    private function resourceToken(Request $request): string
-    {
-        $values = $request->getHeader('Authorization');
-        if (count($values) !== 1
-            || preg_match('/\A(?:Bearer|DPoP)[ \t]+([^ \t]+)\z/iD', $values[0], $match) !== 1
-            || strlen($match[1]) > 16_384
-            || preg_match('/[\x00-\x20\x7F]/', $match[1]) === 1) {
-            throw new OAuthProtocolException('invalid_token', 'The access token is invalid.', 401);
-        }
-
-        return $match[1];
-    }
-
-    private function issuer(): string
-    {
-        $issuer = $this->oauth->metadata()['issuer'] ?? null;
-        if (!is_string($issuer) || $issuer === '') {
-            throw new \LogicException('OAuth authorization-server metadata does not expose a valid issuer.');
-        }
-
-        return $issuer;
-    }
-
     /** @param array<string, string> $parameters */
     private function optionalString(array $parameters, string $name, int $maximumBytes): ?string
     {
@@ -246,5 +233,18 @@ final readonly class OAuthHttpHandler
         }
 
         return $value;
+    }
+
+    private function resourceToken(Request $request): string
+    {
+        $values = $request->getHeader('Authorization');
+        if (count($values) !== 1
+            || preg_match('/\A(?:Bearer|DPoP)[ \t]+([^ \t]+)\z/iD', $values[0], $match) !== 1
+            || strlen($match[1]) > 16_384
+            || preg_match('/[\x00-\x20\x7F]/', $match[1]) === 1) {
+            throw new OAuthProtocolException('invalid_token', 'The access token is invalid.', 401);
+        }
+
+        return $match[1];
     }
 }

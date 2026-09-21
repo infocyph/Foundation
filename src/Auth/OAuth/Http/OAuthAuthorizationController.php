@@ -50,6 +50,7 @@ final readonly class OAuthAuthorizationController
         }
 
         $principal = $this->principals->get();
+
         try {
             $requirement = $this->oauth->openIdInteraction($authorization, $principal);
         } catch (OAuthProtocolException $exception) {
