@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Tests\Fixtures;
 
+use Infocyph\DBLayer\DB;
 use Infocyph\Epicrypt\Auth\Personal\PersonalAccessTokenRecord;
 use Infocyph\Foundation\Auth\Adapter\DBLayer\DBLayerEpicryptPersonalAccessTokenStore;
 use Infocyph\Foundation\Config\ConfigRepository;
@@ -26,6 +27,7 @@ final class PatConcurrentWorker
                 usleep(1_000);
             }
 
+            DB::purge();
             $store = self::store($database);
             if ($operation === 'issue') {
                 $created = $store->create(new PersonalAccessTokenRecord(
@@ -84,7 +86,10 @@ final class PatConcurrentWorker
                 ],
             ],
         ]);
-        return new DBLayerFactory(new DatabaseConnectionResolver($config), $container);
+        $factory = new DBLayerFactory(new DatabaseConnectionResolver($config), $container);
+        $factory->connection()->setQueryTimeoutMs(5_000);
+
+        return $factory;
     }
 
     public static function store(string $database): DBLayerEpicryptPersonalAccessTokenStore
