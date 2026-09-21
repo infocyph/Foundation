@@ -24,6 +24,12 @@ use Infocyph\Epicrypt\Auth\OAuth\OAuthTokenEndpoint;
 use Infocyph\Epicrypt\Auth\OAuth\RefreshTokenArtifact;
 use Infocyph\Epicrypt\Auth\OAuth\RefreshTokenManager;
 use Infocyph\Epicrypt\Auth\OAuth\RefreshTokenStoreInterface as EpicryptRefreshTokenStore;
+use Infocyph\Epicrypt\Auth\Oidc\OpenIdClaimsProviderInterface;
+use Infocyph\Epicrypt\Auth\Oidc\OpenIdIdTokenIssuer;
+use Infocyph\Epicrypt\Auth\Oidc\OpenIdInteractionPolicy;
+use Infocyph\Epicrypt\Auth\Oidc\OpenIdSubjectIdentifierProviderInterface;
+use Infocyph\Epicrypt\Auth\Oidc\OpenIdTokenResponseExtension;
+use Infocyph\Epicrypt\Auth\Oidc\OpenIdUserInfoProjector;
 use Infocyph\Epicrypt\Security\AsymmetricSigningKeySet;
 use Infocyph\Epicrypt\Token\Jwt\AsymmetricJwt;
 use Infocyph\Epicrypt\Token\Jwt\JwtReplayStoreInterface;
@@ -41,6 +47,8 @@ use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\EpicryptOAuthClientAuthentic
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\EpicryptOAuthJwkSetProvider;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\EpicryptOAuthScopeAudienceResolver;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\OAuthProtectionKeyResolver;
+use Infocyph\Foundation\Auth\Adapter\Epicrypt\Oidc\FoundationOpenIdClaimsProvider;
+use Infocyph\Foundation\Auth\Adapter\Epicrypt\Oidc\FoundationOpenIdSubjectProvider;
 use Infocyph\Foundation\Auth\Authorization\Gate\AuthorizerInterface;
 use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Auth\Contract\Id\AuthIdGeneratorInterface;
@@ -62,6 +70,7 @@ use Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpInput;
 use Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpResponseFactory;
 use Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpThrottleFactory;
 use Infocyph\Foundation\Auth\OAuth\Metadata\AuthorizationServerMetadata;
+use Infocyph\Foundation\Auth\OAuth\Metadata\OpenIdMetadataProvider;
 use Infocyph\Foundation\Auth\OAuth\OAuthManager;
 use Infocyph\Foundation\Auth\OAuth\Scope\OAuthScopeResolver;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthAccessTokenValidator;
@@ -80,6 +89,8 @@ use Psr\Clock\ClockInterface as PsrClock;
 final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
 {
     private const string AUTHORIZATION_CODE_KEYS = 'foundation.oauth.epicrypt.authorization-code-keys';
+
+    private const string OPENID_SIGNING_KEYS = 'foundation.oauth.epicrypt.openid-signing-keys';
 
     private const string REFRESH_TOKEN_KEYS = 'foundation.oauth.epicrypt.refresh-token-keys';
 
@@ -115,6 +126,7 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
     private function registerEpicryptProtocol(): void
     {
         $issuer = $this->stringConfig('auth.oauth.issuer', '');
+        $openId = $this->boolConfig('auth.oauth.oidc.enabled', false);
 
         $this->recipe(PsrClock::class, EpicryptClockAdapter::class, [
             $this->ref(ClockInterface::class),
@@ -141,6 +153,38 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
             'epicryptSigningKeySet',
             [$this->ref(OAuthSigningKeySet::class)],
         );
+
+        if ($openId) {
+            $this->staticRecipe(
+                self::OPENID_SIGNING_KEYS,
+                AuthOAuthGraphFactory::class,
+                'openIdSigningKeySet',
+                [$this->ref(ConfigRepository::class)],
+            );
+            $this->recipe(
+                OpenIdSubjectIdentifierProviderInterface::class,
+                FoundationOpenIdSubjectProvider::class,
+            );
+            $this->recipe(OpenIdClaimsProviderInterface::class, FoundationOpenIdClaimsProvider::class, [
+                $this->ref(AccountProviderInterface::class),
+            ]);
+            $this->recipe(OpenIdIdTokenIssuer::class, OpenIdIdTokenIssuer::class, [
+                $this->ref(self::OPENID_SIGNING_KEYS),
+                $this->ref(OpenIdSubjectIdentifierProviderInterface::class),
+                $this->intConfig('auth.oauth.oidc.id_token_lifetime_seconds', 300),
+                $this->ref(PsrClock::class),
+            ]);
+            $this->recipe(OpenIdTokenResponseExtension::class, OpenIdTokenResponseExtension::class, [
+                $this->ref(OpenIdIdTokenIssuer::class),
+            ]);
+            $this->recipe(OpenIdUserInfoProjector::class, OpenIdUserInfoProjector::class, [
+                $this->ref(OpenIdSubjectIdentifierProviderInterface::class),
+                $this->ref(OpenIdClaimsProviderInterface::class),
+            ]);
+            $this->recipe(OpenIdInteractionPolicy::class, OpenIdInteractionPolicy::class, [
+                $this->ref(PsrClock::class),
+            ]);
+        }
 
         $this->recipe(AuthorizationCodeArtifact::class, AuthorizationCodeArtifact::class, [
             $this->ref(self::AUTHORIZATION_CODE_KEYS),
@@ -216,7 +260,7 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
             $this->ref(OAuthDpopValidator::class),
             $this->ref('foundation.oauth.token-endpoint-uri'),
             $this->ref(PsrClock::class),
-            null,
+            $openId ? $this->ref(OpenIdTokenResponseExtension::class) : null,
         ]);
         $this->recipe(OAuthRevocationEndpoint::class, OAuthRevocationEndpoint::class, [
             $this->ref(EpicryptClientStore::class),
@@ -262,6 +306,7 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
 
     private function registerFoundationFacades(): void
     {
+        $openId = $this->boolConfig('auth.oauth.oidc.enabled', false);
         $this->recipe(AuthorizationCodeManager::class, AuthorizationCodeManager::class, [
             $this->ref(OAuthAuthorizationCodeIssuer::class),
             $this->ref(OAuthAuthorizationCodeConsumer::class),
@@ -296,8 +341,16 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
         $this->recipe(AuthorizationServerMetadata::class, AuthorizationServerMetadata::class, [
             $this->ref(ConfigRepository::class),
         ]);
+        if ($openId) {
+            $this->recipe(OpenIdMetadataProvider::class, OpenIdMetadataProvider::class, [
+                $this->ref(AuthorizationServerMetadata::class),
+                $this->ref(self::OPENID_SIGNING_KEYS),
+                $this->ref(ConfigRepository::class),
+            ]);
+        }
         $this->recipe(JwkSetProviderInterface::class, EpicryptOAuthJwkSetProvider::class, [
             $this->ref(OAuthSigningKeySet::class),
+            $openId ? $this->ref(self::OPENID_SIGNING_KEYS) : null,
         ]);
 
         $this->recipe(OAuthManager::class, OAuthManager::class, [
@@ -311,6 +364,9 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
             $this->ref(JwkSetProviderInterface::class),
             $this->ref(OAuthClientManager::class),
             $this->ref(OAuthAuditRecorder::class),
+            $openId ? $this->ref(OpenIdMetadataProvider::class) : null,
+            $openId ? $this->ref(OpenIdUserInfoProjector::class) : null,
+            $openId ? $this->ref(OAuthAccessTokenValidator::class) : null,
         ]);
         $this->recipe(OAuthHttpInput::class, OAuthHttpInput::class);
         $this->recipe(OAuthHttpResponseFactory::class, OAuthHttpResponseFactory::class);
@@ -322,6 +378,7 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
             $this->ref(OAuthManager::class),
             $this->ref(OAuthHttpInput::class),
             $this->ref(OAuthHttpResponseFactory::class),
+            $this->ref(ConfigRepository::class),
         ]);
         $this->recipe(OAuthAuthorizationController::class, OAuthAuthorizationController::class, [
             $this->ref(OAuthHttpHandler::class),
