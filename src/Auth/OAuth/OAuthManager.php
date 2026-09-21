@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\OAuth;
 
+use Infocyph\Epicrypt\Auth\Oidc\OpenIdUserInfoProjector;
 use Infocyph\Foundation\Auth\Audit\AuthEventSeverity;
 use Infocyph\Foundation\Auth\Audit\AuthEventType;
 use Infocyph\Foundation\Auth\OAuth\Audit\OAuthAuditRecorder;
@@ -18,10 +19,13 @@ use Infocyph\Foundation\Auth\OAuth\Consent\OAuthConsent;
 use Infocyph\Foundation\Auth\OAuth\Contract\JwkSetProviderInterface;
 use Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException;
 use Infocyph\Foundation\Auth\OAuth\Metadata\AuthorizationServerMetadata;
+use Infocyph\Foundation\Auth\OAuth\Metadata\OpenIdMetadataProvider;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthClientAuthentication;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthIntrospectionManager;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthIntrospectionResult;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthRevocationManager;
+use Infocyph\Foundation\Auth\OAuth\Token\OAuthAccessTokenValidator;
+use Infocyph\Foundation\Auth\OAuth\Token\OAuthTokenException;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthTokenManager;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthTokenResponse;
 use Infocyph\Foundation\Auth\Principal\PrincipalInterface;
@@ -39,6 +43,9 @@ final readonly class OAuthManager
         private JwkSetProviderInterface $jwks,
         private OAuthClientManager $clients,
         private ?OAuthAuditRecorder $audit = null,
+        private ?OpenIdMetadataProvider $openIdMetadata = null,
+        private ?OpenIdUserInfoProjector $openIdUserInfo = null,
+        private ?OAuthAccessTokenValidator $openIdAccessTokens = null,
     ) {}
 
     public function approve(AuthorizationRequest $request, PrincipalInterface $principal): OAuthAuthorizationCodeIssue
@@ -162,6 +169,63 @@ final readonly class OAuthManager
     public function metadata(): array
     {
         return $this->metadata->toArray();
+    }
+
+    /** @return array<string, mixed> */
+    public function openIdMetadata(): array
+    {
+        if (!$this->openIdMetadata instanceof OpenIdMetadataProvider) {
+            throw new \LogicException('OpenID Connect is not enabled.');
+        }
+
+        return $this->openIdMetadata->toArray();
+    }
+
+    /** @return array<string, mixed> */
+    public function userInfo(
+        #[\SensitiveParameter]
+        string $token,
+        string $audience,
+        string $method,
+        string $uri,
+        #[\SensitiveParameter]
+        ?string $dpopProof = null,
+    ): array {
+        if (!$this->openIdUserInfo instanceof OpenIdUserInfoProjector
+            || !$this->openIdAccessTokens instanceof OAuthAccessTokenValidator) {
+            throw new \LogicException('OpenID Connect is not enabled.');
+        }
+
+        try {
+            $verified = $this->openIdAccessTokens->verifyResource(
+                $token,
+                $audience,
+                $method,
+                $uri,
+                $dpopProof,
+            );
+        } catch (OAuthTokenException) {
+            throw new OAuthProtocolException(
+                'invalid_token',
+                'The access token is invalid.',
+                401,
+            );
+        }
+
+        $account = $verified->account;
+        if ($account === null || !in_array('openid', $verified->claims->scopes, true)) {
+            throw new OAuthProtocolException(
+                'insufficient_scope',
+                'The access token does not grant OpenID UserInfo access.',
+                403,
+            );
+        }
+
+        return $this->openIdUserInfo->project(
+            $account->id(),
+            $verified->client->clientId,
+            $verified->claims->scopes,
+        );
     }
 
     public function revoke(
