@@ -1,0 +1,22 @@
+name: Branch PAT Concurrency Diagnostic
+
+on:
+  push:
+    branches:
+      - foundation-3/close-26.6
+
+permissions:
+  contents: read
+
+jobs:
+  pat-concurrency:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+      - run: composer update --no-interaction --prefer-dist --no-progress --prefer-stable
+      - name: Run PAT concurrency test
+        run: vendor/bin/pest tests/Feature/Epicrypt31PersonalAccessTokenConcurrencyTest.php --colors=always
