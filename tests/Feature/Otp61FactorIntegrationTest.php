@@ -45,9 +45,7 @@ function foundationOtp61App(): \Infocyph\Foundation\Application\Application
 }
 
 it('keeps AOTP private keys device-owned and composes native challenges', function (): void {
-    if (!AOTP::isAvailable()) {
-        $this->markTestSkipped('AOTP requires ext-sodium.');
-    }
+    expect(AOTP::isAvailable())->toBeTrue();
 
     $app = foundationOtp61App();
     $otp = $app->make(OtpManager::class);
