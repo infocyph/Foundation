@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\OAuth\Metadata;
 
+use Infocyph\Epicrypt\Auth\OAuth\OAuthAuthorizationServerMetadata as EpicryptAuthorizationServerMetadata;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthClientAuthenticationMethod as EpicryptClientAuthenticationMethod;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthEndpointCapability;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthEndpointCapabilityCatalog;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthGrantType as EpicryptGrantType;
+use Infocyph\Epicrypt\Token\Jwt\Enum\AsymmetricJwtAlgorithm;
 use Infocyph\Foundation\Config\ConfigRepository;
 
 final readonly class AuthorizationServerMetadata
@@ -13,30 +19,38 @@ final readonly class AuthorizationServerMetadata
     /** @return array<string, mixed> */
     public function toArray(): array
     {
-        $issuer = $this->string('auth.oauth.issuer');
-
-        return [
-            'issuer' => $issuer,
-            'authorization_endpoint' => $this->endpoint($issuer, 'authorization'),
-            'token_endpoint' => $this->endpoint($issuer, 'token'),
-            'jwks_uri' => $this->endpoint($issuer, 'jwks'),
-            'revocation_endpoint' => $this->endpoint($issuer, 'revocation'),
-            'introspection_endpoint' => $this->endpoint($issuer, 'introspection'),
-            'response_types_supported' => ['code'],
-            'grant_types_supported' => $this->stringList('auth.oauth.grants'),
-            'token_endpoint_auth_methods_supported' => [
-                'none',
-                'client_secret_basic',
-                'client_secret_post',
-                'private_key_jwt',
-            ],
-            'code_challenge_methods_supported' => ['S256'],
-        ];
+        return new EpicryptAuthorizationServerMetadata(
+            issuer: $this->issuer(),
+            capabilities: new OAuthEndpointCapabilityCatalog(
+                endpoints: [
+                    OAuthEndpointCapability::AUTHORIZATION,
+                    OAuthEndpointCapability::TOKEN,
+                    OAuthEndpointCapability::REVOCATION,
+                    OAuthEndpointCapability::INTROSPECTION,
+                    OAuthEndpointCapability::JWKS,
+                    OAuthEndpointCapability::METADATA,
+                ],
+                grantTypes: $this->grantTypes(),
+                clientAuthenticationMethods: [
+                    EpicryptClientAuthenticationMethod::NONE,
+                    EpicryptClientAuthenticationMethod::CLIENT_SECRET_BASIC,
+                    EpicryptClientAuthenticationMethod::CLIENT_SECRET_POST,
+                    EpicryptClientAuthenticationMethod::PRIVATE_KEY_JWT,
+                ],
+            ),
+            authorizationEndpoint: $this->endpoint('authorization'),
+            tokenEndpoint: $this->endpoint('token'),
+            revocationEndpoint: $this->endpoint('revocation'),
+            introspectionEndpoint: $this->endpoint('introspection'),
+            jwksUri: $this->endpoint('jwks'),
+            dpopSigningAlgorithms: [AsymmetricJwtAlgorithm::ES256],
+            clientAssertionSigningAlgorithms: AsymmetricJwtAlgorithm::cases(),
+        )->toArray();
     }
 
-    private function endpoint(string $issuer, string $name): string
+    private function endpoint(string $name): string
     {
-        $parts = parse_url($issuer);
+        $parts = parse_url($this->issuer());
         if (!is_array($parts) || !isset($parts['scheme'], $parts['host'])) {
             throw new \LogicException('OAuth issuer configuration is invalid.');
         }
@@ -49,6 +63,30 @@ final readonly class AuthorizationServerMetadata
         return $origin . $this->string('auth.oauth.routes.' . $name);
     }
 
+    /** @return list<EpicryptGrantType> */
+    private function grantTypes(): array
+    {
+        $configured = $this->config->get('auth.oauth.grants', []);
+        if (!is_array($configured) || !array_is_list($configured)) {
+            throw new \LogicException('OAuth grant configuration is invalid.');
+        }
+
+        $grants = [];
+        foreach ($configured as $grant) {
+            if (!is_string($grant) || !($resolved = EpicryptGrantType::tryFrom($grant)) instanceof EpicryptGrantType) {
+                throw new \LogicException('OAuth grant configuration is invalid.');
+            }
+            $grants[] = $resolved;
+        }
+
+        return $grants;
+    }
+
+    private function issuer(): string
+    {
+        return $this->string('auth.oauth.issuer');
+    }
+
     private function string(string $key): string
     {
         $value = $this->config->get($key);
@@ -57,24 +95,5 @@ final readonly class AuthorizationServerMetadata
         }
 
         return $value;
-    }
-
-    /** @return list<string> */
-    private function stringList(string $key): array
-    {
-        $value = $this->config->get($key, []);
-        if (!is_array($value) || !array_is_list($value)) {
-            throw new \LogicException('OAuth metadata configuration is invalid.');
-        }
-
-        $result = [];
-        foreach ($value as $item) {
-            if (!is_string($item) || $item === '') {
-                throw new \LogicException('OAuth metadata configuration is invalid.');
-            }
-            $result[] = $item;
-        }
-
-        return $result;
     }
 }
