@@ -82,9 +82,11 @@
             "@benchmark:dblayer",
             "@benchmark:epicrypt",
             "@benchmark:otp",
-            "@benchmark:pathwise"
+            "@benchmark:pathwise",
+            "@benchmark:reqshield"
         ],
         "benchmark:representative": "@php benchmarks/run-representative.php",
+        "benchmark:reqshield": "@php benchmarks/reqshield-31-utilization.php",
         "benchmark:uid": "@php benchmarks/uid-runtime-utilization.php"
     }
 }

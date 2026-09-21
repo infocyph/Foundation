@@ -8,59 +8,39 @@ use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\ReqShield\Validator;
 
 /**
- * Foundation-owned registry for named application validation schemas.
+ * Immutable Foundation-owned snapshot of named application validation schemas.
+ *
+ * Schema composition happens once while the application graph is built. Runtime
+ * validation never mutates process-wide Foundation schema topology.
  */
-final class ValidationSchemaRegistry
+final readonly class ValidationSchemaRegistry
 {
     /** @var array<string, array<string, mixed>> */
-    private array $schemas = [];
+    private array $schemas;
 
     /** @param array<string, array<string, mixed>> $baseSchemas */
-    public function __construct(
-        private readonly ConfigRepository $config,
-        array $baseSchemas = [],
-    ) {
-        foreach ($baseSchemas as $name => $schema) {
-            $this->define($name, $schema);
+    public function __construct(ConfigRepository $config, array $baseSchemas = [])
+    {
+        $schemas = $this->normalizeSchemas($baseSchemas);
+
+        foreach ($this->normalizeSchemas($config->get('validation.schemas', [])) as $name => $schema) {
+            $schemas[$name] = $schema;
         }
-        foreach ($this->configuredSchemas() as $name => $schema) {
-            $this->define($name, $schema);
+
+        foreach ($this->normalizeSchemas($config->get('validation.extend', [])) as $name => $rules) {
+            $schemas[$name] = $this->normalizeSchema(Validator::composeSchemas(
+                $schemas[$name] ?? [],
+                $rules,
+            ));
         }
-        foreach ($this->configuredExtensions() as $name => $rules) {
-            $this->extend($name, $rules);
-        }
+
+        $this->schemas = $schemas;
     }
 
     /** @return array<string, array<string, mixed>> */
     public function all(): array
     {
         return $this->schemas;
-    }
-
-    /** @param array<string, mixed> $schema */
-    public function define(string $name, array $schema): void
-    {
-        $name = trim($name);
-        if ($name === '') {
-            throw new \InvalidArgumentException('Validation schema names must be non-empty strings.');
-        }
-
-        $this->schemas[$name] = $this->normalizeSchema($schema);
-    }
-
-    /** @param array<string, mixed> $rules */
-    public function extend(string $name, array $rules): void
-    {
-        $name = trim($name);
-        if ($name === '') {
-            throw new \InvalidArgumentException('Validation schema names must be non-empty strings.');
-        }
-
-        $composed = Validator::composeSchemas(
-            $this->schemas[$name] ?? [],
-            $this->normalizeSchema($rules),
-        );
-        $this->schemas[$name] = $this->normalizeSchema($composed);
     }
 
     public function has(string $name): bool
@@ -72,18 +52,6 @@ final class ValidationSchemaRegistry
     public function schema(string $name): ?array
     {
         return $this->schemas[$name] ?? null;
-    }
-
-    /** @return array<string, array<string, mixed>> */
-    private function configuredExtensions(): array
-    {
-        return $this->normalizeSchemas($this->config->get('validation.extend', []));
-    }
-
-    /** @return array<string, array<string, mixed>> */
-    private function configuredSchemas(): array
-    {
-        return $this->normalizeSchemas($this->config->get('validation.schemas', []));
     }
 
     /**
@@ -109,7 +77,6 @@ final class ValidationSchemaRegistry
             return [];
         }
 
-        /** @var array<string, array<string, mixed>> $normalized */
         $normalized = [];
         foreach ($schemas as $name => $schema) {
             if (is_string($name) && $name !== '' && is_array($schema)) {
