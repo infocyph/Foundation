@@ -9,6 +9,7 @@ use Infocyph\Foundation\Exception\ConfigurationException;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\ReqShield\CompiledValidator;
 use Infocyph\ReqShield\Contracts\DatabaseProvider;
+use Infocyph\ReqShield\Schema\SchemaRegistry;
 use Infocyph\ReqShield\Validator;
 
 /**
@@ -23,7 +24,7 @@ final readonly class ValidatorFactory
 {
     public function __construct(
         private ConfigRepository $config,
-        private ValidationSchemaRegistry $schemas,
+        private SchemaRegistry $schemas,
         private ?DatabaseProvider $database = null,
     ) {}
 

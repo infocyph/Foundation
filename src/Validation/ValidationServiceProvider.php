@@ -11,7 +11,9 @@ use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\ServiceReference;
+use Infocyph\ReqShield\Bridge\DBLayerDatabaseProvider;
 use Infocyph\ReqShield\Contracts\DatabaseProvider;
+use Infocyph\ReqShield\Schema\SchemaRegistry;
 use Infocyph\ReqShield\Validator;
 
 final class ValidationServiceProvider extends ServiceProvider
@@ -29,25 +31,26 @@ final class ValidationServiceProvider extends ServiceProvider
         $connection = is_string($connection) && $connection !== '' ? $connection : null;
         $hasDatabase = $builder->definitions()->has(DBLayerFactory::class);
 
-        $builder->singleton(ValidationSchemaRegistry::class, FactoryDefinition::construct(
-            ValidationSchemaRegistry::class,
-            [new ServiceReference(ConfigRepository::class), AuthRequestSchemas::all()],
+        $builder->singleton(SchemaRegistry::class, FactoryDefinition::staticFactory(
+            ValidationGraphFactory::class,
+            'schemaRegistry',
+            [new ServiceReference(ConfigRepository::class)],
         ));
 
         if ($hasDatabase) {
-            $builder->singleton(ReqShieldDatabaseProvider::class, FactoryDefinition::staticFactory(
+            $builder->singleton(DBLayerDatabaseProvider::class, FactoryDefinition::staticFactory(
                 ValidationGraphFactory::class,
                 'databaseProvider',
                 [new ServiceReference(DBLayerFactory::class), $connection],
             ));
-            $builder->alias(DatabaseProvider::class, ReqShieldDatabaseProvider::class);
+            $builder->alias(DatabaseProvider::class, DBLayerDatabaseProvider::class);
         }
 
         $builder->singleton(ValidatorFactory::class, FactoryDefinition::construct(
             ValidatorFactory::class,
             [
                 new ServiceReference(ConfigRepository::class),
-                new ServiceReference(ValidationSchemaRegistry::class),
+                new ServiceReference(SchemaRegistry::class),
                 $hasDatabase ? new ServiceReference(DatabaseProvider::class) : null,
             ],
         ));

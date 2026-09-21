@@ -5,11 +5,11 @@ declare(strict_types=1);
 use Infocyph\DBLayer\DB;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Foundation;
-use Infocyph\Foundation\Validation\ReqShieldDatabaseProvider;
 use Infocyph\Foundation\Validation\ValidatorFactory;
+use Infocyph\ReqShield\Bridge\DBLayerDatabaseProvider;
 use Infocyph\ReqShield\Rule;
 
-it('validates database-backed ReqShield 3.1 rules through DBLayer 5 bind-aware batches', function (): void {
+it('validates database-backed ReqShield 3.2 rules through the native DBLayer 5.1 bridge', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-validation-db-' . uniqid('', true);
     mkdir($basePath . '/database', 0775, true);
 
@@ -74,50 +74,50 @@ it('validates database-backed ReqShield 3.1 rules through DBLayer 5 bind-aware b
                 'email' => 'archived@example.test',
             ])->fails())->toBeFalse();
 
-        $provider = $app->make(ReqShieldDatabaseProvider::class);
+        $provider = $app->make(DBLayerDatabaseProvider::class);
         expect(fn() => $provider->batchExists('categories; DROP TABLE users', [
-            ['column' => 'id', 'value' => 1, 'field' => 'unsafe-table'],
+            ['id' => 1, 'column' => 'id', 'value' => 1, 'field' => 'unsafe-table'],
         ]))->toThrow(InvalidArgumentException::class)
             ->and(fn() => $provider->batchExists('categories', [
-                ['column' => 'id) OR 1=1 --', 'value' => 1, 'field' => 'unsafe-column'],
+                ['id' => 1, 'column' => 'id) OR 1=1 --', 'value' => 1, 'field' => 'unsafe-column'],
             ]))->toThrow(InvalidArgumentException::class)
             ->and($provider->batchExists('categories', [
-            ['column' => 'id', 'value' => 1, 'field' => 'one'],
-            ['column' => 'id', 'value' => 2, 'field' => 'two'],
-            ['column' => 'id', 'value' => 3, 'field' => 'three'],
-            ['column' => 'id', 'value' => 4, 'field' => 'four'],
-            ['column' => 'id', 'value' => 5, 'field' => 'five'],
-            ['column' => 'id', 'value' => 404, 'field' => 'missing'],
-        ]))->toBe(['missing'])
+            ['id' => 1, 'column' => 'id', 'value' => 1, 'field' => 'one'],
+            ['id' => 2, 'column' => 'id', 'value' => 2, 'field' => 'two'],
+            ['id' => 3, 'column' => 'id', 'value' => 3, 'field' => 'three'],
+            ['id' => 4, 'column' => 'id', 'value' => 4, 'field' => 'four'],
+            ['id' => 5, 'column' => 'id', 'value' => 5, 'field' => 'five'],
+            ['id' => 6, 'column' => 'id', 'value' => 404, 'field' => 'missing'],
+        ]))->toBe([6])
             ->and($provider->batchUnique('users', [
                 [
-                    'column' => 'email', 'value' => 'ada@example.test', 'field' => 'ignored-owner',
+                    'id' => 1, 'column' => 'email', 'value' => 'ada@example.test', 'field' => 'ignored-owner',
                     'ignore' => 1, 'id_column' => 'id', 'include_trashed' => false,
                     'soft_delete_column' => 'deleted_at',
                 ],
                 [
-                    'column' => 'email', 'value' => 'new@example.test', 'field' => 'new-one',
+                    'id' => 2, 'column' => 'email', 'value' => 'new@example.test', 'field' => 'new-one',
                     'ignore' => 1, 'id_column' => 'id', 'include_trashed' => false,
                     'soft_delete_column' => 'deleted_at',
                 ],
                 [
-                    'column' => 'email', 'value' => 'other@example.test', 'field' => 'new-two',
+                    'id' => 3, 'column' => 'email', 'value' => 'other@example.test', 'field' => 'new-two',
                     'ignore' => 1, 'id_column' => 'id', 'include_trashed' => false,
                     'soft_delete_column' => 'deleted_at',
                 ],
                 [
-                    'column' => 'email', 'value' => 'archived@example.test', 'field' => 'archived',
+                    'id' => 4, 'column' => 'email', 'value' => 'archived@example.test', 'field' => 'archived',
                     'ignore' => 1, 'id_column' => 'id', 'include_trashed' => false,
                     'soft_delete_column' => 'deleted_at',
                 ],
             ]))->toBe([])
             ->and($provider->batchUnique('users', [
                 [
-                    'column' => 'email', 'value' => 'ada@example.test', 'field' => 'duplicate',
+                    'id' => 5, 'column' => 'email', 'value' => 'ada@example.test', 'field' => 'duplicate',
                     'ignore' => null, 'id_column' => 'id', 'include_trashed' => false,
                     'soft_delete_column' => 'deleted_at',
                 ],
-            ]))->toBe(['duplicate']);
+            ]))->toBe([5]);
     } finally {
         DB::purge();
         foundationReqShieldDatabaseRemove($basePath);

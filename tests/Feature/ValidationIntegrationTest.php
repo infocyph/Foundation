@@ -3,9 +3,11 @@
 declare(strict_types=1);
 
 use Infocyph\Foundation\Foundation;
-use Infocyph\Foundation\Validation\ValidationSchemaRegistry;
 use Infocyph\Foundation\Validation\ValidatorFactory;
+use Infocyph\ReqShield\CompiledValidator;
+use Infocyph\ReqShield\Exceptions\FrozenSchemaRegistryException;
 use Infocyph\ReqShield\Exceptions\InputLimitException;
+use Infocyph\ReqShield\Schema\SchemaRegistry;
 use Infocyph\ReqShield\Support\ValidationContext;
 use Infocyph\ReqShield\Validator as ReqShieldValidator;
 
@@ -35,7 +37,7 @@ it('accepts validation policy only from documented defaults and schema overrides
         ->and($result->errors())->not->toHaveKey('extra');
 });
 
-it('exposes ReqShield 3.1 runtime features through the thin Foundation validator factory', function (): void {
+it('exposes ReqShield 3.2 runtime features through the thin Foundation validator factory', function (): void {
     $app = Foundation::web([
         'validation' => [
             'defaults' => [
@@ -142,16 +144,15 @@ it('freezes named validation schema topology at application composition', functi
         ],
     ])->boot();
 
-    $registry = $app->make(ValidationSchemaRegistry::class);
-    $reflection = new ReflectionClass($registry);
+    $registry = $app->make(SchemaRegistry::class);
 
-    expect($reflection->isReadOnly())->toBeTrue()
-        ->and(method_exists($registry, 'define'))->toBeFalse()
-        ->and(method_exists($registry, 'extend'))->toBeFalse()
+    expect($registry->isFrozen())->toBeTrue()
         ->and($registry->schema('users.profile'))->toBe([
             'email' => 'required|email',
             'name' => 'required|string|min:2',
-        ]);
+        ])
+        ->and(fn() => $registry->define('runtime.schema', ['id' => 'required']))
+        ->toThrow(FrozenSchemaRegistryException::class);
 });
 
 it('keeps non-database validation lazy and enforces ReqShield input bounds', function (): void {
@@ -202,7 +203,7 @@ it('keeps non-database validation lazy and enforces ReqShield input bounds', fun
     }
 });
 
-it('keeps validator request state isolated across sequential and Fiber reuse of the singleton factory', function (): void {
+it('keeps frozen compiled validator state isolated across sequential and Fiber reuse', function (): void {
     $app = Foundation::web([
         'validation' => [
             'schemas' => [
@@ -217,41 +218,32 @@ it('keeps validator request state isolated across sequential and Fiber reuse of 
     ])->boot();
 
     $factory = $app->make(ValidatorFactory::class);
-    $first = $factory->make('users.email');
-    $second = $factory->make('users.email');
+    $builder = $factory->make('users.email')->after(
+        static function (ValidationContext $context): void {
+            Fiber::suspend($context->get('email'));
+        },
+    );
+    $compiled = new CompiledValidator($builder);
 
-    expect($first)->not->toBe($second)
-        ->and($first->validate(['email' => ' FIRST@EXAMPLE.TEST '])->typed()['email'] ?? null)
+    $sequential = $factory->compile('users.email');
+    expect($sequential->validate(['email' => ' FIRST@EXAMPLE.TEST '])->typed()['email'] ?? null)
         ->toBe('first@example.test')
-        ->and($second->validate(['email' => ' SECOND@EXAMPLE.TEST '])->typed()['email'] ?? null)
+        ->and($sequential->validate(['email' => ' SECOND@EXAMPLE.TEST '])->typed()['email'] ?? null)
         ->toBe('second@example.test');
 
-    $fiberAValidator = $factory->make('users.email')->after(
-        static function (ValidationContext $context): void {
-            unset($context);
-            Fiber::suspend('fiber-a');
-        },
-    );
-    $fiberBValidator = $factory->make('users.email')->after(
-        static function (ValidationContext $context): void {
-            unset($context);
-            Fiber::suspend('fiber-b');
-        },
-    );
-
     $fiberA = new Fiber(
-        static fn(): array => $fiberAValidator->validate([
+        static fn(): array => $compiled->validate([
             'email' => ' A@EXAMPLE.TEST ',
         ])->typed(),
     );
     $fiberB = new Fiber(
-        static fn(): array => $fiberBValidator->validate([
+        static fn(): array => $compiled->validate([
             'email' => ' B@EXAMPLE.TEST ',
         ])->typed(),
     );
 
-    expect($fiberA->start())->toBe('fiber-a')
-        ->and($fiberB->start())->toBe('fiber-b');
+    expect($fiberA->start())->toBe('a@example.test')
+        ->and($fiberB->start())->toBe('b@example.test');
 
     $fiberA->resume();
     $fiberB->resume();
