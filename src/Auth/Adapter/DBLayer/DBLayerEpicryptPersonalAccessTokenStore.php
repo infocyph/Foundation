@@ -13,6 +13,8 @@ final readonly class DBLayerEpicryptPersonalAccessTokenStore extends DBLayerStor
     PersonalAccessTokenStoreInterface,
     PersonalAccessTokenUsageStoreInterface
 {
+    private const int TRANSACTION_ATTEMPTS = 3;
+
     public function create(PersonalAccessTokenRecord $record): bool
     {
         $result = $this->connection()->transaction(function (Connection $connection) use ($record): bool {
@@ -34,7 +36,7 @@ final readonly class DBLayerEpicryptPersonalAccessTokenStore extends DBLayerStor
             ]);
 
             return true;
-        });
+        }, self::TRANSACTION_ATTEMPTS);
 
         return $result === true;
     }
@@ -91,7 +93,7 @@ final readonly class DBLayerEpicryptPersonalAccessTokenStore extends DBLayerStor
             return $record instanceof PersonalAccessTokenRecord && hash_equals($record->subject, $subject)
                 ? $record
                 : null;
-        });
+        }, self::TRANSACTION_ATTEMPTS);
 
         return $result instanceof PersonalAccessTokenRecord ? $result : null;
     }
@@ -108,7 +110,7 @@ final readonly class DBLayerEpicryptPersonalAccessTokenStore extends DBLayerStor
                 ),
                 [$revokedAt, $this->subjectHash($subject), $subject],
             )->rowCount();
-        });
+        }, self::TRANSACTION_ATTEMPTS);
 
         return is_int($result) ? $result : 0;
     }
@@ -147,7 +149,7 @@ final readonly class DBLayerEpicryptPersonalAccessTokenStore extends DBLayerStor
             )[0] ?? null;
 
             return is_array($row) ? $this->intOrNull($row['last_used_at'] ?? null) : null;
-        });
+        }, self::TRANSACTION_ATTEMPTS);
 
         return is_int($result) ? $result : null;
     }
