@@ -180,6 +180,7 @@ final class AuthDefaults
                 'token' => ['max' => 30, 'window' => 60],
                 'revocation' => ['max' => 60, 'window' => 60],
                 'introspection' => ['max' => 120, 'window' => 60],
+                'userinfo' => ['max' => 120, 'window' => 60],
             ],
         ];
     }
