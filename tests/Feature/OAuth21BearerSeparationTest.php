@@ -2,12 +2,10 @@
 
 declare(strict_types=1);
 
-use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerOAuthAccessRevocationStore;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptAccessTokenService;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptTokenFactory;
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\AccessTokenClaims;
 use Infocyph\Foundation\Auth\Internal\AuthSecretResolver;
-use Infocyph\Foundation\Auth\OAuth\Token\OAuthAccessTokenValidator;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthClientAuthentication;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthClientAuthenticationMethod;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthClientType;
@@ -63,15 +61,7 @@ it('keeps OAuth and application bearer token profiles mutually exclusive', funct
         );
         $oauthResolver = new OAuthBearerTokenPrincipalResolver(
             $httpConfig,
-            new OAuthAccessTokenValidator(
-                $fixture->accessTokens,
-                $fixture->clients,
-                $fixture->authorizationStore,
-                new DBLayerOAuthAccessRevocationStore($fixture->factory, $fixture->tables),
-                $fixture->scopes,
-                $fixture->accounts,
-                $fixture->clock,
-            ),
+            $fixture->accessValidator,
         );
 
         $oauthRequest = Request::fake(headers: ['Authorization' => 'Bearer ' . $oauthToken]);
