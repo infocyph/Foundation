@@ -133,11 +133,27 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
     /** @return non-empty-string */
     private function column(string $column): string
     {
-        if ($column === '') {
-            throw new \InvalidArgumentException('Database validation columns must be non-empty strings.');
+        return $this->identifier($column, 'column');
+    }
+
+    /** @return non-empty-string */
+    private function identifier(string $identifier, string $type): string
+    {
+        $identifier = trim($identifier);
+        if (
+            $identifier === ''
+            || preg_match(
+                '/\A[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*\z/D',
+                $identifier,
+            ) !== 1
+        ) {
+            throw new \InvalidArgumentException(sprintf(
+                'Database validation %s names must be dotted SQL identifiers.',
+                $type,
+            ));
         }
 
-        return $column;
+        return $identifier;
     }
 
     private function databaseIdentifier(mixed $value): int|string|null
@@ -218,7 +234,7 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
 
     private function query(Connection $connection, string $table): QueryBuilder
     {
-        return $connection->query()->from($table);
+        return $connection->query()->from($this->identifier($table, 'table'));
     }
 
     /**

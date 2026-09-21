@@ -75,7 +75,13 @@ it('validates database-backed ReqShield 3.1 rules through DBLayer 5 bind-aware b
             ])->fails())->toBeFalse();
 
         $provider = $app->make(ReqShieldDatabaseProvider::class);
-        expect($provider->batchExists('categories', [
+        expect(fn() => $provider->batchExists('categories; DROP TABLE users', [
+            ['column' => 'id', 'value' => 1, 'field' => 'unsafe-table'],
+        ]))->toThrow(InvalidArgumentException::class)
+            ->and(fn() => $provider->batchExists('categories', [
+                ['column' => 'id) OR 1=1 --', 'value' => 1, 'field' => 'unsafe-column'],
+            ]))->toThrow(InvalidArgumentException::class)
+            ->and($provider->batchExists('categories', [
             ['column' => 'id', 'value' => 1, 'field' => 'one'],
             ['column' => 'id', 'value' => 2, 'field' => 'two'],
             ['column' => 'id', 'value' => 3, 'field' => 'three'],
