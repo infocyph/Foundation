@@ -9,6 +9,7 @@ use Infocyph\Foundation\Auth\OAuth\Authorization\AuthorizationRequest;
 use Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException;
 use Infocyph\Foundation\Auth\OAuth\OAuthManager;
 use Infocyph\Foundation\Auth\Principal\PrincipalInterface;
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 
@@ -18,6 +19,7 @@ final readonly class OAuthHttpHandler
         private OAuthManager $oauth,
         private OAuthHttpInput $input,
         private OAuthHttpResponseFactory $responses,
+        private ConfigRepository $config,
     ) {}
 
     public function authorization(Request $request): AuthorizationRequest|Response
@@ -80,6 +82,11 @@ final readonly class OAuthHttpHandler
         return $this->responses->metadata($this->oauth->metadata());
     }
 
+    public function openIdMetadata(): Response
+    {
+        return $this->responses->metadata($this->oauth->openIdMetadata());
+    }
+
     public function revocation(Request $request): Response
     {
         try {
@@ -94,6 +101,24 @@ final readonly class OAuthHttpHandler
             return $this->responses->revocation();
         } catch (OAuthProtocolException $exception) {
             return $this->responses->error($exception);
+        }
+    }
+
+    public function userInfo(Request $request): Response
+    {
+        try {
+            $token = $this->resourceToken($request);
+            $uri = $this->openIdUserInfoUri();
+
+            return $this->responses->userInfo($this->oauth->userInfo(
+                $token,
+                $this->openIdUserInfoAudience($uri),
+                $request->getEffectiveMethod(),
+                $uri,
+                $this->dpopProof($request),
+            ));
+        } catch (OAuthProtocolException $exception) {
+            return $this->responses->userInfoError($exception);
         }
     }
 
@@ -129,6 +154,47 @@ final readonly class OAuthHttpHandler
         }
 
         return $proof;
+    }
+
+    private function openIdUserInfoAudience(string $fallback): string
+    {
+        $audience = $this->config->get('auth.oauth.oidc.userinfo_audience');
+
+        return is_string($audience) && $audience !== '' ? $audience : $fallback;
+    }
+
+    private function openIdUserInfoUri(): string
+    {
+        $issuer = $this->oauth->metadata()['issuer'] ?? null;
+        $route = $this->config->get('auth.oauth.oidc.userinfo_route');
+        if (!is_string($issuer) || !is_string($route) || $issuer === '' || !str_starts_with($route, '/')) {
+            throw new \LogicException('OpenID UserInfo endpoint configuration is invalid.');
+        }
+
+        $parts = parse_url($issuer);
+        if (!is_array($parts) || !isset($parts['scheme'], $parts['host'])) {
+            throw new \LogicException('OpenID issuer configuration is invalid.');
+        }
+
+        $origin = $parts['scheme'] . '://' . $parts['host'];
+        if (isset($parts['port'])) {
+            $origin .= ':' . $parts['port'];
+        }
+
+        return $origin . $route;
+    }
+
+    private function resourceToken(Request $request): string
+    {
+        $values = $request->getHeader('Authorization');
+        if (count($values) !== 1
+            || preg_match('/\A(?:Bearer|DPoP)[ \t]+([^ \t]+)\z/iD', $values[0], $match) !== 1
+            || strlen($match[1]) > 16_384
+            || preg_match('/[\x00-\x20\x7F]/', $match[1]) === 1) {
+            throw new OAuthProtocolException('invalid_token', 'The access token is invalid.', 401);
+        }
+
+        return $match[1];
     }
 
     private function issuer(): string
