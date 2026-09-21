@@ -247,12 +247,12 @@ final class OAuth21FlowFixture
         $audiences = new EpicryptOAuthScopeAudienceResolver($this->clients, $this->scopes, $config);
 
         $openIdExtension = null;
-        $this->openIdKeys = null;
+        $openIdKeys = null;
         if ($openId) {
             $openIdPair = KeyPairGenerator::ec()->generate();
             $openIdAlgorithm = AsymmetricJwtAlgorithm::ES256;
             $openIdKeyId = 'oidc-flow-key';
-            $this->openIdKeys = new AsymmetricSigningKeySet(
+            $openIdKeys = new AsymmetricSigningKeySet(
                 issuer: $issuer,
                 activeKeyId: $openIdKeyId,
                 privateKey: $openIdPair['private'],
@@ -270,12 +270,13 @@ final class OAuth21FlowFixture
                 purpose: KeyPurpose::OIDC_ID_TOKEN_SIGNING,
             );
             $openIdExtension = new OpenIdTokenResponseExtension(new OpenIdIdTokenIssuer(
-                $this->openIdKeys,
+                $openIdKeys,
                 new FoundationOpenIdSubjectProvider(),
                 300,
                 $psrClock,
             ));
         }
+        $this->openIdKeys = $openIdKeys;
 
         $endpoint = new OAuthTokenEndpoint(
             $clientProjection,
