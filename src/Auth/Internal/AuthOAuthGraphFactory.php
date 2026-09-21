@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Auth\Internal;
 
 use Infocyph\Epicrypt\Security\AsymmetricSigningKeySet;
+use Infocyph\Epicrypt\Security\KeyPurpose;
 use Infocyph\Epicrypt\Security\KeyRing;
+use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptAsymmetricSigningKeyResolver;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\OAuthProtectionKeyResolver;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthSigningKeyResolver;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthSigningKeySet;
@@ -46,6 +48,20 @@ final class AuthOAuthGraphFactory
         }
 
         return $origin . $path;
+    }
+
+    public static function openIdSigningKeySet(ConfigRepository $config): AsymmetricSigningKeySet
+    {
+        $issuer = $config->get('auth.oauth.issuer');
+        if (!is_string($issuer) || $issuer === '') {
+            throw new ConfigurationException('OpenID issuer configuration is incomplete.');
+        }
+
+        return new EpicryptAsymmetricSigningKeyResolver($config)->resolve(
+            'auth.oauth.oidc.signing',
+            $issuer,
+            KeyPurpose::OIDC_ID_TOKEN_SIGNING,
+        );
     }
 
     public static function refreshTokenKeys(OAuthProtectionKeyResolver $resolver): KeyRing
