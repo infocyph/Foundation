@@ -70,6 +70,7 @@
         "benchmark:arraykit": "@php benchmarks/arraykit-config-utilization.php",
         "benchmark:cachelayer": "@php benchmarks/cachelayer-33-utilization.php",
         "benchmark:dblayer": "@php benchmarks/dblayer-51-utilization.php",
+        "benchmark:epicrypt": "@php benchmarks/epicrypt-31-utilization.php",
         "benchmark:maintenance": "@php benchmarks/maintenance-overhead.php",
         "benchmark:otp": "@php benchmarks/otp-61-utilization.php",
         "benchmark:pathwise": "@php benchmarks/pathwise-41-utilization.php",
@@ -79,6 +80,7 @@
             "@benchmark:uid",
             "@benchmark:cachelayer",
             "@benchmark:dblayer",
+            "@benchmark:epicrypt",
             "@benchmark:otp",
             "@benchmark:pathwise"
         ],
