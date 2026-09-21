@@ -16,7 +16,6 @@ final readonly class AuthorizationServerMetadata
 {
     public function __construct(private ConfigRepository $config) {}
 
-    /** @return array<string, mixed> */
     public function epicrypt(): EpicryptAuthorizationServerMetadata
     {
         return new EpicryptAuthorizationServerMetadata(
@@ -48,9 +47,13 @@ final readonly class AuthorizationServerMetadata
         );
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
-        return $this->epicrypt()->toArray();
+        /** @var array<string, mixed> $metadata */
+        $metadata = $this->epicrypt()->toArray();
+
+        return $metadata;
     }
 
     private function endpoint(string $name): string
