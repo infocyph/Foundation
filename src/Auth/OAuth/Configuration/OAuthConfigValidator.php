@@ -289,7 +289,7 @@ final readonly class OAuthConfigValidator
             return;
         }
 
-        foreach (['authorization', 'token', 'revocation', 'introspection'] as $endpoint) {
+        foreach (['authorization', 'token', 'revocation', 'introspection', 'userinfo'] as $endpoint) {
             $policy = $limits[$endpoint] ?? null;
             $key = 'auth.oauth.rate_limits.' . $endpoint;
             if (!is_array($policy) || array_is_list($policy)) {
