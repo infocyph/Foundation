@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\OAuth\Http;
 
+use Infocyph\Epicrypt\Auth\Oidc\OpenIdInteractionRequirement;
 use Infocyph\Foundation\Auth\OAuth\Authorization\AuthorizationRedirectContext;
 use Infocyph\Foundation\Auth\OAuth\Authorization\AuthorizationRequest;
 use Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException;
@@ -92,6 +93,13 @@ final readonly class OAuthHttpHandler
     public function metadata(): Response
     {
         return $this->responses->metadata($this->oauth->metadata());
+    }
+
+    public function openIdInteraction(
+        AuthorizationRequest $request,
+        ?PrincipalInterface $principal,
+    ): OpenIdInteractionRequirement {
+        return $this->oauth->openIdInteraction($request, $principal);
     }
 
     public function openIdMetadata(): Response
