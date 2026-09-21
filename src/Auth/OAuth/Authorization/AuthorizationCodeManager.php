@@ -81,7 +81,7 @@ final readonly class AuthorizationCodeManager
         }
         $authenticationContext = is_string($metadata['acr'] ?? null) ? $metadata['acr'] : null;
         $authenticationMethods = is_array($metadata['amr'] ?? null)
-            ? array_values(array_filter($metadata['amr'], 'is_string'))
+            ? array_values(array_filter($metadata['amr'], is_string(...)))
             : [];
 
         $issued = $this->issuer->issue(
