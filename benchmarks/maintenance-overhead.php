@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use Infocyph\Foundation\Benchmarks\Support\FoundationMaintenanceBenchmarkAdapter;
-use Infocyph\Foundation\Benchmarks\Support\FoundationMaintenanceBenchmarkHandler;
 use Infocyph\Foundation\Routing\WebReleaseCompiler;
 use Infocyph\Foundation\Routing\WebReleaseRuntime;
 use Infocyph\Webrick\Request\Request;
