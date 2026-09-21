@@ -158,9 +158,7 @@ final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore imple
     {
         $expiresAt = $this->int($row['expires_at'] ?? 0);
         $idleExpiresAt = $this->intOrNull($row['idle_expires_at'] ?? null);
-        if ($idleExpiresAt === null) {
-            $idleExpiresAt = $expiresAt;
-        }
+        $idleExpiresAt ??= $expiresAt;
 
         return new RefreshTokenRecord(
             tokenId: $this->string($row['id'] ?? ''),
