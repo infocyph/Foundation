@@ -88,12 +88,19 @@ final class AuthTables
             $this->oauthAuthorizations(),
             $this->oauthRefreshTokens(),
             $this->oauthAccessRevocations(),
+            $this->oauthAccessStatuses(),
+            $this->oauthReplayStates(),
         ];
     }
 
     public function oauthAccessRevocations(): string
     {
         return 'auth_oauth_access_revocations';
+    }
+
+    public function oauthAccessStatuses(): string
+    {
+        return 'auth_oauth_access_statuses';
     }
 
     public function oauthAuthorizationCodes(): string
@@ -134,6 +141,11 @@ final class AuthTables
     public function oauthRefreshTokens(): string
     {
         return 'auth_oauth_refresh_tokens';
+    }
+
+    public function oauthReplayStates(): string
+    {
+        return 'auth_oauth_replay_states';
     }
 
     public function passkeyCredentials(): string
