@@ -92,7 +92,7 @@ it('uses Epicrypt PATs with authoritative serialized DB state and never persists
 
         $state = $connection->select(
             sprintf('SELECT revision FROM %s WHERE subject_hash = ?', $tables->personalAccessTokenSubjects()),
-            [hash('sha256', "foundation.personal-access-token.subject\0account-1")],
+            [hash('sha3-256', "foundation.personal-access-token.subject\0account-1")],
         )[0] ?? null;
         expect($state)->toBeArray()
             ->and((int) ($state['revision'] ?? 0))->toBeGreaterThanOrEqual(5);
