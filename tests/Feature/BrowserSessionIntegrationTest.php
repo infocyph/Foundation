@@ -198,9 +198,7 @@ it('persists payloads through file and cache stores and prunes expired files', f
 });
 
 it('creates and uses the portable DBLayer session schema on SQLite', function (): void {
-    if (!extension_loaded('pdo_sqlite')) {
-        test()->markTestSkipped('pdo_sqlite is not available.');
-    }
+    expect(extension_loaded('pdo_sqlite'))->toBeTrue();
     $project = sys_get_temp_dir() . '/foundation-session-db-' . bin2hex(random_bytes(5));
     mkdir($project . '/database', 0775, true);
     try {
@@ -234,18 +232,16 @@ it('creates and uses the portable DBLayer session schema on SQLite', function ()
 
 it('reports file session persistence failures without leaking PHP warnings', function (): void {
     $payload = new \Infocyph\Foundation\Session\SessionPayload(['account' => 7], [], time() + 60);
-    $directory = sys_get_temp_dir() . '/foundation-session-read-only-' . bin2hex(random_bytes(5));
-    mkdir($directory, 0500, true);
+    $root = sys_get_temp_dir() . '/foundation-session-blocked-' . bin2hex(random_bytes(5));
+    mkdir($root, 0700, true);
+    $directory = $root . '/sessions';
+    file_put_contents($directory, 'not-a-directory');
+
     try {
-        if (is_writable($directory)) {
-            chmod($directory, 0700);
-            test()->markTestSkipped('The current user can write to permission-restricted directories.');
-        }
         expect(fn() => (new FileSessionStore($directory))->save(str_repeat('a', 64), $payload))
-            ->toThrow(RuntimeException::class, 'Unable to write session file');
+            ->toThrow(RuntimeException::class, 'Unable to create session directory');
     } finally {
-        chmod($directory, 0700);
-        browserSessionRemoveDirectory($directory);
+        browserSessionRemoveDirectory($root);
     }
 });
 
