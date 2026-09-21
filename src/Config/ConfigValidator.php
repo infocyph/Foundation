@@ -125,7 +125,6 @@ final readonly class ConfigValidator
         return is_int($validated) ? $validated : null;
     }
 
-
     private function runChecks(bool $assumeProduction): ConfigValidationResult
     {
         $issues = [];
@@ -375,7 +374,6 @@ final readonly class ConfigValidator
             );
         }
     }
-
 
     /** @param list<ConfigIssue> $issues */
     private function validateWebAuthn(array &$issues, bool $assumeProduction): void

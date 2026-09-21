@@ -86,32 +86,42 @@ final readonly class AuthManagerRegistrar extends AbstractAuthRegistrar
             $this->ref(AuthNotifierInterface::class), $this->ref(AuthIdGeneratorInterface::class),
             $this->ref(ClockInterface::class),
         ], LifetimeEnum::Scoped);
-        $this->recipe(PasswordResetManager::class, PasswordResetManager::class, [
-            $this->ref(PasswordResetTokenServiceInterface::class), $this->ref(PasswordResetStoreInterface::class),
-            $this->ref(AccountStoreInterface::class), $this->ref(AuthNotifierInterface::class),
-            $this->ref(AuditEventStoreInterface::class), $this->ref(AuthIdGeneratorInterface::class),
-            $this->intConfig('auth.password_reset_ttl', 3600), $this->ref(ClockInterface::class),
-        ], LifetimeEnum::Scoped);
-        $this->recipe(EmailVerificationManager::class, EmailVerificationManager::class, [
-            $this->ref(EmailVerificationTokenServiceInterface::class), $this->ref(EmailVerificationStoreInterface::class),
-            $this->ref(AccountStoreInterface::class), $this->ref(AuthNotifierInterface::class),
-            $this->ref(AuditEventStoreInterface::class), $this->ref(AuthIdGeneratorInterface::class),
-            $this->intConfig('auth.email_verification_ttl', 3600), $this->ref(ClockInterface::class),
-        ], LifetimeEnum::Scoped);
-        $this->recipe(PasswordlessManager::class, PasswordlessManager::class, [
-            $this->ref(PasswordlessTokenServiceInterface::class), $this->ref(AuthNotifierInterface::class),
-        ], LifetimeEnum::Scoped);
+        if ($this->hasExplicitBinding(PasswordResetTokenServiceInterface::class)) {
+            $this->recipe(PasswordResetManager::class, PasswordResetManager::class, [
+                $this->ref(PasswordResetTokenServiceInterface::class), $this->ref(PasswordResetStoreInterface::class),
+                $this->ref(AccountStoreInterface::class), $this->ref(AuthNotifierInterface::class),
+                $this->ref(AuditEventStoreInterface::class), $this->ref(AuthIdGeneratorInterface::class),
+                $this->intConfig('auth.password_reset_ttl', 3600), $this->ref(ClockInterface::class),
+            ], LifetimeEnum::Scoped);
+        }
+        if ($this->hasExplicitBinding(EmailVerificationTokenServiceInterface::class)) {
+            $this->recipe(EmailVerificationManager::class, EmailVerificationManager::class, [
+                $this->ref(EmailVerificationTokenServiceInterface::class), $this->ref(EmailVerificationStoreInterface::class),
+                $this->ref(AccountStoreInterface::class), $this->ref(AuthNotifierInterface::class),
+                $this->ref(AuditEventStoreInterface::class), $this->ref(AuthIdGeneratorInterface::class),
+                $this->intConfig('auth.email_verification_ttl', 3600), $this->ref(ClockInterface::class),
+            ], LifetimeEnum::Scoped);
+        }
+        if ($this->hasExplicitBinding(PasswordlessTokenServiceInterface::class)) {
+            $this->recipe(PasswordlessManager::class, PasswordlessManager::class, [
+                $this->ref(PasswordlessTokenServiceInterface::class), $this->ref(AuthNotifierInterface::class),
+            ], LifetimeEnum::Scoped);
+        }
         $this->recipe(RememberMeManager::class, RememberMeManager::class, [
             $this->ref(RememberTokenServiceInterface::class), $this->ref(RememberTokenStoreInterface::class),
             $this->ref(AuditEventStoreInterface::class), $this->ref(AuthIdGeneratorInterface::class),
             $this->ref(ClockInterface::class),
         ]);
-        $this->recipe(TokenAuthManager::class, TokenAuthManager::class, [
-            $this->ref(AccessTokenServiceInterface::class), $this->ref(RefreshTokenServiceInterface::class),
-            $this->ref(RefreshTokenStoreInterface::class), $this->ref(AuditEventStoreInterface::class),
-            $this->ref(AuthIdGeneratorInterface::class), $this->intConfig('auth.refresh_token_ttl', 1209600),
-            $this->ref(ClockInterface::class),
-        ]);
+        if ($this->hasExplicitBinding(AccessTokenServiceInterface::class)
+            && $this->hasExplicitBinding(RefreshTokenServiceInterface::class)
+        ) {
+            $this->recipe(TokenAuthManager::class, TokenAuthManager::class, [
+                $this->ref(AccessTokenServiceInterface::class), $this->ref(RefreshTokenServiceInterface::class),
+                $this->ref(RefreshTokenStoreInterface::class), $this->ref(AuditEventStoreInterface::class),
+                $this->ref(AuthIdGeneratorInterface::class), $this->intConfig('auth.refresh_token_ttl', 1209600),
+                $this->ref(ClockInterface::class),
+            ]);
+        }
         $this->recipe(MfaManager::class, MfaManager::class, [
             $this->ref(MfaFactorCompareAndSwapStoreInterface::class), $this->ref(MfaVerifierInterface::class),
             $this->ref(RecoveryCodeServiceInterface::class), $this->ref(TtlStoreInterface::class),

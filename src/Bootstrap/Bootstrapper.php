@@ -200,7 +200,6 @@ final class Bootstrapper
     private function providerDependencyAvailable(string $provider): bool
     {
         $dependency = match ($provider) {
-            AuthServiceProvider::class => \Infocyph\Epicrypt\Token\Payload\PurposeToken::class,
             CacheServiceProvider::class => \Infocyph\CacheLayer\Cache\Cache::class,
             CommunicationServiceProvider::class => \Infocyph\TalkingBytes\Http\HttpClient::class,
             DatabaseServiceProvider::class => \Infocyph\DBLayer\Connection\Connection::class,

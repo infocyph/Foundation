@@ -43,7 +43,7 @@ it('rolls back only the additive OAuth revision and preserves the released auth 
         ]);
 
         expect($runner->run())->toBe([$oauth->id(), $oauthEpicrypt->id()])
-            ->and($runner->rollback(2))->toBe([$oauthEpicrypt->id(), $oauth->id()]);
+            ->and($runner->rollback(1))->toBe([$oauthEpicrypt->id(), $oauth->id()]);
 
         foreach ($tables->oauth() as $table) {
             expect($schema->hasTable($table))->toBeFalse();

@@ -46,6 +46,7 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
 
     public function register(AuthDriverResolver $drivers): void
     {
+        $this->bindRememberTokens();
         $this->registerSecretResolver();
 
         if ($drivers->tokens() === AuthTokenDriver::SECURITY) {
@@ -55,7 +56,10 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
             return;
         }
 
-        $this->requirePackage(PurposeToken::class, 'infocyph/epicrypt', 'crypto');
+        if (!class_exists(PurposeToken::class)) {
+            return;
+        }
+
         $this->recipe(EpicryptPurposeTokenFactory::class, EpicryptPurposeTokenFactory::class, [
             $this->ref(AuthSecretResolver::class),
             $this->ref(ClockInterface::class),
@@ -126,7 +130,6 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
         $this->bindTimedSingleDependencyToken(PasswordResetTokenServiceInterface::class, EpicryptPasswordResetTokenService::class, EpicryptTokenFactory::class, 'auth.password_reset_ttl', 3600);
         $this->bindTimedSingleDependencyToken(EmailVerificationTokenServiceInterface::class, EpicryptEmailVerificationTokenService::class, EpicryptTokenFactory::class, 'auth.email_verification_ttl', 3600);
         $this->bindTimedSingleDependencyToken(PasswordlessTokenServiceInterface::class, EpicryptPasswordlessTokenService::class, EpicryptTokenFactory::class, 'auth.passwordless_ttl', 900);
-        $this->bindRememberTokens();
     }
 
     private function registerSecretResolver(): void
@@ -147,6 +150,5 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
         $this->bindTimedSingleDependencyToken(PasswordResetTokenServiceInterface::class, SimplePasswordResetTokenService::class, EpicryptPurposeTokenFactory::class, 'auth.password_reset_ttl', 3600);
         $this->bindTimedSingleDependencyToken(EmailVerificationTokenServiceInterface::class, SimpleEmailVerificationTokenService::class, EpicryptPurposeTokenFactory::class, 'auth.email_verification_ttl', 3600);
         $this->bindTimedSingleDependencyToken(PasswordlessTokenServiceInterface::class, SimplePasswordlessTokenService::class, EpicryptPurposeTokenFactory::class, 'auth.passwordless_ttl', 900);
-        $this->bindRememberTokens();
     }
 }
