@@ -14,11 +14,9 @@ it('serializes PAT issue against concurrent revoke-all for the same subject', fu
     $start = $root . '/start';
 
     try {
+        $dbFactory = PatConcurrentWorker::factory($database);
         $store = PatConcurrentWorker::store($database);
         $tables = new AuthTables();
-        $factory = new ReflectionProperty($store, 'factory');
-        $factory->setAccessible(true);
-        $dbFactory = $factory->getValue($store);
         new MigrationRunner(
             $dbFactory->connection(),
             [new AuthPersonalAccessTokenSchema($tables)],
