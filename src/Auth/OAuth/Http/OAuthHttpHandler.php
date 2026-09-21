@@ -40,9 +40,21 @@ final readonly class OAuthHttpHandler
 
     public function authorizationApproved(AuthorizationRequest $request, PrincipalInterface $principal): Response
     {
+        $this->oauth->grantConsent($principal, $request);
         $issue = $this->oauth->approve($request, $principal);
 
         return $this->responses->authorizationSuccess($request, $issue->code, $this->issuer());
+    }
+
+    public function authorizationFailure(
+        AuthorizationRequest $request,
+        OAuthProtocolException $exception,
+    ): Response {
+        return $this->responses->authorizationError(
+            new AuthorizationRedirectContext($request->client, $request->redirectUri, $request->state),
+            $exception,
+            $this->issuer(),
+        );
     }
 
     public function authorizationDenied(AuthorizationRequest $request, ?PrincipalInterface $principal = null): Response
