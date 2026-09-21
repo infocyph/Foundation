@@ -13,6 +13,7 @@ use Infocyph\Epicrypt\Auth\OAuth\OAuthAuthorizationCodeConsumer;
 use Infocyph\Epicrypt\Auth\OAuth\OAuthAuthorizationCodeIssuer;
 use Infocyph\Epicrypt\Auth\OAuth\OAuthClientAssertionValidator;
 use Infocyph\Epicrypt\Auth\OAuth\OAuthClientAuthenticator;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthDpopValidator;
 use Infocyph\Epicrypt\Auth\OAuth\OAuthIntrospectionEndpoint;
 use Infocyph\Epicrypt\Auth\OAuth\OAuthResourceAccessTokenValidator;
 use Infocyph\Epicrypt\Auth\OAuth\OAuthRevocationEndpoint;
@@ -28,6 +29,7 @@ use Infocyph\Epicrypt\Security\KeyRing;
 use Infocyph\Epicrypt\Security\KeyRingEntry;
 use Infocyph\Epicrypt\Security\KeyStatus;
 use Infocyph\Epicrypt\Token\Jwt\Enum\AsymmetricJwtAlgorithm;
+use Infocyph\Epicrypt\Token\Jwt\DpopProof;
 use Infocyph\Epicrypt\Token\Jwt\Enum\JweKeyManagementAlgorithm;
 use Infocyph\Epicrypt\Token\Opaque\OpaqueToken;
 use Infocyph\Foundation\Auth\Account\AccountInterface;
@@ -232,6 +234,11 @@ final class OAuth21FlowFixture
         $this->refreshTokens = new RefreshTokenManager($epicryptRefresh, $refreshArtifact, $psrClock);
 
         $clientProjection = new EpicryptOAuthAuthorizationClientStore($this->clients);
+        $dpop = new OAuthDpopValidator(
+            $replay,
+            AsymmetricJwtAlgorithm::ES256,
+            new DpopProof($psrClock),
+        );
         $authenticator = new OAuthClientAuthenticator(
             $clientProjection,
             new OAuthClientAssertionValidator($replay, $psrClock),
@@ -277,14 +284,14 @@ final class OAuth21FlowFixture
             $this->refreshTokens,
             $epicryptAuthorizations,
             $audiences,
-            null,
-            null,
+            $dpop,
+            'https://issuer.example.test/oauth/token',
             $psrClock,
             $openIdExtension,
         );
         $this->tokens = new OAuthTokenManager($endpoint, $authentication, $this->refreshTokens, $audit);
 
-        $resourceValidator = new OAuthResourceAccessTokenValidator($nativeAccess);
+        $resourceValidator = new OAuthResourceAccessTokenValidator($nativeAccess, $dpop);
         $this->accessValidator = new OAuthAccessTokenValidator(
             $resourceValidator,
             $this->clients,
