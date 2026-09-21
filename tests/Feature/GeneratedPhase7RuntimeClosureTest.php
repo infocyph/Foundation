@@ -47,9 +47,7 @@ final class FoundationPhase7GeneratedProvider extends ServiceProvider
 }
 
 it('runs the existing scheduler manager on one trusted generated container with one scope per entry', function (): void {
-    if (!class_exists(FileLockProvider::class)) {
-        $this->markTestSkipped('Install CacheLayer to run generated scheduler lock acceptance.');
-    }
+    expect(class_exists(FileLockProvider::class))->toBeTrue();
 
     $project = foundationPhase7GeneratedProject();
     $marker = $project . '/storage/scheduler.log';
@@ -154,12 +152,8 @@ it('runs the existing scheduler manager on one trusted generated container with 
 });
 
 it('keeps trusted worker and scheduler production containers bounded across long sequential execution', function (): void {
-    if (!class_exists(\Infocyph\Omnibus\MessageBus::class)) {
-        $this->markTestSkipped('Install Omnibus to run generated persistent runtime acceptance.');
-    }
-    if (!extension_loaded('pdo_sqlite')) {
-        $this->markTestSkipped('pdo_sqlite is required for generated transaction-isolation acceptance.');
-    }
+    expect(class_exists(\Infocyph\Omnibus\MessageBus::class))->toBeTrue()
+        ->and(extension_loaded('pdo_sqlite'))->toBeTrue();
 
     $project = foundationPhase7GeneratedProject();
     $config = foundationPhase7GeneratedConfig($project);
