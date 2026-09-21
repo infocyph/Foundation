@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\OAuth\Authorization;
 
+use Infocyph\Epicrypt\Auth\Oidc\OpenIdAuthorizationRequest;
 use Infocyph\Foundation\Auth\OAuth\Client\OAuthClient;
 
 final readonly class AuthorizationRequest
@@ -27,10 +28,12 @@ final readonly class AuthorizationRequest
         public array $openIdPrompts = [],
         public ?int $openIdMaximumAuthenticationAge = null,
         public array $openIdAcrValues = [],
+        public ?OpenIdAuthorizationRequest $openIdProtocol = null,
     ) {}
 
     public function openId(): bool
     {
-        return in_array('openid', $this->scopes, true);
+        return $this->openIdProtocol instanceof OpenIdAuthorizationRequest
+            || in_array('openid', $this->scopes, true);
     }
 }
