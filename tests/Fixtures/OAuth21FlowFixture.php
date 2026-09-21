@@ -81,6 +81,7 @@ final class OAuth21FlowFixture
     public readonly AccountProviderInterface $accounts;
     public readonly OAuth21AccessTokenHarness $accessTokens;
     public readonly DBLayerOAuthAuthorizationStore $authorizationStore;
+    public readonly DBLayerEpicryptOAuthAuthorizationStore $this->epicryptAuthorizations;
     public readonly OAuthAccessTokenValidator $accessValidator;
     public readonly OAuthClientManager $clients;
     public readonly OAuth21FlowClock $clock;
@@ -94,6 +95,7 @@ final class OAuth21FlowFixture
     public readonly DBLayerOAuthRefreshTokenStore $refreshStore;
     public readonly AuthorizationRequestValidator $requests;
     public readonly OAuthRevocationManager $revocation;
+    public readonly OAuthResourceAccessTokenValidator $resourceValidator;
     public readonly OAuthScopeResolver $scopes;
     public readonly AuthTables $tables;
     public readonly OAuthTokenManager $tokens;
@@ -168,7 +170,7 @@ final class OAuth21FlowFixture
         $authorizer = self::authorizer();
         $this->consents = new ConsentManager($consentStore, $authorizer, $this->clock);
 
-        $epicryptAuthorizations = new DBLayerEpicryptOAuthAuthorizationStore($this->factory, $this->tables);
+        $this->epicryptAuthorizations = new DBLayerEpicryptOAuthAuthorizationStore($this->factory, $this->tables);
         $epicryptCodes = new DBLayerEpicryptAuthorizationCodeStore($this->factory, $this->tables);
         $epicryptRefresh = new DBLayerEpicryptRefreshTokenStore($this->factory, $this->tables);
         $status = new DBLayerEpicryptAccessTokenStatusStore($this->factory, $this->tables);
@@ -180,7 +182,7 @@ final class OAuth21FlowFixture
             $psrClock,
         );
         $codeIssuer = new OAuthAuthorizationCodeIssuer(
-            $epicryptAuthorizations,
+            $this->epicryptAuthorizations,
             $epicryptCodes,
             $codeArtifact,
             $psrClock,
@@ -188,7 +190,7 @@ final class OAuth21FlowFixture
         $codeConsumer = new OAuthAuthorizationCodeConsumer(
             $codeArtifact,
             $epicryptCodes,
-            $epicryptAuthorizations,
+            $this->epicryptAuthorizations,
             $psrClock,
         );
         $this->codes = new AuthorizationCodeManager(
@@ -221,7 +223,7 @@ final class OAuth21FlowFixture
 
         $nativeAccess = new OAuthAccessTokenService(
             $this->keys->epicrypt,
-            $epicryptAuthorizations,
+            $this->epicryptAuthorizations,
             $status,
             300,
             $psrClock,
@@ -283,7 +285,7 @@ final class OAuth21FlowFixture
             $nativeAccess,
             $codeConsumer,
             $this->refreshTokens,
-            $epicryptAuthorizations,
+            $this->epicryptAuthorizations,
             $audiences,
             $dpop,
             'https://issuer.example.test/oauth/token',
@@ -292,11 +294,11 @@ final class OAuth21FlowFixture
         );
         $this->tokens = new OAuthTokenManager($endpoint, $authentication, $this->refreshTokens, $audit);
 
-        $resourceValidator = new OAuthResourceAccessTokenValidator($nativeAccess, $dpop);
+        $this->resourceValidator = new OAuthResourceAccessTokenValidator($nativeAccess, $dpop);
         $this->accessValidator = new OAuthAccessTokenValidator(
-            $resourceValidator,
+            $this->resourceValidator,
             $this->clients,
-            $epicryptAuthorizations,
+            $this->epicryptAuthorizations,
             $this->accounts,
         );
         $this->revocation = new OAuthRevocationManager(
@@ -304,7 +306,7 @@ final class OAuth21FlowFixture
                 $clientProjection,
                 $nativeAccess,
                 $this->refreshTokens,
-                $epicryptAuthorizations,
+                $this->epicryptAuthorizations,
                 $psrClock,
             ),
             $authentication,
