@@ -58,8 +58,8 @@ it('transitions access and refresh introspection from active to inactive through
         $fixture->revocation->revoke($issued->accessToken, $authentication, 'access_token');
         expect($fixture->introspection->introspect($issued->accessToken, $authentication)->active)->toBeFalse();
 
-        $revocation->revoke((string) $issued->refreshToken, $authentication, 'refresh_token');
-        expect($introspection->introspect((string) $issued->refreshToken, $authentication)->active)->toBeFalse();
+        $fixture->revocation->revoke((string) $issued->refreshToken, $authentication, 'refresh_token');
+        expect($fixture->introspection->introspect((string) $issued->refreshToken, $authentication)->active)->toBeFalse();
     } finally {
         $fixture->close();
     }
