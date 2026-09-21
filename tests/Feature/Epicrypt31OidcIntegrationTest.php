@@ -83,7 +83,6 @@ it('completes OIDC authorization code issuance with Epicrypt ID token validation
             nonce: $nonce,
             accessToken: $tokens->accessToken,
             authorizationCode: $issued->code,
-            state: $state,
             maximumAuthenticationAge: 60,
         );
         expect($claims['sub'] ?? null)->toBe('account-1')
