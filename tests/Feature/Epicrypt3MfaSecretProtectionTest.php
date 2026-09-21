@@ -277,6 +277,61 @@ it('does not let stale fallback-key reprotection overwrite a newer OTP counter r
     $state->cleanup();
 });
 
+
+it('isolates MFA plaintext across sequential and Fiber reuse of the protection service', function (): void {
+    $protector = new MfaSecretProtector(
+        foundationEpicrypt3MfaRing('active', (new KeyMaterialGenerator())->forAead()),
+    );
+    $factorA = foundationEpicrypt3MfaFactor('factor-a', 0);
+    $factorB = new MfaFactor(
+        id: 'factor-b',
+        accountId: 'account-2',
+        type: 'totp',
+        label: 'Authenticator B',
+        enabled: true,
+        createdAt: 1_700_000_001,
+        metadata: [
+            'otp' => [
+                'algorithm' => 'sha1',
+                'digits' => 6,
+                'period' => 30,
+                'secret' => 'KRUGS4ZANFZSAYJA',
+                'pin' => '3141',
+            ],
+        ],
+        revision: 0,
+    );
+    $storedA = $protector->protect($factorA);
+    $storedB = $protector->protect($factorB);
+
+    for ($iteration = 0; $iteration < 32; ++$iteration) {
+        expect($protector->unprotect($storedA)->metadata['otp']['secret'])->toBe('JBSWY3DPEHPK3PXP')
+            ->and($protector->unprotect($storedB)->metadata['otp']['secret'])->toBe('KRUGS4ZANFZSAYJA');
+    }
+
+    $fiberA = new Fiber(function () use ($protector, $storedA): string {
+        $first = $protector->unprotect($storedA)->metadata['otp']['secret'];
+        Fiber::suspend($first);
+
+        return $protector->unprotect($storedA)->metadata['otp']['secret'];
+    });
+    $fiberB = new Fiber(function () use ($protector, $storedB): string {
+        $first = $protector->unprotect($storedB)->metadata['otp']['secret'];
+        Fiber::suspend($first);
+
+        return $protector->unprotect($storedB)->metadata['otp']['secret'];
+    });
+
+    expect($fiberA->start())->toBe('JBSWY3DPEHPK3PXP')
+        ->and($fiberB->start())->toBe('KRUGS4ZANFZSAYJA');
+
+    $fiberA->resume();
+    $fiberB->resume();
+
+    expect($fiberA->getReturn())->toBe('JBSWY3DPEHPK3PXP')
+        ->and($fiberB->getReturn())->toBe('KRUGS4ZANFZSAYJA');
+});
+
 it('atomically replaces and consumes OTP recovery digests without double consumption', function (): void {
     [$factory, $state] = foundationEpicrypt3MfaDbFactory();
     $tables = new AuthTables();
