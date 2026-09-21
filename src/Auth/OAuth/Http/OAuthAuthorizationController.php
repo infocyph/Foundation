@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\OAuth\Http;
 
+use Infocyph\Epicrypt\Auth\Oidc\OpenIdInteractionRequirement;
 use Infocyph\Foundation\Auth\OAuth\Authorization\AuthorizationRequest;
+use Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException;
 use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
 use Infocyph\Foundation\Session\BrowserSession;
 use Infocyph\Foundation\Session\SessionConfig;
@@ -27,7 +29,7 @@ final readonly class OAuthAuthorizationController
         }
 
         if ($request->getEffectiveMethod() === 'GET') {
-            return $this->consent($request, $authorization);
+            return $this->authorizationGet($request, $authorization);
         }
 
         return match ($request->post('decision')) {
@@ -39,6 +41,62 @@ final readonly class OAuthAuthorizationController
                 'Choose whether to approve or deny this request.',
             ),
         };
+    }
+
+    private function authorizationGet(Request $request, AuthorizationRequest $authorization): Response
+    {
+        if (!$authorization->openId()) {
+            return $this->consent($request, $authorization);
+        }
+
+        $principal = $this->principals->get();
+        try {
+            $requirement = $this->oauth->openIdInteraction($authorization, $principal);
+        } catch (OAuthProtocolException $exception) {
+            return $this->oauth->authorizationFailure($authorization, $exception);
+        }
+
+        if ($requirement === OpenIdInteractionRequirement::READY) {
+            if ($principal === null) {
+                return $this->oauth->authorizationFailure(
+                    $authorization,
+                    new OAuthProtocolException(
+                        'login_required',
+                        'The OpenID authorization request requires authentication.',
+                        400,
+                        true,
+                    ),
+                );
+            }
+
+            return $this->oauth->authorizationApproved($authorization, $principal);
+        }
+
+        if ($requirement === OpenIdInteractionRequirement::SUBJECT_AUTHENTICATION) {
+            return $this->oauth->authorizationFailure(
+                $authorization,
+                new OAuthProtocolException(
+                    'login_required',
+                    'The OpenID authorization request requires reauthentication.',
+                    400,
+                    true,
+                ),
+            );
+        }
+
+        if ($requirement === OpenIdInteractionRequirement::ACCOUNT_SELECTION) {
+            return $this->oauth->authorizationFailure(
+                $authorization,
+                new OAuthProtocolException(
+                    'account_selection_required',
+                    'The OpenID authorization request requires account selection.',
+                    400,
+                    true,
+                ),
+            );
+        }
+
+        return $this->consent($request, $authorization);
     }
 
     private function consent(
