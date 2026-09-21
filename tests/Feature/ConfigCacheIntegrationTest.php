@@ -239,7 +239,7 @@ it('keeps production requirements limited to the Foundation runtime core', funct
     ])->and($composer['minimum-stability'] ?? null)->toBe('stable')
         ->and($composer['require-dev']['infocyph/cachelayer'] ?? null)->toBe('^3.4')
         ->and($composer['require-dev']['infocyph/dblayer'] ?? null)->toBe('^5.1')
-        ->and($composer['require-dev']['infocyph/epicrypt'] ?? null)->toBe('^3.0')
+        ->and($composer['require-dev']['infocyph/epicrypt'] ?? null)->toBe('^3.1')
         ->and($composer['require-dev']['infocyph/omnibus'] ?? null)->toBe('^2.5')
         ->and($composer['require-dev']['infocyph/otp'] ?? null)->toBe('^6.1')
         ->and($composer['require-dev']['infocyph/pathwise'] ?? null)->toBe('^4.1')

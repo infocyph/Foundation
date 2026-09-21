@@ -18,6 +18,21 @@ final readonly class AuthSecretResolver
         private ConfigRepository $config,
     ) {}
 
+    public function environmentName(): string
+    {
+        $configured = $this->config->get('auth.token_secret_environment', self::DEFAULT_ENVIRONMENT);
+        if (
+            !is_string($configured)
+            || preg_match('/\A[A-Z][A-Z0-9_]{1,127}\z/D', $configured) !== 1
+        ) {
+            throw new ConfigurationException(
+                'auth.token_secret_environment must use uppercase shell-variable syntax.',
+            );
+        }
+
+        return $configured;
+    }
+
     public function tokenSecret(int $minimumBytes = 0): string
     {
         $this->assertNoRawConfiguredSecret();
@@ -43,20 +58,6 @@ final readonly class AuthSecretResolver
         }
 
         return $resolved;
-    }
-
-    public function environmentName(): string
-    {
-        $configured = $this->config->get('auth.token_secret_environment', self::DEFAULT_ENVIRONMENT);
-        if (!is_string($configured)
-            || preg_match('/\A[A-Z][A-Z0-9_]{1,127}\z/D', $configured) !== 1
-        ) {
-            throw new ConfigurationException(
-                'auth.token_secret_environment must use uppercase shell-variable syntax.',
-            );
-        }
-
-        return $configured;
     }
 
     private function assertNoRawConfiguredSecret(): void

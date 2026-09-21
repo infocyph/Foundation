@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Config;
 
-use Infocyph\ArrayKit\Config\Support\Environment;
 use Infocyph\Foundation\Auth\Driver\AuthCacheDriver;
 use Infocyph\Foundation\Auth\Driver\AuthMfaDriver;
 use Infocyph\Foundation\Auth\Driver\AuthNotificationDriver;
@@ -14,6 +13,7 @@ use Infocyph\Foundation\Auth\Driver\AuthStorageDriver;
 use Infocyph\Foundation\Auth\Driver\AuthTokenDriver;
 use Infocyph\Foundation\Auth\OAuth\Configuration\OAuthConfigValidator;
 use Infocyph\Foundation\Config\Internal\CacheTopologyValidator;
+use Infocyph\Foundation\Config\Internal\TokenSecretConfigValidator;
 
 final readonly class ConfigValidator
 {
@@ -125,24 +125,6 @@ final readonly class ConfigValidator
         return is_int($validated) ? $validated : null;
     }
 
-    private function resolvedTokenSecret(string $environment): ?string
-    {
-        $resolved = Environment::get($environment);
-
-        return is_string($resolved) && $resolved !== '' ? $resolved : null;
-    }
-
-    private function tokenSecretEnvironment(): ?string
-    {
-        $configured = $this->config->get('auth.token_secret_environment', 'AUTH_TOKEN_SECRET');
-        if (!is_string($configured)
-            || preg_match('/\A[A-Z][A-Z0-9_]{1,127}\z/D', $configured) !== 1
-        ) {
-            return null;
-        }
-
-        return $configured;
-    }
 
     private function runChecks(bool $assumeProduction): ConfigValidationResult
     {
@@ -171,7 +153,7 @@ final readonly class ConfigValidator
         if ($tokenDriver === AuthTokenDriver::SECURITY->value) {
             $this->validateSecurityTokenPolicy($issues, $assumeProduction);
         } elseif ($assumeProduction) {
-            $this->validateTokenSecret($issues, 32);
+            array_push($issues, ...new TokenSecretConfigValidator($this->config)->validate(32));
         }
 
         if ($storageDriver === AuthStorageDriver::DATABASE->value) {
@@ -387,63 +369,13 @@ final readonly class ConfigValidator
         }
 
         if ($minimumBytes > 0) {
-            $this->validateTokenSecret($issues, $minimumBytes, $assumeProduction);
-        }
-    }
-
-    /** @param list<ConfigIssue> $issues */
-    private function validateTokenSecret(array &$issues, int $minimumBytes, bool $required = true): void
-    {
-        $raw = $this->config->get('auth.token_secret');
-        if ($raw !== null && $raw !== '') {
-            $issues[] = new ConfigIssue(
-                'Raw auth.token_secret values are not allowed; use auth.token_secret_environment.',
-                'auth.token_secret',
-            );
-        }
-
-        $environment = $this->tokenSecretEnvironment();
-        if ($environment === null) {
-            $issues[] = new ConfigIssue(
-                'auth.token_secret_environment must use uppercase shell-variable syntax.',
-                'auth.token_secret_environment',
-            );
-
-            return;
-        }
-
-        $secret = $this->resolvedTokenSecret($environment);
-        if ($secret === null) {
-            if ($required) {
-                $issues[] = new ConfigIssue(
-                    sprintf('%s must provide the authentication token secret for the selected production token policy.', $environment),
-                    'auth.token_secret_environment',
-                );
-            }
-
-            return;
-        }
-
-        if (in_array($secret, [
-            'foundation-dev-secret',
-            'foundation-development-token-secret-change-me',
-            'foundation-development-token-secret-change-me-000000000000000000000000',
-        ], true)) {
-            $issues[] = new ConfigIssue(
-                'The authentication token secret must not use a development placeholder.',
-                'auth.token_secret_environment',
-            );
-
-            return;
-        }
-
-        if (strlen($secret) < $minimumBytes) {
-            $issues[] = new ConfigIssue(
-                sprintf('Authentication token secret must be at least %d bytes for the selected token policy.', $minimumBytes),
-                'auth.token_secret_environment',
+            array_push(
+                $issues,
+                ...new TokenSecretConfigValidator($this->config)->validate($minimumBytes, $assumeProduction),
             );
         }
     }
+
 
     /** @param list<ConfigIssue> $issues */
     private function validateWebAuthn(array &$issues, bool $assumeProduction): void

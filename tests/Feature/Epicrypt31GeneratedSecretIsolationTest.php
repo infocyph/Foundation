@@ -42,7 +42,7 @@ it('keeps runtime token roots out of generated InterMix artifacts', function (st
     $artifact = $project . '/bootstrap/cache/cli.php';
 
     try {
-        $report = new GeneratedRuntimeCompiler()->compile($config, RuntimeMode::Cli, $artifact);
+        $report = new GeneratedRuntimeCompiler()->compile($config, RuntimeMode::Cli, $artifact, ['auth']);
         foreach ([
             $artifact,
             $artifact . '.meta.json',
@@ -58,6 +58,7 @@ it('keeps runtime token roots out of generated InterMix artifacts', function (st
             $artifact,
             $report['metadata_sha256'],
             $report['digest'],
+            ['auth'],
         );
         $services = $runtime->application->make(AuthServices::class);
         $now = time();
