@@ -148,7 +148,15 @@ final readonly class AuthorizationCodeManager
                 $metadata,
                 AuthEventSeverity::WARNING,
             ),
-            default => null,
+            EpicryptConsumeStatus::INVALID,
+            EpicryptConsumeStatus::AUTHORIZATION_INACTIVE,
+            EpicryptConsumeStatus::CLIENT_MISMATCH,
+            EpicryptConsumeStatus::PKCE_MISMATCH,
+            EpicryptConsumeStatus::REDIRECT_MISMATCH => $this->audit?->record(
+                AuthEventType::OAUTH_INVALID_REQUEST,
+                metadata: $metadata,
+                severity: AuthEventSeverity::WARNING,
+            ),
         };
     }
 
