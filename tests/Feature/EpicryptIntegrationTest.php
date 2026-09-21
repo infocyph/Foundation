@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Infocyph\Epicrypt\Password\PasswordHasher;
+use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptPasswordVerifier;
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\AccessTokenClaims;
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\TokenAuthManager;
 use Infocyph\Foundation\Auth\AuthServices;
@@ -65,5 +67,27 @@ it('uses Epicrypt for configured Foundation token security', function (): void {
             ->and($services->tokens()->verifyAccessToken($issued->token ?? '')->successful())->toBeTrue();
     } finally {
         unset($_ENV[$environment]);
+    }
+});
+
+
+it('preserves legacy password verification and rehash signals through the Foundation adapter', function (): void {
+    $verifier = new EpicryptPasswordVerifier(new PasswordHasher());
+    $password = 'correct horse battery staple';
+
+    $bcrypt = password_hash($password, PASSWORD_BCRYPT, ['cost' => 10]);
+    $bcryptResult = $verifier->verify($password, $bcrypt);
+    expect($bcryptResult->verified)->toBeTrue()
+        ->and($bcryptResult->needsRehash)->toBeTrue()
+        ->and($bcryptResult->rehash)->toStartWith('$argon2id$');
+
+    if (defined('PASSWORD_ARGON2I') || in_array('argon2i', password_algos(), true)) {
+        $algorithm = defined('PASSWORD_ARGON2I') ? constant('PASSWORD_ARGON2I') : 'argon2i';
+        $argon2i = password_hash($password, $algorithm);
+        $argonResult = $verifier->verify($password, $argon2i);
+
+        expect($argonResult->verified)->toBeTrue()
+            ->and($argonResult->needsRehash)->toBeTrue()
+            ->and($argonResult->rehash)->toStartWith('$argon2id$');
     }
 });
