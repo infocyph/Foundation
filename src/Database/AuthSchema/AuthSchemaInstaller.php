@@ -112,6 +112,15 @@ final readonly class AuthSchemaInstaller
         $this->runner($connection)->reset(true);
     }
 
+    private function oauthSchema(): Migration
+    {
+        if (!$this->oauthRevisionSchema instanceof AuthOAuthRevisionSchema) {
+            throw new \LogicException('OAuth auth schema is enabled but its revision migration is unavailable.');
+        }
+
+        return $this->oauthRevisionSchema;
+    }
+
     private function personalAccessTokenSchema(): Migration
     {
         if (!$this->personalAccessTokenSchema instanceof AuthPersonalAccessTokenSchema) {
@@ -121,14 +130,5 @@ final readonly class AuthSchemaInstaller
         }
 
         return $this->personalAccessTokenSchema;
-    }
-
-    private function oauthSchema(): Migration
-    {
-        if (!$this->oauthRevisionSchema instanceof AuthOAuthRevisionSchema) {
-            throw new \LogicException('OAuth auth schema is enabled but its revision migration is unavailable.');
-        }
-
-        return $this->oauthRevisionSchema;
     }
 }

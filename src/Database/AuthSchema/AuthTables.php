@@ -153,6 +153,16 @@ final class AuthTables
         return 'auth_passkey_credentials';
     }
 
+    public function passwordResets(): string
+    {
+        return 'auth_password_resets';
+    }
+
+    public function permissions(): string
+    {
+        return 'auth_permissions';
+    }
+
     /** @return list<string> */
     public function personalAccess(): array
     {
@@ -162,24 +172,14 @@ final class AuthTables
         ];
     }
 
-    public function personalAccessTokenSubjects(): string
-    {
-        return 'auth_personal_access_token_subjects';
-    }
-
     public function personalAccessTokens(): string
     {
         return 'auth_personal_access_tokens';
     }
 
-    public function passwordResets(): string
+    public function personalAccessTokenSubjects(): string
     {
-        return 'auth_password_resets';
-    }
-
-    public function permissions(): string
-    {
-        return 'auth_permissions';
+        return 'auth_personal_access_token_subjects';
     }
 
     public function refreshTokens(): string

@@ -185,6 +185,39 @@ final class AuthDefaults
         ];
     }
 
+    /** @return list<mixed> */
+    private static function oauthAuthorizationCodeProtectionKeys(bool $enabled): array
+    {
+        return $enabled
+            ? self::jsonListEnvironment(
+                'AUTH_OAUTH_AUTHORIZATION_CODE_KEYS',
+                'AUTH_OAUTH_AUTHORIZATION_CODE_KEYS must be a valid JSON list.',
+            )
+            : [];
+    }
+
+    /** @return list<mixed> */
+    private static function oauthPublicKeys(bool $enabled): array
+    {
+        return $enabled
+            ? self::jsonListEnvironment(
+                'AUTH_OAUTH_PUBLIC_KEYS',
+                'AUTH_OAUTH_PUBLIC_KEYS must be a valid JSON list.',
+            )
+            : [];
+    }
+
+    /** @return list<mixed> */
+    private static function oauthRefreshTokenProtectionKeys(bool $enabled): array
+    {
+        return $enabled
+            ? self::jsonListEnvironment(
+                'AUTH_OAUTH_REFRESH_TOKEN_KEYS',
+                'AUTH_OAUTH_REFRESH_TOKEN_KEYS must be a valid JSON list.',
+            )
+            : [];
+    }
+
     /** @return array<string, mixed> */
     private static function openId(bool $oauthEnabled): array
     {
@@ -221,36 +254,12 @@ final class AuthDefaults
     }
 
     /** @return list<mixed> */
-    private static function oauthAuthorizationCodeProtectionKeys(bool $enabled): array
+    private static function otpSecretProtectionKeys(): array
     {
-        return $enabled
-            ? self::jsonListEnvironment(
-                'AUTH_OAUTH_AUTHORIZATION_CODE_KEYS',
-                'AUTH_OAUTH_AUTHORIZATION_CODE_KEYS must be a valid JSON list.',
-            )
-            : [];
-    }
-
-    /** @return list<mixed> */
-    private static function oauthRefreshTokenProtectionKeys(bool $enabled): array
-    {
-        return $enabled
-            ? self::jsonListEnvironment(
-                'AUTH_OAUTH_REFRESH_TOKEN_KEYS',
-                'AUTH_OAUTH_REFRESH_TOKEN_KEYS must be a valid JSON list.',
-            )
-            : [];
-    }
-
-    /** @return list<mixed> */
-    private static function oauthPublicKeys(bool $enabled): array
-    {
-        return $enabled
-            ? self::jsonListEnvironment(
-                'AUTH_OAUTH_PUBLIC_KEYS',
-                'AUTH_OAUTH_PUBLIC_KEYS must be a valid JSON list.',
-            )
-            : [];
+        return self::jsonListEnvironment(
+            'AUTH_OTP_SECRET_PROTECTION_KEYS',
+            'AUTH_OTP_SECRET_PROTECTION_KEYS must be a valid JSON list.',
+        );
     }
 
     /** @return array<string, mixed> */
@@ -278,14 +287,5 @@ final class AuthDefaults
                     : [],
             ],
         ];
-    }
-
-    /** @return list<mixed> */
-    private static function otpSecretProtectionKeys(): array
-    {
-        return self::jsonListEnvironment(
-            'AUTH_OTP_SECRET_PROTECTION_KEYS',
-            'AUTH_OTP_SECRET_PROTECTION_KEYS must be a valid JSON list.',
-        );
     }
 }

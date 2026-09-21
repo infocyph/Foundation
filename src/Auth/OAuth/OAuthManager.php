@@ -26,11 +26,11 @@ use Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException;
 use Infocyph\Foundation\Auth\OAuth\Exception\OAuthTokenException;
 use Infocyph\Foundation\Auth\OAuth\Metadata\AuthorizationServerMetadata;
 use Infocyph\Foundation\Auth\OAuth\Metadata\OpenIdMetadataProvider;
+use Infocyph\Foundation\Auth\OAuth\Token\OAuthAccessTokenValidator;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthClientAuthentication;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthIntrospectionManager;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthIntrospectionResult;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthRevocationManager;
-use Infocyph\Foundation\Auth\OAuth\Token\OAuthAccessTokenValidator;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthTokenManager;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthTokenResponse;
 use Infocyph\Foundation\Auth\Principal\PrincipalInterface;
@@ -237,6 +237,28 @@ final readonly class OAuthManager
         return $this->openIdMetadata->toArray();
     }
 
+    public function revoke(
+        #[\SensitiveParameter]
+        string $token,
+        OAuthClientAuthentication $authentication,
+        ?string $tokenTypeHint = null,
+    ): void {
+        $this->revocations->revoke($token, $authentication, $tokenTypeHint);
+    }
+
+    public function revokeConsent(PrincipalInterface $principal, string $clientId): int
+    {
+        $count = $this->consents->revoke($principal, $clientId);
+        if ($count > 0) {
+            $this->audit?->record(AuthEventType::OAUTH_AUTHORIZATION_REVOKED, $principal->accountId(), [
+                'client_id' => $clientId,
+                'reason' => 'consent_revoked',
+            ]);
+        }
+
+        return $count;
+    }
+
     /** @return array<string, mixed> */
     public function userInfo(
         #[\SensitiveParameter]
@@ -282,28 +304,6 @@ final readonly class OAuthManager
             $verified->client->clientId,
             $verified->claims->scopes,
         );
-    }
-
-    public function revoke(
-        #[\SensitiveParameter]
-        string $token,
-        OAuthClientAuthentication $authentication,
-        ?string $tokenTypeHint = null,
-    ): void {
-        $this->revocations->revoke($token, $authentication, $tokenTypeHint);
-    }
-
-    public function revokeConsent(PrincipalInterface $principal, string $clientId): int
-    {
-        $count = $this->consents->revoke($principal, $clientId);
-        if ($count > 0) {
-            $this->audit?->record(AuthEventType::OAUTH_AUTHORIZATION_REVOKED, $principal->accountId(), [
-                'client_id' => $clientId,
-                'reason' => 'consent_revoked',
-            ]);
-        }
-
-        return $count;
     }
 
     /** @param array<string, mixed> $parameters */
