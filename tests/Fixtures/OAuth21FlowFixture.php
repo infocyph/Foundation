@@ -27,6 +27,7 @@ use Infocyph\Epicrypt\Security\KeyStatus;
 use Infocyph\Epicrypt\Token\Jwt\Enum\AsymmetricJwtAlgorithm;
 use Infocyph\Epicrypt\Token\Jwt\Enum\JweKeyManagementAlgorithm;
 use Infocyph\Epicrypt\Token\Opaque\OpaqueToken;
+use Infocyph\Foundation\Auth\Account\AccountInterface;
 use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerEpicryptAccessTokenStatusStore;
 use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerEpicryptAuthorizationCodeStore;
 use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerEpicryptJwtReplayStore;
