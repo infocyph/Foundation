@@ -28,24 +28,54 @@ final readonly class FoundationOpenIdClaimsProvider implements OpenIdClaimsProvi
         }
 
         $metadata = $account->metadata();
-        $claims = [];
-        if (in_array('profile', $scopes, true)) {
-            foreach (self::PROFILE_CLAIMS as $name) {
-                $value = $metadata[$name] ?? null;
-                if (is_string($value) && $value !== '') {
-                    $claims[$name] = $value;
-                }
-            }
+
+        return [
+            ...$this->profileClaims($metadata, $scopes),
+            ...$this->emailClaims($metadata, $account->identifier(), $scopes),
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $metadata
+     * @param list<string> $scopes
+     * @return array<string, mixed>
+     */
+    private function emailClaims(array $metadata, string $identifier, array $scopes): array
+    {
+        if (!in_array('email', $scopes, true)) {
+            return [];
         }
 
-        if (in_array('email', $scopes, true)) {
-            $email = $metadata['email'] ?? $account->identifier();
-            if (is_string($email) && filter_var($email, FILTER_VALIDATE_EMAIL) !== false) {
-                $claims['email'] = $email;
-                $verified = $metadata['email_verified'] ?? null;
-                if (is_bool($verified)) {
-                    $claims['email_verified'] = $verified;
-                }
+        $email = $metadata['email'] ?? $identifier;
+        if (!is_string($email) || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+            return [];
+        }
+
+        $claims = ['email' => $email];
+        $verified = $metadata['email_verified'] ?? null;
+        if (is_bool($verified)) {
+            $claims['email_verified'] = $verified;
+        }
+
+        return $claims;
+    }
+
+    /**
+     * @param array<string, mixed> $metadata
+     * @param list<string> $scopes
+     * @return array<string, mixed>
+     */
+    private function profileClaims(array $metadata, array $scopes): array
+    {
+        if (!in_array('profile', $scopes, true)) {
+            return [];
+        }
+
+        $claims = [];
+        foreach (self::PROFILE_CLAIMS as $name) {
+            $value = $metadata[$name] ?? null;
+            if (is_string($value) && $value !== '') {
+                $claims[$name] = $value;
             }
         }
 
