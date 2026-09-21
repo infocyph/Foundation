@@ -56,7 +56,13 @@ it('serializes PAT issue against concurrent revoke-all for the same subject', fu
             $stderr = stream_get_contents($pipes[2]);
             fclose($pipes[1]);
             fclose($pipes[2]);
-            expect(proc_close($process), $stdout . $stderr)->toBe(0);
+            $exitCode = proc_close($process);
+            if ($exitCode !== 0) {
+                throw new RuntimeException(trim($stdout . $stderr) ?: sprintf(
+                    'PAT concurrency worker exited with code %d without diagnostics.',
+                    $exitCode,
+                ));
+            }
         }
 
         $record = $store->find('concurrent-token');
