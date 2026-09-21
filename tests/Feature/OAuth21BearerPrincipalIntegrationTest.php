@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerOAuthAccessRevocationStore;
 use Infocyph\Foundation\Auth\Authorization\Decision\AuthorizationDecision;
 use Infocyph\Foundation\Auth\Authorization\Gate\AuthorizerInterface;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthAccessTokenValidator;
@@ -32,15 +31,7 @@ it('resolves account and service OAuth bearer tokens into the existing principal
     try {
         $accountToken = oauth21AccountBearerToken($fixture, $audience);
         $serviceToken = oauth21ServiceBearerToken($fixture, $audience);
-        $validator = new OAuthAccessTokenValidator(
-            $fixture->accessTokens,
-            $fixture->clients,
-            $fixture->authorizationStore,
-            new DBLayerOAuthAccessRevocationStore($fixture->factory, $fixture->tables),
-            $fixture->scopes,
-            $fixture->accounts,
-            $fixture->clock,
-        );
+        $validator = $fixture->accessValidator;
         $resolver = new OAuthBearerTokenPrincipalResolver(new ConfigRepository([
             'auth' => [
                 'http' => [
@@ -162,7 +153,6 @@ function oauth21ServiceBearerToken(OAuth21FlowFixture $fixture, string $audience
     return $fixture->tokens->exchange([
         'grant_type' => OAuthGrantType::ClientCredentials->value,
         'scope' => 'service.read',
-        'audience' => $audience,
     ], new OAuthClientAuthentication(
         OAuthClientAuthenticationMethod::ClientSecretBasic,
         $registration->client->clientId,
