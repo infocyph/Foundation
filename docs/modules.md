@@ -29,7 +29,7 @@ uses the purpose name.
 | `resources` | built into Foundation |
 | `security` | `infocyph/epicrypt ^2.1` |
 | `session` | built into Foundation |
-| `validation` | `infocyph/reqshield ^3.1` |
+| `validation` | `infocyph/reqshield ^3.2` |
 
 Important aliases include:
 
