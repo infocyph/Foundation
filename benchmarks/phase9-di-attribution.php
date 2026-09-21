@@ -3,61 +3,15 @@
 declare(strict_types=1);
 
 use Composer\InstalledVersions;
-use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
-use Infocyph\Foundation\Application\ServiceProvider;
+use Infocyph\Foundation\Benchmarks\Support\Phase9DiNode;
+use Infocyph\Foundation\Benchmarks\Support\Phase9DiProvider;
+use Infocyph\Foundation\Benchmarks\Support\Phase9DiScopedProbe;
 use Infocyph\Foundation\Runtime\GeneratedRuntime;
 use Infocyph\Foundation\Runtime\GeneratedRuntimeCompiler;
 use Infocyph\InterMix\DI\ContainerBuilder;
-use Infocyph\InterMix\DI\Support\FactoryDefinition;
-use Infocyph\InterMix\DI\Support\LifetimeEnum;
-use Infocyph\InterMix\DI\Support\ServiceReference;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
-
-final readonly class Phase9DiLeaf
-{
-    public function __construct(public string $value) {}
-}
-
-final readonly class Phase9DiNode
-{
-    public function __construct(public Phase9DiLeaf $leaf) {}
-}
-
-final class Phase9DiScopedProbe
-{
-    public int $touches = 0;
-}
-
-final class Phase9DiProvider extends ServiceProvider
-{
-    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
-    {
-        unset($context);
-
-        phase9DiDefinitions($builder);
-    }
-}
-
-function phase9DiDefinitions(ContainerBuilder $builder): void
-{
-    $builder->bind(
-        Phase9DiLeaf::class,
-        FactoryDefinition::construct(Phase9DiLeaf::class, ['phase-9']),
-        LifetimeEnum::Singleton,
-    );
-    $builder->bind(
-        Phase9DiNode::class,
-        FactoryDefinition::construct(Phase9DiNode::class, [new ServiceReference(Phase9DiLeaf::class)]),
-        LifetimeEnum::Transient,
-    );
-    $builder->bind(
-        Phase9DiScopedProbe::class,
-        FactoryDefinition::construct(Phase9DiScopedProbe::class),
-        LifetimeEnum::Scoped,
-    );
-}
 
 /** @return array{median_ns:float,ops_per_second:float,min_ns:float,max_ns:float,samples_ns:list<float>} */
 function phase9DiMeasure(callable $operation, int $operations, int $repetitions, int $warmup): array
@@ -127,7 +81,7 @@ $foundationArtifact = $root . '/bootstrap/cache/cli.php';
 try {
     $directBuilder = ContainerBuilder::create('foundation.phase9.direct');
     $directBuilder->setEnvironment('production');
-    phase9DiDefinitions($directBuilder);
+    Phase9DiProvider::definitions($directBuilder);
     $directValidation = $directBuilder->validate(strict: true);
     $directCompile = $directBuilder->compile($directArtifact);
     $direct = $directBuilder->production($directArtifact);
