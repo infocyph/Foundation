@@ -85,10 +85,14 @@ final readonly class OAuthManager
     }
 
     /** @param array<string, mixed> $parameters */
-    public function exchange(array $parameters, OAuthClientAuthentication $authentication): OAuthTokenResponse
-    {
+    public function exchange(
+        array $parameters,
+        OAuthClientAuthentication $authentication,
+        #[\SensitiveParameter]
+        ?string $dpopProof = null,
+    ): OAuthTokenResponse {
         try {
-            $response = $this->tokens->exchange($parameters, $authentication);
+            $response = $this->tokens->exchange($parameters, $authentication, $dpopProof);
         } catch (OAuthProtocolException $exception) {
             $type = $exception->error === 'invalid_client'
                 ? AuthEventType::OAUTH_CLIENT_AUTH_FAILURE
