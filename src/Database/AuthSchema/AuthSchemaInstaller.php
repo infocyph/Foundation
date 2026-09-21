@@ -20,6 +20,8 @@ final readonly class AuthSchemaInstaller
         private AuthTables $tables,
         private ?AuthOAuthRevisionSchema $oauthRevisionSchema = null,
         private bool $oauthEnabled = false,
+        private ?AuthPersonalAccessTokenSchema $personalAccessTokenSchema = null,
+        private bool $personalAccessTokensEnabled = false,
     ) {}
 
     public function install(?string $connection = null): void
@@ -49,6 +51,9 @@ final readonly class AuthSchemaInstaller
         $requiredTables = $this->tables->all();
         if ($this->oauthEnabled) {
             array_push($requiredTables, ...$this->tables->oauth());
+        }
+        if ($this->personalAccessTokensEnabled) {
+            array_push($requiredTables, ...$this->tables->personalAccess());
         }
 
         foreach ($requiredTables as $table) {
@@ -92,6 +97,9 @@ final readonly class AuthSchemaInstaller
             $migrations[] = new AuthOAuthEpicryptRevisionSchema($this->tables);
             $migrations[] = new AuthOAuthEpicryptProtocolSchema($this->tables);
         }
+        if ($this->personalAccessTokensEnabled) {
+            $migrations[] = $this->personalAccessTokenSchema();
+        }
 
         return new MigrationRunner(
             $this->factory->connection($connection),
@@ -102,6 +110,17 @@ final readonly class AuthSchemaInstaller
     public function uninstall(?string $connection = null): void
     {
         $this->runner($connection)->reset(true);
+    }
+
+    private function personalAccessTokenSchema(): Migration
+    {
+        if (!$this->personalAccessTokenSchema instanceof AuthPersonalAccessTokenSchema) {
+            throw new \LogicException(
+                'Personal-access-token schema is enabled but its migration is unavailable.',
+            );
+        }
+
+        return $this->personalAccessTokenSchema;
     }
 
     private function oauthSchema(): Migration

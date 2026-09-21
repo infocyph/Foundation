@@ -153,6 +153,25 @@ final class AuthTables
         return 'auth_passkey_credentials';
     }
 
+    /** @return list<string> */
+    public function personalAccess(): array
+    {
+        return [
+            $this->personalAccessTokenSubjects(),
+            $this->personalAccessTokens(),
+        ];
+    }
+
+    public function personalAccessTokenSubjects(): string
+    {
+        return 'auth_personal_access_token_subjects';
+    }
+
+    public function personalAccessTokens(): string
+    {
+        return 'auth_personal_access_tokens';
+    }
+
     public function passwordResets(): string
     {
         return 'auth_password_resets';

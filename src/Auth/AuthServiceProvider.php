@@ -21,6 +21,7 @@ use Infocyph\Foundation\Auth\Internal\AuthMfaRegistrar;
 use Infocyph\Foundation\Auth\Internal\AuthNotificationRegistrar;
 use Infocyph\Foundation\Auth\Internal\AuthOAuthRegistrar;
 use Infocyph\Foundation\Auth\Internal\AuthPasskeyRegistrar;
+use Infocyph\Foundation\Auth\Internal\AuthPersonalAccessTokenRegistrar;
 use Infocyph\Foundation\Auth\Internal\AuthPasswordRegistrar;
 use Infocyph\Foundation\Auth\Internal\AuthProductionGuard;
 use Infocyph\Foundation\Auth\Internal\AuthRuntimeRegistrar;
@@ -64,6 +65,7 @@ final class AuthServiceProvider extends ServiceProvider
         new AuthTokenRegistrar($app, $builder, $secrets, $epicryptTokens)->register($drivers);
         new AuthMfaRegistrar($app, $builder)->register($drivers);
         new AuthPasskeyRegistrar($app, $builder)->register($drivers);
+        new AuthPersonalAccessTokenRegistrar($app, $builder)->register();
         new AuthNotificationRegistrar($app, $builder)->register($drivers);
         new AuthManagerRegistrar($app, $builder)->register($drivers);
         new AuthAuthorizationRegistrar($app, $builder)->register();

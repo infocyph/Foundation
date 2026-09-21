@@ -44,6 +44,7 @@ final class AuthDefaults
                     'window_seconds' => 900,
                 ],
                 'oauth' => self::oauth(),
+                'personal_access_tokens' => self::personalAccessTokens(),
                 'otp' => [
                     'issuer' => 'Foundation',
                     'hotp' => [
@@ -213,6 +214,33 @@ final class AuthDefaults
                 'AUTH_OAUTH_PUBLIC_KEYS must be a valid JSON list.',
             )
             : [];
+    }
+
+    /** @return array<string, mixed> */
+    private static function personalAccessTokens(): array
+    {
+        $enabled = env_bool('AUTH_PAT_ENABLED', false);
+
+        return [
+            'enabled' => $enabled,
+            'issuer' => $enabled ? env('AUTH_PAT_ISSUER') : null,
+            'audience' => $enabled ? env('AUTH_PAT_AUDIENCE') : null,
+            'default_lifetime_seconds' => 2_592_000,
+            'maximum_lifetime_seconds' => 31_536_000,
+            'wildcard_policy' => 'disabled',
+            'last_used_write_interval_seconds' => 300,
+            'signing' => [
+                'algorithm' => 'ES256',
+                'active_key_id' => $enabled ? env('AUTH_PAT_ACTIVE_KEY_ID') : null,
+                'private_key' => $enabled ? env('AUTH_PAT_PRIVATE_KEY') : null,
+                'public_keys' => $enabled
+                    ? self::jsonListEnvironment(
+                        'AUTH_PAT_PUBLIC_KEYS',
+                        'AUTH_PAT_PUBLIC_KEYS must be a valid JSON list.',
+                    )
+                    : [],
+            ],
+        ];
     }
 
     /** @return list<mixed> */
