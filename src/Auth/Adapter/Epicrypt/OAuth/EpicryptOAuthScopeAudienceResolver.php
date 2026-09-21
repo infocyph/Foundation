@@ -42,8 +42,10 @@ final readonly class EpicryptOAuthScopeAudienceResolver implements OAuthScopeAud
         }
     }
 
-    /** @param list<string> $scopes @return list<string> */
-    /** @param list<string> $scopes @return list<string> */
+    /**
+     * @param list<string> $scopes
+     * @return list<string>
+     */
     private function mappedAudiences(array $scopes): array
     {
         $mapping = $this->config->get('auth.oauth.scope_audiences', []);
@@ -51,6 +53,7 @@ final readonly class EpicryptOAuthScopeAudienceResolver implements OAuthScopeAud
             return [];
         }
 
+        /** @var array<string, true> $selected */
         $selected = [];
         foreach ($scopes as $scope) {
             $configured = $mapping[$scope] ?? null;
@@ -65,6 +68,6 @@ final readonly class EpicryptOAuthScopeAudienceResolver implements OAuthScopeAud
             }
         }
 
-        return array_values(array_keys($selected));
+        return array_keys($selected);
     }
 }

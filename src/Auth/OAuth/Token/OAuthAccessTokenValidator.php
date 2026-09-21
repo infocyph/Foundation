@@ -94,7 +94,6 @@ final readonly class OAuthAccessTokenValidator
             }
         }
 
-        /** @var list<string> $value */
         return $value;
     }
 
@@ -139,7 +138,6 @@ final readonly class OAuthAccessTokenValidator
                 }
             }
 
-            /** @var list<string> $value */
             return $value;
         }
 

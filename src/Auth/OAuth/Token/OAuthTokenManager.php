@@ -87,7 +87,10 @@ final readonly class OAuthTokenManager
         );
     }
 
-    /** @return list<string>|null */
+    /**
+     * @param array<string, mixed> $parameters
+     * @return list<string>|null
+     */
     private function optionalSpaceList(array $parameters, string $name): ?array
     {
         if (!array_key_exists($name, $parameters)) {
@@ -103,7 +106,6 @@ final readonly class OAuthTokenManager
             throw OAuthProtocolException::invalidRequest();
         }
 
-        /** @var list<string> $values */
         return $values;
     }
 
@@ -136,7 +138,7 @@ final readonly class OAuthTokenManager
                     'client_id' => $record->grant->clientId,
                     'authorization_id' => $record->grant->authorizationId,
                     'result' => 'rotated',
-                    'scopes' => $result->response?->scopes ?? [],
+                    'scopes' => $result->response->scopes,
                     'audiences' => $record->grant->audiences,
                 ],
             );
