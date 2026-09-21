@@ -367,6 +367,8 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
             $openId ? $this->ref(OpenIdMetadataProvider::class) : null,
             $openId ? $this->ref(OpenIdUserInfoProjector::class) : null,
             $openId ? $this->ref(OAuthAccessTokenValidator::class) : null,
+            $openId ? $this->ref(OpenIdInteractionPolicy::class) : null,
+            $openId ? $this->ref(ClockInterface::class) : null,
         ]);
         $this->recipe(OAuthHttpInput::class, OAuthHttpInput::class);
         $this->recipe(OAuthHttpResponseFactory::class, OAuthHttpResponseFactory::class);
