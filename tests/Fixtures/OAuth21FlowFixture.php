@@ -243,7 +243,7 @@ final class OAuth21FlowFixture
             null,
             $psrClock,
         );
-        $this->tokens = new OAuthTokenManager($endpoint, $authentication);
+        $this->tokens = new OAuthTokenManager($endpoint, $authentication, $this->refreshTokens);
 
         $resourceValidator = new OAuthResourceAccessTokenValidator($nativeAccess);
         $this->accessValidator = new OAuthAccessTokenValidator(

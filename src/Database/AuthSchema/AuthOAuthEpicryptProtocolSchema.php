@@ -22,14 +22,27 @@ final readonly class AuthOAuthEpicryptProtocolSchema implements Migration
     {
         $refresh = $this->tables->oauthRefreshTokens();
         if ($schema->hasTable($refresh)) {
-            $schema->table($refresh, static function (Blueprint $table) use ($schema, $refresh): void {
-                if ($schema->hasColumn($refresh, 'dpop_jkt')) {
-                    $table->dropColumn('dpop_jkt');
-                }
-                if ($schema->hasColumn($refresh, 'idle_expires_at')) {
-                    $table->dropColumn('idle_expires_at');
-                }
-            });
+            $dropDpop = $schema->hasColumn($refresh, 'dpop_jkt');
+            $dropIdle = $schema->hasColumn($refresh, 'idle_expires_at');
+
+            if ($dropDpop || $dropIdle) {
+                $schema->table($refresh, static function (Blueprint $table) use ($dropDpop, $dropIdle): void {
+                    if ($dropDpop) {
+                        $table->dropIndex('auth_oauth_refresh_tokens_dpop_jkt_index');
+                    }
+                    if ($dropIdle) {
+                        $table->dropIndex('auth_oauth_refresh_tokens_idle_expires_at_index');
+                    }
+                });
+                $schema->table($refresh, static function (Blueprint $table) use ($dropDpop, $dropIdle): void {
+                    if ($dropDpop) {
+                        $table->dropColumn('dpop_jkt');
+                    }
+                    if ($dropIdle) {
+                        $table->dropColumn('idle_expires_at');
+                    }
+                });
+            }
         }
 
         $schema->dropIfExists($this->tables->oauthReplayStates());

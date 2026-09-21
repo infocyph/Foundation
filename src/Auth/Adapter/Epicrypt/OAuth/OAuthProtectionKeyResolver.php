@@ -49,7 +49,7 @@ final readonly class OAuthProtectionKeyResolver
     {
         $root = hash(
             'sha256',
-            'foundation-development-only-oauth-root:' . $purpose->value,
+            'foundation-development-only-oauth-root:' . $purpose->name,
             true,
         );
 
