@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use Composer\InstalledVersions;
+use Infocyph\Foundation\Benchmarks\Support\Phase0Leaf;
+use Infocyph\Foundation\Benchmarks\Support\Phase0Node;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
@@ -10,16 +12,6 @@ use Infocyph\InterMix\DI\Support\ServiceReference;
 
 $autoload = getenv('PHASE0_AUTOLOAD') ?: dirname(__DIR__) . '/vendor/autoload.php';
 require $autoload;
-
-final readonly class Phase0Leaf
-{
-    public function __construct(public string $value) {}
-}
-
-final readonly class Phase0Node
-{
-    public function __construct(public Phase0Leaf $leaf) {}
-}
 
 /** @return array{median_ns:float,ops_per_second:float,min_ns:float,max_ns:float} */
 function benchmark(callable $operation, int $operations, int $repetitions): array
