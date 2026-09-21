@@ -74,7 +74,7 @@ Phase 10 remains the final aggregate release-readiness pass after every open low
 | 26.4 | OTP / Passkey | `^6.1` | **complete** |
 | 26.5 | Pathwise | `^4.1` | **complete** |
 | 26.6 | DBLayer | `^5.1` | **complete** |
-| 26.7 | ReqShield | `^3.1` | **ACTIVE** |
+| 26.7 | ReqShield | `^3.2` | **complete** |
 | 26.8 | Omnibus | `^2.5` | open/deferred |
 | 26.9 | TalkingBytes | `^2.0` | open/deferred |
 | 26.10 | Epicrypt | `^3.1` | **complete** |
@@ -94,11 +94,10 @@ Epicrypt `3.0` was released on **2026-09-10** and established the stable 3.x bou
 
 ## 4. Current execution order
 
-1. Execute 26.7 ReqShield 3.1 utilization and exact-head acceptance.
-2. Execute 26.8 Omnibus 2.5 utilization and exact-head acceptance.
-3. Execute 26.9 TalkingBytes 2.0 utilization and exact-head acceptance.
-4. Run aggregate Phase 10 / Foundation release-readiness gates.
-5. Validate the final InfByte consumption/handoff against the completed Foundation 3 lifecycle.
+1. Execute 26.8 Omnibus 2.5 utilization and exact-head acceptance.
+2. Execute 26.9 TalkingBytes 2.0 utilization and exact-head acceptance.
+3. Run aggregate Phase 10 / Foundation release-readiness gates.
+4. Validate the final InfByte consumption/handoff against the completed Foundation 3 lifecycle.
 
 Do not reopen finalized lower-library architecture merely to make Foundation integration easier.
 
@@ -198,23 +197,32 @@ Foundation uses execution-owned DBLayer connections/`ConnectionRepository`, dele
 
 ---
 
-## 26.7 ReqShield 3.1 utilization — open/deferred
+## 26.7 ReqShield 3.2 utilization — complete
 
 ### Ownership
 
-ReqShield owns rule parsing/compilation/execution, sanitization/casting, nested/wildcard validation, limits, result/failure models, schema composition/JSON-schema export, bounded plan caching and optional database-rule batching. Foundation owns named application schemas/defaults/overrides, Webrick input adaptation, optional DBLayer provider selection and HTTP/application error mapping.
+ReqShield owns rule parsing/compilation/execution, sanitization/casting, nested/wildcard validation, input limits, result/failure models, schema snapshots, frozen compiled validators, bounded execution-plan caches, JSON-schema export, database-rule batching and the native DBLayer 5.1 provider. Foundation owns application schema/default/override selection, Webrick/request adaptation, graph activation, configured connection selection and HTTP/application error mapping.
 
-### Open work
+### Closure evidence
 
-- [ ] Rescan Foundation ReqShield usage against 3.1 and remove duplicated mechanics.
-- [ ] Freeze production schema topology; normal execution must not mutate process-wide registration.
-- [ ] Keep DB validation optional/lazy and reuse ReqShield database batching/DBLayer parameter limits.
-- [ ] Preserve validation bounds as security controls and structured failure results internally.
-- [ ] Prove non-DB validation does no DB I/O and persistent/Fiber validation retains no prior mutable state.
-- [ ] Benchmark direct ReqShield vs Foundation schema/factory/database bridge.
+- [X] Foundation Composer/module floor is `^3.2`.
+- [X] Foundation consumes ReqShield's native instance-owned `SchemaRegistry`; application/base schemas and configured extensions are composed once and the registry is frozen before normal execution.
+- [X] the duplicate Foundation `ValidationSchemaRegistry` was removed.
+- [X] Foundation consumes ReqShield 3.2 `DBLayerDatabaseProvider` directly with an execution-time DBLayer connection resolver; the duplicate Foundation database provider was removed.
+- [X] ReqShield remains authoritative for SQL identifier allowlisting, logical validation batching, DBLayer-safe physical sizing, NULL/ignore/soft-delete semantics and raw-SQL-policy fallback.
+- [X] database validation remains optional/lazy; non-database validation proves it does not create/open the configured SQLite database.
+- [X] configured input-depth/field/wildcard/flattened-path limits remain Foundation-exposed security policy over ReqShield enforcement.
+- [X] ReqShield 3.2 frozen `CompiledValidator` reuse is covered across sequential and Fiber-interleaved execution without prior request-state leakage.
+- [X] direct provider tests cover exists/unique, constrained bind limits, ignored owners, soft deletes and malicious table/column identifier rejection.
+- [X] `benchmark:reqshield` records direct ReqShield compiled/factory/database work versus the Foundation profile/schema adapter, and is part of `benchmark:release`.
+- [X] module installer/docs and Composer metadata consistently advertise ReqShield `^3.2`.
+- [X] exact-head PHPForge run #1421 is green across PHP 8.4/8.5 prefer-stable/prefer-lowest QA, PHPStan/Psalm analysis, clean install and both release benchmark jobs.
 
-**Status:** ACTIVE — next lower-library utilization pass.
+### Completion gate
 
+26.7 is closed: Foundation adds only application composition/profile policy, while ReqShield 3.2 owns reusable frozen validation topology, plan caching and the DBLayer database-rule bridge. Optional DB capability stays cold until selected, persistent/Fiber isolation is proven, and direct-versus-Foundation attribution is recorded.
+
+**Status:** [X] COMPLETE.
 ---
 
 ## 26.8 Omnibus 2.5 utilization — open/deferred
@@ -233,7 +241,7 @@ Omnibus owns envelope/bus/routing/transports/consumer/retry/failure/workflow/wor
 - [ ] Prove sync/memory/durable topology, retries/failures, persistent isolation and capability-absent cold paths.
 - [ ] Benchmark direct Omnibus versus Foundation bridge.
 
-**Status:** deferred until 26.10/26.4 closure.
+**Status:** ACTIVE — next lower-library utilization pass.
 
 ---
 
@@ -352,7 +360,7 @@ OTP 6.1 `Passkey` is the Foundation-facing WebAuthn ceremony/state boundary. Fou
 
 # 27. Aggregate Foundation 3 release-readiness after lower-library passes
 
-Run after the remaining active lower-library passes 26.7/26.8/26.9 are closed; 26.4, 26.5 and 26.10 are complete.
+Run after the remaining active lower-library passes 26.8/26.9 are closed; 26.4, 26.5, 26.7 and 26.10 are complete.
 
 - [ ] Composer normal install/release constraints pass on PHP 8.4/8.5, prefer-lowest and prefer-stable.
 - [ ] PHPForge quality/static/security analysis is green.
@@ -368,4 +376,4 @@ Run after the remaining active lower-library passes 26.7/26.8/26.9 are closed; 2
 
 ## Immediate handoff
 
-Begin **26.7 ReqShield 3.1 utilization**. Rescan Foundation validation against the released 3.1 API, freeze production schema topology, keep DB validation optional/lazy, prove non-DB/Fiber/persistent isolation, add direct-vs-Foundation attribution, and close it on exact-head PHPForge QA before proceeding to 26.8 Omnibus and 26.9 TalkingBytes.
+Begin **26.8 Omnibus 2.5 utilization**. Rescan Foundation messaging against the released 2.5 API, consume native durable DBLayer/CacheLayer integrations rather than recreating them, keep durable capability selection lazy, require intentional durable failure policy, bind after-commit behavior to the current execution connection, prove retry/failure/persistent isolation, add direct-vs-Foundation attribution, and close it on exact-head PHPForge QA before proceeding to 26.9 TalkingBytes.
