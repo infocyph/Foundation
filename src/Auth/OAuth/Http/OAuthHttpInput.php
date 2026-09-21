@@ -11,7 +11,9 @@ use Infocyph\Webrick\Request\Request;
 
 final readonly class OAuthHttpInput
 {
-    private const array FORBIDDEN_CREDENTIAL_PARAMETERS = [
+    private const string ASSERTION_TYPE = 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer';
+
+    private const array CREDENTIAL_PARAMETERS = [
         'client_secret',
         'client_assertion',
         'client_assertion_type',
@@ -59,8 +61,10 @@ final readonly class OAuthHttpInput
 
         $authorization = $headers[0];
         if ($authorization !== '') {
-            if (array_key_exists('client_id', $parameters)) {
-                throw OAuthProtocolException::invalidRequest('Client identity must not be supplied by multiple authentication sources.');
+            if (array_key_exists('client_id', $parameters)
+                || $this->containsBodyCredentials($parameters)
+            ) {
+                throw OAuthProtocolException::invalidRequest('Client identity or credentials must not be supplied by multiple authentication sources.');
             }
             if (preg_match('/\ABasic[ \t]+([^ \t]+)\z/iD', $authorization, $match) !== 1) {
                 throw OAuthProtocolException::invalidClient();
@@ -92,6 +96,39 @@ final readonly class OAuthHttpInput
             throw OAuthProtocolException::invalidClient();
         }
 
+        $secret = $parameters['client_secret'] ?? null;
+        $assertion = $parameters['client_assertion'] ?? null;
+        $assertionType = $parameters['client_assertion_type'] ?? null;
+        if ($secret !== null && ($assertion !== null || $assertionType !== null)) {
+            throw OAuthProtocolException::invalidRequest('OAuth client authentication methods must not be combined.');
+        }
+        if ($assertion !== null || $assertionType !== null) {
+            if (!is_string($assertion)
+                || $assertion === ''
+                || strlen($assertion) > 16_384
+                || $assertionType !== self::ASSERTION_TYPE
+            ) {
+                throw OAuthProtocolException::invalidClient();
+            }
+
+            return new OAuthClientAuthentication(
+                OAuthClientAuthenticationMethod::PrivateKeyJwt,
+                $clientId,
+                assertion: $assertion,
+            );
+        }
+        if ($secret !== null) {
+            if (!is_string($secret) || !$this->validCredential($secret, 4_096)) {
+                throw OAuthProtocolException::invalidClient();
+            }
+
+            return new OAuthClientAuthentication(
+                OAuthClientAuthenticationMethod::ClientSecretPost,
+                $clientId,
+                $secret,
+            );
+        }
+
         return new OAuthClientAuthentication(OAuthClientAuthenticationMethod::None, $clientId);
     }
 
@@ -108,10 +145,7 @@ final readonly class OAuthHttpInput
             throw OAuthProtocolException::invalidRequest('OAuth protocol endpoints require application/x-www-form-urlencoded.');
         }
 
-        $parameters = $this->parseEncoded((string) $request->getBody(), $this->maximumFormBytes);
-        $this->rejectCredentialParameters($parameters);
-
-        return $parameters;
+        return $this->parseEncoded((string) $request->getBody(), $this->maximumFormBytes);
     }
 
     /** @return array<string, string> */
@@ -165,9 +199,18 @@ final readonly class OAuthHttpInput
     }
 
     /** @param array<string, string> $parameters */
+    private function containsBodyCredentials(array $parameters): bool
+    {
+        return array_any(
+            self::CREDENTIAL_PARAMETERS,
+            static fn(string $name): bool => array_key_exists($name, $parameters),
+        );
+    }
+
+    /** @param array<string, string> $parameters */
     private function rejectCredentialParameters(array $parameters): void
     {
-        foreach (self::FORBIDDEN_CREDENTIAL_PARAMETERS as $name) {
+        foreach (self::CREDENTIAL_PARAMETERS as $name) {
             if (array_key_exists($name, $parameters)) {
                 throw OAuthProtocolException::invalidRequest('Client credentials must use client_secret_basic.');
             }

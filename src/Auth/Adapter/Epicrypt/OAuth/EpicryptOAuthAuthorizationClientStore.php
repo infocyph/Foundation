@@ -6,6 +6,7 @@ namespace Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth;
 
 use Infocyph\Epicrypt\Auth\OAuth\OAuthClient as EpicryptOAuthClient;
 use Infocyph\Epicrypt\Auth\OAuth\OAuthClientAuthenticationMethod as EpicryptOAuthClientAuthenticationMethod;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthClientKeySet;
 use Infocyph\Epicrypt\Auth\OAuth\OAuthClientSecret;
 use Infocyph\Epicrypt\Auth\OAuth\OAuthClientStoreInterface as EpicryptOAuthClientStoreInterface;
 use Infocyph\Epicrypt\Auth\OAuth\OAuthClientType as EpicryptOAuthClientType;
@@ -24,6 +25,20 @@ final readonly class EpicryptOAuthAuthorizationClientStore implements EpicryptOA
     public function __construct(
         private OAuthClientManager $clients,
     ) {}
+
+    private function assertionKeys(OAuthClient $client): ?OAuthClientKeySet
+    {
+        if ($client->authenticationMethod->value !== EpicryptOAuthClientAuthenticationMethod::PRIVATE_KEY_JWT->value) {
+            return null;
+        }
+
+        $jwks = $client->metadata['assertion_jwks'] ?? null;
+        if (!is_array($jwks) || $jwks === []) {
+            return null;
+        }
+
+        return new OAuthClientKeySet($jwks);
+    }
 
     public function find(string $clientId): ?EpicryptOAuthClient
     {
@@ -46,6 +61,7 @@ final readonly class EpicryptOAuthAuthorizationClientStore implements EpicryptOA
                 audiences: $client->audiences,
                 authenticationMethods: [EpicryptOAuthClientAuthenticationMethod::from($client->authenticationMethod->value)],
                 secret: $client->secretHash === null ? null : OAuthClientSecret::fromHash($client->secretHash),
+                assertionKeys: $this->assertionKeys($client),
             );
         } catch (ConfigurationException|\ValueError) {
             return null;

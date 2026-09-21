@@ -13,15 +13,47 @@ final readonly class OAuthClientAuthentication
         public string $clientId,
         #[\SensitiveParameter]
         public ?string $secret = null,
+        #[\SensitiveParameter]
+        public ?string $assertion = null,
     ) {
         if ($this->clientId === '' || strlen($this->clientId) > 128) {
             throw new \InvalidArgumentException('OAuth client authentication is invalid.');
         }
-        if ($this->method === OAuthClientAuthenticationMethod::None && $this->secret !== null) {
-            throw new \InvalidArgumentException('Public OAuth client authentication must not contain a secret.');
+
+        match ($this->method) {
+            OAuthClientAuthenticationMethod::None => $this->assertNone(),
+            OAuthClientAuthenticationMethod::ClientSecretBasic,
+            OAuthClientAuthenticationMethod::ClientSecretPost => $this->assertSecret(),
+            OAuthClientAuthenticationMethod::PrivateKeyJwt => $this->assertAssertion(),
+        };
+    }
+
+    private function assertAssertion(): void
+    {
+        if ($this->secret !== null
+            || !is_string($this->assertion)
+            || $this->assertion === ''
+            || strlen($this->assertion) > 16_384
+        ) {
+            throw new \InvalidArgumentException('private_key_jwt authentication requires exactly one bounded assertion.');
         }
-        if ($this->method === OAuthClientAuthenticationMethod::ClientSecretBasic && ($this->secret === null || $this->secret === '')) {
-            throw new \InvalidArgumentException('Confidential OAuth client authentication requires a secret.');
+    }
+
+    private function assertNone(): void
+    {
+        if ($this->secret !== null || $this->assertion !== null) {
+            throw new \InvalidArgumentException('Public OAuth client authentication must not contain credentials.');
+        }
+    }
+
+    private function assertSecret(): void
+    {
+        if (!is_string($this->secret)
+            || $this->secret === ''
+            || strlen($this->secret) > 4_096
+            || $this->assertion !== null
+        ) {
+            throw new \InvalidArgumentException('OAuth client-secret authentication requires exactly one bounded secret.');
         }
     }
 }
