@@ -13,13 +13,6 @@ use Infocyph\InterMix\DI\Support\ServiceReference;
 
 final class Phase9DiProvider extends ServiceProvider
 {
-    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
-    {
-        unset($context);
-
-        self::definitions($builder);
-    }
-
     public static function definitions(ContainerBuilder $builder): void
     {
         $builder->bind(
@@ -37,5 +30,12 @@ final class Phase9DiProvider extends ServiceProvider
             FactoryDefinition::construct(Phase9DiScopedProbe::class),
             LifetimeEnum::Scoped,
         );
+    }
+
+    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
+    {
+        unset($context);
+
+        self::definitions($builder);
     }
 }
