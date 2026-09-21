@@ -45,6 +45,26 @@ final readonly class OAuthProtectionKeyResolver
         );
     }
 
+    private function developmentKeyRing(KeyPurpose $purpose, string $label, string $issuer): KeyRing
+    {
+        $root = hash(
+            'sha256',
+            'foundation-development-only-oauth-root:' . $purpose->value,
+            true,
+        );
+
+        return new KeyRing([
+            new KeyRingEntry(
+                id: 'development',
+                key: new KeyDeriver()->derivePurposeKeyBinary($root, $label, $issuer, 32),
+                status: KeyStatus::ACTIVE,
+                purpose: $purpose,
+                algorithm: JweKeyManagementAlgorithm::DIRECT->value,
+                issuer: $issuer,
+            ),
+        ], new EpicryptClockAdapter($this->clock));
+    }
+
     private function issuer(): string
     {
         $issuer = $this->config->get('auth.oauth.issuer');
@@ -72,11 +92,18 @@ final readonly class OAuthProtectionKeyResolver
     private function resolve(string $configKey, KeyPurpose $purpose, string $label): KeyRing
     {
         $configured = $this->config->get($configKey, []);
-        if (!is_array($configured) || $configured === [] || !array_is_list($configured) || count($configured) > 8) {
-            throw new ConfigurationException(sprintf('%s must contain between 1 and 8 key locators.', $configKey));
+        if (!is_array($configured) || !array_is_list($configured) || count($configured) > 8) {
+            throw new ConfigurationException(sprintf('%s must contain at most 8 key locators.', $configKey));
         }
 
         $issuer = $this->issuer();
+        if ($configured === []) {
+            if ($this->config->isProduction()) {
+                throw new ConfigurationException(sprintf('%s must contain between 1 and 8 key locators.', $configKey));
+            }
+
+            return $this->developmentKeyRing($purpose, $label, $issuer);
+        }
         $deriver = new KeyDeriver();
         $entries = [];
         foreach ($configured as $item) {

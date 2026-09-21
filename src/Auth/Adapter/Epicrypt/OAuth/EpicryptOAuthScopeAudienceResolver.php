@@ -35,12 +35,14 @@ final readonly class EpicryptOAuthScopeAudienceResolver implements OAuthScopeAud
         }
 
         try {
+            /** @var list<string> $audiences */
             return $this->scopes->resolve($foundation, $scopes, $audiences)->audiences;
         } catch (\InvalidArgumentException) {
             return [];
         }
     }
 
+    /** @param list<string> $scopes @return list<string> */
     /** @param list<string> $scopes @return list<string> */
     private function mappedAudiences(array $scopes): array
     {
@@ -63,6 +65,6 @@ final readonly class EpicryptOAuthScopeAudienceResolver implements OAuthScopeAud
             }
         }
 
-        return array_keys($selected);
+        return array_values(array_keys($selected));
     }
 }

@@ -61,38 +61,49 @@ final readonly class OAuthHttpInput
 
         $authorization = $headers[0];
         if ($authorization !== '') {
-            if (array_key_exists('client_id', $parameters)
-                || $this->containsBodyCredentials($parameters)
-            ) {
-                throw OAuthProtocolException::invalidRequest('Client identity or credentials must not be supplied by multiple authentication sources.');
-            }
-            if (preg_match('/\ABasic[ \t]+([^ \t]+)\z/iD', $authorization, $match) !== 1) {
-                throw OAuthProtocolException::invalidClient();
-            }
-            if (strlen($match[1]) > 8192) {
-                throw OAuthProtocolException::invalidClient();
-            }
-
-            $decoded = base64_decode($match[1], true);
-            if (!is_string($decoded) || !str_contains($decoded, ':')) {
-                throw OAuthProtocolException::invalidClient();
-            }
-            [$encodedClientId, $encodedSecret] = explode(':', $decoded, 2);
-            $clientId = $this->decodeComponent($encodedClientId);
-            $secret = $this->decodeComponent($encodedSecret);
-            if (!$this->validCredential($clientId, 128) || !$this->validCredential($secret, 4096)) {
-                throw OAuthProtocolException::invalidClient();
-            }
-
-            return new OAuthClientAuthentication(
-                OAuthClientAuthenticationMethod::ClientSecretBasic,
-                $clientId,
-                $secret,
-            );
+            return $this->basicAuthentication($authorization, $parameters);
         }
 
+        return $this->bodyAuthentication($parameters);
+    }
+
+    /** @param array<string, string> $parameters */
+    private function basicAuthentication(string $authorization, array $parameters): OAuthClientAuthentication
+    {
+        if (array_key_exists('client_id', $parameters) || $this->containsBodyCredentials($parameters)) {
+            throw OAuthProtocolException::invalidRequest(
+                'Client identity or credentials must not be supplied by multiple authentication sources.',
+            );
+        }
+        if (preg_match('/\ABasic[ \t]+([^ \t]+)\z/iD', $authorization, $match) !== 1
+            || strlen($match[1]) > 8192
+        ) {
+            throw OAuthProtocolException::invalidClient();
+        }
+
+        $decoded = base64_decode($match[1], true);
+        if (!is_string($decoded) || !str_contains($decoded, ':')) {
+            throw OAuthProtocolException::invalidClient();
+        }
+        [$encodedClientId, $encodedSecret] = explode(':', $decoded, 2);
+        $clientId = $this->decodeComponent($encodedClientId);
+        $secret = $this->decodeComponent($encodedSecret);
+        if (!$this->validCredential($clientId, 128) || !$this->validCredential($secret, 4096)) {
+            throw OAuthProtocolException::invalidClient();
+        }
+
+        return new OAuthClientAuthentication(
+            OAuthClientAuthenticationMethod::ClientSecretBasic,
+            $clientId,
+            $secret,
+        );
+    }
+
+    /** @param array<string, string> $parameters */
+    private function bodyAuthentication(array $parameters): OAuthClientAuthentication
+    {
         $clientId = $parameters['client_id'] ?? null;
-        if (!is_string($clientId) || !$this->validCredential($clientId, 128)) {
+        if ($clientId === null || !$this->validCredential($clientId, 128)) {
             throw OAuthProtocolException::invalidClient();
         }
 
@@ -103,22 +114,10 @@ final readonly class OAuthHttpInput
             throw OAuthProtocolException::invalidRequest('OAuth client authentication methods must not be combined.');
         }
         if ($assertion !== null || $assertionType !== null) {
-            if (!is_string($assertion)
-                || $assertion === ''
-                || strlen($assertion) > 16_384
-                || $assertionType !== self::ASSERTION_TYPE
-            ) {
-                throw OAuthProtocolException::invalidClient();
-            }
-
-            return new OAuthClientAuthentication(
-                OAuthClientAuthenticationMethod::PrivateKeyJwt,
-                $clientId,
-                assertion: $assertion,
-            );
+            return $this->privateKeyJwtAuthentication($clientId, $assertion, $assertionType);
         }
         if ($secret !== null) {
-            if (!is_string($secret) || !$this->validCredential($secret, 4_096)) {
+            if (!$this->validCredential($secret, 4_096)) {
                 throw OAuthProtocolException::invalidClient();
             }
 
@@ -130,6 +129,26 @@ final readonly class OAuthHttpInput
         }
 
         return new OAuthClientAuthentication(OAuthClientAuthenticationMethod::None, $clientId);
+    }
+
+    private function privateKeyJwtAuthentication(
+        string $clientId,
+        ?string $assertion,
+        ?string $assertionType,
+    ): OAuthClientAuthentication {
+        if ($assertion === null
+            || $assertion === ''
+            || strlen($assertion) > 16_384
+            || $assertionType !== self::ASSERTION_TYPE
+        ) {
+            throw OAuthProtocolException::invalidClient();
+        }
+
+        return new OAuthClientAuthentication(
+            OAuthClientAuthenticationMethod::PrivateKeyJwt,
+            $clientId,
+            assertion: $assertion,
+        );
     }
 
     /** @return array<string, string> */

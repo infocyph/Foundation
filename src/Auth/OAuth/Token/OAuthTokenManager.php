@@ -95,6 +95,7 @@ final readonly class OAuthTokenManager
     }
 
     /** @param array<string, mixed> $parameters @return list<string>|null */
+    /** @return list<string>|null */
     private function optionalSpaceList(array $parameters, string $name): ?array
     {
         if (!array_key_exists($name, $parameters)) {
@@ -110,6 +111,7 @@ final readonly class OAuthTokenManager
             throw OAuthProtocolException::invalidRequest();
         }
 
+        /** @var list<string> $values */
         return $values;
     }
 

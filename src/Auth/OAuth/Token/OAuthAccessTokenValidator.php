@@ -85,11 +85,17 @@ final readonly class OAuthAccessTokenValidator
         if (is_string($value) && $value !== '') {
             return [$value];
         }
-        if (!is_array($value) || $value === [] || array_any($value, static fn(mixed $item): bool => !is_string($item))) {
+        if (!is_array($value) || $value === [] || !array_is_list($value)) {
             throw new OAuthTokenException('OAuth access token audience claim is invalid.');
         }
+        foreach ($value as $audience) {
+            if (!is_string($audience) || $audience === '') {
+                throw new OAuthTokenException('OAuth access token audience claim is invalid.');
+            }
+        }
 
-        return array_values($value);
+        /** @var list<string> $value */
+        return $value;
     }
 
     private static function optionalString(mixed $value): ?string
@@ -126,8 +132,15 @@ final readonly class OAuthAccessTokenValidator
         if (is_string($value)) {
             return explode(' ', $value);
         }
-        if (is_array($value) && array_all($value, 'is_string')) {
-            return array_values($value);
+        if (is_array($value) && array_is_list($value)) {
+            foreach ($value as $scope) {
+                if (!is_string($scope) || $scope === '') {
+                    throw new OAuthTokenException('OAuth access token scope claim is invalid.');
+                }
+            }
+
+            /** @var list<string> $value */
+            return $value;
         }
 
         throw new OAuthTokenException('OAuth access token scope claim is invalid.');

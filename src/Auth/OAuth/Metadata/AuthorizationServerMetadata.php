@@ -24,7 +24,12 @@ final readonly class AuthorizationServerMetadata
             'introspection_endpoint' => $this->endpoint($issuer, 'introspection'),
             'response_types_supported' => ['code'],
             'grant_types_supported' => $this->stringList('auth.oauth.grants'),
-            'token_endpoint_auth_methods_supported' => ['none', 'client_secret_basic'],
+            'token_endpoint_auth_methods_supported' => [
+                'none',
+                'client_secret_basic',
+                'client_secret_post',
+                'private_key_jwt',
+            ],
             'code_challenge_methods_supported' => ['S256'],
         ];
     }
