@@ -166,7 +166,7 @@ final readonly class AuthorizationRequestValidator
                     throw OAuthProtocolException::invalidRequest();
                 }
             }
-            $normalized[$name] = array_values($value);
+            $normalized[$name] = $value;
         }
 
         return $normalized;
