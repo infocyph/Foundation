@@ -108,6 +108,40 @@ protection is an independent external-only key domain,
 `foundation.environment.file.v1`; it is not derived from or shared with the
 auth token, MFA, recovery-code, OAuth, or signed-URL roots.
 
+## MFA secret protection and migration
+
+Durable OTP factor secrets are protected at the DBLayer persistence boundary with
+Epicrypt `StringProtector` under the independent
+`foundation.auth.mfa-secret.v1` domain. Recovery-code HMAC material uses the
+separate `foundation.auth.recovery-hmac.v1` lifecycle. Neither domain reuses the
+application token, OAuth, environment-file, or signed-URL roots.
+
+Normal operation requires protected values. Legacy plaintext compatibility is a
+bounded migration mode only:
+
+1. Provision one active `AUTH_OTP_SECRET_PROTECTION_KEYS` entry and the
+   independent `AUTH_OTP_RECOVERY_HMAC_KEY` on every application/worker host.
+2. Temporarily set `auth.otp.secret_protection.allow_legacy_plaintext=true`
+   only for the migration deployment.
+3. Read legacy factors through Foundation and rewrite them through the normal
+   factor persistence boundary. New writes are always protected with the active
+   key; fallback keys are read-only.
+4. Verify durable factor metadata contains `ep2.` protected values and no raw
+   OTP secret/MobileOTP PIN material.
+5. Set `allow_legacy_plaintext=false`, rebuild generated/runtime artifacts,
+   run `php infbyte config:validate --production` and `php infbyte app:ready`,
+   then deploy the strict configuration everywhere.
+6. Keep an old protection key only as a bounded `fallback` while rows encrypted
+   with it still exist. Reprotect only through an explicit successful
+   revision-aware write; never let fallback reads overwrite a newer HOTP/OCRA
+   counter revision.
+7. Remove the fallback key only after the durable-data audit confirms no row
+   references it. A strict deployment encountering plaintext, a retired/unknown
+   key, malformed metadata, or tampered ciphertext fails closed.
+
+Do not leave legacy plaintext compatibility enabled as a steady-state recovery
+mechanism.
+
 ## Signed URL key lifecycle
 
 Foundation selects deployment key locators and rotation state while Webrick
