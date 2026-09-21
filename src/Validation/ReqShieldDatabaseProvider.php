@@ -133,11 +133,11 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
     /** @return non-empty-string */
     private function column(string $column): string
     {
-        return $this->identifier($column, 'column');
+        return $this->sqlIdentifier($column, 'column');
     }
 
     /** @return non-empty-string */
-    private function identifier(string $identifier, string $type): string
+    private function sqlIdentifier(string $identifier, string $type): string
     {
         $identifier = trim($identifier);
         if (
@@ -234,7 +234,7 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
 
     private function query(Connection $connection, string $table): QueryBuilder
     {
-        return $connection->query()->from($this->identifier($table, 'table'));
+        return $connection->query()->from($this->sqlIdentifier($table, 'table'));
     }
 
     /**
