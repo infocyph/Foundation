@@ -5,16 +5,42 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Auth\Internal;
 
 use Infocyph\DBLayer\Connection\Connection;
+use Infocyph\Epicrypt\Auth\OAuth\AuthorizationCodeArtifact;
+use Infocyph\Epicrypt\Auth\OAuth\AuthorizationCodeStoreInterface as EpicryptAuthorizationCodeStore;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthAccessTokenService as EpicryptAccessTokenService;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthAccessTokenStatusStoreInterface as EpicryptAccessTokenStatusStore;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthAuthorizationCodeConsumer;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthAuthorizationCodeIssuer;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthAuthorizationStoreInterface as EpicryptAuthorizationStore;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthClientAssertionValidator;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthClientAuthenticator;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthClientStoreInterface as EpicryptClientStore;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthDpopValidator;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthIntrospectionEndpoint;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthJwksPublisher;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthResourceAccessTokenValidator;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthRevocationEndpoint;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthTokenEndpoint;
+use Infocyph\Epicrypt\Auth\OAuth\RefreshTokenArtifact;
+use Infocyph\Epicrypt\Auth\OAuth\RefreshTokenManager;
+use Infocyph\Epicrypt\Auth\OAuth\RefreshTokenStoreInterface as EpicryptRefreshTokenStore;
+use Infocyph\Epicrypt\Security\AsymmetricSigningKeySet;
 use Infocyph\Epicrypt\Token\Jwt\AsymmetricJwt;
+use Infocyph\Epicrypt\Token\Jwt\JwtReplayStoreInterface;
 use Infocyph\Epicrypt\Token\Opaque\OpaqueToken;
-use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerOAuthAccessRevocationStore;
-use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerOAuthAuthorizationCodeStore;
-use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerOAuthAuthorizationStore;
+use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerEpicryptAccessTokenStatusStore;
+use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerEpicryptAuthorizationCodeStore;
+use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerEpicryptJwtReplayStore;
+use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerEpicryptOAuthAuthorizationStore;
+use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerEpicryptRefreshTokenStore;
 use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerOAuthClientStore;
 use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerOAuthConsentStore;
-use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerOAuthRefreshTokenStore;
-use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\EpicryptOAuthAccessTokenService;
+use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptClockAdapter;
+use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\EpicryptOAuthAuthorizationClientStore;
+use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\EpicryptOAuthClientAuthenticationAdapter;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\EpicryptOAuthJwkSetProvider;
+use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\EpicryptOAuthScopeAudienceResolver;
+use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\OAuthProtectionKeyResolver;
 use Infocyph\Foundation\Auth\Authorization\Gate\AuthorizerInterface;
 use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Auth\Contract\Id\AuthIdGeneratorInterface;
@@ -28,13 +54,8 @@ use Infocyph\Foundation\Auth\OAuth\Authorization\AuthorizationRequestValidator;
 use Infocyph\Foundation\Auth\OAuth\Client\OAuthClientManager;
 use Infocyph\Foundation\Auth\OAuth\Consent\ConsentManager;
 use Infocyph\Foundation\Auth\OAuth\Contract\JwkSetProviderInterface;
-use Infocyph\Foundation\Auth\OAuth\Contract\OAuthAccessRevocationStoreInterface;
-use Infocyph\Foundation\Auth\OAuth\Contract\OAuthAccessTokenServiceInterface;
-use Infocyph\Foundation\Auth\OAuth\Contract\OAuthAuthorizationCodeStoreInterface;
-use Infocyph\Foundation\Auth\OAuth\Contract\OAuthAuthorizationStoreInterface;
 use Infocyph\Foundation\Auth\OAuth\Contract\OAuthClientStoreInterface;
 use Infocyph\Foundation\Auth\OAuth\Contract\OAuthConsentStoreInterface;
-use Infocyph\Foundation\Auth\OAuth\Contract\OAuthRefreshTokenStoreInterface;
 use Infocyph\Foundation\Auth\OAuth\Http\OAuthAuthorizationController;
 use Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpHandler;
 use Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpInput;
@@ -45,7 +66,6 @@ use Infocyph\Foundation\Auth\OAuth\OAuthManager;
 use Infocyph\Foundation\Auth\OAuth\Scope\OAuthScopeResolver;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthAccessTokenValidator;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthIntrospectionManager;
-use Infocyph\Foundation\Auth\OAuth\Token\OAuthRefreshTokenCoordinator;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthRevocationManager;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthSigningKeyResolver;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthSigningKeySet;
@@ -55,9 +75,14 @@ use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Session\SessionConfig;
+use Psr\Clock\ClockInterface as PsrClock;
 
 final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
 {
+    private const string AUTHORIZATION_CODE_KEYS = 'foundation.oauth.epicrypt.authorization-code-keys';
+
+    private const string REFRESH_TOKEN_KEYS = 'foundation.oauth.epicrypt.refresh-token-keys';
+
     public function enabled(): bool
     {
         return $this->boolConfig('auth.oauth.enabled', false);
@@ -72,9 +97,12 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
         $this->requirePackage(Connection::class, 'infocyph/dblayer', 'database');
         $this->requirePackage(AsymmetricJwt::class, 'infocyph/epicrypt', 'crypto');
         $this->requirePackage(\Infocyph\CacheLayer\Cache\Cache::class, 'infocyph/cachelayer', 'cache');
-        $this->registerStores();
-        $this->registerCrypto();
-        $this->registerProtocolServices();
+
+        $this->registerFoundationStores();
+        $this->registerFoundationPolicy();
+        $this->registerEpicryptStores();
+        $this->registerEpicryptProtocol();
+        $this->registerFoundationFacades();
     }
 
     private function authConnection(): ?string
@@ -84,119 +112,189 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
         return is_string($connection) && $connection !== '' ? $connection : null;
     }
 
-    private function registerCrypto(): void
+    private function registerEpicryptProtocol(): void
     {
-        $this->recipe(OpaqueToken::class, OpaqueToken::class);
-        $this->recipe(OAuthSigningKeyResolver::class, OAuthSigningKeyResolver::class, [
+        $issuer = $this->stringConfig('auth.oauth.issuer', '');
+
+        $this->recipe(PsrClock::class, EpicryptClockAdapter::class, [
+            $this->ref(ClockInterface::class),
+        ]);
+        $this->recipe(OAuthProtectionKeyResolver::class, OAuthProtectionKeyResolver::class, [
             $this->ref(ConfigRepository::class),
-            $this->ref(OAuthAuditRecorder::class),
+            $this->ref(ClockInterface::class),
         ]);
         $this->staticRecipe(
-            OAuthSigningKeySet::class,
+            self::AUTHORIZATION_CODE_KEYS,
             AuthOAuthGraphFactory::class,
-            'signingKeySet',
-            [$this->ref(OAuthSigningKeyResolver::class)],
+            'authorizationCodeKeys',
+            [$this->ref(OAuthProtectionKeyResolver::class)],
         );
-        $this->recipe(JwkSetProviderInterface::class, EpicryptOAuthJwkSetProvider::class, [
-            $this->ref(OAuthSigningKeySet::class),
+        $this->staticRecipe(
+            self::REFRESH_TOKEN_KEYS,
+            AuthOAuthGraphFactory::class,
+            'refreshTokenKeys',
+            [$this->ref(OAuthProtectionKeyResolver::class)],
+        );
+        $this->staticRecipe(
+            AsymmetricSigningKeySet::class,
+            AuthOAuthGraphFactory::class,
+            'epicryptSigningKeySet',
+            [$this->ref(OAuthSigningKeySet::class)],
+        );
+
+        $this->recipe(AuthorizationCodeArtifact::class, AuthorizationCodeArtifact::class, [
+            $this->ref(self::AUTHORIZATION_CODE_KEYS),
+            $issuer,
+            $this->ref(PsrClock::class),
         ]);
-        $this->recipe(OAuthAccessTokenServiceInterface::class, EpicryptOAuthAccessTokenService::class, [
-            $this->ref(OAuthSigningKeySet::class),
+        $this->recipe(OAuthAuthorizationCodeIssuer::class, OAuthAuthorizationCodeIssuer::class, [
+            $this->ref(EpicryptAuthorizationStore::class),
+            $this->ref(EpicryptAuthorizationCodeStore::class),
+            $this->ref(AuthorizationCodeArtifact::class),
+            $this->ref(PsrClock::class),
+        ]);
+        $this->recipe(OAuthAuthorizationCodeConsumer::class, OAuthAuthorizationCodeConsumer::class, [
+            $this->ref(AuthorizationCodeArtifact::class),
+            $this->ref(EpicryptAuthorizationCodeStore::class),
+            $this->ref(EpicryptAuthorizationStore::class),
+            $this->ref(PsrClock::class),
+        ]);
+
+        $this->recipe(RefreshTokenArtifact::class, RefreshTokenArtifact::class, [
+            $this->ref(self::REFRESH_TOKEN_KEYS),
+            $issuer,
+            $this->ref(PsrClock::class),
+        ]);
+        $this->recipe(RefreshTokenManager::class, RefreshTokenManager::class, [
+            $this->ref(EpicryptRefreshTokenStore::class),
+            $this->ref(RefreshTokenArtifact::class),
+            $this->ref(PsrClock::class),
+        ]);
+
+        $this->recipe(EpicryptAccessTokenService::class, EpicryptAccessTokenService::class, [
+            $this->ref(AsymmetricSigningKeySet::class),
+            $this->ref(EpicryptAuthorizationStore::class),
+            $this->ref(EpicryptAccessTokenStatusStore::class),
             $this->intConfig('auth.oauth.access_token_ttl', 300),
-            30,
+            $this->ref(PsrClock::class),
+        ]);
+        $this->recipe(EpicryptOAuthScopeAudienceResolver::class, EpicryptOAuthScopeAudienceResolver::class, [
+            $this->ref(OAuthClientManager::class),
+            $this->ref(OAuthScopeResolver::class),
+            $this->ref(ConfigRepository::class),
+        ]);
+
+        $this->recipe(OAuthClientAssertionValidator::class, OAuthClientAssertionValidator::class, [
+            $this->ref(JwtReplayStoreInterface::class),
+            $this->ref(PsrClock::class),
+        ]);
+        $this->recipe(OAuthClientAuthenticator::class, OAuthClientAuthenticator::class, [
+            $this->ref(EpicryptClientStore::class),
+            $this->ref(OAuthClientAssertionValidator::class),
+        ]);
+        $this->recipe(EpicryptOAuthClientAuthenticationAdapter::class, EpicryptOAuthClientAuthenticationAdapter::class, [
+            $this->ref(OAuthClientAuthenticator::class),
+            $this->ref(ConfigRepository::class),
+        ]);
+        $this->recipe(OAuthDpopValidator::class, OAuthDpopValidator::class, [
+            $this->ref(JwtReplayStoreInterface::class),
+        ]);
+
+        $this->staticRecipe(
+            'foundation.oauth.token-endpoint-uri',
+            AuthOAuthGraphFactory::class,
+            'endpointUri',
+            [$this->ref(ConfigRepository::class), 'token'],
+        );
+        $this->recipe(OAuthTokenEndpoint::class, OAuthTokenEndpoint::class, [
+            $this->ref(EpicryptClientStore::class),
+            $this->ref(EpicryptAccessTokenService::class),
+            $this->ref(OAuthAuthorizationCodeConsumer::class),
+            $this->ref(RefreshTokenManager::class),
+            $this->ref(EpicryptAuthorizationStore::class),
+            $this->ref(EpicryptOAuthScopeAudienceResolver::class),
+            $this->ref(OAuthDpopValidator::class),
+            $this->ref('foundation.oauth.token-endpoint-uri'),
+            $this->ref(PsrClock::class),
+            null,
+        ]);
+        $this->recipe(OAuthRevocationEndpoint::class, OAuthRevocationEndpoint::class, [
+            $this->ref(EpicryptClientStore::class),
+            $this->ref(EpicryptAccessTokenService::class),
+            $this->ref(RefreshTokenManager::class),
+            $this->ref(EpicryptAuthorizationStore::class),
+            $this->ref(PsrClock::class),
+        ]);
+        $this->recipe(OAuthIntrospectionEndpoint::class, OAuthIntrospectionEndpoint::class, [
+            $this->ref(EpicryptAccessTokenService::class),
+            $this->ref(RefreshTokenManager::class),
+        ]);
+        $this->recipe(OAuthResourceAccessTokenValidator::class, OAuthResourceAccessTokenValidator::class, [
+            $this->ref(EpicryptAccessTokenService::class),
+            $this->ref(OAuthDpopValidator::class),
+        ]);
+        $this->recipe(OAuthJwksPublisher::class, OAuthJwksPublisher::class, [
+            $this->ref(AsymmetricSigningKeySet::class),
         ]);
     }
 
-    private function registerProtocolServices(): void
+    private function registerEpicryptStores(): void
     {
-        $this->recipe(OAuthAuditRecorder::class, OAuthAuditRecorder::class, [
-            $this->ref(AuditEventStoreInterface::class),
-            $this->ref(AuthIdGeneratorInterface::class),
-            $this->ref(ClockInterface::class),
-        ]);
-        $this->recipe(OAuthClientManager::class, OAuthClientManager::class, [
-            $this->ref(OAuthClientStoreInterface::class),
-            $this->ref(PasswordHasherInterface::class),
-            $this->ref(PasswordVerifierInterface::class),
-            $this->ref(ClockInterface::class),
-            $this->ref(OpaqueToken::class),
-            $this->app->config()->isProduction(),
-        ]);
-        $this->recipe(OAuthScopeResolver::class, OAuthScopeResolver::class, [
-            $this->ref(OAuthClientStoreInterface::class),
-            $this->ref(ConfigRepository::class),
-        ]);
-        $this->recipe(AuthorizationRequestValidator::class, AuthorizationRequestValidator::class, [
+        $connection = $this->authConnection();
+        $stores = [
+            EpicryptAuthorizationCodeStore::class => DBLayerEpicryptAuthorizationCodeStore::class,
+            EpicryptAuthorizationStore::class => DBLayerEpicryptOAuthAuthorizationStore::class,
+            EpicryptRefreshTokenStore::class => DBLayerEpicryptRefreshTokenStore::class,
+            EpicryptAccessTokenStatusStore::class => DBLayerEpicryptAccessTokenStatusStore::class,
+            JwtReplayStoreInterface::class => DBLayerEpicryptJwtReplayStore::class,
+        ];
+        foreach ($stores as $id => $implementation) {
+            $this->recipe($id, $implementation, [
+                $this->ref(DBLayerFactory::class),
+                $this->ref(AuthTables::class),
+                $connection,
+            ]);
+        }
+        $this->recipe(EpicryptClientStore::class, EpicryptOAuthAuthorizationClientStore::class, [
             $this->ref(OAuthClientManager::class),
-            $this->ref(OAuthScopeResolver::class),
         ]);
-        $this->recipe(ConsentManager::class, ConsentManager::class, [
-            $this->ref(OAuthConsentStoreInterface::class),
-            $this->ref(AuthorizerInterface::class),
-            $this->ref(ClockInterface::class),
-        ]);
+    }
+
+    private function registerFoundationFacades(): void
+    {
         $this->recipe(AuthorizationCodeManager::class, AuthorizationCodeManager::class, [
-            $this->ref(OAuthAuthorizationCodeStoreInterface::class),
-            $this->ref(OAuthAuthorizationStoreInterface::class),
+            $this->ref(OAuthAuthorizationCodeIssuer::class),
+            $this->ref(OAuthAuthorizationCodeConsumer::class),
             $this->ref(AuthorizerInterface::class),
             $this->ref(ClockInterface::class),
-            $this->ref(OpaqueToken::class),
             $this->intConfig('auth.oauth.authorization_code_ttl', 60),
             $this->ref(OAuthAuditRecorder::class),
         ]);
-        $this->recipe(OAuthRefreshTokenCoordinator::class, OAuthRefreshTokenCoordinator::class, [
-            $this->ref(OAuthRefreshTokenStoreInterface::class),
-            $this->ref(OAuthAuthorizationStoreInterface::class),
-            $this->ref(OAuthClientManager::class),
-            $this->ref(OAuthScopeResolver::class),
-            $this->ref(AccountProviderInterface::class),
-            $this->ref(ClockInterface::class),
-            $this->ref(OpaqueToken::class),
-            $this->intConfig('auth.oauth.refresh_token_ttl', 1209600),
-            $this->ref(OAuthAuditRecorder::class),
-        ]);
         $this->recipe(OAuthAccessTokenValidator::class, OAuthAccessTokenValidator::class, [
-            $this->ref(OAuthAccessTokenServiceInterface::class),
+            $this->ref(OAuthResourceAccessTokenValidator::class),
             $this->ref(OAuthClientManager::class),
-            $this->ref(OAuthAuthorizationStoreInterface::class),
-            $this->ref(OAuthAccessRevocationStoreInterface::class),
-            $this->ref(OAuthScopeResolver::class),
+            $this->ref(EpicryptAuthorizationStore::class),
             $this->ref(AccountProviderInterface::class),
-            $this->ref(ClockInterface::class),
         ]);
         $this->recipe(OAuthTokenManager::class, OAuthTokenManager::class, [
-            $this->ref(OAuthClientManager::class),
-            $this->ref(AuthorizationCodeManager::class),
-            $this->ref(OAuthAuthorizationStoreInterface::class),
-            $this->ref(OAuthScopeResolver::class),
-            $this->ref(OAuthAccessTokenServiceInterface::class),
-            $this->ref(OAuthRefreshTokenCoordinator::class),
-            $this->ref(AccountProviderInterface::class),
-            $this->ref(ClockInterface::class),
-            $this->ref(OAuthSigningKeySet::class),
-            $this->intConfig('auth.oauth.access_token_ttl', 300),
+            $this->ref(OAuthTokenEndpoint::class),
+            $this->ref(EpicryptOAuthClientAuthenticationAdapter::class),
         ]);
         $this->recipe(OAuthRevocationManager::class, OAuthRevocationManager::class, [
-            $this->ref(OAuthClientManager::class),
-            $this->ref(OAuthAccessTokenServiceInterface::class),
-            $this->ref(OAuthAccessRevocationStoreInterface::class),
-            $this->ref(OAuthRefreshTokenCoordinator::class),
-            $this->ref(ClockInterface::class),
-            $this->ref(OAuthAuditRecorder::class),
+            $this->ref(OAuthRevocationEndpoint::class),
+            $this->ref(EpicryptOAuthClientAuthenticationAdapter::class),
         ]);
         $this->recipe(OAuthIntrospectionManager::class, OAuthIntrospectionManager::class, [
-            $this->ref(OAuthClientManager::class),
-            $this->ref(OAuthAccessTokenValidator::class),
-            $this->ref(OAuthRefreshTokenStoreInterface::class),
-            $this->ref(OAuthAuthorizationStoreInterface::class),
-            $this->ref(OAuthScopeResolver::class),
-            $this->ref(AccountProviderInterface::class),
-            $this->ref(ClockInterface::class),
-            $this->ref(OpaqueToken::class),
+            $this->ref(OAuthIntrospectionEndpoint::class),
+            $this->ref(EpicryptOAuthClientAuthenticationAdapter::class),
         ]);
         $this->recipe(AuthorizationServerMetadata::class, AuthorizationServerMetadata::class, [
             $this->ref(ConfigRepository::class),
         ]);
+        $this->recipe(JwkSetProviderInterface::class, EpicryptOAuthJwkSetProvider::class, [
+            $this->ref(OAuthSigningKeySet::class),
+        ]);
+
         $this->recipe(OAuthManager::class, OAuthManager::class, [
             $this->ref(AuthorizationRequestValidator::class),
             $this->ref(ConsentManager::class),
@@ -227,18 +325,54 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
         ]);
     }
 
-    private function registerStores(): void
+    private function registerFoundationPolicy(): void
+    {
+        $this->recipe(OAuthAuditRecorder::class, OAuthAuditRecorder::class, [
+            $this->ref(AuditEventStoreInterface::class),
+            $this->ref(AuthIdGeneratorInterface::class),
+            $this->ref(ClockInterface::class),
+        ]);
+        $this->recipe(OpaqueToken::class, OpaqueToken::class);
+        $this->recipe(OAuthClientManager::class, OAuthClientManager::class, [
+            $this->ref(OAuthClientStoreInterface::class),
+            $this->ref(PasswordHasherInterface::class),
+            $this->ref(PasswordVerifierInterface::class),
+            $this->ref(ClockInterface::class),
+            $this->ref(OpaqueToken::class),
+            $this->app->config()->isProduction(),
+        ]);
+        $this->recipe(OAuthScopeResolver::class, OAuthScopeResolver::class, [
+            $this->ref(OAuthClientStoreInterface::class),
+            $this->ref(ConfigRepository::class),
+        ]);
+        $this->recipe(AuthorizationRequestValidator::class, AuthorizationRequestValidator::class, [
+            $this->ref(OAuthClientManager::class),
+            $this->ref(OAuthScopeResolver::class),
+        ]);
+        $this->recipe(ConsentManager::class, ConsentManager::class, [
+            $this->ref(OAuthConsentStoreInterface::class),
+            $this->ref(AuthorizerInterface::class),
+            $this->ref(ClockInterface::class),
+        ]);
+        $this->recipe(OAuthSigningKeyResolver::class, OAuthSigningKeyResolver::class, [
+            $this->ref(ConfigRepository::class),
+            $this->ref(OAuthAuditRecorder::class),
+        ]);
+        $this->staticRecipe(
+            OAuthSigningKeySet::class,
+            AuthOAuthGraphFactory::class,
+            'signingKeySet',
+            [$this->ref(OAuthSigningKeyResolver::class)],
+        );
+    }
+
+    private function registerFoundationStores(): void
     {
         $connection = $this->authConnection();
         $stores = [
             OAuthClientStoreInterface::class => DBLayerOAuthClientStore::class,
-            OAuthAuthorizationCodeStoreInterface::class => DBLayerOAuthAuthorizationCodeStore::class,
             OAuthConsentStoreInterface::class => DBLayerOAuthConsentStore::class,
-            OAuthAuthorizationStoreInterface::class => DBLayerOAuthAuthorizationStore::class,
-            OAuthRefreshTokenStoreInterface::class => DBLayerOAuthRefreshTokenStore::class,
-            OAuthAccessRevocationStoreInterface::class => DBLayerOAuthAccessRevocationStore::class,
         ];
-
         foreach ($stores as $id => $implementation) {
             $this->recipe($id, $implementation, [
                 $this->ref(DBLayerFactory::class),
