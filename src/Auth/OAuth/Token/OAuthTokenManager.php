@@ -130,7 +130,8 @@ final readonly class OAuthTokenManager
         );
 
         $record = $before->record;
-        if ($result->successful() && $record !== null) {
+        $response = $result->response;
+        if ($result->successful() && $record !== null && $response !== null) {
             $this->audit?->record(
                 AuthEventType::OAUTH_REFRESH_TOKEN_ROTATED,
                 $record->grant->subject,
@@ -138,7 +139,7 @@ final readonly class OAuthTokenManager
                     'client_id' => $record->grant->clientId,
                     'authorization_id' => $record->grant->authorizationId,
                     'result' => 'rotated',
-                    'scopes' => $result->response->scopes,
+                    'scopes' => $response->scopes,
                     'audiences' => $record->grant->audiences,
                 ],
             );
