@@ -278,6 +278,65 @@ it('does not let stale fallback-key reprotection overwrite a newer OTP counter r
 });
 
 
+
+it('fails closed for unknown retired and tampered MFA protection material', function (): void {
+    $generator = new KeyMaterialGenerator();
+    $oldKey = $generator->forAead();
+    $newKey = $generator->forAead();
+    $factor = foundationEpicrypt3MfaFactor();
+
+    $stored = new MfaSecretProtector(
+        foundationEpicrypt3MfaRing('old', $oldKey),
+    )->protect($factor);
+
+    $unknownKeyProtector = new MfaSecretProtector(
+        foundationEpicrypt3MfaRing('new', $newKey),
+    );
+    expect(fn() => $unknownKeyProtector->unprotect($stored))
+        ->toThrow(DecryptionException::class);
+
+    $retiredRing = new KeyRing([
+        new KeyRingEntry(
+            id: 'new',
+            key: $newKey,
+            status: KeyStatus::ACTIVE,
+            purpose: KeyPurpose::DATA_PROTECTION,
+            algorithm: ProtectionAlgorithm::XCHACHA20_POLY1305->value,
+        ),
+        new KeyRingEntry(
+            id: 'old',
+            key: $oldKey,
+            status: KeyStatus::RETIRED,
+            purpose: KeyPurpose::DATA_PROTECTION,
+            algorithm: ProtectionAlgorithm::XCHACHA20_POLY1305->value,
+        ),
+    ]);
+    expect(fn() => (new MfaSecretProtector($retiredRing))->unprotect($stored))
+        ->toThrow(DecryptionException::class);
+
+    $tamperedMetadata = $stored->metadata;
+    $ciphertext = $tamperedMetadata['otp']['secret'];
+    if (!is_string($ciphertext) || $ciphertext === '') {
+        throw new RuntimeException('Expected protected MFA ciphertext.');
+    }
+    $tamperedMetadata['otp']['secret'] = substr($ciphertext, 0, -1)
+        . (str_ends_with($ciphertext, 'A') ? 'B' : 'A');
+    $tampered = new MfaFactor(
+        id: $stored->id,
+        accountId: $stored->accountId,
+        type: $stored->type,
+        label: $stored->label,
+        enabled: $stored->enabled,
+        createdAt: $stored->createdAt,
+        metadata: $tamperedMetadata,
+        revision: $stored->revision,
+    );
+
+    expect(fn() => (new MfaSecretProtector(
+        foundationEpicrypt3MfaRing('old', $oldKey),
+    ))->unprotect($tampered))->toThrow(DecryptionException::class);
+});
+
 it('isolates MFA plaintext across sequential and Fiber reuse of the protection service', function (): void {
     $protector = new MfaSecretProtector(
         foundationEpicrypt3MfaRing('active', (new KeyMaterialGenerator())->forAead()),
