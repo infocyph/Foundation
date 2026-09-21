@@ -35,9 +35,8 @@ it('boots without optional packages and reports unavailable capabilities cleanly
             );
     }
 
-    expect($probe['auth']['default']['resolved'] ?? true)->toBeFalse()
-        ->and($probe['auth']['default']['message'] ?? null)->toBeString()
-        ->and($probe['auth']['default']['message'])->toContain('Unable to resolve service')
+    expect($probe['auth']['default']['resolved'] ?? false)->toBeTrue()
+        ->and($probe['auth']['default']['message'] ?? null)->toBeNull()
         ->and($probe['auth']['otp']['message'] ?? null)->toBeString()
         ->and($probe['auth']['otp']['message'])->toContain(
             'The selected auth driver requires infocyph/otp;',

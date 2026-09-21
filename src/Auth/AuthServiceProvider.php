@@ -65,7 +65,7 @@ final class AuthServiceProvider extends ServiceProvider
         new AuthMfaRegistrar($app, $builder)->register($drivers);
         new AuthPasskeyRegistrar($app, $builder)->register($drivers);
         new AuthNotificationRegistrar($app, $builder)->register($drivers);
-        new AuthManagerRegistrar($app, $builder)->register();
+        new AuthManagerRegistrar($app, $builder)->register($drivers);
         new AuthAuthorizationRegistrar($app, $builder)->register();
         new AuthRuntimeRegistrar($app, $builder)->register();
         $oauth = new AuthOAuthRegistrar($app, $builder);

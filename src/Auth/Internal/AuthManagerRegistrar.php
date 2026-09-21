@@ -35,6 +35,8 @@ use Infocyph\Foundation\Auth\Contract\Storage\{
     SessionStoreInterface
 };
 use Infocyph\Foundation\Auth\Device\{DeviceManager, DeviceStoreInterface};
+use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
+use Infocyph\Foundation\Auth\Driver\AuthMfaDriver;
 use Infocyph\Foundation\Auth\Mfa\{
     MfaFactorCompareAndSwapStoreInterface,
     MfaFactorStoreInterface,
@@ -52,7 +54,7 @@ use Infocyph\InterMix\DI\Support\LifetimeEnum;
 
 final readonly class AuthManagerRegistrar extends AbstractAuthRegistrar
 {
-    public function register(): void
+    public function register(AuthDriverResolver $drivers): void
     {
         $this->recipe(SessionConfig::class, SessionConfig::class, [
             $this->intConfig('auth.session_ttl', 3600),
@@ -117,10 +119,12 @@ final readonly class AuthManagerRegistrar extends AbstractAuthRegistrar
             $this->ref(AuthIdGeneratorInterface::class), $this->intConfig('auth.mfa_challenge_ttl', 300),
             $this->intConfig('auth.mfa_satisfied_ttl', 900), $this->ref(ClockInterface::class),
         ], LifetimeEnum::Scoped);
-        $this->recipe(OtpManager::class, OtpManager::class, [
-            $this->ref(MfaManager::class), $this->ref(MfaFactorStoreInterface::class),
-            $this->ref(OtpProvisioningService::class), $this->ref(OtpMfaVerifier::class),
-        ], LifetimeEnum::Scoped);
+        if ($drivers->mfa() === AuthMfaDriver::OTP) {
+            $this->recipe(OtpManager::class, OtpManager::class, [
+                $this->ref(MfaManager::class), $this->ref(MfaFactorStoreInterface::class),
+                $this->ref(OtpProvisioningService::class), $this->ref(OtpMfaVerifier::class),
+            ], LifetimeEnum::Scoped);
+        }
         $this->recipe(PasskeyManager::class, PasskeyManager::class, [
             $this->ref(PasskeyServiceInterface::class), $this->ref(PasskeyCredentialCompareAndSwapStoreInterface::class),
             $this->ref(AuditEventStoreInterface::class), $this->ref(AuthNotifierInterface::class),

@@ -88,7 +88,6 @@ final class WebrickRouterFactory
             routes: $this->routes,
             autoSlashRedirect: (bool) $this->config->get('router.auto_slash_redirect', false),
             exposeUrlServices: (bool) $this->config->get('router.expose_url_services', false),
-            signKey: null,
             signedDefaultTtl: $this->optionalInt($this->config->get('router.signed_urls.default_ttl')),
             signedUrlConfig: $this->signedUrlConfig(),
             urlBaseUri: $this->stringConfig('router.url_base_uri'),
@@ -160,7 +159,6 @@ final class WebrickRouterFactory
         return static function (Collection $routes) use ($defaultTtl, $signedConfig, $baseUri): void {
             Router::bindUrlServices(
                 routes: $routes,
-                signKey: null,
                 defaultTtl: $defaultTtl,
                 signedUrlConfig: $signedConfig,
                 baseUri: $baseUri,
