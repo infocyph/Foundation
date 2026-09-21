@@ -12,7 +12,7 @@ use Psr\Cache\CacheItemPoolInterface;
 
 final readonly class OAuthHttpThrottleFactory
 {
-    private const array ENDPOINTS = ['authorization', 'token', 'revocation', 'introspection'];
+    private const array ENDPOINTS = ['authorization', 'token', 'revocation', 'introspection', 'userinfo'];
 
     public function __construct(
         private ConfigRepository $config,
