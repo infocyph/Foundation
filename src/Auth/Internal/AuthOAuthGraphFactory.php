@@ -21,11 +21,6 @@ final class AuthOAuthGraphFactory
         return $resolver->authorizationCodeKeys();
     }
 
-    public static function epicryptSigningKeySet(OAuthSigningKeySet $keys): AsymmetricSigningKeySet
-    {
-        return $keys->epicrypt;
-    }
-
     public static function endpointUri(ConfigRepository $config, string $route): string
     {
         $issuer = $config->get('auth.oauth.issuer');
@@ -48,6 +43,11 @@ final class AuthOAuthGraphFactory
         }
 
         return $origin . $path;
+    }
+
+    public static function epicryptSigningKeySet(OAuthSigningKeySet $keys): AsymmetricSigningKeySet
+    {
+        return $keys->epicrypt;
     }
 
     public static function openIdSigningKeySet(ConfigRepository $config): AsymmetricSigningKeySet

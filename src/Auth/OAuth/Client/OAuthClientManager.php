@@ -197,6 +197,31 @@ final readonly class OAuthClientManager
         return array_keys($normalized);
     }
 
+    /** @param array<string, mixed> $metadata */
+    private function validateAuthenticationMethod(
+        OAuthClientType $type,
+        OAuthClientAuthenticationMethod $method,
+        array $metadata,
+    ): void {
+        if ($type === OAuthClientType::Public) {
+            if ($method !== OAuthClientAuthenticationMethod::None) {
+                throw new \InvalidArgumentException('Public OAuth clients must use the none authentication method.');
+            }
+
+            return;
+        }
+
+        if ($method === OAuthClientAuthenticationMethod::None) {
+            throw new \InvalidArgumentException('Confidential OAuth clients require an authentication method.');
+        }
+        if ($method === OAuthClientAuthenticationMethod::PrivateKeyJwt) {
+            $jwks = $metadata['assertion_jwks'] ?? null;
+            if (!is_array($jwks) || $jwks === []) {
+                throw new \InvalidArgumentException('private_key_jwt clients require registered public assertion_jwks metadata.');
+            }
+        }
+    }
+
     /**
      * @param list<OAuthGrantType> $grants
      * @return list<OAuthGrantType>
@@ -307,32 +332,6 @@ final readonly class OAuthClientManager
         return ($metadata['native_client'] ?? false) === true
             && $scheme === 'http'
             && in_array($host, ['localhost', '127.0.0.1', '::1'], true);
-    }
-
-
-    /** @param array<string, mixed> $metadata */
-    private function validateAuthenticationMethod(
-        OAuthClientType $type,
-        OAuthClientAuthenticationMethod $method,
-        array $metadata,
-    ): void {
-        if ($type === OAuthClientType::Public) {
-            if ($method !== OAuthClientAuthenticationMethod::None) {
-                throw new \InvalidArgumentException('Public OAuth clients must use the none authentication method.');
-            }
-
-            return;
-        }
-
-        if ($method === OAuthClientAuthenticationMethod::None) {
-            throw new \InvalidArgumentException('Confidential OAuth clients require an authentication method.');
-        }
-        if ($method === OAuthClientAuthenticationMethod::PrivateKeyJwt) {
-            $jwks = $metadata['assertion_jwks'] ?? null;
-            if (!is_array($jwks) || $jwks === []) {
-                throw new \InvalidArgumentException('private_key_jwt clients require registered public assertion_jwks metadata.');
-            }
-        }
     }
 
     private function verifyConfidentialClient(

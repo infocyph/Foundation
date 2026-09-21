@@ -94,6 +94,38 @@ final readonly class AuthorizationRequestValidator
         );
     }
 
+    private function protocolException(?OAuthProtocolError $error): OAuthProtocolException
+    {
+        return EpicryptOAuthErrorMapper::exception($error);
+    }
+
+    /**
+     * @param array<string, mixed> $parameters
+     * @return array<string, string|list<string>>
+     */
+    private function protocolParameters(array $parameters): array
+    {
+        $normalized = [];
+        foreach ($parameters as $name => $value) {
+            if (is_string($value)) {
+                $normalized[$name] = $value;
+
+                continue;
+            }
+            if (!is_array($value) || !array_is_list($value)) {
+                throw OAuthProtocolException::invalidRequest();
+            }
+            foreach ($value as $item) {
+                if (!is_string($item)) {
+                    throw OAuthProtocolException::invalidRequest();
+                }
+            }
+            $normalized[$name] = $value;
+        }
+
+        return $normalized;
+    }
+
     /** @param array<string, mixed> $parameters */
     private function protocolResult(array $parameters): AuthorizationProtocolResult
     {
@@ -143,37 +175,5 @@ final readonly class AuthorizationRequestValidator
             redirectUri: $request->redirectUri,
             state: $request->state,
         );
-    }
-
-    /**
-     * @param array<string, mixed> $parameters
-     * @return array<string, string|list<string>>
-     */
-    private function protocolParameters(array $parameters): array
-    {
-        $normalized = [];
-        foreach ($parameters as $name => $value) {
-            if (is_string($value)) {
-                $normalized[$name] = $value;
-
-                continue;
-            }
-            if (!is_array($value) || !array_is_list($value)) {
-                throw OAuthProtocolException::invalidRequest();
-            }
-            foreach ($value as $item) {
-                if (!is_string($item)) {
-                    throw OAuthProtocolException::invalidRequest();
-                }
-            }
-            $normalized[$name] = $value;
-        }
-
-        return $normalized;
-    }
-
-    private function protocolException(?OAuthProtocolError $error): OAuthProtocolException
-    {
-        return EpicryptOAuthErrorMapper::exception($error);
     }
 }
