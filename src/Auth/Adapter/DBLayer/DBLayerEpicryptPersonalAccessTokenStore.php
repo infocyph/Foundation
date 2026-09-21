@@ -208,6 +208,6 @@ final readonly class DBLayerEpicryptPersonalAccessTokenStore extends DBLayerStor
 
     private function subjectHash(string $subject): string
     {
-        return hash('sha256', "foundation.personal-access-token.subject\0" . $subject);
+        return hash('sha3-256', "foundation.personal-access-token.subject\0" . $subject);
     }
 }
