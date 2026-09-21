@@ -56,7 +56,7 @@ final class PatConcurrentWorker
         }
     }
 
-    public static function store(string $database): DBLayerEpicryptPersonalAccessTokenStore
+    public static function factory(string $database): DBLayerFactory
     {
         $state = new RuntimeExecutionState();
         $container = new readonly class($state) implements ContainerInterface {
@@ -84,8 +84,11 @@ final class PatConcurrentWorker
                 ],
             ],
         ]);
-        $factory = new DBLayerFactory(new DatabaseConnectionResolver($config), $container);
+        return new DBLayerFactory(new DatabaseConnectionResolver($config), $container);
+    }
 
-        return new DBLayerEpicryptPersonalAccessTokenStore($factory, new AuthTables());
+    public static function store(string $database): DBLayerEpicryptPersonalAccessTokenStore
+    {
+        return new DBLayerEpicryptPersonalAccessTokenStore(self::factory($database), new AuthTables());
     }
 }
