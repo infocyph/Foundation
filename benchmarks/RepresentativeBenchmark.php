@@ -6,10 +6,8 @@ namespace Infocyph\Foundation\Benchmarks;
 
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Auth\Account\Account;
-use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerOAuthAccessRevocationStore;
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\AccessTokenClaims;
 use Infocyph\Foundation\Auth\AuthServices;
-use Infocyph\Foundation\Auth\OAuth\Token\OAuthAccessTokenValidator;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthClientAuthentication;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthClientAuthenticationMethod;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthClientType;
@@ -383,21 +381,11 @@ PHP);
         $response = $fixture->tokens->exchange([
             'grant_type' => OAuthGrantType::ClientCredentials->value,
             'scope' => 'benchmark.read',
-            'audience' => $audience,
         ], new OAuthClientAuthentication(
             OAuthClientAuthenticationMethod::ClientSecretBasic,
             $registration->client->clientId,
             $secret,
         ));
-        $validator = new OAuthAccessTokenValidator(
-            $fixture->accessTokens,
-            $fixture->clients,
-            $fixture->authorizationStore,
-            new DBLayerOAuthAccessRevocationStore($fixture->factory, $fixture->tables),
-            $fixture->scopes,
-            $fixture->accounts,
-            $fixture->clock,
-        );
         $resolver = new OAuthBearerTokenPrincipalResolver(new ConfigRepository([
             'auth' => [
                 'http' => [
@@ -406,7 +394,7 @@ PHP);
                 ],
                 'oauth' => ['resource_audiences' => [$audience]],
             ],
-        ]), $validator);
+        ]), $fixture->accessValidator);
         $request = Request::fake(headers: [
             'Authorization' => 'Bearer ' . $response->accessToken,
             'Host' => 'benchmark.test',
