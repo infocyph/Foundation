@@ -1,4 +1,4 @@
-# OAuth 2.1 extension
+# OAuth 2.1, OIDC and PAT protocol integration
 
 Foundation 2.1 adds an opt-in OAuth authorization-server and resource-token
 capability. It is disabled by default. When `auth.oauth.enabled=false`, OAuth
@@ -6,8 +6,13 @@ stores, protocol services, signing-key loading, OAuth bearer resolution and the
 OAuth schema revision remain inactive; the Foundation 2.0 authentication surface
 keeps its existing resolver order and behavior.
 
-Foundation owns the complete opt-in OAuth boundary. Infbyte does not need OAuth
-routes, controllers, middleware, configuration or environment declarations.
+Foundation owns the opt-in application/HTTP boundary while Epicrypt owns the
+transport-neutral OAuth 2.1/OIDC protocol and cryptographic mechanics.
+Foundation supplies Webrick routes/HTTP adaptation, login and consent policy,
+account/principal mapping, DBLayer/CacheLayer authoritative stores, application
+scope/audience policy, rate limits, audit/telemetry, configuration and key
+locator/rotation policy. Infbyte does not need duplicate OAuth/OIDC protocol
+routes, controllers or state machines.
 
 ## Configuration
 
@@ -74,6 +79,38 @@ OAuth configuration lives under `auth.oauth`.
             'token' => ['max' => 30, 'window' => 60],
             'revocation' => ['max' => 60, 'window' => 60],
             'introspection' => ['max' => 120, 'window' => 60],
+            'userinfo' => ['max' => 120, 'window' => 60],
+        ],
+
+        // Optional OpenID Connect provider profile.
+        'oidc' => [
+            'enabled' => true,
+            'id_token_lifetime_seconds' => 300,
+            'userinfo_route' => '/oidc/userinfo',
+            'userinfo_audience' => 'https://identity.example.com/oidc/userinfo',
+            'subject_types' => ['public'],
+            'scopes_supported' => ['openid', 'profile', 'email'],
+            'claims_supported' => [
+                'sub',
+                'name',
+                'given_name',
+                'family_name',
+                'preferred_username',
+                'email',
+                'email_verified',
+            ],
+            'signing' => [
+                'algorithm' => 'ES256',
+                'active_key_id' => 'oidc-2026-09',
+                'private_key' => '/run/secrets/oidc-2026-09-private.pem',
+                'public_keys' => [
+                    [
+                        'id' => 'oidc-2026-09',
+                        'path' => '/run/secrets/oidc-2026-09-public.pem',
+                        'status' => 'active',
+                    ],
+                ],
+            ],
         ],
     ],
 ],
@@ -119,6 +156,11 @@ AUTH_OAUTH_ISSUER=https://identity.example.com
 AUTH_OAUTH_ACTIVE_KEY_ID=oauth-2026-08
 AUTH_OAUTH_PRIVATE_KEY=/run/secrets/oauth-2026-08-private.pem
 AUTH_OAUTH_PUBLIC_KEYS=[{"id":"oauth-2026-08","path":"/run/secrets/oauth-2026-08-public.pem","status":"active"}]
+AUTH_OIDC_ENABLED=true
+AUTH_OIDC_USERINFO_AUDIENCE=https://identity.example.com/oidc/userinfo
+AUTH_OIDC_ACTIVE_KEY_ID=oidc-2026-09
+AUTH_OIDC_PRIVATE_KEY=/run/secrets/oidc-2026-09-private.pem
+AUTH_OIDC_PUBLIC_KEYS=[{"id":"oidc-2026-09","path":"/run/secrets/oidc-2026-09-public.pem","status":"active"}]
 ```
 
 `AUTH_OAUTH_PUBLIC_KEYS` is a JSON list. Keep deployment-specific audiences,
@@ -192,30 +234,39 @@ into the deployment's secret manager and deliver it to the client through an
 appropriate secret channel. List/show, audits, logs and error output must not be
 used to recover a raw secret later.
 
-Public clients do not have a client secret. Authorization Code clients must use
-PKCE S256; `plain`, password grant, implicit grant and credential transport in
-query parameters are not accepted by this Foundation surface.
+Public clients do not have a client secret. Confidential clients may use
+`client_secret_basic`, `client_secret_post`, or `private_key_jwt`.
+`private_key_jwt` trusts only the public JWKS registered with that client;
+request-supplied or unregistered key locators are never trust sources.
+Authorization Code clients must use PKCE S256; `plain`, password grant,
+implicit grant and credential transport in query parameters are not accepted.
 
 ## Ownership
 
-Foundation owns the complete OAuth integration:
+Epicrypt owns protocol validation and cryptographic/state-machine mechanics,
+including authorization-request validation, PKCE/redirect rules,
+authorization-code artifacts, grant processing, refresh rotation/reuse,
+access-token issue/inspection/resource validation, client authentication,
+registered-key `private_key_jwt`, replay detection, revocation/introspection,
+DPoP validation/binding, OAuth metadata, OIDC request/interaction/ID-token
+mechanics, subject/UserInfo projection, provider metadata, and PAT semantics.
 
-- request/parameter validation and client authentication policy;
-- exact redirect validation, PKCE, consent and authorization-code lifecycle;
-- client, authorization, code, refresh-token and revocation persistence;
-- access-token signing/verification, JWKS, metadata, revocation and
-  introspection;
-- OAuth audit events, pruning hooks, rate-limit policy adapters and CLI
-  administration;
+Foundation owns application integration:
+
+- Webrick request/response adaptation and route registration;
+- login, consent presentation/history and authorization decisions;
+- client administration plus account/principal mapping;
+- DBLayer authoritative client/code/authorization/refresh/access-status/replay
+  and PAT persistence/transaction boundaries;
+- application scope/audience/permission policy;
+- external key locators, lifecycle/rotation selection and readiness checks;
+- rate limits, audit/telemetry, pruning hooks and CLI administration;
 - OAuth bearer principal resolution and scope/audience middleware;
-- protocol-oriented HTTP handlers and response construction;
-- configuration defaults and environment resolution;
-- conditional provider activation, route registration and route caching;
-- endpoint throttling and the authorization consent presentation.
+- generated-runtime/capability activation and secret-artifact policy.
 
-Infbyte remains an OAuth-neutral application skeleton. Enabling OAuth through
-Foundation adds an OAuth capability to the existing authentication system; it
-does not create a second application authentication system.
+Infbyte remains an OAuth-neutral application skeleton. Enabling OAuth/OIDC
+through Foundation adds protocol capability to the existing authentication
+system; it does not create a second application authentication system.
 
 ## OAuth bearer versus application bearer
 
@@ -354,28 +405,43 @@ Implemented protocol pieces include:
   surface.
 
 The implementation may intentionally be stricter than a base RFC. Examples are
-S256-only PKCE, exact registered redirect matching, bounded inputs, no
-`client_secret_post`, durable one-time authorization-code consumption, refresh
-rotation/reuse handling and explicit OAuth/application token separation.
+S256-only PKCE, exact registered redirect matching, bounded inputs,
+registered-key-only `private_key_jwt`, durable one-time authorization-code
+consumption, refresh rotation/reuse handling and explicit OAuth/application
+token separation.
 
 Available interoperability and conformance coverage is recorded in the release
 tracker. Passing the project protocol suite is not a claim that an external
 conformance suite has passed.
 
+## OpenID Connect and DPoP
+
+OIDC is opt-in through `auth.oauth.oidc.enabled`. The current provider profile
+uses Epicrypt for OpenID request validation and interaction policy, nonce and
+`max_age` handling, `auth_time`/`acr`/`amr`, Authorization Code ID-token
+issuance, UserInfo projection, provider discovery metadata and OIDC signing-key
+validation. Foundation currently exposes the `public` subject type only.
+Applications still own their login/account-selection UX; enabling OIDC does not
+create a generic social-login/provider abstraction.
+
+DPoP is supported on the OAuth token/resource path through Epicrypt. A valid
+token-endpoint proof binds the resulting access token to the proof key; resource
+validation checks the method/URI/access-token hash, key binding and authoritative
+replay state. The server metadata advertises the supported DPoP signing
+algorithm.
+
 ## Unsupported and deferred features
 
-Foundation 2.1 intentionally does **not** provide:
+Foundation intentionally does **not** provide:
 
-- OpenID Connect: no ID Tokens, UserInfo, OIDC discovery/login semantics or
-  generic “Sign in with OAuth/OIDC” application login;
 - dynamic client registration;
 - OAuth Device Authorization Grant/device flow;
 - Resource Owner Password Credentials/password grant;
 - implicit grant;
-- DPoP proof-of-possession tokens;
 - Pushed Authorization Requests (PAR);
+- pairwise OIDC subject identifiers;
 - a generic social-login/provider abstraction;
-- application-owned replacements for Foundation protocol/crypto/persistence.
+- application-owned replacements for Epicrypt protocol/crypto mechanics.
 
 Other OAuth extensions are not implicitly supported merely because they can be
 combined with OAuth. Additions such as JAR/JARM, richer client-authentication
