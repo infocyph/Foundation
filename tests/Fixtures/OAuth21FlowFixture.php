@@ -19,7 +19,10 @@ use Infocyph\Epicrypt\Auth\OAuth\OAuthRevocationEndpoint;
 use Infocyph\Epicrypt\Auth\OAuth\OAuthTokenEndpoint;
 use Infocyph\Epicrypt\Auth\OAuth\RefreshTokenArtifact;
 use Infocyph\Epicrypt\Auth\OAuth\RefreshTokenManager;
+use Infocyph\Epicrypt\Auth\Oidc\OpenIdIdTokenIssuer;
+use Infocyph\Epicrypt\Auth\Oidc\OpenIdTokenResponseExtension;
 use Infocyph\Epicrypt\Certificate\KeyPairGenerator;
+use Infocyph\Epicrypt\Security\AsymmetricSigningKeySet;
 use Infocyph\Epicrypt\Security\KeyPurpose;
 use Infocyph\Epicrypt\Security\KeyRing;
 use Infocyph\Epicrypt\Security\KeyRingEntry;
@@ -41,6 +44,7 @@ use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptClockAdapter;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\EpicryptOAuthAuthorizationClientStore;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\EpicryptOAuthClientAuthenticationAdapter;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\EpicryptOAuthScopeAudienceResolver;
+use Infocyph\Foundation\Auth\Adapter\Epicrypt\Oidc\FoundationOpenIdSubjectProvider;
 use Infocyph\Foundation\Auth\Authorization\Decision\AuthorizationDecision;
 use Infocyph\Foundation\Auth\Authorization\Gate\AuthorizerInterface;
 use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
@@ -82,6 +86,7 @@ final class OAuth21FlowFixture
     public readonly ConsentManager $consents;
     public readonly DBLayerFactory $factory;
     public readonly OAuthIntrospectionManager $introspection;
+    public readonly ?AsymmetricSigningKeySet $openIdKeys;
     public readonly OAuthSigningKeySet $keys;
     public readonly RefreshTokenManager $refreshTokens;
     public readonly DBLayerOAuthRefreshTokenStore $refreshStore;
@@ -91,7 +96,11 @@ final class OAuth21FlowFixture
     public readonly AuthTables $tables;
     public readonly OAuthTokenManager $tokens;
 
-    public function __construct(public readonly int $now = 0, ?OAuthAuditRecorder $audit = null)
+    public function __construct(
+        public readonly int $now = 0,
+        ?OAuthAuditRecorder $audit = null,
+        bool $openId = false,
+    )
     {
         DB::purge();
         $resolvedNow = $now > 0 ? $now : time();
@@ -121,6 +130,7 @@ final class OAuth21FlowFixture
             'auth' => [
                 'oauth' => [
                     'issuer' => $issuer,
+                    'oidc' => ['enabled' => $openId],
                     'routes' => ['token' => '/oauth/token'],
                     'scope_permissions' => [],
                     'scope_audiences' => [],
@@ -228,6 +238,38 @@ final class OAuth21FlowFixture
         );
         $authentication = new EpicryptOAuthClientAuthenticationAdapter($authenticator, $config);
         $audiences = new EpicryptOAuthScopeAudienceResolver($this->clients, $this->scopes, $config);
+
+        $openIdExtension = null;
+        $this->openIdKeys = null;
+        if ($openId) {
+            $openIdPair = KeyPairGenerator::ec()->generate();
+            $openIdAlgorithm = AsymmetricJwtAlgorithm::ES256;
+            $openIdKeyId = 'oidc-flow-key';
+            $this->openIdKeys = new AsymmetricSigningKeySet(
+                issuer: $issuer,
+                activeKeyId: $openIdKeyId,
+                privateKey: $openIdPair['private'],
+                publicKeys: new KeyRing([
+                    new KeyRingEntry(
+                        id: $openIdKeyId,
+                        key: $openIdPair['public'],
+                        status: KeyStatus::ACTIVE,
+                        purpose: KeyPurpose::OIDC_ID_TOKEN_SIGNING,
+                        algorithm: $openIdAlgorithm->value,
+                        issuer: $issuer,
+                    ),
+                ]),
+                algorithm: $openIdAlgorithm,
+                purpose: KeyPurpose::OIDC_ID_TOKEN_SIGNING,
+            );
+            $openIdExtension = new OpenIdTokenResponseExtension(new OpenIdIdTokenIssuer(
+                $this->openIdKeys,
+                new FoundationOpenIdSubjectProvider(),
+                300,
+                $psrClock,
+            ));
+        }
+
         $endpoint = new OAuthTokenEndpoint(
             $clientProjection,
             $nativeAccess,
@@ -238,6 +280,7 @@ final class OAuth21FlowFixture
             null,
             null,
             $psrClock,
+            $openIdExtension,
         );
         $this->tokens = new OAuthTokenManager($endpoint, $authentication, $this->refreshTokens, $audit);
 
