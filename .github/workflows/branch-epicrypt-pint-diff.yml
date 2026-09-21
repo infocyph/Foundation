@@ -1,0 +1,28 @@
+name: Branch Epicrypt Pint Diff
+
+on:
+  push:
+    branches:
+      - foundation-3/close-26.6
+
+permissions:
+  contents: read
+
+jobs:
+  pint-diff:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+      - run: composer update --no-interaction --prefer-dist --no-progress --prefer-stable
+      - name: Print Epicrypt benchmark Pint patch
+        shell: bash
+        run: |
+          set +e
+          vendor/bin/pint --config vendor/infocyph/phpforge/resources/pint.json benchmarks/epicrypt-31-utilization.php
+          status=$?
+          git diff --no-ext-diff --color=never -- benchmarks/epicrypt-31-utilization.php
+          exit "$status"
