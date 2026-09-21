@@ -353,6 +353,7 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
         $this->recipe(AuthorizationRequestValidator::class, AuthorizationRequestValidator::class, [
             $this->ref(OAuthClientManager::class),
             $this->ref(OAuthScopeResolver::class),
+            $this->ref(ConfigRepository::class),
         ]);
         $this->recipe(ConsentManager::class, ConsentManager::class, [
             $this->ref(OAuthConsentStoreInterface::class),

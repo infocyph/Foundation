@@ -151,7 +151,7 @@ final class OAuth21FlowFixture
             false,
         );
         $this->scopes = new OAuthScopeResolver($clientStore, $config);
-        $this->requests = new AuthorizationRequestValidator($this->clients, $this->scopes);
+        $this->requests = new AuthorizationRequestValidator($this->clients, $this->scopes, $config);
         $authorizer = self::authorizer();
         $this->consents = new ConsentManager($consentStore, $authorizer, $this->clock);
 

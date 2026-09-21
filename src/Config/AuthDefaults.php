@@ -142,6 +142,7 @@ final class AuthDefaults
         return [
             'enabled' => $enabled,
             'issuer' => $enabled ? env('AUTH_OAUTH_ISSUER') : null,
+            'oidc' => self::openId($enabled),
             'access_token_ttl' => 300,
             'authorization_code_ttl' => 60,
             'authorization_code_protection' => [
@@ -179,6 +180,41 @@ final class AuthDefaults
                 'token' => ['max' => 30, 'window' => 60],
                 'revocation' => ['max' => 60, 'window' => 60],
                 'introspection' => ['max' => 120, 'window' => 60],
+            ],
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private static function openId(bool $oauthEnabled): array
+    {
+        $enabled = $oauthEnabled && env_bool('AUTH_OIDC_ENABLED', false);
+
+        return [
+            'enabled' => $enabled,
+            'id_token_lifetime_seconds' => 300,
+            'userinfo_route' => '/oidc/userinfo',
+            'userinfo_audience' => $enabled ? env('AUTH_OIDC_USERINFO_AUDIENCE') : null,
+            'subject_types' => ['public'],
+            'scopes_supported' => ['openid', 'profile', 'email'],
+            'claims_supported' => [
+                'sub',
+                'name',
+                'given_name',
+                'family_name',
+                'preferred_username',
+                'email',
+                'email_verified',
+            ],
+            'signing' => [
+                'algorithm' => 'ES256',
+                'active_key_id' => $enabled ? env('AUTH_OIDC_ACTIVE_KEY_ID') : null,
+                'private_key' => $enabled ? env('AUTH_OIDC_PRIVATE_KEY') : null,
+                'public_keys' => $enabled
+                    ? self::jsonListEnvironment(
+                        'AUTH_OIDC_PUBLIC_KEYS',
+                        'AUTH_OIDC_PUBLIC_KEYS must be a valid JSON list.',
+                    )
+                    : [],
             ],
         ];
     }

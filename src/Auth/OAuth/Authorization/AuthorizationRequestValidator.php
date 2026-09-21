@@ -5,24 +5,27 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Auth\OAuth\Authorization;
 
 use Infocyph\Epicrypt\Auth\OAuth\OAuthAuthorizationRequestValidator as EpicryptAuthorizationRequestValidator;
-use Infocyph\Epicrypt\Auth\OAuth\OAuthAuthorizationResult;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthErrorCode;
 use Infocyph\Epicrypt\Auth\OAuth\OAuthProtocolError;
+use Infocyph\Epicrypt\Auth\Oidc\OpenIdAuthorizationRequestValidator;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\EpicryptOAuthAuthorizationAudienceResolver;
-use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\EpicryptOAuthErrorMapper;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\EpicryptOAuthAuthorizationClientStore;
+use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\EpicryptOAuthErrorMapper;
 use Infocyph\Foundation\Auth\OAuth\Client\OAuthClient;
 use Infocyph\Foundation\Auth\OAuth\Client\OAuthClientManager;
 use Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException;
 use Infocyph\Foundation\Auth\OAuth\Scope\OAuthScopeResolver;
+use Infocyph\Foundation\Config\ConfigRepository;
 
 /**
- * Foundation application-policy facade over Epicrypt's OAuth authorization protocol validator.
+ * Foundation application-policy facade over Epicrypt's OAuth/OIDC authorization validators.
  */
 final readonly class AuthorizationRequestValidator
 {
     public function __construct(
         private OAuthClientManager $clients,
         private OAuthScopeResolver $scopes,
+        private ConfigRepository $config,
     ) {}
 
     /** @param array<string, mixed> $parameters */
@@ -59,7 +62,7 @@ final readonly class AuthorizationRequestValidator
             throw $this->protocolException($result->error);
         }
 
-        $protocol = $result->acceptedRequest();
+        $protocol = $result->request;
         $client = $this->clients->enabled($protocol->clientId);
         if (!$client instanceof OAuthClient) {
             throw OAuthProtocolException::unauthorizedClient();
@@ -71,6 +74,8 @@ final readonly class AuthorizationRequestValidator
             throw OAuthProtocolException::invalidScope(true);
         }
 
+        $openId = $result->openId;
+
         return new AuthorizationRequest(
             client: $client,
             redirectUri: $protocol->redirectUri,
@@ -79,23 +84,53 @@ final readonly class AuthorizationRequestValidator
             audiences: $selection->audiences,
             requiredPermissions: $selection->permissions,
             state: $protocol->state,
+            openIdNonce: $openId?->nonce,
+            openIdPrompts: $openId === null
+                ? []
+                : array_map(static fn($prompt): string => $prompt->value, $openId->prompts),
+            openIdMaximumAuthenticationAge: $openId?->maximumAuthenticationAge,
+            openIdAcrValues: $openId?->acrValues ?? [],
         );
     }
 
     /** @param array<string, mixed> $parameters */
-    private function protocolResult(array $parameters): OAuthAuthorizationResult
+    private function protocolResult(array $parameters): AuthorizationProtocolResult
     {
-        $validator = new EpicryptAuthorizationRequestValidator(
+        $oauth = new EpicryptAuthorizationRequestValidator(
             new EpicryptOAuthAuthorizationClientStore($this->clients),
             new EpicryptOAuthAuthorizationAudienceResolver($parameters),
         );
 
-        return $validator->validate($parameters);
+        if ($this->config->get('auth.oauth.oidc.enabled', false) === true) {
+            $result = new OpenIdAuthorizationRequestValidator($oauth)->validate($parameters);
+
+            return new AuthorizationProtocolResult(
+                $result->oauthRequest,
+                $result->openIdRequest,
+                $result->error,
+            );
+        }
+
+        $result = $oauth->validate($parameters);
+        if ($result->request !== null && in_array('openid', $result->request->scopes, true)) {
+            return new AuthorizationProtocolResult(
+                null,
+                null,
+                new OAuthProtocolError(
+                    OAuthErrorCode::INVALID_SCOPE,
+                    $result->request->redirectUri,
+                    $result->request->state,
+                ),
+            );
+        }
+
+        return new AuthorizationProtocolResult($result->request, null, $result->error);
     }
 
-    private function redirectFromAccepted(OAuthAuthorizationResult $result): AuthorizationRedirectContext
+    private function redirectFromAccepted(AuthorizationProtocolResult $result): AuthorizationRedirectContext
     {
-        $request = $result->acceptedRequest();
+        $request = $result->request
+            ?? throw new \LogicException('Accepted authorization result has no request.');
         $client = $this->clients->enabled($request->clientId);
         if (!$client instanceof OAuthClient) {
             throw OAuthProtocolException::unauthorizedClient();

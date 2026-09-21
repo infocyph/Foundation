@@ -101,6 +101,7 @@ final readonly class AuthorizationCodeManager
                 authenticationMethods: $authenticationMethods,
             ),
             $this->ttlSeconds,
+            $request->openIdNonce,
         );
 
         return new OAuthAuthorizationCodeIssue(
