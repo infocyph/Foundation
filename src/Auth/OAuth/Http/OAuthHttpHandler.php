@@ -103,10 +103,32 @@ final readonly class OAuthHttpHandler
             $parameters = $this->input->form($request);
             $authentication = $this->input->clientAuthentication($request, $parameters);
 
-            return $this->responses->token($this->oauth->exchange($parameters, $authentication));
+            return $this->responses->token($this->oauth->exchange(
+                $parameters,
+                $authentication,
+                $this->dpopProof($request),
+            ));
         } catch (OAuthProtocolException $exception) {
             return $this->responses->error($exception);
         }
+    }
+
+    private function dpopProof(Request $request): ?string
+    {
+        $values = $request->getHeader('DPoP');
+        if (count($values) > 1) {
+            throw OAuthProtocolException::invalidRequest('The DPoP proof is invalid.');
+        }
+
+        $proof = $values[0] ?? '';
+        if ($proof === '') {
+            return null;
+        }
+        if (strlen($proof) > 16_384 || preg_match('/[\x00-\x20\x7F]/', $proof) === 1) {
+            throw OAuthProtocolException::invalidRequest('The DPoP proof is invalid.');
+        }
+
+        return $proof;
     }
 
     private function issuer(): string
