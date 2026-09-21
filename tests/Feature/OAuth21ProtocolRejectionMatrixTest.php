@@ -105,7 +105,6 @@ it('rejects client authentication downgrade client mismatch PKCE failure and cod
         expect(oauth21ProtocolError(fn() => $fixture->tokens->exchange([
             'grant_type' => OAuthGrantType::ClientCredentials->value,
             'scope' => 'profile.read',
-            'audience' => $audience,
         ], new OAuthClientAuthentication(
             OAuthClientAuthenticationMethod::None,
             $confidential->client->clientId,
