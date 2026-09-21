@@ -17,9 +17,11 @@ use Infocyph\Webrick\Exceptions\HttpException;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 
-it('audits authorization code consume expiry and replay at the authoritative Epicrypt outcome', function (
+it('audits authorization code consumption at the authoritative Epicrypt outcome', function (
     string $outcome,
     AuthEventType $expectedType,
+    string $expectedResult,
+    bool $expectAuthorizationId,
 ): void {
     $now = 1_700_000_000;
     $capture = new OAuthAuditCapture();
@@ -76,18 +78,22 @@ it('audits authorization code consume expiry and replay at the authoritative Epi
 
         expect($capture->events)->toHaveCount(1)
             ->and($capture->events[0]->type)->toBe($expectedType)
-            ->and($capture->events[0]->metadata)->toMatchArray([
-                'client_id' => $registration->client->clientId,
-                'authorization_id' => $issue->authorization->id,
-                'result' => $outcome,
-            ]);
+            ->and($capture->events[0]->metadata['client_id'] ?? null)->toBe($registration->client->clientId)
+            ->and($capture->events[0]->metadata['result'] ?? null)->toBe($expectedResult);
+
+        if ($expectAuthorizationId) {
+            expect($capture->events[0]->metadata['authorization_id'] ?? null)
+                ->toBe($issue->authorization->id);
+        } else {
+            expect($capture->events[0]->metadata['authorization_id'] ?? null)->toBeNull();
+        }
     } finally {
         $fixture->close();
     }
 })->with([
-    'consumed' => ['consumed', AuthEventType::OAUTH_AUTHORIZATION_CODE_CONSUMED],
-    'expired' => ['expired', AuthEventType::OAUTH_AUTHORIZATION_CODE_EXPIRED],
-    'replayed' => ['replayed', AuthEventType::OAUTH_AUTHORIZATION_CODE_REPLAY],
+    'consumed' => ['consumed', AuthEventType::OAUTH_AUTHORIZATION_CODE_CONSUMED, 'consumed', true],
+    'expired sealed artifact' => ['expired', AuthEventType::OAUTH_INVALID_REQUEST, 'invalid', false],
+    'replayed' => ['replayed', AuthEventType::OAUTH_AUTHORIZATION_CODE_REPLAY, 'replayed', false],
 ]);
 
 it('audits OAuth endpoint throttling only when a request is rejected', function (): void {
