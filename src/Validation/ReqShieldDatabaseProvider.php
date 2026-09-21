@@ -136,26 +136,6 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
         return $this->sqlIdentifier($column, 'column');
     }
 
-    /** @return non-empty-string */
-    private function sqlIdentifier(string $identifier, string $type): string
-    {
-        $identifier = trim($identifier);
-        if (
-            $identifier === ''
-            || preg_match(
-                '/\A[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*\z/D',
-                $identifier,
-            ) !== 1
-        ) {
-            throw new \InvalidArgumentException(sprintf(
-                'Database validation %s names must be dotted SQL identifiers.',
-                $type,
-            ));
-        }
-
-        return $identifier;
-    }
-
     private function databaseIdentifier(mixed $value): int|string|null
     {
         if (is_int($value) || is_string($value)) {
@@ -280,6 +260,26 @@ final readonly class ReqShieldDatabaseProvider implements DatabaseProvider
         }
 
         return is_scalar($actual) && is_scalar($expected) && (string) $actual === (string) $expected;
+    }
+
+    /** @return non-empty-string */
+    private function sqlIdentifier(string $identifier, string $type): string
+    {
+        $identifier = trim($identifier);
+        if (
+            $identifier === ''
+            || preg_match(
+                '/\A[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*\z/D',
+                $identifier,
+            ) !== 1
+        ) {
+            throw new \InvalidArgumentException(sprintf(
+                'Database validation %s names must be dotted SQL identifiers.',
+                $type,
+            ));
+        }
+
+        return $identifier;
     }
 
     private function stringValue(mixed $value): string
