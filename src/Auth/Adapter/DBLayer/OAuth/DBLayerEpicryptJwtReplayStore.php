@@ -12,6 +12,7 @@ final readonly class DBLayerEpicryptJwtReplayStore extends DBLayerStore implemen
     public function consume(string $namespace, string $tokenId, int $expiresAt): bool
     {
         $id = $this->id($namespace, $tokenId);
+
         try {
             $this->insertRecord('oauthReplayStates', [
                 'id' => $id,

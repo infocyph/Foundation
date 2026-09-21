@@ -97,8 +97,10 @@ final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore imple
     }
 
     public function rotate(
-        #[\SensitiveParameter] RefreshTokenRecord $current,
-        #[\SensitiveParameter] RefreshTokenRecord $replacement,
+        #[\SensitiveParameter]
+        RefreshTokenRecord $current,
+        #[\SensitiveParameter]
+        RefreshTokenRecord $replacement,
         string $clientId,
         ?string $dpopKeyThumbprint,
         int $now,
@@ -177,6 +179,17 @@ final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore imple
         );
     }
 
+    private function revokeFamilyUsing(Connection $connection, string $familyId, int $revokedAt): void
+    {
+        $connection->execute(
+            sprintf(
+                'UPDATE %s SET revoked_at = ? WHERE family_id = ? AND revoked_at IS NULL',
+                $this->table('oauthRefreshTokens'),
+            ),
+            [$revokedAt, $familyId],
+        );
+    }
+
     private function rotateTransaction(
         Connection $transaction,
         RefreshTokenRecord $current,
@@ -229,16 +242,5 @@ final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore imple
         $this->insert($transaction, $replacement);
 
         return RefreshTokenRotationStatus::ROTATED;
-    }
-
-    private function revokeFamilyUsing(Connection $connection, string $familyId, int $revokedAt): void
-    {
-        $connection->execute(
-            sprintf(
-                'UPDATE %s SET revoked_at = ? WHERE family_id = ? AND revoked_at IS NULL',
-                $this->table('oauthRefreshTokens'),
-            ),
-            [$revokedAt, $familyId],
-        );
     }
 }

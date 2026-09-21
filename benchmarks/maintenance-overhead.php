@@ -5,12 +5,6 @@ declare(strict_types=1);
 use Infocyph\Foundation\Benchmarks\Support\FoundationMaintenanceBenchmarkAdapter;
 use Infocyph\Foundation\Routing\WebReleaseCompiler;
 use Infocyph\Foundation\Routing\WebReleaseRuntime;
-use Infocyph\Webrick\Request\Request;
-use Infocyph\Webrick\Response\Response;
-use Infocyph\Webrick\Router\Runtime\RoutingInput;
-use Infocyph\Webrick\Runtime\Http\RuntimeAdapterInterface;
-use Infocyph\Webrick\Runtime\Http\RuntimeCapabilities;
-use Infocyph\Webrick\Runtime\Http\RuntimeRequestContext;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 

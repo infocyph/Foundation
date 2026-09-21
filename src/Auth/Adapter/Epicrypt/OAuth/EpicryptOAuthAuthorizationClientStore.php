@@ -26,20 +26,6 @@ final readonly class EpicryptOAuthAuthorizationClientStore implements EpicryptOA
         private OAuthClientManager $clients,
     ) {}
 
-    private function assertionKeys(OAuthClient $client): ?OAuthClientKeySet
-    {
-        if ($client->authenticationMethod->value !== EpicryptOAuthClientAuthenticationMethod::PRIVATE_KEY_JWT->value) {
-            return null;
-        }
-
-        $jwks = $client->metadata['assertion_jwks'] ?? null;
-        if (!is_array($jwks) || $jwks === []) {
-            return null;
-        }
-
-        return new OAuthClientKeySet($jwks);
-    }
-
     public function find(string $clientId): ?EpicryptOAuthClient
     {
         $client = $this->clients->enabled($clientId);
@@ -66,5 +52,19 @@ final readonly class EpicryptOAuthAuthorizationClientStore implements EpicryptOA
         } catch (ConfigurationException|\ValueError) {
             return null;
         }
+    }
+
+    private function assertionKeys(OAuthClient $client): ?OAuthClientKeySet
+    {
+        if ($client->authenticationMethod->value !== EpicryptOAuthClientAuthenticationMethod::PRIVATE_KEY_JWT->value) {
+            return null;
+        }
+
+        $jwks = $client->metadata['assertion_jwks'] ?? null;
+        if (!is_array($jwks) || $jwks === []) {
+            return null;
+        }
+
+        return new OAuthClientKeySet($jwks);
     }
 }

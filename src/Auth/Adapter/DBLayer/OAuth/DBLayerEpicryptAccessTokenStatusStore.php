@@ -14,6 +14,7 @@ final readonly class DBLayerEpicryptAccessTokenStatusStore extends DBLayerStore 
     public function create(OAuthAccessTokenStatusRecord $record): bool
     {
         $id = $this->id($record->issuer, $record->tokenId);
+
         try {
             $this->insertRecord('oauthAccessStatuses', [
                 'id' => $id,

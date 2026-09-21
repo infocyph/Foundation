@@ -179,6 +179,7 @@ final readonly class DBLayerEpicryptPersonalAccessTokenStore extends DBLayerStor
     private function serializeSubject(Connection $connection, string $subject): void
     {
         $hash = $this->subjectHash($subject);
+
         try {
             $connection->table($this->table('personalAccessTokenSubjects'))->insert([
                 'subject_hash' => $hash,
