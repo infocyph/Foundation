@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\OAuth;
 
+use Infocyph\Epicrypt\Auth\Oidc\OpenIdInteractionErrorCode;
+use Infocyph\Epicrypt\Auth\Oidc\OpenIdInteractionPolicy;
+use Infocyph\Epicrypt\Auth\Oidc\OpenIdInteractionRequirement;
+use Infocyph\Epicrypt\Auth\Oidc\OpenIdInteractionState;
 use Infocyph\Epicrypt\Auth\Oidc\OpenIdUserInfoProjector;
 use Infocyph\Foundation\Auth\Audit\AuthEventSeverity;
 use Infocyph\Foundation\Auth\Audit\AuthEventType;
+use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Auth\OAuth\Audit\OAuthAuditRecorder;
 use Infocyph\Foundation\Auth\OAuth\Authorization\AuthorizationCodeManager;
 use Infocyph\Foundation\Auth\OAuth\Authorization\AuthorizationRedirectContext;
@@ -46,6 +51,8 @@ final readonly class OAuthManager
         private ?OpenIdMetadataProvider $openIdMetadata = null,
         private ?OpenIdUserInfoProjector $openIdUserInfo = null,
         private ?OAuthAccessTokenValidator $openIdAccessTokens = null,
+        private ?OpenIdInteractionPolicy $openIdInteractions = null,
+        private ?ClockInterface $clock = null,
     ) {}
 
     public function approve(AuthorizationRequest $request, PrincipalInterface $principal): OAuthAuthorizationCodeIssue
@@ -169,6 +176,55 @@ final readonly class OAuthManager
     public function metadata(): array
     {
         return $this->metadata->toArray();
+    }
+
+    public function openIdInteraction(
+        AuthorizationRequest $request,
+        ?PrincipalInterface $principal,
+    ): OpenIdInteractionRequirement {
+        if (!$this->openIdInteractions instanceof OpenIdInteractionPolicy
+            || $request->openIdProtocol === null) {
+            throw new \LogicException('OpenID Connect interaction policy is unavailable.');
+        }
+
+        $accountId = $principal?->accountId();
+        $metadata = $principal?->metadata() ?? [];
+        $authenticationTime = $metadata['auth_time'] ?? null;
+        if (!is_int($authenticationTime) || $authenticationTime < 1) {
+            $authenticationTime = is_string($accountId) && $accountId !== ''
+                ? ($this->clock?->now() ?? time())
+                : null;
+        }
+        $authenticationContext = $metadata['acr'] ?? null;
+        $authenticationContext = is_string($authenticationContext) && $authenticationContext !== ''
+            ? $authenticationContext
+            : null;
+        $authenticationMethods = $metadata['amr'] ?? [];
+        $authenticationMethods = is_array($authenticationMethods)
+            ? array_values(array_filter($authenticationMethods, is_string(...)))
+            : [];
+
+        $result = $this->openIdInteractions->evaluate(
+            $request->openIdProtocol,
+            new OpenIdInteractionState(
+                subject: is_string($accountId) && $accountId !== '' ? $accountId : null,
+                authenticationTime: $authenticationTime,
+                authenticationContext: $authenticationContext,
+                authenticationMethods: $authenticationMethods,
+                consentRequired: $principal === null || !$this->hasConsent($principal, $request),
+            ),
+        );
+        if ($result->error instanceof OpenIdInteractionErrorCode) {
+            throw new OAuthProtocolException(
+                $result->error->value,
+                'The OpenID authorization interaction cannot proceed without user interaction.',
+                400,
+                true,
+            );
+        }
+
+        return $result->requirement
+            ?? throw new \LogicException('OpenID interaction returned no requirement.');
     }
 
     /** @return array<string, mixed> */
