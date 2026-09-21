@@ -17,7 +17,7 @@ final readonly class AuthorizationServerMetadata
     public function __construct(private ConfigRepository $config) {}
 
     /** @return array<string, mixed> */
-    public function toArray(): array
+    public function epicrypt(): EpicryptAuthorizationServerMetadata
     {
         return new EpicryptAuthorizationServerMetadata(
             issuer: $this->issuer(),
@@ -45,7 +45,12 @@ final readonly class AuthorizationServerMetadata
             jwksUri: $this->endpoint('jwks'),
             dpopSigningAlgorithms: [AsymmetricJwtAlgorithm::ES256],
             clientAssertionSigningAlgorithms: AsymmetricJwtAlgorithm::cases(),
-        )->toArray();
+        );
+    }
+
+    public function toArray(): array
+    {
+        return $this->epicrypt()->toArray();
     }
 
     private function endpoint(string $name): string
@@ -73,7 +78,11 @@ final readonly class AuthorizationServerMetadata
 
         $grants = [];
         foreach ($configured as $grant) {
-            if (!is_string($grant) || !($resolved = EpicryptGrantType::tryFrom($grant)) instanceof EpicryptGrantType) {
+            if (!is_string($grant)) {
+                throw new \LogicException('OAuth grant configuration is invalid.');
+            }
+            $resolved = EpicryptGrantType::tryFrom($grant);
+            if (!$resolved instanceof EpicryptGrantType) {
                 throw new \LogicException('OAuth grant configuration is invalid.');
             }
             $grants[] = $resolved;
