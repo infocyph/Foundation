@@ -79,6 +79,6 @@ final readonly class OAuthIntrospectionManager
             return [];
         }
 
-        return array_values(array_filter($value, 'is_string'));
+        return array_values(array_filter($value, is_string(...)));
     }
 }
