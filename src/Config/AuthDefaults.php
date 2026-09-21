@@ -159,6 +159,7 @@ final class AuthDefaults
             'rate_limit_store' => null,
             'resource_audiences' => [],
             'scope_permissions' => [],
+            'scope_audiences' => [],
             'signing' => [
                 'algorithm' => 'RS256',
                 'active_key_id' => $enabled ? env('AUTH_OAUTH_ACTIVE_KEY_ID') : null,

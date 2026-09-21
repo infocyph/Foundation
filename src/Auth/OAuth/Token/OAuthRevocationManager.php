@@ -4,25 +4,16 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\OAuth\Token;
 
-use Infocyph\Foundation\Auth\Audit\AuthEventType;
-use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
-use Infocyph\Foundation\Auth\OAuth\Audit\OAuthAuditRecorder;
-use Infocyph\Foundation\Auth\OAuth\Client\OAuthClient;
-use Infocyph\Foundation\Auth\OAuth\Client\OAuthClientManager;
-use Infocyph\Foundation\Auth\OAuth\Contract\OAuthAccessRevocationStoreInterface;
-use Infocyph\Foundation\Auth\OAuth\Contract\OAuthAccessTokenServiceInterface;
-use Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException;
-use Infocyph\Foundation\Auth\OAuth\Exception\OAuthTokenException;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthRevocationEndpoint;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthTokenTypeHint;
+use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\EpicryptOAuthClientAuthenticationAdapter;
+use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\EpicryptOAuthErrorMapper;
 
 final readonly class OAuthRevocationManager
 {
     public function __construct(
-        private OAuthClientManager $clients,
-        private OAuthAccessTokenServiceInterface $accessTokens,
-        private OAuthAccessRevocationStoreInterface $revocations,
-        private OAuthRefreshTokenCoordinator $refreshTokens,
-        private ClockInterface $clock,
-        private ?OAuthAuditRecorder $audit = null,
+        private OAuthRevocationEndpoint $endpoint,
+        private EpicryptOAuthClientAuthenticationAdapter $authentication,
     ) {}
 
     public function revoke(
@@ -31,63 +22,21 @@ final readonly class OAuthRevocationManager
         OAuthClientAuthentication $authentication,
         ?string $tokenTypeHint = null,
     ): void {
-        $client = $this->clients->authenticate(
-            $authentication->clientId,
-            $authentication->secret,
-            null,
-            $authentication->method,
+        $hint = match ($tokenTypeHint) {
+            'access_token' => OAuthTokenTypeHint::ACCESS_TOKEN,
+            'refresh_token' => OAuthTokenTypeHint::REFRESH_TOKEN,
+            default => null,
+        };
+        $result = $this->endpoint->revoke(
+            clientId: $authentication->clientId,
+            authentication: $this->authentication->authenticate($authentication),
+            token: $token,
+            hint: $hint,
         );
-        if (!$client instanceof OAuthClient) {
-            throw OAuthProtocolException::invalidClient();
+        if (!$result->accepted) {
+            throw EpicryptOAuthErrorMapper::exception(
+                $result->error === null ? null : new \Infocyph\Epicrypt\Auth\OAuth\OAuthProtocolError($result->error),
+            );
         }
-
-        if ($token === '' || strlen($token) > 8192) {
-            return;
-        }
-
-        if ($tokenTypeHint === 'refresh_token') {
-            $this->refreshTokens->revoke($token, $client->clientId);
-
-            return;
-        }
-
-        if ($this->revokeAccessToken($token, $client)) {
-            return;
-        }
-
-        $this->refreshTokens->revoke($token, $client->clientId);
-    }
-
-    private function revokeAccessToken(#[\SensitiveParameter] string $token, OAuthClient $client): bool
-    {
-        foreach ($client->audiences as $audience) {
-            try {
-                $claims = $this->accessTokens->verify($token, $audience);
-            } catch (OAuthTokenException) {
-                continue;
-            }
-            if (!hash_equals($claims->clientId, $client->clientId)) {
-                return true;
-            }
-
-            $this->revocations->revoke(new OAuthAccessTokenRevocation(
-                tokenId: $claims->tokenId,
-                clientId: $claims->clientId,
-                authorizationId: $claims->authorizationId,
-                expiresAt: $claims->expiresAt,
-                revokedAt: $this->clock->now(),
-                reason: 'client_revocation',
-            ));
-            $this->audit?->record(AuthEventType::OAUTH_ACCESS_TOKEN_REVOKED, metadata: [
-                'client_id' => $claims->clientId,
-                'authorization_id' => $claims->authorizationId,
-                'token_type' => 'access_token',
-                'result' => 'revoked',
-            ]);
-
-            return true;
-        }
-
-        return false;
     }
 }
