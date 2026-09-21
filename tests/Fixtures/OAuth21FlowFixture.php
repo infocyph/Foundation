@@ -81,7 +81,7 @@ final class OAuth21FlowFixture
     public readonly AccountProviderInterface $accounts;
     public readonly OAuth21AccessTokenHarness $accessTokens;
     public readonly DBLayerOAuthAuthorizationStore $authorizationStore;
-    public readonly DBLayerEpicryptOAuthAuthorizationStore $this->epicryptAuthorizations;
+    public readonly DBLayerEpicryptOAuthAuthorizationStore $epicryptAuthorizations;
     public readonly OAuthAccessTokenValidator $accessValidator;
     public readonly OAuthClientManager $clients;
     public readonly OAuth21FlowClock $clock;
