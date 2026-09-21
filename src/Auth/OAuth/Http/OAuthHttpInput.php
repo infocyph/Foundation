@@ -59,7 +59,7 @@ final readonly class OAuthHttpInput
             throw OAuthProtocolException::invalidClient();
         }
 
-        $authorization = $headers[0];
+        $authorization = $headers[0] ?? '';
         if ($authorization !== '') {
             return $this->basicAuthentication($authorization, $parameters);
         }
