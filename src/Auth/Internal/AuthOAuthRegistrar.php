@@ -279,10 +279,15 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
         $this->recipe(OAuthTokenManager::class, OAuthTokenManager::class, [
             $this->ref(OAuthTokenEndpoint::class),
             $this->ref(EpicryptOAuthClientAuthenticationAdapter::class),
+            $this->ref(RefreshTokenManager::class),
+            $this->ref(OAuthAuditRecorder::class),
         ]);
         $this->recipe(OAuthRevocationManager::class, OAuthRevocationManager::class, [
             $this->ref(OAuthRevocationEndpoint::class),
             $this->ref(EpicryptOAuthClientAuthenticationAdapter::class),
+            $this->ref(EpicryptAccessTokenService::class),
+            $this->ref(RefreshTokenManager::class),
+            $this->ref(OAuthAuditRecorder::class),
         ]);
         $this->recipe(OAuthIntrospectionManager::class, OAuthIntrospectionManager::class, [
             $this->ref(OAuthIntrospectionEndpoint::class),

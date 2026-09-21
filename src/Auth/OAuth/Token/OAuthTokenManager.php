@@ -7,8 +7,13 @@ namespace Infocyph\Foundation\Auth\OAuth\Token;
 use Infocyph\Epicrypt\Auth\OAuth\OAuthClientAuthenticationResult as EpicryptAuthenticationResult;
 use Infocyph\Epicrypt\Auth\OAuth\OAuthTokenEndpoint;
 use Infocyph\Epicrypt\Auth\OAuth\OAuthTokenResult;
+use Infocyph\Epicrypt\Auth\OAuth\RefreshTokenInspectionStatus;
+use Infocyph\Epicrypt\Auth\OAuth\RefreshTokenManager;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\EpicryptOAuthClientAuthenticationAdapter;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\EpicryptOAuthErrorMapper;
+use Infocyph\Foundation\Auth\Audit\AuthEventSeverity;
+use Infocyph\Foundation\Auth\Audit\AuthEventType;
+use Infocyph\Foundation\Auth\OAuth\Audit\OAuthAuditRecorder;
 use Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthGrantType;
 
@@ -17,11 +22,11 @@ final readonly class OAuthTokenManager
     public function __construct(
         private OAuthTokenEndpoint $endpoint,
         private EpicryptOAuthClientAuthenticationAdapter $authentication,
+        private RefreshTokenManager $refreshTokens,
+        private ?OAuthAuditRecorder $audit = null,
     ) {}
 
-    /**
-     * @param array<string, mixed> $parameters
-     */
+    /** @param array<string, mixed> $parameters */
     public function exchange(
         array $parameters,
         OAuthClientAuthentication $authentication,
@@ -34,21 +39,9 @@ final readonly class OAuthTokenManager
         }
 
         $result = match ($grant) {
-            OAuthGrantType::AuthorizationCode => $this->authorizationCode(
-                $parameters,
-                $authentication,
-                $dpopProof,
-            ),
-            OAuthGrantType::ClientCredentials => $this->clientCredentials(
-                $parameters,
-                $authentication,
-                $dpopProof,
-            ),
-            OAuthGrantType::RefreshToken => $this->refresh(
-                $parameters,
-                $authentication,
-                $dpopProof,
-            ),
+            OAuthGrantType::AuthorizationCode => $this->authorizationCode($parameters, $authentication, $dpopProof),
+            OAuthGrantType::ClientCredentials => $this->clientCredentials($parameters, $authentication, $dpopProof),
+            OAuthGrantType::RefreshToken => $this->refresh($parameters, $authentication, $dpopProof),
         };
 
         return $this->response($result);
@@ -94,7 +87,6 @@ final readonly class OAuthTokenManager
         );
     }
 
-    /** @param array<string, mixed> $parameters @return list<string>|null */
     /** @return list<string>|null */
     private function optionalSpaceList(array $parameters, string $name): ?array
     {
@@ -125,13 +117,43 @@ final readonly class OAuthTokenManager
             throw OAuthProtocolException::invalidRequest();
         }
 
-        return $this->endpoint->refreshToken(
+        $token = $this->requiredString($parameters, 'refresh_token', 16_384, false);
+        $before = $this->refreshTokens->inspect($token);
+        $result = $this->endpoint->refreshToken(
             clientId: $authentication->clientId,
             authentication: $this->authentication->authenticate($authentication),
-            refreshToken: $this->requiredString($parameters, 'refresh_token', 16_384, false),
+            refreshToken: $token,
             requestedScopes: $this->optionalSpaceList($parameters, 'scope'),
             dpopProof: $dpopProof,
         );
+
+        $record = $before->record;
+        if ($result->successful() && $record !== null) {
+            $this->audit?->record(
+                AuthEventType::OAUTH_REFRESH_TOKEN_ROTATED,
+                $record->grant->subject,
+                [
+                    'client_id' => $record->grant->clientId,
+                    'authorization_id' => $record->grant->authorizationId,
+                    'result' => 'rotated',
+                    'scopes' => $result->response?->scopes ?? [],
+                    'audiences' => $record->grant->audiences,
+                ],
+            );
+        } elseif ($before->status === RefreshTokenInspectionStatus::CONSUMED && $record !== null) {
+            $this->audit?->record(
+                AuthEventType::OAUTH_REFRESH_TOKEN_REUSE,
+                $record->grant->subject,
+                [
+                    'client_id' => $record->grant->clientId,
+                    'authorization_id' => $record->grant->authorizationId,
+                    'result' => 'reused',
+                ],
+                AuthEventSeverity::WARNING,
+            );
+        }
+
+        return $result;
     }
 
     /** @param array<string, mixed> $parameters */
