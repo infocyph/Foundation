@@ -5,6 +5,7 @@ declare(strict_types=1);
 it('keeps direct SHA-256 hashing inside protocol and cryptographic source boundaries', function (): void {
     $root = dirname(__DIR__, 2) . '/src';
     $allowed = [
+        '/Auth/Adapter/DBLayer/OAuth/',
         '/Auth/Adapter/Epicrypt/',
         '/Auth/Adapter/Otp/',
         '/Auth/OAuth/',

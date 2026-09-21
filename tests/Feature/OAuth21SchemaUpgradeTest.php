@@ -8,6 +8,7 @@ use Infocyph\DBLayer\Schema\Blueprint;
 use Infocyph\DBLayer\Schema\SchemaManager;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthMfaRevisionSchema;
+use Infocyph\Foundation\Database\AuthSchema\AuthOAuthEpicryptProtocolSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthOAuthEpicryptRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthOAuthRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthPasskeyRecordSchema;
@@ -38,6 +39,7 @@ it('upgrades an installed Foundation 2.0 auth schema to current revisions withou
     $passkeyRecord = new AuthPasskeyRecordSchema($tables);
     $oauth = new AuthOAuthRevisionSchema($tables);
     $oauthEpicrypt = new AuthOAuthEpicryptRevisionSchema($tables);
+    $oauthProtocol = new AuthOAuthEpicryptProtocolSchema($tables);
     $releasedRunner = new MigrationRunner($connection, [$base, $mfa]);
     $installer = new AuthSchemaInstaller(
         $factory,
@@ -104,6 +106,7 @@ it('upgrades an installed Foundation 2.0 auth schema to current revisions withou
             $passkey->id(),
             $passkeyRecord->id(),
             $oauthEpicrypt->id(),
+            $oauthProtocol->id(),
         ]);
         $after = $installer->readiness();
 

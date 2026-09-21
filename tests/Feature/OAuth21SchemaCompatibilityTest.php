@@ -6,6 +6,7 @@ use Infocyph\DBLayer\Connection\ConnectionConfig;
 use Infocyph\DBLayer\DB;
 use Infocyph\DBLayer\Migration\MigrationRunner;
 use Infocyph\DBLayer\Schema\SchemaManager;
+use Infocyph\Foundation\Database\AuthSchema\AuthOAuthEpicryptProtocolSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthOAuthEpicryptRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthOAuthRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
@@ -24,6 +25,8 @@ it('keeps OAuth tables outside the released base auth table set', function (): v
             'auth_oauth_authorizations',
             'auth_oauth_refresh_tokens',
             'auth_oauth_access_revocations',
+            'auth_oauth_access_statuses',
+            'auth_oauth_replay_states',
         ]);
 });
 
@@ -36,17 +39,18 @@ it('installs and rolls back OAuth revisions independently from the base auth sch
     $tables = new AuthTables();
     $oauth = new AuthOAuthRevisionSchema($tables);
     $epicrypt = new AuthOAuthEpicryptRevisionSchema($tables);
-    $runner = new MigrationRunner($connection, [$oauth, $epicrypt]);
+    $protocol = new AuthOAuthEpicryptProtocolSchema($tables);
+    $runner = new MigrationRunner($connection, [$oauth, $epicrypt, $protocol]);
     $schema = new SchemaManager($connection);
 
     try {
-        expect($runner->run())->toBe([$oauth->id(), $epicrypt->id()]);
+        expect($runner->run())->toBe([$oauth->id(), $epicrypt->id(), $protocol->id()]);
 
         foreach ($tables->oauth() as $table) {
             expect($schema->hasTable($table))->toBeTrue();
         }
 
-        expect($runner->reset(true))->toBe([$epicrypt->id(), $oauth->id()]);
+        expect($runner->reset(true))->toBe([$protocol->id(), $epicrypt->id(), $oauth->id()]);
 
         foreach ($tables->oauth() as $table) {
             expect($schema->hasTable($table))->toBeFalse();
