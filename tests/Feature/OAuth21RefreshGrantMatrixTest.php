@@ -71,7 +71,7 @@ it('supports equal and narrowed refresh scopes, rejects widening, and revokes th
             ], $authentication);
             throw new RuntimeException('Expected widened refresh scope to be rejected.');
         } catch (OAuthProtocolException $exception) {
-            expect($exception->error)->toBe('invalid_grant');
+            expect($exception->error)->toBe('invalid_scope');
         }
 
         try {
