@@ -65,7 +65,7 @@ it('serializes PAT issue against concurrent revoke-all for the same subject', fu
             }
         }
 
-        $record = $store->find('concurrent-token');
+        $record = $store->find(PatConcurrentWorker::TOKEN_ID);
         expect($record)->not->toBeNull();
 
         $row = $dbFactory->connection()->select(
