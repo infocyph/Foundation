@@ -380,7 +380,7 @@ $patRoot = sys_get_temp_dir() . '/foundation-epicrypt-benchmark-' . bin2hex(rand
 mkdir($patRoot, 0700, true);
 $patDatabase = $patRoot . '/pat.sqlite';
 $runtimeState = new RuntimeExecutionState();
-$container = new readonly class($runtimeState) implements ContainerInterface {
+$container = new readonly class ($runtimeState) implements ContainerInterface {
     public function __construct(private RuntimeExecutionState $state) {}
 
     public function get(string $id): mixed
