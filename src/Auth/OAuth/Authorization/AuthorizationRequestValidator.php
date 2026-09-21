@@ -89,20 +89,21 @@ final readonly class AuthorizationRequestValidator
                 ? []
                 : array_map(static fn($prompt): string => $prompt->value, $openId->prompts),
             openIdMaximumAuthenticationAge: $openId?->maximumAuthenticationAge,
-            openIdAcrValues: $openId?->acrValues ?? [],
+            openIdAcrValues: $openId === null ? [] : $openId->acrValues,
         );
     }
 
     /** @param array<string, mixed> $parameters */
     private function protocolResult(array $parameters): AuthorizationProtocolResult
     {
+        $protocolParameters = $this->protocolParameters($parameters);
         $oauth = new EpicryptAuthorizationRequestValidator(
             new EpicryptOAuthAuthorizationClientStore($this->clients),
-            new EpicryptOAuthAuthorizationAudienceResolver($parameters),
+            new EpicryptOAuthAuthorizationAudienceResolver($protocolParameters),
         );
 
         if ($this->config->get('auth.oauth.oidc.enabled', false) === true) {
-            $result = new OpenIdAuthorizationRequestValidator($oauth)->validate($parameters);
+            $result = new OpenIdAuthorizationRequestValidator($oauth)->validate($protocolParameters);
 
             return new AuthorizationProtocolResult(
                 $result->oauthRequest,
@@ -111,7 +112,7 @@ final readonly class AuthorizationRequestValidator
             );
         }
 
-        $result = $oauth->validate($parameters);
+        $result = $oauth->validate($protocolParameters);
         if ($result->request !== null && in_array('openid', $result->request->scopes, true)) {
             return new AuthorizationProtocolResult(
                 null,
@@ -141,6 +142,33 @@ final readonly class AuthorizationRequestValidator
             redirectUri: $request->redirectUri,
             state: $request->state,
         );
+    }
+
+    /**
+     * @param array<string, mixed> $parameters
+     * @return array<string, string|list<string>>
+     */
+    private function protocolParameters(array $parameters): array
+    {
+        $normalized = [];
+        foreach ($parameters as $name => $value) {
+            if (is_string($value)) {
+                $normalized[$name] = $value;
+
+                continue;
+            }
+            if (!is_array($value) || !array_is_list($value)) {
+                throw OAuthProtocolException::invalidRequest();
+            }
+            foreach ($value as $item) {
+                if (!is_string($item)) {
+                    throw OAuthProtocolException::invalidRequest();
+                }
+            }
+            $normalized[$name] = array_values($value);
+        }
+
+        return $normalized;
     }
 
     private function protocolException(?OAuthProtocolError $error): OAuthProtocolException
