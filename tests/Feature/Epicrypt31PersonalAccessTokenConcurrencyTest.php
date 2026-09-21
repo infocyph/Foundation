@@ -22,6 +22,10 @@ it('serializes PAT issue against concurrent revoke-all for the same subject', fu
             [new AuthPersonalAccessTokenSchema($tables)],
         )->run();
 
+        // Establish the subject serialization row before the concurrent operations.
+        // The race under test is issue() versus revokeAll(), not first-use row creation.
+        expect($store->revokeAll('account-1', 1_699_999_999))->toBe(0);
+
         $commands = [];
         foreach (['issue', 'revoke'] as $operation) {
             $commands[$operation] = proc_open(
@@ -63,7 +67,7 @@ it('serializes PAT issue against concurrent revoke-all for the same subject', fu
             [hash('sha3-256', "foundation.personal-access-token.subject\0account-1")],
         )[0] ?? null;
         expect($row)->toBeArray()
-            ->and((int) ($row['revision'] ?? 0))->toBe(2)
+            ->and((int) ($row['revision'] ?? 0))->toBe(3)
             ->and($record?->revokedAt === null || $record?->revokedAt === 1_700_000_100)->toBeTrue();
     } finally {
         foreach (glob($root . '/*') ?: [] as $path) {
