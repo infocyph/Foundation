@@ -24,30 +24,46 @@ final class ValidationGraphFactory
     {
         $registry = new SchemaRegistry(AuthRequestSchemas::all());
 
-        $configured = $config->get('validation.schemas', []);
-        if (is_array($configured)) {
-            foreach ($configured as $name => $schema) {
-                if (!is_string($name) || $name === '' || !is_array($schema)) {
-                    continue;
-                }
-
-                if ($registry->has($name)) {
-                    $registry->replace($name, $schema);
-                } else {
-                    $registry->define($name, $schema);
-                }
-            }
-        }
-
-        $extensions = $config->get('validation.extend', []);
-        if (is_array($extensions)) {
-            foreach ($extensions as $name => $schema) {
-                if (is_string($name) && $name !== '' && is_array($schema)) {
-                    $registry->extend($name, $schema);
-                }
-            }
-        }
+        self::applySchemas($registry, $config->get('validation.schemas', []));
+        self::applyExtensions($registry, $config->get('validation.extend', []));
 
         return $registry->freeze();
+    }
+
+    private static function applyExtensions(SchemaRegistry $registry, mixed $schemas): void
+    {
+        foreach (self::schemaMap($schemas) as $name => $schema) {
+            $registry->extend($name, $schema);
+        }
+    }
+
+    private static function applySchemas(SchemaRegistry $registry, mixed $schemas): void
+    {
+        foreach (self::schemaMap($schemas) as $name => $schema) {
+            if ($registry->has($name)) {
+                $registry->replace($name, $schema);
+
+                continue;
+            }
+
+            $registry->define($name, $schema);
+        }
+    }
+
+    /** @return array<string, array<int|string, mixed>> */
+    private static function schemaMap(mixed $schemas): array
+    {
+        if (!is_array($schemas)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($schemas as $name => $schema) {
+            if (is_string($name) && $name !== '' && is_array($schema)) {
+                $normalized[$name] = $schema;
+            }
+        }
+
+        return $normalized;
     }
 }
