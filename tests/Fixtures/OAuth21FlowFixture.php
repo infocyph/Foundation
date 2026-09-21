@@ -27,8 +27,6 @@ use Infocyph\Epicrypt\Security\KeyStatus;
 use Infocyph\Epicrypt\Token\Jwt\Enum\AsymmetricJwtAlgorithm;
 use Infocyph\Epicrypt\Token\Jwt\Enum\JweKeyManagementAlgorithm;
 use Infocyph\Epicrypt\Token\Opaque\OpaqueToken;
-use Infocyph\Foundation\Auth\Account\AccountInterface;
-use Infocyph\Foundation\Auth\Account\AccountStatus;
 use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerEpicryptAccessTokenStatusStore;
 use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerEpicryptAuthorizationCodeStore;
 use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerEpicryptJwtReplayStore;
@@ -51,15 +49,14 @@ use Infocyph\Foundation\Auth\Contract\Security\PasswordVerifierInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
 use Infocyph\Foundation\Auth\OAuth\Authorization\AuthorizationCodeManager;
 use Infocyph\Foundation\Auth\OAuth\Authorization\AuthorizationRequestValidator;
+use Infocyph\Foundation\Auth\OAuth\Audit\OAuthAuditRecorder;
 use Infocyph\Foundation\Auth\OAuth\Client\OAuthClientManager;
 use Infocyph\Foundation\Auth\OAuth\Consent\ConsentManager;
 use Infocyph\Foundation\Auth\OAuth\Scope\OAuthScopeResolver;
-use Infocyph\Foundation\Auth\OAuth\Token\OAuthAccessTokenClaims;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthAccessTokenValidator;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthIntrospectionManager;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthRevocationManager;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthSigningKeySet;
-use Infocyph\Foundation\Auth\OAuth\Token\OAuthTokenException;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthTokenManager;
 use Infocyph\Foundation\Auth\Principal\PrincipalInterface;
 use Infocyph\Foundation\Config\ConfigRepository;
@@ -79,7 +76,7 @@ final class OAuth21FlowFixture
     public readonly DBLayerOAuthAuthorizationStore $authorizationStore;
     public readonly OAuthAccessTokenValidator $accessValidator;
     public readonly OAuthClientManager $clients;
-    public readonly ClockInterface $clock;
+    public readonly OAuth21FlowClock $clock;
     public readonly AuthorizationCodeManager $codes;
     public readonly ConsentManager $consents;
     public readonly DBLayerFactory $factory;
@@ -93,14 +90,11 @@ final class OAuth21FlowFixture
     public readonly AuthTables $tables;
     public readonly OAuthTokenManager $tokens;
 
-    public function __construct(public readonly int $now = 0)
+    public function __construct(public readonly int $now = 0, ?OAuthAuditRecorder $audit = null)
     {
         DB::purge();
         $resolvedNow = $now > 0 ? $now : time();
-        $this->clock = new readonly class($resolvedNow) implements ClockInterface {
-            public function __construct(private int $now) {}
-            public function now(): int { return $this->now; }
-        };
+        $this->clock = new OAuth21FlowClock($resolvedNow);
         $psrClock = new EpicryptClockAdapter($this->clock);
 
         $this->accounts = new class implements AccountProviderInterface {
@@ -189,6 +183,7 @@ final class OAuth21FlowFixture
             $codeConsumer,
             $authorizer,
             $this->clock,
+            audit: $audit,
         );
 
         $keyPair = KeyPairGenerator::ec()->generate();
@@ -243,7 +238,7 @@ final class OAuth21FlowFixture
             null,
             $psrClock,
         );
-        $this->tokens = new OAuthTokenManager($endpoint, $authentication, $this->refreshTokens);
+        $this->tokens = new OAuthTokenManager($endpoint, $authentication, $this->refreshTokens, $audit);
 
         $resourceValidator = new OAuthResourceAccessTokenValidator($nativeAccess);
         $this->accessValidator = new OAuthAccessTokenValidator(
@@ -261,12 +256,20 @@ final class OAuth21FlowFixture
                 $psrClock,
             ),
             $authentication,
+            $nativeAccess,
+            $this->refreshTokens,
+            $audit,
         );
         $this->introspection = new OAuthIntrospectionManager(
             new OAuthIntrospectionEndpoint($nativeAccess, $this->refreshTokens),
             $authentication,
         );
         $this->accessTokens = new OAuth21AccessTokenHarness($nativeAccess);
+    }
+
+    public function advance(int $seconds): void
+    {
+        $this->clock->advance($seconds);
     }
 
     public function close(): void
@@ -354,96 +357,4 @@ final class OAuth21FlowFixture
             }
         };
     }
-}
-
-final readonly class OAuth21AccessTokenHarness
-{
-    public function __construct(
-        private OAuthAccessTokenService $tokens,
-    ) {}
-
-    public function verify(string $token, string $audience): OAuthAccessTokenClaims
-    {
-        $result = $this->tokens->validate($token, $audience);
-        if (!$result->valid()) {
-            throw new \Infocyph\Foundation\Auth\OAuth\Exception\OAuthTokenException(
-                'OAuth access token verification failed.',
-            );
-        }
-        $claims = $result->claims;
-
-        return new OAuthAccessTokenClaims(
-            issuer: self::requiredString($claims, 'iss'),
-            subject: self::requiredString($claims, 'sub'),
-            audiences: self::audiences($claims['aud'] ?? null),
-            expiresAt: self::requiredInt($claims, 'exp'),
-            issuedAt: self::requiredInt($claims, 'iat'),
-            tokenId: self::requiredString($claims, 'jti'),
-            clientId: self::requiredString($claims, 'client_id'),
-            scopes: self::scopes($claims['scope'] ?? null),
-            authorizationId: self::optionalString($claims['authorization_id'] ?? null),
-        );
-    }
-
-    /** @return list<string> */
-    private static function audiences(mixed $value): array
-    {
-        if (is_string($value) && $value !== '') {
-            return [$value];
-        }
-        if (!is_array($value) || !array_is_list($value)) {
-            throw new \RuntimeException('OAuth fixture access-token audience claim is invalid.');
-        }
-
-        return array_values(array_filter($value, 'is_string'));
-    }
-
-    private static function optionalString(mixed $value): ?string
-    {
-        return is_string($value) && $value !== '' ? $value : null;
-    }
-
-    /** @param array<string,mixed> $claims */
-    private static function requiredInt(array $claims, string $name): int
-    {
-        $value = $claims[$name] ?? null;
-
-        return is_int($value) ? $value : throw new \RuntimeException('OAuth fixture claim is invalid.');
-    }
-
-    /** @param array<string,mixed> $claims */
-    private static function requiredString(array $claims, string $name): string
-    {
-        $value = $claims[$name] ?? null;
-
-        return is_string($value) && $value !== ''
-            ? $value
-            : throw new \RuntimeException('OAuth fixture claim is invalid.');
-    }
-
-    /** @return list<string> */
-    private static function scopes(mixed $value): array
-    {
-        if ($value === null || $value === '') {
-            return [];
-        }
-        if (is_string($value)) {
-            return explode(' ', $value);
-        }
-        if (!is_array($value) || !array_is_list($value)) {
-            throw new \RuntimeException('OAuth fixture access-token scope claim is invalid.');
-        }
-
-        return array_values(array_filter($value, 'is_string'));
-    }
-}
-
-final readonly class OAuth21FlowAccount implements AccountInterface
-{
-    public function __construct(private string $id) {}
-    public function id(): string { return $this->id; }
-    public function identifier(): string { return 'account@example.test'; }
-    public function metadata(): array { return []; }
-    public function passwordHash(): ?string { return null; }
-    public function status(): AccountStatus { return AccountStatus::ACTIVE; }
 }

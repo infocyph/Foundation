@@ -51,7 +51,7 @@ it('rejects duplicate malformed and oversized encoded OAuth parameters', functio
         ->toThrow(OAuthProtocolException::class, 'invalid_request');
 });
 
-it('requires body-only urlencoded parameters and rejects credential downgrade parameters', function (): void {
+it('requires body-only urlencoded parameters and accepts explicit client_secret_post credentials', function (): void {
     $input = new OAuthHttpInput();
 
     expect(fn() => $input->form(oauthHttpRequest('grant_type=client_credentials', ['Content-Type' => 'application/json'])))
@@ -60,11 +60,18 @@ it('requires body-only urlencoded parameters and rejects credential downgrade pa
             'grant_type=client_credentials',
             ['Content-Type' => 'application/x-www-form-urlencoded'],
             '/oauth/token?client_id=oc_test',
-        )))->toThrow(OAuthProtocolException::class, 'invalid_request')
-        ->and(fn() => $input->form(oauthHttpRequest(
-            'grant_type=client_credentials&client_id=oc_test&client_secret=secret',
-            ['Content-Type' => 'application/x-www-form-urlencoded'],
         )))->toThrow(OAuthProtocolException::class, 'invalid_request');
+
+    $request = oauthHttpRequest(
+        'grant_type=client_credentials&client_id=oc_test&client_secret=secret',
+        ['Content-Type' => 'application/x-www-form-urlencoded'],
+    );
+    $parameters = $input->form($request);
+    $authentication = $input->clientAuthentication($request, $parameters);
+
+    expect($authentication->method)->toBe(OAuthClientAuthenticationMethod::ClientSecretPost)
+        ->and($authentication->clientId)->toBe('oc_test')
+        ->and($authentication->secret)->toBe('secret');
 });
 
 it('parses client_secret_basic and rejects mixed client identity sources', function (): void {
