@@ -16,6 +16,8 @@ use Psr\Container\ContainerInterface;
 
 final class PatConcurrentWorker
 {
+    public const string TOKEN_ID = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+
     public static function run(string $database, string $startSignal, string $operation): int
     {
         try {
@@ -31,7 +33,7 @@ final class PatConcurrentWorker
             $store = self::store($database);
             if ($operation === 'issue') {
                 $created = $store->create(new PersonalAccessTokenRecord(
-                    tokenId: 'concurrent-token',
+                    tokenId: self::TOKEN_ID,
                     subject: 'account-1',
                     name: 'concurrent',
                     abilities: ['orders.read'],
