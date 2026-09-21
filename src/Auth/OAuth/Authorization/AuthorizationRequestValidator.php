@@ -90,6 +90,7 @@ final readonly class AuthorizationRequestValidator
                 : array_map(static fn($prompt): string => $prompt->value, $openId->prompts),
             openIdMaximumAuthenticationAge: $openId?->maximumAuthenticationAge,
             openIdAcrValues: $openId === null ? [] : $openId->acrValues,
+            openIdProtocol: $openId,
         );
     }
 
