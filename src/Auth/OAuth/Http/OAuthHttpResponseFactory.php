@@ -82,6 +82,23 @@ final readonly class OAuthHttpResponseFactory
         return Response::json($metadata, 200);
     }
 
+    /** @param array<string, mixed> $claims */
+    public function userInfo(array $claims): Response
+    {
+        return Response::json($claims, 200, self::NO_STORE_HEADERS);
+    }
+
+    public function userInfoError(OAuthProtocolException $exception): Response
+    {
+        return Response::json([
+            'error' => $exception->error,
+            'error_description' => $exception->description,
+        ], $exception->status, [
+            ...self::NO_STORE_HEADERS,
+            'WWW-Authenticate' => sprintf('Bearer error="%s"', $exception->error),
+        ]);
+    }
+
     public function revocation(): Response
     {
         return Response::empty(200, self::NO_STORE_HEADERS);
