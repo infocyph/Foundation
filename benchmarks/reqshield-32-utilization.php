@@ -5,10 +5,10 @@ declare(strict_types=1);
 use Composer\InstalledVersions;
 use Infocyph\DBLayer\DB;
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Validation\ValidatorFactory;
 use Infocyph\ReqShield\Bridge\DBLayerDatabaseProvider;
 use Infocyph\ReqShield\CompiledValidator;
 use Infocyph\ReqShield\Schema\SchemaRegistry;
-use Infocyph\Foundation\Validation\ValidatorFactory;
 use Infocyph\ReqShield\Validator;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
