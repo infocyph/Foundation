@@ -150,9 +150,10 @@ codecs may be listed separately. Unknown aliases fail closed. Do not use PHP
 object serialization or derive runtime class names from stored payload data.
 
 A database consumer or worker must deliberately choose
-`messaging.durable.failure_store=database|memory`. Use `database` for normal
+`messaging.durable.failure_store=database|memory` unless the application has
+already supplied its own `FailureStore` binding. Use `database` for normal
 durable processing. Selecting `memory` is an explicit decision to make terminal
-failure inspection volatile.
+failure inspection volatile; a custom binding is fully application-owned.
 
 Provision or inspect Omnibus's durable tables through the module lifecycle:
 
