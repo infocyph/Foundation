@@ -22,9 +22,9 @@ use Infocyph\Omnibus\Consumer\WorkerPool;
 
 final readonly class WorkerManager
 {
-    public function __construct(private Application $application) {}
+public function __construct(private Application $application) {}
 
-    /** @return array<string, array<string, mixed>> */
+/** @return array<string, array<string, mixed>> */
     public function all(string $routes = 'routes/workers.php'): array
     {
         $providers = $this->providerDefinitions($routes);
@@ -60,7 +60,7 @@ final readonly class WorkerManager
         return $workers;
     }
 
-    public function run(string $name, string $routes = 'routes/workers.php'): ?int
+public function run(string $name, string $routes = 'routes/workers.php'): ?int
     {
         if (!$this->application->runningInWorker()) {
             throw new \LogicException('Workers must run from a Foundation worker runtime.');
@@ -120,7 +120,7 @@ final readonly class WorkerManager
         }
     }
 
-    /**
+/**
      * @param array<string, array<string, mixed>> $providers
      * @param array<string, array<string, mixed>> $messaging
      */
@@ -135,13 +135,13 @@ final readonly class WorkerManager
         }
     }
 
-    /** @param array<string, mixed> $config */
+/** @param array<string, mixed> $config */
     private function assertForkSafeConfig(array $config): void
     {
         $this->assertForkSafeValue($config, 'config');
     }
 
-    private function assertForkSafeValue(mixed $value, string $path): void
+private function assertForkSafeValue(mixed $value, string $path): void
     {
         if ($value === null || is_scalar($value)) {
             return;
@@ -161,7 +161,7 @@ final readonly class WorkerManager
         ));
     }
 
-    private function assertPoolParentClean(): void
+private function assertPoolParentClean(): void
     {
         if ($this->application->booted()) {
             throw new \LogicException('Pooled workers must fork before booting the parent Foundation application.');
@@ -207,7 +207,7 @@ final readonly class WorkerManager
         }
     }
 
-    /** @return \Closure():bool */
+/** @return \Closure():bool */
     private function generationStopRequested(): \Closure
     {
         $loaded = $this->application->loadedReleaseGeneration();
@@ -224,7 +224,28 @@ final readonly class WorkerManager
         return $this->watchGeneration($selected->releaseRoot, $selected->generation);
     }
 
-    private function messagingLifecycle(callable $heartbeat, callable $stopRequested): WorkerLifecycle
+/** @return array<string, array<string, mixed>> */
+    private function messagingDefinitions(): array
+    {
+        $configured = $this->application->config()->get('messaging.workers', []);
+        if (!is_array($configured)) {
+            throw new \UnexpectedValueException('messaging.workers must be an associative worker map.');
+        }
+
+        $workers = [];
+        foreach ($configured as $name => $definition) {
+            if (!is_string($name) || $name === '' || !is_array($definition)) {
+                throw new \UnexpectedValueException(
+                    'messaging.workers must map non-empty worker names to configuration arrays.',
+                );
+            }
+            $workers[$name] = ValueNormalizer::associativeArray($definition);
+        }
+
+        return $workers;
+    }
+
+private function messagingLifecycle(callable $heartbeat, callable $stopRequested): WorkerLifecycle
     {
         return new readonly class ($heartbeat, $stopRequested) implements WorkerLifecycle {
             private \Closure $heartbeatCallback;
@@ -249,28 +270,7 @@ final readonly class WorkerManager
         };
     }
 
-    /** @return array<string, array<string, mixed>> */
-    private function messagingDefinitions(): array
-    {
-        $configured = $this->application->config()->get('messaging.workers', []);
-        if (!is_array($configured)) {
-            throw new \UnexpectedValueException('messaging.workers must be an associative worker map.');
-        }
-
-        $workers = [];
-        foreach ($configured as $name => $definition) {
-            if (!is_string($name) || $name === '' || !is_array($definition)) {
-                throw new \UnexpectedValueException(
-                    'messaging.workers must map non-empty worker names to configuration arrays.',
-                );
-            }
-            $workers[$name] = ValueNormalizer::associativeArray($definition);
-        }
-
-        return $workers;
-    }
-
-    /** @param array<string,mixed>|null $definition */
+/** @param array<string,mixed>|null $definition */
     private function pooledMessagingWorker(?array $definition): bool
     {
         if ($definition === null) {
@@ -282,7 +282,7 @@ final readonly class WorkerManager
         return ValueNormalizer::bool($pool['enabled'] ?? null, false);
     }
 
-    /**
+/**
      * @return array<string, array{provider:class-string<WorkerProvider>,singleton:bool,lock_wait_seconds:float,lock_lease_seconds:float}>
      */
     private function providerDefinitions(
@@ -308,7 +308,7 @@ final readonly class WorkerManager
         );
     }
 
-    /**
+/**
      * @param array<string, mixed> $definition
      * @param callable():bool $stopRequested
      * @param callable():void $processHeartbeat
@@ -377,7 +377,7 @@ final readonly class WorkerManager
         return 0;
     }
 
-    /**
+/**
      * @param array{provider:class-string<WorkerProvider>,singleton:bool,lock_wait_seconds:float,lock_lease_seconds:float} $definition
      * @param callable():bool $stopRequested
      * @param callable():void $processHeartbeat
@@ -438,7 +438,7 @@ final readonly class WorkerManager
         }
     }
 
-    private function selectedGeneration(FoundationReleaseBootstrap $bootstrap): LoadedReleaseGeneration
+private function selectedGeneration(FoundationReleaseBootstrap $bootstrap): LoadedReleaseGeneration
     {
         $current = new ActiveGeneration()->current($bootstrap->releaseRoot);
         $manifestSha256 = hash_file('sha256', $current['manifest']);
@@ -457,7 +457,7 @@ final readonly class WorkerManager
         );
     }
 
-    /** @return \Closure():bool */
+/** @return \Closure():bool */
     private function watchGeneration(string $releaseRoot, string $generation): \Closure
     {
         $active = new ActiveGeneration();
@@ -472,5 +472,4 @@ final readonly class WorkerManager
             }
         };
     }
-
 }
