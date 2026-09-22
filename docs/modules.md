@@ -24,7 +24,7 @@ uses the purpose name.
 | `database` | `infocyph/dblayer ^5.0` |
 | `filesystem` | `infocyph/pathwise ^3.1` |
 | `logging` | built into Foundation |
-| `messaging` | `infocyph/omnibus ^2.5` |
+| `messaging` | `infocyph/omnibus ^2.6` |
 | `operations` | built into Foundation |
 | `resources` | built into Foundation |
 | `security` | `infocyph/epicrypt ^2.1` |
