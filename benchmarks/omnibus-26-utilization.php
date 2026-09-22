@@ -5,6 +5,9 @@ declare(strict_types=1);
 use Composer\InstalledVersions;
 use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\Connection\ConnectionConfig;
+use Infocyph\Foundation\Benchmarks\Support\Omnibus26BenchmarkCodec;
+use Infocyph\Foundation\Benchmarks\Support\Omnibus26BenchmarkMessage;
+use Infocyph\Foundation\Benchmarks\Support\Omnibus26StopLifecycle;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Messaging\MessagingDatabaseSchema;
 use Infocyph\Foundation\Messaging\OmnibusWorkerFactory;
@@ -12,9 +15,7 @@ use Infocyph\Omnibus\Clock\SystemClock;
 use Infocyph\Omnibus\Consumer\Consumer;
 use Infocyph\Omnibus\Consumer\DirectExecutionScope;
 use Infocyph\Omnibus\Consumer\Worker;
-use Infocyph\Omnibus\Consumer\WorkerLifecycle;
 use Infocyph\Omnibus\Consumer\WorkerOptions;
-use Infocyph\Omnibus\Envelope\Envelope;
 use Infocyph\Omnibus\Failure\InMemoryFailureStore;
 use Infocyph\Omnibus\Handler\HandlerInvoker;
 use Infocyph\Omnibus\Handler\HandlerMap;
@@ -34,47 +35,6 @@ use Infocyph\Omnibus\Transport\TransportRegistry;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
-final readonly class Omnibus26BenchmarkMessage
-{
-    public function __construct(public string $value) {}
-}
-
-final readonly class Omnibus26BenchmarkCodec implements MessageCodec
-{
-    public function alias(): string
-    {
-        return 'foundation.benchmark.omnibus26.v1';
-    }
-
-    public function decode(array $payload): object
-    {
-        return new Omnibus26BenchmarkMessage((string) ($payload['value'] ?? ''));
-    }
-
-    public function encode(object $message): array
-    {
-        if (!$message instanceof Omnibus26BenchmarkMessage) {
-            throw new InvalidArgumentException('Unexpected benchmark message.');
-        }
-
-        return ['value' => $message->value];
-    }
-
-    public function type(): string
-    {
-        return Omnibus26BenchmarkMessage::class;
-    }
-}
-
-final class Omnibus26StopLifecycle implements WorkerLifecycle
-{
-    public function heartbeat(): void {}
-
-    public function stopRequested(): bool
-    {
-        return true;
-    }
-}
 
 /** @return array{median_ns:float,min_ns:float,max_ns:float,spread_percent:float} */
 function omnibus26Measure(callable $operation, int $operations, int $repetitions, int $warmup): array
