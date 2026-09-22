@@ -14,12 +14,12 @@ use Infocyph\Omnibus\Integration\DBLayer\QueueSchema;
 
 final readonly class MessagingDatabaseSchema
 {
-    public function __construct(
+public function __construct(
         private ConfigRepository $config,
         private DBLayerFactory $database,
     ) {}
 
-    public function install(?string $connection = null): void
+public function install(?string $connection = null): void
     {
         $state = $this->readiness($connection);
         if ($state['installed']) {
@@ -44,7 +44,7 @@ final readonly class MessagingDatabaseSchema
         }
     }
 
-    /**
+/**
      * @return array{
      *   installed:bool,
      *   installed_tables:list<string>,
@@ -74,19 +74,27 @@ final readonly class MessagingDatabaseSchema
         ];
     }
 
-    private function connection(?string $connection): Connection
+private function connection(?string $connection): Connection
     {
         return $this->database->infrastructureConnection($connection ?? $this->connectionName());
     }
 
-    private function connectionName(): ?string
+private function connectionName(): ?string
     {
         $connection = $this->config->get('messaging.durable.connection');
 
         return is_string($connection) && $connection !== '' ? $connection : null;
     }
 
-    /** @return array{messages:string,failures:string,workflows:string,workflow_items:string} */
+private function table(string $name, string $default): string
+    {
+        return ValueNormalizer::string(
+            $this->config->get('messaging.durable.tables.' . $name),
+            $default,
+        );
+    }
+
+/** @return array{messages:string,failures:string,workflows:string,workflow_items:string} */
     private function tables(): array
     {
         return [
@@ -95,13 +103,5 @@ final readonly class MessagingDatabaseSchema
             'workflows' => $this->table('workflows', 'omnibus_workflows'),
             'workflow_items' => $this->table('workflow_items', 'omnibus_workflow_items'),
         ];
-    }
-
-    private function table(string $name, string $default): string
-    {
-        return ValueNormalizer::string(
-            $this->config->get('messaging.durable.tables.' . $name),
-            $default,
-        );
     }
 }
