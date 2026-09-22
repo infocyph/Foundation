@@ -354,7 +354,7 @@ policy.
   - [X] replace Foundation email sender transport/fallback/retry/rate-limit/DKIM
     assembly with `EmailSenderFactory::fromResolvedConfig()`; Foundation still
     resolves named transports, application paths and secrets.
-- [ ] **Batch 2 — lifetime/isolation + webhook acceptance**
+- [X] **Batch 2 — lifetime/isolation + webhook acceptance**
   - [X] classify Foundation DI lifetimes against TalkingBytes 2.1 mutable-state
     semantics: immutable profile/factory/verifier graphs stay singleton while
     HTTP clients, webhook senders, emailers, spool receivers and inbound gRPC
@@ -367,12 +367,15 @@ policy.
   - [X] keep communication secrets out of runtime identity metadata, cache-key
     material and logs; the authenticated/restricted release `config.php` remains
     the intentional secret-bearing resolved configuration snapshot.
-- [ ] **Batch 3 — inbound gRPC worker lifecycle**
-  - [ ] consume TalkingBytes `GrpcInboundSource` / `serveOne()` through the
-    existing Foundation worker heartbeat/stop/release-generation lifecycle;
-  - [ ] keep source/native transport ownership outside Foundation and avoid a
-    duplicate gRPC server/network loop;
-  - [ ] prove stop/replacement responsiveness and handler scope isolation.
+- [X] **Batch 3 — inbound gRPC worker lifecycle**
+  - [X] consume TalkingBytes `GrpcInboundSource` / `serveOne()` through the
+    existing Foundation `WorkerProvider` / `WorkerRuntime` heartbeat, stop and
+    release-generation lifecycle;
+  - [X] keep source/native transport ownership outside Foundation: applications
+    bind a process-owned `GrpcInboundSource`; Foundation owns no gRPC socket or
+    duplicate network/server loop;
+  - [X] prove cancellation/stop responsiveness and fresh per-exchange handler
+    scopes with the TalkingBytes fake accepted-exchange source.
 - [ ] **Batch 4 — email/native capability closure**
   - [ ] prove native inbound/outbound email profiles remain TalkingBytes-owned;
   - [ ] prove optional protocol graphs/capabilities stay cold until selected;
@@ -390,9 +393,8 @@ TalkingBytes 2.1 native webhook delivery uses bound `v2` signatures. Foundation
 must not pair a native 2.0 sender with a 2.1 receiver or vice versa. The
 Foundation integration uses the 2.1 native sender/receiver path together.
 
-**Status:** ACTIVE — Batches 1-2 are complete. Continue with Batch 3 inbound
-gRPC worker-lifecycle integration using TalkingBytes 2.1 `GrpcInboundSource`
-and `serveOne()`.
+**Status:** ACTIVE — Batches 1-3 are implemented. Continue with Batch 4 native
+email/capability coldness and persistent mailbox/spool ownership acceptance.
 ---
 
 ## 26.10 Epicrypt 3.1 consumption, auth-protocol adoption and Foundation crypto-policy consolidation — complete
@@ -506,4 +508,4 @@ Run after the remaining active lower-library pass 26.9 is closed; 26.4, 26.5, 26
 
 ## Immediate handoff
 
-Continue **26.9 TalkingBytes 2.1 utilization** from Batch 2. Batch 1 raises the released `^2.1` floor and delegates resolved HTTP, webhook, gRPC client and email-sender protocol composition to TalkingBytes. Next prove Foundation DI lifetime/isolation policy and atomic/fail-closed webhook v2 acceptance, then wire the TalkingBytes host-controlled inbound gRPC exchange boundary into the existing Foundation worker lifecycle before benchmark/exact-head closure.
+Continue **26.9 TalkingBytes 2.1 utilization** from Batch 4. Batches 1-3 now consume released `^2.1`, delegate resolved protocol composition, prove runtime/webhook isolation, and route host-provided `GrpcInboundSource` exchanges through Foundation `WorkerRuntime` scopes and stop/heartbeat policy. Next close native email/optional-capability ownership, then add bridge attribution and exact-head release evidence.

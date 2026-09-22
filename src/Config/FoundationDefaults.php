@@ -188,6 +188,9 @@ final class FoundationDefaults
                         ],
                     ],
                     'inbound' => [
+                        'source_service' => null,
+                        'idle_sleep_milliseconds' => 10,
+                        'heartbeat_interval_milliseconds' => 5_000,
                         'handlers' => [],
                     ],
                 ],

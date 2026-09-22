@@ -264,6 +264,34 @@ use Infocyph\TalkingBytes\Email\Parser\BounceParser;
 use Infocyph\TalkingBytes\Email\Parser\RawEmailParser;
 ```
 
+## Inbound gRPC worker lifecycle
+
+TalkingBytes 2.1 supplies the accepted-exchange boundary through
+`GrpcInboundSource` and `GrpcInboundDispatcher::serveOne()`. Foundation does
+not open a gRPC socket or implement the native server/runtime. Applications bind
+a process-owned `GrpcInboundSource` (or configure
+`communication.grpc.inbound.source_service`) and may expose Foundation's
+`GrpcInboundWorker` from `routes/workers.php`:
+
+```php
+use Infocyph\Foundation\Communication\GrpcInboundWorker;
+
+return [
+    'grpc-inbound' => [
+        'provider' => GrpcInboundWorker::class,
+    ],
+];
+```
+
+Each accepted exchange is dispatched inside a fresh Foundation worker execution
+scope, so configured handler services may safely be scoped. The source itself is
+resolved once for the worker process and owns native listener/channel resources.
+A blocking source must honor TalkingBytes' `CancellationSignal` while waiting;
+Foundation uses that signal for runtime-control and release-generation stop
+policy and periodically refreshes the worker heartbeat. If a custom source is
+non-blocking and returns no exchange, `idle_sleep_milliseconds` prevents a busy
+loop.
+
 ## Runtime lifetime model
 
 Foundation follows TalkingBytes 2.1's state model rather than promoting all

@@ -144,6 +144,12 @@ return [
             ],
         ],
         'inbound' => [
+            // Bind this service ID to a process-owned TalkingBytes GrpcInboundSource.
+            'source_service' => env('COMMUNICATION_GRPC_INBOUND_SOURCE_SERVICE'),
+            // Prevent a non-blocking/custom source from creating a busy loop.
+            'idle_sleep_milliseconds' => env_int('COMMUNICATION_GRPC_INBOUND_IDLE_SLEEP_MS', 10),
+            // A cancellation-aware blocking source should poll often enough for this heartbeat.
+            'heartbeat_interval_milliseconds' => env_int('COMMUNICATION_GRPC_INBOUND_HEARTBEAT_MS', 5_000),
             'handlers' => [],
         ],
     ],
