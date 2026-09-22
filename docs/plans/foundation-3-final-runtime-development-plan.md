@@ -75,7 +75,7 @@ Phase 10 remains the final aggregate release-readiness pass after every open low
 | 26.5 | Pathwise | `^4.1` | **complete** |
 | 26.6 | DBLayer | `^5.1` | **complete** |
 | 26.7 | ReqShield | `^3.2` | **complete** |
-| 26.8 | Omnibus | `^2.6` after publication | waiting on Omnibus 2.6 release |
+| 26.8 | Omnibus | `^2.6` | **active — closure QA** |
 | 26.9 | TalkingBytes | `^2.0` | open/deferred |
 | 26.10 | Epicrypt | `^3.1` | **complete** |
 | 26.11 | standalone WebAuthn specialist pass | OTP 6.1 Passkey | **closed/subsumed** |
@@ -94,7 +94,7 @@ Epicrypt `3.0` was released on **2026-09-10** and established the stable 3.x bou
 
 ## 4. Current execution order
 
-1. After Omnibus 2.6 is published, execute 26.8 Omnibus 2.6 utilization and exact-head acceptance.
+1. Close 26.8 Omnibus 2.6 on exact-head PHPForge QA; the released-package integration, acceptance coverage and Foundation bridge benchmark are already implemented.
 2. Execute 26.9 TalkingBytes 2.0 utilization and exact-head acceptance.
 3. Run aggregate Phase 10 / Foundation release-readiness gates.
 4. Validate the final InfByte consumption/handoff against the completed Foundation 3 lifecycle.
@@ -302,13 +302,16 @@ invoke it.
   and cold non-durable DB graphs.
 - [X] Update 2.5-specific runtime guards/test names/messages to 2.6 and keep the
   bridge on released 2.6 APIs without Foundation compatibility branches.
-- [ ] Benchmark direct Omnibus versus the Foundation bridge, including native
-  pool lifecycle overhead; attribute Runwire separately when enabled.
+- [X] Benchmark direct Omnibus versus the Foundation bridge for memory,
+  durable DBLayer and worker-factory/lifecycle overhead. Raw native/Runwire
+  process-supervision benchmarking remains Omnibus-owned, where the pool backend
+  is implemented and explicitly selectable.
 - [ ] Close 26.8 only on exact-head PHP 8.4/8.5 lowest/stable PHPForge QA,
   analysis, clean install and release benchmarks.
 
-**Status:** ACTIVE — implementation and acceptance coverage are in place; only
-the Omnibus benchmark/release-matrix evidence remains before closure.
+**Status:** ACTIVE — implementation, acceptance coverage and Foundation bridge
+benchmark evidence are in place; only the exact-head PHPForge QA matrix remains
+before closure.
 
 ---
 
@@ -443,4 +446,4 @@ Run after the remaining active lower-library passes 26.8/26.9 are closed; 26.4, 
 
 ## Immediate handoff
 
-Continue **26.8 Omnibus 2.6 utilization** on released `^2.6`. perform a coordinated durable-storage cutover before any 2.6 writer is allowed to share queue/workflow/failure data with old readers, remove Foundation's `WorkerManager::watchPool()` signal watchdog in favor of Omnibus WorkerPool lifecycle polling, retain Foundation generation heartbeat/stop policy through `WorkerLifecycle`, keep the native pool default with Runwire explicit-only, preserve child-side construction of process-bound resources, consume native durable DBLayer/CacheLayer integrations rather than recreating them, prove retry/failure/persistent isolation plus lifecycle responsiveness during crash backoff and pool lifecycle parity, add direct-vs-Foundation attribution, and close on exact-head PHPForge QA before proceeding to 26.9 TalkingBytes.
+Finish **26.8 Omnibus 2.6 utilization** by clearing the exact-head PHPForge QA gate. The released `^2.6` dependency, durable cutover policy, Omnibus-owned WorkerPool lifecycle/supervision, Foundation `WorkerLifecycle` heartbeat/stop adaptation, parent-clean fork boundary, native-pool default, durable DBLayer integration, failure/retry/isolation coverage and direct-versus-Foundation bridge attribution are already implemented. Once the final PHP 8.4/8.5 stable/lowest matrix is green, mark 26.8 complete and proceed to 26.9 TalkingBytes.

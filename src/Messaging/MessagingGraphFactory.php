@@ -25,74 +25,80 @@ use Infocyph\Omnibus\Transport\TransportRegistry;
 
 final class MessagingGraphFactory
 {
-public static function afterCommit(
+    public static function afterCommit(
         OmnibusDurableFactory $factory,
         MessageBus $bus,
-    ): AfterCommitDispatcher {
+    ): AfterCommitDispatcher
+    {
         return $factory->afterCommit($bus);
     }
 
-public static function consumer(ConsumerFactory $factory): Consumer
+    public static function consumer(ConsumerFactory $factory): Consumer
     {
         return $factory->make();
     }
 
-public static function durableFailureStore(
+    public static function durableFailureStore(
         OmnibusDurableFactory $factory,
         EnvelopeSerializer $serializer,
-    ): DBLayerFailureStore {
+    ): DBLayerFailureStore
+    {
         return $factory->failureStore($serializer);
     }
 
-public static function durableSerializer(OmnibusDurableFactory $factory): JsonEnvelopeSerializer
+    public static function durableSerializer(OmnibusDurableFactory $factory): JsonEnvelopeSerializer
     {
         return $factory->serializer();
     }
 
-public static function durableTransport(
+    public static function durableTransport(
         OmnibusDurableFactory $factory,
         EnvelopeSerializer $serializer,
-    ): DBLayerTransport {
+    ): DBLayerTransport
+    {
         return $factory->transport($serializer);
     }
 
-public static function durableWorkflowStore(
+    public static function durableWorkflowStore(
         OmnibusDurableFactory $factory,
         EnvelopeSerializer $serializer,
-    ): DBLayerWorkflowStore {
+    ): DBLayerWorkflowStore
+    {
         return $factory->workflowStore($serializer);
     }
 
-public static function handlerInvoker(
+    public static function handlerInvoker(
         MessagingRuntimeResolver $resolver,
         HandlerMap $handlers,
         mixed $handlerMiddleware,
         mixed $jobMiddleware,
-    ): HandlerInvoker {
+    ): HandlerInvoker
+    {
         return new HandlerInvoker(
             $handlers,
             $resolver->handlerMiddleware($handlerMiddleware, $jobMiddleware),
         );
     }
 
-public static function handlerMap(MessagingRuntimeResolver $resolver, mixed $configured): HandlerMap
+    public static function handlerMap(MessagingRuntimeResolver $resolver, mixed $configured): HandlerMap
     {
         return new HandlerMap($resolver->handlers($configured));
     }
 
-public static function listenerMap(MessagingRuntimeResolver $resolver, mixed $configured): ListenerMap
+    public static function listenerMap(MessagingRuntimeResolver $resolver, mixed $configured): ListenerMap
     {
         return new ListenerMap($resolver->listeners($configured));
     }
 
-public static function messageFactoryMap(
+    public static function messageFactoryMap(
         MessagingRuntimeResolver $resolver,
         mixed $configured,
-    ): MessageFactoryMap {
+    ): MessageFactoryMap
+    {
         return new MessageFactoryMap($resolver->scheduledMessages($configured));
     }
 
-public static function routeMap(mixed $configured, mixed $default): RouteMap
+    public static function routeMap(mixed $configured, mixed $default): RouteMap
     {
         if (!is_array($configured)) {
             $configured = [];
@@ -112,11 +118,12 @@ public static function routeMap(mixed $configured, mixed $default): RouteMap
         return new RouteMap($routes, self::route($default));
     }
 
-public static function transports(
+    public static function transports(
         SyncTransport $sync,
         InMemoryTransport $memory,
         ?DBLayerTransport $database = null,
-    ): TransportRegistry {
+    ): TransportRegistry
+    {
         $transports = [
             'sync' => $sync,
             'memory' => $memory,
@@ -128,7 +135,7 @@ public static function transports(
         return new TransportRegistry($transports);
     }
 
-private static function route(mixed $definition): Route
+    private static function route(mixed $definition): Route
     {
         $definition = is_array($definition) ? $definition : [];
         $delay = $definition['delay_seconds'] ?? null;

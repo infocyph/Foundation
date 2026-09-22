@@ -16,9 +16,9 @@ use Psr\Container\ContainerInterface;
  */
 final readonly class MessagingRuntimeResolver
 {
-public function __construct(private ContainerInterface $container) {}
+    public function __construct(private ContainerInterface $container) {}
 
-public function callable(mixed $definition): callable
+    public function callable(mixed $definition): callable
     {
         if (is_callable($definition)) {
             return $definition;
@@ -39,7 +39,7 @@ public function callable(mixed $definition): callable
         return $service;
     }
 
-/** @return list<HandlerMiddleware> */
+    /** @return list<HandlerMiddleware> */
     public function handlerMiddleware(mixed $configured, mixed $configuredJobs): array
     {
         if (!is_array($configured)) {
@@ -70,7 +70,7 @@ public function callable(mixed $definition): callable
         return $middleware;
     }
 
-/** @return array<class-string, callable> */
+    /** @return array<class-string, callable> */
     public function handlers(mixed $configured): array
     {
         $handlers = [];
@@ -84,7 +84,7 @@ public function callable(mixed $definition): callable
         return $handlers;
     }
 
-/** @return list<JobMiddleware> */
+    /** @return list<JobMiddleware> */
     public function jobMiddleware(mixed $configured): array
     {
         if (!is_array($configured)) {
@@ -110,7 +110,7 @@ public function callable(mixed $definition): callable
         return $middleware;
     }
 
-/** @return array<class-string, list<callable>> */
+    /** @return array<class-string, list<callable>> */
     public function listeners(mixed $configured): array
     {
         $listeners = [];
@@ -129,7 +129,7 @@ public function callable(mixed $definition): callable
         return $listeners;
     }
 
-/** @return array<string, callable(): object> */
+    /** @return array<string, callable(): object> */
     public function scheduledMessages(mixed $configured): array
     {
         $messages = [];
@@ -150,7 +150,7 @@ public function callable(mixed $definition): callable
         return $messages;
     }
 
-public function service(mixed $definition): object
+    public function service(mixed $definition): object
     {
         if (is_object($definition)) {
             return $definition;
@@ -171,7 +171,7 @@ public function service(mixed $definition): object
         return $service;
     }
 
-/** @return array<array-key, mixed> */
+    /** @return array<array-key, mixed> */
     private function map(mixed $value): array
     {
         return is_array($value) ? $value : [];

@@ -12,12 +12,12 @@ use Infocyph\Foundation\Session\SessionDatabaseSchema;
 
 final readonly class ModuleSchemaManager
 {
-public function __construct(
+    public function __construct(
         private Application $application,
         private ModuleCatalog $catalog,
     ) {}
 
-/**
+    /**
      * @return list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}>
      */
     public function install(string $module, ?string $connection = null, bool $applicableOnly = false): array
@@ -46,7 +46,7 @@ public function __construct(
         return $results;
     }
 
-/**
+    /**
      * Provision every schema currently required by configured application capabilities.
      *
      * @return list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}>
@@ -66,7 +66,7 @@ public function __construct(
         return $results;
     }
 
-/**
+    /**
      * @return list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}>
      */
     public function status(string $module, ?string $connection = null): array
@@ -81,12 +81,12 @@ public function __construct(
         return $results;
     }
 
-private function authApplicable(): bool
+    private function authApplicable(): bool
     {
         return $this->application->config()->get('auth.drivers.storage', 'memory') === 'database';
     }
 
-/**
+    /**
      * @return array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}
      */
     private function authStatus(string $module, ?string $connection, bool $afterInstall): array
@@ -121,12 +121,12 @@ private function authApplicable(): bool
         );
     }
 
-private function cacheSchemas(): CacheSchemaManager
+    private function cacheSchemas(): CacheSchemaManager
     {
         return new CacheSchemaManager($this->application);
     }
 
-private function installSchema(string $schema, ?string $connection): void
+    private function installSchema(string $schema, ?string $connection): void
     {
         match ($schema) {
             'auth' => $this->application->make(AuthSchemaInstaller::class)->install($connection),
@@ -137,12 +137,12 @@ private function installSchema(string $schema, ?string $connection): void
         };
     }
 
-private function messagingApplicable(): bool
+    private function messagingApplicable(): bool
     {
         return (bool) $this->application->config()->get('messaging.durable.enabled', false);
     }
 
-/**
+    /**
      * @return array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}
      */
     private function messagingStatus(string $module, ?string $connection, bool $afterInstall): array
@@ -197,7 +197,7 @@ private function messagingApplicable(): bool
         );
     }
 
-/**
+    /**
      * @return array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}
      */
     private function result(
@@ -207,7 +207,8 @@ private function messagingApplicable(): bool
         bool $installed,
         string $state,
         string $detail,
-    ): array {
+    ): array
+    {
         return [
             'name' => $name,
             'module' => $module,
@@ -218,7 +219,7 @@ private function messagingApplicable(): bool
         ];
     }
 
-/**
+    /**
      * @return list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}>
      */
     private function schemaStatuses(
@@ -226,7 +227,8 @@ private function messagingApplicable(): bool
         string $schema,
         ?string $connection,
         bool $afterInstall = false,
-    ): array {
+    ): array
+    {
         return match ($schema) {
             'auth' => [$this->authStatus($module, $connection, $afterInstall)],
             'cache' => $this->cacheSchemas()->statuses($module, $connection, $afterInstall),
@@ -236,12 +238,12 @@ private function messagingApplicable(): bool
         };
     }
 
-private function sessionApplicable(): bool
+    private function sessionApplicable(): bool
     {
         return $this->application->config()->get('session.driver', 'file') === 'database';
     }
 
-/**
+    /**
      * @return array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}
      */
     private function sessionStatus(string $module, ?string $connection, bool $afterInstall): array

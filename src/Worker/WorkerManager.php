@@ -22,9 +22,9 @@ use Infocyph\Omnibus\Consumer\WorkerPool;
 
 final readonly class WorkerManager
 {
-public function __construct(private Application $application) {}
+    public function __construct(private Application $application) {}
 
-/** @return array<string, array<string, mixed>> */
+    /** @return array<string, array<string, mixed>> */
     public function all(string $routes = 'routes/workers.php'): array
     {
         $providers = $this->providerDefinitions($routes);
@@ -60,7 +60,7 @@ public function __construct(private Application $application) {}
         return $workers;
     }
 
-public function run(string $name, string $routes = 'routes/workers.php'): ?int
+    public function run(string $name, string $routes = 'routes/workers.php'): ?int
     {
         if (!$this->application->runningInWorker()) {
             throw new \LogicException('Workers must run from a Foundation worker runtime.');
@@ -120,7 +120,7 @@ public function run(string $name, string $routes = 'routes/workers.php'): ?int
         }
     }
 
-/**
+    /**
      * @param array<string, array<string, mixed>> $providers
      * @param array<string, array<string, mixed>> $messaging
      */
@@ -135,13 +135,13 @@ public function run(string $name, string $routes = 'routes/workers.php'): ?int
         }
     }
 
-/** @param array<string, mixed> $config */
+    /** @param array<string, mixed> $config */
     private function assertForkSafeConfig(array $config): void
     {
         $this->assertForkSafeValue($config, 'config');
     }
 
-private function assertForkSafeValue(mixed $value, string $path): void
+    private function assertForkSafeValue(mixed $value, string $path): void
     {
         if ($value === null || is_scalar($value)) {
             return;
@@ -161,7 +161,7 @@ private function assertForkSafeValue(mixed $value, string $path): void
         ));
     }
 
-private function assertPoolParentClean(): void
+    private function assertPoolParentClean(): void
     {
         if ($this->application->booted()) {
             throw new \LogicException('Pooled workers must fork before booting the parent Foundation application.');
@@ -207,7 +207,7 @@ private function assertPoolParentClean(): void
         }
     }
 
-/** @return \Closure():bool */
+    /** @return \Closure():bool */
     private function generationStopRequested(): \Closure
     {
         $loaded = $this->application->loadedReleaseGeneration();
@@ -224,7 +224,7 @@ private function assertPoolParentClean(): void
         return $this->watchGeneration($selected->releaseRoot, $selected->generation);
     }
 
-/** @return array<string, array<string, mixed>> */
+    /** @return array<string, array<string, mixed>> */
     private function messagingDefinitions(): array
     {
         $configured = $this->application->config()->get('messaging.workers', []);
@@ -245,7 +245,7 @@ private function assertPoolParentClean(): void
         return $workers;
     }
 
-private function messagingLifecycle(callable $heartbeat, callable $stopRequested): WorkerLifecycle
+    private function messagingLifecycle(callable $heartbeat, callable $stopRequested): WorkerLifecycle
     {
         return new readonly class ($heartbeat, $stopRequested) implements WorkerLifecycle {
             private \Closure $heartbeatCallback;
@@ -270,7 +270,7 @@ private function messagingLifecycle(callable $heartbeat, callable $stopRequested
         };
     }
 
-/** @param array<string,mixed>|null $definition */
+    /** @param array<string,mixed>|null $definition */
     private function pooledMessagingWorker(?array $definition): bool
     {
         if ($definition === null) {
@@ -282,13 +282,14 @@ private function messagingLifecycle(callable $heartbeat, callable $stopRequested
         return ValueNormalizer::bool($pool['enabled'] ?? null, false);
     }
 
-/**
+    /**
      * @return array<string, array{provider:class-string<WorkerProvider>,singleton:bool,lock_wait_seconds:float,lock_lease_seconds:float}>
      */
     private function providerDefinitions(
         string $routes,
         ?FoundationReleaseBootstrap $bootstrap = null,
-    ): array {
+    ): array
+    {
         $loaded = $this->application->loadedReleaseGeneration();
         if ($loaded !== null) {
             return new WorkerTopology()->loadGeneration($loaded);
@@ -308,7 +309,7 @@ private function messagingLifecycle(callable $heartbeat, callable $stopRequested
         );
     }
 
-/**
+    /**
      * @param array<string, mixed> $definition
      * @param callable():bool $stopRequested
      * @param callable():void $processHeartbeat
@@ -318,7 +319,8 @@ private function messagingLifecycle(callable $heartbeat, callable $stopRequested
         array $definition,
         callable $stopRequested,
         callable $processHeartbeat,
-    ): int {
+    ): int
+    {
         if (!class_exists(Worker::class) || !interface_exists(WorkerLifecycle::class)) {
             throw new \LogicException('Messaging workers require infocyph/omnibus ^2.6.');
         }
@@ -377,7 +379,7 @@ private function messagingLifecycle(callable $heartbeat, callable $stopRequested
         return 0;
     }
 
-/**
+    /**
      * @param array{provider:class-string<WorkerProvider>,singleton:bool,lock_wait_seconds:float,lock_lease_seconds:float} $definition
      * @param callable():bool $stopRequested
      * @param callable():void $processHeartbeat
@@ -387,7 +389,8 @@ private function messagingLifecycle(callable $heartbeat, callable $stopRequested
         array $definition,
         callable $stopRequested,
         callable $processHeartbeat,
-    ): ?int {
+    ): ?int
+    {
         $app = $this->application->boot();
         $provider = $app->make($definition['provider']);
 
@@ -438,7 +441,7 @@ private function messagingLifecycle(callable $heartbeat, callable $stopRequested
         }
     }
 
-private function selectedGeneration(FoundationReleaseBootstrap $bootstrap): LoadedReleaseGeneration
+    private function selectedGeneration(FoundationReleaseBootstrap $bootstrap): LoadedReleaseGeneration
     {
         $current = new ActiveGeneration()->current($bootstrap->releaseRoot);
         $manifestSha256 = hash_file('sha256', $current['manifest']);
@@ -457,7 +460,7 @@ private function selectedGeneration(FoundationReleaseBootstrap $bootstrap): Load
         );
     }
 
-/** @return \Closure():bool */
+    /** @return \Closure():bool */
     private function watchGeneration(string $releaseRoot, string $generation): \Closure
     {
         $active = new ActiveGeneration();

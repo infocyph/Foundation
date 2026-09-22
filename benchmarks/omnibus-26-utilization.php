@@ -27,14 +27,12 @@ use Infocyph\Omnibus\Routing\Route;
 use Infocyph\Omnibus\Routing\RouteMap;
 use Infocyph\Omnibus\Serialization\CoreStampCodecs;
 use Infocyph\Omnibus\Serialization\JsonEnvelopeSerializer;
-use Infocyph\Omnibus\Serialization\MessageCodec;
 use Infocyph\Omnibus\Serialization\MessageCodecRegistry;
 use Infocyph\Omnibus\Serialization\StampCodecRegistry;
 use Infocyph\Omnibus\Transport\InMemoryTransport;
 use Infocyph\Omnibus\Transport\TransportRegistry;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
-
 
 /** @return array{median_ns:float,min_ns:float,max_ns:float,spread_percent:float} */
 function omnibus26Measure(callable $operation, int $operations, int $repetitions, int $warmup): array
