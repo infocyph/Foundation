@@ -16,9 +16,9 @@ use Psr\Container\ContainerInterface;
  */
 final readonly class MessagingRuntimeResolver
 {
-    public function __construct(private ContainerInterface $container) {}
+public function __construct(private ContainerInterface $container) {}
 
-    public function callable(mixed $definition): callable
+public function callable(mixed $definition): callable
     {
         if (is_callable($definition)) {
             return $definition;
@@ -39,28 +39,7 @@ final readonly class MessagingRuntimeResolver
         return $service;
     }
 
-    public function service(mixed $definition): object
-    {
-        if (is_object($definition)) {
-            return $definition;
-        }
-        if (!is_string($definition) || $definition === '') {
-            throw new \InvalidArgumentException('Messaging service definitions must be objects or service class names.');
-        }
-
-        $service = match (true) {
-            $this->container instanceof Container,
-            $this->container instanceof ProductionContainer => $this->container->make($definition, false),
-            default => $this->container->get($definition),
-        };
-        if (!is_object($service)) {
-            throw new \InvalidArgumentException(sprintf('Messaging service "%s" did not resolve to an object.', $definition));
-        }
-
-        return $service;
-    }
-
-    /** @return list<HandlerMiddleware> */
+/** @return list<HandlerMiddleware> */
     public function handlerMiddleware(mixed $configured, mixed $configuredJobs): array
     {
         if (!is_array($configured)) {
@@ -91,7 +70,7 @@ final readonly class MessagingRuntimeResolver
         return $middleware;
     }
 
-    /** @return array<class-string, callable> */
+/** @return array<class-string, callable> */
     public function handlers(mixed $configured): array
     {
         $handlers = [];
@@ -105,7 +84,7 @@ final readonly class MessagingRuntimeResolver
         return $handlers;
     }
 
-    /** @return list<JobMiddleware> */
+/** @return list<JobMiddleware> */
     public function jobMiddleware(mixed $configured): array
     {
         if (!is_array($configured)) {
@@ -131,7 +110,7 @@ final readonly class MessagingRuntimeResolver
         return $middleware;
     }
 
-    /** @return array<class-string, list<callable>> */
+/** @return array<class-string, list<callable>> */
     public function listeners(mixed $configured): array
     {
         $listeners = [];
@@ -150,7 +129,7 @@ final readonly class MessagingRuntimeResolver
         return $listeners;
     }
 
-    /** @return array<string, callable(): object> */
+/** @return array<string, callable(): object> */
     public function scheduledMessages(mixed $configured): array
     {
         $messages = [];
@@ -171,7 +150,28 @@ final readonly class MessagingRuntimeResolver
         return $messages;
     }
 
-    /** @return array<array-key, mixed> */
+public function service(mixed $definition): object
+    {
+        if (is_object($definition)) {
+            return $definition;
+        }
+        if (!is_string($definition) || $definition === '') {
+            throw new \InvalidArgumentException('Messaging service definitions must be objects or service class names.');
+        }
+
+        $service = match (true) {
+            $this->container instanceof Container,
+            $this->container instanceof ProductionContainer => $this->container->make($definition, false),
+            default => $this->container->get($definition),
+        };
+        if (!is_object($service)) {
+            throw new \InvalidArgumentException(sprintf('Messaging service "%s" did not resolve to an object.', $definition));
+        }
+
+        return $service;
+    }
+
+/** @return array<array-key, mixed> */
     private function map(mixed $value): array
     {
         return is_array($value) ? $value : [];
