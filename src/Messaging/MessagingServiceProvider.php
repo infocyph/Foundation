@@ -103,27 +103,36 @@ final class MessagingServiceProvider extends ServiceProvider
         ));
         if (!$builder->definitions()->has(EnvelopeSerializer::class)) {
             $builder->singleton(JsonEnvelopeSerializer::class, FactoryDefinition::staticFactory(
-                OmnibusDurableFactory::class,
-                'serializer',
-                [],
+                MessagingGraphFactory::class,
+                'durableSerializer',
+                [new ServiceReference(OmnibusDurableFactory::class)],
             ));
             $builder->alias(EnvelopeSerializer::class, JsonEnvelopeSerializer::class);
         }
 
         $builder->singleton(DBLayerTransport::class, FactoryDefinition::staticFactory(
-            OmnibusDurableFactory::class,
-            'transport',
-            [new ServiceReference(EnvelopeSerializer::class)],
+            MessagingGraphFactory::class,
+            'durableTransport',
+            [
+                new ServiceReference(OmnibusDurableFactory::class),
+                new ServiceReference(EnvelopeSerializer::class),
+            ],
         ));
         $builder->singleton(DBLayerFailureStore::class, FactoryDefinition::staticFactory(
-            OmnibusDurableFactory::class,
-            'failureStore',
-            [new ServiceReference(EnvelopeSerializer::class)],
+            MessagingGraphFactory::class,
+            'durableFailureStore',
+            [
+                new ServiceReference(OmnibusDurableFactory::class),
+                new ServiceReference(EnvelopeSerializer::class),
+            ],
         ));
         $builder->singleton(DBLayerWorkflowStore::class, FactoryDefinition::staticFactory(
-            OmnibusDurableFactory::class,
-            'workflowStore',
-            [new ServiceReference(EnvelopeSerializer::class)],
+            MessagingGraphFactory::class,
+            'durableWorkflowStore',
+            [
+                new ServiceReference(OmnibusDurableFactory::class),
+                new ServiceReference(EnvelopeSerializer::class),
+            ],
         ));
         if (!$builder->definitions()->has(WorkflowStore::class)) {
             $builder->alias(WorkflowStore::class, DBLayerWorkflowStore::class);
@@ -232,9 +241,12 @@ final class MessagingServiceProvider extends ServiceProvider
         }
         if ($durableEnabled && !$builder->definitions()->has(AfterCommitDispatcher::class)) {
             $builder->scoped(AfterCommitDispatcher::class, FactoryDefinition::staticFactory(
-                OmnibusDurableFactory::class,
+                MessagingGraphFactory::class,
                 'afterCommit',
-                [new ServiceReference(MessageBus::class)],
+                [
+                    new ServiceReference(OmnibusDurableFactory::class),
+                    new ServiceReference(MessageBus::class),
+                ],
             ));
         }
     }
