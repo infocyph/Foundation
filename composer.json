@@ -72,6 +72,7 @@
         "benchmark:dblayer": "@php benchmarks/dblayer-51-utilization.php",
         "benchmark:epicrypt": "@php benchmarks/epicrypt-31-utilization.php",
         "benchmark:maintenance": "@php benchmarks/maintenance-overhead.php",
+        "benchmark:omnibus": "@php benchmarks/omnibus-26-utilization.php",
         "benchmark:otp": "@php benchmarks/otp-61-utilization.php",
         "benchmark:pathwise": "@php benchmarks/pathwise-41-utilization.php",
         "benchmark:phase9:di": "@php benchmarks/phase9-di-attribution.php",
@@ -88,7 +89,6 @@
         ],
         "benchmark:representative": "@php benchmarks/run-representative.php",
         "benchmark:reqshield": "@php benchmarks/reqshield-32-utilization.php",
-        "benchmark:uid": "@php benchmarks/uid-runtime-utilization.php",
-        "benchmark:omnibus": "@php benchmarks/omnibus-26-utilization.php"
+        "benchmark:uid": "@php benchmarks/uid-runtime-utilization.php"
     }
 }
