@@ -95,7 +95,7 @@ try {
         'foundation.communication' => ['package' => 'infocyph/talkingbytes', 'module' => 'communication'],
         'foundation.db' => ['package' => 'infocyph/dblayer', 'module' => 'database'],
         'foundation.filesystem' => ['package' => 'infocyph/pathwise', 'module' => 'filesystem'],
-        'foundation.messaging' => ['package' => 'infocyph/omnibus ^2.5', 'module' => 'messaging'],
+        'foundation.messaging' => ['package' => 'infocyph/omnibus ^2.6', 'module' => 'messaging'],
         'foundation.security' => ['package' => 'infocyph/epicrypt', 'module' => 'security'],
         'foundation.validator' => ['package' => 'infocyph/reqshield', 'module' => 'validation'],
     ];
