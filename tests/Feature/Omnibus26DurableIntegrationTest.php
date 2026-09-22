@@ -193,7 +193,7 @@ it('requires an explicit failure-store policy for durable consumers', function (
             ],
         ]))->toThrow(
             ConfigurationException::class,
-            'Durable database consumers/workers require an explicit messaging.durable.failure_store policy.',
+            'Durable database consumers/workers require an explicit messaging.durable.failure_store policy or FailureStore binding.',
         );
     } finally {
         foundationOmnibus26RemoveDatabase($database);
