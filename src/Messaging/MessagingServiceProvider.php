@@ -347,9 +347,13 @@ final class MessagingServiceProvider extends ServiceProvider
                 'messaging.durable.failure_store must be database or memory when configured.',
             );
         }
-        if ($this->usesDatabaseConsumer($messaging) && $failureDriver === '') {
+        if (
+            $this->usesDatabaseConsumer($messaging)
+            && $failureDriver === ''
+            && !$builder->definitions()->has(FailureStore::class)
+        ) {
             throw new ConfigurationException(
-                'Durable database consumers/workers require an explicit messaging.durable.failure_store policy.',
+                'Durable database consumers/workers require an explicit messaging.durable.failure_store policy or FailureStore binding.',
             );
         }
     }
