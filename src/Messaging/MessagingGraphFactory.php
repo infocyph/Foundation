@@ -13,8 +13,8 @@ use Infocyph\Omnibus\Integration\DBLayer\AfterCommitDispatcher;
 use Infocyph\Omnibus\Integration\DBLayer\DBLayerFailureStore;
 use Infocyph\Omnibus\Integration\DBLayer\DBLayerTransport;
 use Infocyph\Omnibus\Integration\DBLayer\DBLayerWorkflowStore;
-use Infocyph\Omnibus\Routing\Route;
 use Infocyph\Omnibus\MessageBus;
+use Infocyph\Omnibus\Routing\Route;
 use Infocyph\Omnibus\Routing\RouteMap;
 use Infocyph\Omnibus\Scheduling\MessageFactoryMap;
 use Infocyph\Omnibus\Serialization\EnvelopeSerializer;
@@ -25,45 +25,45 @@ use Infocyph\Omnibus\Transport\TransportRegistry;
 
 final class MessagingGraphFactory
 {
-    public static function consumer(ConsumerFactory $factory): Consumer
-    {
-        return $factory->make();
-    }
-
-    public static function durableSerializer(OmnibusDurableFactory $factory): JsonEnvelopeSerializer
-    {
-        return $factory->serializer();
-    }
-
-    public static function durableTransport(
-        OmnibusDurableFactory $factory,
-        EnvelopeSerializer $serializer,
-    ): DBLayerTransport {
-        return $factory->transport($serializer);
-    }
-
-    public static function durableFailureStore(
-        OmnibusDurableFactory $factory,
-        EnvelopeSerializer $serializer,
-    ): DBLayerFailureStore {
-        return $factory->failureStore($serializer);
-    }
-
-    public static function durableWorkflowStore(
-        OmnibusDurableFactory $factory,
-        EnvelopeSerializer $serializer,
-    ): DBLayerWorkflowStore {
-        return $factory->workflowStore($serializer);
-    }
-
-    public static function afterCommit(
+public static function afterCommit(
         OmnibusDurableFactory $factory,
         MessageBus $bus,
     ): AfterCommitDispatcher {
         return $factory->afterCommit($bus);
     }
 
-    public static function handlerInvoker(
+public static function consumer(ConsumerFactory $factory): Consumer
+    {
+        return $factory->make();
+    }
+
+public static function durableFailureStore(
+        OmnibusDurableFactory $factory,
+        EnvelopeSerializer $serializer,
+    ): DBLayerFailureStore {
+        return $factory->failureStore($serializer);
+    }
+
+public static function durableSerializer(OmnibusDurableFactory $factory): JsonEnvelopeSerializer
+    {
+        return $factory->serializer();
+    }
+
+public static function durableTransport(
+        OmnibusDurableFactory $factory,
+        EnvelopeSerializer $serializer,
+    ): DBLayerTransport {
+        return $factory->transport($serializer);
+    }
+
+public static function durableWorkflowStore(
+        OmnibusDurableFactory $factory,
+        EnvelopeSerializer $serializer,
+    ): DBLayerWorkflowStore {
+        return $factory->workflowStore($serializer);
+    }
+
+public static function handlerInvoker(
         MessagingRuntimeResolver $resolver,
         HandlerMap $handlers,
         mixed $handlerMiddleware,
@@ -75,24 +75,24 @@ final class MessagingGraphFactory
         );
     }
 
-    public static function handlerMap(MessagingRuntimeResolver $resolver, mixed $configured): HandlerMap
+public static function handlerMap(MessagingRuntimeResolver $resolver, mixed $configured): HandlerMap
     {
         return new HandlerMap($resolver->handlers($configured));
     }
 
-    public static function listenerMap(MessagingRuntimeResolver $resolver, mixed $configured): ListenerMap
+public static function listenerMap(MessagingRuntimeResolver $resolver, mixed $configured): ListenerMap
     {
         return new ListenerMap($resolver->listeners($configured));
     }
 
-    public static function messageFactoryMap(
+public static function messageFactoryMap(
         MessagingRuntimeResolver $resolver,
         mixed $configured,
     ): MessageFactoryMap {
         return new MessageFactoryMap($resolver->scheduledMessages($configured));
     }
 
-    public static function routeMap(mixed $configured, mixed $default): RouteMap
+public static function routeMap(mixed $configured, mixed $default): RouteMap
     {
         if (!is_array($configured)) {
             $configured = [];
@@ -112,7 +112,7 @@ final class MessagingGraphFactory
         return new RouteMap($routes, self::route($default));
     }
 
-    public static function transports(
+public static function transports(
         SyncTransport $sync,
         InMemoryTransport $memory,
         ?DBLayerTransport $database = null,
@@ -128,7 +128,7 @@ final class MessagingGraphFactory
         return new TransportRegistry($transports);
     }
 
-    private static function route(mixed $definition): Route
+private static function route(mixed $definition): Route
     {
         $definition = is_array($definition) ? $definition : [];
         $delay = $definition['delay_seconds'] ?? null;
