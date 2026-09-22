@@ -12,12 +12,12 @@ use Infocyph\Foundation\Session\SessionDatabaseSchema;
 
 final readonly class ModuleSchemaManager
 {
-    public function __construct(
+public function __construct(
         private Application $application,
         private ModuleCatalog $catalog,
     ) {}
 
-    /**
+/**
      * @return list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}>
      */
     public function install(string $module, ?string $connection = null, bool $applicableOnly = false): array
@@ -46,7 +46,7 @@ final readonly class ModuleSchemaManager
         return $results;
     }
 
-    /**
+/**
      * Provision every schema currently required by configured application capabilities.
      *
      * @return list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}>
@@ -66,7 +66,7 @@ final readonly class ModuleSchemaManager
         return $results;
     }
 
-    /**
+/**
      * @return list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}>
      */
     public function status(string $module, ?string $connection = null): array
@@ -81,12 +81,12 @@ final readonly class ModuleSchemaManager
         return $results;
     }
 
-    private function authApplicable(): bool
+private function authApplicable(): bool
     {
         return $this->application->config()->get('auth.drivers.storage', 'memory') === 'database';
     }
 
-    /**
+/**
      * @return array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}
      */
     private function authStatus(string $module, ?string $connection, bool $afterInstall): array
@@ -121,12 +121,12 @@ final readonly class ModuleSchemaManager
         );
     }
 
-    private function cacheSchemas(): CacheSchemaManager
+private function cacheSchemas(): CacheSchemaManager
     {
         return new CacheSchemaManager($this->application);
     }
 
-    private function installSchema(string $schema, ?string $connection): void
+private function installSchema(string $schema, ?string $connection): void
     {
         match ($schema) {
             'auth' => $this->application->make(AuthSchemaInstaller::class)->install($connection),
@@ -137,51 +137,12 @@ final readonly class ModuleSchemaManager
         };
     }
 
-    /**
-     * @return array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}
-     */
-    private function result(
-        string $name,
-        string $module,
-        bool $applicable,
-        bool $installed,
-        string $state,
-        string $detail,
-    ): array {
-        return [
-            'name' => $name,
-            'module' => $module,
-            'applicable' => $applicable,
-            'installed' => $installed,
-            'state' => $state,
-            'detail' => $detail,
-        ];
-    }
-
-    /**
-     * @return list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}>
-     */
-    private function schemaStatuses(
-        string $module,
-        string $schema,
-        ?string $connection,
-        bool $afterInstall = false,
-    ): array {
-        return match ($schema) {
-            'auth' => [$this->authStatus($module, $connection, $afterInstall)],
-            'cache' => $this->cacheSchemas()->statuses($module, $connection, $afterInstall),
-            'messaging' => [$this->messagingStatus($module, $connection, $afterInstall)],
-            'session' => [$this->sessionStatus($module, $connection, $afterInstall)],
-            default => [$this->result($schema, $module, false, true, 'not-applicable', 'No schema provisioner is registered.')],
-        };
-    }
-
-    private function messagingApplicable(): bool
+private function messagingApplicable(): bool
     {
         return (bool) $this->application->config()->get('messaging.durable.enabled', false);
     }
 
-    /**
+/**
      * @return array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}
      */
     private function messagingStatus(string $module, ?string $connection, bool $afterInstall): array
@@ -236,12 +197,51 @@ final readonly class ModuleSchemaManager
         );
     }
 
-    private function sessionApplicable(): bool
+/**
+     * @return array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}
+     */
+    private function result(
+        string $name,
+        string $module,
+        bool $applicable,
+        bool $installed,
+        string $state,
+        string $detail,
+    ): array {
+        return [
+            'name' => $name,
+            'module' => $module,
+            'applicable' => $applicable,
+            'installed' => $installed,
+            'state' => $state,
+            'detail' => $detail,
+        ];
+    }
+
+/**
+     * @return list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}>
+     */
+    private function schemaStatuses(
+        string $module,
+        string $schema,
+        ?string $connection,
+        bool $afterInstall = false,
+    ): array {
+        return match ($schema) {
+            'auth' => [$this->authStatus($module, $connection, $afterInstall)],
+            'cache' => $this->cacheSchemas()->statuses($module, $connection, $afterInstall),
+            'messaging' => [$this->messagingStatus($module, $connection, $afterInstall)],
+            'session' => [$this->sessionStatus($module, $connection, $afterInstall)],
+            default => [$this->result($schema, $module, false, true, 'not-applicable', 'No schema provisioner is registered.')],
+        };
+    }
+
+private function sessionApplicable(): bool
     {
         return $this->application->config()->get('session.driver', 'file') === 'database';
     }
 
-    /**
+/**
      * @return array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}
      */
     private function sessionStatus(string $module, ?string $connection, bool $afterInstall): array
