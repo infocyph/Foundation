@@ -298,6 +298,57 @@ it('reports and installs the database session schema through module commands', f
     }
 });
 
+it('reports and installs the Omnibus durable messaging schema through module commands', function (): void {
+    $basePath = moduleLifecycleBasePath('messaging-schema');
+    mkdir($basePath . '/database', 0775, true);
+    $databasePath = $basePath . '/database/messaging.sqlite';
+    $dispatcher = moduleLifecycleDispatcher($basePath, [
+        'database' => [
+            'default' => 'main',
+            'connections' => [
+                'main' => [
+                    'driver' => 'sqlite',
+                    'database' => 'database/messaging.sqlite',
+                ],
+            ],
+        ],
+        'messaging' => [
+            'durable' => [
+                'enabled' => true,
+                'connection' => 'main',
+                'failure_store' => 'database',
+            ],
+            'consumer' => ['transport' => 'memory'],
+            'workers' => [],
+        ],
+    ]);
+
+    try {
+        $before = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:schema:status', 'messaging'], $before))
+            ->toBe(ExitCode::FAILURE);
+        $beforePayload = $before->lastPayload();
+        expect($beforePayload)->toBeArray()
+            ->and($beforePayload['schemas'][0]['state'] ?? null)->toBe('pending')
+            ->and($beforePayload['schemas'][0]['installed'] ?? null)->toBeFalse();
+
+        $install = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:schema:install', 'messaging'], $install))
+            ->toBe(ExitCode::SUCCESS)
+            ->and(moduleLifecycleTableExists($databasePath, 'omnibus_messages'))->toBeTrue()
+            ->and(moduleLifecycleTableExists($databasePath, 'omnibus_failures'))->toBeTrue()
+            ->and(moduleLifecycleTableExists($databasePath, 'omnibus_workflows'))->toBeTrue()
+            ->and(moduleLifecycleTableExists($databasePath, 'omnibus_workflow_items'))->toBeTrue();
+
+        $after = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:schema:status', 'messaging'], $after))
+            ->toBe(ExitCode::SUCCESS);
+    } finally {
+        DB::purge();
+        moduleLifecycleRemoveDirectory($basePath);
+    }
+});
+
 it('keeps cache schema status observational and creates the sqlite schema only during sync', function (): void {
     $basePath = moduleLifecycleBasePath('cache-schema');
     $cachePath = $basePath . '/storage/cache/module-cache.sqlite';
