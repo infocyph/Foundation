@@ -144,7 +144,7 @@ it('runs module install and direct-package removal dry-runs and refuses built-in
     [$restoreEnvironment, $commandLog] = moduleLifecycleComposerStub($basePath);
     moduleLifecycleWriteComposer($basePath, [
         'infocyph/dblayer' => '^5.0',
-        'infocyph/omnibus' => '^2.5',
+        'infocyph/omnibus' => '^2.6',
     ]);
 
     try {
@@ -161,7 +161,7 @@ it('runs module install and direct-package removal dry-runs and refuses built-in
             ->toBe(ExitCode::FAILURE)
             ->and($builtIn->errors)->toContain('Module "session" is built into Foundation.');
 
-        moduleLifecycleWriteComposer($basePath, ['infocyph/omnibus' => '^2.5']);
+        moduleLifecycleWriteComposer($basePath, ['infocyph/omnibus' => '^2.6']);
         $notDirect = new FoundationModuleLifecycleIO();
         expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:remove', 'db', '--dry-run'], $notDirect))
             ->toBe(ExitCode::SUCCESS);
