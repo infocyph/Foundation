@@ -9,6 +9,7 @@ use Infocyph\Omnibus\Consumer\Consumer;
 use Infocyph\Omnibus\Event\ListenerMap;
 use Infocyph\Omnibus\Handler\HandlerInvoker;
 use Infocyph\Omnibus\Handler\HandlerMap;
+use Infocyph\Omnibus\Integration\DBLayer\DBLayerTransport;
 use Infocyph\Omnibus\Routing\Route;
 use Infocyph\Omnibus\Routing\RouteMap;
 use Infocyph\Omnibus\Scheduling\MessageFactoryMap;
@@ -75,11 +76,17 @@ final class MessagingGraphFactory
     public static function transports(
         SyncTransport $sync,
         InMemoryTransport $memory,
+        ?DBLayerTransport $database = null,
     ): TransportRegistry {
-        return new TransportRegistry([
+        $transports = [
             'sync' => $sync,
             'memory' => $memory,
-        ]);
+        ];
+        if ($database instanceof DBLayerTransport) {
+            $transports['database'] = $database;
+        }
+
+        return new TransportRegistry($transports);
     }
 
     private static function route(mixed $definition): Route
