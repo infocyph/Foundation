@@ -253,7 +253,7 @@ try {
         ),
         'direct_worker_immediate_stop' => omnibus26Measure(
             static function () use ($directConsumer, $directWorkerOptions, $stop): void {
-                new Worker($directConsumer, $directWorkerOptions, $stop)->run();
+                (new Worker($directConsumer, $directWorkerOptions, $stop))->run();
             },
             $workerOperations,
             $repetitions,
