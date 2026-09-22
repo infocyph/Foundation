@@ -28,8 +28,7 @@ final class MessagingGraphFactory
     public static function afterCommit(
         OmnibusDurableFactory $factory,
         MessageBus $bus,
-    ): AfterCommitDispatcher
-    {
+    ): AfterCommitDispatcher {
         return $factory->afterCommit($bus);
     }
 
@@ -41,8 +40,7 @@ final class MessagingGraphFactory
     public static function durableFailureStore(
         OmnibusDurableFactory $factory,
         EnvelopeSerializer $serializer,
-    ): DBLayerFailureStore
-    {
+    ): DBLayerFailureStore {
         return $factory->failureStore($serializer);
     }
 
@@ -54,16 +52,14 @@ final class MessagingGraphFactory
     public static function durableTransport(
         OmnibusDurableFactory $factory,
         EnvelopeSerializer $serializer,
-    ): DBLayerTransport
-    {
+    ): DBLayerTransport {
         return $factory->transport($serializer);
     }
 
     public static function durableWorkflowStore(
         OmnibusDurableFactory $factory,
         EnvelopeSerializer $serializer,
-    ): DBLayerWorkflowStore
-    {
+    ): DBLayerWorkflowStore {
         return $factory->workflowStore($serializer);
     }
 
@@ -72,8 +68,7 @@ final class MessagingGraphFactory
         HandlerMap $handlers,
         mixed $handlerMiddleware,
         mixed $jobMiddleware,
-    ): HandlerInvoker
-    {
+    ): HandlerInvoker {
         return new HandlerInvoker(
             $handlers,
             $resolver->handlerMiddleware($handlerMiddleware, $jobMiddleware),
@@ -93,8 +88,7 @@ final class MessagingGraphFactory
     public static function messageFactoryMap(
         MessagingRuntimeResolver $resolver,
         mixed $configured,
-    ): MessageFactoryMap
-    {
+    ): MessageFactoryMap {
         return new MessageFactoryMap($resolver->scheduledMessages($configured));
     }
 
@@ -122,8 +116,7 @@ final class MessagingGraphFactory
         SyncTransport $sync,
         InMemoryTransport $memory,
         ?DBLayerTransport $database = null,
-    ): TransportRegistry
-    {
+    ): TransportRegistry {
         $transports = [
             'sync' => $sync,
             'memory' => $memory,

@@ -288,8 +288,7 @@ final readonly class WorkerManager
     private function providerDefinitions(
         string $routes,
         ?FoundationReleaseBootstrap $bootstrap = null,
-    ): array
-    {
+    ): array {
         $loaded = $this->application->loadedReleaseGeneration();
         if ($loaded !== null) {
             return new WorkerTopology()->loadGeneration($loaded);
@@ -319,8 +318,7 @@ final readonly class WorkerManager
         array $definition,
         callable $stopRequested,
         callable $processHeartbeat,
-    ): int
-    {
+    ): int {
         if (!class_exists(Worker::class) || !interface_exists(WorkerLifecycle::class)) {
             throw new \LogicException('Messaging workers require infocyph/omnibus ^2.6.');
         }
@@ -389,8 +387,7 @@ final readonly class WorkerManager
         array $definition,
         callable $stopRequested,
         callable $processHeartbeat,
-    ): ?int
-    {
+    ): ?int {
         $app = $this->application->boot();
         $provider = $app->make($definition['provider']);
 

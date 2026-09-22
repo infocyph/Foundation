@@ -207,8 +207,7 @@ final readonly class ModuleSchemaManager
         bool $installed,
         string $state,
         string $detail,
-    ): array
-    {
+    ): array {
         return [
             'name' => $name,
             'module' => $module,
@@ -227,8 +226,7 @@ final readonly class ModuleSchemaManager
         string $schema,
         ?string $connection,
         bool $afterInstall = false,
-    ): array
-    {
+    ): array {
         return match ($schema) {
             'auth' => [$this->authStatus($module, $connection, $afterInstall)],
             'cache' => $this->cacheSchemas()->statuses($module, $connection, $afterInstall),

@@ -79,8 +79,7 @@ final class MessagingServiceProvider extends ServiceProvider
         array $messaging,
         bool $enabled,
         string $failureDriver,
-    ): void
-    {
+    ): void {
         $usesDatabase = $this->referencesDatabaseTransport($messaging);
         if ($usesDatabase && !$enabled) {
             throw new ConfigurationException(
@@ -286,8 +285,7 @@ final class MessagingServiceProvider extends ServiceProvider
         ContainerBuilder $builder,
         bool $durableEnabled,
         string $failureDriver,
-    ): void
-    {
+    ): void {
         if ($builder->definitions()->has(FailureStore::class)) {
             return;
         }
@@ -357,8 +355,7 @@ final class MessagingServiceProvider extends ServiceProvider
         ContainerBuilder $builder,
         array $messaging,
         bool $durableEnabled,
-    ): void
-    {
+    ): void {
         $builder->singleton(RouteMap::class, FactoryDefinition::staticFactory(
             MessagingGraphFactory::class,
             'routeMap',
@@ -395,6 +392,7 @@ final class MessagingServiceProvider extends ServiceProvider
         if (($consumer['transport'] ?? null) === 'database') {
             return true;
         }
+
         return array_any(
             $this->arrayValue($messaging, 'workers'),
             fn($worker) => is_array($worker) && ($worker['transport'] ?? null) === 'database',
