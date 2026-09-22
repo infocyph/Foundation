@@ -73,7 +73,7 @@ final class ModuleCatalog
             'description' => 'Events, messages, queues, handler middleware, retries, workers, optional process pools, workflows, and scheduled-message dispatch.',
             'aliases' => ['events', 'omnibus', 'queue', 'queues'],
             'config' => ['messaging.php'],
-            'schemas' => [],
+            'schemas' => ['messaging'],
         ],
         'operations' => [
             'packages' => [],
