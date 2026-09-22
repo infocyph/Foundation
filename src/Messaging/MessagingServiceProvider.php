@@ -7,7 +7,10 @@ namespace Infocyph\Foundation\Messaging;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Database\DBLayerFactory;
+use Infocyph\Foundation\Exception\ConfigurationException;
 use Infocyph\Foundation\Runtime\ExecutionScope as FoundationExecutionScope;
+use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\ServiceReference;
@@ -21,13 +24,20 @@ use Infocyph\Omnibus\Failure\FailureStore;
 use Infocyph\Omnibus\Failure\InMemoryFailureStore;
 use Infocyph\Omnibus\Handler\HandlerInvoker;
 use Infocyph\Omnibus\Handler\HandlerMap;
+use Infocyph\Omnibus\Integration\DBLayer\AfterCommitDispatcher;
+use Infocyph\Omnibus\Integration\DBLayer\DBLayerFailureStore;
+use Infocyph\Omnibus\Integration\DBLayer\DBLayerTransport;
+use Infocyph\Omnibus\Integration\DBLayer\DBLayerWorkflowStore;
 use Infocyph\Omnibus\MessageBus;
 use Infocyph\Omnibus\Routing\RouteMap;
 use Infocyph\Omnibus\Scheduling\MessageFactoryMap;
 use Infocyph\Omnibus\Scheduling\ScheduledMessageDispatcher;
+use Infocyph\Omnibus\Serialization\EnvelopeSerializer;
+use Infocyph\Omnibus\Serialization\JsonEnvelopeSerializer;
 use Infocyph\Omnibus\Transport\InMemoryTransport;
 use Infocyph\Omnibus\Transport\SyncTransport;
 use Infocyph\Omnibus\Transport\TransportRegistry;
+use Infocyph\Omnibus\Workflow\WorkflowStore;
 use Psr\Container\ContainerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\EventDispatcher\ListenerProviderInterface;
@@ -44,12 +54,62 @@ final class MessagingServiceProvider extends ServiceProvider
         $routes = $this->arrayValue($messaging, 'routes');
         $defaultRoute = $this->arrayValue($messaging, 'default_route');
         $scheduledMessages = $this->arrayValue($messaging, 'scheduled_messages');
+        $durable = $this->arrayValue($messaging, 'durable');
+        $durableEnabled = ValueNormalizer::bool($durable['enabled'] ?? null, false);
+        $failureDriver = strtolower(ValueNormalizer::string($durable['failure_store'] ?? null, ''));
+
+        $this->assertDurableConfiguration($builder, $messaging, $durableEnabled, $failureDriver);
 
         $builder->singleton(MessagingRuntimeResolver::class, FactoryDefinition::construct(
             MessagingRuntimeResolver::class,
             [new ServiceReference(ContainerInterface::class)],
         ));
         $builder->singleton(SystemClock::class, FactoryDefinition::construct(SystemClock::class));
+
+        if ($durableEnabled) {
+            $builder->singleton(OmnibusDurableFactory::class, FactoryDefinition::construct(
+                OmnibusDurableFactory::class,
+                [
+                    new ServiceReference(ConfigRepository::class),
+                    new ServiceReference(DBLayerFactory::class),
+                    new ServiceReference(MessagingRuntimeResolver::class),
+                    new ServiceReference(SystemClock::class),
+                ],
+            ));
+            if (!$builder->definitions()->has(EnvelopeSerializer::class)) {
+                $builder->singleton(JsonEnvelopeSerializer::class, FactoryDefinition::staticFactory(
+                    OmnibusDurableFactory::class,
+                    'serializer',
+                    [],
+                ));
+                $builder->alias(EnvelopeSerializer::class, JsonEnvelopeSerializer::class);
+            }
+            $builder->singleton(DBLayerTransport::class, FactoryDefinition::staticFactory(
+                OmnibusDurableFactory::class,
+                'transport',
+                [new ServiceReference(EnvelopeSerializer::class)],
+            ));
+            $builder->singleton(DBLayerFailureStore::class, FactoryDefinition::staticFactory(
+                OmnibusDurableFactory::class,
+                'failureStore',
+                [new ServiceReference(EnvelopeSerializer::class)],
+            ));
+            $builder->singleton(DBLayerWorkflowStore::class, FactoryDefinition::staticFactory(
+                OmnibusDurableFactory::class,
+                'workflowStore',
+                [new ServiceReference(EnvelopeSerializer::class)],
+            ));
+            if (!$builder->definitions()->has(WorkflowStore::class)) {
+                $builder->alias(WorkflowStore::class, DBLayerWorkflowStore::class);
+            }
+            $builder->singleton(MessagingDatabaseSchema::class, FactoryDefinition::construct(
+                MessagingDatabaseSchema::class,
+                [
+                    new ServiceReference(ConfigRepository::class),
+                    new ServiceReference(DBLayerFactory::class),
+                ],
+            ));
+        }
         $builder->singleton(HandlerMap::class, FactoryDefinition::staticFactory(
             MessagingGraphFactory::class,
             'handlerMap',
@@ -96,6 +156,7 @@ final class MessagingServiceProvider extends ServiceProvider
                 [
                     new ServiceReference(SyncTransport::class),
                     new ServiceReference(InMemoryTransport::class),
+                    $durableEnabled ? new ServiceReference(DBLayerTransport::class) : null,
                 ],
             ));
         }
@@ -103,6 +164,13 @@ final class MessagingServiceProvider extends ServiceProvider
             $builder->singleton(MessageBus::class, FactoryDefinition::construct(
                 MessageBus::class,
                 [new ServiceReference(RouteMap::class), new ServiceReference(TransportRegistry::class)],
+            ));
+        }
+        if ($durableEnabled && !$builder->definitions()->has(AfterCommitDispatcher::class)) {
+            $builder->scoped(AfterCommitDispatcher::class, FactoryDefinition::staticFactory(
+                OmnibusDurableFactory::class,
+                'afterCommit',
+                [new ServiceReference(MessageBus::class)],
             ));
         }
 
@@ -114,7 +182,11 @@ final class MessagingServiceProvider extends ServiceProvider
             $builder->alias(EventDispatcherInterface::class, EventDispatcher::class);
         }
         if (!$builder->definitions()->has(FailureStore::class)) {
-            $builder->singleton(FailureStore::class, FactoryDefinition::construct(InMemoryFailureStore::class));
+            if ($durableEnabled && $failureDriver === 'database') {
+                $builder->alias(FailureStore::class, DBLayerFailureStore::class);
+            } else {
+                $builder->singleton(FailureStore::class, FactoryDefinition::construct(InMemoryFailureStore::class));
+            }
         }
 
         $builder->singleton(InterMixExecutionScope::class, FactoryDefinition::construct(
@@ -160,6 +232,65 @@ final class MessagingServiceProvider extends ServiceProvider
             [new ServiceReference(MessageFactoryMap::class), new ServiceReference(MessageBus::class)],
         ));
         $builder->alias('foundation.messaging', MessageBus::class);
+    }
+
+    private function assertDurableConfiguration(
+        ContainerBuilder $builder,
+        array $messaging,
+        bool $enabled,
+        string $failureDriver,
+    ): void {
+        $usesDatabase = $this->referencesDatabaseTransport($messaging);
+        if ($usesDatabase && !$enabled) {
+            throw new ConfigurationException(
+                'Messaging references the database transport but messaging.durable.enabled is false.',
+            );
+        }
+        if ($enabled && !$builder->definitions()->has(DBLayerFactory::class)) {
+            throw new ConfigurationException(
+                'messaging.durable.enabled requires the Foundation database capability.',
+            );
+        }
+        if (!in_array($failureDriver, ['', 'database', 'memory'], true)) {
+            throw new ConfigurationException(
+                'messaging.durable.failure_store must be database or memory when configured.',
+            );
+        }
+        if ($this->usesDatabaseConsumer($messaging) && $failureDriver === '') {
+            throw new ConfigurationException(
+                'Durable database consumers/workers require an explicit messaging.durable.failure_store policy.',
+            );
+        }
+    }
+
+    private function referencesDatabaseTransport(array $messaging): bool
+    {
+        $default = $this->arrayValue($messaging, 'default_route');
+        if (($default['transport'] ?? null) === 'database') {
+            return true;
+        }
+        foreach ($this->arrayValue($messaging, 'routes') as $route) {
+            if (is_array($route) && ($route['transport'] ?? null) === 'database') {
+                return true;
+            }
+        }
+
+        return $this->usesDatabaseConsumer($messaging);
+    }
+
+    private function usesDatabaseConsumer(array $messaging): bool
+    {
+        $consumer = $this->arrayValue($messaging, 'consumer');
+        if (($consumer['transport'] ?? null) === 'database') {
+            return true;
+        }
+        foreach ($this->arrayValue($messaging, 'workers') as $worker) {
+            if (is_array($worker) && ($worker['transport'] ?? null) === 'database') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
