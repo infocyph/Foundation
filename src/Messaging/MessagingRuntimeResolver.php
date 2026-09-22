@@ -39,6 +39,27 @@ final readonly class MessagingRuntimeResolver
         return $service;
     }
 
+    public function service(mixed $definition): object
+    {
+        if (is_object($definition)) {
+            return $definition;
+        }
+        if (!is_string($definition) || $definition === '') {
+            throw new \InvalidArgumentException('Messaging service definitions must be objects or service class names.');
+        }
+
+        $service = match (true) {
+            $this->container instanceof Container,
+            $this->container instanceof ProductionContainer => $this->container->make($definition, false),
+            default => $this->container->get($definition),
+        };
+        if (!is_object($service)) {
+            throw new \InvalidArgumentException(sprintf('Messaging service "%s" did not resolve to an object.', $definition));
+        }
+
+        return $service;
+    }
+
     /** @return list<HandlerMiddleware> */
     public function handlerMiddleware(mixed $configured, mixed $configuredJobs): array
     {
