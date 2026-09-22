@@ -267,36 +267,48 @@ invoke it.
   resolves `ConsumerFactory` lazily only when constructing a worker, so parent
   pool configuration reads do not resolve transport/failure/consumer resources;
   child applications still build the real worker graph after fork.
-- [ ] Keep Omnibus's native WorkerPool as the default. If Foundation exposes a
-  Runwire choice, make it explicit configuration and instantiate
-  `RunwireWorkerPoolBackend` only for that choice.
-- [ ] Remove Foundation-side PCNTL/POSIX availability/fallback logic around
-  Omnibus workers/pools; Omnibus 2.6 already guarantees those extensions.
-- [ ] Keep durable DB/cache integrations lazy and selected explicitly.
-- [ ] Treat the 2.5 -> 2.6 durable-storage upgrade as a coordinated cutover:
-  stop all Omnibus queue/workflow/failure-store readers and writers before the
-  first 2.6 writer starts; 2.6 may read legacy rows, but do not mix 2.5 readers
-  with 2.6 wrapped payload writes or roll back without separately verified
-  conversion/restore of affected durable data.
-- [ ] Require intentional durable failure-store policy for durable async workers.
-- [ ] Bind after-commit behavior to the current execution connection; never
-  capture scoped connections in singletons.
-- [ ] Keep retry/settlement, restart budgets and child lifecycle mechanics inside
-  Omnibus Consumer/WorkerPool beneath Foundation generation policy.
-- [ ] Prove single-worker/native-pool and, when explicitly selected, Runwire-pool
-  lifecycle parity: heartbeat, generation stop, clean recycle, lifecycle
-  responsiveness during crash backoff, crash restart exhaustion, graceful drain
-  and no zombie children.
-- [ ] Prove sync/memory/durable topology, retries/failures, persistent/Fiber
-  isolation and genuinely cold optional-Omnibus graphs.
-- [ ] Update 2.5-specific runtime guards/test names/messages to 2.6 and verify
-  Foundation does not reintroduce compatibility branches removed from Omnibus.
+- [X] Keep Omnibus's native WorkerPool as the default. Foundation does not
+  auto-select or expose a Runwire backend merely because Runwire is installed;
+  explicit backend selection remains an Omnibus/application concern.
+- [X] Remove Foundation-side PCNTL/POSIX availability/fallback logic around
+  Omnibus workers/pools; `WorkerManager` contains no pool `pcntl_*`,
+  `posix_*` or watchdog path.
+- [X] Keep durable integrations lazy and explicit: DBLayer queue/failure/workflow
+  services exist only under `messaging.durable.enabled`; Foundation owns no
+  duplicate message uniqueness/overlap layer, so Omnibus CacheLayer coordination
+  remains an explicit application/Omnibus opt-in instead of being auto-enabled.
+- [X] Treat the 2.5 -> 2.6 durable-storage upgrade as a coordinated cutover:
+  documentation requires draining all 2.5 readers/writers before the first 2.6
+  writer, and acceptance coverage proves 2.6 reads legacy unwrapped payloads
+  while retaining the no-mixed-reader/no-unverified-rollback rule.
+- [X] Require intentional durable failure-store policy for database consumers
+  and workers; `database` and deliberately volatile `memory` are the only
+  accepted configured policies.
+- [X] Bind Omnibus `AfterCommitDispatcher` as an execution-scoped service that
+  resolves the current DBLayer execution connection at scope resolution time;
+  durable transport/failure/workflow stores separately use the process-owned
+  infrastructure connection required by Omnibus.
+- [X] Keep retry/settlement, restart budgets and child lifecycle mechanics
+  inside native Omnibus Consumer/WorkerPool; Foundation supplies only routing,
+  DI/execution-scope and generation heartbeat/stop policy.
+- [X] Prove lifecycle ownership at the correct layer: Foundation covers
+  single-worker/pool lifecycle adaptation and child-only graph creation, while
+  released Omnibus 2.6's native/Runwire backend contract suite proves heartbeat,
+  crash-backoff responsiveness, clean recycle, restart exhaustion, graceful/
+  forced drain and child reaping/no-zombie behavior. Foundation does not expose
+  Runwire selection, so no duplicate Runwire integration suite is added here.
+- [X] Prove sync/memory/durable topology, terminal failure persistence, legacy
+  payload compatibility, sequential/Fiber execution isolation, schema lifecycle
+  and cold non-durable DB graphs.
+- [X] Update 2.5-specific runtime guards/test names/messages to 2.6 and keep the
+  bridge on released 2.6 APIs without Foundation compatibility branches.
 - [ ] Benchmark direct Omnibus versus the Foundation bridge, including native
   pool lifecycle overhead; attribute Runwire separately when enabled.
 - [ ] Close 26.8 only on exact-head PHP 8.4/8.5 lowest/stable PHPForge QA,
   analysis, clean install and release benchmarks.
 
-**Status:** ACTIVE — released 2.6 dependency/lifecycle migration applied; durable topology, failure policy, parity tests and benchmark attribution remain.
+**Status:** ACTIVE — implementation and acceptance coverage are in place; only
+the Omnibus benchmark/release-matrix evidence remains before closure.
 
 ---
 
