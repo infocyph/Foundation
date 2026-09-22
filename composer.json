@@ -81,12 +81,14 @@
             "@benchmark:cachelayer",
             "@benchmark:dblayer",
             "@benchmark:epicrypt",
+            "@benchmark:omnibus",
             "@benchmark:otp",
             "@benchmark:pathwise",
             "@benchmark:reqshield"
         ],
         "benchmark:representative": "@php benchmarks/run-representative.php",
         "benchmark:reqshield": "@php benchmarks/reqshield-32-utilization.php",
-        "benchmark:uid": "@php benchmarks/uid-runtime-utilization.php"
+        "benchmark:uid": "@php benchmarks/uid-runtime-utilization.php",
+        "benchmark:omnibus": "@php benchmarks/omnibus-26-utilization.php"
     }
 }
