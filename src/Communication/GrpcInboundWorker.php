@@ -59,7 +59,7 @@ final readonly class GrpcInboundWorker implements WorkerProvider
 
         while (!$cancellation->isRequested()) {
             $served = $runtime->execute(
-                function (ExecutionId $_executionId) use ($source, $sourceService, $cancellation): bool {
+                function (ExecutionId $_executionId) use ($source, $cancellation): bool {
                     unset($_executionId);
                     $dispatcher = $this->services->get(GrpcInboundDispatcher::class);
                     if (!$dispatcher instanceof GrpcInboundDispatcher) {
@@ -82,6 +82,13 @@ final readonly class GrpcInboundWorker implements WorkerProvider
         }
 
         return 0;
+    }
+
+    private static function monotonicNanoseconds(): int
+    {
+        $value = hrtime(true);
+
+        return is_int($value) ? $value : (int) ((float) $value * 1_000_000_000);
     }
 
     private function heartbeatIntervalMilliseconds(): int
@@ -112,13 +119,6 @@ final readonly class GrpcInboundWorker implements WorkerProvider
         }
 
         return $milliseconds;
-    }
-
-    private static function monotonicNanoseconds(): int
-    {
-        $value = hrtime(true);
-
-        return is_int($value) ? $value : (int) ((float) $value * 1_000_000_000);
     }
 
     private function source(string $service): GrpcInboundSource

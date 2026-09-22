@@ -387,8 +387,9 @@ policy.
   - [X] cover persistent ownership: IMAP/POP3 mailbox instances are freshly
     caller-owned and spool receivers are recreated across worker execution scopes.
 - [ ] **Batch 5 — benchmark + exact-head closure**
-  - [ ] benchmark direct TalkingBytes versus Foundation profile/DI bridge with
-    protocol-native benchmark ownership attributed to TalkingBytes;
+  - [X] benchmark direct TalkingBytes resolved composition versus Foundation
+    HTTP/webhook/gRPC/email profile bridges; protocol-native transport/crypto/
+    streaming/parser benchmarks remain TalkingBytes-owned;
   - [ ] run PHP 8.4/8.5 lowest/stable PHPForge QA, analysis, clean install and
     release benchmarks on the exact final head;
   - [ ] close 26.9 only after the final matrix is green.
@@ -399,8 +400,8 @@ TalkingBytes 2.1 native webhook delivery uses bound `v2` signatures. Foundation
 must not pair a native 2.0 sender with a 2.1 receiver or vice versa. The
 Foundation integration uses the 2.1 native sender/receiver path together.
 
-**Status:** ACTIVE — Batches 1-4 are implemented. Continue with Batch 5 direct
-TalkingBytes-versus-Foundation bridge attribution and exact-head closure.
+**Status:** ACTIVE — all implementation and benchmark work is in place. Batch 5
+now waits only for the exact-head PHP 8.4/8.5 lowest/stable PHPForge matrix.
 ---
 
 ## 26.10 Epicrypt 3.1 consumption, auth-protocol adoption and Foundation crypto-policy consolidation — complete

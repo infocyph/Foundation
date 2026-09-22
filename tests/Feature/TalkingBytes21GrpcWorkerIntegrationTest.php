@@ -74,9 +74,9 @@ final class FoundationTalkingBytes21GrpcSource implements GrpcInboundSource
     }
 }
 
-final readonly class FoundationTalkingBytes21GrpcProvider extends ServiceProvider
+final class FoundationTalkingBytes21GrpcProvider extends ServiceProvider
 {
-    public function __construct(private FoundationTalkingBytes21GrpcSource $source) {}
+    public function __construct(private readonly FoundationTalkingBytes21GrpcSource $source) {}
 
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {

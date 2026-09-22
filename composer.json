@@ -85,10 +85,12 @@
             "@benchmark:omnibus",
             "@benchmark:otp",
             "@benchmark:pathwise",
-            "@benchmark:reqshield"
+            "@benchmark:reqshield",
+            "@benchmark:talkingbytes"
         ],
         "benchmark:representative": "@php benchmarks/run-representative.php",
         "benchmark:reqshield": "@php benchmarks/reqshield-32-utilization.php",
+        "benchmark:talkingbytes": "@php benchmarks/talkingbytes-21-utilization.php",
         "benchmark:uid": "@php benchmarks/uid-runtime-utilization.php"
     }
 }
