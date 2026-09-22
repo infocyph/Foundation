@@ -68,7 +68,7 @@ final class ModuleCatalog
         ],
         'messaging' => [
             'packages' => [
-                'infocyph/omnibus' => '^2.5',
+                'infocyph/omnibus' => '^2.6',
             ],
             'description' => 'Events, messages, queues, handler middleware, retries, workers, optional process pools, workflows, and scheduled-message dispatch.',
             'aliases' => ['events', 'omnibus', 'queue', 'queues'],
