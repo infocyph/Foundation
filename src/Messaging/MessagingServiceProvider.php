@@ -47,69 +47,103 @@ final class MessagingServiceProvider extends ServiceProvider
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         $messaging = is_array($context->config['messaging'] ?? null) ? $context->config['messaging'] : [];
-        $handlers = $this->arrayValue($messaging, 'handlers');
-        $handlerMiddleware = $this->arrayValue($messaging, 'handler_middleware');
-        $jobMiddleware = $this->arrayValue($messaging, 'job_middleware');
-        $listeners = $this->arrayValue($messaging, 'listeners');
-        $routes = $this->arrayValue($messaging, 'routes');
-        $defaultRoute = $this->arrayValue($messaging, 'default_route');
-        $scheduledMessages = $this->arrayValue($messaging, 'scheduled_messages');
+        $durable = $this->durableState($builder, $messaging);
+
+        $this->registerRuntimeServices($builder);
+        $this->registerDurableServices($builder, $durable['enabled']);
+        $this->registerHandlerServices($builder, $messaging);
+        $this->registerEventServices($builder, $messaging);
+        $this->registerTransportServices($builder, $messaging, $durable['enabled']);
+        $this->registerBusServices($builder, $durable['enabled']);
+        $this->registerFailureStore($builder, $durable['enabled'], $durable['failure_driver']);
+        $this->registerExecutionScope($builder);
+        $this->registerConsumerServices($builder);
+        $this->registerSchedulingServices($builder, $messaging);
+        $builder->alias('foundation.messaging', MessageBus::class);
+    }
+
+    /**
+     * @param array<array-key, mixed> $messaging
+     * @return array{enabled:bool,failure_driver:string}
+     */
+    private function durableState(ContainerBuilder $builder, array $messaging): array
+    {
         $durable = $this->arrayValue($messaging, 'durable');
-        $durableEnabled = ValueNormalizer::bool($durable['enabled'] ?? null, false);
+        $enabled = ValueNormalizer::bool($durable['enabled'] ?? null, false);
         $failureDriver = strtolower(ValueNormalizer::string($durable['failure_store'] ?? null, ''));
 
-        $this->assertDurableConfiguration($builder, $messaging, $durableEnabled, $failureDriver);
+        $this->assertDurableConfiguration($builder, $messaging, $enabled, $failureDriver);
 
+        return ['enabled' => $enabled, 'failure_driver' => $failureDriver];
+    }
+
+    private function registerRuntimeServices(ContainerBuilder $builder): void
+    {
         $builder->singleton(MessagingRuntimeResolver::class, FactoryDefinition::construct(
             MessagingRuntimeResolver::class,
             [new ServiceReference(ContainerInterface::class)],
         ));
         $builder->singleton(SystemClock::class, FactoryDefinition::construct(SystemClock::class));
+    }
 
-        if ($durableEnabled) {
-            $builder->singleton(OmnibusDurableFactory::class, FactoryDefinition::construct(
-                OmnibusDurableFactory::class,
-                [
-                    new ServiceReference(ConfigRepository::class),
-                    new ServiceReference(DBLayerFactory::class),
-                    new ServiceReference(MessagingRuntimeResolver::class),
-                    new ServiceReference(SystemClock::class),
-                ],
-            ));
-            if (!$builder->definitions()->has(EnvelopeSerializer::class)) {
-                $builder->singleton(JsonEnvelopeSerializer::class, FactoryDefinition::staticFactory(
-                    OmnibusDurableFactory::class,
-                    'serializer',
-                    [],
-                ));
-                $builder->alias(EnvelopeSerializer::class, JsonEnvelopeSerializer::class);
-            }
-            $builder->singleton(DBLayerTransport::class, FactoryDefinition::staticFactory(
-                OmnibusDurableFactory::class,
-                'transport',
-                [new ServiceReference(EnvelopeSerializer::class)],
-            ));
-            $builder->singleton(DBLayerFailureStore::class, FactoryDefinition::staticFactory(
-                OmnibusDurableFactory::class,
-                'failureStore',
-                [new ServiceReference(EnvelopeSerializer::class)],
-            ));
-            $builder->singleton(DBLayerWorkflowStore::class, FactoryDefinition::staticFactory(
-                OmnibusDurableFactory::class,
-                'workflowStore',
-                [new ServiceReference(EnvelopeSerializer::class)],
-            ));
-            if (!$builder->definitions()->has(WorkflowStore::class)) {
-                $builder->alias(WorkflowStore::class, DBLayerWorkflowStore::class);
-            }
-            $builder->singleton(MessagingDatabaseSchema::class, FactoryDefinition::construct(
-                MessagingDatabaseSchema::class,
-                [
-                    new ServiceReference(ConfigRepository::class),
-                    new ServiceReference(DBLayerFactory::class),
-                ],
-            ));
+    private function registerDurableServices(ContainerBuilder $builder, bool $enabled): void
+    {
+        if (!$enabled) {
+            return;
         }
+
+        $builder->singleton(OmnibusDurableFactory::class, FactoryDefinition::construct(
+            OmnibusDurableFactory::class,
+            [
+                new ServiceReference(ConfigRepository::class),
+                new ServiceReference(DBLayerFactory::class),
+                new ServiceReference(MessagingRuntimeResolver::class),
+                new ServiceReference(SystemClock::class),
+            ],
+        ));
+        if (!$builder->definitions()->has(EnvelopeSerializer::class)) {
+            $builder->singleton(JsonEnvelopeSerializer::class, FactoryDefinition::staticFactory(
+                OmnibusDurableFactory::class,
+                'serializer',
+                [],
+            ));
+            $builder->alias(EnvelopeSerializer::class, JsonEnvelopeSerializer::class);
+        }
+
+        $builder->singleton(DBLayerTransport::class, FactoryDefinition::staticFactory(
+            OmnibusDurableFactory::class,
+            'transport',
+            [new ServiceReference(EnvelopeSerializer::class)],
+        ));
+        $builder->singleton(DBLayerFailureStore::class, FactoryDefinition::staticFactory(
+            OmnibusDurableFactory::class,
+            'failureStore',
+            [new ServiceReference(EnvelopeSerializer::class)],
+        ));
+        $builder->singleton(DBLayerWorkflowStore::class, FactoryDefinition::staticFactory(
+            OmnibusDurableFactory::class,
+            'workflowStore',
+            [new ServiceReference(EnvelopeSerializer::class)],
+        ));
+        if (!$builder->definitions()->has(WorkflowStore::class)) {
+            $builder->alias(WorkflowStore::class, DBLayerWorkflowStore::class);
+        }
+        $builder->singleton(MessagingDatabaseSchema::class, FactoryDefinition::construct(
+            MessagingDatabaseSchema::class,
+            [
+                new ServiceReference(ConfigRepository::class),
+                new ServiceReference(DBLayerFactory::class),
+            ],
+        ));
+    }
+
+    /** @param array<array-key, mixed> $messaging */
+    private function registerHandlerServices(ContainerBuilder $builder, array $messaging): void
+    {
+        $handlers = $this->arrayValue($messaging, 'handlers');
+        $handlerMiddleware = $this->arrayValue($messaging, 'handler_middleware');
+        $jobMiddleware = $this->arrayValue($messaging, 'job_middleware');
+
         $builder->singleton(HandlerMap::class, FactoryDefinition::staticFactory(
             MessagingGraphFactory::class,
             'handlerMap',
@@ -127,19 +161,45 @@ final class MessagingServiceProvider extends ServiceProvider
                 ],
             ));
         }
+    }
+
+    /** @param array<array-key, mixed> $messaging */
+    private function registerEventServices(ContainerBuilder $builder, array $messaging): void
+    {
         $builder->singleton(ListenerMap::class, FactoryDefinition::staticFactory(
             MessagingGraphFactory::class,
             'listenerMap',
-            [new ServiceReference(MessagingRuntimeResolver::class), $listeners],
+            [
+                new ServiceReference(MessagingRuntimeResolver::class),
+                $this->arrayValue($messaging, 'listeners'),
+            ],
         ));
         if (!$builder->definitions()->has(ListenerProviderInterface::class)) {
             $builder->alias(ListenerProviderInterface::class, ListenerMap::class);
         }
 
+        $builder->singleton(EventDispatcher::class, FactoryDefinition::construct(
+            EventDispatcher::class,
+            [new ServiceReference(ListenerProviderInterface::class), new ServiceReference(MessageBus::class)],
+        ));
+        if (!$builder->definitions()->has(EventDispatcherInterface::class)) {
+            $builder->alias(EventDispatcherInterface::class, EventDispatcher::class);
+        }
+    }
+
+    /** @param array<array-key, mixed> $messaging */
+    private function registerTransportServices(
+        ContainerBuilder $builder,
+        array $messaging,
+        bool $durableEnabled,
+    ): void {
         $builder->singleton(RouteMap::class, FactoryDefinition::staticFactory(
             MessagingGraphFactory::class,
             'routeMap',
-            [$routes, $defaultRoute],
+            [
+                $this->arrayValue($messaging, 'routes'),
+                $this->arrayValue($messaging, 'default_route'),
+            ],
         ));
         $builder->singleton(InMemoryTransport::class, FactoryDefinition::construct(
             InMemoryTransport::class,
@@ -160,6 +220,10 @@ final class MessagingServiceProvider extends ServiceProvider
                 ],
             ));
         }
+    }
+
+    private function registerBusServices(ContainerBuilder $builder, bool $durableEnabled): void
+    {
         if (!$builder->definitions()->has(MessageBus::class)) {
             $builder->singleton(MessageBus::class, FactoryDefinition::construct(
                 MessageBus::class,
@@ -173,22 +237,27 @@ final class MessagingServiceProvider extends ServiceProvider
                 [new ServiceReference(MessageBus::class)],
             ));
         }
+    }
 
-        $builder->singleton(EventDispatcher::class, FactoryDefinition::construct(
-            EventDispatcher::class,
-            [new ServiceReference(ListenerProviderInterface::class), new ServiceReference(MessageBus::class)],
-        ));
-        if (!$builder->definitions()->has(EventDispatcherInterface::class)) {
-            $builder->alias(EventDispatcherInterface::class, EventDispatcher::class);
+    private function registerFailureStore(
+        ContainerBuilder $builder,
+        bool $durableEnabled,
+        string $failureDriver,
+    ): void {
+        if ($builder->definitions()->has(FailureStore::class)) {
+            return;
         }
-        if (!$builder->definitions()->has(FailureStore::class)) {
-            if ($durableEnabled && $failureDriver === 'database') {
-                $builder->alias(FailureStore::class, DBLayerFailureStore::class);
-            } else {
-                $builder->singleton(FailureStore::class, FactoryDefinition::construct(InMemoryFailureStore::class));
-            }
+        if ($durableEnabled && $failureDriver === 'database') {
+            $builder->alias(FailureStore::class, DBLayerFailureStore::class);
+
+            return;
         }
 
+        $builder->singleton(FailureStore::class, FactoryDefinition::construct(InMemoryFailureStore::class));
+    }
+
+    private function registerExecutionScope(ContainerBuilder $builder): void
+    {
         $builder->singleton(InterMixExecutionScope::class, FactoryDefinition::construct(
             InterMixExecutionScope::class,
             [new ServiceReference(FoundationExecutionScope::class)],
@@ -196,7 +265,10 @@ final class MessagingServiceProvider extends ServiceProvider
         if (!$builder->definitions()->has(ExecutionScope::class)) {
             $builder->alias(ExecutionScope::class, InterMixExecutionScope::class);
         }
+    }
 
+    private function registerConsumerServices(ContainerBuilder $builder): void
+    {
         $builder->singleton(ConsumerFactory::class, FactoryDefinition::construct(
             ConsumerFactory::class,
             [
@@ -221,19 +293,26 @@ final class MessagingServiceProvider extends ServiceProvider
             OmnibusWorkerFactory::class,
             [new ServiceReference(ConfigRepository::class), new ServiceReference(ContainerInterface::class)],
         ));
+    }
 
+    /** @param array<array-key, mixed> $messaging */
+    private function registerSchedulingServices(ContainerBuilder $builder, array $messaging): void
+    {
         $builder->singleton(MessageFactoryMap::class, FactoryDefinition::staticFactory(
             MessagingGraphFactory::class,
             'messageFactoryMap',
-            [new ServiceReference(MessagingRuntimeResolver::class), $scheduledMessages],
+            [
+                new ServiceReference(MessagingRuntimeResolver::class),
+                $this->arrayValue($messaging, 'scheduled_messages'),
+            ],
         ));
         $builder->singleton(ScheduledMessageDispatcher::class, FactoryDefinition::construct(
             ScheduledMessageDispatcher::class,
             [new ServiceReference(MessageFactoryMap::class), new ServiceReference(MessageBus::class)],
         ));
-        $builder->alias('foundation.messaging', MessageBus::class);
     }
 
+    /** @param array<array-key, mixed> $messaging */
     private function assertDurableConfiguration(
         ContainerBuilder $builder,
         array $messaging,
@@ -263,6 +342,7 @@ final class MessagingServiceProvider extends ServiceProvider
         }
     }
 
+    /** @param array<array-key, mixed> $messaging */
     private function referencesDatabaseTransport(array $messaging): bool
     {
         $default = $this->arrayValue($messaging, 'default_route');
@@ -278,6 +358,7 @@ final class MessagingServiceProvider extends ServiceProvider
         return $this->usesDatabaseConsumer($messaging);
     }
 
+    /** @param array<array-key, mixed> $messaging */
     private function usesDatabaseConsumer(array $messaging): bool
     {
         $consumer = $this->arrayValue($messaging, 'consumer');
