@@ -190,6 +190,7 @@ return [
                 'maxMimeParts' => env('NOTIFICATIONS_EMAIL_MAX_MIME_PARTS', 500),
                 'maxHeaderBytes' => env('NOTIFICATIONS_EMAIL_MAX_HEADER_BYTES', 131072),
                 'maxHeaderCount' => env('NOTIFICATIONS_EMAIL_MAX_HEADER_COUNT', 2000),
+                'maxHeaderLineBytes' => env('NOTIFICATIONS_EMAIL_MAX_HEADER_LINE_BYTES', 998),
             ],
         ],
 

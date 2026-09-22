@@ -376,10 +376,16 @@ policy.
     duplicate network/server loop;
   - [X] prove cancellation/stop responsiveness and fresh per-exchange handler
     scopes with the TalkingBytes fake accepted-exchange source.
-- [ ] **Batch 4 — email/native capability closure**
-  - [ ] prove native inbound/outbound email profiles remain TalkingBytes-owned;
-  - [ ] prove optional protocol graphs/capabilities stay cold until selected;
-  - [ ] cover mailbox/spool/native-client ownership under persistent reuse.
+- [X] **Batch 4 — email/native capability closure**
+  - [X] prove native inbound/outbound email profiles remain TalkingBytes-owned;
+    sender decorators/transports use `EmailSenderFactory::fromResolvedConfig()`,
+    parser limits use `EmailLimits::fromArray()`, and mailbox/spool creation stays
+    on native TalkingBytes factories;
+  - [X] prove optional protocol graphs stay cold under explicit topology:
+    `communication` activates HTTP/webhook/gRPC without email services while
+    `notifications` activates email without HTTP/webhook/gRPC services;
+  - [X] cover persistent ownership: IMAP/POP3 mailbox instances are freshly
+    caller-owned and spool receivers are recreated across worker execution scopes.
 - [ ] **Batch 5 — benchmark + exact-head closure**
   - [ ] benchmark direct TalkingBytes versus Foundation profile/DI bridge with
     protocol-native benchmark ownership attributed to TalkingBytes;
@@ -393,8 +399,8 @@ TalkingBytes 2.1 native webhook delivery uses bound `v2` signatures. Foundation
 must not pair a native 2.0 sender with a 2.1 receiver or vice versa. The
 Foundation integration uses the 2.1 native sender/receiver path together.
 
-**Status:** ACTIVE — Batches 1-3 are implemented. Continue with Batch 4 native
-email/capability coldness and persistent mailbox/spool ownership acceptance.
+**Status:** ACTIVE — Batches 1-4 are implemented. Continue with Batch 5 direct
+TalkingBytes-versus-Foundation bridge attribution and exact-head closure.
 ---
 
 ## 26.10 Epicrypt 3.1 consumption, auth-protocol adoption and Foundation crypto-policy consolidation — complete
@@ -508,4 +514,4 @@ Run after the remaining active lower-library pass 26.9 is closed; 26.4, 26.5, 26
 
 ## Immediate handoff
 
-Continue **26.9 TalkingBytes 2.1 utilization** from Batch 4. Batches 1-3 now consume released `^2.1`, delegate resolved protocol composition, prove runtime/webhook isolation, and route host-provided `GrpcInboundSource` exchanges through Foundation `WorkerRuntime` scopes and stop/heartbeat policy. Next close native email/optional-capability ownership, then add bridge attribution and exact-head release evidence.
+Continue **26.9 TalkingBytes 2.1 utilization** from Batch 5. Batches 1-4 consume released `^2.1`, delegate resolved protocol composition, prove runtime/webhook isolation, route host-provided inbound gRPC exchanges through Foundation worker scopes, and close native email/optional-capability ownership. Add direct-versus-Foundation communication attribution, then close 26.9 only after the exact final PHP 8.4/8.5 lowest/stable PHPForge matrix is green.

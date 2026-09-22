@@ -408,6 +408,7 @@ final class FoundationDefaults
                             'maxDecodedBodyBytes' => 10 * 1024 * 1024,
                             'maxHeaderBytes' => 131072,
                             'maxHeaderCount' => 2000,
+                            'maxHeaderLineBytes' => 998,
                             'maxMessageBytes' => 10 * 1024 * 1024,
                             'maxMimeDepth' => 20,
                             'maxMimeParts' => 500,
