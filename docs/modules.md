@@ -20,7 +20,7 @@ uses the purpose name.
 | --- | --- |
 | `auth` | `infocyph/otp ^6.0`, `web-auth/webauthn-lib ^5.3.5` |
 | `cache` | `infocyph/cachelayer ^3.2.0` |
-| `communication` | `infocyph/talkingbytes ^2.0` |
+| `communication` | `infocyph/talkingbytes ^2.1` |
 | `database` | `infocyph/dblayer ^5.0` |
 | `filesystem` | `infocyph/pathwise ^3.1` |
 | `logging` | built into Foundation |

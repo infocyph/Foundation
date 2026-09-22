@@ -75,8 +75,8 @@ Phase 10 remains the final aggregate release-readiness pass after every open low
 | 26.5 | Pathwise | `^4.1` | **complete** |
 | 26.6 | DBLayer | `^5.1` | **complete** |
 | 26.7 | ReqShield | `^3.2` | **complete** |
-| 26.8 | Omnibus | `^2.6` | **active — closure QA** |
-| 26.9 | TalkingBytes | `^2.0` | open/deferred |
+| 26.8 | Omnibus | `^2.6` | **complete** |
+| 26.9 | TalkingBytes | `^2.1` | **active — batch 1** |
 | 26.10 | Epicrypt | `^3.1` | **complete** |
 | 26.11 | standalone WebAuthn specialist pass | OTP 6.1 Passkey | **closed/subsumed** |
 
@@ -94,10 +94,9 @@ Epicrypt `3.0` was released on **2026-09-10** and established the stable 3.x bou
 
 ## 4. Current execution order
 
-1. Close 26.8 Omnibus 2.6 on exact-head PHPForge QA; the released-package integration, acceptance coverage and Foundation bridge benchmark are already implemented.
-2. Execute 26.9 TalkingBytes 2.0 utilization and exact-head acceptance.
-3. Run aggregate Phase 10 / Foundation release-readiness gates.
-4. Validate the final InfByte consumption/handoff against the completed Foundation 3 lifecycle.
+1. Execute 26.9 TalkingBytes 2.1 utilization and exact-head acceptance.
+2. Run aggregate Phase 10 / Foundation release-readiness gates.
+3. Validate the final InfByte consumption/handoff against the completed Foundation 3 lifecycle.
 
 Do not reopen finalized lower-library architecture merely to make Foundation integration easier.
 
@@ -225,7 +224,7 @@ ReqShield owns rule parsing/compilation/execution, sanitization/casting, nested/
 **Status:** [X] COMPLETE.
 ---
 
-## 26.8 Omnibus 2.6 utilization — ACTIVE
+## 26.8 Omnibus 2.6 utilization — complete
 
 ### Released baseline
 
@@ -306,33 +305,89 @@ invoke it.
   durable DBLayer and worker-factory/lifecycle overhead. Raw native/Runwire
   process-supervision benchmarking remains Omnibus-owned, where the pool backend
   is implemented and explicitly selectable.
-- [ ] Close 26.8 only on exact-head PHP 8.4/8.5 lowest/stable PHPForge QA,
-  analysis, clean install and release benchmarks.
+- [X] Exact-head PHP 8.4/8.5 lowest/stable PHPForge QA, analysis, clean install
+  and release benchmarks are green on Foundation run #1473.
 
-**Status:** ACTIVE — implementation, acceptance coverage and Foundation bridge
-benchmark evidence are in place; only the exact-head PHPForge QA matrix remains
-before closure.
+**Status:** [X] COMPLETE — released Omnibus 2.6 integration, lifecycle ownership,
+durable compatibility, isolation coverage and direct-versus-Foundation benchmark
+attribution are closed on an exact-head green PHPForge matrix.
 
 ---
 
-## 26.9 TalkingBytes 2.0 utilization — open/deferred
+## 26.9 TalkingBytes 2.1 utilization — ACTIVE
+
+### Released baseline
+
+TalkingBytes **2.1** is released from merged PR #13 at commit
+`29fe13043225bfcf477adfa1f4dd1dc11fa4723f`. Foundation consumes released
+`^2.1` only; no VCS/path compatibility alias is used.
+
+TalkingBytes 2.1 adds host-oriented resolved protocol composition, explicit
+persistent-runtime state/cancellation boundaries, a host-controlled inbound
+gRPC exchange source, strengthened webhook replay semantics and native webhook
+v2 delivery signatures binding timestamp + event + delivery ID + exact raw
+body.
 
 ### Ownership
 
-TalkingBytes owns HTTP client mechanics, inbound/outbound email/message chains, webhook protocol/signature behavior and gRPC request/response/stream mechanics. Foundation owns named profiles, capability selection, application service mapping, secure replay-store selection, worker-scope integration and application secret/redaction policy.
+TalkingBytes owns HTTP client mechanics and resolved auth/cookie/retry/
+resilience composition, inbound/outbound email transport/message chains,
+webhook signing/verification/retry/replay contract, gRPC request/response/
+stream mechanics and accepted-exchange protocol adaptation. Foundation owns
+named profiles, capability selection, DI lifetimes, application path/secret
+resolution, CacheLayer replay-store implementation, application handler lookup,
+worker heartbeat/stop/release-generation policy and application observability
+policy.
 
-### Open work
+### Batch tracker
 
-- [ ] Rescan Foundation bindings against TalkingBytes 2.0.
-- [ ] Classify mutable client/profile/resilience lifetimes and prove no cross-request/job/Fiber state leakage.
-- [ ] Keep webhook replay atomic/fail-closed through CacheLayer.
-- [ ] Route inbound gRPC through the existing Foundation worker lifecycle.
-- [ ] Consume native inbound/outbound email/message-chain APIs rather than recreating protocol mechanics.
-- [ ] Keep communication secrets out of logs/cache keys/generated metadata.
-- [ ] Prove HTTP/webhook/gRPC/email behavior, optional cold graphs and direct-vs-Foundation overhead.
+- [X] **Batch 1 — released floor + native resolved composition**
+  - [X] raise Composer/module floor from `^2.0` to released `^2.1`;
+  - [X] close 26.8 after exact-head green run #1473 and activate 26.9;
+  - [X] replace Foundation HTTP auth/cookie/retry/rate-limit/circuit-breaker/
+    idempotency assembly with TalkingBytes `HttpClient::fromResolvedConfig()`;
+  - [X] replace Foundation gRPC retry/generated-stub assembly with
+    `GrpcClientFactory`;
+  - [X] replace Foundation webhook sender/verifier/receiver protocol assembly
+    with TalkingBytes resolved-config APIs while retaining Foundation secret
+    policy and CacheLayer replay-store selection;
+  - [X] replace Foundation email sender transport/fallback/retry/rate-limit/DKIM
+    assembly with `EmailSenderFactory::fromResolvedConfig()`; Foundation still
+    resolves named transports, application paths and secrets.
+- [ ] **Batch 2 — lifetime/isolation + webhook acceptance**
+  - [ ] classify Foundation DI lifetimes against TalkingBytes 2.1 mutable-state
+    semantics (cookies, resilience state, mailboxes/native clients, fakes);
+  - [ ] prove sequential/job/Fiber isolation and keep mutable HTTP clients
+    execution-scoped where state is enabled;
+  - [ ] prove CacheLayer replay claims remain atomic/fail-closed and native v2
+    webhook sender/receiver behavior is used together;
+  - [ ] keep communication secrets out of generated metadata/cache keys/logs.
+- [ ] **Batch 3 — inbound gRPC worker lifecycle**
+  - [ ] consume TalkingBytes `GrpcInboundSource` / `serveOne()` through the
+    existing Foundation worker heartbeat/stop/release-generation lifecycle;
+  - [ ] keep source/native transport ownership outside Foundation and avoid a
+    duplicate gRPC server/network loop;
+  - [ ] prove stop/replacement responsiveness and handler scope isolation.
+- [ ] **Batch 4 — email/native capability closure**
+  - [ ] prove native inbound/outbound email profiles remain TalkingBytes-owned;
+  - [ ] prove optional protocol graphs/capabilities stay cold until selected;
+  - [ ] cover mailbox/spool/native-client ownership under persistent reuse.
+- [ ] **Batch 5 — benchmark + exact-head closure**
+  - [ ] benchmark direct TalkingBytes versus Foundation profile/DI bridge with
+    protocol-native benchmark ownership attributed to TalkingBytes;
+  - [ ] run PHP 8.4/8.5 lowest/stable PHPForge QA, analysis, clean install and
+    release benchmarks on the exact final head;
+  - [ ] close 26.9 only after the final matrix is green.
 
-**Status:** deferred until 26.10/26.4 closure.
+### Security compatibility note
 
+TalkingBytes 2.1 native webhook delivery uses bound `v2` signatures. Foundation
+must not pair a native 2.0 sender with a 2.1 receiver or vice versa. The
+Foundation integration uses the 2.1 native sender/receiver path together.
+
+**Status:** ACTIVE — Batch 1 implemented; continue with lifetime/isolation and
+webhook acceptance before wiring inbound gRPC into the Foundation worker
+lifecycle.
 ---
 
 ## 26.10 Epicrypt 3.1 consumption, auth-protocol adoption and Foundation crypto-policy consolidation — complete
@@ -430,7 +485,7 @@ OTP 6.1 `Passkey` is the Foundation-facing WebAuthn ceremony/state boundary. Fou
 
 # 27. Aggregate Foundation 3 release-readiness after lower-library passes
 
-Run after the remaining active lower-library passes 26.8/26.9 are closed; 26.4, 26.5, 26.7 and 26.10 are complete.
+Run after the remaining active lower-library pass 26.9 is closed; 26.4, 26.5, 26.7, 26.8 and 26.10 are complete.
 
 - [ ] Composer normal install/release constraints pass on PHP 8.4/8.5, prefer-lowest and prefer-stable.
 - [ ] PHPForge quality/static/security analysis is green.
@@ -446,4 +501,4 @@ Run after the remaining active lower-library passes 26.8/26.9 are closed; 26.4, 
 
 ## Immediate handoff
 
-Finish **26.8 Omnibus 2.6 utilization** by clearing the exact-head PHPForge QA gate. The released `^2.6` dependency, durable cutover policy, Omnibus-owned WorkerPool lifecycle/supervision, Foundation `WorkerLifecycle` heartbeat/stop adaptation, parent-clean fork boundary, native-pool default, durable DBLayer integration, failure/retry/isolation coverage and direct-versus-Foundation bridge attribution are already implemented. Once the final PHP 8.4/8.5 stable/lowest matrix is green, mark 26.8 complete and proceed to 26.9 TalkingBytes.
+Continue **26.9 TalkingBytes 2.1 utilization** from Batch 2. Batch 1 raises the released `^2.1` floor and delegates resolved HTTP, webhook, gRPC client and email-sender protocol composition to TalkingBytes. Next prove Foundation DI lifetime/isolation policy and atomic/fail-closed webhook v2 acceptance, then wire the TalkingBytes host-controlled inbound gRPC exchange boundary into the existing Foundation worker lifecycle before benchmark/exact-head closure.

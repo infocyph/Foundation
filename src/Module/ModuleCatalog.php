@@ -33,7 +33,7 @@ final class ModuleCatalog
         ],
         'communication' => [
             'packages' => [
-                'infocyph/talkingbytes' => '^2.0',
+                'infocyph/talkingbytes' => '^2.1',
             ],
             'description' => 'HTTP, inbound/outbound email, webhook, and gRPC communication.',
             'aliases' => ['notifications', 'talkingbytes'],

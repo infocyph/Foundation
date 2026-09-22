@@ -91,6 +91,7 @@ it('applies TalkingBytes webhook profiles through Foundation composition', funct
     ]);
 
     expect($profiles->webhookSender())->toBeObject()
+        ->and((string) $request->headers->get(WebhookHeaders::SIGNATURE))->toContain('v2=')
         ->and($delivery->delivery->delivered)->toBeTrue()
         ->and($event->event)->toBe('orders.created')
         ->and($event->payload)->toBe(['order_id' => 1001]);

@@ -7,21 +7,16 @@ namespace Infocyph\Foundation\Communication;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\TalkingBytes\Grpc\GrpcClient;
+use Infocyph\TalkingBytes\Grpc\GrpcClientFactory;
 use Infocyph\TalkingBytes\Grpc\GrpcInboundDispatcher;
-use Infocyph\TalkingBytes\Grpc\Native\GeneratedStubGrpcInvoker;
 use Infocyph\TalkingBytes\Grpc\Native\NativeGrpcInvoker;
 use Infocyph\TalkingBytes\Grpc\Native\NativeGrpcStreamingInvoker;
 use Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundRequest;
 use Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundResponse;
-use Infocyph\TalkingBytes\Grpc\Retry\GrpcRetryPolicy;
 use Infocyph\TalkingBytes\Grpc\Sender\GrpcRequest;
 use Infocyph\TalkingBytes\Grpc\Sender\GrpcResponse;
-use Infocyph\TalkingBytes\Http\Cookie\CookieJar;
 use Infocyph\TalkingBytes\Http\HttpClient;
 use Infocyph\TalkingBytes\Http\HttpClientConfig;
-use Infocyph\TalkingBytes\Http\Retry\HttpRetryPolicy;
-use Infocyph\TalkingBytes\Resilience\CircuitBreaker;
-use Infocyph\TalkingBytes\Resilience\RateLimiter;
 use Infocyph\TalkingBytes\Webhook\Contracts\WebhookReplayStore;
 use Infocyph\TalkingBytes\Webhook\Webhook;
 use Infocyph\TalkingBytes\Webhook\WebhookReceiver;
@@ -31,8 +26,8 @@ use Infocyph\TalkingBytes\Webhook\WebhookVerifier;
 /**
  * Maps Foundation application profiles to native TalkingBytes protocol objects.
  *
- * TalkingBytes owns protocol execution. Foundation owns only selection and
- * composition of named application profiles.
+ * TalkingBytes owns protocol execution and resolved protocol composition.
+ * Foundation owns named profile selection, application policy and DI lifetime.
  */
 final readonly class CommunicationProfiles
 {
@@ -41,7 +36,7 @@ final readonly class CommunicationProfiles
     /** @param callable(GrpcRequest):GrpcResponse $caller */
     public function grpc(callable $caller, ?string $profile = null): GrpcClient
     {
-        return $this->applyGrpcRetry(GrpcClient::using($caller), $this->grpcConfig($profile));
+        return new GrpcClientFactory()->using($caller, $this->grpcConfig($profile));
     }
 
     /** @param array<string, string> $methodMap */
@@ -50,9 +45,11 @@ final readonly class CommunicationProfiles
         array $methodMap = [],
         ?string $profile = null,
     ): GrpcClient {
-        $invoker = new GeneratedStubGrpcInvoker($stubClient, $methodMap);
-
-        return $this->grpcNative($invoker, $invoker, $profile);
+        return new GrpcClientFactory()->usingGeneratedStub(
+            $stubClient,
+            $methodMap,
+            $this->grpcConfig($profile),
+        );
     }
 
     /** @param array<string, callable(GrpcInboundRequest):GrpcInboundResponse> $handlers */
@@ -66,11 +63,11 @@ final readonly class CommunicationProfiles
         ?NativeGrpcStreamingInvoker $streamingInvoker = null,
         ?string $profile = null,
     ): GrpcClient {
-        $client = $streamingInvoker instanceof NativeGrpcStreamingInvoker
-            ? GrpcClient::usingNativeStreaming($invoker, $streamingInvoker)
-            : GrpcClient::usingNative($invoker);
-
-        return $this->applyGrpcRetry($client, $this->grpcConfig($profile));
+        return new GrpcClientFactory()->usingNative(
+            $invoker,
+            $streamingInvoker,
+            $this->grpcConfig($profile),
+        );
     }
 
     public function http(?string $profile = null): HttpClient
@@ -81,7 +78,7 @@ final readonly class CommunicationProfiles
             throw new \LogicException('Production HTTP profiles must verify both TLS peers and hosts.');
         }
 
-        return $this->decorateHttp(HttpClient::fromConfig($config), $array);
+        return HttpClient::fromResolvedConfig($array);
     }
 
     public function httpConfig(?string $profile = null): HttpClientConfig
@@ -95,14 +92,20 @@ final readonly class CommunicationProfiles
         ?int $replayTtlSeconds = null,
     ): WebhookReceiver {
         $config = $this->webhookInboundConfig($profile);
-        $receiver = Webhook::receiver(
-            $this->webhookSecret($config['secret'] ?? null),
-            ValueNormalizer::int($config['max_age_seconds'] ?? 300, 300),
-        );
+        if ($replayStore instanceof WebhookReplayStore) {
+            $replay = ValueNormalizer::associativeArray($config['replay'] ?? []);
+            $replay['enabled'] = true;
+            if ($replayTtlSeconds !== null) {
+                $replay['ttl_seconds'] = $replayTtlSeconds;
+            }
+            $config['replay'] = $replay;
+        }
 
-        return $replayStore instanceof WebhookReplayStore
-            ? $receiver->withReplayStore($replayStore, $replayTtlSeconds ?? 86400)
-            : $receiver;
+        return Webhook::receiverFromResolvedConfig(
+            $this->webhookSecret($config['secret'] ?? null),
+            $config,
+            $replayStore,
+        );
     }
 
     public function webhookSender(?string $profile = null): WebhookSender
@@ -113,22 +116,7 @@ final readonly class CommunicationProfiles
             throw new \InvalidArgumentException('Outbound webhook http_client must be a non-empty profile name.');
         }
 
-        $sender = Webhook::sender($this->http($httpProfile));
-        $secret = $config['signing_secret'] ?? null;
-        if (is_string($secret) && $secret !== '') {
-            $sender = $sender->withSecret($secret);
-        }
-
-        $retry = ValueNormalizer::associativeArray($config['retry'] ?? []);
-        if (ValueNormalizer::bool($retry['enabled'] ?? false, false)) {
-            $sender = $sender->withRetryProfile(
-                ValueNormalizer::int($retry['attempts'] ?? 3, 3),
-                ValueNormalizer::int($retry['base_delay_ms'] ?? 250, 250),
-                ValueNormalizer::int($retry['max_retry_after_seconds'] ?? 30, 30),
-            );
-        }
-
-        return $sender;
+        return Webhook::senderFromResolvedConfig($this->http($httpProfile), $config);
     }
 
     /** @param list<string>|string|null $secret */
@@ -138,91 +126,14 @@ final readonly class CommunicationProfiles
         ?int $maxAgeSeconds = null,
     ): WebhookVerifier {
         $config = $this->webhookInboundConfig($profile);
+        if ($maxAgeSeconds !== null) {
+            $config['max_age_seconds'] = $maxAgeSeconds;
+        }
 
-        return Webhook::verifier(
+        return Webhook::verifierFromResolvedConfig(
             $this->webhookSecret($secret ?? ($config['secret'] ?? null)),
-            $maxAgeSeconds ?? ValueNormalizer::int($config['max_age_seconds'] ?? 300, 300),
+            $config,
         );
-    }
-
-    /** @param array<string, mixed> $config */
-    private function applyGrpcRetry(GrpcClient $client, array $config): GrpcClient
-    {
-        $retry = ValueNormalizer::associativeArray($config['retry'] ?? []);
-        if (!ValueNormalizer::bool($retry['enabled'] ?? false, false)) {
-            return $client;
-        }
-
-        $maxDelay = $retry['max_delay_ms'] ?? null;
-
-        return $client->withGrpcRetry(GrpcRetryPolicy::standard(
-            ValueNormalizer::int($retry['attempts'] ?? 3, 3),
-            ValueNormalizer::int($retry['base_delay_ms'] ?? 100, 100),
-            is_numeric($maxDelay) ? (int) $maxDelay : null,
-            is_numeric($retry['jitter_ratio'] ?? null) ? (float) $retry['jitter_ratio'] : 0.0,
-        ));
-    }
-
-    /** @param array<string, mixed> $config */
-    private function decorateHttp(HttpClient $client, array $config): HttpClient
-    {
-        $auth = ValueNormalizer::associativeArray($config['auth'] ?? []);
-        $client = match ($auth['driver'] ?? 'none') {
-            'api_key', 'api_key_header', 'api-key-header', 'header' => $client->withApiKeyHeader(
-                $this->requiredString($auth, 'header', 'X-Api-Key'),
-                $this->requiredString($auth, 'value'),
-            ),
-            'api_key_query', 'api-key-query', 'query' => $client->withApiKeyQuery(
-                $this->requiredString($auth, 'query_key', 'api_key'),
-                $this->requiredString($auth, 'value'),
-            ),
-            'basic' => $client->withBasicAuth(
-                $this->requiredString($auth, 'username'),
-                $this->requiredString($auth, 'password'),
-            ),
-            'bearer' => $client->withBearerToken($this->requiredString($auth, 'token')),
-            'none' => $client,
-            default => throw new \InvalidArgumentException('Unsupported communication HTTP auth driver.'),
-        };
-
-        $cookies = ValueNormalizer::associativeArray($config['cookies'] ?? []);
-        if (ValueNormalizer::bool($cookies['enabled'] ?? false, false)) {
-            $client = $client->withCookieJar(new CookieJar());
-        }
-
-        $retry = ValueNormalizer::associativeArray($config['retry'] ?? []);
-        if (ValueNormalizer::bool($retry['enabled'] ?? false, false)) {
-            $client = $client->withHttpRetry(HttpRetryPolicy::standard(
-                ValueNormalizer::int($retry['attempts'] ?? 3, 3),
-                ValueNormalizer::int($retry['base_delay_ms'] ?? 250, 250),
-                ValueNormalizer::int($retry['max_retry_after_seconds'] ?? 30, 30),
-            ));
-        }
-
-        $rateLimit = ValueNormalizer::associativeArray($config['rate_limit'] ?? []);
-        if (ValueNormalizer::bool($rateLimit['enabled'] ?? false, false)) {
-            $client = $client->withRateLimit(new RateLimiter(
-                ValueNormalizer::int($rateLimit['max_requests'] ?? 60, 60),
-                ValueNormalizer::int($rateLimit['per_seconds'] ?? 60, 60),
-            ));
-        }
-
-        $circuit = ValueNormalizer::associativeArray($config['circuit_breaker'] ?? []);
-        if (ValueNormalizer::bool($circuit['enabled'] ?? false, false)) {
-            $client = $client->withCircuitBreaker(new CircuitBreaker(
-                ValueNormalizer::int($circuit['failure_threshold'] ?? 5, 5),
-                ValueNormalizer::int($circuit['cool_down_seconds'] ?? 30, 30),
-            ));
-        }
-
-        $idempotency = ValueNormalizer::associativeArray($config['idempotency'] ?? []);
-        if (ValueNormalizer::bool($idempotency['enabled'] ?? false, false)) {
-            $client = $client->withIdempotency(
-                $this->requiredString($idempotency, 'header', 'Idempotency-Key'),
-            );
-        }
-
-        return $client;
     }
 
     private function defaultProfile(string $key, string $fallback): string
@@ -260,17 +171,6 @@ final readonly class CommunicationProfiles
         }
 
         return ValueNormalizer::associativeArray($profiles[$name]);
-    }
-
-    /** @param array<string, mixed> $config */
-    private function requiredString(array $config, string $key, string $default = ''): string
-    {
-        $value = $config[$key] ?? $default;
-        if (!is_string($value) || trim($value) === '') {
-            throw new \InvalidArgumentException(sprintf('Communication profile key "%s" must be non-empty.', $key));
-        }
-
-        return trim($value);
     }
 
     /** @return array<string, mixed> */

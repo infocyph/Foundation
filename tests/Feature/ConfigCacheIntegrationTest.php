@@ -244,7 +244,7 @@ it('keeps production requirements limited to the Foundation runtime core', funct
         ->and($composer['require-dev']['infocyph/otp'] ?? null)->toBe('^6.1')
         ->and($composer['require-dev']['infocyph/pathwise'] ?? null)->toBe('^4.1')
         ->and($composer['require-dev']['infocyph/reqshield'] ?? null)->toBe('^3.2')
-        ->and($composer['require-dev']['infocyph/talkingbytes'] ?? null)->toBe('^2.0')
+        ->and($composer['require-dev']['infocyph/talkingbytes'] ?? null)->toBe('^2.1')
         ->and(array_keys($composer['suggest']))->toContain(
             'ext-sodium',
             'infocyph/cachelayer',
