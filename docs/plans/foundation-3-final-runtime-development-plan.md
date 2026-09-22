@@ -75,7 +75,7 @@ Phase 10 remains the final aggregate release-readiness pass after every open low
 | 26.5 | Pathwise | `^4.1` | **complete** |
 | 26.6 | DBLayer | `^5.1` | **complete** |
 | 26.7 | ReqShield | `^3.2` | **complete** |
-| 26.8 | Omnibus | `^2.5` | open/deferred |
+| 26.8 | Omnibus | `^2.6` after publication | waiting on Omnibus 2.6 release |
 | 26.9 | TalkingBytes | `^2.0` | open/deferred |
 | 26.10 | Epicrypt | `^3.1` | **complete** |
 | 26.11 | standalone WebAuthn specialist pass | OTP 6.1 Passkey | **closed/subsumed** |
@@ -94,7 +94,7 @@ Epicrypt `3.0` was released on **2026-09-10** and established the stable 3.x bou
 
 ## 4. Current execution order
 
-1. Execute 26.8 Omnibus 2.5 utilization and exact-head acceptance.
+1. After Omnibus 2.6 is published, execute 26.8 Omnibus 2.6 utilization and exact-head acceptance.
 2. Execute 26.9 TalkingBytes 2.0 utilization and exact-head acceptance.
 3. Run aggregate Phase 10 / Foundation release-readiness gates.
 4. Validate the final InfByte consumption/handoff against the completed Foundation 3 lifecycle.
@@ -225,23 +225,70 @@ ReqShield owns rule parsing/compilation/execution, sanitization/casting, nested/
 **Status:** [X] COMPLETE.
 ---
 
-## 26.8 Omnibus 2.5 utilization — open/deferred
+## 26.8 Omnibus 2.6 utilization — waiting on release
+
+### Release prerequisite
+
+Do not consume an unreleased Omnibus branch through VCS/path aliases. Foundation
+remains on the released `^2.5` development floor until Omnibus 2.6 is
+published, then raises its development/integration floor to `^2.6`.
+
+Selecting Omnibus 2.6 carries its mandatory `ext-pcntl` + `ext-posix`
+runtime floor. Foundation itself keeps Omnibus optional and must not duplicate
+extension-availability probing around Omnibus process APIs. Runwire 1.x remains
+an optional, explicitly selected WorkerPool backend; installation/presence alone
+must never switch Foundation away from Omnibus's native PCNTL/POSIX backend.
 
 ### Ownership
 
-Omnibus owns envelope/bus/routing/transports/consumer/retry/failure/workflow/worker/worker-pool/scheduled-message mechanics and its CacheLayer/DBLayer integrations. Foundation owns configured application IDs/routes/transports, graph inclusion, generation supervision, execution scopes, correlation and selection of lower-layer DB/cache services.
+Omnibus owns envelope/bus/routing/transports/consumer/retry/failure/workflow,
+single-worker and WorkerPool mechanics, native/Runwire pool supervision,
+lifecycle polling, restart/recycle budgets, child reaping, scheduled-message
+mechanics and its CacheLayer/DBLayer integrations. Foundation owns configured
+application IDs/routes/transports, optional graph inclusion, release-generation
+policy, heartbeat/stop decisions, execution scopes, correlation and selection
+of lower-layer DB/cache services.
+
+Foundation may provide a `WorkerLifecycle` carrying generation heartbeat and
+stop policy, but Omnibus must own the timing/signal/supervision mechanics that
+invoke it.
 
 ### Open work
 
-- [ ] Rescan Foundation Omnibus 2.5 usage and remove duplicated mechanics.
+- [ ] After the 2.6 tag is published, raise `infocyph/omnibus` from `^2.5`
+  to `^2.6`; use released constraints only.
+- [ ] Rescan Foundation messaging against the released 2.6 API and remove
+  duplicated mechanics.
+- [ ] Remove `WorkerManager::watchPool()` and its Foundation SIGALRM watchdog;
+  pass Foundation heartbeat/generation-stop policy through Omnibus
+  `WorkerPool(..., lifecycle: ...)` instead.
+- [ ] Preserve the parent-clean fork boundary: do not boot the Foundation app or
+  resolve DBLayer, CacheLayer, Redis/broker or other process-bound resources
+  before child creation; build them inside the pool worker factory.
+- [ ] Keep Omnibus's native WorkerPool as the default. If Foundation exposes a
+  Runwire choice, make it explicit configuration and instantiate
+  `RunwireWorkerPoolBackend` only for that choice.
+- [ ] Remove Foundation-side PCNTL/POSIX availability/fallback logic around
+  Omnibus workers/pools; Omnibus 2.6 already guarantees those extensions.
 - [ ] Keep durable DB/cache integrations lazy and selected explicitly.
 - [ ] Require intentional durable failure-store policy for durable async workers.
-- [ ] Bind after-commit behavior to the current execution connection; never capture scoped connections in singletons.
-- [ ] Keep retry/settlement inside Omnibus Consumer and WorkerPool beneath Foundation generation supervision.
-- [ ] Prove sync/memory/durable topology, retries/failures, persistent isolation and capability-absent cold paths.
-- [ ] Benchmark direct Omnibus versus Foundation bridge.
+- [ ] Bind after-commit behavior to the current execution connection; never
+  capture scoped connections in singletons.
+- [ ] Keep retry/settlement, restart budgets and child lifecycle mechanics inside
+  Omnibus Consumer/WorkerPool beneath Foundation generation policy.
+- [ ] Prove single-worker/native-pool and, when explicitly selected, Runwire-pool
+  lifecycle parity: heartbeat, generation stop, clean recycle, crash restart
+  exhaustion, graceful drain and no zombie children.
+- [ ] Prove sync/memory/durable topology, retries/failures, persistent/Fiber
+  isolation and genuinely cold optional-Omnibus graphs.
+- [ ] Update 2.5-specific runtime guards/test names/messages to 2.6 and verify
+  Foundation does not reintroduce compatibility branches removed from Omnibus.
+- [ ] Benchmark direct Omnibus versus the Foundation bridge, including native
+  pool lifecycle overhead; attribute Runwire separately when enabled.
+- [ ] Close 26.8 only on exact-head PHP 8.4/8.5 lowest/stable PHPForge QA,
+  analysis, clean install and release benchmarks.
 
-**Status:** ACTIVE — next lower-library utilization pass.
+**Status:** BLOCKED ONLY ON OMNIBUS 2.6 PUBLICATION — begin immediately after the release is tagged.
 
 ---
 
@@ -376,4 +423,4 @@ Run after the remaining active lower-library passes 26.8/26.9 are closed; 26.4, 
 
 ## Immediate handoff
 
-Begin **26.8 Omnibus 2.5 utilization**. Rescan Foundation messaging against the released 2.5 API, consume native durable DBLayer/CacheLayer integrations rather than recreating them, keep durable capability selection lazy, require intentional durable failure policy, bind after-commit behavior to the current execution connection, prove retry/failure/persistent isolation, add direct-vs-Foundation attribution, and close it on exact-head PHPForge QA before proceeding to 26.9 TalkingBytes.
+After Omnibus **2.6 is published**, begin **26.8 Omnibus 2.6 utilization**. Raise the released dependency floor to `^2.6`, remove Foundation's `WorkerManager::watchPool()` signal watchdog in favor of Omnibus WorkerPool lifecycle polling, retain Foundation generation heartbeat/stop policy through `WorkerLifecycle`, keep the native pool default with Runwire explicit-only, preserve child-side construction of process-bound resources, consume native durable DBLayer/CacheLayer integrations rather than recreating them, prove retry/failure/persistent isolation and pool lifecycle parity, add direct-vs-Foundation attribution, and close on exact-head PHPForge QA before proceeding to 26.9 TalkingBytes.
