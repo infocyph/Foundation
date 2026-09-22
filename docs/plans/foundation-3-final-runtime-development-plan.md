@@ -364,7 +364,9 @@ policy.
   - [X] prove CacheLayer replay claims remain atomic/fail-closed through the
     existing contention/no-atomic coverage and add Foundation acceptance for
     TalkingBytes native v2 duplicate/tampered-delivery rejection;
-  - [ ] keep communication secrets out of generated metadata/cache keys/logs.
+  - [X] keep communication secrets out of runtime identity metadata, cache-key
+    material and logs; the authenticated/restricted release `config.php` remains
+    the intentional secret-bearing resolved configuration snapshot.
 - [ ] **Batch 3 — inbound gRPC worker lifecycle**
   - [ ] consume TalkingBytes `GrpcInboundSource` / `serveOne()` through the
     existing Foundation worker heartbeat/stop/release-generation lifecycle;
@@ -388,9 +390,9 @@ TalkingBytes 2.1 native webhook delivery uses bound `v2` signatures. Foundation
 must not pair a native 2.0 sender with a 2.1 receiver or vice versa. The
 Foundation integration uses the 2.1 native sender/receiver path together.
 
-**Status:** ACTIVE — Batch 1 is complete and Batch 2 lifetime/isolation plus
-webhook v2 replay acceptance is implemented. The remaining Batch 2 secret/
-generated-metadata audit stays open before inbound gRPC worker integration.
+**Status:** ACTIVE — Batches 1-2 are complete. Continue with Batch 3 inbound
+gRPC worker-lifecycle integration using TalkingBytes 2.1 `GrpcInboundSource`
+and `serveOne()`.
 ---
 
 ## 26.10 Epicrypt 3.1 consumption, auth-protocol adoption and Foundation crypto-policy consolidation — complete

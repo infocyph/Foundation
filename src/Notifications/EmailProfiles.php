@@ -160,7 +160,10 @@ final readonly class EmailProfiles
         return trim($value);
     }
 
-    /** @param array<string, mixed> $config */
+    /**
+     * @param array<string, mixed> $config
+     * @return array<string, mixed>
+     */
     private function resolvedDkim(array $config): array
     {
         $privateKeyPath = $this->nullableString($config['private_key_path'] ?? null);

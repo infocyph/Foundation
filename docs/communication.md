@@ -284,6 +284,13 @@ protocol objects to process singletons:
 Scoped bindings are recreated between request/job/message executions and remain
 Fiber-local through InterMix execution-context scoping.
 
+Communication credentials are allowed only in Foundation's designated resolved
+configuration boundary. Production release `config.php` is therefore the
+intentional secret-bearing immutable snapshot and is published with restrictive
+permissions. Raw communication secrets must not be copied into release/runtime
+identity metadata, worker topology, cache-key material, logs, or protocol event
+metadata.
+
 ## Events and persistent runtimes
 
 Foundation does not configure TalkingBytes' process-wide static
