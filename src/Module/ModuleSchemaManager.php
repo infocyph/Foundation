@@ -187,6 +187,16 @@ final readonly class ModuleSchemaManager
     private function messagingStatus(string $module, ?string $connection, bool $afterInstall): array
     {
         $applicable = $this->messagingApplicable();
+        if (!$applicable) {
+            return $this->result(
+                'messaging',
+                $module,
+                false,
+                true,
+                'not-applicable',
+                'Durable messaging is disabled.',
+            );
+        }
         if (!class_exists(\Infocyph\Omnibus\Integration\DBLayer\QueueSchema::class)) {
             return $this->result(
                 'messaging',
