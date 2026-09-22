@@ -131,6 +131,7 @@ final readonly class ModuleSchemaManager
         match ($schema) {
             'auth' => $this->application->make(AuthSchemaInstaller::class)->install($connection),
             'cache' => $this->cacheSchemas()->install($connection),
+            'messaging' => $this->application->make(MessagingDatabaseSchema::class)->install($connection),
             'session' => $this->application->make(SessionDatabaseSchema::class)->install($connection),
             default => null,
         };
@@ -186,6 +187,16 @@ final readonly class ModuleSchemaManager
     private function messagingStatus(string $module, ?string $connection, bool $afterInstall): array
     {
         $applicable = $this->messagingApplicable();
+        if (!class_exists(\Infocyph\Omnibus\Integration\DBLayer\QueueSchema::class)) {
+            return $this->result(
+                'messaging',
+                $module,
+                $applicable,
+                false,
+                'unavailable',
+                'Requires the messaging module; run "php infbyte module:install messaging".',
+            );
+        }
         if (!class_exists(\Infocyph\DBLayer\Connection\Connection::class)) {
             return $this->result(
                 'messaging',
@@ -193,7 +204,7 @@ final readonly class ModuleSchemaManager
                 $applicable,
                 false,
                 'unavailable',
-                'Requires the database module; run "php infbyte module:install database".',
+                'Durable messaging requires the database module; run "php infbyte module:install database".',
             );
         }
 
