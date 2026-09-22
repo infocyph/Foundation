@@ -147,7 +147,7 @@ final class MessagingServiceProvider extends ServiceProvider
         ));
         $builder->singleton(OmnibusWorkerFactory::class, FactoryDefinition::construct(
             OmnibusWorkerFactory::class,
-            [new ServiceReference(ConfigRepository::class), new ServiceReference(ConsumerFactory::class)],
+            [new ServiceReference(ConfigRepository::class), new ServiceReference(ContainerInterface::class)],
         ));
 
         $builder->singleton(MessageFactoryMap::class, FactoryDefinition::staticFactory(
