@@ -44,7 +44,7 @@ use Psr\EventDispatcher\ListenerProviderInterface;
 
 final class MessagingServiceProvider extends ServiceProvider
 {
-    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
+public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         $messaging = is_array($context->config['messaging'] ?? null) ? $context->config['messaging'] : [];
         $durable = $this->durableState($builder, $messaging);
@@ -62,7 +62,52 @@ final class MessagingServiceProvider extends ServiceProvider
         $builder->alias('foundation.messaging', MessageBus::class);
     }
 
-    /**
+/**
+     * @param array<array-key, mixed> $source
+     * @return array<array-key, mixed>
+     */
+    private function arrayValue(array $source, string $key): array
+    {
+        $value = $source[$key] ?? null;
+
+        return is_array($value) ? $value : [];
+    }
+
+/** @param array<array-key, mixed> $messaging */
+    private function assertDurableConfiguration(
+        ContainerBuilder $builder,
+        array $messaging,
+        bool $enabled,
+        string $failureDriver,
+    ): void {
+        $usesDatabase = $this->referencesDatabaseTransport($messaging);
+        if ($usesDatabase && !$enabled) {
+            throw new ConfigurationException(
+                'Messaging references the database transport but messaging.durable.enabled is false.',
+            );
+        }
+        if ($enabled && !$builder->definitions()->has(DBLayerFactory::class)) {
+            throw new ConfigurationException(
+                'messaging.durable.enabled requires the Foundation database capability.',
+            );
+        }
+        if (!in_array($failureDriver, ['', 'database', 'memory'], true)) {
+            throw new ConfigurationException(
+                'messaging.durable.failure_store must be database or memory when configured.',
+            );
+        }
+        if (
+            $this->usesDatabaseConsumer($messaging)
+            && $failureDriver === ''
+            && !$builder->definitions()->has(FailureStore::class)
+        ) {
+            throw new ConfigurationException(
+                'Durable database consumers/workers require an explicit messaging.durable.failure_store policy or FailureStore binding.',
+            );
+        }
+    }
+
+/**
      * @param array<array-key, mixed> $messaging
      * @return array{enabled:bool,failure_driver:string}
      */
@@ -77,16 +122,71 @@ final class MessagingServiceProvider extends ServiceProvider
         return ['enabled' => $enabled, 'failure_driver' => $failureDriver];
     }
 
-    private function registerRuntimeServices(ContainerBuilder $builder): void
+/** @param array<array-key, mixed> $messaging */
+    private function referencesDatabaseTransport(array $messaging): bool
     {
-        $builder->singleton(MessagingRuntimeResolver::class, FactoryDefinition::construct(
-            MessagingRuntimeResolver::class,
-            [new ServiceReference(ContainerInterface::class)],
-        ));
-        $builder->singleton(SystemClock::class, FactoryDefinition::construct(SystemClock::class));
+        $default = $this->arrayValue($messaging, 'default_route');
+        if (($default['transport'] ?? null) === 'database') {
+            return true;
+        }
+        foreach ($this->arrayValue($messaging, 'routes') as $route) {
+            if (is_array($route) && ($route['transport'] ?? null) === 'database') {
+                return true;
+            }
+        }
+
+        return $this->usesDatabaseConsumer($messaging);
     }
 
-    private function registerDurableServices(ContainerBuilder $builder, bool $enabled): void
+private function registerBusServices(ContainerBuilder $builder, bool $durableEnabled): void
+    {
+        if (!$builder->definitions()->has(MessageBus::class)) {
+            $builder->singleton(MessageBus::class, FactoryDefinition::construct(
+                MessageBus::class,
+                [new ServiceReference(RouteMap::class), new ServiceReference(TransportRegistry::class)],
+            ));
+        }
+        if ($durableEnabled && !$builder->definitions()->has(AfterCommitDispatcher::class)) {
+            $builder->scoped(AfterCommitDispatcher::class, FactoryDefinition::staticFactory(
+                MessagingGraphFactory::class,
+                'afterCommit',
+                [
+                    new ServiceReference(OmnibusDurableFactory::class),
+                    new ServiceReference(MessageBus::class),
+                ],
+            ));
+        }
+    }
+
+private function registerConsumerServices(ContainerBuilder $builder): void
+    {
+        $builder->singleton(ConsumerFactory::class, FactoryDefinition::construct(
+            ConsumerFactory::class,
+            [
+                new ServiceReference(ConfigRepository::class),
+                new ServiceReference(TransportRegistry::class),
+                new ServiceReference(HandlerInvoker::class),
+                new ServiceReference(FailureStore::class),
+                new ServiceReference(SystemClock::class),
+                new ServiceReference(ExecutionScope::class),
+            ],
+        ));
+        $builder->singleton(Consumer::class, FactoryDefinition::staticFactory(
+            MessagingGraphFactory::class,
+            'consumer',
+            [new ServiceReference(ConsumerFactory::class)],
+        ));
+        $builder->singleton(ConsumerTask::class, FactoryDefinition::construct(
+            ConsumerTask::class,
+            [new ServiceReference(Consumer::class)],
+        ));
+        $builder->singleton(OmnibusWorkerFactory::class, FactoryDefinition::construct(
+            OmnibusWorkerFactory::class,
+            [new ServiceReference(ConfigRepository::class), new ServiceReference(ContainerInterface::class)],
+        ));
+    }
+
+private function registerDurableServices(ContainerBuilder $builder, bool $enabled): void
     {
         if (!$enabled) {
             return;
@@ -146,7 +246,59 @@ final class MessagingServiceProvider extends ServiceProvider
         ));
     }
 
-    /** @param array<array-key, mixed> $messaging */
+/** @param array<array-key, mixed> $messaging */
+    private function registerEventServices(ContainerBuilder $builder, array $messaging): void
+    {
+        $builder->singleton(ListenerMap::class, FactoryDefinition::staticFactory(
+            MessagingGraphFactory::class,
+            'listenerMap',
+            [
+                new ServiceReference(MessagingRuntimeResolver::class),
+                $this->arrayValue($messaging, 'listeners'),
+            ],
+        ));
+        if (!$builder->definitions()->has(ListenerProviderInterface::class)) {
+            $builder->alias(ListenerProviderInterface::class, ListenerMap::class);
+        }
+
+        $builder->singleton(EventDispatcher::class, FactoryDefinition::construct(
+            EventDispatcher::class,
+            [new ServiceReference(ListenerProviderInterface::class), new ServiceReference(MessageBus::class)],
+        ));
+        if (!$builder->definitions()->has(EventDispatcherInterface::class)) {
+            $builder->alias(EventDispatcherInterface::class, EventDispatcher::class);
+        }
+    }
+
+private function registerExecutionScope(ContainerBuilder $builder): void
+    {
+        $builder->singleton(InterMixExecutionScope::class, FactoryDefinition::construct(
+            InterMixExecutionScope::class,
+            [new ServiceReference(FoundationExecutionScope::class)],
+        ));
+        if (!$builder->definitions()->has(ExecutionScope::class)) {
+            $builder->alias(ExecutionScope::class, InterMixExecutionScope::class);
+        }
+    }
+
+private function registerFailureStore(
+        ContainerBuilder $builder,
+        bool $durableEnabled,
+        string $failureDriver,
+    ): void {
+        if ($builder->definitions()->has(FailureStore::class)) {
+            return;
+        }
+        if ($durableEnabled && $failureDriver === 'database') {
+            $builder->alias(FailureStore::class, DBLayerFailureStore::class);
+
+            return;
+        }
+
+        $builder->singleton(FailureStore::class, FactoryDefinition::construct(InMemoryFailureStore::class));
+    }
+
+/** @param array<array-key, mixed> $messaging */
     private function registerHandlerServices(ContainerBuilder $builder, array $messaging): void
     {
         $handlers = $this->arrayValue($messaging, 'handlers');
@@ -172,31 +324,33 @@ final class MessagingServiceProvider extends ServiceProvider
         }
     }
 
-    /** @param array<array-key, mixed> $messaging */
-    private function registerEventServices(ContainerBuilder $builder, array $messaging): void
+private function registerRuntimeServices(ContainerBuilder $builder): void
     {
-        $builder->singleton(ListenerMap::class, FactoryDefinition::staticFactory(
-            MessagingGraphFactory::class,
-            'listenerMap',
-            [
-                new ServiceReference(MessagingRuntimeResolver::class),
-                $this->arrayValue($messaging, 'listeners'),
-            ],
+        $builder->singleton(MessagingRuntimeResolver::class, FactoryDefinition::construct(
+            MessagingRuntimeResolver::class,
+            [new ServiceReference(ContainerInterface::class)],
         ));
-        if (!$builder->definitions()->has(ListenerProviderInterface::class)) {
-            $builder->alias(ListenerProviderInterface::class, ListenerMap::class);
-        }
-
-        $builder->singleton(EventDispatcher::class, FactoryDefinition::construct(
-            EventDispatcher::class,
-            [new ServiceReference(ListenerProviderInterface::class), new ServiceReference(MessageBus::class)],
-        ));
-        if (!$builder->definitions()->has(EventDispatcherInterface::class)) {
-            $builder->alias(EventDispatcherInterface::class, EventDispatcher::class);
-        }
+        $builder->singleton(SystemClock::class, FactoryDefinition::construct(SystemClock::class));
     }
 
-    /** @param array<array-key, mixed> $messaging */
+/** @param array<array-key, mixed> $messaging */
+    private function registerSchedulingServices(ContainerBuilder $builder, array $messaging): void
+    {
+        $builder->singleton(MessageFactoryMap::class, FactoryDefinition::staticFactory(
+            MessagingGraphFactory::class,
+            'messageFactoryMap',
+            [
+                new ServiceReference(MessagingRuntimeResolver::class),
+                $this->arrayValue($messaging, 'scheduled_messages'),
+            ],
+        ));
+        $builder->singleton(ScheduledMessageDispatcher::class, FactoryDefinition::construct(
+            ScheduledMessageDispatcher::class,
+            [new ServiceReference(MessageFactoryMap::class), new ServiceReference(MessageBus::class)],
+        ));
+    }
+
+/** @param array<array-key, mixed> $messaging */
     private function registerTransportServices(
         ContainerBuilder $builder,
         array $messaging,
@@ -231,173 +385,16 @@ final class MessagingServiceProvider extends ServiceProvider
         }
     }
 
-    private function registerBusServices(ContainerBuilder $builder, bool $durableEnabled): void
-    {
-        if (!$builder->definitions()->has(MessageBus::class)) {
-            $builder->singleton(MessageBus::class, FactoryDefinition::construct(
-                MessageBus::class,
-                [new ServiceReference(RouteMap::class), new ServiceReference(TransportRegistry::class)],
-            ));
-        }
-        if ($durableEnabled && !$builder->definitions()->has(AfterCommitDispatcher::class)) {
-            $builder->scoped(AfterCommitDispatcher::class, FactoryDefinition::staticFactory(
-                MessagingGraphFactory::class,
-                'afterCommit',
-                [
-                    new ServiceReference(OmnibusDurableFactory::class),
-                    new ServiceReference(MessageBus::class),
-                ],
-            ));
-        }
-    }
-
-    private function registerFailureStore(
-        ContainerBuilder $builder,
-        bool $durableEnabled,
-        string $failureDriver,
-    ): void {
-        if ($builder->definitions()->has(FailureStore::class)) {
-            return;
-        }
-        if ($durableEnabled && $failureDriver === 'database') {
-            $builder->alias(FailureStore::class, DBLayerFailureStore::class);
-
-            return;
-        }
-
-        $builder->singleton(FailureStore::class, FactoryDefinition::construct(InMemoryFailureStore::class));
-    }
-
-    private function registerExecutionScope(ContainerBuilder $builder): void
-    {
-        $builder->singleton(InterMixExecutionScope::class, FactoryDefinition::construct(
-            InterMixExecutionScope::class,
-            [new ServiceReference(FoundationExecutionScope::class)],
-        ));
-        if (!$builder->definitions()->has(ExecutionScope::class)) {
-            $builder->alias(ExecutionScope::class, InterMixExecutionScope::class);
-        }
-    }
-
-    private function registerConsumerServices(ContainerBuilder $builder): void
-    {
-        $builder->singleton(ConsumerFactory::class, FactoryDefinition::construct(
-            ConsumerFactory::class,
-            [
-                new ServiceReference(ConfigRepository::class),
-                new ServiceReference(TransportRegistry::class),
-                new ServiceReference(HandlerInvoker::class),
-                new ServiceReference(FailureStore::class),
-                new ServiceReference(SystemClock::class),
-                new ServiceReference(ExecutionScope::class),
-            ],
-        ));
-        $builder->singleton(Consumer::class, FactoryDefinition::staticFactory(
-            MessagingGraphFactory::class,
-            'consumer',
-            [new ServiceReference(ConsumerFactory::class)],
-        ));
-        $builder->singleton(ConsumerTask::class, FactoryDefinition::construct(
-            ConsumerTask::class,
-            [new ServiceReference(Consumer::class)],
-        ));
-        $builder->singleton(OmnibusWorkerFactory::class, FactoryDefinition::construct(
-            OmnibusWorkerFactory::class,
-            [new ServiceReference(ConfigRepository::class), new ServiceReference(ContainerInterface::class)],
-        ));
-    }
-
-    /** @param array<array-key, mixed> $messaging */
-    private function registerSchedulingServices(ContainerBuilder $builder, array $messaging): void
-    {
-        $builder->singleton(MessageFactoryMap::class, FactoryDefinition::staticFactory(
-            MessagingGraphFactory::class,
-            'messageFactoryMap',
-            [
-                new ServiceReference(MessagingRuntimeResolver::class),
-                $this->arrayValue($messaging, 'scheduled_messages'),
-            ],
-        ));
-        $builder->singleton(ScheduledMessageDispatcher::class, FactoryDefinition::construct(
-            ScheduledMessageDispatcher::class,
-            [new ServiceReference(MessageFactoryMap::class), new ServiceReference(MessageBus::class)],
-        ));
-    }
-
-    /** @param array<array-key, mixed> $messaging */
-    private function assertDurableConfiguration(
-        ContainerBuilder $builder,
-        array $messaging,
-        bool $enabled,
-        string $failureDriver,
-    ): void {
-        $usesDatabase = $this->referencesDatabaseTransport($messaging);
-        if ($usesDatabase && !$enabled) {
-            throw new ConfigurationException(
-                'Messaging references the database transport but messaging.durable.enabled is false.',
-            );
-        }
-        if ($enabled && !$builder->definitions()->has(DBLayerFactory::class)) {
-            throw new ConfigurationException(
-                'messaging.durable.enabled requires the Foundation database capability.',
-            );
-        }
-        if (!in_array($failureDriver, ['', 'database', 'memory'], true)) {
-            throw new ConfigurationException(
-                'messaging.durable.failure_store must be database or memory when configured.',
-            );
-        }
-        if (
-            $this->usesDatabaseConsumer($messaging)
-            && $failureDriver === ''
-            && !$builder->definitions()->has(FailureStore::class)
-        ) {
-            throw new ConfigurationException(
-                'Durable database consumers/workers require an explicit messaging.durable.failure_store policy or FailureStore binding.',
-            );
-        }
-    }
-
-    /** @param array<array-key, mixed> $messaging */
-    private function referencesDatabaseTransport(array $messaging): bool
-    {
-        $default = $this->arrayValue($messaging, 'default_route');
-        if (($default['transport'] ?? null) === 'database') {
-            return true;
-        }
-        foreach ($this->arrayValue($messaging, 'routes') as $route) {
-            if (is_array($route) && ($route['transport'] ?? null) === 'database') {
-                return true;
-            }
-        }
-
-        return $this->usesDatabaseConsumer($messaging);
-    }
-
-    /** @param array<array-key, mixed> $messaging */
+/** @param array<array-key, mixed> $messaging */
     private function usesDatabaseConsumer(array $messaging): bool
     {
         $consumer = $this->arrayValue($messaging, 'consumer');
         if (($consumer['transport'] ?? null) === 'database') {
             return true;
         }
-        foreach ($this->arrayValue($messaging, 'workers') as $worker) {
-            if (is_array($worker) && ($worker['transport'] ?? null) === 'database') {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * @param array<array-key, mixed> $source
-     * @return array<array-key, mixed>
-     */
-    private function arrayValue(array $source, string $key): array
-    {
-        $value = $source[$key] ?? null;
-
-        return is_array($value) ? $value : [];
+        return array_any(
+            $this->arrayValue($messaging, 'workers'),
+            fn($worker) => is_array($worker) && ($worker['transport'] ?? null) === 'database',
+        );
     }
 }
