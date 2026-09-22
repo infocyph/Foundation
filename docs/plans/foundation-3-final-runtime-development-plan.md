@@ -355,12 +355,15 @@ policy.
     assembly with `EmailSenderFactory::fromResolvedConfig()`; Foundation still
     resolves named transports, application paths and secrets.
 - [ ] **Batch 2 — lifetime/isolation + webhook acceptance**
-  - [ ] classify Foundation DI lifetimes against TalkingBytes 2.1 mutable-state
-    semantics (cookies, resilience state, mailboxes/native clients, fakes);
-  - [ ] prove sequential/job/Fiber isolation and keep mutable HTTP clients
-    execution-scoped where state is enabled;
-  - [ ] prove CacheLayer replay claims remain atomic/fail-closed and native v2
-    webhook sender/receiver behavior is used together;
+  - [X] classify Foundation DI lifetimes against TalkingBytes 2.1 mutable-state
+    semantics: immutable profile/factory/verifier graphs stay singleton while
+    HTTP clients, webhook senders, emailers, spool receivers and inbound gRPC
+    dispatchers keep execution-safe scoped/caller-owned state;
+  - [X] prove sequential and Fiber-interleaved scope isolation for stateful HTTP
+    and fake-email graphs; mutable clients are recreated across execution scopes;
+  - [X] prove CacheLayer replay claims remain atomic/fail-closed through the
+    existing contention/no-atomic coverage and add Foundation acceptance for
+    TalkingBytes native v2 duplicate/tampered-delivery rejection;
   - [ ] keep communication secrets out of generated metadata/cache keys/logs.
 - [ ] **Batch 3 — inbound gRPC worker lifecycle**
   - [ ] consume TalkingBytes `GrpcInboundSource` / `serveOne()` through the
@@ -385,9 +388,9 @@ TalkingBytes 2.1 native webhook delivery uses bound `v2` signatures. Foundation
 must not pair a native 2.0 sender with a 2.1 receiver or vice versa. The
 Foundation integration uses the 2.1 native sender/receiver path together.
 
-**Status:** ACTIVE — Batch 1 implemented; continue with lifetime/isolation and
-webhook acceptance before wiring inbound gRPC into the Foundation worker
-lifecycle.
+**Status:** ACTIVE — Batch 1 is complete and Batch 2 lifetime/isolation plus
+webhook v2 replay acceptance is implemented. The remaining Batch 2 secret/
+generated-metadata audit stays open before inbound gRPC worker integration.
 ---
 
 ## 26.10 Epicrypt 3.1 consumption, auth-protocol adoption and Foundation crypto-policy consolidation — complete

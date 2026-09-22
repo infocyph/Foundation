@@ -98,7 +98,15 @@ second replay abstraction.
 
 Production inbound profiles reject the shipped `change-me` secret. Outbound
 profiles may select a named HTTP profile and optional TalkingBytes retry/signing
-policy.
+policy. Foundation 3 with TalkingBytes 2.1 uses the native bound webhook `v2`
+signature path end-to-end; timestamp, event, delivery ID and exact raw body are
+authenticated together. Do not mix native TalkingBytes 2.0 senders with 2.1
+receivers during a rolling deployment.
+
+Replay protection stays provider-neutral in TalkingBytes. Foundation supplies
+its CacheLayer-backed implementation, whose `claim()` path requires native
+atomic cache support and therefore fails composition rather than emulating an
+unsafe read-then-write claim.
 
 ## gRPC outbound
 
@@ -255,6 +263,26 @@ use Infocyph\TalkingBytes\Email\Parser\AuthenticationResultsParser;
 use Infocyph\TalkingBytes\Email\Parser\BounceParser;
 use Infocyph\TalkingBytes\Email\Parser\RawEmailParser;
 ```
+
+## Runtime lifetime model
+
+Foundation follows TalkingBytes 2.1's state model rather than promoting all
+protocol objects to process singletons:
+
+| Binding/object | Foundation lifetime | Reason |
+| --- | --- | --- |
+| `CommunicationProfiles`, `HttpClientConfig` | singleton | immutable profile/config composition |
+| `HttpClient` | scoped | cookie jar, rate limiter and circuit breaker may be mutable |
+| `WebhookSender` | scoped | retains the scoped HTTP client and retry execution state |
+| `WebhookVerifier` | singleton | immutable verification policy/secret set |
+| `WebhookReceiver` | singleton | immutable receiver graph; replay state is external/atomic |
+| `GrpcInboundDispatcher` | scoped | application handlers resolve inside the active execution scope |
+| email sender/receiver/mailbox factories | singleton | factories hold immutable support collaborators only |
+| `Emailer`, `SpoolEmailReceiver` | scoped | transports/retry/rate-limit/fake state must not cross executions |
+| IMAP/POP3 mailbox instances | caller/execution owned | connection/session state belongs to the operation that creates it |
+
+Scoped bindings are recreated between request/job/message executions and remain
+Fiber-local through InterMix execution-context scoping.
 
 ## Events and persistent runtimes
 

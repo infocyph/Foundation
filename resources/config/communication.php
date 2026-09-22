@@ -90,6 +90,7 @@ return [
             'default' => [
                 'http_client' => env('COMMUNICATION_WEBHOOK_HTTP_CLIENT', env('COMMUNICATION_HTTP_DEFAULT_CLIENT', 'default')),
                 'signing_secret' => env('COMMUNICATION_WEBHOOK_SIGNING_SECRET'),
+                'max_payload_bytes' => env_int('COMMUNICATION_WEBHOOK_MAX_PAYLOAD_BYTES', 1_048_576),
                 'retry' => [
                     'enabled' => env('COMMUNICATION_WEBHOOK_RETRY_ENABLED', false),
                     'attempts' => env('COMMUNICATION_WEBHOOK_RETRY_ATTEMPTS', 3),
@@ -102,10 +103,12 @@ return [
             'default' => [
                 'secret' => env('COMMUNICATION_WEBHOOK_SECRET', 'change-me'),
                 'max_age_seconds' => env('COMMUNICATION_WEBHOOK_MAX_AGE_SECONDS', 300),
+                'max_payload_bytes' => env_int('COMMUNICATION_WEBHOOK_MAX_PAYLOAD_BYTES', 1_048_576),
                 'replay' => [
                     'enabled' => env_bool('COMMUNICATION_WEBHOOK_REPLAY_ENABLED', false),
                     'store' => env('COMMUNICATION_WEBHOOK_REPLAY_STORE'),
                     'ttl_seconds' => env_int('COMMUNICATION_WEBHOOK_REPLAY_TTL_SECONDS', 86_400),
+                    'namespace' => env('COMMUNICATION_WEBHOOK_REPLAY_NAMESPACE', 'default'),
                 ],
             ],
         ],

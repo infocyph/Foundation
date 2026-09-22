@@ -151,6 +151,7 @@ final class FoundationDefaults
                         'default' => [
                             'http_client' => 'default',
                             'signing_secret' => null,
+                            'max_payload_bytes' => 1_048_576,
                             'retry' => [
                                 'enabled' => false,
                                 'attempts' => 3,
@@ -163,10 +164,12 @@ final class FoundationDefaults
                         'default' => [
                             'secret' => 'change-me',
                             'max_age_seconds' => 300,
+                            'max_payload_bytes' => 1_048_576,
                             'replay' => [
                                 'enabled' => false,
                                 'store' => null,
                                 'ttl_seconds' => 86_400,
+                                'namespace' => 'default',
                             ],
                         ],
                     ],
