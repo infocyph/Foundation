@@ -211,12 +211,14 @@ it('keeps the DBLayer durable graph cold when durable messaging is disabled', fu
     ]);
     $repository = $app->container()->getRepository();
 
-    expect($repository->hasResolvedSingleton(DBLayerFactory::class))->toBeFalse();
+    expect($repository->hasResolvedSingleton(DBLayerFactory::class))->toBeFalse()
+        ->and($repository->hasFunctionReference(DBLayerTransport::class))->toBeFalse();
 
     $app->make(MessageBus::class);
 
     expect($repository->hasResolvedSingleton(DBLayerFactory::class))->toBeFalse()
-        ->and($app->has(DBLayerTransport::class))->toBeFalse();
+        ->and($repository->hasFunctionReference(DBLayerTransport::class))->toBeFalse()
+        ->and($repository->hasResolvedSingleton(DBLayerTransport::class))->toBeFalse();
 });
 
 /** @return array{0:\Infocyph\Foundation\Application\Application,1:string} */
