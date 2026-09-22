@@ -271,14 +271,20 @@ invoke it.
 - [ ] Remove Foundation-side PCNTL/POSIX availability/fallback logic around
   Omnibus workers/pools; Omnibus 2.6 already guarantees those extensions.
 - [ ] Keep durable DB/cache integrations lazy and selected explicitly.
+- [ ] Treat the 2.5 -> 2.6 durable-storage upgrade as a coordinated cutover:
+  stop all Omnibus queue/workflow/failure-store readers and writers before the
+  first 2.6 writer starts; 2.6 may read legacy rows, but do not mix 2.5 readers
+  with 2.6 wrapped payload writes or roll back without separately verified
+  conversion/restore of affected durable data.
 - [ ] Require intentional durable failure-store policy for durable async workers.
 - [ ] Bind after-commit behavior to the current execution connection; never
   capture scoped connections in singletons.
 - [ ] Keep retry/settlement, restart budgets and child lifecycle mechanics inside
   Omnibus Consumer/WorkerPool beneath Foundation generation policy.
 - [ ] Prove single-worker/native-pool and, when explicitly selected, Runwire-pool
-  lifecycle parity: heartbeat, generation stop, clean recycle, crash restart
-  exhaustion, graceful drain and no zombie children.
+  lifecycle parity: heartbeat, generation stop, clean recycle, lifecycle
+  responsiveness during crash backoff, crash restart exhaustion, graceful drain
+  and no zombie children.
 - [ ] Prove sync/memory/durable topology, retries/failures, persistent/Fiber
   isolation and genuinely cold optional-Omnibus graphs.
 - [ ] Update 2.5-specific runtime guards/test names/messages to 2.6 and verify
@@ -423,4 +429,4 @@ Run after the remaining active lower-library passes 26.8/26.9 are closed; 26.4, 
 
 ## Immediate handoff
 
-After Omnibus **2.6 is published**, begin **26.8 Omnibus 2.6 utilization**. Raise the released dependency floor to `^2.6`, remove Foundation's `WorkerManager::watchPool()` signal watchdog in favor of Omnibus WorkerPool lifecycle polling, retain Foundation generation heartbeat/stop policy through `WorkerLifecycle`, keep the native pool default with Runwire explicit-only, preserve child-side construction of process-bound resources, consume native durable DBLayer/CacheLayer integrations rather than recreating them, prove retry/failure/persistent isolation and pool lifecycle parity, add direct-vs-Foundation attribution, and close on exact-head PHPForge QA before proceeding to 26.9 TalkingBytes.
+After Omnibus **2.6 is published**, begin **26.8 Omnibus 2.6 utilization**. Raise the released dependency floor to `^2.6`, perform a coordinated durable-storage cutover before any 2.6 writer is allowed to share queue/workflow/failure data with old readers, remove Foundation's `WorkerManager::watchPool()` signal watchdog in favor of Omnibus WorkerPool lifecycle polling, retain Foundation generation heartbeat/stop policy through `WorkerLifecycle`, keep the native pool default with Runwire explicit-only, preserve child-side construction of process-bound resources, consume native durable DBLayer/CacheLayer integrations rather than recreating them, prove retry/failure/persistent isolation plus lifecycle responsiveness during crash backoff and pool lifecycle parity, add direct-vs-Foundation attribution, and close on exact-head PHPForge QA before proceeding to 26.9 TalkingBytes.
