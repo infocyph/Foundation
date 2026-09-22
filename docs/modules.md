@@ -117,6 +117,7 @@ Only capabilities that actually own database schema declare schema provisioners:
 | --- | --- |
 | `auth` | Foundation `AuthSchemaInstaller` |
 | `cache` | CacheLayer `PdoCacheSchema` / `PdoInvalidationSchema` |
+| `messaging` | Omnibus 2.6 `QueueSchema` through Foundation's optional durable profile |
 | `session` | Foundation `SessionDatabaseSchema` |
 
 The `database` module owns database/migration infrastructure, not arbitrary
