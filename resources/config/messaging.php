@@ -70,6 +70,46 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Durable Messaging
+    |--------------------------------------------------------------------------
+    |
+    | Durable messaging is opt-in. When enabled, Foundation composes Omnibus
+    | 2.6's DBLayerTransport, DBLayerFailureStore, DBLayerWorkflowStore and
+    | QueueSchema using one process-owned DBLayer infrastructure connection.
+    |
+    | Message/stamp codecs are an explicit allow-list used by Omnibus's safe
+    | JSON serializer. Do not persist PHP serialized objects or payload-selected
+    | class names.
+    |
+    | "failure_store" must be explicitly set to "database" or "memory" before
+    | a database-backed consumer/worker is enabled. "database" is recommended
+    | for durable workers; "memory" intentionally accepts volatile failures.
+    |
+    */
+    'durable' => [
+        'enabled' => env_bool('MESSAGING_DURABLE_ENABLED', false),
+        'connection' => env_string('MESSAGING_DURABLE_CONNECTION', ''),
+        'failure_store' => env_string('MESSAGING_DURABLE_FAILURE_STORE', ''),
+        'tables' => [
+            'messages' => env_string('MESSAGING_DURABLE_MESSAGES_TABLE', 'omnibus_messages'),
+            'failures' => env_string('MESSAGING_DURABLE_FAILURES_TABLE', 'omnibus_failures'),
+            'workflows' => env_string('MESSAGING_DURABLE_WORKFLOWS_TABLE', 'omnibus_workflows'),
+            'workflow_items' => env_string(
+                'MESSAGING_DURABLE_WORKFLOW_ITEMS_TABLE',
+                'omnibus_workflow_items',
+            ),
+        ],
+    ],
+    'serialization' => [
+        'message_codecs' => [],
+        'stamp_codecs' => [],
+        'maximum_bytes' => env_int('MESSAGING_SERIALIZATION_MAXIMUM_BYTES', 262_144),
+        'maximum_depth' => env_int('MESSAGING_SERIALIZATION_MAXIMUM_DEPTH', 32),
+        'maximum_stamps' => env_int('MESSAGING_SERIALIZATION_MAXIMUM_STAMPS', 64),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Consumer Transport and Retry
     |--------------------------------------------------------------------------
     |
