@@ -9,10 +9,16 @@ use Infocyph\Omnibus\Consumer\Consumer;
 use Infocyph\Omnibus\Event\ListenerMap;
 use Infocyph\Omnibus\Handler\HandlerInvoker;
 use Infocyph\Omnibus\Handler\HandlerMap;
+use Infocyph\Omnibus\Integration\DBLayer\AfterCommitDispatcher;
+use Infocyph\Omnibus\Integration\DBLayer\DBLayerFailureStore;
 use Infocyph\Omnibus\Integration\DBLayer\DBLayerTransport;
+use Infocyph\Omnibus\Integration\DBLayer\DBLayerWorkflowStore;
 use Infocyph\Omnibus\Routing\Route;
+use Infocyph\Omnibus\MessageBus;
 use Infocyph\Omnibus\Routing\RouteMap;
 use Infocyph\Omnibus\Scheduling\MessageFactoryMap;
+use Infocyph\Omnibus\Serialization\EnvelopeSerializer;
+use Infocyph\Omnibus\Serialization\JsonEnvelopeSerializer;
 use Infocyph\Omnibus\Transport\InMemoryTransport;
 use Infocyph\Omnibus\Transport\SyncTransport;
 use Infocyph\Omnibus\Transport\TransportRegistry;
@@ -22,6 +28,39 @@ final class MessagingGraphFactory
     public static function consumer(ConsumerFactory $factory): Consumer
     {
         return $factory->make();
+    }
+
+    public static function durableSerializer(OmnibusDurableFactory $factory): JsonEnvelopeSerializer
+    {
+        return $factory->serializer();
+    }
+
+    public static function durableTransport(
+        OmnibusDurableFactory $factory,
+        EnvelopeSerializer $serializer,
+    ): DBLayerTransport {
+        return $factory->transport($serializer);
+    }
+
+    public static function durableFailureStore(
+        OmnibusDurableFactory $factory,
+        EnvelopeSerializer $serializer,
+    ): DBLayerFailureStore {
+        return $factory->failureStore($serializer);
+    }
+
+    public static function durableWorkflowStore(
+        OmnibusDurableFactory $factory,
+        EnvelopeSerializer $serializer,
+    ): DBLayerWorkflowStore {
+        return $factory->workflowStore($serializer);
+    }
+
+    public static function afterCommit(
+        OmnibusDurableFactory $factory,
+        MessageBus $bus,
+    ): AfterCommitDispatcher {
+        return $factory->afterCommit($bus);
     }
 
     public static function handlerInvoker(
