@@ -13,6 +13,7 @@ final readonly class FoundationBuildContext
     /**
      * @param array<string, mixed> $config
      * @param array<string, bool> $capabilities
+     * @param array<string, bool> $capabilityOverrides
      */
     public function __construct(
         public RuntimeMode $runtimeMode,
@@ -20,6 +21,7 @@ final readonly class FoundationBuildContext
         public array $config,
         public bool $compiledConfig,
         public array $capabilities,
+        public array $capabilityOverrides,
         public bool $lazyLoading,
         public bool $debugTracing,
         public TraceLevelEnum $debugTraceLevel,
@@ -47,6 +49,7 @@ final readonly class FoundationBuildContext
             config: $config->all(),
             compiledConfig: $config->isCompiled(),
             capabilities: self::normalizeCapabilities($capabilities ?? []),
+            capabilityOverrides: self::moduleCapabilityOverrides($config),
             lazyLoading: ValueNormalizer::bool($config->get('app.container.lazy_loading'), true),
             debugTracing: ValueNormalizer::bool(
                 $config->get('app.container.debug_tracing.enabled'),
@@ -61,7 +64,16 @@ final readonly class FoundationBuildContext
 
     public function hasCapability(string $capability): bool
     {
+        if (array_key_exists($capability, $this->capabilityOverrides)) {
+            return $this->capabilityOverrides[$capability];
+        }
+
         return $this->capabilities[$capability] ?? false;
+    }
+
+    public function hasCapabilityOverride(string $capability): bool
+    {
+        return array_key_exists($capability, $this->capabilityOverrides);
     }
 
     /**
@@ -80,6 +92,25 @@ final readonly class FoundationBuildContext
         }
 
         return $configured;
+    }
+
+    /** @return array<string,bool> */
+    private static function moduleCapabilityOverrides(ConfigRepository $config): array
+    {
+        $configured = $config->get('modules.capabilities', []);
+        if (!is_array($configured)) {
+            throw new \UnexpectedValueException('modules.capabilities must be a capability map.');
+        }
+
+        $normalized = [];
+        foreach ($configured as $name => $enabled) {
+            if (is_string($name) && $name !== '') {
+                $normalized[$name] = ValueNormalizer::bool($enabled, false);
+            }
+        }
+        ksort($normalized);
+
+        return $normalized;
     }
 
     /**
