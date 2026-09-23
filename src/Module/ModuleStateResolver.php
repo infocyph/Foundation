@@ -18,6 +18,7 @@ use Infocyph\Foundation\Module\Internal\ModulePlatformResolver;
  * @phpstan-import-type DependencyResolution from ModuleDependencyResolver
  * @phpstan-import-type DependencyState from ModuleDependencyResolver
  * @phpstan-import-type PlatformRequirement from ModuleCatalog
+ * @phpstan-import-type PlatformResolution from ModulePlatformResolver
  * @phpstan-type OptionalPackageState array{
  *     available:bool,
  *     version:?string,
