@@ -4,8 +4,8 @@ Foundation 3 aggregate release readiness closed after all lower-library utilizat
 
 ## Final aggregate matrix
 
-Reference implementation/tracker head: `3eaa7b87ba1051c96c0fd1450c66043e4380b169`  
-PHPForge Security & Standards: **run #1482 — PASS**
+Reference final implementation head: `e76d08ed3492006b389b3b5972f3bb5f19b74937`  
+PHPForge Security & Standards: **run #1489 — PASS**
 
 The run passed:
 
@@ -55,4 +55,15 @@ Foundation benchmarks measure bridge/policy overhead against native lower-librar
 
 ## Consumer handoff
 
-Foundation 3 release readiness is complete before InfByte migration. InfByte is a consumer/skeleton and must adopt the finalized Foundation 3 migration contract; consumer drift does not reopen Foundation runtime ownership or restore retired Foundation 2 paths.
+Foundation 3 release readiness is complete. InfByte consumer work is intentionally deferred until after the Foundation 3 release. The existing InfByte migration work remains a separate consumer concern and must adopt the finalized lifecycle without reopening Foundation runtime ownership or restoring retired Foundation 2 paths.
+
+
+## Final consumer-boundary findings
+
+The InfByte handoff audit surfaced and Foundation closed three final consumer-boundary defects before release:
+
+- core `app:install` generates `AUTH_TOKEN_SECRET` from PHP's OS CSPRNG and no longer requires optional Epicrypt merely to install a lean application;
+- explicit `app.capabilities` production validation/readiness ignores inactive optional auth/cache policy while preserving strict auth checks when `auth` is selected;
+- `module:install/show/schema:*` stay execution-scoped when a database connection may be used, but do not synthetically require the database capability before the module/schema manager determines applicability.
+
+These corrections are included in final green run #1489.
