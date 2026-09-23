@@ -61,11 +61,12 @@ final class FoundationTalkingBytes21GrpcSource implements GrpcInboundSource
     public function accept(?CancellationSignal $cancellation = null): ?GrpcInboundExchange
     {
         $this->sawCancellation = $this->sawCancellation || $cancellation !== null;
-        if ($this->requestStopOnAccept) {
+        $exchange = $this->inner->accept($cancellation);
+        if ($this->requestStopOnAccept && $exchange instanceof GrpcInboundExchange) {
             $this->stopRequested = true;
         }
 
-        return $this->inner->accept($cancellation);
+        return $exchange;
     }
 
     public function enqueue(GrpcInboundRequest $request): FakeGrpcInboundExchange
