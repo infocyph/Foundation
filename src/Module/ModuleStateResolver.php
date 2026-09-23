@@ -107,7 +107,6 @@ final readonly class ModuleStateResolver
     ) {}
 
     /**
-     * @return array<int,array<string,mixed>>
      * @phpstan-return list<ModuleState>
      */
     public function all(): array
@@ -162,7 +161,6 @@ final readonly class ModuleStateResolver
     }
 
     /**
-     * @param array<string,mixed> $definition
      * @phpstan-param ModuleDefinition $definition
      */
     private function configPublished(array $definition): bool
@@ -174,7 +172,6 @@ final readonly class ModuleStateResolver
     }
 
     /**
-     * @param array<string,mixed> $definition
      * @phpstan-param ModuleDefinition $definition
      */
     private function configured(array $definition): bool
@@ -210,7 +207,6 @@ final readonly class ModuleStateResolver
     }
 
     /**
-     * @param array<string,mixed> $definition
      * @phpstan-param ModuleDefinition $definition
      * @param array{known:bool,requirements:array<string,string>,error:?string} $ownership
      * @return array<string,FeatureState>
@@ -256,7 +252,7 @@ final readonly class ModuleStateResolver
     }
 
     /**
-     * @param PackageResolution $packages
+     * @phpstan-param PackageResolution $packages
      */
     private function installedByModule(
         bool $builtIn,
@@ -322,7 +318,6 @@ final readonly class ModuleStateResolver
     }
 
     /**
-     * @param array<string,mixed> $definition
      * @phpstan-param ModuleDefinition $definition
      * @return array<string,OptionalPackageState>
      */
@@ -380,10 +375,8 @@ final readonly class ModuleStateResolver
     }
 
     /**
-     * @param array<string,mixed> $definition
      * @phpstan-param ModuleDefinition $definition
      * @param array{known:bool,requirements:array<string,string>,error:?string} $ownership
-     * @return array<string,mixed>
      * @phpstan-return ModuleState
      */
     private function state(
