@@ -165,9 +165,9 @@ it('keeps CacheLayer core-owned and outside the module catalog', function (): vo
         ->and($composer['suggest'] ?? [])->not->toHaveKey('infocyph/cachelayer')
         ->and(array_keys($catalog->all()))->not->toContain('cache')
         ->and(fn() => $catalog->resolve('cache'))
-        ->toThrow(InvalidArgumentException::class, 'Unknown module "cache".')
+        ->toThrow(InvalidArgumentException::class, 'Unknown module or feature "cache".')
         ->and(fn() => $catalog->resolve('cachelayer'))
-        ->toThrow(InvalidArgumentException::class, 'Unknown module "cachelayer".');
+        ->toThrow(InvalidArgumentException::class, 'Unknown module or feature "cachelayer".');
 });
 
 it('runs module install and direct-package removal dry-runs and refuses built-in removal', function (): void {
