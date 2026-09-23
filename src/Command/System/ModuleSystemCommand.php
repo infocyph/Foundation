@@ -19,6 +19,7 @@ use Infocyph\Foundation\Release\FoundationReleaseCompiler;
  * @phpstan-import-type DependencyState from \Infocyph\Foundation\Module\Internal\ModuleDependencyResolver
  * @phpstan-import-type FeatureState from \Infocyph\Foundation\Module\ModuleStateResolver
  * @phpstan-import-type PackageState from \Infocyph\Foundation\Module\ModuleStateResolver
+ * @phpstan-import-type PlatformResolution from \Infocyph\Foundation\Module\Internal\ModulePlatformResolver
  * @phpstan-import-type ModuleState from \Infocyph\Foundation\Module\ModuleStateResolver
  * @phpstan-import-type ResolvedModule from \Infocyph\Foundation\Module\ModuleCatalog
  */
@@ -31,6 +32,7 @@ final class ModuleSystemCommand extends SystemCommand
         return match ($this->canonicalName()) {
             'module:config:publish' => $this->publishConfig(),
             'module:disable' => $this->disable(),
+            'module:doctor' => $this->show(),
             'module:enable' => $this->enable(),
             'module:install' => $this->install(),
             'module:list' => $this->listing(),
@@ -527,6 +529,28 @@ final class ModuleSystemCommand extends SystemCommand
         );
     }
 
+    /** @phpstan-param PlatformResolution $platform */
+    private function renderPlatform(array $platform): void
+    {
+        $rows = [];
+        foreach ($platform['required_extensions'] as $extension => $available) {
+            $rows[] = ['required-extension', 'ext-' . $extension, $available];
+        }
+        foreach ($platform['optional_extensions'] as $extension => $available) {
+            $rows[] = ['optional-extension', 'ext-' . $extension, $available];
+        }
+        foreach ($platform['packages'] as $package => $available) {
+            $rows[] = ['package', $package, $available];
+        }
+        if ($rows === []) {
+            return;
+        }
+
+        $this->io()->writeln();
+        $this->io()->info('Platform readiness');
+        $this->io()->table(['Requirement', 'Name', 'Available'], $rows);
+    }
+
     /**
      * @param list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}> $schemas
      */
@@ -594,6 +618,7 @@ final class ModuleSystemCommand extends SystemCommand
         $this->renderShowConfig($config);
         $this->renderDependencies($module['dependencies']['active'], 'Active dependencies');
         $this->renderDependencies($module['dependencies']['inactive'], 'Inactive dependencies');
+        $this->renderPlatform($module['platform_status']);
         $this->renderShowFeatures($module['features']);
         $this->renderShowSchemas($schemas);
     }
