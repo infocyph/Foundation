@@ -52,8 +52,9 @@ final readonly class ConfiguredCapabilities
 
     public function explicit(?string $capability = null): bool
     {
-        if ($capability !== null && $this->config->has('modules.capabilities.' . $capability)) {
-            return true;
+        if ($capability !== null) {
+            return $this->config->has('app.capabilities')
+                || $this->config->has('modules.capabilities.' . $capability);
         }
 
         return $this->config->has('app.capabilities')
