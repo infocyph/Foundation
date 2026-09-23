@@ -45,7 +45,6 @@ final class ModuleSystemCommand extends SystemCommand
     }
 
     /**
-     * @param array<string,mixed> $definition
      * @phpstan-param ResolvedModule $definition
      * @return list<array{file:string,path:string,published:bool}>
      */
@@ -85,7 +84,6 @@ final class ModuleSystemCommand extends SystemCommand
     }
 
     /**
-     * @param array<string,mixed> $definition
      * @phpstan-param ResolvedModule $definition
      */
     private function completeInstall(
@@ -139,7 +137,6 @@ final class ModuleSystemCommand extends SystemCommand
     }
 
     /**
-     * @param array<string,mixed> $definition
      * @phpstan-param ResolvedModule $definition
      */
     private function installCoreNoop(array $definition, string $requested): int
@@ -217,7 +214,6 @@ final class ModuleSystemCommand extends SystemCommand
     }
 
     /**
-     * @return array<string,mixed>
      * @phpstan-return ModuleState
      */
     private function moduleState(string $name): array
@@ -381,7 +377,6 @@ final class ModuleSystemCommand extends SystemCommand
     }
 
     /**
-     * @param array<string,mixed> $module
      * @phpstan-param ModuleState $module
      * @param array{status:string,schema_ready:bool,ready:bool,blockers:list<string>} $readiness
      * @param list<array{file:string,path:string,published:bool}> $config
@@ -597,7 +592,6 @@ final class ModuleSystemCommand extends SystemCommand
     }
 
     /**
-     * @param array<string,mixed> $module
      * @phpstan-param ModuleState $module
      * @param list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}> $schemas
      * @return array{status:string,schema_ready:bool,ready:bool,blockers:list<string>}
@@ -623,7 +617,6 @@ final class ModuleSystemCommand extends SystemCommand
     }
 
     /**
-     * @param array<string,mixed> $module
      * @phpstan-param ModuleState $module
      */
     private function showStatus(array $module, bool $schemaReady, bool $ready): string
