@@ -25,7 +25,7 @@ final readonly class ModulePlatformResolver
 
     /**
      * @phpstan-param ModuleDefinition $definition
-     * @param array<string,FeatureState> $features
+     * @phpstan-param array<string,FeatureState> $features
      * @phpstan-return PlatformResolution
      */
     public function resolve(string $module, array $definition, array $features, bool $enabled): array
@@ -81,7 +81,10 @@ final readonly class ModulePlatformResolver
         ];
     }
 
-    /** @param list<string> $extensions @return array<string,bool> */
+    /**
+     * @param list<string> $extensions
+     * @return array<string,bool>
+     */
     private function extensionStates(array $extensions): array
     {
         $states = [];
@@ -93,7 +96,10 @@ final readonly class ModulePlatformResolver
         return $states;
     }
 
-    /** @param list<string> $packages @return array<string,bool> */
+    /**
+     * @param list<string> $packages
+     * @return array<string,bool>
+     */
     private function packageStates(array $packages): array
     {
         $states = [];
