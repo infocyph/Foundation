@@ -142,9 +142,13 @@ final readonly class ModuleManager
      */
     private function removalPackages(array $definition, array $features, array $direct): array
     {
-        $managed = $features === []
-            ? $this->catalog->managedPackages($definition)
-            : $this->catalog->installationPackages($definition, $features);
+        $managed = $this->catalog->managedPackages($definition);
+        if ($features !== []) {
+            $managed = [];
+            foreach ($features as $feature) {
+                $managed = array_replace($managed, $this->catalog->featurePackages($definition, $feature));
+            }
+        }
 
         $packages = [];
         foreach (array_keys($managed) as $package) {
