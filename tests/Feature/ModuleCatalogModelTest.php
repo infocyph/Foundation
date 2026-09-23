@@ -53,6 +53,16 @@ it('resolves auth feature aliases without broadening the core module request', f
         ->toThrow(InvalidArgumentException::class, 'shared by features otp, passkey');
 });
 
+it('keeps notifications outside the specialist communication module vocabulary', function (): void {
+    $catalog = new ModuleCatalog();
+    $communication = $catalog->resolve('communication');
+
+    expect($communication['aliases'])->toBe(['talkingbytes'])
+        ->and($communication['config'])->toBe(['communication.php'])
+        ->and(fn() => $catalog->resolve('notifications'))
+        ->toThrow(InvalidArgumentException::class, 'Unknown module or feature "notifications".');
+});
+
 it('records platform requirements and conditional module dependencies declaratively', function (): void {
     $modules = (new ModuleCatalog())->all();
 
