@@ -22,7 +22,8 @@ use Infocyph\Foundation\Release\FoundationReleaseCompiler;
  */
 final class ModuleSystemCommand extends SystemCommand
 {
-    public function __construct(private readonly Application $application) {}
+    public function __construct(private readonly Application $application)
+    {}
 
     protected function handle(): int
     {
