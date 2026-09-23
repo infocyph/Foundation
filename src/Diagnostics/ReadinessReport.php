@@ -47,6 +47,23 @@ final readonly class ReadinessReport
 
     /**
      * @param array<string,array{ready:bool,detail:string}> $checks
+     * @param list<array{name:string,applicable:bool,installed:bool,state:string,detail:string}> $schemas
+     */
+    private function appendCacheSchemaRows(array &$checks, array $schemas): void
+    {
+        foreach ($schemas as $schema) {
+            if ($schema['applicable']) {
+                $checks['schema:' . $schema['name']] = [
+                    'ready' => $schema['installed'],
+                    'detail' => $schema['state'] . ': ' . $schema['detail'],
+                ];
+            }
+        }
+    }
+
+    /** @param array<string,array{package:string,constraint:string}> $required */
+    /**
+     * @param array<string,array{ready:bool,detail:string}> $checks
      */
     private function appendSchemaChecks(array &$checks, ConfiguredCapabilities $capabilities): void
     {
@@ -82,23 +99,6 @@ final readonly class ReadinessReport
         }
     }
 
-    /**
-     * @param array<string,array{ready:bool,detail:string}> $checks
-     * @param list<array{name:string,applicable:bool,installed:bool,state:string,detail:string}> $schemas
-     */
-    private function appendCacheSchemaRows(array &$checks, array $schemas): void
-    {
-        foreach ($schemas as $schema) {
-            if ($schema['applicable']) {
-                $checks['schema:' . $schema['name']] = [
-                    'ready' => $schema['installed'],
-                    'detail' => $schema['state'] . ': ' . $schema['detail'],
-                ];
-            }
-        }
-    }
-
-    /** @param array<string,array{package:string,constraint:string}> $required */
     private function applicationPackages(array &$required, ModuleCatalog $catalog): void
     {
         if ($this->messagingConfigured()) {
@@ -266,7 +266,8 @@ final readonly class ReadinessReport
         string $module,
         ?string $package = null,
         ?string $label = null,
-    ): void {
+    ): void
+    {
         $definition = $modules->resolve($module);
         $packages = $definition['packages'];
 
