@@ -47,45 +47,6 @@ final class ModuleSystemCommand extends SystemCommand
 
     /**
      * @phpstan-param ResolvedModule $definition
-     * @return list<array{file:string,path:string,published:bool}>
-     */
-    private function configRows(array $definition): array
-    {
-        return array_map(
-            function (string $filename): array {
-                $path = $this->application->configPath($filename);
-
-                return [
-                    'file' => $filename,
-                    'path' => $path,
-                    'published' => is_file($path),
-                ];
-            },
-            $definition['config'],
-        );
-    }
-
-    private function install(): int
-    {
-        $requested = $this->module();
-        $definition = $this->catalog()->resolve($requested, $this->values('feature'));
-        $features = $definition['requested_features'];
-        if (($definition['core_backed'] ?? false) === true && $features === []) {
-            return $this->installCoreNoop($definition, $requested);
-        }
-
-        $manager = $this->manager();
-        $dryRun = $this->flag('dry-run');
-        $result = $manager->install($definition['name'], $features, $dryRun);
-        if (!$result->successful()) {
-            return $result->exitCode;
-        }
-
-        return $this->completeInstall($definition, $requested, $dryRun, $manager);
-    }
-
-    /**
-     * @phpstan-param ResolvedModule $definition
      */
     private function completeInstall(
         array $definition,
@@ -135,6 +96,45 @@ final class ModuleSystemCommand extends SystemCommand
         }
 
         return $schemaExit;
+    }
+
+    /**
+     * @phpstan-param ResolvedModule $definition
+     * @return list<array{file:string,path:string,published:bool}>
+     */
+    private function configRows(array $definition): array
+    {
+        return array_map(
+            function (string $filename): array {
+                $path = $this->application->configPath($filename);
+
+                return [
+                    'file' => $filename,
+                    'path' => $path,
+                    'published' => is_file($path),
+                ];
+            },
+            $definition['config'],
+        );
+    }
+
+    private function install(): int
+    {
+        $requested = $this->module();
+        $definition = $this->catalog()->resolve($requested, $this->values('feature'));
+        $features = $definition['requested_features'];
+        if (($definition['core_backed'] ?? false) === true && $features === []) {
+            return $this->installCoreNoop($definition, $requested);
+        }
+
+        $manager = $this->manager();
+        $dryRun = $this->flag('dry-run');
+        $result = $manager->install($definition['name'], $features, $dryRun);
+        if (!$result->successful()) {
+            return $result->exitCode;
+        }
+
+        return $this->completeInstall($definition, $requested, $dryRun, $manager);
     }
 
     /**
@@ -670,4 +670,5 @@ final class ModuleSystemCommand extends SystemCommand
 
         return [$result->exitCode, $schemas];
     }
+
 }
