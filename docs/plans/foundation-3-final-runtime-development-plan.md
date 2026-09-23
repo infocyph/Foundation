@@ -76,7 +76,7 @@ Phase 10 remains the final aggregate release-readiness pass after every open low
 | 26.6 | DBLayer | `^5.1` | **complete** |
 | 26.7 | ReqShield | `^3.2` | **complete** |
 | 26.8 | Omnibus | `^2.6` | **complete** |
-| 26.9 | TalkingBytes | `^2.1` | **active — batch 1** |
+| 26.9 | TalkingBytes | `^2.1` | **complete** |
 | 26.10 | Epicrypt | `^3.1` | **complete** |
 | 26.11 | standalone WebAuthn specialist pass | OTP 6.1 Passkey | **closed/subsumed** |
 
@@ -94,9 +94,8 @@ Epicrypt `3.0` was released on **2026-09-10** and established the stable 3.x bou
 
 ## 4. Current execution order
 
-1. Execute 26.9 TalkingBytes 2.1 utilization and exact-head acceptance.
-2. Run aggregate Phase 10 / Foundation release-readiness gates.
-3. Validate the final InfByte consumption/handoff against the completed Foundation 3 lifecycle.
+1. Run aggregate Phase 10 / Foundation release-readiness gates.
+2. Validate the final InfByte consumption/handoff against the completed Foundation 3 lifecycle.
 
 Do not reopen finalized lower-library architecture merely to make Foundation integration easier.
 
@@ -314,7 +313,7 @@ attribution are closed on an exact-head green PHPForge matrix.
 
 ---
 
-## 26.9 TalkingBytes 2.1 utilization — ACTIVE
+## 26.9 TalkingBytes 2.1 utilization — complete
 
 ### Released baseline
 
@@ -386,13 +385,17 @@ policy.
     `notifications` activates email without HTTP/webhook/gRPC services;
   - [X] cover persistent ownership: IMAP/POP3 mailbox instances are freshly
     caller-owned and spool receivers are recreated across worker execution scopes.
-- [ ] **Batch 5 — benchmark + exact-head closure**
+- [X] **Batch 5 — benchmark + exact-head closure**
   - [X] benchmark direct TalkingBytes resolved composition versus Foundation
     HTTP/webhook/gRPC/email profile bridges; protocol-native transport/crypto/
     streaming/parser benchmarks remain TalkingBytes-owned;
-  - [ ] run PHP 8.4/8.5 lowest/stable PHPForge QA, analysis, clean install and
-    release benchmarks on the exact final head;
-  - [ ] close 26.9 only after the final matrix is green.
+  - [X] PHPForge run #1481 is green on implementation head
+    `c4bb7f7486d965ec74e583f317c0e262e7a0b943` across PHP 8.4/8.5
+    prefer-lowest/prefer-stable QA, PHPStan/Psalm analysis, clean install and
+    both release benchmark jobs;
+  - [X] close 26.9 after the full implementation-head matrix is green; this
+    tracker reconciliation is documentation-only and changes no runtime code,
+    dependency or generated topology.
 
 ### Security compatibility note
 
@@ -400,8 +403,10 @@ TalkingBytes 2.1 native webhook delivery uses bound `v2` signatures. Foundation
 must not pair a native 2.0 sender with a 2.1 receiver or vice versa. The
 Foundation integration uses the 2.1 native sender/receiver path together.
 
-**Status:** ACTIVE — all implementation and benchmark work is in place. Batch 5
-now waits only for the exact-head PHP 8.4/8.5 lowest/stable PHPForge matrix.
+**Status:** [X] COMPLETE — released TalkingBytes 2.1 composition, persistent/
+Fiber isolation, webhook v2/replay policy, inbound gRPC worker lifecycle,
+email/capability ownership and direct-versus-Foundation attribution are closed
+on green PHPForge run #1481.
 ---
 
 ## 26.10 Epicrypt 3.1 consumption, auth-protocol adoption and Foundation crypto-policy consolidation — complete
@@ -499,7 +504,7 @@ OTP 6.1 `Passkey` is the Foundation-facing WebAuthn ceremony/state boundary. Fou
 
 # 27. Aggregate Foundation 3 release-readiness after lower-library passes
 
-Run after the remaining active lower-library pass 26.9 is closed; 26.4, 26.5, 26.7, 26.8 and 26.10 are complete.
+All lower-library passes are now closed: 26.1 through 26.10 are complete where applicable, and 26.11 is closed/subsumed. Run the aggregate Foundation 3 release-readiness gate before final InfByte handoff.
 
 - [ ] Composer normal install/release constraints pass on PHP 8.4/8.5, prefer-lowest and prefer-stable.
 - [ ] PHPForge quality/static/security analysis is green.
@@ -515,4 +520,4 @@ Run after the remaining active lower-library pass 26.9 is closed; 26.4, 26.5, 26
 
 ## Immediate handoff
 
-Continue **26.9 TalkingBytes 2.1 utilization** from Batch 5. Batches 1-4 consume released `^2.1`, delegate resolved protocol composition, prove runtime/webhook isolation, route host-provided inbound gRPC exchanges through Foundation worker scopes, and close native email/optional-capability ownership. Add direct-versus-Foundation communication attribution, then close 26.9 only after the exact final PHP 8.4/8.5 lowest/stable PHPForge matrix is green.
+Proceed to **27. Aggregate Foundation 3 release-readiness**. All lower-library utilization passes are closed, including TalkingBytes 2.1 on green run #1481. Reconcile the complete PHP 8.4/8.5 dependency matrix, skipped/deprecated-test policy, optional-capability coldness, cross-domain Fiber/persistent isolation, release generation/activation/rollback, aggregate benchmark attribution and final InfByte handoff.
