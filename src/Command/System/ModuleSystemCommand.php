@@ -496,7 +496,10 @@ final class ModuleSystemCommand extends SystemCommand
         $this->renderShowSchemas($schemas);
     }
 
-    /** @param array<string,PackageState> $packages @return list<array<int,mixed>> */
+    /**
+     * @param array<string,PackageState> $packages
+     * @return list<list<bool|float|int|string|null>>
+     */
     private function packageRows(array $packages): array
     {
         if ($packages === []) {
