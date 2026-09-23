@@ -6,6 +6,7 @@ namespace Infocyph\Foundation\Diagnostics;
 
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthSigningKeyResolver;
+use Infocyph\Foundation\Cache\CacheSchemaManager;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Config\ConfigValidator;
 use Infocyph\Foundation\Config\Internal\ConfiguredCapabilities;
@@ -51,11 +52,23 @@ final readonly class ReadinessReport
     {
         $schemas = new ModuleSchemaManager($this->application, new ModuleCatalog());
 
-        foreach (['auth', 'cache', 'session'] as $module) {
+        foreach (['auth', 'session'] as $module) {
             if (!$capabilities->enabled($module)) {
                 continue;
             }
             foreach ($schemas->status($module) as $schema) {
+                if (!$schema['applicable']) {
+                    continue;
+                }
+                $checks['schema:' . $schema['name']] = [
+                    'ready' => $schema['installed'],
+                    'detail' => $schema['state'] . ': ' . $schema['detail'],
+                ];
+            }
+        }
+
+        if ($capabilities->enabled('cache')) {
+            foreach (new CacheSchemaManager($this->application)->statuses() as $schema) {
                 if (!$schema['applicable']) {
                     continue;
                 }
@@ -82,14 +95,12 @@ final readonly class ReadinessReport
     private function authPackages(array &$required, ModuleCatalog $catalog, ConfigRepository $config): void
     {
         if ($config->get('auth.drivers.cache', 'array') === 'cache') {
-            $this->selectPackage($required, $catalog, 'cache');
         }
         if ($config->get('auth.drivers.storage', 'memory') === 'database') {
             $this->selectPackage($required, $catalog, 'database');
         }
         if ($config->get('auth.drivers.mfa', 'simple') === 'otp') {
             $this->selectPackage($required, $catalog, 'auth', 'infocyph/otp', 'auth:otp');
-            $this->selectPackage($required, $catalog, 'cache');
         }
         if ($config->get('auth.drivers.notifications', 'collect') === 'talkingbytes') {
             $this->selectPackage($required, $catalog, 'communication');
@@ -101,10 +112,8 @@ final readonly class ReadinessReport
         }
         if ($config->get('auth.drivers.passkey', 'memory') === 'webauthn') {
             $this->selectPackage($required, $catalog, 'auth', 'web-auth/webauthn-lib', 'auth:passkeys');
-            $this->selectPackage($required, $catalog, 'cache');
         }
         if ($config->get('auth.oauth.enabled', false) === true) {
-            $this->selectPackage($required, $catalog, 'cache');
             $this->selectPackage($required, $catalog, 'database');
             $this->selectPackage($required, $catalog, 'security');
         }
@@ -169,7 +178,6 @@ final readonly class ReadinessReport
     {
         $migrationLock = $config->get('database.migrations.lock_store');
         if (is_string($migrationLock) && trim($migrationLock) !== '') {
-            $this->selectPackage($required, $catalog, 'cache');
         }
 
         $validationConnection = $config->get('validation.database_connection');
@@ -220,8 +228,7 @@ final readonly class ReadinessReport
     {
         foreach (['maintenance', 'runtime_control'] as $surface) {
             if ($config->get('operations.' . $surface . '.driver', 'file') === 'cache') {
-                $this->selectPackage($required, $catalog, 'cache');
-            }
+                }
         }
     }
 
@@ -292,12 +299,10 @@ final readonly class ReadinessReport
     {
         $driver = $config->get('session.driver', 'file');
         if ($driver === 'cache') {
-            $this->selectPackage($required, $catalog, 'cache');
         } elseif ($driver === 'database') {
             $this->selectPackage($required, $catalog, 'database');
         }
         if ($config->get('session.lock.enabled', false) === true) {
-            $this->selectPackage($required, $catalog, 'cache');
         }
     }
 

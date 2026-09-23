@@ -78,6 +78,18 @@ final class CommandCatalog
             new CommandDefinition('cache:forget', 'Forget one cache item.', 'Cache', capabilities: ['cache'])
                 ->argument('key', 'Cache key.', required: true)
                 ->option('store', 'Configured cache store name.', acceptsValue: true),
+            $connectionOption(new CommandDefinition(
+                'cache:schema:install',
+                'Provision schemas required by configured database-backed CacheLayer resources.',
+                'Cache',
+                capabilities: ['cache'],
+            )),
+            $connectionOption(new CommandDefinition(
+                'cache:schema:status',
+                'Show schema readiness for configured database-backed CacheLayer resources.',
+                'Cache',
+                capabilities: ['cache'],
+            )),
 
             new CommandDefinition('config:cache', 'Compile application configuration.', 'Configuration'),
             new CommandDefinition('config:clear', 'Clear compiled configuration.', 'Configuration'),
@@ -345,7 +357,7 @@ final class CommandCatalog
             str_starts_with($name, 'create:') => ArtifactSystemCommand::class,
             str_starts_with($name, 'module:') => ModuleSystemCommand::class,
             str_starts_with($name, 'auth:oauth:') => OAuthSystemCommand::class,
-            $name === 'cache:forget' => CacheSystemCommand::class,
+            str_starts_with($name, 'cache:') && $name !== 'cache:clear' => CacheSystemCommand::class,
             str_starts_with($name, 'db:'),
             str_starts_with($name, 'migrate') => DatabaseSystemCommand::class,
             $name === 'messaging:list',

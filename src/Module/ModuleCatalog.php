@@ -22,15 +22,6 @@ final class ModuleCatalog
             'config' => [],
             'schemas' => ['auth'],
         ],
-        'cache' => [
-            'packages' => [
-                'infocyph/cachelayer' => '^3.4',
-            ],
-            'description' => 'Cache stores, locks, counters, response caching, and shared authentication/runtime state.',
-            'aliases' => ['cachelayer'],
-            'config' => ['cache.php'],
-            'schemas' => ['cache'],
-        ],
         'communication' => [
             'packages' => [
                 'infocyph/talkingbytes' => '^2.1',

@@ -7,7 +7,6 @@ namespace Infocyph\Foundation\Module;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchemaInstaller;
 use Infocyph\Foundation\Messaging\MessagingDatabaseSchema;
-use Infocyph\Foundation\Module\Internal\CacheSchemaManager;
 use Infocyph\Foundation\Session\SessionDatabaseSchema;
 
 final readonly class ModuleSchemaManager
@@ -121,16 +120,10 @@ final readonly class ModuleSchemaManager
         );
     }
 
-    private function cacheSchemas(): CacheSchemaManager
-    {
-        return new CacheSchemaManager($this->application);
-    }
-
     private function installSchema(string $schema, ?string $connection): void
     {
         match ($schema) {
             'auth' => $this->application->make(AuthSchemaInstaller::class)->install($connection),
-            'cache' => $this->cacheSchemas()->install($connection),
             'messaging' => $this->application->make(MessagingDatabaseSchema::class)->install($connection),
             'session' => $this->application->make(SessionDatabaseSchema::class)->install($connection),
             default => null,
@@ -229,7 +222,6 @@ final readonly class ModuleSchemaManager
     ): array {
         return match ($schema) {
             'auth' => [$this->authStatus($module, $connection, $afterInstall)],
-            'cache' => $this->cacheSchemas()->statuses($module, $connection, $afterInstall),
             'messaging' => [$this->messagingStatus($module, $connection, $afterInstall)],
             'session' => [$this->sessionStatus($module, $connection, $afterInstall)],
             default => [$this->result($schema, $module, false, true, 'not-applicable', 'No schema provisioner is registered.')],
