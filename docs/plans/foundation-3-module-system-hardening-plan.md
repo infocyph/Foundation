@@ -111,7 +111,7 @@ Status legend:
 | Batch | Scope | Status | Current checkpoint |
 | --- | --- | --- | --- |
 | **0** | Cache/core boundary closure | **DONE** | Cache core ownership, schema CLI lifecycle, activation semantics and module exclusion are regression-covered. |
-| **1** | Specialist module state foundation | **PARTIAL** | Root `composer.json` direct-require detection exists, but transitive packages can still appear as installed modules and readiness dimensions are incomplete. |
+| **1** | Specialist module state foundation | **PARTIAL** | State resolver, ownership/readiness JSON and floor guards are implemented; latest PHPForge matrix is queued behind a superseded clean-install job. |
 | **2** | Catalog model | **NOT STARTED** | Package roles, feature declarations, conditional dependencies, platform requirements and graph validation. |
 | **3** | Auth decomposition | **NOT STARTED** | Core-backed auth namespace with selective OTP/passkey feature installation. |
 | **4** | Communication / notifications ownership | **NOT STARTED** | Communication stays specialist; notifications stays Foundation-native. |
@@ -393,29 +393,34 @@ this ownership model because Foundation owns it as core infrastructure.
 ## Work
 
 - [x] Read the application root `composer.json` when determining direct package ownership.
-- [ ] Move Composer/config inspection behind a dedicated read-only `ModuleStateResolver` (or
-  equivalent) so lifecycle mutation code does not own status interpretation.
-- [ ] Read/normalize root Composer metadata once per status operation rather than once per module.
-- [ ] Distinguish direct package requirement from transitive package availability.
-- [ ] Represent unreadable/invalid root Composer metadata as ownership-unknown with an actionable
+- [x] Move Composer/config inspection behind a dedicated read-only `ModuleStateResolver` so
+  lifecycle mutation code does not own status interpretation.
+- [x] Read/normalize root Composer metadata once per status operation rather than once per module.
+- [x] Distinguish direct package requirement from transitive package availability.
+- [x] Represent unreadable/invalid root Composer metadata as ownership-unknown with an actionable
   blocker.
-- [ ] Keep installed-package availability separately visible for diagnostics.
-- [ ] Define module installation from direct required package ownership, not only vendor presence.
-- [ ] Preserve package constraint compatibility checks.
+- [x] Keep installed-package availability separately visible for diagnostics.
+- [x] Define module installation from direct required package ownership, not only vendor presence.
+- [x] Preserve package constraint compatibility checks for the catalog's supported caret ranges,
+  including direct root-constraint floor safety.
 - [ ] Add fixture-driven tests for:
-  - [ ] specialist package present only transitively;
-  - [ ] specialist package directly required by the application;
-  - [ ] package present but catalog constraint incompatible;
-  - [ ] direct package missing while a transitive copy remains installed;
-  - [ ] missing/unreadable/invalid application root Composer manifest.
-- [ ] Explicitly exclude Foundation core dependencies such as CacheLayer from module ownership
+  - [x] specialist package present only transitively;
+  - [x] specialist package directly required by the application;
+  - [x] package present with an incompatible direct/catalog range;
+  - [x] direct package missing while a transitive copy remains installed;
+  - [x] missing/unreadable/invalid application root Composer manifest.
+- [x] Explicitly exclude Foundation core dependencies such as CacheLayer from module ownership
   calculations.
-- [ ] Ensure `module:list` and `module:show` expose the distinction clearly.
+- [x] Ensure `module:list` and `module:show` expose direct/transitive/ownership, activation,
+  effective-config/publication and readiness distinctions clearly.
 
 ## Acceptance
 
 A transitive package never silently becomes a directly installed Foundation module, and
 unreadable application ownership metadata is never silently interpreted as "transitive."
+
+**Batch 1 implementation status:** COMPLETE. Tracker remains **PARTIAL** until the latest
+PHP 8.4/8.5 PHPForge matrix completes successfully.
 
 ---
 
@@ -936,8 +941,8 @@ once.
 
 ## Work
 
-- [ ] Add one authoritative test/table of supported module package floors.
-- [ ] Compare catalog package floors with Foundation's tested dependency set where applicable.
+- [x] Add one authoritative test of supported specialist-module package floors.
+- [x] Compare catalog package floors with Foundation's tested `require-dev` dependency set.
 - [ ] Allow deliberate exceptions only with explicit test/documentation.
 - [ ] Cover:
   - OTP 6.1;
@@ -949,7 +954,7 @@ once.
   - Epicrypt 3.1;
   - WebAuthn library floor.
 - [ ] Keep docs generated/verified against catalog values where practical.
-- [ ] Guard CacheLayer ^3.4 separately as a Foundation core dependency, not a ModuleCatalog floor.
+- [x] Guard CacheLayer ^3.4 separately as a Foundation core dependency, not a ModuleCatalog floor.
 
 ---
 
