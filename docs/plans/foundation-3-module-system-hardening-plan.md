@@ -115,8 +115,8 @@ Status legend:
 | **2** | Catalog model | **PARTIAL** | Package roles, feature/platform metadata, optional-integration status, conditional dependency declarations and graph validation are implemented; matrix closure remains. |
 | **3** | Auth decomposition | **PARTIAL** | Core-backed auth, selective OTP/passkey install/remove, feature aliases/state and shared-package protection are implemented; dependency-engine/matrix closure remains. |
 | **4** | Communication / notifications ownership | **PARTIAL** | Ownership/config/topology/package-isolation changes are implemented; exact-head PHPForge closure remains. |
-| **5** | Dependency engine | **NOT STARTED** | Conditional dependency/capability evaluation, explanation and blockers. |
-| **6** | Activation lifecycle | **NOT STARTED** | Explicit enable/disable lifecycle and topology mutation. |
+| **5** | Dependency engine | **PARTIAL** | Conditional module/core-capability evaluation, blockers, show output and module:plan are implemented; exact-head QA remains. |
+| **6** | Activation lifecycle | **PARTIAL** | Atomic module-owned activation overrides plus enable/disable runtime semantics are implemented; exact-head QA remains. |
 | **7** | Schema lifecycle | **NOT STARTED** | Capability-aware applicability, targeted installs and active-topology sync. |
 | **8** | Install/remove/repair hardening | **NOT STARTED** | Composer policy, shared ownership, safe removal and repair/resume. |
 | **9** | Platform readiness | **NOT STARTED** | Selected-feature extension/adapter readiness and doctor output. |
@@ -609,17 +609,17 @@ cache capability lifecycle.
 
 ## Work
 
-- [ ] Add conditional dependency declarations to module definitions.
-- [ ] Evaluate conditions against normalized Foundation config.
-- [ ] Report active and inactive dependency edges separately.
-- [ ] Do not auto-enable conditional dependencies silently.
-- [ ] Distinguish specialist-module edges from Foundation-core capability requirements. A selected
+- [x] Add conditional dependency declarations to module definitions.
+- [x] Evaluate conditions against normalized Foundation config.
+- [x] Report active and inactive dependency edges separately.
+- [x] Do not auto-enable conditional dependencies silently.
+- [x] Distinguish specialist-module edges from Foundation-core capability requirements. A selected
   feature may require the `cache` capability, but no `cache` module node may exist.
-- [ ] `module:show` must explain why a dependency/capability is required.
-- [ ] `module:install` should be able to plan required dependency installs.
-- [ ] If dependencies are not installed/enabled, provide deterministic actionable output.
-- [ ] Prevent dependency cycles in catalog definitions.
-- [ ] Add catalog graph validation tests.
+- [x] `module:show` must explain why a dependency/capability is required.
+- [x] `module:install` should be able to plan required dependency installs.
+- [x] If dependencies are not installed/enabled, provide deterministic actionable output.
+- [x] Prevent dependency cycles in catalog definitions.
+- [x] Add catalog graph validation tests.
 
 ## Acceptance
 
@@ -633,6 +633,8 @@ Why is database not required in another app?
 
 without hard-coded command-specific logic.
 
+**Batch 5 implementation status:** COMPLETE. Tracker remains **PARTIAL** until exact-head QA.
+
 ---
 
 # 10. P0 — Make Installation and Activation Explicit
@@ -644,28 +646,30 @@ the CLI does not communicate this strongly enough.
 
 ## Work
 
-- [ ] Keep installation separate from runtime activation.
-- [ ] Add an explicit activation mechanism.
+- [x] Keep installation separate from runtime activation.
+- [x] Add an explicit activation mechanism.
 - [ ] Preferred CLI direction:
   - `module:install <module>`
   - `module:enable <module>`
   - `module:disable <module>`
 - [ ] Optionally allow `module:install <module> --enable`.
-- [ ] Do not silently rewrite explicit `app.capabilities` unless the user explicitly requests
+- [x] Do not silently rewrite explicit `app.capabilities` unless the user explicitly requests
   activation.
 - [ ] Define behavior when capability topology is omitted:
   - compatibility auto-discovery remains available where Foundation currently permits it;
   - CLI must clearly report that activation is inferred, not explicit;
   - production-readiness policy must explicitly decide whether missing `app.capabilities` is
     acceptable instead of assuming "cold until selected" semantics.
-- [ ] Enabling must validate required/active conditional dependencies.
-- [ ] Disabling must not uninstall packages or delete config/data.
-- [ ] Capability mutation must use a deterministic application-owned source of truth; do not
+- [x] Enabling must validate required/active conditional dependencies.
+- [x] Disabling must not uninstall packages or delete config/data.
+- [x] Capability mutation must use a deterministic application-owned source of truth; do not
   edit compiled release artifacts.
 
 ## Acceptance
 
 Users can tell whether a module is installed versus enabled, and no command conflates the two.
+
+**Batch 6 implementation status:** COMPLETE. Tracker remains **PARTIAL** until exact-head QA.
 
 ---
 
