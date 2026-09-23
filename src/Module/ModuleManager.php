@@ -228,6 +228,7 @@ final readonly class ModuleManager
 
         return $packages;
     }
+
     /**
      * @param list<string> $features
      * @phpstan-param ModuleState $state
