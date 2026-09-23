@@ -805,6 +805,4 @@ final class ModuleSystemCommand extends SystemCommand
 
         return $module['status'];
     }
-
-
 }
