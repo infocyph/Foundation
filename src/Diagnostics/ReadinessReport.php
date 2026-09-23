@@ -21,7 +21,56 @@ final readonly class ReadinessReport
     /** @return array{ready:bool,checks:array<string,array{ready:bool,detail:string}>} */
     public function generate(): array
     {
-        $checks = [
+        $checks = $this->baseChecks();
+        $checks['configuration'] = $this->configurationReadiness();
+        $capabilities = new ConfiguredCapabilities($this->application->config());
+
+        if ($capabilities->enabled('auth') && $this->oauthEnabled()) {
+            $checks['oauth:signing'] = $this->oauthSigningReadiness();
+        }
+
+        foreach ($this->requiredPackages() as $name => $requirement) {
+            $checks['module:' . $name] = [
+                'ready' => \Composer\InstalledVersions::isInstalled($requirement['package']),
+                'detail' => $requirement['package'] . ' ' . $requirement['constraint'],
+            ];
+        }
+
+        $this->appendSchemaChecks($checks, $capabilities);
+
+        return [
+            'ready' => !array_any($checks, static fn(array $check): bool => !$check['ready']),
+            'checks' => $checks,
+        ];
+    }
+
+    /**
+     * @param array<string,array{ready:bool,detail:string}> $checks
+     */
+    private function appendSchemaChecks(array &$checks, ConfiguredCapabilities $capabilities): void
+    {
+        $schemas = new ModuleSchemaManager($this->application, new ModuleCatalog());
+
+        foreach (['auth', 'cache', 'session'] as $module) {
+            if (!$capabilities->enabled($module)) {
+                continue;
+            }
+            foreach ($schemas->status($module) as $schema) {
+                if (!$schema['applicable']) {
+                    continue;
+                }
+                $checks['schema:' . $schema['name']] = [
+                    'ready' => $schema['installed'],
+                    'detail' => $schema['state'] . ': ' . $schema['detail'],
+                ];
+            }
+        }
+    }
+
+    /** @return array<string,array{ready:bool,detail:string}> */
+    private function baseChecks(): array
+    {
+        return [
             'php' => [
                 'ready' => version_compare(PHP_VERSION, '8.4.0', '>='),
                 'detail' => PHP_VERSION,
@@ -39,64 +88,36 @@ final readonly class ReadinessReport
                 'detail' => $this->application->runtimeMode()->value,
             ],
         ];
+    }
 
-        $validation = new ConfigValidator($this->application->config())->validateForProduction();
-        $messages = $validation->messages();
+    /** @return array{ready:bool,detail:string} */
+    private function configurationReadiness(): array
+    {
+        $config = $this->application->config();
         $messages = [
-            ...$messages,
+            ...new ConfigValidator($config)->validateForProduction()->messages(),
             ...array_map(
                 static fn($issue): string => $issue->message,
-                new ProductionSecurityValidator($this->application->config())->validate(),
+                new ProductionSecurityValidator($config)->validate(),
             ),
         ];
-        $capabilities = new ConfiguredCapabilities($this->application->config());
-        if ($capabilities->enabled('auth')
-            && $this->application->config()->get('auth.drivers.mfa', 'simple') === 'otp'
-        ) {
+
+        $capabilities = new ConfiguredCapabilities($config);
+        if ($capabilities->enabled('auth') && $config->get('auth.drivers.mfa', 'simple') === 'otp') {
             $messages = [
                 ...$messages,
                 ...array_map(
                     static fn($issue): string => $issue->message,
-                    new OtpConfigValidator($this->application->config())->validate(true),
+                    new OtpConfigValidator($config)->validate(true),
                 ),
             ];
         }
-        $checks['configuration'] = [
-            'ready' => $messages === [],
-            'detail' => $messages === [] ? 'valid for production' : implode('; ', array_values(array_unique($messages))),
-        ];
-
-        if ($this->oauthEnabled()) {
-            $checks['oauth:signing'] = $this->oauthSigningReadiness();
-        }
-
-        foreach ($this->requiredPackages() as $name => $requirement) {
-            $checks['module:' . $name] = [
-                'ready' => \Composer\InstalledVersions::isInstalled($requirement['package']),
-                'detail' => $requirement['package'] . ' ' . $requirement['constraint'],
-            ];
-        }
-
-        $catalog = new ModuleCatalog();
-        $schemas = new ModuleSchemaManager($this->application, $catalog);
-        foreach (['auth', 'cache', 'session'] as $module) {
-            if (!$capabilities->enabled($module)) {
-                continue;
-            }
-            foreach ($schemas->status($module) as $schema) {
-                if (!$schema['applicable']) {
-                    continue;
-                }
-                $checks['schema:' . $schema['name']] = [
-                    'ready' => $schema['installed'],
-                    'detail' => $schema['state'] . ': ' . $schema['detail'],
-                ];
-            }
-        }
 
         return [
-            'ready' => !array_any($checks, static fn(array $check): bool => !$check['ready']),
-            'checks' => $checks,
+            'ready' => $messages === [],
+            'detail' => $messages === []
+                ? 'valid for production'
+                : implode('; ', array_values(array_unique($messages))),
         ];
     }
 
