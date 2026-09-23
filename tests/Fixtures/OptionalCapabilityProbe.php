@@ -6,6 +6,7 @@ use Composer\Autoload\ClassLoader;
 use Infocyph\Foundation\Auth\AuthManager;
 use Infocyph\Foundation\Exception\ServiceResolutionException;
 use Infocyph\Foundation\Foundation;
+use Infocyph\Foundation\Notifications\NotificationChannelRegistry;
 
 $root = dirname(__DIR__, 2);
 $loader = require $root . '/vendor/autoload.php';
@@ -79,6 +80,7 @@ $probe = [
     'base' => [],
     'services' => [],
     'auth' => [],
+    'notifications' => [],
 ];
 
 try {
@@ -112,6 +114,23 @@ try {
             'expected_module' => $expected['module'],
         ];
     }
+
+    $notificationsConfig = $baseConfig;
+    $notificationsConfig['app'] = [
+        ...$baseConfig['app'],
+        'capabilities' => ['notifications'],
+    ];
+    $notificationsApp = Foundation::cli($notificationsConfig)->boot();
+    $mailError = null;
+    try {
+        $notificationsApp->make(NotificationChannelRegistry::class)->channel('mail');
+    } catch (Throwable $failure) {
+        $mailError = $failure->getMessage();
+    }
+    $probe['notifications'] = [
+        'dispatcher_available' => $notificationsApp->has('foundation.notifications'),
+        'mail_error' => $mailError,
+    ];
 
     $defaultAuth = Foundation::cli($baseConfig);
     $defaultError = null;
