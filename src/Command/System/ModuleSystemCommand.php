@@ -43,6 +43,27 @@ final class ModuleSystemCommand extends SystemCommand
         return new ModuleCatalog();
     }
 
+    /**
+     * @param array<string,mixed> $definition
+     * @phpstan-param ResolvedModule $definition
+     * @return list<array{file:string,path:string,published:bool}>
+     */
+    private function configRows(array $definition): array
+    {
+        return array_map(
+            function (string $filename): array {
+                $path = $this->application->configPath($filename);
+
+                return [
+                    'file' => $filename,
+                    'path' => $path,
+                    'published' => is_file($path),
+                ];
+            },
+            $definition['config'],
+        );
+    }
+
     private function install(): int
     {
         $requested = $this->module();
@@ -143,6 +164,49 @@ final class ModuleSystemCommand extends SystemCommand
     }
 
     /** @param array<string,PackageState> $packages */
+    /**
+     * @return array<string,mixed>
+     * @phpstan-return ModuleState
+     */
+    private function moduleState(string $name): array
+    {
+        $module = array_find(
+            $this->manager()->all(),
+            static fn(array $candidate): bool => $candidate['name'] === $name,
+        );
+        if (!is_array($module)) {
+            throw new \LogicException(sprintf('Module "%s" is missing from the module registry.', $name));
+        }
+
+        return $module;
+    }
+
+    /**
+     * @param array<string,PackageState> $packages
+     * @return list<list<bool|float|int|string|null>>
+     */
+    private function packageRows(array $packages): array
+    {
+        if ($packages === []) {
+            return [['Foundation', '', true, true, false, true, 'built-in']];
+        }
+
+        return array_map(
+            static fn(string $package, array $state): array => [
+                $package,
+                $state['constraint'],
+                $state['available'],
+                $state['direct'],
+                $state['transitive'],
+                $state['compatible'] ?? '',
+                $state['version'] ?? '',
+            ],
+            array_keys($packages),
+            array_values($packages),
+        );
+    }
+
+    /** @param list<array{file:string,path:string,published:bool}> $config */
     private function packageSummary(array $packages): string
     {
         if ($packages === []) {
@@ -261,6 +325,63 @@ final class ModuleSystemCommand extends SystemCommand
         );
     }
 
+    /**
+     * @param array<string,mixed> $module
+     * @phpstan-param ModuleState $module
+     * @param array{status:string,schema_ready:bool,ready:bool,blockers:list<string>} $readiness
+     * @param list<array{file:string,path:string,published:bool}> $config
+     * @param list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}> $schemas
+     */
+    private function renderShow(array $module, array $readiness, array $config, array $schemas): void
+    {
+        $this->io()->table(
+            ['Module', 'Status', 'Built-in', 'Direct', 'Enabled', 'Configured', 'Published', 'Ready', 'Purpose'],
+            [[
+                $module['name'],
+                $readiness['status'],
+                $module['built_in'],
+                $module['direct'],
+                $module['enabled'],
+                $module['configured'],
+                $module['config_published'],
+                $readiness['ready'],
+                $module['description'],
+            ]],
+        );
+        $this->io()->writeln();
+        $this->io()->table(
+            ['Package', 'Constraint', 'Available', 'Direct', 'Transitive', 'Compatible', 'Version'],
+            $this->packageRows($module['packages']),
+        );
+
+        $this->renderShowConfig($config);
+        $this->renderShowSchemas($schemas);
+    }
+
+    private function renderShowConfig(array $config): void
+    {
+        if ($config === []) {
+            return;
+        }
+
+        $this->io()->writeln();
+        $this->io()->table(
+            ['Config', 'Published', 'Path'],
+            array_map(static fn(array $entry): array => [$entry['file'], $entry['published'], $entry['path']], $config),
+        );
+    }
+
+    /** @param list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}> $schemas */
+    private function renderShowSchemas(array $schemas): void
+    {
+        if ($schemas === []) {
+            return;
+        }
+
+        $this->io()->writeln();
+        $this->renderSchemas($schemas);
+    }
+
     private function schemaInstall(): int
     {
         $requested = $this->module();
@@ -278,7 +399,8 @@ final class ModuleSystemCommand extends SystemCommand
         ?string $module = null,
         ?string $requested = null,
         bool $strict = false,
-    ): int {
+    ): int
+    {
         $failed = array_any(
             $schemas,
             static fn(array $schema): bool => !$schema['installed'] && ($strict || $schema['applicable']),
@@ -392,42 +514,9 @@ final class ModuleSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
-    /** @return ModuleState */
-    private function moduleState(string $name): array
-    {
-        $module = array_find(
-            $this->manager()->all(),
-            static fn(array $candidate): bool => $candidate['name'] === $name,
-        );
-        if (!is_array($module)) {
-            throw new \LogicException(sprintf('Module "%s" is missing from the module registry.', $name));
-        }
-
-        return $module;
-    }
-
     /**
-     * @param ResolvedModule $definition
-     * @return list<array{file:string,path:string,published:bool}>
-     */
-    private function configRows(array $definition): array
-    {
-        return array_map(
-            function (string $filename): array {
-                $path = $this->application->configPath($filename);
-
-                return [
-                    'file' => $filename,
-                    'path' => $path,
-                    'published' => is_file($path),
-                ];
-            },
-            $definition['config'],
-        );
-    }
-
-    /**
-     * @param ModuleState $module
+     * @param array<string,mixed> $module
+     * @phpstan-param ModuleState $module
      * @param list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}> $schemas
      * @return array{status:string,schema_ready:bool,ready:bool,blockers:list<string>}
      */
@@ -462,88 +551,6 @@ final class ModuleSystemCommand extends SystemCommand
         }
 
         return $module['status'];
-    }
-
-    /**
-     * @param ModuleState $module
-     * @param array{status:string,schema_ready:bool,ready:bool,blockers:list<string>} $readiness
-     * @param list<array{file:string,path:string,published:bool}> $config
-     * @param list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}> $schemas
-     */
-    private function renderShow(array $module, array $readiness, array $config, array $schemas): void
-    {
-        $this->io()->table(
-            ['Module', 'Status', 'Built-in', 'Direct', 'Enabled', 'Configured', 'Published', 'Ready', 'Purpose'],
-            [[
-                $module['name'],
-                $readiness['status'],
-                $module['built_in'],
-                $module['direct'],
-                $module['enabled'],
-                $module['configured'],
-                $module['config_published'],
-                $readiness['ready'],
-                $module['description'],
-            ]],
-        );
-        $this->io()->writeln();
-        $this->io()->table(
-            ['Package', 'Constraint', 'Available', 'Direct', 'Transitive', 'Compatible', 'Version'],
-            $this->packageRows($module['packages']),
-        );
-
-        $this->renderShowConfig($config);
-        $this->renderShowSchemas($schemas);
-    }
-
-    /**
-     * @param array<string,PackageState> $packages
-     * @return list<list<bool|float|int|string|null>>
-     */
-    private function packageRows(array $packages): array
-    {
-        if ($packages === []) {
-            return [['Foundation', '', true, true, false, true, 'built-in']];
-        }
-
-        return array_map(
-            static fn(string $package, array $state): array => [
-                $package,
-                $state['constraint'],
-                $state['available'],
-                $state['direct'],
-                $state['transitive'],
-                $state['compatible'] ?? '',
-                $state['version'] ?? '',
-            ],
-            array_keys($packages),
-            array_values($packages),
-        );
-    }
-
-    /** @param list<array{file:string,path:string,published:bool}> $config */
-    private function renderShowConfig(array $config): void
-    {
-        if ($config === []) {
-            return;
-        }
-
-        $this->io()->writeln();
-        $this->io()->table(
-            ['Config', 'Published', 'Path'],
-            array_map(static fn(array $entry): array => [$entry['file'], $entry['published'], $entry['path']], $config),
-        );
-    }
-
-    /** @param list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}> $schemas */
-    private function renderShowSchemas(array $schemas): void
-    {
-        if ($schemas === []) {
-            return;
-        }
-
-        $this->io()->writeln();
-        $this->renderSchemas($schemas);
     }
 
     /**
