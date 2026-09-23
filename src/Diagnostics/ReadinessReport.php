@@ -53,25 +53,43 @@ final readonly class ReadinessReport
         $schemas = new ModuleSchemaManager($this->application, new ModuleCatalog());
 
         foreach (['auth', 'session'] as $module) {
-            if (!$capabilities->enabled($module)) {
-                continue;
+            if ($capabilities->enabled($module)) {
+                $this->appendSchemaRows($checks, $schemas->status($module));
             }
-            foreach ($schemas->status($module) as $schema) {
-                if (!$schema['applicable']) {
-                    continue;
-                }
+        }
+
+        if ($capabilities->enabled('cache')) {
+            $this->appendCacheSchemaRows(
+                $checks,
+                new CacheSchemaManager($this->application)->statuses(),
+            );
+        }
+    }
+
+    /**
+     * @param array<string,array{ready:bool,detail:string}> $checks
+     * @param list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}> $schemas
+     */
+    private function appendSchemaRows(array &$checks, array $schemas): void
+    {
+        foreach ($schemas as $schema) {
+            if ($schema['applicable']) {
                 $checks['schema:' . $schema['name']] = [
                     'ready' => $schema['installed'],
                     'detail' => $schema['state'] . ': ' . $schema['detail'],
                 ];
             }
         }
+    }
 
-        if ($capabilities->enabled('cache')) {
-            foreach (new CacheSchemaManager($this->application)->statuses() as $schema) {
-                if (!$schema['applicable']) {
-                    continue;
-                }
+    /**
+     * @param array<string,array{ready:bool,detail:string}> $checks
+     * @param list<array{name:string,applicable:bool,installed:bool,state:string,detail:string}> $schemas
+     */
+    private function appendCacheSchemaRows(array &$checks, array $schemas): void
+    {
+        foreach ($schemas as $schema) {
+            if ($schema['applicable']) {
                 $checks['schema:' . $schema['name']] = [
                     'ready' => $schema['installed'],
                     'detail' => $schema['state'] . ': ' . $schema['detail'],
