@@ -198,6 +198,52 @@ it('keeps CacheLayer core-owned and outside the module catalog', function (): vo
         ->toThrow(InvalidArgumentException::class, 'Unknown module or feature "cachelayer".');
 });
 
+it('persists explicit module activation without rewriting application capability config', function (): void {
+    $basePath = moduleLifecycleBasePath('activation');
+    moduleLifecycleWriteComposer($basePath, ['infocyph/dblayer' => '^5.1']);
+
+    try {
+        $enableDispatcher = moduleLifecycleDispatcher($basePath, [
+            'app' => ['capabilities' => []],
+        ]);
+        $enable = new FoundationModuleLifecycleIO();
+
+        expect(moduleLifecycleRun($enableDispatcher, ['infbyte', 'module:enable', 'database'], $enable))
+            ->toBe(ExitCode::SUCCESS)
+            ->and($basePath . '/config/modules.php')->toBeFile();
+
+        $enabledDispatcher = moduleLifecycleDispatcher($basePath, [
+            'app' => ['capabilities' => []],
+        ]);
+        $showEnabled = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun($enabledDispatcher, ['infbyte', 'module:show', 'database'], $showEnabled))
+            ->toBe(ExitCode::SUCCESS);
+
+        $enabled = $showEnabled->lastPayload();
+        expect($enabled)->toBeArray()
+            ->and($enabled['enabled'] ?? false)->toBeTrue()
+            ->and($enabled['activation_explicit'] ?? false)->toBeTrue();
+
+        $disable = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun($enabledDispatcher, ['infbyte', 'module:disable', 'database'], $disable))
+            ->toBe(ExitCode::SUCCESS);
+
+        $disabledDispatcher = moduleLifecycleDispatcher($basePath, [
+            'app' => ['capabilities' => []],
+        ]);
+        $showDisabled = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun($disabledDispatcher, ['infbyte', 'module:show', 'database'], $showDisabled))
+            ->toBe(ExitCode::SUCCESS);
+
+        $disabled = $showDisabled->lastPayload();
+        expect($disabled)->toBeArray()
+            ->and($disabled['enabled'] ?? true)->toBeFalse()
+            ->and($disabled['activation_explicit'] ?? false)->toBeTrue();
+    } finally {
+        moduleLifecycleRemoveDirectory($basePath);
+    }
+});
+
 it('runs module install and direct-package removal dry-runs and refuses built-in removal', function (): void {
     $basePath = moduleLifecycleBasePath('composer');
     [$restoreEnvironment, $commandLog] = moduleLifecycleComposerStub($basePath);
