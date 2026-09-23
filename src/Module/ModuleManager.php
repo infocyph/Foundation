@@ -75,6 +75,14 @@ final readonly class ModuleManager
         }
 
         $resolver = new ModuleStateResolver($this->application, $this->catalog);
+        $ownership = $resolver->rootRequirements();
+        if (!$ownership['known']) {
+            throw new \RuntimeException(
+                'Unable to determine direct Composer ownership: '
+                . ($ownership['error'] ?? 'application composer.json is unavailable.'),
+            );
+        }
+
         $states = $resolver->all();
         $state = array_find(
             $states,
@@ -84,14 +92,6 @@ final readonly class ModuleManager
             throw new \RuntimeException(sprintf('Unable to resolve module "%s".', $definition['name']));
         }
         $this->assertRemovalSafe($definition['name'], $definition['requested_features'], $state, $states);
-
-        $ownership = $resolver->rootRequirements();
-        if (!$ownership['known']) {
-            throw new \RuntimeException(
-                'Unable to determine direct Composer ownership: '
-                . ($ownership['error'] ?? 'application composer.json is unavailable.'),
-            );
-        }
 
         $packages = $this->removalPackages(
             $definition,
@@ -113,11 +113,6 @@ final readonly class ModuleManager
         ));
     }
 
-    /**
-     * @phpstan-param ModuleDefinition $definition
-     * @param list<string> $otherFeatures
-     * @param array<string,string> $direct
-     */
     /**
      * @param list<string> $features
      * @phpstan-param ModuleState $state
