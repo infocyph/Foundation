@@ -9,6 +9,7 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Config\Internal\ConfiguredCapabilities;
 use Infocyph\Foundation\Module\Internal\ModuleDependencyResolver;
 use Infocyph\Foundation\Module\Internal\ModulePackageStateResolver;
+use Infocyph\Foundation\Module\Internal\ModulePlatformResolver;
 
 /**
  * @phpstan-import-type ModuleDefinition from ModuleCatalog
@@ -31,6 +32,7 @@ use Infocyph\Foundation\Module\Internal\ModulePackageStateResolver;
  *     direct:bool,
  *     ready:bool,
  *     dependencies_satisfied:bool,
+ *     platform_ready:bool,
  *     packages:array<string,PackageState>,
  *     blockers:list<string>,
  *     dependencies:list<ModuleDependency>,
@@ -85,6 +87,7 @@ use Infocyph\Foundation\Module\Internal\ModulePackageStateResolver;
  *     dependencies:array{active:list<DependencyState>,inactive:list<DependencyState>},
  *     dependency_declarations:list<ModuleDependency>,
  *     platform:PlatformRequirement,
+ *     platform_status:PlatformResolution,
  *     blockers:list<string>,
  *     warnings:list<string>
  * }
@@ -134,6 +137,14 @@ final readonly class ModuleStateResolver
                 $capabilities,
             );
             $modules[$name] = $this->withDependencies($module, $resolution);
+        }
+
+        $platform = new ModulePlatformResolver($this->application);
+        foreach ($modules as $name => $module) {
+            $modules[$name] = $this->withPlatform(
+                $module,
+                $platform->resolve($name, $definitions[$name], $module['features'], $module['enabled']),
+            );
         }
 
         return array_values($modules);
@@ -258,6 +269,7 @@ final readonly class ModuleStateResolver
                 'direct' => $packages['all_direct'],
                 'ready' => $selected && $installed && $blockers === [],
                 'dependencies_satisfied' => true,
+                'platform_ready' => true,
                 'packages' => $packages['packages'],
                 'blockers' => $blockers,
                 'dependencies' => $feature['dependencies'],
@@ -353,55 +365,6 @@ final readonly class ModuleStateResolver
         }
 
         return $integrations;
-    }
-
-    /**
-     * @phpstan-param ModuleState $module
-     * @phpstan-param DependencyResolution $resolution
-     * @phpstan-return ModuleState
-     */
-    private function withDependencies(array $module, array $resolution): array
-    {
-        $features = $module['features'];
-        foreach ($features as $name => $feature) {
-            $satisfied = $resolution['feature_satisfied'][$name] ?? true;
-            $feature['dependencies_satisfied'] = $satisfied;
-            if ($feature['selected'] && !$satisfied) {
-                $feature['ready'] = false;
-            }
-            $features[$name] = $feature;
-        }
-
-        $blockers = array_values(array_unique([
-            ...$module['blockers'],
-            ...$resolution['blockers'],
-        ]));
-        $ready = $this->ready(
-            $module['built_in'],
-            $module['core_backed'],
-            $module['installed'],
-            $module['enabled'],
-            $module['configured'],
-            $blockers,
-        );
-
-        $module['features'] = $features;
-        $module['dependencies'] = [
-            'active' => $resolution['active'],
-            'inactive' => $resolution['inactive'],
-        ];
-        $module['dependencies_satisfied'] = $resolution['satisfied'];
-        $module['blockers'] = $blockers;
-        $module['ready'] = $ready;
-        $module['status'] = $this->status(
-            $module['built_in'],
-            $module['installed'],
-            $module['enabled'],
-            $ready,
-            $blockers,
-        );
-
-        return $module;
     }
 
     /** @param array{key:string,operator:'equals'|'not-empty',value?:bool|int|string|null} $predicate */
@@ -508,6 +471,14 @@ final readonly class ModuleStateResolver
             'dependencies' => ['active' => [], 'inactive' => []],
             'dependency_declarations' => $definition['dependencies'],
             'platform' => $definition['platform'],
+            'platform_status' => [
+                'ready' => true,
+                'required_extensions' => [],
+                'optional_extensions' => [],
+                'packages' => [],
+                'blockers' => [],
+                'feature_ready' => [],
+            ],
             'blockers' => $blockers,
             'warnings' => $warnings,
         ];
@@ -559,4 +530,100 @@ final readonly class ModuleStateResolver
             && $this->application->config()->has($key)
             && is_array($this->application->config()->get($key));
     }
+    /**
+     * @phpstan-param ModuleState $module
+     * @phpstan-param DependencyResolution $resolution
+     * @phpstan-return ModuleState
+     */
+    private function withDependencies(array $module, array $resolution): array
+    {
+        $features = $module['features'];
+        foreach ($features as $name => $feature) {
+            $satisfied = $resolution['feature_satisfied'][$name] ?? true;
+            $feature['dependencies_satisfied'] = $satisfied;
+            if ($feature['selected'] && !$satisfied) {
+                $feature['ready'] = false;
+            }
+            $features[$name] = $feature;
+        }
+
+        $blockers = array_values(array_unique([
+            ...$module['blockers'],
+            ...$resolution['blockers'],
+        ]));
+        $ready = $this->ready(
+            $module['built_in'],
+            $module['core_backed'],
+            $module['installed'],
+            $module['enabled'],
+            $module['configured'],
+            $blockers,
+        );
+
+        $module['features'] = $features;
+        $module['dependencies'] = [
+            'active' => $resolution['active'],
+            'inactive' => $resolution['inactive'],
+        ];
+        $module['dependencies_satisfied'] = $resolution['satisfied'];
+        $module['blockers'] = $blockers;
+        $module['ready'] = $ready;
+        $module['status'] = $this->status(
+            $module['built_in'],
+            $module['installed'],
+            $module['enabled'],
+            $ready,
+            $blockers,
+        );
+
+        return $module;
+    }
+
+    /**
+     * @phpstan-param ModuleState $module
+     * @phpstan-param PlatformResolution $resolution
+     * @phpstan-return ModuleState
+     */
+    private function withPlatform(array $module, array $resolution): array
+    {
+        $features = $module['features'];
+        foreach ($features as $name => $feature) {
+            $platformReady = $resolution['feature_ready'][$name] ?? true;
+            $feature['platform_ready'] = $platformReady;
+            if ($feature['selected'] && !$platformReady) {
+                $feature['ready'] = false;
+            }
+            $features[$name] = $feature;
+        }
+
+        $blockers = array_values(array_unique([
+            ...$module['blockers'],
+            ...$resolution['blockers'],
+        ]));
+        $ready = $this->ready(
+            $module['built_in'],
+            $module['core_backed'],
+            $module['installed'],
+            $module['enabled'],
+            $module['configured'],
+            $blockers,
+        );
+
+        $module['features'] = $features;
+        $module['platform_ready'] = $resolution['ready'];
+        $module['platform_status'] = $resolution;
+        $module['blockers'] = $blockers;
+        $module['ready'] = $ready;
+        $module['status'] = $this->status(
+            $module['built_in'],
+            $module['installed'],
+            $module['enabled'],
+            $ready,
+            $blockers,
+        );
+
+        return $module;
+    }
+
+
 }
