@@ -1,0 +1,16 @@
+{
+    "preset": "standard",
+    "reference": {
+        "exclude": [
+            "resources"
+        ]
+    },
+    "duplicates": {
+        "fail_on": "error",
+        "error_duplicate_percentage": 10,
+        "max_near_miss_comparisons": 250000
+    },
+    "commented_out_code": {
+        "policy": "strict"
+    }
+}
