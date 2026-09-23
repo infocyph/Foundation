@@ -7,6 +7,7 @@ namespace Infocyph\Foundation\Module;
 use Composer\InstalledVersions;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Config\Internal\ConfiguredCapabilities;
+use Infocyph\Foundation\Module\Internal\ModulePackageStateResolver;
 
 /**
  * @phpstan-import-type ModuleDefinition from ModuleCatalog
@@ -102,6 +103,7 @@ final readonly class ModuleStateResolver
     public function __construct(
         private Application $application,
         private ModuleCatalog $catalog,
+        private ModulePackageStateResolver $packageStates = new ModulePackageStateResolver(),
     ) {}
 
     /**
@@ -159,26 +161,6 @@ final readonly class ModuleStateResolver
             : true;
     }
 
-    private function combinedCompatibility(
-        ?bool $catalog,
-        ?bool $directConstraint,
-        ?bool $directVersion,
-        bool $direct,
-    ): ?bool
-    {
-        if (in_array(false, [$catalog, $directConstraint, $directVersion], true)) {
-            return false;
-        }
-        if ($catalog !== true) {
-            return null;
-        }
-        if (!$direct) {
-            return true;
-        }
-
-        return $directConstraint === true && $directVersion === true ? true : null;
-    }
-
     /**
      * @param array<string,mixed> $definition
      * @phpstan-param ModuleDefinition $definition
@@ -205,38 +187,6 @@ final readonly class ModuleStateResolver
         }
 
         return true;
-    }
-
-    /** @return array{lower:string,upper:string}|null */
-    private function constraintBounds(string $constraint): ?array
-    {
-        if (preg_match('/^\\^(\\d+)(?:\\.(\\d+))?(?:\\.(\\d+))?$/D', trim($constraint), $match) !== 1) {
-            return null;
-        }
-
-        $major = (int) $match[1];
-        $minor = isset($match[2]) ? (int) $match[2] : 0;
-        $patch = isset($match[3]) ? (int) $match[3] : 0;
-        $lower = sprintf('%d.%d.%d', $major, $minor, $patch);
-        $upper = match (true) {
-            $major > 0 => sprintf('%d.0.0', $major + 1),
-            $minor > 0 => sprintf('0.%d.0', $minor + 1),
-            default => sprintf('0.0.%d', $patch + 1),
-        };
-
-        return ['lower' => $lower, 'upper' => $upper];
-    }
-
-    private function constraintWithin(string $candidate, string $required): ?bool
-    {
-        $candidateBounds = $this->constraintBounds($candidate);
-        $requiredBounds = $this->constraintBounds($required);
-        if ($candidateBounds === null || $requiredBounds === null) {
-            return null;
-        }
-
-        return version_compare($candidateBounds['lower'], $requiredBounds['lower'], '>=')
-            && version_compare($candidateBounds['upper'], $requiredBounds['upper'], '<=');
     }
 
     private function enabled(
@@ -270,7 +220,7 @@ final readonly class ModuleStateResolver
         $states = [];
 
         foreach ($definition['features'] as $name => $feature) {
-            $packages = $this->resolvePackages(
+            $packages = $this->packageStates->resolve(
                 $this->catalog->featurePackages($definition, $name),
                 $ownership,
             );
@@ -396,105 +346,6 @@ final readonly class ModuleStateResolver
         return $integrations;
     }
 
-    /**
-     * @param PackageState $state
-     * @return list<string>
-     */
-    private function packageBlockers(string $package, array $state): array
-    {
-        if (!$state['available']) {
-            return [sprintf('Required package %s %s is not available.', $package, $state['constraint'])];
-        }
-        if ($state['catalog_compatible'] === false) {
-            return [sprintf(
-                'Installed package %s %s does not satisfy %s.',
-                $package,
-                $state['version'] ?? 'unknown',
-                $state['constraint'],
-            )];
-        }
-        if ($state['direct_constraint_compatible'] === false) {
-            return [sprintf(
-                'Direct Composer constraint %s for %s is outside the supported module range %s.',
-                $state['direct_constraint'],
-                $package,
-                $state['constraint'],
-            )];
-        }
-        if ($state['compatible'] === false) {
-            return [sprintf(
-                'Installed package %s %s does not satisfy the application constraint %s.',
-                $package,
-                $state['version'] ?? 'unknown',
-                $state['direct_constraint'] ?? 'unknown',
-            )];
-        }
-
-        return [];
-    }
-
-    /**
-     * @param array{known:bool,requirements:array<string,string>,error:?string} $ownership
-     * @return PackageState
-     */
-    private function packageState(string $package, string $constraint, array $ownership): array
-    {
-        $available = InstalledVersions::isInstalled($package);
-        $direct = $ownership['known'] && isset($ownership['requirements'][$package]);
-        $directConstraint = $direct ? $ownership['requirements'][$package] : null;
-        $version = $available ? InstalledVersions::getVersion($package) : null;
-        $catalogCompatible = $available ? $this->satisfiesConstraint($version, $constraint) : null;
-        $directConstraintCompatible = $directConstraint === null
-            ? null
-            : $this->constraintWithin($directConstraint, $constraint);
-        $directVersionCompatible = !$available || $directConstraint === null
-            ? null
-            : $this->satisfiesConstraint($version, $directConstraint);
-
-        return [
-            'constraint' => $constraint,
-            'installed' => $available,
-            'available' => $available,
-            'direct' => $direct,
-            'transitive' => $ownership['known'] && $available && !$direct,
-            'ownership_unknown' => !$ownership['known'],
-            'direct_constraint' => $directConstraint,
-            'catalog_compatible' => $catalogCompatible,
-            'direct_constraint_compatible' => $directConstraintCompatible,
-            'compatible' => $this->combinedCompatibility(
-                $catalogCompatible,
-                $directConstraintCompatible,
-                $directVersionCompatible,
-                $direct,
-            ),
-            'version' => $available ? InstalledVersions::getPrettyVersion($package) : null,
-        ];
-    }
-
-    /**
-     * @param PackageState $state
-     * @return list<string>
-     */
-    private function packageWarnings(string $package, array $state): array
-    {
-        if ($state['direct'] && $state['compatible'] === null) {
-            return [sprintf(
-                'Unable to fully evaluate direct Composer constraint %s for %s against %s.',
-                $state['direct_constraint'] ?? 'unknown',
-                $package,
-                $state['constraint'],
-            )];
-        }
-        if ($state['transitive']) {
-            return [sprintf(
-                'Package %s is available only transitively; require it directly to own this module.',
-                $package,
-            )];
-        }
-
-        return [];
-    }
-
     /** @param array{key:string,operator:'equals'|'not-empty',value?:bool|int|string|null} $predicate */
     private function predicateActive(array $predicate): bool
     {
@@ -529,57 +380,6 @@ final readonly class ModuleStateResolver
     }
 
     /**
-     * @param array<string,string> $requirements
-     * @param array{known:bool,requirements:array<string,string>,error:?string} $ownership
-     * @return PackageResolution
-     */
-    private function resolvePackages(array $requirements, array $ownership): array
-    {
-        /** @var array<string,PackageState> $packages */
-        $packages = [];
-        /** @var list<string> $blockers */
-        $blockers = [];
-        /** @var list<string> $warnings */
-        $warnings = [];
-
-        foreach ($requirements as $package => $constraint) {
-            $state = $this->packageState($package, $constraint, $ownership);
-            $packages[$package] = $state;
-            array_push($blockers, ...$this->packageBlockers($package, $state));
-            array_push($warnings, ...$this->packageWarnings($package, $state));
-        }
-
-        if ($packages !== [] && !$ownership['known']) {
-            $blockers[] = $ownership['error'] ?? 'Application Composer ownership is unknown.';
-        }
-
-        return [
-            'packages' => $packages,
-            'all_available' => !array_any($packages, static fn(array $state): bool => !$state['available']),
-            'all_direct' => $packages === []
-                || ($ownership['known'] && !array_any($packages, static fn(array $state): bool => !$state['direct'])),
-            'any_transitive' => array_any($packages, static fn(array $state): bool => $state['transitive']),
-            'blockers' => array_values(array_unique($blockers)),
-            'warnings' => array_values(array_unique($warnings)),
-        ];
-    }
-
-    private function satisfiesConstraint(?string $version, string $constraint): ?bool
-    {
-        if ($version === null) {
-            return null;
-        }
-
-        $bounds = $this->constraintBounds($constraint);
-        if ($bounds === null) {
-            return null;
-        }
-
-        return version_compare($version, $bounds['lower'], '>=')
-            && version_compare($version, $bounds['upper'], '<');
-    }
-
-    /**
      * @param array<string,mixed> $definition
      * @phpstan-param ModuleDefinition $definition
      * @param array{known:bool,requirements:array<string,string>,error:?string} $ownership
@@ -595,7 +395,7 @@ final readonly class ModuleStateResolver
     {
         $builtIn = ($definition['built_in'] ?? false) === true;
         $coreBacked = ($definition['core_backed'] ?? false) === true;
-        $packages = $this->resolvePackages($this->catalog->requiredPackages($definition), $ownership);
+        $packages = $this->packageStates->resolve($this->catalog->requiredPackages($definition), $ownership);
         $packageCount = count($packages['packages']);
         $installed = $this->installedByModule($builtIn, $coreBacked, $packageCount, $packages);
         $activationExplicit = $this->activationExplicit($name, $capabilities);
