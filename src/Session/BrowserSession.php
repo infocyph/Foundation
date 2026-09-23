@@ -266,7 +266,7 @@ final class BrowserSession
         $provider = ($this->locks)();
         if (!$provider instanceof LockProviderInterface) {
             throw new \LogicException(
-                'Session locking requires infocyph/cachelayer and a configured cache lock provider.',
+                'Session locking requires a configured Foundation cache lock provider.',
             );
         }
 

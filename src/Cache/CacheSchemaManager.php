@@ -16,7 +16,7 @@ final readonly class CacheSchemaManager
 {
     public function __construct(private Application $application) {}
 
-    public function install(?string $connection): void
+    public function install(?string $connection = null): void
     {
         foreach ($this->activeResources($connection, true) as $resource) {
             $pdo = $resource['pdo'];
@@ -141,21 +141,6 @@ final readonly class CacheSchemaManager
             : $this->dsnPdo($store);
     }
 
-    private function configured(): bool
-    {
-        $stores = ValueNormalizer::associativeArray($this->application->config()->get('cache.stores', []));
-        foreach ($this->activeStoreNames() as $name) {
-            $store = ValueNormalizer::associativeArray($stores[$name] ?? []);
-            $configuredDriver = $store['driver'] ?? null;
-            $driver = strtolower(is_string($configuredDriver) ? $configuredDriver : $name);
-            if (in_array($driver, ['pdo', 'sqlite'], true)) {
-                return true;
-            }
-        }
-
-        return $this->activeTransportNames() !== [];
-    }
-
     /** @return array{pdo:?PDO,detail:string,state:string} */
     private function databasePdo(?string $connection): array
     {
@@ -241,7 +226,6 @@ final readonly class CacheSchemaManager
 
         return $this->result(
             $resource['name'],
-            $module,
             true,
             $installed,
             $installed ? 'installed' : ($afterInstall ? 'missing' : 'pending'),

@@ -42,6 +42,7 @@ final class CacheSystemCommand extends SystemCommand
             sprintf('Forgot cache key "%s".', $key),
         );
     }
+
     private function schemaInstall(): int
     {
         $schemas = new CacheSchemaManager($this->application);
@@ -50,6 +51,9 @@ final class CacheSystemCommand extends SystemCommand
         return $this->schemaResponse($schemas->statuses($this->option('connection'), true));
     }
 
+    /**
+     * @param list<array{name:string,applicable:bool,installed:bool,state:string,detail:string}> $rows
+     */
     private function schemaResponse(array $rows): int
     {
         $failed = array_any($rows, static fn(array $row): bool => $row['applicable'] && !$row['installed']);
