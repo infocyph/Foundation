@@ -46,8 +46,7 @@ use Infocyph\Foundation\Config\Internal\ConfiguredCapabilities;
  *     schemas:list<string>,
  *     packages:array<string,PackageState>,
  *     blockers:list<string>,
- *     warnings:list<string>,
- *     package_present:bool
+ *     warnings:list<string>
  * }
  */
 final readonly class ModuleStateResolver
@@ -299,8 +298,7 @@ final readonly class ModuleStateResolver
             'schemas' => $definition['schemas'],
             'packages' => $packages,
             'blockers' => array_values(array_unique($blockers)),
-            'warnings' => array_values(array_unique($warnings)),
-            'package_present' => $anyAvailable,
+            'warnings' => array_values(array_unique($warnings))
         ];
     }
 
