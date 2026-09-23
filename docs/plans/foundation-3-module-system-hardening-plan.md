@@ -46,6 +46,19 @@ status JSON, install/remove planning, or module schema ownership.
 
 ---
 
+# 0. CacheLayer Core Integration — COMPLETE
+
+- [X] Promote `infocyph/cachelayer ^3.4` from `require-dev`/suggest to Foundation `require`.
+- [X] Remove `cache` and `cachelayer` from `ModuleCatalog`.
+- [X] Remove all cache install/remove/config-publication behavior from the module system.
+- [X] Move CacheLayer schema orchestration from `Module\Internal` to the core `Cache` subsystem.
+- [X] Add `cache:schema:status` and `cache:schema:install`.
+- [X] Remove optional-package guards/messages that tell applications to install a cache module.
+- [X] Keep runtime activation explicit through the `cache` capability.
+- [X] Make `config/cache.php` a default application-skeleton config.
+
+---
+
 # 1. Current Specialist Module Baseline
 
 | Module | Foundation install target | Current config publication | Current schema ownership |
@@ -1033,8 +1046,8 @@ Also out of scope:
 
 The module-system pass is complete only when:
 
-- [ ] package presence no longer equals module installation;
-- [ ] transitive package ownership is reported correctly;
+- [ ] later-library package presence no longer equals module installation;
+- [ ] transitive ownership for later-installed packages is reported correctly;
 - [ ] required/feature/optional package roles are modeled;
 - [ ] auth no longer installs OTP + WebAuthn unconditionally;
 - [ ] communication/notifications ownership is internally consistent;
