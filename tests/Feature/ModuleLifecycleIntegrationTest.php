@@ -524,6 +524,54 @@ it('reports and installs the database session schema through module commands', f
     }
 });
 
+it('keeps aggregate schema sync inside active capability topology while allowing targeted install', function (): void {
+    $basePath = moduleLifecycleBasePath('inactive-schema');
+    mkdir($basePath . '/database', 0775, true);
+    $databasePath = $basePath . '/database/messaging.sqlite';
+    $dispatcher = moduleLifecycleDispatcher($basePath, [
+        'app' => ['capabilities' => []],
+        'database' => [
+            'default' => 'main',
+            'connections' => [
+                'main' => [
+                    'driver' => 'sqlite',
+                    'database' => 'database/messaging.sqlite',
+                ],
+            ],
+        ],
+        'messaging' => [
+            'durable' => [
+                'enabled' => true,
+                'connection' => 'main',
+                'failure_store' => 'database',
+            ],
+            'consumer' => ['transport' => 'memory'],
+            'workers' => [],
+        ],
+    ]);
+
+    try {
+        $status = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:schema:status', 'messaging'], $status))
+            ->toBe(ExitCode::SUCCESS);
+        $payload = $status->lastPayload();
+        expect($payload['schemas'][0]['state'] ?? null)->toBe('not-applicable');
+
+        $sync = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:schema:sync'], $sync))
+            ->toBe(ExitCode::SUCCESS)
+            ->and(moduleLifecycleTableExists($databasePath, 'omnibus_messages'))->toBeFalse();
+
+        $install = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:schema:install', 'messaging'], $install))
+            ->toBe(ExitCode::SUCCESS)
+            ->and(moduleLifecycleTableExists($databasePath, 'omnibus_messages'))->toBeTrue();
+    } finally {
+        DB::purge();
+        moduleLifecycleRemoveDirectory($basePath);
+    }
+});
+
 it('reports and installs the Omnibus durable messaging schema through module commands', function (): void {
     $basePath = moduleLifecycleBasePath('messaging-schema');
     mkdir($basePath . '/database', 0775, true);
