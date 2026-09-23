@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Module;
 
-use Composer\InstalledVersions;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Config\ConfigCacheManager;
 use Infocyph\Foundation\Module\Internal\ModuleConfigPublisher;
@@ -20,64 +19,10 @@ final readonly class ModuleManager
         private ProcessRunner $processes,
     ) {}
 
-    /**
-     * @return list<array{
-     *     name:string,
-     *     description:string,
-     *     built_in:bool,
-     *     status:string,
-     *     installed:bool,
-     *     direct:bool,
-     *     schemas:list<string>,
-     *     packages:array<string,array{constraint:string,installed:bool,direct:bool,version:?string}>
-     * }>
-     */
+    /** @return list<array<string,mixed>> */
     public function all(): array
     {
-        $direct = $this->directRequirements();
-        $modules = [];
-
-        foreach ($this->catalog->all() as $name => $definition) {
-            $builtIn = ($definition['built_in'] ?? false) === true;
-            $packages = [];
-            $installedCount = 0;
-            $directCount = 0;
-
-            foreach ($definition['packages'] as $package => $constraint) {
-                $installed = InstalledVersions::isInstalled($package);
-                $isDirect = isset($direct[$package]);
-                $installedCount += $installed ? 1 : 0;
-                $directCount += $isDirect ? 1 : 0;
-                $packages[$package] = [
-                    'constraint' => $constraint,
-                    'installed' => $installed,
-                    'direct' => $isDirect,
-                    'version' => $installed ? InstalledVersions::getPrettyVersion($package) : null,
-                ];
-            }
-
-            $packageCount = count($packages);
-            $installed = $builtIn || ($packageCount > 0 && $installedCount === $packageCount);
-            $status = match (true) {
-                $builtIn => 'built-in',
-                $installed => 'installed',
-                $installedCount > 0 => 'partial',
-                default => 'available',
-            };
-
-            $modules[] = [
-                'name' => $name,
-                'description' => $definition['description'],
-                'built_in' => $builtIn,
-                'status' => $status,
-                'installed' => $installed,
-                'direct' => $builtIn || ($packageCount > 0 && $directCount === $packageCount),
-                'schemas' => $definition['schemas'],
-                'packages' => $packages,
-            ];
-        }
-
-        return $modules;
+        return new ModuleStateResolver($this->application, $this->catalog)->all();
     }
 
     public function install(string $module, bool $dryRun = false): ProcessResult
@@ -122,10 +67,17 @@ final readonly class ModuleManager
             throw new \InvalidArgumentException(sprintf('Module "%s" is built into Foundation.', $definition['name']));
         }
 
-        $direct = $this->directRequirements();
+        $ownership = new ModuleStateResolver($this->application, $this->catalog)->rootRequirements();
+        if (!$ownership['known']) {
+            throw new \RuntimeException(
+                'Unable to determine direct Composer ownership: '
+                . ($ownership['error'] ?? 'application composer.json is unavailable.'),
+            );
+        }
+
         $packages = array_values(array_filter(
             array_keys($definition['packages']),
-            static fn(string $package): bool => isset($direct[$package]),
+            static fn(string $package): bool => isset($ownership['requirements'][$package]),
         ));
         if ($packages === []) {
             return new ProcessResult(0);
@@ -140,33 +92,5 @@ final readonly class ModuleManager
             cwd: $this->application->basePath(),
             interactive: true,
         ));
-    }
-
-    /** @return array<string,string> */
-    private function directRequirements(): array
-    {
-        $path = $this->application->basePath('composer.json');
-        $contents = is_file($path) ? file_get_contents($path) : false;
-        if (!is_string($contents)) {
-            return [];
-        }
-
-        try {
-            $composer = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
-        } catch (\JsonException) {
-            return [];
-        }
-        if (!is_array($composer) || !is_array($composer['require'] ?? null)) {
-            return [];
-        }
-
-        $requirements = [];
-        foreach ($composer['require'] as $package => $constraint) {
-            if (is_string($package) && is_string($constraint)) {
-                $requirements[$package] = $constraint;
-            }
-        }
-
-        return $requirements;
     }
 }
