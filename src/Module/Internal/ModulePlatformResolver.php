@@ -111,21 +111,6 @@ final readonly class ModulePlatformResolver
     }
 
     /**
-     * @param list<string> $packages
-     * @return array<string,bool>
-     */
-    private function packageStates(array $packages): array
-    {
-        $states = [];
-        foreach (array_values(array_unique($packages)) as $package) {
-            $states[$package] = InstalledVersions::isInstalled($package);
-        }
-        ksort($states);
-
-        return $states;
-    }
-
-    /**
      * @param array<string,bool> $packages
      * @return list<string>
      */
@@ -139,6 +124,21 @@ final readonly class ModulePlatformResolver
         }
 
         return $blockers;
+    }
+
+    /**
+     * @param list<string> $packages
+     * @return array<string,bool>
+     */
+    private function packageStates(array $packages): array
+    {
+        $states = [];
+        foreach (array_values(array_unique($packages)) as $package) {
+            $states[$package] = InstalledVersions::isInstalled($package);
+        }
+        ksort($states);
+
+        return $states;
     }
 
     /**
