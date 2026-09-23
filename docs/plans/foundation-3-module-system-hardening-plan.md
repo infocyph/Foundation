@@ -117,7 +117,7 @@ Status legend:
 | **4** | Communication / notifications ownership | **PARTIAL** | Ownership/config/topology/package-isolation changes are implemented; exact-head PHPForge closure remains. |
 | **5** | Dependency engine | **PARTIAL** | Conditional module/core-capability evaluation, blockers, show output and module:plan are implemented; exact-head QA remains. |
 | **6** | Activation lifecycle | **PARTIAL** | Atomic module-owned activation overrides plus enable/disable runtime semantics are implemented; exact-head QA remains. |
-| **7** | Schema lifecycle | **NOT STARTED** | Capability-aware applicability, targeted installs and active-topology sync. |
+| **7** | Schema lifecycle | **PARTIAL** | Capability-aware aggregate sync and explicit targeted schema installation are implemented; exact-head QA remains. |
 | **8** | Install/remove/repair hardening | **NOT STARTED** | Composer policy, shared ownership, safe removal and repair/resume. |
 | **9** | Platform readiness | **NOT STARTED** | Selected-feature extension/adapter readiness and doctor output. |
 | **10** | Documentation and release acceptance | **NOT STARTED** | Migration/docs/JSON contract/final QA and release gate. |
@@ -714,25 +714,27 @@ for disabled capabilities.
 
 ## Work
 
-- [ ] Schema applicability must require:
+- [x] Schema applicability must require:
   1. owning capability enabled, or explicit schema-management override;
   2. feature/config condition active;
   3. required dependency available;
   4. database connection available where applicable.
-- [ ] `module:schema:status` must still be observational and able to explain non-applicability.
-- [ ] `module:schema:install` may explicitly manage an inactive module only when the user
+- [x] `module:schema:status` must still be observational and able to explain non-applicability.
+- [x] `module:schema:install` may explicitly manage an inactive module only when the user
   deliberately targets it; document this behavior.
-- [ ] `module:schema:sync` must follow the active application topology only.
-- [ ] Normal `module:install <module>` must not trigger an unrelated aggregate schema sync.
+- [x] `module:schema:sync` must follow the active application topology only.
+- [x] Normal `module:install <module>` must not trigger an unrelated aggregate schema sync.
   Provision only the targeted module and explicitly planned dependencies/features; keep
   `module:schema:sync` as the deliberate aggregate operation.
-- [ ] Keep schema ownership with the current owning component/library.
-- [ ] Preserve no-drop/no-data-destruction guarantees.
+- [x] Keep schema ownership with the current owning component/library.
+- [x] Preserve no-drop/no-data-destruction guarantees.
 
 ## Acceptance
 
 Stale config from a disabled module does not cause aggregate schema sync to create infrastructure
 the runtime does not use.
+
+**Batch 7 implementation status:** COMPLETE. Tracker remains **PARTIAL** until exact-head QA.
 
 ---
 
