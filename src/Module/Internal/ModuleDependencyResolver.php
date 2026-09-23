@@ -149,8 +149,7 @@ final readonly class ModuleDependencyResolver
             return false;
         }
 
-        return ($state['installed'] ?? false) === true
-            && ($state['enabled'] ?? false) === true;
+        return $state['installed'] && $state['enabled'];
     }
 
     /**
