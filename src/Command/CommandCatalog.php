@@ -21,6 +21,7 @@ final class CommandCatalog
     public function all(): array
     {
         $connectionOption = static fn(CommandDefinition $command): CommandDefinition => $command
+            ->scope()
             ->option('connection', 'Configured database connection name.', acceptsValue: true);
         $connection = static fn(CommandDefinition $command): CommandDefinition => $connectionOption($command)
             ->capability('db');
@@ -219,7 +220,7 @@ final class CommandCatalog
                 ['messaging'],
             )->argument('name', 'Scheduled message name.', required: true),
 
-            $connection(
+            $connectionOption(
                 new CommandDefinition(
                     'module:install',
                     'Install a Foundation module, publish config, and provision applicable schemas.',

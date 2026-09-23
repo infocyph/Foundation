@@ -41,7 +41,7 @@ it('keeps core application installation independent of optional Epicrypt', funct
 it('keeps module inspection and schema commands observational without forcing database capability', function (): void {
     $commands = new CommandCatalog()->all();
 
-    foreach (['module:show', 'module:schema:install', 'module:schema:status', 'module:schema:sync'] as $name) {
+    foreach (['module:install', 'module:show', 'module:schema:install', 'module:schema:status', 'module:schema:sync'] as $name) {
         expect($commands[$name]->capabilities())->not->toContain('db');
     }
 });

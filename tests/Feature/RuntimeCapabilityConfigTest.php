@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Config\ConfigValidator;
 use Infocyph\Foundation\Diagnostics\ReadinessReport;
 use Infocyph\Foundation\Foundation;
@@ -109,7 +110,6 @@ it('accepts the default configuration for new runtime capabilities', function ()
         ->and($readiness['checks']['runtime']['detail'])->toBe('cli');
 });
 
-
 it('does not apply inactive optional auth production policy to an explicit lean topology', function (): void {
     $application = Foundation::cli([
         'app' => [
@@ -138,7 +138,7 @@ it('does not apply inactive optional auth production policy to an explicit lean 
 });
 
 it('preserves strict auth production policy when auth is explicitly selected', function (): void {
-    $application = Foundation::cli([
+    $config = new ConfigRepository([
         'app' => [
             'env' => 'production',
             'capabilities' => ['auth'],
@@ -146,7 +146,7 @@ it('preserves strict auth production policy when auth is explicitly selected', f
     ]);
 
     $keys = array_column(
-        new ConfigValidator($application->config())->validateForProduction()->toArray()['issues'],
+        new ConfigValidator($config)->validateForProduction()->toArray()['issues'],
         'key',
     );
 

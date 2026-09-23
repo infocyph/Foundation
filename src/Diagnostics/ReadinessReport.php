@@ -47,8 +47,7 @@ final readonly class ReadinessReport
     /**
      * @param array<string,array{ready:bool,detail:string}> $checks
      */
-    private function appendSchemaChecks(array &$checks, ConfiguredCapabilities $capabilities): void
-    {
+    private function appendSchemaChecks(array &$checks, ConfiguredCapabilities $capabilities): void {
         $schemas = new ModuleSchemaManager($this->application, new ModuleCatalog());
 
         foreach (['auth', 'cache', 'session'] as $module) {
@@ -65,60 +64,6 @@ final readonly class ReadinessReport
                 ];
             }
         }
-    }
-
-    /** @return array<string,array{ready:bool,detail:string}> */
-    private function baseChecks(): array
-    {
-        return [
-            'php' => [
-                'ready' => version_compare(PHP_VERSION, '8.4.0', '>='),
-                'detail' => PHP_VERSION,
-            ],
-            'base_path' => [
-                'ready' => is_dir($this->application->basePath()) && is_readable($this->application->basePath()),
-                'detail' => $this->application->basePath(),
-            ],
-            'storage' => [
-                'ready' => is_dir($this->application->storagePath()) && is_writable($this->application->storagePath()),
-                'detail' => $this->application->storagePath(),
-            ],
-            'runtime' => [
-                'ready' => true,
-                'detail' => $this->application->runtimeMode()->value,
-            ],
-        ];
-    }
-
-    /** @return array{ready:bool,detail:string} */
-    private function configurationReadiness(): array
-    {
-        $config = $this->application->config();
-        $messages = [
-            ...new ConfigValidator($config)->validateForProduction()->messages(),
-            ...array_map(
-                static fn($issue): string => $issue->message,
-                new ProductionSecurityValidator($config)->validate(),
-            ),
-        ];
-
-        $capabilities = new ConfiguredCapabilities($config);
-        if ($capabilities->enabled('auth') && $config->get('auth.drivers.mfa', 'simple') === 'otp') {
-            $messages = [
-                ...$messages,
-                ...array_map(
-                    static fn($issue): string => $issue->message,
-                    new OtpConfigValidator($config)->validate(true),
-                ),
-            ];
-        }
-
-        return [
-            'ready' => $messages === [],
-            'detail' => $messages === []
-                ? 'valid for production'
-                : implode('; ', array_values(array_unique($messages))),
-        ];
     }
 
     /** @param array<string,array{package:string,constraint:string}> $required */
@@ -162,6 +107,58 @@ final readonly class ReadinessReport
             $this->selectPackage($required, $catalog, 'database');
             $this->selectPackage($required, $catalog, 'security');
         }
+    }
+
+    /** @return array<string,array{ready:bool,detail:string}> */
+    private function baseChecks(): array {
+        return [
+            'php' => [
+                'ready' => version_compare(PHP_VERSION, '8.4.0', '>='),
+                'detail' => PHP_VERSION,
+            ],
+            'base_path' => [
+                'ready' => is_dir($this->application->basePath()) && is_readable($this->application->basePath()),
+                'detail' => $this->application->basePath(),
+            ],
+            'storage' => [
+                'ready' => is_dir($this->application->storagePath()) && is_writable($this->application->storagePath()),
+                'detail' => $this->application->storagePath(),
+            ],
+            'runtime' => [
+                'ready' => true,
+                'detail' => $this->application->runtimeMode()->value,
+            ],
+        ];
+    }
+
+    /** @return array{ready:bool,detail:string} */
+    private function configurationReadiness(): array {
+        $config = $this->application->config();
+        $messages = [
+            ...new ConfigValidator($config)->validateForProduction()->messages(),
+            ...array_map(
+                static fn($issue): string => $issue->message,
+                new ProductionSecurityValidator($config)->validate(),
+            ),
+        ];
+
+        $capabilities = new ConfiguredCapabilities($config);
+        if ($capabilities->enabled('auth') && $config->get('auth.drivers.mfa', 'simple') === 'otp') {
+            $messages = [
+                ...$messages,
+                ...array_map(
+                    static fn($issue): string => $issue->message,
+                    new OtpConfigValidator($config)->validate(true),
+                ),
+            ];
+        }
+
+        return [
+            'ready' => $messages === [],
+            'detail' => $messages === []
+                ? 'valid for production'
+                : implode('; ', array_values(array_unique($messages))),
+        ];
     }
 
     /** @param array<string,array{package:string,constraint:string}> $required */
