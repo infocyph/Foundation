@@ -42,9 +42,9 @@ exportable. Use scalar/array/class-string descriptors for release-owned surfaces
 
 Every publishable specialist key is documented inline in its Foundation template:
 
-| Configuration | Template | Canonical module |
+| Configuration | Template | Owner |
 | --- | --- | --- |
-| CacheLayer stores/counters/locks/clusters | `resources/config/cache.php` | `cache` |
+| CacheLayer stores/counters/locks/clusters | `resources/config/cache.php` | Foundation core cache infrastructure |
 | HTTP/webhook/gRPC profiles | `resources/config/communication.php` | `communication` |
 | DBLayer connections/migrations/seeders | `resources/config/database.php` | `database` |
 | Pathwise disks/upload/download policy | `resources/config/filesystem.php` | `filesystem` |
