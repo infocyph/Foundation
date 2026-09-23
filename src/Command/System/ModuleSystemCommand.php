@@ -69,7 +69,6 @@ final class ModuleSystemCommand extends SystemCommand
     {
         $requested = $this->module();
         $definition = $this->catalog()->resolve($requested, $this->values('feature'));
-        $module = $definition['name'];
         $features = $definition['requested_features'];
         if (($definition['core_backed'] ?? false) === true && $features === []) {
             return $this->installCoreNoop($definition, $requested);
@@ -77,11 +76,26 @@ final class ModuleSystemCommand extends SystemCommand
 
         $manager = $this->manager();
         $dryRun = $this->flag('dry-run');
-        $result = $manager->install($module, $features, $dryRun);
+        $result = $manager->install($definition['name'], $features, $dryRun);
         if (!$result->successful()) {
             return $result->exitCode;
         }
 
+        return $this->completeInstall($definition, $requested, $dryRun, $manager);
+    }
+
+    /**
+     * @param array<string,mixed> $definition
+     * @phpstan-param ResolvedModule $definition
+     */
+    private function completeInstall(
+        array $definition,
+        string $requested,
+        bool $dryRun,
+        ModuleManager $manager,
+    ): int {
+        $module = $definition['name'];
+        $features = $definition['requested_features'];
         $published = $dryRun
             ? ['published' => [], 'existing' => []]
             : $manager->publishConfig($module);
@@ -103,20 +117,22 @@ final class ModuleSystemCommand extends SystemCommand
                 'owned_schemas' => $definition['schemas'],
                 'schemas' => $schemas,
             ]);
-        } else {
-            $label = $features === []
-                ? sprintf('Module "%s"', $module)
-                : sprintf('Module "%s" feature(s) %s', $module, implode(', ', $features));
-            $this->io()->success($label . ' installed.');
 
-            foreach ($published['published'] as $path) {
-                $this->io()->info('Published ' . $path);
-            }
-            if ($schemas === [] && $definition['schemas'] !== []) {
-                $this->io()->info('No module database schema is required by the current configuration.');
-            } else {
-                $this->renderSchemas($schemas);
-            }
+            return $schemaExit;
+        }
+
+        $label = $features === []
+            ? sprintf('Module "%s"', $module)
+            : sprintf('Module "%s" feature(s) %s', $module, implode(', ', $features));
+        $this->io()->success($label . ' installed.');
+
+        foreach ($published['published'] as $path) {
+            $this->io()->info('Published ' . $path);
+        }
+        if ($schemas === [] && $definition['schemas'] !== []) {
+            $this->io()->info('No module database schema is required by the current configuration.');
+        } else {
+            $this->renderSchemas($schemas);
         }
 
         return $schemaExit;
