@@ -189,7 +189,7 @@ PHP);
         );
 
         expect($commands)->toBe([
-            ['require', 'infocyph/dblayer:^5.0', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
+            ['require', 'infocyph/dblayer:^5.1', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
             ['remove', 'infocyph/dblayer', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
             ['require', 'infocyph/omnibus:^2.6', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
         ]);

@@ -18,16 +18,16 @@ uses the purpose name.
 
 | Module | Backing packages |
 | --- | --- |
-| `auth` | `infocyph/otp ^6.0`, `web-auth/webauthn-lib ^5.3.5` |
-| `cache` | `infocyph/cachelayer ^3.2.0` |
+| `auth` | `infocyph/otp ^6.1`, `web-auth/webauthn-lib ^5.3.5` |
+| `cache` | `infocyph/cachelayer ^3.4` |
 | `communication` | `infocyph/talkingbytes ^2.1` |
-| `database` | `infocyph/dblayer ^5.0` |
-| `filesystem` | `infocyph/pathwise ^3.1` |
+| `database` | `infocyph/dblayer ^5.1` |
+| `filesystem` | `infocyph/pathwise ^4.1` |
 | `logging` | built into Foundation |
 | `messaging` | `infocyph/omnibus ^2.6` |
 | `operations` | built into Foundation |
 | `resources` | built into Foundation |
-| `security` | `infocyph/epicrypt ^2.1` |
+| `security` | `infocyph/epicrypt ^3.1` |
 | `session` | built into Foundation |
 | `validation` | `infocyph/reqshield ^3.2` |
 

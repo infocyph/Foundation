@@ -123,7 +123,7 @@ it('exposes canonical module list and alias-aware module details through the com
             ? array_find($modules, static fn(mixed $module): bool => is_array($module) && ($module['name'] ?? null) === 'database')
             : null;
         expect($database)->toBeArray()
-            ->and($database['packages']['infocyph/dblayer']['constraint'] ?? null)->toBe('^5.0');
+            ->and($database['packages']['infocyph/dblayer']['constraint'] ?? null)->toBe('^5.1');
 
         $show = new FoundationModuleLifecycleIO();
         expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:show', 'db'], $show))->toBe(ExitCode::SUCCESS);
@@ -131,7 +131,7 @@ it('exposes canonical module list and alias-aware module details through the com
         expect($details)->toBeArray()
             ->and($details['name'] ?? null)->toBe('database')
             ->and($details['requested'] ?? null)->toBe('db')
-            ->and($details['packages']['infocyph/dblayer']['constraint'] ?? null)->toBe('^5.0')
+            ->and($details['packages']['infocyph/dblayer']['constraint'] ?? null)->toBe('^5.1')
             ->and($details['schema_status'] ?? null)->toBe([]);
     } finally {
         DB::purge();
@@ -167,7 +167,7 @@ it('runs module install and direct-package removal dry-runs and refuses built-in
             ->toBe(ExitCode::SUCCESS);
 
         expect(moduleLifecycleCommands($commandLog))->toBe([
-            ['require', 'infocyph/dblayer:^5.0', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
+            ['require', 'infocyph/dblayer:^5.1', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
             ['remove', 'infocyph/dblayer', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
         ]);
     } finally {
