@@ -307,7 +307,10 @@ final readonly class ModuleStateResolver
     {
         foreach ($definition['config'] as $filename) {
             $key = pathinfo($filename, PATHINFO_FILENAME);
-            if ($key === '' || !$this->application->config()->has($key)) {
+            if ($key === ''
+                || !$this->application->config()->has($key)
+                || !is_array($this->application->config()->get($key))
+            ) {
                 return false;
             }
         }
