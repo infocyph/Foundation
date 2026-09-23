@@ -232,6 +232,11 @@ final class CommandCatalog
                 ['messaging'],
             )->argument('name', 'Scheduled message name.', required: true),
 
+            $connectionOption(
+                new CommandDefinition('module:doctor', 'Inspect module readiness, dependencies, platform and schema blockers.', 'Modules')
+                    ->argument('module', 'Module name.', required: true)
+                    ->option('feature', 'Feature context to inspect. Repeat for multiple features.', acceptsValue: true, multiple: true),
+            ),
             new CommandDefinition('module:disable', 'Disable a specialist module without removing packages or data.', 'Modules')
                 ->argument('module', 'Module name.', required: true),
             new CommandDefinition('module:enable', 'Enable an installed specialist module after dependency validation.', 'Modules')
