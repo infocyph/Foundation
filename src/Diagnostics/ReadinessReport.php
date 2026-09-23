@@ -61,7 +61,6 @@ final readonly class ReadinessReport
         }
     }
 
-    /** @param array<string,array{package:string,constraint:string}> $required */
     /**
      * @param array<string,array{ready:bool,detail:string}> $checks
      */
@@ -99,6 +98,7 @@ final readonly class ReadinessReport
         }
     }
 
+    /** @param array<string,array{package:string,constraint:string}> $required */
     private function applicationPackages(array &$required, ModuleCatalog $catalog): void
     {
         if ($this->messagingConfigured()) {
