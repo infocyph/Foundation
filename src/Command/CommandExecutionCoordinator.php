@@ -208,6 +208,7 @@ final class CommandExecutionCoordinator
         if ($this->locks !== null) {
             return $this->locks;
         }
+
         return $this->locks = $this->application->make(CacheLayerFactory::class)->lock();
     }
 

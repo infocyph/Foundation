@@ -531,6 +531,7 @@ final readonly class ModuleStateResolver
             && $this->application->config()->has($key)
             && is_array($this->application->config()->get($key));
     }
+
     /**
      * @phpstan-param ModuleState $module
      * @phpstan-param DependencyResolution $resolution
@@ -624,7 +625,5 @@ final readonly class ModuleStateResolver
         );
 
         return $module;
-    }
-
-
+       }
 }

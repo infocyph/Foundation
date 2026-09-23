@@ -458,56 +458,6 @@ final class ModuleSystemCommand extends SystemCommand
         return $result->exitCode;
     }
 
-    private function repair(): int
-    {
-        $requested = $this->module();
-        $definition = $this->catalog()->resolve($requested, $this->values('feature'));
-        $module = $definition['name'];
-        $state = $this->moduleState($module);
-        $features = $definition['requested_features'];
-        $needsComposer = !$state['installed']
-            || array_any(
-                $features,
-                static fn(string $feature): bool => !($state['features'][$feature]['installed'] ?? false),
-            );
-
-        $composer = 'skipped';
-        if ($needsComposer) {
-            $result = $this->manager()->install($module, $features);
-            if (!$result->successful()) {
-                return $result->exitCode;
-            }
-            $composer = 'completed';
-        }
-
-        $published = $this->manager()->publishConfig($module);
-        $this->invalidateCompiledRuntime();
-        [$schemaExit, $schemas] = $this->freshSchemas($module, true);
-
-        $payload = [
-            'module' => $module,
-            'requested' => $requested,
-            'features' => $features,
-            'phases' => [
-                'composer' => $composer,
-                'config' => 'completed',
-                'runtime_invalidation' => 'completed',
-                'schemas' => $schemaExit === ExitCode::SUCCESS ? 'completed' : 'failed',
-            ],
-            ...$published,
-            'schemas' => $schemas,
-        ];
-
-        if ($this->io()->machineReadable()) {
-            $this->io()->json($payload);
-        } else {
-            $this->io()->success(sprintf('Module "%s" repair completed.', $module));
-            $this->renderSchemas($schemas);
-        }
-
-        return $schemaExit;
-    }
-
     /**
      * @phpstan-param list<DependencyState> $dependencies
      */
@@ -674,6 +624,56 @@ final class ModuleSystemCommand extends SystemCommand
 
         $this->io()->writeln();
         $this->renderSchemas($schemas);
+    }
+
+    private function repair(): int
+    {
+        $requested = $this->module();
+        $definition = $this->catalog()->resolve($requested, $this->values('feature'));
+        $module = $definition['name'];
+        $state = $this->moduleState($module);
+        $features = $definition['requested_features'];
+        $needsComposer = !$state['installed']
+            || array_any(
+                $features,
+                static fn(string $feature): bool => !($state['features'][$feature]['installed'] ?? false),
+            );
+
+        $composer = 'skipped';
+        if ($needsComposer) {
+            $result = $this->manager()->install($module, $features);
+            if (!$result->successful()) {
+                return $result->exitCode;
+            }
+            $composer = 'completed';
+        }
+
+        $published = $this->manager()->publishConfig($module);
+        $this->invalidateCompiledRuntime();
+        [$schemaExit, $schemas] = $this->freshSchemas($module, true);
+
+        $payload = [
+            'module' => $module,
+            'requested' => $requested,
+            'features' => $features,
+            'phases' => [
+                'composer' => $composer,
+                'config' => 'completed',
+                'runtime_invalidation' => 'completed',
+                'schemas' => $schemaExit === ExitCode::SUCCESS ? 'completed' : 'failed',
+            ],
+            ...$published,
+            'schemas' => $schemas,
+        ];
+
+        if ($this->io()->machineReadable()) {
+            $this->io()->json($payload);
+        } else {
+            $this->io()->success(sprintf('Module "%s" repair completed.', $module));
+            $this->renderSchemas($schemas);
+        }
+
+        return $schemaExit;
     }
 
     private function schemaInstall(): int

@@ -24,21 +24,3 @@ jobs:
       benchmark_composer_script: "benchmark:release"
       benchmark_result_file: "build/cachelayer-33-utilization.json"
 
-
-  pint-diff:
-    name: "Pint exact diff"
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v7
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: "8.5"
-          tools: composer:v2
-          coverage: none
-      - run: composer install --no-interaction --prefer-dist --no-progress
-      - name: Print exact Pint changes
-        run: |
-          vendor/bin/pint --config=vendor/infocyph/phpforge/resources/pint.json
-          git diff --             src/Command/CommandExecutionCoordinator.php             src/Command/System/ModuleSystemCommand.php             src/Module/ModuleManager.php             src/Module/ModuleStateResolver.php
