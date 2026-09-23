@@ -76,8 +76,7 @@ final readonly class ModuleStateResolver
     public function __construct(
         private Application $application,
         private ModuleCatalog $catalog,
-    )
-    {}
+    ) {}
 
     /**
      * @return array<int,array<string,mixed>>
