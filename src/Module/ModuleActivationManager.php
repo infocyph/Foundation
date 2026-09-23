@@ -141,7 +141,7 @@ final readonly class ModuleActivationManager
             }
         } finally {
             if (is_file($temporary)) {
-                @unlink($temporary);
+                unlink($temporary);
             }
         }
 
