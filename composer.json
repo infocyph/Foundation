@@ -4,13 +4,13 @@
     "license": "MIT",
     "type": "library",
     "require": {
+        "php": "^8.4",
         "composer-runtime-api": "^2.0",
         "infocyph/arraykit": "^5.2",
         "infocyph/cachelayer": "^3.4",
         "infocyph/intermix": "^10.0.4",
         "infocyph/uid": "^5.0",
         "infocyph/webrick": "^5.3",
-        "php": "^8.4",
         "psr/log": "^3.0.2"
     },
     "require-dev": {
