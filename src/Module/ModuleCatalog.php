@@ -513,7 +513,6 @@ final class ModuleCatalog
     }
 
     /**
-     * @param array<string,mixed> $definition
      * @phpstan-param ModuleDefinition $definition
      * @return array<string,string>
      */
@@ -543,7 +542,6 @@ final class ModuleCatalog
     }
 
     /**
-     * @param array<string,mixed> $definition
      * @phpstan-param ModuleDefinition $definition
      * @param list<string> $features
      * @return array<string,string>
@@ -560,7 +558,6 @@ final class ModuleCatalog
     }
 
     /**
-     * @param array<string,mixed> $definition
      * @phpstan-param ModuleDefinition $definition
      * @return array<string,string>
      */
@@ -576,7 +573,6 @@ final class ModuleCatalog
     }
 
     /**
-     * @param array<string,mixed> $definition
      * @phpstan-param ModuleDefinition $definition
      * @return array<string,string>
      */
@@ -596,7 +592,7 @@ final class ModuleCatalog
 
     /**
      * @param list<string> $features
-     * @return ResolvedModule
+     * @phpstan-return ResolvedModule
      */
     public function resolve(string $module, array $features = []): array
     {
@@ -635,7 +631,6 @@ final class ModuleCatalog
     }
 
     /**
-     * @param array<string,mixed> $definition
      * @phpstan-param ModuleDefinition $definition
      * @param list<string> $features
      * @return list<string>
@@ -671,7 +666,6 @@ final class ModuleCatalog
     }
 
     /**
-     * @param array<string,mixed> $definition
      * @phpstan-param ModuleDefinition $definition
      * @param list<string> $requestedFeatures
      */
