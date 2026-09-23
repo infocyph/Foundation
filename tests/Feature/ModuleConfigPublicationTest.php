@@ -18,7 +18,7 @@ it('publishes module config without replacing application-owned files', function
         $result = $manager->publishConfig('communication');
 
         expect($result['published'])->toBe([$basePath . '/config/communication.php'])
-            ->and($result['existing'])->toBe([$basePath . '/config/notifications.php'])
+            ->and($result['existing'])->toBe([])
             ->and($basePath . '/config/communication.php')->toBeFile()
             ->and(file_get_contents($basePath . '/config/notifications.php'))
             ->toBe("<?php\n\nreturn ['owned' => true];\n");
@@ -114,9 +114,10 @@ it('force-publishes atomically and removes Foundation-owned backups after commit
     }
 });
 
-it('rolls back already-published config when a later target cannot be committed', function (): void {
+it('keeps native notifications config outside communication publication failures', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-module-rollback-' . bin2hex(random_bytes(5));
-    mkdir($basePath . '/config/notifications.php', 0775, true);
+    mkdir($basePath . '/config/communication.php', 0775, true);
+    file_put_contents($basePath . '/config/notifications.php', "<?php\nreturn ['native' => true];\n");
 
     try {
         $application = Foundation::cli(['base_path' => $basePath, '_config_cache' => false]);
@@ -125,13 +126,14 @@ it('rolls back already-published config when a later target cannot be committed'
 
         try {
             expect(fn() => $manager->publishConfig('communication', true))
-                ->toThrow(RuntimeException::class, 'Unable to publish config template "notifications.php".');
+                ->toThrow(RuntimeException::class, 'Unable to publish config template "communication.php".');
         } finally {
             restore_error_handler();
         }
 
-        expect($basePath . '/config/communication.php')->not->toBeFile()
-            ->and($basePath . '/config/notifications.php')->toBeDirectory()
+        expect($basePath . '/config/communication.php')->toBeDirectory()
+            ->and(file_get_contents($basePath . '/config/notifications.php'))
+            ->toBe("<?php\nreturn ['native' => true];\n")
             ->and(glob($basePath . '/config/.foundation-config-*') ?: [])->toBe([])
             ->and(glob($basePath . '/config/*.foundation-*.bak') ?: [])->toBe([]);
     } finally {
