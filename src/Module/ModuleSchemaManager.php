@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Module;
 
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Config\Internal\ConfiguredCapabilities;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchemaInstaller;
 use Infocyph\Foundation\Messaging\MessagingDatabaseSchema;
 use Infocyph\Foundation\Session\SessionDatabaseSchema;
@@ -82,7 +83,8 @@ final readonly class ModuleSchemaManager
 
     private function authApplicable(): bool
     {
-        return $this->application->config()->get('auth.drivers.storage', 'memory') === 'database';
+        return new ConfiguredCapabilities($this->application->config())->enabled('auth')
+            && $this->application->config()->get('auth.drivers.storage', 'memory') === 'database';
     }
 
     /**
@@ -132,7 +134,8 @@ final readonly class ModuleSchemaManager
 
     private function messagingApplicable(): bool
     {
-        return (bool) $this->application->config()->get('messaging.durable.enabled', false);
+        return new ConfiguredCapabilities($this->application->config())->enabled('messaging')
+            && (bool) $this->application->config()->get('messaging.durable.enabled', false);
     }
 
     /**
@@ -230,7 +233,8 @@ final readonly class ModuleSchemaManager
 
     private function sessionApplicable(): bool
     {
-        return $this->application->config()->get('session.driver', 'file') === 'database';
+        return new ConfiguredCapabilities($this->application->config())->enabled('session')
+            && $this->application->config()->get('session.driver', 'file') === 'database';
     }
 
     /**
