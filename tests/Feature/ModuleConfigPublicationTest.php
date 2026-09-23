@@ -178,7 +178,11 @@ PHP);
     putenv('FOUNDATION_MODULE_COMMAND_LOG=' . $commandLog);
 
     try {
-        $application = Foundation::cli(['base_path' => $basePath, '_config_cache' => false]);
+        $application = Foundation::cli([
+            'base_path' => $basePath,
+            '_config_cache' => false,
+            'app' => ['capabilities' => []],
+        ]);
         $manager = new ModuleManager($application, new ModuleCatalog(), new ProcessRunner());
 
         expect($manager->install('db', [], true)->successful())->toBeTrue()
@@ -191,9 +195,9 @@ PHP);
         );
 
         expect($commands)->toBe([
-            ['require', 'infocyph/dblayer:^5.1', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
-            ['remove', 'infocyph/dblayer', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
-            ['require', 'infocyph/omnibus:^2.6', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
+            ['require', 'infocyph/dblayer:^5.1', '--with-all-dependencies', '--no-interaction', '--dry-run'],
+            ['remove', 'infocyph/dblayer', '--with-all-dependencies', '--no-interaction', '--dry-run'],
+            ['require', 'infocyph/omnibus:^2.6', '--with-all-dependencies', '--no-interaction', '--dry-run'],
         ]);
     } finally {
         is_string($originalPath) ? putenv('PATH=' . $originalPath) : putenv('PATH');
