@@ -163,7 +163,6 @@ final class ModuleSystemCommand extends SystemCommand
         return $this->argument(0) ?? throw new \LogicException('Validated module argument is unavailable.');
     }
 
-    /** @param array<string,PackageState> $packages */
     /**
      * @return array<string,mixed>
      * @phpstan-return ModuleState
@@ -206,7 +205,7 @@ final class ModuleSystemCommand extends SystemCommand
         );
     }
 
-    /** @param list<array{file:string,path:string,published:bool}> $config */
+    /** @param array<string,PackageState> $packages */
     private function packageSummary(array $packages): string
     {
         if ($packages === []) {
@@ -358,6 +357,7 @@ final class ModuleSystemCommand extends SystemCommand
         $this->renderShowSchemas($schemas);
     }
 
+    /** @param list<array{file:string,path:string,published:bool}> $config */
     private function renderShowConfig(array $config): void
     {
         if ($config === []) {
