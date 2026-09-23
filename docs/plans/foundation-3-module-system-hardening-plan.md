@@ -1,18 +1,21 @@
-# Foundation 3 — Library-Backed Module System Hardening Plan
+# Foundation 3 — Specialist Module System Hardening Plan
 
 ## Status
 
 **Branch:** `foundation-3/close-26.6`  
 **Target:** Foundation 3 module-system hardening before release  
 **Plan state:** PLANNED  
-**Scope:** library-backed modules only
+**Scope:** later-required specialist modules only
 
-This plan intentionally excludes Foundation's built-in-only modules for now.
+Foundation core/built-in capabilities are outside this module-system pass.
 
-The module-system pass covers:
+CacheLayer is promoted to a direct Foundation runtime dependency and `cache` is removed from
+the public module system entirely. Cache remains a core Foundation capability/configuration
+domain, but it is not installable/removable/listed as a module.
+
+The module-system pass covers exactly seven specialist modules:
 
 - `auth`
-- `cache`
 - `communication`
 - `database`
 - `filesystem`
@@ -24,14 +27,30 @@ The objective is to make module installation, package ownership, capability acti
 feature selection, dependency explanation, readiness, removal and schema lifecycle
 match Foundation 3's final explicit-capability runtime model.
 
+## Core Cache Boundary
+
+The module redesign must treat CacheLayer as Foundation infrastructure, not as a module:
+
+- Foundation directly requires `infocyph/cachelayer ^3.4`;
+- `cache` is removed from `ModuleCatalog`;
+- `cachelayer` is removed as a module alias;
+- `module:list/show/install/remove cache` are no longer module operations;
+- `cache.php` is a default application config file in InfByte;
+- `CacheServiceProvider` remains controlled by Foundation's cache capability/topology;
+- cache schemas/adapters are core cache-capability infrastructure, not module-owned lifecycle;
+- specialist modules may depend conditionally on the core cache capability, but never on a
+  "cache module".
+
+This plan must not reintroduce cache through feature aliases, dependency graph nodes, module
+status JSON, install/remove planning, or module schema ownership.
+
 ---
 
-# 1. Current Library-Backed Module Baseline
+# 1. Current Specialist Module Baseline
 
 | Module | Foundation install target | Current config publication | Current schema ownership |
 | --- | --- | --- | --- |
 | `auth` | `infocyph/otp ^6.1`, `web-auth/webauthn-lib ^5.3.5` | none | `auth` |
-| `cache` | `infocyph/cachelayer ^3.4` | `cache.php` | `cache` |
 | `communication` | `infocyph/talkingbytes ^2.1` | `communication.php`, `notifications.php` | none |
 | `database` | `infocyph/dblayer ^5.1` | `database.php` | none |
 | `filesystem` | `infocyph/pathwise ^4.1` | `filesystem.php` | none |
@@ -41,12 +60,16 @@ match Foundation 3's final explicit-capability runtime model.
 
 ## Important transitive package relationships
 
-These relationships make package presence insufficient as a module-state signal:
+Package presence still remains insufficient as a specialist-module state signal. CacheLayer
+dependencies are no longer relevant to module ownership because CacheLayer belongs to
+Foundation core.
 
-- OTP requires CacheLayer.
-- DBLayer requires CacheLayer.
-- Omnibus optionally integrates with CacheLayer and DBLayer.
-- ReqShield optionally integrates with DBLayer.
+Important integration relationships include:
+
+- Omnibus may integrate with DBLayer and the core cache capability depending on selected
+  messaging behavior.
+- ReqShield may integrate with DBLayer for database-aware validation.
+- auth features may consume the core cache capability without creating a cache module edge.
 - TalkingBytes has optional runtime/platform integrations for gRPC, IMAP, charset handling,
   DKIM Ed25519 and POSIX process handling.
 - Pathwise exposes optional storage adapters/extensions beyond its required Flysystem core.
@@ -65,8 +88,7 @@ Composer package names must not become the primary application-facing module API
 
 Keep aliases for migration/convenience, but canonical module names remain Foundation-owned:
 
-`auth`, `cache`, `communication`, `database`, `filesystem`, `messaging`,
-`security`, `validation`.
+`auth`, `communication`, `database`, `filesystem`, `messaging`, `security`, `validation`.
 
 ## 2.2 No Composer package auto-discovery
 
@@ -242,7 +264,7 @@ ModuleDefinition
 ```
 
 Do not build a generic package-management framework. Keep the model only as rich as the
-eight Foundation modules require.
+seven specialist modules require.
 
 ---
 
@@ -252,16 +274,12 @@ eight Foundation modules require.
 
 `Composer\InstalledVersions::isInstalled()` cannot determine application intent.
 
-Examples:
+Composer package presence alone still cannot determine whether an application intentionally
+owns a specialist module requirement. This distinction must be modeled generically for the
+seven specialist modules.
 
-```text
-auth -> OTP -> CacheLayer
-database -> DBLayer -> CacheLayer
-```
-
-Installing `auth` or `database` can therefore make CacheLayer present transitively.
-
-That must not cause `module:list cache` to report the cache module as fully installed.
+CacheLayer is explicitly excluded from this ownership logic because Foundation owns it as a
+core runtime dependency.
 
 ## Work
 
@@ -270,12 +288,13 @@ That must not cause `module:list cache` to report the cache module as fully inst
 - [ ] Keep installed-package availability separately visible for diagnostics.
 - [ ] Define module installation from direct required package ownership, not only vendor presence.
 - [ ] Preserve constraint compatibility checks.
-- [ ] Add tests for:
-  - [ ] CacheLayer present only through OTP;
-  - [ ] CacheLayer present only through DBLayer;
-  - [ ] CacheLayer directly required by application;
+- [ ] Add fixture-driven tests for:
+  - [ ] specialist package present only transitively;
+  - [ ] specialist package directly required by the application;
   - [ ] package present but constraint incompatible;
-  - [ ] direct package missing while transitive dependency remains installed.
+  - [ ] direct package missing while a transitive copy remains installed.
+- [ ] Explicitly exclude Foundation core dependencies such as CacheLayer from module ownership
+  calculations.
 - [ ] Ensure `module:list` and `module:show` expose the distinction clearly.
 
 ## Acceptance
@@ -346,7 +365,7 @@ auth
       database module / DBLayer
 
     shared-cache
-      cache module / CacheLayer
+      Foundation core cache capability / CacheLayer
 
     security
       security module / Epicrypt
@@ -369,8 +388,9 @@ auth
 - [ ] Readiness follows selected auth drivers:
   - OTP only required for OTP MFA;
   - WebAuthn only required for WebAuthn passkeys.
-- [ ] Auth database/cache/security/communication relationships remain conditional module
-  dependencies, not unconditional Composer requirements.
+- [ ] Auth database/security/communication relationships remain conditional module dependencies.
+- [ ] Auth shared-cache behavior targets Foundation's core cache capability directly and never
+  introduces a core cache capability dependency.
 - [ ] Add install/show/remove tests for each feature combination.
 
 ## Acceptance
@@ -429,12 +449,13 @@ Examples:
 
 - messaging durable mode -> database;
 - auth database storage -> database;
-- auth shared cache/replay state -> cache;
+- auth shared cache/replay state -> Foundation core cache capability;
 - auth security drivers -> security;
 - auth TalkingBytes notifications -> communication/notifications;
-- session database driver -> database;
-- cache PDO/database features -> database;
 - ReqShield database rules -> database integration only when selected.
+
+Core cache adapter/database relationships are outside the module graph and belong to Foundation's
+cache capability lifecycle.
 
 ## Work
 
@@ -454,7 +475,7 @@ Foundation can answer:
 
 ```text
 Why does messaging require database here?
-Why does auth require cache in this app?
+Why does auth require the core cache capability in this app?
 Why is database not required in another app?
 ```
 
@@ -643,10 +664,6 @@ Feature availability may depend on:
 
 Active driver requires the corresponding PDO extension.
 
-### cache
-
-Adapter selection may require Redis/Memcached/APCu/Mongo/PDO/etc.
-
 ### security
 
 Epicrypt requires OpenSSL, Sodium and its declared crypto dependencies.
@@ -775,7 +792,6 @@ once.
 - [ ] Allow deliberate exceptions only with explicit test/documentation.
 - [ ] Cover:
   - OTP 6.1;
-  - CacheLayer 3.4;
   - DBLayer 5.1;
   - Pathwise 4.1;
   - Omnibus 2.6;
@@ -784,6 +800,7 @@ once.
   - Epicrypt 3.1;
   - WebAuthn library floor.
 - [ ] Keep docs generated/verified against catalog values where practical.
+- [ ] Guard CacheLayer ^3.4 separately as a Foundation core dependency, not a ModuleCatalog floor.
 
 ---
 
@@ -866,28 +883,22 @@ Do not expose internal class names as the primary public contract unless necessa
 - [ ] core auth remains Foundation-native;
 - [ ] OTP feature independent;
 - [ ] passkey feature independent;
-- [ ] database/cache/security/notification dependencies conditional;
+- [ ] database/security/notification module dependencies conditional;
+- [ ] shared-cache behavior targets the Foundation core cache capability;
 - [ ] aliases map to features correctly;
 - [ ] feature removal does not remove unrelated auth dependencies.
-
-## cache
-
-- [ ] direct vs transitive CacheLayer ownership correct;
-- [ ] selected adapter requirements reported;
-- [ ] PDO/database schema dependency conditional;
-- [ ] package installed through OTP/DBLayer does not imply cache module installation.
 
 ## communication
 
 - [ ] communication/notifications ownership resolved;
 - [ ] TalkingBytes package ownership correct;
 - [ ] optional gRPC/email/platform features reported without becoming unconditional dependencies;
-- [ ] webhook replay CacheLayer dependency conditional.
+- [ ] webhook replay may consume Foundation's core cache capability without creating a module
+  dependency.
 
 ## database
 
 - [ ] DBLayer direct ownership reported;
-- [ ] CacheLayer transitive dependency does not implicitly install cache module;
 - [ ] selected PDO driver platform readiness reported;
 - [ ] database remains infrastructure rather than schema owner for application domains.
 
@@ -901,7 +912,8 @@ Do not expose internal class names as the primary public contract unless necessa
 
 - [ ] Omnibus direct ownership reported;
 - [ ] durable mode -> database dependency;
-- [ ] CacheLayer coordination integration modeled conditionally where selected;
+- [ ] core CacheLayer coordination is consumed directly where selected, without a cache module
+  dependency;
 - [ ] PCNTL/POSIX readiness reported;
 - [ ] Runwire remains optional backend rather than forced Foundation module dependency.
 
@@ -1001,7 +1013,8 @@ Do not expose internal class names as the primary public contract unless necessa
 
 # 24. Explicitly Out of Scope
 
-For this pass do not redesign Foundation's built-in-only module set.
+For this pass do not redesign Foundation's built-in/core capability set. Cache is explicitly
+outside the module system after CacheLayer promotion.
 
 Also out of scope:
 
@@ -1025,7 +1038,9 @@ The module-system pass is complete only when:
 - [ ] required/feature/optional package roles are modeled;
 - [ ] auth no longer installs OTP + WebAuthn unconditionally;
 - [ ] communication/notifications ownership is internally consistent;
-- [ ] conditional module dependencies are explicit and explainable;
+- [ ] conditional specialist-module dependencies are explicit and explainable;
+- [ ] no cache/cachelayer module entry, alias, install/remove path, status entry or schema
+  ownership remains in the module subsystem;
 - [ ] install and enable are separate lifecycle concepts;
 - [ ] removal is dependency-aware and preserves application config/data;
 - [ ] schema sync follows active capability topology;
@@ -1034,7 +1049,7 @@ The module-system pass is complete only when:
 - [ ] Composer mutation no longer forces inappropriate no-dev behavior;
 - [ ] module package floors are guarded from version drift;
 - [ ] aliases do not unexpectedly broaden requested features;
-- [ ] all eight library-backed modules have module-specific acceptance coverage;
+- [ ] all seven specialist modules have module-specific acceptance coverage;
 - [ ] exact-head PHPForge matrix is green.
 
 ---
@@ -1047,10 +1062,39 @@ Do not change auth/communication CLI semantics before the state model is fixed.
 
 First implementation target:
 
-1. teach the module layer to distinguish application-direct package requirements from
-   transitively available packages;
+1. teach the module layer to distinguish application-direct specialist-package requirements
+   from transitively available packages while excluding Foundation core dependencies such as
+   CacheLayer;
 2. expose direct/transitive/enabled/configured/ready as separate state;
 3. update `module:list` and `module:show` JSON/tests;
 4. add the package-floor drift guard.
 
 Only after this base is stable should the catalog be expanded with feature/dependency semantics.
+
+
+---
+
+# 27. Cache Removal from Module Subsystem
+
+This is a prerequisite cleanup before Batch 1.
+
+- [ ] Move `infocyph/cachelayer ^3.4` into Foundation `require`.
+- [ ] Remove CacheLayer from `require-dev` and `suggest`.
+- [ ] Remove canonical `cache` entry from `ModuleCatalog`.
+- [ ] Remove `cachelayer` module alias.
+- [ ] Remove cache from `module:list`, `module:show`, `module:install`,
+  `module:remove`, module planning and module repair.
+- [ ] Remove cache from module schema ownership/dispatch.
+- [ ] Move any cache schema readiness/install behavior to Foundation's core cache capability
+  lifecycle.
+- [ ] Keep cache capability activation explicit and cold until selected.
+- [ ] Keep `config/cache.php` as default InfByte application config.
+- [ ] Update module tests so cache is not counted as a module.
+- [ ] Add a guard proving CacheLayer is a Foundation core dependency and cannot drift back into
+  module package ownership.
+- [ ] Update docs/migration guidance so "cache module" terminology no longer appears.
+
+## Acceptance
+
+`cache` is absent from the module subsystem while CacheLayer remains always available to
+Foundation core and the cache capability remains independently activatable.
