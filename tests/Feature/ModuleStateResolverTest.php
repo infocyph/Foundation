@@ -165,6 +165,32 @@ it('separates effective configuration publication and explicit activation state'
     }
 });
 
+it('reports optional integrations separately from managed module ownership', function (): void {
+    $basePath = moduleStateBasePath('optional-integrations');
+    moduleStateWriteComposer($basePath, ['infocyph/talkingbytes' => '^2.1']);
+
+    try {
+        $application = Foundation::cli([
+            'base_path' => $basePath,
+            '_config_cache' => false,
+        ]);
+        $communication = moduleStateFind(
+            (new ModuleStateResolver($application, new ModuleCatalog()))->all(),
+            'communication',
+        );
+
+        expect($communication['packages'])->toHaveKey('infocyph/talkingbytes')
+            ->and($communication['packages'])->not->toHaveKey('grpc/grpc')
+            ->and($communication['optional_integrations'])->toHaveKey('grpc/grpc')
+            ->and($communication['optional_integrations']['grpc/grpc']['available'] ?? null)->toBeBool()
+            ->and($communication['optional_integrations']['grpc/grpc']['features'] ?? null)->toBe(['grpc'])
+            ->and($communication['features'])->toHaveKey('grpc')
+            ->and($communication['platform']['extensions'] ?? null)->toBe(['curl', 'fileinfo', 'openssl']);
+    } finally {
+        moduleStateRemoveDirectory($basePath);
+    }
+});
+
 it('keeps specialist catalog package floors aligned with the tested dependency set', function (): void {
     $composer = json_decode(
         file_get_contents(dirname(__DIR__, 2) . '/composer.json') ?: '',

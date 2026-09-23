@@ -10,6 +10,14 @@ use Infocyph\Foundation\Config\Internal\ConfiguredCapabilities;
 
 /**
  * @phpstan-import-type ModuleDefinition from ModuleCatalog
+ * @phpstan-import-type ModuleDependency from ModuleCatalog
+ * @phpstan-import-type ModuleFeature from ModuleCatalog
+ * @phpstan-import-type PlatformRequirement from ModuleCatalog
+ * @phpstan-type OptionalPackageState array{
+ *     available:bool,
+ *     version:?string,
+ *     features:list<string>
+ * }
  * @phpstan-type PackageState array{
  *     constraint:string,
  *     installed:bool,
@@ -53,6 +61,10 @@ use Infocyph\Foundation\Config\Internal\ConfiguredCapabilities;
  *     ready:bool,
  *     schemas:list<string>,
  *     packages:array<string,PackageState>,
+ *     optional_integrations:array<string,OptionalPackageState>,
+ *     features:array<string,ModuleFeature>,
+ *     dependency_declarations:list<ModuleDependency>,
+ *     platform:PlatformRequirement,
  *     blockers:list<string>,
  *     warnings:list<string>
  * }
@@ -293,6 +305,31 @@ final readonly class ModuleStateResolver
     }
 
     /**
+     * @param array<string,mixed> $definition
+     * @phpstan-param ModuleDefinition $definition
+     * @return array<string,OptionalPackageState>
+     */
+    private function optionalIntegrations(array $definition): array
+    {
+        $integrations = [];
+
+        foreach ($definition['packages'] as $package => $requirement) {
+            if ($requirement['role'] !== 'optional') {
+                continue;
+            }
+
+            $available = InstalledVersions::isInstalled($package);
+            $integrations[$package] = [
+                'available' => $available,
+                'version' => $available ? InstalledVersions::getPrettyVersion($package) : null,
+                'features' => $requirement['features'],
+            ];
+        }
+
+        return $integrations;
+    }
+
+    /**
      * @param PackageState $state
      * @return list<string>
      */
@@ -515,6 +552,10 @@ final readonly class ModuleStateResolver
             'ready' => $ready,
             'schemas' => $definition['schemas'],
             'packages' => $packages['packages'],
+            'optional_integrations' => $this->optionalIntegrations($definition),
+            'features' => $definition['features'],
+            'dependency_declarations' => $definition['dependencies'],
+            'platform' => $definition['platform'],
             'blockers' => $blockers,
             'warnings' => $warnings,
         ];

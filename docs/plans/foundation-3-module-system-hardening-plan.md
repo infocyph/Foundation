@@ -112,7 +112,7 @@ Status legend:
 | --- | --- | --- | --- |
 | **0** | Cache/core boundary closure | **DONE** | Cache core ownership, schema CLI lifecycle, activation semantics and module exclusion are regression-covered. |
 | **1** | Specialist module state foundation | **PARTIAL** | Resolver, ownership/readiness JSON, constraint validation and floor guards are implemented; PHPForge QA rerun is in progress after CI-specific fixes. |
-| **2** | Catalog model | **PARTIAL** | Typed package roles, shared feature ownership, feature/platform metadata and conditional dependency declarations are implemented; CI/validator closure remains. |
+| **2** | Catalog model | **PARTIAL** | Package roles, feature/platform metadata, optional-integration status, conditional dependency declarations and graph validation are implemented; matrix closure remains. |
 | **3** | Auth decomposition | **NOT STARTED** | Core-backed auth namespace with selective OTP/passkey feature installation. |
 | **4** | Communication / notifications ownership | **NOT STARTED** | Communication stays specialist; notifications stays Foundation-native. |
 | **5** | Dependency engine | **NOT STARTED** | Conditional dependency/capability evaluation, explanation and blockers. |
@@ -435,8 +435,8 @@ The current flat package map cannot describe the real package topology.
 - [x] Split module package declarations into typed required/base, feature and optional package roles.
 - [x] Keep package constraint ownership centralized in `ModuleCatalog`.
 - [x] Exclude optional integration packages from the existing module install/remove package set.
-- [ ] Surface optional integration availability through module status; this is wired during the
-  feature/readiness batches rather than conflated with base installation.
+- [x] Surface optional integration availability separately through module state without counting
+  optional packages toward module installation.
 - [x] Allow one package requirement to declare multiple feature owners, including OTP shared by
   `otp` and `passkey`.
 - [x] Add catalog validation/tests for package roles, feature ownership, aliases, platform
@@ -448,6 +448,9 @@ The current flat package map cannot describe the real package topology.
 
 The module catalog can explain why a package is required and whether it is base, feature or
 optional integration state.
+
+**Batch 2 implementation status:** COMPLETE. Tracker remains **PARTIAL** until the next PHPForge
+matrix validates the catalog model together with Batch 1.
 
 ---
 
@@ -1132,8 +1135,7 @@ than accidental key drift.
 - [x] conditional dependency declaration model;
 - [x] graph/alias/package-role validation;
 - [x] platform requirement representation;
-- [ ] expose optional integration metadata through module status during the readiness/feature
-  wiring pass;
+- [x] expose optional integration metadata separately through module status;
 - [ ] PHPForge matrix closure.
 
 ## Batch 3 — Auth decomposition
