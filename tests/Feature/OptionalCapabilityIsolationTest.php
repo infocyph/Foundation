@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Infocyph\Foundation\Process\ProcessOptions;
 use Infocyph\Foundation\Process\ProcessRunner;
 
-it('boots without optional packages and reports unavailable capabilities cleanly', function (): void {
+it('boots with Foundation core dependencies while optional packages remain unavailable', function (): void {
     $root = dirname(__DIR__, 2);
     $result = new ProcessRunner()->run(
         [PHP_BINARY, $root . '/tests/Fixtures/OptionalCapabilityProbe.php'],

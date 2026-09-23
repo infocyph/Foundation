@@ -11,6 +11,7 @@ use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
 use Infocyph\CacheLayer\Memoize\Memoizer;
 use Infocyph\CacheLayer\Memoize\OnceMemoizer;
 use Infocyph\DBLayer\DB;
+use Infocyph\Foundation\Cache\CacheSchemaManager;
 use Infocyph\Foundation\Foundation;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\SimpleCache\CacheInterface as SimpleCacheInterface;
@@ -209,3 +210,58 @@ function foundationCacheOnceValue(OnceMemoizer $memoizer, int &$calls): int
         return ++$calls;
     });
 }
+
+
+it('keeps CacheLayer database schema lifecycle under the core cache subsystem', function (): void {
+    $basePath = sys_get_temp_dir() . '/foundation-cache-schema-' . bin2hex(random_bytes(5));
+    $cachePath = $basePath . '/storage/cache/cachelayer.sqlite';
+    mkdir($basePath . '/storage/cache', 0775, true);
+
+    $app = Foundation::cli([
+        'base_path' => $basePath,
+        '_config_cache' => false,
+        'app' => ['capabilities' => ['cache']],
+        'cache' => [
+            'default' => 'sqlite',
+            'stores' => [
+                'sqlite' => [
+                    'driver' => 'sqlite',
+                    'path' => 'storage/cache/cachelayer.sqlite',
+                    'table' => 'foundation_cache_entries',
+                ],
+            ],
+            'transports' => [],
+            'clusters' => [],
+        ],
+    ])->boot();
+
+    try {
+        $schemas = new CacheSchemaManager($app);
+        $before = $schemas->statuses();
+
+        expect($cachePath)->not->toBeFile()
+            ->and($before[0]['state'] ?? null)->toBe('pending')
+            ->and($before[0]['installed'] ?? null)->toBeFalse();
+
+        $schemas->install();
+        $after = $schemas->statuses(afterInstall: true);
+
+        expect($cachePath)->toBeFile()
+            ->and($after[0]['state'] ?? null)->toBe('installed')
+            ->and($after[0]['installed'] ?? null)->toBeTrue();
+    } finally {
+        DB::purge();
+        if (is_file($cachePath)) {
+            unlink($cachePath);
+        }
+        if (is_dir($basePath . '/storage/cache')) {
+            rmdir($basePath . '/storage/cache');
+        }
+        if (is_dir($basePath . '/storage')) {
+            rmdir($basePath . '/storage');
+        }
+        if (is_dir($basePath)) {
+            rmdir($basePath);
+        }
+    }
+});

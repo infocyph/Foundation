@@ -349,50 +349,6 @@ it('reports and installs the Omnibus durable messaging schema through module com
     }
 });
 
-it('keeps cache schema status observational and creates the sqlite schema only during sync', function (): void {
-    $basePath = moduleLifecycleBasePath('cache-schema');
-    $cachePath = $basePath . '/storage/cache/module-cache.sqlite';
-    $dispatcher = moduleLifecycleDispatcher($basePath, [
-        'cache' => [
-            'default' => 'sqlite',
-            'stores' => [
-                'sqlite' => [
-                    'driver' => 'sqlite',
-                    'path' => 'storage/cache/module-cache.sqlite',
-                    'table' => 'foundation_cache_entries',
-                ],
-            ],
-            'transports' => [],
-            'clusters' => [],
-        ],
-        'session' => ['driver' => 'file'],
-    ]);
-
-    try {
-        expect($cachePath)->not->toBeFile();
-        $status = new FoundationModuleLifecycleIO();
-        expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:schema:status', 'cache'], $status))
-            ->toBe(ExitCode::FAILURE)
-            ->and($cachePath)->not->toBeFile();
-        $statusPayload = $status->lastPayload();
-        expect($statusPayload)->toBeArray()
-            ->and($statusPayload['schemas'][0]['state'] ?? null)->toBe('pending')
-            ->and($statusPayload['schemas'][0]['installed'] ?? null)->toBeFalse();
-
-        $sync = new FoundationModuleLifecycleIO();
-        expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:schema:sync'], $sync))
-            ->toBe(ExitCode::SUCCESS)
-            ->and($cachePath)->toBeFile()
-            ->and(moduleLifecycleTableExists($cachePath, 'foundation_cache_entries'))->toBeTrue();
-        $syncPayload = $sync->lastPayload();
-        expect($syncPayload)->toBeArray()
-            ->and($syncPayload['schemas'])->not->toBeEmpty();
-    } finally {
-        DB::purge();
-        moduleLifecycleRemoveDirectory($basePath);
-    }
-});
-
 function moduleLifecycleBasePath(string $name): string
 {
     $basePath = sys_get_temp_dir() . '/foundation-module-lifecycle-' . $name . '-' . bin2hex(random_bytes(5));

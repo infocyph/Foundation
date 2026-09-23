@@ -36,7 +36,6 @@ $baseConfig = [
 ];
 
 $optionalMarkers = [
-    'cache' => 'Infocyph\\CacheLayer\\Cache\\Cache',
     'database' => 'Infocyph\\DBLayer\\Connection\\Connection',
     'communication' => 'Infocyph\\TalkingBytes\\Http\\HttpClient',
     'filesystem' => 'Infocyph\\Pathwise\\PathwiseFacade',
@@ -53,7 +52,6 @@ foreach ($optionalMarkers as $name => $class) {
 }
 
 $optionalPrefixes = [
-    'Infocyph\\CacheLayer\\',
     'Infocyph\\DBLayer\\',
     'Infocyph\\Epicrypt\\',
     'Infocyph\\Omnibus\\',
@@ -91,7 +89,6 @@ try {
     ];
 
     $services = [
-        'foundation.cache' => ['package' => 'infocyph/cachelayer', 'module' => 'cache'],
         'foundation.communication' => ['package' => 'infocyph/talkingbytes', 'module' => 'communication'],
         'foundation.db' => ['package' => 'infocyph/dblayer', 'module' => 'database'],
         'foundation.filesystem' => ['package' => 'infocyph/pathwise', 'module' => 'filesystem'],
