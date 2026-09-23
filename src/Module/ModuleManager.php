@@ -18,12 +18,10 @@ final readonly class ModuleManager
         private Application $application,
         private ModuleCatalog $catalog,
         private ProcessRunner $processes,
-    ) {}
+    )
+    {}
 
-    /**
-     * @return array
-     * @phpstan-return list<ModuleState>
-     */
+    /** @phpstan-return list<ModuleState> */
     public function all(): array
     {
         return new ModuleStateResolver($this->application, $this->catalog)->all();
