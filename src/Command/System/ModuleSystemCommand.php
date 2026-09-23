@@ -15,6 +15,7 @@ use Infocyph\Foundation\Release\FoundationReleaseBootstrap;
 use Infocyph\Foundation\Release\FoundationReleaseCompiler;
 
 /**
+ * @phpstan-import-type DependencyState from \Infocyph\Foundation\Module\Internal\ModuleDependencyResolver
  * @phpstan-import-type FeatureState from \Infocyph\Foundation\Module\ModuleStateResolver
  * @phpstan-import-type PackageState from \Infocyph\Foundation\Module\ModuleStateResolver
  * @phpstan-import-type ModuleState from \Infocyph\Foundation\Module\ModuleStateResolver
@@ -30,6 +31,7 @@ final class ModuleSystemCommand extends SystemCommand
             'module:config:publish' => $this->publishConfig(),
             'module:install' => $this->install(),
             'module:list' => $this->listing(),
+            'module:plan' => $this->plan(),
             'module:remove' => $this->remove(),
             'module:schema:install' => $this->schemaInstall(),
             'module:schema:status' => $this->schemaStatus(),
@@ -269,6 +271,70 @@ final class ModuleSystemCommand extends SystemCommand
         return implode(', ', $summary);
     }
 
+    private function plan(): int
+    {
+        $requested = $this->module();
+        $definition = $this->catalog()->resolve($requested, $this->values('feature'));
+        $module = $this->moduleState($definition['name']);
+        $packages = $this->catalog()->installationPackages($definition, $definition['requested_features']);
+
+        $add = [];
+        $owned = [];
+        $transitive = [];
+        foreach ($packages as $package => $constraint) {
+            $state = $module['packages'][$package] ?? null;
+            if (($state['direct'] ?? false) === true) {
+                $owned[$package] = $constraint;
+
+                continue;
+            }
+            if (($state['available'] ?? false) === true) {
+                $transitive[$package] = $constraint;
+            }
+            $add[$package] = $constraint;
+        }
+
+        $payload = [
+            'schema_version' => 1,
+            'module' => $definition['name'],
+            'requested' => $requested,
+            'features' => $definition['requested_features'],
+            'packages_to_add' => $add,
+            'packages_direct' => $owned,
+            'packages_transitive' => $transitive,
+            'dependencies' => $module['dependencies'],
+            'config' => $definition['config'],
+            'schemas' => $definition['schemas'],
+            'blockers' => $module['blockers'],
+            'warnings' => $module['warnings'],
+        ];
+
+        if ($this->io()->machineReadable()) {
+            $this->io()->json($payload);
+
+            return ExitCode::SUCCESS;
+        }
+
+        $this->io()->table(
+            ['Module', 'Features', 'Packages to add', 'Config', 'Schemas'],
+            [[
+                $definition['name'],
+                implode(', ', $definition['requested_features']) ?: '-',
+                $this->packageSummary($add),
+                implode(', ', $definition['config']) ?: '-',
+                implode(', ', $definition['schemas']) ?: '-',
+            ]],
+        );
+        $this->renderDependencies($module['dependencies']['active'], 'Required dependencies');
+        $this->renderDependencies($module['dependencies']['inactive'], 'Inactive dependencies');
+
+        foreach ($module['blockers'] as $blocker) {
+            $this->io()->warning($blocker);
+        }
+
+        return ExitCode::SUCCESS;
+    }
+
     private function projectLauncher(): string
     {
         foreach ([
@@ -341,6 +407,31 @@ final class ModuleSystemCommand extends SystemCommand
     }
 
     /**
+     * @param list<DependencyState> $dependencies
+     */
+    private function renderDependencies(array $dependencies, string $title): void
+    {
+        if ($dependencies === []) {
+            return;
+        }
+
+        $this->io()->writeln();
+        $this->io()->info($title);
+        $this->io()->table(
+            ['Type', 'Target', 'Satisfied', 'Reason'],
+            array_map(
+                static fn(array $dependency): array => [
+                    $dependency['type'],
+                    $dependency['target'],
+                    $dependency['satisfied'],
+                    $dependency['reason'],
+                ],
+                $dependencies,
+            ),
+        );
+    }
+
+    /**
      * @param list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}> $schemas
      */
     private function renderSchemas(array $schemas): void
@@ -405,6 +496,8 @@ final class ModuleSystemCommand extends SystemCommand
         );
 
         $this->renderShowConfig($config);
+        $this->renderDependencies($module['dependencies']['active'], 'Active dependencies');
+        $this->renderDependencies($module['dependencies']['inactive'], 'Inactive dependencies');
         $this->renderShowFeatures($module['features']);
         $this->renderShowSchemas($schemas);
     }
