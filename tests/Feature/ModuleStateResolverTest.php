@@ -179,8 +179,7 @@ it('keeps specialist catalog package floors aligned with the tested dependency s
         }
 
         foreach ($definition['packages'] as $package => $constraint) {
-            expect($dev)->toHaveKey($package)
-                ->and($dev[$package])->toBe($constraint);
+            expect($dev[$package] ?? null)->toBe($constraint);
         }
     }
 
