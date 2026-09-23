@@ -179,9 +179,9 @@ PHP);
         $application = Foundation::cli(['base_path' => $basePath, '_config_cache' => false]);
         $manager = new ModuleManager($application, new ModuleCatalog(), new ProcessRunner());
 
-        expect($manager->install('db', true)->successful())->toBeTrue()
-            ->and($manager->remove('db', true)->successful())->toBeTrue()
-            ->and($manager->install('messaging', true)->successful())->toBeTrue();
+        expect($manager->install('db', [], true)->successful())->toBeTrue()
+            ->and($manager->remove('db', [], true)->successful())->toBeTrue()
+            ->and($manager->install('messaging', [], true)->successful())->toBeTrue();
 
         $commands = array_map(
             static fn(string $command): array => json_decode($command, true, flags: JSON_THROW_ON_ERROR),
