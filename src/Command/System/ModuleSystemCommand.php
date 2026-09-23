@@ -21,7 +21,8 @@ use Infocyph\Foundation\Release\FoundationReleaseCompiler;
  */
 final class ModuleSystemCommand extends SystemCommand
 {
-    public function __construct(private readonly Application $application) {}
+    public function __construct(private readonly Application $application)
+    {}
 
     protected function handle(): int
     {
@@ -540,7 +541,10 @@ final class ModuleSystemCommand extends SystemCommand
         ];
     }
 
-    /** @param ModuleState $module */
+    /**
+     * @param array<string,mixed> $module
+     * @phpstan-param ModuleState $module
+     */
     private function showStatus(array $module, bool $schemaReady, bool $ready): string
     {
         if (!$schemaReady && $module['enabled']) {
