@@ -249,6 +249,91 @@ it('reports optional integrations separately from managed module ownership', fun
     }
 });
 
+it('evaluates conditional specialist module dependencies against explicit topology', function (): void {
+    $basePath = moduleStateBasePath('dependencies');
+    moduleStateWriteComposer($basePath, [
+        'infocyph/omnibus' => '^2.6',
+        'infocyph/dblayer' => '^5.1',
+    ]);
+
+    try {
+        $blockedApp = Foundation::cli([
+            'base_path' => $basePath,
+            '_config_cache' => false,
+            'app' => ['capabilities' => ['messaging']],
+            'messaging' => ['durable' => ['enabled' => true]],
+        ]);
+        $blocked = moduleStateFind(
+            (new ModuleStateResolver($blockedApp, new ModuleCatalog()))->all(),
+            'messaging',
+        );
+
+        expect($blocked['dependencies_satisfied'])->toBeFalse()
+            ->and($blocked['dependencies']['active'][0]['type'] ?? null)->toBe('module')
+            ->and($blocked['dependencies']['active'][0]['target'] ?? null)->toBe('database')
+            ->and($blocked['dependencies']['active'][0]['satisfied'] ?? true)->toBeFalse()
+            ->and(implode(' ', $blocked['blockers']))->toContain('Durable database-backed messaging requires DBLayer.');
+
+        $readyApp = Foundation::cli([
+            'base_path' => $basePath,
+            '_config_cache' => false,
+            'app' => ['capabilities' => ['messaging', 'database']],
+            'messaging' => ['durable' => ['enabled' => true]],
+        ]);
+        $ready = moduleStateFind(
+            (new ModuleStateResolver($readyApp, new ModuleCatalog()))->all(),
+            'messaging',
+        );
+
+        expect($ready['dependencies_satisfied'])->toBeTrue()
+            ->and($ready['dependencies']['active'][0]['satisfied'] ?? false)->toBeTrue();
+    } finally {
+        moduleStateRemoveDirectory($basePath);
+    }
+});
+
+it('evaluates selected auth feature dependencies against core capabilities', function (): void {
+    $basePath = moduleStateBasePath('core-dependencies');
+    moduleStateWriteComposer($basePath, ['infocyph/otp' => '^6.1']);
+
+    try {
+        $blockedApp = Foundation::cli([
+            'base_path' => $basePath,
+            '_config_cache' => false,
+            'app' => ['capabilities' => ['auth']],
+            'auth' => ['drivers' => ['mfa' => 'otp', 'passkey' => 'disabled']],
+        ]);
+        $blocked = moduleStateFind(
+            (new ModuleStateResolver($blockedApp, new ModuleCatalog()))->all(),
+            'auth',
+        );
+
+        expect($blocked['dependencies_satisfied'])->toBeFalse()
+            ->and($blocked['features']['otp']['dependencies_satisfied'] ?? true)->toBeFalse()
+            ->and($blocked['features']['otp']['ready'] ?? true)->toBeFalse()
+            ->and($blocked['dependencies']['active'][0]['type'] ?? null)->toBe('capability')
+            ->and($blocked['dependencies']['active'][0]['target'] ?? null)->toBe('cache')
+            ->and($blocked['dependencies']['active'][0]['satisfied'] ?? true)->toBeFalse();
+
+        $readyApp = Foundation::cli([
+            'base_path' => $basePath,
+            '_config_cache' => false,
+            'app' => ['capabilities' => ['auth', 'cache']],
+            'auth' => ['drivers' => ['mfa' => 'otp', 'passkey' => 'disabled']],
+        ]);
+        $ready = moduleStateFind(
+            (new ModuleStateResolver($readyApp, new ModuleCatalog()))->all(),
+            'auth',
+        );
+
+        expect($ready['dependencies_satisfied'])->toBeTrue()
+            ->and($ready['features']['otp']['dependencies_satisfied'] ?? false)->toBeTrue()
+            ->and($ready['features']['otp']['ready'] ?? false)->toBeTrue();
+    } finally {
+        moduleStateRemoveDirectory($basePath);
+    }
+});
+
 it('keeps specialist catalog package floors aligned with the tested dependency set', function (): void {
     $composer = json_decode(
         file_get_contents(dirname(__DIR__, 2) . '/composer.json') ?: '',
