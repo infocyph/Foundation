@@ -20,10 +20,13 @@ final readonly class ModuleManager
         private ProcessRunner $processes,
     ) {}
 
-    /** @return list<ModuleState> */
+    /**
+     * @return array
+     * @phpstan-return list<ModuleState>
+     */
     public function all(): array
     {
-        return (new ModuleStateResolver($this->application, $this->catalog))->all();
+        return new ModuleStateResolver($this->application, $this->catalog)->all();
     }
 
     public function install(string $module, bool $dryRun = false): ProcessResult
@@ -68,7 +71,7 @@ final readonly class ModuleManager
             throw new \InvalidArgumentException(sprintf('Module "%s" is built into Foundation.', $definition['name']));
         }
 
-        $ownership = (new ModuleStateResolver($this->application, $this->catalog))->rootRequirements();
+        $ownership = new ModuleStateResolver($this->application, $this->catalog)->rootRequirements();
         if (!$ownership['known']) {
             throw new \RuntimeException(
                 'Unable to determine direct Composer ownership: '
