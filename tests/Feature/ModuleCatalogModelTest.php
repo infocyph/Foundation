@@ -27,6 +27,47 @@ it('models managed feature and optional package roles without broadening install
         ]);
 });
 
+it('pins the complete seven-specialist module contract', function (): void {
+    $catalog = new ModuleCatalog();
+    $modules = $catalog->all();
+    $specialists = array_filter(
+        $modules,
+        static fn(array $definition): bool => ($definition['built_in'] ?? false) !== true,
+    );
+
+    expect(array_keys($specialists))->toBe([
+        'auth',
+        'communication',
+        'database',
+        'filesystem',
+        'messaging',
+        'security',
+        'validation',
+    ])->and(array_map(
+        static fn(array $definition): array => $catalog->requiredPackages($definition),
+        $specialists,
+    ))->toBe([
+        'auth' => [],
+        'communication' => ['infocyph/talkingbytes' => '^2.1'],
+        'database' => ['infocyph/dblayer' => '^5.1'],
+        'filesystem' => ['infocyph/pathwise' => '^4.1'],
+        'messaging' => ['infocyph/omnibus' => '^2.6'],
+        'security' => ['infocyph/epicrypt' => '^3.1'],
+        'validation' => ['infocyph/reqshield' => '^3.2'],
+    ])->and(array_map(
+        static fn(array $definition): array => $definition['config'],
+        $specialists,
+    ))->toBe([
+        'auth' => [],
+        'communication' => ['communication.php'],
+        'database' => ['database.php'],
+        'filesystem' => ['filesystem.php'],
+        'messaging' => ['messaging.php'],
+        'security' => ['security.php'],
+        'validation' => ['validation.php'],
+    ]);
+});
+
 it('resolves auth feature aliases without broadening the core module request', function (): void {
     $catalog = new ModuleCatalog();
     $auth = $catalog->resolve('auth');
