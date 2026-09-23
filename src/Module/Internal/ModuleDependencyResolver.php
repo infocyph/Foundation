@@ -33,8 +33,8 @@ final readonly class ModuleDependencyResolver
 
     /**
      * @phpstan-param ModuleDefinition $definition
-     * @param array<string,FeatureState> $features
-     * @param array<string,ModuleState> $modules
+     * @phpstan-param array<string,FeatureState> $features
+     * @phpstan-param array<string,ModuleState> $modules
      * @phpstan-return DependencyResolution
      */
     public function resolve(
@@ -110,15 +110,15 @@ final readonly class ModuleDependencyResolver
 
     /**
      * @phpstan-param ModuleDependency $dependency
-     * @param array<string,ModuleState> $modules
+     * @phpstan-param array<string,ModuleState> $modules
      * @phpstan-return DependencyState
      */
 
     /**
      * @phpstan-param ModuleDependency $dependency
-     * @param array<string,ModuleState> $modules
-     * @param list<DependencyState> $active
-     * @param list<DependencyState> $inactive
+     * @phpstan-param array<string,ModuleState> $modules
+     * @phpstan-param list<DependencyState> $active
+     * @phpstan-param list<DependencyState> $inactive
      * @param list<string> $blockers
      */
     private function classify(
@@ -159,7 +159,7 @@ final readonly class ModuleDependencyResolver
         return $this->state($dependency, true, $satisfied);
     }
 
-    /** @param array<string,ModuleState> $modules */
+    /** @phpstan-param array<string,ModuleState> $modules */
     private function moduleSatisfied(string $target, array $modules): bool
     {
         $state = $modules[$target] ?? null;
@@ -187,8 +187,8 @@ final readonly class ModuleDependencyResolver
     }
 
     /**
-     * @param list<DependencyState> $states
-     * @return list<DependencyState>
+     * @phpstan-param list<DependencyState> $states
+     * @phpstan-return list<DependencyState>
      */
     private function unique(array $states): array
     {
