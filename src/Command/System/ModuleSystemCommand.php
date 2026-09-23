@@ -505,7 +505,7 @@ final class ModuleSystemCommand extends SystemCommand
     }
 
     /**
-     * @param list<DependencyState> $dependencies
+     * @phpstan-param list<DependencyState> $dependencies
      */
     private function renderDependencies(array $dependencies, string $title): void
     {
@@ -637,7 +637,7 @@ final class ModuleSystemCommand extends SystemCommand
         );
     }
 
-    /** @param array<string,FeatureState> $features */
+    /** @phpstan-param array<string,FeatureState> $features */
     private function renderShowFeatures(array $features): void
     {
         if ($features === []) {
