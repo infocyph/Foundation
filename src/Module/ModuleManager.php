@@ -21,7 +21,8 @@ final readonly class ModuleManager
         private Application $application,
         private ModuleCatalog $catalog,
         private ProcessRunner $processes,
-    ) {}
+    )
+    {}
 
     /** @phpstan-return list<ModuleState> */
     public function all(): array
