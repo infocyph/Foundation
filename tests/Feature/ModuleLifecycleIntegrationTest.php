@@ -253,7 +253,7 @@ it('runs module install and direct-package removal dry-runs and refuses built-in
     ]);
 
     try {
-        $dispatcher = moduleLifecycleDispatcher($basePath);
+        $dispatcher = moduleLifecycleDispatcher($basePath, ['app' => ['capabilities' => []]]);
         $install = new FoundationModuleLifecycleIO();
         $remove = new FoundationModuleLifecycleIO();
         $builtIn = new FoundationModuleLifecycleIO();
@@ -272,8 +272,8 @@ it('runs module install and direct-package removal dry-runs and refuses built-in
             ->toBe(ExitCode::SUCCESS);
 
         expect(moduleLifecycleCommands($commandLog))->toBe([
-            ['require', 'infocyph/dblayer:^5.1', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
-            ['remove', 'infocyph/dblayer', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
+            ['require', 'infocyph/dblayer:^5.1', '--with-all-dependencies', '--no-interaction', '--dry-run'],
+            ['remove', 'infocyph/dblayer', '--with-all-dependencies', '--no-interaction', '--dry-run'],
         ]);
     } finally {
         $restoreEnvironment();
@@ -468,6 +468,29 @@ it('preserves application config and database data when an optional module is re
     } finally {
         $restoreEnvironment();
         DB::purge();
+        moduleLifecycleRemoveDirectory($basePath);
+    }
+});
+
+it('repairs a module after Composer ownership already succeeded', function (): void {
+    $basePath = moduleLifecycleBasePath('repair');
+    moduleLifecycleWriteComposer($basePath, ['infocyph/dblayer' => '^5.1']);
+
+    try {
+        $dispatcher = moduleLifecycleDispatcher($basePath, ['app' => ['capabilities' => []]]);
+        $repair = new FoundationModuleLifecycleIO();
+
+        expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:repair', 'database'], $repair))
+            ->toBe(ExitCode::SUCCESS)
+            ->and($basePath . '/config/database.php')->toBeFile();
+
+        $payload = $repair->lastPayload();
+        expect($payload)->toBeArray()
+            ->and($payload['phases']['composer'] ?? null)->toBe('skipped')
+            ->and($payload['phases']['config'] ?? null)->toBe('completed')
+            ->and($payload['phases']['runtime_invalidation'] ?? null)->toBe('completed')
+            ->and($payload['phases']['schemas'] ?? null)->toBe('completed');
+    } finally {
         moduleLifecycleRemoveDirectory($basePath);
     }
 });
