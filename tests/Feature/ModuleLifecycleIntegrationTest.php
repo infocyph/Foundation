@@ -124,14 +124,26 @@ it('exposes canonical module list and alias-aware module details through the com
             ? array_find($modules, static fn(mixed $module): bool => is_array($module) && ($module['name'] ?? null) === 'database')
             : null;
         expect($database)->toBeArray()
+            ->and($database['schema_version'] ?? null)->toBe(1)
+            ->and($database['installed'] ?? null)->toBeFalse()
+            ->and($database['ownership_unknown'] ?? null)->toBeTrue()
+            ->and($database['enabled'] ?? null)->toBeTrue()
+            ->and($database['activation_explicit'] ?? null)->toBeFalse()
+            ->and($database['configured'] ?? null)->toBeTrue()
+            ->and($database['config_published'] ?? null)->toBeFalse()
             ->and($database['packages']['infocyph/dblayer']['constraint'] ?? null)->toBe('^5.1');
 
         $show = new FoundationModuleLifecycleIO();
         expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:show', 'db'], $show))->toBe(ExitCode::SUCCESS);
         $details = $show->lastPayload();
         expect($details)->toBeArray()
+            ->and($details['schema_version'] ?? null)->toBe(1)
             ->and($details['name'] ?? null)->toBe('database')
             ->and($details['requested'] ?? null)->toBe('db')
+            ->and($details['ownership_unknown'] ?? null)->toBeTrue()
+            ->and($details['enabled'] ?? null)->toBeTrue()
+            ->and($details['configured'] ?? null)->toBeTrue()
+            ->and($details['config_published'] ?? null)->toBeFalse()
             ->and($details['packages']['infocyph/dblayer']['constraint'] ?? null)->toBe('^5.1')
             ->and($details['schema_status'] ?? null)->toBe([]);
     } finally {
