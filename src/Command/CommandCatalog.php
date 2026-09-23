@@ -260,13 +260,19 @@ final class CommandCatalog
             new CommandDefinition('module:config:publish', 'Publish config owned by a Foundation module.', 'Modules')
                 ->argument('module', 'Module name.', required: true)
                 ->option('force', 'Replace existing module config.'),
+            $connectionOption(
+                new CommandDefinition('module:repair', 'Resume an incomplete module installation without destructive rollback.', 'Modules')
+                    ->argument('module', 'Module name.', required: true)
+                    ->option('feature', 'Module feature to repair. Repeat for multiple features.', acceptsValue: true, multiple: true),
+            ),
             new CommandDefinition('module:remove', 'Remove an optional Foundation module.', 'Modules')
                 ->argument('module', 'Module name.', required: true)
                 ->option('feature', 'Module feature to remove. Repeat for multiple features.', acceptsValue: true, multiple: true)
                 ->option('dry-run', 'Preview Composer changes without modifying the project.'),
             $connectionOption(
                 new CommandDefinition('module:schema:install', 'Provision database schemas owned by a module.', 'Modules')
-                    ->argument('module', 'Module name.', required: true),
+                    ->argument('module', 'Module name.', required: true)
+                    ->option('applicable-only', 'Provision only schemas applicable to the active topology.'),
             ),
             $connectionOption(
                 new CommandDefinition('module:schema:status', 'Show database schema readiness for a module.', 'Modules')
