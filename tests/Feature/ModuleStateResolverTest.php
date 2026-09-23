@@ -52,6 +52,36 @@ it('separates direct module ownership from transitive package availability', fun
     }
 });
 
+it('rejects direct root constraints that can fall below the supported module floor', function (): void {
+    $basePath = moduleStateBasePath('constraint');
+    moduleStateWriteComposer($basePath, ['infocyph/dblayer' => '^5.0']);
+
+    try {
+        $application = Foundation::cli([
+            'base_path' => $basePath,
+            '_config_cache' => false,
+        ]);
+        $database = moduleStateFind(
+            (new ModuleStateResolver($application, new ModuleCatalog()))->all(),
+            'database',
+        );
+        $package = $database['packages']['infocyph/dblayer'] ?? null;
+
+        expect($package)->toBeArray()
+            ->and($package['available'] ?? null)->toBeTrue()
+            ->and($package['direct'] ?? null)->toBeTrue()
+            ->and($package['catalog_compatible'] ?? null)->toBeTrue()
+            ->and($package['direct_constraint_compatible'] ?? null)->toBeFalse()
+            ->and($package['compatible'] ?? null)->toBeFalse()
+            ->and($database['installed'])->toBeFalse()
+            ->and($database['ready'])->toBeFalse()
+            ->and(implode(' ', $database['blockers']))
+            ->toContain('outside the supported module range ^5.1');
+    } finally {
+        moduleStateRemoveDirectory($basePath);
+    }
+});
+
 it('reports unknown Composer ownership instead of silently treating packages as transitive', function (): void {
     $basePath = moduleStateBasePath('unknown-composer');
 
