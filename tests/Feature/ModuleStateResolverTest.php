@@ -53,25 +53,40 @@ it('separates direct module ownership from transitive package availability', fun
 });
 
 it('reports unknown Composer ownership instead of silently treating packages as transitive', function (): void {
-    $basePath = moduleStateBasePath('invalid-composer');
-    file_put_contents($basePath . '/composer.json', '{');
+    $basePath = moduleStateBasePath('unknown-composer');
 
     try {
-        $application = Foundation::cli([
+        $missingApp = Foundation::cli([
             'base_path' => $basePath,
             '_config_cache' => false,
         ]);
-        $database = moduleStateFind(
-            (new ModuleStateResolver($application, new ModuleCatalog()))->all(),
+        $missing = moduleStateFind(
+            (new ModuleStateResolver($missingApp, new ModuleCatalog()))->all(),
             'database',
         );
 
-        expect($database['installed'])->toBeFalse()
-            ->and($database['direct'])->toBeFalse()
-            ->and($database['transitive'])->toBeFalse()
-            ->and($database['ownership_unknown'])->toBeTrue()
-            ->and($database['packages']['infocyph/dblayer']['ownership_unknown'] ?? null)->toBeTrue()
-            ->and(implode(' ', $database['blockers']))->toContain('composer.json is invalid');
+        expect($missing['installed'])->toBeFalse()
+            ->and($missing['direct'])->toBeFalse()
+            ->and($missing['transitive'])->toBeFalse()
+            ->and($missing['ownership_unknown'])->toBeTrue()
+            ->and(implode(' ', $missing['blockers']))->toContain('composer.json is missing or unreadable');
+
+        file_put_contents($basePath . '/composer.json', '{');
+        $invalidApp = Foundation::cli([
+            'base_path' => $basePath,
+            '_config_cache' => false,
+        ]);
+        $invalid = moduleStateFind(
+            (new ModuleStateResolver($invalidApp, new ModuleCatalog()))->all(),
+            'database',
+        );
+
+        expect($invalid['installed'])->toBeFalse()
+            ->and($invalid['direct'])->toBeFalse()
+            ->and($invalid['transitive'])->toBeFalse()
+            ->and($invalid['ownership_unknown'])->toBeTrue()
+            ->and($invalid['packages']['infocyph/dblayer']['ownership_unknown'] ?? null)->toBeTrue()
+            ->and(implode(' ', $invalid['blockers']))->toContain('composer.json is invalid');
     } finally {
         moduleStateRemoveDirectory($basePath);
     }
