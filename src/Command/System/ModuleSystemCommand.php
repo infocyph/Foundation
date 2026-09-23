@@ -6,6 +6,7 @@ namespace Infocyph\Foundation\Command\System;
 
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Command\ExitCode;
+use Infocyph\Foundation\Module\ModuleActivationManager;
 use Infocyph\Foundation\Module\ModuleCatalog;
 use Infocyph\Foundation\Module\ModuleManager;
 use Infocyph\Foundation\Module\ModuleSchemaManager;
@@ -29,6 +30,8 @@ final class ModuleSystemCommand extends SystemCommand
     {
         return match ($this->canonicalName()) {
             'module:config:publish' => $this->publishConfig(),
+            'module:disable' => $this->disable(),
+            'module:enable' => $this->enable(),
             'module:install' => $this->install(),
             'module:list' => $this->listing(),
             'module:plan' => $this->plan(),
@@ -117,6 +120,48 @@ final class ModuleSystemCommand extends SystemCommand
             },
             $definition['config'],
         );
+    }
+
+    private function disable(): int
+    {
+        $module = $this->catalog()->resolve($this->module())['name'];
+        $path = new ModuleActivationManager($this->application, $this->catalog())->disable($module);
+
+        if ($this->io()->machineReadable()) {
+            $this->io()->json([
+                'module' => $module,
+                'enabled' => false,
+                'activation_explicit' => true,
+                'config' => $path,
+            ]);
+
+            return ExitCode::SUCCESS;
+        }
+
+        $this->io()->success(sprintf('Module "%s" disabled.', $module));
+
+        return ExitCode::SUCCESS;
+    }
+
+    private function enable(): int
+    {
+        $module = $this->catalog()->resolve($this->module())['name'];
+        $path = new ModuleActivationManager($this->application, $this->catalog())->enable($module);
+
+        if ($this->io()->machineReadable()) {
+            $this->io()->json([
+                'module' => $module,
+                'enabled' => true,
+                'activation_explicit' => true,
+                'config' => $path,
+            ]);
+
+            return ExitCode::SUCCESS;
+        }
+
+        $this->io()->success(sprintf('Module "%s" enabled.', $module));
+
+        return ExitCode::SUCCESS;
     }
 
     private function install(): int
