@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Infocyph\\Foundation\\Command\\CommandDispatcher;
-use Infocyph\\Foundation\\Command\\CommandIO;
-use Infocyph\\Foundation\\Command\\ExitCode;
+use Infocyph\Foundation\Command\CommandDispatcher;
+use Infocyph\Foundation\Command\CommandIO;
+use Infocyph\Foundation\Command\ExitCode;
 
 final class FoundationCacheSchemaCommandIO implements CommandIO
 {
