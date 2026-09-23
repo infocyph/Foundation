@@ -173,7 +173,7 @@ final readonly class ModuleStateResolver
     private function activationExplicit(string $name, ConfiguredCapabilities $capabilities): bool
     {
         return in_array($name, self::TOPOLOGY_MANAGED, true)
-            ? $capabilities->explicit()
+            ? $capabilities->explicit($name)
             : true;
     }
 
