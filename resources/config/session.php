@@ -16,7 +16,7 @@ return [
     |
     | "driver" accepts `array|file|cache|database`. The `array` store is
     | process-local and intended for tests. `file` is the dependency-free
-    | default. `cache` requires the cache module and `database` requires the
+    | default. `cache` requires the Foundation cache capability and `database` requires the
     | database module. Session services remain unloaded until a route uses the
     | `session` or `csrf` middleware.
     |
