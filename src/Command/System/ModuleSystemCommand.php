@@ -11,6 +11,7 @@ use Infocyph\Foundation\Module\ModuleActivationManager;
 use Infocyph\Foundation\Module\ModuleCatalog;
 use Infocyph\Foundation\Module\ModuleManager;
 use Infocyph\Foundation\Module\ModuleSchemaManager;
+use Infocyph\Foundation\Process\ProcessRunner;
 use Infocyph\Foundation\Release\FoundationReleaseBootstrap;
 use Infocyph\Foundation\Release\FoundationReleaseCompiler;
 
