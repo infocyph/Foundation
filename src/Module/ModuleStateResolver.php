@@ -76,7 +76,8 @@ final readonly class ModuleStateResolver
     public function __construct(
         private Application $application,
         private ModuleCatalog $catalog,
-    ) {}
+    )
+    {}
 
     /**
      * @return array<int,array<string,mixed>>
@@ -554,6 +555,7 @@ final readonly class ModuleStateResolver
 
         return $normalized;
     }
+
     /** @return array{known:false,requirements:array{},error:string} */
     private function unknownOwnership(string $error): array
     {
@@ -566,5 +568,4 @@ final readonly class ModuleStateResolver
             && $this->application->config()->has($key)
             && is_array($this->application->config()->get($key));
     }
-
 }
