@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Infocyph\Foundation\Foundation;
+use Infocyph\Foundation\Module\Internal\ModulePlatformResolver;
 use Infocyph\Foundation\Module\ModuleCatalog;
 use Infocyph\Foundation\Module\ModuleStateResolver;
 
@@ -329,6 +330,42 @@ it('evaluates selected auth feature dependencies against core capabilities', fun
         expect($ready['dependencies_satisfied'])->toBeTrue()
             ->and($ready['features']['otp']['dependencies_satisfied'] ?? false)->toBeTrue()
             ->and($ready['features']['otp']['ready'] ?? false)->toBeTrue();
+    } finally {
+        moduleStateRemoveDirectory($basePath);
+    }
+});
+
+it('reports runtime platform readiness and hard-blocks missing required extensions', function (): void {
+    $basePath = moduleStateBasePath('platform');
+    moduleStateWriteComposer($basePath, ['infocyph/dblayer' => '^5.1']);
+
+    try {
+        $application = Foundation::cli([
+            'base_path' => $basePath,
+            '_config_cache' => false,
+            'app' => ['capabilities' => ['database']],
+        ]);
+        $database = moduleStateFind(
+            (new ModuleStateResolver($application, new ModuleCatalog()))->all(),
+            'database',
+        );
+
+        expect($database['platform_ready'])->toBeTrue()
+            ->and($database['platform_status']['required_extensions']['pdo'] ?? false)->toBeTrue()
+            ->and($database['platform_status']['required_extensions']['pdo_sqlite'] ?? false)->toBeTrue();
+
+        $definition = (new ModuleCatalog())->resolve('database');
+        $definition['platform']['extensions'][] = 'foundation_extension_that_does_not_exist';
+        $resolution = (new ModulePlatformResolver($application))->resolve(
+            'database',
+            $definition,
+            [],
+            true,
+        );
+
+        expect($resolution['ready'])->toBeFalse()
+            ->and(implode(' ', $resolution['blockers']))
+            ->toContain('ext-foundation_extension_that_does_not_exist');
     } finally {
         moduleStateRemoveDirectory($basePath);
     }
