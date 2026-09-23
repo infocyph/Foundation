@@ -19,6 +19,7 @@ final readonly class ModuleActivationManager
     {
         $definition = $this->catalog->resolve($module);
         $this->assertMutable($definition);
+        $this->assertDisableSafe($definition['name']);
 
         return $this->write($definition['name'], false);
     }
@@ -49,6 +50,31 @@ final readonly class ModuleActivationManager
         }
 
         return $this->write($definition['name'], true);
+    }
+
+    private function assertDisableSafe(string $module): void
+    {
+        $states = new ModuleStateResolver($this->application, $this->catalog)->all();
+        $dependents = [];
+
+        foreach ($states as $state) {
+            if (!$state['enabled'] || $state['name'] === $module) {
+                continue;
+            }
+            foreach ($state['dependencies']['active'] as $dependency) {
+                if ($dependency['type'] === 'module' && $dependency['target'] === $module) {
+                    $dependents[] = sprintf('%s: %s', $state['name'], $dependency['reason']);
+                }
+            }
+        }
+
+        if ($dependents !== []) {
+            throw new \RuntimeException(sprintf(
+                'Module "%s" cannot be disabled while active dependents require it: %s',
+                $module,
+                implode('; ', array_values(array_unique($dependents))),
+            ));
+        }
     }
 
     /** @phpstan-param ModuleDefinition $definition */
