@@ -856,6 +856,9 @@ final class ModuleSystemCommand extends SystemCommand
      */
     private function syncSchemasFresh(?string $module = null, bool $applicableOnly = false): array
     {
+        if ($module !== null && $this->catalog()->resolve($module)['schemas'] === []) {
+            return [ExitCode::SUCCESS, []];
+        }
         $command = [
             PHP_BINARY,
             $this->projectLauncher(),
