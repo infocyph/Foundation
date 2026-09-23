@@ -108,13 +108,16 @@ final class ModuleSystemCommand extends SystemCommand
         }
 
         $this->io()->table(
-            ['Module', 'Status', 'Packages', 'Schemas', 'Purpose'],
+            ['Module', 'Status', 'Direct', 'Enabled', 'Configured', 'Ready', 'Packages', 'Purpose'],
             array_map(
                 fn(array $module): array => [
                     $module['name'],
                     $module['status'],
+                    $module['direct'],
+                    $module['enabled'],
+                    $module['configured'],
+                    $module['ready'],
                     $this->packageSummary($module['packages']),
-                    $module['schemas'] === [] ? '' : implode(', ', $module['schemas']),
                     $module['description'],
                 ],
                 $modules,
@@ -134,7 +137,7 @@ final class ModuleSystemCommand extends SystemCommand
         return $this->argument(0) ?? throw new \LogicException('Validated module argument is unavailable.');
     }
 
-    /** @param array<string,array{constraint:string,installed:bool,direct:bool,version:?string}> $packages */
+    /** @param array<string,array<string,mixed>> $packages */
     private function packageSummary(array $packages): string
     {
         if ($packages === []) {
@@ -377,9 +380,20 @@ final class ModuleSystemCommand extends SystemCommand
             ];
         }
         $schemas = $this->schemas()->status($definition['name'], $this->option('connection'));
+        $schemaReady = !array_any(
+            $schemas,
+            static fn(array $schema): bool => $schema['applicable'] && !$schema['installed'],
+        );
+        $blockers = $module['blockers'];
+        if (!$schemaReady) {
+            $blockers[] = 'One or more applicable module schemas are not ready.';
+        }
         $data = [
             ...$module,
             'requested' => $requested,
+            'schema_ready' => $schemaReady,
+            'ready' => $module['ready'] && $schemaReady,
+            'blockers' => array_values(array_unique($blockers)),
             'config' => $config,
             'schema_status' => $schemas,
         ];
@@ -391,20 +405,32 @@ final class ModuleSystemCommand extends SystemCommand
         }
 
         $this->io()->table(
-            ['Module', 'Status', 'Built-in', 'Direct', 'Purpose'],
-            [[$module['name'], $module['status'], $module['built_in'], $module['direct'], $module['description']]],
+            ['Module', 'Status', 'Built-in', 'Direct', 'Enabled', 'Configured', 'Published', 'Ready', 'Purpose'],
+            [[
+                $module['name'],
+                $module['status'],
+                $module['built_in'],
+                $module['direct'],
+                $module['enabled'],
+                $module['configured'],
+                $module['config_published'],
+                $data['ready'],
+                $module['description'],
+            ]],
         );
         $this->io()->writeln();
         $this->io()->table(
-            ['Package', 'Constraint', 'Installed', 'Direct', 'Version'],
+            ['Package', 'Constraint', 'Available', 'Direct', 'Transitive', 'Compatible', 'Version'],
             $module['packages'] === []
-                ? [['Foundation', '', true, true, 'built-in']]
+                ? [['Foundation', '', true, true, false, true, 'built-in']]
                 : array_map(
                     static fn(string $package, array $state): array => [
                         $package,
                         $state['constraint'],
-                        $state['installed'],
+                        $state['available'],
                         $state['direct'],
+                        $state['transitive'],
+                        $state['compatible'] ?? '',
                         $state['version'] ?? '',
                     ],
                     array_keys($module['packages']),
