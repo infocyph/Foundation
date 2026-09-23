@@ -126,7 +126,8 @@ final class ModuleCatalogValidator
         string $package,
         array $owners,
         array $features,
-    ): void {
+    ): void
+    {
         foreach ($owners as $feature) {
             if (!isset($features[$feature])) {
                 throw new \LogicException(sprintf(
@@ -148,7 +149,8 @@ final class ModuleCatalogValidator
         string $package,
         array $requirement,
         array $features,
-    ): void {
+    ): void
+    {
         if ($package === '') {
             throw new \LogicException(sprintf('Module "%s" contains an empty package name.', $module));
         }
