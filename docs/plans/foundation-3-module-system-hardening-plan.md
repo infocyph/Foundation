@@ -118,9 +118,9 @@ Status legend:
 | **5** | Dependency engine | **PARTIAL** | Conditional module/core-capability evaluation, blockers, show output and module:plan are implemented; exact-head QA remains. |
 | **6** | Activation lifecycle | **PARTIAL** | Atomic module-owned activation overrides plus enable/disable runtime semantics are implemented; exact-head QA remains. |
 | **7** | Schema lifecycle | **PARTIAL** | Capability-aware aggregate sync and explicit targeted schema installation are implemented; exact-head QA remains. |
-| **8** | Install/remove/repair hardening | **NOT STARTED** | Composer policy, shared ownership, safe removal and repair/resume. |
-| **9** | Platform readiness | **NOT STARTED** | Selected-feature extension/adapter readiness and doctor output. |
-| **10** | Documentation and release acceptance | **NOT STARTED** | Migration/docs/JSON contract/final QA and release gate. |
+| **8** | Install/remove/repair hardening | **PARTIAL** | Safe removal, shared ownership, Composer policy and idempotent repair/resume are implemented; exact-head QA remains. |
+| **9** | Platform readiness | **PARTIAL** | Required/optional platform checks, selected PDO driver readiness and module:doctor output are implemented; exact-head QA remains. |
+| **10** | Documentation and release acceptance | **PARTIAL** | Module/migration docs and JSON contract are synchronized; exact-head release matrix and final tracker closure remain. |
 
 Tracker rule: update this table and the detailed checkboxes in the same commit as meaningful
 implementation progress. A batch becomes **DONE** only when its acceptance criteria and relevant
@@ -132,7 +132,7 @@ tests are satisfied.
 
 | Module | Foundation install target | Current config publication | Current schema ownership |
 | --- | --- | --- | --- |
-| `auth` | currently installs `infocyph/otp ^6.1` + `web-auth/webauthn-lib ^5.3.5`; target is feature-driven | none | `auth` |
+| `auth` | core-backed; installs `infocyph/otp ^6.1` and/or `web-auth/webauthn-lib ^5.3.5` only for selected features | none | `auth` |
 | `communication` | `infocyph/talkingbytes ^2.1` | `communication.php` | none |
 | `database` | `infocyph/dblayer ^5.1` | `database.php` | none |
 | `filesystem` | `infocyph/pathwise ^4.1` | `filesystem.php` | none |
@@ -146,10 +146,9 @@ Package presence still remains insufficient as a specialist-module state signal.
 dependencies are no longer relevant to module ownership because CacheLayer belongs to
 Foundation core.
 
-The current branch already reads the application root `composer.json` and reports a per-package
-`direct` flag. However, module `installed` state is still primarily derived from
-`Composer\InstalledVersions::isInstalled()`, so a transitive package can still make a module
-look installed. Batch 1 completes this separation rather than rebuilding it from scratch.
+The current branch reads the application root `composer.json`, distinguishes direct/transitive/
+ownership-unknown package state, and defines specialist-module installation from compatible direct
+application ownership rather than vendor presence alone.
 
 Important integration relationships include:
 
@@ -403,7 +402,7 @@ this ownership model because Foundation owns it as core infrastructure.
 - [x] Define module installation from direct required package ownership, not only vendor presence.
 - [x] Preserve package constraint compatibility checks for the catalog's supported caret ranges,
   including direct root-constraint floor safety.
-- [ ] Add fixture-driven tests for:
+- [x] Add fixture-driven tests for:
   - [x] specialist package present only transitively;
   - [x] specialist package directly required by the application;
   - [x] package present with an incompatible direct/catalog range;
@@ -516,10 +515,10 @@ auth
 - [x] Passkey selection requires both `infocyph/otp` and `web-auth/webauthn-lib`.
 - [x] Passkey package selection does not imply that OTP/TOTP MFA is selected in feature state.
 - [x] Core auth remains installed/available without either specialist feature.
-- [ ] Complete dependency-aware readiness for selected auth drivers/features:
+- [x] Complete dependency-aware readiness for selected auth drivers/features:
   - [x] OTP package readiness is required only when OTP MFA is selected;
   - [x] passkey package readiness requires OTP's passkey integration plus WebAuthn;
-  - [ ] database/security/communication dependency readiness is evaluated by the Batch 5
+  - [x] database/security/communication dependency readiness is evaluated by the Batch 5
     dependency engine (declarations are already catalog-owned).
 - [x] Auth OTP/passkey feature metadata targets Foundation's core `cache` capability directly and
   never creates a cache module edge.
@@ -648,14 +647,14 @@ the CLI does not communicate this strongly enough.
 
 - [x] Keep installation separate from runtime activation.
 - [x] Add an explicit activation mechanism.
-- [ ] Preferred CLI direction:
+- [x] Preferred CLI direction:
   - `module:install <module>`
   - `module:enable <module>`
   - `module:disable <module>`
-- [ ] Optionally allow `module:install <module> --enable`.
+- [x] Keep activation deliberately separate; do not add a compound `module:install <module> --enable` shortcut.
 - [x] Do not silently rewrite explicit `app.capabilities` unless the user explicitly requests
   activation.
-- [ ] Define behavior when capability topology is omitted:
+- [x] Define behavior when capability topology is omitted:
   - compatibility auto-discovery remains available where Foundation currently permits it;
   - CLI must clearly report that activation is inferred, not explicit;
   - production-readiness policy must explicitly decide whether missing `app.capabilities` is
@@ -686,18 +685,18 @@ package can still be removed while:
 
 ## Work
 
-- [ ] Before removal, inspect:
+- [x] Before removal, inspect:
   - explicit capability activation;
   - active conditional dependency graph;
   - feature package ownership;
   - root Composer ownership.
-- [ ] Refuse destructive package removal when the module is still enabled.
-- [ ] Refuse removal when another active module/feature requires it.
-- [ ] Report every blocker.
-- [ ] Support explicit `--disable` or a deliberate force workflow if required.
-- [ ] Never delete application config, schemas or data as part of normal package removal.
-- [ ] Do not remove a package that is not a direct application requirement.
-- [ ] Handle shared package ownership correctly.
+- [x] Refuse destructive package removal when the module is still enabled.
+- [x] Refuse removal when another active module/feature requires it.
+- [x] Report every blocker.
+- [x] Use the explicit `module:disable <module>` lifecycle before removal; do not add a destructive force shortcut.
+- [x] Never delete application config, schemas or data as part of normal package removal.
+- [x] Do not remove a package that is not a direct application requirement.
+- [x] Handle shared package ownership correctly.
 
 ## Acceptance
 
@@ -835,11 +834,11 @@ Epicrypt requires OpenSSL, Sodium and its declared crypto dependencies.
 
 ## Rules
 
-- [ ] Do not duplicate Composer's complete platform resolver.
-- [ ] Report Foundation-relevant runtime readiness for selected features.
-- [ ] Required base extension failures should be hard blockers.
-- [ ] Optional feature requirements should only block the selected feature.
-- [ ] Keep actionable messages.
+- [x] Do not duplicate Composer's complete platform resolver.
+- [x] Report Foundation-relevant runtime readiness for selected features.
+- [x] Required base extension failures should be hard blockers.
+- [x] Optional feature requirements should only block the selected feature.
+- [x] Keep actionable messages.
 
 ---
 
@@ -890,15 +889,15 @@ Do not attempt unsafe automatic Composer rollback.
 
 Instead:
 
-- [ ] make each lifecycle phase idempotent;
-- [ ] report completed/failed phases;
-- [ ] add a repair/resume path;
-- [ ] preferred command: `module:repair <module>`;
-- [ ] re-run missing config publication safely;
-- [ ] re-run runtime invalidation safely;
-- [ ] re-run applicable schema installation safely;
-- [ ] never overwrite application-owned config unless explicitly forced;
-- [ ] never destroy data during repair.
+- [x] make each lifecycle phase idempotent;
+- [x] report completed/failed phases;
+- [x] add a repair/resume path;
+- [x] preferred command: `module:repair <module>`;
+- [x] re-run missing config publication safely;
+- [x] re-run runtime invalidation safely;
+- [x] re-run applicable schema installation safely;
+- [x] never overwrite application-owned config unless explicitly forced;
+- [x] never destroy data during repair.
 
 ## Acceptance
 
@@ -917,13 +916,13 @@ That can unexpectedly alter the application's dev dependency installation state.
 
 ## Work
 
-- [ ] Re-evaluate unconditional `--update-no-dev`.
-- [ ] Preserve normal Composer application behavior by default.
-- [ ] If deployment wants no-dev behavior, make it explicit.
-- [ ] Keep `--with-all-dependencies` where package graph reconciliation requires it.
-- [ ] Keep dry-run fully non-mutating.
-- [ ] Test projects with and without dev packages installed.
-- [ ] Ensure command execution remains non-interactive and deterministic.
+- [x] Re-evaluate unconditional `--update-no-dev`.
+- [x] Preserve normal Composer application behavior by default.
+- [x] Keep deployment `--no-dev` policy outside module mutation; module commands never alter the host's dev-dependency installation policy.
+- [x] Keep `--with-all-dependencies` where package graph reconciliation requires it.
+- [x] Keep dry-run fully non-mutating.
+- [x] Test projects with and without dev packages installed.
+- [x] Ensure command execution remains non-interactive and deterministic.
 
 ---
 
@@ -931,18 +930,18 @@ That can unexpectedly alter the application's dev dependency installation state.
 
 ## Work
 
-- [ ] Each published config file must have one clear owner.
-- [ ] `communication.php` is owned by the communication specialist module.
-- [ ] `notifications.php` is Foundation-native application config and must not be owned or
+- [x] Each published config file must have one clear owner.
+- [x] `communication.php` is owned by the communication specialist module.
+- [x] `notifications.php` is Foundation-native application config and must not be owned or
   published by the communication module.
-- [ ] Feature-specific config must not be published merely because another feature in the module
+- [x] Feature-specific config must not be published merely because another feature in the module
   exists.
-- [ ] Effective `configured` state must come from resolved config/validation, not publication
+- [x] Effective `configured` state must come from resolved config/validation, not publication
   alone.
-- [ ] Existing application-owned config remains untouched unless `--force`.
-- [ ] Preserve transactional staging/backup behavior in `ModuleConfigPublisher`.
-- [ ] Preserve symbolic-link refusal on forced publication.
-- [ ] Keep config publication idempotent.
+- [x] Existing application-owned config remains untouched unless `--force`.
+- [x] Preserve transactional staging/backup behavior in `ModuleConfigPublisher`.
+- [x] Preserve symbolic-link refusal on forced publication.
+- [x] Keep config publication idempotent.
 
 ---
 
@@ -959,7 +958,7 @@ once.
 - [x] Compare catalog package floors with Foundation's tested `require-dev` dependency set.
 - [x] Require deliberate floor exceptions to be expressed through catalog/test changes rather
   than silent drift.
-- [ ] Cover:
+- [x] Cover:
   - [x] OTP 6.1;
   - [x] DBLayer 5.1;
   - [x] Pathwise 4.1;
@@ -968,7 +967,7 @@ once.
   - [x] TalkingBytes 2.1;
   - [x] Epicrypt 3.1;
   - [x] WebAuthn library floor.
-- [ ] Keep docs generated/verified against catalog values where practical; final public-doc
+- [x] Keep docs generated/verified against catalog values where practical; final public-doc
   synchronization remains a Batch 10 release task.
 - [x] Guard CacheLayer ^3.4 separately as a Foundation core dependency, not a ModuleCatalog floor.
 
@@ -1062,58 +1061,58 @@ than accidental key drift.
 
 ## auth
 
-- [ ] core auth remains Foundation-native;
-- [ ] auth is represented as a virtual/core-backed module namespace;
-- [ ] OTP feature independent;
-- [ ] passkey feature requires OTP + WebAuthn without selecting OTP/TOTP MFA implicitly;
-- [ ] database/security/notifications relationships are conditional;
-- [ ] shared-cache behavior targets the Foundation core cache capability;
-- [ ] aliases map to features correctly;
-- [ ] shared package ownership makes feature removal safe.
+- [x] core auth remains Foundation-native;
+- [x] auth is represented as a virtual/core-backed module namespace;
+- [x] OTP feature independent;
+- [x] passkey feature requires OTP + WebAuthn without selecting OTP/TOTP MFA implicitly;
+- [x] database/security/notifications relationships are conditional;
+- [x] shared-cache behavior targets the Foundation core cache capability;
+- [x] aliases map to features correctly;
+- [x] shared package ownership makes feature removal safe.
 
 ## communication
 
-- [ ] communication remains the TalkingBytes-backed specialist module;
-- [ ] notifications remains Foundation-native and is not a module alias;
-- [ ] `communication.php` / `notifications.php` ownership is separated;
-- [ ] TalkingBytes package ownership correct;
-- [ ] optional gRPC/email/platform features reported without becoming unconditional dependencies;
-- [ ] webhook replay may consume Foundation's core cache capability without creating a cache
+- [x] communication remains the TalkingBytes-backed specialist module;
+- [x] notifications remains Foundation-native and is not a module alias;
+- [x] `communication.php` / `notifications.php` ownership is separated;
+- [x] TalkingBytes package ownership correct;
+- [x] optional gRPC/email/platform features reported without becoming unconditional dependencies;
+- [x] webhook replay may consume Foundation's core cache capability without creating a cache
   module dependency.
 
 ## database
 
-- [ ] DBLayer direct ownership reported;
-- [ ] selected PDO driver platform readiness reported;
-- [ ] database remains infrastructure rather than schema owner for application domains.
+- [x] DBLayer direct ownership reported;
+- [x] selected PDO driver platform readiness reported;
+- [x] database remains infrastructure rather than schema owner for application domains.
 
 ## filesystem
 
-- [ ] Pathwise direct ownership reported;
-- [ ] adapter packages/extensions represented as feature/platform availability;
-- [ ] no cloud/adapter package auto-install unless explicitly selected.
+- [x] Pathwise direct ownership reported;
+- [x] adapter packages/extensions represented as feature/platform availability;
+- [x] no cloud/adapter package auto-install unless explicitly selected.
 
 ## messaging
 
-- [ ] Omnibus direct ownership reported;
-- [ ] durable mode -> database dependency;
-- [ ] core CacheLayer coordination is consumed directly where selected, without a cache module
+- [x] Omnibus direct ownership reported;
+- [x] durable mode -> database dependency;
+- [x] core CacheLayer coordination is consumed directly where selected, without a cache module
   dependency;
-- [ ] PCNTL/POSIX readiness reported;
-- [ ] Runwire remains optional backend rather than forced Foundation module dependency.
+- [x] PCNTL/POSIX readiness reported;
+- [x] Runwire remains optional backend rather than forced Foundation module dependency.
 
 ## security
 
-- [ ] Epicrypt direct ownership reported;
-- [ ] security module remains optional for lean app install;
-- [ ] auth security-driver dependency conditional;
-- [ ] no Pathwise requirement introduced merely because Epicrypt tests/integrations use it.
+- [x] Epicrypt direct ownership reported;
+- [x] security module remains optional for lean app install;
+- [x] auth security-driver dependency conditional;
+- [x] no Pathwise requirement introduced merely because Epicrypt tests/integrations use it.
 
 ## validation
 
-- [ ] ReqShield direct ownership reported;
-- [ ] DBLayer remains optional until database rules are selected;
-- [ ] database-rule readiness reported without making all validation require DBLayer.
+- [x] ReqShield direct ownership reported;
+- [x] DBLayer remains optional until database rules are selected;
+- [x] database-rule readiness reported without making all validation require DBLayer.
 
 ---
 
@@ -1244,28 +1243,28 @@ Also out of scope:
 
 The module-system pass is complete only when:
 
-- [ ] specialist-package presence no longer equals module installation;
-- [ ] direct/transitive/ownership-unknown package state is reported correctly;
-- [ ] required/feature/optional package roles are modeled;
-- [ ] auth no longer installs OTP + WebAuthn unconditionally;
-- [ ] passkey ownership correctly requires OTP + WebAuthn without implying OTP/TOTP MFA selection;
-- [ ] communication remains the specialist module while notifications remains Foundation-native
+- [x] specialist-package presence no longer equals module installation;
+- [x] direct/transitive/ownership-unknown package state is reported correctly;
+- [x] required/feature/optional package roles are modeled;
+- [x] auth no longer installs OTP + WebAuthn unconditionally;
+- [x] passkey ownership correctly requires OTP + WebAuthn without implying OTP/TOTP MFA selection;
+- [x] communication remains the specialist module while notifications remains Foundation-native
   and independently activatable;
-- [ ] conditional specialist-module and Foundation-core capability dependencies are explicit and
+- [x] conditional specialist-module and Foundation-core capability dependencies are explicit and
   explainable;
-- [ ] no cache/cachelayer module entry, alias, install/remove path, status entry or schema
+- [x] no cache/cachelayer module entry, alias, install/remove path, status entry or schema
   ownership remains in the module subsystem;
-- [ ] cache core schema lifecycle regression coverage is green;
-- [ ] install and enable are separate lifecycle concepts;
-- [ ] removal is dependency-aware and preserves application config/data;
-- [ ] aggregate schema sync follows active capability topology;
-- [ ] normal module installation does not provision unrelated module schemas;
-- [ ] module status separates effective config from publication state;
-- [ ] module status includes dependency/platform/schema readiness and explicit/inferred activation;
-- [ ] partial installations have an idempotent repair path;
-- [ ] Composer mutation no longer forces inappropriate no-dev behavior;
-- [ ] module package floors are guarded from version drift;
-- [ ] aliases do not unexpectedly broaden requested features;
+- [x] cache core schema lifecycle regression coverage is green;
+- [x] install and enable are separate lifecycle concepts;
+- [x] removal is dependency-aware and preserves application config/data;
+- [x] aggregate schema sync follows active capability topology;
+- [x] normal module installation does not provision unrelated module schemas;
+- [x] module status separates effective config from publication state;
+- [x] module status includes dependency/platform/schema readiness and explicit/inferred activation;
+- [x] partial installations have an idempotent repair path;
+- [x] Composer mutation no longer forces inappropriate no-dev behavior;
+- [x] module package floors are guarded from version drift;
+- [x] aliases do not unexpectedly broaden requested features;
 - [ ] all seven specialist module namespaces have module-specific acceptance coverage;
 - [ ] tracker shows Batches 0-10 **DONE**;
 - [ ] exact-head PHPForge matrix is green.
