@@ -11,7 +11,10 @@ use Infocyph\Foundation\Process\ProcessOptions;
 use Infocyph\Foundation\Process\ProcessResult;
 use Infocyph\Foundation\Process\ProcessRunner;
 
-/** @phpstan-import-type ModuleState from ModuleStateResolver */
+/**
+ * @phpstan-import-type ModuleDefinition from ModuleCatalog
+ * @phpstan-import-type ModuleState from ModuleStateResolver
+ */
 final readonly class ModuleManager
 {
     public function __construct(
@@ -26,10 +29,11 @@ final readonly class ModuleManager
         return new ModuleStateResolver($this->application, $this->catalog)->all();
     }
 
-    public function install(string $module, bool $dryRun = false): ProcessResult
+    /** @param list<string> $features */
+    public function install(string $module, array $features = [], bool $dryRun = false): ProcessResult
     {
-        $definition = $this->catalog->resolve($module);
-        $packages = $this->catalog->managedPackages($definition);
+        $definition = $this->catalog->resolve($module, $features);
+        $packages = $this->catalog->installationPackages($definition, $definition['requested_features']);
         if (($definition['built_in'] ?? false) === true || $packages === []) {
             return new ProcessResult(0);
         }
@@ -62,9 +66,10 @@ final readonly class ModuleManager
         return $result;
     }
 
-    public function remove(string $module, bool $dryRun = false): ProcessResult
+    /** @param list<string> $features */
+    public function remove(string $module, array $features = [], bool $dryRun = false): ProcessResult
     {
-        $definition = $this->catalog->resolve($module);
+        $definition = $this->catalog->resolve($module, $features);
         if (($definition['built_in'] ?? false) === true) {
             throw new \InvalidArgumentException(sprintf('Module "%s" is built into Foundation.', $definition['name']));
         }
@@ -77,10 +82,11 @@ final readonly class ModuleManager
             );
         }
 
-        $packages = array_values(array_filter(
-            array_keys($this->catalog->managedPackages($definition)),
-            static fn(string $package): bool => isset($ownership['requirements'][$package]),
-        ));
+        $packages = $this->removalPackages(
+            $definition,
+            $definition['requested_features'],
+            $ownership['requirements'],
+        );
         if ($packages === []) {
             return new ProcessResult(0);
         }
@@ -94,5 +100,71 @@ final readonly class ModuleManager
             cwd: $this->application->basePath(),
             interactive: true,
         ));
+    }
+
+    /**
+     * @param array<string,mixed> $definition
+     * @phpstan-param ModuleDefinition $definition
+     * @param list<string> $otherFeatures
+     * @param array<string,string> $direct
+     */
+    private function otherFeatureOwnsPackage(
+        array $definition,
+        string $package,
+        array $otherFeatures,
+        array $direct,
+    ): bool
+    {
+        foreach ($otherFeatures as $feature) {
+            $packages = $this->catalog->featurePackages($definition, $feature);
+            unset($packages[$package]);
+
+            if ($packages === []) {
+                return true;
+            }
+            if (array_any(
+                array_keys($packages),
+                static fn(string $candidate): bool => isset($direct[$candidate]),
+            )) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param array<string,mixed> $definition
+     * @phpstan-param ModuleDefinition $definition
+     * @param list<string> $features
+     * @param array<string,string> $direct
+     * @return list<string>
+     */
+    private function removalPackages(array $definition, array $features, array $direct): array
+    {
+        $managed = $features === []
+            ? $this->catalog->managedPackages($definition)
+            : $this->catalog->installationPackages($definition, $features);
+
+        $packages = [];
+        foreach (array_keys($managed) as $package) {
+            if (!isset($direct[$package])) {
+                continue;
+            }
+
+            if ($features !== []) {
+                $owners = $definition['packages'][$package]['features'] ?? [];
+                $otherFeatures = array_values(array_diff($owners, $features));
+                if ($otherFeatures !== []
+                    && $this->otherFeatureOwnsPackage($definition, $package, $otherFeatures, $direct)
+                ) {
+                    continue;
+                }
+            }
+
+            $packages[] = $package;
+        }
+
+        return $packages;
     }
 }

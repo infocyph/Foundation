@@ -208,6 +208,106 @@ it('runs module install and direct-package removal dry-runs and refuses built-in
     }
 });
 
+it('installs and removes auth features without broadening shared package ownership', function (): void {
+    $basePath = moduleLifecycleBasePath('auth-features');
+    [$restoreEnvironment, $commandLog] = moduleLifecycleComposerStub($basePath);
+    moduleLifecycleWriteComposer($basePath, []);
+
+    try {
+        $dispatcher = moduleLifecycleDispatcher($basePath);
+
+        $core = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:install', 'auth', '--dry-run'], $core))
+            ->toBe(ExitCode::SUCCESS)
+            ->and($core->lastPayload()['package_action'] ?? null)->toBe('none')
+            ->and(is_file($commandLog))->toBeFalse();
+
+        $otp = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun(
+            $dispatcher,
+            ['infbyte', 'module:install', 'auth', '--feature=otp', '--dry-run'],
+            $otp,
+        ))->toBe(ExitCode::SUCCESS)
+            ->and($otp->lastPayload()['features'] ?? null)->toBe(['otp']);
+
+        $passkey = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:install', 'passkeys', '--dry-run'], $passkey))
+            ->toBe(ExitCode::SUCCESS)
+            ->and($passkey->lastPayload()['features'] ?? null)->toBe(['passkey']);
+
+        $both = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun(
+            $dispatcher,
+            [
+                'infbyte',
+                'module:install',
+                'auth',
+                '--feature=otp',
+                '--feature=passkey',
+                '--dry-run',
+            ],
+            $both,
+        ))->toBe(ExitCode::SUCCESS)
+            ->and($both->lastPayload()['features'] ?? null)->toBe(['otp', 'passkey']);
+
+        moduleLifecycleWriteComposer($basePath, [
+            'infocyph/otp' => '^6.1',
+            'web-auth/webauthn-lib' => '^5.3.5',
+        ]);
+        $removePasskey = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun(
+            $dispatcher,
+            ['infbyte', 'module:remove', 'auth', '--feature=passkey', '--dry-run'],
+            $removePasskey,
+        ))->toBe(ExitCode::SUCCESS)
+            ->and($removePasskey->lastPayload()['features'] ?? null)->toBe(['passkey']);
+
+        moduleLifecycleWriteComposer($basePath, ['infocyph/otp' => '^6.1']);
+        $removeOtp = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:remove', 'otp', '--dry-run'], $removeOtp))
+            ->toBe(ExitCode::SUCCESS)
+            ->and($removeOtp->lastPayload()['features'] ?? null)->toBe(['otp']);
+
+        expect(moduleLifecycleCommands($commandLog))->toBe([
+            ['require', 'infocyph/otp:^6.1', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
+            [
+                'require',
+                'infocyph/otp:^6.1',
+                'web-auth/webauthn-lib:^5.3.5',
+                '--with-all-dependencies',
+                '--update-no-dev',
+                '--dry-run',
+            ],
+            [
+                'require',
+                'infocyph/otp:^6.1',
+                'web-auth/webauthn-lib:^5.3.5',
+                '--with-all-dependencies',
+                '--update-no-dev',
+                '--dry-run',
+            ],
+            [
+                'remove',
+                'web-auth/webauthn-lib',
+                '--with-all-dependencies',
+                '--update-no-dev',
+                '--dry-run',
+            ],
+            [
+                'remove',
+                'infocyph/otp',
+                '--with-all-dependencies',
+                '--update-no-dev',
+                '--dry-run',
+            ],
+        ]);
+    } finally {
+        $restoreEnvironment();
+        DB::purge();
+        moduleLifecycleRemoveDirectory($basePath);
+    }
+});
+
 it('refuses module removal when direct Composer ownership is unknown', function (): void {
     $basePath = moduleLifecycleBasePath('unknown-remove');
     [$restoreEnvironment, $commandLog] = moduleLifecycleComposerStub($basePath);

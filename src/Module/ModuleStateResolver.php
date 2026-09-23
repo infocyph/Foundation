@@ -18,6 +18,19 @@ use Infocyph\Foundation\Config\Internal\ConfiguredCapabilities;
  *     version:?string,
  *     features:list<string>
  * }
+ * @phpstan-type FeatureState array{
+ *     description:string,
+ *     aliases:list<string>,
+ *     selected:bool,
+ *     installed:bool,
+ *     available:bool,
+ *     direct:bool,
+ *     ready:bool,
+ *     packages:array<string,PackageState>,
+ *     blockers:list<string>,
+ *     dependencies:list<ModuleDependency>,
+ *     platform:PlatformRequirement
+ * }
  * @phpstan-type PackageState array{
  *     constraint:string,
  *     installed:bool,
@@ -44,6 +57,7 @@ use Infocyph\Foundation\Config\Internal\ConfiguredCapabilities;
  *     name:string,
  *     description:string,
  *     built_in:bool,
+ *     core_backed:bool,
  *     status:string,
  *     installed:bool,
  *     installed_by_module:bool,
@@ -62,7 +76,7 @@ use Infocyph\Foundation\Config\Internal\ConfiguredCapabilities;
  *     schemas:list<string>,
  *     packages:array<string,PackageState>,
  *     optional_integrations:array<string,OptionalPackageState>,
- *     features:array<string,ModuleFeature>,
+ *     features:array<string,FeatureState>,
  *     dependency_declarations:list<ModuleDependency>,
  *     platform:PlatformRequirement,
  *     blockers:list<string>,
@@ -245,10 +259,63 @@ final readonly class ModuleStateResolver
         return $packagesAvailable;
     }
 
-    /** @param PackageResolution $packages */
-    private function installedByModule(bool $builtIn, int $packageCount, array $packages): bool
+    /**
+     * @param array<string,mixed> $definition
+     * @phpstan-param ModuleDefinition $definition
+     * @param array{known:bool,requirements:array<string,string>,error:?string} $ownership
+     * @return array<string,FeatureState>
+     */
+    private function featureStates(array $definition, array $ownership): array
     {
-        if ($builtIn) {
+        $states = [];
+
+        foreach ($definition['features'] as $name => $feature) {
+            $packages = $this->resolvePackages(
+                $this->catalog->featurePackages($definition, $name),
+                $ownership,
+            );
+            $packageCount = count($packages['packages']);
+            $selected = isset($feature['when']) && $this->predicateActive($feature['when']);
+            $installed = $packageCount > 0
+                && $packages['all_available']
+                && $packages['all_direct']
+                && !array_any(
+                    $packages['packages'],
+                    static fn(array $package): bool => $package['compatible'] === false,
+                );
+            $blockers = $selected && !$installed
+                ? $packages['blockers']
+                : [];
+
+            $states[$name] = [
+                'description' => $feature['description'],
+                'aliases' => $feature['aliases'],
+                'selected' => $selected,
+                'installed' => $installed,
+                'available' => $packages['all_available'],
+                'direct' => $packages['all_direct'],
+                'ready' => $selected && $installed && $blockers === [],
+                'packages' => $packages['packages'],
+                'blockers' => $blockers,
+                'dependencies' => $feature['dependencies'],
+                'platform' => $feature['platform'],
+            ];
+        }
+
+        return $states;
+    }
+
+    /**
+     * @param PackageResolution $packages
+     */
+    private function installedByModule(
+        bool $builtIn,
+        bool $coreBacked,
+        int $packageCount,
+        array $packages,
+    ): bool
+    {
+        if ($builtIn || $coreBacked) {
             return true;
         }
         if ($packageCount === 0 || !$packages['all_available'] || !$packages['all_direct']) {
@@ -428,17 +495,36 @@ final readonly class ModuleStateResolver
         return [];
     }
 
+    /** @param array{key:string,operator:'equals'|'not-empty',value?:bool|int|string|null} $predicate */
+    private function predicateActive(array $predicate): bool
+    {
+        $value = $this->application->config()->get($predicate['key']);
+
+        if ($predicate['operator'] === 'equals') {
+            return $value === ($predicate['value'] ?? null);
+        }
+        if (is_string($value)) {
+            return trim($value) !== '';
+        }
+        if (is_array($value)) {
+            return $value !== [];
+        }
+
+        return $value !== null && $value !== false;
+    }
+
     /** @param list<string> $blockers */
     private function ready(
         bool $builtIn,
+        bool $coreBacked,
         bool $installed,
         bool $enabled,
         bool $configured,
         array $blockers,
     ): bool
     {
-        return $builtIn
-            ? $enabled && $configured
+        return $builtIn || $coreBacked
+            ? $enabled && $configured && $blockers === []
             : $installed && $enabled && $configured && $blockers === [];
     }
 
@@ -508,14 +594,24 @@ final readonly class ModuleStateResolver
     ): array
     {
         $builtIn = ($definition['built_in'] ?? false) === true;
-        $packages = $this->resolvePackages($this->catalog->managedPackages($definition), $ownership);
+        $coreBacked = ($definition['core_backed'] ?? false) === true;
+        $packages = $this->resolvePackages($this->catalog->requiredPackages($definition), $ownership);
         $packageCount = count($packages['packages']);
-        $installed = $this->installedByModule($builtIn, $packageCount, $packages);
+        $installed = $this->installedByModule($builtIn, $coreBacked, $packageCount, $packages);
         $activationExplicit = $this->activationExplicit($name, $capabilities);
         $enabled = $this->enabled($name, $activationExplicit, $packages['all_available'], $capabilities);
         $configured = $this->configured($definition);
+        $features = $this->featureStates($definition, $ownership);
+        $featureBlockers = [];
+        foreach ($features as $feature => $state) {
+            if ($state['selected'] && !$state['ready']) {
+                foreach ($state['blockers'] as $blocker) {
+                    $featureBlockers[] = sprintf('Feature %s: %s', $feature, $blocker);
+                }
+            }
+        }
         $blockers = $this->moduleBlockers(
-            $packages['blockers'],
+            [...$packages['blockers'], ...$featureBlockers],
             $enabled,
             $packages['any_transitive'],
             $installed,
@@ -527,7 +623,7 @@ final readonly class ModuleStateResolver
             $enabled,
             $activationExplicit,
         );
-        $ready = $this->ready($builtIn, $installed, $enabled, $configured, $blockers);
+        $ready = $this->ready($builtIn, $coreBacked, $installed, $enabled, $configured, $blockers);
         $status = $this->status($builtIn, $installed, $enabled, $ready, $blockers);
 
         return [
@@ -535,6 +631,7 @@ final readonly class ModuleStateResolver
             'name' => $name,
             'description' => $definition['description'],
             'built_in' => $builtIn,
+            'core_backed' => $coreBacked,
             'status' => $status,
             'installed' => $installed,
             'installed_by_module' => $installed,
@@ -553,7 +650,7 @@ final readonly class ModuleStateResolver
             'schemas' => $definition['schemas'],
             'packages' => $packages['packages'],
             'optional_integrations' => $this->optionalIntegrations($definition),
-            'features' => $definition['features'],
+            'features' => $features,
             'dependency_declarations' => $definition['dependencies'],
             'platform' => $definition['platform'],
             'blockers' => $blockers,

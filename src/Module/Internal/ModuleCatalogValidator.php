@@ -96,14 +96,8 @@ final class ModuleCatalogValidator
             }
 
             $when = $dependency['when'] ?? null;
-            if ($when === null) {
-                continue;
-            }
-            if ($when['key'] === '' || !in_array($when['operator'], ['equals', 'not-empty'], true)) {
-                throw new \LogicException(sprintf('Module dependency "%s" has an invalid config predicate.', $scope));
-            }
-            if ($when['operator'] === 'equals' && !array_key_exists('value', $when)) {
-                throw new \LogicException(sprintf('Module dependency "%s" equality predicate needs a value.', $scope));
+            if ($when !== null) {
+                $this->assertPredicate($scope, $when);
             }
         }
     }
@@ -119,6 +113,10 @@ final class ModuleCatalogValidator
                 throw new \LogicException(sprintf('Module "%s" contains an incomplete feature definition.', $module));
             }
 
+            $when = $feature['when'] ?? null;
+            if ($when !== null) {
+                $this->assertPredicate($module . ':' . $name, $when);
+            }
         }
     }
 
@@ -157,6 +155,17 @@ final class ModuleCatalogValidator
                     ));
                 }
             }
+        }
+    }
+
+    /** @param array{key:string,operator:'equals'|'not-empty',value?:bool|int|string|null} $predicate */
+    private function assertPredicate(string $scope, array $predicate): void
+    {
+        if ($predicate['key'] === '' || !in_array($predicate['operator'], ['equals', 'not-empty'], true)) {
+            throw new \LogicException(sprintf('Module metadata "%s" has an invalid config predicate.', $scope));
+        }
+        if ($predicate['operator'] === 'equals' && !array_key_exists('value', $predicate)) {
+            throw new \LogicException(sprintf('Module metadata "%s" equality predicate needs a value.', $scope));
         }
     }
 

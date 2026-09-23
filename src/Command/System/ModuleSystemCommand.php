@@ -15,6 +15,7 @@ use Infocyph\Foundation\Release\FoundationReleaseBootstrap;
 use Infocyph\Foundation\Release\FoundationReleaseCompiler;
 
 /**
+ * @phpstan-import-type FeatureState from \Infocyph\Foundation\Module\ModuleStateResolver
  * @phpstan-import-type PackageState from \Infocyph\Foundation\Module\ModuleStateResolver
  * @phpstan-import-type ModuleState from \Infocyph\Foundation\Module\ModuleStateResolver
  * @phpstan-import-type ResolvedModule from \Infocyph\Foundation\Module\ModuleCatalog
@@ -67,11 +68,16 @@ final class ModuleSystemCommand extends SystemCommand
     private function install(): int
     {
         $requested = $this->module();
-        $definition = $this->catalog()->resolve($requested);
+        $definition = $this->catalog()->resolve($requested, $this->values('feature'));
         $module = $definition['name'];
+        $features = $definition['requested_features'];
+        if (($definition['core_backed'] ?? false) === true && $features === []) {
+            return $this->installCoreNoop($definition, $requested);
+        }
+
         $manager = $this->manager();
         $dryRun = $this->flag('dry-run');
-        $result = $manager->install($module, $dryRun);
+        $result = $manager->install($module, $features, $dryRun);
         if (!$result->successful()) {
             return $result->exitCode;
         }
@@ -91,13 +97,18 @@ final class ModuleSystemCommand extends SystemCommand
             $this->io()->json([
                 'module' => $module,
                 'requested' => $requested,
+                'features' => $features,
                 'exit_code' => $schemaExit,
                 ...$published,
                 'owned_schemas' => $definition['schemas'],
                 'schemas' => $schemas,
             ]);
         } else {
-            $this->io()->success(sprintf('Module "%s" is installed.', $module));
+            $label = $features === []
+                ? sprintf('Module "%s"', $module)
+                : sprintf('Module "%s" feature(s) %s', $module, implode(', ', $features));
+            $this->io()->success($label . ' installed.');
+
             foreach ($published['published'] as $path) {
                 $this->io()->info('Published ' . $path);
             }
@@ -109,6 +120,32 @@ final class ModuleSystemCommand extends SystemCommand
         }
 
         return $schemaExit;
+    }
+
+    /**
+     * @param array<string,mixed> $definition
+     * @phpstan-param ResolvedModule $definition
+     */
+    private function installCoreNoop(array $definition, string $requested): int
+    {
+        $payload = [
+            'module' => $definition['name'],
+            'requested' => $requested,
+            'features' => [],
+            'core_backed' => true,
+            'package_action' => 'none',
+        ];
+
+        if ($this->io()->machineReadable()) {
+            $this->io()->json($payload);
+        } else {
+            $this->io()->note(sprintf(
+                'Module "%s" core is built into Foundation; use --feature=otp or --feature=passkey for specialist packages.',
+                $definition['name'],
+            ));
+        }
+
+        return ExitCode::SUCCESS;
     }
 
     private function invalidateCompiledRuntime(): void
@@ -265,9 +302,11 @@ final class ModuleSystemCommand extends SystemCommand
     private function remove(): int
     {
         $requested = $this->module();
-        $module = $this->catalog()->resolve($requested)['name'];
+        $definition = $this->catalog()->resolve($requested, $this->values('feature'));
+        $module = $definition['name'];
+        $features = $definition['requested_features'];
         $dryRun = $this->flag('dry-run');
-        $result = $this->manager()->remove($module, $dryRun);
+        $result = $this->manager()->remove($module, $features, $dryRun);
         if ($result->successful() && !$dryRun) {
             $this->invalidateCompiledRuntime();
         }
@@ -276,13 +315,14 @@ final class ModuleSystemCommand extends SystemCommand
             $this->io()->json([
                 'module' => $module,
                 'requested' => $requested,
+                'features' => $features,
                 'exit_code' => $result->exitCode,
             ]);
         } elseif ($result->successful()) {
-            $this->io()->success(sprintf(
-                'Module "%s" removed. Application schemas were preserved.',
-                $module,
-            ));
+            $label = $features === []
+                ? sprintf('Module "%s"', $module)
+                : sprintf('Module "%s" feature(s) %s', $module, implode(', ', $features));
+            $this->io()->success($label . ' removed. Application schemas and shared packages were preserved.');
         }
 
         return $result->exitCode;
@@ -354,6 +394,7 @@ final class ModuleSystemCommand extends SystemCommand
         );
 
         $this->renderShowConfig($config);
+        $this->renderShowFeatures($module['features']);
         $this->renderShowSchemas($schemas);
     }
 
@@ -368,6 +409,30 @@ final class ModuleSystemCommand extends SystemCommand
         $this->io()->table(
             ['Config', 'Published', 'Path'],
             array_map(static fn(array $entry): array => [$entry['file'], $entry['published'], $entry['path']], $config),
+        );
+    }
+
+    /** @param array<string,FeatureState> $features */
+    private function renderShowFeatures(array $features): void
+    {
+        if ($features === []) {
+            return;
+        }
+
+        $this->io()->writeln();
+        $this->io()->table(
+            ['Feature', 'Selected', 'Installed', 'Ready', 'Purpose'],
+            array_map(
+                static fn(string $name, array $state): array => [
+                    $name,
+                    $state['selected'],
+                    $state['installed'],
+                    $state['ready'],
+                    $state['description'],
+                ],
+                array_keys($features),
+                array_values($features),
+            ),
         );
     }
 
@@ -491,7 +556,7 @@ final class ModuleSystemCommand extends SystemCommand
     private function show(): int
     {
         $requested = $this->module();
-        $definition = $this->catalog()->resolve($requested);
+        $definition = $this->catalog()->resolve($requested, $this->values('feature'));
         $module = $this->moduleState($definition['name']);
         $config = $this->configRows($definition);
         $schemas = $this->schemas()->status($definition['name'], $this->option('connection'));
@@ -501,6 +566,7 @@ final class ModuleSystemCommand extends SystemCommand
             $this->io()->json([
                 ...$module,
                 'requested' => $requested,
+                'requested_features' => $definition['requested_features'],
                 ...$readiness,
                 'config' => $config,
                 'schema_status' => $schemas,

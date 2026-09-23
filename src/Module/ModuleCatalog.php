@@ -26,6 +26,7 @@ use Infocyph\Foundation\Module\Internal\ModuleCatalogValidator;
  * @phpstan-type ModuleFeature array{
  *     description:string,
  *     aliases:list<string>,
+ *     when?:ConfigPredicate,
  *     dependencies:list<ModuleDependency>,
  *     platform:PlatformRequirement
  * }
@@ -37,6 +38,7 @@ use Infocyph\Foundation\Module\Internal\ModuleCatalogValidator;
  * @phpstan-type ModuleDefinition array{
  *     packages:array<string,PackageRequirement>,
  *     built_in?:bool,
+ *     core_backed?:bool,
  *     description:string,
  *     aliases:list<string>,
  *     config:list<string>,
@@ -47,8 +49,10 @@ use Infocyph\Foundation\Module\Internal\ModuleCatalogValidator;
  * }
  * @phpstan-type ResolvedModule array{
  *     name:string,
+ *     requested_features:list<string>,
  *     packages:array<string,PackageRequirement>,
  *     built_in?:bool,
+ *     core_backed?:bool,
  *     description:string,
  *     aliases:list<string>,
  *     config:list<string>,
@@ -75,15 +79,27 @@ final class ModuleCatalog
                     'features' => ['passkey'],
                 ],
             ],
+            'core_backed' => true,
             'description' => 'Extended authentication with OTP-backed MFA, recovery codes, replay protection, and WebAuthn passkeys.',
-            'aliases' => ['mfa', 'otp', 'passkey', 'passkeys', 'webauthn'],
+            'aliases' => [],
             'config' => [],
             'schemas' => ['auth'],
             'features' => [
                 'otp' => [
                     'description' => 'OTP-backed MFA, recovery codes, and replay protection.',
                     'aliases' => ['mfa', 'otp'],
-                    'dependencies' => [],
+                    'when' => [
+                        'key' => 'auth.drivers.mfa',
+                        'operator' => 'equals',
+                        'value' => 'otp',
+                    ],
+                    'dependencies' => [
+                        [
+                            'type' => 'capability',
+                            'target' => 'cache',
+                            'reason' => 'OTP authentication state uses Foundation core CacheLayer services.',
+                        ],
+                    ],
                     'platform' => [
                         'extensions' => ['ctype'],
                         'optional_extensions' => ['sodium'],
@@ -93,7 +109,18 @@ final class ModuleCatalog
                 'passkey' => [
                     'description' => 'OTP-backed WebAuthn passkey ceremonies.',
                     'aliases' => ['passkey', 'passkeys', 'webauthn'],
-                    'dependencies' => [],
+                    'when' => [
+                        'key' => 'auth.drivers.passkey',
+                        'operator' => 'equals',
+                        'value' => 'webauthn',
+                    ],
+                    'dependencies' => [
+                        [
+                            'type' => 'capability',
+                            'target' => 'cache',
+                            'reason' => 'Passkey ceremonies use Foundation core CacheLayer state.',
+                        ],
+                    ],
                     'platform' => [
                         'extensions' => ['ctype'],
                         'optional_extensions' => [],
@@ -101,7 +128,48 @@ final class ModuleCatalog
                     ],
                 ],
             ],
-            'dependencies' => [],
+            'dependencies' => [
+                [
+                    'type' => 'module',
+                    'target' => 'database',
+                    'reason' => 'Database-backed auth storage requires DBLayer.',
+                    'when' => [
+                        'key' => 'auth.drivers.storage',
+                        'operator' => 'equals',
+                        'value' => 'database',
+                    ],
+                ],
+                [
+                    'type' => 'module',
+                    'target' => 'security',
+                    'reason' => 'Epicrypt-backed auth passwords require the security module.',
+                    'when' => [
+                        'key' => 'auth.drivers.passwords',
+                        'operator' => 'equals',
+                        'value' => 'security',
+                    ],
+                ],
+                [
+                    'type' => 'module',
+                    'target' => 'security',
+                    'reason' => 'Epicrypt-backed auth tokens require the security module.',
+                    'when' => [
+                        'key' => 'auth.drivers.tokens',
+                        'operator' => 'equals',
+                        'value' => 'security',
+                    ],
+                ],
+                [
+                    'type' => 'module',
+                    'target' => 'communication',
+                    'reason' => 'TalkingBytes auth notifications require the communication module.',
+                    'when' => [
+                        'key' => 'auth.drivers.notifications',
+                        'operator' => 'equals',
+                        'value' => 'talkingbytes',
+                    ],
+                ],
+            ],
             'platform' => [
                 'extensions' => [],
                 'optional_extensions' => [],
@@ -445,20 +513,26 @@ final class ModuleCatalog
     }
 
     /**
-     * Return packages currently owned by the module lifecycle.
-     *
-     * Batch 3 will make feature selection narrow this set; until then all
-     * required and feature packages preserve the existing install behavior.
-     *
      * @param array<string,mixed> $definition
      * @phpstan-param ModuleDefinition $definition
      * @return array<string,string>
      */
-    public function managedPackages(array $definition): array
+    public function featurePackages(array $definition, string $feature): array
     {
+        if (!isset($definition['features'][$feature])) {
+            throw new \InvalidArgumentException(sprintf(
+                'Unknown feature "%s". Available features: %s.',
+                $feature,
+                implode(', ', array_keys($definition['features'])),
+            ));
+        }
+
         $packages = [];
         foreach ($definition['packages'] as $package => $requirement) {
-            if ($requirement['role'] === 'optional' || $requirement['constraint'] === null) {
+            if ($requirement['role'] !== 'feature'
+                || !in_array($feature, $requirement['features'], true)
+                || $requirement['constraint'] === null
+            ) {
                 continue;
             }
 
@@ -468,22 +542,88 @@ final class ModuleCatalog
         return $packages;
     }
 
-    /** @return ResolvedModule */
-    public function resolve(string $module): array
+    /**
+     * @param array<string,mixed> $definition
+     * @phpstan-param ModuleDefinition $definition
+     * @param list<string> $features
+     * @return array<string,string>
+     */
+    public function installationPackages(array $definition, array $features = []): array
+    {
+        $packages = $this->requiredPackages($definition);
+
+        foreach ($features as $feature) {
+            $packages = array_replace($packages, $this->featurePackages($definition, $feature));
+        }
+
+        return $packages;
+    }
+
+    /**
+     * @param array<string,mixed> $definition
+     * @phpstan-param ModuleDefinition $definition
+     * @return array<string,string>
+     */
+    public function managedPackages(array $definition): array
+    {
+        $packages = $this->requiredPackages($definition);
+
+        foreach (array_keys($definition['features']) as $feature) {
+            $packages = array_replace($packages, $this->featurePackages($definition, $feature));
+        }
+
+        return $packages;
+    }
+
+    /**
+     * @param array<string,mixed> $definition
+     * @phpstan-param ModuleDefinition $definition
+     * @return array<string,string>
+     */
+    public function requiredPackages(array $definition): array
+    {
+        $packages = [];
+        foreach ($definition['packages'] as $package => $requirement) {
+            if ($requirement['role'] !== 'required' || $requirement['constraint'] === null) {
+                continue;
+            }
+
+            $packages[$package] = $requirement['constraint'];
+        }
+
+        return $packages;
+    }
+
+    /**
+     * @param list<string> $features
+     * @return ResolvedModule
+     */
+    public function resolve(string $module, array $features = []): array
     {
         $normalized = strtolower(trim($module));
 
         foreach (self::MODULES as $name => $definition) {
-            if ($normalized === $name
-                || isset($this->managedPackages($definition)[$normalized])
-                || in_array($normalized, $definition['aliases'], true)
-            ) {
-                return ['name' => $name] + $definition;
+            $inferred = $this->requestFeature($normalized, $definition);
+            $moduleMatch = $normalized === $name || in_array($normalized, $definition['aliases'], true);
+            $packageMatch = isset($this->requiredPackages($definition)[$normalized]);
+
+            if (!$moduleMatch && !$packageMatch && $inferred === false) {
+                continue;
             }
+
+            $requested = $this->normalizeFeatures($definition, $features);
+            if (is_string($inferred)) {
+                $requested[] = $inferred;
+            }
+
+            return [
+                'name' => $name,
+                'requested_features' => array_values(array_unique($requested)),
+            ] + $definition;
         }
 
         throw new \InvalidArgumentException(sprintf(
-            'Unknown module "%s". Available modules: %s.',
+            'Unknown module or feature "%s". Available modules: %s.',
             $module,
             implode(', ', array_keys(self::MODULES)),
         ));
@@ -492,5 +632,72 @@ final class ModuleCatalog
     public function validate(): void
     {
         new ModuleCatalogValidator()->validate(self::MODULES);
+    }
+
+    /**
+     * @param array<string,mixed> $definition
+     * @phpstan-param ModuleDefinition $definition
+     * @param list<string> $features
+     * @return list<string>
+     */
+    private function normalizeFeatures(array $definition, array $features): array
+    {
+        $normalized = [];
+
+        foreach ($features as $requested) {
+            $value = strtolower(trim($requested));
+            $matched = null;
+
+            foreach ($definition['features'] as $feature => $featureDefinition) {
+                if ($value === $feature || in_array($value, $featureDefinition['aliases'], true)) {
+                    $matched = $feature;
+
+                    break;
+                }
+            }
+
+            if ($matched === null) {
+                throw new \InvalidArgumentException(sprintf(
+                    'Unknown feature "%s". Available features: %s.',
+                    $requested,
+                    implode(', ', array_keys($definition['features'])),
+                ));
+            }
+
+            $normalized[] = $matched;
+        }
+
+        return array_values(array_unique($normalized));
+    }
+
+    /**
+     * @param array<string,mixed> $definition
+     * @phpstan-param ModuleDefinition $definition
+     * @return string|false|null
+     */
+    private function requestFeature(string $requested, array $definition): string|false|null
+    {
+        foreach ($definition['features'] as $feature => $featureDefinition) {
+            if ($requested === $feature || in_array($requested, $featureDefinition['aliases'], true)) {
+                return $feature;
+            }
+        }
+
+        foreach ($definition['packages'] as $package => $requirement) {
+            if ($requested !== $package || $requirement['role'] !== 'feature') {
+                continue;
+            }
+            if (count($requirement['features']) === 1) {
+                return $requirement['features'][0];
+            }
+
+            throw new \InvalidArgumentException(sprintf(
+                'Package "%s" is shared by features %s; request the module with --feature explicitly.',
+                $package,
+                implode(', ', $requirement['features']),
+            ));
+        }
+
+        return false;
     }
 }

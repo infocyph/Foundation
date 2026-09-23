@@ -165,6 +165,64 @@ it('separates effective configuration publication and explicit activation state'
     }
 });
 
+it('keeps core auth ready while tracking OTP and passkey feature state independently', function (): void {
+    $basePath = moduleStateBasePath('auth-features');
+
+    try {
+        moduleStateWriteComposer($basePath, ['infocyph/otp' => '^6.1']);
+        $otpApp = Foundation::cli([
+            'base_path' => $basePath,
+            '_config_cache' => false,
+            'auth' => [
+                'drivers' => [
+                    'mfa' => 'otp',
+                    'passkey' => 'disabled',
+                ],
+            ],
+        ]);
+        $otp = moduleStateFind(
+            (new ModuleStateResolver($otpApp, new ModuleCatalog()))->all(),
+            'auth',
+        );
+
+        expect($otp['core_backed'])->toBeTrue()
+            ->and($otp['installed'])->toBeTrue()
+            ->and($otp['packages'])->toBe([])
+            ->and($otp['features']['otp']['selected'] ?? null)->toBeTrue()
+            ->and($otp['features']['otp']['installed'] ?? null)->toBeTrue()
+            ->and($otp['features']['otp']['ready'] ?? null)->toBeTrue()
+            ->and($otp['features']['passkey']['selected'] ?? null)->toBeFalse()
+            ->and($otp['features']['passkey']['installed'] ?? null)->toBeFalse();
+
+        moduleStateWriteComposer($basePath, [
+            'infocyph/otp' => '^6.1',
+            'web-auth/webauthn-lib' => '^5.3.5',
+        ]);
+        $passkeyApp = Foundation::cli([
+            'base_path' => $basePath,
+            '_config_cache' => false,
+            'auth' => [
+                'drivers' => [
+                    'mfa' => 'simple',
+                    'passkey' => 'webauthn',
+                ],
+            ],
+        ]);
+        $passkey = moduleStateFind(
+            (new ModuleStateResolver($passkeyApp, new ModuleCatalog()))->all(),
+            'auth',
+        );
+
+        expect($passkey['features']['otp']['selected'] ?? null)->toBeFalse()
+            ->and($passkey['features']['otp']['installed'] ?? null)->toBeTrue()
+            ->and($passkey['features']['passkey']['selected'] ?? null)->toBeTrue()
+            ->and($passkey['features']['passkey']['installed'] ?? null)->toBeTrue()
+            ->and($passkey['features']['passkey']['ready'] ?? null)->toBeTrue();
+    } finally {
+        moduleStateRemoveDirectory($basePath);
+    }
+});
+
 it('reports optional integrations separately from managed module ownership', function (): void {
     $basePath = moduleStateBasePath('optional-integrations');
     moduleStateWriteComposer($basePath, ['infocyph/talkingbytes' => '^2.1']);

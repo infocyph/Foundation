@@ -113,7 +113,7 @@ Status legend:
 | **0** | Cache/core boundary closure | **DONE** | Cache core ownership, schema CLI lifecycle, activation semantics and module exclusion are regression-covered. |
 | **1** | Specialist module state foundation | **PARTIAL** | Resolver, ownership/readiness JSON, constraint validation and floor guards are implemented; PHPForge QA rerun is in progress after CI-specific fixes. |
 | **2** | Catalog model | **PARTIAL** | Package roles, feature/platform metadata, optional-integration status, conditional dependency declarations and graph validation are implemented; matrix closure remains. |
-| **3** | Auth decomposition | **NOT STARTED** | Core-backed auth namespace with selective OTP/passkey feature installation. |
+| **3** | Auth decomposition | **PARTIAL** | Core-backed auth, selective OTP/passkey install/remove, feature aliases/state and shared-package protection are implemented; dependency-engine/matrix closure remains. |
 | **4** | Communication / notifications ownership | **NOT STARTED** | Communication stays specialist; notifications stays Foundation-native. |
 | **5** | Dependency engine | **NOT STARTED** | Conditional dependency/capability evaluation, explanation and blockers. |
 | **6** | Activation lifecycle | **NOT STARTED** | Explicit enable/disable lifecycle and topology mutation. |
@@ -500,31 +500,32 @@ auth
 
 ## Decisions to implement
 
-- [ ] Treat `auth` as a virtual/core-backed module namespace rather than a base package bundle.
-- [ ] `auth` itself must not automatically install OTP + WebAuthn.
-- [ ] Preferred feature CLI:
+- [x] Treat `auth` as a virtual/core-backed module namespace rather than a base package bundle.
+- [x] `auth` itself does not automatically install OTP + WebAuthn.
+- [x] Support the preferred repeatable feature CLI:
   - `module:install auth --feature=otp`
   - `module:install auth --feature=passkey`
   - repeatable `--feature` if both are wanted.
-- [ ] Bare `module:install auth` must not falsely claim that a specialist package bundle was
-  installed. Prefer directing users to `module:enable auth` for core auth or requiring an
-  explicit package feature.
-- [ ] Preserve `otp`, `mfa`, `passkey`, `passkeys`, `webauthn` aliases only if they
-  resolve unambiguously to auth features rather than broadening to the whole auth bundle.
-- [ ] Package-name compatibility aliases such as `infocyph/otp` and
-  `web-auth/webauthn-lib` must resolve to precise feature intent where retained.
-- [ ] Passkey selection requires both `infocyph/otp` and `web-auth/webauthn-lib`.
-- [ ] Passkey selection must not imply that OTP/TOTP MFA itself is selected.
-- [ ] Core auth remains available without either specialist feature.
-- [ ] Readiness follows selected auth drivers/features:
-  - OTP only required for OTP MFA;
-  - passkey requires OTP's passkey integration plus WebAuthn;
-  - database/security/notifications relationships remain conditional.
-- [ ] Auth shared-cache behavior targets Foundation's core cache capability directly and never
-  creates a cache module edge.
-- [ ] Shared package ownership prevents feature removal from removing a package still required by
-  another selected auth feature.
-- [ ] Add install/show/remove tests for every supported feature combination.
+- [x] Bare `module:install auth` is a successful core-backed package no-op and explicitly reports
+  that specialist packages require `--feature=otp` or `--feature=passkey`.
+- [x] Preserve `otp`, `mfa`, `passkey`, `passkeys`, `webauthn` as feature aliases that resolve
+  narrowly rather than broadening to the whole auth bundle.
+- [x] Keep package-name compatibility only where intent is precise: `web-auth/webauthn-lib`
+  resolves to passkey, while shared `infocyph/otp` is rejected as ambiguous unless the feature is
+  explicitly requested.
+- [x] Passkey selection requires both `infocyph/otp` and `web-auth/webauthn-lib`.
+- [x] Passkey package selection does not imply that OTP/TOTP MFA is selected in feature state.
+- [x] Core auth remains installed/available without either specialist feature.
+- [ ] Complete dependency-aware readiness for selected auth drivers/features:
+  - [x] OTP package readiness is required only when OTP MFA is selected;
+  - [x] passkey package readiness requires OTP's passkey integration plus WebAuthn;
+  - [ ] database/security/communication dependency readiness is evaluated by the Batch 5
+    dependency engine (declarations are already catalog-owned).
+- [x] Auth OTP/passkey feature metadata targets Foundation's core `cache` capability directly and
+  never creates a cache module edge.
+- [x] Shared package ownership conservatively prevents feature removal from deleting OTP while
+  another auth feature may still own it.
+- [x] Add install/show/remove/state tests for core auth, OTP, passkey and combined feature requests.
 
 ## Acceptance
 
@@ -1140,12 +1141,14 @@ than accidental key drift.
 
 ## Batch 3 — Auth decomposition
 
-- core-backed auth namespace;
-- OTP/passkey features;
-- corrected passkey package topology;
-- auth aliases;
-- conditional auth dependencies;
-- install/show/remove behavior.
+- [x] core-backed auth namespace;
+- [x] OTP/passkey features;
+- [x] corrected passkey package topology;
+- [x] narrow auth feature aliases;
+- [x] conditional auth dependency declarations;
+- [x] feature-aware install/show/remove behavior;
+- [x] shared OTP package preservation on feature removal;
+- [ ] dependency-engine evaluation and PHPForge matrix closure.
 
 ## Batch 4 — Communication/notifications ownership
 

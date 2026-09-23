@@ -27,6 +27,30 @@ it('models managed feature and optional package roles without broadening install
         ]);
 });
 
+it('resolves auth feature aliases without broadening the core module request', function (): void {
+    $catalog = new ModuleCatalog();
+    $auth = $catalog->resolve('auth');
+    $otp = $catalog->resolve('mfa');
+    $passkey = $catalog->resolve('webauthn');
+    $webAuthnPackage = $catalog->resolve('web-auth/webauthn-lib');
+
+    expect($auth['requested_features'])->toBe([])
+        ->and($catalog->requiredPackages($auth))->toBe([])
+        ->and($otp['name'])->toBe('auth')
+        ->and($otp['requested_features'])->toBe(['otp'])
+        ->and($passkey['requested_features'])->toBe(['passkey'])
+        ->and($webAuthnPackage['requested_features'])->toBe(['passkey'])
+        ->and($catalog->installationPackages($auth, ['otp']))->toBe([
+            'infocyph/otp' => '^6.1',
+        ])
+        ->and($catalog->installationPackages($auth, ['passkey']))->toBe([
+            'infocyph/otp' => '^6.1',
+            'web-auth/webauthn-lib' => '^5.3.5',
+        ])
+        ->and(fn() => $catalog->resolve('infocyph/otp'))
+        ->toThrow(InvalidArgumentException::class, 'shared by features otp, passkey');
+});
+
 it('records platform requirements and conditional module dependencies declaratively', function (): void {
     $modules = (new ModuleCatalog())->all();
 

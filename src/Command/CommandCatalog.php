@@ -239,18 +239,21 @@ final class CommandCatalog
                     'Modules',
                 )
                     ->argument('module', 'Module name.', required: true)
+                    ->option('feature', 'Module feature to install. Repeat for multiple features.', acceptsValue: true, multiple: true)
                     ->option('dry-run', 'Preview Composer changes without modifying the project.'),
             ),
             new CommandDefinition('module:list', 'List Foundation modules.', 'Modules'),
             $connectionOption(
                 new CommandDefinition('module:show', 'Show detailed module package/config/schema state.', 'Modules')
-                    ->argument('module', 'Module name.', required: true),
+                    ->argument('module', 'Module name.', required: true)
+                    ->option('feature', 'Feature context to show. Repeat for multiple features.', acceptsValue: true, multiple: true),
             ),
             new CommandDefinition('module:config:publish', 'Publish config owned by a Foundation module.', 'Modules')
                 ->argument('module', 'Module name.', required: true)
                 ->option('force', 'Replace existing module config.'),
             new CommandDefinition('module:remove', 'Remove an optional Foundation module.', 'Modules')
                 ->argument('module', 'Module name.', required: true)
+                ->option('feature', 'Module feature to remove. Repeat for multiple features.', acceptsValue: true, multiple: true)
                 ->option('dry-run', 'Preview Composer changes without modifying the project.'),
             $connectionOption(
                 new CommandDefinition('module:schema:install', 'Provision database schemas owned by a module.', 'Modules')
