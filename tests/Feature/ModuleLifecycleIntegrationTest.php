@@ -158,7 +158,7 @@ it('explains module dependency plans without mutating the application', function
 
     try {
         $dispatcher = moduleLifecycleDispatcher($basePath, [
-            'app' => ['capabilities' => ['messaging']],
+            'app' => ['capabilities' => []],
             'messaging' => ['durable' => ['enabled' => true]],
         ]);
         $plan = new FoundationModuleLifecycleIO();
@@ -343,13 +343,13 @@ it('installs and removes auth features without broadening shared package ownersh
             ->and($removeOtp->lastPayload()['features'] ?? null)->toBe(['otp']);
 
         expect(moduleLifecycleCommands($commandLog))->toBe([
-            ['require', 'infocyph/otp:^6.1', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
+            ['require', 'infocyph/otp:^6.1', '--with-all-dependencies', '--no-interaction', '--dry-run'],
             [
                 'require',
                 'infocyph/otp:^6.1',
                 'web-auth/webauthn-lib:^5.3.5',
                 '--with-all-dependencies',
-                '--update-no-dev',
+                '--no-interaction',
                 '--dry-run',
             ],
             [
@@ -357,21 +357,21 @@ it('installs and removes auth features without broadening shared package ownersh
                 'infocyph/otp:^6.1',
                 'web-auth/webauthn-lib:^5.3.5',
                 '--with-all-dependencies',
-                '--update-no-dev',
+                '--no-interaction',
                 '--dry-run',
             ],
             [
                 'remove',
                 'web-auth/webauthn-lib',
                 '--with-all-dependencies',
-                '--update-no-dev',
+                '--no-interaction',
                 '--dry-run',
             ],
             [
                 'remove',
                 'infocyph/otp',
                 '--with-all-dependencies',
-                '--update-no-dev',
+                '--no-interaction',
                 '--dry-run',
             ],
         ]);
@@ -455,7 +455,7 @@ it('preserves application config and database data when an optional module is re
     unset($statement, $pdo);
 
     try {
-        $dispatcher = moduleLifecycleDispatcher($basePath);
+        $dispatcher = moduleLifecycleDispatcher($basePath, ['app' => ['capabilities' => []]]);
         $io = new FoundationModuleLifecycleIO();
         expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:remove', 'database'], $io))
             ->toBe(ExitCode::SUCCESS)
@@ -463,7 +463,7 @@ it('preserves application config and database data when an optional module is re
             ->and(moduleLifecycleScalar($databasePath, 'SELECT value FROM application_records WHERE id = 1'))
             ->toBe('keep')
             ->and(moduleLifecycleCommands($commandLog))->toBe([
-                ['remove', 'infocyph/dblayer', '--with-all-dependencies', '--update-no-dev'],
+                ['remove', 'infocyph/dblayer', '--with-all-dependencies', '--no-interaction'],
             ]);
     } finally {
         $restoreEnvironment();
