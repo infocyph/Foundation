@@ -7,7 +7,7 @@ namespace Infocyph\Foundation\Module;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Config\ConfigCacheManager;
 
-/** @phpstan-import-type ModuleDefinition from ModuleCatalog */
+/** @phpstan-import-type ResolvedModule from ModuleCatalog */
 final readonly class ModuleActivationManager
 {
     public function __construct(
@@ -77,13 +77,13 @@ final readonly class ModuleActivationManager
         }
     }
 
-    /** @phpstan-param ModuleDefinition $definition */
+    /** @phpstan-param ResolvedModule $definition */
     private function assertMutable(array $definition): void
     {
         if (($definition['built_in'] ?? false) === true) {
             throw new \InvalidArgumentException(sprintf(
                 'Module "%s" is built into Foundation and has no module activation lifecycle.',
-                $definition['name'] ?? 'unknown',
+                $definition['name'],
             ));
         }
     }
@@ -103,7 +103,14 @@ final readonly class ModuleActivationManager
             throw new \RuntimeException('Module activation config must return an array.');
         }
 
-        return $configured;
+        $normalized = [];
+        foreach ($configured as $key => $value) {
+            if (is_string($key)) {
+                $normalized[$key] = $value;
+            }
+        }
+
+        return $normalized;
     }
 
     private function write(string $module, bool $enabled): string
