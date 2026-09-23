@@ -22,8 +22,7 @@ use Infocyph\Foundation\Release\FoundationReleaseCompiler;
  */
 final class ModuleSystemCommand extends SystemCommand
 {
-    public function __construct(private readonly Application $application)
-    {}
+    public function __construct(private readonly Application $application) {}
 
     protected function handle(): int
     {
@@ -53,7 +52,8 @@ final class ModuleSystemCommand extends SystemCommand
         string $requested,
         bool $dryRun,
         ModuleManager $manager,
-    ): int {
+    ): int
+    {
         $module = $definition['name'];
         $features = $definition['requested_features'];
         $published = $dryRun
