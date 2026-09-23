@@ -114,7 +114,7 @@ Status legend:
 | **1** | Specialist module state foundation | **PARTIAL** | Resolver, ownership/readiness JSON, constraint validation and floor guards are implemented; PHPForge QA rerun is in progress after CI-specific fixes. |
 | **2** | Catalog model | **PARTIAL** | Package roles, feature/platform metadata, optional-integration status, conditional dependency declarations and graph validation are implemented; matrix closure remains. |
 | **3** | Auth decomposition | **PARTIAL** | Core-backed auth, selective OTP/passkey install/remove, feature aliases/state and shared-package protection are implemented; dependency-engine/matrix closure remains. |
-| **4** | Communication / notifications ownership | **NOT STARTED** | Communication stays specialist; notifications stays Foundation-native. |
+| **4** | Communication / notifications ownership | **PARTIAL** | Ownership/config/topology/package-isolation changes are implemented; exact-head PHPForge closure remains. |
 | **5** | Dependency engine | **NOT STARTED** | Conditional dependency/capability evaluation, explanation and blockers. |
 | **6** | Activation lifecycle | **NOT STARTED** | Explicit enable/disable lifecycle and topology mutation. |
 | **7** | Schema lifecycle | **NOT STARTED** | Capability-aware applicability, targeted installs and active-topology sync. |
@@ -133,7 +133,7 @@ tests are satisfied.
 | Module | Foundation install target | Current config publication | Current schema ownership |
 | --- | --- | --- | --- |
 | `auth` | currently installs `infocyph/otp ^6.1` + `web-auth/webauthn-lib ^5.3.5`; target is feature-driven | none | `auth` |
-| `communication` | `infocyph/talkingbytes ^2.1` | `communication.php`, `notifications.php` | none |
+| `communication` | `infocyph/talkingbytes ^2.1` | `communication.php` | none |
 | `database` | `infocyph/dblayer ^5.1` | `database.php` | none |
 | `filesystem` | `infocyph/pathwise ^4.1` | `filesystem.php` | none |
 | `messaging` | `infocyph/omnibus ^2.6` | `messaging.php` | `messaging` |
@@ -562,17 +562,17 @@ Keep exactly seven specialist module namespaces.
 
 ## Work
 
-- [ ] Remove `notifications` as an alias that broadens to the communication module.
-- [ ] Stop publishing `notifications.php` as a side effect of communication installation.
-- [ ] Keep `communication` ownership focused on TalkingBytes protocol profiles:
+- [x] Remove `notifications` as an alias that broadens to the communication module.
+- [x] Stop publishing `notifications.php` as a side effect of communication installation.
+- [x] Keep `communication` ownership focused on TalkingBytes protocol profiles:
   - HTTP;
   - webhook;
   - gRPC.
-- [ ] Keep notifications usable without TalkingBytes email support.
-- [ ] Report TalkingBytes email availability as an optional notifications integration rather
+- [x] Keep notifications usable without TalkingBytes email support.
+- [x] Report TalkingBytes email availability as an optional notifications integration rather
   than a notifications module installation state.
-- [ ] Preserve migration aliases only where semantics remain clear.
-- [ ] Add explicit topology tests proving:
+- [x] Preserve migration aliases only where semantics remain clear.
+- [x] Add explicit topology tests proving:
   - communication can be active while notifications is disabled;
   - notifications can be active while communication is disabled;
   - notifications can operate without TalkingBytes mail support;
@@ -582,6 +582,9 @@ Keep exactly seven specialist module namespaces.
 
 The seven-module specialist vocabulary remains stable, notifications stays Foundation-native,
 and public module/config ownership matches runtime capability behavior.
+
+**Batch 4 implementation status:** COMPLETE. Tracker remains **PARTIAL** until the exact-head
+PHPForge matrix validates the ownership and optional-integration boundary.
 
 ---
 
