@@ -14,6 +14,7 @@ use Infocyph\Foundation\Process\ProcessRunner;
 use Infocyph\Foundation\Release\FoundationReleaseBootstrap;
 use Infocyph\Foundation\Release\FoundationReleaseCompiler;
 
+/** @phpstan-import-type PackageState from \Infocyph\Foundation\Module\ModuleStateResolver */
 final class ModuleSystemCommand extends SystemCommand
 {
     public function __construct(private readonly Application $application) {}
@@ -137,7 +138,7 @@ final class ModuleSystemCommand extends SystemCommand
         return $this->argument(0) ?? throw new \LogicException('Validated module argument is unavailable.');
     }
 
-    /** @param array<string,array<string,mixed>> $packages */
+    /** @param array<string,PackageState> $packages */
     private function packageSummary(array $packages): string
     {
         if ($packages === []) {
