@@ -19,7 +19,6 @@ uses the purpose name.
 | Module | Backing packages |
 | --- | --- |
 | `auth` | `infocyph/otp ^6.1`, `web-auth/webauthn-lib ^5.3.5` |
-| `cache` | `infocyph/cachelayer ^3.4` |
 | `communication` | `infocyph/talkingbytes ^2.1` |
 | `database` | `infocyph/dblayer ^5.1` |
 | `filesystem` | `infocyph/pathwise ^4.1` |
@@ -62,10 +61,26 @@ For example, selecting OTP MFA requires the OTP package but does not require
 WebAuthn; selecting WebAuthn passkeys requires the WebAuthn package but does not
 require OTP unless another active auth behavior does.
 
+## Core cache infrastructure
+
+CacheLayer is a direct Foundation runtime dependency and does not participate in
+module install/remove/status commands. The default application cache
+configuration is `config/cache.php`.
+
+Cache runtime composition is still capability-driven: carrying CacheLayer does
+not activate `CacheServiceProvider` unless the application topology selects
+`cache`.
+
+Database-backed CacheLayer resources are managed through:
+
+```bash
+php infbyte cache:schema:status
+php infbyte cache:schema:install
+```
+
 ## Installation
 
 ```bash
-php infbyte module:install cache
 php infbyte module:install database
 php infbyte module:install communication
 ```
@@ -86,7 +101,7 @@ Use `--dry-run` to preview Composer changes:
 php infbyte module:install database --dry-run
 ```
 
-Built-in modules do not trigger Composer.
+Built-in modules do not trigger Composer. CacheLayer is outside this lifecycle entirely because Foundation itself owns its Composer requirement.
 
 ## Config publication
 

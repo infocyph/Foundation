@@ -70,8 +70,7 @@ Explicit replacement requires `--force`:
 php infbyte module:config:publish cache --force
 ```
 
-`module:install <module>` also publishes missing config as part of installation,
-but never silently overwrites existing application config.
+`module:install <module>` publishes config for optional modules but never silently overwrites existing application config. `cache.php` is core application configuration and should ship with the application skeleton rather than being module-published.
 
 Infrastructure values remain in their owning config; auth does not duplicate
 database/cache/security/communication settings.

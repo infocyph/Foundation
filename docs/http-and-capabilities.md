@@ -48,13 +48,10 @@ See `resources/config/validation.php` for publishable application policy.
 CacheLayer owns stores, tiers, locks, counters, memoization, invalidation,
 node/cluster cache, and backend semantics. Foundation owns application
 store/coordination selection and the cross-capability workflows that require
-cache state.
+cache state. CacheLayer ships with Foundation; no module installation is required.
 
-```bash
-php infbyte module:install cache
-```
-
-`resources/config/cache.php` documents supported application descriptors.
+`resources/config/cache.php` documents supported application descriptors, while
+explicit capability topology still controls whether cache services are composed.
 SQLite/direct-PDO stores can operate through their own native configuration;
 a cache descriptor that explicitly selects a DBLayer connection activates the
 `database` capability only when that connection is actually needed.
