@@ -4,7 +4,8 @@
 
 **Branch:** `foundation-3/close-26.6`  
 **Target:** Foundation 3 module-system hardening before release  
-**Plan state:** PLANNED  
+**Plan state:** IN PROGRESS  
+**Last synchronized with branch:** 2026-09-23  
 **Scope:** later-required specialist modules only
 
 Foundation core/built-in capabilities are outside this module-system pass.
@@ -13,7 +14,7 @@ CacheLayer is promoted to a direct Foundation runtime dependency and `cache` is 
 the public module system entirely. Cache remains a core Foundation capability/configuration
 domain, but it is not installable/removable/listed as a module.
 
-The module-system pass covers exactly seven specialist modules:
+The module-system pass covers exactly seven specialist module namespaces:
 
 - `auth`
 - `communication`
@@ -22,6 +23,14 @@ The module-system pass covers exactly seven specialist modules:
 - `messaging`
 - `security`
 - `validation`
+
+`auth` is a virtual/core-backed module namespace: Foundation core authentication exists
+without a specialist package, while OTP/passkey behavior is added through selected auth
+features.
+
+`notifications` is not an eighth specialist module. It is a Foundation-native capability.
+TalkingBytes-backed email support is an optional notifications integration when the package is
+available.
 
 The objective is to make module installation, package ownership, capability activation,
 feature selection, dependency explanation, readiness, removal and schema lifecycle
@@ -39,23 +48,73 @@ The module redesign must treat CacheLayer as Foundation infrastructure, not as a
 - `CacheServiceProvider` remains controlled by Foundation's cache capability/topology;
 - cache schemas/adapters are core cache-capability infrastructure, not module-owned lifecycle;
 - specialist modules may depend conditionally on the core cache capability, but never on a
-  "cache module".
+  "cache module";
+- under explicit `app.capabilities`, cache remains cold until `cache` is selected;
+- when `app.capabilities` is omitted, compatibility auto-discovery may infer available
+  capabilities, so status/readiness must report inferred activation rather than pretending it
+  is explicit.
 
 This plan must not reintroduce cache through feature aliases, dependency graph nodes, module
 status JSON, install/remove planning, or module schema ownership.
 
 ---
 
-# 0. CacheLayer Core Integration — COMPLETE
+# 0. Batch 0 — Cache/Core Boundary Closure
 
-- [X] Promote `infocyph/cachelayer ^3.4` from `require-dev`/suggest to Foundation `require`.
-- [X] Remove `cache` and `cachelayer` from `ModuleCatalog`.
-- [X] Remove all cache install/remove/config-publication behavior from the module system.
-- [X] Move CacheLayer schema orchestration from `Module\Internal` to the core `Cache` subsystem.
-- [X] Add `cache:schema:status` and `cache:schema:install`.
-- [X] Remove optional-package guards/messages that tell applications to install a cache module.
-- [X] Keep runtime activation explicit through the `cache` capability.
-- [X] Make `config/cache.php` a default application-skeleton config.
+**Status:** PARTIAL
+
+The structural CacheLayer promotion is already on the branch, but Batch 0 remains open until
+the dedicated cache lifecycle is regression-safe and the closure checks are verified.
+
+- [x] Promote `infocyph/cachelayer ^3.4` from `require-dev`/suggest to Foundation `require`.
+- [x] Remove `cache` and `cachelayer` from `ModuleCatalog`.
+- [x] Remove cache install/remove/config-publication behavior from the module system.
+- [x] Move CacheLayer schema orchestration into the core `Cache` subsystem.
+- [x] Add `cache:schema:status` and `cache:schema:install`.
+- [x] Remove optional-package guards/messages that tell applications to install a cache module.
+- [x] Keep runtime cache activation controlled by the `cache` capability.
+- [ ] Fix the current `CacheSchemaManager::resourceStatus()` PDO-ready regression: it passes an
+  undefined `$module` and calls `result()` with the wrong argument shape.
+- [ ] Add database-backed cache schema regression coverage for both status and install paths.
+- [ ] Verify explicit-vs-inferred cache activation wording across CLI/readiness/docs.
+- [ ] Verify the intended InfByte application skeleton/default source actually ships
+  `config/cache.php`; Foundation's config template alone is not sufficient closure evidence.
+- [ ] Verify module tests explicitly prove `cache` is neither counted nor resolvable as a module.
+- [ ] Verify the guard proving CacheLayer cannot drift back into specialist module ownership.
+- [x] Update Foundation docs to describe CacheLayer as core infrastructure rather than a module.
+- [ ] Run a final grep/review proving no stale "cache module" lifecycle semantics remain.
+
+## Acceptance
+
+`cache` is absent from the module subsystem, CacheLayer remains available to Foundation core,
+cache schemas are managed only through the core cache lifecycle, and explicit topology can keep
+the cache capability cold until selected.
+
+## Progress Tracker
+
+Status legend:
+
+- **DONE** — acceptance criteria and relevant tests are complete.
+- **PARTIAL** — implementation exists, but the batch acceptance gate is not closed.
+- **NOT STARTED** — batch implementation has not started.
+
+| Batch | Scope | Status | Current checkpoint |
+| --- | --- | --- | --- |
+| **0** | Cache/core boundary closure | **PARTIAL** | Core promotion/module removal landed; cache schema regression and closure verification remain. |
+| **1** | Specialist module state foundation | **PARTIAL** | Root `composer.json` direct-require detection exists, but transitive packages can still appear as installed modules and readiness dimensions are incomplete. |
+| **2** | Catalog model | **NOT STARTED** | Package roles, feature declarations, conditional dependencies, platform requirements and graph validation. |
+| **3** | Auth decomposition | **NOT STARTED** | Core-backed auth namespace with selective OTP/passkey feature installation. |
+| **4** | Communication / notifications ownership | **NOT STARTED** | Communication stays specialist; notifications stays Foundation-native. |
+| **5** | Dependency engine | **NOT STARTED** | Conditional dependency/capability evaluation, explanation and blockers. |
+| **6** | Activation lifecycle | **NOT STARTED** | Explicit enable/disable lifecycle and topology mutation. |
+| **7** | Schema lifecycle | **NOT STARTED** | Capability-aware applicability, targeted installs and active-topology sync. |
+| **8** | Install/remove/repair hardening | **NOT STARTED** | Composer policy, shared ownership, safe removal and repair/resume. |
+| **9** | Platform readiness | **NOT STARTED** | Selected-feature extension/adapter readiness and doctor output. |
+| **10** | Documentation and release acceptance | **NOT STARTED** | Migration/docs/JSON contract/final QA and release gate. |
+
+Tracker rule: update this table and the detailed checkboxes in the same commit as meaningful
+implementation progress. A batch becomes **DONE** only when its acceptance criteria and relevant
+tests are satisfied.
 
 ---
 
@@ -63,7 +122,7 @@ status JSON, install/remove planning, or module schema ownership.
 
 | Module | Foundation install target | Current config publication | Current schema ownership |
 | --- | --- | --- | --- |
-| `auth` | `infocyph/otp ^6.1`, `web-auth/webauthn-lib ^5.3.5` | none | `auth` |
+| `auth` | currently installs `infocyph/otp ^6.1` + `web-auth/webauthn-lib ^5.3.5`; target is feature-driven | none | `auth` |
 | `communication` | `infocyph/talkingbytes ^2.1` | `communication.php`, `notifications.php` | none |
 | `database` | `infocyph/dblayer ^5.1` | `database.php` | none |
 | `filesystem` | `infocyph/pathwise ^4.1` | `filesystem.php` | none |
@@ -76,6 +135,11 @@ status JSON, install/remove planning, or module schema ownership.
 Package presence still remains insufficient as a specialist-module state signal. CacheLayer
 dependencies are no longer relevant to module ownership because CacheLayer belongs to
 Foundation core.
+
+The current branch already reads the application root `composer.json` and reports a per-package
+`direct` flag. However, module `installed` state is still primarily derived from
+`Composer\InstalledVersions::isInstalled()`, so a transitive package can still make a module
+look installed. Batch 1 completes this separation rather than rebuilding it from scratch.
 
 Important integration relationships include:
 
@@ -142,7 +206,7 @@ applicability must respect explicit capability activation.
 
 # 3. Target Module State Model
 
-Replace the current overly broad installed/partial/available interpretation with distinct
+Replace the current overly broad installed/partial/available interpretation with independent
 state dimensions.
 
 Conceptual state:
@@ -151,9 +215,12 @@ Conceptual state:
 package_available
 package_direct
 package_transitive
+package_ownership_unknown
 installed_by_module
 enabled
+activation_explicit
 configured
+config_published
 dependencies_satisfied
 platform_ready
 schema_ready
@@ -181,27 +248,49 @@ The package is installed, but the application does not directly require it.
 
 This must not make the corresponding Foundation module appear fully installed.
 
+### package_ownership_unknown
+
+Foundation could not reliably read or parse the application root Composer manifest.
+
+This must be an actionable diagnostic state. Do not silently convert an unreadable/invalid root
+manifest into "nothing is directly required."
+
 ### installed_by_module
 
-The module's required root package requirements are present directly and satisfy the module
+The module's required root package requirements are directly application-owned and satisfy the
 catalog constraints.
 
-For modules with feature packages, this applies only to the base module and selected features.
+For modules with feature packages, this applies only to the base requirements and selected
+features. Shared feature packages must be reference-aware during removal.
 
 ### enabled
 
-The canonical capability is selected by the explicit Foundation capability topology.
+The canonical capability is active under the resolved Foundation capability topology.
 
-When capability topology is omitted in development, report that auto-discovery compatibility
-mode is active rather than pretending enablement is explicit.
+### activation_explicit
+
+Whether enablement came from explicit `app.capabilities` rather than compatibility
+auto-discovery.
 
 ### configured
 
-Required Foundation config exists and selected feature configuration is structurally valid.
+Resolved Foundation configuration is structurally valid for the module and selected feature
+set.
+
+This must not be inferred only from whether a physical `config/*.php` exists because
+`FoundationDefaults` may provide valid effective configuration without publication.
+
+### config_published
+
+The application has physical module-owned config templates published where publication applies.
+
+Publication state is application-ownership/diagnostic information and is distinct from effective
+configuration validity.
 
 ### dependencies_satisfied
 
-All unconditional and currently active conditional module dependencies are available/ready.
+All unconditional and currently active conditional module dependencies and Foundation-core
+capability requirements are satisfied.
 
 ### platform_ready
 
@@ -287,32 +376,36 @@ seven specialist modules require.
 
 `Composer\InstalledVersions::isInstalled()` cannot determine application intent.
 
-Composer package presence alone still cannot determine whether an application intentionally
-owns a specialist module requirement. This distinction must be modeled generically for the
-seven specialist modules.
-
-CacheLayer is explicitly excluded from this ownership logic because Foundation owns it as a
-core runtime dependency.
+The branch already reads root Composer requirements, but current module status still conflates
+installed-package availability with module installation. CacheLayer is explicitly excluded from
+this ownership model because Foundation owns it as core infrastructure.
 
 ## Work
 
-- [ ] Read the application root `composer.json` when determining direct package ownership.
+- [x] Read the application root `composer.json` when determining direct package ownership.
+- [ ] Move Composer/config inspection behind a dedicated read-only `ModuleStateResolver` (or
+  equivalent) so lifecycle mutation code does not own status interpretation.
+- [ ] Read/normalize root Composer metadata once per status operation rather than once per module.
 - [ ] Distinguish direct package requirement from transitive package availability.
+- [ ] Represent unreadable/invalid root Composer metadata as ownership-unknown with an actionable
+  blocker.
 - [ ] Keep installed-package availability separately visible for diagnostics.
 - [ ] Define module installation from direct required package ownership, not only vendor presence.
-- [ ] Preserve constraint compatibility checks.
+- [ ] Preserve package constraint compatibility checks.
 - [ ] Add fixture-driven tests for:
   - [ ] specialist package present only transitively;
   - [ ] specialist package directly required by the application;
-  - [ ] package present but constraint incompatible;
-  - [ ] direct package missing while a transitive copy remains installed.
+  - [ ] package present but catalog constraint incompatible;
+  - [ ] direct package missing while a transitive copy remains installed;
+  - [ ] missing/unreadable/invalid application root Composer manifest.
 - [ ] Explicitly exclude Foundation core dependencies such as CacheLayer from module ownership
   calculations.
 - [ ] Ensure `module:list` and `module:show` expose the distinction clearly.
 
 ## Acceptance
 
-A transitive package never silently becomes a directly installed Foundation module.
+A transitive package never silently becomes a directly installed Foundation module, and
+unreadable application ownership metadata is never silently interpreted as "transitive."
 
 ---
 
@@ -331,6 +424,7 @@ The current flat package map cannot describe the real package topology.
 - [ ] Keep package constraint ownership centralized in `ModuleCatalog`.
 - [ ] Do not install optional packages merely because the module exists.
 - [ ] Allow module status to report optional integration availability separately.
+- [ ] Allow multiple features to share one package requirement without making removal unsafe.
 - [ ] Add catalog tests that every package role is internally consistent.
 - [ ] Add a drift guard against Foundation's supported package floors.
 
@@ -345,18 +439,14 @@ optional integration state.
 
 ## Problem
 
-Foundation auth is already a native Foundation capability, but:
+Foundation auth is already a native Foundation capability, but current
+`module:install auth` installs both OTP and WebAuthn-related packages.
 
-```text
-module:install auth
-```
+That is unnecessarily broad and does not match the actual runtime architecture.
 
-currently installs both:
-
-- OTP;
-- WebAuthn library.
-
-That is unnecessarily broad.
+Foundation passkeys currently use `Infocyph\OTP\Passkey`, while OTP declares
+`web-auth/webauthn-lib` as the optional library required for its passkey integration. Therefore
+the passkey feature is not "WebAuthn package only."
 
 ## Target model
 
@@ -372,6 +462,7 @@ auth
       infocyph/otp ^6.1
 
     passkey
+      infocyph/otp ^6.1
       web-auth/webauthn-lib ^5.3.5
 
     database-storage
@@ -384,32 +475,42 @@ auth
       security module / Epicrypt
 
     notifications
-      communication/notifications capability
+      Foundation notifications capability
+      optional TalkingBytes email integration
 ```
 
 ## Decisions to implement
 
-- [ ] `auth` itself must not automatically install both OTP and WebAuthn.
-- [ ] Determine the public CLI shape for feature installation.
-- [ ] Preferred direction:
+- [ ] Treat `auth` as a virtual/core-backed module namespace rather than a base package bundle.
+- [ ] `auth` itself must not automatically install OTP + WebAuthn.
+- [ ] Preferred feature CLI:
   - `module:install auth --feature=otp`
   - `module:install auth --feature=passkey`
   - repeatable `--feature` if both are wanted.
-- [ ] Preserve `otp`, `mfa`, `passkey`, `webauthn` aliases only if they can resolve
-  unambiguously to auth features rather than silently install the whole auth bundle.
-- [ ] Core auth remains available without either feature package.
-- [ ] Readiness follows selected auth drivers:
+- [ ] Bare `module:install auth` must not falsely claim that a specialist package bundle was
+  installed. Prefer directing users to `module:enable auth` for core auth or requiring an
+  explicit package feature.
+- [ ] Preserve `otp`, `mfa`, `passkey`, `passkeys`, `webauthn` aliases only if they
+  resolve unambiguously to auth features rather than broadening to the whole auth bundle.
+- [ ] Package-name compatibility aliases such as `infocyph/otp` and
+  `web-auth/webauthn-lib` must resolve to precise feature intent where retained.
+- [ ] Passkey selection requires both `infocyph/otp` and `web-auth/webauthn-lib`.
+- [ ] Passkey selection must not imply that OTP/TOTP MFA itself is selected.
+- [ ] Core auth remains available without either specialist feature.
+- [ ] Readiness follows selected auth drivers/features:
   - OTP only required for OTP MFA;
-  - WebAuthn only required for WebAuthn passkeys.
-- [ ] Auth database/security/communication relationships remain conditional module dependencies.
+  - passkey requires OTP's passkey integration plus WebAuthn;
+  - database/security/notifications relationships remain conditional.
 - [ ] Auth shared-cache behavior targets Foundation's core cache capability directly and never
-  introduces a core cache capability dependency.
-- [ ] Add install/show/remove tests for each feature combination.
+  creates a cache module edge.
+- [ ] Shared package ownership prevents feature removal from removing a package still required by
+  another selected auth feature.
+- [ ] Add install/show/remove tests for every supported feature combination.
 
 ## Acceptance
 
-An application can use Foundation core auth without installing OTP or WebAuthn, and can install
-only the auth feature it actually needs.
+An application can use Foundation core auth without installing OTP or WebAuthn, can install only
+the auth feature it needs, and passkey package ownership matches the actual OTP integration.
 
 ---
 
@@ -417,38 +518,50 @@ only the auth feature it actually needs.
 
 ## Problem
 
-Current public behavior:
+Current public module behavior aliases `notifications` to `communication` and communication
+publishes both `communication.php` and `notifications.php`.
 
-- `notifications` aliases to `communication`;
-- `communication` publishes both `communication.php` and `notifications.php`.
+Current runtime behavior is different:
 
-Current runtime behavior:
+- `communication` and `notifications` are distinct explicit capabilities/providers;
+- `NotificationServiceProvider` is Foundation-native;
+- base notification dispatch/templates/channels do not require TalkingBytes;
+- TalkingBytes email services are registered conditionally when available.
 
-- `communication` and `notifications` are distinct explicit capabilities/providers.
+The module vocabulary must match that runtime boundary.
 
-These models disagree.
+## Target decision
+
+Keep exactly seven specialist module namespaces.
+
+- `communication` is the TalkingBytes-backed specialist module.
+- `notifications` remains a Foundation-native capability, not an eighth module.
+- `communication.php` belongs to the communication module.
+- `notifications.php` belongs to the Foundation application/core capability configuration.
+- TalkingBytes-backed email is an optional integration consumed by notifications when present.
 
 ## Work
 
-- [ ] Choose one canonical model and make catalog/runtime/config/docs agree.
-- [ ] Preferred direction: keep `communication` and `notifications` as distinct public
-  capabilities/modules while both may use TalkingBytes where appropriate.
-- [ ] `communication` owns protocol profiles:
+- [ ] Remove `notifications` as an alias that broadens to the communication module.
+- [ ] Stop publishing `notifications.php` as a side effect of communication installation.
+- [ ] Keep `communication` ownership focused on TalkingBytes protocol profiles:
   - HTTP;
   - webhook;
   - gRPC.
-- [ ] `notifications` owns application outbound/inbound email notification composition.
-- [ ] Determine whether notifications needs a direct TalkingBytes root requirement or may rely
-  on a shared package requirement model.
-- [ ] Stop publishing `notifications.php` as a side effect of unrelated communication install
-  if notifications becomes a first-class module.
+- [ ] Keep notifications usable without TalkingBytes email support.
+- [ ] Report TalkingBytes email availability as an optional notifications integration rather
+  than a notifications module installation state.
 - [ ] Preserve migration aliases only where semantics remain clear.
-- [ ] Add explicit topology tests proving communication can be active without notifications
-  and vice versa where supported.
+- [ ] Add explicit topology tests proving:
+  - communication can be active while notifications is disabled;
+  - notifications can be active while communication is disabled;
+  - notifications can operate without TalkingBytes mail support;
+  - TalkingBytes email integration appears when the package is available.
 
 ## Acceptance
 
-Public module names, config ownership and runtime capabilities describe the same topology.
+The seven-module specialist vocabulary remains stable, notifications stays Foundation-native,
+and public module/config ownership matches runtime capability behavior.
 
 ---
 
@@ -462,7 +575,8 @@ Examples:
 
 - messaging durable mode -> database;
 - auth database storage -> database;
-- auth shared cache/replay state -> Foundation core cache capability;
+- auth shared cache/replay state -> Foundation core cache capability when the selected feature
+  actually consumes CacheLayer services;
 - auth security drivers -> security;
 - auth TalkingBytes notifications -> communication/notifications;
 - ReqShield database rules -> database integration only when selected.
@@ -476,7 +590,9 @@ cache capability lifecycle.
 - [ ] Evaluate conditions against normalized Foundation config.
 - [ ] Report active and inactive dependency edges separately.
 - [ ] Do not auto-enable conditional dependencies silently.
-- [ ] `module:show` must explain why a dependency is required.
+- [ ] Distinguish specialist-module edges from Foundation-core capability requirements. A selected
+  feature may require the `cache` capability, but no `cache` module node may exist.
+- [ ] `module:show` must explain why a dependency/capability is required.
 - [ ] `module:install` should be able to plan required dependency installs.
 - [ ] If dependencies are not installed/enabled, provide deterministic actionable output.
 - [ ] Prevent dependency cycles in catalog definitions.
@@ -515,8 +631,10 @@ the CLI does not communicate this strongly enough.
 - [ ] Do not silently rewrite explicit `app.capabilities` unless the user explicitly requests
   activation.
 - [ ] Define behavior when capability topology is omitted:
-  - development compatibility mode remains available;
-  - CLI should clearly report that activation is inferred, not explicit.
+  - compatibility auto-discovery remains available where Foundation currently permits it;
+  - CLI must clearly report that activation is inferred, not explicit;
+  - production-readiness policy must explicitly decide whether missing `app.capabilities` is
+    acceptable instead of assuming "cold until selected" semantics.
 - [ ] Enabling must validate required/active conditional dependencies.
 - [ ] Disabling must not uninstall packages or delete config/data.
 - [ ] Capability mutation must use a deterministic application-owned source of truth; do not
@@ -578,6 +696,9 @@ for disabled capabilities.
 - [ ] `module:schema:install` may explicitly manage an inactive module only when the user
   deliberately targets it; document this behavior.
 - [ ] `module:schema:sync` must follow the active application topology only.
+- [ ] Normal `module:install <module>` must not trigger an unrelated aggregate schema sync.
+  Provision only the targeted module and explicitly planned dependencies/features; keep
+  `module:schema:sync` as the deliberate aggregate operation.
 - [ ] Keep schema ownership with the current owning component/library.
 - [ ] Preserve no-drop/no-data-destruction guarantees.
 
@@ -604,7 +725,9 @@ Module status should answer whether the application can actually use the module.
 - transitive package availability;
 - selected features;
 - enabled state;
-- config publication state;
+- effective configuration validity;
+- config publication state separately;
+- activation explicit/inferred state;
 - active dependencies and reasons;
 - platform/extension requirements;
 - optional integrations;
@@ -779,11 +902,14 @@ That can unexpectedly alter the application's dev dependency installation state.
 
 ## Work
 
-- [ ] Each published config file must have one clear public module owner.
-- [ ] Resolve `communication.php` vs `notifications.php` ownership during the
-  communication/notifications decision.
-- [ ] Feature-specific config should not be published merely because another feature in the
-  module exists.
+- [ ] Each published config file must have one clear owner.
+- [ ] `communication.php` is owned by the communication specialist module.
+- [ ] `notifications.php` is Foundation-native application config and must not be owned or
+  published by the communication module.
+- [ ] Feature-specific config must not be published merely because another feature in the module
+  exists.
+- [ ] Effective `configured` state must come from resolved config/validation, not publication
+  alone.
 - [ ] Existing application-owned config remains untouched unless `--force`.
 - [ ] Preserve transactional staging/backup behavior in `ModuleConfigPublisher`.
 - [ ] Preserve symbolic-link refusal on forced publication.
@@ -827,23 +953,27 @@ Review every alias and decide whether it names:
 - a module feature;
 - a package compatibility alias.
 
-Current high-risk aliases are the auth-related aliases:
+Current high-risk auth aliases:
 
 - `otp`;
 - `mfa`;
 - `passkey`;
+- `passkeys`;
 - `webauthn`.
 
-These should not silently mean "install the entire auth bundle."
+These must not silently mean "install the entire auth bundle."
 
 Also review:
 
-- `notifications` -> communication;
+- remove `notifications` -> communication because notifications is a distinct
+  Foundation-native capability;
 - `queue` / `events` -> messaging;
 - `db` / `dblayer` -> database;
 - `crypto` / `epicrypt` -> security;
 - `files` / `storage` / `pathwise` -> filesystem;
 - `reqshield` / `validator` -> validation.
+
+Package-name resolution must not broaden feature requests after the catalog gains package roles.
 
 ## Acceptance
 
@@ -869,12 +999,17 @@ packages
   transitive
   missing
   incompatible
+  ownership_unknown
 
 features
 enabled
+activation_explicit
 configured
+config_published
 
 dependencies
+  modules
+  core_capabilities
 platform
 
 config
@@ -887,6 +1022,9 @@ warnings
 
 Do not expose internal class names as the primary public contract unless necessary.
 
+Changing the contract shape after release requires an intentional `schema_version` change rather
+than accidental key drift.
+
 ---
 
 # 22. Module-Specific Review Checklist
@@ -894,20 +1032,23 @@ Do not expose internal class names as the primary public contract unless necessa
 ## auth
 
 - [ ] core auth remains Foundation-native;
+- [ ] auth is represented as a virtual/core-backed module namespace;
 - [ ] OTP feature independent;
-- [ ] passkey feature independent;
-- [ ] database/security/notification module dependencies conditional;
+- [ ] passkey feature requires OTP + WebAuthn without selecting OTP/TOTP MFA implicitly;
+- [ ] database/security/notifications relationships are conditional;
 - [ ] shared-cache behavior targets the Foundation core cache capability;
 - [ ] aliases map to features correctly;
-- [ ] feature removal does not remove unrelated auth dependencies.
+- [ ] shared package ownership makes feature removal safe.
 
 ## communication
 
-- [ ] communication/notifications ownership resolved;
+- [ ] communication remains the TalkingBytes-backed specialist module;
+- [ ] notifications remains Foundation-native and is not a module alias;
+- [ ] `communication.php` / `notifications.php` ownership is separated;
 - [ ] TalkingBytes package ownership correct;
 - [ ] optional gRPC/email/platform features reported without becoming unconditional dependencies;
-- [ ] webhook replay may consume Foundation's core cache capability without creating a module
-  dependency.
+- [ ] webhook replay may consume Foundation's core cache capability without creating a cache
+  module dependency.
 
 ## database
 
@@ -947,38 +1088,55 @@ Do not expose internal class names as the primary public contract unless necessa
 
 # 23. Execution Batches
 
+## Batch 0 — Cache/core boundary closure
+
+- fix the `CacheSchemaManager::resourceStatus()` PDO-ready regression;
+- add database-backed cache schema regression coverage;
+- verify cache has no module catalog/alias/install/remove/repair/schema ownership path;
+- verify dedicated `cache:schema:*` lifecycle remains the cache schema CLI path;
+- close the cache boundary tracker.
+
 ## Batch 1 — Module state foundation
 
-- direct/transitive package ownership;
-- richer state model;
+- dedicated read-only module state resolver;
+- direct/transitive/ownership-unknown package ownership;
+- effective configured state vs config publication state;
+- explicit vs inferred activation state;
+- richer readiness model;
 - module status JSON;
 - constraint drift guard.
 
 ## Batch 2 — Catalog model
 
-- package roles;
+- required/feature/optional package roles;
+- shared feature package ownership;
 - feature declarations;
-- dependency declarations;
+- conditional module/core-capability dependencies;
 - graph validation;
 - platform requirement representation.
 
 ## Batch 3 — Auth decomposition
 
-- core vs OTP/passkey features;
+- core-backed auth namespace;
+- OTP/passkey features;
+- corrected passkey package topology;
 - auth aliases;
 - conditional auth dependencies;
 - install/show/remove behavior.
 
 ## Batch 4 — Communication/notifications ownership
 
-- settle public module/capability model;
-- config ownership;
-- TalkingBytes package ownership;
+- keep communication as the TalkingBytes specialist module;
+- keep notifications as a Foundation-native capability;
+- remove notifications-to-communication alias broadening;
+- split config ownership;
+- model optional TalkingBytes email integration;
 - topology tests.
 
 ## Batch 5 — Dependency engine
 
 - conditional dependency evaluation;
+- module vs Foundation-core capability edges;
 - plan/explain output;
 - blockers;
 - dependency-aware enable/disable/removal.
@@ -988,12 +1146,14 @@ Do not expose internal class names as the primary public contract unless necessa
 - install vs enable;
 - disable;
 - explicit capability topology mutation;
-- development compatibility-mode reporting.
+- compatibility/inferred-mode reporting;
+- production-readiness policy for omitted capability topology.
 
 ## Batch 7 — Schema lifecycle
 
 - capability-aware applicability;
-- active-topology schema sync;
+- active-topology aggregate schema sync;
+- targeted module-install schema provisioning;
 - observational status;
 - inactive targeted install semantics.
 
@@ -1016,11 +1176,12 @@ Do not expose internal class names as the primary public contract unless necessa
 - module docs;
 - migration notes;
 - CLI JSON contract;
+- tracker closure;
 - exact-head PHP 8.4/8.5 lowest/stable QA;
 - clean install;
 - static analysis;
 - release benchmarks where affected;
-- final tracker closure.
+- final release acceptance.
 
 ---
 
@@ -1046,70 +1207,53 @@ Also out of scope:
 
 The module-system pass is complete only when:
 
-- [ ] later-library package presence no longer equals module installation;
-- [ ] transitive ownership for later-installed packages is reported correctly;
+- [ ] specialist-package presence no longer equals module installation;
+- [ ] direct/transitive/ownership-unknown package state is reported correctly;
 - [ ] required/feature/optional package roles are modeled;
 - [ ] auth no longer installs OTP + WebAuthn unconditionally;
-- [ ] communication/notifications ownership is internally consistent;
-- [ ] conditional specialist-module dependencies are explicit and explainable;
-- [X] no cache/cachelayer module entry, alias, install/remove path, status entry or schema
+- [ ] passkey ownership correctly requires OTP + WebAuthn without implying OTP/TOTP MFA selection;
+- [ ] communication remains the specialist module while notifications remains Foundation-native
+  and independently activatable;
+- [ ] conditional specialist-module and Foundation-core capability dependencies are explicit and
+  explainable;
+- [ ] no cache/cachelayer module entry, alias, install/remove path, status entry or schema
   ownership remains in the module subsystem;
+- [ ] cache core schema lifecycle regression coverage is green;
 - [ ] install and enable are separate lifecycle concepts;
 - [ ] removal is dependency-aware and preserves application config/data;
-- [ ] schema sync follows active capability topology;
-- [ ] module status includes configuration/dependency/platform/schema readiness;
+- [ ] aggregate schema sync follows active capability topology;
+- [ ] normal module installation does not provision unrelated module schemas;
+- [ ] module status separates effective config from publication state;
+- [ ] module status includes dependency/platform/schema readiness and explicit/inferred activation;
 - [ ] partial installations have an idempotent repair path;
 - [ ] Composer mutation no longer forces inappropriate no-dev behavior;
 - [ ] module package floors are guarded from version drift;
 - [ ] aliases do not unexpectedly broaden requested features;
-- [ ] all seven specialist modules have module-specific acceptance coverage;
+- [ ] all seven specialist module namespaces have module-specific acceptance coverage;
+- [ ] tracker shows Batches 0-10 **DONE**;
 - [ ] exact-head PHPForge matrix is green.
 
 ---
 
 # 26. Immediate Starting Point
 
-Start with **Batch 1 — Module state foundation**.
+Start with **Batch 0 — Cache/core boundary closure**, then proceed directly to
+**Batch 1 — Module state foundation**.
 
-Do not change auth/communication CLI semantics before the state model is fixed.
+Do not change auth/communication CLI semantics before the state model is stable.
 
-First implementation target:
+Immediate implementation sequence:
 
-1. teach the module layer to distinguish application-direct specialist-package requirements
-   from transitively available packages while excluding Foundation core dependencies such as
-   CacheLayer;
-2. expose direct/transitive/enabled/configured/ready as separate state;
-3. update `module:list` and `module:show` JSON/tests;
-4. add the package-floor drift guard.
+1. fix the `CacheSchemaManager::resourceStatus()` PDO-ready regression;
+2. add cache schema regression coverage and close Batch 0 verification;
+3. introduce the read-only module state resolver around the already-existing root
+   `composer.json` direct-require detection;
+4. distinguish direct/transitive/ownership-unknown package state while excluding Foundation core
+   dependencies such as CacheLayer;
+5. expose enabled + activation-explicit + configured + config-published + ready as separate state;
+6. update `module:list` and `module:show` JSON/tests;
+7. add the package-floor drift guard.
 
-Only after this base is stable should the catalog be expanded with feature/dependency semantics.
+Only after Batch 1 is stable should the catalog be expanded with feature/dependency semantics.
 
-
----
-
-# 27. Cache Removal from Module Subsystem — COMPLETE
-
-This is a prerequisite cleanup before Batch 1.
-
-- [X] Move `infocyph/cachelayer ^3.4` into Foundation `require`.
-- [X] Remove CacheLayer from `require-dev` and `suggest`.
-- [X] Remove canonical `cache` entry from `ModuleCatalog`.
-- [X] Remove `cachelayer` module alias.
-- [X] Remove cache from `module:list`, `module:show`, `module:install`,
-  `module:remove`, module planning and module repair.
-- [X] Remove cache from module schema ownership/dispatch.
-- [X] Move any cache schema readiness/install behavior to Foundation's core cache capability
-  lifecycle.
-- [X] Keep cache capability activation explicit and cold until selected.
-- [X] Keep `config/cache.php` as default InfByte application config.
-- [X] Update module tests so cache is not counted as a module.
-- [X] Add a guard proving CacheLayer is a Foundation core dependency and cannot drift back into
-  module package ownership.
-- [X] Update docs/migration guidance so "cache module" terminology no longer appears.
-
-## Acceptance
-
-`cache` is absent from the module subsystem while CacheLayer remains always available to
-Foundation core and the cache capability remains independently activatable.
-
-**Status:** [X] COMPLETE — CacheLayer core promotion is closed before Batch 1 begins.
+The top-level Progress Tracker is the authoritative batch-status summary for this plan.
