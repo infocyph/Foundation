@@ -625,5 +625,5 @@ final readonly class ModuleStateResolver
         );
 
         return $module;
-       }
+    }
 }

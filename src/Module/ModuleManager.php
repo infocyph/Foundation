@@ -248,5 +248,5 @@ final readonly class ModuleManager
         }
 
         return $blockers;
-       }
+    }
 }
