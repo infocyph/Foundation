@@ -670,5 +670,4 @@ final class ModuleSystemCommand extends SystemCommand
 
         return [$result->exitCode, $schemas];
     }
-
 }
