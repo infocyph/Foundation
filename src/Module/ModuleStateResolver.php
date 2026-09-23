@@ -8,6 +8,46 @@ use Composer\InstalledVersions;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Config\Internal\ConfiguredCapabilities;
 
+/**
+ * @phpstan-import-type ModuleDefinition from ModuleCatalog
+ * @phpstan-type PackageState array{
+ *     constraint:string,
+ *     installed:bool,
+ *     available:bool,
+ *     direct:bool,
+ *     transitive:bool,
+ *     ownership_unknown:bool,
+ *     direct_constraint:?string,
+ *     compatible:?bool,
+ *     version:?string
+ * }
+ * @phpstan-type ModuleState array{
+ *     schema_version:int,
+ *     name:string,
+ *     description:string,
+ *     built_in:bool,
+ *     status:string,
+ *     installed:bool,
+ *     installed_by_module:bool,
+ *     package_available:bool,
+ *     direct:bool,
+ *     transitive:bool,
+ *     ownership_unknown:bool,
+ *     enabled:bool,
+ *     activation_explicit:bool,
+ *     configured:bool,
+ *     config_published:bool,
+ *     dependencies_satisfied:bool,
+ *     platform_ready:bool,
+ *     schema_ready:?bool,
+ *     ready:bool,
+ *     schemas:list<string>,
+ *     packages:array<string,PackageState>,
+ *     blockers:list<string>,
+ *     warnings:list<string>,
+ *     package_present:bool
+ * }
+ */
 final readonly class ModuleStateResolver
 {
     private const int SCHEMA_VERSION = 1;
@@ -29,7 +69,7 @@ final readonly class ModuleStateResolver
         private ModuleCatalog $catalog,
     ) {}
 
-    /** @return list<array<string,mixed>> */
+    /** @return list<ModuleState> */
     public function all(): array
     {
         $ownership = $this->rootRequirements();
@@ -96,9 +136,9 @@ final readonly class ModuleStateResolver
     }
 
     /**
-     * @param array<string,mixed> $definition
+     * @param ModuleDefinition $definition
      * @param array{known:bool,requirements:array<string,string>,error:?string} $ownership
-     * @return array<string,mixed>
+     * @return ModuleState
      */
     private function state(
         string $name,
@@ -226,7 +266,7 @@ final readonly class ModuleStateResolver
         ];
     }
 
-    /** @param array<string,mixed> $definition */
+    /** @param ModuleDefinition $definition */
     private function configured(array $definition): bool
     {
         foreach ($definition['config'] as $filename) {
@@ -239,7 +279,7 @@ final readonly class ModuleStateResolver
         return true;
     }
 
-    /** @param array<string,mixed> $definition */
+    /** @param ModuleDefinition $definition */
     private function configPublished(array $definition): bool
     {
         foreach ($definition['config'] as $filename) {
