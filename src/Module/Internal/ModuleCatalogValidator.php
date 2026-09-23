@@ -118,13 +118,24 @@ final class ModuleCatalogValidator
     }
 
     /**
-     * @phpstan-param array<string,PackageRequirement> $packages
+     * @param list<string> $owners
      * @phpstan-param array<string,ModuleFeature> $features
      */
-    private function assertPackages(string $module, array $packages, array $features): void
-    {
-        foreach ($packages as $package => $requirement) {
-            $this->assertPackageRequirement($module, $package, $requirement, $features);
+    private function assertPackageFeatureOwners(
+        string $module,
+        string $package,
+        array $owners,
+        array $features,
+    ): void {
+        foreach ($owners as $feature) {
+            if (!isset($features[$feature])) {
+                throw new \LogicException(sprintf(
+                    'Package "%s" references unknown feature "%s" on module "%s".',
+                    $package,
+                    $feature,
+                    $module,
+                ));
+            }
         }
     }
 
@@ -157,35 +168,13 @@ final class ModuleCatalogValidator
     }
 
     /**
-     * @param list<string> $owners
+     * @phpstan-param array<string,PackageRequirement> $packages
      * @phpstan-param array<string,ModuleFeature> $features
      */
-    private function assertPackageFeatureOwners(
-        string $module,
-        string $package,
-        array $owners,
-        array $features,
-    ): void {
-        foreach ($owners as $feature) {
-            if (!isset($features[$feature])) {
-                throw new \LogicException(sprintf(
-                    'Package "%s" references unknown feature "%s" on module "%s".',
-                    $package,
-                    $feature,
-                    $module,
-                ));
-            }
-        }
-    }
-
-    /** @param array{key:string,operator:'equals'|'not-empty',value?:bool|int|string|null} $predicate */
-    private function assertPredicate(string $scope, array $predicate): void
+    private function assertPackages(string $module, array $packages, array $features): void
     {
-        if ($predicate['key'] === '') {
-            throw new \LogicException(sprintf('Module metadata "%s" has an invalid config predicate.', $scope));
-        }
-        if ($predicate['operator'] === 'equals' && !array_key_exists('value', $predicate)) {
-            throw new \LogicException(sprintf('Module metadata "%s" equality predicate needs a value.', $scope));
+        foreach ($packages as $package => $requirement) {
+            $this->assertPackageRequirement($module, $package, $requirement, $features);
         }
     }
 
@@ -211,6 +200,17 @@ final class ModuleCatalogValidator
                     $package,
                 ));
             }
+        }
+    }
+
+    /** @param array{key:string,operator:'equals'|'not-empty',value?:bool|int|string|null} $predicate */
+    private function assertPredicate(string $scope, array $predicate): void
+    {
+        if ($predicate['key'] === '') {
+            throw new \LogicException(sprintf('Module metadata "%s" has an invalid config predicate.', $scope));
+        }
+        if ($predicate['operator'] === 'equals' && !array_key_exists('value', $predicate)) {
+            throw new \LogicException(sprintf('Module metadata "%s" equality predicate needs a value.', $scope));
         }
     }
 
@@ -283,4 +283,5 @@ final class ModuleCatalogValidator
         unset($visiting[$module]);
         $visited[$module] = true;
     }
+
 }
