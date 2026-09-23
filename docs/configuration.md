@@ -64,13 +64,9 @@ php infbyte module:config:publish database
 php infbyte module:config:publish operations
 ```
 
-Explicit replacement requires `--force`:
+Explicit replacement of module-owned configuration requires `--force`.
 
-```bash
-php infbyte module:config:publish cache --force
-```
-
-`module:install <module>` publishes config for optional modules but never silently overwrites existing application config. `cache.php` is core application configuration and should ship with the application skeleton rather than being module-published.
+`module:install <module>` publishes config for optional modules but never silently overwrites existing application config. `cache.php` is core application configuration and ships with the application skeleton rather than being module-published.
 
 Infrastructure values remain in their owning config; auth does not duplicate
 database/cache/security/communication settings.

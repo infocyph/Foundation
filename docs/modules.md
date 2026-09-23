@@ -110,13 +110,12 @@ Publish module-owned config explicitly:
 ```bash
 php infbyte module:config:publish operations
 php infbyte module:config:publish messaging
-php infbyte module:config:publish cache
 ```
 
 Existing files are preserved by default. Explicit replacement requires:
 
 ```bash
-php infbyte module:config:publish cache --force
+php infbyte module:config:publish messaging --force
 ```
 
 Force publication stages new files and backs up existing regular files before
@@ -131,7 +130,6 @@ Only capabilities that actually own database schema declare schema provisioners:
 | Module | Schema owner |
 | --- | --- |
 | `auth` | Foundation `AuthSchemaInstaller` |
-| `cache` | CacheLayer `PdoCacheSchema` / `PdoInvalidationSchema` |
 | `messaging` | Omnibus 2.6 `QueueSchema` through Foundation's optional durable profile |
 | `session` | Foundation `SessionDatabaseSchema` |
 
@@ -143,7 +141,6 @@ Inspect/install one module's schemas:
 ```bash
 php infbyte module:schema:status auth
 php infbyte module:schema:install auth
-php infbyte module:schema:status cache
 php infbyte module:schema:install session
 ```
 
@@ -153,9 +150,11 @@ Synchronize every schema currently required by configuration:
 php infbyte module:schema:sync
 ```
 
-Schema status is observational. In particular, checking a configured SQLite
-cache schema does not create a missing SQLite database file; explicit schema
-installation owns that mutation.
+Module schema status is observational.
+
+CacheLayer schemas are core cache infrastructure rather than module-owned schema.
+Use `cache:schema:status` and `cache:schema:install`; status does not create a
+missing SQLite cache database and explicit installation owns that mutation.
 
 ## Removal
 

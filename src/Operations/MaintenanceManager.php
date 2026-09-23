@@ -77,7 +77,7 @@ final readonly class MaintenanceManager
 
         $manager = $this->container->get(CacheManager::class);
         if (!$manager instanceof CacheManager) {
-            throw new \LogicException('Foundation cache module did not resolve CacheManager.');
+            throw new \LogicException('Foundation cache capability did not resolve CacheManager.');
         }
 
         $store = $this->config->get('operations.maintenance.store');

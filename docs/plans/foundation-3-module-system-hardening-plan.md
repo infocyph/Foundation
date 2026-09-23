@@ -1052,7 +1052,7 @@ The module-system pass is complete only when:
 - [ ] auth no longer installs OTP + WebAuthn unconditionally;
 - [ ] communication/notifications ownership is internally consistent;
 - [ ] conditional specialist-module dependencies are explicit and explainable;
-- [ ] no cache/cachelayer module entry, alias, install/remove path, status entry or schema
+- [X] no cache/cachelayer module entry, alias, install/remove path, status entry or schema
   ownership remains in the module subsystem;
 - [ ] install and enable are separate lifecycle concepts;
 - [ ] removal is dependency-aware and preserves application config/data;
@@ -1087,27 +1087,29 @@ Only after this base is stable should the catalog be expanded with feature/depen
 
 ---
 
-# 27. Cache Removal from Module Subsystem
+# 27. Cache Removal from Module Subsystem — COMPLETE
 
 This is a prerequisite cleanup before Batch 1.
 
-- [ ] Move `infocyph/cachelayer ^3.4` into Foundation `require`.
-- [ ] Remove CacheLayer from `require-dev` and `suggest`.
-- [ ] Remove canonical `cache` entry from `ModuleCatalog`.
-- [ ] Remove `cachelayer` module alias.
-- [ ] Remove cache from `module:list`, `module:show`, `module:install`,
+- [X] Move `infocyph/cachelayer ^3.4` into Foundation `require`.
+- [X] Remove CacheLayer from `require-dev` and `suggest`.
+- [X] Remove canonical `cache` entry from `ModuleCatalog`.
+- [X] Remove `cachelayer` module alias.
+- [X] Remove cache from `module:list`, `module:show`, `module:install`,
   `module:remove`, module planning and module repair.
-- [ ] Remove cache from module schema ownership/dispatch.
-- [ ] Move any cache schema readiness/install behavior to Foundation's core cache capability
+- [X] Remove cache from module schema ownership/dispatch.
+- [X] Move any cache schema readiness/install behavior to Foundation's core cache capability
   lifecycle.
-- [ ] Keep cache capability activation explicit and cold until selected.
-- [ ] Keep `config/cache.php` as default InfByte application config.
-- [ ] Update module tests so cache is not counted as a module.
-- [ ] Add a guard proving CacheLayer is a Foundation core dependency and cannot drift back into
+- [X] Keep cache capability activation explicit and cold until selected.
+- [X] Keep `config/cache.php` as default InfByte application config.
+- [X] Update module tests so cache is not counted as a module.
+- [X] Add a guard proving CacheLayer is a Foundation core dependency and cannot drift back into
   module package ownership.
-- [ ] Update docs/migration guidance so "cache module" terminology no longer appears.
+- [X] Update docs/migration guidance so "cache module" terminology no longer appears.
 
 ## Acceptance
 
 `cache` is absent from the module subsystem while CacheLayer remains always available to
 Foundation core and the cache capability remains independently activatable.
+
+**Status:** [X] COMPLETE — CacheLayer core promotion is closed before Batch 1 begins.
