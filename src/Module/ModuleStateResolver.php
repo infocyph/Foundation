@@ -79,7 +79,7 @@ final readonly class ModuleStateResolver
     ) {}
 
     /**
-     * @return array
+     * @return array<int,array<string,mixed>>
      * @phpstan-return list<ModuleState>
      */
     public function all(): array
@@ -153,7 +153,6 @@ final readonly class ModuleStateResolver
         return $directConstraint === true && $directVersion === true ? true : null;
     }
 
-    /** @return array{known:false,requirements:array{},error:string} */
     /**
      * @param array<string,mixed> $definition
      * @phpstan-param ModuleDefinition $definition
@@ -182,6 +181,7 @@ final readonly class ModuleStateResolver
         return true;
     }
 
+    /** @return array{lower:string,upper:string}|null */
     private function constraintBounds(string $constraint): ?array
     {
         if (preg_match('/^\\^(\\d+)(?:\\.(\\d+))?(?:\\.(\\d+))?$/D', trim($constraint), $match) !== 1) {
@@ -213,7 +213,6 @@ final readonly class ModuleStateResolver
             && version_compare($candidateBounds['upper'], $requiredBounds['upper'], '<=');
     }
 
-    /** @return array{lower:string,upper:string}|null */
     private function enabled(
         string $name,
         bool $activationExplicit,
@@ -234,6 +233,7 @@ final readonly class ModuleStateResolver
         return $packagesAvailable;
     }
 
+    /** @param PackageResolution $packages */
     private function installedByModule(bool $builtIn, int $packageCount, array $packages): bool
     {
         if ($builtIn) {
@@ -292,7 +292,6 @@ final readonly class ModuleStateResolver
         return array_values(array_unique($warnings));
     }
 
-    /** @param list<string> $blockers */
     /**
      * @param PackageState $state
      * @return list<string>
@@ -392,7 +391,7 @@ final readonly class ModuleStateResolver
         return [];
     }
 
-    /** @param PackageResolution $packages */
+    /** @param list<string> $blockers */
     private function ready(
         bool $builtIn,
         bool $installed,
@@ -406,7 +405,6 @@ final readonly class ModuleStateResolver
             : $installed && $enabled && $configured && $blockers === [];
     }
 
-    /** @param list<string> $blockers */
     /**
      * @param array<string,string> $requirements
      * @param array{known:bool,requirements:array<string,string>,error:?string} $ownership
@@ -522,6 +520,7 @@ final readonly class ModuleStateResolver
         ];
     }
 
+    /** @param list<string> $blockers */
     private function status(
         bool $builtIn,
         bool $installed,
@@ -555,6 +554,7 @@ final readonly class ModuleStateResolver
 
         return $normalized;
     }
+    /** @return array{known:false,requirements:array{},error:string} */
     private function unknownOwnership(string $error): array
     {
         return ['known' => false, 'requirements' => [], 'error' => $error];
