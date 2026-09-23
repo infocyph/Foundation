@@ -2,15 +2,13 @@
 
 declare(strict_types=1);
 
+use Infocyph\Foundation\Communication\CommunicationServiceProvider;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Notifications\EmailProfiles;
-use Infocyph\TalkingBytes\Email\Emailer;
+use Infocyph\Foundation\Notifications\NotificationServiceProvider;
 use Infocyph\TalkingBytes\Email\Mailbox\Mailbox;
 use Infocyph\TalkingBytes\Email\Mailbox\Pop3Mailbox;
 use Infocyph\TalkingBytes\Email\Receiver\SpoolEmailReceiver;
-use Infocyph\TalkingBytes\Grpc\GrpcInboundDispatcher;
-use Infocyph\TalkingBytes\Http\HttpClient;
-use Infocyph\TalkingBytes\Webhook\WebhookReceiver;
 
 it('keeps TalkingBytes communication and email graphs cold until their Foundation capabilities are selected', function (): void {
     $base = [
@@ -29,11 +27,9 @@ it('keeps TalkingBytes communication and email graphs cold until their Foundatio
         ],
     ]);
 
-    expect($communication->has(HttpClient::class))->toBeTrue()
-        ->and($communication->has(GrpcInboundDispatcher::class))->toBeTrue()
-        ->and($communication->has(WebhookReceiver::class))->toBeTrue()
-        ->and($communication->has(Emailer::class))->toBeFalse()
-        ->and($communication->has(EmailProfiles::class))->toBeFalse();
+    $communicationProviders = $communication->providers()->classes();
+    expect($communicationProviders)->toContain(CommunicationServiceProvider::class)
+        ->not->toContain(NotificationServiceProvider::class);
 
     $notifications = Foundation::worker([
         ...$base,
@@ -54,11 +50,9 @@ it('keeps TalkingBytes communication and email graphs cold until their Foundatio
         ],
     ]);
 
-    expect($notifications->has(Emailer::class))->toBeTrue()
-        ->and($notifications->has(EmailProfiles::class))->toBeTrue()
-        ->and($notifications->has(HttpClient::class))->toBeFalse()
-        ->and($notifications->has(GrpcInboundDispatcher::class))->toBeFalse()
-        ->and($notifications->has(WebhookReceiver::class))->toBeFalse();
+    $notificationProviders = $notifications->providers()->classes();
+    expect($notificationProviders)->toContain(NotificationServiceProvider::class)
+        ->not->toContain(CommunicationServiceProvider::class);
 });
 
 it('keeps mailbox instances caller-owned and spool receivers execution-scoped', function (): void {
@@ -136,10 +130,10 @@ it('keeps mailbox instances caller-owned and spool receivers execution-scoped', 
             ->and($popFirst)->not->toBe($popSecond);
 
         $firstReceiver = $app->execution()->run(
-            static fn(): int => spl_object_id($app->make(SpoolEmailReceiver::class)),
+            static fn(): SpoolEmailReceiver => $app->make(SpoolEmailReceiver::class),
         );
         $secondReceiver = $app->execution()->run(
-            static fn(): int => spl_object_id($app->make(SpoolEmailReceiver::class)),
+            static fn(): SpoolEmailReceiver => $app->make(SpoolEmailReceiver::class),
         );
 
         expect($firstReceiver)->not->toBe($secondReceiver);

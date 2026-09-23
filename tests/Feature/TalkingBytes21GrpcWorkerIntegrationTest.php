@@ -13,6 +13,7 @@ use Infocyph\TalkingBytes\Core\Support\CancellationSignal;
 use Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundExchange;
 use Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundHandlerInterface;
 use Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundRequest;
+use Infocyph\TalkingBytes\Grpc\GrpcStatus;
 use Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundResponse;
 use Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundSource;
 use Infocyph\TalkingBytes\Grpc\Testing\FakeGrpcInboundExchange;
@@ -20,6 +21,8 @@ use Infocyph\TalkingBytes\Grpc\Testing\FakeGrpcInboundSource;
 
 final class FoundationTalkingBytes21GrpcHandler implements GrpcInboundHandlerInterface
 {
+    public static int $handled = 0;
+
     public static int $next = 0;
 
     private int $sequence;
@@ -31,6 +34,8 @@ final class FoundationTalkingBytes21GrpcHandler implements GrpcInboundHandlerInt
 
     public function handle(GrpcInboundRequest $request): GrpcInboundResponse
     {
+        ++self::$handled;
+
         return GrpcInboundResponse::ok([
             'sequence' => $this->sequence,
             'message' => $request->message,
@@ -90,6 +95,7 @@ final class FoundationTalkingBytes21GrpcProvider extends ServiceProvider
 }
 
 it('runs accepted gRPC exchanges inside fresh Foundation worker execution scopes', function (): void {
+    FoundationTalkingBytes21GrpcHandler::$handled = 0;
     FoundationTalkingBytes21GrpcHandler::$next = 0;
     $source = new FoundationTalkingBytes21GrpcSource();
     $first = $source->enqueue(new GrpcInboundRequest('/foundation.v1.Test/Call', ['id' => 1]));
@@ -102,7 +108,7 @@ it('runs accepted gRPC exchanges inside fresh Foundation worker execution scopes
         static function () use (&$heartbeat): void {
             ++$heartbeat;
         },
-        static fn(): bool => $source->pendingCount() === 0,
+        static fn(): bool => $first->completed() && $second->completed(),
     );
 
     $result = $app->make(GrpcInboundWorker::class)->run($runtime);
@@ -114,11 +120,13 @@ it('runs accepted gRPC exchanges inside fresh Foundation worker execution scopes
         ->and($second->completed())->toBeTrue()
         ->and($first->response()?->message['sequence'] ?? null)->toBe(1)
         ->and($second->response()?->message['sequence'] ?? null)->toBe(2)
+        ->and(FoundationTalkingBytes21GrpcHandler::$handled)->toBe(2)
         ->and($first->response()?->message['message'] ?? null)->toBe(['id' => 1])
         ->and($second->response()?->message['message'] ?? null)->toBe(['id' => 2]);
 });
 
 it('forwards Foundation stop policy through TalkingBytes inbound cancellation', function (): void {
+    FoundationTalkingBytes21GrpcHandler::$handled = 0;
     FoundationTalkingBytes21GrpcHandler::$next = 0;
     $source = new FoundationTalkingBytes21GrpcSource();
     $exchange = $source->enqueue(new GrpcInboundRequest('/foundation.v1.Test/Call', ['id' => 3]));
@@ -134,8 +142,9 @@ it('forwards Foundation stop policy through TalkingBytes inbound cancellation', 
 
     expect($result)->toBe(0)
         ->and($source->sawCancellation)->toBeTrue()
-        ->and($exchange->completed())->toBeFalse()
-        ->and(FoundationTalkingBytes21GrpcHandler::$next)->toBe(0);
+        ->and($exchange->completed())->toBeTrue()
+        ->and($exchange->response()?->status)->toBe(GrpcStatus::Cancelled)
+        ->and(FoundationTalkingBytes21GrpcHandler::$handled)->toBe(0);
 });
 
 function foundationTalkingBytes21GrpcApplication(
