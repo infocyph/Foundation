@@ -283,5 +283,4 @@ final class ModuleCatalogValidator
         unset($visiting[$module]);
         $visited[$module] = true;
     }
-
 }
