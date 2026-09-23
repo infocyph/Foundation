@@ -151,7 +151,6 @@ final readonly class ModuleStateResolver
         $packages = [];
         $allAvailable = true;
         $allDirect = true;
-        $anyAvailable = false;
         $anyTransitive = false;
         $blockers = [];
         $warnings = [];
@@ -179,7 +178,6 @@ final readonly class ModuleStateResolver
 
             $allAvailable = $allAvailable && $available;
             $allDirect = $allDirect && $direct;
-            $anyAvailable = $anyAvailable || $available;
             $anyTransitive = $anyTransitive || $transitive;
 
             if (!$available) {
@@ -244,20 +242,27 @@ final readonly class ModuleStateResolver
         }
 
         $topologyManaged = in_array($name, self::TOPOLOGY_MANAGED, true);
-        $enabled = $topologyManaged ? $capabilities->enabled($name) : true;
         $activationExplicit = $topologyManaged ? $capabilities->explicit() : true;
+        $enabled = match (true) {
+            !$topologyManaged => true,
+            $activationExplicit => $capabilities->enabled($name),
+            in_array($name, ['auth', 'session'], true) => true,
+            default => $allAvailable,
+        };
         $configured = $this->configured($definition);
         $configPublished = $this->configPublished($definition);
         $installedByModule = $builtIn || ($packageCount > 0 && $allAvailable && $allDirect
             && !array_any($packages, static fn(array $package): bool => $package['compatible'] === false));
 
-        if ($topologyManaged && !$activationExplicit) {
+        if ($topologyManaged && !$activationExplicit && $enabled) {
             $warnings[] = sprintf(
                 'Capability %s is active through compatibility auto-discovery; app.capabilities is not explicit.',
                 $name,
             );
         }
-
+        if ($enabled && $anyTransitive && !$installedByModule) {
+            $blockers[] = 'Enabled capability relies on transitive package ownership.';
+        }
         if (!$configured) {
             $blockers[] = 'Resolved Foundation configuration is incomplete for this module.';
         }
@@ -268,7 +273,7 @@ final readonly class ModuleStateResolver
 
         $status = match (true) {
             $builtIn => 'built-in',
-            $blockers !== [] => 'blocked',
+            $enabled && $blockers !== [] => 'blocked',
             $ready => 'ready',
             $installedByModule && $enabled => 'enabled',
             $installedByModule => 'installed',
@@ -298,7 +303,7 @@ final readonly class ModuleStateResolver
             'schemas' => $definition['schemas'],
             'packages' => $packages,
             'blockers' => array_values(array_unique($blockers)),
-            'warnings' => array_values(array_unique($warnings))
+            'warnings' => array_values(array_unique($warnings)),
         ];
     }
 
