@@ -603,7 +603,7 @@ final class ModuleCatalog
         $normalized = strtolower(trim($module));
 
         foreach (self::MODULES as $name => $definition) {
-            $inferred = $this->requestFeature($normalized, $definition);
+            $inferred = $this->requestFeature($normalized, $definition, $features);
             $moduleMatch = $normalized === $name || in_array($normalized, $definition['aliases'], true);
             $packageMatch = isset($this->requiredPackages($definition)[$normalized]);
 
@@ -675,7 +675,10 @@ final class ModuleCatalog
      * @phpstan-param ModuleDefinition $definition
      * @return string|false|null
      */
-    private function requestFeature(string $requested, array $definition): string|false|null
+    /**
+     * @param list<string> $requestedFeatures
+     */
+    private function requestFeature(string $requested, array $definition, array $requestedFeatures): string|false|null
     {
         foreach ($definition['features'] as $feature => $featureDefinition) {
             if ($requested === $feature || in_array($requested, $featureDefinition['aliases'], true)) {
@@ -689,6 +692,15 @@ final class ModuleCatalog
             }
             if (count($requirement['features']) === 1) {
                 return $requirement['features'][0];
+            }
+
+            $explicit = $this->normalizeFeatures($definition, $requestedFeatures);
+            $matching = array_values(array_intersect($requirement['features'], $explicit));
+            if (count($matching) === 1) {
+                return $matching[0];
+            }
+            if ($matching !== []) {
+                return null;
             }
 
             throw new \InvalidArgumentException(sprintf(
