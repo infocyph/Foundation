@@ -236,7 +236,7 @@ final readonly class ModuleStateResolver
     /**
      * @phpstan-param ModuleDefinition $definition
      * @param array{known:bool,requirements:array<string,string>,error:?string} $ownership
-     * @return array<string,FeatureState>
+     * @phpstan-return array<string,FeatureState>
      */
     private function featureStates(array $definition, array $ownership): array
     {
