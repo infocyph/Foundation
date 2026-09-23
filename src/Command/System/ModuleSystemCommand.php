@@ -36,6 +36,7 @@ final class ModuleSystemCommand extends SystemCommand
             'module:list' => $this->listing(),
             'module:plan' => $this->plan(),
             'module:remove' => $this->remove(),
+            'module:repair' => $this->repair(),
             'module:schema:install' => $this->schemaInstall(),
             'module:schema:status' => $this->schemaStatus(),
             'module:schema:sync' => $this->schemaSync(),
@@ -68,7 +69,7 @@ final class ModuleSystemCommand extends SystemCommand
 
         if (!$dryRun) {
             $this->invalidateCompiledRuntime();
-            [$schemaExit, $schemas] = $this->syncSchemasFresh($module);
+            [$schemaExit, $schemas] = $this->syncSchemasFresh($module, true);
         }
 
         if ($this->io()->machineReadable()) {
@@ -451,6 +452,56 @@ final class ModuleSystemCommand extends SystemCommand
         return $result->exitCode;
     }
 
+    private function repair(): int
+    {
+        $requested = $this->module();
+        $definition = $this->catalog()->resolve($requested, $this->values('feature'));
+        $module = $definition['name'];
+        $state = $this->moduleState($module);
+        $features = $definition['requested_features'];
+        $needsComposer = !$state['installed']
+            || array_any(
+                $features,
+                static fn(string $feature): bool => !($state['features'][$feature]['installed'] ?? false),
+            );
+
+        $composer = 'skipped';
+        if ($needsComposer) {
+            $result = $this->manager()->install($module, $features);
+            if (!$result->successful()) {
+                return $result->exitCode;
+            }
+            $composer = 'completed';
+        }
+
+        $published = $this->manager()->publishConfig($module);
+        $this->invalidateCompiledRuntime();
+        [$schemaExit, $schemas] = $this->syncSchemasFresh($module, true);
+
+        $payload = [
+            'module' => $module,
+            'requested' => $requested,
+            'features' => $features,
+            'phases' => [
+                'composer' => $composer,
+                'config' => 'completed',
+                'runtime_invalidation' => 'completed',
+                'schemas' => $schemaExit === ExitCode::SUCCESS ? 'completed' : 'failed',
+            ],
+            ...$published,
+            'schemas' => $schemas,
+        ];
+
+        if ($this->io()->machineReadable()) {
+            $this->io()->json($payload);
+        } else {
+            $this->io()->success(sprintf('Module "%s" repair completed.', $module));
+            $this->renderSchemas($schemas);
+        }
+
+        return $schemaExit;
+    }
+
     /**
      * @param list<DependencyState> $dependencies
      */
@@ -600,7 +651,11 @@ final class ModuleSystemCommand extends SystemCommand
     {
         $requested = $this->module();
         $module = $this->catalog()->resolve($requested)['name'];
-        $schemas = $this->schemas()->install($module, $this->option('connection'));
+        $schemas = $this->schemas()->install(
+            $module,
+            $this->option('connection'),
+            $this->flag('applicable-only'),
+        );
 
         return $this->schemaResponse($schemas, $module, $requested, true);
     }
@@ -774,7 +829,7 @@ final class ModuleSystemCommand extends SystemCommand
      *
      * @return array{int,list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}>}
      */
-    private function syncSchemasFresh(?string $module = null): array
+    private function syncSchemasFresh(?string $module = null, bool $applicableOnly = false): array
     {
         $command = [
             PHP_BINARY,
@@ -785,6 +840,9 @@ final class ModuleSystemCommand extends SystemCommand
         ];
         if ($module !== null) {
             $command[] = $module;
+        }
+        if ($applicableOnly) {
+            $command[] = '--applicable-only';
         }
         $connection = $this->option('connection');
         if ($connection !== null) {
