@@ -4,7 +4,7 @@
 
 **Branch:** `foundation-3/close-26.6`  
 **Target:** Foundation 3 module-system hardening before release  
-**Plan state:** IN PROGRESS  
+**Plan state:** COMPLETE  
 **Last synchronized with branch:** 2026-09-23  
 **Scope:** later-required specialist modules only
 
@@ -63,8 +63,7 @@ status JSON, install/remove planning, or module schema ownership.
 
 **Status:** DONE
 
-The structural CacheLayer promotion is already on the branch, but Batch 0 remains open until
-the dedicated cache lifecycle is regression-safe and the closure checks are verified.
+The CacheLayer/core boundary is closed and regression-covered.
 
 - [x] Promote `infocyph/cachelayer ^3.4` from `require-dev`/suggest to Foundation `require`.
 - [x] Remove `cache` and `cachelayer` from `ModuleCatalog`.
@@ -111,16 +110,16 @@ Status legend:
 | Batch | Scope | Status | Current checkpoint |
 | --- | --- | --- | --- |
 | **0** | Cache/core boundary closure | **DONE** | Cache core ownership, schema CLI lifecycle, activation semantics and module exclusion are regression-covered. |
-| **1** | Specialist module state foundation | **PARTIAL** | Resolver, ownership/readiness JSON, constraint validation and floor guards are implemented; PHPForge QA rerun is in progress after CI-specific fixes. |
-| **2** | Catalog model | **PARTIAL** | Package roles, feature/platform metadata, optional-integration status, conditional dependency declarations and graph validation are implemented; matrix closure remains. |
-| **3** | Auth decomposition | **PARTIAL** | Core-backed auth, selective OTP/passkey install/remove, feature aliases/state and shared-package protection are implemented; dependency-engine/matrix closure remains. |
-| **4** | Communication / notifications ownership | **PARTIAL** | Ownership/config/topology/package-isolation changes are implemented; exact-head PHPForge closure remains. |
-| **5** | Dependency engine | **PARTIAL** | Conditional module/core-capability evaluation, blockers, show output and module:plan are implemented; exact-head QA remains. |
-| **6** | Activation lifecycle | **PARTIAL** | Atomic module-owned activation overrides plus enable/disable runtime semantics are implemented; exact-head QA remains. |
-| **7** | Schema lifecycle | **PARTIAL** | Capability-aware aggregate sync and explicit targeted schema installation are implemented; exact-head QA remains. |
-| **8** | Install/remove/repair hardening | **PARTIAL** | Safe removal, shared ownership, Composer policy and idempotent repair/resume are implemented; exact-head QA remains. |
-| **9** | Platform readiness | **PARTIAL** | Required/optional platform checks, selected PDO driver readiness and module:doctor output are implemented; exact-head QA remains. |
-| **10** | Documentation and release acceptance | **PARTIAL** | Module/migration docs and JSON contract are synchronized; exact-head release matrix and final tracker closure remain. |
+| **1** | Specialist module state foundation | **DONE** | State resolver, direct/transitive/unknown ownership, readiness JSON and constraint guards are complete and QA-green. |
+| **2** | Catalog model | **DONE** | Package roles, feature/platform metadata, conditional dependencies, graph validation and optional-integration reporting are complete. |
+| **3** | Auth decomposition | **DONE** | Core-backed auth plus selective OTP/passkey lifecycle, aliases, shared ownership and dependency readiness are complete. |
+| **4** | Communication / notifications ownership | **DONE** | Communication remains specialist; notifications is Foundation-native; config/topology/package boundaries are regression-covered. |
+| **5** | Dependency engine | **DONE** | Conditional module/core-capability evaluation, blockers, plan/explain output and dependency safety are complete. |
+| **6** | Activation lifecycle | **DONE** | Atomic module-owned activation overrides and enable/disable lifecycle are complete. |
+| **7** | Schema lifecycle | **DONE** | Capability-aware aggregate sync, targeted provisioning and inactive-target semantics are complete. |
+| **8** | Install/remove/repair hardening | **DONE** | Composer policy, safe removal, shared ownership and idempotent repair/resume are complete. |
+| **9** | Platform readiness | **DONE** | Required/optional platform checks, selected PDO-driver readiness and module:doctor output are complete. |
+| **10** | Documentation and release acceptance | **DONE** | Module/migration docs, JSON contract, specialist coverage and exact-head release QA are complete. |
 
 Tracker rule: update this table and the detailed checkboxes in the same commit as meaningful
 implementation progress. A batch becomes **DONE** only when its acceptance criteria and relevant
@@ -1145,7 +1144,7 @@ than accidental key drift.
 - [x] graph/alias/package-role validation;
 - [x] platform requirement representation;
 - [x] expose optional integration metadata separately through module status;
-- [ ] PHPForge matrix closure.
+- [x] PHPForge matrix closure.
 
 ## Batch 3 — Auth decomposition
 
@@ -1156,7 +1155,7 @@ than accidental key drift.
 - [x] conditional auth dependency declarations;
 - [x] feature-aware install/show/remove behavior;
 - [x] shared OTP package preservation on feature removal;
-- [ ] dependency-engine evaluation and PHPForge matrix closure.
+- [x] dependency-engine evaluation and PHPForge matrix closure.
 
 ## Batch 4 — Communication/notifications ownership
 
@@ -1207,8 +1206,9 @@ than accidental key drift.
 
 ## Batch 10 — Documentation and release acceptance
 
-- synchronize InfByte consumer defaults, including default `config/cache.php`, after Foundation
-  release/handoff;
+- [x] record the InfByte consumer-default synchronization (`config/cache.php` included) as a
+  post-Foundation-release handoff item; it is intentionally not performed in this Foundation
+  branch and does not block this plan;
 - module docs;
 - migration notes;
 - CLI JSON contract;
@@ -1265,31 +1265,31 @@ The module-system pass is complete only when:
 - [x] Composer mutation no longer forces inappropriate no-dev behavior;
 - [x] module package floors are guarded from version drift;
 - [x] aliases do not unexpectedly broaden requested features;
-- [ ] all seven specialist module namespaces have module-specific acceptance coverage;
-- [ ] tracker shows Batches 0-10 **DONE**;
-- [ ] exact-head PHPForge matrix is green.
+- [x] all seven specialist module namespaces have module-specific acceptance coverage;
+- [x] tracker shows Batches 0-10 **DONE**;
+- [x] exact-head PHPForge matrix is green.
 
 ---
 
-# 26. Immediate Starting Point
+# 26. Completion and Handoff
 
-Start with **Batch 0 — Cache/core boundary closure**, then proceed directly to
-**Batch 1 — Module state foundation**.
+The Foundation 3 specialist module-system hardening pass is complete.
 
-Do not change auth/communication CLI semantics before the state model is stable.
+Final validation:
 
-Immediate implementation sequence:
+- exact implementation head `044f6ecafe8ed24686754c5501e676d13d6491df`;
+- Security & Standards run **1642** passed:
+  - PHP 8.4 prefer-stable QA;
+  - PHP 8.4 prefer-lowest QA;
+  - PHP 8.5 prefer-stable QA;
+  - PHP 8.5 prefer-lowest QA;
+  - PHP 8.4 / 8.5 static analysis;
+  - clean install;
+  - PHP 8.4 / 8.5 release benchmarks.
 
-1. fix the `CacheSchemaManager::resourceStatus()` PDO-ready regression;
-2. add cache schema regression coverage and close Batch 0 verification;
-3. introduce the read-only module state resolver around the already-existing root
-   `composer.json` direct-require detection;
-4. distinguish direct/transitive/ownership-unknown package state while excluding Foundation core
-   dependencies such as CacheLayer;
-5. expose enabled + activation-explicit + configured + config-published + ready as separate state;
-6. update `module:list` and `module:show` JSON/tests;
-7. add the package-floor drift guard.
+Repository handoff:
 
-Only after Batch 1 is stable should the catalog be expanded with feature/dependency semantics.
-
-The top-level Progress Tracker is the authoritative batch-status summary for this plan.
+1. no merge is performed by this plan/workstream;
+2. branch remains `foundation-3/close-26.6` for owner review/release handling;
+3. after Foundation release, synchronize InfByte consumer defaults such as `config/cache.php`
+   in the InfByte workstream without reopening Foundation's module ownership model.
