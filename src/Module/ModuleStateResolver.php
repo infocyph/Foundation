@@ -191,8 +191,11 @@ final readonly class ModuleStateResolver
      */
     private function resolvePackages(array $requirements, array $ownership): array
     {
+        /** @var array<string,PackageState> $packages */
         $packages = [];
+        /** @var list<string> $blockers */
         $blockers = [];
+        /** @var list<string> $warnings */
         $warnings = [];
 
         foreach ($requirements as $package => $constraint) {
@@ -255,7 +258,10 @@ final readonly class ModuleStateResolver
         ];
     }
 
-    /** @param PackageState $state @return list<string> */
+    /**
+     * @param PackageState $state
+     * @return list<string>
+     */
     private function packageBlockers(string $package, array $state): array
     {
         if (!$state['available']) {
@@ -289,7 +295,10 @@ final readonly class ModuleStateResolver
         return [];
     }
 
-    /** @param PackageState $state @return list<string> */
+    /**
+     * @param PackageState $state
+     * @return list<string>
+     */
     private function packageWarnings(string $package, array $state): array
     {
         if ($state['direct'] && $state['compatible'] === null) {
@@ -525,7 +534,10 @@ final readonly class ModuleStateResolver
         return ['known' => false, 'requirements' => [], 'error' => $error];
     }
 
-    /** @param array<mixed,mixed> $requirements @return array<string,string> */
+    /**
+     * @param array<mixed,mixed> $requirements
+     * @return array<string,string>
+     */
     private function stringRequirements(array $requirements): array
     {
         $normalized = [];
