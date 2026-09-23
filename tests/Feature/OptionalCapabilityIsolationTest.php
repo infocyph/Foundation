@@ -35,6 +35,11 @@ it('boots with Foundation core dependencies while optional packages remain unava
             );
     }
 
+    expect($probe['notifications']['dispatcher_available'] ?? false)->toBeTrue()
+        ->and($probe['notifications']['mail_error'] ?? null)->toBeString()
+        ->and($probe['notifications']['mail_error'])
+        ->toContain('optional infocyph/talkingbytes email integration');
+
     expect($probe['auth']['default']['resolved'] ?? false)->toBeTrue()
         ->and($probe['auth']['default']['message'] ?? null)->toBeNull()
         ->and($probe['auth']['otp']['message'] ?? null)->toBeString()
