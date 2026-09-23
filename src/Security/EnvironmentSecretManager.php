@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Security;
 
-use Infocyph\Epicrypt\Generate\KeyMaterial\Enum\KeyMaterialEncoding;
-use Infocyph\Epicrypt\Generate\KeyMaterial\KeyMaterialGenerator;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Config\ConfigCacheManager;
 
@@ -88,7 +86,7 @@ final readonly class EnvironmentSecretManager
             throw new \RuntimeException(self::VARIABLE . ' already exists; use --force to rotate it.');
         }
 
-        $secret = new KeyMaterialGenerator()->forTokenSecret(KeyMaterialEncoding::HEX);
+        $secret = bin2hex(random_bytes(32));
         $line = self::VARIABLE . '=' . $secret;
         if ($exists) {
             $updated = preg_replace($pattern, $line, $contents, 1, $replacements);

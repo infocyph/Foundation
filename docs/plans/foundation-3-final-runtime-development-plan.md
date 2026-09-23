@@ -504,6 +504,8 @@ OTP 6.1 `Passkey` is the Foundation-facing WebAuthn ceremony/state boundary. Fou
 
 # 27. Aggregate Foundation 3 release-readiness — COMPLETE
 
+- [X] InfByte handoff audit caught and closed two core-consumer blockers after aggregate closure: core `app:install` no longer requires optional Epicrypt merely to create `AUTH_TOKEN_SECRET`, and module show/schema commands no longer force the database capability before they can report/install their own capability-owned schema state.
+
 All lower-library passes are closed: 26.1 through 26.10 are complete where applicable, and 26.11 is closed/subsumed. Foundation-owned release readiness is closed independently before the separate InfByte skeleton handoff.
 
 - [X] Composer normal install/release constraints pass on PHP 8.4/8.5, prefer-lowest and prefer-stable. PHPForge run #1482 is green on Foundation head `3eaa7b87ba1051c96c0fd1450c66043e4380b169`.

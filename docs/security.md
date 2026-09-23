@@ -83,9 +83,12 @@ php infbyte secret:generate
 php infbyte secret:generate --force
 ```
 
-The workflow does not print generated secret material. Application secret
-resolution remains separate from generic Epicrypt key management; Foundation
-does not introduce a generic ID/key/secret manager merely to proxy library APIs.
+The workflow does not print generated secret material. The bootstrap token root
+is generated directly from PHP's operating-system CSPRNG and therefore does not
+require the optional `security`/Epicrypt module merely to install a lean
+application. Application secret resolution remains separate from generic
+Epicrypt key management; Foundation does not introduce a generic ID/key/secret
+manager merely to proxy library APIs.
 
 ## Environment-file protection
 
