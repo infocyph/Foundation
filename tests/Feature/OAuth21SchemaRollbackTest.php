@@ -11,6 +11,8 @@ use Infocyph\DBLayer\Schema\Blueprint;
 use Infocyph\DBLayer\Schema\SchemaManager;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthMfaRevisionSchema;
+use Infocyph\Foundation\Database\AuthSchema\AuthOAuthEpicryptProtocolSchema;
+use Infocyph\Foundation\Database\AuthSchema\AuthOAuthEpicryptRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthOAuthRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
@@ -26,8 +28,10 @@ it('rolls back only the additive OAuth revision and preserves the released auth 
     $base = new AuthSchema($tables);
     $mfa = new AuthMfaRevisionSchema($tables);
     $oauth = new AuthOAuthRevisionSchema($tables);
+    $oauthEpicrypt = new AuthOAuthEpicryptRevisionSchema($tables);
+    $oauthProtocol = new AuthOAuthEpicryptProtocolSchema($tables);
     $released = new MigrationRunner($connection, [$base, $mfa]);
-    $runner = new MigrationRunner($connection, [$base, $mfa, $oauth]);
+    $runner = new MigrationRunner($connection, [$base, $mfa, $oauth, $oauthEpicrypt, $oauthProtocol]);
     $schema = new SchemaManager($connection);
 
     try {
@@ -40,8 +44,8 @@ it('rolls back only the additive OAuth revision and preserves the released auth 
             'metadata' => null,
         ]);
 
-        expect($runner->run())->toBe([$oauth->id()])
-            ->and($runner->rollback(1))->toBe([$oauth->id()]);
+        expect($runner->run())->toBe([$oauth->id(), $oauthEpicrypt->id(), $oauthProtocol->id()])
+            ->and($runner->rollback(1))->toBe([$oauthProtocol->id(), $oauthEpicrypt->id(), $oauth->id()]);
 
         foreach ($tables->oauth() as $table) {
             expect($schema->hasTable($table))->toBeFalse();
@@ -50,7 +54,7 @@ it('rolls back only the additive OAuth revision and preserves the released auth 
             expect($schema->hasTable($table))->toBeTrue();
         }
         expect($connection->select('SELECT id FROM ' . $tables->accounts() . ' WHERE id = ?', ['account-preserved']))->toHaveCount(1)
-            ->and($runner->run())->toBe([$oauth->id()]);
+            ->and($runner->run())->toBe([$oauth->id(), $oauthEpicrypt->id(), $oauthProtocol->id()]);
 
         foreach ($tables->oauth() as $table) {
             expect($schema->hasTable($table))->toBeTrue();

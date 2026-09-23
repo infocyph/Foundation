@@ -20,9 +20,11 @@ final class CommandCatalog
     /** @return array<string, CommandDefinition> */
     public function all(): array
     {
-        $connection = static fn(CommandDefinition $command): CommandDefinition => $command
-            ->capability('db')
+        $connectionOption = static fn(CommandDefinition $command): CommandDefinition => $command
+            ->scope()
             ->option('connection', 'Configured database connection name.', acceptsValue: true);
+        $connection = static fn(CommandDefinition $command): CommandDefinition => $connectionOption($command)
+            ->capability('db');
         $destructive = static fn(CommandDefinition $command): CommandDefinition => $connection($command)
             ->option('force', 'Authorize the destructive operation without prompting.');
         $transport = static fn(CommandDefinition $command): CommandDefinition => $command
@@ -218,7 +220,7 @@ final class CommandCatalog
                 ['messaging'],
             )->argument('name', 'Scheduled message name.', required: true),
 
-            $connection(
+            $connectionOption(
                 new CommandDefinition(
                     'module:install',
                     'Install a Foundation module, publish config, and provision applicable schemas.',
@@ -228,7 +230,7 @@ final class CommandCatalog
                     ->option('dry-run', 'Preview Composer changes without modifying the project.'),
             ),
             new CommandDefinition('module:list', 'List Foundation modules.', 'Modules'),
-            $connection(
+            $connectionOption(
                 new CommandDefinition('module:show', 'Show detailed module package/config/schema state.', 'Modules')
                     ->argument('module', 'Module name.', required: true),
             ),
@@ -238,15 +240,15 @@ final class CommandCatalog
             new CommandDefinition('module:remove', 'Remove an optional Foundation module.', 'Modules')
                 ->argument('module', 'Module name.', required: true)
                 ->option('dry-run', 'Preview Composer changes without modifying the project.'),
-            $connection(
+            $connectionOption(
                 new CommandDefinition('module:schema:install', 'Provision database schemas owned by a module.', 'Modules')
                     ->argument('module', 'Module name.', required: true),
             ),
-            $connection(
+            $connectionOption(
                 new CommandDefinition('module:schema:status', 'Show database schema readiness for a module.', 'Modules')
                     ->argument('module', 'Module name.', required: true),
             ),
-            $connection(new CommandDefinition(
+            $connectionOption(new CommandDefinition(
                 'module:schema:sync',
                 'Provision all module schemas required by current configuration.',
                 'Modules',

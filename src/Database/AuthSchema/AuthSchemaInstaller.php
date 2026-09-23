@@ -16,9 +16,12 @@ final readonly class AuthSchemaInstaller
         private AuthSchema $schema,
         private AuthMfaRevisionSchema $mfaRevisionSchema,
         private AuthPasskeyRevisionSchema $passkeyRevisionSchema,
+        private AuthPasskeyRecordSchema $passkeyRecordSchema,
         private AuthTables $tables,
         private ?AuthOAuthRevisionSchema $oauthRevisionSchema = null,
         private bool $oauthEnabled = false,
+        private ?AuthPersonalAccessTokenSchema $personalAccessTokenSchema = null,
+        private bool $personalAccessTokensEnabled = false,
     ) {}
 
     public function install(?string $connection = null): void
@@ -49,6 +52,9 @@ final readonly class AuthSchemaInstaller
         if ($this->oauthEnabled) {
             array_push($requiredTables, ...$this->tables->oauth());
         }
+        if ($this->personalAccessTokensEnabled) {
+            array_push($requiredTables, ...$this->tables->personalAccess());
+        }
 
         foreach ($requiredTables as $table) {
             if ($schema->hasTable($table)) {
@@ -62,6 +68,7 @@ final readonly class AuthSchemaInstaller
         $requiredColumns = [
             [$this->tables->mfaFactors(), 'revision'],
             [$this->tables->passkeyCredentials(), 'revision'],
+            [$this->tables->passkeyCredentials(), 'credential_record'],
         ];
         foreach ($requiredColumns as [$table, $column]) {
             if ($schema->hasTable($table) && !$schema->hasColumn($table, $column)) {
@@ -79,9 +86,19 @@ final readonly class AuthSchemaInstaller
 
     public function runner(?string $connection = null): MigrationRunner
     {
-        $migrations = [$this->schema, $this->mfaRevisionSchema, $this->passkeyRevisionSchema];
+        $migrations = [
+            $this->schema,
+            $this->mfaRevisionSchema,
+            $this->passkeyRevisionSchema,
+            $this->passkeyRecordSchema,
+        ];
         if ($this->oauthEnabled) {
             $migrations[] = $this->oauthSchema();
+            $migrations[] = new AuthOAuthEpicryptRevisionSchema($this->tables);
+            $migrations[] = new AuthOAuthEpicryptProtocolSchema($this->tables);
+        }
+        if ($this->personalAccessTokensEnabled) {
+            $migrations[] = $this->personalAccessTokenSchema();
         }
 
         return new MigrationRunner(
@@ -102,5 +119,16 @@ final readonly class AuthSchemaInstaller
         }
 
         return $this->oauthRevisionSchema;
+    }
+
+    private function personalAccessTokenSchema(): Migration
+    {
+        if (!$this->personalAccessTokenSchema instanceof AuthPersonalAccessTokenSchema) {
+            throw new \LogicException(
+                'Personal-access-token schema is enabled but its migration is unavailable.',
+            );
+        }
+
+        return $this->personalAccessTokenSchema;
     }
 }

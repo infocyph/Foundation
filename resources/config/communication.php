@@ -90,6 +90,7 @@ return [
             'default' => [
                 'http_client' => env('COMMUNICATION_WEBHOOK_HTTP_CLIENT', env('COMMUNICATION_HTTP_DEFAULT_CLIENT', 'default')),
                 'signing_secret' => env('COMMUNICATION_WEBHOOK_SIGNING_SECRET'),
+                'max_payload_bytes' => env_int('COMMUNICATION_WEBHOOK_MAX_PAYLOAD_BYTES', 1_048_576),
                 'retry' => [
                     'enabled' => env('COMMUNICATION_WEBHOOK_RETRY_ENABLED', false),
                     'attempts' => env('COMMUNICATION_WEBHOOK_RETRY_ATTEMPTS', 3),
@@ -102,10 +103,12 @@ return [
             'default' => [
                 'secret' => env('COMMUNICATION_WEBHOOK_SECRET', 'change-me'),
                 'max_age_seconds' => env('COMMUNICATION_WEBHOOK_MAX_AGE_SECONDS', 300),
+                'max_payload_bytes' => env_int('COMMUNICATION_WEBHOOK_MAX_PAYLOAD_BYTES', 1_048_576),
                 'replay' => [
                     'enabled' => env_bool('COMMUNICATION_WEBHOOK_REPLAY_ENABLED', false),
                     'store' => env('COMMUNICATION_WEBHOOK_REPLAY_STORE'),
                     'ttl_seconds' => env_int('COMMUNICATION_WEBHOOK_REPLAY_TTL_SECONDS', 86_400),
+                    'namespace' => env('COMMUNICATION_WEBHOOK_REPLAY_NAMESPACE', 'default'),
                 ],
             ],
         ],
@@ -141,6 +144,12 @@ return [
             ],
         ],
         'inbound' => [
+            // Bind this service ID to a process-owned TalkingBytes GrpcInboundSource.
+            'source_service' => env('COMMUNICATION_GRPC_INBOUND_SOURCE_SERVICE'),
+            // Prevent a non-blocking/custom source from creating a busy loop.
+            'idle_sleep_milliseconds' => env_int('COMMUNICATION_GRPC_INBOUND_IDLE_SLEEP_MS', 10),
+            // A cancellation-aware blocking source should poll often enough for this heartbeat.
+            'heartbeat_interval_milliseconds' => env_int('COMMUNICATION_GRPC_INBOUND_HEARTBEAT_MS', 5_000),
             'handlers' => [],
         ],
     ],

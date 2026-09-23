@@ -85,6 +85,7 @@ final readonly class OAuthClientManager
         array $scopes,
         array $audiences,
         array $metadata = [],
+        ?OAuthClientAuthenticationMethod $authenticationMethod = null,
     ): OAuthClientRegistration {
         $grants = $this->validateGrants($type, $grants);
         $redirectUris = $this->validateRedirectUris($redirectUris, $metadata);
@@ -96,16 +97,23 @@ final readonly class OAuthClientManager
             throw new \InvalidArgumentException('Authorization-code clients require at least one redirect URI.');
         }
 
+        $authenticationMethod ??= $type === OAuthClientType::Confidential
+            ? OAuthClientAuthenticationMethod::ClientSecretBasic
+            : OAuthClientAuthenticationMethod::None;
+        $this->validateAuthenticationMethod($type, $authenticationMethod, $metadata);
+
         $now = $this->clock->now();
         $clientId = 'oc_' . $this->tokens->issue(48);
-        $secret = $type === OAuthClientType::Confidential ? $this->tokens->issue(64) : null;
+        $usesSecret = in_array($authenticationMethod, [
+            OAuthClientAuthenticationMethod::ClientSecretBasic,
+            OAuthClientAuthenticationMethod::ClientSecretPost,
+        ], true);
+        $secret = $usesSecret ? $this->tokens->issue(64) : null;
         $client = new OAuthClient(
             id: bin2hex(random_bytes(16)),
             clientId: $clientId,
             type: $type,
-            authenticationMethod: $type === OAuthClientType::Confidential
-                ? OAuthClientAuthenticationMethod::ClientSecretBasic
-                : OAuthClientAuthenticationMethod::None,
+            authenticationMethod: $authenticationMethod,
             secretHash: $secret === null ? null : $this->hasher->hash($secret, ['purpose' => 'oauth_client_secret']),
             grants: $grants,
             audiences: $audiences,
@@ -187,6 +195,31 @@ final readonly class OAuthClientManager
         }
 
         return array_keys($normalized);
+    }
+
+    /** @param array<string, mixed> $metadata */
+    private function validateAuthenticationMethod(
+        OAuthClientType $type,
+        OAuthClientAuthenticationMethod $method,
+        array $metadata,
+    ): void {
+        if ($type === OAuthClientType::Public) {
+            if ($method !== OAuthClientAuthenticationMethod::None) {
+                throw new \InvalidArgumentException('Public OAuth clients must use the none authentication method.');
+            }
+
+            return;
+        }
+
+        if ($method === OAuthClientAuthenticationMethod::None) {
+            throw new \InvalidArgumentException('Confidential OAuth clients require an authentication method.');
+        }
+        if ($method === OAuthClientAuthenticationMethod::PrivateKeyJwt) {
+            $jwks = $metadata['assertion_jwks'] ?? null;
+            if (!is_array($jwks) || $jwks === []) {
+                throw new \InvalidArgumentException('private_key_jwt clients require registered public assertion_jwks metadata.');
+            }
+        }
     }
 
     /**
@@ -307,7 +340,15 @@ final readonly class OAuthClientManager
         ?string $secret,
         OAuthClientAuthenticationMethod $method,
     ): ?OAuthClient {
-        if ($method !== OAuthClientAuthenticationMethod::ClientSecretBasic || !is_string($secret) || $secret === '' || $client->secretHash === null) {
+        if (!in_array($method, [
+            OAuthClientAuthenticationMethod::ClientSecretBasic,
+            OAuthClientAuthenticationMethod::ClientSecretPost,
+        ], true)
+            || $method !== $client->authenticationMethod
+            || !is_string($secret)
+            || $secret === ''
+            || $client->secretHash === null
+        ) {
             return null;
         }
 

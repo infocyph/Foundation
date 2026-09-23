@@ -4,244 +4,159 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\OAuth\Token;
 
-use Infocyph\Foundation\Auth\Account\AccountStatus;
-use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
-use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
-use Infocyph\Foundation\Auth\OAuth\Authorization\AuthorizationCodeManager;
-use Infocyph\Foundation\Auth\OAuth\Authorization\OAuthAuthorization;
-use Infocyph\Foundation\Auth\OAuth\Client\OAuthClient;
-use Infocyph\Foundation\Auth\OAuth\Client\OAuthClientManager;
-use Infocyph\Foundation\Auth\OAuth\Contract\OAuthAccessTokenServiceInterface;
-use Infocyph\Foundation\Auth\OAuth\Contract\OAuthAuthorizationStoreInterface;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthClientAuthenticationResult as EpicryptAuthenticationResult;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthTokenEndpoint;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthTokenResult;
+use Infocyph\Epicrypt\Auth\OAuth\RefreshTokenInspectionStatus;
+use Infocyph\Epicrypt\Auth\OAuth\RefreshTokenManager;
+use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\EpicryptOAuthClientAuthenticationAdapter;
+use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\EpicryptOAuthErrorMapper;
+use Infocyph\Foundation\Auth\Audit\AuthEventSeverity;
+use Infocyph\Foundation\Auth\Audit\AuthEventType;
+use Infocyph\Foundation\Auth\OAuth\Audit\OAuthAuditRecorder;
 use Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException;
-use Infocyph\Foundation\Auth\OAuth\Scope\OAuthScopeResolver;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthGrantType;
 
 final readonly class OAuthTokenManager
 {
     public function __construct(
-        private OAuthClientManager $clients,
-        private AuthorizationCodeManager $codes,
-        private OAuthAuthorizationStoreInterface $authorizations,
-        private OAuthScopeResolver $scopes,
-        private OAuthAccessTokenServiceInterface $accessTokens,
-        private OAuthRefreshTokenCoordinator $refreshTokens,
-        private AccountProviderInterface $accounts,
-        private ClockInterface $clock,
-        private OAuthSigningKeySet $keys,
-        private int $accessTokenTtl = 300,
-    ) {
-        if ($this->accessTokenTtl < 1) {
-            throw new \InvalidArgumentException('OAuth access-token TTL must be positive.');
-        }
-    }
+        private OAuthTokenEndpoint $endpoint,
+        private EpicryptOAuthClientAuthenticationAdapter $authentication,
+        private RefreshTokenManager $refreshTokens,
+        private ?OAuthAuditRecorder $audit = null,
+    ) {}
 
     /** @param array<string, mixed> $parameters */
-    public function exchange(array $parameters, OAuthClientAuthentication $authentication): OAuthTokenResponse
-    {
-        $this->rejectCredentialParameters($parameters);
+    public function exchange(
+        array $parameters,
+        OAuthClientAuthentication $authentication,
+        #[\SensitiveParameter]
+        ?string $dpopProof = null,
+    ): OAuthTokenResponse {
         $grant = OAuthGrantType::tryFrom($this->requiredString($parameters, 'grant_type', 64));
         if (!$grant instanceof OAuthGrantType) {
             throw OAuthProtocolException::unsupportedGrantType();
         }
 
-        return match ($grant) {
-            OAuthGrantType::AuthorizationCode => $this->authorizationCode($parameters, $authentication),
-            OAuthGrantType::ClientCredentials => $this->clientCredentials($parameters, $authentication),
-            OAuthGrantType::RefreshToken => $this->refresh($parameters, $authentication),
+        $result = match ($grant) {
+            OAuthGrantType::AuthorizationCode => $this->authorizationCode($parameters, $authentication, $dpopProof),
+            OAuthGrantType::ClientCredentials => $this->clientCredentials($parameters, $authentication, $dpopProof),
+            OAuthGrantType::RefreshToken => $this->refresh($parameters, $authentication, $dpopProof),
         };
+
+        return $this->response($result);
     }
 
-    /**
-     * @param list<string> $scopes
-     * @param list<string> $audiences
-     */
-    private function assertUserAuthorization(
-        OAuthAuthorization $authorization,
-        OAuthClient $client,
-        string $accountId,
-        array $scopes,
-        array $audiences,
-        bool $allowNarrowedScopes,
-    ): void {
-        $now = $this->clock->now();
-        $validScopes = $allowNarrowedScopes
-            ? $this->subsetOf($scopes, $authorization->scopes)
-            : $this->sameSet($authorization->scopes, $scopes);
-        if (
-            !$authorization->activeAt($now)
-            || !hash_equals($authorization->clientId, $client->clientId)
-            || !is_string($authorization->accountId)
-            || !hash_equals($authorization->accountId, $accountId)
-            || !$validScopes
-            || !$this->sameSet($authorization->audiences, $audiences)
-        ) {
-            throw OAuthProtocolException::invalidGrant();
-        }
-
-        $account = $this->accounts->findById($accountId);
-        if ($account === null || $account->status() !== AccountStatus::ACTIVE) {
-            throw OAuthProtocolException::invalidGrant();
-        }
-    }
-
-    /**
-     * @param array<string, mixed> $parameters
-     * @return list<string>
-     */
-    private function audiences(array $parameters, OAuthClient $client): array
-    {
-        if (!array_key_exists('audience', $parameters)) {
-            return count($client->audiences) === 1
-                ? $client->audiences
-                : throw OAuthProtocolException::invalidRequest('An audience is required.');
-        }
-
-        return $this->spaceList($parameters, 'audience', 16, true);
-    }
-
-    private function authenticate(OAuthClientAuthentication $authentication, OAuthGrantType $grant): OAuthClient
-    {
-        $client = $this->clients->authenticate(
-            $authentication->clientId,
-            $authentication->secret,
-            $grant,
-            $authentication->method,
+    /** @param array<string, mixed> $parameters */
+    private function authorizationCode(
+        array $parameters,
+        OAuthClientAuthentication $authentication,
+        ?string $dpopProof,
+    ): OAuthTokenResult {
+        return $this->endpoint->authorizationCode(
+            clientId: $authentication->clientId,
+            authentication: $this->authentication->authenticate($authentication),
+            code: $this->requiredString($parameters, 'code', 16_384, false),
+            redirectUri: $this->requiredString($parameters, 'redirect_uri', 2_048, false),
+            pkceVerifier: $this->requiredString($parameters, 'code_verifier', 128, false),
+            dpopProof: $dpopProof,
         );
-        if (!$client instanceof OAuthClient) {
+    }
+
+    /** @param array<string, mixed> $parameters */
+    private function clientCredentials(
+        array $parameters,
+        OAuthClientAuthentication $authentication,
+        ?string $dpopProof,
+    ): OAuthTokenResult {
+        if (array_key_exists('audience', $parameters)) {
+            throw OAuthProtocolException::invalidRequest(
+                'Client Credentials audiences are selected by configured scope-to-resource policy.',
+            );
+        }
+
+        $authenticated = $this->authentication->authenticate($authentication);
+        if (!$authenticated instanceof EpicryptAuthenticationResult) {
             throw OAuthProtocolException::invalidClient();
         }
 
-        return $client;
-    }
-
-    /** @param array<string, mixed> $parameters */
-    private function authorizationCode(array $parameters, OAuthClientAuthentication $authentication): OAuthTokenResponse
-    {
-        $client = $this->authenticate($authentication, OAuthGrantType::AuthorizationCode);
-        $this->rejectParameters($parameters, ['scope', 'audience']);
-        $code = $this->codes->consume(
-            code: $this->requiredString($parameters, 'code', 128, false),
-            clientId: $client->clientId,
-            redirectUri: $this->requiredString($parameters, 'redirect_uri', 2048, false),
-            codeVerifier: $this->requiredString($parameters, 'code_verifier', 128, false),
+        return $this->endpoint->clientCredentials(
+            authentication: $authenticated,
+            requestedScopes: $this->optionalSpaceList($parameters, 'scope'),
+            dpopProof: $dpopProof,
         );
-        $authorization = $this->authorizations->find($code->authorizationId);
-        if (!$authorization instanceof OAuthAuthorization) {
-            throw OAuthProtocolException::invalidGrant();
-        }
-        $this->assertUserAuthorization(
-            $authorization,
-            $client,
-            $code->accountId,
-            $code->scopes,
-            $code->audiences,
-            false,
-        );
-
-        $refresh = $client->allowsGrant(OAuthGrantType::RefreshToken)
-            ? $this->refreshTokens->issue($authorization)
-            : null;
-
-        return $this->response(
-            authorization: $authorization,
-            subject: $code->accountId,
-            scopes: $code->scopes,
-            audiences: $code->audiences,
-            refreshToken: $refresh?->token,
-        );
-    }
-
-    /** @param array<string, mixed> $parameters */
-    private function clientCredentials(array $parameters, OAuthClientAuthentication $authentication): OAuthTokenResponse
-    {
-        $client = $this->authenticate($authentication, OAuthGrantType::ClientCredentials);
-        if (!$client->confidential()) {
-            throw OAuthProtocolException::unauthorizedClient();
-        }
-
-        try {
-            $selection = $this->scopes->resolve(
-                $client,
-                $this->spaceList($parameters, 'scope', 64, true),
-                $this->audiences($parameters, $client),
-            );
-        } catch (\InvalidArgumentException) {
-            throw OAuthProtocolException::invalidScope();
-        }
-
-        $authorization = new OAuthAuthorization(
-            id: bin2hex(random_bytes(16)),
-            clientId: $client->clientId,
-            accountId: null,
-            scopes: $selection->scopes,
-            audiences: $selection->audiences,
-            createdAt: $this->clock->now(),
-        );
-        $this->authorizations->save($authorization);
-
-        return $this->response(
-            authorization: $authorization,
-            subject: 'client:' . $client->clientId,
-            scopes: $selection->scopes,
-            audiences: $selection->audiences,
-        );
-    }
-
-    /** @param array<string, mixed> $parameters */
-    private function refresh(array $parameters, OAuthClientAuthentication $authentication): OAuthTokenResponse
-    {
-        $client = $this->authenticate($authentication, OAuthGrantType::RefreshToken);
-        $this->rejectParameters($parameters, ['audience']);
-        $issue = $this->refreshTokens->rotate(
-            token: $this->requiredString($parameters, 'refresh_token', 128, false),
-            clientId: $client->clientId,
-            requestedScopes: $this->spaceList($parameters, 'scope', 64, false),
-        );
-        $record = $issue->record;
-        $authorization = $this->authorizations->find($record->authorizationId);
-        if (!$authorization instanceof OAuthAuthorization || $record->accountId === null) {
-            throw OAuthProtocolException::invalidGrant();
-        }
-        $this->assertUserAuthorization(
-            $authorization,
-            $client,
-            $record->accountId,
-            $record->scopes,
-            $record->audiences,
-            true,
-        );
-
-        return $this->response(
-            authorization: $authorization,
-            subject: $record->accountId,
-            scopes: $record->scopes,
-            audiences: $record->audiences,
-            refreshToken: $issue->token,
-        );
-    }
-
-    /** @param array<string, mixed> $parameters */
-    private function rejectCredentialParameters(array $parameters): void
-    {
-        foreach (['client_secret', 'client_assertion', 'client_assertion_type'] as $name) {
-            if (array_key_exists($name, $parameters)) {
-                throw OAuthProtocolException::invalidRequest('Client credentials must use the configured authentication method.');
-            }
-        }
     }
 
     /**
      * @param array<string, mixed> $parameters
-     * @param list<string> $names
+     * @return list<string>|null
      */
-    private function rejectParameters(array $parameters, array $names): void
+    private function optionalSpaceList(array $parameters, string $name): ?array
     {
-        foreach ($names as $name) {
-            if (array_key_exists($name, $parameters)) {
-                throw OAuthProtocolException::invalidRequest();
-            }
+        if (!array_key_exists($name, $parameters)) {
+            return null;
         }
+        $value = $parameters[$name] ?? null;
+        if (!is_string($value) || $value === '' || strlen($value) > 4_096) {
+            throw OAuthProtocolException::invalidRequest();
+        }
+
+        $values = explode(' ', $value);
+        if (in_array('', $values, true) || count($values) > 64) {
+            throw OAuthProtocolException::invalidRequest();
+        }
+
+        return $values;
+    }
+
+    /** @param array<string, mixed> $parameters */
+    private function refresh(
+        array $parameters,
+        OAuthClientAuthentication $authentication,
+        ?string $dpopProof,
+    ): OAuthTokenResult {
+        if (array_key_exists('audience', $parameters)) {
+            throw OAuthProtocolException::invalidRequest();
+        }
+
+        $token = $this->requiredString($parameters, 'refresh_token', 16_384, false);
+        $before = $this->refreshTokens->inspect($token);
+        $result = $this->endpoint->refreshToken(
+            clientId: $authentication->clientId,
+            authentication: $this->authentication->authenticate($authentication),
+            refreshToken: $token,
+            requestedScopes: $this->optionalSpaceList($parameters, 'scope'),
+            dpopProof: $dpopProof,
+        );
+
+        $record = $before->record;
+        $response = $result->response;
+        if ($result->successful() && $record !== null && $response !== null) {
+            $this->audit?->record(
+                AuthEventType::OAUTH_REFRESH_TOKEN_ROTATED,
+                $record->grant->subject,
+                [
+                    'client_id' => $record->grant->clientId,
+                    'authorization_id' => $record->grant->authorizationId,
+                    'result' => 'rotated',
+                    'scopes' => $response->scopes,
+                    'audiences' => $record->grant->audiences,
+                ],
+            );
+        } elseif ($before->status === RefreshTokenInspectionStatus::CONSUMED && $record !== null) {
+            $this->audit?->record(
+                AuthEventType::OAUTH_REFRESH_TOKEN_REUSE,
+                $record->grant->subject,
+                [
+                    'client_id' => $record->grant->clientId,
+                    'authorization_id' => $record->grant->authorizationId,
+                    'result' => 'reused',
+                ],
+                AuthEventSeverity::WARNING,
+            );
+        }
+
+        return $result;
     }
 
     /** @param array<string, mixed> $parameters */
@@ -251,7 +166,6 @@ final readonly class OAuthTokenManager
         if (!is_string($value) || $value === '' || strlen($value) > $maximumBytes) {
             throw OAuthProtocolException::invalidRequest();
         }
-
         if (!$trim) {
             if (trim($value) !== $value) {
                 throw OAuthProtocolException::invalidRequest();
@@ -268,81 +182,20 @@ final readonly class OAuthTokenManager
         return $value;
     }
 
-    /**
-     * @param list<string> $scopes
-     * @param list<string> $audiences
-     */
-    private function response(
-        OAuthAuthorization $authorization,
-        string $subject,
-        array $scopes,
-        array $audiences,
-        #[\SensitiveParameter]
-        ?string $refreshToken = null,
-    ): OAuthTokenResponse {
-        $now = $this->clock->now();
-        $token = $this->accessTokens->issue(new OAuthAccessTokenClaims(
-            issuer: $this->keys->issuer,
-            subject: $subject,
-            audiences: $audiences,
-            expiresAt: $now + $this->accessTokenTtl,
-            issuedAt: $now,
-            tokenId: rtrim(strtr(base64_encode(random_bytes(24)), '+/', '-_'), '='),
-            clientId: $authorization->clientId,
-            scopes: $scopes,
-            authorizationId: $authorization->id,
-        ));
+    private function response(OAuthTokenResult $result): OAuthTokenResponse
+    {
+        if (!$result->successful() || $result->response === null) {
+            throw EpicryptOAuthErrorMapper::exception($result->error);
+        }
+        $response = $result->response;
 
         return new OAuthTokenResponse(
-            accessToken: $token,
-            expiresIn: $this->accessTokenTtl,
-            scopes: $scopes,
-            refreshToken: $refreshToken,
+            accessToken: $response->accessToken,
+            expiresIn: $response->expiresIn,
+            scopes: $response->scopes,
+            refreshToken: $response->refreshToken,
+            tokenType: $response->tokenType->value,
+            additionalParameters: $response->additionalParameters,
         );
-    }
-
-    /**
-     * @param list<string> $left
-     * @param list<string> $right
-     */
-    private function sameSet(array $left, array $right): bool
-    {
-        sort($left, SORT_STRING);
-        sort($right, SORT_STRING);
-
-        return $left === $right;
-    }
-
-    /**
-     * @param array<string, mixed> $parameters
-     * @return list<string>
-     */
-    private function spaceList(array $parameters, string $name, int $maximumItems, bool $required): array
-    {
-        if (!array_key_exists($name, $parameters)) {
-            return $required ? throw OAuthProtocolException::invalidRequest() : [];
-        }
-        $value = $parameters[$name];
-        if (!is_string($value) || $value === '' || strlen($value) > 4096) {
-            throw OAuthProtocolException::invalidRequest();
-        }
-
-        $items = preg_split('/\x20+/', trim($value), -1, PREG_SPLIT_NO_EMPTY);
-        if (!is_array($items) || $items === [] || count($items) > $maximumItems) {
-            throw OAuthProtocolException::invalidRequest();
-        }
-
-        return $items;
-    }
-
-    /**
-     * @param list<string> $candidate
-     * @param list<string> $allowed
-     */
-    private function subsetOf(array $candidate, array $allowed): bool
-    {
-        $allowedSet = array_fill_keys($allowed, true);
-
-        return array_all($candidate, fn($value) => isset($allowedSet[$value]));
     }
 }

@@ -7,7 +7,6 @@ namespace Infocyph\Foundation\Auth;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Auth\Internal\AuthMfaRegistrar;
-use Infocyph\Foundation\Auth\Internal\AuthSecretResolver;
 use Infocyph\Foundation\Config\OtpConfigValidator;
 use Infocyph\Foundation\Exception\ConfigurationException;
 use Infocyph\InterMix\DI\ContainerBuilder;
@@ -34,10 +33,6 @@ final class AuthOtpServiceProvider extends ServiceProvider
             );
         }
 
-        new AuthMfaRegistrar(
-            $app,
-            $builder,
-            new AuthSecretResolver($app),
-        )->registerOtpSupport();
+        new AuthMfaRegistrar($app, $builder)->registerOtpSupport();
     }
 }

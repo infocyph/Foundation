@@ -11,7 +11,9 @@ use Infocyph\Webrick\Request\Request;
 
 final readonly class OAuthHttpInput
 {
-    private const array FORBIDDEN_CREDENTIAL_PARAMETERS = [
+    private const string ASSERTION_TYPE = 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer';
+
+    private const array CREDENTIAL_PARAMETERS = [
         'client_secret',
         'client_assertion',
         'client_assertion_type',
@@ -57,42 +59,12 @@ final readonly class OAuthHttpInput
             throw OAuthProtocolException::invalidClient();
         }
 
-        $authorization = $headers[0];
+        $authorization = $headers[0] ?? '';
         if ($authorization !== '') {
-            if (array_key_exists('client_id', $parameters)) {
-                throw OAuthProtocolException::invalidRequest('Client identity must not be supplied by multiple authentication sources.');
-            }
-            if (preg_match('/\ABasic[ \t]+([^ \t]+)\z/iD', $authorization, $match) !== 1) {
-                throw OAuthProtocolException::invalidClient();
-            }
-            if (strlen($match[1]) > 8192) {
-                throw OAuthProtocolException::invalidClient();
-            }
-
-            $decoded = base64_decode($match[1], true);
-            if (!is_string($decoded) || !str_contains($decoded, ':')) {
-                throw OAuthProtocolException::invalidClient();
-            }
-            [$encodedClientId, $encodedSecret] = explode(':', $decoded, 2);
-            $clientId = $this->decodeComponent($encodedClientId);
-            $secret = $this->decodeComponent($encodedSecret);
-            if (!$this->validCredential($clientId, 128) || !$this->validCredential($secret, 4096)) {
-                throw OAuthProtocolException::invalidClient();
-            }
-
-            return new OAuthClientAuthentication(
-                OAuthClientAuthenticationMethod::ClientSecretBasic,
-                $clientId,
-                $secret,
-            );
+            return $this->basicAuthentication($authorization, $parameters);
         }
 
-        $clientId = $parameters['client_id'] ?? null;
-        if (!is_string($clientId) || !$this->validCredential($clientId, 128)) {
-            throw OAuthProtocolException::invalidClient();
-        }
-
-        return new OAuthClientAuthentication(OAuthClientAuthenticationMethod::None, $clientId);
+        return $this->bodyAuthentication($parameters);
     }
 
     /** @return array<string, string> */
@@ -108,10 +80,7 @@ final readonly class OAuthHttpInput
             throw OAuthProtocolException::invalidRequest('OAuth protocol endpoints require application/x-www-form-urlencoded.');
         }
 
-        $parameters = $this->parseEncoded((string) $request->getBody(), $this->maximumFormBytes);
-        $this->rejectCredentialParameters($parameters);
-
-        return $parameters;
+        return $this->parseEncoded((string) $request->getBody(), $this->maximumFormBytes);
     }
 
     /** @return array<string, string> */
@@ -155,6 +124,79 @@ final readonly class OAuthHttpInput
         return $parameters;
     }
 
+    /** @param array<string, string> $parameters */
+    private function basicAuthentication(string $authorization, array $parameters): OAuthClientAuthentication
+    {
+        if (array_key_exists('client_id', $parameters) || $this->containsBodyCredentials($parameters)) {
+            throw OAuthProtocolException::invalidRequest(
+                'Client identity or credentials must not be supplied by multiple authentication sources.',
+            );
+        }
+        if (preg_match('/\ABasic[ \t]+([^ \t]+)\z/iD', $authorization, $match) !== 1
+            || strlen($match[1]) > 8192
+        ) {
+            throw OAuthProtocolException::invalidClient();
+        }
+
+        $decoded = base64_decode($match[1], true);
+        if (!is_string($decoded) || !str_contains($decoded, ':')) {
+            throw OAuthProtocolException::invalidClient();
+        }
+        [$encodedClientId, $encodedSecret] = explode(':', $decoded, 2);
+        $clientId = $this->decodeComponent($encodedClientId);
+        $secret = $this->decodeComponent($encodedSecret);
+        if (!$this->validCredential($clientId, 128) || !$this->validCredential($secret, 4096)) {
+            throw OAuthProtocolException::invalidClient();
+        }
+
+        return new OAuthClientAuthentication(
+            OAuthClientAuthenticationMethod::ClientSecretBasic,
+            $clientId,
+            $secret,
+        );
+    }
+
+    /** @param array<string, string> $parameters */
+    private function bodyAuthentication(array $parameters): OAuthClientAuthentication
+    {
+        $clientId = $parameters['client_id'] ?? null;
+        if ($clientId === null || !$this->validCredential($clientId, 128)) {
+            throw OAuthProtocolException::invalidClient();
+        }
+
+        $secret = $parameters['client_secret'] ?? null;
+        $assertion = $parameters['client_assertion'] ?? null;
+        $assertionType = $parameters['client_assertion_type'] ?? null;
+        if ($secret !== null && ($assertion !== null || $assertionType !== null)) {
+            throw OAuthProtocolException::invalidRequest('OAuth client authentication methods must not be combined.');
+        }
+        if ($assertion !== null || $assertionType !== null) {
+            return $this->privateKeyJwtAuthentication($clientId, $assertion, $assertionType);
+        }
+        if ($secret !== null) {
+            if (!$this->validCredential($secret, 4_096)) {
+                throw OAuthProtocolException::invalidClient();
+            }
+
+            return new OAuthClientAuthentication(
+                OAuthClientAuthenticationMethod::ClientSecretPost,
+                $clientId,
+                $secret,
+            );
+        }
+
+        return new OAuthClientAuthentication(OAuthClientAuthenticationMethod::None, $clientId);
+    }
+
+    /** @param array<string, string> $parameters */
+    private function containsBodyCredentials(array $parameters): bool
+    {
+        return array_any(
+            self::CREDENTIAL_PARAMETERS,
+            static fn(string $name): bool => array_key_exists($name, $parameters),
+        );
+    }
+
     private function decodeComponent(string $value): string
     {
         if (preg_match('/%(?![0-9A-Fa-f]{2})/', $value) === 1) {
@@ -164,10 +206,30 @@ final readonly class OAuthHttpInput
         return rawurldecode(str_replace('+', ' ', $value));
     }
 
+    private function privateKeyJwtAuthentication(
+        string $clientId,
+        ?string $assertion,
+        ?string $assertionType,
+    ): OAuthClientAuthentication {
+        if ($assertion === null
+            || $assertion === ''
+            || strlen($assertion) > 16_384
+            || $assertionType !== self::ASSERTION_TYPE
+        ) {
+            throw OAuthProtocolException::invalidClient();
+        }
+
+        return new OAuthClientAuthentication(
+            OAuthClientAuthenticationMethod::PrivateKeyJwt,
+            $clientId,
+            assertion: $assertion,
+        );
+    }
+
     /** @param array<string, string> $parameters */
     private function rejectCredentialParameters(array $parameters): void
     {
-        foreach (self::FORBIDDEN_CREDENTIAL_PARAMETERS as $name) {
+        foreach (self::CREDENTIAL_PARAMETERS as $name) {
             if (array_key_exists($name, $parameters)) {
                 throw OAuthProtocolException::invalidRequest('Client credentials must use client_secret_basic.');
             }

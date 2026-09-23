@@ -9,12 +9,13 @@ use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\Omnibus\Consumer\Worker;
 use Infocyph\Omnibus\Consumer\WorkerLifecycle;
 use Infocyph\Omnibus\Consumer\WorkerOptions;
+use Psr\Container\ContainerInterface;
 
 final readonly class OmnibusWorkerFactory
 {
     public function __construct(
         private ConfigRepository $config,
-        private ConsumerFactory $consumers,
+        private ContainerInterface $container,
     ) {}
 
     /** @return array<string, array<string, mixed>> */
@@ -46,7 +47,7 @@ final readonly class OmnibusWorkerFactory
     public function make(string $name, ?WorkerLifecycle $lifecycle = null): Worker
     {
         return new Worker(
-            $this->consumers->make($this->transport($name)),
+            $this->consumers()->make($this->transport($name)),
             $this->options($name),
             $lifecycle,
         );
@@ -139,6 +140,16 @@ final readonly class OmnibusWorkerFactory
             $definition['transport'] ?? null,
             ValueNormalizer::string($this->config->get('messaging.consumer.transport'), 'memory'),
         );
+    }
+
+    private function consumers(): ConsumerFactory
+    {
+        $factory = $this->container->get(ConsumerFactory::class);
+        if (!$factory instanceof ConsumerFactory) {
+            throw new \LogicException('ConsumerFactory binding is invalid.');
+        }
+
+        return $factory;
     }
 
     /** @return array<string, mixed> */

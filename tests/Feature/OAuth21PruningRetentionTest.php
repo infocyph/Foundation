@@ -7,6 +7,7 @@ use Infocyph\Foundation\Auth\AuthPruner;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthMfaRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthOAuthRevisionSchema;
+use Infocyph\Foundation\Database\AuthSchema\AuthPasskeyRecordSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthPasskeyRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchemaInstaller;
@@ -30,8 +31,18 @@ it('prunes OAuth expiry state idempotently without deleting active authorization
     $schema = new AuthSchema($tables);
     $mfa = new AuthMfaRevisionSchema($tables);
     $passkey = new AuthPasskeyRevisionSchema($tables);
+    $passkeyRecord = new AuthPasskeyRecordSchema($tables);
     $oauth = new AuthOAuthRevisionSchema($tables);
-    $installer = new AuthSchemaInstaller($factory, $schema, $mfa, $passkey, $tables, $oauth, true);
+    $installer = new AuthSchemaInstaller(
+        $factory,
+        $schema,
+        $mfa,
+        $passkey,
+        $passkeyRecord,
+        $tables,
+        $oauth,
+        true,
+    );
     $pruner = new AuthPruner($factory, $tables, $installer, true);
     $connection = $factory->connection();
     $now = time();

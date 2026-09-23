@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\OAuth\Http;
 
+use Infocyph\Epicrypt\Auth\Oidc\OpenIdInteractionRequirement;
 use Infocyph\Foundation\Auth\OAuth\Authorization\AuthorizationRedirectContext;
 use Infocyph\Foundation\Auth\OAuth\Authorization\AuthorizationRequest;
 use Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException;
 use Infocyph\Foundation\Auth\OAuth\OAuthManager;
 use Infocyph\Foundation\Auth\Principal\PrincipalInterface;
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 
@@ -18,6 +20,7 @@ final readonly class OAuthHttpHandler
         private OAuthManager $oauth,
         private OAuthHttpInput $input,
         private OAuthHttpResponseFactory $responses,
+        private ConfigRepository $config,
     ) {}
 
     public function authorization(Request $request): AuthorizationRequest|Response
@@ -38,6 +41,7 @@ final readonly class OAuthHttpHandler
 
     public function authorizationApproved(AuthorizationRequest $request, PrincipalInterface $principal): Response
     {
+        $this->oauth->grantConsent($principal, $request);
         $issue = $this->oauth->approve($request, $principal);
 
         return $this->responses->authorizationSuccess($request, $issue->code, $this->issuer());
@@ -50,6 +54,17 @@ final readonly class OAuthHttpHandler
         return $this->responses->authorizationError(
             new AuthorizationRedirectContext($request->client, $request->redirectUri, $request->state),
             OAuthProtocolException::accessDenied(),
+            $this->issuer(),
+        );
+    }
+
+    public function authorizationFailure(
+        AuthorizationRequest $request,
+        OAuthProtocolException $exception,
+    ): Response {
+        return $this->responses->authorizationError(
+            new AuthorizationRedirectContext($request->client, $request->redirectUri, $request->state),
+            $exception,
             $this->issuer(),
         );
     }
@@ -80,6 +95,18 @@ final readonly class OAuthHttpHandler
         return $this->responses->metadata($this->oauth->metadata());
     }
 
+    public function openIdInteraction(
+        AuthorizationRequest $request,
+        ?PrincipalInterface $principal,
+    ): OpenIdInteractionRequirement {
+        return $this->oauth->openIdInteraction($request, $principal);
+    }
+
+    public function openIdMetadata(): Response
+    {
+        return $this->responses->metadata($this->oauth->openIdMetadata());
+    }
+
     public function revocation(Request $request): Response
     {
         try {
@@ -103,10 +130,50 @@ final readonly class OAuthHttpHandler
             $parameters = $this->input->form($request);
             $authentication = $this->input->clientAuthentication($request, $parameters);
 
-            return $this->responses->token($this->oauth->exchange($parameters, $authentication));
+            return $this->responses->token($this->oauth->exchange(
+                $parameters,
+                $authentication,
+                $this->dpopProof($request),
+            ));
         } catch (OAuthProtocolException $exception) {
             return $this->responses->error($exception);
         }
+    }
+
+    public function userInfo(Request $request): Response
+    {
+        try {
+            $token = $this->resourceToken($request);
+            $uri = $this->openIdUserInfoUri();
+
+            return $this->responses->userInfo($this->oauth->userInfo(
+                $token,
+                $this->openIdUserInfoAudience($uri),
+                $request->getEffectiveMethod(),
+                $uri,
+                $this->dpopProof($request),
+            ));
+        } catch (OAuthProtocolException $exception) {
+            return $this->responses->userInfoError($exception);
+        }
+    }
+
+    private function dpopProof(Request $request): ?string
+    {
+        $values = $request->getHeader('DPoP');
+        if (count($values) > 1) {
+            throw OAuthProtocolException::invalidRequest('The DPoP proof is invalid.');
+        }
+
+        $proof = $values[0] ?? '';
+        if ($proof === '') {
+            return null;
+        }
+        if (strlen($proof) > 16_384 || preg_match('/[\x00-\x20\x7F]/', $proof) === 1) {
+            throw OAuthProtocolException::invalidRequest('The DPoP proof is invalid.');
+        }
+
+        return $proof;
     }
 
     private function issuer(): string
@@ -117,6 +184,34 @@ final readonly class OAuthHttpHandler
         }
 
         return $issuer;
+    }
+
+    private function openIdUserInfoAudience(string $fallback): string
+    {
+        $audience = $this->config->get('auth.oauth.oidc.userinfo_audience');
+
+        return is_string($audience) && $audience !== '' ? $audience : $fallback;
+    }
+
+    private function openIdUserInfoUri(): string
+    {
+        $issuer = $this->oauth->metadata()['issuer'] ?? null;
+        $route = $this->config->get('auth.oauth.oidc.userinfo_route');
+        if (!is_string($issuer) || !is_string($route) || $issuer === '' || !str_starts_with($route, '/')) {
+            throw new \LogicException('OpenID UserInfo endpoint configuration is invalid.');
+        }
+
+        $parts = parse_url($issuer);
+        if (!is_array($parts) || !isset($parts['scheme'], $parts['host'])) {
+            throw new \LogicException('OpenID issuer configuration is invalid.');
+        }
+
+        $origin = $parts['scheme'] . '://' . $parts['host'];
+        if (isset($parts['port'])) {
+            $origin .= ':' . $parts['port'];
+        }
+
+        return $origin . $route;
     }
 
     /** @param array<string, string> $parameters */
@@ -138,5 +233,18 @@ final readonly class OAuthHttpHandler
         }
 
         return $value;
+    }
+
+    private function resourceToken(Request $request): string
+    {
+        $values = $request->getHeader('Authorization');
+        if (count($values) !== 1
+            || preg_match('/\A(?:Bearer|DPoP)[ \t]+([^ \t]+)\z/iD', $values[0], $match) !== 1
+            || strlen($match[1]) > 16_384
+            || preg_match('/[\x00-\x20\x7F]/', $match[1]) === 1) {
+            throw new OAuthProtocolException('invalid_token', 'The access token is invalid.', 401);
+        }
+
+        return $match[1];
     }
 }

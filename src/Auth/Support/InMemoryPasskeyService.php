@@ -15,9 +15,7 @@ use Infocyph\Foundation\Auth\Passkey\PasskeyVerificationResult;
 
 final class InMemoryPasskeyService implements PasskeyServiceInterface
 {
-    /**
-     * @var array<string, PasskeyChallenge>
-     */
+    /** @var array<string, PasskeyChallenge> */
     private array $challenges = [];
 
     public function __construct(
@@ -42,11 +40,15 @@ final class InMemoryPasskeyService implements PasskeyServiceInterface
             return new PasskeyVerificationResult(false, reason: 'passkey_account_mismatch');
         }
 
+        $record = $credential->credentialRecordJson ?? $this->memoryRecord($credential->credentialId);
+
         return new PasskeyVerificationResult(
             verified: true,
             accountId: $credential->accountId,
             credentialId: $credential->credentialId,
             signCount: $credential->signCount + 1,
+            credentialRecordJson: $record,
+            expectedRevision: $credential->revision,
         );
     }
 
@@ -61,6 +63,7 @@ final class InMemoryPasskeyService implements PasskeyServiceInterface
             id: bin2hex(random_bytes(16)),
             accountId: $result->accountId,
             credentialId: $result->credentialId,
+            credentialRecordJson: $this->memoryRecord($result->credentialId),
             publicKey: $result->publicKey,
             signCount: $result->signCount,
             transports: $result->transports,
@@ -89,6 +92,14 @@ final class InMemoryPasskeyService implements PasskeyServiceInterface
         }
 
         return $challenge;
+    }
+
+    private function memoryRecord(string $credentialId): string
+    {
+        return json_encode(
+            ['driver' => 'memory', 'credential_id' => $credentialId],
+            JSON_THROW_ON_ERROR,
+        );
     }
 
     private function storeChallenge(?string $accountId, string $purpose): PasskeyChallenge

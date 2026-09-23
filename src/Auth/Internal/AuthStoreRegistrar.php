@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Auth\Internal;
 
 use Infocyph\DBLayer\Connection\Connection;
+use Infocyph\Epicrypt\DataProtection\StringProtector;
 use Infocyph\Foundation\Auth\Adapter\DBLayer\{
     DBLayerAccountStore,
     DBLayerAuditEventStore,
@@ -21,6 +22,7 @@ use Infocyph\Foundation\Auth\Adapter\DBLayer\{
     DBLayerRoleStore,
     DBLayerSessionStore
 };
+use Infocyph\Foundation\Auth\Adapter\Epicrypt\MfaSecretProtector;
 use Infocyph\Foundation\Auth\Authorization\Grant\GrantStoreInterface;
 use Infocyph\Foundation\Auth\Authorization\Permission\{PermissionAssignmentStoreInterface, PermissionStoreInterface};
 use Infocyph\Foundation\Auth\Authorization\Role\{RoleAssignmentStoreInterface, RoleStoreInterface};
@@ -37,6 +39,8 @@ use Infocyph\Foundation\Auth\Contract\Storage\{
     SessionStoreInterface
 };
 use Infocyph\Foundation\Auth\Device\DeviceStoreInterface;
+use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
+use Infocyph\Foundation\Auth\Driver\AuthMfaDriver;
 use Infocyph\Foundation\Auth\Driver\AuthStorageDriver;
 use Infocyph\Foundation\Auth\Mfa\{MfaFactorCompareAndSwapStoreInterface, MfaFactorStoreInterface};
 use Infocyph\Foundation\Auth\Passkey\{
@@ -59,6 +63,7 @@ use Infocyph\Foundation\Auth\Support\{
     InMemoryRoleStore,
     InMemorySessionStore
 };
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Psr\EventDispatcher\EventDispatcherInterface;
@@ -67,11 +72,11 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
 {
     private const string AUDIT_STORAGE = 'foundation.auth.audit.storage';
 
-    public function register(AuthStorageDriver $driver): void
+    public function register(AuthDriverResolver $drivers): void
     {
-        if ($driver === AuthStorageDriver::DATABASE) {
+        if ($drivers->storage() === AuthStorageDriver::DATABASE) {
             $this->requirePackage(Connection::class, 'infocyph/dblayer', 'db');
-            $this->registerDBLayerStores();
+            $this->registerDBLayerStores($drivers->mfa() === AuthMfaDriver::OTP);
 
             return;
         }
@@ -94,6 +99,32 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
             $this->ref(ClockInterface::class),
             $connection,
         ]);
+    }
+
+    private function bindMfaDbStore(?string $connection, bool $protectSecrets): void
+    {
+        $arguments = [
+            $this->ref(DBLayerFactory::class),
+            $this->ref(AuthTables::class),
+            $connection,
+        ];
+
+        if ($protectSecrets) {
+            $this->requirePackage(StringProtector::class, 'infocyph/epicrypt', 'crypto');
+            $this->staticRecipe(
+                MfaSecretProtector::class,
+                AuthMfaGraphFactory::class,
+                'secretProtector',
+                [$this->ref(ConfigRepository::class)],
+            );
+            $arguments[] = $this->ref(MfaSecretProtector::class);
+        }
+
+        $this->recipe(
+            MfaFactorCompareAndSwapStoreInterface::class,
+            DBLayerMfaFactorStore::class,
+            $arguments,
+        );
     }
 
     /** @param class-string $storeClass */
@@ -138,7 +169,6 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
         return [
             AccountStoreInterface::class => DBLayerAccountStore::class,
             SessionStoreInterface::class => DBLayerSessionStore::class,
-            MfaFactorCompareAndSwapStoreInterface::class => DBLayerMfaFactorStore::class,
             self::AUDIT_STORAGE => DBLayerAuditEventStore::class,
         ];
     }
@@ -162,13 +192,14 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
         ];
     }
 
-    private function registerDBLayerStores(): void
+    private function registerDBLayerStores(bool $protectMfaSecrets): void
     {
         $connection = $this->authConnection();
 
         foreach ($this->plainDbStores() as $id => $storeClass) {
             $this->bindPlainDbStore($id, $storeClass, $connection);
         }
+        $this->bindMfaDbStore($connection, $protectMfaSecrets);
         foreach ($this->clockedDbStores() as $id => $storeClass) {
             $this->bindClockedDbStore($id, $storeClass, $connection);
         }

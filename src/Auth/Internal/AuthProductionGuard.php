@@ -45,6 +45,7 @@ final readonly class AuthProductionGuard
         if ($drivers->mfa() === AuthMfaDriver::SIMPLE) {
             throw new ConfigurationException('auth.drivers.mfa must not be "simple" in production.');
         }
+        new AuthMfaKeyResolver($this->app->config())->assertProductionReady();
 
         if ($drivers->notifications() === AuthNotificationDriver::COLLECT) {
             throw new ConfigurationException('auth.drivers.notifications must not be "collect" in production.');

@@ -89,11 +89,12 @@ it('rejects unsafe production auth defaults secrets email transport and WebAuthn
     expect($keys)->toContain(
         'auth.drivers.storage',
         'auth.token_secret',
+        'auth.token_secret_environment',
         'auth.webauthn.origin',
         'notifications.auth.sender',
         'auth.password_policy.min_length',
         'auth.drivers.cache',
-    )->and(implode('; ', $messages))->toContain('development placeholder');
+    )->and(implode('; ', $messages))->toContain('Raw auth.token_secret values are not allowed');
 });
 
 it('rejects host-local auth persistence cache coordination and OTP replay in distributed production', function (): void {
@@ -221,6 +222,12 @@ it('accepts cluster-visible database cache lock counter and OTP replay policy fo
 /** @return array<string,mixed> */
 function foundationSecureProductionConfig(string $topology): array
 {
+    $environment = 'FOUNDATION_TEST_SECURE_TOKEN_SECRET';
+    $secret = bin2hex(random_bytes(32));
+    $_ENV[$environment] = $secret;
+    $_SERVER[$environment] = $secret;
+    putenv($environment . '=' . $secret);
+
     return [
         '_config_cache' => false,
         'app' => [
@@ -229,7 +236,7 @@ function foundationSecureProductionConfig(string $topology): array
             'topology' => $topology,
         ],
         'auth' => [
-            'token_secret' => bin2hex(random_bytes(32)),
+            'token_secret_environment' => $environment,
             'drivers' => [
                 'cache' => 'cache',
                 'mfa' => 'otp',

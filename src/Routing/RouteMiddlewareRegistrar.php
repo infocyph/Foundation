@@ -31,6 +31,7 @@ final readonly class RouteMiddlewareRegistrar
         'oauth-audience' => [RouteMiddlewareRuntimeResolver::class, 'oauthAudience'],
         'oauth-throttle' => [RouteMiddlewareRuntimeResolver::class, 'oauthThrottle'],
         'maintenance' => [RouteMiddlewareRuntimeResolver::class, 'maintenance'],
+        'signed' => [RouteMiddlewareRuntimeResolver::class, 'signed'],
         'session' => SessionMiddleware::class,
         'csrf' => CsrfMiddleware::class,
     ];

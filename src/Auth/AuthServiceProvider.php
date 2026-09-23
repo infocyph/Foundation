@@ -22,6 +22,7 @@ use Infocyph\Foundation\Auth\Internal\AuthNotificationRegistrar;
 use Infocyph\Foundation\Auth\Internal\AuthOAuthRegistrar;
 use Infocyph\Foundation\Auth\Internal\AuthPasskeyRegistrar;
 use Infocyph\Foundation\Auth\Internal\AuthPasswordRegistrar;
+use Infocyph\Foundation\Auth\Internal\AuthPersonalAccessTokenRegistrar;
 use Infocyph\Foundation\Auth\Internal\AuthProductionGuard;
 use Infocyph\Foundation\Auth\Internal\AuthRuntimeRegistrar;
 use Infocyph\Foundation\Auth\Internal\AuthSecretResolver;
@@ -53,19 +54,20 @@ final class AuthServiceProvider extends ServiceProvider
     {
         $app = $this->application($builder, $context);
         $drivers = new AuthDriverResolver($app->config());
-        $secrets = new AuthSecretResolver($app);
+        $secrets = new AuthSecretResolver($app->config());
         $epicryptTokens = new EpicryptTokenPolicyResolver($app);
 
         new AuthCoreRegistrar($builder)->register($drivers);
         new AuthProductionGuard($app)->guard($drivers);
-        new AuthStoreRegistrar($app, $builder)->register($drivers->storage());
+        new AuthStoreRegistrar($app, $builder)->register($drivers);
         new AuthCacheRegistrar($app, $builder)->register($drivers);
         new AuthPasswordRegistrar($app, $builder)->register($drivers);
         new AuthTokenRegistrar($app, $builder, $secrets, $epicryptTokens)->register($drivers);
-        new AuthMfaRegistrar($app, $builder, $secrets)->register($drivers);
+        new AuthMfaRegistrar($app, $builder)->register($drivers);
         new AuthPasskeyRegistrar($app, $builder)->register($drivers);
+        new AuthPersonalAccessTokenRegistrar($app, $builder)->register();
         new AuthNotificationRegistrar($app, $builder)->register($drivers);
-        new AuthManagerRegistrar($app, $builder)->register();
+        new AuthManagerRegistrar($app, $builder)->register($drivers);
         new AuthAuthorizationRegistrar($app, $builder)->register();
         new AuthRuntimeRegistrar($app, $builder)->register();
         $oauth = new AuthOAuthRegistrar($app, $builder);

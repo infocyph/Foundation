@@ -2,11 +2,10 @@
 
 declare(strict_types=1);
 
-use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerOAuthAccessRevocationStore;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptAccessTokenService;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptTokenFactory;
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\AccessTokenClaims;
-use Infocyph\Foundation\Auth\OAuth\Token\OAuthAccessTokenValidator;
+use Infocyph\Foundation\Auth\Internal\AuthSecretResolver;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthClientAuthentication;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthClientAuthenticationMethod;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthClientType;
@@ -22,10 +21,17 @@ it('keeps OAuth and application bearer token profiles mutually exclusive', funct
     $fixture = new OAuth21FlowFixture();
     $oauthAudience = 'https://oauth-resource.example.test';
 
+    $environment = 'FOUNDATION_TEST_BEARER_SEPARATION_TOKEN_SECRET';
+    $secret = str_repeat('application-token-key-', 3);
+    $_ENV[$environment] = $secret;
+
     try {
         $oauthToken = oauth21SeparatedOAuthToken($fixture, $oauthAudience);
         $applicationTokens = new EpicryptAccessTokenService(new EpicryptTokenFactory(
-            key: str_repeat('application-token-key-', 3),
+            secrets: new AuthSecretResolver(new ConfigRepository([
+                'app' => ['env' => 'testing'],
+                'auth' => ['token_secret_environment' => $environment],
+            ])),
             clock: $fixture->clock,
             issuer: 'foundation-application',
             audience: 'foundation-application-api',
@@ -55,15 +61,7 @@ it('keeps OAuth and application bearer token profiles mutually exclusive', funct
         );
         $oauthResolver = new OAuthBearerTokenPrincipalResolver(
             $httpConfig,
-            new OAuthAccessTokenValidator(
-                $fixture->accessTokens,
-                $fixture->clients,
-                $fixture->authorizationStore,
-                new DBLayerOAuthAccessRevocationStore($fixture->factory, $fixture->tables),
-                $fixture->scopes,
-                $fixture->accounts,
-                $fixture->clock,
-            ),
+            $fixture->accessValidator,
         );
 
         $oauthRequest = Request::fake(headers: ['Authorization' => 'Bearer ' . $oauthToken]);
@@ -74,6 +72,7 @@ it('keeps OAuth and application bearer token profiles mutually exclusive', funct
             ->and($applicationResolver->resolve($oauthRequest))->toBeNull()
             ->and($oauthResolver->resolve($applicationRequest))->toBeNull();
     } finally {
+        unset($_ENV[$environment]);
         $fixture->close();
     }
 });

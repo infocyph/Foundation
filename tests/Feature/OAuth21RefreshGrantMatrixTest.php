@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use Infocyph\Epicrypt\Token\Opaque\OpaqueToken;
 use Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthClientAuthentication;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthClientAuthenticationMethod;
@@ -72,7 +71,7 @@ it('supports equal and narrowed refresh scopes, rejects widening, and revokes th
             ], $authentication);
             throw new RuntimeException('Expected widened refresh scope to be rejected.');
         } catch (OAuthProtocolException $exception) {
-            expect($exception->error)->toBe('invalid_grant');
+            expect($exception->error)->toBe('invalid_scope');
         }
 
         try {
@@ -85,9 +84,8 @@ it('supports equal and narrowed refresh scopes, rejects widening, and revokes th
             expect($exception->error)->toBe('invalid_grant');
         }
 
-        $latest = $fixture->refreshStore->findByHash(new OpaqueToken()->hash((string) $narrowed->refreshToken));
-        expect($latest)->not->toBeNull()
-            ->and($latest?->revokedAt)->not->toBeNull();
+        $latest = $fixture->refreshTokens->inspect((string) $narrowed->refreshToken);
+        expect($latest->active())->toBeFalse();
     } finally {
         $fixture->close();
     }

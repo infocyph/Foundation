@@ -6,15 +6,15 @@ use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\Connection\ConnectionConfig;
 use Infocyph\DBLayer\Monitoring\DatabaseMonitor;
 use Infocyph\Omnibus\Consumer\Worker;
+use Infocyph\Omnibus\Consumer\NativeWorkerPoolBackend;
+use Infocyph\Omnibus\Consumer\WorkerLifecycle;
 use Infocyph\Omnibus\Consumer\WorkerOptions;
 use Infocyph\Omnibus\Consumer\WorkerPool;
 use Infocyph\Omnibus\Failure\FailureManager;
 use Infocyph\Omnibus\Failure\FailureRetryClaim;
 
 it('accepts DBLayer 5 SQL Server connection configuration', function (): void {
-    if (!class_exists(ConnectionConfig::class)) {
-        $this->markTestSkipped('DBLayer is an optional Foundation integration.');
-    }
+    expect(class_exists(ConnectionConfig::class))->toBeTrue();
 
     $config = ConnectionConfig::fromArray([
         'driver' => 'sqlsrv',
@@ -32,9 +32,7 @@ it('accepts DBLayer 5 SQL Server connection configuration', function (): void {
 });
 
 it('targets DBLayer 5 bind sizing and monitoring surfaces', function (): void {
-    if (!class_exists(Connection::class)) {
-        $this->markTestSkipped('DBLayer is an optional Foundation integration.');
-    }
+    expect(class_exists(Connection::class))->toBeTrue();
 
     $connection = new Connection(ConnectionConfig::fromArray([
         'driver' => 'sqlite',
@@ -54,10 +52,8 @@ it('targets DBLayer 5 bind sizing and monitoring surfaces', function (): void {
     }
 });
 
-it('targets the Omnibus 2.5 worker and failure lifecycle', function (): void {
-    if (!class_exists(Worker::class)) {
-        $this->markTestSkipped('Omnibus is an optional Foundation integration.');
-    }
+it('targets the Omnibus 2.6 worker and failure lifecycle', function (): void {
+    expect(class_exists(Worker::class))->toBeTrue();
 
     expect(class_exists(WorkerOptions::class))->toBeTrue()
         ->and(class_exists(WorkerPool::class))->toBeTrue()
@@ -79,12 +75,20 @@ it('targets the Omnibus 2.5 worker and failure lifecycle', function (): void {
         ->and($options->maxMessages)->toBe(1);
 });
 
-it('keeps Omnibus process-pool extensions optional', function (): void {
-    if (!class_exists(WorkerPool::class)) {
-        $this->markTestSkipped('The current Omnibus WorkerPool API is unavailable.');
-    }
+it('targets the Omnibus 2.6 pool backend and lifecycle surface', function (): void {
+    expect(class_exists(WorkerPool::class))->toBeTrue()
+        ->and(class_exists(NativeWorkerPoolBackend::class))->toBeTrue()
+        ->and(interface_exists(WorkerLifecycle::class))->toBeTrue();
 
-    $reflection = new ReflectionClass(WorkerPool::class);
+    $constructor = new ReflectionClass(WorkerPool::class)->getConstructor();
+    expect($constructor)->not->toBeNull();
 
-    expect($reflection->getConstructor())->not->toBeNull();
+    $parameters = array_map(
+        static fn(ReflectionParameter $parameter): string => $parameter->getName(),
+        $constructor?->getParameters() ?? [],
+    );
+
+    expect($parameters)->toContain('backend')
+        ->and($parameters)->toContain('lifecycle')
+        ->and($parameters)->toContain('lifecycleIntervalSeconds');
 });

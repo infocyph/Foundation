@@ -4,17 +4,10 @@ declare(strict_types=1);
 
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Filesystem\FilesystemResponseFactory;
-use Infocyph\Foundation\Filesystem\FilesystemTransferFactory;
 use Infocyph\Foundation\Filesystem\StorageRegistry;
 use Infocyph\Foundation\Foundation;
-use Infocyph\Pathwise\PathwiseFacade;
 use Infocyph\Webrick\Request\Request;
 
-beforeEach(function (): void {
-    if (!class_exists(PathwiseFacade::class)) {
-        $this->markTestSkipped('Install the filesystem module to run Pathwise integration tests.');
-    }
-});
 
 /**
  * @param array<string, array{enabled:bool}> $offload
@@ -57,9 +50,8 @@ it('preserves explicit X-Sendfile and X-Accel policy without Foundation body emi
     $app->boot();
     $storage = $app->make(StorageRegistry::class);
     $responses = $app->make(FilesystemResponseFactory::class);
-    $transfers = $app->make(FilesystemTransferFactory::class);
     $disk = $storage->disk('uploads');
-    $directory = 'tests/offload-' . uniqid('', true);
+    $directory = 'tests/offload-' . bin2hex(random_bytes(8));
     $relativePath = $directory . '/payload.txt';
     $contents = 'Foundation native offload policy';
     $disk->write($relativePath, $contents);
@@ -102,11 +94,12 @@ it('preserves explicit X-Sendfile and X-Accel policy without Foundation body emi
         expect(fn() => $responses->xAccelRedirect($request, '   ', $relativePath, disk: 'uploads'))
             ->toThrow(InvalidArgumentException::class, 'internal path must be non-empty');
 
-        $manifest = $transfers->download($directory, 'uploads')
-            ->prepareDownload($localPath);
+        $etag = $sendfile->getHeaderLine('ETag');
+        expect($etag)->not->toBe('');
+
         $conditional = $responses->xSendfile(
             Request::fake(
-                headers: ['Host' => 'localhost', 'If-None-Match' => $manifest->etag],
+                headers: ['Host' => 'localhost', 'If-None-Match' => $etag],
                 uri: 'http://localhost/download',
             ),
             $relativePath,
@@ -114,7 +107,7 @@ it('preserves explicit X-Sendfile and X-Accel policy without Foundation body emi
             disk: 'uploads',
         );
         expect($conditional->getStatusCode())->toBe(304)
-            ->and($conditional->getHeaderLine('ETag'))->toBe($manifest->etag)
+            ->and($conditional->getHeaderLine('ETag'))->toBe($etag)
             ->and($conditional->hasHeader('X-Sendfile'))->toBeFalse()
             ->and($conditional->getBodySize())->toBe(0);
     } finally {

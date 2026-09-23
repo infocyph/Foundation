@@ -7,31 +7,23 @@ namespace Infocyph\Foundation\Notifications;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\Foundation\Support\ValueNormalizer;
-use Infocyph\TalkingBytes\Email\Config\DkimConfig;
 use Infocyph\TalkingBytes\Email\Config\ImapConfig;
-use Infocyph\TalkingBytes\Email\Config\LogEmailConfig;
 use Infocyph\TalkingBytes\Email\Config\Pop3Config;
-use Infocyph\TalkingBytes\Email\Config\SendmailConfig;
-use Infocyph\TalkingBytes\Email\Config\SmtpConfig;
 use Infocyph\TalkingBytes\Email\Config\SpoolConfig;
 use Infocyph\TalkingBytes\Email\Emailer;
 use Infocyph\TalkingBytes\Email\EmailMailboxFactory;
 use Infocyph\TalkingBytes\Email\EmailReceiverFactory;
 use Infocyph\TalkingBytes\Email\EmailSenderFactory;
-use Infocyph\TalkingBytes\Email\Enum\DkimAlgorithm;
 use Infocyph\TalkingBytes\Email\Mailbox\Mailbox;
 use Infocyph\TalkingBytes\Email\Mailbox\Pop3Mailbox;
 use Infocyph\TalkingBytes\Email\Parser\RawEmailParser;
 use Infocyph\TalkingBytes\Email\Receiver\SpoolEmailReceiver;
-use Infocyph\TalkingBytes\Resilience\RateLimiter;
-use Infocyph\TalkingBytes\Retry\ExponentialBackoffRetryPolicy;
-use Infocyph\TalkingBytes\Retry\FixedDelayRetryPolicy;
 
 /**
  * Maps Foundation application email profiles to native TalkingBytes objects.
  *
- * TalkingBytes owns transport, parsing, receiving and mailbox behavior.
- * Foundation owns named sender/profile selection and application path policy.
+ * TalkingBytes owns transport/decorator composition, parsing, receiving and
+ * mailbox behavior. Foundation owns profile selection, secrets and path policy.
  */
 final readonly class EmailProfiles
 {
@@ -72,25 +64,24 @@ final readonly class EmailProfiles
     {
         $config = $this->senderProfile($profile);
         $primary = $this->requiredString($config, 'transport');
-        $emailer = $this->emailerForTransport($primary);
-
         $fallback = ValueNormalizer::associativeArray($config['fallback'] ?? []);
         $fallbacks = [];
+
         foreach (ValueNormalizer::stringList($fallback['transports'] ?? []) as $transport) {
             if ($transport === $primary) {
                 continue;
             }
 
-            $fallbacks[] = $this->emailerForTransport($transport)->transport();
-        }
-        if ($fallbacks !== []) {
-            $emailer = $emailer->withFallback($fallbacks);
+            $fallbacks[] = $this->resolvedTransport($transport);
         }
 
-        $emailer = $this->applyRetry($emailer, ValueNormalizer::associativeArray($config['retry'] ?? []));
-        $emailer = $this->applyRateLimit($emailer, ValueNormalizer::associativeArray($config['rate_limit'] ?? []));
-
-        return $this->applyDkim($emailer, ValueNormalizer::associativeArray($config['dkim'] ?? []));
+        return $this->senders->fromResolvedConfig([
+            'transport' => $this->resolvedTransport($primary),
+            'fallbacks' => $fallbacks,
+            'retry' => ValueNormalizer::associativeArray($config['retry'] ?? []),
+            'rate_limit' => ValueNormalizer::associativeArray($config['rate_limit'] ?? []),
+            'dkim' => $this->resolvedDkim(ValueNormalizer::associativeArray($config['dkim'] ?? [])),
+        ]);
     }
 
     public function spoolReceiver(string $profile = 'default'): SpoolEmailReceiver
@@ -118,101 +109,9 @@ final readonly class EmailProfiles
         return $this->absolute($path) ? rtrim($path, DIRECTORY_SEPARATOR) : $this->paths->base($path);
     }
 
-    /** @param array<string, mixed> $config */
-    private function applyDkim(Emailer $emailer, array $config): Emailer
-    {
-        if (!ValueNormalizer::bool($config['enabled'] ?? false, false)) {
-            return $emailer;
-        }
-
-        $domain = $this->requiredString($config, 'domain');
-        $selector = $this->requiredString($config, 'selector');
-        $headers = ValueNormalizer::stringList($config['headers'] ?? []);
-        $algorithm = DkimAlgorithm::tryFrom($this->string($config, 'algorithm', DkimAlgorithm::RsaSha256->value))
-            ?? throw new \InvalidArgumentException('Unsupported DKIM algorithm.');
-        $privateKeyPath = $this->nullableString($config['private_key_path'] ?? null);
-        $privateKey = $this->nullableString($config['private_key'] ?? null);
-
-        if ($privateKeyPath !== null && $privateKey !== null) {
-            throw new \InvalidArgumentException('Configure either a DKIM private_key or private_key_path, not both.');
-        }
-        if ($privateKeyPath === null && $privateKey === null) {
-            throw new \InvalidArgumentException('DKIM signing requires a private key or private key path.');
-        }
-
-        $dkim = $privateKeyPath !== null
-            ? DkimConfig::fromPrivateKeyPath(
-                $domain,
-                $selector,
-                $this->absolutePath($privateKeyPath),
-                $headers,
-                $algorithm,
-            )
-            : DkimConfig::fromPrivateKeyString($domain, $selector, $privateKey, $headers, $algorithm);
-
-        return $emailer->withDkim($dkim);
-    }
-
-    /** @param array<string, mixed> $config */
-    private function applyRateLimit(Emailer $emailer, array $config): Emailer
-    {
-        if (!ValueNormalizer::bool($config['enabled'] ?? false, false)) {
-            return $emailer;
-        }
-
-        return $emailer->withRateLimit(new RateLimiter(
-            ValueNormalizer::int($config['max_requests'] ?? 60, 60),
-            ValueNormalizer::int($config['per_seconds'] ?? 60, 60),
-        ));
-    }
-
-    /** @param array<string, mixed> $config */
-    private function applyRetry(Emailer $emailer, array $config): Emailer
-    {
-        if (!ValueNormalizer::bool($config['enabled'] ?? false, false)) {
-            return $emailer;
-        }
-
-        $attempts = ValueNormalizer::int($config['max_attempts'] ?? 3, 3);
-        $delay = ValueNormalizer::int($config['delay_ms'] ?? 250, 250);
-        $policy = match ($config['policy'] ?? 'fixed') {
-            'backoff', 'exponential' => new ExponentialBackoffRetryPolicy($attempts, $delay),
-            'fixed' => new FixedDelayRetryPolicy($attempts, $delay),
-            default => throw new \InvalidArgumentException('Unsupported email retry policy.'),
-        };
-
-        return $emailer->withRetry($policy);
-    }
-
     private function defaultSender(): string
     {
         return $this->stringConfig('notifications.email.default_sender', 'default');
-    }
-
-    private function emailerForTransport(string $transport): Emailer
-    {
-        $config = $this->transportConfig($transport);
-        $driver = $this->string($config, 'driver', $transport);
-
-        return match ($driver) {
-            'fake' => $this->senders->fake(),
-            'log' => $this->senders->usingLog(LogEmailConfig::fromArray([
-                'dailyFiles' => ValueNormalizer::bool($config['dailyFiles'] ?? true, true),
-                'directory' => $this->logDirectory($config),
-                'filenamePrefix' => $this->string($config, 'filenamePrefix', 'email'),
-                'maxMessageBytes' => $config['maxMessageBytes'] ?? null,
-            ])),
-            'mail' => $this->senders->usingMailFunction(),
-            'null' => $this->senders->usingNull(),
-            'sendmail' => $this->senders->usingSendmail(SendmailConfig::fromArray($config)),
-            'smtp' => $this->senders->usingSmtp(SmtpConfig::fromArray($config)),
-            'spool' => $this->senders->usingSpool(SpoolConfig::fromArray($this->resolveSpoolPaths($config))),
-            default => throw new \InvalidArgumentException(sprintf(
-                'Unsupported email transport driver "%s" for profile "%s".',
-                $driver,
-                $transport,
-            )),
-        };
     }
 
     /** @param array<string, mixed> $config */
@@ -259,6 +158,42 @@ final readonly class EmailProfiles
         }
 
         return trim($value);
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     * @return array<string, mixed>
+     */
+    private function resolvedDkim(array $config): array
+    {
+        $privateKeyPath = $this->nullableString($config['private_key_path'] ?? null);
+        if ($privateKeyPath !== null) {
+            $config['private_key_path'] = $this->absolutePath($privateKeyPath);
+        }
+
+        return $config;
+    }
+
+    /** @return array<string, mixed> */
+    private function resolvedTransport(string $transport): array
+    {
+        $config = $this->transportConfig($transport);
+        $driver = $this->string($config, 'driver', $transport);
+        $config['driver'] = $driver;
+
+        return match ($driver) {
+            'log' => [
+                ...$config,
+                'directory' => $this->logDirectory($config),
+            ],
+            'spool' => $this->resolveSpoolPaths($config),
+            'fake', 'mail', 'null', 'sendmail', 'smtp' => $config,
+            default => throw new \InvalidArgumentException(sprintf(
+                'Unsupported email transport driver "%s" for profile "%s".',
+                $driver,
+                $transport,
+            )),
+        };
     }
 
     /**

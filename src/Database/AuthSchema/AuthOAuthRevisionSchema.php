@@ -15,7 +15,7 @@ final readonly class AuthOAuthRevisionSchema implements Migration
 
     public function down(SchemaManager $schema, MigrationContext $context): void
     {
-        foreach (array_reverse($this->tables->oauth()) as $table) {
+        foreach (array_reverse($this->legacyTables()) as $table) {
             $schema->dropIfExists($table);
             $context->checkpoint();
         }
@@ -156,5 +156,20 @@ final readonly class AuthOAuthRevisionSchema implements Migration
             $table->bigInteger('revoked_at')->nullable()->index();
             $table->json('metadata')->nullable();
         });
+    }
+
+    /** @return list<string> */
+    private function legacyTables(): array
+    {
+        return [
+            $this->tables->oauthClients(),
+            $this->tables->oauthRedirectUris(),
+            $this->tables->oauthClientScopes(),
+            $this->tables->oauthAuthorizationCodes(),
+            $this->tables->oauthConsents(),
+            $this->tables->oauthAuthorizations(),
+            $this->tables->oauthRefreshTokens(),
+            $this->tables->oauthAccessRevocations(),
+        ];
     }
 }

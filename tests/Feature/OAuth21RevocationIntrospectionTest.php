@@ -2,12 +2,7 @@
 
 declare(strict_types=1);
 
-use Infocyph\Epicrypt\Token\Opaque\OpaqueToken;
-use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerOAuthAccessRevocationStore;
-use Infocyph\Foundation\Auth\OAuth\Token\OAuthAccessTokenValidator;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthClientAuthentication;
-use Infocyph\Foundation\Auth\OAuth\Token\OAuthIntrospectionManager;
-use Infocyph\Foundation\Auth\OAuth\Token\OAuthRevocationManager;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthClientAuthenticationMethod;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthClientType;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthGrantType;
@@ -53,46 +48,18 @@ it('transitions access and refresh introspection from active to inactive through
         ], $authentication);
         expect($issued->refreshToken)->not->toBeNull();
 
-        $accessRevocations = new DBLayerOAuthAccessRevocationStore($fixture->factory, $fixture->tables);
-        $validator = new OAuthAccessTokenValidator(
-            $fixture->accessTokens,
-            $fixture->clients,
-            $fixture->authorizationStore,
-            $accessRevocations,
-            $fixture->scopes,
-            $fixture->accounts,
-            $fixture->clock,
-        );
-        $introspection = new OAuthIntrospectionManager(
-            $fixture->clients,
-            $validator,
-            $fixture->refreshStore,
-            $fixture->authorizationStore,
-            $fixture->scopes,
-            $fixture->accounts,
-            $fixture->clock,
-            new OpaqueToken(),
-        );
-        $revocation = new OAuthRevocationManager(
-            $fixture->clients,
-            $fixture->accessTokens,
-            $accessRevocations,
-            $fixture->refreshTokens,
-            $fixture->clock,
-        );
-
-        $activeAccess = $introspection->introspect($issued->accessToken, $authentication);
-        $activeRefresh = $introspection->introspect((string) $issued->refreshToken, $authentication);
+        $activeAccess = $fixture->introspection->introspect($issued->accessToken, $authentication);
+        $activeRefresh = $fixture->introspection->introspect((string) $issued->refreshToken, $authentication);
         expect($activeAccess->active)->toBeTrue()
             ->and($activeAccess->tokenType)->toBe('Bearer')
             ->and($activeRefresh->active)->toBeTrue()
             ->and($activeRefresh->tokenType)->toBe('refresh_token');
 
-        $revocation->revoke($issued->accessToken, $authentication, 'access_token');
-        expect($introspection->introspect($issued->accessToken, $authentication)->active)->toBeFalse();
+        $fixture->revocation->revoke($issued->accessToken, $authentication, 'access_token');
+        expect($fixture->introspection->introspect($issued->accessToken, $authentication)->active)->toBeFalse();
 
-        $revocation->revoke((string) $issued->refreshToken, $authentication, 'refresh_token');
-        expect($introspection->introspect((string) $issued->refreshToken, $authentication)->active)->toBeFalse();
+        $fixture->revocation->revoke((string) $issued->refreshToken, $authentication, 'refresh_token');
+        expect($fixture->introspection->introspect((string) $issued->refreshToken, $authentication)->active)->toBeFalse();
     } finally {
         $fixture->close();
     }

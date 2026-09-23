@@ -4,26 +4,29 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\OAuth\Token;
 
+use Infocyph\Epicrypt\Auth\OAuth\OAuthAccessTokenInspector;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthAccessTokenService;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthRevocationEndpoint;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthTokenTypeHint;
+use Infocyph\Epicrypt\Auth\OAuth\RefreshTokenManager;
+use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\EpicryptOAuthClientAuthenticationAdapter;
+use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\EpicryptOAuthErrorMapper;
 use Infocyph\Foundation\Auth\Audit\AuthEventType;
-use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Auth\OAuth\Audit\OAuthAuditRecorder;
-use Infocyph\Foundation\Auth\OAuth\Client\OAuthClient;
-use Infocyph\Foundation\Auth\OAuth\Client\OAuthClientManager;
-use Infocyph\Foundation\Auth\OAuth\Contract\OAuthAccessRevocationStoreInterface;
-use Infocyph\Foundation\Auth\OAuth\Contract\OAuthAccessTokenServiceInterface;
-use Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException;
-use Infocyph\Foundation\Auth\OAuth\Exception\OAuthTokenException;
 
 final readonly class OAuthRevocationManager
 {
+    private OAuthAccessTokenInspector $accessInspector;
+
     public function __construct(
-        private OAuthClientManager $clients,
-        private OAuthAccessTokenServiceInterface $accessTokens,
-        private OAuthAccessRevocationStoreInterface $revocations,
-        private OAuthRefreshTokenCoordinator $refreshTokens,
-        private ClockInterface $clock,
+        private OAuthRevocationEndpoint $endpoint,
+        private EpicryptOAuthClientAuthenticationAdapter $authentication,
+        OAuthAccessTokenService $accessTokens,
+        private RefreshTokenManager $refreshTokens,
         private ?OAuthAuditRecorder $audit = null,
-    ) {}
+    ) {
+        $this->accessInspector = new OAuthAccessTokenInspector($accessTokens);
+    }
 
     public function revoke(
         #[\SensitiveParameter]
@@ -31,63 +34,58 @@ final readonly class OAuthRevocationManager
         OAuthClientAuthentication $authentication,
         ?string $tokenTypeHint = null,
     ): void {
-        $client = $this->clients->authenticate(
-            $authentication->clientId,
-            $authentication->secret,
-            null,
-            $authentication->method,
+        $access = $tokenTypeHint === 'refresh_token' ? null : $this->accessInspector->inspect($token);
+        $refresh = $tokenTypeHint === 'access_token' ? null : $this->refreshTokens->inspect($token);
+
+        $hint = match ($tokenTypeHint) {
+            'access_token' => OAuthTokenTypeHint::ACCESS_TOKEN,
+            'refresh_token' => OAuthTokenTypeHint::REFRESH_TOKEN,
+            default => null,
+        };
+        $result = $this->endpoint->revoke(
+            clientId: $authentication->clientId,
+            authentication: $this->authentication->authenticate($authentication),
+            token: $token,
+            hint: $hint,
         );
-        if (!$client instanceof OAuthClient) {
-            throw OAuthProtocolException::invalidClient();
+        if (!$result->accepted) {
+            throw EpicryptOAuthErrorMapper::exception(
+                $result->error === null
+                    ? null
+                    : new \Infocyph\Epicrypt\Auth\OAuth\OAuthProtocolError($result->error),
+            );
         }
 
-        if ($token === '' || strlen($token) > 8192) {
-            return;
-        }
-
-        if ($tokenTypeHint === 'refresh_token') {
-            $this->refreshTokens->revoke($token, $client->clientId);
-
-            return;
-        }
-
-        if ($this->revokeAccessToken($token, $client)) {
-            return;
-        }
-
-        $this->refreshTokens->revoke($token, $client->clientId);
-    }
-
-    private function revokeAccessToken(#[\SensitiveParameter] string $token, OAuthClient $client): bool
-    {
-        foreach ($client->audiences as $audience) {
-            try {
-                $claims = $this->accessTokens->verify($token, $audience);
-            } catch (OAuthTokenException) {
-                continue;
-            }
-            if (!hash_equals($claims->clientId, $client->clientId)) {
-                return true;
-            }
-
-            $this->revocations->revoke(new OAuthAccessTokenRevocation(
-                tokenId: $claims->tokenId,
-                clientId: $claims->clientId,
-                authorizationId: $claims->authorizationId,
-                expiresAt: $claims->expiresAt,
-                revokedAt: $this->clock->now(),
-                reason: 'client_revocation',
-            ));
+        if ($access?->valid() === true
+            && is_string($access->claims['client_id'] ?? null)
+            && hash_equals($authentication->clientId, $access->claims['client_id'])
+        ) {
             $this->audit?->record(AuthEventType::OAUTH_ACCESS_TOKEN_REVOKED, metadata: [
-                'client_id' => $claims->clientId,
-                'authorization_id' => $claims->authorizationId,
+                'client_id' => $authentication->clientId,
+                'authorization_id' => self::string($access->claims['authorization_id'] ?? null),
                 'token_type' => 'access_token',
                 'result' => 'revoked',
             ]);
 
-            return true;
+            return;
         }
 
-        return false;
+        $record = $refresh?->record;
+        if ($record !== null && hash_equals($authentication->clientId, $record->grant->clientId)) {
+            $this->audit?->record(
+                AuthEventType::OAUTH_REFRESH_TOKEN_REVOKED,
+                $record->grant->subject,
+                [
+                    'client_id' => $record->grant->clientId,
+                    'authorization_id' => $record->grant->authorizationId,
+                    'result' => 'revoked',
+                ],
+            );
+        }
+    }
+
+    private static function string(mixed $value): ?string
+    {
+        return is_string($value) && $value !== '' ? $value : null;
     }
 }

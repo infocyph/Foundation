@@ -33,6 +33,19 @@ final readonly class OAuthRouteRegistrar
             [OAuthHttpHandler::class, 'metadata'],
             'oauth.metadata',
         );
+        if ($this->config->get('auth.oauth.oidc.enabled', false) === true) {
+            $router->get(
+                '/.well-known/openid-configuration',
+                [OAuthHttpHandler::class, 'openIdMetadata'],
+                'oidc.discovery',
+            );
+            $router->get(
+                $this->openIdPath('userinfo_route'),
+                [OAuthHttpHandler::class, 'userInfo'],
+                ['as' => 'oidc.userinfo', 'middleware' => ['oauth-throttle:userinfo']],
+            );
+        }
+
         $router->get(
             $this->path('jwks'),
             [OAuthHttpHandler::class, 'jwks'],
@@ -59,6 +72,17 @@ final readonly class OAuthRouteRegistrar
                 ],
             );
         }
+    }
+
+    private function openIdPath(string $name): string
+    {
+        $key = 'auth.oauth.oidc.' . $name;
+        $path = $this->config->get($key);
+        if (!is_string($path) || $path === '') {
+            throw new ConfigurationException(sprintf('%s must be a non-empty route path.', $key));
+        }
+
+        return $path;
     }
 
     private function path(string $endpoint): string

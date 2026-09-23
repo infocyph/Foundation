@@ -14,7 +14,7 @@ final class ModuleCatalog
     private const array MODULES = [
         'auth' => [
             'packages' => [
-                'infocyph/otp' => '^6.0',
+                'infocyph/otp' => '^6.1',
                 'web-auth/webauthn-lib' => '^5.3.5',
             ],
             'description' => 'Extended authentication with OTP-backed MFA, recovery codes, replay protection, and WebAuthn passkeys.',
@@ -24,7 +24,7 @@ final class ModuleCatalog
         ],
         'cache' => [
             'packages' => [
-                'infocyph/cachelayer' => '^3.2.0',
+                'infocyph/cachelayer' => '^3.4',
             ],
             'description' => 'Cache stores, locks, counters, response caching, and shared authentication/runtime state.',
             'aliases' => ['cachelayer'],
@@ -33,7 +33,7 @@ final class ModuleCatalog
         ],
         'communication' => [
             'packages' => [
-                'infocyph/talkingbytes' => '^2.0',
+                'infocyph/talkingbytes' => '^2.1',
             ],
             'description' => 'HTTP, inbound/outbound email, webhook, and gRPC communication.',
             'aliases' => ['notifications', 'talkingbytes'],
@@ -42,7 +42,7 @@ final class ModuleCatalog
         ],
         'database' => [
             'packages' => [
-                'infocyph/dblayer' => '^5.0',
+                'infocyph/dblayer' => '^5.1',
             ],
             'description' => 'Database connections, queries, repositories, schema, migrations, and persistence.',
             'aliases' => ['db', 'dblayer'],
@@ -51,7 +51,7 @@ final class ModuleCatalog
         ],
         'filesystem' => [
             'packages' => [
-                'infocyph/pathwise' => '^3.1',
+                'infocyph/pathwise' => '^4.1',
             ],
             'description' => 'Filesystem, storage, uploads, downloads, archives, sync, and retention.',
             'aliases' => ['files', 'pathwise', 'storage'],
@@ -68,12 +68,12 @@ final class ModuleCatalog
         ],
         'messaging' => [
             'packages' => [
-                'infocyph/omnibus' => '^2.5',
+                'infocyph/omnibus' => '^2.6',
             ],
             'description' => 'Events, messages, queues, handler middleware, retries, workers, optional process pools, workflows, and scheduled-message dispatch.',
             'aliases' => ['events', 'omnibus', 'queue', 'queues'],
             'config' => ['messaging.php'],
-            'schemas' => [],
+            'schemas' => ['messaging'],
         ],
         'operations' => [
             'packages' => [],
@@ -93,7 +93,7 @@ final class ModuleCatalog
         ],
         'security' => [
             'packages' => [
-                'infocyph/epicrypt' => '^2.1',
+                'infocyph/epicrypt' => '^3.1',
             ],
             'description' => 'Cryptography, secrets, password/token security, and key management.',
             'aliases' => ['crypto', 'epicrypt'],
@@ -110,7 +110,7 @@ final class ModuleCatalog
         ],
         'validation' => [
             'packages' => [
-                'infocyph/reqshield' => '^3.1',
+                'infocyph/reqshield' => '^3.2',
             ],
             'description' => 'Request, command, configuration, schema, sanitization, and database validation.',
             'aliases' => ['reqshield', 'validator'],

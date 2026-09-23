@@ -42,6 +42,7 @@ final readonly class OAuthConfigValidator
         $this->validateResourceAudiences($issues);
         $this->validateScopePermissions($issues);
         $this->validateSigning($issues);
+        $issues = [...$issues, ...new OpenIdConfigValidator($this->config)->validate()];
         $this->validateRoutes($issues);
         $this->validateRateLimits($issues);
         $this->validateRateLimitStore($issues, $production);
@@ -289,7 +290,12 @@ final readonly class OAuthConfigValidator
             return;
         }
 
-        foreach (['authorization', 'token', 'revocation', 'introspection'] as $endpoint) {
+        $endpoints = ['authorization', 'token', 'revocation', 'introspection'];
+        if ($this->config->get('auth.oauth.oidc.enabled', false) === true) {
+            $endpoints[] = 'userinfo';
+        }
+
+        foreach ($endpoints as $endpoint) {
             $policy = $limits[$endpoint] ?? null;
             $key = 'auth.oauth.rate_limits.' . $endpoint;
             if (!is_array($policy) || array_is_list($policy)) {

@@ -83,10 +83,13 @@ final class AuthTables
             $this->oauthRedirectUris(),
             $this->oauthClientScopes(),
             $this->oauthAuthorizationCodes(),
+            $this->oauthAuthorizationCodeStates(),
             $this->oauthConsents(),
             $this->oauthAuthorizations(),
             $this->oauthRefreshTokens(),
             $this->oauthAccessRevocations(),
+            $this->oauthAccessStatuses(),
+            $this->oauthReplayStates(),
         ];
     }
 
@@ -95,9 +98,19 @@ final class AuthTables
         return 'auth_oauth_access_revocations';
     }
 
+    public function oauthAccessStatuses(): string
+    {
+        return 'auth_oauth_access_statuses';
+    }
+
     public function oauthAuthorizationCodes(): string
     {
         return 'auth_oauth_authorization_codes';
+    }
+
+    public function oauthAuthorizationCodeStates(): string
+    {
+        return 'auth_oauth_authorization_code_states';
     }
 
     public function oauthAuthorizations(): string
@@ -130,6 +143,11 @@ final class AuthTables
         return 'auth_oauth_refresh_tokens';
     }
 
+    public function oauthReplayStates(): string
+    {
+        return 'auth_oauth_replay_states';
+    }
+
     public function passkeyCredentials(): string
     {
         return 'auth_passkey_credentials';
@@ -143,6 +161,25 @@ final class AuthTables
     public function permissions(): string
     {
         return 'auth_permissions';
+    }
+
+    /** @return list<string> */
+    public function personalAccess(): array
+    {
+        return [
+            $this->personalAccessTokenSubjects(),
+            $this->personalAccessTokens(),
+        ];
+    }
+
+    public function personalAccessTokens(): string
+    {
+        return 'auth_personal_access_tokens';
+    }
+
+    public function personalAccessTokenSubjects(): string
+    {
+        return 'auth_personal_access_token_subjects';
     }
 
     public function refreshTokens(): string

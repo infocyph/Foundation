@@ -86,7 +86,8 @@ final readonly class EnvironmentSecretManager
             throw new \RuntimeException(self::VARIABLE . ' already exists; use --force to rotate it.');
         }
 
-        $line = self::VARIABLE . '=' . bin2hex(random_bytes(32));
+        $secret = bin2hex(random_bytes(32));
+        $line = self::VARIABLE . '=' . $secret;
         if ($exists) {
             $updated = preg_replace($pattern, $line, $contents, 1, $replacements);
             if (!is_string($updated) || $replacements !== 1) {

@@ -9,19 +9,21 @@ use Infocyph\Epicrypt\Token\Jwt\JwtPolicy;
 use Infocyph\Epicrypt\Token\Jwt\SymmetricJwt;
 use Infocyph\Epicrypt\Token\Payload\SignedPayload;
 use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface as AuthClockInterface;
+use Infocyph\Foundation\Auth\Internal\AuthSecretResolver;
 
 final readonly class EpicryptTokenFactory
 {
     private SymmetricJwtAlgorithm $algorithm;
 
     public function __construct(
-        private string $key,
+        private AuthSecretResolver $secrets,
         private AuthClockInterface $clock,
         private string $issuer,
         private string $audience,
         string $algorithm = 'HS256',
         private int $maximumLifetimeSeconds = 1209600,
         private int $leewaySeconds = 0,
+        private int $minimumKeyBytes = 32,
     ) {
         $this->algorithm = SymmetricJwtAlgorithm::from($algorithm);
     }
@@ -39,7 +41,7 @@ final readonly class EpicryptTokenFactory
     public function jwtIssuer(string $type): SymmetricJwt
     {
         return SymmetricJwt::issuer(
-            key: $this->key,
+            key: $this->key(),
             type: $type,
             algorithm: $this->algorithm,
             clock: new EpicryptClockAdapter($this->clock),
@@ -49,7 +51,7 @@ final readonly class EpicryptTokenFactory
     public function jwtVerifier(string $type): SymmetricJwt
     {
         return SymmetricJwt::verifier(
-            key: $this->key,
+            key: $this->key(),
             policy: new JwtPolicy(
                 expectedIssuer: $this->issuer,
                 expectedAudience: $this->audience,
@@ -64,7 +66,7 @@ final readonly class EpicryptTokenFactory
 
     public function key(): string
     {
-        return $this->key;
+        return $this->secrets->tokenSecret($this->minimumKeyBytes);
     }
 
     public function now(): int

@@ -216,6 +216,9 @@ it('keeps an unbooted release-selected pool supervisor generation-aware', functi
 /** @return array<string,mixed> */
 function foundationReleaseReplacementConfig(string $project): array
 {
+    $tokenEnvironment = 'FOUNDATION_TEST_RELEASE_WORKER_TOKEN_SECRET';
+    foundationReleaseReplacementSetEnvironment($tokenEnvironment, bin2hex(random_bytes(32)));
+
     return [
         'app' => [
             'base_path' => $project,
@@ -225,7 +228,7 @@ function foundationReleaseReplacementConfig(string $project): array
         ],
         '_config_cache' => false,
         'auth' => [
-            'token_secret' => bin2hex(random_bytes(32)),
+            'token_secret_environment' => $tokenEnvironment,
             'drivers' => [
                 'cache' => 'cache',
                 'mfa' => 'otp',

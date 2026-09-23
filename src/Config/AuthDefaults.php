@@ -44,6 +44,7 @@ final class AuthDefaults
                     'window_seconds' => 900,
                 ],
                 'oauth' => self::oauth(),
+                'personal_access_tokens' => self::personalAccessTokens(),
                 'otp' => [
                     'issuer' => 'Foundation',
                     'hotp' => [
@@ -59,10 +60,15 @@ final class AuthDefaults
                     'recovery_codes' => [
                         'count' => 10,
                         'length' => 12,
+                        'hmac_key_environment' => 'AUTH_OTP_RECOVERY_HMAC_KEY',
                     ],
                     'replay' => [
                         'store' => null,
                         'ttl' => 90,
+                    ],
+                    'secret_protection' => [
+                        'allow_legacy_plaintext' => false,
+                        'keys' => self::otpSecretProtectionKeys(),
                     ],
                 ],
                 'password_policy' => [
@@ -100,9 +106,32 @@ final class AuthDefaults
                 'refresh_token_ttl' => 1209600,
                 'remember_me_ttl' => 2592000,
                 'session_ttl' => 3600,
-                'token_secret' => null,
+                'token_secret_environment' => 'AUTH_TOKEN_SECRET',
             ],
         ];
+    }
+
+    /** @return list<mixed> */
+    private static function jsonListEnvironment(string $name, string $message): array
+    {
+        $encoded = env($name);
+        if ($encoded === null || $encoded === '') {
+            return [];
+        }
+        if (!is_string($encoded)) {
+            throw new \UnexpectedValueException($message);
+        }
+
+        try {
+            $decoded = json_decode($encoded, true, flags: JSON_THROW_ON_ERROR);
+        } catch (\JsonException $exception) {
+            throw new \UnexpectedValueException($message, previous: $exception);
+        }
+        if (!is_array($decoded) || !array_is_list($decoded)) {
+            throw new \UnexpectedValueException($message);
+        }
+
+        return $decoded;
     }
 
     /** @return array<string, mixed> */
@@ -113,8 +142,15 @@ final class AuthDefaults
         return [
             'enabled' => $enabled,
             'issuer' => $enabled ? env('AUTH_OAUTH_ISSUER') : null,
+            'oidc' => self::openId($enabled),
             'access_token_ttl' => 300,
             'authorization_code_ttl' => 60,
+            'authorization_code_protection' => [
+                'keys' => self::oauthAuthorizationCodeProtectionKeys($enabled),
+            ],
+            'refresh_token_protection' => [
+                'keys' => self::oauthRefreshTokenProtectionKeys($enabled),
+            ],
             'refresh_token_ttl' => 1209600,
             'grants' => [
                 'authorization_code',
@@ -125,6 +161,7 @@ final class AuthDefaults
             'rate_limit_store' => null,
             'resource_audiences' => [],
             'scope_permissions' => [],
+            'scope_audiences' => [],
             'signing' => [
                 'algorithm' => 'RS256',
                 'active_key_id' => $enabled ? env('AUTH_OAUTH_ACTIVE_KEY_ID') : null,
@@ -143,33 +180,112 @@ final class AuthDefaults
                 'token' => ['max' => 30, 'window' => 60],
                 'revocation' => ['max' => 60, 'window' => 60],
                 'introspection' => ['max' => 120, 'window' => 60],
+                'userinfo' => ['max' => 120, 'window' => 60],
             ],
         ];
     }
 
     /** @return list<mixed> */
+    private static function oauthAuthorizationCodeProtectionKeys(bool $enabled): array
+    {
+        return $enabled
+            ? self::jsonListEnvironment(
+                'AUTH_OAUTH_AUTHORIZATION_CODE_KEYS',
+                'AUTH_OAUTH_AUTHORIZATION_CODE_KEYS must be a valid JSON list.',
+            )
+            : [];
+    }
+
+    /** @return list<mixed> */
     private static function oauthPublicKeys(bool $enabled): array
     {
-        $encoded = $enabled ? env('AUTH_OAUTH_PUBLIC_KEYS') : null;
-        if ($encoded === null || $encoded === '') {
-            return [];
-        }
-        if (!is_string($encoded)) {
-            throw new \UnexpectedValueException('AUTH_OAUTH_PUBLIC_KEYS must be a JSON list.');
-        }
-
-        try {
-            $decoded = json_decode($encoded, true, flags: JSON_THROW_ON_ERROR);
-        } catch (\JsonException $exception) {
-            throw new \UnexpectedValueException(
+        return $enabled
+            ? self::jsonListEnvironment(
+                'AUTH_OAUTH_PUBLIC_KEYS',
                 'AUTH_OAUTH_PUBLIC_KEYS must be a valid JSON list.',
-                previous: $exception,
-            );
-        }
-        if (!is_array($decoded) || !array_is_list($decoded)) {
-            throw new \UnexpectedValueException('AUTH_OAUTH_PUBLIC_KEYS must be a JSON list.');
-        }
+            )
+            : [];
+    }
 
-        return $decoded;
+    /** @return list<mixed> */
+    private static function oauthRefreshTokenProtectionKeys(bool $enabled): array
+    {
+        return $enabled
+            ? self::jsonListEnvironment(
+                'AUTH_OAUTH_REFRESH_TOKEN_KEYS',
+                'AUTH_OAUTH_REFRESH_TOKEN_KEYS must be a valid JSON list.',
+            )
+            : [];
+    }
+
+    /** @return array<string, mixed> */
+    private static function openId(bool $oauthEnabled): array
+    {
+        $enabled = $oauthEnabled && env_bool('AUTH_OIDC_ENABLED', false);
+
+        return [
+            'enabled' => $enabled,
+            'id_token_lifetime_seconds' => 300,
+            'userinfo_route' => '/oidc/userinfo',
+            'userinfo_audience' => $enabled ? env('AUTH_OIDC_USERINFO_AUDIENCE') : null,
+            'subject_types' => ['public'],
+            'scopes_supported' => ['openid', 'profile', 'email'],
+            'claims_supported' => [
+                'sub',
+                'name',
+                'given_name',
+                'family_name',
+                'preferred_username',
+                'email',
+                'email_verified',
+            ],
+            'signing' => [
+                'algorithm' => 'ES256',
+                'active_key_id' => $enabled ? env('AUTH_OIDC_ACTIVE_KEY_ID') : null,
+                'private_key' => $enabled ? env('AUTH_OIDC_PRIVATE_KEY') : null,
+                'public_keys' => $enabled
+                    ? self::jsonListEnvironment(
+                        'AUTH_OIDC_PUBLIC_KEYS',
+                        'AUTH_OIDC_PUBLIC_KEYS must be a valid JSON list.',
+                    )
+                    : [],
+            ],
+        ];
+    }
+
+    /** @return list<mixed> */
+    private static function otpSecretProtectionKeys(): array
+    {
+        return self::jsonListEnvironment(
+            'AUTH_OTP_SECRET_PROTECTION_KEYS',
+            'AUTH_OTP_SECRET_PROTECTION_KEYS must be a valid JSON list.',
+        );
+    }
+
+    /** @return array<string, mixed> */
+    private static function personalAccessTokens(): array
+    {
+        $enabled = env_bool('AUTH_PAT_ENABLED', false);
+
+        return [
+            'enabled' => $enabled,
+            'issuer' => $enabled ? env('AUTH_PAT_ISSUER') : null,
+            'audience' => $enabled ? env('AUTH_PAT_AUDIENCE') : null,
+            'default_lifetime_seconds' => 2_592_000,
+            'maximum_lifetime_seconds' => 31_536_000,
+            'wildcard_policy' => 'disabled',
+            'last_used_write_interval_seconds' => 300,
+            'signing' => [
+                'algorithm' => 'ES256',
+                'active_key_id' => $enabled ? env('AUTH_PAT_ACTIVE_KEY_ID') : null,
+                'private_key' => $enabled ? env('AUTH_PAT_PRIVATE_KEY') : null,
+                'public_keys' => $enabled
+                    ? self::jsonListEnvironment(
+                        'AUTH_PAT_PUBLIC_KEYS',
+                        'AUTH_PAT_PUBLIC_KEYS must be a valid JSON list.',
+                    )
+                    : [],
+            ],
+        ];
     }
 }

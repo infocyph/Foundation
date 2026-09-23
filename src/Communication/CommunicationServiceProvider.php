@@ -78,6 +78,15 @@ final class CommunicationServiceProvider extends ServiceProvider
         if (!$builder->definitions()->has(GrpcInboundDispatcher::class)) {
             $this->registerGrpcDispatcher($builder, $context);
         }
+        if (!$builder->definitions()->has(GrpcInboundWorker::class)) {
+            $builder->singleton(GrpcInboundWorker::class, FactoryDefinition::construct(
+                GrpcInboundWorker::class,
+                [
+                    new ServiceReference(ContainerInterface::class),
+                    new ServiceReference(ConfigRepository::class),
+                ],
+            ));
+        }
 
         $builder->alias('foundation.communication', CommunicationProfiles::class);
     }

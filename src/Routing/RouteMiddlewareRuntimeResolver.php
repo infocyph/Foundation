@@ -21,6 +21,7 @@ use Infocyph\Foundation\Http\Response\AuthResponseFactory;
 use Infocyph\Foundation\Operations\MaintenanceRuntimeState;
 use Infocyph\Webrick\Middleware\MaintenanceModeMiddleware;
 use Infocyph\Webrick\Middleware\Throttle\AtomicCounterInterface;
+use Infocyph\Webrick\Middleware\VerifySignedUrlMiddleware;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 
@@ -130,5 +131,17 @@ final class RouteMiddlewareRuntimeResolver
             RoleManager $roleManager,
             AuthResponseFactory $responses,
         ): Response => (new RoleMiddleware($principals, $roleManager, $responses, $roles))($request, $next);
+    }
+
+    public static function signed(): Closure
+    {
+        return static function (Request $request, Closure $next, ConfigRepository $config): Response {
+            $signedConfig = new SignedUrlKeyResolver($config)->resolve();
+            if ($signedConfig === null || $signedConfig->verificationKeys === []) {
+                throw new \LogicException('Signed URL middleware requires configured verification keys.');
+            }
+
+            return (new VerifySignedUrlMiddleware($signedConfig))($request, $next);
+        };
     }
 }

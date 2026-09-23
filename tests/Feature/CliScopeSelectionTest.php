@@ -114,7 +114,7 @@ it('preserves explicit and database-required scope policy in compiled command me
         ->and(CommandDefinition::fromManifest($plain->toManifest())->requiresExecutionScope())->toBeFalse();
 });
 
-it('marks every module command with database connection selection as database scoped', function (): void {
+it('scopes module lifecycle commands without forcing the database capability', function (): void {
     $catalog = new CommandCatalog();
 
     foreach ([
@@ -127,7 +127,8 @@ it('marks every module command with database connection selection as database sc
         $definition = $catalog->find($name);
 
         expect($definition)->not->toBeNull()
-            ->and($definition?->capabilities())->toContain('db')
+            ->and($definition?->options())->toHaveKey('connection')
+            ->and($definition?->capabilities())->not->toContain('db')
             ->and($definition?->requiresExecutionScope())->toBeTrue();
     }
 });

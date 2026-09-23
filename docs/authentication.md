@@ -90,7 +90,7 @@ php infbyte module:install auth
 
 The module bundle contains:
 
-- `infocyph/otp ^6.0`
+- `infocyph/otp ^6.1`
 - `web-auth/webauthn-lib ^5.3.5`
 
 Runtime readiness remains implementation-specific: selecting OTP MFA requires
@@ -134,7 +134,7 @@ See [Security boundaries](security.md).
 ## OTP-backed MFA
 
 When `auth.drivers.mfa=otp`, Foundation owns factor/challenge persistence and
-maps application state to OTP 6.0 primitives. OTP owns TOTP, HOTP, OCRA,
+maps application state to OTP 6.1 primitives. OTP owns TOTP, HOTP, OCRA,
 provisioning payloads, verification semantics, and recovery-code cryptography.
 
 Replay/counter state is coordinated according to the OTP mode and Foundation's

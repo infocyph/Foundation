@@ -19,7 +19,7 @@ use Psr\Container\ContainerInterface;
 it('enforces browser-session contention through every configured shared lock backend', function (Closure $providers): void {
     $pair = $providers();
     if ($pair === null) {
-        test()->markTestSkipped('The live lock backend is not configured in this environment.');
+        throw new RuntimeException('The configured CI lock backend is unavailable.');
     }
 
     [$holder, $contender] = $pair;

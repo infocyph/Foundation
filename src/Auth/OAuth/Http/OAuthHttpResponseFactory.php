@@ -92,6 +92,23 @@ final readonly class OAuthHttpResponseFactory
         return Response::json($token->toArray(), 200, self::NO_STORE_HEADERS);
     }
 
+    /** @param array<string, mixed> $claims */
+    public function userInfo(array $claims): Response
+    {
+        return Response::json($claims, 200, self::NO_STORE_HEADERS);
+    }
+
+    public function userInfoError(OAuthProtocolException $exception): Response
+    {
+        return Response::json([
+            'error' => $exception->error,
+            'error_description' => $exception->description,
+        ], $exception->status, [
+            ...self::NO_STORE_HEADERS,
+            'WWW-Authenticate' => sprintf('Bearer error="%s"', $exception->error),
+        ]);
+    }
+
     /** @param array<string, string> $parameters */
     private function appendQuery(string $redirectUri, array $parameters): string
     {

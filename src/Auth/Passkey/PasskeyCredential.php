@@ -14,6 +14,8 @@ final readonly class PasskeyCredential
         public string $id,
         public string $accountId,
         public string $credentialId,
+        #[\SensitiveParameter]
+        public ?string $credentialRecordJson,
         public string $publicKey,
         public int $signCount,
         public array $transports,
@@ -35,6 +37,7 @@ final readonly class PasskeyCredential
             id: $this->id,
             accountId: $this->accountId,
             credentialId: $this->credentialId,
+            credentialRecordJson: $this->credentialRecordJson,
             publicKey: $this->publicKey,
             signCount: $this->signCount,
             transports: $this->transports,
@@ -52,8 +55,34 @@ final readonly class PasskeyCredential
             id: $this->id,
             accountId: $this->accountId,
             credentialId: $this->credentialId,
+            credentialRecordJson: $this->credentialRecordJson,
             publicKey: $this->publicKey,
             signCount: $signCount,
+            transports: $this->transports,
+            createdAt: $this->createdAt,
+            lastUsedAt: $timestamp,
+            revokedAt: $this->revokedAt,
+            metadata: $this->metadata,
+            revision: $this->revision + 1,
+        );
+    }
+
+    public function withCredentialRecord(
+        string $credentialRecordJson,
+        int $timestamp,
+        ?int $signCount = null,
+    ): self {
+        if ($credentialRecordJson === '') {
+            throw new \InvalidArgumentException('Passkey credential record must not be empty.');
+        }
+
+        return new self(
+            id: $this->id,
+            accountId: $this->accountId,
+            credentialId: $this->credentialId,
+            credentialRecordJson: $credentialRecordJson,
+            publicKey: $this->publicKey,
+            signCount: $signCount ?? $this->signCount,
             transports: $this->transports,
             createdAt: $this->createdAt,
             lastUsedAt: $timestamp,

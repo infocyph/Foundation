@@ -4,91 +4,174 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\OAuth\Token;
 
+use Infocyph\Epicrypt\Auth\OAuth\OAuthAuthorizationRecord;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthAuthorizationStoreInterface as EpicryptAuthorizationStore;
+use Infocyph\Epicrypt\Auth\OAuth\OAuthResourceAccessTokenValidator;
 use Infocyph\Foundation\Auth\Account\AccountStatus;
-use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
 use Infocyph\Foundation\Auth\OAuth\Authorization\OAuthAuthorization;
 use Infocyph\Foundation\Auth\OAuth\Client\OAuthClient;
 use Infocyph\Foundation\Auth\OAuth\Client\OAuthClientManager;
-use Infocyph\Foundation\Auth\OAuth\Contract\OAuthAccessRevocationStoreInterface;
-use Infocyph\Foundation\Auth\OAuth\Contract\OAuthAccessTokenServiceInterface;
-use Infocyph\Foundation\Auth\OAuth\Contract\OAuthAuthorizationStoreInterface;
 use Infocyph\Foundation\Auth\OAuth\Exception\OAuthTokenException;
-use Infocyph\Foundation\Auth\OAuth\Scope\OAuthScopeResolver;
 
 final readonly class OAuthAccessTokenValidator
 {
     public function __construct(
-        private OAuthAccessTokenServiceInterface $tokens,
+        private OAuthResourceAccessTokenValidator $validator,
         private OAuthClientManager $clients,
-        private OAuthAuthorizationStoreInterface $authorizations,
-        private OAuthAccessRevocationStoreInterface $revocations,
-        private OAuthScopeResolver $scopes,
+        private EpicryptAuthorizationStore $authorizations,
         private AccountProviderInterface $accounts,
-        private ClockInterface $clock,
     ) {}
 
     public function verify(#[\SensitiveParameter] string $token, string $expectedAudience): OAuthVerifiedAccessToken
     {
-        $claims = $this->tokens->verify($token, $expectedAudience);
-        $now = $this->clock->now();
-        if ($this->revocations->isRevoked($claims->tokenId, $now)) {
+        return $this->verifyResource($token, $expectedAudience, 'GET', $expectedAudience);
+    }
+
+    public function verifyResource(
+        #[\SensitiveParameter]
+        string $token,
+        string $expectedAudience,
+        string $method,
+        string $uri,
+        #[\SensitiveParameter]
+        ?string $dpopProof = null,
+    ): OAuthVerifiedAccessToken {
+        $result = $this->validator->validate(
+            accessToken: $token,
+            audience: $expectedAudience,
+            method: $method,
+            uri: $uri,
+            dpopProof: $dpopProof,
+        );
+        if (!$result->valid()) {
             throw new OAuthTokenException('OAuth access token is inactive.');
         }
 
-        $client = $this->clients->enabled($claims->clientId);
+        $claims = $result->accessToken->claims;
+        $clientId = self::requiredString($claims, 'client_id');
+        $client = $this->clients->enabled($clientId);
         if (!$client instanceof OAuthClient) {
             throw new OAuthTokenException('OAuth access token is inactive.');
         }
-        if ($claims->authorizationId === null) {
-            throw new OAuthTokenException('OAuth access token is inactive.');
-        }
 
-        $authorization = $this->authorizations->find($claims->authorizationId);
-        if (!$authorization instanceof OAuthAuthorization || !$authorization->activeAt($now)) {
-            throw new OAuthTokenException('OAuth access token is inactive.');
-        }
-        if (!hash_equals($authorization->clientId, $client->clientId)) {
-            throw new OAuthTokenException('OAuth access token is inactive.');
-        }
+        $mapped = new OAuthAccessTokenClaims(
+            issuer: self::requiredString($claims, 'iss'),
+            subject: self::requiredString($claims, 'sub'),
+            audiences: self::audiences($claims['aud'] ?? null),
+            expiresAt: self::requiredInt($claims, 'exp'),
+            issuedAt: self::requiredInt($claims, 'iat'),
+            tokenId: self::requiredString($claims, 'jti'),
+            clientId: $clientId,
+            scopes: self::scopes($claims['scope'] ?? null),
+            authorizationId: self::optionalString($claims['authorization_id'] ?? null),
+        );
 
-        try {
-            $this->scopes->resolve($client, $claims->scopes, $claims->audiences);
-        } catch (\InvalidArgumentException) {
-            throw new OAuthTokenException('OAuth access token is inactive.');
-        }
-        if (!$this->subsetOf($claims->scopes, $authorization->scopes)
-            || !$this->subsetOf($claims->audiences, $authorization->audiences)) {
-            throw new OAuthTokenException('OAuth access token is inactive.');
-        }
-
-        if ($authorization->accountId === null) {
-            if (!hash_equals($claims->subject, 'client:' . $client->clientId)) {
+        $authorization = $this->authorization($mapped);
+        $account = null;
+        if ($authorization->accountId !== null) {
+            $account = $this->accounts->findById($authorization->accountId);
+            if ($account === null || $account->status() !== AccountStatus::ACTIVE) {
                 throw new OAuthTokenException('OAuth access token is inactive.');
             }
-
-            return new OAuthVerifiedAccessToken($claims, $client, $authorization, null);
         }
 
-        if (!hash_equals($claims->subject, $authorization->accountId)) {
-            throw new OAuthTokenException('OAuth access token is inactive.');
-        }
-        $account = $this->accounts->findById($authorization->accountId);
-        if ($account === null || $account->status() !== AccountStatus::ACTIVE) {
-            throw new OAuthTokenException('OAuth access token is inactive.');
-        }
-
-        return new OAuthVerifiedAccessToken($claims, $client, $authorization, $account);
+        return new OAuthVerifiedAccessToken($mapped, $client, $authorization, $account);
     }
 
-    /**
-     * @param list<string> $candidate
-     * @param list<string> $allowed
-     */
-    private function subsetOf(array $candidate, array $allowed): bool
+    /** @return list<string> */
+    private static function audiences(mixed $value): array
     {
-        $allowedSet = array_fill_keys($allowed, true);
+        if (is_string($value) && $value !== '') {
+            return [$value];
+        }
+        if (!is_array($value) || $value === [] || !array_is_list($value)) {
+            throw new OAuthTokenException('OAuth access token audience claim is invalid.');
+        }
+        foreach ($value as $audience) {
+            if (!is_string($audience) || $audience === '') {
+                throw new OAuthTokenException('OAuth access token audience claim is invalid.');
+            }
+        }
 
-        return array_all($candidate, fn($value) => isset($allowedSet[$value]));
+        return $value;
+    }
+
+    private static function optionalString(mixed $value): ?string
+    {
+        return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    /** @param array<string,mixed> $claims */
+    private static function requiredInt(array $claims, string $name): int
+    {
+        $value = $claims[$name] ?? null;
+
+        return is_int($value)
+            ? $value
+            : throw new OAuthTokenException('OAuth access token state is invalid.');
+    }
+
+    /** @param array<string,mixed> $claims */
+    private static function requiredString(array $claims, string $name): string
+    {
+        $value = $claims[$name] ?? null;
+
+        return is_string($value) && $value !== ''
+            ? $value
+            : throw new OAuthTokenException('OAuth access token state is invalid.');
+    }
+
+    /** @return list<string> */
+    private static function scopes(mixed $value): array
+    {
+        if ($value === null || $value === '') {
+            return [];
+        }
+        if (is_string($value)) {
+            return explode(' ', $value);
+        }
+        if (is_array($value) && array_is_list($value)) {
+            foreach ($value as $scope) {
+                if (!is_string($scope) || $scope === '') {
+                    throw new OAuthTokenException('OAuth access token scope claim is invalid.');
+                }
+            }
+
+            return $value;
+        }
+
+        throw new OAuthTokenException('OAuth access token scope claim is invalid.');
+    }
+
+    private function authorization(OAuthAccessTokenClaims $claims): OAuthAuthorization
+    {
+        if ($claims->authorizationId === null) {
+            return new OAuthAuthorization(
+                id: 'client:' . $claims->tokenId,
+                clientId: $claims->clientId,
+                accountId: null,
+                scopes: $claims->scopes,
+                audiences: $claims->audiences,
+                createdAt: $claims->issuedAt,
+                expiresAt: $claims->expiresAt,
+            );
+        }
+
+        $record = $this->authorizations->find($claims->authorizationId);
+        if (!$record instanceof OAuthAuthorizationRecord) {
+            throw new OAuthTokenException('OAuth authorization is inactive.');
+        }
+
+        return new OAuthAuthorization(
+            id: $record->authorizationId,
+            clientId: $record->clientId,
+            accountId: $record->subject,
+            scopes: $record->scopes,
+            audiences: $record->audiences,
+            createdAt: $record->authorizedAt,
+            expiresAt: $record->expiresAt,
+            revokedAt: $record->revokedAt,
+        );
     }
 }

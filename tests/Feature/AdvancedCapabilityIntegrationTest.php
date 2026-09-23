@@ -2,40 +2,12 @@
 
 declare(strict_types=1);
 
-use Infocyph\Foundation\Auth\Adapter\WebAuthn\NoneWebAuthnAttestationPolicy;
-use Infocyph\Foundation\Auth\Adapter\WebAuthn\WebAuthnAttestationPolicyInterface;
 use Infocyph\Foundation\Auth\Adapter\WebAuthn\WebAuthnConfig;
-use Infocyph\Foundation\Auth\Adapter\WebAuthn\WebAuthnRuntime;
 use Infocyph\Foundation\Auth\AuthServices;
 use Infocyph\Foundation\Auth\Mfa\MfaFactorType;
-use Infocyph\Foundation\Exception\ConfigurationException;
 use Infocyph\Foundation\Foundation;
 use Infocyph\OTP\HOTP;
 use Infocyph\OTP\OCRA;
-use Webauthn\AttestationStatement\AttestationStatementSupportManager;
-use Webauthn\AttestationStatement\NoneAttestationStatementSupport;
-use Webauthn\CeremonyStep\CeremonyStepManagerFactory;
-
-final class FoundationDirectAttestationPolicy implements WebAuthnAttestationPolicyInterface
-{
-    public bool $configured = false;
-
-    public function configure(WebAuthnConfig $config, CeremonyStepManagerFactory $factory): void
-    {
-        $this->configured = $config->attestation === 'direct' && $factory instanceof CeremonyStepManagerFactory;
-    }
-
-    public function supportManager(WebAuthnConfig $config): AttestationStatementSupportManager
-    {
-        if ($config->attestation !== 'direct') {
-            throw new \LogicException('The test policy only supports direct attestation.');
-        }
-
-        return AttestationStatementSupportManager::create([
-            NoneAttestationStatementSupport::create(),
-        ]);
-    }
-}
 
 it('supports secure HOTP and OCRA MFA workflows', function (): void {
     $app = Foundation::web([
@@ -119,15 +91,16 @@ it('supports secure HOTP and OCRA MFA workflows', function (): void {
         ->and($replayedOcraVerification->code)->toBe('mfa_code_replayed');
 });
 
-it('keeps direct WebAuthn attestation fail-closed until a policy is registered', function (): void {
-    $config = WebAuthnConfig::fromArray(['attestation' => 'direct']);
+it('keeps WebAuthn policy limited to OTP passkey inputs', function (): void {
+    $config = WebAuthnConfig::fromArray([
+        'rp_id' => 'example.test',
+        'origin' => 'https://example.test',
+        'challenge_ttl' => 240,
+        'allow_subdomains' => true,
+    ]);
 
-    expect(fn() => new NoneWebAuthnAttestationPolicy()->supportManager($config))
-        ->toThrow(ConfigurationException::class);
-
-    $policy = new FoundationDirectAttestationPolicy();
-    $runtime = new WebAuthnRuntime($config, $policy);
-    $runtime->attestationValidator();
-
-    expect($policy->configured)->toBeTrue();
+    expect($config->rpId)->toBe('example.test')
+        ->and($config->origin)->toBe('https://example.test')
+        ->and($config->challengeTtl)->toBe(240)
+        ->and($config->allowSubdomains)->toBeTrue();
 });

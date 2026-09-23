@@ -6,6 +6,7 @@ namespace Infocyph\Foundation\Module;
 
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchemaInstaller;
+use Infocyph\Foundation\Messaging\MessagingDatabaseSchema;
 use Infocyph\Foundation\Module\Internal\CacheSchemaManager;
 use Infocyph\Foundation\Session\SessionDatabaseSchema;
 
@@ -130,9 +131,70 @@ final readonly class ModuleSchemaManager
         match ($schema) {
             'auth' => $this->application->make(AuthSchemaInstaller::class)->install($connection),
             'cache' => $this->cacheSchemas()->install($connection),
+            'messaging' => $this->application->make(MessagingDatabaseSchema::class)->install($connection),
             'session' => $this->application->make(SessionDatabaseSchema::class)->install($connection),
             default => null,
         };
+    }
+
+    private function messagingApplicable(): bool
+    {
+        return (bool) $this->application->config()->get('messaging.durable.enabled', false);
+    }
+
+    /**
+     * @return array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}
+     */
+    private function messagingStatus(string $module, ?string $connection, bool $afterInstall): array
+    {
+        $applicable = $this->messagingApplicable();
+        if (!$applicable) {
+            return $this->result(
+                'messaging',
+                $module,
+                false,
+                true,
+                'not-applicable',
+                'Durable messaging is disabled.',
+            );
+        }
+        if (!class_exists(\Infocyph\Omnibus\Integration\DBLayer\QueueSchema::class)) {
+            return $this->result(
+                'messaging',
+                $module,
+                $applicable,
+                false,
+                'unavailable',
+                'Requires the messaging module; run "php infbyte module:install messaging".',
+            );
+        }
+        if (!class_exists(\Infocyph\DBLayer\Connection\Connection::class)) {
+            return $this->result(
+                'messaging',
+                $module,
+                $applicable,
+                false,
+                'unavailable',
+                'Durable messaging requires the database module; run "php infbyte module:install database".',
+            );
+        }
+
+        try {
+            $status = $this->application->make(MessagingDatabaseSchema::class)->readiness($connection);
+        } catch (\Throwable $failure) {
+            return $this->result('messaging', $module, $applicable, false, 'unavailable', $failure->getMessage());
+        }
+
+        return $this->result(
+            'messaging',
+            $module,
+            $applicable,
+            $status['installed'],
+            $status['installed'] ? 'installed' : ($afterInstall ? 'missing' : 'pending'),
+            $status['installed']
+                ? 'Omnibus durable messaging tables are installed.'
+                : 'Missing: ' . implode(', ', $status['missing_tables']),
+        );
     }
 
     /**
@@ -168,6 +230,7 @@ final readonly class ModuleSchemaManager
         return match ($schema) {
             'auth' => [$this->authStatus($module, $connection, $afterInstall)],
             'cache' => $this->cacheSchemas()->statuses($module, $connection, $afterInstall),
+            'messaging' => [$this->messagingStatus($module, $connection, $afterInstall)],
             'session' => [$this->sessionStatus($module, $connection, $afterInstall)],
             default => [$this->result($schema, $module, false, true, 'not-applicable', 'No schema provisioner is registered.')],
         };

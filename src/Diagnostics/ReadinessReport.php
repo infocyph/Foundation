@@ -8,6 +8,7 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthSigningKeyResolver;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Config\ConfigValidator;
+use Infocyph\Foundation\Config\Internal\ConfiguredCapabilities;
 use Infocyph\Foundation\Config\OtpConfigValidator;
 use Infocyph\Foundation\Config\ProductionSecurityValidator;
 use Infocyph\Foundation\Module\ModuleCatalog;
@@ -20,49 +21,11 @@ final readonly class ReadinessReport
     /** @return array{ready:bool,checks:array<string,array{ready:bool,detail:string}>} */
     public function generate(): array
     {
-        $checks = [
-            'php' => [
-                'ready' => version_compare(PHP_VERSION, '8.4.0', '>='),
-                'detail' => PHP_VERSION,
-            ],
-            'base_path' => [
-                'ready' => is_dir($this->application->basePath()) && is_readable($this->application->basePath()),
-                'detail' => $this->application->basePath(),
-            ],
-            'storage' => [
-                'ready' => is_dir($this->application->storagePath()) && is_writable($this->application->storagePath()),
-                'detail' => $this->application->storagePath(),
-            ],
-            'runtime' => [
-                'ready' => true,
-                'detail' => $this->application->runtimeMode()->value,
-            ],
-        ];
+        $checks = $this->baseChecks();
+        $checks['configuration'] = $this->configurationReadiness();
+        $capabilities = new ConfiguredCapabilities($this->application->config());
 
-        $validation = new ConfigValidator($this->application->config())->validateForProduction();
-        $messages = $validation->messages();
-        $messages = [
-            ...$messages,
-            ...array_map(
-                static fn($issue): string => $issue->message,
-                new ProductionSecurityValidator($this->application->config())->validate(),
-            ),
-        ];
-        if ($this->application->config()->get('auth.drivers.mfa', 'simple') === 'otp') {
-            $messages = [
-                ...$messages,
-                ...array_map(
-                    static fn($issue): string => $issue->message,
-                    new OtpConfigValidator($this->application->config())->validate(true),
-                ),
-            ];
-        }
-        $checks['configuration'] = [
-            'ready' => $messages === [],
-            'detail' => $messages === [] ? 'valid for production' : implode('; ', array_values(array_unique($messages))),
-        ];
-
-        if ($this->oauthEnabled()) {
+        if ($capabilities->enabled('auth') && $this->oauthEnabled()) {
             $checks['oauth:signing'] = $this->oauthSigningReadiness();
         }
 
@@ -73,9 +36,25 @@ final readonly class ReadinessReport
             ];
         }
 
-        $catalog = new ModuleCatalog();
-        $schemas = new ModuleSchemaManager($this->application, $catalog);
+        $this->appendSchemaChecks($checks, $capabilities);
+
+        return [
+            'ready' => !array_any($checks, static fn(array $check): bool => !$check['ready']),
+            'checks' => $checks,
+        ];
+    }
+
+    /**
+     * @param array<string,array{ready:bool,detail:string}> $checks
+     */
+    private function appendSchemaChecks(array &$checks, ConfiguredCapabilities $capabilities): void
+    {
+        $schemas = new ModuleSchemaManager($this->application, new ModuleCatalog());
+
         foreach (['auth', 'cache', 'session'] as $module) {
+            if (!$capabilities->enabled($module)) {
+                continue;
+            }
             foreach ($schemas->status($module) as $schema) {
                 if (!$schema['applicable']) {
                     continue;
@@ -86,11 +65,6 @@ final readonly class ReadinessReport
                 ];
             }
         }
-
-        return [
-            'ready' => !array_any($checks, static fn(array $check): bool => !$check['ready']),
-            'checks' => $checks,
-        ];
     }
 
     /** @param array<string,array{package:string,constraint:string}> $required */
@@ -134,6 +108,60 @@ final readonly class ReadinessReport
             $this->selectPackage($required, $catalog, 'database');
             $this->selectPackage($required, $catalog, 'security');
         }
+    }
+
+    /** @return array<string,array{ready:bool,detail:string}> */
+    private function baseChecks(): array
+    {
+        return [
+            'php' => [
+                'ready' => version_compare(PHP_VERSION, '8.4.0', '>='),
+                'detail' => PHP_VERSION,
+            ],
+            'base_path' => [
+                'ready' => is_dir($this->application->basePath()) && is_readable($this->application->basePath()),
+                'detail' => $this->application->basePath(),
+            ],
+            'storage' => [
+                'ready' => is_dir($this->application->storagePath()) && is_writable($this->application->storagePath()),
+                'detail' => $this->application->storagePath(),
+            ],
+            'runtime' => [
+                'ready' => true,
+                'detail' => $this->application->runtimeMode()->value,
+            ],
+        ];
+    }
+
+    /** @return array{ready:bool,detail:string} */
+    private function configurationReadiness(): array
+    {
+        $config = $this->application->config();
+        $messages = [
+            ...new ConfigValidator($config)->validateForProduction()->messages(),
+            ...array_map(
+                static fn($issue): string => $issue->message,
+                new ProductionSecurityValidator($config)->validate(),
+            ),
+        ];
+
+        $capabilities = new ConfiguredCapabilities($config);
+        if ($capabilities->enabled('auth') && $config->get('auth.drivers.mfa', 'simple') === 'otp') {
+            $messages = [
+                ...$messages,
+                ...array_map(
+                    static fn($issue): string => $issue->message,
+                    new OtpConfigValidator($config)->validate(true),
+                ),
+            ];
+        }
+
+        return [
+            'ready' => $messages === [],
+            'detail' => $messages === []
+                ? 'valid for production'
+                : implode('; ', array_values(array_unique($messages))),
+        ];
     }
 
     /** @param array<string,array{package:string,constraint:string}> $required */
@@ -204,11 +232,20 @@ final readonly class ReadinessReport
         $catalog = new ModuleCatalog();
         $required = [];
 
-        $this->authPackages($required, $catalog, $config);
-        $this->sessionPackages($required, $catalog, $config);
-        $this->databasePackages($required, $catalog, $config);
+        $capabilities = new ConfiguredCapabilities($config);
+        if ($capabilities->enabled('auth')) {
+            $this->authPackages($required, $catalog, $config);
+        }
+        if ($capabilities->enabled('session')) {
+            $this->sessionPackages($required, $catalog, $config);
+        }
+        if ($capabilities->enabled('database') || $capabilities->enabled('validation')) {
+            $this->databasePackages($required, $catalog, $config);
+        }
         $this->operationsPackages($required, $catalog, $config);
-        $this->applicationPackages($required, $catalog);
+        if ($capabilities->enabled('messaging') || $capabilities->enabled('validation')) {
+            $this->applicationPackages($required, $catalog);
+        }
 
         return $required;
     }

@@ -1,6 +1,6 @@
 # Events, queues, workers, and scheduled messages
 
-Foundation composes Omnibus 2.5 through the purpose-first `messaging` module.
+Foundation composes Omnibus 2.6 through the purpose-first `messaging` module.
 Omnibus owns message delivery, receiving, retries, failure storage, handler
 execution, worker loops, and the optional Unix process pool. Foundation owns
 application configuration, DI composition, job middleware adaptation,
@@ -12,8 +12,9 @@ Install and publish messaging configuration with:
 php infbyte module:install messaging
 ```
 
-Foundation defaults `messaging.workers` to an empty map. Merely having Omnibus
-installed does not activate queue or worker infrastructure.
+Foundation ships a bounded `messaging.workers.default` profile, but no worker
+process starts merely because Omnibus is installed. Worker execution is explicit
+through `worker:run` or the deployment supervisor.
 
 ## Explicit maps
 
@@ -74,7 +75,7 @@ remain Omnibus responsibilities.
 
 ## Handler middleware and Foundation JobMiddleware
 
-Omnibus 2.5 supplies the framework-neutral handler pipeline:
+Omnibus 2.6 supplies the framework-neutral handler pipeline:
 
 ```text
 ExecutionScope
@@ -99,6 +100,91 @@ php infbyte create:job GenerateReport
 php infbyte create:handler GenerateReport
 php infbyte create:job-middleware AuditJob
 ```
+
+## Durable DBLayer messaging
+
+Durable messaging is opt-in and uses Omnibus 2.6's native DBLayer integrations;
+Foundation does not implement a second queue/failure/workflow engine.
+
+A minimal database-backed profile is:
+
+```php
+'durable' => [
+    'enabled' => true,
+    'connection' => 'main',
+    'failure_store' => 'database',
+    'tables' => [
+        'messages' => 'omnibus_messages',
+        'failures' => 'omnibus_failures',
+        'workflows' => 'omnibus_workflows',
+        'workflow_items' => 'omnibus_workflow_items',
+    ],
+],
+
+'serialization' => [
+    'message_codecs' => [
+        App\Messaging\Codec\GenerateReportCodec::class,
+    ],
+    'stamp_codecs' => [],
+    'maximum_bytes' => 262144,
+    'maximum_depth' => 32,
+    'maximum_stamps' => 64,
+],
+
+'consumer' => [
+    'transport' => 'database',
+],
+```
+
+Foundation composes Omnibus `DBLayerTransport`, `DBLayerFailureStore`,
+`DBLayerWorkflowStore`, `JsonEnvelopeSerializer`, and `QueueSchema`.
+Queue/failure/workflow services use one process-owned DBLayer infrastructure
+connection, preserving Omnibus's same-connection durable semantics.
+`AfterCommitDispatcher` is execution-scoped and binds to the current
+Foundation DBLayer execution connection, so transaction callbacks are never
+registered on a connection captured by a process singleton.
+
+Durable payloads require an explicit Omnibus `MessageCodec` allow-list.
+Foundation adds Omnibus's core stamp codecs automatically; application stamp
+codecs may be listed separately. Unknown aliases fail closed. Do not use PHP
+object serialization or derive runtime class names from stored payload data.
+
+A database consumer or worker must deliberately choose
+`messaging.durable.failure_store=database|memory` unless the application has
+already supplied its own `FailureStore` binding. Use `database` for normal
+durable processing. Selecting `memory` is an explicit decision to make terminal
+failure inspection volatile; a custom binding is fully application-owned.
+
+Provision or inspect Omnibus's durable tables through the module lifecycle:
+
+```bash
+php infbyte module:schema:status messaging
+php infbyte module:schema:install messaging
+php infbyte module:schema:sync
+```
+
+The messaging schema remains non-applicable while
+`messaging.durable.enabled=false`.
+
+### Omnibus 2.5 → 2.6 durable cutover
+
+Omnibus 2.6 can read legacy 2.5 unwrapped DB payloads, but 2.6 writes the new
+wrapped stored-payload format. Therefore do not run 2.5 readers/writers against
+the same queue/workflow/failure tables once a 2.6 writer is active.
+
+For a durable upgrade:
+
+1. stop/drain every 2.5 queue, workflow, and failure-store reader/writer;
+2. deploy/provision the 2.6 application and validate codec aliases;
+3. start only 2.6 writers/readers;
+4. keep old message aliases/codecs available until legacy rows and retained
+   failures are drained;
+5. do not roll back to 2.5 after 2.6 has written wrapped payloads unless the
+   durable data has been separately converted or restored from a compatible
+   snapshot.
+
+This is an operational cutover requirement, not a second Foundation migration
+format.
 
 ## Bounded consumption
 
@@ -173,7 +259,7 @@ php infbyte worker:run reports
 
 Omnibus `Worker` owns idle backoff, signal handling, receive batching, runtime,
 message-count, absolute-memory, and memory-growth limits. Foundation supplies an
-Omnibus 2.5 `WorkerLifecycle` implementation that updates process visibility and
+Omnibus 2.6 `WorkerLifecycle` implementation that updates process visibility and
 checks Foundation runtime/worker generation tokens.
 
 That means single messaging workers can observe:
@@ -201,8 +287,8 @@ Process-registry state is heartbeat-based observability, not supervisor truth.
 
 ## Optional process pool
 
-On Unix-like systems with `pcntl` and `posix`, Foundation can compose Omnibus
-`WorkerPool`:
+Omnibus 2.6 itself requires `pcntl` and `posix`. Foundation can explicitly
+enable its native `WorkerPool` profile:
 
 ```php
 'pool' => [
@@ -214,10 +300,12 @@ On Unix-like systems with `pcntl` and `posix`, Foundation can compose Omnibus
 ],
 ```
 
-Pool mode itself is an upstream Unix/process-fork feature, so Foundation retains
-its lightweight Unix watchdog for propagating runtime generation changes to the
-pool. Each child creates and boots a fresh Foundation application after fork.
-Known process-bound services must not be resolved in the parent.
+Omnibus 2.6 owns native pool supervision and parent `WorkerLifecycle` polling.
+Foundation supplies only its heartbeat/generation-stop policy; there is no
+Foundation SIGALRM/watchdog layer. Each child creates and boots a fresh
+Foundation application after fork. Parent-side worker configuration reads remain
+cold, and process-bound DBLayer/CacheLayer/broker/consumer resources are created
+only in the child.
 
 The process-local `memory` transport cannot be pooled, and `sync` is not a
 receiver. Pooled application configuration must contain only scalar/array

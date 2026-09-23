@@ -18,18 +18,18 @@ uses the purpose name.
 
 | Module | Backing packages |
 | --- | --- |
-| `auth` | `infocyph/otp ^6.0`, `web-auth/webauthn-lib ^5.3.5` |
-| `cache` | `infocyph/cachelayer ^3.2.0` |
-| `communication` | `infocyph/talkingbytes ^2.0` |
-| `database` | `infocyph/dblayer ^5.0` |
-| `filesystem` | `infocyph/pathwise ^3.1` |
+| `auth` | `infocyph/otp ^6.1`, `web-auth/webauthn-lib ^5.3.5` |
+| `cache` | `infocyph/cachelayer ^3.4` |
+| `communication` | `infocyph/talkingbytes ^2.1` |
+| `database` | `infocyph/dblayer ^5.1` |
+| `filesystem` | `infocyph/pathwise ^4.1` |
 | `logging` | built into Foundation |
-| `messaging` | `infocyph/omnibus ^2.5` |
+| `messaging` | `infocyph/omnibus ^2.6` |
 | `operations` | built into Foundation |
 | `resources` | built into Foundation |
-| `security` | `infocyph/epicrypt ^2.1` |
+| `security` | `infocyph/epicrypt ^3.1` |
 | `session` | built into Foundation |
-| `validation` | `infocyph/reqshield ^3.1` |
+| `validation` | `infocyph/reqshield ^3.2` |
 
 Important aliases include:
 
@@ -117,6 +117,7 @@ Only capabilities that actually own database schema declare schema provisioners:
 | --- | --- |
 | `auth` | Foundation `AuthSchemaInstaller` |
 | `cache` | CacheLayer `PdoCacheSchema` / `PdoInvalidationSchema` |
+| `messaging` | Omnibus 2.6 `QueueSchema` through Foundation's optional durable profile |
 | `session` | Foundation `SessionDatabaseSchema` |
 
 The `database` module owns database/migration infrastructure, not arbitrary

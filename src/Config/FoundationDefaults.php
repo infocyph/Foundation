@@ -151,6 +151,7 @@ final class FoundationDefaults
                         'default' => [
                             'http_client' => 'default',
                             'signing_secret' => null,
+                            'max_payload_bytes' => 1_048_576,
                             'retry' => [
                                 'enabled' => false,
                                 'attempts' => 3,
@@ -163,10 +164,12 @@ final class FoundationDefaults
                         'default' => [
                             'secret' => 'change-me',
                             'max_age_seconds' => 300,
+                            'max_payload_bytes' => 1_048_576,
                             'replay' => [
                                 'enabled' => false,
                                 'store' => null,
                                 'ttl_seconds' => 86_400,
+                                'namespace' => 'default',
                             ],
                         ],
                     ],
@@ -185,6 +188,9 @@ final class FoundationDefaults
                         ],
                     ],
                     'inbound' => [
+                        'source_service' => null,
+                        'idle_sleep_milliseconds' => 10,
+                        'heartbeat_interval_milliseconds' => 5_000,
                         'handlers' => [],
                     ],
                 ],
@@ -225,6 +231,10 @@ final class FoundationDefaults
                 'links' => [
                     'public/storage' => 'storage/app/public',
                 ],
+                'public_files' => [
+                    'root' => 'public',
+                    'symlink_policy' => 'reject',
+                ],
                 'downloads' => [
                     'allowed_extensions' => [],
                     'allowed_roots' => [],
@@ -252,14 +262,11 @@ final class FoundationDefaults
                     'blocked_extensions' => ['php', 'phtml', 'phar', 'exe', 'sh', 'bat', 'cmd', 'com'],
                     'directory' => '',
                     'disk' => 'uploads',
-                    'max_chunk_count' => 0,
-                    'max_chunk_size' => 0,
+                    'max_chunk_count' => 1_000,
+                    'max_chunk_size' => 8 * 1024 * 1024,
                     'max_file_size' => 5 * 1024 * 1024,
                     'max_image_height' => 0,
                     'max_image_width' => 0,
-                    'naming_strategy' => 'hash',
-                    'require_malware_scan' => false,
-                    'strict_content_type_validation' => true,
                     'temp_directory' => null,
                     'use_date_directories' => false,
                     'validation_profile' => null,
@@ -401,6 +408,7 @@ final class FoundationDefaults
                             'maxDecodedBodyBytes' => 10 * 1024 * 1024,
                             'maxHeaderBytes' => 131072,
                             'maxHeaderCount' => 2000,
+                            'maxHeaderLineBytes' => 998,
                             'maxMessageBytes' => 10 * 1024 * 1024,
                             'maxMimeDepth' => 20,
                             'maxMimeParts' => 500,

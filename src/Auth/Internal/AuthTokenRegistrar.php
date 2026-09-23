@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Auth\Internal;
 
 use Infocyph\Epicrypt\Token\Jwt\SymmetricJwt;
+use Infocyph\Epicrypt\Token\Payload\PurposeToken;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptAccessTokenService;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptEmailVerificationTokenService;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptPasswordlessTokenService;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptPasswordResetTokenService;
+use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptPurposeTokenFactory;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptRefreshTokenService;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptTokenFactory;
 use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailVerificationTokenServiceInterface;
@@ -22,13 +24,13 @@ use Infocyph\Foundation\Auth\Contract\Security\AccessTokenServiceInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\RememberTokenStoreInterface;
 use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
 use Infocyph\Foundation\Auth\Driver\AuthTokenDriver;
-use Infocyph\Foundation\Auth\Support\HmacTokenCodec;
 use Infocyph\Foundation\Auth\Support\SimpleAccessTokenService;
 use Infocyph\Foundation\Auth\Support\SimpleEmailVerificationTokenService;
 use Infocyph\Foundation\Auth\Support\SimplePasswordlessTokenService;
 use Infocyph\Foundation\Auth\Support\SimplePasswordResetTokenService;
 use Infocyph\Foundation\Auth\Support\SimpleRefreshTokenService;
 use Infocyph\Foundation\Auth\Support\SimpleRememberTokenService;
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\InterMix\DI\ContainerBuilder;
 
 final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
@@ -44,6 +46,9 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
 
     public function register(AuthDriverResolver $drivers): void
     {
+        $this->bindRememberTokens();
+        $this->registerSecretResolver();
+
         if ($drivers->tokens() === AuthTokenDriver::SECURITY) {
             $this->requirePackage(SymmetricJwt::class, 'infocyph/epicrypt', 'crypto');
             $this->registerEpicryptTokens();
@@ -51,8 +56,13 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
             return;
         }
 
-        $this->recipe(HmacTokenCodec::class, HmacTokenCodec::class, [
-            $this->secrets->tokenSecret(),
+        if (!class_exists(PurposeToken::class)) {
+            return;
+        }
+
+        $this->recipe(EpicryptPurposeTokenFactory::class, EpicryptPurposeTokenFactory::class, [
+            $this->ref(AuthSecretResolver::class),
+            $this->ref(ClockInterface::class),
         ]);
         $this->registerSimpleTokens();
     }
@@ -82,21 +92,6 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
     }
 
     /** @param class-string<object> $implementation @param class-string<object> $dependency */
-    private function bindTimedClockedToken(
-        string $service,
-        string $implementation,
-        string $dependency,
-        string $ttlKey,
-        int $ttlDefault,
-    ): void {
-        $this->recipe($service, $implementation, [
-            $this->ref($dependency),
-            $this->ref(ClockInterface::class),
-            $this->intConfig($ttlKey, $ttlDefault),
-        ]);
-    }
-
-    /** @param class-string<object> $implementation @param class-string<object> $dependency */
     private function bindTimedSingleDependencyToken(
         string $service,
         string $implementation,
@@ -112,14 +107,22 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
 
     private function registerEpicryptTokens(): void
     {
+        $minimumKeyBytes = $this->epicrypt->minimumKeyBytes();
+        if ($this->app->config()->isProduction()) {
+            // Validate before traffic without embedding the resolved secret in
+            // the generated InterMix definition.
+            $this->secrets->tokenSecret($minimumKeyBytes);
+        }
+
         $this->recipe(EpicryptTokenFactory::class, EpicryptTokenFactory::class, [
-            $this->secrets->tokenSecret($this->epicrypt->minimumKeyBytes()),
+            $this->ref(AuthSecretResolver::class),
             $this->ref(ClockInterface::class),
             $this->epicrypt->issuer(),
             $this->epicrypt->audience(),
             $this->epicrypt->algorithm()->value,
             $this->epicrypt->maximumLifetimeSeconds(),
             $this->epicrypt->leewaySeconds(),
+            $minimumKeyBytes,
         ]);
 
         $this->bindSingleDependencyToken(AccessTokenServiceInterface::class, EpicryptAccessTokenService::class, EpicryptTokenFactory::class);
@@ -127,16 +130,25 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
         $this->bindTimedSingleDependencyToken(PasswordResetTokenServiceInterface::class, EpicryptPasswordResetTokenService::class, EpicryptTokenFactory::class, 'auth.password_reset_ttl', 3600);
         $this->bindTimedSingleDependencyToken(EmailVerificationTokenServiceInterface::class, EpicryptEmailVerificationTokenService::class, EpicryptTokenFactory::class, 'auth.email_verification_ttl', 3600);
         $this->bindTimedSingleDependencyToken(PasswordlessTokenServiceInterface::class, EpicryptPasswordlessTokenService::class, EpicryptTokenFactory::class, 'auth.passwordless_ttl', 900);
-        $this->bindRememberTokens();
+    }
+
+    private function registerSecretResolver(): void
+    {
+        if ($this->hasExplicitBinding(AuthSecretResolver::class)) {
+            return;
+        }
+
+        $this->recipe(AuthSecretResolver::class, AuthSecretResolver::class, [
+            $this->ref(ConfigRepository::class),
+        ]);
     }
 
     private function registerSimpleTokens(): void
     {
-        $this->bindClockedToken(AccessTokenServiceInterface::class, SimpleAccessTokenService::class, HmacTokenCodec::class);
-        $this->bindClockedToken(RefreshTokenServiceInterface::class, SimpleRefreshTokenService::class, HmacTokenCodec::class);
-        $this->bindTimedClockedToken(PasswordResetTokenServiceInterface::class, SimplePasswordResetTokenService::class, HmacTokenCodec::class, 'auth.password_reset_ttl', 3600);
-        $this->bindTimedClockedToken(EmailVerificationTokenServiceInterface::class, SimpleEmailVerificationTokenService::class, HmacTokenCodec::class, 'auth.email_verification_ttl', 3600);
-        $this->bindTimedClockedToken(PasswordlessTokenServiceInterface::class, SimplePasswordlessTokenService::class, HmacTokenCodec::class, 'auth.passwordless_ttl', 900);
-        $this->bindRememberTokens();
+        $this->bindClockedToken(AccessTokenServiceInterface::class, SimpleAccessTokenService::class, EpicryptPurposeTokenFactory::class);
+        $this->bindClockedToken(RefreshTokenServiceInterface::class, SimpleRefreshTokenService::class, EpicryptPurposeTokenFactory::class);
+        $this->bindTimedSingleDependencyToken(PasswordResetTokenServiceInterface::class, SimplePasswordResetTokenService::class, EpicryptPurposeTokenFactory::class, 'auth.password_reset_ttl', 3600);
+        $this->bindTimedSingleDependencyToken(EmailVerificationTokenServiceInterface::class, SimpleEmailVerificationTokenService::class, EpicryptPurposeTokenFactory::class, 'auth.email_verification_ttl', 3600);
+        $this->bindTimedSingleDependencyToken(PasswordlessTokenServiceInterface::class, SimplePasswordlessTokenService::class, EpicryptPurposeTokenFactory::class, 'auth.passwordless_ttl', 900);
     }
 }

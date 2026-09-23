@@ -6,172 +6,91 @@ namespace Infocyph\Foundation\Filesystem;
 
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Support\ValueNormalizer;
-use Infocyph\Pathwise\PathwiseFacade;
-use Infocyph\Pathwise\Utils\FlysystemHelper;
+use Infocyph\Pathwise\Storage\StorageContext;
 use Infocyph\Pathwise\Utils\PathHelper;
 use League\Flysystem\FilesystemOperator;
 
 /**
- * Foundation-owned storage configuration and disk selection.
+ * Thin Foundation application-policy adapter over Pathwise StorageContext.
  *
- * Pathwise/Flysystem own filesystem operations. This registry only turns the
- * application's filesystem.disks configuration into named native filesystems
- * and resolves application-relative paths to isolated Pathwise mounts.
+ * Named filesystem lifecycle, lazy operator creation, path identity, custom
+ * drivers, and isolation are Pathwise-owned. Foundation only loads application
+ * configuration and resolves relative local roots against the application base.
  */
-final class StorageRegistry
+final readonly class StorageRegistry
 {
-    /** @var array<string, array<string, mixed>> */
-    private readonly array $configurations;
+    private StorageContext $context;
 
-    private readonly string $defaultDisk;
-
-    private readonly string $mountScope;
-
-    /** @var array<string, FilesystemOperator> */
-    private array $filesystems = [];
-
-    private bool $initialized = false;
-
+    /**
+     * @param array<array-key, mixed> $drivers Optional Pathwise custom-driver factories.
+     */
     public function __construct(
         ConfigRepository $config,
-        private readonly PathManager $paths,
+        PathManager $paths,
+        array $drivers = [],
     ) {
-        $this->configurations = $this->loadConfigurations($config);
         $configured = $config->get('filesystem.default', 'local');
-        $this->defaultDisk = is_string($configured) && trim($configured) !== ''
-            ? $this->normalizeDiskName($configured)
+        $default = is_string($configured) && trim($configured) !== ''
+            ? trim($configured)
             : 'local';
-        $this->mountScope = 'foundation-' . substr(hash('xxh128', $paths->base()), 0, 12);
 
-        if (!isset($this->configurations[$this->defaultDisk])) {
-            throw new \InvalidArgumentException(sprintf(
-                'Default filesystem disk "%s" is not configured.',
-                $this->defaultDisk,
-            ));
-        }
+        $this->context = new StorageContext(
+            $this->loadConfigurations($config, $paths),
+            $default,
+            $drivers,
+        );
     }
 
     /** @return array<string, mixed> */
     public function configuration(?string $name = null): array
     {
-        $disk = $this->resolveDisk($name);
+        return $this->context->configuration($name);
+    }
 
-        return $this->configurations[$disk] ?? throw new \InvalidArgumentException(sprintf(
-            'Filesystem disk "%s" is not configured.',
-            $disk,
-        ));
+    public function context(): StorageContext
+    {
+        return $this->context;
     }
 
     public function defaultDisk(): string
     {
-        return $this->defaultDisk;
+        return $this->context->defaultFilesystem();
     }
 
     public function disk(?string $name = null): FilesystemOperator
     {
-        $this->initialize();
-        $disk = $this->resolveDisk($name);
-
-        return $this->filesystems[$disk] ?? throw new \InvalidArgumentException(sprintf(
-            'Filesystem disk "%s" is not configured.',
-            $disk,
-        ));
+        return $this->context->filesystem($name);
     }
 
     /** @return list<string> */
     public function disks(): array
     {
-        return array_keys($this->configurations);
-    }
-
-    public function initialize(): void
-    {
-        if ($this->initialized) {
-            return;
-        }
-
-        $prepared = [];
-        foreach ($this->configurations as $disk => $configuration) {
-            $prepared[$disk] = PathwiseFacade::createFilesystem(
-                $this->normalizeFilesystemConfig($configuration),
-            );
-        }
-
-        foreach ($prepared as $disk => $filesystem) {
-            FlysystemHelper::replaceMount($this->mountName($disk), $filesystem);
-        }
-
-        $this->filesystems = $prepared;
-        $this->initialized = true;
+        return $this->context->filesystemNames();
     }
 
     public function localPath(string $path = '', ?string $disk = null): string
     {
-        if ($path !== '' && PathHelper::hasScheme($path)) {
-            throw new \InvalidArgumentException('A local filesystem path cannot use a mounted filesystem scheme.');
-        }
-        if ($path !== '' && PathHelper::isAbsolute($path)) {
-            return PathHelper::normalize($path);
-        }
-
-        $resolved = $this->resolveDisk($disk);
-        $configuration = $this->configuration($resolved);
-        $driver = $configuration['driver'] ?? 'local';
-        if (!is_string($driver) || strtolower(trim($driver)) !== 'local') {
-            throw new \InvalidArgumentException(sprintf(
-                'Filesystem disk "%s" is not a local disk.',
-                $resolved,
-            ));
-        }
-
-        $root = $configuration['root'] ?? null;
-        if (!is_string($root) || $root === '') {
-            throw new \InvalidArgumentException(sprintf(
-                'Local filesystem disk "%s" requires a root path.',
-                $resolved,
-            ));
-        }
-        $root = PathHelper::isAbsolute($root)
-            ? PathHelper::normalize($root)
-            : $this->paths->base($root);
-        $relative = trim(str_replace('\\', '/', $path), '/');
-
-        return $relative === '' ? $root : PathHelper::join($root, $relative);
+        return $this->context->localPath($path, $disk);
     }
 
     public function path(string $path = '', ?string $disk = null): string
     {
-        if ($path !== '' && PathHelper::isAbsolute($path)) {
-            return PathHelper::normalize($path);
-        }
-
-        $this->initialize();
-        $resolved = $this->resolveDisk($disk);
-        $mount = $this->mountName($resolved);
-        $relative = trim(str_replace('\\', '/', $path), '/');
-
-        return $relative === ''
-            ? $mount . '://'
-            : $mount . '://' . $relative;
+        return $this->context->path($path, $disk);
     }
 
     public function resolveDisk(?string $name): string
     {
-        $candidate = trim($name ?? '');
-        $disk = $candidate === '' ? $this->defaultDisk : $this->normalizeDiskName($candidate);
+        $candidate = is_string($name) && trim($name) !== ''
+            ? strtolower(trim($name))
+            : $this->context->defaultFilesystem();
 
-        if (!isset($this->configurations[$disk])) {
-            throw new \InvalidArgumentException(sprintf(
-                'Filesystem disk "%s" is not configured.',
-                $disk,
-            ));
-        }
+        $this->context->configuration($candidate);
 
-        return $disk;
+        return $candidate;
     }
 
     /** @return array<string, array<string, mixed>> */
-    private function loadConfigurations(ConfigRepository $config): array
+    private function loadConfigurations(ConfigRepository $config, PathManager $paths): array
     {
         $configured = $config->get('filesystem.disks', []);
         if (!is_array($configured)) {
@@ -186,58 +105,22 @@ final class StorageRegistry
                 );
             }
 
-            $disk = $this->normalizeDiskName($name);
-            if (isset($filesystems[$disk])) {
-                throw new \InvalidArgumentException(sprintf(
-                    'Filesystem disk "%s" is configured more than once.',
-                    $disk,
-                ));
+            $normalized = ValueNormalizer::associativeArray($configuration);
+            $root = $normalized['root'] ?? null;
+            $driver = $normalized['driver'] ?? 'local';
+            if (
+                is_string($root)
+                && trim($root) !== ''
+                && is_string($driver)
+                && strtolower(trim($driver)) === 'local'
+                && !PathHelper::isAbsolute($root)
+            ) {
+                $normalized['root'] = $paths->base($root);
             }
-            $filesystems[$disk] = ValueNormalizer::associativeArray($configuration);
-        }
 
-        if ($filesystems === []) {
-            throw new \InvalidArgumentException('At least one filesystem disk must be configured.');
+            $filesystems[$name] = $normalized;
         }
 
         return $filesystems;
-    }
-
-    private function mountName(string $disk): string
-    {
-        return $this->mountScope . '-' . $disk;
-    }
-
-    private function normalizeDiskName(string $name): string
-    {
-        $disk = strtolower(trim($name));
-        if (preg_match('/^[a-z][a-z0-9._-]*$/D', $disk) !== 1) {
-            throw new \InvalidArgumentException(sprintf(
-                'Invalid filesystem disk name "%s".',
-                $name,
-            ));
-        }
-
-        return $disk;
-    }
-
-    /**
-     * @param array<string, mixed> $configuration
-     * @return array<string, mixed>
-     */
-    private function normalizeFilesystemConfig(array $configuration): array
-    {
-        $root = $configuration['root'] ?? null;
-        $driver = $configuration['driver'] ?? 'local';
-        if (is_string($root)
-            && $root !== ''
-            && !PathHelper::isAbsolute($root)
-            && is_string($driver)
-            && strtolower(trim($driver)) === 'local'
-        ) {
-            $configuration['root'] = $this->paths->base($root);
-        }
-
-        return $configuration;
     }
 }

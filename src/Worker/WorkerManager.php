@@ -245,6 +245,31 @@ final readonly class WorkerManager
         return $workers;
     }
 
+    private function messagingLifecycle(callable $heartbeat, callable $stopRequested): WorkerLifecycle
+    {
+        return new readonly class ($heartbeat, $stopRequested) implements WorkerLifecycle {
+            private \Closure $heartbeatCallback;
+
+            private \Closure $stopCallback;
+
+            public function __construct(callable $heartbeat, callable $stopRequested)
+            {
+                $this->heartbeatCallback = \Closure::fromCallable($heartbeat);
+                $this->stopCallback = \Closure::fromCallable($stopRequested);
+            }
+
+            public function heartbeat(): void
+            {
+                ($this->heartbeatCallback)();
+            }
+
+            public function stopRequested(): bool
+            {
+                return (bool) ($this->stopCallback)();
+            }
+        };
+    }
+
     /** @param array<string,mixed>|null $definition */
     private function pooledMessagingWorker(?array $definition): bool
     {
@@ -295,7 +320,7 @@ final readonly class WorkerManager
         callable $processHeartbeat,
     ): int {
         if (!class_exists(Worker::class) || !interface_exists(WorkerLifecycle::class)) {
-            throw new \LogicException('Messaging workers require infocyph/omnibus ^2.5.');
+            throw new \LogicException('Messaging workers require infocyph/omnibus ^2.6.');
         }
 
         $configuredPool = ValueNormalizer::associativeArray($definition['pool'] ?? []);
@@ -308,30 +333,9 @@ final readonly class WorkerManager
         $factory->options($name);
         $pool = $factory->pool($name);
 
+        $lifecycle = $this->messagingLifecycle($processHeartbeat, $stopRequested);
         if (!$pool['enabled']) {
             $this->application->boot();
-            $lifecycle = new readonly class ($processHeartbeat, $stopRequested) implements WorkerLifecycle {
-                private \Closure $heartbeatCallback;
-
-                private \Closure $stopCallback;
-
-                public function __construct(callable $heartbeat, callable $stopRequested)
-                {
-                    $this->heartbeatCallback = \Closure::fromCallable($heartbeat);
-                    $this->stopCallback = \Closure::fromCallable($stopRequested);
-                }
-
-                public function heartbeat(): void
-                {
-                    ($this->heartbeatCallback)();
-                }
-
-                public function stopRequested(): bool
-                {
-                    return (bool) ($this->stopCallback)();
-                }
-            };
-
             $factory->make($name, $lifecycle)->run();
 
             return 0;
@@ -366,13 +370,9 @@ final readonly class WorkerManager
             maximumRestarts: $pool['maximum_restarts'],
             restartBackoffSeconds: $pool['restart_backoff_seconds'],
             shutdownGraceSeconds: $pool['shutdown_grace_seconds'],
+            lifecycle: $lifecycle,
         );
-        $this->watchPool(
-            $workerPool,
-            $stopRequested,
-            $processHeartbeat,
-            static fn() => $workerPool->run(),
-        );
+        $workerPool->run();
 
         return 0;
     }
@@ -471,63 +471,5 @@ final readonly class WorkerManager
                 return true;
             }
         };
-    }
-
-    /**
-     * WorkerPool is Unix/pcntl-only upstream, so its parent process still uses
-     * a small signal watchdog. Single Omnibus workers use WorkerLifecycle and
-     * therefore need no Foundation signal polling.
-     *
-     * @param callable():bool $stopRequested
-     * @param callable():void $heartbeat
-     * @param callable():void $run
-     */
-    private function watchPool(
-        WorkerPool $target,
-        callable $stopRequested,
-        callable $heartbeat,
-        callable $run,
-    ): void {
-        if (!defined('SIGALRM')
-            || !function_exists('pcntl_alarm')
-            || !function_exists('pcntl_async_signals')
-            || !function_exists('pcntl_signal')
-            || !function_exists('pcntl_signal_get_handler')
-        ) {
-            $run();
-
-            return;
-        }
-
-        $signal = constant('SIGALRM');
-        $previousHandler = pcntl_signal_get_handler($signal);
-        $previousAsync = pcntl_async_signals();
-        pcntl_async_signals(true);
-        pcntl_signal($signal, static function () use ($target, $stopRequested, $heartbeat): void {
-            $heartbeat();
-            if ($stopRequested()) {
-                $target->requestStop();
-
-                return;
-            }
-            pcntl_alarm(1);
-        });
-        pcntl_alarm(1);
-        $primaryFailure = null;
-
-        try {
-            $run();
-        } catch (\Throwable $exception) {
-            $primaryFailure = $exception;
-
-            throw $exception;
-        } finally {
-            CleanupGuard::run(
-                $primaryFailure,
-                static fn() => pcntl_alarm(0),
-                static fn() => pcntl_signal($signal, $previousHandler),
-                static fn() => pcntl_async_signals($previousAsync),
-            );
-        }
     }
 }

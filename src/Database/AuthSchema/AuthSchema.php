@@ -162,6 +162,7 @@ final readonly class AuthSchema implements Migration
             $table->string('id', 64)->primary();
             $table->string('account_id', 64)->index();
             $table->string('credential_id', 1024)->unique();
+            $table->text('credential_record')->nullable();
             $table->text('public_key');
             $table->bigInteger('sign_count');
             $table->json('transports')->nullable();

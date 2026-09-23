@@ -4,53 +4,55 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Internal;
 
-use Infocyph\Foundation\Auth\Adapter\WebAuthn\WebAuthnAttestationPolicyInterface;
-use Infocyph\Foundation\Auth\Adapter\WebAuthn\WebAuthnChallengeStore;
+use Infocyph\CacheLayer\Cache\AuthenticationStateCacheInterface;
+use Infocyph\Foundation\Auth\Adapter\Otp\OtpPasskeyService;
 use Infocyph\Foundation\Auth\Adapter\WebAuthn\WebAuthnConfigResolver;
-use Infocyph\Foundation\Auth\Adapter\WebAuthn\WebAuthnCredentialMapper;
-use Infocyph\Foundation\Auth\Adapter\WebAuthn\WebAuthnPasskeyService;
-use Infocyph\Foundation\Auth\Adapter\WebAuthn\WebAuthnPublicKeyOptionsFactory;
-use Infocyph\Foundation\Auth\Adapter\WebAuthn\WebAuthnRuntime;
 use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Auth\Contract\Id\AuthIdGeneratorInterface;
+use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
 use Infocyph\Foundation\Auth\Passkey\PasskeyCredentialStoreInterface;
 use Infocyph\Foundation\Auth\Passkey\PasskeyServiceInterface;
+use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\OTP\Passkey;
 
 final class AuthPasskeyGraphFactory
 {
-    public static function options(
+    public static function passkey(
         WebAuthnConfigResolver $config,
-        WebAuthnRuntime $runtime,
-    ): WebAuthnPublicKeyOptionsFactory {
-        return new WebAuthnPublicKeyOptionsFactory($config->resolve(), $runtime);
-    }
+        CacheLayerFactory $cache,
+        ?string $storeName,
+    ): Passkey {
+        $resolved = $config->resolve();
+        $store = $cache->make($storeName);
 
-    public static function runtime(
-        WebAuthnConfigResolver $config,
-        WebAuthnAttestationPolicyInterface $attestation,
-    ): WebAuthnRuntime {
-        return new WebAuthnRuntime($config->resolve(), $attestation);
+        if (!$store instanceof AuthenticationStateCacheInterface) {
+            throw new \LogicException(
+                'OTP Passkey ceremony state requires a CacheLayer AuthenticationStateCacheInterface store.',
+            );
+        }
+
+        return new Passkey(
+            cache: $store,
+            rpId: (string) $resolved->rpId,
+            allowedOrigins: [(string) $resolved->origin],
+            ttlSeconds: $resolved->challengeTtl,
+            allowSubdomains: $resolved->allowSubdomains,
+        );
     }
 
     public static function service(
-        WebAuthnConfigResolver $config,
-        WebAuthnChallengeStore $challenges,
+        Passkey $passkey,
         PasskeyCredentialStoreInterface $credentials,
+        AccountProviderInterface $accounts,
         AuthIdGeneratorInterface $ids,
         ClockInterface $clock,
-        WebAuthnPublicKeyOptionsFactory $options,
-        WebAuthnCredentialMapper $mapper,
-        WebAuthnRuntime $runtime,
     ): PasskeyServiceInterface {
-        return new WebAuthnPasskeyService(
-            config: $config->resolve(),
-            challenges: $challenges,
+        return new OtpPasskeyService(
+            passkey: $passkey,
             credentials: $credentials,
+            accounts: $accounts,
             ids: $ids,
             clock: $clock,
-            options: $options,
-            mapper: $mapper,
-            runtime: $runtime,
         );
     }
 }

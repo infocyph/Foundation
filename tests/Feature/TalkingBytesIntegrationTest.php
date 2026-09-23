@@ -16,9 +16,7 @@ use Infocyph\TalkingBytes\Email\Parser\BounceParser;
 use Infocyph\TalkingBytes\Email\Parser\RawEmailParser;
 
 beforeEach(function (): void {
-    if (!class_exists(EmailMessage::class)) {
-        $this->markTestSkipped('Install the communication module to run TalkingBytes integration tests.');
-    }
+    expect(class_exists(EmailMessage::class))->toBeTrue();
 });
 
 it('exposes the broader TalkingBytes email stack through thin Foundation profiles', function (): void {

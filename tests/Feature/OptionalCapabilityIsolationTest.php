@@ -44,7 +44,7 @@ it('boots without optional packages and reports unavailable capabilities cleanly
         )
         ->and($probe['auth']['webauthn']['message'] ?? null)->toBeString()
         ->and($probe['auth']['webauthn']['message'])->toContain(
-            'The selected auth driver requires web-auth/webauthn-lib;',
+            'The selected auth driver requires infocyph/otp;',
             'module:install passkeys',
         );
 });

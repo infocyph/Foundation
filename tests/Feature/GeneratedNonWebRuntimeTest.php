@@ -155,9 +155,7 @@ it('loads and scopes a trusted CLI production container without rebuilding the s
 });
 
 it('keeps one trusted worker container hot while isolating provider jobs and Omnibus messages', function (): void {
-    if (!class_exists(\Infocyph\Omnibus\MessageBus::class)) {
-        $this->markTestSkipped('Install the messaging module to run the generated worker integration test.');
-    }
+    expect(class_exists(\Infocyph\Omnibus\MessageBus::class))->toBeTrue();
 
     $project = foundationGeneratedRuntimeProject();
     $config = foundationGeneratedRuntimeConfig($project);

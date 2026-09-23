@@ -123,7 +123,7 @@ it('exposes canonical module list and alias-aware module details through the com
             ? array_find($modules, static fn(mixed $module): bool => is_array($module) && ($module['name'] ?? null) === 'database')
             : null;
         expect($database)->toBeArray()
-            ->and($database['packages']['infocyph/dblayer']['constraint'] ?? null)->toBe('^5.0');
+            ->and($database['packages']['infocyph/dblayer']['constraint'] ?? null)->toBe('^5.1');
 
         $show = new FoundationModuleLifecycleIO();
         expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:show', 'db'], $show))->toBe(ExitCode::SUCCESS);
@@ -131,7 +131,7 @@ it('exposes canonical module list and alias-aware module details through the com
         expect($details)->toBeArray()
             ->and($details['name'] ?? null)->toBe('database')
             ->and($details['requested'] ?? null)->toBe('db')
-            ->and($details['packages']['infocyph/dblayer']['constraint'] ?? null)->toBe('^5.0')
+            ->and($details['packages']['infocyph/dblayer']['constraint'] ?? null)->toBe('^5.1')
             ->and($details['schema_status'] ?? null)->toBe([]);
     } finally {
         DB::purge();
@@ -144,7 +144,7 @@ it('runs module install and direct-package removal dry-runs and refuses built-in
     [$restoreEnvironment, $commandLog] = moduleLifecycleComposerStub($basePath);
     moduleLifecycleWriteComposer($basePath, [
         'infocyph/dblayer' => '^5.0',
-        'infocyph/omnibus' => '^2.5',
+        'infocyph/omnibus' => '^2.6',
     ]);
 
     try {
@@ -161,13 +161,13 @@ it('runs module install and direct-package removal dry-runs and refuses built-in
             ->toBe(ExitCode::FAILURE)
             ->and($builtIn->errors)->toContain('Module "session" is built into Foundation.');
 
-        moduleLifecycleWriteComposer($basePath, ['infocyph/omnibus' => '^2.5']);
+        moduleLifecycleWriteComposer($basePath, ['infocyph/omnibus' => '^2.6']);
         $notDirect = new FoundationModuleLifecycleIO();
         expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:remove', 'db', '--dry-run'], $notDirect))
             ->toBe(ExitCode::SUCCESS);
 
         expect(moduleLifecycleCommands($commandLog))->toBe([
-            ['require', 'infocyph/dblayer:^5.0', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
+            ['require', 'infocyph/dblayer:^5.1', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
             ['remove', 'infocyph/dblayer', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
         ]);
     } finally {
@@ -291,6 +291,57 @@ it('reports and installs the database session schema through module commands', f
 
         $after = new FoundationModuleLifecycleIO();
         expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:schema:status', 'session'], $after))
+            ->toBe(ExitCode::SUCCESS);
+    } finally {
+        DB::purge();
+        moduleLifecycleRemoveDirectory($basePath);
+    }
+});
+
+it('reports and installs the Omnibus durable messaging schema through module commands', function (): void {
+    $basePath = moduleLifecycleBasePath('messaging-schema');
+    mkdir($basePath . '/database', 0775, true);
+    $databasePath = $basePath . '/database/messaging.sqlite';
+    $dispatcher = moduleLifecycleDispatcher($basePath, [
+        'database' => [
+            'default' => 'main',
+            'connections' => [
+                'main' => [
+                    'driver' => 'sqlite',
+                    'database' => 'database/messaging.sqlite',
+                ],
+            ],
+        ],
+        'messaging' => [
+            'durable' => [
+                'enabled' => true,
+                'connection' => 'main',
+                'failure_store' => 'database',
+            ],
+            'consumer' => ['transport' => 'memory'],
+            'workers' => [],
+        ],
+    ]);
+
+    try {
+        $before = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:schema:status', 'messaging'], $before))
+            ->toBe(ExitCode::FAILURE);
+        $beforePayload = $before->lastPayload();
+        expect($beforePayload)->toBeArray()
+            ->and($beforePayload['schemas'][0]['state'] ?? null)->toBe('pending')
+            ->and($beforePayload['schemas'][0]['installed'] ?? null)->toBeFalse();
+
+        $install = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:schema:install', 'messaging'], $install))
+            ->toBe(ExitCode::SUCCESS)
+            ->and(moduleLifecycleTableExists($databasePath, 'omnibus_messages'))->toBeTrue()
+            ->and(moduleLifecycleTableExists($databasePath, 'omnibus_failures'))->toBeTrue()
+            ->and(moduleLifecycleTableExists($databasePath, 'omnibus_workflows'))->toBeTrue()
+            ->and(moduleLifecycleTableExists($databasePath, 'omnibus_workflow_items'))->toBeTrue();
+
+        $after = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:schema:status', 'messaging'], $after))
             ->toBe(ExitCode::SUCCESS);
     } finally {
         DB::purge();

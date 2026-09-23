@@ -26,6 +26,11 @@ final readonly class FoundationFailingMessage
     public function __construct(public string $value) {}
 }
 
+final readonly class FoundationFiberMessage
+{
+    public function __construct(public string $value) {}
+}
+
 final readonly class FoundationEvent
 {
     public function __construct(public string $value) {}
@@ -75,6 +80,22 @@ final class FoundationFailingMessageHandler
     }
 }
 
+final class FoundationFiberMessageHandler
+{
+    /** @var list<array{value:string,before:int,after:int}> */
+    public static array $handled = [];
+
+    public function __construct(private Application $application) {}
+
+    public function __invoke(FoundationFiberMessage $message): void
+    {
+        $before = $this->application->make(FoundationMessageProbe::class)->sequence;
+        Fiber::suspend($before);
+        $after = $this->application->make(FoundationMessageProbe::class)->sequence;
+        self::$handled[] = ['value' => $message->value, 'before' => $before, 'after' => $after];
+    }
+}
+
 final class FoundationEventListener
 {
     /** @var list<string> */
@@ -114,11 +135,13 @@ function foundationMessagingApplication(array $messaging = []): Application
             'handlers' => [
                 FoundationMessage::class => FoundationMessageHandler::class,
                 FoundationFailingMessage::class => FoundationFailingMessageHandler::class,
+                FoundationFiberMessage::class => FoundationFiberMessageHandler::class,
             ],
             'listeners' => [FoundationEvent::class => [FoundationEventListener::class]],
             'routes' => [
                 FoundationMessage::class => ['transport' => 'memory', 'queue' => 'default'],
                 FoundationFailingMessage::class => ['transport' => 'memory', 'queue' => 'default'],
+                FoundationFiberMessage::class => ['transport' => 'memory', 'queue' => 'default'],
             ],
             'scheduled_messages' => ['reports.daily' => FoundationScheduledMessageFactory::class],
             'retry' => [
@@ -135,6 +158,7 @@ function foundationMessagingApplication(array $messaging = []): Application
 beforeEach(function (): void {
     FoundationMessageHandler::$handled = [];
     FoundationFailingMessageHandler::$scopes = [];
+    FoundationFiberMessageHandler::$handled = [];
     FoundationEventListener::$events = [];
 });
 
@@ -184,6 +208,39 @@ it('creates a fresh InterMix scope after successful and failed message handling'
         ->and(FoundationMessageHandler::$handled[0]['message'])->toBeTrue()
         ->and(FoundationMessageHandler::$handled[0]['sequence'])->not->toBe(FoundationFailingMessageHandler::$scopes[0])
         ->and(FoundationFailingMessageHandler::$scopes[0])->not->toBe(FoundationMessageHandler::$handled[1]['sequence']);
+});
+
+it('isolates concurrent Fiber message executions in distinct Foundation scopes', function (): void {
+    $app = foundationMessagingApplication();
+    $bus = $app->make(MessageBus::class);
+    $task = $app->make(ConsumerTask::class);
+
+    $bus->dispatch(new FoundationFiberMessage('a'));
+    $bus->dispatch(new FoundationFiberMessage('b'));
+
+    $fiberA = new Fiber(static fn() => $task->run(new ConsumeRequest(limit: 1)));
+    $fiberB = new Fiber(static fn() => $task->run(new ConsumeRequest(limit: 1)));
+
+    $scopeA = $fiberA->start();
+    $scopeB = $fiberB->start();
+
+    expect($scopeA)->toBeInt()
+        ->and($scopeB)->toBeInt()
+        ->and($scopeA)->not->toBe($scopeB);
+
+    $fiberB->resume();
+    $fiberA->resume();
+
+    expect($fiberA->getReturn()->succeeded)->toBe(1)
+        ->and($fiberB->getReturn()->succeeded)->toBe(1)
+        ->and(FoundationFiberMessageHandler::$handled)->toHaveCount(2);
+
+    foreach (FoundationFiberMessageHandler::$handled as $handled) {
+        expect($handled['after'])->toBe($handled['before']);
+    }
+
+    expect(array_column(FoundationFiberMessageHandler::$handled, 'before'))
+        ->toContain($scopeA, $scopeB);
 });
 
 it('dispatches named scheduled messages through the configured route map', function (): void {

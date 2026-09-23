@@ -25,23 +25,19 @@ it('completes the confidential client credentials flow as a service authorizatio
         $response = $fixture->tokens->exchange([
             'grant_type' => OAuthGrantType::ClientCredentials->value,
             'scope' => 'service.read',
-            'audience' => $audience,
         ], new OAuthClientAuthentication(
             OAuthClientAuthenticationMethod::ClientSecretBasic,
             $registration->client->clientId,
             $registration->secret,
         ));
         $claims = $fixture->accessTokens->verify($response->accessToken, $audience);
-        $authorization = $fixture->authorizationStore->find((string) $claims->authorizationId);
-
         expect($response->tokenType)->toBe('Bearer')
             ->and($response->scopes)->toBe(['service.read'])
             ->and($response->refreshToken)->toBeNull()
-            ->and($claims->subject)->toBe('client:' . $registration->client->clientId)
+            ->and($claims->subject)->toBe($registration->client->clientId)
             ->and($claims->clientId)->toBe($registration->client->clientId)
             ->and($claims->scopes)->toBe(['service.read'])
-            ->and($authorization)->not->toBeNull()
-            ->and($authorization?->accountId)->toBeNull();
+            ->and($claims->authorizationId)->toBeNull();
     } finally {
         $fixture->close();
     }

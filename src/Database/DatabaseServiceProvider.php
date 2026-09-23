@@ -11,7 +11,9 @@ use Infocyph\Foundation\Cache\CacheLayerFactory;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthMfaRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthOAuthRevisionSchema;
+use Infocyph\Foundation\Database\AuthSchema\AuthPasskeyRecordSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthPasskeyRevisionSchema;
+use Infocyph\Foundation\Database\AuthSchema\AuthPersonalAccessTokenSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchemaInstaller;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
@@ -33,6 +35,10 @@ final class DatabaseServiceProvider extends ServiceProvider
         $auth = is_array($context->config['auth'] ?? null) ? $context->config['auth'] : [];
         $oauth = is_array($auth['oauth'] ?? null) ? $auth['oauth'] : [];
         $oauthEnabled = ($oauth['enabled'] ?? false) === true;
+        $personalAccess = is_array($auth['personal_access_tokens'] ?? null)
+            ? $auth['personal_access_tokens']
+            : [];
+        $personalAccessEnabled = ($personalAccess['enabled'] ?? false) === true;
 
         $builder->singleton(DatabaseConnectionResolver::class, FactoryDefinition::construct(
             DatabaseConnectionResolver::class,
@@ -61,9 +67,19 @@ final class DatabaseServiceProvider extends ServiceProvider
             AuthPasskeyRevisionSchema::class,
             [new ServiceReference(AuthTables::class)],
         ));
+        $builder->singleton(AuthPasskeyRecordSchema::class, FactoryDefinition::construct(
+            AuthPasskeyRecordSchema::class,
+            [new ServiceReference(AuthTables::class)],
+        ));
         if ($oauthEnabled) {
             $builder->singleton(AuthOAuthRevisionSchema::class, FactoryDefinition::construct(
                 AuthOAuthRevisionSchema::class,
+                [new ServiceReference(AuthTables::class)],
+            ));
+        }
+        if ($personalAccessEnabled) {
+            $builder->singleton(AuthPersonalAccessTokenSchema::class, FactoryDefinition::construct(
+                AuthPersonalAccessTokenSchema::class,
                 [new ServiceReference(AuthTables::class)],
             ));
         }
@@ -74,9 +90,12 @@ final class DatabaseServiceProvider extends ServiceProvider
                 new ServiceReference(AuthSchema::class),
                 new ServiceReference(AuthMfaRevisionSchema::class),
                 new ServiceReference(AuthPasskeyRevisionSchema::class),
+                new ServiceReference(AuthPasskeyRecordSchema::class),
                 new ServiceReference(AuthTables::class),
                 $oauthEnabled ? new ServiceReference(AuthOAuthRevisionSchema::class) : null,
                 $oauthEnabled,
+                $personalAccessEnabled ? new ServiceReference(AuthPersonalAccessTokenSchema::class) : null,
+                $personalAccessEnabled,
             ],
         ));
 

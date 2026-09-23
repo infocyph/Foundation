@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Config;
 
-use Infocyph\ArrayKit\Config\Support\Environment;
 use Infocyph\Foundation\Auth\Driver\AuthCacheDriver;
 use Infocyph\Foundation\Auth\Driver\AuthMfaDriver;
 use Infocyph\Foundation\Auth\Driver\AuthNotificationDriver;
@@ -14,6 +13,8 @@ use Infocyph\Foundation\Auth\Driver\AuthStorageDriver;
 use Infocyph\Foundation\Auth\Driver\AuthTokenDriver;
 use Infocyph\Foundation\Auth\OAuth\Configuration\OAuthConfigValidator;
 use Infocyph\Foundation\Config\Internal\CacheTopologyValidator;
+use Infocyph\Foundation\Config\Internal\ConfiguredCapabilities;
+use Infocyph\Foundation\Config\Internal\TokenSecretConfigValidator;
 
 final readonly class ConfigValidator
 {
@@ -48,13 +49,30 @@ final readonly class ConfigValidator
         return is_string($first) && $first !== '' ? $first : null;
     }
 
+    /** @param array<string, mixed> $parts */
+    private function isExactWebAuthnOrigin(array $parts): bool
+    {
+        $scheme = $parts['scheme'] ?? null;
+        $host = $parts['host'] ?? null;
+        $path = $parts['path'] ?? '';
+
+        return is_string($scheme)
+            && is_string($host)
+            && in_array(strtolower($scheme), ['http', 'https'], true)
+            && !isset($parts['user'])
+            && !isset($parts['pass'])
+            && !isset($parts['query'])
+            && !isset($parts['fragment'])
+            && $path === '';
+    }
+
     private function isLocalWebAuthnHost(mixed $host): bool
     {
         if (!is_string($host) || $host === '') {
             return false;
         }
 
-        return in_array(strtolower($host), ['localhost', '127.0.0.1'], true);
+        return in_array(strtolower($host), ['localhost', '127.0.0.1', '::1'], true);
     }
 
     private function isNonNegativeInteger(mixed $value): bool
@@ -95,21 +113,30 @@ final readonly class ConfigValidator
         return $normalized;
     }
 
-    private function resolvedTokenSecret(): ?string
+    private function positiveIntegerValue(mixed $value): ?int
     {
-        $configured = $this->config->get('auth.token_secret');
-        if (is_string($configured) && $configured !== '') {
-            return $configured;
+        if (!is_int($value) && !is_string($value)) {
+            return null;
         }
 
-        $environment = Environment::get('AUTH_TOKEN_SECRET');
+        $validated = filter_var($value, FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1],
+        ]);
 
-        return is_string($environment) && $environment !== '' ? $environment : null;
+        return is_int($validated) ? $validated : null;
     }
 
     private function runChecks(bool $assumeProduction): ConfigValidationResult
     {
-        $issues = [];
+        $issues = [...new RuntimeConfigValidator($this->config)->validate()];
+        $capabilities = new ConfiguredCapabilities($this->config);
+
+        if ($capabilities->enabled('cache')) {
+            $issues = [...$issues, ...new CacheTopologyValidator($this->config)->validate()];
+        }
+        if (!$capabilities->enabled('auth')) {
+            return new ConfigValidationResult($issues);
+        }
 
         $this->validateDriver($issues, 'auth.drivers.cache', $this->stringConfig('auth.drivers.cache', 'array'), AuthCacheDriver::class);
         $this->validateDriver($issues, 'auth.drivers.mfa', $this->stringConfig('auth.drivers.mfa', 'simple'), AuthMfaDriver::class);
@@ -118,7 +145,6 @@ final readonly class ConfigValidator
         $this->validateDriver($issues, 'auth.drivers.passwords', $this->stringConfig('auth.drivers.passwords', 'native'), AuthPasswordDriver::class);
         $this->validateDriver($issues, 'auth.drivers.storage', $this->stringConfig('auth.drivers.storage', 'memory'), AuthStorageDriver::class);
         $this->validateDriver($issues, 'auth.drivers.tokens', $this->stringConfig('auth.drivers.tokens', 'simple'), AuthTokenDriver::class);
-        $issues = [...$issues, ...new RuntimeConfigValidator($this->config)->validate()];
         $issues = [...$issues, ...new OAuthConfigValidator($this->config)->validate($assumeProduction)];
 
         $storageDriver = $this->stringConfig('auth.drivers.storage', 'memory');
@@ -134,7 +160,7 @@ final readonly class ConfigValidator
         if ($tokenDriver === AuthTokenDriver::SECURITY->value) {
             $this->validateSecurityTokenPolicy($issues, $assumeProduction);
         } elseif ($assumeProduction) {
-            $this->validateTokenSecret($issues, 32);
+            array_push($issues, ...new TokenSecretConfigValidator($this->config)->validate(32));
         }
 
         if ($storageDriver === AuthStorageDriver::DATABASE->value) {
@@ -144,8 +170,6 @@ final readonly class ConfigValidator
         if ($cacheDriver === AuthCacheDriver::CACHE->value) {
             $this->validateCacheStore($issues);
         }
-
-        $issues = [...$issues, ...new CacheTopologyValidator($this->config)->validate()];
 
         if ($notificationDriver === AuthNotificationDriver::TALKINGBYTES->value) {
             $this->validateNotificationSender($issues, $assumeProduction);
@@ -163,49 +187,6 @@ final readonly class ConfigValidator
         $value = $this->config->get($key, $default);
 
         return is_string($value) ? $value : $default;
-    }
-
-    /**
-     * @param list<ConfigIssue> $issues
-     * @param list<string> $allowed
-     */
-    private function validateAllowedString(array &$issues, string $key, mixed $value, array $allowed): void
-    {
-        if (!is_string($value) || !in_array($value, $allowed, true)) {
-            $issues[] = new ConfigIssue(
-                sprintf('%s must be one of: %s.', $key, implode(', ', $allowed)),
-                $key,
-            );
-        }
-    }
-
-    /**
-     * @param list<ConfigIssue> $issues
-     * @param list<string> $allowed
-     */
-    private function validateAllowedStringList(array &$issues, string $key, mixed $value, array $allowed): void
-    {
-        if (!is_array($value) || $value === []) {
-            $issues[] = new ConfigIssue(
-                sprintf('%s must be a non-empty list of: %s.', $key, implode(', ', $allowed)),
-                $key,
-            );
-
-            return;
-        }
-
-        foreach ($value as $item) {
-            if (is_string($item) && in_array($item, $allowed, true)) {
-                continue;
-            }
-
-            $issues[] = new ConfigIssue(
-                sprintf('%s contains unsupported value. Allowed values: %s.', $key, implode(', ', $allowed)),
-                $key,
-            );
-
-            return;
-        }
     }
 
     /** @param list<ConfigIssue> $issues */
@@ -393,39 +374,9 @@ final readonly class ConfigValidator
         }
 
         if ($minimumBytes > 0) {
-            $this->validateTokenSecret($issues, $minimumBytes, $assumeProduction);
-        }
-    }
-
-    /** @param list<ConfigIssue> $issues */
-    private function validateTokenSecret(array &$issues, int $minimumBytes, bool $required = true): void
-    {
-        $secret = $this->resolvedTokenSecret();
-        if ($secret === null) {
-            if ($required) {
-                $issues[] = new ConfigIssue(
-                    'AUTH_TOKEN_SECRET or auth.token_secret must be configured for the selected production token policy.',
-                    'auth.token_secret',
-                );
-            }
-
-            return;
-        }
-
-        if (in_array($secret, [
-            'foundation-dev-secret',
-            'foundation-development-token-secret-change-me',
-            'foundation-development-token-secret-change-me-000000000000000000000000',
-        ], true)) {
-            $issues[] = new ConfigIssue('The authentication token secret must not use a development placeholder.', 'auth.token_secret');
-
-            return;
-        }
-
-        if (strlen($secret) < $minimumBytes) {
-            $issues[] = new ConfigIssue(
-                sprintf('Authentication token secret must be at least %d bytes for the selected token policy.', $minimumBytes),
-                'auth.token_secret',
+            array_push(
+                $issues,
+                ...new TokenSecretConfigValidator($this->config)->validate($minimumBytes, $assumeProduction),
             );
         }
     }
@@ -434,12 +385,8 @@ final readonly class ConfigValidator
     private function validateWebAuthn(array &$issues, bool $assumeProduction): void
     {
         $rpId = $this->config->get('auth.webauthn.rp_id');
-        $origin = $this->config->get('auth.webauthn.origin');
-        $attestation = $this->config->get('auth.webauthn.attestation', 'none');
-        $userVerification = $this->config->get('auth.webauthn.user_verification', 'preferred');
-        $residentKey = $this->config->get('auth.webauthn.resident_key', 'preferred');
-        $algorithms = $this->config->get('auth.webauthn.algorithms', ['ES256', 'RS256']);
-        $transports = $this->config->get('auth.webauthn.transports', ['internal', 'hybrid', 'usb', 'nfc', 'ble']);
+        $challengeTtl = $this->config->get('auth.webauthn.challenge_ttl', 300);
+        $allowSubdomains = $this->config->get('auth.webauthn.allow_subdomains', false);
 
         if (!is_string($rpId) || $rpId === '') {
             $issues[] = new ConfigIssue(
@@ -448,64 +395,68 @@ final readonly class ConfigValidator
             );
         }
 
-        if (!is_string($origin) || $origin === '') {
-            $issues[] = new ConfigIssue(
-                'auth.webauthn.origin must be configured when auth.drivers.passkey uses webauthn.',
-                'auth.webauthn.origin',
-            );
-
+        $origin = $this->webAuthnOrigin($issues, $this->config->get('auth.webauthn.origin'));
+        if ($origin === null) {
             return;
         }
 
-        $scheme = parse_url($origin, PHP_URL_SCHEME);
-        $host = parse_url($origin, PHP_URL_HOST);
-
-        if (!is_string($scheme) || !in_array(strtolower($scheme), ['http', 'https'], true)) {
-            $issues[] = new ConfigIssue(
-                'auth.webauthn.origin must be a valid http or https origin.',
-                'auth.webauthn.origin',
-            );
-
-            return;
-        }
-
-        if ($assumeProduction && strtolower($scheme) !== 'https' && !$this->isLocalWebAuthnHost($host)) {
+        if ($assumeProduction && $origin['scheme'] !== 'https' && !$this->isLocalWebAuthnHost($origin['host'])) {
             $issues[] = new ConfigIssue(
                 'auth.webauthn.origin must use https outside localhost/local development.',
                 'auth.webauthn.origin',
             );
         }
 
-        if (!is_string($attestation) || !in_array($attestation, ['none', 'direct', 'indirect', 'enterprise'], true)) {
+        $ttl = $this->positiveIntegerValue($challengeTtl);
+        if ($ttl === null || $ttl > 600) {
             $issues[] = new ConfigIssue(
-                'auth.webauthn.attestation must be one of: none, direct, indirect, enterprise.',
-                'auth.webauthn.attestation',
+                'auth.webauthn.challenge_ttl must be between 1 and 600 seconds.',
+                'auth.webauthn.challenge_ttl',
             );
         }
 
-        $this->validateAllowedString(
-            $issues,
-            'auth.webauthn.user_verification',
-            $userVerification,
-            ['required', 'preferred', 'discouraged'],
-        );
-        $this->validateAllowedString(
-            $issues,
-            'auth.webauthn.resident_key',
-            $residentKey,
-            ['required', 'preferred', 'discouraged'],
-        );
-        $this->validateAllowedStringList(
-            $issues,
-            'auth.webauthn.algorithms',
-            $algorithms,
-            ['ES256', 'RS256'],
-        );
-        $this->validateAllowedStringList(
-            $issues,
-            'auth.webauthn.transports',
-            $transports,
-            ['internal', 'hybrid', 'usb', 'nfc', 'ble'],
-        );
+        if (!is_bool($allowSubdomains)) {
+            $issues[] = new ConfigIssue(
+                'auth.webauthn.allow_subdomains must be a boolean.',
+                'auth.webauthn.allow_subdomains',
+            );
+        }
+    }
+
+    /**
+     * @param list<ConfigIssue> $issues
+     * @return array{scheme:string,host:string}|null
+     */
+    private function webAuthnOrigin(array &$issues, mixed $origin): ?array
+    {
+        if (!is_string($origin) || $origin === '') {
+            $issues[] = new ConfigIssue(
+                'auth.webauthn.origin must be configured when auth.drivers.passkey uses webauthn.',
+                'auth.webauthn.origin',
+            );
+
+            return null;
+        }
+
+        $parts = parse_url($origin);
+        if (!is_array($parts) || !$this->isExactWebAuthnOrigin($parts)) {
+            $issues[] = new ConfigIssue(
+                'auth.webauthn.origin must be an exact HTTP(S) origin without path, credentials, query, or fragment.',
+                'auth.webauthn.origin',
+            );
+
+            return null;
+        }
+
+        $scheme = $parts['scheme'] ?? null;
+        $host = $parts['host'] ?? null;
+        if (!is_string($scheme) || !is_string($host)) {
+            return null;
+        }
+
+        return [
+            'scheme' => strtolower($scheme),
+            'host' => $host,
+        ];
     }
 }
