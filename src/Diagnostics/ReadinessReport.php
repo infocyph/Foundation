@@ -112,8 +112,6 @@ final readonly class ReadinessReport
     /** @param array<string,array{package:string,constraint:string}> $required */
     private function authPackages(array &$required, ModuleCatalog $catalog, ConfigRepository $config): void
     {
-        if ($config->get('auth.drivers.cache', 'array') === 'cache') {
-        }
         if ($config->get('auth.drivers.storage', 'memory') === 'database') {
             $this->selectPackage($required, $catalog, 'database');
         }
@@ -194,10 +192,6 @@ final readonly class ReadinessReport
     /** @param array<string,array{package:string,constraint:string}> $required */
     private function databasePackages(array &$required, ModuleCatalog $catalog, ConfigRepository $config): void
     {
-        $migrationLock = $config->get('database.migrations.lock_store');
-        if (is_string($migrationLock) && trim($migrationLock) !== '') {
-        }
-
         $validationConnection = $config->get('validation.database_connection');
         if (is_string($validationConnection) && trim($validationConnection) !== '') {
             $this->selectPackage($required, $catalog, 'database');
@@ -241,15 +235,6 @@ final readonly class ReadinessReport
         }
     }
 
-    /** @param array<string,array{package:string,constraint:string}> $required */
-    private function operationsPackages(array &$required, ModuleCatalog $catalog, ConfigRepository $config): void
-    {
-        foreach (['maintenance', 'runtime_control'] as $surface) {
-            if ($config->get('operations.' . $surface . '.driver', 'file') === 'cache') {
-                }
-        }
-    }
-
     /** @return array<string,array{package:string,constraint:string}> */
     private function requiredPackages(): array
     {
@@ -267,7 +252,6 @@ final readonly class ReadinessReport
         if ($capabilities->enabled('database') || $capabilities->enabled('validation')) {
             $this->databasePackages($required, $catalog, $config);
         }
-        $this->operationsPackages($required, $catalog, $config);
         if ($capabilities->enabled('messaging') || $capabilities->enabled('validation')) {
             $this->applicationPackages($required, $catalog);
         }
@@ -315,12 +299,8 @@ final readonly class ReadinessReport
     /** @param array<string,array{package:string,constraint:string}> $required */
     private function sessionPackages(array &$required, ModuleCatalog $catalog, ConfigRepository $config): void
     {
-        $driver = $config->get('session.driver', 'file');
-        if ($driver === 'cache') {
-        } elseif ($driver === 'database') {
+        if ($config->get('session.driver', 'file') === 'database') {
             $this->selectPackage($required, $catalog, 'database');
-        }
-        if ($config->get('session.lock.enabled', false) === true) {
         }
     }
 
