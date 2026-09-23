@@ -208,6 +208,27 @@ it('runs module install and direct-package removal dry-runs and refuses built-in
     }
 });
 
+it('refuses module removal when direct Composer ownership is unknown', function (): void {
+    $basePath = moduleLifecycleBasePath('unknown-remove');
+    [$restoreEnvironment, $commandLog] = moduleLifecycleComposerStub($basePath);
+
+    try {
+        $dispatcher = moduleLifecycleDispatcher($basePath);
+        $io = new FoundationModuleLifecycleIO();
+
+        expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:remove', 'db', '--dry-run'], $io))
+            ->toBe(ExitCode::FAILURE)
+            ->and($io->errors)->toContain(
+                'Unable to determine direct Composer ownership: Application composer.json is missing or unreadable.',
+            )
+            ->and(is_file($commandLog))->toBeFalse();
+    } finally {
+        $restoreEnvironment();
+        DB::purge();
+        moduleLifecycleRemoveDirectory($basePath);
+    }
+});
+
 it('publishes module config through the command boundary and preserves duplicate application-owned config', function (): void {
     $basePath = moduleLifecycleBasePath('publish');
 
