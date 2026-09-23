@@ -389,11 +389,16 @@ final class ModuleSystemCommand extends SystemCommand
         if (!$schemaReady) {
             $blockers[] = 'One or more applicable module schemas are not ready.';
         }
+        $ready = $module['ready'] && $schemaReady;
+        $status = !$schemaReady && $module['enabled']
+            ? 'blocked'
+            : ($ready && !$module['built_in'] ? 'ready' : $module['status']);
         $data = [
             ...$module,
             'requested' => $requested,
+            'status' => $status,
             'schema_ready' => $schemaReady,
-            'ready' => $module['ready'] && $schemaReady,
+            'ready' => $ready,
             'blockers' => array_values(array_unique($blockers)),
             'config' => $config,
             'schema_status' => $schemas,
@@ -409,7 +414,7 @@ final class ModuleSystemCommand extends SystemCommand
             ['Module', 'Status', 'Built-in', 'Direct', 'Enabled', 'Configured', 'Published', 'Ready', 'Purpose'],
             [[
                 $module['name'],
-                $module['status'],
+                $data['status'],
                 $module['built_in'],
                 $module['direct'],
                 $module['enabled'],
