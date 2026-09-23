@@ -33,52 +33,39 @@ final readonly class ModulePlatformResolver
         $required = $this->extensionStates($this->requiredExtensions($module, $definition));
         $optional = $this->extensionStates($definition['platform']['optional_extensions']);
         $packages = $this->packageStates($definition['platform']['packages']);
-        $blockers = [];
-
-        if ($enabled) {
-            foreach ($required as $extension => $available) {
-                if (!$available) {
-                    $blockers[] = sprintf('Required PHP extension ext-%s is not available.', $extension);
-                }
-            }
-            foreach ($packages as $package => $available) {
-                if (!$available) {
-                    $blockers[] = sprintf('Required platform package %s is not available.', $package);
-                }
-            }
-        }
-
-        $featureReady = [];
-        foreach ($features as $name => $state) {
-            $featureRequired = $this->extensionStates($state['platform']['extensions']);
-            $featurePackages = $this->packageStates($state['platform']['packages']);
-            $ready = !in_array(false, $featureRequired, true)
-                && !in_array(false, $featurePackages, true);
-            $featureReady[$name] = $ready;
-
-            if (!$enabled || !$state['selected'] || $ready) {
-                continue;
-            }
-            foreach ($featureRequired as $extension => $available) {
-                if (!$available) {
-                    $blockers[] = sprintf('Feature %s requires PHP extension ext-%s.', $name, $extension);
-                }
-            }
-            foreach ($featurePackages as $package => $available) {
-                if (!$available) {
-                    $blockers[] = sprintf('Feature %s requires platform package %s.', $name, $package);
-                }
-            }
-        }
+        $blockers = $enabled
+            ? [
+                ...$this->extensionBlockers($required, 'Required PHP extension ext-%s is not available.'),
+                ...$this->packageBlockers($packages, 'Required platform package %s is not available.'),
+            ]
+            : [];
+        $feature = $this->featureReadiness($features, $enabled);
+        $blockers = array_values(array_unique([...$blockers, ...$feature['blockers']]));
 
         return [
             'ready' => $blockers === [],
             'required_extensions' => $required,
             'optional_extensions' => $optional,
             'packages' => $packages,
-            'blockers' => array_values(array_unique($blockers)),
-            'feature_ready' => $featureReady,
+            'blockers' => $blockers,
+            'feature_ready' => $feature['ready'],
         ];
+    }
+
+    /**
+     * @param array<string,bool> $extensions
+     * @return list<string>
+     */
+    private function extensionBlockers(array $extensions, string $message): array
+    {
+        $blockers = [];
+        foreach ($extensions as $extension => $available) {
+            if (!$available) {
+                $blockers[] = sprintf($message, $extension);
+            }
+        }
+
+        return $blockers;
     }
 
     /**
@@ -97,6 +84,33 @@ final readonly class ModulePlatformResolver
     }
 
     /**
+     * @phpstan-param array<string,FeatureState> $features
+     * @return array{ready:array<string,bool>,blockers:list<string>}
+     */
+    private function featureReadiness(array $features, bool $enabled): array
+    {
+        $ready = [];
+        $blockers = [];
+
+        foreach ($features as $name => $state) {
+            $extensions = $this->extensionStates($state['platform']['extensions']);
+            $packages = $this->packageStates($state['platform']['packages']);
+            $ready[$name] = !in_array(false, $extensions, true)
+                && !in_array(false, $packages, true);
+
+            if ($enabled && $state['selected'] && !$ready[$name]) {
+                array_push(
+                    $blockers,
+                    ...$this->extensionBlockers($extensions, 'Feature ' . $name . ' requires PHP extension ext-%s.'),
+                    ...$this->packageBlockers($packages, 'Feature ' . $name . ' requires platform package %s.'),
+                );
+            }
+        }
+
+        return ['ready' => $ready, 'blockers' => $blockers];
+    }
+
+    /**
      * @param list<string> $packages
      * @return array<string,bool>
      */
@@ -109,6 +123,22 @@ final readonly class ModulePlatformResolver
         ksort($states);
 
         return $states;
+    }
+
+    /**
+     * @param array<string,bool> $packages
+     * @return list<string>
+     */
+    private function packageBlockers(array $packages, string $message): array
+    {
+        $blockers = [];
+        foreach ($packages as $package => $available) {
+            if (!$available) {
+                $blockers[] = sprintf($message, $package);
+            }
+        }
+
+        return $blockers;
     }
 
     /**
