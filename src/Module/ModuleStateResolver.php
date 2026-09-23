@@ -7,12 +7,15 @@ namespace Infocyph\Foundation\Module;
 use Composer\InstalledVersions;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Config\Internal\ConfiguredCapabilities;
+use Infocyph\Foundation\Module\Internal\ModuleDependencyResolver;
 use Infocyph\Foundation\Module\Internal\ModulePackageStateResolver;
 
 /**
  * @phpstan-import-type ModuleDefinition from ModuleCatalog
  * @phpstan-import-type ModuleDependency from ModuleCatalog
  * @phpstan-import-type ModuleFeature from ModuleCatalog
+ * @phpstan-import-type DependencyResolution from ModuleDependencyResolver
+ * @phpstan-import-type DependencyState from ModuleDependencyResolver
  * @phpstan-import-type PlatformRequirement from ModuleCatalog
  * @phpstan-type OptionalPackageState array{
  *     available:bool,
@@ -27,6 +30,7 @@ use Infocyph\Foundation\Module\Internal\ModulePackageStateResolver;
  *     available:bool,
  *     direct:bool,
  *     ready:bool,
+ *     dependencies_satisfied:bool,
  *     packages:array<string,PackageState>,
  *     blockers:list<string>,
  *     dependencies:list<ModuleDependency>,
@@ -78,6 +82,7 @@ use Infocyph\Foundation\Module\Internal\ModulePackageStateResolver;
  *     packages:array<string,PackageState>,
  *     optional_integrations:array<string,OptionalPackageState>,
  *     features:array<string,FeatureState>,
+ *     dependencies:array{active:list<DependencyState>,inactive:list<DependencyState>},
  *     dependency_declarations:list<ModuleDependency>,
  *     platform:PlatformRequirement,
  *     blockers:list<string>,
@@ -113,13 +118,25 @@ final readonly class ModuleStateResolver
     {
         $ownership = $this->rootRequirements();
         $capabilities = new ConfiguredCapabilities($this->application->config());
+        $definitions = $this->catalog->all();
         $modules = [];
 
-        foreach ($this->catalog->all() as $name => $definition) {
-            $modules[] = $this->state($name, $definition, $ownership, $capabilities);
+        foreach ($definitions as $name => $definition) {
+            $modules[$name] = $this->state($name, $definition, $ownership, $capabilities);
         }
 
-        return $modules;
+        $dependencies = new ModuleDependencyResolver($this->application);
+        foreach ($modules as $name => $module) {
+            $resolution = $dependencies->resolve(
+                $definitions[$name],
+                $module['features'],
+                $modules,
+                $capabilities,
+            );
+            $modules[$name] = $this->withDependencies($module, $resolution);
+        }
+
+        return array_values($modules);
     }
 
     /** @return array{known:bool,requirements:array<string,string>,error:?string} */
@@ -240,6 +257,7 @@ final readonly class ModuleStateResolver
                 'available' => $packages['all_available'],
                 'direct' => $packages['all_direct'],
                 'ready' => $selected && $installed && $blockers === [],
+                'dependencies_satisfied' => true,
                 'packages' => $packages['packages'],
                 'blockers' => $blockers,
                 'dependencies' => $feature['dependencies'],
@@ -335,6 +353,55 @@ final readonly class ModuleStateResolver
         }
 
         return $integrations;
+    }
+
+    /**
+     * @phpstan-param ModuleState $module
+     * @phpstan-param DependencyResolution $resolution
+     * @phpstan-return ModuleState
+     */
+    private function withDependencies(array $module, array $resolution): array
+    {
+        $features = $module['features'];
+        foreach ($features as $name => $feature) {
+            $satisfied = $resolution['feature_satisfied'][$name] ?? true;
+            $feature['dependencies_satisfied'] = $satisfied;
+            if ($feature['selected'] && !$satisfied) {
+                $feature['ready'] = false;
+            }
+            $features[$name] = $feature;
+        }
+
+        $blockers = array_values(array_unique([
+            ...$module['blockers'],
+            ...$resolution['blockers'],
+        ]));
+        $ready = $this->ready(
+            $module['built_in'],
+            $module['core_backed'],
+            $module['installed'],
+            $module['enabled'],
+            $module['configured'],
+            $blockers,
+        );
+
+        $module['features'] = $features;
+        $module['dependencies'] = [
+            'active' => $resolution['active'],
+            'inactive' => $resolution['inactive'],
+        ];
+        $module['dependencies_satisfied'] = $resolution['satisfied'];
+        $module['blockers'] = $blockers;
+        $module['ready'] = $ready;
+        $module['status'] = $this->status(
+            $module['built_in'],
+            $module['installed'],
+            $module['enabled'],
+            $ready,
+            $blockers,
+        );
+
+        return $module;
     }
 
     /** @param array{key:string,operator:'equals'|'not-empty',value?:bool|int|string|null} $predicate */
@@ -438,6 +505,7 @@ final readonly class ModuleStateResolver
             'packages' => $packages['packages'],
             'optional_integrations' => $this->optionalIntegrations($definition),
             'features' => $features,
+            'dependencies' => ['active' => [], 'inactive' => []],
             'dependency_declarations' => $definition['dependencies'],
             'platform' => $definition['platform'],
             'blockers' => $blockers,
