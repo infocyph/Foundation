@@ -602,7 +602,7 @@ final class ModuleCatalog
     {
         $normalized = strtolower(trim($module));
 
-        foreach (self::MODULES as $name => $definition) {
+        foreach ($this->all() as $name => $definition) {
             $inferred = $this->requestFeature($normalized, $definition, $features);
             $moduleMatch = $normalized === $name || in_array($normalized, $definition['aliases'], true);
             $packageMatch = isset($this->requiredPackages($definition)[$normalized]);
@@ -631,7 +631,7 @@ final class ModuleCatalog
 
     public function validate(): void
     {
-        new ModuleCatalogValidator()->validate(self::MODULES);
+        new ModuleCatalogValidator()->validate($this->all());
     }
 
     /**
@@ -673,9 +673,6 @@ final class ModuleCatalog
     /**
      * @param array<string,mixed> $definition
      * @phpstan-param ModuleDefinition $definition
-     * @return string|false|null
-     */
-    /**
      * @param list<string> $requestedFeatures
      */
     private function requestFeature(string $requested, array $definition, array $requestedFeatures): string|false|null
