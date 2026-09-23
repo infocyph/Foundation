@@ -7,6 +7,7 @@ namespace Infocyph\Foundation\Module;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Config\ConfigCacheManager;
 
+/** @phpstan-import-type ModuleDefinition from ModuleCatalog */
 final readonly class ModuleActivationManager
 {
     public function __construct(
