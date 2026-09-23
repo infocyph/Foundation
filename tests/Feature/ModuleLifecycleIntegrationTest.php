@@ -6,6 +6,7 @@ use Infocyph\DBLayer\DB;
 use Infocyph\Foundation\Command\CommandDispatcher;
 use Infocyph\Foundation\Command\CommandIO;
 use Infocyph\Foundation\Command\ExitCode;
+use Infocyph\Foundation\Module\ModuleCatalog;
 
 final class FoundationModuleLifecycleIO implements CommandIO
 {
@@ -137,6 +138,24 @@ it('exposes canonical module list and alias-aware module details through the com
         DB::purge();
         moduleLifecycleRemoveDirectory($basePath);
     }
+});
+
+it('keeps CacheLayer core-owned and outside the module catalog', function (): void {
+    $composer = json_decode(
+        file_get_contents(dirname(__DIR__, 2) . '/composer.json') ?: '',
+        true,
+        flags: JSON_THROW_ON_ERROR,
+    );
+    $catalog = new ModuleCatalog();
+
+    expect($composer['require']['infocyph/cachelayer'] ?? null)->toBe('^3.4')
+        ->and($composer['require-dev'] ?? [])->not->toHaveKey('infocyph/cachelayer')
+        ->and($composer['suggest'] ?? [])->not->toHaveKey('infocyph/cachelayer')
+        ->and(array_keys($catalog->all()))->not->toContain('cache')
+        ->and(fn() => $catalog->resolve('cache'))
+        ->toThrow(InvalidArgumentException::class, 'Unknown module "cache".')
+        ->and(fn() => $catalog->resolve('cachelayer'))
+        ->toThrow(InvalidArgumentException::class, 'Unknown module "cachelayer".');
 });
 
 it('runs module install and direct-package removal dry-runs and refuses built-in removal', function (): void {
