@@ -203,18 +203,14 @@ it('persists explicit module activation without rewriting application capability
     moduleLifecycleWriteComposer($basePath, ['infocyph/dblayer' => '^5.1']);
 
     try {
-        $enableDispatcher = moduleLifecycleDispatcher($basePath, [
-            'app' => ['capabilities' => []],
-        ]);
+        $enableDispatcher = moduleLifecycleDispatcher($basePath);
         $enable = new FoundationModuleLifecycleIO();
 
         expect(moduleLifecycleRun($enableDispatcher, ['infbyte', 'module:enable', 'database'], $enable))
             ->toBe(ExitCode::SUCCESS)
             ->and($basePath . '/config/modules.php')->toBeFile();
 
-        $enabledDispatcher = moduleLifecycleDispatcher($basePath, [
-            'app' => ['capabilities' => []],
-        ]);
+        $enabledDispatcher = moduleLifecycleDispatcher($basePath);
         $showEnabled = new FoundationModuleLifecycleIO();
         expect(moduleLifecycleRun($enabledDispatcher, ['infbyte', 'module:show', 'database'], $showEnabled))
             ->toBe(ExitCode::SUCCESS);
@@ -224,13 +220,21 @@ it('persists explicit module activation without rewriting application capability
             ->and($enabled['enabled'] ?? false)->toBeTrue()
             ->and($enabled['activation_explicit'] ?? false)->toBeTrue();
 
+        $showCommunication = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun(
+            $enabledDispatcher,
+            ['infbyte', 'module:show', 'communication'],
+            $showCommunication,
+        ))->toBe(ExitCode::SUCCESS);
+        $communication = $showCommunication->lastPayload();
+        expect($communication)->toBeArray()
+            ->and($communication['activation_explicit'] ?? true)->toBeFalse();
+
         $disable = new FoundationModuleLifecycleIO();
         expect(moduleLifecycleRun($enabledDispatcher, ['infbyte', 'module:disable', 'database'], $disable))
             ->toBe(ExitCode::SUCCESS);
 
-        $disabledDispatcher = moduleLifecycleDispatcher($basePath, [
-            'app' => ['capabilities' => []],
-        ]);
+        $disabledDispatcher = moduleLifecycleDispatcher($basePath);
         $showDisabled = new FoundationModuleLifecycleIO();
         expect(moduleLifecycleRun($disabledDispatcher, ['infbyte', 'module:show', 'database'], $showDisabled))
             ->toBe(ExitCode::SUCCESS);
