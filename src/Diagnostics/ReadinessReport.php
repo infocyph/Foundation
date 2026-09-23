@@ -17,8 +17,7 @@ use Infocyph\Foundation\Module\ModuleSchemaManager;
 
 final readonly class ReadinessReport
 {
-    public function __construct(private Application $application)
-    {}
+    public function __construct(private Application $application) {}
 
     /** @return array{ready:bool,checks:array<string,array{ready:bool,detail:string}>} */
     public function generate(): array
