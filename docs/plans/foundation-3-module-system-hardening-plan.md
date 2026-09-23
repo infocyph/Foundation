@@ -61,7 +61,7 @@ status JSON, install/remove planning, or module schema ownership.
 
 # 0. Batch 0 — Cache/Core Boundary Closure
 
-**Status:** PARTIAL
+**Status:** DONE
 
 The structural CacheLayer promotion is already on the branch, but Batch 0 remains open until
 the dedicated cache lifecycle is regression-safe and the closure checks are verified.
@@ -73,22 +73,32 @@ the dedicated cache lifecycle is regression-safe and the closure checks are veri
 - [x] Add `cache:schema:status` and `cache:schema:install`.
 - [x] Remove optional-package guards/messages that tell applications to install a cache module.
 - [x] Keep runtime cache activation controlled by the `cache` capability.
-- [ ] Fix the current `CacheSchemaManager::resourceStatus()` PDO-ready regression: it passes an
-  undefined `$module` and calls `result()` with the wrong argument shape.
-- [ ] Add database-backed cache schema regression coverage for both status and install paths.
-- [ ] Verify explicit-vs-inferred cache activation wording across CLI/readiness/docs.
-- [ ] Verify the intended InfByte application skeleton/default source actually ships
-  `config/cache.php`; Foundation's config template alone is not sufficient closure evidence.
-- [ ] Verify module tests explicitly prove `cache` is neither counted nor resolvable as a module.
-- [ ] Verify the guard proving CacheLayer cannot drift back into specialist module ownership.
+- [x] Fix the `CacheSchemaManager::resourceStatus()` PDO-ready regression.
+- [x] Add database-backed cache schema regression coverage for both manager and public CLI
+  status/install paths.
+- [x] Pin explicit-vs-inferred cache activation semantics with regression coverage: omitted
+  topology is inferred compatibility mode; explicit omission keeps cache cold.
+- [x] Verify Foundation ships `resources/config/cache.php` as the canonical cache application
+  template. Current InfByte `main` / Foundation-3 handoff synchronization is intentionally
+  deferred to Batch 10/post-Foundation consumer handoff, matching the release sequence.
+- [x] Add module-boundary tests proving `cache` / `cachelayer` are not catalog entries or
+  resolvable module aliases.
+- [x] Add a guard proving CacheLayer remains in Foundation `require`, absent from
+  `require-dev`/`suggest`, and outside specialist module ownership.
 - [x] Update Foundation docs to describe CacheLayer as core infrastructure rather than a module.
-- [ ] Run a final grep/review proving no stale "cache module" lifecycle semantics remain.
+- [x] Review the previously affected runtime/config/docs/module surfaces and confirm no stale
+  `module:install cache`, cache-module schema ownership or equivalent lifecycle semantics remain
+  on this branch.
 
 ## Acceptance
 
 `cache` is absent from the module subsystem, CacheLayer remains available to Foundation core,
 cache schemas are managed only through the core cache lifecycle, and explicit topology can keep
 the cache capability cold until selected.
+
+**Batch 0 status:** DONE. InfByte repository synchronization of the default `config/cache.php`
+file is a consumer handoff item for Batch 10 and does not reopen Foundation's cache/module
+boundary.
 
 ## Progress Tracker
 
@@ -100,7 +110,7 @@ Status legend:
 
 | Batch | Scope | Status | Current checkpoint |
 | --- | --- | --- | --- |
-| **0** | Cache/core boundary closure | **PARTIAL** | Core promotion/module removal landed; cache schema regression and closure verification remain. |
+| **0** | Cache/core boundary closure | **DONE** | Cache core ownership, schema CLI lifecycle, activation semantics and module exclusion are regression-covered. |
 | **1** | Specialist module state foundation | **PARTIAL** | Root `composer.json` direct-require detection exists, but transitive packages can still appear as installed modules and readiness dimensions are incomplete. |
 | **2** | Catalog model | **NOT STARTED** | Package roles, feature declarations, conditional dependencies, platform requirements and graph validation. |
 | **3** | Auth decomposition | **NOT STARTED** | Core-backed auth namespace with selective OTP/passkey feature installation. |
@@ -1173,6 +1183,8 @@ than accidental key drift.
 
 ## Batch 10 — Documentation and release acceptance
 
+- synchronize InfByte consumer defaults, including default `config/cache.php`, after Foundation
+  release/handoff;
 - module docs;
 - migration notes;
 - CLI JSON contract;
