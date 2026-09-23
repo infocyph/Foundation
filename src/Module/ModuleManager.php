@@ -125,44 +125,40 @@ final readonly class ModuleManager
      */
     private function assertRemovalSafe(string $module, array $features, array $state, array $states): void
     {
+        $blockers = [];
+
         if ($features === [] && $state['enabled']) {
-            throw new \RuntimeException(sprintf(
-                'Module "%s" is enabled; disable it before removing packages.',
-                $module,
-            ));
+            $blockers[] = sprintf('Module "%s" is enabled; disable it before removing packages.', $module);
         }
 
         foreach ($features as $feature) {
             if ($state['enabled'] && ($state['features'][$feature]['selected'] ?? false)) {
-                throw new \RuntimeException(sprintf(
+                $blockers[] = sprintf(
                     'Feature "%s" is selected on enabled module "%s"; change configuration before removal.',
                     $feature,
                     $module,
-                ));
+                );
             }
         }
 
-        if ($features !== []) {
-            return;
-        }
-
-        $dependents = [];
-        foreach ($states as $candidate) {
-            if (!$candidate['enabled'] || $candidate['name'] === $module) {
-                continue;
-            }
-            foreach ($candidate['dependencies']['active'] as $dependency) {
-                if ($dependency['type'] === 'module' && $dependency['target'] === $module) {
-                    $dependents[] = sprintf('%s: %s', $candidate['name'], $dependency['reason']);
+        if ($features === []) {
+            foreach ($states as $candidate) {
+                if (!$candidate['enabled'] || $candidate['name'] === $module) {
+                    continue;
+                }
+                foreach ($candidate['dependencies']['active'] as $dependency) {
+                    if ($dependency['type'] === 'module' && $dependency['target'] === $module) {
+                        $blockers[] = sprintf('%s: %s', $candidate['name'], $dependency['reason']);
+                    }
                 }
             }
         }
 
-        if ($dependents !== []) {
+        if ($blockers !== []) {
             throw new \RuntimeException(sprintf(
-                'Module "%s" is required by active dependents: %s',
+                'Module "%s" cannot be removed: %s',
                 $module,
-                implode('; ', array_values(array_unique($dependents))),
+                implode('; ', array_values(array_unique($blockers))),
             ));
         }
     }
