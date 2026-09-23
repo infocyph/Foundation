@@ -28,7 +28,8 @@ final class CommandExecutionCoordinator
         private readonly Application $application,
         private readonly ProcessRunner $processes = new ProcessRunner(),
         private readonly ?string $executable = null,
-    ) {}
+    )
+    {}
 
     /**
      * @param list<string> $argv
