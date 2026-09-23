@@ -104,7 +104,8 @@ final readonly class ModuleStateResolver
         private Application $application,
         private ModuleCatalog $catalog,
         private ModulePackageStateResolver $packageStates = new ModulePackageStateResolver(),
-    ) {}
+    )
+    {}
 
     /**
      * @phpstan-return list<ModuleState>
