@@ -11,6 +11,7 @@ use Infocyph\Foundation\Process\ProcessOptions;
 use Infocyph\Foundation\Process\ProcessResult;
 use Infocyph\Foundation\Process\ProcessRunner;
 
+/** @phpstan-import-type ModuleState from ModuleStateResolver */
 final readonly class ModuleManager
 {
     public function __construct(
@@ -19,7 +20,7 @@ final readonly class ModuleManager
         private ProcessRunner $processes,
     ) {}
 
-    /** @return list<array<string,mixed>> */
+    /** @return list<ModuleState> */
     public function all(): array
     {
         return (new ModuleStateResolver($this->application, $this->catalog))->all();
