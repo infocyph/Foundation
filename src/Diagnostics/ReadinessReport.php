@@ -47,7 +47,8 @@ final readonly class ReadinessReport
     /**
      * @param array<string,array{ready:bool,detail:string}> $checks
      */
-    private function appendSchemaChecks(array &$checks, ConfiguredCapabilities $capabilities): void {
+    private function appendSchemaChecks(array &$checks, ConfiguredCapabilities $capabilities): void
+    {
         $schemas = new ModuleSchemaManager($this->application, new ModuleCatalog());
 
         foreach (['auth', 'cache', 'session'] as $module) {
@@ -110,7 +111,8 @@ final readonly class ReadinessReport
     }
 
     /** @return array<string,array{ready:bool,detail:string}> */
-    private function baseChecks(): array {
+    private function baseChecks(): array
+    {
         return [
             'php' => [
                 'ready' => version_compare(PHP_VERSION, '8.4.0', '>='),
@@ -132,7 +134,8 @@ final readonly class ReadinessReport
     }
 
     /** @return array{ready:bool,detail:string} */
-    private function configurationReadiness(): array {
+    private function configurationReadiness(): array
+    {
         $config = $this->application->config();
         $messages = [
             ...new ConfigValidator($config)->validateForProduction()->messages(),
