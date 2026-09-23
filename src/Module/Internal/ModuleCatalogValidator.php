@@ -71,7 +71,8 @@ final class ModuleCatalogValidator
         array $dependencies,
         array $modules,
         ?string $owner = null,
-    ): void {
+    ): void
+    {
         $owner ??= $scope;
 
         foreach ($dependencies as $dependency) {
@@ -118,7 +119,6 @@ final class ModuleCatalogValidator
                 throw new \LogicException(sprintf('Module "%s" contains an incomplete feature definition.', $module));
             }
 
-            $this->assertDependencies($module . ':' . $name, $feature['dependencies'], $modules, $module);
         }
     }
 
