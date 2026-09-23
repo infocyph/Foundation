@@ -156,6 +156,9 @@ it('keeps development dependencies out of module composer operations', function 
             'infocyph/dblayer' => '^5.0',
             'infocyph/omnibus' => '^2.5',
         ],
+        'require-dev' => [
+            'pestphp/pest' => '^5.0',
+        ],
     ], JSON_THROW_ON_ERROR));
     file_put_contents($composerPath, <<<'PHP'
 #!/usr/bin/env php
