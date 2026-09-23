@@ -85,6 +85,35 @@ final readonly class ModuleDependencyResolver
         ];
     }
 
+    /** @phpstan-param ModuleDependency $dependency */
+    private function active(array $dependency): bool
+    {
+        if (!isset($dependency['when'])) {
+            return true;
+        }
+
+        $predicate = $dependency['when'];
+        $value = $this->application->config()->get($predicate['key']);
+
+        if ($predicate['operator'] === 'equals') {
+            return $value === ($predicate['value'] ?? null);
+        }
+        if (is_string($value)) {
+            return trim($value) !== '';
+        }
+        if (is_array($value)) {
+            return $value !== [];
+        }
+
+        return $value !== null && $value !== false;
+    }
+
+    /**
+     * @phpstan-param ModuleDependency $dependency
+     * @param array<string,ModuleState> $modules
+     * @phpstan-return DependencyState
+     */
+
     /**
      * @phpstan-param ModuleDependency $dependency
      * @param array<string,ModuleState> $modules
@@ -118,34 +147,6 @@ final readonly class ModuleDependencyResolver
         }
     }
 
-    /** @phpstan-param ModuleDependency $dependency */
-    private function active(array $dependency): bool
-    {
-        if (!isset($dependency['when'])) {
-            return true;
-        }
-
-        $predicate = $dependency['when'];
-        $value = $this->application->config()->get($predicate['key']);
-
-        if ($predicate['operator'] === 'equals') {
-            return $value === ($predicate['value'] ?? null);
-        }
-        if (is_string($value)) {
-            return trim($value) !== '';
-        }
-        if (is_array($value)) {
-            return $value !== [];
-        }
-
-        return $value !== null && $value !== false;
-    }
-
-    /**
-     * @phpstan-param ModuleDependency $dependency
-     * @param array<string,ModuleState> $modules
-     * @phpstan-return DependencyState
-     */
     private function resolveOne(
         array $dependency,
         array $modules,
