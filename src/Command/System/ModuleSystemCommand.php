@@ -6,12 +6,11 @@ namespace Infocyph\Foundation\Command\System;
 
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Command\ExitCode;
+use Infocyph\Foundation\Module\FreshModuleSchemaRunner;
 use Infocyph\Foundation\Module\ModuleActivationManager;
 use Infocyph\Foundation\Module\ModuleCatalog;
 use Infocyph\Foundation\Module\ModuleManager;
 use Infocyph\Foundation\Module\ModuleSchemaManager;
-use Infocyph\Foundation\Process\ProcessOptions;
-use Infocyph\Foundation\Process\ProcessRunner;
 use Infocyph\Foundation\Release\FoundationReleaseBootstrap;
 use Infocyph\Foundation\Release\FoundationReleaseCompiler;
 
@@ -71,7 +70,7 @@ final class ModuleSystemCommand extends SystemCommand
 
         if (!$dryRun) {
             $this->invalidateCompiledRuntime();
-            [$schemaExit, $schemas] = $this->syncSchemasFresh($module, true);
+            [$schemaExit, $schemas] = $this->freshSchemas($module, true);
         }
 
         if ($this->io()->machineReadable()) {
@@ -165,6 +164,24 @@ final class ModuleSystemCommand extends SystemCommand
         $this->io()->success(sprintf('Module "%s" enabled.', $module));
 
         return ExitCode::SUCCESS;
+    }
+
+    /**
+     * @return array{int,list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}>}
+     */
+    private function freshSchemas(?string $module = null, bool $applicableOnly = false): array
+    {
+        $result = new FreshModuleSchemaRunner($this->application, $this->catalog())->run(
+            $module,
+            $this->option('connection'),
+            $this->option('env'),
+            $applicableOnly,
+        );
+        if ($result['error'] !== null) {
+            $this->io()->error($result['error']);
+        }
+
+        return [$result['exit_code'], $result['schemas']];
     }
 
     private function install(): int
@@ -304,7 +321,7 @@ final class ModuleSystemCommand extends SystemCommand
         );
     }
 
-    /** @param array<string,PackageState> $packages */
+    /** @param array<string,PackageState|string> $packages */
     private function packageSummary(array $packages): string
     {
         if ($packages === []) {
@@ -313,7 +330,7 @@ final class ModuleSystemCommand extends SystemCommand
 
         $summary = [];
         foreach ($packages as $package => $state) {
-            $summary[] = $package . ' ' . ($state['version'] ?? $state['constraint']);
+            $summary[] = $package . ' ' . (is_string($state) ? $state : ($state['version'] ?? $state['constraint']));
         }
 
         return implode(', ', $summary);
@@ -381,20 +398,6 @@ final class ModuleSystemCommand extends SystemCommand
         }
 
         return ExitCode::SUCCESS;
-    }
-
-    private function projectLauncher(): string
-    {
-        foreach ([
-            $this->application->basePath('infbyte'),
-            $this->application->basePath('vendor/bin/infbyte'),
-        ] as $launcher) {
-            if (is_file($launcher)) {
-                return $launcher;
-            }
-        }
-
-        throw new \RuntimeException('Unable to locate an Infbyte/Foundation CLI launcher for schema synchronization.');
     }
 
     private function publishConfig(): int
@@ -478,7 +481,7 @@ final class ModuleSystemCommand extends SystemCommand
 
         $published = $this->manager()->publishConfig($module);
         $this->invalidateCompiledRuntime();
-        [$schemaExit, $schemas] = $this->syncSchemasFresh($module, true);
+        [$schemaExit, $schemas] = $this->freshSchemas($module, true);
 
         $payload = [
             'module' => $module,
@@ -715,51 +718,6 @@ final class ModuleSystemCommand extends SystemCommand
         return $failed ? ExitCode::FAILURE : ExitCode::SUCCESS;
     }
 
-    /** @return array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}|null */
-    private function schemaRow(mixed $value): ?array
-    {
-        if (!is_array($value)) {
-            return null;
-        }
-
-        $name = $value['name'] ?? null;
-        $module = $value['module'] ?? null;
-        $applicable = $value['applicable'] ?? null;
-        $installed = $value['installed'] ?? null;
-        $state = $value['state'] ?? null;
-        $detail = $value['detail'] ?? null;
-
-        if (!is_string($name)
-            || !is_string($module)
-            || !is_bool($applicable)
-            || !is_bool($installed)
-            || !is_string($state)
-            || !is_string($detail)
-        ) {
-            return null;
-        }
-
-        return compact('name', 'module', 'applicable', 'installed', 'state', 'detail');
-    }
-
-    /** @return list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}> */
-    private function schemaRows(mixed $value): array
-    {
-        if (!is_array($value)) {
-            return [];
-        }
-
-        $schemas = [];
-        foreach ($value as $candidate) {
-            $schema = $this->schemaRow($candidate);
-            if ($schema !== null) {
-                $schemas[] = $schema;
-            }
-        }
-
-        return $schemas;
-    }
-
     private function schemas(): ModuleSchemaManager
     {
         return new ModuleSchemaManager($this->application, $this->catalog());
@@ -848,51 +806,5 @@ final class ModuleSystemCommand extends SystemCommand
         return $module['status'];
     }
 
-    /**
-     * Run configured schema provisioning in a new PHP process so Composer
-     * package changes from this install are visible to the autoloader.
-     *
-     * @return array{int,list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}>}
-     */
-    private function syncSchemasFresh(?string $module = null, bool $applicableOnly = false): array
-    {
-        if ($module !== null && $this->catalog()->resolve($module)['schemas'] === []) {
-            return [ExitCode::SUCCESS, []];
-        }
-        $command = [
-            PHP_BINARY,
-            $this->projectLauncher(),
-            $module === null ? 'module:schema:sync' : 'module:schema:install',
-            '--json',
-            '--no-interaction',
-        ];
-        if ($module !== null) {
-            $command[] = $module;
-        }
-        if ($applicableOnly) {
-            $command[] = '--applicable-only';
-        }
-        $connection = $this->option('connection');
-        if ($connection !== null) {
-            $command[] = '--connection=' . $connection;
-        }
-        $environment = $this->option('env');
-        if ($environment !== null) {
-            $command[] = '--env=' . $environment;
-        }
 
-        $result = new ProcessRunner()->run($command, new ProcessOptions(
-            cwd: $this->application->basePath(),
-            captureOutput: true,
-        ));
-        $decoded = json_decode(trim($result->stdout), true);
-        $schemas = is_array($decoded) ? $this->schemaRows($decoded['schemas'] ?? null) : [];
-
-        if (!$result->successful() && $schemas === []) {
-            $detail = trim($result->stderr) !== '' ? trim($result->stderr) : trim($result->stdout);
-            $this->io()->error($detail !== '' ? $detail : 'Module schema synchronization failed.');
-        }
-
-        return [$result->exitCode, $schemas];
-    }
 }
