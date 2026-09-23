@@ -39,8 +39,7 @@ final class CommandExecutionCoordinator
         array $argv,
         callable $inline,
         CommandIO $io,
-    ): int
-    {
+    ): int {
         $executionId = $this->executionId();
         if (getenv(self::SUPERVISED_ENV) === '1') {
             return $inline($executionId);
@@ -139,8 +138,7 @@ final class CommandExecutionCoordinator
         CommandExecutionPolicy $policy,
         ?LockHandle $handle,
         ?LockProviderInterface $lock,
-    ): ?Closure
-    {
+    ): ?Closure {
         if ($handle === null || $lock === null) {
             return null;
         }
@@ -167,8 +165,7 @@ final class CommandExecutionCoordinator
         ExecutionId $executionId,
         ?LockHandle $handle,
         ?LockProviderInterface $lock,
-    ): ProcessResult
-    {
+    ): ProcessResult {
         $executable = $this->executable ?? $argv[0] ?? null;
         if (!is_string($executable) || $executable === '' || !is_file($executable)) {
             throw new \LogicException(sprintf(
@@ -222,8 +219,7 @@ final class CommandExecutionCoordinator
         CommandStatus $status,
         ?int $exitCode = null,
         array $metadata = [],
-    ): void
-    {
+    ): void {
         $history->record(
             kind: 'command',
             executionId: $executionId->value,
