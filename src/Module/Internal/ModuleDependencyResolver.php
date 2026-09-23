@@ -111,12 +111,6 @@ final readonly class ModuleDependencyResolver
     /**
      * @phpstan-param ModuleDependency $dependency
      * @phpstan-param array<string,ModuleState> $modules
-     * @phpstan-return DependencyState
-     */
-
-    /**
-     * @phpstan-param ModuleDependency $dependency
-     * @phpstan-param array<string,ModuleState> $modules
      * @phpstan-param list<DependencyState> $active
      * @phpstan-param list<DependencyState> $inactive
      * @param list<string> $blockers
@@ -147,18 +141,6 @@ final readonly class ModuleDependencyResolver
         }
     }
 
-    private function resolveOne(
-        array $dependency,
-        array $modules,
-        ConfiguredCapabilities $capabilities,
-    ): array {
-        $satisfied = $dependency['type'] === 'module'
-            ? $this->moduleSatisfied($dependency['target'], $modules)
-            : $capabilities->enabled($dependency['target']);
-
-        return $this->state($dependency, true, $satisfied);
-    }
-
     /** @phpstan-param array<string,ModuleState> $modules */
     private function moduleSatisfied(string $target, array $modules): bool
     {
@@ -169,6 +151,23 @@ final readonly class ModuleDependencyResolver
 
         return ($state['installed'] ?? false) === true
             && ($state['enabled'] ?? false) === true;
+    }
+
+    /**
+     * @phpstan-param ModuleDependency $dependency
+     * @phpstan-param array<string,ModuleState> $modules
+     * @phpstan-return DependencyState
+     */
+    private function resolveOne(
+        array $dependency,
+        array $modules,
+        ConfiguredCapabilities $capabilities,
+    ): array {
+        $satisfied = $dependency['type'] === 'module'
+            ? $this->moduleSatisfied($dependency['target'], $modules)
+            : $capabilities->enabled($dependency['target']);
+
+        return $this->state($dependency, true, $satisfied);
     }
 
     /**
