@@ -103,7 +103,6 @@ final readonly class ModuleManager
     }
 
     /**
-     * @param array<string,mixed> $definition
      * @phpstan-param ModuleDefinition $definition
      * @param list<string> $otherFeatures
      * @param array<string,string> $direct
@@ -134,7 +133,6 @@ final readonly class ModuleManager
     }
 
     /**
-     * @param array<string,mixed> $definition
      * @phpstan-param ModuleDefinition $definition
      * @param list<string> $features
      * @param array<string,string> $direct
