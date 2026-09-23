@@ -167,6 +167,42 @@ Foundation's runtime/release APIs directly.
 Do not add another container compiler, route cache, universal HTTP scope,
 provider activation layer, or response emitter in the application skeleton.
 
+## 10. Migrate to the hardened specialist-module lifecycle
+
+Foundation 3's package-backed module vocabulary is limited to `auth`,
+`communication`, `database`, `filesystem`, `messaging`, `security`, and
+`validation`.
+
+Important migration changes:
+
+- CacheLayer is core Foundation infrastructure; remove any `cache` or
+  `cachelayer` module install/remove assumptions.
+- `notifications` is Foundation native and is no longer an alias for
+  `communication`. Communication owns only `communication.php`; existing
+  `notifications.php` remains application/native-notification config.
+- Bare `module:install auth` no longer broad-installs OTP plus WebAuthn.
+  Request `--feature=otp` or `--feature=passkey` explicitly.
+- Package presence is not direct module ownership. Automation must inspect
+  direct/transitive/ownership-unknown state rather than inferring from
+  `InstalledVersions` alone.
+- Installation no longer writes activation policy. Use `module:enable` and
+  `module:disable`; module-system overrides live in `config/modules.php`.
+- Production still requires a complete explicit `app.capabilities` topology.
+  Partial module overrides do not replace it.
+- Aggregate `module:schema:sync` follows active capabilities only. Use
+  targeted `module:schema:install <module>` for an explicit inactive-module
+  schema mutation.
+- Composer mutation no longer forces `--update-no-dev`; normal application dev
+  dependency state is preserved.
+- Removal is fail-closed and dependency-aware. Disable first; config and data
+  are never removed automatically.
+- Use `module:plan` before mutation, `module:doctor` for readiness, and
+  `module:repair` to resume partial installations.
+
+Machine-readable module/list/show/plan payloads now expose schema-versioned
+state. Consume named fields and tolerate additive fields rather than parsing
+human table output.
+
 ## Final benchmark evidence
 
 Phase 9 measured Foundation against the lower layers after the runtime redesign.
