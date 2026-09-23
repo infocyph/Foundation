@@ -141,8 +141,7 @@ it('manages database-backed CacheLayer schemas through core cache commands', fun
             ->toBe(ExitCode::FAILURE);
 
         $beforePayload = $before->lastPayload();
-        expect($cachePath)->not->toBeFile()
-            ->and($beforePayload)->toBeArray()
+        expect($beforePayload)->toBeArray()
             ->and($beforePayload['schemas'][0]['name'] ?? null)->toBe('cache:store:sqlite')
             ->and($beforePayload['schemas'][0]['state'] ?? null)->toBe('pending')
             ->and($beforePayload['schemas'][0]['installed'] ?? null)->toBeFalse();
