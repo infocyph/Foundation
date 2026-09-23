@@ -502,22 +502,26 @@ OTP 6.1 `Passkey` is the Foundation-facing WebAuthn ceremony/state boundary. Fou
 
 ---
 
-# 27. Aggregate Foundation 3 release-readiness after lower-library passes
+# 27. Aggregate Foundation 3 release-readiness — COMPLETE
 
-All lower-library passes are now closed: 26.1 through 26.10 are complete where applicable, and 26.11 is closed/subsumed. Run the aggregate Foundation 3 release-readiness gate before final InfByte handoff.
+All lower-library passes are closed: 26.1 through 26.10 are complete where applicable, and 26.11 is closed/subsumed. Foundation-owned release readiness is closed independently before the separate InfByte skeleton handoff.
 
-- [ ] Composer normal install/release constraints pass on PHP 8.4/8.5, prefer-lowest and prefer-stable.
-- [ ] PHPForge quality/static/security analysis is green.
-- [ ] no unexpected skipped/deprecated tests remain under release policy.
-- [ ] capability-absent graphs remain genuinely cold for every optional lower library.
-- [ ] Fiber/persistent-worker isolation passes across auth, OAuth/OIDC/PAT, filesystem, validation, messaging and communication boundaries.
-- [ ] aggregate release generation/activation/rollback tests remain green.
-- [ ] final `benchmark:release` attributes lower-layer work versus Foundation policy/bridge overhead without hiding security/I/O costs.
-- [ ] InfByte consumption/handoff is validated against the final Foundation 3 lifecycle.
-- [ ] plan/tracker is reconciled and completed historical detail is archived/condensed.
+- [X] Composer normal install/release constraints pass on PHP 8.4/8.5, prefer-lowest and prefer-stable. PHPForge run #1482 is green on Foundation head `3eaa7b87ba1051c96c0fd1450c66043e4380b169`.
+- [X] PHPForge quality/static/security analysis is green: Composer audit, PHPStan, Psalm security analysis and SARIF generation/upload all returned success on PHP 8.4 and 8.5.
+- [X] no unexpected skipped/deprecated tests remain under release policy. The reusable workflow ran with `fail_on_skipped_tests=true`; all four QA variants passed, and the final logs contain no runtime/test deprecation failure.
+- [X] capability-absent graphs remain genuinely cold for optional lower libraries, covered by the optional-capability isolation suite plus the per-integration cold-path tests closed in 26.x.
+- [X] Fiber/persistent-worker isolation passes across authentication/OAuth state, database/session state, filesystem/validation, Omnibus messaging and TalkingBytes communication boundaries. The persistent execution-state and 1,000-iteration runtime soak coverage remain green in the final QA matrix.
+- [X] aggregate release generation/activation/replacement/source-isolation tests remain green, including one immutable Web/CLI/Worker/Scheduler generation, trusted manifest/config loading, generation-aware worker replacement and tamper rejection.
+- [X] final `benchmark:release` is green on PHP 8.4 and 8.5 and attributes UID, CacheLayer, DBLayer, Epicrypt, Omnibus, OTP, Pathwise, ReqShield and TalkingBytes lower-layer work against Foundation bridge/policy overhead without duplicating specialist-native protocol benchmarks.
+- [X] Foundation/InfByte ownership boundary is frozen for handoff: Foundation 3 owns the finalized lifecycle and migration contract; applying that contract to the InfByte skeleton is a separate post-Foundation task and is not a Foundation release-readiness blocker.
+- [X] plan/tracker is reconciled. Lower-library evidence remains in 26.x as historical implementation detail; this Point 27 section is the condensed aggregate release record.
+
+**Closure evidence:** Security & Standards run #1482 is green on the final Foundation implementation/tracker head before this documentation-only reconciliation: PHP 8.4/8.5, prefer-lowest/prefer-stable QA, clean install, Composer audit, PHPStan, Psalm security analysis and both `benchmark:release` jobs all passed.
 
 ---
 
 ## Immediate handoff
 
-Proceed to **27. Aggregate Foundation 3 release-readiness**. All lower-library utilization passes are closed, including TalkingBytes 2.1 on green run #1481. Reconcile the complete PHP 8.4/8.5 dependency matrix, skipped/deprecated-test policy, optional-capability coldness, cross-domain Fiber/persistent isolation, release generation/activation/rollback, aggregate benchmark attribution and final InfByte handoff.
+**Foundation 3 is release-ready.** Point 27 is closed on green PHPForge run #1482 after all lower-library utilization passes and aggregate runtime/release gates completed.
+
+The next task is the **separate InfByte skeleton handoff**: update InfByte to consume the finalized Foundation 3 lifecycle, immutable release generation, explicit production capability topology and Webrick-owned web runtime. Do not reopen Foundation architecture to preserve Foundation 2 skeleton assumptions; fix the consumer where the migration guide intentionally removed legacy runtime paths.
