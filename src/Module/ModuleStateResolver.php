@@ -18,6 +18,8 @@ use Infocyph\Foundation\Config\Internal\ConfiguredCapabilities;
  *     transitive:bool,
  *     ownership_unknown:bool,
  *     direct_constraint:?string,
+ *     catalog_compatible:?bool,
+ *     direct_constraint_compatible:?bool,
  *     compatible:?bool,
  *     version:?string
  * }
@@ -161,7 +163,20 @@ final readonly class ModuleStateResolver
             $transitive = $ownership['known'] && $available && !$direct;
             $version = $available ? InstalledVersions::getVersion($package) : null;
             $prettyVersion = $available ? InstalledVersions::getPrettyVersion($package) : null;
-            $compatible = $available ? $this->satisfiesConstraint($version, $constraint) : null;
+            $directConstraint = $direct ? $ownership['requirements'][$package] : null;
+            $catalogCompatible = $available ? $this->satisfiesConstraint($version, $constraint) : null;
+            $directConstraintCompatible = $directConstraint !== null
+                ? $this->constraintWithin($directConstraint, $constraint)
+                : null;
+            $directVersionCompatible = $available && $directConstraint !== null
+                ? $this->satisfiesConstraint($version, $directConstraint)
+                : null;
+            $compatible = $this->combinedCompatibility(
+                $catalogCompatible,
+                $directConstraintCompatible,
+                $directVersionCompatible,
+                $direct,
+            );
 
             $allAvailable = $allAvailable && $available;
             $allDirect = $allDirect && $direct;
@@ -170,11 +185,32 @@ final readonly class ModuleStateResolver
 
             if (!$available) {
                 $blockers[] = sprintf('Required package %s %s is not available.', $package, $constraint);
-            } elseif ($compatible === false) {
+            } elseif ($catalogCompatible === false) {
                 $blockers[] = sprintf(
                     'Installed package %s %s does not satisfy %s.',
                     $package,
                     $prettyVersion ?? $version ?? 'unknown',
+                    $constraint,
+                );
+            } elseif ($directConstraintCompatible === false) {
+                $blockers[] = sprintf(
+                    'Direct Composer constraint %s for %s is outside the supported module range %s.',
+                    $directConstraint,
+                    $package,
+                    $constraint,
+                );
+            } elseif ($directVersionCompatible === false) {
+                $blockers[] = sprintf(
+                    'Installed package %s %s does not satisfy the application constraint %s.',
+                    $package,
+                    $prettyVersion ?? $version ?? 'unknown',
+                    $directConstraint,
+                );
+            } elseif ($direct && $compatible === null) {
+                $warnings[] = sprintf(
+                    'Unable to fully evaluate direct Composer constraint %s for %s against %s.',
+                    $directConstraint,
+                    $package,
                     $constraint,
                 );
             } elseif ($transitive) {
@@ -191,7 +227,9 @@ final readonly class ModuleStateResolver
                 'direct' => $direct,
                 'transitive' => $transitive,
                 'ownership_unknown' => !$ownership['known'],
-                'direct_constraint' => $direct ? $ownership['requirements'][$package] : null,
+                'direct_constraint' => $directConstraint,
+                'catalog_compatible' => $catalogCompatible,
+                'direct_constraint_compatible' => $directConstraintCompatible,
                 'compatible' => $compatible,
                 'version' => $prettyVersion,
             ];
@@ -293,9 +331,35 @@ final readonly class ModuleStateResolver
 
     private function satisfiesConstraint(?string $version, string $constraint): ?bool
     {
-        if ($version === null
-            || preg_match('/^\\^(\\d+)(?:\\.(\\d+))?(?:\\.(\\d+))?$/D', trim($constraint), $match) !== 1
-        ) {
+        if ($version === null) {
+            return null;
+        }
+
+        $bounds = $this->constraintBounds($constraint);
+        if ($bounds === null) {
+            return null;
+        }
+
+        return version_compare($version, $bounds['lower'], '>=')
+            && version_compare($version, $bounds['upper'], '<');
+    }
+
+    private function constraintWithin(string $candidate, string $required): ?bool
+    {
+        $candidateBounds = $this->constraintBounds($candidate);
+        $requiredBounds = $this->constraintBounds($required);
+        if ($candidateBounds === null || $requiredBounds === null) {
+            return null;
+        }
+
+        return version_compare($candidateBounds['lower'], $requiredBounds['lower'], '>=')
+            && version_compare($candidateBounds['upper'], $requiredBounds['upper'], '<=');
+    }
+
+    /** @return array{lower:string,upper:string}|null */
+    private function constraintBounds(string $constraint): ?array
+    {
+        if (preg_match('/^\\^(\\d+)(?:\\.(\\d+))?(?:\\.(\\d+))?$/D', trim($constraint), $match) !== 1) {
             return null;
         }
 
@@ -312,7 +376,25 @@ final readonly class ModuleStateResolver
             $upper = sprintf('0.0.%d', $patch + 1);
         }
 
-        return version_compare($version, $lower, '>=')
-            && version_compare($version, $upper, '<');
+        return ['lower' => $lower, 'upper' => $upper];
+    }
+
+    private function combinedCompatibility(
+        ?bool $catalog,
+        ?bool $directConstraint,
+        ?bool $directVersion,
+        bool $direct,
+    ): ?bool {
+        if ($catalog === false || $directConstraint === false || $directVersion === false) {
+            return false;
+        }
+        if ($catalog !== true) {
+            return null;
+        }
+        if (!$direct) {
+            return true;
+        }
+
+        return $directConstraint === true && $directVersion === true ? true : null;
     }
 }
