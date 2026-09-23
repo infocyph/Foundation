@@ -63,7 +63,7 @@ final readonly class NotificationChannelRegistry
         }
         if ($name === 'mail') {
             return $this->mail ?? throw new \LogicException(
-                'The mail notification channel requires the communication module; run "php infbyte module:install communication".',
+                'The mail notification channel requires the optional infocyph/talkingbytes email integration.',
             );
         }
 
