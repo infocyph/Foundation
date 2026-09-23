@@ -134,10 +134,10 @@ it('keeps specialist catalog package floors aligned with the tested dependency s
         }
 
         foreach ($definition['packages'] as $package => $constraint) {
-            expect(
-                $dev[$package] ?? null,
+            expect($dev[$package] ?? null)->toBe(
+                $constraint,
                 sprintf('Catalog floor drift for module %s package %s.', $name, $package),
-            )->toBe($constraint);
+            );
         }
     }
 
