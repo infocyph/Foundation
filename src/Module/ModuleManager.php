@@ -116,7 +116,7 @@ final readonly class ModuleManager
     /**
      * @param list<string> $features
      * @phpstan-param ModuleState $state
-     * @param list<ModuleState> $states
+     * @phpstan-param list<ModuleState> $states
      */
     private function assertRemovalSafe(string $module, array $features, array $state, array $states): void
     {
@@ -141,7 +141,7 @@ final readonly class ModuleManager
     }
 
     /**
-     * @param list<ModuleState> $states
+     * @phpstan-param list<ModuleState> $states
      * @return list<string>
      */
     private function dependentRemovalBlockers(string $module, array $states): array
