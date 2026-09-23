@@ -191,8 +191,7 @@ final readonly class ModuleStateResolver
         bool $activationExplicit,
         bool $packagesAvailable,
         ConfiguredCapabilities $capabilities,
-    ): bool
-    {
+    ): bool {
         if (!in_array($name, self::TOPOLOGY_MANAGED, true)) {
             return true;
         }
@@ -259,8 +258,7 @@ final readonly class ModuleStateResolver
         bool $coreBacked,
         int $packageCount,
         array $packages,
-    ): bool
-    {
+    ): bool {
         if ($builtIn || $coreBacked) {
             return true;
         }
@@ -284,8 +282,7 @@ final readonly class ModuleStateResolver
         bool $transitive,
         bool $installed,
         bool $configured,
-    ): array
-    {
+    ): array {
         if ($enabled && $transitive && !$installed) {
             $blockers[] = 'Enabled capability relies on transitive package ownership.';
         }
@@ -305,8 +302,7 @@ final readonly class ModuleStateResolver
         string $name,
         bool $enabled,
         bool $activationExplicit,
-    ): array
-    {
+    ): array {
         if ($enabled && !$activationExplicit && in_array($name, self::TOPOLOGY_MANAGED, true)) {
             $warnings[] = sprintf(
                 'Capability %s is active through compatibility auto-discovery; app.capabilities is not explicit.',
@@ -367,8 +363,7 @@ final readonly class ModuleStateResolver
         bool $enabled,
         bool $configured,
         array $blockers,
-    ): bool
-    {
+    ): bool {
         return $builtIn || $coreBacked
             ? $enabled && $configured && $blockers === []
             : $installed && $enabled && $configured && $blockers === [];
@@ -384,8 +379,7 @@ final readonly class ModuleStateResolver
         array $definition,
         array $ownership,
         ConfiguredCapabilities $capabilities,
-    ): array
-    {
+    ): array {
         $builtIn = ($definition['built_in'] ?? false) === true;
         $coreBacked = ($definition['core_backed'] ?? false) === true;
         $packages = $this->packageStates->resolve($this->catalog->requiredPackages($definition), $ownership);
@@ -458,8 +452,7 @@ final readonly class ModuleStateResolver
         bool $enabled,
         bool $ready,
         array $blockers,
-    ): string
-    {
+    ): string {
         return match (true) {
             $builtIn => 'built-in',
             $enabled && $blockers !== [] => 'blocked',
