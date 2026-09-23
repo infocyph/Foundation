@@ -52,8 +52,7 @@ final class ModuleSystemCommand extends SystemCommand
         string $requested,
         bool $dryRun,
         ModuleManager $manager,
-    ): int
-    {
+    ): int {
         $module = $definition['name'];
         $features = $definition['requested_features'];
         $published = $dryRun
@@ -476,8 +475,7 @@ final class ModuleSystemCommand extends SystemCommand
         ?string $module = null,
         ?string $requested = null,
         bool $strict = false,
-    ): int
-    {
+    ): int {
         $failed = array_any(
             $schemas,
             static fn(array $schema): bool => !$schema['installed'] && ($strict || $schema['applicable']),
