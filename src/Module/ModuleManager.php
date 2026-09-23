@@ -112,8 +112,7 @@ final readonly class ModuleManager
         string $package,
         array $otherFeatures,
         array $direct,
-    ): bool
-    {
+    ): bool {
         foreach ($otherFeatures as $feature) {
             $packages = $this->catalog->featurePackages($definition, $feature);
             unset($packages[$package]);
