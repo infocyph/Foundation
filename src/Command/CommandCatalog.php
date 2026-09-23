@@ -244,6 +244,11 @@ final class CommandCatalog
             ),
             new CommandDefinition('module:list', 'List Foundation modules.', 'Modules'),
             $connectionOption(
+                new CommandDefinition('module:plan', 'Explain module installation and dependency changes without mutation.', 'Modules')
+                    ->argument('module', 'Module name.', required: true)
+                    ->option('feature', 'Module feature to plan. Repeat for multiple features.', acceptsValue: true, multiple: true),
+            ),
+            $connectionOption(
                 new CommandDefinition('module:show', 'Show detailed module package/config/schema state.', 'Modules')
                     ->argument('module', 'Module name.', required: true)
                     ->option('feature', 'Feature context to show. Repeat for multiple features.', acceptsValue: true, multiple: true),
