@@ -43,14 +43,14 @@ final readonly class ModuleManager
             $command[] = $package . ':' . $constraint;
         }
         $command[] = '--with-all-dependencies';
-        $command[] = '--update-no-dev';
+        $command[] = '--no-interaction';
         if ($dryRun) {
             $command[] = '--dry-run';
         }
 
         return $this->processes->run($command, new ProcessOptions(
             cwd: $this->application->basePath(),
-            interactive: true,
+            interactive: false,
         ));
     }
 
@@ -74,7 +74,18 @@ final readonly class ModuleManager
             throw new \InvalidArgumentException(sprintf('Module "%s" is built into Foundation.', $definition['name']));
         }
 
-        $ownership = new ModuleStateResolver($this->application, $this->catalog)->rootRequirements();
+        $resolver = new ModuleStateResolver($this->application, $this->catalog);
+        $states = $resolver->all();
+        $state = array_find(
+            $states,
+            static fn(array $candidate): bool => $candidate['name'] === $definition['name'],
+        );
+        if (!is_array($state)) {
+            throw new \RuntimeException(sprintf('Unable to resolve module "%s".', $definition['name']));
+        }
+        $this->assertRemovalSafe($definition['name'], $definition['requested_features'], $state, $states);
+
+        $ownership = $resolver->rootRequirements();
         if (!$ownership['known']) {
             throw new \RuntimeException(
                 'Unable to determine direct Composer ownership: '
@@ -91,14 +102,14 @@ final readonly class ModuleManager
             return new ProcessResult(0);
         }
 
-        $command = ['composer', 'remove', ...$packages, '--with-all-dependencies', '--update-no-dev'];
+        $command = ['composer', 'remove', ...$packages, '--with-all-dependencies', '--no-interaction'];
         if ($dryRun) {
             $command[] = '--dry-run';
         }
 
         return $this->processes->run($command, new ProcessOptions(
             cwd: $this->application->basePath(),
-            interactive: true,
+            interactive: false,
         ));
     }
 
@@ -107,6 +118,55 @@ final readonly class ModuleManager
      * @param list<string> $otherFeatures
      * @param array<string,string> $direct
      */
+    /**
+     * @param list<string> $features
+     * @phpstan-param ModuleState $state
+     * @param list<ModuleState> $states
+     */
+    private function assertRemovalSafe(string $module, array $features, array $state, array $states): void
+    {
+        if ($features === [] && $state['enabled']) {
+            throw new \RuntimeException(sprintf(
+                'Module "%s" is enabled; disable it before removing packages.',
+                $module,
+            ));
+        }
+
+        foreach ($features as $feature) {
+            if ($state['enabled'] && ($state['features'][$feature]['selected'] ?? false)) {
+                throw new \RuntimeException(sprintf(
+                    'Feature "%s" is selected on enabled module "%s"; change configuration before removal.',
+                    $feature,
+                    $module,
+                ));
+            }
+        }
+
+        if ($features !== []) {
+            return;
+        }
+
+        $dependents = [];
+        foreach ($states as $candidate) {
+            if (!$candidate['enabled'] || $candidate['name'] === $module) {
+                continue;
+            }
+            foreach ($candidate['dependencies']['active'] as $dependency) {
+                if ($dependency['type'] === 'module' && $dependency['target'] === $module) {
+                    $dependents[] = sprintf('%s: %s', $candidate['name'], $dependency['reason']);
+                }
+            }
+        }
+
+        if ($dependents !== []) {
+            throw new \RuntimeException(sprintf(
+                'Module "%s" is required by active dependents: %s',
+                $module,
+                implode('; ', array_values(array_unique($dependents))),
+            ));
+        }
+    }
+
     private function otherFeatureOwnsPackage(
         array $definition,
         string $package,
