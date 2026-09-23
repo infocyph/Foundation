@@ -152,6 +152,34 @@ it('exposes canonical module list and alias-aware module details through the com
     }
 });
 
+it('explains module dependency plans without mutating the application', function (): void {
+    $basePath = moduleLifecycleBasePath('plan');
+    moduleLifecycleWriteComposer($basePath, ['infocyph/omnibus' => '^2.6']);
+
+    try {
+        $dispatcher = moduleLifecycleDispatcher($basePath, [
+            'app' => ['capabilities' => ['messaging']],
+            'messaging' => ['durable' => ['enabled' => true]],
+        ]);
+        $plan = new FoundationModuleLifecycleIO();
+
+        expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:plan', 'messaging'], $plan))
+            ->toBe(ExitCode::SUCCESS);
+
+        $payload = $plan->lastPayload();
+        expect($payload)->toBeArray()
+            ->and($payload['schema_version'] ?? null)->toBe(1)
+            ->and($payload['module'] ?? null)->toBe('messaging')
+            ->and($payload['packages_to_add'] ?? null)->toBe([])
+            ->and($payload['dependencies']['active'][0]['target'] ?? null)->toBe('database')
+            ->and($payload['dependencies']['active'][0]['satisfied'] ?? true)->toBeFalse()
+            ->and($payload['config'] ?? null)->toBe(['messaging.php'])
+            ->and($payload['schemas'] ?? null)->toBe(['messaging']);
+    } finally {
+        moduleLifecycleRemoveDirectory($basePath);
+    }
+});
+
 it('keeps CacheLayer core-owned and outside the module catalog', function (): void {
     $composer = json_decode(
         file_get_contents(dirname(__DIR__, 2) . '/composer.json') ?: '',
