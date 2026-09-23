@@ -120,44 +120,53 @@ final readonly class ModuleManager
      */
     private function assertRemovalSafe(string $module, array $features, array $state, array $states): void
     {
-        $blockers = [];
+        $blockers = $features === [] && $state['enabled']
+            ? [sprintf('Module "%s" is enabled; disable it before removing packages.', $module)]
+            : [];
 
-        if ($features === [] && $state['enabled']) {
-            $blockers[] = sprintf('Module "%s" is enabled; disable it before removing packages.', $module);
-        }
-
-        foreach ($features as $feature) {
-            if ($state['enabled'] && ($state['features'][$feature]['selected'] ?? false)) {
-                $blockers[] = sprintf(
-                    'Feature "%s" is selected on enabled module "%s"; change configuration before removal.',
-                    $feature,
-                    $module,
-                );
-            }
-        }
-
+        array_push($blockers, ...$this->selectedFeatureRemovalBlockers($module, $features, $state));
         if ($features === []) {
-            foreach ($states as $candidate) {
-                if (!$candidate['enabled'] || $candidate['name'] === $module) {
-                    continue;
-                }
-                foreach ($candidate['dependencies']['active'] as $dependency) {
-                    if ($dependency['type'] === 'module' && $dependency['target'] === $module) {
-                        $blockers[] = sprintf('%s: %s', $candidate['name'], $dependency['reason']);
-                    }
-                }
-            }
+            array_push($blockers, ...$this->dependentRemovalBlockers($module, $states));
         }
 
-        if ($blockers !== []) {
-            throw new \RuntimeException(sprintf(
-                'Module "%s" cannot be removed: %s',
-                $module,
-                implode('; ', array_values(array_unique($blockers))),
-            ));
+        if ($blockers === []) {
+            return;
         }
+
+        throw new \RuntimeException(sprintf(
+            'Module "%s" cannot be removed: %s',
+            $module,
+            implode('; ', array_values(array_unique($blockers))),
+        ));
     }
 
+    /**
+     * @param list<ModuleState> $states
+     * @return list<string>
+     */
+    private function dependentRemovalBlockers(string $module, array $states): array
+    {
+        $blockers = [];
+        foreach ($states as $candidate) {
+            if (!$candidate['enabled'] || $candidate['name'] === $module) {
+                continue;
+            }
+
+            foreach ($candidate['dependencies']['active'] as $dependency) {
+                if ($dependency['type'] === 'module' && $dependency['target'] === $module) {
+                    $blockers[] = sprintf('%s: %s', $candidate['name'], $dependency['reason']);
+                }
+            }
+        }
+
+        return $blockers;
+    }
+
+    /**
+     * @phpstan-param ModuleDefinition $definition
+     * @param list<string> $otherFeatures
+     * @param array<string,string> $direct
+     */
     private function otherFeatureOwnsPackage(
         array $definition,
         string $package,
@@ -219,4 +228,25 @@ final readonly class ModuleManager
 
         return $packages;
     }
+    /**
+     * @param list<string> $features
+     * @phpstan-param ModuleState $state
+     * @return list<string>
+     */
+    private function selectedFeatureRemovalBlockers(string $module, array $features, array $state): array
+    {
+        $blockers = [];
+        foreach ($features as $feature) {
+            if ($state['enabled'] && $state['features'][$feature]['selected']) {
+                $blockers[] = sprintf(
+                    'Feature "%s" is selected on enabled module "%s"; change configuration before removal.',
+                    $feature,
+                    $module,
+                );
+            }
+        }
+
+        return $blockers;
+    }
+
 }
