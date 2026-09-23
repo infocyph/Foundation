@@ -68,7 +68,7 @@ final class ModuleSystemCommand extends SystemCommand
 
         if (!$dryRun) {
             $this->invalidateCompiledRuntime();
-            [$schemaExit, $schemas] = $this->syncSchemasFresh();
+            [$schemaExit, $schemas] = $this->syncSchemasFresh($module);
         }
 
         if ($this->io()->machineReadable()) {
@@ -774,15 +774,18 @@ final class ModuleSystemCommand extends SystemCommand
      *
      * @return array{int,list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}>}
      */
-    private function syncSchemasFresh(): array
+    private function syncSchemasFresh(?string $module = null): array
     {
         $command = [
             PHP_BINARY,
             $this->projectLauncher(),
-            'module:schema:sync',
+            $module === null ? 'module:schema:sync' : 'module:schema:install',
             '--json',
             '--no-interaction',
         ];
+        if ($module !== null) {
+            $command[] = $module;
+        }
         $connection = $this->option('connection');
         if ($connection !== null) {
             $command[] = '--connection=' . $connection;
