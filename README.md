@@ -65,11 +65,11 @@ runtime contract.
 
 ## Capabilities
 
-Foundation modules describe application capabilities rather than package names.
-Optional packages remain inactive until the application selects the corresponding
-capability. Production release compilation uses an explicit capability topology;
-installed CacheLayer, DBLayer, Omnibus, TalkingBytes, Epicrypt, Pathwise,
-ReqShield, OTP, or WebAuthn packages do not activate themselves merely because
+Foundation modules describe optional application capabilities rather than package
+names. CacheLayer is a direct Foundation dependency and core cache infrastructure,
+but the `cache` capability still remains cold until explicitly selected. Other
+optional packages such as DBLayer, Omnibus, TalkingBytes, Epicrypt, Pathwise,
+ReqShield, OTP, or WebAuthn likewise do not activate themselves merely because
 they are installed.
 
 | Module | Implementation |

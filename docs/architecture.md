@@ -62,13 +62,14 @@ Providers contribute graph definitions through `ContainerBuilder` before
 compilation. Provider boot hooks may initialize already-defined services but do
 not mutate the production graph.
 
-Package presence and application capability activation are separate concerns.
+Dependency presence and application capability activation are separate concerns. CacheLayer is always present as Foundation core infrastructure, but its runtime capability remains activation-controlled.
 Development may discover installed optional packages when no explicit topology
 is supplied. Production release compilation is explicit: omitted capability
 sets mean a deliberately minimal topology, not installed-package activation.
-Consequently, installing CacheLayer, DBLayer, Omnibus, TalkingBytes, Epicrypt,
-Pathwise, ReqShield, OTP, or WebAuthn does not by itself open a connection,
-construct a store, or add unrelated request work.
+Consequently, Foundation requiring CacheLayer—and applications installing
+DBLayer, Omnibus, TalkingBytes, Epicrypt, Pathwise, ReqShield, OTP, or WebAuthn—
+does not by itself activate the corresponding runtime capability, open a
+connection, construct a store, or add unrelated request work.
 
 Purpose-first modules (`database`, `security`, `auth`, `messaging`, and so on)
 select application capabilities. One module may have several backing packages;

@@ -142,8 +142,9 @@ Production compilation/loading uses an explicit capability topology. An omitted
 capability set is minimal; it no longer means “activate every optional package
 that Composer happens to have installed.”
 
-This keeps DBLayer, CacheLayer, messaging, communication, security, filesystem,
-validation, OTP, and WebAuthn infrastructure cold when not selected.
+This keeps Foundation's core CacheLayer-backed cache capability plus optional
+DBLayer, messaging, communication, security, filesystem, validation, OTP, and
+WebAuthn infrastructure cold when not selected.
 
 Development composition may still discover installed packages when no explicit
 topology is supplied.

@@ -97,8 +97,8 @@ Runtime readiness remains implementation-specific: selecting OTP MFA requires
 OTP; selecting WebAuthn passkeys requires WebAuthn. One does not make the other
 mandatory unless both behaviors are configured.
 
-Other selected auth drivers may require the canonical `cache`, `database`,
-`security`, or `communication` modules.
+Other selected auth drivers may require the core `cache` capability or the
+optional `database`, `security`, or `communication` modules.
 
 ## Driver ownership
 
