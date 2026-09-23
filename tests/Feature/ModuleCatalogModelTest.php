@@ -1,0 +1,65 @@
+<?php
+
+declare(strict_types=1);
+
+use Infocyph\Foundation\Module\Internal\ModuleCatalogValidator;
+use Infocyph\Foundation\Module\ModuleCatalog;
+
+it('models managed feature and optional package roles without broadening installs', function (): void {
+    $catalog = new ModuleCatalog();
+    $catalog->validate();
+    $modules = $catalog->all();
+
+    expect($modules['auth']['packages']['infocyph/otp']['role'] ?? null)->toBe('feature')
+        ->and($modules['auth']['packages']['infocyph/otp']['features'] ?? null)->toBe(['otp', 'passkey'])
+        ->and($modules['auth']['packages']['web-auth/webauthn-lib']['features'] ?? null)->toBe(['passkey'])
+        ->and($catalog->managedPackages($modules['auth']))->toBe([
+            'infocyph/otp' => '^6.1',
+            'web-auth/webauthn-lib' => '^5.3.5',
+        ])
+        ->and($modules['communication']['packages']['grpc/grpc']['role'] ?? null)->toBe('optional')
+        ->and($catalog->managedPackages($modules['communication']))->toBe([
+            'infocyph/talkingbytes' => '^2.1',
+        ])
+        ->and($modules['messaging']['packages']['infocyph/runwire']['role'] ?? null)->toBe('optional')
+        ->and($catalog->managedPackages($modules['messaging']))->toBe([
+            'infocyph/omnibus' => '^2.6',
+        ]);
+});
+
+it('records platform requirements and conditional module dependencies declaratively', function (): void {
+    $modules = (new ModuleCatalog())->all();
+
+    expect($modules['communication']['platform']['extensions'] ?? null)
+        ->toBe(['curl', 'fileinfo', 'openssl'])
+        ->and($modules['database']['platform']['extensions'] ?? null)->toBe(['pdo'])
+        ->and($modules['messaging']['platform']['extensions'] ?? null)->toBe(['pcntl', 'posix'])
+        ->and($modules['security']['platform']['extensions'] ?? null)
+        ->toBe(['hash', 'json', 'openssl', 'sodium'])
+        ->and($modules['validation']['platform']['extensions'] ?? null)
+        ->toBe(['fileinfo', 'hash', 'mbstring'])
+        ->and($modules['messaging']['dependencies'][0]['target'] ?? null)->toBe('database')
+        ->and($modules['messaging']['dependencies'][0]['when']['key'] ?? null)
+        ->toBe('messaging.durable.enabled')
+        ->and($modules['validation']['dependencies'][0]['target'] ?? null)->toBe('database')
+        ->and($modules['validation']['dependencies'][0]['when']['operator'] ?? null)->toBe('not-empty');
+});
+
+it('rejects catalog identifier collisions and dependency cycles', function (): void {
+    $catalog = new ModuleCatalog();
+    $validator = new ModuleCatalogValidator();
+
+    $aliases = $catalog->all();
+    $aliases['database']['aliases'][] = 'queue';
+    expect(fn() => $validator->validate($aliases))
+        ->toThrow(LogicException::class, 'Module identifier "queue" is shared');
+
+    $cycle = $catalog->all();
+    $cycle['database']['dependencies'][] = [
+        'type' => 'module',
+        'target' => 'messaging',
+        'reason' => 'Synthetic cycle fixture.',
+    ];
+    expect(fn() => $validator->validate($cycle))
+        ->toThrow(LogicException::class, 'Module dependency graph contains a cycle');
+});

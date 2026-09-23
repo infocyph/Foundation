@@ -173,12 +173,14 @@ it('keeps specialist catalog package floors aligned with the tested dependency s
     );
     $dev = $composer['require-dev'] ?? [];
 
-    foreach ((new ModuleCatalog())->all() as $name => $definition) {
+    $catalog = new ModuleCatalog();
+
+    foreach ($catalog->all() as $name => $definition) {
         if (($definition['built_in'] ?? false) === true) {
             continue;
         }
 
-        foreach ($definition['packages'] as $package => $constraint) {
+        foreach ($catalog->managedPackages($definition) as $package => $constraint) {
             expect($dev[$package] ?? null)->toBe($constraint);
         }
     }

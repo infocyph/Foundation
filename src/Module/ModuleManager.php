@@ -29,12 +29,13 @@ final readonly class ModuleManager
     public function install(string $module, bool $dryRun = false): ProcessResult
     {
         $definition = $this->catalog->resolve($module);
-        if (($definition['built_in'] ?? false) === true || $definition['packages'] === []) {
+        $packages = $this->catalog->managedPackages($definition);
+        if (($definition['built_in'] ?? false) === true || $packages === []) {
             return new ProcessResult(0);
         }
 
         $command = ['composer', 'require'];
-        foreach ($definition['packages'] as $package => $constraint) {
+        foreach ($packages as $package => $constraint) {
             $command[] = $package . ':' . $constraint;
         }
         $command[] = '--with-all-dependencies';
@@ -77,7 +78,7 @@ final readonly class ModuleManager
         }
 
         $packages = array_values(array_filter(
-            array_keys($definition['packages']),
+            array_keys($this->catalog->managedPackages($definition)),
             static fn(string $package): bool => isset($ownership['requirements'][$package]),
         ));
         if ($packages === []) {

@@ -112,7 +112,7 @@ Status legend:
 | --- | --- | --- | --- |
 | **0** | Cache/core boundary closure | **DONE** | Cache core ownership, schema CLI lifecycle, activation semantics and module exclusion are regression-covered. |
 | **1** | Specialist module state foundation | **PARTIAL** | Resolver, ownership/readiness JSON, constraint validation and floor guards are implemented; PHPForge QA rerun is in progress after CI-specific fixes. |
-| **2** | Catalog model | **NOT STARTED** | Package roles, feature declarations, conditional dependencies, platform requirements and graph validation. |
+| **2** | Catalog model | **PARTIAL** | Typed package roles, shared feature ownership, feature/platform metadata and conditional dependency declarations are implemented; CI/validator closure remains. |
 | **3** | Auth decomposition | **NOT STARTED** | Core-backed auth namespace with selective OTP/passkey feature installation. |
 | **4** | Communication / notifications ownership | **NOT STARTED** | Communication stays specialist; notifications stays Foundation-native. |
 | **5** | Dependency engine | **NOT STARTED** | Conditional dependency/capability evaluation, explanation and blockers. |
@@ -432,16 +432,17 @@ The current flat package map cannot describe the real package topology.
 
 ## Work
 
-- [ ] Split module package declarations conceptually into:
-  - required/base packages;
-  - feature packages;
-  - optional integrations.
-- [ ] Keep package constraint ownership centralized in `ModuleCatalog`.
-- [ ] Do not install optional packages merely because the module exists.
-- [ ] Allow module status to report optional integration availability separately.
-- [ ] Allow multiple features to share one package requirement without making removal unsafe.
-- [ ] Add catalog tests that every package role is internally consistent.
-- [ ] Add a drift guard against Foundation's supported package floors.
+- [x] Split module package declarations into typed required/base, feature and optional package roles.
+- [x] Keep package constraint ownership centralized in `ModuleCatalog`.
+- [x] Exclude optional integration packages from the existing module install/remove package set.
+- [ ] Surface optional integration availability through module status; this is wired during the
+  feature/readiness batches rather than conflated with base installation.
+- [x] Allow one package requirement to declare multiple feature owners, including OTP shared by
+  `otp` and `passkey`.
+- [x] Add catalog validation/tests for package roles, feature ownership, aliases, platform
+  declarations and dependency graph cycles.
+- [x] Keep the existing supported-package floor drift guard operating over managed
+  required/feature packages.
 
 ## Acceptance
 
@@ -1125,12 +1126,15 @@ than accidental key drift.
 
 ## Batch 2 — Catalog model
 
-- required/feature/optional package roles;
-- shared feature package ownership;
-- feature declarations;
-- conditional module/core-capability dependencies;
-- graph validation;
-- platform requirement representation.
+- [x] required/feature/optional package roles;
+- [x] shared feature package ownership;
+- [x] feature declarations;
+- [x] conditional dependency declaration model;
+- [x] graph/alias/package-role validation;
+- [x] platform requirement representation;
+- [ ] expose optional integration metadata through module status during the readiness/feature
+  wiring pass;
+- [ ] PHPForge matrix closure.
 
 ## Batch 3 — Auth decomposition
 

@@ -471,7 +471,7 @@ final readonly class ModuleStateResolver
     ): array
     {
         $builtIn = ($definition['built_in'] ?? false) === true;
-        $packages = $this->resolvePackages($definition['packages'], $ownership);
+        $packages = $this->resolvePackages($this->catalog->managedPackages($definition), $ownership);
         $packageCount = count($packages['packages']);
         $installed = $this->installedByModule($builtIn, $packageCount, $packages);
         $activationExplicit = $this->activationExplicit($name, $capabilities);

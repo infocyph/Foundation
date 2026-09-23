@@ -269,7 +269,7 @@ final readonly class ReadinessReport
     ): void
     {
         $definition = $modules->resolve($module);
-        $packages = $definition['packages'];
+        $packages = $modules->managedPackages($definition);
 
         if ($package !== null) {
             $constraint = $packages[$package] ?? throw new \LogicException(sprintf(
