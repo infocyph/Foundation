@@ -266,8 +266,7 @@ final readonly class ReadinessReport
         string $module,
         ?string $package = null,
         ?string $label = null,
-    ): void
-    {
+    ): void {
         $definition = $modules->resolve($module);
         $packages = $modules->managedPackages($definition);
 
