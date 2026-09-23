@@ -136,6 +136,21 @@ final class ModulePackageStateResolver
             && version_compare($candidateBounds['upper'], $requiredBounds['upper'], '<=');
     }
 
+    private function satisfiesConstraint(?string $version, string $constraint): ?bool
+    {
+        if ($version === null) {
+            return null;
+        }
+
+        $bounds = $this->constraintBounds($constraint);
+        if ($bounds === null) {
+            return null;
+        }
+
+        return version_compare($version, $bounds['lower'], '>=')
+            && version_compare($version, $bounds['upper'], '<');
+    }
+
     /**
      * @param array{known:bool,requirements:array<string,string>,error:?string} $ownership
      * @phpstan-return PackageState
@@ -174,21 +189,6 @@ final class ModulePackageStateResolver
         ];
     }
 
-    private function satisfiesConstraint(?string $version, string $constraint): ?bool
-    {
-        if ($version === null) {
-            return null;
-        }
-
-        $bounds = $this->constraintBounds($constraint);
-        if ($bounds === null) {
-            return null;
-        }
-
-        return version_compare($version, $bounds['lower'], '>=')
-            && version_compare($version, $bounds['upper'], '<');
-    }
-
     /**
      * @phpstan-param PackageState $state
      * @return list<string>
@@ -212,4 +212,5 @@ final class ModulePackageStateResolver
 
         return [];
     }
+
 }
