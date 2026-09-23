@@ -212,5 +212,4 @@ final class ModulePackageStateResolver
 
         return [];
     }
-
 }
