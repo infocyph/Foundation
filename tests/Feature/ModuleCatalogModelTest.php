@@ -47,6 +47,8 @@ it('resolves auth feature aliases without broadening the core module request', f
             'infocyph/otp' => '^6.1',
             'web-auth/webauthn-lib' => '^5.3.5',
         ])
+        ->and($catalog->resolve('infocyph/otp', ['otp'])['requested_features'])->toBe(['otp'])
+        ->and($catalog->resolve('infocyph/otp', ['passkey'])['requested_features'])->toBe(['passkey'])
         ->and(fn() => $catalog->resolve('infocyph/otp'))
         ->toThrow(InvalidArgumentException::class, 'shared by features otp, passkey');
 });
