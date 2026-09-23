@@ -504,6 +504,8 @@ OTP 6.1 `Passkey` is the Foundation-facing WebAuthn ceremony/state boundary. Fou
 
 # 27. Aggregate Foundation 3 release-readiness — COMPLETE
 
+- [X] InfByte lean-skeleton handoff additionally proved explicit capability-aware production validation: when `app.capabilities` is present, inactive auth/cache policy does not block release compilation; selecting `auth` retains the full hardened production checks. Omitting `app.capabilities` preserves legacy development auto-discovery semantics.
+
 - [X] InfByte handoff audit caught and closed two core-consumer blockers after aggregate closure: core `app:install` no longer requires optional Epicrypt merely to create `AUTH_TOKEN_SECRET`, and module show/schema commands no longer force the database capability before they can report/install their own capability-owned schema state.
 
 All lower-library passes are closed: 26.1 through 26.10 are complete where applicable, and 26.11 is closed/subsumed. Foundation-owned release readiness is closed independently before the separate InfByte skeleton handoff.

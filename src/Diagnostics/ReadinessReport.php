@@ -8,6 +8,7 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthSigningKeyResolver;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Config\ConfigValidator;
+use Infocyph\Foundation\Config\Internal\ConfiguredCapabilities;
 use Infocyph\Foundation\Config\OtpConfigValidator;
 use Infocyph\Foundation\Config\ProductionSecurityValidator;
 use Infocyph\Foundation\Module\ModuleCatalog;
@@ -48,7 +49,10 @@ final readonly class ReadinessReport
                 new ProductionSecurityValidator($this->application->config())->validate(),
             ),
         ];
-        if ($this->application->config()->get('auth.drivers.mfa', 'simple') === 'otp') {
+        $capabilities = new ConfiguredCapabilities($this->application->config());
+        if ($capabilities->enabled('auth')
+            && $this->application->config()->get('auth.drivers.mfa', 'simple') === 'otp'
+        ) {
             $messages = [
                 ...$messages,
                 ...array_map(
@@ -76,6 +80,9 @@ final readonly class ReadinessReport
         $catalog = new ModuleCatalog();
         $schemas = new ModuleSchemaManager($this->application, $catalog);
         foreach (['auth', 'cache', 'session'] as $module) {
+            if (!$capabilities->enabled($module)) {
+                continue;
+            }
             foreach ($schemas->status($module) as $schema) {
                 if (!$schema['applicable']) {
                     continue;
@@ -204,11 +211,20 @@ final readonly class ReadinessReport
         $catalog = new ModuleCatalog();
         $required = [];
 
-        $this->authPackages($required, $catalog, $config);
-        $this->sessionPackages($required, $catalog, $config);
-        $this->databasePackages($required, $catalog, $config);
+        $capabilities = new ConfiguredCapabilities($config);
+        if ($capabilities->enabled('auth')) {
+            $this->authPackages($required, $catalog, $config);
+        }
+        if ($capabilities->enabled('session')) {
+            $this->sessionPackages($required, $catalog, $config);
+        }
+        if ($capabilities->enabled('database') || $capabilities->enabled('validation')) {
+            $this->databasePackages($required, $catalog, $config);
+        }
         $this->operationsPackages($required, $catalog, $config);
-        $this->applicationPackages($required, $catalog);
+        if ($capabilities->enabled('messaging') || $capabilities->enabled('validation')) {
+            $this->applicationPackages($required, $catalog);
+        }
 
         return $required;
     }

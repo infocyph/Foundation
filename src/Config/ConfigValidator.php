@@ -13,6 +13,7 @@ use Infocyph\Foundation\Auth\Driver\AuthStorageDriver;
 use Infocyph\Foundation\Auth\Driver\AuthTokenDriver;
 use Infocyph\Foundation\Auth\OAuth\Configuration\OAuthConfigValidator;
 use Infocyph\Foundation\Config\Internal\CacheTopologyValidator;
+use Infocyph\Foundation\Config\Internal\ConfiguredCapabilities;
 use Infocyph\Foundation\Config\Internal\TokenSecretConfigValidator;
 
 final readonly class ConfigValidator
@@ -127,7 +128,15 @@ final readonly class ConfigValidator
 
     private function runChecks(bool $assumeProduction): ConfigValidationResult
     {
-        $issues = [];
+        $issues = [...new RuntimeConfigValidator($this->config)->validate()];
+        $capabilities = new ConfiguredCapabilities($this->config);
+
+        if ($capabilities->enabled('cache')) {
+            $issues = [...$issues, ...new CacheTopologyValidator($this->config)->validate()];
+        }
+        if (!$capabilities->enabled('auth')) {
+            return new ConfigValidationResult($issues);
+        }
 
         $this->validateDriver($issues, 'auth.drivers.cache', $this->stringConfig('auth.drivers.cache', 'array'), AuthCacheDriver::class);
         $this->validateDriver($issues, 'auth.drivers.mfa', $this->stringConfig('auth.drivers.mfa', 'simple'), AuthMfaDriver::class);
@@ -136,7 +145,6 @@ final readonly class ConfigValidator
         $this->validateDriver($issues, 'auth.drivers.passwords', $this->stringConfig('auth.drivers.passwords', 'native'), AuthPasswordDriver::class);
         $this->validateDriver($issues, 'auth.drivers.storage', $this->stringConfig('auth.drivers.storage', 'memory'), AuthStorageDriver::class);
         $this->validateDriver($issues, 'auth.drivers.tokens', $this->stringConfig('auth.drivers.tokens', 'simple'), AuthTokenDriver::class);
-        $issues = [...$issues, ...new RuntimeConfigValidator($this->config)->validate()];
         $issues = [...$issues, ...new OAuthConfigValidator($this->config)->validate($assumeProduction)];
 
         $storageDriver = $this->stringConfig('auth.drivers.storage', 'memory');
@@ -162,8 +170,6 @@ final readonly class ConfigValidator
         if ($cacheDriver === AuthCacheDriver::CACHE->value) {
             $this->validateCacheStore($issues);
         }
-
-        $issues = [...$issues, ...new CacheTopologyValidator($this->config)->validate()];
 
         if ($notificationDriver === AuthNotificationDriver::TALKINGBYTES->value) {
             $this->validateNotificationSender($issues, $assumeProduction);

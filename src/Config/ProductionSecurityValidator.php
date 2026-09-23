@@ -6,6 +6,7 @@ namespace Infocyph\Foundation\Config;
 
 use Infocyph\Foundation\Auth\Driver\AuthCacheDriver;
 use Infocyph\Foundation\Auth\Driver\AuthStorageDriver;
+use Infocyph\Foundation\Config\Internal\ConfiguredCapabilities;
 use Infocyph\Foundation\Exception\ConfigurationException;
 
 final readonly class ProductionSecurityValidator
@@ -21,12 +22,18 @@ final readonly class ProductionSecurityValidator
     public function validate(): array
     {
         $issues = [];
+        $capabilities = new ConfiguredCapabilities($this->config);
+
         $this->validateTopology($issues);
-        $this->validatePasswordPolicy($issues);
-        $this->validateAuthStorage($issues);
-        $this->validateAuthState($issues);
-        $this->validateAtomicCounter($issues);
-        $this->validateWebhookReplay($issues);
+        if ($capabilities->enabled('auth')) {
+            $this->validatePasswordPolicy($issues);
+            $this->validateAuthStorage($issues);
+            $this->validateAuthState($issues);
+            $this->validateAtomicCounter($issues);
+        }
+        if ($capabilities->enabled('communication')) {
+            $this->validateWebhookReplay($issues);
+        }
         $this->validateLockTopology($issues);
 
         return $issues;

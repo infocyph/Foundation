@@ -108,3 +108,52 @@ it('accepts the default configuration for new runtime capabilities', function ()
         ->and($readiness['checks'])->toHaveKeys(['php', 'base_path', 'storage', 'runtime'])
         ->and($readiness['checks']['runtime']['detail'])->toBe('cli');
 });
+
+
+it('does not apply inactive optional auth production policy to an explicit lean topology', function (): void {
+    $application = Foundation::cli([
+        'app' => [
+            'env' => 'production',
+            'capabilities' => [],
+        ],
+    ]);
+
+    $validation = new ConfigValidator($application->config())->validateForProduction();
+    $readiness = new ReadinessReport($application)->generate();
+    $keys = array_column($validation->toArray()['issues'], 'key');
+
+    expect($keys)->not->toContain(
+        'auth.drivers.tokens',
+        'auth.drivers.storage',
+        'auth.drivers.mfa',
+        'auth.drivers.notifications',
+        'auth.token_secret',
+        'auth.drivers.cache',
+        'cache.default_counter',
+    )->and($readiness['checks']['configuration']['ready'])->toBeTrue()
+        ->and(array_keys($readiness['checks']))->not->toContain(
+            'module:auth',
+            'schema:auth',
+        );
+});
+
+it('preserves strict auth production policy when auth is explicitly selected', function (): void {
+    $application = Foundation::cli([
+        'app' => [
+            'env' => 'production',
+            'capabilities' => ['auth'],
+        ],
+    ]);
+
+    $keys = array_column(
+        new ConfigValidator($application->config())->validateForProduction()->toArray()['issues'],
+        'key',
+    );
+
+    expect($keys)->toContain(
+        'auth.drivers.tokens',
+        'auth.drivers.storage',
+        'auth.drivers.mfa',
+        'auth.drivers.notifications',
+    );
+});
