@@ -261,7 +261,7 @@ it('evaluates conditional specialist module dependencies against explicit topolo
         $blockedApp = Foundation::cli([
             'base_path' => $basePath,
             '_config_cache' => false,
-            'app' => ['capabilities' => ['messaging']],
+            'app' => ['capabilities' => []],
             'messaging' => ['durable' => ['enabled' => true]],
         ]);
         $blocked = moduleStateFind(
@@ -278,7 +278,7 @@ it('evaluates conditional specialist module dependencies against explicit topolo
         $readyApp = Foundation::cli([
             'base_path' => $basePath,
             '_config_cache' => false,
-            'app' => ['capabilities' => ['messaging', 'database']],
+            'app' => ['capabilities' => ['database']],
             'messaging' => ['durable' => ['enabled' => true]],
         ]);
         $ready = moduleStateFind(
