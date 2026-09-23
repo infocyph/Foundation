@@ -111,7 +111,7 @@ Status legend:
 | Batch | Scope | Status | Current checkpoint |
 | --- | --- | --- | --- |
 | **0** | Cache/core boundary closure | **DONE** | Cache core ownership, schema CLI lifecycle, activation semantics and module exclusion are regression-covered. |
-| **1** | Specialist module state foundation | **PARTIAL** | State resolver, ownership/readiness JSON and floor guards are implemented; latest PHPForge matrix is queued behind a superseded clean-install job. |
+| **1** | Specialist module state foundation | **PARTIAL** | Resolver, ownership/readiness JSON, constraint validation and floor guards are implemented; PHPForge QA rerun is in progress after CI-specific fixes. |
 | **2** | Catalog model | **NOT STARTED** | Package roles, feature declarations, conditional dependencies, platform requirements and graph validation. |
 | **3** | Auth decomposition | **NOT STARTED** | Core-backed auth namespace with selective OTP/passkey feature installation. |
 | **4** | Communication / notifications ownership | **NOT STARTED** | Communication stays specialist; notifications stays Foundation-native. |
@@ -943,17 +943,19 @@ once.
 
 - [x] Add one authoritative test of supported specialist-module package floors.
 - [x] Compare catalog package floors with Foundation's tested `require-dev` dependency set.
-- [ ] Allow deliberate exceptions only with explicit test/documentation.
+- [x] Require deliberate floor exceptions to be expressed through catalog/test changes rather
+  than silent drift.
 - [ ] Cover:
-  - OTP 6.1;
-  - DBLayer 5.1;
-  - Pathwise 4.1;
-  - Omnibus 2.6;
-  - ReqShield 3.2;
-  - TalkingBytes 2.1;
-  - Epicrypt 3.1;
-  - WebAuthn library floor.
-- [ ] Keep docs generated/verified against catalog values where practical.
+  - [x] OTP 6.1;
+  - [x] DBLayer 5.1;
+  - [x] Pathwise 4.1;
+  - [x] Omnibus 2.6;
+  - [x] ReqShield 3.2;
+  - [x] TalkingBytes 2.1;
+  - [x] Epicrypt 3.1;
+  - [x] WebAuthn library floor.
+- [ ] Keep docs generated/verified against catalog values where practical; final public-doc
+  synchronization remains a Batch 10 release task.
 - [x] Guard CacheLayer ^3.4 separately as a Foundation core dependency, not a ModuleCatalog floor.
 
 ---
