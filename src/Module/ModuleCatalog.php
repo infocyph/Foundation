@@ -190,8 +190,8 @@ final class ModuleCatalog
                 ],
             ],
             'description' => 'HTTP, inbound/outbound email, webhook, and gRPC communication.',
-            'aliases' => ['notifications', 'talkingbytes'],
-            'config' => ['communication.php', 'notifications.php'],
+            'aliases' => ['talkingbytes'],
+            'config' => ['communication.php'],
             'schemas' => [],
             'features' => [
                 'grpc' => [
