@@ -90,7 +90,6 @@ final readonly class GeneratedRuntime
         $metadata = GeneratedRuntimeMetadata::read($artifactPath);
         self::assertReleaseMetadata($metadata, $expectedEnvironment, $expectedConfigFingerprint);
         GeneratedRuntimeMetadata::assertPrevalidatedIdentity(
-            $artifactPath,
             $metadata,
             $runtime,
             $capabilities,
@@ -127,7 +126,6 @@ final readonly class GeneratedRuntime
         $metadata = GeneratedRuntimeMetadata::read($artifactPath);
         self::assertReleaseMetadata($metadata, $expectedEnvironment, $expectedConfigFingerprint);
         GeneratedRuntimeMetadata::assertPrevalidatedIdentity(
-            $artifactPath,
             $metadata,
             $runtime,
             $capabilities,
@@ -198,7 +196,7 @@ final readonly class GeneratedRuntime
             new NonWebProductionGraph()->prepare($graph->builder);
             $artifactPath = GeneratedRuntimeMetadata::resolvePath($graph->application, $artifactPath);
             $metadata = GeneratedRuntimeMetadata::read($artifactPath);
-            GeneratedRuntimeMetadata::assertMatches($artifactPath, $metadata, $graph);
+            GeneratedRuntimeMetadata::assertMatches($metadata, $graph);
             $container = $graph->builder->production($artifactPath);
         } finally {
             $graph->application->container()->unset();

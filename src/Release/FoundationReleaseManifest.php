@@ -26,6 +26,7 @@ final class FoundationReleaseManifest
         $web = self::section($manifest, 'web');
         self::relativePath($web['release_manifest'] ?? null, 'web.release_manifest');
         self::digest($web['runtime_manifest_sha256'] ?? null, 64, 'web.runtime_manifest_sha256');
+        self::matcherCache($web);
         self::capabilities($web['capabilities'] ?? null, 'web.capabilities');
 
         foreach (['cli', 'worker', 'scheduler'] as $runtime) {
@@ -172,6 +173,16 @@ final class FoundationReleaseManifest
         }
 
         return $value;
+    }
+
+    /** @param array<string,mixed> $web */
+    private static function matcherCache(array $web): void
+    {
+        if (!array_key_exists('matcher_cache_path', $web)) {
+            return;
+        }
+
+        self::relativePath($web['matcher_cache_path'], 'web.matcher_cache_path');
     }
 
     /**

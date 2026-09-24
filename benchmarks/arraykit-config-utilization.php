@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Composer\InstalledVersions;
+use Infocyph\ArrayKit\Config\Config as ArrayKitConfig;
 use Infocyph\Foundation\Config\ConfigLoader;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Config\EnvironmentLoader;
@@ -59,7 +60,10 @@ try {
     ];
     $compiledData = $loader->load($sourceInput)->all();
     $compiledFile = $compiledDirectory . '/config.php';
-    file_put_contents($compiledFile, "<?php\n\nreturn " . var_export($compiledData, true) . ";\n");
+    $compiledConfig = new ArrayKitConfig();
+    if (!$compiledConfig->loadArray($compiledData) || !$compiledConfig->exportCache($compiledFile)) {
+        throw new RuntimeException('Unable to prepare ArrayKit compiled config benchmark fixture.');
+    }
 
     $warmLazy = ConfigRepository::fromLazyFiles(
         directory: $configDirectory,
@@ -109,10 +113,10 @@ try {
                 throw new RuntimeException('Unexpected materialized configuration result.');
             }
         }),
-        arrayKitBenchmarkMeasure('trusted-compiled-config-load', 5_000, static function () use ($compiledFile): void {
-            $config = require $compiledFile;
-            if (!is_array($config) || ($config['app']['name'] ?? null) !== 'benchmark') {
-                throw new RuntimeException('Unexpected compiled configuration result.');
+        arrayKitBenchmarkMeasure('native-compiled-config-load', 5_000, static function () use ($compiledFile): void {
+            $config = new ArrayKitConfig();
+            if (!$config->loadCache($compiledFile) || $config->get('app.name') !== 'benchmark') {
+                throw new RuntimeException('Unexpected ArrayKit compiled configuration result.');
             }
         }),
         arrayKitBenchmarkMeasure('warm-config-repository-dot-get', 50_000, static function () use ($warmRepository): void {

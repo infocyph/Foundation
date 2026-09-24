@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Config;
 
 use Infocyph\ArrayKit\Config\ConfigMerge;
-use Infocyph\ArrayKit\Config\LazyFileConfig;
 use Infocyph\ArrayKit\Config\Support\Environment;
 
 final class ConfigLoader
@@ -16,7 +15,7 @@ final class ConfigLoader
 
     public const string TYPE_SINGLE = 'single';
 
-    private const int CACHE_FORMAT = 5;
+    private const int CACHE_FORMAT = 6;
 
     /** @param array<string, mixed> $inline */
     public function load(array $inline = []): ConfigRepository
@@ -41,11 +40,14 @@ final class ConfigLoader
         $cached = $cacheDirectory === null
             ? null
             : $this->loadCacheManifest($cacheDirectory);
-        if (($cached['type'] ?? null) === self::TYPE_SINGLE) {
-            return new ConfigRepository(
-                $this->mergeConfigLayers([$cached['data'], $overrides]),
-                compiled: true,
+        if ($cacheDirectory !== null && ($cached['type'] ?? null) === self::TYPE_SINGLE) {
+            $single = $this->loadSingleCache(
+                $cacheDirectory . DIRECTORY_SEPARATOR . $cached['file'],
+                $overrides,
             );
+            if ($single !== null) {
+                return $single;
+            }
         }
 
         if ($cacheDirectory !== null && ($cached['type'] ?? null) === self::TYPE_SHARDED) {
@@ -74,7 +76,7 @@ final class ConfigLoader
         ?string $type = null,
         ?string $basePath = null,
     ): string {
-        ConfigExportValidator::assertExportable($config->all());
+        ConfigExportValidator::assertCacheable($config->all());
         $this->ensureCacheDirectory($cacheDirectory);
         $cacheType = $this->cacheType($config, $type);
         $sourceBasePath = $basePath ?? $this->basePath($config->all());
@@ -190,7 +192,7 @@ final class ConfigLoader
     }
 
     /**
-     * @return array{type:'single',data:array<string,mixed>}|array{type:'sharded',namespaces:list<string>,complete:bool}|null
+     * @return array{type:'single',file:string}|array{type:'sharded',namespaces:list<string>,complete:bool}|null
      */
     private function loadCacheManifest(string $directory): ?array
     {
@@ -212,8 +214,13 @@ final class ConfigLoader
             return null;
         }
 
-        if (($payload['_type'] ?? null) === self::TYPE_SINGLE && is_array($payload['_data'] ?? null)) {
-            return ['type' => self::TYPE_SINGLE, 'data' => $this->map($payload['_data'])];
+        if (($payload['_type'] ?? null) === self::TYPE_SINGLE) {
+            $cacheFile = $payload['_file'] ?? null;
+            if ($cacheFile !== ArrayKitConfigCache::SINGLE_FILE) {
+                return null;
+            }
+
+            return ['type' => self::TYPE_SINGLE, 'file' => $cacheFile];
         }
         if (($payload['_type'] ?? null) !== self::TYPE_SHARDED || !is_array($payload['_namespaces'] ?? null)) {
             return null;
@@ -232,6 +239,20 @@ final class ConfigLoader
             'namespaces' => array_keys($namespaces),
             'complete' => ($payload['_complete'] ?? false) === true,
         ];
+    }
+
+    /** @param array<string,mixed> $overrides */
+    private function loadSingleCache(string $path, array $overrides): ?ConfigRepository
+    {
+        $cached = new ArrayKitConfigCache()->loadSingle($path);
+        if ($cached === null) {
+            return null;
+        }
+
+        return new ConfigRepository(
+            $this->mergeConfigLayers([$cached, $overrides]),
+            compiled: true,
+        );
     }
 
     /** @return array<string, mixed> */
@@ -279,17 +300,6 @@ final class ConfigLoader
         return $input;
     }
 
-    /** @param list<string> $namespaces */
-    private function removeStaleShards(string $directory, array $namespaces): void
-    {
-        $keep = array_fill_keys([...$namespaces, '__flat', '__manifest'], true);
-        foreach (glob(rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . '*.php') ?: [] as $file) {
-            if (!isset($keep[pathinfo($file, PATHINFO_FILENAME)]) && !unlink($file)) {
-                throw new \RuntimeException(sprintf('Unable to remove stale config cache shard "%s".', $file));
-            }
-        }
-    }
-
     private function schemaFingerprint(): string
     {
         $defaults = $this->defaults();
@@ -308,30 +318,7 @@ final class ConfigLoader
         string $directory,
         string $sourceFingerprint,
     ): array {
-        $compiled = $config->all();
-        $namespaces = [];
-        foreach ($compiled as $namespace => $value) {
-            if (is_array($value) && preg_match('/^[A-Za-z0-9_-]+$/', $namespace) === 1) {
-                $namespaces[] = $namespace;
-            }
-        }
-        sort($namespaces);
-        $this->removeStaleShards($directory, $namespaces);
-
-        new LazyFileConfig(
-            directory: $directory,
-            items: array_intersect_key($compiled, array_fill_keys($namespaces, true)),
-            namespaceCacheDirectory: $directory,
-        )->warmNamespaceCache($namespaces);
-
-        // ArrayKit intentionally generates __flat.php here. Keep it: scalar/null leaf
-        // lookups can use the flat index without loading an entire namespace shard.
-        foreach ($namespaces as $namespace) {
-            $file = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $namespace . '.php';
-            if (!is_file($file) || !chmod($file, 0664)) {
-                throw new \RuntimeException(sprintf('Unable to finalize lazy config cache "%s".', $file));
-            }
-        }
+        $namespaces = new ArrayKitConfigCache()->writeSharded($config->all(), $directory);
 
         return [
             '_format' => self::CACHE_FORMAT,
@@ -344,21 +331,21 @@ final class ConfigLoader
     }
 
     /**
-     * @return array{_format:int,_schema:string,_source:string,_type:string,_data:array<string,mixed>}
+     * @return array{_format:int,_schema:string,_source:string,_type:string,_file:string}
      */
     private function singleCachePayload(
         ConfigRepository $config,
         string $directory,
         string $sourceFingerprint,
     ): array {
-        $this->removeStaleShards($directory, []);
+        new ArrayKitConfigCache()->writeSingle($config->all(), $directory);
 
         return [
             '_format' => self::CACHE_FORMAT,
             '_schema' => $this->schemaFingerprint(),
             '_source' => $sourceFingerprint,
             '_type' => self::TYPE_SINGLE,
-            '_data' => $config->all(),
+            '_file' => ArrayKitConfigCache::SINGLE_FILE,
         ];
     }
 

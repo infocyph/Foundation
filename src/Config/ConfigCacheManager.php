@@ -46,8 +46,6 @@ final readonly class ConfigCacheManager
             is_array($compiled['providers'] ?? null) ? $compiled['providers'] : [],
             new ProviderFileLoader($this->application->paths())->groups(),
         );
-        ConfigExportValidator::assertExportable($compiled);
-
         $staging = $directory . '.building.' . bin2hex(random_bytes(6));
         $backup = $directory . '.previous.' . bin2hex(random_bytes(6));
 

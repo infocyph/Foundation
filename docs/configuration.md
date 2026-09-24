@@ -18,16 +18,37 @@ config, providers, or routes.
 
 ## Development/build configuration cache
 
-Development/build composition may cache configuration as `single` or `sharded`:
+Development/build composition may cache configuration as `single` or `sharded`.
+Both layouts use ArrayKit's native configuration-cache mechanisms; Foundation
+owns only selection, schema/source identity, provider compilation, and atomic
+publication of the surrounding cache directory.
 
-- `sharded` is the default for lean development/build workloads because untouched
-  namespaces can remain unloaded;
-- `single` may reduce namespace file loads when composition consumes most of the
-  configuration graph.
+- `sharded` is the default and uses ArrayKit `LazyFileConfig` namespace-cache
+  warming. It writes one PHP file per namespace plus ArrayKit's shared
+  `__flat.php` exact-leaf index, so scalar/null reads such as `cache.default`
+  can avoid loading an entire namespace shard.
+- `single` uses ArrayKit `Config::exportCache()` to write
+  `bootstrap/cache/config/config.php` and `Config::loadCache()` to load it.
+  Foundation's `__manifest.php` contains cache policy/identity only; it does
+  not embed a second copy of the complete configuration.
 
-Choose the cache layout by measured build/development workload. This config cache
-is an optimization for source composition; it is not the production runtime
-container/route activation mechanism.
+ArrayKit does not expose a separate routing-style `fused` config mode. The
+sharded layout already includes the fused exact-leaf acceleration layer through
+`__flat.php`; the whole-config equivalent is `single`.
+
+Choose the cache layout by measured build/development workload. Switching modes
+removes stale native artifacts from the other layout. During cache build,
+ArrayKit materializes `Environment::ref()` values and closures through its
+native cache writer; Foundation then validates the generated concrete PHP data
+before publication. Arbitrary runtime objects/resources remain invalid.
+
+This config cache is an optimization for source composition; it is not the
+production runtime container/route activation mechanism.
+
+Foundation intentionally hydrates configured environment files before selecting
+the development/build config-cache path because `APP_CONFIG_CACHE` itself may
+be supplied by `.env`. Immutable production release execution does not pay
+that cost: it consumes the generation-owned normalized `config.php` snapshot.
 
 ```bash
 php infbyte config:cache

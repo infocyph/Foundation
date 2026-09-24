@@ -250,11 +250,12 @@ final readonly class FoundationReleaseCompiler
             'dependency_fingerprint' => FoundationReleaseManifest::dependencyFingerprint(),
             'config_path' => $releaseConfig['path'],
             'config_sha256' => $releaseConfig['sha256'],
-            'web' => [
+            'web' => array_filter([
                 'release_manifest' => 'web/release.json',
                 'runtime_manifest_sha256' => $runtimeManifestSha256,
+                'matcher_cache_path' => $this->matcherCacheRelativePath($web, $stage),
                 'capabilities' => $webCapabilities,
-            ],
+            ], static fn(mixed $value): bool => $value !== null),
             'cli' => $runtimeSections['cli'],
             'worker' => $runtimeSections['worker'],
             'scheduler' => $runtimeSections['scheduler'],
@@ -338,6 +339,25 @@ final readonly class FoundationReleaseCompiler
         arsort($entries, SORT_NUMERIC);
 
         return $entries;
+    }
+
+    /** @param array<string,mixed> $web */
+    private function matcherCacheRelativePath(array $web, string $stage): ?string
+    {
+        $path = $web['foundation_matcher_cache_path'] ?? null;
+        if ($path === null) {
+            return null;
+        }
+        if (!is_string($path) || $path === '') {
+            throw new \UnexpectedValueException('Foundation matcher cache path is invalid.');
+        }
+
+        $prefix = rtrim($stage, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        if (!str_starts_with($path, $prefix)) {
+            throw new \RuntimeException('Foundation matcher cache escaped the release generation.');
+        }
+
+        return str_replace(DIRECTORY_SEPARATOR, '/', substr($path, strlen($prefix)));
     }
 
     private function mkdir(string $directory): void
@@ -432,7 +452,9 @@ final readonly class FoundationReleaseCompiler
         );
         foreach ($files as $file) {
             /** @var \SplFileInfo $file */
-            $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
+            $file->isLink() || !$file->isDir()
+                ? unlink($file->getPathname())
+                : rmdir($file->getPathname());
         }
         rmdir($directory);
     }
@@ -475,6 +497,14 @@ final readonly class FoundationReleaseCompiler
             'web.release_manifest',
         );
         $paths = ['foundation.php', $configPath, $webRelease];
+        $matcherCachePath = $web['matcher_cache_path'] ?? null;
+        if (is_string($matcherCachePath)) {
+            $matcherCache = $stage . DIRECTORY_SEPARATOR
+                . str_replace('/', DIRECTORY_SEPARATOR, $matcherCachePath);
+            if (!file_exists($matcherCache)) {
+                throw new \RuntimeException('Foundation staged Webrick matcher cache is missing.');
+            }
+        }
         foreach (['cli', 'worker', 'scheduler'] as $runtime) {
             $section = FoundationReleaseManifest::section($manifest, $runtime);
             $paths[] = FoundationReleaseManifest::relativePath(

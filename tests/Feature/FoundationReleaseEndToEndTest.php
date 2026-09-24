@@ -27,6 +27,9 @@ use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\ServiceReference;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
+use Infocyph\Webrick\Router\Matching\FusedMatcher;
+use Infocyph\Webrick\Router\Matching\GeneratedMatcher;
+use Infocyph\Webrick\Router\Matching\ShardedMatcher;
 
 final readonly class FoundationPhase8ReleaseProbe
 {
@@ -386,6 +389,167 @@ it('builds activates and boots all four runtimes from one immutable Foundation g
     }
 });
 
+it('publishes and boots every production matcher from its native Webrick cache', function (): void {
+    $cases = [
+        'fused' => [
+            'class' => FusedMatcher::class,
+            'path' => 'web/router-cache/fused.php',
+            'type' => 'file',
+        ],
+        'generated' => [
+            'class' => GeneratedMatcher::class,
+            'path' => 'web/router-cache/generated.php',
+            'type' => 'file',
+        ],
+        'sharded' => [
+            'class' => ShardedMatcher::class,
+            'path' => 'web/router-shards',
+            'type' => 'directory',
+        ],
+    ];
+
+    foreach ($cases as $name => $case) {
+        $project = foundationPhase8ReleaseProject();
+        $releaseRoot = $project . '/storage/releases';
+        $config = foundationPhase8ReleaseConfig($project);
+        $config['router']['matcher'] = $name;
+
+        try {
+            $release = new FoundationReleaseCompiler()->buildAndActivate(
+                $config,
+                $releaseRoot,
+                capabilities: [
+                    'web' => [],
+                    'cli' => [],
+                    'worker' => [],
+                    'scheduler' => [],
+                ],
+                generation: 'phase8-' . $name,
+            );
+
+            $generation = $releaseRoot . '/generations/phase8-' . $name;
+            $manifest = require $generation . '/foundation.php';
+            $cachePath = $manifest['web']['matcher_cache_path'] ?? null;
+            $absoluteCachePath = $generation . DIRECTORY_SEPARATOR
+                . str_replace('/', DIRECTORY_SEPARATOR, (string) $cachePath);
+
+            expect($cachePath)->toBe($case['path'])
+                ->and(array_key_exists('matcher_cache_sha256', $manifest['web']))->toBeFalse();
+
+            if ($case['type'] === 'directory') {
+                expect(is_dir($absoluteCachePath))->toBeTrue()
+                    ->and(is_file($absoluteCachePath . '/__manifest.php'))->toBeTrue()
+                    ->and(is_link($absoluteCachePath . '/__current'))->toBeTrue();
+            } else {
+                expect(is_file($absoluteCachePath))->toBeTrue();
+            }
+
+            $trustedSha256 = hash_file('sha256', $release['manifest']);
+            if (!is_string($trustedSha256)) {
+                throw new RuntimeException('Unable to hash Foundation matcher manifest.');
+            }
+
+            $runtime = new FoundationReleaseRuntime()->webPrevalidated(
+                $config,
+                $releaseRoot,
+                $trustedSha256,
+            );
+            $reflection = new ReflectionProperty($runtime->kernel, 'matcher');
+            $matcher = $reflection->getValue($runtime->kernel);
+
+            expect($matcher)->toBeInstanceOf($case['class'])
+                ->and($matcher->canBootFromCache())->toBeTrue();
+
+            $response = $runtime->kernel->handle(Request::fake(
+                headers: ['Host' => 'phase8.test'],
+                uri: 'https://phase8.test/phase8',
+            ));
+            expect($response->getStatusCode())->toBe(200)
+                ->and((string) $response->getBody())->toBe('{"generation":"phase8-e2e"}');
+        } finally {
+            foundationResetWebrickProductionRegistries();
+            foundationPhase8ReleaseRemove($project);
+        }
+    }
+});
+
+it('lets Webrick validate route shards lazily on native access', function (): void {
+    $project = foundationPhase8ReleaseProject();
+    $releaseRoot = $project . '/storage/releases';
+    $config = foundationPhase8ReleaseConfig($project);
+    $config['router']['matcher'] = 'sharded';
+
+    try {
+        $release = new FoundationReleaseCompiler()->buildAndActivate(
+            $config,
+            $releaseRoot,
+            capabilities: [
+                'web' => [],
+                'cli' => [],
+                'worker' => [],
+                'scheduler' => [],
+            ],
+            generation: 'phase8-sharded-tamper',
+        );
+        $generation = $releaseRoot . '/generations/phase8-sharded-tamper';
+        $files = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator(
+                $generation . '/web/router-shards',
+                FilesystemIterator::SKIP_DOTS,
+            ),
+        );
+        $tampered = 0;
+        foreach ($files as $file) {
+            if (!$file->isFile()
+                || !str_ends_with($file->getFilename(), '.php')
+                || str_starts_with($file->getFilename(), '__')
+            ) {
+                continue;
+            }
+
+            $source = file_get_contents($file->getPathname());
+            if (!is_string($source)) {
+                throw new RuntimeException('Unable to read generated route shard.');
+            }
+            $count = 0;
+            $source = preg_replace_callback(
+                "/('_hash'\\s*=>\\s*)'[^']+'/",
+                static fn(array $match): string => $match[1] . "'" . str_repeat('0', 32) . "'",
+                $source,
+                1,
+                $count,
+            );
+            if (!is_string($source) || $count !== 1) {
+                continue;
+            }
+            file_put_contents($file->getPathname(), $source);
+            $tampered++;
+        }
+        expect($tampered)->toBeGreaterThan(0);
+
+        $trustedSha256 = hash_file('sha256', $release['manifest']);
+        if (!is_string($trustedSha256)) {
+            throw new RuntimeException('Unable to hash sharded Foundation manifest.');
+        }
+
+        $runtime = new FoundationReleaseRuntime()->webPrevalidated(
+            $config,
+            $releaseRoot,
+            $trustedSha256,
+        );
+        $reflection = new ReflectionProperty($runtime->kernel, 'matcher');
+        $matcher = $reflection->getValue($runtime->kernel);
+
+        expect($matcher)->toBeInstanceOf(ShardedMatcher::class)
+            ->and($matcher->canBootFromCache())->toBeTrue()
+            ->and(fn() => $matcher->matchCompiled('GET', 'phase8.test', '/phase8'))
+            ->toThrow(RuntimeException::class, 'hash mismatch');
+    } finally {
+        foundationResetWebrickProductionRegistries();
+        foundationPhase8ReleaseRemove($project);
+    }
+});
+
 it('keeps worker run dispatcher parents unbooted before pooled-worker validation', function (): void {
     $project = foundationPhase8ReleaseProject();
     $config = foundationPhase8ReleaseConfig($project);
@@ -574,7 +738,9 @@ function foundationPhase8ReleaseRemove(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
-        $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
+        $file->isLink() || !$file->isDir()
+            ? unlink($file->getPathname())
+            : rmdir($file->getPathname());
     }
     rmdir($directory);
 }

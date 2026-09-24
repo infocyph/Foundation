@@ -57,6 +57,36 @@ before execution.
 There is no `FoundationConsole`, `Foundation::console()`, or second console or
 HTTP runtime hierarchy.
 
+### InterMix compilation and CacheLayer ownership
+
+InterMix owns DI composition, static planning, generated `ProductionContainer`
+artifacts, their native sidecar manifest, and production container loading.
+Foundation owns application topology and the outer immutable release generation;
+it does not wrap the generated container in another cache format.
+
+The production fast path is generated PHP plus the PHP runtime/OPcache:
+
+```text
+Foundation release generation
+  -> InterMix container.php
+  -> InterMix native .meta.json
+  -> ProductionContainer
+  -> OPcache / process-local singleton and scope state
+```
+
+CacheLayer is core Foundation infrastructure, but it is not a replacement for
+InterMix's compiled-container representation. InterMix's optional PSR-6
+definition cache persists only safe scalar/null/array singleton results and is
+most relevant to dynamic/development graphs. Foundation does not automatically
+enable that cache for generated production containers: compiled slots, object
+construction, singleton/scoped state, and runtime islands remain InterMix-owned
+in-process behavior.
+
+Trusted production loading validates Foundation-owned release identity at the
+Foundation boundary and delegates InterMix artifact/manifest validation to
+InterMix exactly once. Foundation must not reread or reinterpret InterMix's
+native sidecar as an independent cache format.
+
 ## Provider and capability topology
 
 Providers contribute graph definitions through `ContainerBuilder` before
@@ -179,9 +209,23 @@ from request/job hot paths.
 
 ## Configuration artifacts versus release artifacts
 
-Development/build commands may use Foundation's single or sharded config cache
-to reduce source parsing while composing a graph. That cache is separate from
-the immutable production release generation.
+Development/build commands may use Foundation's `single` or `sharded` config
+cache to reduce source parsing while composing a graph. The artifact mechanics
+remain ArrayKit-native:
+
+- `single` is an ArrayKit `Config::exportCache()/loadCache()` whole-config PHP
+  artifact;
+- `sharded` is ArrayKit `LazyFileConfig` namespace caching plus the native
+  `__flat.php` exact-leaf acceleration index.
+
+Foundation owns cache policy, application defaults/presets, provider compilation,
+schema/source identity, and atomic publication; it does not maintain a parallel
+config serialization/cache engine. There is no separate Foundation/ArrayKit
+`fused` mode: `__flat.php` supplies fused leaf acceleration inside the
+sharded strategy.
+
+This development/build config cache is separate from the immutable production
+release generation, whose normalized `config.php` snapshot is generation-owned.
 
 The removed Foundation 2/early-Foundation-3 switches
 `app.container.compiled`, `app.container.compiled_activation`,

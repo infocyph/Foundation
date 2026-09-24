@@ -72,12 +72,27 @@ final readonly class WebReleaseConfiguration
         );
     }
 
-    public function matcher(): MatcherInterface
+    public function matcher(?string $cacheLocation = null): MatcherInterface
     {
-        return match (strtolower($this->string('router.matcher', 'fused'))) {
+        $matcher = match ($this->matcherName()) {
             'generated' => GeneratedMatcher::make(),
             'sharded' => ShardedMatcher::make(),
             default => FusedMatcher::make(),
+        };
+
+        if ($cacheLocation !== null) {
+            $matcher->enableCache($cacheLocation)->verifyCacheOnLoad();
+        }
+
+        return $matcher;
+    }
+
+    public function matcherName(): string
+    {
+        return match (strtolower($this->string('router.matcher', 'fused'))) {
+            'generated' => 'generated',
+            'sharded' => 'sharded',
+            default => 'fused',
         };
     }
 

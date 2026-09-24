@@ -169,6 +169,16 @@ final class ModuleCatalog
                         'value' => 'talkingbytes',
                     ],
                 ],
+                [
+                    'type' => 'capability',
+                    'target' => 'notifications',
+                    'reason' => 'TalkingBytes auth delivery uses Foundation native notification profiles.',
+                    'when' => [
+                        'key' => 'auth.drivers.notifications',
+                        'operator' => 'equals',
+                        'value' => 'talkingbytes',
+                    ],
+                ],
             ],
             'platform' => [
                 'extensions' => [],

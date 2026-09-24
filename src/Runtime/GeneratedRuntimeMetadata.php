@@ -17,7 +17,6 @@ final class GeneratedRuntimeMetadata
 
     /** @param array<string,mixed> $metadata */
     public static function assertMatches(
-        string $artifactPath,
         array $metadata,
         NonWebGraphComposition $graph,
     ): void {
@@ -35,8 +34,6 @@ final class GeneratedRuntimeMetadata
         ) {
             throw new \RuntimeException('Foundation generated runtime identity does not match the current build inputs.');
         }
-
-        self::assertIntermixManifestDigest($artifactPath, $metadata['intermix_digest'] ?? null);
     }
 
     /**
@@ -47,7 +44,6 @@ final class GeneratedRuntimeMetadata
      * @param array<int|string,mixed> $capabilities
      */
     public static function assertPrevalidatedIdentity(
-        string $artifactPath,
         array $metadata,
         RuntimeMode $runtime,
         array $capabilities,
@@ -71,8 +67,6 @@ final class GeneratedRuntimeMetadata
                 'Foundation generated runtime metadata has no deterministic provider boot order.',
             );
         }
-
-        self::assertIntermixManifestDigest($artifactPath, $trustedIntermixDigest);
     }
 
     /**
@@ -195,32 +189,6 @@ final class GeneratedRuntimeMetadata
         }
 
         return $path;
-    }
-
-    private static function assertIntermixManifestDigest(string $artifactPath, mixed $digest): void
-    {
-        if (!is_string($digest) || preg_match('/^[a-f0-9]{32}$/D', $digest) !== 1) {
-            throw new \UnexpectedValueException('Foundation generated runtime InterMix digest is invalid.');
-        }
-
-        $manifestPath = $artifactPath . '.meta.json';
-        if (!is_file($manifestPath) || !is_readable($manifestPath)) {
-            throw new \RuntimeException(sprintf('InterMix runtime manifest is not readable: "%s".', $manifestPath));
-        }
-        $contents = file_get_contents($manifestPath);
-        if (!is_string($contents)) {
-            throw new \RuntimeException(sprintf('Unable to read InterMix runtime manifest: "%s".', $manifestPath));
-        }
-
-        try {
-            $manifest = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
-        } catch (JsonException $exception) {
-            throw new \RuntimeException('InterMix runtime manifest is invalid JSON.', 0, $exception);
-        }
-        $manifestDigest = is_array($manifest) ? ($manifest['digest'] ?? null) : null;
-        if (!is_string($manifestDigest) || !hash_equals($digest, $manifestDigest)) {
-            throw new \RuntimeException('Foundation generated runtime metadata does not match the InterMix artifact manifest.');
-        }
     }
 
     private static function canonicalize(mixed $value): mixed

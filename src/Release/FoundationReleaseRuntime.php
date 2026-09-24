@@ -124,6 +124,7 @@ final readonly class FoundationReleaseRuntime
             $directory . DIRECTORY_SEPARATOR . $this->relative($web['release_manifest'] ?? null),
             $adapter,
             FoundationReleaseManifest::capabilities($web['capabilities'] ?? null, 'web.capabilities'),
+            $this->matcherCachePath($web, $directory),
         );
 
         return $this->attachWebGeneration($runtime, $releaseRoot, $generation, $lease);
@@ -152,6 +153,7 @@ final readonly class FoundationReleaseRuntime
             ),
             $adapter,
             FoundationReleaseManifest::capabilities($web['capabilities'] ?? null, 'web.capabilities'),
+            $this->matcherCachePath($web, $directory),
         );
 
         return $this->attachWebGeneration(
@@ -235,6 +237,17 @@ final readonly class FoundationReleaseRuntime
                 $lease,
             ),
         );
+    }
+
+    /** @param array<string,mixed> $web */
+    private function matcherCachePath(array $web, string $directory): ?string
+    {
+        $path = $web['matcher_cache_path'] ?? null;
+        if ($path === null) {
+            return null;
+        }
+
+        return $directory . DIRECTORY_SEPARATOR . $this->relative($path);
     }
 
     private function relative(mixed $path): string

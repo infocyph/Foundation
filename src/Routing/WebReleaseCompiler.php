@@ -6,8 +6,13 @@ namespace Infocyph\Foundation\Routing;
 
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\Webrick\Router\Build\ReleaseCompiler as WebrickReleaseCompiler;
+use Infocyph\Webrick\Router\Build\RouterArtifactLoader;
 use Infocyph\Webrick\Router\Build\RouterBuildResult;
 use Infocyph\Webrick\Router\Definition\Registrar;
+use Infocyph\Webrick\Router\Matching\FusedMatcher;
+use Infocyph\Webrick\Router\Matching\GeneratedMatcher;
+use Infocyph\Webrick\Router\Matching\MatcherInterface;
+use Infocyph\Webrick\Router\Matching\ShardedMatcher;
 
 /** Coordinates the Foundation web graph through Webrick's single release compiler. */
 final readonly class WebReleaseCompiler
@@ -57,6 +62,7 @@ final readonly class WebReleaseCompiler
             },
         );
         $this->assertNoSkippedDefinitions($release);
+        $matcherCachePath = $this->compileMatcherCache($settings, $routerPath);
 
         $runtimeManifestPath = WebrickReleaseCompiler::runtimeManifestPath($releaseManifestPath);
         $runtimeManifestSha256 = hash_file('sha256', $runtimeManifestPath);
@@ -67,6 +73,7 @@ final readonly class WebReleaseCompiler
         // Returned to trusted deployment tooling, never written into the Webrick
         // manifest whose exact runtime representation it authenticates.
         $release['release_runtime_manifest_sha256'] = $runtimeManifestSha256;
+        $release['foundation_matcher_cache_path'] = $matcherCachePath;
         $release['foundation_capabilities'] = $graph->context->capabilities;
         $release['foundation_config'] = $graph->context->config;
 
@@ -98,5 +105,60 @@ final readonly class WebReleaseCompiler
             'Foundation web release contains definitions that were not statically compiled: '
             . implode('; ', $details),
         );
+    }
+
+    private function compileMatcherCache(WebReleaseConfiguration $settings, string $routerPath): ?string
+    {
+        $cachePath = match ($settings->matcherName()) {
+            'generated' => dirname($routerPath) . DIRECTORY_SEPARATOR . 'router-cache' . DIRECTORY_SEPARATOR . 'generated.php',
+            'sharded' => dirname($routerPath) . DIRECTORY_SEPARATOR . 'router-shards',
+            default => dirname($routerPath) . DIRECTORY_SEPARATOR . 'router-cache' . DIRECTORY_SEPARATOR . 'fused.php',
+        };
+        $artifact = new RouterArtifactLoader()->load(
+            $routerPath,
+            $settings->environment(),
+            $settings->configFingerprint(),
+        );
+        $routes = $artifact->routes();
+        if ($routes === []) {
+            return null;
+        }
+
+        $matcher = $this->writableMatcher($settings->matcherName(), $cachePath);
+
+        foreach ($routes as $route) {
+            $matcher->add($route);
+        }
+        $matcher->finalize();
+
+        $reader = $settings->matcher($cachePath);
+        if (!$reader->canBootFromCache()) {
+            throw new \RuntimeException(sprintf(
+                'Webrick %s route cache was not published atomically.',
+                $settings->matcherName(),
+            ));
+        }
+        $reader->finalize();
+        $reader->middlewareRequirements();
+
+        return $cachePath;
+    }
+
+    private function writableMatcher(string $name, string $cachePath): MatcherInterface
+    {
+        return match ($name) {
+            'generated' => GeneratedMatcher::make()
+                ->enableCache($cachePath)
+                ->enableCacheWrite()
+                ->verifyCacheOnLoad(),
+            'sharded' => ShardedMatcher::make()
+                ->enableCache($cachePath)
+                ->enableCacheWrite()
+                ->verifyCacheOnLoad(),
+            default => FusedMatcher::make()
+                ->enableCache($cachePath)
+                ->enableCacheWrite()
+                ->verifyCacheOnLoad(),
+        };
     }
 }

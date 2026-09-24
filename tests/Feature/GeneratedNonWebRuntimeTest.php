@@ -5,11 +5,14 @@ declare(strict_types=1);
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceProvider;
+use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Exception\ServiceResolutionException;
 use Infocyph\Foundation\Messaging\InterMixExecutionScope;
 use Infocyph\Foundation\Runtime\ExecutionId;
 use Infocyph\Foundation\Runtime\GeneratedRuntime;
 use Infocyph\Foundation\Runtime\GeneratedRuntimeCompiler;
+use Infocyph\Foundation\Runtime\NonWebGraphFactory;
+use Infocyph\Foundation\Runtime\NonWebProductionGraph;
 use Infocyph\Foundation\Worker\WorkerRuntime;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
@@ -58,6 +61,22 @@ final class FoundationGeneratedRuntimeProvider extends ServiceProvider
         );
     }
 }
+
+it('keeps InterMix definition caching opt-in when CacheLayer is active', function (): void {
+    $project = foundationGeneratedRuntimeProject();
+    $config = foundationGeneratedRuntimeConfig($project);
+    $graph = new NonWebGraphFactory()->compose($config, RuntimeMode::Cli, ['cache']);
+
+    try {
+        new NonWebProductionGraph()->prepare($graph->builder);
+
+        expect($graph->builder->definitions()->has(CacheManager::class))->toBeTrue()
+            ->and($graph->builder->development()->getRepository()->getDefinitionCache())->toBeNull();
+    } finally {
+        $graph->application->container()->unset();
+        foundationGeneratedRuntimeRemove($project);
+    }
+});
 
 it('compiles and reuses minimal generated CLI and scheduler runtimes', function (): void {
     $project = foundationGeneratedRuntimeProject();
@@ -149,6 +168,43 @@ it('loads and scopes a trusted CLI production container without rebuilding the s
         expect($first[0])->toBe('trusted-cli-one')
             ->and($second[0])->toBe('trusted-cli-two')
             ->and($first[1])->not->toBe($second[1]);
+    } finally {
+        foundationGeneratedRuntimeRemove($project);
+    }
+});
+
+it('leaves InterMix manifest validation to the InterMix production loader', function (): void {
+    $project = foundationGeneratedRuntimeProject();
+    $config = foundationGeneratedRuntimeConfig($project);
+    $artifact = $project . '/bootstrap/cache/cli.php';
+
+    try {
+        $report = new GeneratedRuntimeCompiler()->compile($config, RuntimeMode::Cli, $artifact);
+        $manifestPath = $artifact . '.meta.json';
+        $manifest = json_decode(
+            (string) file_get_contents($manifestPath),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+        $manifest['digest'] = str_repeat('0', 32);
+        file_put_contents(
+            $manifestPath,
+            json_encode(
+                $manifest,
+                JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR,
+            ) . "\n",
+        );
+
+        expect(fn() => GeneratedRuntime::loadPrevalidated(
+            $config,
+            RuntimeMode::Cli,
+            $artifact,
+            $report['metadata_sha256'],
+            $report['digest'],
+        ))->toThrow(
+            \Infocyph\InterMix\Exceptions\ContainerException::class,
+            'Prevalidated static runtime does not match the active deployment digest.',
+        );
     } finally {
         foundationGeneratedRuntimeRemove($project);
     }
