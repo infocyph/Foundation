@@ -703,7 +703,9 @@ function foundationPhase8ReleaseRemove(string $directory): void
         RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($files as $file) {
-        $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
+        $file->isLink() || !$file->isDir()
+            ? unlink($file->getPathname())
+            : rmdir($file->getPathname());
     }
     rmdir($directory);
 }
