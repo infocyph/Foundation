@@ -254,6 +254,7 @@ final readonly class FoundationReleaseRuntime
             FoundationReleaseManifest::digest($manifest['config_sha256'] ?? null, 64, 'config_sha256'),
         );
     }
+
     /**
      * @return array{0:string,1:array<string,mixed>,2:string,3:string,4:ReleaseGenerationLease}
      */
@@ -274,5 +275,4 @@ final readonly class FoundationReleaseRuntime
 
         return [$generation, $manifest, $directory, $manifestPath, $lease];
     }
-
 }
