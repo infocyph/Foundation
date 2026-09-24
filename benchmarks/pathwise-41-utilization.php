@@ -9,41 +9,9 @@ use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\Foundation\Filesystem\StorageRegistry;
 use Infocyph\Pathwise\Storage\StorageContext;
 use Infocyph\Pathwise\StreamHandler\PublicFileResolver;
+use Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
-
-/** @return array{median_ns:float,min_ns:float,max_ns:float,spread_percent:float} */
-function pathwise41Measure(callable $operation, int $operations, int $repetitions, int $warmup): array
-{
-    $samples = [];
-    for ($repeat = 0; $repeat < $repetitions; ++$repeat) {
-        for ($iteration = 0; $iteration < $warmup; ++$iteration) {
-            $operation();
-        }
-        $started = hrtime(true);
-        for ($iteration = 0; $iteration < $operations; ++$iteration) {
-            $operation();
-        }
-        $samples[] = max(1, hrtime(true) - $started) / $operations;
-    }
-    sort($samples, SORT_NUMERIC);
-    $median = $samples[intdiv(count($samples), 2)];
-    $minimum = $samples[0];
-    $maximum = $samples[count($samples) - 1];
-
-    return [
-        'median_ns' => round($median, 2),
-        'min_ns' => round($minimum, 2),
-        'max_ns' => round($maximum, 2),
-        'spread_percent' => round((($maximum - $minimum) / max(1.0, $median)) * 100, 2),
-    ];
-}
-
-function pathwise41Ratio(float $numerator, float $denominator): float
-{
-    return round($numerator / max(1.0, $denominator), 4);
-}
-
 function pathwise41Remove(string $directory): void
 {
     if (!is_dir($directory)) {
@@ -91,61 +59,61 @@ $registry->disk('uploads');
 
 try {
     $subjects = [];
-    $subjects['direct_context_construct_two_disks'] = pathwise41Measure(
+    $subjects['direct_context_construct_two_disks'] = BenchmarkSupport::measure(
         static fn() => new StorageContext($directConfigs, 'uploads'),
         $operations,
         $repetitions,
         $warmup,
     );
-    $subjects['foundation_registry_construct_two_disks'] = pathwise41Measure(
+    $subjects['foundation_registry_construct_two_disks'] = BenchmarkSupport::measure(
         static fn() => new StorageRegistry($foundationConfig, $paths),
         $operations,
         $repetitions,
         $warmup,
     );
-    $subjects['direct_context_path'] = pathwise41Measure(
+    $subjects['direct_context_path'] = BenchmarkSupport::measure(
         static fn() => $context->path('bench/file.txt', 'uploads'),
         $operations,
         $repetitions,
         $warmup,
     );
-    $subjects['foundation_registry_path'] = pathwise41Measure(
+    $subjects['foundation_registry_path'] = BenchmarkSupport::measure(
         static fn() => $registry->path('bench/file.txt', 'uploads'),
         $operations,
         $repetitions,
         $warmup,
     );
-    $subjects['direct_context_local_path'] = pathwise41Measure(
+    $subjects['direct_context_local_path'] = BenchmarkSupport::measure(
         static fn() => $context->localPath('bench/file.txt', 'uploads'),
         $operations,
         $repetitions,
         $warmup,
     );
-    $subjects['foundation_registry_local_path'] = pathwise41Measure(
+    $subjects['foundation_registry_local_path'] = BenchmarkSupport::measure(
         static fn() => $registry->localPath('bench/file.txt', 'uploads'),
         $operations,
         $repetitions,
         $warmup,
     );
-    $subjects['direct_context_warm_filesystem'] = pathwise41Measure(
+    $subjects['direct_context_warm_filesystem'] = BenchmarkSupport::measure(
         static fn() => $context->filesystem('uploads'),
         $operations,
         $repetitions,
         $warmup,
     );
-    $subjects['foundation_registry_warm_disk'] = pathwise41Measure(
+    $subjects['foundation_registry_warm_disk'] = BenchmarkSupport::measure(
         static fn() => $registry->disk('uploads'),
         $operations,
         $repetitions,
         $warmup,
     );
-    $subjects['direct_public_file_resolution'] = pathwise41Measure(
+    $subjects['direct_public_file_resolution'] = BenchmarkSupport::measure(
         static fn() => $directPublic->resolve($base . '/public', 'asset.txt'),
         $operations,
         $repetitions,
         $warmup,
     );
-    $subjects['foundation_public_file_resolution'] = pathwise41Measure(
+    $subjects['foundation_public_file_resolution'] = BenchmarkSupport::measure(
         static fn() => $foundationPublic->resolve('asset.txt'),
         $operations,
         $repetitions,
@@ -165,23 +133,23 @@ try {
         'warmup_operations' => $warmup,
         'subjects' => $subjects,
         'ratios' => [
-            'registry_construct_vs_context' => pathwise41Ratio(
+            'registry_construct_vs_context' => BenchmarkSupport::ratio(
                 (float) $subjects['foundation_registry_construct_two_disks']['median_ns'],
                 (float) $subjects['direct_context_construct_two_disks']['median_ns'],
             ),
-            'registry_path_vs_context' => pathwise41Ratio(
+            'registry_path_vs_context' => BenchmarkSupport::ratio(
                 (float) $subjects['foundation_registry_path']['median_ns'],
                 (float) $subjects['direct_context_path']['median_ns'],
             ),
-            'registry_local_path_vs_context' => pathwise41Ratio(
+            'registry_local_path_vs_context' => BenchmarkSupport::ratio(
                 (float) $subjects['foundation_registry_local_path']['median_ns'],
                 (float) $subjects['direct_context_local_path']['median_ns'],
             ),
-            'registry_warm_disk_vs_context' => pathwise41Ratio(
+            'registry_warm_disk_vs_context' => BenchmarkSupport::ratio(
                 (float) $subjects['foundation_registry_warm_disk']['median_ns'],
                 (float) $subjects['direct_context_warm_filesystem']['median_ns'],
             ),
-            'public_resolution_bridge_vs_direct' => pathwise41Ratio(
+            'public_resolution_bridge_vs_direct' => BenchmarkSupport::ratio(
                 (float) $subjects['foundation_public_file_resolution']['median_ns'],
                 (float) $subjects['direct_public_file_resolution']['median_ns'],
             ),
