@@ -26,6 +26,7 @@ final class FoundationReleaseManifest
         $web = self::section($manifest, 'web');
         self::relativePath($web['release_manifest'] ?? null, 'web.release_manifest');
         self::digest($web['runtime_manifest_sha256'] ?? null, 64, 'web.runtime_manifest_sha256');
+        self::matcherCache($web);
         self::capabilities($web['capabilities'] ?? null, 'web.capabilities');
 
         foreach (['cli', 'worker', 'scheduler'] as $runtime) {
@@ -95,6 +96,24 @@ final class FoundationReleaseManifest
         self::assertValid($manifest);
 
         return $manifest;
+    }
+
+    /** @param array<string,mixed> $web */
+    private static function matcherCache(array $web): void
+    {
+        $hasPath = array_key_exists('matcher_cache_path', $web);
+        $hasDigest = array_key_exists('matcher_cache_sha256', $web);
+        if (!$hasPath && !$hasDigest) {
+            return;
+        }
+        if (!$hasPath || !$hasDigest) {
+            throw new \UnexpectedValueException(
+                'Foundation web matcher cache path and trust identity must be declared together.',
+            );
+        }
+
+        self::relativePath($web['matcher_cache_path'], 'web.matcher_cache_path');
+        self::digest($web['matcher_cache_sha256'], 64, 'web.matcher_cache_sha256');
     }
 
     public static function nonEmptyString(mixed $value, string $field): string
