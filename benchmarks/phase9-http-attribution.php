@@ -117,7 +117,6 @@ function phase9HttpChild(string $variant): array
 declare(strict_types=1);
 
 use Infocyph\Webrick\Router\Facade\Router;
-use Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport;
 
 Router::get('/json', 'phase9FoundationHttpHandler');
 PHP);
@@ -167,7 +166,7 @@ PHP);
             throw new InvalidArgumentException(sprintf('Unknown Phase 9 HTTP attribution variant "%s".', $variant));
         }
 
-        $warmRequest = BenchmarkSupport::throughputMeasure(
+        $warmRequest = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::throughputMeasure(
             static function () use ($kernel, $request): bool {
                 $response = $kernel->handle($request);
 
@@ -190,7 +189,7 @@ PHP);
             ],
         ];
     } finally {
-        BenchmarkSupport::removeDirectory($root);
+        \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::removeDirectory($root);
     }
 }
 
