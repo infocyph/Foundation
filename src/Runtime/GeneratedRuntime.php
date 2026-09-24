@@ -90,7 +90,6 @@ final readonly class GeneratedRuntime
         $metadata = GeneratedRuntimeMetadata::read($artifactPath);
         self::assertReleaseMetadata($metadata, $expectedEnvironment, $expectedConfigFingerprint);
         GeneratedRuntimeMetadata::assertPrevalidatedIdentity(
-            $artifactPath,
             $metadata,
             $runtime,
             $capabilities,
@@ -127,7 +126,6 @@ final readonly class GeneratedRuntime
         $metadata = GeneratedRuntimeMetadata::read($artifactPath);
         self::assertReleaseMetadata($metadata, $expectedEnvironment, $expectedConfigFingerprint);
         GeneratedRuntimeMetadata::assertPrevalidatedIdentity(
-            $artifactPath,
             $metadata,
             $runtime,
             $capabilities,
