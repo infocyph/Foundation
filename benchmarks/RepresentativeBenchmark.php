@@ -200,18 +200,6 @@ PHP);
         };
     }
 
-    private function cpuModel(): string
-    {
-        $contents = is_file('/proc/cpuinfo') ? file_get_contents('/proc/cpuinfo') : false;
-        if (is_string($contents)
-            && preg_match('/^model name\\s*:\\s*(.+)$/mi', $contents, $matches) === 1
-        ) {
-            return trim($matches[1]);
-        }
-
-        return php_uname('m');
-    }
-
     /** @return array<string, mixed> */
     private function environment(): array
     {
@@ -223,7 +211,11 @@ PHP);
             );
         }
 
-        $cpuModel = $this->cpuModel();
+        $contents = is_file('/proc/cpuinfo') ? file_get_contents('/proc/cpuinfo') : false;
+        $cpuModel = is_string($contents)
+            && preg_match('/^model name\\s*:\\s*(.+)$/mi', $contents, $matches) === 1
+            ? trim($matches[1])
+            : php_uname('m');
         $extensions = get_loaded_extensions();
         sort($extensions);
         $fingerprint = is_string($fingerprint) && $fingerprint !== ''
