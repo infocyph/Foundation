@@ -116,13 +116,15 @@ it('accepts exact supported pins and fails closed on unsupported consumer constr
             $package = $database['packages']['infocyph/dblayer'] ?? null;
 
             expect($package)->toBeArray()
-                ->and($package['direct_constraint_compatible'] ?? 'missing')->toBe($expected);
+                ->and(array_key_exists('direct_constraint_compatible', $package))->toBeTrue()
+                ->and($package['direct_constraint_compatible'])->toBe($expected);
 
             if ($expected === true) {
                 expect($database['installed'])->toBeTrue()
                     ->and($database['ready'])->toBeTrue();
             } else {
-                expect($package['compatible'] ?? 'missing')->toBeNull()
+                expect(array_key_exists('compatible', $package))->toBeTrue()
+                    ->and($package['compatible'])->toBeNull()
                     ->and($database['installed'])->toBeFalse()
                     ->and($database['ready'])->toBeFalse()
                     ->and(implode(' ', $database['blockers']))->toContain('Unable to verify direct Composer constraint');

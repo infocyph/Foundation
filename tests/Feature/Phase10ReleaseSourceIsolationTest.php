@@ -184,7 +184,7 @@ it('keeps the active generation when a later staged release fails to compile', f
             $releaseRoot,
             capabilities: ['web' => [], 'cli' => [], 'worker' => [], 'scheduler' => []],
             generation: 'broken',
-        ))->toThrow(Throwable::class);
+        ))->toThrow(\ParseError::class);
 
         $status = $compiler->status($releaseRoot);
         expect($status['generation'])->toBe('stable')

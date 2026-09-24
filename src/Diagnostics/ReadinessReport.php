@@ -182,6 +182,4 @@ final readonly class ReadinessReport
             ];
         }
     }
-
-
 }

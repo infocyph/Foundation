@@ -136,8 +136,8 @@ Every work item must record its final commit, dependency identities, commands, e
 
 | Batch | Scope | Status | Current evidence / remaining gate |
 | --- | --- | --- | --- |
-| **A** | Dependency contract + public module/core contract | **PARTIAL** | Dependency floors and cold explicit capability topology implemented. CI-gate repair `bbde900` fixes dependency-fingerprint policy and exact Composer pin normalization; final stable/lowest/no-dev, CLI/docs and current green workflow evidence pending. |
-| **B** | Session lifecycle correctness | **PARTIAL** | Primary-failure precedence, finite lock durations, stale-owner mutation protection and shared-lock regressions implemented. CI-gate repair `bbde900` restores the real session exception reporter and PHPForge formatting without weakening cleanup/lock semantics; maintenance/streaming contract closure and current green workflow evidence pending. |
+| **A** | Dependency contract + public module/core contract | **PARTIAL** | Dependency floors and cold explicit capability topology implemented. Current repair set reconciles CLI documentation with the real preflight/catalog surface and preserves unknown-vs-compatible semver diagnostics; final stable/lowest/no-dev and current green workflow evidence pending. |
+| **B** | Session lifecycle correctness | **PARTIAL** | Primary-failure precedence, finite lock durations, stale-owner mutation protection and shared-lock regressions implemented. The current QA repair keeps the real exception reporter and release-failure semantics intact; maintenance/streaming contract closure and current green workflow evidence pending. |
 | **C** | Runtime support + sustained evidence | **NOT STARTED** | Final 3.0 tested support statement and reproducible runtime fixture/evidence pending. |
 | **D** | Release artifacts + rollback | **NOT STARTED** | Foundation deployment/rollback rehearsal pending; Infbyte handoff remains explicitly deferred. |
 | **E** | Readiness, trust boundaries, architecture | **NOT STARTED** | Cross-command readiness agreement, security boundary evidence and project architecture rules pending. |

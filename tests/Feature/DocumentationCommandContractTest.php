@@ -19,7 +19,12 @@ it('keeps documented infbyte command examples dispatchable', function (): void {
         }
     }
 
-    $available = array_keys(new CommandCatalog()->all());
+    $available = [
+        ...array_keys(new CommandCatalog()->all()),
+        'list',
+        'help',
+        'completion',
+    ];
     $missing = array_values(array_diff(array_keys($documented), $available));
 
     expect($missing)->toBe([]);
