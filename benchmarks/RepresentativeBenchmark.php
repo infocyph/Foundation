@@ -57,6 +57,7 @@ declare(strict_types=1);
 use Infocyph\Foundation\Session\BrowserSession;
 use Infocyph\Webrick\Response\Response;
 use Infocyph\Webrick\Router\Facade\Router;
+use Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport;
 
 Router::get('/json', static fn(): Response => Response::json(['ok' => true]));
 Router::get('/session', static function (BrowserSession $session): Response {
@@ -69,7 +70,7 @@ Router::get('/application-bearer', static fn(): Response => Response::json(['aut
 ]);
 PHP);
         if ($written === false) {
-            $this->removeDirectory($basePath);
+            BenchmarkSupport::removeDirectory($basePath);
 
             throw new \RuntimeException(sprintf('Unable to write benchmark route file "%s".', $routeFile));
         }
@@ -132,7 +133,7 @@ PHP);
             return $document;
         } finally {
             $oauthFixture?->close();
-            $this->removeDirectory($basePath);
+            BenchmarkSupport::removeDirectory($basePath);
         }
     }
 
@@ -427,24 +428,7 @@ PHP);
         return $values[$index];
     }
 
-    /** @param string $directory Temporary application root. */
-    private function removeDirectory(string $directory): void
-    {
-        if (!is_dir($directory)) {
-            return;
-        }
-
-        $files = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::CHILD_FIRST,
-        );
-        foreach ($files as $file) {
-            $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
-        }
-        rmdir($directory);
-    }
-
-    /**
+        /**
      * @param Application $application Warm Foundation application.
      * @param string $path Request path.
      * @param string $expectedBody Exact expected JSON body.
