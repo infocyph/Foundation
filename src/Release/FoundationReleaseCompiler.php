@@ -342,6 +342,39 @@ final readonly class FoundationReleaseCompiler
         return $entries;
     }
 
+    /** @param array<string,mixed> $web */
+    private function matcherCacheRelativePath(array $web, string $stage): ?string
+    {
+        $path = $web['foundation_matcher_cache_path'] ?? null;
+        if ($path === null) {
+            return null;
+        }
+        if (!is_string($path) || $path === '') {
+            throw new \UnexpectedValueException('Foundation matcher cache path is invalid.');
+        }
+
+        $prefix = rtrim($stage, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        if (!str_starts_with($path, $prefix)) {
+            throw new \RuntimeException('Foundation matcher cache escaped the release generation.');
+        }
+
+        return str_replace(DIRECTORY_SEPARATOR, '/', substr($path, strlen($prefix)));
+    }
+
+    /** @param array<string,mixed> $web */
+    private function matcherCacheSha256(array $web): ?string
+    {
+        $path = $web['foundation_matcher_cache_path'] ?? null;
+        if ($path === null) {
+            return null;
+        }
+        if (!is_string($path) || $path === '') {
+            throw new \UnexpectedValueException('Foundation matcher cache path is invalid.');
+        }
+
+        return FoundationReleaseTreeDigest::calculate($path);
+    }
+
     private function mkdir(string $directory): void
     {
         if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
@@ -423,39 +456,6 @@ final readonly class FoundationReleaseCompiler
         ];
     }
 
-    /** @param array<string,mixed> $web */
-    private function matcherCacheRelativePath(array $web, string $stage): ?string
-    {
-        $path = $web['foundation_matcher_cache_path'] ?? null;
-        if ($path === null) {
-            return null;
-        }
-        if (!is_string($path) || $path === '') {
-            throw new \UnexpectedValueException('Foundation matcher cache path is invalid.');
-        }
-
-        $prefix = rtrim($stage, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
-        if (!str_starts_with($path, $prefix)) {
-            throw new \RuntimeException('Foundation matcher cache escaped the release generation.');
-        }
-
-        return str_replace(DIRECTORY_SEPARATOR, '/', substr($path, strlen($prefix)));
-    }
-
-    /** @param array<string,mixed> $web */
-    private function matcherCacheSha256(array $web): ?string
-    {
-        $path = $web['foundation_matcher_cache_path'] ?? null;
-        if ($path === null) {
-            return null;
-        }
-        if (!is_string($path) || $path === '') {
-            throw new \UnexpectedValueException('Foundation matcher cache path is invalid.');
-        }
-
-        return FoundationReleaseTreeDigest::calculate($path);
-    }
-
     private function removeDirectory(string $directory): void
     {
         if (!is_dir($directory)) {
@@ -467,7 +467,9 @@ final readonly class FoundationReleaseCompiler
         );
         foreach ($files as $file) {
             /** @var \SplFileInfo $file */
-            $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
+            $file->isLink() || !$file->isDir()
+                ? unlink($file->getPathname())
+                : rmdir($file->getPathname());
         }
         rmdir($directory);
     }
