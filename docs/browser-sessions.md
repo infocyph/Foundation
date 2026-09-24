@@ -64,7 +64,11 @@ php infbyte session:prune --limit=1000
 ```
 
 This keeps random garbage collection and directory/database scans out of HTTP
-requests. Cache stores use their backend TTL and report zero explicit prunes.
+requests. File pruning bounds the number of deleted records per invocation, but
+the maintenance command may inspect the directory to find expired/corrupt files;
+run it outside request traffic and repeat bounded batches for large stores.
+Database pruning uses a bounded ID query and delete. Cache stores use backend TTL
+and report zero explicit prunes.
 
 For the database driver, inspect/install the portable Foundation session schema
 through the canonical module schema commands:
@@ -121,7 +125,18 @@ in a `finally` boundary.
 Store failures are never treated as an empty or successfully persisted session.
 File permission/write failures, cache rejection, and database failures propagate
 as controlled failures from their owning storage layer instead of silently
-dropping browser state.
+dropping browser state. Corrupt file records are deleted on read.
+
+When locking is disabled, Foundation intentionally provides the selected store's
+native last-write-wins semantics; it does not claim cross-request serialization.
+Process termination relies on the selected CacheLayer lock provider's bounded
+lease expiry rather than an in-process shutdown hook.
+
+Session middleware commits and releases the browser session before Webrick emits
+a response body. Deferred/streaming producers therefore cannot mutate request
+session state after the handler returns: late access fails with a finalized
+session error. Compute and persist all session mutations before returning a
+streaming response.
 
 ## CSRF policy
 
@@ -144,9 +159,10 @@ before relying on forwarded scheme or host data, or set an explicit origin.
 Keep stateless APIs outside the `web`/`csrf` middleware. Cookie authentication
 on a browser-facing API is stateful and should use CSRF protection.
 
-## Verification phase
+## Verification
 
-Session locking, backend-failure handling, persistent-runtime cleanup, and
-multi-backend contention belong in Foundation's deferred integration/release
-matrix. Documentation of the intended behavior does not imply that the current
-release-candidate matrix has already been executed.
+Foundation's feature suite covers multi-backend lock contention, lost ownership
+before commit/regeneration/invalidation, storage failures, corrupt file cleanup,
+bounded prune mutations, cleanup-failure precedence, Fiber isolation and the
+streaming finalization boundary. Release qualification still records the exact
+candidate CI/service matrix separately from these source-level contracts.
