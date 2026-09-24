@@ -119,7 +119,11 @@ it('records platform requirements and conditional module dependencies declarativ
         ->and($modules['messaging']['dependencies'][0]['when']['key'] ?? null)
         ->toBe('messaging.durable.enabled')
         ->and($modules['validation']['dependencies'][0]['target'] ?? null)->toBe('database')
-        ->and($modules['validation']['dependencies'][0]['when']['operator'] ?? null)->toBe('not-empty');
+        ->and($modules['validation']['dependencies'][0]['when']['operator'] ?? null)->toBe('not-empty')
+        ->and($modules['auth']['dependencies'][3]['target'] ?? null)->toBe('communication')
+        ->and($modules['auth']['dependencies'][4]['type'] ?? null)->toBe('capability')
+        ->and($modules['auth']['dependencies'][4]['target'] ?? null)->toBe('notifications')
+        ->and($modules['auth']['dependencies'][4]['when']['value'] ?? null)->toBe('talkingbytes');
 });
 
 it('rejects catalog identifier collisions and dependency cycles', function (): void {
