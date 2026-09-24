@@ -9,6 +9,18 @@ use Infocyph\Foundation\Security\Sha256;
 /** Deterministic identity for an immutable release-owned directory tree. */
 final class FoundationReleaseTreeDigest
 {
+    public static function assertMatches(string $directory, string $expectedSha256): void
+    {
+        if (preg_match('/^[a-f0-9]{64}$/D', $expectedSha256) !== 1) {
+            throw new \UnexpectedValueException('Foundation release tree SHA-256 is invalid.');
+        }
+
+        $actual = self::calculate($directory);
+        if (!hash_equals($expectedSha256, $actual)) {
+            throw new \RuntimeException('Foundation release tree trust identity mismatch.');
+        }
+    }
+
     public static function calculate(string $directory): string
     {
         if (!is_dir($directory)) {
@@ -69,17 +81,5 @@ final class FoundationReleaseTreeDigest
         sort($entries, SORT_STRING);
 
         return Sha256::digest(implode("\n", $entries));
-    }
-
-    public static function assertMatches(string $directory, string $expectedSha256): void
-    {
-        if (preg_match('/^[a-f0-9]{64}$/D', $expectedSha256) !== 1) {
-            throw new \UnexpectedValueException('Foundation release tree SHA-256 is invalid.');
-        }
-
-        $actual = self::calculate($directory);
-        if (!hash_equals($expectedSha256, $actual)) {
-            throw new \RuntimeException('Foundation release tree trust identity mismatch.');
-        }
     }
 }
