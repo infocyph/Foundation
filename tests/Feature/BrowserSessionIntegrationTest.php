@@ -252,8 +252,9 @@ it('bounds file-session prune mutations and removes corrupt records on read', fu
             ->and($store->load($validId, $now)?->data)->toBe(['valid' => true]);
 
         $corruptId = str_repeat('e', 64);
-        $reflection = new ReflectionMethod($store, 'path');
-        $corruptPath = $reflection->invoke($store, $corruptId);
+        $corruptPath = $directory . DIRECTORY_SEPARATOR
+            . hash('sha3-256', "foundation.session.file\0" . $corruptId)
+            . '.json';
         file_put_contents($corruptPath, '{');
 
         expect($store->load($corruptId, $now))->toBeNull()
