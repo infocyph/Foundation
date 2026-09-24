@@ -243,21 +243,11 @@ final readonly class FoundationReleaseRuntime
     private function matcherCachePath(array $web, string $directory): ?string
     {
         $path = $web['matcher_cache_path'] ?? null;
-        $sha256 = $web['matcher_cache_sha256'] ?? null;
-        if ($path === null && $sha256 === null) {
+        if ($path === null) {
             return null;
         }
-        if (!is_string($path) || !is_string($sha256)) {
-            throw new \UnexpectedValueException('Foundation web matcher cache metadata is incomplete.');
-        }
 
-        $absolute = $directory . DIRECTORY_SEPARATOR . $this->relative($path);
-        FoundationReleaseTreeDigest::assertMatches(
-            $absolute,
-            FoundationReleaseManifest::digest($sha256, 64, 'web.matcher_cache_sha256'),
-        );
-
-        return $absolute;
+        return $directory . DIRECTORY_SEPARATOR . $this->relative($path);
     }
 
     private function relative(mixed $path): string
