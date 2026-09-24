@@ -108,8 +108,9 @@ this does **not** implicitly select OTP/TOTP MFA in application configuration.
 
 Conditional auth dependencies are evaluated from normalized configuration.
 Database-backed auth requires the database module, Epicrypt-backed auth drivers
-require the security module, TalkingBytes auth transport requires communication,
-and selected OTP/passkey state consumes Foundation's core cache capability.
+require the security module, and TalkingBytes auth delivery requires both the
+communication module and Foundation's native `notifications` capability. Selected
+OTP/passkey state consumes Foundation's core cache capability.
 
 ## Install versus enable
 
