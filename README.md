@@ -134,8 +134,11 @@ php infbyte optimize
 Production deployment publishes one immutable Foundation release generation.
 The generation owns the normalized config snapshot, compiled Webrick web bundle,
 compiled InterMix CLI/worker/scheduler containers, worker topology, and trust
-metadata. Production release loading does not fall back to project route,
-provider, or config discovery when a generated artifact is missing or invalid.
+metadata. InterMix generated PHP remains the native DI production cache and is
+loaded directly through its own manifest/ProductionContainer path; Foundation
+does not redirect compiled containers through CacheLayer. Production release
+loading does not fall back to project route, provider, or config discovery when
+a generated artifact is missing or invalid.
 
 Run `php infbyte list` for the active command catalog. Generated artifacts are
 deployment-owned and should not be committed. Use `php infbyte optimize:clear`
