@@ -110,6 +110,91 @@ it('boots immutable releases without rediscovering application source files', fu
     }
 });
 
+it('builds from a read-only application image into a separate writable release root', function (): void {
+    $project = foundationPhase10ReleaseProject();
+    $releaseRoot = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR
+        . 'foundation-phase10-release-root-' . bin2hex(random_bytes(5));
+    mkdir($releaseRoot, 0777, true);
+    $config = [
+        'app' => ['base_path' => $project, 'env' => 'production', 'debug' => false],
+        '_config_cache' => false,
+        'router' => [
+            'files' => ['web.php'],
+            'matcher' => 'fused',
+            'middleware' => ['globals' => ['pre' => [], 'post' => []]],
+        ],
+    ];
+
+    try {
+        chmod($project . '/bootstrap/providers.php', 0444);
+        chmod($project . '/routes/web.php', 0444);
+        chmod($project . '/bootstrap', 0555);
+        chmod($project . '/config', 0555);
+        chmod($project . '/routes', 0555);
+        chmod($project, 0555);
+
+        $release = new FoundationReleaseCompiler()->buildAndActivate(
+            $config,
+            $releaseRoot,
+            capabilities: ['web' => [], 'cli' => [], 'worker' => [], 'scheduler' => []],
+            generation: 'readonly-source',
+        );
+
+        expect(is_file($release['manifest']))->toBeTrue()
+            ->and($release['manifest'])->toStartWith($releaseRoot)
+            ->and(is_file($project . '/bootstrap/cache/foundation.php'))->toBeFalse();
+    } finally {
+        chmod($project, 0777);
+        foreach (['bootstrap', 'config', 'routes'] as $directory) {
+            chmod($project . '/' . $directory, 0777);
+        }
+        chmod($project . '/bootstrap/providers.php', 0666);
+        chmod($project . '/routes/web.php', 0666);
+        foundationPhase10ReleaseRemove($project);
+        foundationPhase10ReleaseRemove($releaseRoot);
+    }
+});
+
+it('keeps the active generation when a later staged release fails to compile', function (): void {
+    $project = foundationPhase10ReleaseProject();
+    $releaseRoot = $project . '/storage/releases';
+    $config = [
+        'app' => ['base_path' => $project, 'env' => 'production', 'debug' => false],
+        '_config_cache' => false,
+        'router' => [
+            'files' => ['web.php'],
+            'matcher' => 'fused',
+            'middleware' => ['globals' => ['pre' => [], 'post' => []]],
+        ],
+    ];
+    $compiler = new FoundationReleaseCompiler();
+
+    try {
+        $stable = $compiler->buildAndActivate(
+            $config,
+            $releaseRoot,
+            capabilities: ['web' => [], 'cli' => [], 'worker' => [], 'scheduler' => []],
+            generation: 'stable',
+        );
+        file_put_contents($project . '/routes/web.php', "<?php\n\nthis is not valid PHP;\n");
+
+        expect(fn() => $compiler->buildAndActivate(
+            $config,
+            $releaseRoot,
+            capabilities: ['web' => [], 'cli' => [], 'worker' => [], 'scheduler' => []],
+            generation: 'broken',
+        ))->toThrow(Throwable::class);
+
+        $status = $compiler->status($releaseRoot);
+        expect($status['generation'])->toBe('stable')
+            ->and($status['manifest_sha256'])->toBe($stable['manifest_sha256'])
+            ->and(is_dir($releaseRoot . '/generations/broken'))->toBeFalse()
+            ->and(glob($releaseRoot . '/generations/.staging-broken-*') ?: [])->toBe([]);
+    } finally {
+        foundationPhase10ReleaseRemove($project);
+    }
+});
+
 function foundationPhase10ReleaseProject(): string
 {
     $project = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR
