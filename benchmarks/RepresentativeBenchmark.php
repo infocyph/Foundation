@@ -57,7 +57,6 @@ declare(strict_types=1);
 use Infocyph\Foundation\Session\BrowserSession;
 use Infocyph\Webrick\Response\Response;
 use Infocyph\Webrick\Router\Facade\Router;
-use Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport;
 
 Router::get('/json', static fn(): Response => Response::json(['ok' => true]));
 Router::get('/session', static function (BrowserSession $session): Response {
@@ -70,7 +69,7 @@ Router::get('/application-bearer', static fn(): Response => Response::json(['aut
 ]);
 PHP);
         if ($written === false) {
-            BenchmarkSupport::removeDirectory($basePath);
+            \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::removeDirectory($basePath);
 
             throw new \RuntimeException(sprintf('Unable to write benchmark route file "%s".', $routeFile));
         }
@@ -133,7 +132,7 @@ PHP);
             return $document;
         } finally {
             $oauthFixture?->close();
-            BenchmarkSupport::removeDirectory($basePath);
+            \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::removeDirectory($basePath);
         }
     }
 
