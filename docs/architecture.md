@@ -57,6 +57,36 @@ before execution.
 There is no `FoundationConsole`, `Foundation::console()`, or second console or
 HTTP runtime hierarchy.
 
+### InterMix compilation and CacheLayer ownership
+
+InterMix owns DI composition, static planning, generated `ProductionContainer`
+artifacts, their native sidecar manifest, and production container loading.
+Foundation owns application topology and the outer immutable release generation;
+it does not wrap the generated container in another cache format.
+
+The production fast path is generated PHP plus the PHP runtime/OPcache:
+
+```text
+Foundation release generation
+  -> InterMix container.php
+  -> InterMix native .meta.json
+  -> ProductionContainer
+  -> OPcache / process-local singleton and scope state
+```
+
+CacheLayer is core Foundation infrastructure, but it is not a replacement for
+InterMix's compiled-container representation. InterMix's optional PSR-6
+definition cache persists only safe scalar/null/array singleton results and is
+most relevant to dynamic/development graphs. Foundation does not automatically
+enable that cache for generated production containers: compiled slots, object
+construction, singleton/scoped state, and runtime islands remain InterMix-owned
+in-process behavior.
+
+Trusted production loading validates Foundation-owned release identity at the
+Foundation boundary and delegates InterMix artifact/manifest validation to
+InterMix exactly once. Foundation must not reread or reinterpret InterMix's
+native sidecar as an independent cache format.
+
 ## Provider and capability topology
 
 Providers contribute graph definitions through `ContainerBuilder` before
