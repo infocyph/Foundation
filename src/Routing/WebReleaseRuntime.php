@@ -212,7 +212,7 @@ final readonly class WebReleaseRuntime
 
         $matcher = $settings->matcher($matcherCachePath);
         if ($matcherCachePath !== null && !$matcher->canBootFromCache()) {
-            throw new \RuntimeException('Webrick sharded route cache is not bootable.');
+            throw new \RuntimeException('Webrick native route cache is not bootable.');
         }
 
         $kernel = $prevalidated
