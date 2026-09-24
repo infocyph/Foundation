@@ -12,6 +12,7 @@ use Infocyph\DBLayer\Exceptions\QueryException;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Foundation;
+use Infocyph\Foundation\Logging\ExceptionReporter;
 use Infocyph\Foundation\Session\BrowserSession;
 use Infocyph\Foundation\Session\Middleware\CsrfMiddleware;
 use Infocyph\Foundation\Session\Middleware\SessionMiddleware;
@@ -29,6 +30,7 @@ use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 use Infocyph\Webrick\Runtime\Http\RuntimeRequestContext;
+use Psr\Log\AbstractLogger;
 
 it('persists session data and expires flash data after its next request', function (): void {
     [$middleware] = browserSessionStack();
@@ -64,6 +66,35 @@ it('persists session data and expires flash data after its next request', functi
     expect(browserSessionJson($second))->toBe(['user_id' => 42, 'notice' => 'saved'])
         ->and(browserSessionJson($third))->toBe(['user_id' => 42, 'notice' => null])
         ->and($first->getHeaderLine('Set-Cookie'))->toContain('Secure', 'HttpOnly', 'SameSite=Lax');
+});
+
+it('finalizes browser sessions before deferred response bodies are produced', function (): void {
+    [$middleware, $manager, $store, , $container] = browserSessionStack();
+
+    $response = $middleware(
+        Request::fake(headers: ['Host' => 'example.test'], uri: 'https://example.test/stream'),
+        static function (Request $request): Response {
+            $session = BrowserSession::fromRequest($request);
+            $session->put('before_stream', true);
+
+            return Response::stream(static function () use ($session): iterable {
+                $session->put('late_stream_write', true);
+                yield 'streamed';
+            });
+        },
+    );
+    $id = browserSessionCookieId($response);
+    $producer = $response->getProducer();
+    expect($producer)->not->toBeNull()
+        ->and(fn() => iterator_to_array($producer()))
+        ->toThrow(LogicException::class, 'finalized for this request');
+
+    $saved = browserSessionWithinScope(
+        $container,
+        static fn(): array => $manager->open($id)->all(),
+    );
+    expect($saved)->toBe(['before_stream' => true])
+        ->and($store->load($id, time())?->data)->toBe(['before_stream' => true]);
 });
 
 it('regenerates identifiers without retaining the old session record', function (): void {
@@ -263,6 +294,77 @@ it('reports database session failures after a connection is lost', function (): 
     $database->save(str_repeat('c', 64), $payload);
     $connection->disconnect();
     expect(fn() => $database->load(str_repeat('c', 64), time()))->toThrow(QueryException::class);
+});
+
+it('reports cleanup failures without replacing the primary session failure', function (): void {
+    $config = SessionConfig::fromRepository(new ConfigRepository([
+        'session' => ['driver' => 'array', 'lock' => ['enabled' => true]],
+    ]), sys_get_temp_dir() . '/foundation-browser-sessions');
+    $store = new ArraySessionStore();
+    $id = str_repeat('f', 64);
+    $store->save($id, new \Infocyph\Foundation\Session\SessionPayload(['value' => 1], [], time() + 60));
+
+    $locks = new class implements LockProviderInterface {
+        public function acquire(string $key, float $waitSeconds, float $leaseSeconds = 30.0): ?LockHandle
+        {
+            unset($waitSeconds);
+
+            return new LockHandle($key, 'token', leaseSeconds: $leaseSeconds);
+        }
+
+        public function refresh(?LockHandle $handle, float $leaseSeconds): bool
+        {
+            return $handle !== null && $leaseSeconds > 0;
+        }
+
+        public function release(?LockHandle $handle): void
+        {
+            if ($handle !== null) {
+                throw new RuntimeException('cleanup-secret');
+            }
+        }
+    };
+    $logger = new class extends AbstractLogger {
+        /** @var list<array{level:mixed,message:string,context:array<string,mixed>}> */
+        public array $records = [];
+
+        public function log($level, string|Stringable $message, array $context = []): void
+        {
+            $this->records[] = [
+                'level' => $level,
+                'message' => (string) $message,
+                'context' => $context,
+            ];
+        }
+    };
+    $container = browserSessionContainer();
+    $manager = new SessionManager(
+        $config,
+        static fn(): SessionStoreInterface => $store,
+        static fn(): LockProviderInterface => $locks,
+        $container,
+    );
+    $middleware = new SessionMiddleware($manager, $config, new ExceptionReporter($logger));
+
+    expect(fn() => browserSessionWithinScope(
+        $container,
+        static fn(): Response => $middleware(
+            Request::fake(uri: 'https://example.test/failure')
+                ->withCookieParams(['infbyte_session' => $id]),
+            static function (Request $request): never {
+                BrowserSession::fromRequest($request)->get('value');
+                throw new RuntimeException('primary application failed');
+            },
+        ),
+    ))->toThrow(RuntimeException::class, 'primary application failed');
+
+    expect($logger->records)->toHaveCount(1)
+        ->and($logger->records[0]['level'])->toBe('warning')
+        ->and($logger->records[0]['context']['phase'] ?? null)->toBe('browser_session_cleanup')
+        ->and($logger->records[0]['context']['exception']['class'] ?? null)->toBe(RuntimeException::class)
+        ->and(json_encode($logger->records, JSON_THROW_ON_ERROR))
+        ->not->toContain('cleanup-secret')
+        ->not->toContain('primary application failed');
 });
 
 it('releases CacheLayer session locks when request handling fails', function (): void {
