@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Release;
 
+use Composer\InstalledVersions;
+
 final class FoundationReleaseManifest
 {
     public const int FORMAT = 2;
@@ -17,6 +19,7 @@ final class FoundationReleaseManifest
         self::identifier($manifest['generation'] ?? null, 'generation');
         self::nonEmptyString($manifest['environment'] ?? null, 'environment');
         self::digest($manifest['config_fingerprint'] ?? null, 32, 'config_fingerprint');
+        self::digest($manifest['dependency_fingerprint'] ?? null, 64, 'dependency_fingerprint');
         self::relativePath($manifest['config_path'] ?? null, 'config_path');
         self::digest($manifest['config_sha256'] ?? null, 64, 'config_sha256');
 
@@ -47,6 +50,25 @@ final class FoundationReleaseManifest
         }
 
         return $value;
+    }
+
+    public static function dependencyFingerprint(): string
+    {
+        $packages = InstalledVersions::getInstalledPackages();
+        sort($packages, SORT_STRING);
+        $identity = [];
+
+        foreach ($packages as $package) {
+            $identity[$package] = [
+                'version' => InstalledVersions::getVersion($package),
+                'reference' => InstalledVersions::getReference($package),
+            ];
+        }
+
+        return hash(
+            'sha256',
+            json_encode($identity, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+        );
     }
 
     public static function digest(mixed $value, int $length, string $field): string
