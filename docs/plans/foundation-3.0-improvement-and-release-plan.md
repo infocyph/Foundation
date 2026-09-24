@@ -1,7 +1,7 @@
 # Foundation 3.0 — improvement and release plan
 
 **Target:** next release, **3.0**.  
-**Status:** release closure in progress — Batches A–D complete for the declared 3.0 support scope; Batch E trust-boundary consolidation and Batch F release evidence remain.  
+**Status:** release closure in progress — Batches A–E are implemented for the declared 3.0 support scope; Batch F is awaiting current-head CI/release-evidence confirmation.  
 **Reviewed:** 2026-09-24.  
 **Source baseline:** `dbaa92b3672c1c385ef0cc94854434d283857ff7`, plus the live Composer dependency edits described below.  
 **Scope:** Foundation as Infbyte's reusable application hub, its first-party integrations, native application services, and supported execution environments.
@@ -140,8 +140,8 @@ Every work item must record its final commit, dependency identities, commands, e
 | **B** | Session lifecycle correctness | **DONE** | Primary-failure precedence, finite duration validation, all configured shared-lock backends, stale-owner rotation/invalidation, failure cleanup, bounded offline pruning and streaming finalization are covered. Current-source workflow #1717 is green. |
 | **C** | Runtime support + sustained evidence | **DONE** | The 3.0 support statement is deliberately narrowed to rows exercised by Foundation CI: ordinary Webrick/SAPI, generated releases, persistent-adapter semantics, CLI/worker/scheduler and sustained isolation. Native FPM/Runwire/FrankenPHP/RoadRunner/Swoole/Workerman certification is explicitly deferred; representative and attribution evidence is retained without converting adapter availability into a support claim. |
 | **D** | Release artifacts + rollback | **DONE** | Read-only-source builds, serialized/staged publication, fail-closed trust/config/dependency identities, failed-stage recovery, rollback guidance, generated-secret isolation and key fallback/rotation are covered. Runtime generation leases enforce drain-safe pruning. Current-source workflow #1717 is green. Infbyte handoff remains explicitly deferred. |
-| **E** | Readiness, trust boundaries, architecture | **PARTIAL** | F30-10 readiness semantics and F30-12 architecture ownership are complete. F30-11 source/test closure is now implemented, including multi-process auth lockout-counter evidence; current-head all-green workflow evidence is pending before Batch E is marked done. |
-| **F** | CI reproducibility + documentation | **PARTIAL** | Reproducible matrix/services/consumer gates, immutable PHPForge workflow identity, release notes, documentation path and committed evidence index are implemented. A post-gate Release evidence artifact now records PHP/extensions/dependencies/test inventory. Current-head green evidence is still required before marking the batch done. |
+| **E** | Readiness, trust boundaries, architecture | **DONE** | F30-10 readiness semantics, F30-11 auth/session trust-boundary closure and F30-12 architecture ownership are implemented. Workflow #1721 passed all PHPForge QA and analysis rows on the implementation head; final release-evidence publication is tracked under Batch F. |
+| **F** | CI reproducibility + documentation | **PARTIAL** | Reproducible matrix/services/consumer gates, immutable PHPForge workflow identity, release notes, documentation path and committed evidence index are implemented. Workflow #1721 passed QA, analysis, benchmarks, clean install and all isolated consumers; only the release-evidence capture job failed. Commit `d8d08f6` fixes that inventory step and workflow #1722 is the current-head confirmation gate. |
 
 Tracker rule: mark a batch **DONE** only when its required acceptance criteria are backed by current-source tests, workflow evidence or an explicitly narrowed support statement. Historical green runs do not close a current batch.
 
@@ -431,7 +431,7 @@ Recommended evidence location: `docs/evidence/foundation-3.0/` for a concise com
 - [ ] Auth/session negative paths, cleanup precedence and persistent isolation pass.
 - [ ] Schema migration and rolling-generation compatibility are verified for supported persistence backends.
 - [ ] Release build, activation, trust validation, drain, rollback and artifact retention rehearsal pass.
-- [ ] Native-server integration and representative performance/soak gates pass with interpretable evidence.
+- [ ] Representative performance/soak gates pass with interpretable evidence for the declared 3.0 support rows; native host certification remains explicitly deferred per F30-06.
 - [ ] PHPForge-required implementation processing/checks are run on code changes; detailed tests and the final release guard pass without weakening scope or thresholds.
 - [ ] PHP 8.4/8.5 stable/lowest CI, analysis, audit and clean-install jobs validate the exact final implementation/dependency revision.
 - [ ] Isolated Foundation consumers pass against that revision. Infbyte migration and consumer certification remain explicitly deferred to the separate skeleton task.
