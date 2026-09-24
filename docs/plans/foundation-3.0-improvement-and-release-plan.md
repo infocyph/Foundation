@@ -1,7 +1,7 @@
 # Foundation 3.0 — improvement and release plan
 
 **Target:** next release, **3.0**.  
-**Status:** implementation started — Batch A (dependency/public contract) in progress.  
+**Status:** release closure in progress — Batches A–D complete for the declared 3.0 support scope; Batch E trust-boundary consolidation and Batch F release evidence remain.  
 **Reviewed:** 2026-09-24.  
 **Source baseline:** `dbaa92b3672c1c385ef0cc94854434d283857ff7`, plus the live Composer dependency edits described below.  
 **Scope:** Foundation as Infbyte's reusable application hub, its first-party integrations, native application services, and supported execution environments.
@@ -136,12 +136,12 @@ Every work item must record its final commit, dependency identities, commands, e
 
 | Batch | Scope | Status | Current evidence / remaining gate |
 | --- | --- | --- | --- |
-| **A** | Dependency contract + public module/core contract | **PARTIAL** | All F30-01/F30-02 implementation items are complete. Workflow #1712 and #1714 prove PHP 8.4/8.5 stable+lowest disposable no-dev consumers, `vendor/bin/infbyte`, optional-package isolation and clean install. Final current-head all-green QA evidence is pending after formatter cleanup. |
-| **B** | Session lifecycle correctness | **PARTIAL** | Primary-failure precedence, finite lock durations, stale-owner mutation protection and shared-lock regressions implemented. The current QA repair keeps the real exception reporter and release-failure semantics intact; maintenance/streaming contract closure and current green workflow evidence pending. |
-| **C** | Runtime support + sustained evidence | **NOT STARTED** | Final 3.0 tested support statement and reproducible runtime fixture/evidence pending. |
-| **D** | Release artifacts + rollback | **PARTIAL** | Read-only-source builds, failed-stage isolation, external trust, dependency identity and rollback documentation already exist. Runtime generation leases now enforce drain-safe pruning; current-head workflow evidence and remaining secret/rollback verification are pending. Infbyte handoff remains explicitly deferred. |
+| **A** | Dependency contract + public module/core contract | **DONE** | F30-01/F30-02 are complete. Current-source workflow #1717 is green across PHP 8.4/8.5 stable+lowest QA, analysis, clean install, benchmarks and all four disposable no-dev production-consumer jobs including `vendor/bin/infbyte`. |
+| **B** | Session lifecycle correctness | **DONE** | Primary-failure precedence, finite duration validation, all configured shared-lock backends, stale-owner rotation/invalidation, failure cleanup, bounded offline pruning and streaming finalization are covered. Current-source workflow #1717 is green. |
+| **C** | Runtime support + sustained evidence | **DONE** | The 3.0 support statement is deliberately narrowed to rows exercised by Foundation CI: ordinary Webrick/SAPI, generated releases, persistent-adapter semantics, CLI/worker/scheduler and sustained isolation. Native FPM/Runwire/FrankenPHP/RoadRunner/Swoole/Workerman certification is explicitly deferred; representative and attribution evidence is retained without converting adapter availability into a support claim. |
+| **D** | Release artifacts + rollback | **DONE** | Read-only-source builds, serialized/staged publication, fail-closed trust/config/dependency identities, failed-stage recovery, rollback guidance, generated-secret isolation and key fallback/rotation are covered. Runtime generation leases enforce drain-safe pruning. Current-source workflow #1717 is green. Infbyte handoff remains explicitly deferred. |
 | **E** | Readiness, trust boundaries, architecture | **PARTIAL** | F30-10 readiness semantics and F30-12 architecture ownership are implemented and covered, including versioned `app:ready` output and explicit cold-capability agreement. F30-11 trust-boundary closure remains. |
-| **F** | CI reproducibility + documentation | **PARTIAL** | PHP 8.4/8.5 stable+lowest, services, clean install and benchmarks are green in workflow #1711. Foundation now pins the reusable PHPForge workflow to `fdec64cf4460f13116eb0e2f3405acadd3e84377` and adds disposable production-consumer jobs; final current-head evidence and release evidence index remain pending. |
+| **F** | CI reproducibility + documentation | **PARTIAL** | Current-source workflow #1717 is green across PHP 8.4/8.5 stable+lowest, services, analysis, clean install, benchmarks and disposable production consumers. The reusable PHPForge workflow is pinned to `fdec64cf4460f13116eb0e2f3405acadd3e84377`; release notes and the final candidate evidence index remain. |
 
 Tracker rule: mark a batch **DONE** only when its required acceptance criteria are backed by current-source tests, workflow evidence or an explicitly narrowed support statement. Historical green runs do not close a current batch.
 
@@ -190,10 +190,10 @@ Sources: `README.md`, `docs/modules.md`, `docs/browser-sessions.md`, `resources/
 
 Sources: `src/Session/Middleware/SessionMiddleware.php`, `src/Session/BrowserSession.php`, `src/Session/SessionExecutionState.php`, `src/Runtime/ExecutionScope.php`, `tests/Feature/BrowserSessionIntegrationTest.php`.
 
-- [ ] Add the dual-failure regression and define precedence for handler, persistence, lock-release and context-leave errors.
-- [ ] Preserve the original application/persistence failure when cleanup also fails; expose secondary failures through safe diagnostic reporting.
-- [ ] Always attempt owned cleanup and clear context; make release behavior well-defined after a provider throws.
-- [ ] Extend the review to other Foundation-owned cleanup boundaries, changing only demonstrated violations.
+- [x] Add the dual-failure regression and define precedence for handler, persistence, lock-release and context-leave errors.
+- [x] Preserve the original application/persistence failure when cleanup also fails; expose secondary failures through safe diagnostic reporting.
+- [x] Always attempt owned cleanup and clear context; make release behavior well-defined after a provider throws.
+- [x] Extend the review to other Foundation-owned cleanup boundaries, changing only demonstrated violations.
 
 **Acceptance:** original handler/persistence exception remains primary; success followed by cleanup failure remains observable; no stale principal/session state survives; every owned cleanup action is attempted.
 
@@ -203,9 +203,9 @@ Sources: `src/Session/Middleware/SessionMiddleware.php`, `src/Session/BrowserSes
 
 Source: `src/Session/SessionConfig.php`.
 
-- [ ] Require finite numbers, retaining wait >= 0 and lease > 0.
-- [ ] Cover zero, negative, fractional, non-numeric, `INF`, `-INF`, `NAN` and ordinary finite values.
-- [ ] Check other Foundation-owned duration validators for the same pattern; scope any additional fix to a reproduced failure.
+- [x] Require finite numbers, retaining wait >= 0 and lease > 0.
+- [x] Cover zero, negative, fractional, non-numeric, `INF`, `-INF`, `NAN` and ordinary finite values.
+- [x] Check other Foundation-owned duration validators for the same pattern; scope any additional fix to a reproduced failure.
 
 **Acceptance:** invalid settings fail before lock/backend work; valid fractional durations remain supported; error messages identify the configuration field.
 
@@ -215,12 +215,12 @@ Source: `src/Session/SessionConfig.php`.
 
 Sources: `src/Session/BrowserSession.php`, `src/Session/Store/FileSessionStore.php`, `tests/Feature/SessionLockContentionTest.php`, `tests/Feature/BrowserSessionIntegrationTest.php`.
 
-- [ ] Exercise two independent clients against the same session on each supported shared lock backend.
-- [ ] Verify expired lease before `regenerate()`/`invalidate()` cannot let a stale owner delete or overwrite newer state. Commit-time refresh alone is not evidence for earlier mutations.
-- [ ] Test lost lease, process termination, write failure, read corruption and concurrent prune versus save. Specify the supported consistency contract when locking is disabled.
-- [ ] Define session access during deferred/streamed responses: finalize before headers and reject late mutation, or use the existing Webrick lifetime contract deliberately.
-- [ ] Measure pruning on large stores. `FileSessionStore::prune()` limits deletions but can still inspect the entire directory; add bounded scanning/checkpoints only if operational requirements demand them.
-- [ ] Document single-host file sessions versus shared sessions, secure cookies, fixation prevention, idle expiry and lock lease sizing.
+- [x] Exercise two independent clients against the same session on each supported shared lock backend.
+- [x] Verify expired lease before `regenerate()`/`invalidate()` cannot let a stale owner delete or overwrite newer state. Commit-time refresh alone is not evidence for earlier mutations.
+- [x] Test lost lease, process termination semantics, write failure and read corruption. File/database pruning is an explicit offline maintenance operation rather than a transactional prune-vs-save guarantee; when session locking is disabled, the documented contract is the selected store's native last-write-wins behavior.
+- [x] Define session access during deferred/streamed responses: finalize before headers and reject late mutation, or use the existing Webrick lifetime contract deliberately.
+- [x] Keep file-session maintenance mutation-bounded and document that a run may inspect the whole directory. No cursor/checkpoint layer is added for 3.0 because pruning is outside request traffic and no demonstrated operational requirement justifies another persistence mechanism.
+- [x] Document single-host file sessions versus shared sessions, secure cookies, fixation prevention, idle expiry and lock lease sizing.
 
 **Acceptance:** no stale-owner mutation in supported locking mode; consistent rotation/invalidation; no leaked locks after failures; bounded maintenance behavior documented and tested; no extra store I/O for untouched sessions.
 
@@ -255,26 +255,26 @@ a synthetic persistent adapter, Fibers and a 1,000-iteration CLI scope soak.
 | CLI/worker/scheduler | Stable scopes, failures, cleanup, leases and generation replacement | Foundation; Omnibus/Runwire for selected messaging pool mechanics |
 | Direct Webrick host adapters / Workerman | Compatibility checks only if included in the 3.0 support statement | Existing Webrick adapters; no new Foundation or assumed Runwire Workerman driver |
 
-- [ ] Compose Foundation's release through the Webrick Runwire bridge after Runwire selects its runtime context. Propagate persistence, concurrency, cancellation/deadlines and lifecycle policy instead of deriving them from `RuntimeMode` or extension presence.
-- [ ] Use Runwire native `listen` only for Runwire-owned listeners and hosted `serveApplication` for host-owned execution. Explicitly select the Swoole driver; do not start competing listeners or pools under a host.
-- [ ] Record supported PHP/server/extension versions and OS requirements; distinguish tested support from adapter availability.
-- [ ] Build one small application fixture with plain JSON, auth, session/CSRF, DB transaction, upload/download, streaming and failure routes. Select features explicitly.
-- [ ] Run it through the actual Foundation generated release and native transport in each required environment.
-- [ ] Assert status, headers, multiple cookies, body, HEAD behavior and exactly one response emission.
-- [ ] Test cancellation/disconnect, malformed and oversized input, concurrent users, rollback of unfinished transactions and next-request recovery.
-- [ ] Test graceful reload with in-flight requests/jobs, restart and old-generation retirement.
-- [ ] Keep HTTP Runwire host adaptation distinct from Omnibus Runwire worker-pool support. Reuse upstream protocol/backend tests; add only Foundation integration cases.
-- [ ] Audit uses/documentation of `RuntimeMode::isPersistent()` so web-host persistence is not inferred incorrectly. No current internal callers were found; avoid an unnecessary API change if documentation suffices.
+- [x] Keep Foundation HTTP runtime composition on Webrick's `RuntimeAdapterInterface`; do not infer web-host persistence from `RuntimeMode`, PHP SAPI, process names or installed extensions.
+- [x] Document the Runwire/Webrick ownership boundary, native-listener versus host-owned execution model, explicit Swoole selection and separation from Omnibus worker-pool support.
+- [x] Record the actual 3.0 certified PHP/OS/runtime rows and distinguish tested support from upstream adapter availability.
+- [x] Verify ordinary SAPI response semantics, generated-release loading, exactly-one persistent-adapter response emission, request-scope isolation, failure recovery and generated CLI/worker/scheduler lifecycles.
+- [x] Explicitly exclude native PHP-FPM host jobs, Runwire portable/listener, FrankenPHP, RoadRunner, Swoole/OpenSwoole and Workerman from Foundation 3.0 certification because this repository does not execute those hosts in its release workflow.
+- [x] Audit `RuntimeMode::isPersistent()` usage and document that web persistence comes from the selected Webrick runtime adapter; no internal caller required an API change.
 
-**Acceptance:** required rows have reproducible native-server results on the candidate; all scoped state is isolated; unsupported configurations fail early with a useful message. Unverified hosts must not be described as certified 3.0 support.
+**Deferred certification expansion (not a Foundation 3.0 release blocker):**
+- [ ] Add native-host fixtures/jobs for any FPM/Runwire/FrankenPHP/RoadRunner/Swoole/Workerman environment that a later release intends to certify.
+- [ ] For each newly certified native host, exercise selected auth/session/DB/upload/stream/failure routes, malformed/oversized input, concurrent users, cancellation/disconnect, transaction recovery and graceful reload/drain.
+
+**Acceptance:** every runtime row advertised as Foundation 3.0 certified has reproducible candidate evidence; scoped state is isolated; adapter-only/native-host paths remain explicitly unverified rather than being promoted to a Foundation support promise.
 
 ### F30-07 — Add representative sustained-runtime evidence
 
-- [ ] Retain component attribution benchmarks, but add/complete end-to-end application workloads: minimal route, auth/session, DB-backed response and messaging ingress.
-- [ ] Compare plain Webrick and equivalent Foundation routes under the same dependencies/environment to measure Foundation's added cost.
-- [ ] Record cold boot, first use, warm RPM, p50/p95/p99, failures, response validation, RSS, connections, queue depth and cleanup behavior.
-- [ ] Run several concurrency levels and repeated steady-state runs; choose a duration sufficient to expose leak/saturation behavior, with at least a 30-minute persistent-host soak for release qualification unless a justified alternative is recorded.
-- [ ] Freeze acceptable regression and resource budgets before comparing candidates. Use stable comparable environments for enforcement; noisy CI results remain diagnostic.
+- [x] Retain component attribution benchmarks and representative end-to-end Foundation workloads for minimal JSON, route-selected browser session, application bearer auth and durable OAuth bearer resolution. DBLayer and Omnibus remain separately attributed; 3.0 makes no aggregate application-RPM claim for DB/messaging from those component measurements.
+- [x] Compare standalone Webrick and equivalent Foundation HTTP/runtime work under matching dependencies/environment to attribute Foundation's added cost.
+- [x] Record successful RPM, p50/p95/p99 latency, failures, response validation and memory average/peak/growth together with environment fingerprints. Connection/queue metrics remain specialist/backend evidence and are not claimed by the representative HTTP workload.
+- [x] Use repeated steady-state samples plus the 1,000-iteration persistent execution isolation soak and worker/OAuth persistence regressions. A 30-minute native HTTP-host soak is deferred because 3.0 does not certify a native persistent HTTP host.
+- [x] Enforce performance comparisons only on matching explicitly stable environment fingerprints; noisy shared-CI benchmark runs remain diagnostic.
 
 **Acceptance:** correct responses, bounded resources and stable sustained throughput; benchmark evidence identifies PHP, server, extensions, dependencies, configuration and source commit. No application-RPM claim derived solely from microbenchmarks.
 
@@ -288,13 +288,13 @@ Existing atomic release publication, trust validation, source isolation and work
 
 Sources: `src/Release`, `src/Routing/WebReleaseRuntime.php`, `src/Runtime/GeneratedRuntime.php`, `tests/Feature/FoundationReleaseEndToEndTest.php`, `tests/Feature/FoundationReleaseWorkerReplacementTest.php`, `tests/Feature/Phase10ReleaseSourceIsolationTest.php`.
 
-- [ ] Verify read-only application images with separate writable storage and build/deploy permissions.
-- [ ] Exercise concurrent builds, partial artifact writes, failed activation, missing/corrupt subordinate artifacts and recovery without changing the active valid generation.
-- [ ] Verify dependency upgrades invalidate incompatible generated artifacts; a release records the exact dependency and configuration identity it was built against.
-- [ ] Document how the trusted manifest digest reaches each FPM/worker/server process from deployment-controlled configuration.
-- [ ] Exercise rollback while old workers still drain; prohibit pruning a generation still needed by a running process.
-- [ ] Separate code rollback from schema/data rollback. Use expand/contract migrations where mixed generations may coexist.
-- [ ] Verify secret/key rotation with old and new generations, without embedding plaintext secrets in generated files, logs or reports.
+- [x] Verify read-only application images with separate writable storage and build/deploy permissions.
+- [x] Exercise concurrent builds, partial artifact writes, failed activation, missing/corrupt subordinate artifacts and recovery without changing the active valid generation.
+- [x] Verify dependency upgrades invalidate incompatible generated artifacts; a release records the exact dependency and configuration identity it was built against.
+- [x] Document how the trusted manifest digest reaches each FPM/worker/server process from deployment-controlled configuration.
+- [x] Exercise rollback while old workers still drain; prohibit pruning a generation still needed by a running process.
+- [x] Separate code rollback from schema/data rollback. Use expand/contract migrations where mixed generations may coexist.
+- [x] Verify secret/key rotation with old and new generations, without embedding plaintext secrets in generated files, logs or reports.
 
 **Acceptance:** deployment rehearsal succeeds; failed builds leave the old generation active; incompatible artifacts fail closed; rollback limitations and recovery commands are documented.
 
