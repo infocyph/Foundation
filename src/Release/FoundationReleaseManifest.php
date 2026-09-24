@@ -178,19 +178,11 @@ final class FoundationReleaseManifest
     /** @param array<string,mixed> $web */
     private static function matcherCache(array $web): void
     {
-        $hasPath = array_key_exists('matcher_cache_path', $web);
-        $hasDigest = array_key_exists('matcher_cache_sha256', $web);
-        if (!$hasPath && !$hasDigest) {
+        if (!array_key_exists('matcher_cache_path', $web)) {
             return;
-        }
-        if (!$hasPath || !$hasDigest) {
-            throw new \UnexpectedValueException(
-                'Foundation web matcher cache path and trust identity must be declared together.',
-            );
         }
 
         self::relativePath($web['matcher_cache_path'], 'web.matcher_cache_path');
-        self::digest($web['matcher_cache_sha256'], 64, 'web.matcher_cache_sha256');
     }
 
     /**
