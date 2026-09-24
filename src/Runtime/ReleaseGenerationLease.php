@@ -73,6 +73,7 @@ final class ReleaseGenerationLease
         $this->handle = null;
     }
 
+    /** @param int<0, 7> $operation */
     private static function acquire(string $releaseRoot, string $generation, int $operation): ?self
     {
         $path = self::path($releaseRoot, $generation);
