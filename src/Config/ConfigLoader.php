@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Config;
 
-use Infocyph\ArrayKit\Config\Config;
 use Infocyph\ArrayKit\Config\ConfigMerge;
-use Infocyph\ArrayKit\Config\LazyFileConfig;
 use Infocyph\ArrayKit\Config\Support\Environment;
 
 final class ConfigLoader
@@ -18,8 +16,6 @@ final class ConfigLoader
     public const string TYPE_SINGLE = 'single';
 
     private const int CACHE_FORMAT = 6;
-
-    private const string SINGLE_CACHE_FILE = 'config.php';
 
     /** @param array<string, mixed> $inline */
     public function load(array $inline = []): ConfigRepository
@@ -219,7 +215,7 @@ final class ConfigLoader
 
         if (($payload['_type'] ?? null) === self::TYPE_SINGLE) {
             $cacheFile = $payload['_file'] ?? null;
-            if ($cacheFile !== self::SINGLE_CACHE_FILE) {
+            if ($cacheFile !== ArrayKitConfigCache::SINGLE_FILE) {
                 return null;
             }
 
@@ -247,18 +243,13 @@ final class ConfigLoader
     /** @param array<string,mixed> $overrides */
     private function loadSingleCache(string $path, array $overrides): ?ConfigRepository
     {
-        $cached = new Config();
-
-        try {
-            if (!$cached->loadCache($path)) {
-                return null;
-            }
-        } catch (\Throwable) {
+        $cached = new ArrayKitConfigCache()->loadSingle($path);
+        if ($cached === null) {
             return null;
         }
 
         return new ConfigRepository(
-            $this->mergeConfigLayers([$this->map($cached->all()), $overrides]),
+            $this->mergeConfigLayers([$cached, $overrides]),
             compiled: true,
         );
     }
@@ -308,21 +299,6 @@ final class ConfigLoader
         return $input;
     }
 
-    /** @param list<string> $namespaces */
-    private function removeStaleShards(string $directory, array $namespaces, bool $keepFlat = true): void
-    {
-        $keep = array_fill_keys([
-            ...$namespaces,
-            ...($keepFlat ? ['__flat'] : []),
-            '__manifest',
-        ], true);
-        foreach (glob(rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . '*.php') ?: [] as $file) {
-            if (!isset($keep[pathinfo($file, PATHINFO_FILENAME)]) && !unlink($file)) {
-                throw new \RuntimeException(sprintf('Unable to remove stale config cache shard "%s".', $file));
-            }
-        }
-    }
-
     private function schemaFingerprint(): string
     {
         $defaults = $this->defaults();
@@ -341,46 +317,7 @@ final class ConfigLoader
         string $directory,
         string $sourceFingerprint,
     ): array {
-        $compiled = $config->all();
-        $namespaces = [];
-        foreach ($compiled as $namespace => $value) {
-            if (is_array($value) && preg_match('/^[A-Za-z0-9_-]+$/', $namespace) === 1) {
-                $namespaces[] = $namespace;
-            }
-        }
-        sort($namespaces);
-        $this->removeStaleShards($directory, $namespaces);
-
-        new LazyFileConfig(
-            directory: $directory,
-            items: array_intersect_key($compiled, array_fill_keys($namespaces, true)),
-            namespaceCacheDirectory: $directory,
-        )->warmNamespaceCache($namespaces);
-
-        // ArrayKit intentionally generates __flat.php here. Keep it: scalar/null leaf
-        // lookups can use the flat index without loading an entire namespace shard.
-        foreach ($namespaces as $namespace) {
-            $file = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $namespace . '.php';
-            if (!is_file($file) || !chmod($file, 0664)) {
-                throw new \RuntimeException(sprintf('Unable to finalize lazy config cache "%s".', $file));
-            }
-
-            try {
-                $materialized = require $file;
-            } catch (\Throwable $exception) {
-                throw new \RuntimeException(sprintf(
-                    'Unable to validate ArrayKit namespace config cache "%s".',
-                    $file,
-                ), previous: $exception);
-            }
-            if (!is_array($materialized)) {
-                throw new \RuntimeException(sprintf(
-                    'ArrayKit namespace config cache "%s" did not return an array.',
-                    $file,
-                ));
-            }
-            ConfigExportValidator::assertExportable([$namespace => $materialized]);
-        }
+        $namespaces = new ArrayKitConfigCache()->writeSharded($config->all(), $directory);
 
         return [
             '_format' => self::CACHE_FORMAT,
@@ -400,40 +337,14 @@ final class ConfigLoader
         string $directory,
         string $sourceFingerprint,
     ): array {
-        $this->removeStaleShards($directory, [], keepFlat: false);
-
-        $compiled = new Config();
-        if (!$compiled->loadArray($config->all())) {
-            throw new \RuntimeException('Unable to materialize ArrayKit single config cache payload.');
-        }
-
-        $path = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . self::SINGLE_CACHE_FILE;
-        if (!$compiled->exportCache($path) || !is_file($path) || !chmod($path, 0664)) {
-            throw new \RuntimeException(sprintf(
-                'Unable to publish ArrayKit single config cache "%s".',
-                $path,
-            ));
-        }
-
-        $materialized = new Config();
-        try {
-            if (!$materialized->loadCache($path)) {
-                throw new \RuntimeException('ArrayKit rejected its generated single config cache.');
-            }
-        } catch (\Throwable $exception) {
-            throw new \RuntimeException(sprintf(
-                'Unable to validate ArrayKit single config cache "%s".',
-                $path,
-            ), previous: $exception);
-        }
-        ConfigExportValidator::assertExportable($this->map($materialized->all()));
+        new ArrayKitConfigCache()->writeSingle($config->all(), $directory);
 
         return [
             '_format' => self::CACHE_FORMAT,
             '_schema' => $this->schemaFingerprint(),
             '_source' => $sourceFingerprint,
             '_type' => self::TYPE_SINGLE,
-            '_file' => self::SINGLE_CACHE_FILE,
+            '_file' => ArrayKitConfigCache::SINGLE_FILE,
         ];
     }
 
