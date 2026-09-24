@@ -27,6 +27,7 @@ use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\ServiceReference;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
+use Infocyph\Webrick\Router\Matching\ShardedMatcher;
 
 final readonly class FoundationPhase8ReleaseProbe
 {
@@ -380,6 +381,134 @@ it('builds activates and boots all four runtimes from one immutable Foundation g
                 is_string($previousSha256) ? $previousSha256 : null,
             );
         }
+    } finally {
+        foundationResetWebrickProductionRegistries();
+        foundationPhase8ReleaseRemove($project);
+    }
+});
+
+it('publishes and boots Webrick route shards inside the immutable Foundation generation', function (): void {
+    $project = foundationPhase8ReleaseProject();
+    $releaseRoot = $project . '/storage/releases';
+    $config = foundationPhase8ReleaseConfig($project);
+    $config['router']['matcher'] = 'sharded';
+
+    try {
+        $release = new FoundationReleaseCompiler()->buildAndActivate(
+            $config,
+            $releaseRoot,
+            capabilities: [
+                'web' => [],
+                'cli' => [],
+                'worker' => [],
+                'scheduler' => [],
+            ],
+            generation: 'phase8-sharded',
+        );
+
+        $generation = $releaseRoot . '/generations/phase8-sharded';
+        $manifest = require $generation . '/foundation.php';
+        $matcherCache = $manifest['web']['matcher_cache_path'] ?? null;
+        $matcherCacheSha256 = $manifest['web']['matcher_cache_sha256'] ?? null;
+
+        expect($matcherCache)->toBe('web/router-shards')
+            ->and($matcherCacheSha256)->toBeString()->toMatch('/^[a-f0-9]{64}$/D')
+            ->and(is_dir($generation . '/web/router-shards'))->toBeTrue()
+            ->and(is_file($generation . '/web/router-shards/__manifest.php'))->toBeTrue();
+
+        $files = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator(
+                $generation . '/web/router-shards',
+                FilesystemIterator::SKIP_DOTS,
+            ),
+        );
+        $shards = [];
+        foreach ($files as $file) {
+            if ($file->isFile() && str_ends_with($file->getFilename(), '.php')) {
+                $shards[] = $file->getPathname();
+            }
+        }
+        expect(count($shards))->toBeGreaterThan(2);
+
+        $trustedSha256 = hash_file('sha256', $release['manifest']);
+        if (!is_string($trustedSha256)) {
+            throw new RuntimeException('Unable to hash sharded Foundation manifest.');
+        }
+
+        $runtime = new FoundationReleaseRuntime()->webPrevalidated(
+            $config,
+            $releaseRoot,
+            $trustedSha256,
+        );
+        $reflection = new ReflectionProperty($runtime->kernel, 'matcher');
+        $matcher = $reflection->getValue($runtime->kernel);
+
+        expect($matcher)->toBeInstanceOf(ShardedMatcher::class)
+            ->and($matcher->canBootFromCache())->toBeTrue();
+
+        $response = $runtime->kernel->handle(Request::fake(
+            headers: ['Host' => 'phase8.test'],
+            uri: 'https://phase8.test/phase8',
+        ));
+        expect($response->getStatusCode())->toBe(200)
+            ->and((string) $response->getBody())->toBe('{"generation":"phase8-e2e"}');
+    } finally {
+        foundationResetWebrickProductionRegistries();
+        foundationPhase8ReleaseRemove($project);
+    }
+});
+
+it('rejects tampered route shards before production matcher boot', function (): void {
+    $project = foundationPhase8ReleaseProject();
+    $releaseRoot = $project . '/storage/releases';
+    $config = foundationPhase8ReleaseConfig($project);
+    $config['router']['matcher'] = 'sharded';
+
+    try {
+        $release = new FoundationReleaseCompiler()->buildAndActivate(
+            $config,
+            $releaseRoot,
+            capabilities: [
+                'web' => [],
+                'cli' => [],
+                'worker' => [],
+                'scheduler' => [],
+            ],
+            generation: 'phase8-sharded-tamper',
+        );
+        $generation = $releaseRoot . '/generations/phase8-sharded-tamper';
+        $files = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator(
+                $generation . '/web/router-shards',
+                FilesystemIterator::SKIP_DOTS,
+            ),
+        );
+        $target = null;
+        foreach ($files as $file) {
+            if ($file->isFile()
+                && str_ends_with($file->getFilename(), '.php')
+                && !str_starts_with($file->getFilename(), '__')
+            ) {
+                $target = $file->getPathname();
+
+                break;
+            }
+        }
+        if (!is_string($target)) {
+            throw new RuntimeException('Unable to locate generated route shard.');
+        }
+        file_put_contents($target, "\n// tampered\n", FILE_APPEND);
+
+        $trustedSha256 = hash_file('sha256', $release['manifest']);
+        if (!is_string($trustedSha256)) {
+            throw new RuntimeException('Unable to hash sharded Foundation manifest.');
+        }
+
+        expect(fn() => new FoundationReleaseRuntime()->webPrevalidated(
+            $config,
+            $releaseRoot,
+            $trustedSha256,
+        ))->toThrow(RuntimeException::class, 'release tree trust identity mismatch');
     } finally {
         foundationResetWebrickProductionRegistries();
         foundationPhase8ReleaseRemove($project);
