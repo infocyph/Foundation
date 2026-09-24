@@ -8,26 +8,10 @@ use Infocyph\Foundation\Routing\WebReleaseCompiler;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
-function phase9ServerRemove(string $directory): void
-{
-    if (!is_dir($directory)) {
-        return;
-    }
-
-    $files = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS),
-        RecursiveIteratorIterator::CHILD_FIRST,
-    );
-    foreach ($files as $file) {
-        $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
-    }
-    rmdir($directory);
-}
-
 $repository = dirname(__DIR__);
 $app = getenv('PHASE9_SERVER_APP') ?: $repository . '/build/phase9-server-app';
 $app = rtrim($app, DIRECTORY_SEPARATOR);
-phase9ServerRemove($app);
+BenchmarkSupport::removeDirectory($app);
 
 foreach (['bootstrap/cache', 'public', 'routes'] as $path) {
     $directory = $app . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $path);
@@ -112,6 +96,7 @@ $frontController = sprintf(<<<'PHP'
 declare(strict_types=1);
 
 use Infocyph\Foundation\Routing\WebReleaseRuntime;
+use Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport;
 
 require %s;
 
