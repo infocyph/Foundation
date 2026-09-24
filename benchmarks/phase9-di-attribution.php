@@ -10,7 +10,6 @@ use Infocyph\Foundation\Benchmarks\Support\Phase9DiScopedProbe;
 use Infocyph\Foundation\Runtime\GeneratedRuntime;
 use Infocyph\Foundation\Runtime\GeneratedRuntimeCompiler;
 use Infocyph\InterMix\DI\ContainerBuilder;
-use Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 /** @return array{delta_ns:float,percent:float} */
@@ -60,19 +59,19 @@ try {
         throw new RuntimeException('Phase 9 DI attribution requires fully statically compiled comparison graphs.');
     }
 
-    $directResolve = BenchmarkSupport::throughputMeasure(
+    $directResolve = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::throughputMeasure(
         static fn(): object => $direct->get(Phase9DiNode::class),
         $operations,
         $repetitions,
         $warmup,
     );
-    $foundationContainerResolve = BenchmarkSupport::throughputMeasure(
+    $foundationContainerResolve = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::throughputMeasure(
         static fn(): object => $foundation->container->get(Phase9DiNode::class),
         $operations,
         $repetitions,
         $warmup,
     );
-    $foundationFacadeResolve = BenchmarkSupport::throughputMeasure(
+    $foundationFacadeResolve = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::throughputMeasure(
         static fn(): object => $foundation->application->make(Phase9DiNode::class),
         $operations,
         $repetitions,
@@ -80,7 +79,7 @@ try {
     );
 
     $scopeOperations = max(1_000, intdiv($operations, 10));
-    $directScope = BenchmarkSupport::throughputMeasure(
+    $directScope = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::throughputMeasure(
         static fn(): object => $direct->withinScope(
             'foundation.cli',
             static fn(): object => $direct->get(Phase9DiScopedProbe::class),
@@ -89,7 +88,7 @@ try {
         $repetitions,
         max(100, intdiv($warmup, 10)),
     );
-    $foundationScope = BenchmarkSupport::throughputMeasure(
+    $foundationScope = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::throughputMeasure(
         static fn(): object => $foundation->application->execution()->run(
             static fn(): object => $foundation->application->make(Phase9DiScopedProbe::class),
         ),
@@ -158,5 +157,5 @@ try {
     file_put_contents($output, json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL, LOCK_EX);
     fwrite(STDOUT, json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
 } finally {
-    BenchmarkSupport::removeDirectory($root);
+    \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::removeDirectory($root);
 }
