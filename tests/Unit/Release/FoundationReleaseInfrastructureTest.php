@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Infocyph\Foundation\Release\ActiveGeneration;
+use Infocyph\Foundation\Release\FoundationReleaseBuildLock;
 use Infocyph\Foundation\Release\FoundationReleaseCompiler;
 use Infocyph\Foundation\Release\FoundationReleaseManifest;
 use Infocyph\Foundation\Release\FoundationReleaseRuntime;
@@ -25,6 +26,37 @@ it('publishes and switches only complete immutable Foundation generations', func
         $active->activate($root, 'gen-two');
         expect($active->current($root)['generation'])->toBe('gen-two')
             ->and($active->replacementRequired($root, 'gen-one'))->toBeTrue();
+
+        $active->activate($root, 'gen-one');
+        expect($active->current($root)['generation'])->toBe('gen-one')
+            ->and($active->replacementRequired($root, 'gen-two'))->toBeTrue();
+    } finally {
+        foundationReleaseInfrastructureRemove($root);
+    }
+});
+
+it('serializes release build-plane mutations without changing the active generation', function (): void {
+    $root = foundationReleaseInfrastructureRoot();
+    $active = new ActiveGeneration();
+
+    try {
+        foundationReleaseInfrastructureGeneration($root, 'stable');
+        $active->activate($root, 'stable');
+
+        $lock = FoundationReleaseBuildLock::acquire($root);
+        try {
+            expect(fn() => FoundationReleaseBuildLock::acquire($root))
+                ->toThrow(RuntimeException::class, 'already in progress')
+                ->and(fn() => new FoundationReleaseCompiler()->prune($root))
+                ->toThrow(RuntimeException::class, 'already in progress')
+                ->and($active->current($root)['generation'])->toBe('stable');
+        } finally {
+            $lock->release();
+        }
+
+        $reacquired = FoundationReleaseBuildLock::acquire($root);
+        $reacquired->release();
+        expect($active->current($root)['generation'])->toBe('stable');
     } finally {
         foundationReleaseInfrastructureRemove($root);
     }
