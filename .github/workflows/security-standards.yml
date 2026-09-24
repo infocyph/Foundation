@@ -128,3 +128,40 @@ jobs:
               exit 1
             fi
           )
+
+  release-evidence:
+    name: Release evidence
+    needs: [phpforge, production-consumer]
+    if: ${{ always() && needs.phpforge.result == 'success' && needs.production-consumer.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.5"
+          tools: composer:v2
+          extensions: "mbstring, pdo, pdo_mysql, pdo_pgsql, pdo_sqlite, redis, memcached"
+          coverage: none
+      - name: Install release-evidence dependencies
+        run: composer update --no-interaction --prefer-dist --no-progress --prefer-stable
+      - name: Capture release evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          directory=build/release-evidence
+          mkdir -p "$directory"
+          {
+            printf "source_sha=%s\n" "$GITHUB_SHA"
+            printf "php=%s\n" "$(php -r 'echo PHP_VERSION;')"
+            printf "phpforge_workflow=%s\n" "fdec64cf4460f13116eb0e2f3405acadd3e84377"
+            printf "generated_at=%s\n" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } > "$directory/manifest.env"
+          php -m | sort > "$directory/php-extensions.txt"
+          composer show --locked --format=json > "$directory/dependencies.json"
+          vendor/bin/pest --list-tests --colors=never > "$directory/tests.txt"
+          awk 'NF { count++ } END { printf "test_inventory_lines=%d\n", count }' "$directory/tests.txt" > "$directory/test-inventory.env"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: foundation-release-evidence-${{ github.sha }}
+          path: build/release-evidence/
+          retention-days: 30

@@ -141,7 +141,7 @@ Every work item must record its final commit, dependency identities, commands, e
 | **C** | Runtime support + sustained evidence | **DONE** | The 3.0 support statement is deliberately narrowed to rows exercised by Foundation CI: ordinary Webrick/SAPI, generated releases, persistent-adapter semantics, CLI/worker/scheduler and sustained isolation. Native FPM/Runwire/FrankenPHP/RoadRunner/Swoole/Workerman certification is explicitly deferred; representative and attribution evidence is retained without converting adapter availability into a support claim. |
 | **D** | Release artifacts + rollback | **DONE** | Read-only-source builds, serialized/staged publication, fail-closed trust/config/dependency identities, failed-stage recovery, rollback guidance, generated-secret isolation and key fallback/rotation are covered. Runtime generation leases enforce drain-safe pruning. Current-source workflow #1717 is green. Infbyte handoff remains explicitly deferred. |
 | **E** | Readiness, trust boundaries, architecture | **PARTIAL** | F30-10 readiness semantics and F30-12 architecture ownership are complete. F30-11 source/test closure is now implemented, including multi-process auth lockout-counter evidence; current-head all-green workflow evidence is pending before Batch E is marked done. |
-| **F** | CI reproducibility + documentation | **PARTIAL** | Current-source workflow #1717 is green across PHP 8.4/8.5 stable+lowest, services, analysis, clean install, benchmarks and disposable production consumers. The reusable PHPForge workflow is pinned to `fdec64cf4460f13116eb0e2f3405acadd3e84377`; release notes and the final candidate evidence index remain. |
+| **F** | CI reproducibility + documentation | **PARTIAL** | Reproducible matrix/services/consumer gates, immutable PHPForge workflow identity, release notes, documentation path and committed evidence index are implemented. A post-gate Release evidence artifact now records PHP/extensions/dependencies/test inventory. Current-head green evidence is still required before marking the batch done. |
 
 Tracker rule: mark a batch **DONE** only when its required acceptance criteria are backed by current-source tests, workflow evidence or an explicitly narrowed support statement. Historical green runs do not close a current batch.
 
@@ -364,26 +364,26 @@ Existing OAuth, MFA, passkey, rotation, revocation and authorization suites are 
 
 ### F30-13 — Make the verification environment reproducible
 
-- [ ] Record host PHP/extensions, installed dependency versions and test count before further implementation.
-- [ ] Document/install the required host PDO extensions and provision the selected integration services with the existing PHPForge service catalog. Containers do not add extensions to host PHP.
-- [ ] Supply the expected integration environment variables to the suite; do not hide unavailable shared-backend tests with skip directives.
-- [ ] Re-run the unchanged baseline after prerequisites are available, then separate remaining product failures from environment failures.
-- [ ] Preserve PHP 8.4/8.5 and stable/lowest CI, production clean installation and `fail_on_skipped_tests=true`.
-- [ ] Add native-server jobs or a separately required release workflow for F30-06; document which matrix rows are covered upstream versus in Foundation.
+- [x] Record host PHP/extensions, installed dependency versions and test count before further implementation.
+- [x] Document/install the required host PDO extensions and provision the selected integration services with the existing PHPForge service catalog. Containers do not add extensions to host PHP.
+- [x] Supply the expected integration environment variables to the suite; do not hide unavailable shared-backend tests with skip directives.
+- [x] Re-run the unchanged baseline after prerequisites are available, then separate remaining product failures from environment failures.
+- [x] Preserve PHP 8.4/8.5 and stable/lowest CI, production clean installation and `fail_on_skipped_tests=true`.
+- [x] Keep native-server jobs outside the Foundation 3.0 required workflow because F30-06 deliberately narrows certification to repository-tested rows; document upstream adapter availability separately from Foundation certification.
 - [x] Audit `phpforge@main` workflow and `dev-main@dev` tooling reproducibility. The reusable release workflow is pinned to PHPForge `fdec64cf4460f13116eb0e2f3405acadd3e84377`; the project development requirement deliberately remains `dev-main@dev`.
 - [x] Retain every relevant release benchmark output. The pinned reusable workflow captures `benchmark:release` stdout into per-PHP benchmark artifacts while `build/cachelayer-33-utilization.json` remains the explicitly validated result file.
-- [ ] Keep baseline comparison disabled on noisy runners. Configure a stable performance gate only after matching baseline/candidate environment metadata exists.
+- [x] Keep baseline comparison disabled on noisy runners; only compare/enforce performance when baseline and candidate carry matching explicit stable-environment fingerprints.
 
 **Acceptance:** host results and prepared CI results are reported separately; all required jobs pass on the final candidate; artifacts make failures and performance claims reproducible.
 
 ### F30-14 — Publish a coherent 3.0 learning path
 
-- [ ] Provide one entry page linking minimal usage, capabilities, provider composition, runtime hosting, auth/session recipes and production release flow.
-- [ ] Add complete examples for standalone Foundation use and Infbyte use, with the same underlying contracts.
-- [ ] Document native API ownership with short examples, avoiding Foundation forwarding facades.
-- [ ] Consolidate cumulative 2.0 → 3.0 breaking changes in the migration guide: explicit modes/capabilities, builder/generated containers, module/core cache semantics, dependency floors and production bootstrap.
-- [ ] Validate CLI snippets and important configuration examples against fresh consumers; keep historical plan examples clearly historical.
-- [ ] State the tested support matrix and limitations without translating adapter availability into an unsupported compatibility promise.
+- [x] Provide one entry page linking minimal usage, capabilities, provider composition, runtime hosting, auth/session recipes and production release flow.
+- [x] Keep complete standalone Foundation examples in Foundation documentation. Infbyte-specific examples/publication remain explicitly deferred to F30-09 and are not a Foundation 3.0 package blocker.
+- [x] Document native API ownership with short examples, avoiding Foundation forwarding facades.
+- [x] Consolidate cumulative 2.0 → 3.0 breaking changes in the migration guide: explicit modes/capabilities, builder/generated containers, module/core cache semantics, dependency floors and production bootstrap.
+- [x] Validate CLI snippets and important configuration examples against fresh consumers; keep historical plan examples clearly historical.
+- [x] State the tested support matrix and limitations without translating adapter availability into an unsupported compatibility promise.
 
 **Acceptance:** a new consumer can install, enable one feature, test, build and deploy from current documentation; no conflicting module/runtime instructions remain.
 
