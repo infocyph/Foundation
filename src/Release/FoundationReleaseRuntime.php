@@ -165,6 +165,16 @@ final readonly class FoundationReleaseRuntime
         $current = $this->active->current($releaseRoot);
         $manifestPath = $current['manifest'];
         $manifest = FoundationReleaseManifest::load($manifestPath);
+        $expectedDependencies = FoundationReleaseManifest::digest(
+            $manifest['dependency_fingerprint'] ?? null,
+            64,
+            'dependency_fingerprint',
+        );
+        if (!hash_equals($expectedDependencies, FoundationReleaseManifest::dependencyFingerprint())) {
+            throw new \RuntimeException(
+                'Foundation generation dependency identity does not match the current Composer installation.',
+            );
+        }
 
         return [$current['generation'], $manifest, dirname($manifestPath), $manifestPath];
     }
