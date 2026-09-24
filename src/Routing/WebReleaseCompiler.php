@@ -9,6 +9,9 @@ use Infocyph\Webrick\Router\Build\ReleaseCompiler as WebrickReleaseCompiler;
 use Infocyph\Webrick\Router\Build\RouterArtifactLoader;
 use Infocyph\Webrick\Router\Build\RouterBuildResult;
 use Infocyph\Webrick\Router\Definition\Registrar;
+use Infocyph\Webrick\Router\Matching\FusedMatcher;
+use Infocyph\Webrick\Router\Matching\GeneratedMatcher;
+use Infocyph\Webrick\Router\Matching\MatcherInterface;
 use Infocyph\Webrick\Router\Matching\ShardedMatcher;
 
 /** Coordinates the Foundation web graph through Webrick's single release compiler. */
@@ -104,37 +107,53 @@ final readonly class WebReleaseCompiler
         );
     }
 
-    private function compileMatcherCache(WebReleaseConfiguration $settings, string $routerPath): ?string
+    private function compileMatcherCache(WebReleaseConfiguration $settings, string $routerPath): string
     {
-        if ($settings->matcherName() !== 'sharded') {
-            return null;
-        }
-
-        $cacheDirectory = dirname($routerPath) . DIRECTORY_SEPARATOR . 'router-shards';
+        $cachePath = match ($settings->matcherName()) {
+            'generated' => dirname($routerPath) . DIRECTORY_SEPARATOR . 'router-cache' . DIRECTORY_SEPARATOR . 'generated.php',
+            'sharded' => dirname($routerPath) . DIRECTORY_SEPARATOR . 'router-shards',
+            default => dirname($routerPath) . DIRECTORY_SEPARATOR . 'router-cache' . DIRECTORY_SEPARATOR . 'fused.php',
+        };
         $artifact = new RouterArtifactLoader()->load(
             $routerPath,
             $settings->environment(),
             $settings->configFingerprint(),
         );
-        $matcher = ShardedMatcher::make()
-            ->enableCache($cacheDirectory)
-            ->enableCacheWrite()
-            ->verifyCacheOnLoad();
+        $matcher = $this->writableMatcher($settings->matcherName(), $cachePath);
 
         foreach ($artifact->routes() as $route) {
             $matcher->add($route);
         }
         $matcher->finalize();
 
-        $reader = ShardedMatcher::make()
-            ->enableCache($cacheDirectory)
-            ->verifyCacheOnLoad();
+        $reader = $settings->matcher($cachePath);
         if (!$reader->canBootFromCache()) {
-            throw new \RuntimeException('Foundation sharded route cache was not published atomically.');
+            throw new \RuntimeException(sprintf(
+                'Webrick %s route cache was not published atomically.',
+                $settings->matcherName(),
+            ));
         }
         $reader->finalize();
         $reader->aliasIndex();
 
-        return $cacheDirectory;
+        return $cachePath;
+    }
+
+    private function writableMatcher(string $name, string $cachePath): MatcherInterface
+    {
+        return match ($name) {
+            'generated' => GeneratedMatcher::make()
+                ->enableCache($cachePath)
+                ->enableCacheWrite()
+                ->verifyCacheOnLoad(),
+            'sharded' => ShardedMatcher::make()
+                ->enableCache($cachePath)
+                ->enableCacheWrite()
+                ->verifyCacheOnLoad(),
+            default => FusedMatcher::make()
+                ->enableCache($cachePath)
+                ->enableCacheWrite()
+                ->verifyCacheOnLoad(),
+        };
     }
 }
