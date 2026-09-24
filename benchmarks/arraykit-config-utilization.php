@@ -6,6 +6,7 @@ use Composer\InstalledVersions;
 use Infocyph\Foundation\Config\ConfigLoader;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Config\EnvironmentLoader;
+use Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -172,7 +173,7 @@ try {
     }
 } finally {
     arrayKitBenchmarkEnvironmentRestore($environmentKey, $environmentSnapshot);
-    arrayKitBenchmarkRemoveDirectory($root);
+    BenchmarkSupport::removeDirectory($root);
 }
 
 /**
@@ -334,24 +335,3 @@ function arrayKitBenchmarkEnvironmentRestore(string $key, array $snapshot): void
     putenv($snapshot['process'] === false ? $key : $key . '=' . $snapshot['process']);
 }
 
-function arrayKitBenchmarkRemoveDirectory(string $directory): void
-{
-    if (!is_dir($directory)) {
-        return;
-    }
-
-    foreach (scandir($directory) ?: [] as $entry) {
-        if ($entry === '.' || $entry === '..') {
-            continue;
-        }
-
-        $path = $directory . DIRECTORY_SEPARATOR . $entry;
-        if (is_dir($path)) {
-            arrayKitBenchmarkRemoveDirectory($path);
-        } else {
-            unlink($path);
-        }
-    }
-
-    rmdir($directory);
-}
