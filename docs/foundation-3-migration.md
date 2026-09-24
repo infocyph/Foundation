@@ -214,6 +214,19 @@ app.container.debug_tracing.enabled
 app.container.debug_tracing.level
 ```
 
+Development/build configuration caching remains separate from production release
+artifacts. Foundation 3 delegates both supported layouts to ArrayKit:
+
+- `app.config_cache.type=sharded` uses ArrayKit's native lazy namespace cache
+  and `__flat.php` exact-leaf index;
+- `app.config_cache.type=single` uses ArrayKit's native whole-config
+  `exportCache()/loadCache()` artifact at `bootstrap/cache/config/config.php`.
+
+Do not recreate a host-level config serializer or introduce a routing-style
+`fused` config mode; ArrayKit's sharded cache already carries the fused leaf
+index. Foundation's `__manifest.php` is policy/identity metadata, not a second
+copy of the complete config payload.
+
 ## 7. Make production capabilities explicit
 
 Production compilation/loading uses an explicit capability topology. An omitted
