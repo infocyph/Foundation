@@ -81,22 +81,6 @@ function phase9HttpScalarTax(int $foundation, int $direct): array
     ];
 }
 
-function phase9HttpRemove(string $directory): void
-{
-    if (!is_dir($directory)) {
-        return;
-    }
-
-    $files = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS),
-        RecursiveIteratorIterator::CHILD_FIRST,
-    );
-    foreach ($files as $file) {
-        $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
-    }
-    rmdir($directory);
-}
-
 /** @return array<string,mixed> */
 function phase9HttpChild(string $variant): array
 {
@@ -167,6 +151,7 @@ function phase9HttpChild(string $variant): array
 declare(strict_types=1);
 
 use Infocyph\Webrick\Router\Facade\Router;
+use Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport;
 
 Router::get('/json', 'phase9FoundationHttpHandler');
 PHP);
@@ -239,7 +224,7 @@ PHP);
             ],
         ];
     } finally {
-        phase9HttpRemove($root);
+        BenchmarkSupport::removeDirectory($root);
     }
 }
 
