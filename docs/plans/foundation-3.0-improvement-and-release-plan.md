@@ -132,6 +132,19 @@ These observations concern public `main` fetched on the review date. They do not
 
 Every work item must record its final commit, dependency identities, commands, environment, results and documentation changes. A suspected defect becomes a fix only after a minimal failing reproduction. An already-covered case should reference the existing test instead of adding a duplicate.
 
+### 4.1 Implementation tracker
+
+| Batch | Scope | Status | Current evidence / remaining gate |
+| --- | --- | --- | --- |
+| **A** | Dependency contract + public module/core contract | **PARTIAL** | Dependency floors and cold explicit capability topology implemented; final stable/lowest/no-dev and CLI/docs evidence pending. |
+| **B** | Session lifecycle correctness | **PARTIAL** | Primary-failure precedence, finite lock durations, stale-owner mutation protection and shared-lock regressions implemented; maintenance/streaming contract closure pending. |
+| **C** | Runtime support + sustained evidence | **NOT STARTED** | Final 3.0 tested support statement and reproducible runtime fixture/evidence pending. |
+| **D** | Release artifacts + rollback | **NOT STARTED** | Foundation deployment/rollback rehearsal pending; Infbyte handoff remains explicitly deferred. |
+| **E** | Readiness, trust boundaries, architecture | **NOT STARTED** | Cross-command readiness agreement, security boundary evidence and project architecture rules pending. |
+| **F** | CI reproducibility + documentation | **NOT STARTED** | Final release workflow/evidence, support matrix and learning path pending. |
+
+Tracker rule: mark a batch **DONE** only when its required acceptance criteria are backed by current-source tests, workflow evidence or an explicitly narrowed support statement. Historical green runs do not close a current batch.
+
 ## 5. Batch A — freeze dependencies and reconcile public contracts
 
 **Priority:** P0. **Owner:** Foundation. **Depends on:** none.
