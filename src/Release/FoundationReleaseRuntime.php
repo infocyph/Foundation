@@ -192,27 +192,6 @@ final readonly class FoundationReleaseRuntime
         return [$generation, $manifest, dirname($manifestPath), $manifestPath, $lease];
     }
 
-    /**
-     * @return array{0:string,1:array<string,mixed>,2:string,3:string,4:ReleaseGenerationLease}
-     */
-    private function trustedActiveManifestWithLease(string $releaseRoot, string $trustedSha256): array
-    {
-        $trustedSha256 = strtolower(trim($trustedSha256));
-        if (preg_match('/^[a-f0-9]{64}$/D', $trustedSha256) !== 1) {
-            throw new \InvalidArgumentException('Trusted Foundation generation manifest SHA-256 is invalid.');
-        }
-
-        [$generation, $manifest, $directory, $manifestPath, $lease] = $this->activeManifest($releaseRoot);
-        $actualSha256 = hash_file('sha256', $manifestPath);
-        if (!is_string($actualSha256) || !hash_equals($trustedSha256, $actualSha256)) {
-            $lease->release();
-
-            throw new \RuntimeException('Foundation generation manifest trust identity mismatch.');
-        }
-
-        return [$generation, $manifest, $directory, $manifestPath, $lease];
-    }
-
     private function assertNonWeb(RuntimeMode $runtime): void
     {
         if ($runtime === RuntimeMode::Web) {
@@ -275,4 +254,25 @@ final readonly class FoundationReleaseRuntime
             FoundationReleaseManifest::digest($manifest['config_sha256'] ?? null, 64, 'config_sha256'),
         );
     }
+    /**
+     * @return array{0:string,1:array<string,mixed>,2:string,3:string,4:ReleaseGenerationLease}
+     */
+    private function trustedActiveManifestWithLease(string $releaseRoot, string $trustedSha256): array
+    {
+        $trustedSha256 = strtolower(trim($trustedSha256));
+        if (preg_match('/^[a-f0-9]{64}$/D', $trustedSha256) !== 1) {
+            throw new \InvalidArgumentException('Trusted Foundation generation manifest SHA-256 is invalid.');
+        }
+
+        [$generation, $manifest, $directory, $manifestPath, $lease] = $this->activeManifest($releaseRoot);
+        $actualSha256 = hash_file('sha256', $manifestPath);
+        if (!is_string($actualSha256) || !hash_equals($trustedSha256, $actualSha256)) {
+            $lease->release();
+
+            throw new \RuntimeException('Foundation generation manifest trust identity mismatch.');
+        }
+
+        return [$generation, $manifest, $directory, $manifestPath, $lease];
+    }
+
 }

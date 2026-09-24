@@ -234,9 +234,11 @@ Clear generated deployment artifacts with:
 php infbyte optimize:clear
 ```
 
-Individual cache builders remain available (`config:cache`, `command:cache`,
-`route:cache`, `schedule:cache`). Generated artifacts belong to deployment and
-must not be committed to the application repository.
+Individual cache builders remain available for configuration, commands and
+schedules (`config:cache`, `command:cache`, `schedule:cache`). Route metadata is
+compiled as part of the coordinated Foundation/Webrick release via `optimize`;
+there is no standalone `route:cache` command. Generated artifacts belong to
+deployment and must not be committed to the application repository.
 
 `app:ready` checks production configuration policy, active optional package
 requirements, applicable module-owned schemas, storage readiness, and runtime

@@ -136,7 +136,7 @@ Every work item must record its final commit, dependency identities, commands, e
 
 | Batch | Scope | Status | Current evidence / remaining gate |
 | --- | --- | --- | --- |
-| **A** | Dependency contract + public module/core contract | **PARTIAL** | Dependency floors, module/core terminology, CLI examples and absent-optional isolation are implemented. Workflow #1711 is green across PHP 8.4/8.5 stable+lowest, analysis, clean install and benchmarks. A dedicated disposable no-dev consumer matrix is now added; its current-head evidence is pending. |
+| **A** | Dependency contract + public module/core contract | **PARTIAL** | All F30-01/F30-02 implementation items are complete. Workflow #1712 and #1714 prove PHP 8.4/8.5 stable+lowest disposable no-dev consumers, `vendor/bin/infbyte`, optional-package isolation and clean install. Final current-head all-green QA evidence is pending after formatter cleanup. |
 | **B** | Session lifecycle correctness | **PARTIAL** | Primary-failure precedence, finite lock durations, stale-owner mutation protection and shared-lock regressions implemented. The current QA repair keeps the real exception reporter and release-failure semantics intact; maintenance/streaming contract closure and current green workflow evidence pending. |
 | **C** | Runtime support + sustained evidence | **NOT STARTED** | Final 3.0 tested support statement and reproducible runtime fixture/evidence pending. |
 | **D** | Release artifacts + rollback | **PARTIAL** | Read-only-source builds, failed-stage isolation, external trust, dependency identity and rollback documentation already exist. Runtime generation leases now enforce drain-safe pruning; current-head workflow evidence and remaining secret/rollback verification are pending. Infbyte handoff remains explicitly deferred. |
@@ -158,8 +158,8 @@ Sources: `composer.json`, `src/Module/ModuleCatalog.php`, `tests/Feature/ConfigC
 - [x] Confirm the intended 3.0 floors for InterMix 10.1.1, Webrick 5.4 and WebAuthn 5.3.9.
 - [x] Review their relevant runtime/generated-artifact/API changes and test Foundation's affected integrations.
 - [x] Align catalog constraints, documentation and test expectations with the selected contract. Preserve assertions protecting the minimal runtime package set.
-- [ ] Install/test stable and lowest permitted dependency combinations in disposable consumers, with and without optional packages.
-- [ ] Verify normal production `--no-dev` installation, autoload and `vendor/bin/infbyte` without PHPForge or development-only transitive dependencies.
+- [x] Install/test stable and lowest permitted dependency combinations in disposable consumers, with and without optional packages.
+- [x] Verify normal production `--no-dev` installation, autoload and `vendor/bin/infbyte` without PHPForge or development-only transitive dependencies.
 - [x] Confirm public signatures that mention optional types remain safe when their capability is absent.
 
 **Acceptance:** both constraint tests pass; every selected module's catalog floor is tested; minimal production consumers boot without optional-package resolution; selected dependency changes have current compatibility evidence.
