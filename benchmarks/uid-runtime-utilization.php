@@ -8,7 +8,6 @@ use Infocyph\Foundation\Runtime\ExecutionId;
 use Infocyph\Foundation\Scheduling\SchedulerRuntime;
 use Infocyph\Foundation\Worker\WorkerRuntime;
 use Infocyph\UID\Id;
-use Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -267,5 +266,5 @@ try {
     file_put_contents($buildDirectory . '/uid-5-runtime-benchmark.json', $encoded . PHP_EOL, LOCK_EX);
     fwrite(STDOUT, $encoded . PHP_EOL);
 } finally {
-    BenchmarkSupport::removeDirectory($root);
+    \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::removeDirectory($root);
 }
