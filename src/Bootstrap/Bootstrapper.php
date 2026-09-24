@@ -91,11 +91,11 @@ final class Bootstrapper
 
         foreach (self::OPTIONAL_BUILT_INS as $provider) {
             $capability = self::OPTIONAL_CAPABILITIES[$provider];
-            if (!$this->providerDependencyAvailable($provider)
-                || ($context->hasCapabilityOverride($capability) && !$context->hasCapability($capability))
+            if (($context->hasCapabilityOverride($capability) && !$context->hasCapability($capability))
                 || (!$context->hasCapabilityOverride($capability)
                     && $context->capabilitiesExplicit
                     && !$context->hasCapability($capability))
+                || !$this->providerDependencyAvailable($provider)
             ) {
                 continue;
             }
