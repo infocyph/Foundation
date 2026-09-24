@@ -45,6 +45,39 @@ final class BenchmarkSupport
         return round($numerator / max(1.0, $denominator), 4);
     }
 
+    /** @return array{median_ns:float,ops_per_second:float,min_ns:float,max_ns:float,samples_ns:list<float>} */
+    public static function throughputMeasure(
+        callable $operation,
+        int $operations,
+        int $repetitions,
+        int $warmup,
+    ): array {
+        $samples = [];
+
+        for ($repeat = 0; $repeat < $repetitions; ++$repeat) {
+            for ($iteration = 0; $iteration < $warmup; ++$iteration) {
+                $operation();
+            }
+
+            $started = hrtime(true);
+            for ($iteration = 0; $iteration < $operations; ++$iteration) {
+                $operation();
+            }
+            $samples[] = (hrtime(true) - $started) / $operations;
+        }
+
+        sort($samples, SORT_NUMERIC);
+        $median = $samples[intdiv(count($samples), 2)];
+
+        return [
+            'median_ns' => round($median, 2),
+            'ops_per_second' => round(1_000_000_000 / $median, 2),
+            'min_ns' => round($samples[0], 2),
+            'max_ns' => round($samples[array_key_last($samples)], 2),
+            'samples_ns' => array_map(static fn(float $sample): float => round($sample, 2), $samples),
+        ];
+    }
+
     public static function removeDirectory(string $directory): void
     {
         if (!is_dir($directory)) {
