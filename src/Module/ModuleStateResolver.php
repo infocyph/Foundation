@@ -255,7 +255,7 @@ final readonly class ModuleStateResolver
                 && $packages['all_direct']
                 && !array_any(
                     $packages['packages'],
-                    static fn(array $package): bool => $package['compatible'] === false,
+                    static fn(array $package): bool => $package['compatible'] !== true,
                 );
             $blockers = $selected && !$installed
                 ? $packages['blockers']
@@ -299,7 +299,7 @@ final readonly class ModuleStateResolver
 
         return !array_any(
             $packages['packages'],
-            static fn(array $package): bool => $package['compatible'] === false,
+            static fn(array $package): bool => $package['compatible'] !== true,
         );
     }
 
