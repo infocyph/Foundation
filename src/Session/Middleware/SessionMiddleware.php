@@ -17,6 +17,7 @@ final readonly class SessionMiddleware
     public function __construct(
         private SessionManager $sessions,
         private SessionConfig $config,
+        private ?ExceptionReporter $reporter = null,
     ) {}
 
     /**
@@ -41,11 +42,18 @@ final readonly class SessionMiddleware
 
             throw $failure;
         } finally {
-            CleanupGuard::run(
+            $cleanupFailure = CleanupGuard::run(
                 $primaryFailure,
                 $session->release(...),
                 fn() => $this->sessions->leave($session),
             );
+            if ($cleanupFailure !== null) {
+                $this->reporter?->report('warning', [
+                    'status' => 500,
+                    'phase' => 'browser_session_cleanup',
+                    'exception' => $cleanupFailure,
+                ]);
+            }
         }
     }
 
