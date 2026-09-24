@@ -76,6 +76,7 @@ final class ConfigLoader
         ?string $type = null,
         ?string $basePath = null,
     ): string {
+        ConfigExportValidator::assertCacheable($config->all());
         $this->ensureCacheDirectory($cacheDirectory);
         $cacheType = $this->cacheType($config, $type);
         $sourceBasePath = $basePath ?? $this->basePath($config->all());
