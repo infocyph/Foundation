@@ -144,6 +144,10 @@ jobs:
           coverage: none
       - name: Install release-evidence dependencies
         run: composer update --no-interaction --prefer-dist --no-progress --prefer-stable
+      - name: Complete PHPForge release-guard constraints
+        run: |
+          composer validate --strict
+          composer ic:release:constraints
       - name: Capture release evidence
         shell: bash
         run: |
