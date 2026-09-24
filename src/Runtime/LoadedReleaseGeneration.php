@@ -13,6 +13,7 @@ final readonly class LoadedReleaseGeneration
         string $releaseRoot,
         public string $generation,
         public ?string $trustedFoundationManifestSha256 = null,
+        public ?ReleaseGenerationLease $lease = null,
     ) {
         $releaseRoot = rtrim($releaseRoot, DIRECTORY_SEPARATOR);
         if ($releaseRoot === '') {

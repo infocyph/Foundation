@@ -7,6 +7,7 @@ use Infocyph\Foundation\Release\FoundationReleaseBuildLock;
 use Infocyph\Foundation\Release\FoundationReleaseCompiler;
 use Infocyph\Foundation\Release\FoundationReleaseManifest;
 use Infocyph\Foundation\Release\FoundationReleaseRuntime;
+use Infocyph\Foundation\Runtime\ReleaseGenerationLease;
 
 it('publishes and switches only complete immutable Foundation generations', function (): void {
     $root = foundationReleaseInfrastructureRoot();
@@ -131,6 +132,32 @@ it('prunes old generations explicitly while preserving active and newest release
     }
 });
 
+it('preserves draining generations until their runtime lease is released', function (): void {
+    $root = foundationReleaseInfrastructureRoot();
+    $compiler = new FoundationReleaseCompiler();
+
+    try {
+        foundationReleaseInfrastructureGeneration($root, 'draining');
+        foundationReleaseInfrastructureGeneration($root, 'active');
+        touch($root . '/generations/draining', 100);
+        touch($root . '/generations/active', 200);
+        new ActiveGeneration()->activate($root, 'active');
+
+        $lease = ReleaseGenerationLease::acquireShared($root, 'draining');
+        try {
+            expect($compiler->prune($root, keep: 1))->toBe([])
+                ->and(is_dir($root . '/generations/draining'))->toBeTrue();
+        } finally {
+            $lease->release();
+        }
+
+        expect($compiler->prune($root, keep: 1))->toBe(['draining'])
+            ->and(is_dir($root . '/generations/draining'))->toBeFalse();
+    } finally {
+        foundationReleaseInfrastructureRemove($root);
+    }
+});
+
 it('reports and clears active release generations through build-plane APIs', function (): void {
     $root = foundationReleaseInfrastructureRoot();
     $compiler = new FoundationReleaseCompiler();
@@ -200,6 +227,7 @@ function foundationReleaseInfrastructureGeneration(string $root, string $generat
 {
     $directory = $root . '/generations/' . $generation;
     mkdir($directory, 0777, true);
+    ReleaseGenerationLease::initialize($directory);
 
     return FoundationReleaseManifest::write(
         $directory . '/foundation.php',

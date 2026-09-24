@@ -280,10 +280,13 @@ scheduler and CLI process through the documented release bootstrap environment /
 process configuration. Do not discover or trust that digest from the same
 mutable release directory at runtime.
 
-Keep at least one previous generation while old processes drain. Rollback is a
-code/runtime pointer operation: atomically reactivate the retained generation and
-restart/reload processes against its trusted manifest digest. Do not prune a
-generation that a running process may still use.
+Keep at least one previous generation while old processes drain. Each loaded
+Foundation generation holds a shared OS lease on its immutable runtime marker;
+`optimize` pruning requires an exclusive non-blocking lease and therefore skips
+a generation that a running process still uses. Process termination releases the
+lease automatically. Rollback is a code/runtime pointer operation: atomically
+reactivate the retained generation and restart/reload processes against its
+trusted manifest digest.
 
 Database/data rollback is a separate operation. Use additive/expand-contract
 migrations while old and new generations may coexist. A code rollback is not

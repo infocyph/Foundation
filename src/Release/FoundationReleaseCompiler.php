@@ -8,6 +8,7 @@ use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Routing\WebReleaseCompiler;
 use Infocyph\Foundation\Runtime\GeneratedRuntimeCompiler;
 use Infocyph\Foundation\Runtime\GeneratedRuntimeMetadata;
+use Infocyph\Foundation\Runtime\ReleaseGenerationLease;
 use Infocyph\Foundation\Worker\WorkerTopology;
 use Infocyph\Webrick\Router\Build\ReleaseCompiler as WebrickReleaseCompiler;
 
@@ -124,8 +125,17 @@ final readonly class FoundationReleaseCompiler
                 if (isset($retain[$generation])) {
                     continue;
                 }
-                $this->removeDirectory($generations . DIRECTORY_SEPARATOR . $generation);
-                $removed[] = $generation;
+                $lease = ReleaseGenerationLease::tryExclusive($releaseRoot, $generation);
+                if (!$lease instanceof ReleaseGenerationLease) {
+                    continue;
+                }
+
+                try {
+                    $this->removeDirectory($generations . DIRECTORY_SEPARATOR . $generation);
+                    $removed[] = $generation;
+                } finally {
+                    $lease->release();
+                }
             }
 
             return $removed;
@@ -198,6 +208,7 @@ final readonly class FoundationReleaseCompiler
         string $generation,
         array $capabilities,
     ): array {
+        ReleaseGenerationLease::initialize($stage);
         $this->mkdir($stage . '/web');
         $web = $this->web->compile(
             $config,

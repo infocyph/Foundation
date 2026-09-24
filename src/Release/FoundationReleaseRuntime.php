@@ -9,6 +9,7 @@ use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Routing\WebReleaseRuntime;
 use Infocyph\Foundation\Runtime\GeneratedRuntime;
 use Infocyph\Foundation\Runtime\LoadedReleaseGeneration;
+use Infocyph\Foundation\Runtime\ReleaseGenerationLease;
 use Infocyph\Webrick\Runtime\Http\RuntimeAdapterInterface;
 
 /** Process-boot loader for the active immutable Foundation generation. */
@@ -24,7 +25,7 @@ final readonly class FoundationReleaseRuntime
     ): GeneratedRuntime {
         unset($config);
         $this->assertNonWeb($runtime);
-        [$generation, $manifest, $directory] = $this->activeManifest($releaseRoot);
+        [$generation, $manifest, $directory, , $lease] = $this->activeManifest($releaseRoot);
         $section = FoundationReleaseManifest::section($manifest, $runtime->value);
         $loaded = GeneratedRuntime::loadRelease(
             $runtime,
@@ -46,7 +47,7 @@ final readonly class FoundationReleaseRuntime
             ),
         );
 
-        return $this->attachGeneration($loaded, $releaseRoot, $generation);
+        return $this->attachGeneration($loaded, $releaseRoot, $generation, $lease);
     }
 
     /** @param array<string,mixed> $config Retained for the public bootstrap contract; release inputs own runtime config. */
@@ -58,7 +59,7 @@ final readonly class FoundationReleaseRuntime
     ): GeneratedRuntime {
         unset($config);
         $this->assertNonWeb($runtime);
-        [$generation, $manifest, $directory] = $this->trustedActiveManifest(
+        [$generation, $manifest, $directory, , $lease] = $this->trustedActiveManifestWithLease(
             $releaseRoot,
             $trustedFoundationManifestSha256,
         );
@@ -93,6 +94,7 @@ final readonly class FoundationReleaseRuntime
             $loaded,
             $releaseRoot,
             $generation,
+            $lease,
             strtolower(trim($trustedFoundationManifestSha256)),
         );
     }
@@ -100,16 +102,10 @@ final readonly class FoundationReleaseRuntime
     /** @return array{0:string,1:array<string,mixed>,2:string,3:string} */
     public function trustedActiveManifest(string $releaseRoot, string $trustedSha256): array
     {
-        $trustedSha256 = strtolower(trim($trustedSha256));
-        if (preg_match('/^[a-f0-9]{64}$/D', $trustedSha256) !== 1) {
-            throw new \InvalidArgumentException('Trusted Foundation generation manifest SHA-256 is invalid.');
-        }
-
-        [$generation, $manifest, $directory, $manifestPath] = $this->activeManifest($releaseRoot);
-        $actualSha256 = hash_file('sha256', $manifestPath);
-        if (!is_string($actualSha256) || !hash_equals($trustedSha256, $actualSha256)) {
-            throw new \RuntimeException('Foundation generation manifest trust identity mismatch.');
-        }
+        [$generation, $manifest, $directory, $manifestPath] = $this->trustedActiveManifestWithLease(
+            $releaseRoot,
+            $trustedSha256,
+        );
 
         return [$generation, $manifest, $directory, $manifestPath];
     }
@@ -121,15 +117,16 @@ final readonly class FoundationReleaseRuntime
         ?RuntimeAdapterInterface $adapter = null,
     ): WebReleaseRuntime {
         unset($config);
-        [, $manifest, $directory] = $this->activeManifest($releaseRoot);
+        [$generation, $manifest, $directory, , $lease] = $this->activeManifest($releaseRoot);
         $web = FoundationReleaseManifest::section($manifest, 'web');
-
-        return WebReleaseRuntime::loadCompiled(
+        $runtime = WebReleaseRuntime::loadCompiled(
             $this->releaseConfig($manifest, $directory),
             $directory . DIRECTORY_SEPARATOR . $this->relative($web['release_manifest'] ?? null),
             $adapter,
             FoundationReleaseManifest::capabilities($web['capabilities'] ?? null, 'web.capabilities'),
         );
+
+        return $this->attachWebGeneration($runtime, $releaseRoot, $generation, $lease);
     }
 
     /** @param array<string,mixed> $config Retained for the public bootstrap contract; release inputs own runtime config. */
@@ -140,13 +137,12 @@ final readonly class FoundationReleaseRuntime
         ?RuntimeAdapterInterface $adapter = null,
     ): WebReleaseRuntime {
         unset($config);
-        [, $manifest, $directory] = $this->trustedActiveManifest(
+        [$generation, $manifest, $directory, , $lease] = $this->trustedActiveManifestWithLease(
             $releaseRoot,
             $trustedFoundationManifestSha256,
         );
         $web = FoundationReleaseManifest::section($manifest, 'web');
-
-        return WebReleaseRuntime::loadPrevalidatedCompiled(
+        $runtime = WebReleaseRuntime::loadPrevalidatedCompiled(
             $this->releaseConfig($manifest, $directory),
             $directory . DIRECTORY_SEPARATOR . $this->relative($web['release_manifest'] ?? null),
             FoundationReleaseManifest::digest(
@@ -157,26 +153,64 @@ final readonly class FoundationReleaseRuntime
             $adapter,
             FoundationReleaseManifest::capabilities($web['capabilities'] ?? null, 'web.capabilities'),
         );
+
+        return $this->attachWebGeneration(
+            $runtime,
+            $releaseRoot,
+            $generation,
+            $lease,
+            strtolower(trim($trustedFoundationManifestSha256)),
+        );
     }
 
-    /** @return array{0:string,1:array<string,mixed>,2:string,3:string} */
+    /** @return array{0:string,1:array<string,mixed>,2:string,3:string,4:ReleaseGenerationLease} */
     private function activeManifest(string $releaseRoot): array
     {
         $current = $this->active->current($releaseRoot);
+        $generation = $current['generation'];
+        $lease = ReleaseGenerationLease::acquireShared($releaseRoot, $generation);
         $manifestPath = $current['manifest'];
-        $manifest = FoundationReleaseManifest::load($manifestPath);
-        $expectedDependencies = FoundationReleaseManifest::digest(
-            $manifest['dependency_fingerprint'] ?? null,
-            32,
-            'dependency_fingerprint',
-        );
-        if (!hash_equals($expectedDependencies, FoundationReleaseManifest::dependencyFingerprint())) {
-            throw new \RuntimeException(
-                'Foundation generation dependency identity does not match the current Composer installation.',
+
+        try {
+            $manifest = FoundationReleaseManifest::load($manifestPath);
+            $expectedDependencies = FoundationReleaseManifest::digest(
+                $manifest['dependency_fingerprint'] ?? null,
+                32,
+                'dependency_fingerprint',
             );
+            if (!hash_equals($expectedDependencies, FoundationReleaseManifest::dependencyFingerprint())) {
+                throw new \RuntimeException(
+                    'Foundation generation dependency identity does not match the current Composer installation.',
+                );
+            }
+        } catch (\Throwable $exception) {
+            $lease->release();
+
+            throw $exception;
         }
 
-        return [$current['generation'], $manifest, dirname($manifestPath), $manifestPath];
+        return [$generation, $manifest, dirname($manifestPath), $manifestPath, $lease];
+    }
+
+    /**
+     * @return array{0:string,1:array<string,mixed>,2:string,3:string,4:ReleaseGenerationLease}
+     */
+    private function trustedActiveManifestWithLease(string $releaseRoot, string $trustedSha256): array
+    {
+        $trustedSha256 = strtolower(trim($trustedSha256));
+        if (preg_match('/^[a-f0-9]{64}$/D', $trustedSha256) !== 1) {
+            throw new \InvalidArgumentException('Trusted Foundation generation manifest SHA-256 is invalid.');
+        }
+
+        [$generation, $manifest, $directory, $manifestPath, $lease] = $this->activeManifest($releaseRoot);
+        $actualSha256 = hash_file('sha256', $manifestPath);
+        if (!is_string($actualSha256) || !hash_equals($trustedSha256, $actualSha256)) {
+            $lease->release();
+
+            throw new \RuntimeException('Foundation generation manifest trust identity mismatch.');
+        }
+
+        return [$generation, $manifest, $directory, $manifestPath, $lease];
     }
 
     private function assertNonWeb(RuntimeMode $runtime): void
@@ -190,15 +224,38 @@ final readonly class FoundationReleaseRuntime
         GeneratedRuntime $runtime,
         string $releaseRoot,
         string $generation,
+        ReleaseGenerationLease $lease,
         ?string $trustedFoundationManifestSha256 = null,
     ): GeneratedRuntime {
         $runtime->application->attachLoadedReleaseGeneration(new LoadedReleaseGeneration(
             $releaseRoot,
             $generation,
             $trustedFoundationManifestSha256,
+            $lease,
         ));
 
         return $runtime;
+    }
+
+    private function attachWebGeneration(
+        WebReleaseRuntime $runtime,
+        string $releaseRoot,
+        string $generation,
+        ReleaseGenerationLease $lease,
+        ?string $trustedFoundationManifestSha256 = null,
+    ): WebReleaseRuntime {
+        return new WebReleaseRuntime(
+            $runtime->container,
+            $runtime->kernel,
+            $runtime->server,
+            $runtime->capabilities,
+            new LoadedReleaseGeneration(
+                $releaseRoot,
+                $generation,
+                $trustedFoundationManifestSha256,
+                $lease,
+            ),
+        );
     }
 
     private function relative(mixed $path): string

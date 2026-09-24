@@ -7,6 +7,7 @@ namespace Infocyph\Foundation\Routing;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Http\Response\ExceptionRenderer;
 use Infocyph\Foundation\Logging\HttpExceptionLogger;
+use Infocyph\Foundation\Runtime\LoadedReleaseGeneration;
 use Infocyph\InterMix\DI\ProductionContainer;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
@@ -30,6 +31,7 @@ final readonly class WebReleaseRuntime
         public CompiledRouterKernel $kernel,
         public RuntimeServer $server,
         public RuntimeCapabilities $capabilities,
+        public ?LoadedReleaseGeneration $loadedReleaseGeneration = null,
     ) {}
 
     /**
