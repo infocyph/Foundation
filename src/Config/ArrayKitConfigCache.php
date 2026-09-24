@@ -34,6 +34,34 @@ final class ArrayKitConfigCache
         return $items;
     }
 
+    /**
+     * @param array<string,mixed> $config
+     * @return list<string>
+     */
+    public function writeSharded(array $config, string $directory): array
+    {
+        $namespaces = [];
+        foreach ($config as $namespace => $value) {
+            if (is_array($value) && preg_match('/^[A-Za-z0-9_-]+$/', $namespace) === 1) {
+                $namespaces[] = $namespace;
+            }
+        }
+        sort($namespaces);
+        $this->removeStaleFiles($directory, $namespaces);
+
+        new LazyFileConfig(
+            directory: $directory,
+            items: array_intersect_key($config, array_fill_keys($namespaces, true)),
+            namespaceCacheDirectory: $directory,
+        )->warmNamespaceCache($namespaces);
+
+        foreach ($namespaces as $namespace) {
+            $this->validateNamespace($directory, $namespace);
+        }
+
+        return $namespaces;
+    }
+
     /** @param array<string,mixed> $config */
     public function writeSingle(array $config, string $directory): void
     {
@@ -61,34 +89,6 @@ final class ArrayKitConfigCache
         }
 
         ConfigExportValidator::assertExportable($materialized);
-    }
-
-    /**
-     * @param array<string,mixed> $config
-     * @return list<string>
-     */
-    public function writeSharded(array $config, string $directory): array
-    {
-        $namespaces = [];
-        foreach ($config as $namespace => $value) {
-            if (is_array($value) && preg_match('/^[A-Za-z0-9_-]+$/', $namespace) === 1) {
-                $namespaces[] = $namespace;
-            }
-        }
-        sort($namespaces);
-        $this->removeStaleFiles($directory, $namespaces);
-
-        new LazyFileConfig(
-            directory: $directory,
-            items: array_intersect_key($config, array_fill_keys($namespaces, true)),
-            namespaceCacheDirectory: $directory,
-        )->warmNamespaceCache($namespaces);
-
-        foreach ($namespaces as $namespace) {
-            $this->validateNamespace($directory, $namespace);
-        }
-
-        return $namespaces;
     }
 
     /** @param list<string> $namespaces */
