@@ -242,7 +242,13 @@ deployment and must not be committed to the application repository.
 
 `app:ready` checks production configuration policy, active optional package
 requirements, applicable module-owned schemas, storage readiness, and runtime
-basics. Package presence alone is not treated as capability activation.
+basics. Package presence alone is not treated as capability activation. Its
+machine-readable payload is versioned with `schema_version: 1`.
+
+`app:ready` is a deployment/dependency readiness check, not an HTTP liveness or
+traffic-health probe. It performs only the bounded checks required by selected
+capabilities (including applicable schema/key readiness); disabled optional
+capabilities are not contacted, and secret/key material is never emitted.
 
 ## CLI process controls
 

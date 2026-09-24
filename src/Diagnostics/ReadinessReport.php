@@ -17,9 +17,11 @@ use Infocyph\Foundation\Module\ModuleStateResolver;
 
 final readonly class ReadinessReport
 {
+    private const int SCHEMA_VERSION = 1;
+
     public function __construct(private Application $application) {}
 
-    /** @return array{ready:bool,checks:array<string,array{ready:bool,detail:string}>} */
+    /** @return array{schema_version:int,ready:bool,checks:array<string,array{ready:bool,detail:string}>} */
     public function generate(): array
     {
         $checks = $this->baseChecks();
@@ -47,6 +49,7 @@ final readonly class ReadinessReport
         $this->appendSchemaChecks($checks, $capabilities);
 
         return [
+            'schema_version' => self::SCHEMA_VERSION,
             'ready' => !array_any($checks, static fn(array $check): bool => !$check['ready']),
             'checks' => $checks,
         ];

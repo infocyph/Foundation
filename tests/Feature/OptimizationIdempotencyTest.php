@@ -120,6 +120,87 @@ PHP);
     }
 });
 
+it('keeps disabled optional capabilities cold across diagnostics readiness and production compilation', function (): void {
+    $basePath = sys_get_temp_dir() . '/foundation-readiness-agreement-' . bin2hex(random_bytes(6));
+    mkdir($basePath . '/routes', 0775, true);
+    mkdir($basePath . '/storage', 0775, true);
+    file_put_contents($basePath . '/composer.json', json_encode([
+        'name' => 'example/foundation-readiness-agreement',
+        'require' => ['infocyph/foundation' => '*'],
+    ], JSON_THROW_ON_ERROR));
+    file_put_contents($basePath . '/routes/web.php', <<<'PHP'
+<?php
+use Infocyph\Webrick\Router\Facade\Router;
+Router::get('/health', static fn(): array => ['ok' => true], ['name' => 'health']);
+PHP);
+
+    $dispatcher = CommandDispatcher::project(
+        [
+            'base_path' => $basePath,
+            '_config_cache' => false,
+            'app' => [
+                'base_path' => $basePath,
+                'env' => 'production',
+                'debug' => false,
+                'topology' => 'single_node',
+                'capabilities' => [],
+            ],
+            'router' => ['files' => ['web.php']],
+        ],
+        manifestPath: $basePath . '/bootstrap/cache/commands.php',
+        routesPath: $basePath . '/routes/console.php',
+    );
+
+    try {
+        $show = new FoundationOptimizationCommandIO();
+        $doctor = new FoundationOptimizationCommandIO();
+        $plan = new FoundationOptimizationCommandIO();
+        $validation = new FoundationOptimizationCommandIO();
+        $readiness = new FoundationOptimizationCommandIO();
+        $optimize = new FoundationOptimizationCommandIO();
+
+        expect($dispatcher->run(['infbyte', 'module:show', 'database'], $show))->toBe(ExitCode::SUCCESS)
+            ->and($dispatcher->run(['infbyte', 'module:doctor', 'database'], $doctor))->toBe(ExitCode::SUCCESS)
+            ->and($dispatcher->run(['infbyte', 'module:plan', 'database'], $plan))->toBe(ExitCode::SUCCESS)
+            ->and($dispatcher->run(['infbyte', 'config:validate', '--production'], $validation))->toBe(ExitCode::SUCCESS)
+            ->and($dispatcher->run(['infbyte', 'app:ready'], $readiness))->toBe(ExitCode::SUCCESS)
+            ->and($dispatcher->run(['infbyte', 'optimize'], $optimize))->toBe(ExitCode::SUCCESS);
+
+        $showPayload = $show->json[0] ?? null;
+        $doctorPayload = $doctor->json[0] ?? null;
+        $planPayload = $plan->json[0] ?? null;
+        $validationPayload = $validation->json[0] ?? null;
+        $readinessPayload = $readiness->json[0] ?? null;
+        $optimizePayload = $optimize->json[0] ?? null;
+
+        expect($showPayload)->toBeArray()
+            ->and($doctorPayload)->toBeArray()
+            ->and($planPayload)->toBeArray()
+            ->and($validationPayload)->toBeArray()
+            ->and($readinessPayload)->toBeArray()
+            ->and($optimizePayload)->toBeArray()
+            ->and($showPayload['enabled'] ?? true)->toBeFalse()
+            ->and($doctorPayload['enabled'] ?? true)->toBeFalse()
+            ->and($doctorPayload['ready'] ?? true)->toBeFalse()
+            ->and($planPayload['schema_version'] ?? null)->toBe(1)
+            ->and($planPayload['module'] ?? null)->toBe('database')
+            ->and($validationPayload['valid'] ?? false)->toBeTrue()
+            ->and($readinessPayload['schema_version'] ?? null)->toBe(1)
+            ->and($readinessPayload['ready'] ?? false)->toBeTrue()
+            ->and(array_keys($readinessPayload['checks'] ?? []))->not->toContain('module:database');
+
+        $manifestPath = $optimizePayload['manifest'] ?? null;
+        expect($manifestPath)->toBeString()->toBeFile();
+        $manifest = require $manifestPath;
+        expect($manifest)->toBeArray();
+        foreach (['web', 'cli', 'worker', 'scheduler'] as $runtime) {
+            expect($manifest[$runtime]['capabilities'] ?? null)->toBe([]);
+        }
+    } finally {
+        foundationOptimizationRemove($basePath);
+    }
+});
+
 it('requires explicit production capability topology for optimize', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-optimize-capabilities-' . bin2hex(random_bytes(6));
     $dispatcher = foundationOptimizationDispatcher($basePath, null);

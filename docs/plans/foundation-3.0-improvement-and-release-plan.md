@@ -140,7 +140,7 @@ Every work item must record its final commit, dependency identities, commands, e
 | **B** | Session lifecycle correctness | **PARTIAL** | Primary-failure precedence, finite lock durations, stale-owner mutation protection and shared-lock regressions implemented. The current QA repair keeps the real exception reporter and release-failure semantics intact; maintenance/streaming contract closure and current green workflow evidence pending. |
 | **C** | Runtime support + sustained evidence | **NOT STARTED** | Final 3.0 tested support statement and reproducible runtime fixture/evidence pending. |
 | **D** | Release artifacts + rollback | **PARTIAL** | Read-only-source builds, failed-stage isolation, external trust, dependency identity and rollback documentation already exist. Runtime generation leases now enforce drain-safe pruning; current-head workflow evidence and remaining secret/rollback verification are pending. Infbyte handoff remains explicitly deferred. |
-| **E** | Readiness, trust boundaries, architecture | **NOT STARTED** | Cross-command readiness agreement, security boundary evidence and project architecture rules pending. |
+| **E** | Readiness, trust boundaries, architecture | **PARTIAL** | F30-10 readiness semantics and F30-12 architecture ownership are implemented and covered, including versioned `app:ready` output and explicit cold-capability agreement. F30-11 trust-boundary closure remains. |
 | **F** | CI reproducibility + documentation | **PARTIAL** | PHP 8.4/8.5 stable+lowest, services, clean install and benchmarks are green in workflow #1711. Foundation now pins the reusable PHPForge workflow to `fdec64cf4460f13116eb0e2f3405acadd3e84377` and adds disposable production-consumer jobs; final current-head evidence and release evidence index remain pending. |
 
 Tracker rule: mark a batch **DONE** only when its required acceptance criteria are backed by current-source tests, workflow evidence or an explicitly narrowed support statement. Historical green runs do not close a current batch.
@@ -323,12 +323,12 @@ Sources: `src/Diagnostics/ReadinessReport.php`, `src/Module/ModuleStateResolver.
 
 **Observed limitation:** module constraint reasoning currently handles simple caret ranges, returning unknown for other expressions. `ReadinessReport` checks selected package presence separately from the richer module-state checks. End-to-end disagreement is a verification target, not yet a reproduced failure.
 
-- [ ] Compare `module:show`, `module:doctor`, `module:plan`, configuration validation, production compilation and `app:ready` for identical configurations.
-- [ ] Cover direct/transitive/missing packages, disabled capabilities, incompatible versions, missing extensions, unavailable schemas and selected feature dependencies.
-- [ ] Test exact pins, tilde/range/union constraints and aliases used by consumers. Keep unknown distinct from compatible.
-- [ ] Prefer Composer's established constraint semantics if broader analysis is necessary; any added runtime dependency must be explicit and justified. Do not build a general semver engine in Foundation.
-- [ ] Keep readiness output bounded and secret-free; separate configuration/build validity, liveness and dependency readiness with explicit I/O policy.
-- [ ] Preserve versioned machine-readable output and stable exit codes for automation.
+- [x] Compare `module:show`, `module:doctor`, `module:plan`, configuration validation, production compilation and `app:ready` for identical configurations.
+- [x] Cover direct/transitive/missing packages, disabled capabilities, incompatible versions, missing extensions, unavailable schemas and selected feature dependencies.
+- [x] Test exact pins, tilde/range/union constraints and aliases used by consumers. Keep unknown distinct from compatible.
+- [x] Prefer Composer's established constraint semantics if broader analysis is necessary; any added runtime dependency must be explicit and justified. Do not build a general semver engine in Foundation.
+- [x] Keep readiness output bounded and secret-free; separate configuration/build validity, liveness and dependency readiness with explicit I/O policy.
+- [x] Preserve versioned machine-readable output and stable exit codes for automation.
 
 **Acceptance:** no false-ready result for a required unsupported dependency/feature; inactive optional services are not contacted; diagnostics agree or clearly explain their differing scope.
 
@@ -350,11 +350,11 @@ Existing OAuth, MFA, passkey, rotation, revocation and authorization suites are 
 
 **Observed:** active Deptrac uses generic Project/Vendor layers. Targeted architecture tests prohibit several legacy paths but do not encode the entire ownership map.
 
-- [ ] Add a small project-specific architecture ruleset covering application composition, runtime boundaries, Foundation policy and specialist adapters.
-- [ ] Prevent runtime dependencies on Testing/tooling and prevent Foundation from depending on Infbyte.
-- [ ] Protect build-plane versus request/job execution boundaries and optional-capability isolation.
-- [ ] Capture the current dependency graph before enforcing changes; fix real violations without blanket exclusions or a speculative folder rewrite.
-- [ ] Document provider lifetime/reset requirements and the public extension seams for custom stores, notification channels, commands and application providers.
+- [x] Add a small project-specific architecture ruleset covering application composition, runtime boundaries, Foundation policy and specialist adapters.
+- [x] Prevent runtime dependencies on Testing/tooling and prevent Foundation from depending on Infbyte.
+- [x] Protect build-plane versus request/job execution boundaries and optional-capability isolation.
+- [x] Capture the current dependency graph before enforcing changes; fix real violations without blanket exclusions or a speculative folder rewrite.
+- [x] Document provider lifetime/reset requirements and the public extension seams for custom stores, notification channels, commands and application providers.
 
 **Acceptance:** a deliberate boundary violation fails; current legitimate bridges pass; rules match actual public ownership and do not demand redundant wrapper layers.
 
