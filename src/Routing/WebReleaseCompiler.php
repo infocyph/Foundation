@@ -6,8 +6,10 @@ namespace Infocyph\Foundation\Routing;
 
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\Webrick\Router\Build\ReleaseCompiler as WebrickReleaseCompiler;
+use Infocyph\Webrick\Router\Build\RouterArtifactLoader;
 use Infocyph\Webrick\Router\Build\RouterBuildResult;
 use Infocyph\Webrick\Router\Definition\Registrar;
+use Infocyph\Webrick\Router\Matching\ShardedMatcher;
 
 /** Coordinates the Foundation web graph through Webrick's single release compiler. */
 final readonly class WebReleaseCompiler
@@ -57,6 +59,7 @@ final readonly class WebReleaseCompiler
             },
         );
         $this->assertNoSkippedDefinitions($release);
+        $matcherCachePath = $this->compileMatcherCache($settings, $routerPath);
 
         $runtimeManifestPath = WebrickReleaseCompiler::runtimeManifestPath($releaseManifestPath);
         $runtimeManifestSha256 = hash_file('sha256', $runtimeManifestPath);
@@ -67,10 +70,45 @@ final readonly class WebReleaseCompiler
         // Returned to trusted deployment tooling, never written into the Webrick
         // manifest whose exact runtime representation it authenticates.
         $release['release_runtime_manifest_sha256'] = $runtimeManifestSha256;
+        $release['foundation_matcher_cache_path'] = $matcherCachePath;
         $release['foundation_capabilities'] = $graph->context->capabilities;
         $release['foundation_config'] = $graph->context->config;
 
         return $release;
+    }
+
+    private function compileMatcherCache(WebReleaseConfiguration $settings, string $routerPath): ?string
+    {
+        if ($settings->matcherName() !== 'sharded') {
+            return null;
+        }
+
+        $cacheDirectory = dirname($routerPath) . DIRECTORY_SEPARATOR . 'router-shards';
+        $artifact = new RouterArtifactLoader()->load(
+            $routerPath,
+            $settings->environment(),
+            $settings->configFingerprint(),
+        );
+        $matcher = ShardedMatcher::make()
+            ->enableCache($cacheDirectory)
+            ->enableCacheWrite()
+            ->verifyCacheOnLoad();
+
+        foreach ($artifact->routes() as $route) {
+            $matcher->add($route);
+        }
+        $matcher->finalize();
+
+        $reader = ShardedMatcher::make()
+            ->enableCache($cacheDirectory)
+            ->verifyCacheOnLoad();
+        if (!$reader->canBootFromCache()) {
+            throw new \RuntimeException('Foundation sharded route cache was not published atomically.');
+        }
+        $reader->finalize();
+        $reader->aliasIndex();
+
+        return $cacheDirectory;
     }
 
     /** @param array<string, mixed> $release */
