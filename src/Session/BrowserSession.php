@@ -29,6 +29,8 @@ final class BrowserSession
 
     private bool $loaded = false;
 
+    private bool $released = false;
+
     private ?LockHandle $lock = null;
 
     private ?LockProviderInterface $lockProvider = null;
@@ -62,6 +64,8 @@ final class BrowserSession
 
     public function commit(int $now): SessionCommit
     {
+        $this->assertOpen();
+
         if (!$this->accessed) {
             return new SessionCommit(false, null);
         }
@@ -238,6 +242,7 @@ final class BrowserSession
 
     public function release(): void
     {
+        $this->released = true;
         $provider = $this->lockProvider;
         $lock = $this->lock;
         $this->lock = null;
@@ -253,6 +258,13 @@ final class BrowserSession
     private static function generateId(): string
     {
         return bin2hex(random_bytes(32));
+    }
+
+    private function assertOpen(): void
+    {
+        if ($this->released) {
+            throw new \LogicException('The browser session is finalized for this request.');
+        }
     }
 
     private function acquireLock(string $id): void
@@ -301,6 +313,7 @@ final class BrowserSession
 
     private function load(): void
     {
+        $this->assertOpen();
         $this->accessed = true;
         if ($this->loaded) {
             return;
