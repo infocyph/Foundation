@@ -254,7 +254,6 @@ final readonly class FoundationReleaseCompiler
                 'release_manifest' => 'web/release.json',
                 'runtime_manifest_sha256' => $runtimeManifestSha256,
                 'matcher_cache_path' => $this->matcherCacheRelativePath($web, $stage),
-                'matcher_cache_sha256' => $this->matcherCacheSha256($web),
                 'capabilities' => $webCapabilities,
             ], static fn(mixed $value): bool => $value !== null),
             'cli' => $runtimeSections['cli'],
@@ -359,20 +358,6 @@ final readonly class FoundationReleaseCompiler
         }
 
         return str_replace(DIRECTORY_SEPARATOR, '/', substr($path, strlen($prefix)));
-    }
-
-    /** @param array<string,mixed> $web */
-    private function matcherCacheSha256(array $web): ?string
-    {
-        $path = $web['foundation_matcher_cache_path'] ?? null;
-        if ($path === null) {
-            return null;
-        }
-        if (!is_string($path) || $path === '') {
-            throw new \UnexpectedValueException('Foundation matcher cache path is invalid.');
-        }
-
-        return FoundationReleaseTreeDigest::calculate($path);
     }
 
     private function mkdir(string $directory): void
@@ -513,12 +498,12 @@ final readonly class FoundationReleaseCompiler
         );
         $paths = ['foundation.php', $configPath, $webRelease];
         $matcherCachePath = $web['matcher_cache_path'] ?? null;
-        $matcherCacheSha256 = $web['matcher_cache_sha256'] ?? null;
-        if (is_string($matcherCachePath) && is_string($matcherCacheSha256)) {
-            FoundationReleaseTreeDigest::assertMatches(
-                $stage . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $matcherCachePath),
-                FoundationReleaseManifest::digest($matcherCacheSha256, 64, 'web.matcher_cache_sha256'),
-            );
+        if (is_string($matcherCachePath)) {
+            $matcherCacheDirectory = $stage . DIRECTORY_SEPARATOR
+                . str_replace('/', DIRECTORY_SEPARATOR, $matcherCachePath);
+            if (!is_dir($matcherCacheDirectory)) {
+                throw new \RuntimeException('Foundation staged Webrick matcher cache is missing.');
+            }
         }
         foreach (['cli', 'worker', 'scheduler'] as $runtime) {
             $section = FoundationReleaseManifest::section($manifest, $runtime);
