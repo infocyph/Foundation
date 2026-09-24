@@ -11,7 +11,7 @@ require dirname(__DIR__) . '/vendor/autoload.php';
 $repository = dirname(__DIR__);
 $app = getenv('PHASE9_SERVER_APP') ?: $repository . '/build/phase9-server-app';
 $app = rtrim($app, DIRECTORY_SEPARATOR);
-BenchmarkSupport::removeDirectory($app);
+\Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::removeDirectory($app);
 
 foreach (['bootstrap/cache', 'public', 'routes'] as $path) {
     $directory = $app . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $path);
@@ -96,7 +96,6 @@ $frontController = sprintf(<<<'PHP'
 declare(strict_types=1);
 
 use Infocyph\Foundation\Routing\WebReleaseRuntime;
-use Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport;
 
 require %s;
 
