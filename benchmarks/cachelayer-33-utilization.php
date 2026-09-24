@@ -99,6 +99,23 @@ function cacheLayer33Percentile(array $samples, float $percentile): float
     return $samples[max(0, min(count($samples) - 1, $index))];
 }
 
+function cacheLayer33RedisDsn(): string
+{
+    $explicit = getenv('CACHELAYER_BENCH_REDIS_DSN');
+    if (is_string($explicit) && $explicit !== '') {
+        return $explicit;
+    }
+
+    $host = getenv('IC_REDIS_HOST') ?: '127.0.0.1';
+    $port = getenv('IC_REDIS_PORT') ?: '6379';
+    $password = getenv('IC_REDIS_PASSWORD');
+    $credentials = is_string($password) && $password !== ''
+        ? ':' . rawurlencode($password) . '@'
+        : '';
+
+    return sprintf('redis://%s%s:%s', $credentials, $host, $port);
+}
+
 /** @return array{0:?AtomicCounters,1:?string} */
 function cacheLayer33RedisCounters(string $namespace): array
 {
@@ -106,19 +123,8 @@ function cacheLayer33RedisCounters(string $namespace): array
         return [null, 'phpredis extension unavailable'];
     }
 
-    $dsn = getenv('CACHELAYER_BENCH_REDIS_DSN');
-    if (!is_string($dsn) || $dsn === '') {
-        $host = getenv('IC_REDIS_HOST') ?: '127.0.0.1';
-        $port = getenv('IC_REDIS_PORT') ?: '6379';
-        $password = getenv('IC_REDIS_PASSWORD');
-        $credentials = is_string($password) && $password !== ''
-            ? ':' . rawurlencode($password) . '@'
-            : '';
-        $dsn = sprintf('redis://%s%s:%s', $credentials, $host, $port);
-    }
-
     try {
-        return [AtomicCounters::redis($namespace, $dsn), null];
+        return [AtomicCounters::redis($namespace, cacheLayer33RedisDsn()), null];
     } catch (Throwable $exception) {
         return [null, $exception::class . ': ' . $exception->getMessage()];
     }
