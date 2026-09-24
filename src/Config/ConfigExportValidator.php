@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Config;
 
+use Infocyph\ArrayKit\Config\Support\EnvReference;
+
 final class ConfigExportValidator
 {
     private const int MAX_DEPTH = 64;
@@ -11,9 +13,17 @@ final class ConfigExportValidator
     /**
      * @param array<string, mixed> $config
      */
+    public static function assertCacheable(array $config): void
+    {
+        self::walk($config, '', 0, allowDelayed: true);
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     */
     public static function assertExportable(array $config): void
     {
-        self::walk($config, '', 0);
+        self::walk($config, '', 0, allowDelayed: false);
     }
 
     /**
@@ -30,8 +40,12 @@ final class ConfigExportValidator
         return true;
     }
 
-    private static function walk(mixed $value, string $path, int $depth): void
-    {
+    private static function walk(
+        mixed $value,
+        string $path,
+        int $depth,
+        bool $allowDelayed,
+    ): void {
         if ($depth > self::MAX_DEPTH) {
             throw new \RuntimeException(sprintf(
                 'Configuration value "%s" exceeds the maximum cacheable nesting depth of %d.',
@@ -41,6 +55,10 @@ final class ConfigExportValidator
         }
 
         if ($value === null || is_scalar($value)) {
+            return;
+        }
+
+        if ($allowDelayed && ($value instanceof EnvReference || $value instanceof \Closure)) {
             return;
         }
 
@@ -58,6 +76,7 @@ final class ConfigExportValidator
                 $entry,
                 $path === '' ? $segment : $path . '.' . $segment,
                 $depth + 1,
+                $allowDelayed,
             );
         }
     }
