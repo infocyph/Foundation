@@ -81,6 +81,14 @@ final class ModulePackageStateResolver
                 $state['direct_constraint'] ?? 'unknown',
             )];
         }
+        if ($state['direct'] && $state['compatible'] === null) {
+            return [sprintf(
+                'Unable to verify direct Composer constraint %s for %s against supported range %s.',
+                $state['direct_constraint'] ?? 'unknown',
+                $package,
+                $state['constraint'],
+            )];
+        }
 
         return [];
     }
@@ -126,9 +134,19 @@ final class ModulePackageStateResolver
 
     private function constraintWithin(string $candidate, string $required): ?bool
     {
-        $candidateBounds = $this->constraintBounds($candidate);
         $requiredBounds = $this->constraintBounds($required);
-        if ($candidateBounds === null || $requiredBounds === null) {
+        if ($requiredBounds === null) {
+            return null;
+        }
+
+        $exact = $this->exactVersion($candidate);
+        if ($exact !== null) {
+            return version_compare($exact, $requiredBounds['lower'], '>=')
+                && version_compare($exact, $requiredBounds['upper'], '<');
+        }
+
+        $candidateBounds = $this->constraintBounds($candidate);
+        if ($candidateBounds === null) {
             return null;
         }
 
@@ -136,10 +154,25 @@ final class ModulePackageStateResolver
             && version_compare($candidateBounds['upper'], $requiredBounds['upper'], '<=');
     }
 
+    private function exactVersion(string $constraint): ?string
+    {
+        $constraint = trim($constraint);
+        if (preg_match('/^v?(\d+\.\d+\.\d+)(?:\.0)?$/D', $constraint, $match) !== 1) {
+            return null;
+        }
+
+        return $match[1];
+    }
+
     private function satisfiesConstraint(?string $version, string $constraint): ?bool
     {
         if ($version === null) {
             return null;
+        }
+
+        $exact = $this->exactVersion($constraint);
+        if ($exact !== null) {
+            return version_compare($version, $exact, '==');
         }
 
         $bounds = $this->constraintBounds($constraint);
@@ -195,14 +228,6 @@ final class ModulePackageStateResolver
      */
     private function warnings(string $package, array $state): array
     {
-        if ($state['direct'] && $state['compatible'] === null) {
-            return [sprintf(
-                'Unable to fully evaluate direct Composer constraint %s for %s against %s.',
-                $state['direct_constraint'] ?? 'unknown',
-                $package,
-                $state['constraint'],
-            )];
-        }
         if ($state['transitive']) {
             return [sprintf(
                 'Package %s is available only transitively; require it directly to own this module.',
