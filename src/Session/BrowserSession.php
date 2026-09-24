@@ -29,11 +29,11 @@ final class BrowserSession
 
     private bool $loaded = false;
 
-    private bool $released = false;
-
     private ?LockHandle $lock = null;
 
     private ?LockProviderInterface $lockProvider = null;
+
+    private bool $released = false;
 
     public function __construct(
         private readonly ?string $candidateId,
@@ -260,13 +260,6 @@ final class BrowserSession
         return bin2hex(random_bytes(32));
     }
 
-    private function assertOpen(): void
-    {
-        if ($this->released) {
-            throw new \LogicException('The browser session is finalized for this request.');
-        }
-    }
-
     private function acquireLock(string $id): void
     {
         if (!$this->config->lockEnabled) {
@@ -295,10 +288,18 @@ final class BrowserSession
 
     private function assertLockOwned(): void
     {
-        if ($this->lock !== null
+        if (
+            $this->lock !== null
             && !$this->lockProvider?->refresh($this->lock, $this->config->lockLeaseSeconds)
         ) {
             throw new \RuntimeException('The browser session lock lease was lost before mutation.');
+        }
+    }
+
+    private function assertOpen(): void
+    {
+        if ($this->released) {
+            throw new \LogicException('The browser session is finalized for this request.');
         }
     }
 

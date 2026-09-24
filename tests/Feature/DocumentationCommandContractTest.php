@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use InfocyphFoundationCommandCommandCatalog;
+use Infocyph\Foundation\Command\CommandCatalog;
 
 it('keeps documented infbyte command examples dispatchable', function (): void {
     $root = dirname(__DIR__, 2);

@@ -9,6 +9,7 @@ final class FoundationReleaseBuildLock
     /** @var resource|null */
     private $handle;
 
+    /** @param resource $handle */
     private function __construct($handle)
     {
         $this->handle = $handle;

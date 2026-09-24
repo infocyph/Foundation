@@ -106,6 +106,7 @@ it('boots immutable releases without rediscovering application source files', fu
             $release['manifest_sha256'],
         ))->toThrow(RuntimeException::class, 'config trust identity mismatch');
     } finally {
+        foundationResetWebrickProductionRegistries();
         foundationPhase10ReleaseRemove($project);
     }
 });

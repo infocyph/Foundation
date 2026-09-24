@@ -91,7 +91,7 @@ it('rejects a trusted release when its dependency identity no longer matches', f
     try {
         $manifestPath = foundationReleaseInfrastructureGeneration($root, 'dependency-mismatch');
         $manifest = require $manifestPath;
-        $manifest['dependency_fingerprint'] = str_repeat('0', 64);
+        $manifest['dependency_fingerprint'] = str_repeat('0', 32);
         FoundationReleaseManifest::write($manifestPath, $manifest);
         new ActiveGeneration()->activate($root, 'dependency-mismatch');
         $sha = hash_file('sha256', $manifestPath);

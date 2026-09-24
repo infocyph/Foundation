@@ -167,7 +167,7 @@ final readonly class FoundationReleaseRuntime
         $manifest = FoundationReleaseManifest::load($manifestPath);
         $expectedDependencies = FoundationReleaseManifest::digest(
             $manifest['dependency_fingerprint'] ?? null,
-            64,
+            32,
             'dependency_fingerprint',
         );
         if (!hash_equals($expectedDependencies, FoundationReleaseManifest::dependencyFingerprint())) {

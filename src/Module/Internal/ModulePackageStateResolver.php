@@ -172,7 +172,9 @@ final class ModulePackageStateResolver
 
         $exact = $this->exactVersion($constraint);
         if ($exact !== null) {
-            return version_compare($version, $exact, '==');
+            $installed = $this->exactVersion($version);
+
+            return $installed !== null && version_compare($installed, $exact, '==');
         }
 
         $bounds = $this->constraintBounds($constraint);

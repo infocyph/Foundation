@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Session\Middleware;
 
+use Infocyph\Foundation\Logging\ExceptionReporter;
 use Infocyph\Foundation\Runtime\CleanupGuard;
 use Infocyph\Foundation\Session\BrowserSession;
 use Infocyph\Foundation\Session\SessionConfig;
