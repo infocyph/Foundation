@@ -37,9 +37,13 @@ sharded layout already includes the fused exact-leaf acceleration layer through
 `__flat.php`; the whole-config equivalent is `single`.
 
 Choose the cache layout by measured build/development workload. Switching modes
-removes stale native artifacts from the other layout. This config cache is an
-optimization for source composition; it is not the production runtime
-container/route activation mechanism.
+removes stale native artifacts from the other layout. During cache build,
+ArrayKit materializes `Environment::ref()` values and closures through its
+native cache writer; Foundation then validates the generated concrete PHP data
+before publication. Arbitrary runtime objects/resources remain invalid.
+
+This config cache is an optimization for source composition; it is not the
+production runtime container/route activation mechanism.
 
 Foundation intentionally hydrates configured environment files before selecting
 the development/build config-cache path because `APP_CONFIG_CACHE` itself may
