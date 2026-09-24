@@ -136,6 +136,14 @@ compiled route is intentionally allowed to remain Request-free and scope-free.
 CLI, worker, and scheduler containers compile directly through InterMix and are
 reused for the process/runtime lifetime.
 
+Do not move these generated containers into CacheLayer. InterMix's generated PHP
+artifact is the production cache: PHP/OPcache executes it directly, while
+InterMix validates its own native `.meta.json` sidecar. CacheLayer remains core
+Foundation infrastructure for application caching, coordination, counters,
+node/cluster caches, and any explicitly selected PSR-6 definition cache on a
+dynamic graph. Foundation does not enable InterMix definition caching
+automatically for generated production containers.
+
 One execution unit enters the corresponding stable semantic scope only when it
 executes scoped work:
 
