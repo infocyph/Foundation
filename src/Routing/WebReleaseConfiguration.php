@@ -72,22 +72,16 @@ final readonly class WebReleaseConfiguration
         );
     }
 
-    public function matcher(?string $cacheDirectory = null): MatcherInterface
+    public function matcher(?string $cacheLocation = null): MatcherInterface
     {
-        $name = $this->matcherName();
-        if ($cacheDirectory !== null && $name !== 'sharded') {
-            throw new \LogicException('Foundation matcher cache path is valid only for the sharded matcher.');
-        }
+        $matcher = match ($this->matcherName()) {
+            'generated' => GeneratedMatcher::make(),
+            'sharded' => ShardedMatcher::make(),
+            default => FusedMatcher::make(),
+        };
 
-        if ($name !== 'sharded') {
-            return $name === 'generated'
-                ? GeneratedMatcher::make()
-                : FusedMatcher::make();
-        }
-
-        $matcher = ShardedMatcher::make();
-        if ($cacheDirectory !== null) {
-            $matcher->enableCache($cacheDirectory)->verifyCacheOnLoad();
+        if ($cacheLocation !== null) {
+            $matcher->enableCache($cacheLocation)->verifyCacheOnLoad();
         }
 
         return $matcher;
