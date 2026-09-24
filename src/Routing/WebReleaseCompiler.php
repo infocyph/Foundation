@@ -134,7 +134,7 @@ final readonly class WebReleaseCompiler
             ));
         }
         $reader->finalize();
-        $reader->aliasIndex();
+        $reader->middlewareRequirements();
 
         return $cachePath;
     }
