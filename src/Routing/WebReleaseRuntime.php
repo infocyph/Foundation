@@ -210,10 +210,15 @@ final readonly class WebReleaseRuntime
             },
         );
 
+        $matcher = $settings->matcher($matcherCachePath);
+        if ($matcherCachePath !== null && !$matcher->canBootFromCache()) {
+            throw new \RuntimeException('Webrick sharded route cache is not bootable.');
+        }
+
         $kernel = $prevalidated
             ? CompiledRouterKernel::fromPrevalidatedArtifact(
                 log: $logger,
-                matcher: $settings->matcher($matcherCachePath),
+                matcher: $matcher,
                 container: $container,
                 artifactPath: $routerPath,
                 trustedArtifactFingerprint: $routerFingerprint,
@@ -227,7 +232,7 @@ final readonly class WebReleaseRuntime
             )
             : CompiledRouterKernel::fromCompiledArtifact(
                 log: $logger,
-                matcher: $settings->matcher($matcherCachePath),
+                matcher: $matcher,
                 container: $container,
                 artifactPath: $routerPath,
                 environment: $environment,
