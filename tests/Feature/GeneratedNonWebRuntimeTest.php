@@ -5,11 +5,14 @@ declare(strict_types=1);
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceProvider;
+use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Exception\ServiceResolutionException;
 use Infocyph\Foundation\Messaging\InterMixExecutionScope;
 use Infocyph\Foundation\Runtime\ExecutionId;
 use Infocyph\Foundation\Runtime\GeneratedRuntime;
 use Infocyph\Foundation\Runtime\GeneratedRuntimeCompiler;
+use Infocyph\Foundation\Runtime\NonWebGraphFactory;
+use Infocyph\Foundation\Runtime\NonWebProductionGraph;
 use Infocyph\Foundation\Worker\WorkerRuntime;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
@@ -58,6 +61,22 @@ final class FoundationGeneratedRuntimeProvider extends ServiceProvider
         );
     }
 }
+
+it('keeps InterMix definition caching opt-in when CacheLayer is active', function (): void {
+    $project = foundationGeneratedRuntimeProject();
+    $config = foundationGeneratedRuntimeConfig($project);
+    $graph = new NonWebGraphFactory()->compose($config, RuntimeMode::Cli, ['cache']);
+
+    try {
+        new NonWebProductionGraph()->prepare($graph->builder);
+
+        expect($graph->builder->definitions()->has(CacheManager::class))->toBeTrue()
+            ->and($graph->builder->development()->getRepository()->getDefinitionCache())->toBeNull();
+    } finally {
+        $graph->application->container()->unset();
+        foundationGeneratedRuntimeRemove($project);
+    }
+});
 
 it('compiles and reuses minimal generated CLI and scheduler runtimes', function (): void {
     $project = foundationGeneratedRuntimeProject();
