@@ -10,6 +10,7 @@ use Infocyph\Foundation\Benchmarks\Support\Phase9DiScopedProbe;
 use Infocyph\Foundation\Runtime\GeneratedRuntime;
 use Infocyph\Foundation\Runtime\GeneratedRuntimeCompiler;
 use Infocyph\InterMix\DI\ContainerBuilder;
+use Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -51,22 +52,6 @@ function phase9DiTax(array $foundation, array $direct): array
         'delta_ns' => round($delta, 2),
         'percent' => round(($delta / max(0.000001, $direct['median_ns'])) * 100, 2),
     ];
-}
-
-function phase9DiRemove(string $directory): void
-{
-    if (!is_dir($directory)) {
-        return;
-    }
-
-    $files = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS),
-        RecursiveIteratorIterator::CHILD_FIRST,
-    );
-    foreach ($files as $file) {
-        $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
-    }
-    rmdir($directory);
 }
 
 $operations = max(1_000, (int) (getenv('PHASE9_DI_OPERATIONS') ?: 100_000));
@@ -203,5 +188,5 @@ try {
     file_put_contents($output, json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL, LOCK_EX);
     fwrite(STDOUT, json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
 } finally {
-    phase9DiRemove($root);
+    BenchmarkSupport::removeDirectory($root);
 }
