@@ -236,6 +236,7 @@ final readonly class FoundationReleaseCompiler
             'generation' => $generation,
             'environment' => $environment,
             'config_fingerprint' => $configFingerprint,
+            'dependency_fingerprint' => FoundationReleaseManifest::dependencyFingerprint(),
             'config_path' => $releaseConfig['path'],
             'config_sha256' => $releaseConfig['sha256'],
             'web' => [
