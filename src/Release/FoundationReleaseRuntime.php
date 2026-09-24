@@ -124,6 +124,7 @@ final readonly class FoundationReleaseRuntime
             $directory . DIRECTORY_SEPARATOR . $this->relative($web['release_manifest'] ?? null),
             $adapter,
             FoundationReleaseManifest::capabilities($web['capabilities'] ?? null, 'web.capabilities'),
+            $this->matcherCachePath($web, $directory),
         );
 
         return $this->attachWebGeneration($runtime, $releaseRoot, $generation, $lease);
@@ -152,6 +153,7 @@ final readonly class FoundationReleaseRuntime
             ),
             $adapter,
             FoundationReleaseManifest::capabilities($web['capabilities'] ?? null, 'web.capabilities'),
+            $this->matcherCachePath($web, $directory),
         );
 
         return $this->attachWebGeneration(
@@ -235,6 +237,27 @@ final readonly class FoundationReleaseRuntime
                 $lease,
             ),
         );
+    }
+
+    /** @param array<string,mixed> $web */
+    private function matcherCachePath(array $web, string $directory): ?string
+    {
+        $path = $web['matcher_cache_path'] ?? null;
+        $sha256 = $web['matcher_cache_sha256'] ?? null;
+        if ($path === null && $sha256 === null) {
+            return null;
+        }
+        if (!is_string($path) || !is_string($sha256)) {
+            throw new \UnexpectedValueException('Foundation web matcher cache metadata is incomplete.');
+        }
+
+        $absolute = $directory . DIRECTORY_SEPARATOR . $this->relative($path);
+        FoundationReleaseTreeDigest::assertMatches(
+            $absolute,
+            FoundationReleaseManifest::digest($sha256, 64, 'web.matcher_cache_sha256'),
+        );
+
+        return $absolute;
     }
 
     private function relative(mixed $path): string
