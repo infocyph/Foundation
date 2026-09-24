@@ -31,7 +31,6 @@ use Infocyph\Omnibus\Serialization\MessageCodecRegistry;
 use Infocyph\Omnibus\Serialization\StampCodecRegistry;
 use Infocyph\Omnibus\Transport\InMemoryTransport;
 use Infocyph\Omnibus\Transport\TransportRegistry;
-use Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 function omnibus26Cycle(MessageBus $bus, InMemoryTransport|DBLayerTransport $transport): void
@@ -151,31 +150,31 @@ $foundationWorkerFactory = $foundationMemoryApp->make(OmnibusWorkerFactory::clas
 
 try {
     $subjects = [
-        'direct_memory_cycle' => BenchmarkSupport::measure(
+        'direct_memory_cycle' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
             static fn() => omnibus26Cycle($directMemoryBus, $directMemory),
             $operations,
             $repetitions,
             $warmup,
         ),
-        'foundation_memory_cycle' => BenchmarkSupport::measure(
+        'foundation_memory_cycle' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
             static fn() => omnibus26Cycle($foundationMemoryBus, $foundationMemory),
             $operations,
             $repetitions,
             $warmup,
         ),
-        'direct_durable_cycle' => BenchmarkSupport::measure(
+        'direct_durable_cycle' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
             static fn() => omnibus26Cycle($directDurableBus, $directDurable),
             $durableOperations,
             $repetitions,
             max(5, intdiv($warmup, 5)),
         ),
-        'foundation_durable_cycle' => BenchmarkSupport::measure(
+        'foundation_durable_cycle' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
             static fn() => omnibus26Cycle($foundationDurableBus, $foundationDurable),
             $durableOperations,
             $repetitions,
             max(5, intdiv($warmup, 5)),
         ),
-        'direct_worker_immediate_stop' => BenchmarkSupport::measure(
+        'direct_worker_immediate_stop' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
             static function () use ($directConsumer, $directWorkerOptions, $stop): void {
                 (new Worker($directConsumer, $directWorkerOptions, $stop))->run();
             },
@@ -183,7 +182,7 @@ try {
             $repetitions,
             $warmup,
         ),
-        'foundation_worker_factory_immediate_stop' => BenchmarkSupport::measure(
+        'foundation_worker_factory_immediate_stop' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
             static function () use ($foundationWorkerFactory, $stop): void {
                 $foundationWorkerFactory->make('benchmark', $stop)->run();
             },
@@ -210,15 +209,15 @@ try {
         'repetitions' => $repetitions,
         'subjects' => $subjects,
         'ratios' => [
-            'foundation_memory_vs_direct_omnibus' => BenchmarkSupport::ratio(
+            'foundation_memory_vs_direct_omnibus' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::ratio(
                 $subjects['foundation_memory_cycle']['median_ns'],
                 $subjects['direct_memory_cycle']['median_ns'],
             ),
-            'foundation_durable_vs_direct_omnibus' => BenchmarkSupport::ratio(
+            'foundation_durable_vs_direct_omnibus' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::ratio(
                 $subjects['foundation_durable_cycle']['median_ns'],
                 $subjects['direct_durable_cycle']['median_ns'],
             ),
-            'foundation_worker_factory_vs_direct_worker' => BenchmarkSupport::ratio(
+            'foundation_worker_factory_vs_direct_worker' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::ratio(
                 $subjects['foundation_worker_factory_immediate_stop']['median_ns'],
                 $subjects['direct_worker_immediate_stop']['median_ns'],
             ),
