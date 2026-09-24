@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Release;
 
+use Infocyph\Foundation\Security\Sha256;
+
 /** Deterministic identity for an immutable release-owned directory tree. */
 final class FoundationReleaseTreeDigest
 {
@@ -66,7 +68,7 @@ final class FoundationReleaseTreeDigest
 
         sort($entries, SORT_STRING);
 
-        return hash('sha256', implode("\n", $entries));
+        return Sha256::digest(implode("\n", $entries));
     }
 
     public static function assertMatches(string $directory, string $expectedSha256): void
