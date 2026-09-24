@@ -107,7 +107,7 @@ final readonly class WebReleaseCompiler
         );
     }
 
-    private function compileMatcherCache(WebReleaseConfiguration $settings, string $routerPath): string
+    private function compileMatcherCache(WebReleaseConfiguration $settings, string $routerPath): ?string
     {
         $cachePath = match ($settings->matcherName()) {
             'generated' => dirname($routerPath) . DIRECTORY_SEPARATOR . 'router-cache' . DIRECTORY_SEPARATOR . 'generated.php',
@@ -119,9 +119,14 @@ final readonly class WebReleaseCompiler
             $settings->environment(),
             $settings->configFingerprint(),
         );
+        $routes = $artifact->routes();
+        if ($routes === []) {
+            return null;
+        }
+
         $matcher = $this->writableMatcher($settings->matcherName(), $cachePath);
 
-        foreach ($artifact->routes() as $route) {
+        foreach ($routes as $route) {
             $matcher->add($route);
         }
         $matcher->finalize();
