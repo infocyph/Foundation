@@ -261,6 +261,44 @@ stdout. A supervised isolated child suppresses its own profile output so the
 parent reports one command-level profile only. `--silent` disables profiling
 output entirely.
 
+## Immutable release activation and rollback
+
+`php infbyte optimize` builds one immutable Foundation generation containing
+web, CLI, worker and scheduler artifacts. Foundation serializes build/clear/prune
+operations with a release-root file lock, verifies the staged generation, renames
+it into the immutable generation directory, then atomically switches the active
+pointer. A competing build fails before publication instead of racing activation.
+
+Every generation records both the resolved configuration fingerprint and a
+SHA-256 fingerprint of the exact Composer-installed dependency graph. Runtime
+loading rejects a generation when the current vendor graph no longer matches the
+graph it was built against.
+
+The deployment system—not application source—must pass the trusted SHA-256 of
+the generation's `foundation.php` manifest to each prevalidated web, worker,
+scheduler and CLI process through the documented release bootstrap environment /
+process configuration. Do not discover or trust that digest from the same
+mutable release directory at runtime.
+
+Keep at least one previous generation while old processes drain. Rollback is a
+code/runtime pointer operation: atomically reactivate the retained generation and
+restart/reload processes against its trusted manifest digest. Do not prune a
+generation that a running process may still use.
+
+Database/data rollback is a separate operation. Use additive/expand-contract
+migrations while old and new generations may coexist. A code rollback is not
+evidence that an older binary can read rows, queue payloads or key formats written
+by the newer generation.
+
+Key/secret rotation must also tolerate the rolling window: one active key writes
+new state while bounded fallback/verification keys let the prior generation read
+or verify state as documented by the owning security domain. Generated artifacts
+store locators/policy, never plaintext deployment secrets.
+
+The application source image may be read-only at runtime. Build/deploy needs
+write permission only for the configured release-generation root, and runtime
+capabilities need their documented writable storage/cache/database locations.
+
 ## Release verification status
 
 Foundation's full Composer/PHPForge/static-analysis/PHPUnit/integration/runtime
