@@ -6,7 +6,6 @@ use Composer\InstalledVersions;
 use Infocyph\Foundation\Config\ConfigLoader;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Config\EnvironmentLoader;
-use Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -173,7 +172,7 @@ try {
     }
 } finally {
     arrayKitBenchmarkEnvironmentRestore($environmentKey, $environmentSnapshot);
-    BenchmarkSupport::removeDirectory($root);
+    \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::removeDirectory($root);
 }
 
 /**
