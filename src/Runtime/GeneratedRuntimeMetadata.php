@@ -17,7 +17,6 @@ final class GeneratedRuntimeMetadata
 
     /** @param array<string,mixed> $metadata */
     public static function assertMatches(
-        string $artifactPath,
         array $metadata,
         NonWebGraphComposition $graph,
     ): void {
@@ -35,7 +34,6 @@ final class GeneratedRuntimeMetadata
         ) {
             throw new \RuntimeException('Foundation generated runtime identity does not match the current build inputs.');
         }
-
     }
 
     /**
