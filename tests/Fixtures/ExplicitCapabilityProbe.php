@@ -32,4 +32,4 @@ foreach (['web', 'cli', 'worker', 'scheduler'] as $mode) {
     ])->boot();
 }
 
-echo json_encode(array_values(array_unique($attempts)), JSON_THROW_ON_ERROR);
+fwrite(STDOUT, json_encode(array_values(array_unique($attempts)), JSON_THROW_ON_ERROR));
