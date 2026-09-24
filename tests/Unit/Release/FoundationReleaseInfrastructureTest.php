@@ -85,6 +85,25 @@ it('requires external trust for prevalidated Foundation generation loading', fun
     }
 });
 
+it('rejects a trusted release when its dependency identity no longer matches', function (): void {
+    $root = foundationReleaseInfrastructureRoot();
+
+    try {
+        $manifestPath = foundationReleaseInfrastructureGeneration($root, 'dependency-mismatch');
+        $manifest = require $manifestPath;
+        $manifest['dependency_fingerprint'] = str_repeat('0', 64);
+        FoundationReleaseManifest::write($manifestPath, $manifest);
+        new ActiveGeneration()->activate($root, 'dependency-mismatch');
+        $sha = hash_file('sha256', $manifestPath);
+        expect($sha)->toBeString();
+
+        expect(fn() => new FoundationReleaseRuntime()->trustedActiveManifest($root, (string) $sha))
+            ->toThrow(RuntimeException::class, 'dependency identity does not match');
+    } finally {
+        foundationReleaseInfrastructureRemove($root);
+    }
+});
+
 it('rejects traversal paths in the Foundation generation manifest', function (): void {
     $manifest = foundationReleaseInfrastructureManifest('bad');
     $manifest['worker']['intermix_path'] = '../worker.php';
@@ -163,6 +182,7 @@ function foundationReleaseInfrastructureManifest(string $generation): array
         'generation' => $generation,
         'environment' => 'production',
         'config_fingerprint' => str_repeat('c', 32),
+        'dependency_fingerprint' => FoundationReleaseManifest::dependencyFingerprint(),
         'config_path' => 'config.php',
         'config_sha256' => str_repeat('e', 64),
         'web' => [
