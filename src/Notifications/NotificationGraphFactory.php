@@ -16,6 +16,20 @@ use Infocyph\TalkingBytes\Email\Receiver\SpoolEmailReceiver;
 
 final class NotificationGraphFactory
 {
+    public static function emailer(EmailProfiles $profiles): Emailer
+    {
+        return $profiles->sender();
+    }
+
+    public static function emailLimits(ConfigRepository $config): EmailLimits
+    {
+        $limits = ValueNormalizer::associativeArray(
+            $config->get('notifications.email.parsing.limits', []),
+        );
+
+        return EmailLimits::fromArray($limits);
+    }
+
     public static function emailMailboxFactory(): EmailMailboxFactory
     {
         return new EmailMailboxFactory();
@@ -29,20 +43,6 @@ final class NotificationGraphFactory
     public static function emailSenderFactory(): EmailSenderFactory
     {
         return new EmailSenderFactory();
-    }
-
-    public static function emailer(EmailProfiles $profiles): Emailer
-    {
-        return $profiles->sender();
-    }
-
-    public static function emailLimits(ConfigRepository $config): EmailLimits
-    {
-        $limits = ValueNormalizer::associativeArray(
-            $config->get('notifications.email.parsing.limits', []),
-        );
-
-        return EmailLimits::fromArray($limits);
     }
 
     public static function rawEmailParser(EmailLimits $limits): RawEmailParser
