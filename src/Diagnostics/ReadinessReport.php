@@ -14,6 +14,7 @@ use Infocyph\Foundation\Config\OtpConfigValidator;
 use Infocyph\Foundation\Config\ProductionSecurityValidator;
 use Infocyph\Foundation\Module\ModuleCatalog;
 use Infocyph\Foundation\Module\ModuleSchemaManager;
+use Infocyph\Foundation\Module\ModuleStateResolver;
 
 final readonly class ReadinessReport
 {
@@ -30,10 +31,17 @@ final readonly class ReadinessReport
             $checks['oauth:signing'] = $this->oauthSigningReadiness();
         }
 
-        foreach ($this->requiredPackages() as $name => $requirement) {
-            $checks['module:' . $name] = [
-                'ready' => \Composer\InstalledVersions::isInstalled($requirement['package']),
-                'detail' => $requirement['package'] . ' ' . $requirement['constraint'],
+        foreach (new ModuleStateResolver($this->application, new ModuleCatalog())->all() as $module) {
+            if (!$module['enabled']) {
+                continue;
+            }
+
+            $detail = $module['blockers'] !== []
+                ? implode('; ', $module['blockers'])
+                : ($module['warnings'] !== [] ? implode('; ', $module['warnings']) : $module['status']);
+            $checks['module:' . $module['name']] = [
+                'ready' => $module['ready'],
+                'detail' => $detail,
             ];
         }
 
