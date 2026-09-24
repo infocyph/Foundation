@@ -250,11 +250,13 @@ final readonly class FoundationReleaseCompiler
             'dependency_fingerprint' => FoundationReleaseManifest::dependencyFingerprint(),
             'config_path' => $releaseConfig['path'],
             'config_sha256' => $releaseConfig['sha256'],
-            'web' => [
+            'web' => array_filter([
                 'release_manifest' => 'web/release.json',
                 'runtime_manifest_sha256' => $runtimeManifestSha256,
+                'matcher_cache_path' => $this->matcherCacheRelativePath($web, $stage),
+                'matcher_cache_sha256' => $this->matcherCacheSha256($web),
                 'capabilities' => $webCapabilities,
-            ],
+            ], static fn(mixed $value): bool => $value !== null),
             'cli' => $runtimeSections['cli'],
             'worker' => $runtimeSections['worker'],
             'scheduler' => $runtimeSections['scheduler'],
@@ -421,6 +423,39 @@ final readonly class FoundationReleaseCompiler
         ];
     }
 
+    /** @param array<string,mixed> $web */
+    private function matcherCacheRelativePath(array $web, string $stage): ?string
+    {
+        $path = $web['foundation_matcher_cache_path'] ?? null;
+        if ($path === null) {
+            return null;
+        }
+        if (!is_string($path) || $path === '') {
+            throw new \UnexpectedValueException('Foundation matcher cache path is invalid.');
+        }
+
+        $prefix = rtrim($stage, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        if (!str_starts_with($path, $prefix)) {
+            throw new \RuntimeException('Foundation matcher cache escaped the release generation.');
+        }
+
+        return str_replace(DIRECTORY_SEPARATOR, '/', substr($path, strlen($prefix)));
+    }
+
+    /** @param array<string,mixed> $web */
+    private function matcherCacheSha256(array $web): ?string
+    {
+        $path = $web['foundation_matcher_cache_path'] ?? null;
+        if ($path === null) {
+            return null;
+        }
+        if (!is_string($path) || $path === '') {
+            throw new \UnexpectedValueException('Foundation matcher cache path is invalid.');
+        }
+
+        return FoundationReleaseTreeDigest::calculate($path);
+    }
+
     private function removeDirectory(string $directory): void
     {
         if (!is_dir($directory)) {
@@ -475,6 +510,14 @@ final readonly class FoundationReleaseCompiler
             'web.release_manifest',
         );
         $paths = ['foundation.php', $configPath, $webRelease];
+        $matcherCachePath = $web['matcher_cache_path'] ?? null;
+        $matcherCacheSha256 = $web['matcher_cache_sha256'] ?? null;
+        if (is_string($matcherCachePath) && is_string($matcherCacheSha256)) {
+            FoundationReleaseTreeDigest::assertMatches(
+                $stage . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $matcherCachePath),
+                FoundationReleaseManifest::digest($matcherCacheSha256, 64, 'web.matcher_cache_sha256'),
+            );
+        }
         foreach (['cli', 'worker', 'scheduler'] as $runtime) {
             $section = FoundationReleaseManifest::section($manifest, $runtime);
             $paths[] = FoundationReleaseManifest::relativePath(
