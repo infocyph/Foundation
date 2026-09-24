@@ -228,6 +228,41 @@ it('persists payloads through file and cache stores and prunes expired files', f
     }
 });
 
+it('bounds file-session prune mutations and removes corrupt records on read', function (): void {
+    $directory = sys_get_temp_dir() . '/foundation-session-prune-' . bin2hex(random_bytes(5));
+    $store = new FileSessionStore($directory);
+    $now = time();
+
+    try {
+        for ($index = 0; $index < 12; ++$index) {
+            $store->save(
+                str_pad((string) $index, 64, 'a'),
+                new \Infocyph\Foundation\Session\SessionPayload([], [], $now - 1),
+            );
+        }
+        $validId = str_repeat('f', 64);
+        $store->save(
+            $validId,
+            new \Infocyph\Foundation\Session\SessionPayload(['valid' => true], [], $now + 60),
+        );
+
+        expect($store->prune($now, 5))->toBe(5)
+            ->and($store->prune($now, 5))->toBe(5)
+            ->and($store->prune($now, 5))->toBe(2)
+            ->and($store->load($validId, $now)?->data)->toBe(['valid' => true]);
+
+        $corruptId = str_repeat('e', 64);
+        $reflection = new ReflectionMethod($store, 'path');
+        $corruptPath = $reflection->invoke($store, $corruptId);
+        file_put_contents($corruptPath, '{');
+
+        expect($store->load($corruptId, $now))->toBeNull()
+            ->and($corruptPath)->not->toBeFile();
+    } finally {
+        browserSessionRemoveDirectory($directory);
+    }
+});
+
 it('creates and uses the portable DBLayer session schema on SQLite', function (): void {
     expect(extension_loaded('pdo_sqlite'))->toBeTrue();
     $project = sys_get_temp_dir() . '/foundation-session-db-' . bin2hex(random_bytes(5));
