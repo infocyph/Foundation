@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Session\Middleware;
 
+use Infocyph\Foundation\Runtime\CleanupGuard;
 use Infocyph\Foundation\Session\BrowserSession;
 use Infocyph\Foundation\Session\SessionConfig;
 use Infocyph\Foundation\Session\SessionManager;
@@ -25,6 +26,7 @@ final readonly class SessionMiddleware
     {
         $session = $this->sessions->open($request->getCookieParams()[$this->config->cookieName] ?? null);
         $this->sessions->enter($session);
+        $primaryFailure = null;
 
         try {
             $response = $next($request->withAttribute(BrowserSession::REQUEST_ATTRIBUTE, $session));
@@ -34,12 +36,16 @@ final readonly class SessionMiddleware
             }
 
             return $response->withAddedHeader('Set-Cookie', (string) $this->cookie($commit->id));
+        } catch (\Throwable $failure) {
+            $primaryFailure = $failure;
+
+            throw $failure;
         } finally {
-            try {
-                $session->release();
-            } finally {
-                $this->sessions->leave($session);
-            }
+            CleanupGuard::run(
+                $primaryFailure,
+                $session->release(...),
+                fn() => $this->sessions->leave($session),
+            );
         }
     }
 

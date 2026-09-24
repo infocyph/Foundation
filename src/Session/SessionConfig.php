@@ -118,8 +118,8 @@ final readonly class SessionConfig
 
     private static function nonNegativeFloat(mixed $value, string $key): float
     {
-        if ((!is_int($value) && !is_float($value)) || $value < 0) {
-            throw new \InvalidArgumentException(sprintf('%s must be zero or greater.', $key));
+        if ((!is_int($value) && !is_float($value)) || !is_finite((float) $value) || $value < 0) {
+            throw new \InvalidArgumentException(sprintf('%s must be finite and zero or greater.', $key));
         }
 
         return (float) $value;
@@ -147,8 +147,8 @@ final readonly class SessionConfig
 
     private static function positiveFloat(mixed $value, string $key): float
     {
-        if ((!is_int($value) && !is_float($value)) || $value <= 0) {
-            throw new \InvalidArgumentException(sprintf('%s must be greater than zero.', $key));
+        if ((!is_int($value) && !is_float($value)) || !is_finite((float) $value) || $value <= 0) {
+            throw new \InvalidArgumentException(sprintf('%s must be finite and greater than zero.', $key));
         }
 
         return (float) $value;

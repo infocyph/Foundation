@@ -197,7 +197,7 @@ it('keeps core auth ready while tracking OTP and passkey feature state independe
 
         moduleStateWriteComposer($basePath, [
             'infocyph/otp' => '^6.1',
-            'web-auth/webauthn-lib' => '^5.3.5',
+            'web-auth/webauthn-lib' => '^5.3.9',
         ]);
         $passkeyApp = Foundation::cli([
             'base_path' => $basePath,

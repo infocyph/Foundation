@@ -45,6 +45,22 @@ final class BenchmarkSupport
         return round($numerator / max(1.0, $denominator), 4);
     }
 
+    public static function removeDirectory(string $directory): void
+    {
+        if (!is_dir($directory)) {
+            return;
+        }
+
+        $files = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::CHILD_FIRST,
+        );
+        foreach ($files as $file) {
+            $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
+        }
+        rmdir($directory);
+    }
+
     /** @return array{median_ns:float,ops_per_second:float,min_ns:float,max_ns:float,samples_ns:list<float>} */
     public static function throughputMeasure(
         callable $operation,
@@ -76,21 +92,5 @@ final class BenchmarkSupport
             'max_ns' => round($samples[array_key_last($samples)], 2),
             'samples_ns' => array_map(static fn(float $sample): float => round($sample, 2), $samples),
         ];
-    }
-
-    public static function removeDirectory(string $directory): void
-    {
-        if (!is_dir($directory)) {
-            return;
-        }
-
-        $files = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::CHILD_FIRST,
-        );
-        foreach ($files as $file) {
-            $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
-        }
-        rmdir($directory);
     }
 }

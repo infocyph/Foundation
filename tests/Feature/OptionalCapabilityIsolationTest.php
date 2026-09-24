@@ -53,3 +53,15 @@ it('boots with Foundation core dependencies while optional packages remain unava
             'module:install passkeys',
         );
 });
+
+it('does not probe optional package classes when the capability topology is explicitly empty', function (): void {
+    $root = dirname(__DIR__, 2);
+    $result = new ProcessRunner()->run(
+        [PHP_BINARY, $root . '/tests/Fixtures/ExplicitCapabilityProbe.php'],
+        new ProcessOptions(cwd: $root, timeoutSeconds: 30.0),
+    );
+
+    expect($result->successful())->toBeTrue()
+        ->and(trim($result->stderr))->toBe('')
+        ->and(json_decode(trim($result->stdout), true, flags: JSON_THROW_ON_ERROR))->toBe([]);
+});

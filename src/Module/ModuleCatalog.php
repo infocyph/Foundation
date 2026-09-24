@@ -74,7 +74,7 @@ final class ModuleCatalog
                     'features' => ['otp', 'passkey'],
                 ],
                 'web-auth/webauthn-lib' => [
-                    'constraint' => '^5.3.5',
+                    'constraint' => '^5.3.9',
                     'role' => 'feature',
                     'features' => ['passkey'],
                 ],

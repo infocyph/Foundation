@@ -5,7 +5,7 @@ Modules are application purposes, not Composer-package discovery aliases.
 
 | Module | Managed package(s) | Module-owned config | Module schema |
 | --- | --- | --- | --- |
-| `auth` | feature packages: `infocyph/otp ^6.1`, `web-auth/webauthn-lib ^5.3.5` | none | `auth` |
+| `auth` | feature packages: `infocyph/otp ^6.1`, `web-auth/webauthn-lib ^5.3.9` | none | `auth` |
 | `communication` | `infocyph/talkingbytes ^2.1` | `communication.php` | none |
 | `database` | `infocyph/dblayer ^5.1` | `database.php` | none |
 | `filesystem` | `infocyph/pathwise ^4.1` | `filesystem.php` | none |
@@ -19,6 +19,35 @@ namespaces. CacheLayer is a direct Foundation dependency and remains completely
 outside module install/remove/status ownership. Notifications are Foundation
 native; TalkingBytes email support is an optional integration of the native
 notification graph, not a `notifications` module alias.
+
+## Built-in catalog entries
+
+`module:list` also includes four Foundation-native entries. They retain their
+configuration/schema commands without installing specialist packages:
+
+| Built-in entry | Published config | Schema |
+| --- | --- | --- |
+| `logging` | `logging.php` | none |
+| `operations` | `operations.php` | none |
+| `resources` | `responses.php` | none |
+| `session` | `session.php` | `session` |
+
+These entries report `built_in: true`; removal is rejected. For example:
+
+```bash
+php infbyte module:config:publish session
+php infbyte module:schema:status session
+php infbyte module:schema:install session
+```
+
+Database-backed session schemas require DBLayer and a configured connection.
+These built-in commands remain supported in 3.0. The catalog therefore contains
+11 entries: seven specialist namespaces and four built-in entries. `auth` is
+core-backed with optional features, rather than a `built_in: true` entry.
+
+Cache is not a twelfth entry. Use core `cache:schema:status` and
+`cache:schema:install` commands; enable the cache capability explicitly when
+needed. Do not run `module:install cache` or `module:remove cache`.
 
 ## Inspect and plan
 

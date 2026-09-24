@@ -330,7 +330,7 @@ it('installs and removes auth features without broadening shared package ownersh
 
         moduleLifecycleWriteComposer($basePath, [
             'infocyph/otp' => '^6.1',
-            'web-auth/webauthn-lib' => '^5.3.5',
+            'web-auth/webauthn-lib' => '^5.3.9',
         ]);
         $removePasskey = new FoundationModuleLifecycleIO();
         expect(moduleLifecycleRun(
@@ -351,7 +351,7 @@ it('installs and removes auth features without broadening shared package ownersh
             [
                 'require',
                 'infocyph/otp:^6.1',
-                'web-auth/webauthn-lib:^5.3.5',
+                'web-auth/webauthn-lib:^5.3.9',
                 '--with-all-dependencies',
                 '--no-interaction',
                 '--dry-run',
@@ -359,7 +359,7 @@ it('installs and removes auth features without broadening shared package ownersh
             [
                 'require',
                 'infocyph/otp:^6.1',
-                'web-auth/webauthn-lib:^5.3.5',
+                'web-auth/webauthn-lib:^5.3.9',
                 '--with-all-dependencies',
                 '--no-interaction',
                 '--dry-run',

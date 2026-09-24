@@ -8,9 +8,9 @@
         "composer-runtime-api": "^2.0",
         "infocyph/arraykit": "^5.2",
         "infocyph/cachelayer": "^3.4",
-        "infocyph/intermix": "^10.0.4",
+        "infocyph/intermix": "^10.1.1",
         "infocyph/uid": "^5.0",
-        "infocyph/webrick": "^5.3",
+        "infocyph/webrick": "^5.4",
         "psr/log": "^3.0.2"
     },
     "require-dev": {
@@ -24,7 +24,7 @@
         "infocyph/reqshield": "^3.2",
         "infocyph/talkingbytes": "^2.1",
         "opis/closure": "^4.5",
-        "web-auth/webauthn-lib": "^5.3.5"
+        "web-auth/webauthn-lib": "^5.3.9"
     },
     "suggest": {
         "ext-sodium": "Required when OTP AOTP/Ed25519 factors are enabled.",
@@ -34,6 +34,7 @@
         "infocyph/otp": "Adds OTP-backed multi-factor authentication and Passkey/WebAuthn ceremony integration with CacheLayer-backed replay-safe state.",
         "infocyph/pathwise": "Adds filesystem, storage, upload, download, archive, sync, retention, and storage capability enforcement.",
         "infocyph/reqshield": "Adds request, command, configuration, schema, sanitization, typed input, and database validation services.",
+        "infocyph/runwire": "Optional runtime engine and FPM, FrankenPHP, RoadRunner, Swoole/OpenSwoole host adaptation through Webrick; also supports Omnibus process supervision.",
         "infocyph/talkingbytes": "Adds HTTP, inbound/outbound email, webhook, and gRPC communication services.",
         "web-auth/webauthn-lib": "Required by OTP Passkey when the WebAuthn passkey driver is selected."
     },

@@ -63,6 +63,18 @@ See [Architecture and lifecycle](docs/architecture.md),
 [Foundation 3 migration guide](docs/foundation-3-migration.md) for the complete
 runtime contract.
 
+## Runtime hosts
+
+The application modes are independent of the HTTP host. Ordinary PHP/FPM can
+use Webrick's SAPI path. Applications selecting Runwire use Webrick's Runwire
+bridge; Runwire owns native portable/prefork execution and its FPM, FrankenPHP,
+RoadRunner and Swoole/OpenSwoole host adaptation. Foundation supplies the
+compiled application and its scoped services.
+
+Runwire is optional and does not activate merely because it is installed. See
+[Runtime hosting](docs/runtime-hosting.md) for ownership, selection and the
+verification boundary.
+
 ## Capabilities
 
 Foundation modules describe optional application capabilities rather than package
@@ -72,23 +84,25 @@ optional packages such as DBLayer, Omnibus, TalkingBytes, Epicrypt, Pathwise,
 ReqShield, OTP, or WebAuthn likewise do not activate themselves merely because
 they are installed.
 
-| Module | Implementation |
+| Specialist module | Implementation |
 | --- | --- |
 | `auth` | Foundation auth with optional OTP and WebAuthn providers |
-| `cache` | CacheLayer |
 | `communication` | TalkingBytes |
 | `database` | DBLayer |
 | `filesystem` | Pathwise |
-| `logging` | Foundation |
 | `messaging` | Omnibus |
-| `operations` | Foundation |
-| `resources` | Foundation |
 | `security` | Epicrypt |
-| `session` | Foundation with configured storage |
 | `validation` | ReqShield |
 
+The catalog also retains four built-in entries for configuration and schema
+operations: `logging`, `operations`, `resources`, and `session`. They require no
+additional Composer packages and cannot be removed. CacheLayer is core
+infrastructure, outside the module catalog; use `cache:schema:status` and
+`cache:schema:install` for core cache schemas. Notifications are native and use
+TalkingBytes only when its email integration is selected.
+
 Use the module commands to inspect, install, configure, and provision a
-capability:
+specialist capability:
 
 ```bash
 php infbyte module:list

@@ -29,8 +29,10 @@ static function (BrowserSession $session): Response {
 };
 ```
 
-The session middleware always releases leases and clears the active session
-context after successful and failed dispatch. No request-specific object is
+The session middleware attempts lease release and clears the active session
+context after successful and failed dispatch. A handler or persistence failure
+remains primary if cleanup also fails; cleanup failures still surface when
+dispatch succeeds. No request-specific object is
 kept in a static registry.
 
 ## Stores
@@ -41,17 +43,17 @@ Publish `config/session.php` with:
 php infbyte module:config:publish session
 ```
 
-The `session` module is built into Foundation, so publication does not invoke
-Composer.
+The `session` catalog entry is built into Foundation, so publication does not
+invoke Composer. Its configuration and schema commands remain available in 3.0.
 
 Available drivers:
 
-| Driver | Intended use | Additional module |
+| Driver | Intended use | Required capability |
 | --- | --- | --- |
 | `array` | Tests and one-process ephemeral state | None |
 | `file` | Dependency-free local persistence | None |
-| `cache` | Shared/distributed sessions | `cache` |
-| `database` | DBLayer-backed persistence | `database` |
+| `cache` | Shared/distributed sessions | Core `cache` capability; no module install |
+| `database` | DBLayer-backed persistence | `database` module and capability |
 
 The selected store is constructed only when a session is first read or written.
 Unselected optional packages are not resolved. File and database expiry cleanup
@@ -97,6 +99,14 @@ I/O and emits no cookie. Encoded payloads are bounded by
 `session.max_payload_bytes`.
 
 ## Concurrency
+
+Lock wait and lease values must be finite numbers; zero wait is supported,
+while the lease must be strictly positive. Ownership is refreshed before
+persistence and before deleting the previous record during regeneration or
+invalidation. An already-lost lease rejects the mutation. This check does not
+make a separate store write/delete atomic with lease expiry: size the lease for
+bounded backend operations and follow the selected backend's consistency model.
+
 
 `session.lock.enabled=true` uses CacheLayer's lock contract. Foundation follows
 the configured cache lock topology: an explicit lock driver wins; otherwise the

@@ -91,7 +91,7 @@ php infbyte module:install auth
 The module bundle contains:
 
 - `infocyph/otp ^6.1`
-- `web-auth/webauthn-lib ^5.3.5`
+- `web-auth/webauthn-lib ^5.3.9`
 
 Runtime readiness remains implementation-specific: selecting OTP MFA requires
 OTP; selecting WebAuthn passkeys requires WebAuthn. One does not make the other

@@ -20,7 +20,7 @@ return [
     | database module. Session services remain unloaded until a route uses the
     | `session` or `csrf` middleware.
     |
-    | Database-backed sessions use the session module schema. Module installation
+    | Database-backed sessions use the built-in session schema. Module installation
     | synchronizes it when SESSION_DRIVER=database; prepare it explicitly with
     | `module:schema:install session` or inspect it with
     | `module:schema:status session`.
@@ -92,7 +92,7 @@ return [
      *
      * Locking prevents two requests carrying the same session ID from losing
      * each other's writes. "enabled" accepts `true|false`. When enabled,
-     * CacheLayer must be installed. "store" selects a cache store whose lock
+     * the core cache capability must be enabled. "store" selects a cache store whose lock
      * configuration may use `file|redis|valkey|memcache|memcached|pdo`.
      *
      * Examples:

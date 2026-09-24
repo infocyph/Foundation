@@ -333,4 +333,3 @@ function arrayKitBenchmarkEnvironmentRestore(string $key, array $snapshot): void
 
     putenv($snapshot['process'] === false ? $key : $key . '=' . $snapshot['process']);
 }
-

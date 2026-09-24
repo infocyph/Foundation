@@ -15,7 +15,7 @@ it('models managed feature and optional package roles without broadening install
         ->and($modules['auth']['packages']['web-auth/webauthn-lib']['features'] ?? null)->toBe(['passkey'])
         ->and($catalog->managedPackages($modules['auth']))->toBe([
             'infocyph/otp' => '^6.1',
-            'web-auth/webauthn-lib' => '^5.3.5',
+            'web-auth/webauthn-lib' => '^5.3.9',
         ])
         ->and($modules['communication']['packages']['grpc/grpc']['role'] ?? null)->toBe('optional')
         ->and($catalog->managedPackages($modules['communication']))->toBe([
@@ -86,7 +86,7 @@ it('resolves auth feature aliases without broadening the core module request', f
         ])
         ->and($catalog->installationPackages($auth, ['passkey']))->toBe([
             'infocyph/otp' => '^6.1',
-            'web-auth/webauthn-lib' => '^5.3.5',
+            'web-auth/webauthn-lib' => '^5.3.9',
         ])
         ->and($catalog->resolve('infocyph/otp', ['otp'])['requested_features'])->toBe(['otp'])
         ->and($catalog->resolve('infocyph/otp', ['passkey'])['requested_features'])->toBe(['passkey'])

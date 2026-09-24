@@ -423,7 +423,7 @@ PHP);
         return $values[$index];
     }
 
-        /**
+    /**
      * @param Application $application Warm Foundation application.
      * @param string $path Request path.
      * @param string $expectedBody Exact expected JSON body.
@@ -444,7 +444,7 @@ PHP);
         };
     }
 
-        /**
+    /**
      * @param string $outputPath Destination for the benchmark result.
      * @param array<string, mixed> $document Complete PHPForge benchmark document.
      */

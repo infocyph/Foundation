@@ -275,6 +275,7 @@ it('releases CacheLayer session locks when request handling fails', function ():
     $locks = new class implements LockProviderInterface {
         public int $acquired = 0;
         public bool $owned = true;
+        public bool $failRelease = false;
         public int $released = 0;
         public function acquire(string $key, float $waitSeconds, float $leaseSeconds = 30.0): ?LockHandle
         {
@@ -290,6 +291,9 @@ it('releases CacheLayer session locks when request handling fails', function ():
         {
             if ($handle !== null) {
                 ++$this->released;
+                if ($this->failRelease) {
+                    throw new RuntimeException('lock release failed');
+                }
             }
         }
     };
@@ -337,6 +341,59 @@ it('releases CacheLayer session locks when request handling fails', function ():
     ))->toThrow(RuntimeException::class, 'lock lease was lost')
         ->and($locks->acquired)->toBe(2)
         ->and($locks->released)->toBe(2);
+
+    $locks->failRelease = true;
+    foreach ([true, false] as $handlerFails) {
+        $locks->owned = $handlerFails;
+        expect(fn() => $run(
+            Request::fake(uri: 'https://example.test/failure')
+                ->withCookieParams(['infbyte_session' => $id]),
+            static function (Request $request) use ($handlerFails): Response {
+                BrowserSession::fromRequest($request)->put('value', 3);
+                if ($handlerFails) {
+                    throw new RuntimeException('primary handler failed');
+                }
+                return Response::json(['ok' => true]);
+            },
+        ))->toThrow(RuntimeException::class, $handlerFails ? 'primary handler failed' : 'lock lease was lost');
+        expect(fn() => browserSessionWithinScope($container, static fn(): BrowserSession => $manager->current()))
+            ->toThrow(LogicException::class, 'No browser session is active');
+    }
+
+    $locks->owned = true;
+    expect(fn() => $run(
+        Request::fake(uri: 'https://example.test/cleanup')
+            ->withCookieParams(['infbyte_session' => $id]),
+        static function (Request $request): Response {
+            BrowserSession::fromRequest($request)->get('value');
+            return Response::json(['ok' => true]);
+        },
+    ))->toThrow(RuntimeException::class, 'lock release failed');
+
+    browserSessionWithinScope($container, static function () use ($manager, $locks, $id): void {
+        $session = $manager->open($id);
+        $session->get('value');
+        expect(fn() => $session->release())->toThrow(RuntimeException::class, 'lock release failed');
+        $released = $locks->released;
+        $session->release();
+        expect($locks->released)->toBe($released);
+    });
+
+    $locks->failRelease = false;
+    foreach (['regenerate', 'invalidate'] as $operation) {
+        $locks->owned = true;
+        browserSessionWithinScope($container, static function () use ($manager, $locks, $store, $id, $operation): void {
+            $session = $manager->open($id);
+            $session->get('value');
+            $locks->owned = false;
+            try {
+                expect(fn() => $session->{$operation}())->toThrow(RuntimeException::class, 'lock lease was lost');
+                expect($store->load($id, time())?->data['value'])->toBe(1);
+            } finally {
+                $session->release();
+            }
+        });
+    }
 });
 
 it('isolates active sessions between concurrent fibers', function (): void {

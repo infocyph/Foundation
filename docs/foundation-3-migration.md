@@ -1,16 +1,86 @@
-# Foundation 3 runtime migration
+# Foundation 2.0 through 2.x → 3.0 migration
 
 Foundation 3 replaces the mutable/fallback runtime architecture with one
 builder-first composition model and immutable generated production releases.
-This guide covers the runtime changes an InfByte/Foundation host must adopt.
+This guide covers the cumulative changes an Infbyte/Foundation host must adopt
+from 2.0 through the 2.x series, not only the difference from 2.1.1. The 2.0
+baseline is tag `2.0`, commit `a64715a9c1a0df8305cb9123ca8de8f2e13390ea`.
+A direct upgrade does not require deploying each intermediate version, but all
+applicable API, configuration and persisted-data changes must be rehearsed.
+
+## Cumulative upgrade inventory
+
+The four explicit `Foundation::web/cli/worker/scheduler()` entry points already
+existed in 2.0 and remain. Authentication, browser sessions, the CLI and the four
+built-in module entries also already existed; 3.0 changes their integration and
+lifecycle contracts rather than introducing them for the first time.
+
+| Area | 2.0 contract / usage to inspect | 3.0 action |
+| --- | --- | --- |
+| Providers | `ServiceProviderInterface::register(Application)` and `$app->register()` | Implement `contribute(ContainerBuilder, FoundationBuildContext)` and list providers in the runtime topology before graph composition; `boot()` cannot add definitions |
+| Provider helpers | Protected `bindFactory`, `bindRecipe`, `hasExplicitBinding` on `ServiceProvider` | Contribute definitions with the native InterMix builder API; review factory lifetimes and generated-container compatibility |
+| Container access | Mutable `$app->container()` used during application execution | Keep mutation in development/build composition; resolve runtime services through `make()` or `runtime()` |
+| Production caches | `ContainerCacheManager`, `RouteCacheManager`, `RouteCachePath` and independent cache switches | Rebuild one immutable Foundation release generation; do not load old generated files |
+| Cache installation | Optional CacheLayer and `cache`/`cachelayer` module operations | CacheLayer becomes a direct runtime dependency; keep activation explicit and use core cache schema commands |
+| Module features | Installing `auth` brings OTP and WebAuthn; notifications alias communication | Select auth features explicitly; retain native notification config independently of communication |
+| Validation adapters | `Foundation\Validation\ReqShieldDatabaseProvider`, `ValidationSchemaRegistry` | Use Foundation's configured validation services and ReqShield-owned DBLayer/schema contracts; remove imports of deleted Foundation adapters |
+| Passkeys | Foundation-owned WebAuthn ceremony classes | Use Foundation's auth/passkey services backed by OTP; review custom drivers and migrate stored credential metadata through the auth schema lifecycle |
+| Tokens and cryptography | Epicrypt 2.x, Foundation `HmacTokenCodec`, application-issued credentials | Adopt configured Epicrypt 3.1 services; explicitly decide whether each existing token/session/key format is retained, migrated or revoked; do not assume wire compatibility |
+| Filesystem | Pathwise 3.x integrations | Review custom adapters, paths, uploads and download policy against Pathwise 4.1; preserve application storage data |
+| Queues/workflows | Omnibus 2.5 durable readers/writers | Follow the documented 2.6 cutover before allowing new-format writes; code rollback alone cannot restore old readers |
+| Runtime state | `RuntimeContextTracker` or app-held mutable user/job state | Use scoped services and stable execution boundaries; verify cleanup under concurrency |
+
+This inventory identifies migration boundaries; it is not a claim that every
+2.0 application or persisted format is automatically compatible. Search your
+application and extension packages for these old APIs, and test the replacement
+against both development and generated production runtimes.
+
+## Persisted data and rollout order
+
+1. Record the application's current Foundation and specialist versions,
+   configured drivers, auth/session tables, key identifiers and queue codecs.
+   Back up state and verify restoration before schema or format changes.
+2. Migrate custom providers and configuration in a staging copy. Preserve
+   application config; do not bulk-overwrite published files with defaults.
+3. Inspect and provision applicable auth, browser-session, messaging and core
+   cache schemas. Use the existing schema commands and additive migrations;
+   do not drop tables or silently reset active accounts/sessions.
+4. Rehearse existing password verification, refresh/revocation, MFA/passkey
+   login and queued payload consumption. Record explicit invalidation and user
+   reauthentication requirements for formats that cannot be retained.
+5. Follow the [Omnibus 2.5 → 2.6 durable cutover](messaging.md#omnibus-25--26-durable-cutover).
+   Do not mix 2.5 readers with new wrapped payload writes. Retain legacy codecs
+   for old rows as documented; assess data rollback separately from code rollback.
+6. Build fresh release artifacts and switch the trusted generation through the
+   deployment entry point. Drain/restart old HTTP, worker and scheduler
+   processes so incompatible generations do not keep sharing mutable state.
+7. Verify the rollback rehearsal, including schema/key/payload restrictions,
+   before production activation. Keep a documented recovery path when an old
+   binary can no longer read newly written data.
+
+See [authentication](authentication.md), [OTP schema upgrades](otp.md),
+[OAuth/OIDC](oauth-2.1.md), [browser sessions](browser-sessions.md), and
+[filesystem integration](filesystem.md) for the current domain contracts.
 
 ## Dependency baseline
 
 Foundation 3 currently requires:
 
 - PHP `^8.4`;
-- InterMix `^10.0.4`;
-- Webrick `^5.3`.
+- InterMix `^10.1.1`;
+- Webrick `^5.4`;
+- ArrayKit `^5.2`, CacheLayer `^3.4`, UID `^5.0`, PSR Log `^3.0.2`;
+- Composer runtime API `^2.0`.
+
+Optional integration floors are DBLayer `^5.1`, Epicrypt `^3.1`, Omnibus `^2.6`,
+OTP `^6.1`, Pathwise `^4.1`, ReqShield `^3.2`, TalkingBytes `^2.1`, and WebAuthn
+`^5.3.9` when passkeys are selected. A consuming application must require the
+optional packages it uses; Foundation's `require-dev` does not install them for
+consumers.
+
+Compared with 2.0, this includes major upgrades from InterMix 9.x, Webrick 4.x,
+Epicrypt 2.x and Pathwise 3.x. Review custom use of those native APIs alongside
+the Foundation changes.
 
 `infocyph/phpforge` remains the development QA source at `dev-main@dev`.
 
@@ -203,9 +273,11 @@ Machine-readable module/list/show/plan payloads now expose schema-versioned
 state. Consume named fields and tolerate additive fields rather than parsing
 human table output.
 
-## Final benchmark evidence
+## Historical runtime-redesign benchmark evidence
 
-Phase 9 measured Foundation against the lower layers after the runtime redesign.
+These historical measurements do not qualify the new 3.0 dependency floors or
+replace current candidate verification. Phase 9 measured Foundation against the
+lower layers after the runtime redesign.
 The values below are acceptance evidence from the canonical Foundation 3 runtime
 plan; compare future results only under matching environments.
 
