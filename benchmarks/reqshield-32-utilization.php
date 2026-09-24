@@ -10,7 +10,6 @@ use Infocyph\ReqShield\Bridge\DBLayerDatabaseProvider;
 use Infocyph\ReqShield\CompiledValidator;
 use Infocyph\ReqShield\Schema\SchemaRegistry;
 use Infocyph\ReqShield\Validator;
-use Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 $operations = max(100, (int) (getenv('REQSHIELD_RUNTIME_OPERATIONS') ?: 1_000));
@@ -94,7 +93,7 @@ $assertPass = static function (mixed $result, string $subject): void {
 
 try {
     $subjects = [
-        'direct_reqshield_compiled_reuse' => BenchmarkSupport::measure(
+        'direct_reqshield_compiled_reuse' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
             static function () use ($directCompiled, $flatPayload, $assertPass): void {
                 $assertPass($directCompiled->validate($flatPayload), 'Direct ReqShield compiled reuse');
             },
@@ -102,7 +101,7 @@ try {
             $repetitions,
             $warmup,
         ),
-        'foundation_compiled_reuse' => BenchmarkSupport::measure(
+        'foundation_compiled_reuse' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
             static function () use ($foundationCompiled, $flatPayload, $assertPass): void {
                 $assertPass($foundationCompiled->validate($flatPayload), 'Foundation compiled reuse');
             },
@@ -110,7 +109,7 @@ try {
             $repetitions,
             $warmup,
         ),
-        'direct_reqshield_construct_validate' => BenchmarkSupport::measure(
+        'direct_reqshield_construct_validate' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
             static function () use ($flatRules, $flatPayload, $assertPass): void {
                 $validator = Validator::make($flatRules)
                     ->enableNestedValidation(false)
@@ -121,7 +120,7 @@ try {
             $repetitions,
             $warmup,
         ),
-        'foundation_factory_construct_validate' => BenchmarkSupport::measure(
+        'foundation_factory_construct_validate' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
             static function () use ($flatFactory, $flatPayload, $assertPass): void {
                 $assertPass(
                     $flatFactory->make('benchmark.flat')->validate($flatPayload),
@@ -132,7 +131,7 @@ try {
             $repetitions,
             $warmup,
         ),
-        'direct_reqshield_database' => BenchmarkSupport::measure(
+        'direct_reqshield_database' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
             static function () use ($directDb, $dbPayload, $assertPass): void {
                 $assertPass($directDb->validate($dbPayload), 'Direct ReqShield DB');
             },
@@ -140,7 +139,7 @@ try {
             $repetitions,
             max(5, intdiv($warmup, 5)),
         ),
-        'foundation_database_bridge' => BenchmarkSupport::measure(
+        'foundation_database_bridge' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
             static function () use ($foundationDb, $dbPayload, $assertPass): void {
                 $assertPass($foundationDb->validate($dbPayload), 'Foundation DB bridge');
             },
@@ -165,15 +164,15 @@ try {
         'repetitions' => $repetitions,
         'subjects' => $subjects,
         'ratios' => [
-            'foundation_compiled_vs_direct_reqshield' => BenchmarkSupport::ratio(
+            'foundation_compiled_vs_direct_reqshield' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::ratio(
                 $subjects['foundation_compiled_reuse']['median_ns'],
                 $subjects['direct_reqshield_compiled_reuse']['median_ns'],
             ),
-            'foundation_factory_vs_direct_construct' => BenchmarkSupport::ratio(
+            'foundation_factory_vs_direct_construct' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::ratio(
                 $subjects['foundation_factory_construct_validate']['median_ns'],
                 $subjects['direct_reqshield_construct_validate']['median_ns'],
             ),
-            'foundation_database_vs_direct_reqshield' => BenchmarkSupport::ratio(
+            'foundation_database_vs_direct_reqshield' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::ratio(
                 $subjects['foundation_database_bridge']['median_ns'],
                 $subjects['direct_reqshield_database']['median_ns'],
             ),
