@@ -257,6 +257,60 @@ PHP,
     }
 });
 
+it('lets ArrayKit materialize delayed values for both native config cache layouts', function (): void {
+    $environmentKey = 'FOUNDATION_NATIVE_CONFIG_CACHE_TEST';
+    $previous = getenv($environmentKey);
+    putenv($environmentKey . '=from-environment');
+
+    try {
+        foreach ([ConfigLoader::TYPE_SINGLE, ConfigLoader::TYPE_SHARDED] as $type) {
+            $project = configCacheProject([
+                'config/app.php' => <<<'PHP'
+<?php
+
+use Infocyph\ArrayKit\Config\Support\Environment;
+
+return [
+    'name' => Environment::ref('FOUNDATION_NATIVE_CONFIG_CACHE_TEST', 'fallback'),
+    'computed' => static fn(): string => 'from-closure',
+];
+PHP,
+            ]);
+
+            try {
+                $loader = new ConfigLoader();
+                $config = $loader->load([
+                    'base_path' => $project,
+                    '_config_cache' => false,
+                ]);
+                $directory = $project . '/bootstrap/cache/config';
+                $loader->writeCache($config, $directory, $type);
+
+                unlink($project . '/config/app.php');
+
+                $cached = $loader->load(['base_path' => $project]);
+
+                expect($cached->isCompiled())->toBeTrue()
+                    ->and($cached->get('app.name'))->toBe('from-environment')
+                    ->and($cached->get('app.computed'))->toBe('from-closure');
+
+                if ($type === ConfigLoader::TYPE_SINGLE) {
+                    expect($directory . '/config.php')->toBeFile();
+                } else {
+                    expect($directory . '/app.php')->toBeFile()
+                        ->and($directory . '/__flat.php')->toBeFile();
+                }
+            } finally {
+                configCacheRemoveDirectory($project);
+            }
+        }
+    } finally {
+        putenv($previous === false
+            ? $environmentKey
+            : $environmentKey . '=' . $previous);
+    }
+});
+
 it('falls back to source config when the cache manifest is invalid', function (): void {
     $project = configCacheProject([
         'config/app.php' => "<?php\n\nreturn ['name' => 'source'];\n",
