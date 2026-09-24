@@ -56,7 +56,6 @@ use Infocyph\Foundation\Tests\Fixtures\OAuth21FlowFixture;
 use Infocyph\Webrick\Router\Url\SignedUrlConfig;
 use Infocyph\Webrick\Router\Url\UrlGenerator;
 use Psr\Container\ContainerInterface;
-use Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 /**
@@ -79,7 +78,7 @@ function epicrypt31Ratios(array $subjects): array
 
     $ratios = [];
     foreach ($pairs as $name => [$foundation, $direct]) {
-        $ratios[$name] = BenchmarkSupport::ratio(
+        $ratios[$name] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::ratio(
             (float) $subjects[$foundation]['median_ns'],
             (float) $subjects[$direct]['median_ns'],
         );
@@ -410,20 +409,20 @@ $environmentFileProtector = new EnvironmentFileProtector(Foundation::cli([
 $subjects = [];
 
 try {
-    $subjects['direct_webrick_signed_url'] = BenchmarkSupport::measure(
+    $subjects['direct_webrick_signed_url'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $directUrlGenerator->signed('download', ['id' => '42'], ['mode' => 'benchmark']),
         $operations,
         $repetitions,
         $warmup,
     );
-    $subjects['foundation_signed_url_policy'] = BenchmarkSupport::measure(
+    $subjects['foundation_signed_url_policy'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $foundationUrlGenerator->signed('download', ['id' => '42'], ['mode' => 'benchmark']),
         $operations,
         $repetitions,
         $warmup,
     );
 
-    $subjects['direct_epicrypt_string_protection'] = BenchmarkSupport::measure(
+    $subjects['direct_epicrypt_string_protection'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $directStringProtector->protectWithKeyRing(
             'JBSWY3DPEHPK3PXP',
             $mfaRing,
@@ -433,14 +432,14 @@ try {
         $repetitions,
         $warmup,
     );
-    $subjects['foundation_mfa_protection'] = BenchmarkSupport::measure(
+    $subjects['foundation_mfa_protection'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $foundationMfaProtector->protect($mfaFactor),
         $operations,
         $repetitions,
         $warmup,
     );
 
-    $subjects['direct_epicrypt_purpose_token'] = BenchmarkSupport::measure(
+    $subjects['direct_epicrypt_purpose_token'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static function () use ($directPurposeToken): void {
             $token = $directPurposeToken->issue(['benchmark' => true], 'benchmark-account');
             if (!$directPurposeToken->verify($token)->verified) {
@@ -451,7 +450,7 @@ try {
         $repetitions,
         $warmup,
     );
-    $subjects['foundation_purpose_token'] = BenchmarkSupport::measure(
+    $subjects['foundation_purpose_token'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static function () use ($foundationPurposeToken): void {
             $tokens = $foundationPurposeToken->forPurpose('benchmark', 300);
             $token = $tokens->issue(['benchmark' => true], 'benchmark-account');
@@ -464,20 +463,20 @@ try {
         $warmup,
     );
 
-    $subjects['direct_epicrypt_jwks'] = BenchmarkSupport::measure(
+    $subjects['direct_epicrypt_jwks'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $oauthFixture->keys->epicrypt->jwks(),
         $operations,
         $repetitions,
         $warmup,
     );
-    $subjects['foundation_jwks_publication'] = BenchmarkSupport::measure(
+    $subjects['foundation_jwks_publication'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $foundationJwks->jwks(),
         $operations,
         $repetitions,
         $warmup,
     );
 
-    $subjects['direct_epicrypt_file_protection'] = BenchmarkSupport::measure(
+    $subjects['direct_epicrypt_file_protection'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static function () use ($directFileProtector, $fileRoot, $fileKey, $fileOptions): void {
             $output = $fileRoot . '/direct.encrypted';
             $directFileProtector->protect($fileRoot . '/source.env', $output, $fileKey, $fileOptions);
@@ -486,7 +485,7 @@ try {
         $repetitions,
         $fileWarmup,
     );
-    $subjects['foundation_environment_file_protection'] = BenchmarkSupport::measure(
+    $subjects['foundation_environment_file_protection'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $environmentFileProtector->encrypt(
             input: 'source.env',
             output: 'foundation.encrypted',
@@ -498,20 +497,20 @@ try {
         $fileWarmup,
     );
 
-    $subjects['direct_epicrypt_password_verification'] = BenchmarkSupport::measure(
+    $subjects['direct_epicrypt_password_verification'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $passwordHasher->verifyPassword($password, $passwordHash),
         $operations,
         $repetitions,
         $warmup,
     );
-    $subjects['foundation_password_verification'] = BenchmarkSupport::measure(
+    $subjects['foundation_password_verification'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $foundationPasswordVerifier->verify($password, $passwordHash),
         $operations,
         $repetitions,
         $warmup,
     );
 
-    $subjects['direct_epicrypt_oauth_resource_validation'] = BenchmarkSupport::measure(
+    $subjects['direct_epicrypt_oauth_resource_validation'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $oauthFixture->resourceValidator->validate(
             $oauthToken,
             $oauthAudience,
@@ -522,14 +521,14 @@ try {
         $repetitions,
         $warmup,
     );
-    $subjects['foundation_oauth_resource_validation'] = BenchmarkSupport::measure(
+    $subjects['foundation_oauth_resource_validation'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $oauthFixture->accessValidator->verify($oauthToken, $oauthAudience),
         $operations,
         $repetitions,
         $warmup,
     );
 
-    $subjects['direct_epicrypt_oidc_userinfo'] = BenchmarkSupport::measure(
+    $subjects['direct_epicrypt_oidc_userinfo'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $directOidc->project(
             'account-1',
             $oauthRegistration->client->clientId,
@@ -539,7 +538,7 @@ try {
         $repetitions,
         $warmup,
     );
-    $subjects['foundation_oidc_userinfo'] = BenchmarkSupport::measure(
+    $subjects['foundation_oidc_userinfo'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $foundationOidc->project(
             'account-1',
             $oauthRegistration->client->clientId,
@@ -550,13 +549,13 @@ try {
         $warmup,
     );
 
-    $subjects['direct_epicrypt_pat_verification'] = BenchmarkSupport::measure(
+    $subjects['direct_epicrypt_pat_verification'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $directPat->verify($directPatToken),
         $operations,
         $repetitions,
         $warmup,
     );
-    $subjects['foundation_pat_db_verification'] = BenchmarkSupport::measure(
+    $subjects['foundation_pat_db_verification'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $foundationPat->verify($foundationPatToken),
         $operations,
         $repetitions,
