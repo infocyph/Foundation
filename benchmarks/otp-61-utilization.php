@@ -19,44 +19,9 @@ use Infocyph\Foundation\Auth\Mfa\MfaFactor;
 use Infocyph\Foundation\Auth\Support\InMemoryMfaFactorStore;
 use Infocyph\OTP\Stores\InMemoryRecoveryCodeStore;
 use Infocyph\OTP\TOTP;
+use Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
-
-/** @return array{median_ns:float,min_ns:float,max_ns:float,spread_percent:float} */
-function otp61Measure(callable $operation, int $operations, int $repetitions, int $warmup): array
-{
-    $samples = [];
-
-    for ($repeat = 0; $repeat < $repetitions; ++$repeat) {
-        for ($iteration = 0; $iteration < $warmup; ++$iteration) {
-            $operation();
-        }
-
-        $started = hrtime(true);
-        for ($iteration = 0; $iteration < $operations; ++$iteration) {
-            $operation();
-        }
-        $samples[] = max(1, hrtime(true) - $started) / $operations;
-    }
-
-    sort($samples, SORT_NUMERIC);
-    $median = $samples[intdiv(count($samples), 2)];
-    $minimum = $samples[0];
-    $maximum = $samples[count($samples) - 1];
-
-    return [
-        'median_ns' => round($median, 2),
-        'min_ns' => round($minimum, 2),
-        'max_ns' => round($maximum, 2),
-        'spread_percent' => round((($maximum - $minimum) / max(1.0, $median)) * 100, 2),
-    ];
-}
-
-function otp61Ratio(float $numerator, float $denominator): float
-{
-    return round($numerator / max(1.0, $denominator), 4);
-}
-
 $operations = max(100, (int) (getenv('OTP_RUNTIME_OPERATIONS') ?: 1_000));
 $repetitions = max(3, (int) (getenv('OTP_RUNTIME_REPETITIONS') ?: 7));
 $warmup = max(20, (int) (getenv('OTP_RUNTIME_WARMUP') ?: 100));
@@ -118,7 +83,7 @@ $directRecovery = new InMemoryRecoveryCodeStore();
 $foundationRecovery = new OtpRecoveryCodeStore(new InMemoryMfaFactorStore());
 
 $subjects = [];
-$subjects['direct_totp_provisioning'] = otp61Measure(
+$subjects['direct_totp_provisioning'] = BenchmarkSupport::measure(
     static function (): void {
         $secret = TOTP::generateSecret(20);
         new TOTP($secret, 6, 30, 'sha1')
@@ -128,19 +93,19 @@ $subjects['direct_totp_provisioning'] = otp61Measure(
     $repetitions,
     $warmup,
 );
-$subjects['foundation_totp_metadata_bridge'] = otp61Measure(
+$subjects['foundation_totp_metadata_bridge'] = BenchmarkSupport::measure(
     static fn() => $foundation->factorMetadata($metadataSecret, 'benchmark@example.test'),
     $operations,
     $repetitions,
     $warmup,
 );
-$subjects['foundation_totp_provisioning'] = otp61Measure(
+$subjects['foundation_totp_provisioning'] = BenchmarkSupport::measure(
     static fn() => $foundation->provisionTotp('benchmark-account', 'benchmark@example.test'),
     $operations,
     $repetitions,
     $warmup,
 );
-$subjects['direct_epicrypt_mfa_string_protection'] = otp61Measure(
+$subjects['direct_epicrypt_mfa_string_protection'] = BenchmarkSupport::measure(
     static fn() => $directProtector->protectWithKeyRing(
         $metadataSecret,
         $protectionRing,
@@ -150,13 +115,13 @@ $subjects['direct_epicrypt_mfa_string_protection'] = otp61Measure(
     $repetitions,
     $warmup,
 );
-$subjects['foundation_mfa_secret_protection_bridge'] = otp61Measure(
+$subjects['foundation_mfa_secret_protection_bridge'] = BenchmarkSupport::measure(
     static fn() => $foundationProtector->protect($mfaFactor),
     $operations,
     $repetitions,
     $warmup,
 );
-$subjects['direct_otp_recovery_replace'] = otp61Measure(
+$subjects['direct_otp_recovery_replace'] = BenchmarkSupport::measure(
     static fn() => $directRecovery->replace(
         'account:benchmark-account',
         $recoveryDigests,
@@ -166,7 +131,7 @@ $subjects['direct_otp_recovery_replace'] = otp61Measure(
     $repetitions,
     $warmup,
 );
-$subjects['foundation_recovery_cas_bridge'] = otp61Measure(
+$subjects['foundation_recovery_cas_bridge'] = BenchmarkSupport::measure(
     static fn() => $foundationRecovery->replace(
         'account:benchmark-account',
         $recoveryDigests,
@@ -197,12 +162,12 @@ $report = [
     'warmup_operations' => $warmup,
     'subjects' => $subjects,
     'ratios' => [
-        'foundation_provisioning_vs_direct_otp' => otp61Ratio($foundationNs, $directNs),
-        'foundation_mfa_protection_vs_direct_epicrypt' => otp61Ratio(
+        'foundation_provisioning_vs_direct_otp' => BenchmarkSupport::ratio($foundationNs, $directNs),
+        'foundation_mfa_protection_vs_direct_epicrypt' => BenchmarkSupport::ratio(
             $foundationProtectionNs,
             $directProtectionNs,
         ),
-        'foundation_recovery_state_vs_direct_otp_store' => otp61Ratio(
+        'foundation_recovery_state_vs_direct_otp_store' => BenchmarkSupport::ratio(
             $foundationRecoveryNs,
             $directRecoveryNs,
         ),
