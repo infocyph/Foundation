@@ -7,6 +7,7 @@ use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Cache\CacheServiceProvider;
 use Infocyph\Foundation\Config\ConfigCacheManager;
 use Infocyph\Foundation\Config\ConfigLoader;
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Foundation;
 
 it('loads lazy namespace caches before project config files', function (): void {
@@ -308,6 +309,34 @@ PHP,
         putenv($previous === false
             ? $environmentKey
             : $environmentKey . '=' . $previous);
+    }
+});
+
+it('rejects config cache values outside the ArrayKit materialization contract', function (): void {
+    $project = configCacheProject([]);
+    $loader = new ConfigLoader();
+    $directory = $project . '/bootstrap/cache/config';
+    $resource = fopen('php://memory', 'rb');
+    if ($resource === false) {
+        throw new RuntimeException('Unable to create config cache resource fixture.');
+    }
+
+    try {
+        expect(fn() => $loader->writeCache(
+            new ConfigRepository(['app' => ['invalid' => new stdClass()]]),
+            $directory,
+            ConfigLoader::TYPE_SINGLE,
+            $project,
+        ))->toThrow(RuntimeException::class, 'stdClass values are not exportable')
+            ->and(fn() => $loader->writeCache(
+                new ConfigRepository(['app' => ['invalid' => $resource]]),
+                $directory,
+                ConfigLoader::TYPE_SHARDED,
+                $project,
+            ))->toThrow(RuntimeException::class, 'resource (stream) values are not exportable');
+    } finally {
+        fclose($resource);
+        configCacheRemoveDirectory($project);
     }
 });
 
