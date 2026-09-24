@@ -107,4 +107,23 @@ jobs:
           echo "TOTAL_NEAR_MISS_COMPARISONS=" . $total . PHP_EOL;
           echo "BY_TYPE=" . json_encode($comparisons, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL;
           echo "TOP_FILES=" . json_encode(array_slice($byFile, 0, 40, true), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL;
+
+          $functionBlocks = $eligible['function'] ?? [];
+          $pairContribution = [];
+          $count = count($functionBlocks);
+          for ($left = 0; $left < $count - 1; $left++) {
+              for ($right = $left + 1; $right < $count; $right++) {
+                  $statement = $bound(count($functionBlocks[$left]['statement_hashes']), count($functionBlocks[$right]['statement_hashes']));
+                  $shape = $bound(count($functionBlocks[$left]['shape']), count($functionBlocks[$right]['shape']));
+                  if (round(($statement * 0.72) + ($shape * 0.28), 4) < 0.85) {
+                      continue;
+                  }
+                  foreach ([$functionBlocks[$left]['file'], $functionBlocks[$right]['file']] as $file) {
+                      $relative = str_replace(__DIR__ . '/', '', $file);
+                      $pairContribution[$relative] = ($pairContribution[$relative] ?? 0) + 1;
+                  }
+              }
+          }
+          arsort($pairContribution);
+          echo "TOP_PAIR_CONTRIBUTORS=" . json_encode(array_slice($pairContribution, 0, 40, true), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL;
           PHP
