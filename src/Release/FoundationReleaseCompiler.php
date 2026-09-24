@@ -499,9 +499,9 @@ final readonly class FoundationReleaseCompiler
         $paths = ['foundation.php', $configPath, $webRelease];
         $matcherCachePath = $web['matcher_cache_path'] ?? null;
         if (is_string($matcherCachePath)) {
-            $matcherCacheDirectory = $stage . DIRECTORY_SEPARATOR
+            $matcherCache = $stage . DIRECTORY_SEPARATOR
                 . str_replace('/', DIRECTORY_SEPARATOR, $matcherCachePath);
-            if (!is_dir($matcherCacheDirectory)) {
+            if (!file_exists($matcherCache)) {
                 throw new \RuntimeException('Foundation staged Webrick matcher cache is missing.');
             }
         }
