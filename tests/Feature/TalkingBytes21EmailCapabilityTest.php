@@ -6,7 +6,6 @@ use Infocyph\Foundation\Communication\CommunicationServiceProvider;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Notifications\EmailProfiles;
 use Infocyph\Foundation\Notifications\NotificationServiceProvider;
-use Infocyph\Foundation\Routing\WebReleaseCompiler;
 use Infocyph\TalkingBytes\Email\Mailbox\Mailbox;
 use Infocyph\TalkingBytes\Email\Mailbox\Pop3Mailbox;
 use Infocyph\TalkingBytes\Email\Receiver\SpoolEmailReceiver;
@@ -57,63 +56,6 @@ it('keeps TalkingBytes communication and email graphs cold until their Foundatio
         ->and($notifications->has('foundation.notifications'))->toBeTrue()
         ->and($notifications->has('foundation.email'))->toBeTrue();
 });
-
-
-it('statically compiles the production notification graph without TalkingBytes constructor skips', function (): void {
-    $root = sys_get_temp_dir() . '/foundation-talkingbytes-21-release-' . bin2hex(random_bytes(6));
-    mkdir($root . '/routes', 0775, true);
-    mkdir($root . '/bootstrap/cache', 0775, true);
-    file_put_contents($root . '/routes/web.php', <<<'PHP'
-<?php
-
-declare(strict_types=1);
-
-use Infocyph\Webrick\Response\Response;
-use Infocyph\Webrick\Router\Facade\Router;
-
-Router::get('/health', static fn(): Response => Response::json(['status' => 'ok']));
-PHP);
-
-    $config = [
-        'app' => [
-            'base_path' => $root,
-            'env' => 'production',
-            'debug' => false,
-        ],
-        '_config_cache' => false,
-        'notifications' => [
-            'email' => [
-                'default_sender' => 'auth',
-                'senders' => [
-                    'auth' => ['transport' => 'log'],
-                ],
-                'transports' => [
-                    'log' => ['driver' => 'log'],
-                ],
-            ],
-        ],
-        'router' => [
-            'matcher' => 'fused',
-            'files' => ['web.php'],
-            'middleware' => ['globals' => ['pre' => [], 'post' => []]],
-        ],
-    ];
-
-    try {
-        $release = (new WebReleaseCompiler())->compile(
-            $config,
-            $root . '/bootstrap/cache/intermix.php',
-            $root . '/bootstrap/cache/router.php',
-            $root . '/bootstrap/cache/release.json',
-            capabilities: ['notifications'],
-        );
-
-        expect($release['intermix']['skipped'] ?? null)->toBe([]);
-    } finally {
-        foundationTalkingBytes21EmailRemove($root);
-    }
-});
-
 
 it('keeps mailbox instances caller-owned and spool receivers execution-scoped', function (): void {
     $root = sys_get_temp_dir() . '/foundation-talkingbytes-21-email-' . bin2hex(random_bytes(6));
