@@ -17,6 +17,13 @@ final readonly class ConfiguredCapabilities
 
     public function enabled(string $capability): bool
     {
+        if ($this->config->has('modules.capabilities.' . $capability)) {
+            return ValueNormalizer::bool(
+                $this->config->get('modules.capabilities.' . $capability),
+                false,
+            );
+        }
+
         if (!$this->config->has('app.capabilities')) {
             return true;
         }
@@ -43,8 +50,14 @@ final readonly class ConfiguredCapabilities
         return false;
     }
 
-    public function explicit(): bool
+    public function explicit(?string $capability = null): bool
     {
-        return $this->config->has('app.capabilities');
+        if ($capability !== null) {
+            return $this->config->has('app.capabilities')
+                || $this->config->has('modules.capabilities.' . $capability);
+        }
+
+        return $this->config->has('app.capabilities')
+            || is_array($this->config->get('modules.capabilities'));
     }
 }

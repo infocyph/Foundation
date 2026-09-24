@@ -99,40 +99,6 @@ function cacheLayer33Percentile(array $samples, float $percentile): float
     return $samples[max(0, min(count($samples) - 1, $index))];
 }
 
-/** @return array<string,mixed> */
-function cacheLayer33Environment(string $cacheLayerVersion): array
-{
-    $extensions = get_loaded_extensions();
-    sort($extensions, SORT_STRING);
-    $cpuModel = 'unknown';
-    if (is_readable('/proc/cpuinfo')) {
-        $cpuInfo = file_get_contents('/proc/cpuinfo');
-        if (is_string($cpuInfo) && preg_match('/^model name\s*:\s*(.+)$/m', $cpuInfo, $matches) === 1) {
-            $cpuModel = trim($matches[1]);
-        }
-    }
-
-    $runtime = [
-        'php_version' => PHP_VERSION,
-        'php_sapi' => PHP_SAPI,
-        'operating_system' => php_uname(),
-        'cpu_model' => $cpuModel,
-        'memory_limit' => ini_get('memory_limit') ?: 'unknown',
-        'opcache' => extension_loaded('Zend OPcache'),
-        'jit' => ini_get('opcache.jit') ?: false,
-        'xdebug' => extension_loaded('xdebug'),
-        'extensions' => $extensions,
-        'runner' => getenv('GITHUB_ACTIONS') === 'true' ? 'github-actions' : 'local-cli',
-        'cachelayer' => $cacheLayerVersion,
-    ];
-
-    return [
-        'stable' => false,
-        'fingerprint' => hash('sha3-256', json_encode($runtime, JSON_THROW_ON_ERROR)),
-        ...$runtime,
-    ];
-}
-
 function cacheLayer33RedisDsn(): string
 {
     $explicit = getenv('CACHELAYER_BENCH_REDIS_DSN');
@@ -501,10 +467,38 @@ $workloads[] = [
 ];
 
 $cacheLayerVersion = InstalledVersions::getPrettyVersion('infocyph/cachelayer') ?? 'unknown';
+$extensions = get_loaded_extensions();
+sort($extensions, SORT_STRING);
+$cpuModel = 'unknown';
+if (is_readable('/proc/cpuinfo')) {
+    $cpuInfo = file_get_contents('/proc/cpuinfo');
+    if (is_string($cpuInfo) && preg_match('/^model name\\s*:\\s*(.+)$/m', $cpuInfo, $matches) === 1) {
+        $cpuModel = trim($matches[1]);
+    }
+}
+$runtime = [
+    'php_version' => PHP_VERSION,
+    'php_sapi' => PHP_SAPI,
+    'operating_system' => php_uname(),
+    'cpu_model' => $cpuModel,
+    'memory_limit' => ini_get('memory_limit') ?: 'unknown',
+    'opcache' => extension_loaded('Zend OPcache'),
+    'jit' => ini_get('opcache.jit') ?: false,
+    'xdebug' => extension_loaded('xdebug'),
+    'extensions' => $extensions,
+    'runner' => getenv('GITHUB_ACTIONS') === 'true' ? 'github-actions' : 'local-cli',
+    'cachelayer' => $cacheLayerVersion,
+];
+$environment = [
+    'stable' => false,
+    'fingerprint' => hash('sha3-256', json_encode($runtime, JSON_THROW_ON_ERROR)),
+    ...$runtime,
+];
+
 $result = [
     'schema_version' => 1,
     'generated_at' => gmdate(DATE_ATOM),
-    'environment' => cacheLayer33Environment($cacheLayerVersion),
+    'environment' => $environment,
     'metadata' => [
         'suite' => 'foundation-cachelayer-33-utilization',
         'cachelayer' => $cacheLayerVersion,

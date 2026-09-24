@@ -144,26 +144,6 @@ function uidRuntimeEnvironment(string $uidVersion): array
     ];
 }
 
-function uidRuntimeRemove(string $directory): void
-{
-    if (!is_dir($directory)) {
-        return;
-    }
-
-    $entries = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS),
-        RecursiveIteratorIterator::CHILD_FIRST,
-    );
-    foreach ($entries as $entry) {
-        if ($entry->isDir()) {
-            rmdir($entry->getPathname());
-        } else {
-            unlink($entry->getPathname());
-        }
-    }
-    rmdir($directory);
-}
-
 $operations = max(1_000, (int) (getenv('UID_RUNTIME_OPERATIONS') ?: 25_000));
 $repetitions = max(3, (int) (getenv('UID_RUNTIME_REPETITIONS') ?: 7));
 $warmup = max(100, (int) (getenv('UID_RUNTIME_WARMUP') ?: 500));
@@ -286,5 +266,5 @@ try {
     file_put_contents($buildDirectory . '/uid-5-runtime-benchmark.json', $encoded . PHP_EOL, LOCK_EX);
     fwrite(STDOUT, $encoded . PHP_EOL);
 } finally {
-    uidRuntimeRemove($root);
+    \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::removeDirectory($root);
 }

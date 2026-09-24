@@ -38,12 +38,12 @@ php infbyte module:schema:status session
 php infbyte module:schema:install session
 ```
 
-Database-backed CacheLayer stores/invalidation transports are similarly managed
-through the `cache` module when applicable:
+Database-backed CacheLayer stores/invalidation transports are Foundation core
+cache infrastructure and are managed independently of the module system:
 
 ```bash
-php infbyte module:schema:status cache
-php infbyte module:schema:install cache
+php infbyte cache:schema:status
+php infbyte cache:schema:install
 ```
 
 To provision every schema required by the current application configuration:

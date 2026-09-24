@@ -90,9 +90,12 @@ final class Bootstrapper
         $registry->add(new PathServiceProvider());
 
         foreach (self::OPTIONAL_BUILT_INS as $provider) {
-            if (!$this->providerDependencyAvailable($provider)
-                || ($context->capabilitiesExplicit
-                    && !$context->hasCapability(self::OPTIONAL_CAPABILITIES[$provider]))
+            $capability = self::OPTIONAL_CAPABILITIES[$provider];
+            if (($context->hasCapabilityOverride($capability) && !$context->hasCapability($capability))
+                || (!$context->hasCapabilityOverride($capability)
+                    && $context->capabilitiesExplicit
+                    && !$context->hasCapability($capability))
+                || !$this->providerDependencyAvailable($provider)
             ) {
                 continue;
             }
@@ -200,7 +203,6 @@ final class Bootstrapper
     private function providerDependencyAvailable(string $provider): bool
     {
         $dependency = match ($provider) {
-            CacheServiceProvider::class => \Infocyph\CacheLayer\Cache\Cache::class,
             CommunicationServiceProvider::class => \Infocyph\TalkingBytes\Http\HttpClient::class,
             DatabaseServiceProvider::class => \Infocyph\DBLayer\Connection\Connection::class,
             FilesystemServiceProvider::class => \Infocyph\Pathwise\PathwiseFacade::class,

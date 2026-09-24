@@ -69,7 +69,7 @@ Router::get('/application-bearer', static fn(): Response => Response::json(['aut
 ]);
 PHP);
         if ($written === false) {
-            $this->removeDirectory($basePath);
+            \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::removeDirectory($basePath);
 
             throw new \RuntimeException(sprintf('Unable to write benchmark route file "%s".', $routeFile));
         }
@@ -132,7 +132,7 @@ PHP);
             return $document;
         } finally {
             $oauthFixture?->close();
-            $this->removeDirectory($basePath);
+            \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::removeDirectory($basePath);
         }
     }
 
@@ -200,18 +200,6 @@ PHP);
         };
     }
 
-    private function cpuModel(): string
-    {
-        $contents = is_file('/proc/cpuinfo') ? file_get_contents('/proc/cpuinfo') : false;
-        if (is_string($contents)
-            && preg_match('/^model name\\s*:\\s*(.+)$/mi', $contents, $matches) === 1
-        ) {
-            return trim($matches[1]);
-        }
-
-        return php_uname('m');
-    }
-
     /** @return array<string, mixed> */
     private function environment(): array
     {
@@ -223,7 +211,11 @@ PHP);
             );
         }
 
-        $cpuModel = $this->cpuModel();
+        $contents = is_file('/proc/cpuinfo') ? file_get_contents('/proc/cpuinfo') : false;
+        $cpuModel = is_string($contents)
+            && preg_match('/^model name\\s*:\\s*(.+)$/mi', $contents, $matches) === 1
+            ? trim($matches[1])
+            : php_uname('m');
         $extensions = get_loaded_extensions();
         sort($extensions);
         $fingerprint = is_string($fingerprint) && $fingerprint !== ''
@@ -311,7 +303,11 @@ PHP);
 
         sort($latencies);
         $attempted = $this->operations * $this->repetitions;
-        $spread = $this->spread($sampleRpms);
+        sort($sampleRpms);
+        $medianRpm = $this->percentile($sampleRpms, 0.50) ?? 0.0;
+        $spread = $medianRpm > 0.0
+            ? ((max($sampleRpms) - min($sampleRpms)) / $medianRpm) * 100
+            : 0.0;
         $stableEnvironment = getenv('FOUNDATION_BENCHMARK_STABLE') === '1';
 
         return [
@@ -427,23 +423,6 @@ PHP);
         return $values[$index];
     }
 
-    /** @param string $directory Temporary application root. */
-    private function removeDirectory(string $directory): void
-    {
-        if (!is_dir($directory)) {
-            return;
-        }
-
-        $files = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::CHILD_FIRST,
-        );
-        foreach ($files as $file) {
-            $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
-        }
-        rmdir($directory);
-    }
-
     /**
      * @param Application $application Warm Foundation application.
      * @param string $path Request path.
@@ -463,19 +442,6 @@ PHP);
             return $response->getStatusCode() === 200
                 && (string) $response->getBody() === $expectedBody;
         };
-    }
-
-    /** @param list<float> $values Per-repetition successful-RPM samples. */
-    private function spread(array $values): float
-    {
-        if ($values === []) {
-            return 0.0;
-        }
-
-        sort($values);
-        $median = $this->percentile($values, 0.50) ?? 0.0;
-
-        return $median > 0.0 ? ((max($values) - min($values)) / $median) * 100 : 0.0;
     }
 
     /**

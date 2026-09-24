@@ -78,6 +78,18 @@ final class CommandCatalog
             new CommandDefinition('cache:forget', 'Forget one cache item.', 'Cache', capabilities: ['cache'])
                 ->argument('key', 'Cache key.', required: true)
                 ->option('store', 'Configured cache store name.', acceptsValue: true),
+            $connectionOption(new CommandDefinition(
+                'cache:schema:install',
+                'Provision schemas required by configured database-backed CacheLayer resources.',
+                'Cache',
+                capabilities: ['cache'],
+            )),
+            $connectionOption(new CommandDefinition(
+                'cache:schema:status',
+                'Show schema readiness for configured database-backed CacheLayer resources.',
+                'Cache',
+                capabilities: ['cache'],
+            )),
 
             new CommandDefinition('config:cache', 'Compile application configuration.', 'Configuration'),
             new CommandDefinition('config:clear', 'Clear compiled configuration.', 'Configuration'),
@@ -221,28 +233,51 @@ final class CommandCatalog
             )->argument('name', 'Scheduled message name.', required: true),
 
             $connectionOption(
+                new CommandDefinition('module:doctor', 'Inspect module readiness, dependencies, platform and schema blockers.', 'Modules')
+                    ->argument('module', 'Module name.', required: true)
+                    ->option('feature', 'Feature context to inspect. Repeat for multiple features.', acceptsValue: true, multiple: true),
+            ),
+            new CommandDefinition('module:disable', 'Disable a specialist module without removing packages or data.', 'Modules')
+                ->argument('module', 'Module name.', required: true),
+            new CommandDefinition('module:enable', 'Enable an installed specialist module after dependency validation.', 'Modules')
+                ->argument('module', 'Module name.', required: true),
+            $connectionOption(
                 new CommandDefinition(
                     'module:install',
                     'Install a Foundation module, publish config, and provision applicable schemas.',
                     'Modules',
                 )
                     ->argument('module', 'Module name.', required: true)
+                    ->option('feature', 'Module feature to install. Repeat for multiple features.', acceptsValue: true, multiple: true)
                     ->option('dry-run', 'Preview Composer changes without modifying the project.'),
             ),
             new CommandDefinition('module:list', 'List Foundation modules.', 'Modules'),
             $connectionOption(
+                new CommandDefinition('module:plan', 'Explain module installation and dependency changes without mutation.', 'Modules')
+                    ->argument('module', 'Module name.', required: true)
+                    ->option('feature', 'Module feature to plan. Repeat for multiple features.', acceptsValue: true, multiple: true),
+            ),
+            $connectionOption(
                 new CommandDefinition('module:show', 'Show detailed module package/config/schema state.', 'Modules')
-                    ->argument('module', 'Module name.', required: true),
+                    ->argument('module', 'Module name.', required: true)
+                    ->option('feature', 'Feature context to show. Repeat for multiple features.', acceptsValue: true, multiple: true),
             ),
             new CommandDefinition('module:config:publish', 'Publish config owned by a Foundation module.', 'Modules')
                 ->argument('module', 'Module name.', required: true)
                 ->option('force', 'Replace existing module config.'),
+            $connectionOption(
+                new CommandDefinition('module:repair', 'Resume an incomplete module installation without destructive rollback.', 'Modules')
+                    ->argument('module', 'Module name.', required: true)
+                    ->option('feature', 'Module feature to repair. Repeat for multiple features.', acceptsValue: true, multiple: true),
+            ),
             new CommandDefinition('module:remove', 'Remove an optional Foundation module.', 'Modules')
                 ->argument('module', 'Module name.', required: true)
+                ->option('feature', 'Module feature to remove. Repeat for multiple features.', acceptsValue: true, multiple: true)
                 ->option('dry-run', 'Preview Composer changes without modifying the project.'),
             $connectionOption(
                 new CommandDefinition('module:schema:install', 'Provision database schemas owned by a module.', 'Modules')
-                    ->argument('module', 'Module name.', required: true),
+                    ->argument('module', 'Module name.', required: true)
+                    ->option('applicable-only', 'Provision only schemas applicable to the active topology.'),
             ),
             $connectionOption(
                 new CommandDefinition('module:schema:status', 'Show database schema readiness for a module.', 'Modules')
@@ -345,7 +380,7 @@ final class CommandCatalog
             str_starts_with($name, 'create:') => ArtifactSystemCommand::class,
             str_starts_with($name, 'module:') => ModuleSystemCommand::class,
             str_starts_with($name, 'auth:oauth:') => OAuthSystemCommand::class,
-            $name === 'cache:forget' => CacheSystemCommand::class,
+            str_starts_with($name, 'cache:') && $name !== 'cache:clear' => CacheSystemCommand::class,
             str_starts_with($name, 'db:'),
             str_starts_with($name, 'migrate') => DatabaseSystemCommand::class,
             $name === 'messaging:list',

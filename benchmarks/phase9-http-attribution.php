@@ -25,40 +25,6 @@ function phase9FoundationHttpHandler(): Response
 {
     return Response::json(['ok' => true]);
 }
-
-/** @return array{median_ns:float,ops_per_second:float,min_ns:float,max_ns:float,samples_ns:list<float>} */
-function phase9HttpMeasure(callable $operation, int $operations, int $repetitions, int $warmup): array
-{
-    $samples = [];
-
-    for ($repeat = 0; $repeat < $repetitions; ++$repeat) {
-        for ($i = 0; $i < $warmup; ++$i) {
-            if (!$operation()) {
-                throw new RuntimeException('Phase 9 HTTP attribution warmup response validation failed.');
-            }
-        }
-
-        $started = hrtime(true);
-        for ($i = 0; $i < $operations; ++$i) {
-            if (!$operation()) {
-                throw new RuntimeException('Phase 9 HTTP attribution response validation failed.');
-            }
-        }
-        $samples[] = (hrtime(true) - $started) / $operations;
-    }
-
-    sort($samples, SORT_NUMERIC);
-    $median = $samples[intdiv(count($samples), 2)];
-
-    return [
-        'median_ns' => round($median, 2),
-        'ops_per_second' => round(1_000_000_000 / $median, 2),
-        'min_ns' => round($samples[0], 2),
-        'max_ns' => round($samples[array_key_last($samples)], 2),
-        'samples_ns' => array_map(static fn(float $sample): float => round($sample, 2), $samples),
-    ];
-}
-
 /** @return array{delta_ns:float,percent:float} */
 function phase9HttpTax(array $foundation, array $direct): array
 {
@@ -79,22 +45,6 @@ function phase9HttpScalarTax(int $foundation, int $direct): array
         'delta_ns' => $delta,
         'percent' => round(($delta / max(1, $direct)) * 100, 2),
     ];
-}
-
-function phase9HttpRemove(string $directory): void
-{
-    if (!is_dir($directory)) {
-        return;
-    }
-
-    $files = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS),
-        RecursiveIteratorIterator::CHILD_FIRST,
-    );
-    foreach ($files as $file) {
-        $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
-    }
-    rmdir($directory);
 }
 
 /** @return array<string,mixed> */
@@ -216,7 +166,7 @@ PHP);
             throw new InvalidArgumentException(sprintf('Unknown Phase 9 HTTP attribution variant "%s".', $variant));
         }
 
-        $warmRequest = phase9HttpMeasure(
+        $warmRequest = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::throughputMeasure(
             static function () use ($kernel, $request): bool {
                 $response = $kernel->handle($request);
 
@@ -239,7 +189,7 @@ PHP);
             ],
         ];
     } finally {
-        phase9HttpRemove($root);
+        \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::removeDirectory($root);
     }
 }
 

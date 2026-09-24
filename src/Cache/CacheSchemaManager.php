@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Infocyph\Foundation\Module\Internal;
+namespace Infocyph\Foundation\Cache;
 
 use Infocyph\CacheLayer\Cache\Adapter\PdoCacheSchema;
 use Infocyph\CacheLayer\Cluster\Transport\Pdo\PdoInvalidationSchema;
@@ -16,7 +16,7 @@ final readonly class CacheSchemaManager
 {
     public function __construct(private Application $application) {}
 
-    public function install(?string $connection): void
+    public function install(?string $connection = null): void
     {
         foreach ($this->activeResources($connection, true) as $resource) {
             $pdo = $resource['pdo'];
@@ -35,36 +35,23 @@ final readonly class CacheSchemaManager
     }
 
     /**
-     * @return list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}>
+     * @return list<array{name:string,applicable:bool,installed:bool,state:string,detail:string}>
      */
-    public function statuses(string $module, ?string $connection, bool $afterInstall = false): array
+    public function statuses(?string $connection = null, bool $afterInstall = false): array
     {
-        $applicable = $this->configured();
-        if (!class_exists(PdoCacheSchema::class)) {
-            return [$this->result(
-                'cache',
-                $module,
-                $applicable,
-                false,
-                'unavailable',
-                'Requires the cache module; run "php infbyte module:install cache".',
-            )];
-        }
-
         $resources = $this->activeResources($connection);
         if ($resources === []) {
             return [$this->result(
                 'cache',
-                $module,
                 false,
                 true,
                 'not-applicable',
-                'No active database-backed cache store or PDO invalidation transport.',
+                'No active database-backed CacheLayer store or PDO invalidation transport.',
             )];
         }
 
         return array_map(
-            fn(array $resource): array => $this->resourceStatus($resource, $module, $afterInstall),
+            fn(array $resource): array => $this->resourceStatus($resource, $afterInstall),
             $resources,
         );
     }
@@ -154,21 +141,6 @@ final readonly class CacheSchemaManager
             : $this->dsnPdo($store);
     }
 
-    private function configured(): bool
-    {
-        $stores = ValueNormalizer::associativeArray($this->application->config()->get('cache.stores', []));
-        foreach ($this->activeStoreNames() as $name) {
-            $store = ValueNormalizer::associativeArray($stores[$name] ?? []);
-            $configuredDriver = $store['driver'] ?? null;
-            $driver = strtolower(is_string($configuredDriver) ? $configuredDriver : $name);
-            if (in_array($driver, ['pdo', 'sqlite'], true)) {
-                return true;
-            }
-        }
-
-        return $this->activeTransportNames() !== [];
-    }
-
     /** @return array{pdo:?PDO,detail:string,state:string} */
     private function databasePdo(?string $connection): array
     {
@@ -233,9 +205,9 @@ final readonly class CacheSchemaManager
 
     /**
      * @param array{name:string,table:string,pdo:?PDO,detail:string,type:'cache'|'invalidation',state:string,allow_sqlite_for_testing:bool} $resource
-     * @return array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}
+     * @return array{name:string,applicable:bool,installed:bool,state:string,detail:string}
      */
-    private function resourceStatus(array $resource, string $module, bool $afterInstall): array
+    private function resourceStatus(array $resource, bool $afterInstall): array
     {
         $pdo = $resource['pdo'];
         if (!$pdo instanceof PDO) {
@@ -243,7 +215,6 @@ final readonly class CacheSchemaManager
 
             return $this->result(
                 $resource['name'],
-                $module,
                 true,
                 false,
                 $afterInstall && $state === 'pending' ? 'missing' : $state,
@@ -255,7 +226,6 @@ final readonly class CacheSchemaManager
 
         return $this->result(
             $resource['name'],
-            $module,
             true,
             $installed,
             $installed ? 'installed' : ($afterInstall ? 'missing' : 'pending'),
@@ -264,11 +234,10 @@ final readonly class CacheSchemaManager
     }
 
     /**
-     * @return array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}
+     * @return array{name:string,applicable:bool,installed:bool,state:string,detail:string}
      */
     private function result(
         string $name,
-        string $module,
         bool $applicable,
         bool $installed,
         string $state,
@@ -276,7 +245,6 @@ final readonly class CacheSchemaManager
     ): array {
         return [
             'name' => $name,
-            'module' => $module,
             'applicable' => $applicable,
             'installed' => $installed,
             'state' => $state,

@@ -172,7 +172,7 @@ try {
     }
 } finally {
     arrayKitBenchmarkEnvironmentRestore($environmentKey, $environmentSnapshot);
-    arrayKitBenchmarkRemoveDirectory($root);
+    \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::removeDirectory($root);
 }
 
 /**
@@ -332,26 +332,4 @@ function arrayKitBenchmarkEnvironmentRestore(string $key, array $snapshot): void
     }
 
     putenv($snapshot['process'] === false ? $key : $key . '=' . $snapshot['process']);
-}
-
-function arrayKitBenchmarkRemoveDirectory(string $directory): void
-{
-    if (!is_dir($directory)) {
-        return;
-    }
-
-    foreach (scandir($directory) ?: [] as $entry) {
-        if ($entry === '.' || $entry === '..') {
-            continue;
-        }
-
-        $path = $directory . DIRECTORY_SEPARATOR . $entry;
-        if (is_dir($path)) {
-            arrayKitBenchmarkRemoveDirectory($path);
-        } else {
-            unlink($path);
-        }
-    }
-
-    rmdir($directory);
 }

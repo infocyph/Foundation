@@ -67,12 +67,6 @@ final readonly class RuntimeControl
 
     private function cache(): \Infocyph\CacheLayer\Cache\CacheInterface
     {
-        if (!class_exists(\Infocyph\CacheLayer\Cache\Cache::class)) {
-            throw new \LogicException(
-                'Cache-backed runtime control requires the cache module; run "php infbyte module:install cache".',
-            );
-        }
-
         return $this->application->make(CacheManager::class)->store($this->cacheStore());
     }
 
@@ -140,12 +134,6 @@ final readonly class RuntimeControl
     private function mutate(callable $mutation): void
     {
         if ($this->driver() === 'cache') {
-            if (!class_exists(\Infocyph\CacheLayer\Cache\Cache::class)) {
-                throw new \LogicException(
-                    'Cache-backed runtime control requires the cache module; run "php infbyte module:install cache".',
-                );
-            }
-
             $lock = $this->application->make(CacheLayerFactory::class)->lock();
             $handle = $lock->acquire(
                 FoundationCacheKey::fingerprint(

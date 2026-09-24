@@ -7,14 +7,14 @@
         "php": "^8.4",
         "composer-runtime-api": "^2.0",
         "infocyph/arraykit": "^5.2",
-        "infocyph/intermix": "^10.0.4",
+        "infocyph/cachelayer": "^3.4",
+        "infocyph/intermix": "^10.1.1",
         "infocyph/uid": "^5.0",
-        "infocyph/webrick": "^5.3",
+        "infocyph/webrick": "^5.4",
         "psr/log": "^3.0.2"
     },
     "require-dev": {
         "ext-sodium": "*",
-        "infocyph/cachelayer": "^3.4",
         "infocyph/dblayer": "^5.1",
         "infocyph/epicrypt": "^3.1",
         "infocyph/omnibus": "^2.6",
@@ -24,17 +24,17 @@
         "infocyph/reqshield": "^3.2",
         "infocyph/talkingbytes": "^2.1",
         "opis/closure": "^4.5",
-        "web-auth/webauthn-lib": "^5.3.5"
+        "web-auth/webauthn-lib": "^5.3.9"
     },
     "suggest": {
         "ext-sodium": "Required when OTP AOTP/Ed25519 factors are enabled.",
-        "infocyph/cachelayer": "Adds cache stores, native bulk paths, optional atomic claim/consume/CAS, locks, counters, node/cluster cache, and shared authentication/runtime state.",
         "infocyph/dblayer": "Adds database services, persistence, migrations, query caching, replicas, and MySQL/MariaDB/PostgreSQL/SQLite/SQL Server support.",
         "infocyph/epicrypt": "Adds cryptography, secrets, password, JOSE, OAuth 2.1/OIDC/PAT protocol services, and key security services.",
         "infocyph/omnibus": "Adds events, messages, durable queues, handler middleware, workers, optional process pools, retries, workflows, and scheduled-message dispatch.",
         "infocyph/otp": "Adds OTP-backed multi-factor authentication and Passkey/WebAuthn ceremony integration with CacheLayer-backed replay-safe state.",
         "infocyph/pathwise": "Adds filesystem, storage, upload, download, archive, sync, retention, and storage capability enforcement.",
         "infocyph/reqshield": "Adds request, command, configuration, schema, sanitization, typed input, and database validation services.",
+        "infocyph/runwire": "Optional runtime engine and FPM, FrankenPHP, RoadRunner, Swoole/OpenSwoole host adaptation through Webrick; also supports Omnibus process supervision.",
         "infocyph/talkingbytes": "Adds HTTP, inbound/outbound email, webhook, and gRPC communication services.",
         "web-auth/webauthn-lib": "Required by OTP Passkey when the WebAuthn passkey driver is selected."
     },

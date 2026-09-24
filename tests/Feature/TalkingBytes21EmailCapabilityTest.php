@@ -48,11 +48,13 @@ it('keeps TalkingBytes communication and email graphs cold until their Foundatio
                 ],
             ],
         ],
-    ]);
+    ])->boot();
 
     $notificationProviders = $notifications->providers()->classes();
     expect($notificationProviders)->toContain(NotificationServiceProvider::class)
-        ->not->toContain(CommunicationServiceProvider::class);
+        ->not->toContain(CommunicationServiceProvider::class)
+        ->and($notifications->has('foundation.notifications'))->toBeTrue()
+        ->and($notifications->has('foundation.email'))->toBeTrue();
 });
 
 it('keeps mailbox instances caller-owned and spool receivers execution-scoped', function (): void {

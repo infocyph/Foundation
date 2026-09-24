@@ -7,13 +7,16 @@ emitters, signed URLs, streaming, and range handling. Foundation loads only the
 explicit route files configured under `router.files`; it does not discover
 controllers or route directories.
 
-Compile/clear route metadata during deployment with:
+Inspect the configured application routes with:
 
 ```bash
-php infbyte route:cache
-php infbyte route:clear
 php infbyte route:list
 ```
+
+Production route metadata is compiled as part of the Foundation release/optimization
+artifacts. Use `php infbyte optimize` to build them and `php infbyte optimize:clear`
+to remove compiled runtime artifacts; Foundation does not expose separate
+`route:cache` or `route:clear` commands.
 
 Matcher and router policy are documented in the application/router configuration.
 Middleware is route-selected. Auth, browser sessions, CSRF, throttling,
@@ -48,13 +51,10 @@ See `resources/config/validation.php` for publishable application policy.
 CacheLayer owns stores, tiers, locks, counters, memoization, invalidation,
 node/cluster cache, and backend semantics. Foundation owns application
 store/coordination selection and the cross-capability workflows that require
-cache state.
+cache state. CacheLayer ships with Foundation; no module installation is required.
 
-```bash
-php infbyte module:install cache
-```
-
-`resources/config/cache.php` documents supported application descriptors.
+`resources/config/cache.php` documents supported application descriptors, while
+explicit capability topology still controls whether cache services are composed.
 SQLite/direct-PDO stores can operate through their own native configuration;
 a cache descriptor that explicitly selects a DBLayer connection activates the
 `database` capability only when that connection is actually needed.

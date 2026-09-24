@@ -42,9 +42,9 @@ exportable. Use scalar/array/class-string descriptors for release-owned surfaces
 
 Every publishable specialist key is documented inline in its Foundation template:
 
-| Configuration | Template | Canonical module |
+| Configuration | Template | Owner |
 | --- | --- | --- |
-| CacheLayer stores/counters/locks/clusters | `resources/config/cache.php` | `cache` |
+| CacheLayer stores/counters/locks/clusters | `resources/config/cache.php` | Foundation core cache infrastructure |
 | HTTP/webhook/gRPC profiles | `resources/config/communication.php` | `communication` |
 | DBLayer connections/migrations/seeders | `resources/config/database.php` | `database` |
 | Pathwise disks/upload/download policy | `resources/config/filesystem.php` | `filesystem` |
@@ -64,14 +64,9 @@ php infbyte module:config:publish database
 php infbyte module:config:publish operations
 ```
 
-Explicit replacement requires `--force`:
+Explicit replacement of module-owned configuration requires `--force`.
 
-```bash
-php infbyte module:config:publish cache --force
-```
-
-`module:install <module>` also publishes missing config as part of installation,
-but never silently overwrites existing application config.
+`module:install <module>` publishes config for optional modules but never silently overwrites existing application config. `cache.php` is core application configuration and ships with the application skeleton rather than being module-published.
 
 Infrastructure values remain in their owning config; auth does not duplicate
 database/cache/security/communication settings.

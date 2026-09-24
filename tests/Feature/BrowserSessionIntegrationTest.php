@@ -12,6 +12,7 @@ use Infocyph\DBLayer\Exceptions\QueryException;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Foundation;
+use Infocyph\Foundation\Logging\ExceptionReporter;
 use Infocyph\Foundation\Session\BrowserSession;
 use Infocyph\Foundation\Session\Middleware\CsrfMiddleware;
 use Infocyph\Foundation\Session\Middleware\SessionMiddleware;
@@ -29,6 +30,7 @@ use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 use Infocyph\Webrick\Runtime\Http\RuntimeRequestContext;
+use Psr\Log\AbstractLogger;
 
 it('persists session data and expires flash data after its next request', function (): void {
     [$middleware] = browserSessionStack();
@@ -64,6 +66,35 @@ it('persists session data and expires flash data after its next request', functi
     expect(browserSessionJson($second))->toBe(['user_id' => 42, 'notice' => 'saved'])
         ->and(browserSessionJson($third))->toBe(['user_id' => 42, 'notice' => null])
         ->and($first->getHeaderLine('Set-Cookie'))->toContain('Secure', 'HttpOnly', 'SameSite=Lax');
+});
+
+it('finalizes browser sessions before deferred response bodies are produced', function (): void {
+    [$middleware, $manager, $store, , $container] = browserSessionStack();
+
+    $response = $middleware(
+        Request::fake(headers: ['Host' => 'example.test'], uri: 'https://example.test/stream'),
+        static function (Request $request): Response {
+            $session = BrowserSession::fromRequest($request);
+            $session->put('before_stream', true);
+
+            return Response::stream(static function () use ($session): iterable {
+                $session->put('late_stream_write', true);
+                yield 'streamed';
+            });
+        },
+    );
+    $id = browserSessionCookieId($response);
+    $producer = $response->getProducer();
+    expect($producer)->not->toBeNull()
+        ->and(fn() => iterator_to_array($producer()))
+        ->toThrow(LogicException::class, 'finalized for this request');
+
+    $saved = browserSessionWithinScope(
+        $container,
+        static fn(): array => $manager->open($id)->all(),
+    );
+    expect($saved)->toBe(['before_stream' => true])
+        ->and($store->load($id, time())?->data)->toBe(['before_stream' => true]);
 });
 
 it('regenerates identifiers without retaining the old session record', function (): void {
@@ -197,6 +228,42 @@ it('persists payloads through file and cache stores and prunes expired files', f
     }
 });
 
+it('bounds file-session prune mutations and removes corrupt records on read', function (): void {
+    $directory = sys_get_temp_dir() . '/foundation-session-prune-' . bin2hex(random_bytes(5));
+    $store = new FileSessionStore($directory);
+    $now = time();
+
+    try {
+        for ($index = 0; $index < 12; ++$index) {
+            $store->save(
+                str_pad((string) $index, 64, 'a'),
+                new \Infocyph\Foundation\Session\SessionPayload([], [], $now - 1),
+            );
+        }
+        $validId = str_repeat('f', 64);
+        $store->save(
+            $validId,
+            new \Infocyph\Foundation\Session\SessionPayload(['valid' => true], [], $now + 60),
+        );
+
+        expect($store->prune($now, 5))->toBe(5)
+            ->and($store->prune($now, 5))->toBe(5)
+            ->and($store->prune($now, 5))->toBe(2)
+            ->and($store->load($validId, $now)?->data)->toBe(['valid' => true]);
+
+        $corruptId = str_repeat('e', 64);
+        $corruptPath = $directory . DIRECTORY_SEPARATOR
+            . hash('sha3-256', "foundation.session.file\0" . $corruptId)
+            . '.json';
+        file_put_contents($corruptPath, '{');
+
+        expect($store->load($corruptId, $now))->toBeNull()
+            ->and($corruptPath)->not->toBeFile();
+    } finally {
+        browserSessionRemoveDirectory($directory);
+    }
+});
+
 it('creates and uses the portable DBLayer session schema on SQLite', function (): void {
     expect(extension_loaded('pdo_sqlite'))->toBeTrue();
     $project = sys_get_temp_dir() . '/foundation-session-db-' . bin2hex(random_bytes(5));
@@ -265,6 +332,77 @@ it('reports database session failures after a connection is lost', function (): 
     expect(fn() => $database->load(str_repeat('c', 64), time()))->toThrow(QueryException::class);
 });
 
+it('reports cleanup failures without replacing the primary session failure', function (): void {
+    $config = SessionConfig::fromRepository(new ConfigRepository([
+        'session' => ['driver' => 'array', 'lock' => ['enabled' => true]],
+    ]), sys_get_temp_dir() . '/foundation-browser-sessions');
+    $store = new ArraySessionStore();
+    $id = str_repeat('f', 64);
+    $store->save($id, new \Infocyph\Foundation\Session\SessionPayload(['value' => 1], [], time() + 60));
+
+    $locks = new class implements LockProviderInterface {
+        public function acquire(string $key, float $waitSeconds, float $leaseSeconds = 30.0): ?LockHandle
+        {
+            unset($waitSeconds);
+
+            return new LockHandle($key, 'token', leaseSeconds: $leaseSeconds);
+        }
+
+        public function refresh(?LockHandle $handle, float $leaseSeconds): bool
+        {
+            return $handle !== null && $leaseSeconds > 0;
+        }
+
+        public function release(?LockHandle $handle): void
+        {
+            if ($handle !== null) {
+                throw new RuntimeException('cleanup-secret');
+            }
+        }
+    };
+    $logger = new class extends AbstractLogger {
+        /** @var list<array{level:mixed,message:string,context:array<string,mixed>}> */
+        public array $records = [];
+
+        public function log($level, string|Stringable $message, array $context = []): void
+        {
+            $this->records[] = [
+                'level' => $level,
+                'message' => (string) $message,
+                'context' => $context,
+            ];
+        }
+    };
+    $container = browserSessionContainer();
+    $manager = new SessionManager(
+        $config,
+        static fn(): SessionStoreInterface => $store,
+        static fn(): LockProviderInterface => $locks,
+        $container,
+    );
+    $middleware = new SessionMiddleware($manager, $config, new ExceptionReporter($logger));
+
+    expect(fn() => browserSessionWithinScope(
+        $container,
+        static fn(): Response => $middleware(
+            Request::fake(uri: 'https://example.test/failure')
+                ->withCookieParams(['infbyte_session' => $id]),
+            static function (Request $request): never {
+                BrowserSession::fromRequest($request)->get('value');
+                throw new RuntimeException('primary application failed');
+            },
+        ),
+    ))->toThrow(RuntimeException::class, 'primary application failed');
+
+    expect($logger->records)->toHaveCount(1)
+        ->and($logger->records[0]['level'])->toBe('warning')
+        ->and($logger->records[0]['context']['phase'] ?? null)->toBe('browser_session_cleanup')
+        ->and($logger->records[0]['context']['exception']['class'] ?? null)->toBe(RuntimeException::class)
+        ->and(json_encode($logger->records, JSON_THROW_ON_ERROR))
+        ->not->toContain('cleanup-secret')
+        ->not->toContain('primary application failed');
+});
+
 it('releases CacheLayer session locks when request handling fails', function (): void {
     $config = SessionConfig::fromRepository(new ConfigRepository([
         'session' => ['driver' => 'array', 'lock' => ['enabled' => true]],
@@ -275,6 +413,7 @@ it('releases CacheLayer session locks when request handling fails', function ():
     $locks = new class implements LockProviderInterface {
         public int $acquired = 0;
         public bool $owned = true;
+        public bool $failRelease = false;
         public int $released = 0;
         public function acquire(string $key, float $waitSeconds, float $leaseSeconds = 30.0): ?LockHandle
         {
@@ -290,6 +429,9 @@ it('releases CacheLayer session locks when request handling fails', function ():
         {
             if ($handle !== null) {
                 ++$this->released;
+                if ($this->failRelease) {
+                    throw new RuntimeException('lock release failed');
+                }
             }
         }
     };
@@ -337,6 +479,59 @@ it('releases CacheLayer session locks when request handling fails', function ():
     ))->toThrow(RuntimeException::class, 'lock lease was lost')
         ->and($locks->acquired)->toBe(2)
         ->and($locks->released)->toBe(2);
+
+    $locks->failRelease = true;
+    foreach ([true, false] as $handlerFails) {
+        $locks->owned = $handlerFails;
+        expect(fn() => $run(
+            Request::fake(uri: 'https://example.test/failure')
+                ->withCookieParams(['infbyte_session' => $id]),
+            static function (Request $request) use ($handlerFails): Response {
+                BrowserSession::fromRequest($request)->put('value', 3);
+                if ($handlerFails) {
+                    throw new RuntimeException('primary handler failed');
+                }
+                return Response::json(['ok' => true]);
+            },
+        ))->toThrow(RuntimeException::class, $handlerFails ? 'primary handler failed' : 'lock lease was lost');
+        expect(fn() => browserSessionWithinScope($container, static fn(): BrowserSession => $manager->current()))
+            ->toThrow(LogicException::class, 'No browser session is active');
+    }
+
+    $locks->owned = true;
+    expect(fn() => $run(
+        Request::fake(uri: 'https://example.test/cleanup')
+            ->withCookieParams(['infbyte_session' => $id]),
+        static function (Request $request): Response {
+            BrowserSession::fromRequest($request)->get('value');
+            return Response::json(['ok' => true]);
+        },
+    ))->toThrow(RuntimeException::class, 'lock release failed');
+
+    browserSessionWithinScope($container, static function () use ($manager, $locks, $id): void {
+        $session = $manager->open($id);
+        $session->get('value');
+        expect(fn() => $session->release())->toThrow(RuntimeException::class, 'lock release failed');
+        $released = $locks->released;
+        $session->release();
+        expect($locks->released)->toBe($released);
+    });
+
+    $locks->failRelease = false;
+    foreach (['regenerate', 'invalidate'] as $operation) {
+        $locks->owned = true;
+        browserSessionWithinScope($container, static function () use ($manager, $locks, $store, $id, $operation): void {
+            $session = $manager->open($id);
+            $session->get('value');
+            $locks->owned = false;
+            try {
+                expect(fn() => $session->{$operation}())->toThrow(RuntimeException::class, 'lock lease was lost');
+                expect($store->load($id, time())?->data['value'])->toBe(1);
+            } finally {
+                $session->release();
+            }
+        });
+    }
 });
 
 it('isolates active sessions between concurrent fibers', function (): void {

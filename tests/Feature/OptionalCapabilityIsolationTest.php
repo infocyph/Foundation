@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Infocyph\Foundation\Process\ProcessOptions;
 use Infocyph\Foundation\Process\ProcessRunner;
 
-it('boots without optional packages and reports unavailable capabilities cleanly', function (): void {
+it('boots with Foundation core dependencies while optional packages remain unavailable', function (): void {
     $root = dirname(__DIR__, 2);
     $result = new ProcessRunner()->run(
         [PHP_BINARY, $root . '/tests/Fixtures/OptionalCapabilityProbe.php'],
@@ -35,6 +35,11 @@ it('boots without optional packages and reports unavailable capabilities cleanly
             );
     }
 
+    expect($probe['notifications']['dispatcher_available'] ?? false)->toBeTrue()
+        ->and($probe['notifications']['mail_error'] ?? null)->toBeString()
+        ->and($probe['notifications']['mail_error'])
+        ->toContain('optional infocyph/talkingbytes email integration');
+
     expect($probe['auth']['default']['resolved'] ?? false)->toBeTrue()
         ->and($probe['auth']['default']['message'] ?? null)->toBeNull()
         ->and($probe['auth']['otp']['message'] ?? null)->toBeString()
@@ -47,4 +52,16 @@ it('boots without optional packages and reports unavailable capabilities cleanly
             'The selected auth driver requires infocyph/otp;',
             'module:install passkeys',
         );
+});
+
+it('does not probe optional package classes when the capability topology is explicitly empty', function (): void {
+    $root = dirname(__DIR__, 2);
+    $result = new ProcessRunner()->run(
+        [PHP_BINARY, $root . '/tests/Fixtures/ExplicitCapabilityProbe.php'],
+        new ProcessOptions(cwd: $root, timeoutSeconds: 30.0),
+    );
+
+    expect($result->successful())->toBeTrue()
+        ->and(trim($result->stderr))->toBe('')
+        ->and(json_decode(trim($result->stdout), true, flags: JSON_THROW_ON_ERROR))->toBe([]);
 });

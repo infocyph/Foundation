@@ -10,7 +10,7 @@ on:
 
 jobs:
   phpforge:
-    uses: infocyph/phpforge/.github/workflows/security-standards.yml@main
+    uses: infocyph/phpforge/.github/workflows/security-standards.yml@fdec64cf4460f13116eb0e2f3405acadd3e84377
     permissions:
       security-events: write
       actions: read
@@ -23,3 +23,153 @@ jobs:
       service_topologies: '{}'
       benchmark_composer_script: "benchmark:release"
       benchmark_result_file: "build/cachelayer-33-utilization.json"
+
+
+  production-consumer:
+    name: Production consumer - PHP ${{ matrix.php-version }} - ${{ matrix.dependencies }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: ["8.4", "8.5"]
+        dependencies: ["prefer-stable", "prefer-lowest"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          tools: composer:v2
+          extensions: "mbstring, pdo, pdo_sqlite"
+          coverage: none
+      - name: Verify isolated production consumers
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          composer_args=(--no-dev --no-interaction --prefer-dist --no-progress)
+          if [ "${{ matrix.dependencies }}" = "prefer-lowest" ]; then
+            composer_args+=(--prefer-lowest)
+          fi
+
+          minimal="$RUNNER_TEMP/foundation-minimal-consumer"
+          optional="$RUNNER_TEMP/foundation-optional-consumer"
+          mkdir -p "$minimal/storage" "$optional/storage"
+
+          cat > "$minimal/composer.json" <<JSON
+          {
+            "name": "infocyph/foundation-minimal-consumer",
+            "type": "project",
+            "minimum-stability": "dev",
+            "prefer-stable": true,
+            "repositories": [
+              {
+                "type": "path",
+                "url": "$GITHUB_WORKSPACE",
+                "options": {"symlink": false}
+              }
+            ],
+            "require": {
+              "infocyph/foundation": "*"
+            }
+          }
+          JSON
+
+          (
+            cd "$minimal"
+            composer update "${composer_args[@]}"
+            vendor/bin/infbyte list > command-list.txt
+            php -r 'require "vendor/autoload.php";'
+            if composer show infocyph/phpforge >/dev/null 2>&1; then
+              echo "PHPForge leaked into the production consumer." >&2
+              exit 1
+            fi
+            for package in infocyph/dblayer infocyph/epicrypt infocyph/omnibus infocyph/otp infocyph/pathwise infocyph/reqshield infocyph/talkingbytes web-auth/webauthn-lib; do
+              if composer show "$package" >/dev/null 2>&1; then
+                echo "Optional package $package leaked into the minimal consumer." >&2
+                exit 1
+              fi
+            done
+          )
+
+          cat > "$optional/composer.json" <<JSON
+          {
+            "name": "infocyph/foundation-optional-consumer",
+            "type": "project",
+            "minimum-stability": "dev",
+            "prefer-stable": true,
+            "repositories": [
+              {
+                "type": "path",
+                "url": "$GITHUB_WORKSPACE",
+                "options": {"symlink": false}
+              }
+            ],
+            "require": {
+              "infocyph/foundation": "*",
+              "infocyph/dblayer": "^5.1"
+            }
+          }
+          JSON
+
+          (
+            cd "$optional"
+            composer update "${composer_args[@]}"
+            vendor/bin/infbyte list > command-list.txt
+            vendor/bin/infbyte module:show database --json > database-module.json
+            php -r '
+              $payload = json_decode(file_get_contents("database-module.json"), true, 512, JSON_THROW_ON_ERROR);
+              if (($payload["name"] ?? null) !== "database") {
+                  fwrite(STDERR, "Database module inspection did not return the expected payload.\n");
+                  exit(1);
+              }
+            '
+            if composer show infocyph/phpforge >/dev/null 2>&1; then
+              echo "PHPForge leaked into the optional production consumer." >&2
+              exit 1
+            fi
+          )
+
+  release-evidence:
+    name: Release evidence
+    needs: [phpforge, production-consumer]
+    if: ${{ always() && needs.phpforge.result == 'success' && needs.production-consumer.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.5"
+          tools: composer:v2
+          extensions: "mbstring, pdo, pdo_mysql, pdo_pgsql, pdo_sqlite, redis, memcached"
+          coverage: none
+      - name: Install release-evidence dependencies
+        run: composer update --no-interaction --prefer-dist --no-progress --prefer-stable
+      - name: Complete PHPForge release-guard constraints
+        run: |
+          composer validate --strict
+          composer ic:release:constraints
+      - name: Capture release evidence
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          directory=build/release-evidence
+          mkdir -p "$directory"
+          {
+            printf "source_sha=%s\n" "$SOURCE_SHA"
+            printf "ci_sha=%s\n" "$GITHUB_SHA"
+            printf "php=%s\n" "$(php -r 'echo PHP_VERSION;')"
+            printf "phpforge_workflow=%s\n" "fdec64cf4460f13116eb0e2f3405acadd3e84377"
+            printf "generated_at=%s\n" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } > "$directory/manifest.env"
+          php -m | sort > "$directory/php-extensions.txt"
+          composer show --locked --format=json > "$directory/dependencies.json"
+          git ls-files 'tests/*.php' 'tests/**/*.php' | sort > "$directory/test-files.txt"
+          awk 'NF { count++ } END { printf "test_file_inventory=%d\n", count }' "$directory/test-files.txt" > "$directory/test-inventory.env"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: foundation-release-evidence-${{ github.sha }}
+          path: build/release-evidence/
+          retention-days: 30

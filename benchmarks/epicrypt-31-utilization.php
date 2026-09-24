@@ -58,42 +58,6 @@ use Infocyph\Webrick\Router\Url\UrlGenerator;
 use Psr\Container\ContainerInterface;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
-
-/** @return array{median_ns:float,min_ns:float,max_ns:float,spread_percent:float} */
-function epicrypt31Measure(callable $operation, int $operations, int $repetitions, int $warmup): array
-{
-    $samples = [];
-
-    for ($repeat = 0; $repeat < $repetitions; ++$repeat) {
-        for ($iteration = 0; $iteration < $warmup; ++$iteration) {
-            $operation();
-        }
-
-        $started = hrtime(true);
-        for ($iteration = 0; $iteration < $operations; ++$iteration) {
-            $operation();
-        }
-        $samples[] = max(1, hrtime(true) - $started) / $operations;
-    }
-
-    sort($samples, SORT_NUMERIC);
-    $median = $samples[intdiv(count($samples), 2)];
-    $minimum = $samples[0];
-    $maximum = $samples[count($samples) - 1];
-
-    return [
-        'median_ns' => round($median, 2),
-        'min_ns' => round($minimum, 2),
-        'max_ns' => round($maximum, 2),
-        'spread_percent' => round((($maximum - $minimum) / max(1.0, $median)) * 100, 2),
-    ];
-}
-
-function epicrypt31Ratio(float $numerator, float $denominator): float
-{
-    return round($numerator / max(1.0, $denominator), 4);
-}
-
 /**
  * @param array<string, array{median_ns:float,min_ns:float,max_ns:float,spread_percent:float}> $subjects
  * @return array<string, float>
@@ -114,7 +78,7 @@ function epicrypt31Ratios(array $subjects): array
 
     $ratios = [];
     foreach ($pairs as $name => [$foundation, $direct]) {
-        $ratios[$name] = epicrypt31Ratio(
+        $ratios[$name] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::ratio(
             (float) $subjects[$foundation]['median_ns'],
             (float) $subjects[$direct]['median_ns'],
         );
@@ -445,20 +409,20 @@ $environmentFileProtector = new EnvironmentFileProtector(Foundation::cli([
 $subjects = [];
 
 try {
-    $subjects['direct_webrick_signed_url'] = epicrypt31Measure(
+    $subjects['direct_webrick_signed_url'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $directUrlGenerator->signed('download', ['id' => '42'], ['mode' => 'benchmark']),
         $operations,
         $repetitions,
         $warmup,
     );
-    $subjects['foundation_signed_url_policy'] = epicrypt31Measure(
+    $subjects['foundation_signed_url_policy'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $foundationUrlGenerator->signed('download', ['id' => '42'], ['mode' => 'benchmark']),
         $operations,
         $repetitions,
         $warmup,
     );
 
-    $subjects['direct_epicrypt_string_protection'] = epicrypt31Measure(
+    $subjects['direct_epicrypt_string_protection'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $directStringProtector->protectWithKeyRing(
             'JBSWY3DPEHPK3PXP',
             $mfaRing,
@@ -468,14 +432,14 @@ try {
         $repetitions,
         $warmup,
     );
-    $subjects['foundation_mfa_protection'] = epicrypt31Measure(
+    $subjects['foundation_mfa_protection'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $foundationMfaProtector->protect($mfaFactor),
         $operations,
         $repetitions,
         $warmup,
     );
 
-    $subjects['direct_epicrypt_purpose_token'] = epicrypt31Measure(
+    $subjects['direct_epicrypt_purpose_token'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static function () use ($directPurposeToken): void {
             $token = $directPurposeToken->issue(['benchmark' => true], 'benchmark-account');
             if (!$directPurposeToken->verify($token)->verified) {
@@ -486,7 +450,7 @@ try {
         $repetitions,
         $warmup,
     );
-    $subjects['foundation_purpose_token'] = epicrypt31Measure(
+    $subjects['foundation_purpose_token'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static function () use ($foundationPurposeToken): void {
             $tokens = $foundationPurposeToken->forPurpose('benchmark', 300);
             $token = $tokens->issue(['benchmark' => true], 'benchmark-account');
@@ -499,20 +463,20 @@ try {
         $warmup,
     );
 
-    $subjects['direct_epicrypt_jwks'] = epicrypt31Measure(
+    $subjects['direct_epicrypt_jwks'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $oauthFixture->keys->epicrypt->jwks(),
         $operations,
         $repetitions,
         $warmup,
     );
-    $subjects['foundation_jwks_publication'] = epicrypt31Measure(
+    $subjects['foundation_jwks_publication'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $foundationJwks->jwks(),
         $operations,
         $repetitions,
         $warmup,
     );
 
-    $subjects['direct_epicrypt_file_protection'] = epicrypt31Measure(
+    $subjects['direct_epicrypt_file_protection'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static function () use ($directFileProtector, $fileRoot, $fileKey, $fileOptions): void {
             $output = $fileRoot . '/direct.encrypted';
             $directFileProtector->protect($fileRoot . '/source.env', $output, $fileKey, $fileOptions);
@@ -521,7 +485,7 @@ try {
         $repetitions,
         $fileWarmup,
     );
-    $subjects['foundation_environment_file_protection'] = epicrypt31Measure(
+    $subjects['foundation_environment_file_protection'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $environmentFileProtector->encrypt(
             input: 'source.env',
             output: 'foundation.encrypted',
@@ -533,20 +497,20 @@ try {
         $fileWarmup,
     );
 
-    $subjects['direct_epicrypt_password_verification'] = epicrypt31Measure(
+    $subjects['direct_epicrypt_password_verification'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $passwordHasher->verifyPassword($password, $passwordHash),
         $operations,
         $repetitions,
         $warmup,
     );
-    $subjects['foundation_password_verification'] = epicrypt31Measure(
+    $subjects['foundation_password_verification'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $foundationPasswordVerifier->verify($password, $passwordHash),
         $operations,
         $repetitions,
         $warmup,
     );
 
-    $subjects['direct_epicrypt_oauth_resource_validation'] = epicrypt31Measure(
+    $subjects['direct_epicrypt_oauth_resource_validation'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $oauthFixture->resourceValidator->validate(
             $oauthToken,
             $oauthAudience,
@@ -557,14 +521,14 @@ try {
         $repetitions,
         $warmup,
     );
-    $subjects['foundation_oauth_resource_validation'] = epicrypt31Measure(
+    $subjects['foundation_oauth_resource_validation'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $oauthFixture->accessValidator->verify($oauthToken, $oauthAudience),
         $operations,
         $repetitions,
         $warmup,
     );
 
-    $subjects['direct_epicrypt_oidc_userinfo'] = epicrypt31Measure(
+    $subjects['direct_epicrypt_oidc_userinfo'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $directOidc->project(
             'account-1',
             $oauthRegistration->client->clientId,
@@ -574,7 +538,7 @@ try {
         $repetitions,
         $warmup,
     );
-    $subjects['foundation_oidc_userinfo'] = epicrypt31Measure(
+    $subjects['foundation_oidc_userinfo'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $foundationOidc->project(
             'account-1',
             $oauthRegistration->client->clientId,
@@ -585,13 +549,13 @@ try {
         $warmup,
     );
 
-    $subjects['direct_epicrypt_pat_verification'] = epicrypt31Measure(
+    $subjects['direct_epicrypt_pat_verification'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $directPat->verify($directPatToken),
         $operations,
         $repetitions,
         $warmup,
     );
-    $subjects['foundation_pat_db_verification'] = epicrypt31Measure(
+    $subjects['foundation_pat_db_verification'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $foundationPat->verify($foundationPatToken),
         $operations,
         $repetitions,

@@ -3,9 +3,11 @@
 declare(strict_types=1);
 
 use Infocyph\Foundation\Release\ActiveGeneration;
+use Infocyph\Foundation\Release\FoundationReleaseBuildLock;
 use Infocyph\Foundation\Release\FoundationReleaseCompiler;
 use Infocyph\Foundation\Release\FoundationReleaseManifest;
 use Infocyph\Foundation\Release\FoundationReleaseRuntime;
+use Infocyph\Foundation\Runtime\ReleaseGenerationLease;
 
 it('publishes and switches only complete immutable Foundation generations', function (): void {
     $root = foundationReleaseInfrastructureRoot();
@@ -25,6 +27,37 @@ it('publishes and switches only complete immutable Foundation generations', func
         $active->activate($root, 'gen-two');
         expect($active->current($root)['generation'])->toBe('gen-two')
             ->and($active->replacementRequired($root, 'gen-one'))->toBeTrue();
+
+        $active->activate($root, 'gen-one');
+        expect($active->current($root)['generation'])->toBe('gen-one')
+            ->and($active->replacementRequired($root, 'gen-two'))->toBeTrue();
+    } finally {
+        foundationReleaseInfrastructureRemove($root);
+    }
+});
+
+it('serializes release build-plane mutations without changing the active generation', function (): void {
+    $root = foundationReleaseInfrastructureRoot();
+    $active = new ActiveGeneration();
+
+    try {
+        foundationReleaseInfrastructureGeneration($root, 'stable');
+        $active->activate($root, 'stable');
+
+        $lock = FoundationReleaseBuildLock::acquire($root);
+        try {
+            expect(fn() => FoundationReleaseBuildLock::acquire($root))
+                ->toThrow(RuntimeException::class, 'already in progress')
+                ->and(fn() => new FoundationReleaseCompiler()->prune($root))
+                ->toThrow(RuntimeException::class, 'already in progress')
+                ->and($active->current($root)['generation'])->toBe('stable');
+        } finally {
+            $lock->release();
+        }
+
+        $reacquired = FoundationReleaseBuildLock::acquire($root);
+        $reacquired->release();
+        expect($active->current($root)['generation'])->toBe('stable');
     } finally {
         foundationReleaseInfrastructureRemove($root);
     }
@@ -53,6 +86,25 @@ it('requires external trust for prevalidated Foundation generation loading', fun
     }
 });
 
+it('rejects a trusted release when its dependency identity no longer matches', function (): void {
+    $root = foundationReleaseInfrastructureRoot();
+
+    try {
+        $manifestPath = foundationReleaseInfrastructureGeneration($root, 'dependency-mismatch');
+        $manifest = require $manifestPath;
+        $manifest['dependency_fingerprint'] = str_repeat('0', 32);
+        FoundationReleaseManifest::write($manifestPath, $manifest);
+        new ActiveGeneration()->activate($root, 'dependency-mismatch');
+        $sha = hash_file('sha256', $manifestPath);
+        expect($sha)->toBeString();
+
+        expect(fn() => new FoundationReleaseRuntime()->trustedActiveManifest($root, (string) $sha))
+            ->toThrow(RuntimeException::class, 'dependency identity does not match');
+    } finally {
+        foundationReleaseInfrastructureRemove($root);
+    }
+});
+
 it('rejects traversal paths in the Foundation generation manifest', function (): void {
     $manifest = foundationReleaseInfrastructureManifest('bad');
     $manifest['worker']['intermix_path'] = '../worker.php';
@@ -75,6 +127,32 @@ it('prunes old generations explicitly while preserving active and newest release
         expect($removed)->toBe(['oldest'])
             ->and(is_dir($root . '/generations/middle'))->toBeTrue()
             ->and(is_dir($root . '/generations/active'))->toBeTrue();
+    } finally {
+        foundationReleaseInfrastructureRemove($root);
+    }
+});
+
+it('preserves draining generations until their runtime lease is released', function (): void {
+    $root = foundationReleaseInfrastructureRoot();
+    $compiler = new FoundationReleaseCompiler();
+
+    try {
+        foundationReleaseInfrastructureGeneration($root, 'draining');
+        foundationReleaseInfrastructureGeneration($root, 'active');
+        touch($root . '/generations/draining', 100);
+        touch($root . '/generations/active', 200);
+        new ActiveGeneration()->activate($root, 'active');
+
+        $lease = ReleaseGenerationLease::acquireShared($root, 'draining');
+        try {
+            expect($compiler->prune($root, keep: 1))->toBe([])
+                ->and(is_dir($root . '/generations/draining'))->toBeTrue();
+        } finally {
+            $lease->release();
+        }
+
+        expect($compiler->prune($root, keep: 1))->toBe(['draining'])
+            ->and(is_dir($root . '/generations/draining'))->toBeFalse();
     } finally {
         foundationReleaseInfrastructureRemove($root);
     }
@@ -131,6 +209,7 @@ function foundationReleaseInfrastructureManifest(string $generation): array
         'generation' => $generation,
         'environment' => 'production',
         'config_fingerprint' => str_repeat('c', 32),
+        'dependency_fingerprint' => FoundationReleaseManifest::dependencyFingerprint(),
         'config_path' => 'config.php',
         'config_sha256' => str_repeat('e', 64),
         'web' => [
@@ -148,6 +227,7 @@ function foundationReleaseInfrastructureGeneration(string $root, string $generat
 {
     $directory = $root . '/generations/' . $generation;
     mkdir($directory, 0777, true);
+    ReleaseGenerationLease::initialize($directory);
 
     return FoundationReleaseManifest::write(
         $directory . '/foundation.php',

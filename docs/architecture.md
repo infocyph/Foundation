@@ -10,6 +10,7 @@ not rebuild specialist engines.
 | --- | --- |
 | Dependency injection, lifetimes, scopes | InterMix |
 | HTTP routing, requests, responses, emitters | Webrick |
+| Selected runtime engine, host adaptation and host lifecycle | Runwire |
 | Foundation CLI parsing/definitions/execution policy | Foundation |
 | Events, messages, retries, failure storage, messaging workers | Omnibus |
 | Database connections, queries, schema, migrations, telemetry | DBLayer |
@@ -62,13 +63,14 @@ Providers contribute graph definitions through `ContainerBuilder` before
 compilation. Provider boot hooks may initialize already-defined services but do
 not mutate the production graph.
 
-Package presence and application capability activation are separate concerns.
+Dependency presence and application capability activation are separate concerns. CacheLayer is always present as Foundation core infrastructure, but its runtime capability remains activation-controlled.
 Development may discover installed optional packages when no explicit topology
 is supplied. Production release compilation is explicit: omitted capability
 sets mean a deliberately minimal topology, not installed-package activation.
-Consequently, installing CacheLayer, DBLayer, Omnibus, TalkingBytes, Epicrypt,
-Pathwise, ReqShield, OTP, or WebAuthn does not by itself open a connection,
-construct a store, or add unrelated request work.
+Consequently, Foundation requiring CacheLayer—and applications installing
+DBLayer, Omnibus, TalkingBytes, Epicrypt, Pathwise, ReqShield, OTP, or WebAuthn—
+does not by itself activate the corresponding runtime capability, open a
+connection, construct a store, or add unrelated request work.
 
 Purpose-first modules (`database`, `security`, `auth`, `messaging`, and so on)
 select application capabilities. One module may have several backing packages;
@@ -119,6 +121,24 @@ data, not a captured Foundation `Application` or mutable service graph. Webrick'
 `CompiledRouterKernel` and selected `RuntimeAdapter` own production HTTP
 execution. `Application::handle(Request)` remains an embedded/testing
 convenience, not a second native emitter.
+
+## Runwire and host ownership
+
+When Runwire is selected, Foundation composes its generated application through
+Webrick's Runwire bridge. Runwire owns native portable/prefork execution and the
+FPM, FrankenPHP, RoadRunner and Swoole/OpenSwoole host-driver boundary. It also
+owns runtime capabilities, admission, cancellation/deadlines and drain/shutdown.
+Webrick owns HTTP semantics, request adaptation/scoping and response writing;
+Foundation owns application policy and cleanup of its scoped services.
+
+Foundation must propagate the selected Runwire context/capabilities rather than
+infer persistence from application mode, duplicate host detection or introduce
+parallel server adapters. Ordinary PHP/FPM without Runwire continues to use the
+Webrick SAPI path. Existing direct Webrick host adapters remain explicit
+alternatives, not evidence that Foundation needs its own host drivers.
+
+See [Runtime hosting](runtime-hosting.md) for supported upstream host paths and
+the Foundation integration acceptance requirements.
 
 ## Non-web generated runtimes
 

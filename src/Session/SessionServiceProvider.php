@@ -12,6 +12,7 @@ use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Filesystem\PathManager;
+use Infocyph\Foundation\Logging\ExceptionReporter;
 use Infocyph\Foundation\Session\Middleware\CsrfMiddleware;
 use Infocyph\Foundation\Session\Middleware\SessionMiddleware;
 use Infocyph\InterMix\DI\Container;
@@ -32,7 +33,7 @@ final class SessionServiceProvider extends ServiceProvider
         $this->registerCore($builder, $context);
         $this->registerStore($builder, $driver);
         $this->registerManager($builder, ($lock['enabled'] ?? false) === true);
-        $this->registerMiddleware($builder);
+        $this->registerMiddleware($builder, $context);
     }
 
     private function registerCore(ContainerBuilder $builder, FoundationBuildContext $context): void
@@ -94,11 +95,18 @@ final class SessionServiceProvider extends ServiceProvider
         ));
     }
 
-    private function registerMiddleware(ContainerBuilder $builder): void
+    private function registerMiddleware(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
+        $arguments = [
+            new ServiceReference(SessionManager::class),
+            new ServiceReference(SessionConfig::class),
+            $context->runtimeMode === RuntimeMode::Web
+                ? new ServiceReference(ExceptionReporter::class)
+                : null,
+        ];
         $builder->singleton(SessionMiddleware::class, FactoryDefinition::construct(
             SessionMiddleware::class,
-            [new ServiceReference(SessionManager::class), new ServiceReference(SessionConfig::class)],
+            $arguments,
         ));
         $builder->bind(
             BrowserSession::class,

@@ -33,6 +33,8 @@ final class BrowserSession
 
     private ?LockProviderInterface $lockProvider = null;
 
+    private bool $released = false;
+
     public function __construct(
         private readonly ?string $candidateId,
         /** @var Closure():SessionStoreInterface */
@@ -62,6 +64,8 @@ final class BrowserSession
 
     public function commit(int $now): SessionCommit
     {
+        $this->assertOpen();
+
         if (!$this->accessed) {
             return new SessionCommit(false, null);
         }
@@ -73,11 +77,7 @@ final class BrowserSession
             }
         }
 
-        if ($this->lock !== null
-            && !$this->lockProvider?->refresh($this->lock, $this->config->lockLeaseSeconds)
-        ) {
-            throw new \RuntimeException('The browser session lock lease was lost before persistence.');
-        }
+        $this->assertLockOwned();
 
         $id = $this->id ?? self::generateId();
         $payload = new SessionPayload(
@@ -242,9 +242,12 @@ final class BrowserSession
 
     public function release(): void
     {
-        $this->lockProvider?->release($this->lock);
+        $this->released = true;
+        $provider = $this->lockProvider;
+        $lock = $this->lock;
         $this->lock = null;
         $this->lockProvider = null;
+        $provider?->release($lock);
     }
 
     public function wasAccessed(): bool
@@ -266,7 +269,7 @@ final class BrowserSession
         $provider = ($this->locks)();
         if (!$provider instanceof LockProviderInterface) {
             throw new \LogicException(
-                'Session locking requires infocyph/cachelayer and a configured cache lock provider.',
+                'Session locking requires a configured Foundation cache lock provider.',
             );
         }
 
@@ -283,16 +286,35 @@ final class BrowserSession
         $this->lock = $lock;
     }
 
+    private function assertLockOwned(): void
+    {
+        if (
+            $this->lock !== null
+            && !$this->lockProvider?->refresh($this->lock, $this->config->lockLeaseSeconds)
+        ) {
+            throw new \RuntimeException('The browser session lock lease was lost before mutation.');
+        }
+    }
+
+    private function assertOpen(): void
+    {
+        if ($this->released) {
+            throw new \LogicException('The browser session is finalized for this request.');
+        }
+    }
+
     private function deleteCurrent(): void
     {
         $id = $this->id;
         if ($id !== null) {
+            $this->assertLockOwned();
             ($this->store)()->delete($id);
         }
     }
 
     private function load(): void
     {
+        $this->assertOpen();
         $this->accessed = true;
         if ($this->loaded) {
             return;

@@ -184,7 +184,9 @@ php infbyte config:validate --production
 php infbyte app:ready
 ```
 
-These checks complement rather than replace deployment security review.
+These checks complement rather than replace deployment security review. The release suite also exercises the Foundation auth atomic-counter adapter and replay stores from independent processes against Redis so distributed lockout/replay policy is verified at the Foundation-to-CacheLayer boundary.
+
+Proxy parsing and forwarded-host/scheme trust remain Webrick/selected-host responsibilities. Foundation consumes the effective Webrick request and verifies its own consequences: CSRF origin policy, secure browser-session cookies, signed-link policy and OAuth redirect/callback validation.
 
 Before release, review authentication/session cookies, trusted proxies/origins,
 CSRF, storage/upload roots, database credentials, cache lock placement, message

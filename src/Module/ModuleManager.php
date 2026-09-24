@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Module;
 
-use Composer\InstalledVersions;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Config\ConfigCacheManager;
 use Infocyph\Foundation\Module\Internal\ModuleConfigPublisher;
@@ -12,6 +11,10 @@ use Infocyph\Foundation\Process\ProcessOptions;
 use Infocyph\Foundation\Process\ProcessResult;
 use Infocyph\Foundation\Process\ProcessRunner;
 
+/**
+ * @phpstan-import-type ModuleDefinition from ModuleCatalog
+ * @phpstan-import-type ModuleState from ModuleStateResolver
+ */
 final readonly class ModuleManager
 {
     public function __construct(
@@ -20,86 +23,34 @@ final readonly class ModuleManager
         private ProcessRunner $processes,
     ) {}
 
-    /**
-     * @return list<array{
-     *     name:string,
-     *     description:string,
-     *     built_in:bool,
-     *     status:string,
-     *     installed:bool,
-     *     direct:bool,
-     *     schemas:list<string>,
-     *     packages:array<string,array{constraint:string,installed:bool,direct:bool,version:?string}>
-     * }>
-     */
+    /** @phpstan-return list<ModuleState> */
     public function all(): array
     {
-        $direct = $this->directRequirements();
-        $modules = [];
-
-        foreach ($this->catalog->all() as $name => $definition) {
-            $builtIn = ($definition['built_in'] ?? false) === true;
-            $packages = [];
-            $installedCount = 0;
-            $directCount = 0;
-
-            foreach ($definition['packages'] as $package => $constraint) {
-                $installed = InstalledVersions::isInstalled($package);
-                $isDirect = isset($direct[$package]);
-                $installedCount += $installed ? 1 : 0;
-                $directCount += $isDirect ? 1 : 0;
-                $packages[$package] = [
-                    'constraint' => $constraint,
-                    'installed' => $installed,
-                    'direct' => $isDirect,
-                    'version' => $installed ? InstalledVersions::getPrettyVersion($package) : null,
-                ];
-            }
-
-            $packageCount = count($packages);
-            $installed = $builtIn || ($packageCount > 0 && $installedCount === $packageCount);
-            $status = match (true) {
-                $builtIn => 'built-in',
-                $installed => 'installed',
-                $installedCount > 0 => 'partial',
-                default => 'available',
-            };
-
-            $modules[] = [
-                'name' => $name,
-                'description' => $definition['description'],
-                'built_in' => $builtIn,
-                'status' => $status,
-                'installed' => $installed,
-                'direct' => $builtIn || ($packageCount > 0 && $directCount === $packageCount),
-                'schemas' => $definition['schemas'],
-                'packages' => $packages,
-            ];
-        }
-
-        return $modules;
+        return new ModuleStateResolver($this->application, $this->catalog)->all();
     }
 
-    public function install(string $module, bool $dryRun = false): ProcessResult
+    /** @param list<string> $features */
+    public function install(string $module, array $features = [], bool $dryRun = false): ProcessResult
     {
-        $definition = $this->catalog->resolve($module);
-        if (($definition['built_in'] ?? false) === true || $definition['packages'] === []) {
+        $definition = $this->catalog->resolve($module, $features);
+        $packages = $this->catalog->installationPackages($definition, $definition['requested_features']);
+        if (($definition['built_in'] ?? false) === true || $packages === []) {
             return new ProcessResult(0);
         }
 
         $command = ['composer', 'require'];
-        foreach ($definition['packages'] as $package => $constraint) {
+        foreach ($packages as $package => $constraint) {
             $command[] = $package . ':' . $constraint;
         }
         $command[] = '--with-all-dependencies';
-        $command[] = '--update-no-dev';
+        $command[] = '--no-interaction';
         if ($dryRun) {
             $command[] = '--dry-run';
         }
 
         return $this->processes->run($command, new ProcessOptions(
             cwd: $this->application->basePath(),
-            interactive: true,
+            interactive: false,
         ));
     }
 
@@ -115,58 +66,187 @@ final readonly class ModuleManager
         return $result;
     }
 
-    public function remove(string $module, bool $dryRun = false): ProcessResult
+    /** @param list<string> $features */
+    public function remove(string $module, array $features = [], bool $dryRun = false): ProcessResult
     {
-        $definition = $this->catalog->resolve($module);
+        $definition = $this->catalog->resolve($module, $features);
         if (($definition['built_in'] ?? false) === true) {
             throw new \InvalidArgumentException(sprintf('Module "%s" is built into Foundation.', $definition['name']));
         }
 
-        $direct = $this->directRequirements();
-        $packages = array_values(array_filter(
-            array_keys($definition['packages']),
-            static fn(string $package): bool => isset($direct[$package]),
-        ));
+        $resolver = new ModuleStateResolver($this->application, $this->catalog);
+        $ownership = $resolver->rootRequirements();
+        if (!$ownership['known']) {
+            throw new \RuntimeException(
+                'Unable to determine direct Composer ownership: '
+                . ($ownership['error'] ?? 'application composer.json is unavailable.'),
+            );
+        }
+
+        $states = $resolver->all();
+        $state = array_find(
+            $states,
+            static fn(array $candidate): bool => $candidate['name'] === $definition['name'],
+        );
+        if (!is_array($state)) {
+            throw new \RuntimeException(sprintf('Unable to resolve module "%s".', $definition['name']));
+        }
+        $this->assertRemovalSafe($definition['name'], $definition['requested_features'], $state, $states);
+
+        $packages = $this->removalPackages(
+            $definition,
+            $definition['requested_features'],
+            $ownership['requirements'],
+        );
         if ($packages === []) {
             return new ProcessResult(0);
         }
 
-        $command = ['composer', 'remove', ...$packages, '--with-all-dependencies', '--update-no-dev'];
+        $command = ['composer', 'remove', ...$packages, '--with-all-dependencies', '--no-interaction'];
         if ($dryRun) {
             $command[] = '--dry-run';
         }
 
         return $this->processes->run($command, new ProcessOptions(
             cwd: $this->application->basePath(),
-            interactive: true,
+            interactive: false,
         ));
     }
 
-    /** @return array<string,string> */
-    private function directRequirements(): array
+    /**
+     * @param list<string> $features
+     * @phpstan-param ModuleState $state
+     * @phpstan-param list<ModuleState> $states
+     */
+    private function assertRemovalSafe(string $module, array $features, array $state, array $states): void
     {
-        $path = $this->application->basePath('composer.json');
-        $contents = is_file($path) ? file_get_contents($path) : false;
-        if (!is_string($contents)) {
-            return [];
+        $blockers = $features === [] && $state['enabled']
+            ? [sprintf('Module "%s" is enabled; disable it before removing packages.', $module)]
+            : [];
+
+        array_push($blockers, ...$this->selectedFeatureRemovalBlockers($module, $features, $state));
+        if ($features === []) {
+            array_push($blockers, ...$this->dependentRemovalBlockers($module, $states));
         }
 
-        try {
-            $composer = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
-        } catch (\JsonException) {
-            return [];
-        }
-        if (!is_array($composer) || !is_array($composer['require'] ?? null)) {
-            return [];
+        if ($blockers === []) {
+            return;
         }
 
-        $requirements = [];
-        foreach ($composer['require'] as $package => $constraint) {
-            if (is_string($package) && is_string($constraint)) {
-                $requirements[$package] = $constraint;
+        throw new \RuntimeException(sprintf(
+            'Module "%s" cannot be removed: %s',
+            $module,
+            implode('; ', array_values(array_unique($blockers))),
+        ));
+    }
+
+    /**
+     * @phpstan-param list<ModuleState> $states
+     * @return list<string>
+     */
+    private function dependentRemovalBlockers(string $module, array $states): array
+    {
+        $blockers = [];
+        foreach ($states as $candidate) {
+            if (!$candidate['enabled'] || $candidate['name'] === $module) {
+                continue;
+            }
+
+            foreach ($candidate['dependencies']['active'] as $dependency) {
+                if ($dependency['type'] === 'module' && $dependency['target'] === $module) {
+                    $blockers[] = sprintf('%s: %s', $candidate['name'], $dependency['reason']);
+                }
             }
         }
 
-        return $requirements;
+        return $blockers;
+    }
+
+    /**
+     * @phpstan-param ModuleDefinition $definition
+     * @param list<string> $otherFeatures
+     * @param array<string,string> $direct
+     */
+    private function otherFeatureOwnsPackage(
+        array $definition,
+        string $package,
+        array $otherFeatures,
+        array $direct,
+    ): bool {
+        foreach ($otherFeatures as $feature) {
+            $packages = $this->catalog->featurePackages($definition, $feature);
+            unset($packages[$package]);
+
+            if ($packages === []) {
+                return true;
+            }
+            if (array_any(
+                array_keys($packages),
+                static fn(string $candidate): bool => isset($direct[$candidate]),
+            )) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @phpstan-param ModuleDefinition $definition
+     * @param list<string> $features
+     * @param array<string,string> $direct
+     * @return list<string>
+     */
+    private function removalPackages(array $definition, array $features, array $direct): array
+    {
+        $managed = $this->catalog->managedPackages($definition);
+        if ($features !== []) {
+            $managed = [];
+            foreach ($features as $feature) {
+                $managed = array_replace($managed, $this->catalog->featurePackages($definition, $feature));
+            }
+        }
+
+        $packages = [];
+        foreach (array_keys($managed) as $package) {
+            if (!isset($direct[$package])) {
+                continue;
+            }
+
+            if ($features !== []) {
+                $owners = $definition['packages'][$package]['features'] ?? [];
+                $otherFeatures = array_values(array_diff($owners, $features));
+                if ($otherFeatures !== []
+                    && $this->otherFeatureOwnsPackage($definition, $package, $otherFeatures, $direct)
+                ) {
+                    continue;
+                }
+            }
+
+            $packages[] = $package;
+        }
+
+        return $packages;
+    }
+
+    /**
+     * @param list<string> $features
+     * @phpstan-param ModuleState $state
+     * @return list<string>
+     */
+    private function selectedFeatureRemovalBlockers(string $module, array $features, array $state): array
+    {
+        $blockers = [];
+        foreach ($features as $feature) {
+            if ($state['enabled'] && $state['features'][$feature]['selected']) {
+                $blockers[] = sprintf(
+                    'Feature "%s" is selected on enabled module "%s"; change configuration before removal.',
+                    $feature,
+                    $module,
+                );
+            }
+        }
+
+        return $blockers;
     }
 }

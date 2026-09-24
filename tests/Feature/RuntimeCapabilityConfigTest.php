@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Config\ConfigValidator;
+use Infocyph\Foundation\Config\Internal\ConfiguredCapabilities;
 use Infocyph\Foundation\Diagnostics\ReadinessReport;
 use Infocyph\Foundation\Foundation;
 
@@ -108,6 +109,23 @@ it('accepts the default configuration for new runtime capabilities', function ()
     )->and($readiness)->toHaveKeys(['ready', 'checks'])
         ->and($readiness['checks'])->toHaveKeys(['php', 'base_path', 'storage', 'runtime'])
         ->and($readiness['checks']['runtime']['detail'])->toBe('cli');
+});
+
+it('distinguishes inferred cache activation from an explicit cold topology', function (): void {
+    $inferred = Foundation::cli();
+    $explicit = Foundation::cli([
+        'app' => [
+            'capabilities' => [],
+        ],
+    ]);
+
+    $inferredCapabilities = new ConfiguredCapabilities($inferred->config());
+    $explicitCapabilities = new ConfiguredCapabilities($explicit->config());
+
+    expect($inferredCapabilities->explicit())->toBeFalse()
+        ->and($inferredCapabilities->enabled('cache'))->toBeTrue()
+        ->and($explicitCapabilities->explicit())->toBeTrue()
+        ->and($explicitCapabilities->enabled('cache'))->toBeFalse();
 });
 
 it('does not apply inactive optional auth production policy to an explicit lean topology', function (): void {

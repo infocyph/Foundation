@@ -91,15 +91,13 @@ final readonly class AuthSchemaInstaller
             $this->mfaRevisionSchema,
             $this->passkeyRevisionSchema,
             $this->passkeyRecordSchema,
+            ...($this->oauthEnabled ? [
+                $this->oauthSchema(),
+                new AuthOAuthEpicryptRevisionSchema($this->tables),
+                new AuthOAuthEpicryptProtocolSchema($this->tables),
+            ] : []),
+            ...($this->personalAccessTokensEnabled ? [$this->personalAccessTokenSchema()] : []),
         ];
-        if ($this->oauthEnabled) {
-            $migrations[] = $this->oauthSchema();
-            $migrations[] = new AuthOAuthEpicryptRevisionSchema($this->tables);
-            $migrations[] = new AuthOAuthEpicryptProtocolSchema($this->tables);
-        }
-        if ($this->personalAccessTokensEnabled) {
-            $migrations[] = $this->personalAccessTokenSchema();
-        }
 
         return new MigrationRunner(
             $this->factory->connection($connection),

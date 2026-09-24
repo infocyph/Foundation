@@ -8,6 +8,7 @@ use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Routing\WebReleaseCompiler;
 use Infocyph\Foundation\Runtime\GeneratedRuntimeCompiler;
 use Infocyph\Foundation\Runtime\GeneratedRuntimeMetadata;
+use Infocyph\Foundation\Runtime\ReleaseGenerationLease;
 use Infocyph\Foundation\Worker\WorkerTopology;
 use Infocyph\Webrick\Router\Build\ReleaseCompiler as WebrickReleaseCompiler;
 
@@ -44,9 +45,11 @@ final readonly class FoundationReleaseCompiler
         $releaseRoot = $this->root($releaseRoot);
         $generation ??= gmdate('YmdHis') . '-' . bin2hex(random_bytes(8));
         $this->assertGeneration($generation);
-        [$stage, $final] = $this->generationPaths($releaseRoot, $generation);
+        $lock = FoundationReleaseBuildLock::acquire($releaseRoot);
+        $stage = '';
 
         try {
+            [$stage, $final] = $this->generationPaths($releaseRoot, $generation);
             $manifest = $this->compileGeneration($config, $stage, $final, $generation, $capabilities);
             FoundationReleaseManifest::write($stage . '/foundation.php', $manifest);
             $this->verifyStage($stage, $manifest);
@@ -67,6 +70,7 @@ final readonly class FoundationReleaseCompiler
             if ($stage !== '' && is_dir($stage)) {
                 $this->removeDirectory($stage);
             }
+            $lock->release();
         }
     }
 
@@ -74,14 +78,20 @@ final readonly class FoundationReleaseCompiler
     public function clear(string $releaseRoot): bool
     {
         $releaseRoot = $this->root($releaseRoot);
-        $removed = $this->active->clear($releaseRoot);
-        $generations = $releaseRoot . DIRECTORY_SEPARATOR . 'generations';
-        if (is_dir($generations)) {
-            $this->removeDirectory($generations);
-            $removed = true;
-        }
+        $lock = FoundationReleaseBuildLock::acquire($releaseRoot);
 
-        return $removed;
+        try {
+            $removed = $this->active->clear($releaseRoot);
+            $generations = $releaseRoot . DIRECTORY_SEPARATOR . 'generations';
+            if (is_dir($generations)) {
+                $this->removeDirectory($generations);
+                $removed = true;
+            }
+
+            return $removed;
+        } finally {
+            $lock->release();
+        }
     }
 
     /**
@@ -95,28 +105,43 @@ final readonly class FoundationReleaseCompiler
             throw new \InvalidArgumentException('Foundation release pruning must keep at least one generation.');
         }
         $releaseRoot = $this->root($releaseRoot);
-        $generations = $releaseRoot . DIRECTORY_SEPARATOR . 'generations';
-        if (!is_dir($generations)) {
-            return [];
-        }
+        $lock = FoundationReleaseBuildLock::acquire($releaseRoot);
 
-        $active = $this->activeGenerationOrNull($releaseRoot);
-        $entries = $this->generationTimes($generations);
-        $retain = array_fill_keys(array_slice(array_keys($entries), 0, $keep), true);
-        if ($active !== null) {
-            $retain[$active] = true;
-        }
-
-        $removed = [];
-        foreach (array_keys($entries) as $generation) {
-            if (isset($retain[$generation])) {
-                continue;
+        try {
+            $generations = $releaseRoot . DIRECTORY_SEPARATOR . 'generations';
+            if (!is_dir($generations)) {
+                return [];
             }
-            $this->removeDirectory($generations . DIRECTORY_SEPARATOR . $generation);
-            $removed[] = $generation;
-        }
 
-        return $removed;
+            $active = $this->activeGenerationOrNull($releaseRoot);
+            $entries = $this->generationTimes($generations);
+            $retain = array_fill_keys(array_slice(array_keys($entries), 0, $keep), true);
+            if ($active !== null) {
+                $retain[$active] = true;
+            }
+
+            $removed = [];
+            foreach (array_keys($entries) as $generation) {
+                if (isset($retain[$generation])) {
+                    continue;
+                }
+                $lease = ReleaseGenerationLease::tryExclusive($releaseRoot, $generation);
+                if (!$lease instanceof ReleaseGenerationLease) {
+                    continue;
+                }
+
+                try {
+                    $this->removeDirectory($generations . DIRECTORY_SEPARATOR . $generation);
+                    $removed[] = $generation;
+                } finally {
+                    $lease->release();
+                }
+            }
+
+            return $removed;
+        } finally {
+            $lock->release();
+        }
     }
 
     /**
@@ -183,6 +208,7 @@ final readonly class FoundationReleaseCompiler
         string $generation,
         array $capabilities,
     ): array {
+        ReleaseGenerationLease::initialize($stage);
         $this->mkdir($stage . '/web');
         $web = $this->web->compile(
             $config,
@@ -221,6 +247,7 @@ final readonly class FoundationReleaseCompiler
             'generation' => $generation,
             'environment' => $environment,
             'config_fingerprint' => $configFingerprint,
+            'dependency_fingerprint' => FoundationReleaseManifest::dependencyFingerprint(),
             'config_path' => $releaseConfig['path'],
             'config_sha256' => $releaseConfig['sha256'],
             'web' => [

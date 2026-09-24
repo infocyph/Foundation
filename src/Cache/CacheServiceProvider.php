@@ -25,12 +25,6 @@ final class CacheServiceProvider extends ServiceProvider
 {
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        if (!class_exists(Cache::class)) {
-            throw new \LogicException(
-                'Foundation cache services require infocyph/cachelayer; run "php infbyte module:install cache".',
-            );
-        }
-
         $hasDatabase = $builder->definitions()->has(DBLayerFactory::class);
         $builder->singleton(CacheLayerFactory::class, FactoryDefinition::staticFactory(
             CacheGraphFactory::class,

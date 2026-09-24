@@ -69,20 +69,15 @@ final readonly class MaintenanceManager
 
     private function cache(): \Infocyph\CacheLayer\Cache\CacheInterface
     {
-        if (!class_exists(\Infocyph\CacheLayer\Cache\Cache::class)) {
-            throw new \LogicException(
-                'Cache-backed maintenance mode requires the cache module; run "php infbyte module:install cache".',
-            );
-        }
         if (!$this->container->has(CacheManager::class)) {
             throw new \LogicException(
-                'Cache-backed maintenance mode requires the Foundation cache module to be registered.',
+                'Cache-backed maintenance mode requires the Foundation cache capability.',
             );
         }
 
         $manager = $this->container->get(CacheManager::class);
         if (!$manager instanceof CacheManager) {
-            throw new \LogicException('Foundation cache module did not resolve CacheManager.');
+            throw new \LogicException('Foundation cache capability did not resolve CacheManager.');
         }
 
         $store = $this->config->get('operations.maintenance.store');

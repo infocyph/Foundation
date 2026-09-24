@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use Infocyph\CacheLayer\Cache\Cache;
 use Infocyph\CacheLayer\Cache\CacheOptions;
+use Infocyph\CacheLayer\Counter\AtomicCounters;
+use Infocyph\Foundation\Auth\Adapter\CacheLayer\AtomicCounterStore;
 use Infocyph\Foundation\Auth\Adapter\CacheLayer\CacheLayerTtlStore;
 use Infocyph\Foundation\Communication\CacheLayerWebhookReplayStore;
 
@@ -24,6 +26,7 @@ $result = match ($mode) {
     'claim' => (new CacheLayerWebhookReplayStore($cache))->claim('concurrency', $arg1, 30),
     'pull' => (new CacheLayerTtlStore($cache))->pull($arg1, '__miss__'),
     'cas' => $cache->atomic()?->compareAndSet($arg1, 0, 1, 30) ?? false,
+    'counter' => (new AtomicCounterStore(AtomicCounters::redis($namespace, $dsn)))->increment($arg1, ttlSeconds: 30),
     default => throw new InvalidArgumentException('Unsupported CacheLayer atomic worker mode.'),
 };
 

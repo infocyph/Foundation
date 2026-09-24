@@ -62,6 +62,15 @@ Authentication sessions are identity/security records used by login and
 principal resolution. They are distinct from Foundation browser sessions,
 which own cookie-backed application state, flash data, and CSRF tokens.
 
+Foundation deliberately does not couple those two session domains. At an
+application privilege boundary—successful login, impersonation start/stop,
+account switch or another transition that changes the browser's authenticated
+authority—the web application must explicitly call
+`BrowserSession::regenerate()` before returning the response. Logout or a
+transition that must discard browser state may use `invalidate()`. Rotation
+checks current lock ownership before deleting the previous record, so a stale
+request cannot remove newer session state.
+
 ## Authorization
 
 The configured authorizer evaluates application gate/policy/permission/grant
@@ -91,14 +100,14 @@ php infbyte module:install auth
 The module bundle contains:
 
 - `infocyph/otp ^6.1`
-- `web-auth/webauthn-lib ^5.3.5`
+- `web-auth/webauthn-lib ^5.3.9`
 
 Runtime readiness remains implementation-specific: selecting OTP MFA requires
 OTP; selecting WebAuthn passkeys requires WebAuthn. One does not make the other
 mandatory unless both behaviors are configured.
 
-Other selected auth drivers may require the canonical `cache`, `database`,
-`security`, or `communication` modules.
+Other selected auth drivers may require the core `cache` capability or the
+optional `database`, `security`, or `communication` modules.
 
 ## Driver ownership
 
@@ -195,10 +204,10 @@ php infbyte app:ready
 Production validation rejects development-only/inadequate state combinations
 and applies OTP replay-topology validation when OTP MFA is active.
 
-## Verification phase
+## Verification
 
-Credential, authorization, MFA, passkey, persistence, concurrency, Fiber,
-persistent-runtime, and failure-path coverage belong in the dedicated deferred
-Foundation release matrix. The documented contracts describe intended current
-behavior; they do not assert that the full release-candidate test matrix has
-already been executed.
+The Foundation suite covers credential/authorization flows, MFA/passkey replay
+and persistence boundaries, OAuth rotation/revocation, browser-session fixation
+rotation, shared-store contention, Fiber/persistent-runtime isolation and
+secret-safe error output. The release evidence record identifies the exact
+candidate workflow that qualified those source contracts.

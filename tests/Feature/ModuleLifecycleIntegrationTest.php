@@ -6,6 +6,7 @@ use Infocyph\DBLayer\DB;
 use Infocyph\Foundation\Command\CommandDispatcher;
 use Infocyph\Foundation\Command\CommandIO;
 use Infocyph\Foundation\Command\ExitCode;
+use Infocyph\Foundation\Module\ModuleCatalog;
 
 final class FoundationModuleLifecycleIO implements CommandIO
 {
@@ -123,18 +124,126 @@ it('exposes canonical module list and alias-aware module details through the com
             ? array_find($modules, static fn(mixed $module): bool => is_array($module) && ($module['name'] ?? null) === 'database')
             : null;
         expect($database)->toBeArray()
+            ->and($database['schema_version'] ?? null)->toBe(1)
+            ->and($database['installed'] ?? null)->toBeFalse()
+            ->and($database['ownership_unknown'] ?? null)->toBeTrue()
+            ->and($database['enabled'] ?? null)->toBeTrue()
+            ->and($database['activation_explicit'] ?? null)->toBeFalse()
+            ->and($database['configured'] ?? null)->toBeTrue()
+            ->and($database['config_published'] ?? null)->toBeFalse()
             ->and($database['packages']['infocyph/dblayer']['constraint'] ?? null)->toBe('^5.1');
 
         $show = new FoundationModuleLifecycleIO();
         expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:show', 'db'], $show))->toBe(ExitCode::SUCCESS);
         $details = $show->lastPayload();
         expect($details)->toBeArray()
+            ->and($details['schema_version'] ?? null)->toBe(1)
             ->and($details['name'] ?? null)->toBe('database')
             ->and($details['requested'] ?? null)->toBe('db')
+            ->and($details['ownership_unknown'] ?? null)->toBeTrue()
+            ->and($details['enabled'] ?? null)->toBeTrue()
+            ->and($details['configured'] ?? null)->toBeTrue()
+            ->and($details['config_published'] ?? null)->toBeFalse()
             ->and($details['packages']['infocyph/dblayer']['constraint'] ?? null)->toBe('^5.1')
             ->and($details['schema_status'] ?? null)->toBe([]);
     } finally {
         DB::purge();
+        moduleLifecycleRemoveDirectory($basePath);
+    }
+});
+
+it('explains module dependency plans without mutating the application', function (): void {
+    $basePath = moduleLifecycleBasePath('plan');
+    moduleLifecycleWriteComposer($basePath, ['infocyph/omnibus' => '^2.6']);
+
+    try {
+        $dispatcher = moduleLifecycleDispatcher($basePath, [
+            'app' => ['capabilities' => []],
+            'messaging' => ['durable' => ['enabled' => true]],
+        ]);
+        $plan = new FoundationModuleLifecycleIO();
+
+        expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:plan', 'messaging'], $plan))
+            ->toBe(ExitCode::SUCCESS);
+
+        $payload = $plan->lastPayload();
+        expect($payload)->toBeArray()
+            ->and($payload['schema_version'] ?? null)->toBe(1)
+            ->and($payload['module'] ?? null)->toBe('messaging')
+            ->and($payload['packages_to_add'] ?? null)->toBe([])
+            ->and($payload['dependencies']['active'][0]['target'] ?? null)->toBe('database')
+            ->and($payload['dependencies']['active'][0]['satisfied'] ?? true)->toBeFalse()
+            ->and($payload['config'] ?? null)->toBe(['messaging.php'])
+            ->and($payload['schemas'] ?? null)->toBe(['messaging']);
+    } finally {
+        moduleLifecycleRemoveDirectory($basePath);
+    }
+});
+
+it('keeps CacheLayer core-owned and outside the module catalog', function (): void {
+    $composer = json_decode(
+        file_get_contents(dirname(__DIR__, 2) . '/composer.json') ?: '',
+        true,
+        flags: JSON_THROW_ON_ERROR,
+    );
+    $catalog = new ModuleCatalog();
+
+    expect($composer['require']['infocyph/cachelayer'] ?? null)->toBe('^3.4')
+        ->and($composer['require-dev'] ?? [])->not->toHaveKey('infocyph/cachelayer')
+        ->and($composer['suggest'] ?? [])->not->toHaveKey('infocyph/cachelayer')
+        ->and(array_keys($catalog->all()))->not->toContain('cache')
+        ->and(fn() => $catalog->resolve('cache'))
+        ->toThrow(InvalidArgumentException::class, 'Unknown module or feature "cache".')
+        ->and(fn() => $catalog->resolve('cachelayer'))
+        ->toThrow(InvalidArgumentException::class, 'Unknown module or feature "cachelayer".');
+});
+
+it('persists explicit module activation without rewriting application capability config', function (): void {
+    $basePath = moduleLifecycleBasePath('activation');
+    moduleLifecycleWriteComposer($basePath, ['infocyph/dblayer' => '^5.1']);
+
+    try {
+        $enableDispatcher = moduleLifecycleDispatcher($basePath);
+        $enable = new FoundationModuleLifecycleIO();
+
+        expect(moduleLifecycleRun($enableDispatcher, ['infbyte', 'module:enable', 'database'], $enable))
+            ->toBe(ExitCode::SUCCESS)
+            ->and($basePath . '/config/modules.php')->toBeFile();
+
+        $enabledDispatcher = moduleLifecycleDispatcher($basePath);
+        $showEnabled = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun($enabledDispatcher, ['infbyte', 'module:show', 'database'], $showEnabled))
+            ->toBe(ExitCode::SUCCESS);
+
+        $enabled = $showEnabled->lastPayload();
+        expect($enabled)->toBeArray()
+            ->and($enabled['enabled'] ?? false)->toBeTrue()
+            ->and($enabled['activation_explicit'] ?? false)->toBeTrue();
+
+        $showCommunication = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun(
+            $enabledDispatcher,
+            ['infbyte', 'module:show', 'communication'],
+            $showCommunication,
+        ))->toBe(ExitCode::SUCCESS);
+        $communication = $showCommunication->lastPayload();
+        expect($communication)->toBeArray()
+            ->and($communication['activation_explicit'] ?? true)->toBeFalse();
+
+        $disable = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun($enabledDispatcher, ['infbyte', 'module:disable', 'database'], $disable))
+            ->toBe(ExitCode::SUCCESS);
+
+        $disabledDispatcher = moduleLifecycleDispatcher($basePath);
+        $showDisabled = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun($disabledDispatcher, ['infbyte', 'module:show', 'database'], $showDisabled))
+            ->toBe(ExitCode::SUCCESS);
+
+        $disabled = $showDisabled->lastPayload();
+        expect($disabled)->toBeArray()
+            ->and($disabled['enabled'] ?? true)->toBeFalse()
+            ->and($disabled['activation_explicit'] ?? false)->toBeTrue();
+    } finally {
         moduleLifecycleRemoveDirectory($basePath);
     }
 });
@@ -148,7 +257,7 @@ it('runs module install and direct-package removal dry-runs and refuses built-in
     ]);
 
     try {
-        $dispatcher = moduleLifecycleDispatcher($basePath);
+        $dispatcher = moduleLifecycleDispatcher($basePath, ['app' => ['capabilities' => []]]);
         $install = new FoundationModuleLifecycleIO();
         $remove = new FoundationModuleLifecycleIO();
         $builtIn = new FoundationModuleLifecycleIO();
@@ -167,9 +276,130 @@ it('runs module install and direct-package removal dry-runs and refuses built-in
             ->toBe(ExitCode::SUCCESS);
 
         expect(moduleLifecycleCommands($commandLog))->toBe([
-            ['require', 'infocyph/dblayer:^5.1', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
-            ['remove', 'infocyph/dblayer', '--with-all-dependencies', '--update-no-dev', '--dry-run'],
+            ['require', 'infocyph/dblayer:^5.1', '--with-all-dependencies', '--no-interaction', '--dry-run'],
+            ['remove', 'infocyph/dblayer', '--with-all-dependencies', '--no-interaction', '--dry-run'],
         ]);
+    } finally {
+        $restoreEnvironment();
+        DB::purge();
+        moduleLifecycleRemoveDirectory($basePath);
+    }
+});
+
+it('installs and removes auth features without broadening shared package ownership', function (): void {
+    $basePath = moduleLifecycleBasePath('auth-features');
+    [$restoreEnvironment, $commandLog] = moduleLifecycleComposerStub($basePath);
+    moduleLifecycleWriteComposer($basePath, []);
+
+    try {
+        $dispatcher = moduleLifecycleDispatcher($basePath);
+
+        $core = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:install', 'auth', '--dry-run'], $core))
+            ->toBe(ExitCode::SUCCESS)
+            ->and($core->lastPayload()['package_action'] ?? null)->toBe('none')
+            ->and(is_file($commandLog))->toBeFalse();
+
+        $otp = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun(
+            $dispatcher,
+            ['infbyte', 'module:install', 'auth', '--feature=otp', '--dry-run'],
+            $otp,
+        ))->toBe(ExitCode::SUCCESS)
+            ->and($otp->lastPayload()['features'] ?? null)->toBe(['otp']);
+
+        $passkey = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:install', 'passkeys', '--dry-run'], $passkey))
+            ->toBe(ExitCode::SUCCESS)
+            ->and($passkey->lastPayload()['features'] ?? null)->toBe(['passkey']);
+
+        $both = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun(
+            $dispatcher,
+            [
+                'infbyte',
+                'module:install',
+                'auth',
+                '--feature=otp',
+                '--feature=passkey',
+                '--dry-run',
+            ],
+            $both,
+        ))->toBe(ExitCode::SUCCESS)
+            ->and($both->lastPayload()['features'] ?? null)->toBe(['otp', 'passkey']);
+
+        moduleLifecycleWriteComposer($basePath, [
+            'infocyph/otp' => '^6.1',
+            'web-auth/webauthn-lib' => '^5.3.9',
+        ]);
+        $removePasskey = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun(
+            $dispatcher,
+            ['infbyte', 'module:remove', 'auth', '--feature=passkey', '--dry-run'],
+            $removePasskey,
+        ))->toBe(ExitCode::SUCCESS)
+            ->and($removePasskey->lastPayload()['features'] ?? null)->toBe(['passkey']);
+
+        moduleLifecycleWriteComposer($basePath, ['infocyph/otp' => '^6.1']);
+        $removeOtp = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:remove', 'otp', '--dry-run'], $removeOtp))
+            ->toBe(ExitCode::SUCCESS)
+            ->and($removeOtp->lastPayload()['features'] ?? null)->toBe(['otp']);
+
+        expect(moduleLifecycleCommands($commandLog))->toBe([
+            ['require', 'infocyph/otp:^6.1', '--with-all-dependencies', '--no-interaction', '--dry-run'],
+            [
+                'require',
+                'infocyph/otp:^6.1',
+                'web-auth/webauthn-lib:^5.3.9',
+                '--with-all-dependencies',
+                '--no-interaction',
+                '--dry-run',
+            ],
+            [
+                'require',
+                'infocyph/otp:^6.1',
+                'web-auth/webauthn-lib:^5.3.9',
+                '--with-all-dependencies',
+                '--no-interaction',
+                '--dry-run',
+            ],
+            [
+                'remove',
+                'web-auth/webauthn-lib',
+                '--with-all-dependencies',
+                '--no-interaction',
+                '--dry-run',
+            ],
+            [
+                'remove',
+                'infocyph/otp',
+                '--with-all-dependencies',
+                '--no-interaction',
+                '--dry-run',
+            ],
+        ]);
+    } finally {
+        $restoreEnvironment();
+        DB::purge();
+        moduleLifecycleRemoveDirectory($basePath);
+    }
+});
+
+it('refuses module removal when direct Composer ownership is unknown', function (): void {
+    $basePath = moduleLifecycleBasePath('unknown-remove');
+    [$restoreEnvironment, $commandLog] = moduleLifecycleComposerStub($basePath);
+
+    try {
+        $dispatcher = moduleLifecycleDispatcher($basePath);
+        $io = new FoundationModuleLifecycleIO();
+
+        expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:remove', 'db', '--dry-run'], $io))
+            ->toBe(ExitCode::FAILURE)
+            ->and($io->errors)->toContain(
+                'Unable to determine direct Composer ownership: Application composer.json is missing or unreadable.',
+            )
+            ->and(is_file($commandLog))->toBeFalse();
     } finally {
         $restoreEnvironment();
         DB::purge();
@@ -229,7 +459,7 @@ it('preserves application config and database data when an optional module is re
     unset($statement, $pdo);
 
     try {
-        $dispatcher = moduleLifecycleDispatcher($basePath);
+        $dispatcher = moduleLifecycleDispatcher($basePath, ['app' => ['capabilities' => []]]);
         $io = new FoundationModuleLifecycleIO();
         expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:remove', 'database'], $io))
             ->toBe(ExitCode::SUCCESS)
@@ -237,11 +467,34 @@ it('preserves application config and database data when an optional module is re
             ->and(moduleLifecycleScalar($databasePath, 'SELECT value FROM application_records WHERE id = 1'))
             ->toBe('keep')
             ->and(moduleLifecycleCommands($commandLog))->toBe([
-                ['remove', 'infocyph/dblayer', '--with-all-dependencies', '--update-no-dev'],
+                ['remove', 'infocyph/dblayer', '--with-all-dependencies', '--no-interaction'],
             ]);
     } finally {
         $restoreEnvironment();
         DB::purge();
+        moduleLifecycleRemoveDirectory($basePath);
+    }
+});
+
+it('repairs a module after Composer ownership already succeeded', function (): void {
+    $basePath = moduleLifecycleBasePath('repair');
+    moduleLifecycleWriteComposer($basePath, ['infocyph/dblayer' => '^5.1']);
+
+    try {
+        $dispatcher = moduleLifecycleDispatcher($basePath, ['app' => ['capabilities' => []]]);
+        $repair = new FoundationModuleLifecycleIO();
+
+        expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:repair', 'database'], $repair))
+            ->toBe(ExitCode::SUCCESS)
+            ->and($basePath . '/config/database.php')->toBeFile();
+
+        $payload = $repair->lastPayload();
+        expect($payload)->toBeArray()
+            ->and($payload['phases']['composer'] ?? null)->toBe('skipped')
+            ->and($payload['phases']['config'] ?? null)->toBe('completed')
+            ->and($payload['phases']['runtime_invalidation'] ?? null)->toBe('completed')
+            ->and($payload['phases']['schemas'] ?? null)->toBe('completed');
+    } finally {
         moduleLifecycleRemoveDirectory($basePath);
     }
 });
@@ -298,6 +551,54 @@ it('reports and installs the database session schema through module commands', f
     }
 });
 
+it('keeps aggregate schema sync inside active capability topology while allowing targeted install', function (): void {
+    $basePath = moduleLifecycleBasePath('inactive-schema');
+    mkdir($basePath . '/database', 0775, true);
+    $databasePath = $basePath . '/database/messaging.sqlite';
+    $dispatcher = moduleLifecycleDispatcher($basePath, [
+        'app' => ['capabilities' => []],
+        'database' => [
+            'default' => 'main',
+            'connections' => [
+                'main' => [
+                    'driver' => 'sqlite',
+                    'database' => 'database/messaging.sqlite',
+                ],
+            ],
+        ],
+        'messaging' => [
+            'durable' => [
+                'enabled' => true,
+                'connection' => 'main',
+                'failure_store' => 'database',
+            ],
+            'consumer' => ['transport' => 'memory'],
+            'workers' => [],
+        ],
+    ]);
+
+    try {
+        $status = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:schema:status', 'messaging'], $status))
+            ->toBe(ExitCode::SUCCESS);
+        $payload = $status->lastPayload();
+        expect($payload['schemas'][0]['state'] ?? null)->toBe('not-applicable');
+
+        $sync = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:schema:sync'], $sync))
+            ->toBe(ExitCode::SUCCESS)
+            ->and(moduleLifecycleTableExists($databasePath, 'omnibus_messages'))->toBeFalse();
+
+        $install = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:schema:install', 'messaging'], $install))
+            ->toBe(ExitCode::SUCCESS)
+            ->and(moduleLifecycleTableExists($databasePath, 'omnibus_messages'))->toBeTrue();
+    } finally {
+        DB::purge();
+        moduleLifecycleRemoveDirectory($basePath);
+    }
+});
+
 it('reports and installs the Omnibus durable messaging schema through module commands', function (): void {
     $basePath = moduleLifecycleBasePath('messaging-schema');
     mkdir($basePath . '/database', 0775, true);
@@ -343,50 +644,6 @@ it('reports and installs the Omnibus durable messaging schema through module com
         $after = new FoundationModuleLifecycleIO();
         expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:schema:status', 'messaging'], $after))
             ->toBe(ExitCode::SUCCESS);
-    } finally {
-        DB::purge();
-        moduleLifecycleRemoveDirectory($basePath);
-    }
-});
-
-it('keeps cache schema status observational and creates the sqlite schema only during sync', function (): void {
-    $basePath = moduleLifecycleBasePath('cache-schema');
-    $cachePath = $basePath . '/storage/cache/module-cache.sqlite';
-    $dispatcher = moduleLifecycleDispatcher($basePath, [
-        'cache' => [
-            'default' => 'sqlite',
-            'stores' => [
-                'sqlite' => [
-                    'driver' => 'sqlite',
-                    'path' => 'storage/cache/module-cache.sqlite',
-                    'table' => 'foundation_cache_entries',
-                ],
-            ],
-            'transports' => [],
-            'clusters' => [],
-        ],
-        'session' => ['driver' => 'file'],
-    ]);
-
-    try {
-        expect($cachePath)->not->toBeFile();
-        $status = new FoundationModuleLifecycleIO();
-        expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:schema:status', 'cache'], $status))
-            ->toBe(ExitCode::FAILURE)
-            ->and($cachePath)->not->toBeFile();
-        $statusPayload = $status->lastPayload();
-        expect($statusPayload)->toBeArray()
-            ->and($statusPayload['schemas'][0]['state'] ?? null)->toBe('pending')
-            ->and($statusPayload['schemas'][0]['installed'] ?? null)->toBeFalse();
-
-        $sync = new FoundationModuleLifecycleIO();
-        expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:schema:sync'], $sync))
-            ->toBe(ExitCode::SUCCESS)
-            ->and($cachePath)->toBeFile()
-            ->and(moduleLifecycleTableExists($cachePath, 'foundation_cache_entries'))->toBeTrue();
-        $syncPayload = $sync->lastPayload();
-        expect($syncPayload)->toBeArray()
-            ->and($syncPayload['schemas'])->not->toBeEmpty();
     } finally {
         DB::purge();
         moduleLifecycleRemoveDirectory($basePath);

@@ -12,44 +12,6 @@ use Infocyph\ReqShield\Schema\SchemaRegistry;
 use Infocyph\ReqShield\Validator;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
-
-/**
- * @return array{median_ns:float,min_ns:float,max_ns:float,spread_percent:float}
- */
-function reqShield32Measure(callable $operation, int $operations, int $repetitions, int $warmup): array
-{
-    $samples = [];
-
-    for ($repeat = 0; $repeat < $repetitions; ++$repeat) {
-        for ($iteration = 0; $iteration < $warmup; ++$iteration) {
-            $operation();
-        }
-
-        $started = hrtime(true);
-        for ($iteration = 0; $iteration < $operations; ++$iteration) {
-            $operation();
-        }
-        $samples[] = max(1, hrtime(true) - $started) / $operations;
-    }
-
-    sort($samples, SORT_NUMERIC);
-    $median = $samples[intdiv(count($samples), 2)];
-    $minimum = $samples[0];
-    $maximum = $samples[count($samples) - 1];
-
-    return [
-        'median_ns' => round($median, 2),
-        'min_ns' => round($minimum, 2),
-        'max_ns' => round($maximum, 2),
-        'spread_percent' => round((($maximum - $minimum) / max(1.0, $median)) * 100, 2),
-    ];
-}
-
-function reqShield32Ratio(float $numerator, float $denominator): float
-{
-    return round($numerator / max(1.0, $denominator), 4);
-}
-
 $operations = max(100, (int) (getenv('REQSHIELD_RUNTIME_OPERATIONS') ?: 1_000));
 $dbOperations = max(20, (int) (getenv('REQSHIELD_DATABASE_OPERATIONS') ?: 100));
 $repetitions = max(3, (int) (getenv('REQSHIELD_RUNTIME_REPETITIONS') ?: 5));
@@ -131,7 +93,7 @@ $assertPass = static function (mixed $result, string $subject): void {
 
 try {
     $subjects = [
-        'direct_reqshield_compiled_reuse' => reqShield32Measure(
+        'direct_reqshield_compiled_reuse' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
             static function () use ($directCompiled, $flatPayload, $assertPass): void {
                 $assertPass($directCompiled->validate($flatPayload), 'Direct ReqShield compiled reuse');
             },
@@ -139,7 +101,7 @@ try {
             $repetitions,
             $warmup,
         ),
-        'foundation_compiled_reuse' => reqShield32Measure(
+        'foundation_compiled_reuse' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
             static function () use ($foundationCompiled, $flatPayload, $assertPass): void {
                 $assertPass($foundationCompiled->validate($flatPayload), 'Foundation compiled reuse');
             },
@@ -147,7 +109,7 @@ try {
             $repetitions,
             $warmup,
         ),
-        'direct_reqshield_construct_validate' => reqShield32Measure(
+        'direct_reqshield_construct_validate' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
             static function () use ($flatRules, $flatPayload, $assertPass): void {
                 $validator = Validator::make($flatRules)
                     ->enableNestedValidation(false)
@@ -158,7 +120,7 @@ try {
             $repetitions,
             $warmup,
         ),
-        'foundation_factory_construct_validate' => reqShield32Measure(
+        'foundation_factory_construct_validate' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
             static function () use ($flatFactory, $flatPayload, $assertPass): void {
                 $assertPass(
                     $flatFactory->make('benchmark.flat')->validate($flatPayload),
@@ -169,7 +131,7 @@ try {
             $repetitions,
             $warmup,
         ),
-        'direct_reqshield_database' => reqShield32Measure(
+        'direct_reqshield_database' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
             static function () use ($directDb, $dbPayload, $assertPass): void {
                 $assertPass($directDb->validate($dbPayload), 'Direct ReqShield DB');
             },
@@ -177,7 +139,7 @@ try {
             $repetitions,
             max(5, intdiv($warmup, 5)),
         ),
-        'foundation_database_bridge' => reqShield32Measure(
+        'foundation_database_bridge' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
             static function () use ($foundationDb, $dbPayload, $assertPass): void {
                 $assertPass($foundationDb->validate($dbPayload), 'Foundation DB bridge');
             },
@@ -202,15 +164,15 @@ try {
         'repetitions' => $repetitions,
         'subjects' => $subjects,
         'ratios' => [
-            'foundation_compiled_vs_direct_reqshield' => reqShield32Ratio(
+            'foundation_compiled_vs_direct_reqshield' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::ratio(
                 $subjects['foundation_compiled_reuse']['median_ns'],
                 $subjects['direct_reqshield_compiled_reuse']['median_ns'],
             ),
-            'foundation_factory_vs_direct_construct' => reqShield32Ratio(
+            'foundation_factory_vs_direct_construct' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::ratio(
                 $subjects['foundation_factory_construct_validate']['median_ns'],
                 $subjects['direct_reqshield_construct_validate']['median_ns'],
             ),
-            'foundation_database_vs_direct_reqshield' => reqShield32Ratio(
+            'foundation_database_vs_direct_reqshield' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::ratio(
                 $subjects['foundation_database_bridge']['median_ns'],
                 $subjects['direct_reqshield_database']['median_ns'],
             ),

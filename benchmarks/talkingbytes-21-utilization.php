@@ -19,41 +19,6 @@ use Infocyph\TalkingBytes\Http\HttpClient;
 use Infocyph\TalkingBytes\Webhook\Webhook;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
-
-/** @return array{median_ns:float,min_ns:float,max_ns:float,spread_percent:float} */
-function talkingBytes21Measure(callable $operation, int $operations, int $repetitions, int $warmup): array
-{
-    $samples = [];
-    for ($repeat = 0; $repeat < $repetitions; ++$repeat) {
-        for ($iteration = 0; $iteration < $warmup; ++$iteration) {
-            $operation();
-        }
-
-        $started = hrtime(true);
-        for ($iteration = 0; $iteration < $operations; ++$iteration) {
-            $operation();
-        }
-        $samples[] = max(1, hrtime(true) - $started) / $operations;
-    }
-
-    sort($samples, SORT_NUMERIC);
-    $median = $samples[intdiv(count($samples), 2)];
-    $minimum = $samples[0];
-    $maximum = $samples[count($samples) - 1];
-
-    return [
-        'median_ns' => round($median, 2),
-        'min_ns' => round($minimum, 2),
-        'max_ns' => round($maximum, 2),
-        'spread_percent' => round((($maximum - $minimum) / max(1.0, $median)) * 100, 2),
-    ];
-}
-
-function talkingBytes21Ratio(float $numerator, float $denominator): float
-{
-    return round($numerator / max(1.0, $denominator), 4);
-}
-
 $operations = max(100, (int) (getenv('TALKINGBYTES_RUNTIME_OPERATIONS') ?: 2_000));
 $repetitions = max(3, (int) (getenv('TALKINGBYTES_RUNTIME_REPETITIONS') ?: 7));
 $warmup = max(20, (int) (getenv('TALKINGBYTES_RUNTIME_WARMUP') ?: 100));
@@ -134,49 +99,49 @@ $grpcCaller = static fn(GrpcRequest $request): GrpcResponse => new GrpcResponse(
 );
 
 $subjects = [
-    'direct_http_resolved_construct' => talkingBytes21Measure(
+    'direct_http_resolved_construct' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => HttpClient::fromResolvedConfig($httpConfig),
         $operations,
         $repetitions,
         $warmup,
     ),
-    'foundation_http_profile_construct' => talkingBytes21Measure(
+    'foundation_http_profile_construct' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $communicationProfiles->http('benchmark'),
         $operations,
         $repetitions,
         $warmup,
     ),
-    'direct_webhook_verifier_construct' => talkingBytes21Measure(
+    'direct_webhook_verifier_construct' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => Webhook::verifierFromResolvedConfig($webhookSecret, $webhookInbound),
         $operations,
         $repetitions,
         $warmup,
     ),
-    'foundation_webhook_profile_construct' => talkingBytes21Measure(
+    'foundation_webhook_profile_construct' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $communicationProfiles->webhookVerifier('benchmark'),
         $operations,
         $repetitions,
         $warmup,
     ),
-    'direct_grpc_client_construct' => talkingBytes21Measure(
+    'direct_grpc_client_construct' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $grpcFactory->using($grpcCaller, $grpcConfig),
         $operations,
         $repetitions,
         $warmup,
     ),
-    'foundation_grpc_profile_construct' => talkingBytes21Measure(
+    'foundation_grpc_profile_construct' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $communicationProfiles->grpc($grpcCaller, 'benchmark'),
         $operations,
         $repetitions,
         $warmup,
     ),
-    'direct_email_sender_construct' => talkingBytes21Measure(
+    'direct_email_sender_construct' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $emailFactory->fromResolvedConfig($emailResolved),
         $operations,
         $repetitions,
         $warmup,
     ),
-    'foundation_email_profile_construct' => talkingBytes21Measure(
+    'foundation_email_profile_construct' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $emailProfiles->sender('benchmark'),
         $operations,
         $repetitions,
@@ -197,19 +162,19 @@ $report = [
     'repetitions' => $repetitions,
     'subjects' => $subjects,
     'ratios' => [
-        'foundation_http_profile_vs_direct_talkingbytes' => talkingBytes21Ratio(
+        'foundation_http_profile_vs_direct_talkingbytes' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::ratio(
             $subjects['foundation_http_profile_construct']['median_ns'],
             $subjects['direct_http_resolved_construct']['median_ns'],
         ),
-        'foundation_webhook_profile_vs_direct_talkingbytes' => talkingBytes21Ratio(
+        'foundation_webhook_profile_vs_direct_talkingbytes' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::ratio(
             $subjects['foundation_webhook_profile_construct']['median_ns'],
             $subjects['direct_webhook_verifier_construct']['median_ns'],
         ),
-        'foundation_grpc_profile_vs_direct_talkingbytes' => talkingBytes21Ratio(
+        'foundation_grpc_profile_vs_direct_talkingbytes' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::ratio(
             $subjects['foundation_grpc_profile_construct']['median_ns'],
             $subjects['direct_grpc_client_construct']['median_ns'],
         ),
-        'foundation_email_profile_vs_direct_talkingbytes' => talkingBytes21Ratio(
+        'foundation_email_profile_vs_direct_talkingbytes' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::ratio(
             $subjects['foundation_email_profile_construct']['median_ns'],
             $subjects['direct_email_sender_construct']['median_ns'],
         ),

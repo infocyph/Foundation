@@ -473,11 +473,6 @@ final readonly class ScheduleManager
         string $name,
         array $identity,
     ): array {
-        if (!interface_exists(LockProviderInterface::class)) {
-            throw new \LogicException(
-                'Schedule overlap/single-server policy requires infocyph/cachelayer.',
-            );
-        }
         if ($entry->overlapWaitSeconds() > 0.0) {
             $this->record($history, $executionId, $name, CommandStatus::Waiting, metadata: $identity);
         }

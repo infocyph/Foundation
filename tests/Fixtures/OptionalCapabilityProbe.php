@@ -6,6 +6,7 @@ use Composer\Autoload\ClassLoader;
 use Infocyph\Foundation\Auth\AuthManager;
 use Infocyph\Foundation\Exception\ServiceResolutionException;
 use Infocyph\Foundation\Foundation;
+use Infocyph\Foundation\Notifications\NotificationChannelRegistry;
 
 $root = dirname(__DIR__, 2);
 $loader = require $root . '/vendor/autoload.php';
@@ -36,7 +37,6 @@ $baseConfig = [
 ];
 
 $optionalMarkers = [
-    'cache' => 'Infocyph\\CacheLayer\\Cache\\Cache',
     'database' => 'Infocyph\\DBLayer\\Connection\\Connection',
     'communication' => 'Infocyph\\TalkingBytes\\Http\\HttpClient',
     'filesystem' => 'Infocyph\\Pathwise\\PathwiseFacade',
@@ -53,7 +53,6 @@ foreach ($optionalMarkers as $name => $class) {
 }
 
 $optionalPrefixes = [
-    'Infocyph\\CacheLayer\\',
     'Infocyph\\DBLayer\\',
     'Infocyph\\Epicrypt\\',
     'Infocyph\\Omnibus\\',
@@ -81,6 +80,7 @@ $probe = [
     'base' => [],
     'services' => [],
     'auth' => [],
+    'notifications' => [],
 ];
 
 try {
@@ -91,7 +91,6 @@ try {
     ];
 
     $services = [
-        'foundation.cache' => ['package' => 'infocyph/cachelayer', 'module' => 'cache'],
         'foundation.communication' => ['package' => 'infocyph/talkingbytes', 'module' => 'communication'],
         'foundation.db' => ['package' => 'infocyph/dblayer', 'module' => 'database'],
         'foundation.filesystem' => ['package' => 'infocyph/pathwise', 'module' => 'filesystem'],
@@ -115,6 +114,23 @@ try {
             'expected_module' => $expected['module'],
         ];
     }
+
+    $notificationsConfig = $baseConfig;
+    $notificationsConfig['app'] = [
+        ...$baseConfig['app'],
+        'capabilities' => ['notifications'],
+    ];
+    $notificationsApp = Foundation::cli($notificationsConfig)->boot();
+    $mailError = null;
+    try {
+        $notificationsApp->make(NotificationChannelRegistry::class)->channel('mail');
+    } catch (Throwable $failure) {
+        $mailError = $failure->getMessage();
+    }
+    $probe['notifications'] = [
+        'dispatcher_available' => $notificationsApp->has('foundation.notifications'),
+        'mail_error' => $mailError,
+    ];
 
     $defaultAuth = Foundation::cli($baseConfig);
     $defaultError = null;
