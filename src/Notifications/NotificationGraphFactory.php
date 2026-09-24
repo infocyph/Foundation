@@ -8,11 +8,29 @@ use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\TalkingBytes\Email\Config\EmailLimits;
 use Infocyph\TalkingBytes\Email\Emailer;
+use Infocyph\TalkingBytes\Email\EmailMailboxFactory;
+use Infocyph\TalkingBytes\Email\EmailReceiverFactory;
+use Infocyph\TalkingBytes\Email\EmailSenderFactory;
 use Infocyph\TalkingBytes\Email\Parser\RawEmailParser;
 use Infocyph\TalkingBytes\Email\Receiver\SpoolEmailReceiver;
 
 final class NotificationGraphFactory
 {
+    public static function emailMailboxFactory(): EmailMailboxFactory
+    {
+        return new EmailMailboxFactory();
+    }
+
+    public static function emailReceiverFactory(): EmailReceiverFactory
+    {
+        return new EmailReceiverFactory();
+    }
+
+    public static function emailSenderFactory(): EmailSenderFactory
+    {
+        return new EmailSenderFactory();
+    }
+
     public static function emailer(EmailProfiles $profiles): Emailer
     {
         return $profiles->sender();
