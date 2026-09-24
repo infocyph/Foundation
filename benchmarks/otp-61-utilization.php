@@ -19,7 +19,6 @@ use Infocyph\Foundation\Auth\Mfa\MfaFactor;
 use Infocyph\Foundation\Auth\Support\InMemoryMfaFactorStore;
 use Infocyph\OTP\Stores\InMemoryRecoveryCodeStore;
 use Infocyph\OTP\TOTP;
-use Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 $operations = max(100, (int) (getenv('OTP_RUNTIME_OPERATIONS') ?: 1_000));
@@ -83,7 +82,7 @@ $directRecovery = new InMemoryRecoveryCodeStore();
 $foundationRecovery = new OtpRecoveryCodeStore(new InMemoryMfaFactorStore());
 
 $subjects = [];
-$subjects['direct_totp_provisioning'] = BenchmarkSupport::measure(
+$subjects['direct_totp_provisioning'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
     static function (): void {
         $secret = TOTP::generateSecret(20);
         new TOTP($secret, 6, 30, 'sha1')
@@ -93,19 +92,19 @@ $subjects['direct_totp_provisioning'] = BenchmarkSupport::measure(
     $repetitions,
     $warmup,
 );
-$subjects['foundation_totp_metadata_bridge'] = BenchmarkSupport::measure(
+$subjects['foundation_totp_metadata_bridge'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
     static fn() => $foundation->factorMetadata($metadataSecret, 'benchmark@example.test'),
     $operations,
     $repetitions,
     $warmup,
 );
-$subjects['foundation_totp_provisioning'] = BenchmarkSupport::measure(
+$subjects['foundation_totp_provisioning'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
     static fn() => $foundation->provisionTotp('benchmark-account', 'benchmark@example.test'),
     $operations,
     $repetitions,
     $warmup,
 );
-$subjects['direct_epicrypt_mfa_string_protection'] = BenchmarkSupport::measure(
+$subjects['direct_epicrypt_mfa_string_protection'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
     static fn() => $directProtector->protectWithKeyRing(
         $metadataSecret,
         $protectionRing,
@@ -115,13 +114,13 @@ $subjects['direct_epicrypt_mfa_string_protection'] = BenchmarkSupport::measure(
     $repetitions,
     $warmup,
 );
-$subjects['foundation_mfa_secret_protection_bridge'] = BenchmarkSupport::measure(
+$subjects['foundation_mfa_secret_protection_bridge'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
     static fn() => $foundationProtector->protect($mfaFactor),
     $operations,
     $repetitions,
     $warmup,
 );
-$subjects['direct_otp_recovery_replace'] = BenchmarkSupport::measure(
+$subjects['direct_otp_recovery_replace'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
     static fn() => $directRecovery->replace(
         'account:benchmark-account',
         $recoveryDigests,
@@ -131,7 +130,7 @@ $subjects['direct_otp_recovery_replace'] = BenchmarkSupport::measure(
     $repetitions,
     $warmup,
 );
-$subjects['foundation_recovery_cas_bridge'] = BenchmarkSupport::measure(
+$subjects['foundation_recovery_cas_bridge'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
     static fn() => $foundationRecovery->replace(
         'account:benchmark-account',
         $recoveryDigests,
@@ -162,12 +161,12 @@ $report = [
     'warmup_operations' => $warmup,
     'subjects' => $subjects,
     'ratios' => [
-        'foundation_provisioning_vs_direct_otp' => BenchmarkSupport::ratio($foundationNs, $directNs),
-        'foundation_mfa_protection_vs_direct_epicrypt' => BenchmarkSupport::ratio(
+        'foundation_provisioning_vs_direct_otp' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::ratio($foundationNs, $directNs),
+        'foundation_mfa_protection_vs_direct_epicrypt' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::ratio(
             $foundationProtectionNs,
             $directProtectionNs,
         ),
-        'foundation_recovery_state_vs_direct_otp_store' => BenchmarkSupport::ratio(
+        'foundation_recovery_state_vs_direct_otp_store' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::ratio(
             $foundationRecoveryNs,
             $directRecoveryNs,
         ),
