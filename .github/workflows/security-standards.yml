@@ -10,7 +10,7 @@ on:
 
 jobs:
   phpforge:
-    uses: infocyph/phpforge/.github/workflows/security-standards.yml@main
+    uses: infocyph/phpforge/.github/workflows/security-standards.yml@fdec64cf4460f13116eb0e2f3405acadd3e84377
     permissions:
       security-events: write
       actions: read
@@ -23,3 +23,108 @@ jobs:
       service_topologies: '{}'
       benchmark_composer_script: "benchmark:release"
       benchmark_result_file: "build/cachelayer-33-utilization.json"
+
+
+  production-consumer:
+    name: Production consumer - PHP ${{ matrix.php-version }} - ${{ matrix.dependencies }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: ["8.4", "8.5"]
+        dependencies: ["prefer-stable", "prefer-lowest"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          tools: composer:v2
+          extensions: "mbstring, pdo, pdo_sqlite"
+          coverage: none
+      - name: Verify isolated production consumers
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          composer_args=(--no-dev --no-interaction --prefer-dist --no-progress)
+          if [ "${{ matrix.dependencies }}" = "prefer-lowest" ]; then
+            composer_args+=(--prefer-lowest)
+          fi
+
+          minimal="$RUNNER_TEMP/foundation-minimal-consumer"
+          optional="$RUNNER_TEMP/foundation-optional-consumer"
+          mkdir -p "$minimal/storage" "$optional/storage"
+
+          cat > "$minimal/composer.json" <<JSON
+          {
+            "name": "infocyph/foundation-minimal-consumer",
+            "type": "project",
+            "minimum-stability": "dev",
+            "prefer-stable": true,
+            "repositories": [
+              {
+                "type": "path",
+                "url": "$GITHUB_WORKSPACE",
+                "options": {"symlink": false}
+              }
+            ],
+            "require": {
+              "infocyph/foundation": "*"
+            }
+          }
+          JSON
+
+          (
+            cd "$minimal"
+            composer update "${composer_args[@]}"
+            vendor/bin/infbyte list > command-list.txt
+            php -r 'require "vendor/autoload.php";'
+            if composer show infocyph/phpforge >/dev/null 2>&1; then
+              echo "PHPForge leaked into the production consumer." >&2
+              exit 1
+            fi
+            for package in infocyph/dblayer infocyph/epicrypt infocyph/omnibus infocyph/otp infocyph/pathwise infocyph/reqshield infocyph/talkingbytes web-auth/webauthn-lib; do
+              if composer show "$package" >/dev/null 2>&1; then
+                echo "Optional package $package leaked into the minimal consumer." >&2
+                exit 1
+              fi
+            done
+          )
+
+          cat > "$optional/composer.json" <<JSON
+          {
+            "name": "infocyph/foundation-optional-consumer",
+            "type": "project",
+            "minimum-stability": "dev",
+            "prefer-stable": true,
+            "repositories": [
+              {
+                "type": "path",
+                "url": "$GITHUB_WORKSPACE",
+                "options": {"symlink": false}
+              }
+            ],
+            "require": {
+              "infocyph/foundation": "*",
+              "infocyph/dblayer": "^5.1"
+            }
+          }
+          JSON
+
+          (
+            cd "$optional"
+            composer update "${composer_args[@]}"
+            vendor/bin/infbyte list > command-list.txt
+            vendor/bin/infbyte module:show database --json > database-module.json
+            php -r '
+              $payload = json_decode(file_get_contents("database-module.json"), true, 512, JSON_THROW_ON_ERROR);
+              if (($payload["name"] ?? null) !== "database") {
+                  fwrite(STDERR, "Database module inspection did not return the expected payload.\n");
+                  exit(1);
+              }
+            '
+            if composer show infocyph/phpforge >/dev/null 2>&1; then
+              echo "PHPForge leaked into the optional production consumer." >&2
+              exit 1
+            fi
+          )

@@ -136,12 +136,12 @@ Every work item must record its final commit, dependency identities, commands, e
 
 | Batch | Scope | Status | Current evidence / remaining gate |
 | --- | --- | --- | --- |
-| **A** | Dependency contract + public module/core contract | **PARTIAL** | Dependency floors and cold explicit capability topology implemented. Current repair set reconciles CLI documentation with the real preflight/catalog surface and preserves unknown-vs-compatible semver diagnostics; final stable/lowest/no-dev and current green workflow evidence pending. |
+| **A** | Dependency contract + public module/core contract | **PARTIAL** | Dependency floors, module/core terminology, CLI examples and absent-optional isolation are implemented. Workflow #1711 is green across PHP 8.4/8.5 stable+lowest, analysis, clean install and benchmarks. A dedicated disposable no-dev consumer matrix is now added; its current-head evidence is pending. |
 | **B** | Session lifecycle correctness | **PARTIAL** | Primary-failure precedence, finite lock durations, stale-owner mutation protection and shared-lock regressions implemented. The current QA repair keeps the real exception reporter and release-failure semantics intact; maintenance/streaming contract closure and current green workflow evidence pending. |
 | **C** | Runtime support + sustained evidence | **NOT STARTED** | Final 3.0 tested support statement and reproducible runtime fixture/evidence pending. |
 | **D** | Release artifacts + rollback | **NOT STARTED** | Foundation deployment/rollback rehearsal pending; Infbyte handoff remains explicitly deferred. |
 | **E** | Readiness, trust boundaries, architecture | **NOT STARTED** | Cross-command readiness agreement, security boundary evidence and project architecture rules pending. |
-| **F** | CI reproducibility + documentation | **NOT STARTED** | Final release workflow/evidence, support matrix and learning path pending. |
+| **F** | CI reproducibility + documentation | **PARTIAL** | PHP 8.4/8.5 stable+lowest, services, clean install and benchmarks are green in workflow #1711. Foundation now pins the reusable PHPForge workflow to `fdec64cf4460f13116eb0e2f3405acadd3e84377` and adds disposable production-consumer jobs; final current-head evidence and release evidence index remain pending. |
 
 Tracker rule: mark a batch **DONE** only when its required acceptance criteria are backed by current-source tests, workflow evidence or an explicitly narrowed support statement. Historical green runs do not close a current batch.
 
@@ -155,12 +155,12 @@ Tracker rule: mark a batch **DONE** only when its required acceptance criteria a
 
 Sources: `composer.json`, `src/Module/ModuleCatalog.php`, `tests/Feature/ConfigCacheIntegrationTest.php`, `tests/Feature/ModuleStateResolverTest.php`.
 
-- [ ] Confirm the intended 3.0 floors for InterMix 10.1.1, Webrick 5.4 and WebAuthn 5.3.9.
-- [ ] Review their relevant runtime/generated-artifact/API changes and test Foundation's affected integrations.
-- [ ] Align catalog constraints, documentation and test expectations with the selected contract. Preserve assertions protecting the minimal runtime package set.
+- [x] Confirm the intended 3.0 floors for InterMix 10.1.1, Webrick 5.4 and WebAuthn 5.3.9.
+- [x] Review their relevant runtime/generated-artifact/API changes and test Foundation's affected integrations.
+- [x] Align catalog constraints, documentation and test expectations with the selected contract. Preserve assertions protecting the minimal runtime package set.
 - [ ] Install/test stable and lowest permitted dependency combinations in disposable consumers, with and without optional packages.
 - [ ] Verify normal production `--no-dev` installation, autoload and `vendor/bin/infbyte` without PHPForge or development-only transitive dependencies.
-- [ ] Confirm public signatures that mention optional types remain safe when their capability is absent.
+- [x] Confirm public signatures that mention optional types remain safe when their capability is absent.
 
 **Acceptance:** both constraint tests pass; every selected module's catalog floor is tested; minimal production consumers boot without optional-package resolution; selected dependency changes have current compatibility evidence.
 
@@ -170,13 +170,13 @@ Sources: `composer.json`, `src/Module/ModuleCatalog.php`, `tests/Feature/ConfigC
 
 Sources: `README.md`, `docs/modules.md`, `docs/browser-sessions.md`, `resources/config/session.php`, `src/Module/ModuleCatalog.php`, `src/Module/ModuleManager.php`, `src/Module/ModuleSchemaManager.php`.
 
-- [ ] Document seven specialist namespaces separately from the four built-in catalog entries and core cache infrastructure.
-- [ ] Recommended 3.0 contract: preserve useful built-in commands; describe them as built-in capability configuration/schema operations, not installable specialist packages.
-- [ ] Remove stale cache-module instructions and replace them with the existing core cache command family.
-- [ ] Explain explicit capabilities versus development compatibility inference with minimal, auth/session and messaging examples.
-- [ ] Check every current user-facing `module:*` example against real CLI dispatch, including aliases, schema commands and `--json`.
-- [ ] If a built-in command is intentionally removed, provide its replacement and migration guidance first. Do not strand database-backed session provisioning.
-- [ ] Reconcile old plan closure wording with the final public contract without rewriting historical results as new evidence.
+- [x] Document seven specialist namespaces separately from the four built-in catalog entries and core cache infrastructure.
+- [x] Recommended 3.0 contract: preserve useful built-in commands; describe them as built-in capability configuration/schema operations, not installable specialist packages.
+- [x] Remove stale cache-module instructions and replace them with the existing core cache command family.
+- [x] Explain explicit capabilities versus development compatibility inference with minimal, auth/session and messaging examples.
+- [x] Check every current user-facing `module:*` example against real CLI dispatch, including aliases, schema commands and `--json`.
+- [x] If a built-in command is intentionally removed, provide its replacement and migration guidance first. Do not strand database-backed session provisioning.
+- [x] Reconcile old plan closure wording with the final public contract without rewriting historical results as new evidence.
 
 **Acceptance:** documentation and `module:list/show/plan/doctor` agree; cache remains outside module installation/removal; session config/schema examples work; disabled capabilities remain cold.
 
@@ -370,8 +370,8 @@ Existing OAuth, MFA, passkey, rotation, revocation and authorization suites are 
 - [ ] Re-run the unchanged baseline after prerequisites are available, then separate remaining product failures from environment failures.
 - [ ] Preserve PHP 8.4/8.5 and stable/lowest CI, production clean installation and `fail_on_skipped_tests=true`.
 - [ ] Add native-server jobs or a separately required release workflow for F30-06; document which matrix rows are covered upstream versus in Foundation.
-- [ ] Audit `phpforge@main` workflow and `dev-main@dev` tooling reproducibility. Pin release-validation tooling/workflow identities or record immutable references in release evidence, with a deliberate update policy.
-- [ ] Retain every relevant release benchmark output. The wrapper currently selects only `build/cachelayer-33-utilization.json` as its result file although `benchmark:release` runs multiple integrations; inspect the reusable workflow's actual artifact handling before claiming other outputs are absent.
+- [x] Audit `phpforge@main` workflow and `dev-main@dev` tooling reproducibility. The reusable release workflow is pinned to PHPForge `fdec64cf4460f13116eb0e2f3405acadd3e84377`; the project development requirement deliberately remains `dev-main@dev`.
+- [x] Retain every relevant release benchmark output. The pinned reusable workflow captures `benchmark:release` stdout into per-PHP benchmark artifacts while `build/cachelayer-33-utilization.json` remains the explicitly validated result file.
 - [ ] Keep baseline comparison disabled on noisy runners. Configure a stable performance gate only after matching baseline/candidate environment metadata exists.
 
 **Acceptance:** host results and prepared CI results are reported separately; all required jobs pass on the final candidate; artifacts make failures and performance claims reproducible.
