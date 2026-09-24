@@ -150,21 +150,25 @@ jobs:
           composer ic:release:constraints
       - name: Capture release evidence
         shell: bash
+        env:
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
           directory=build/release-evidence
           mkdir -p "$directory"
           {
-            printf "source_sha=%s\n" "$GITHUB_SHA"
+            printf "source_sha=%s\n" "$SOURCE_SHA"
+            printf "ci_sha=%s\n" "$GITHUB_SHA"
             printf "php=%s\n" "$(php -r 'echo PHP_VERSION;')"
             printf "phpforge_workflow=%s\n" "fdec64cf4460f13116eb0e2f3405acadd3e84377"
             printf "generated_at=%s\n" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           } > "$directory/manifest.env"
           php -m | sort > "$directory/php-extensions.txt"
           composer show --locked --format=json > "$directory/dependencies.json"
-          vendor/bin/pest --list-tests --colors=never > "$directory/tests.txt"
-          awk 'NF { count++ } END { printf "test_inventory_lines=%d\n", count }' "$directory/tests.txt" > "$directory/test-inventory.env"
+          git ls-files 'tests/*.php' 'tests/**/*.php' | sort > "$directory/test-files.txt"
+          awk 'NF { count++ } END { printf "test_file_inventory=%d\n", count }' "$directory/test-files.txt" > "$directory/test-inventory.env"
       - uses: actions/upload-artifact@v7
+        if: always()
         with:
           name: foundation-release-evidence-${{ github.sha }}
           path: build/release-evidence/
