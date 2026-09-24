@@ -29,6 +29,7 @@ function foundationMaintenanceBenchmarkMode(string $mode): array
 declare(strict_types=1);
 
 use Infocyph\Webrick\Router\Facade\Router;
+use Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport;
 
 Router::get('/benchmark', \Infocyph\Foundation\Benchmarks\Support\FoundationMaintenanceBenchmarkHandler::class);
 PHP);
@@ -90,7 +91,7 @@ PHP);
             $samples[] = (hrtime(true) - $started) / $operations;
         }
     } finally {
-        foundationMaintenanceBenchmarkRemove($project);
+        BenchmarkSupport::removeDirectory($project);
     }
 
     sort($samples);
@@ -106,22 +107,6 @@ PHP);
         'request_materializations' => $adapter->requestMaterializations,
         'samples_ns_per_operation' => $samples,
     ];
-}
-
-function foundationMaintenanceBenchmarkRemove(string $directory): void
-{
-    if (!is_dir($directory)) {
-        return;
-    }
-
-    $files = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS),
-        RecursiveIteratorIterator::CHILD_FIRST,
-    );
-    foreach ($files as $file) {
-        $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
-    }
-    rmdir($directory);
 }
 
 function foundationMaintenanceBenchmarkChild(string $mode): array
