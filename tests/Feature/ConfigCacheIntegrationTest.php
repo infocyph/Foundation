@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Infocyph\ArrayKit\Config\Config as ArrayKitConfig;
 use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Cache\CacheServiceProvider;
 use Infocyph\Foundation\Config\ConfigCacheManager;
@@ -146,7 +147,7 @@ it('boots from a sharded lazy cache without loading environment or scanning conf
     }
 });
 
-it('supports an explicitly configured single config cache', function (): void {
+it('uses ArrayKit native compiled cache for single mode', function (): void {
     $project = configCacheProject([
         'config/app.php' => <<<'PHP'
 <?php
@@ -163,14 +164,94 @@ PHP,
         $config = $loader->load(['base_path' => $project]);
         $loader->writeCache($config, $project . '/bootstrap/cache/config');
 
+        $cacheDirectory = $project . '/bootstrap/cache/config';
+        $compiledFile = $cacheDirectory . '/config.php';
+        $manifestFile = $cacheDirectory . '/__manifest.php';
+        $manifest = require $manifestFile;
+        $native = new ArrayKitConfig();
+
+        expect($native->loadCache($compiledFile))->toBeTrue()
+            ->and($native->get('app.name'))->toBe('single')
+            ->and($manifest['_type'] ?? null)->toBe(ConfigLoader::TYPE_SINGLE)
+            ->and($manifest['_file'] ?? null)->toBe('config.php')
+            ->and($manifest)->not->toHaveKey('_data')
+            ->and(fileperms($compiledFile) & 0777)->toBe(0664);
+
         unlink($project . '/config/app.php');
 
         $cached = $loader->load(['base_path' => $project]);
 
         expect($cached->get('app.name'))->toBe('single')
-            ->and($project . '/bootstrap/cache/config/__manifest.php')->toBeFile()
-            ->and($project . '/bootstrap/cache/config/app.php')->not->toBeFile()
-            ->and($project . '/bootstrap/cache/config/__flat.php')->not->toBeFile();
+            ->and($cached->isCompiled())->toBeTrue()
+            ->and($manifestFile)->toBeFile()
+            ->and($compiledFile)->toBeFile()
+            ->and($cacheDirectory . '/app.php')->not->toBeFile()
+            ->and($cacheDirectory . '/__flat.php')->not->toBeFile();
+    } finally {
+        configCacheRemoveDirectory($project);
+    }
+});
+
+it('cleans native config artifacts when switching cache modes', function (): void {
+    $project = configCacheProject([
+        'config/app.php' => <<<'PHP'
+<?php
+
+return [
+    'name' => 'switchable',
+    'config_cache' => ['type' => 'sharded'],
+];
+PHP,
+    ]);
+
+    try {
+        $loader = new ConfigLoader();
+        $config = $loader->load(['base_path' => $project]);
+        $directory = $project . '/bootstrap/cache/config';
+
+        $loader->writeCache($config, $directory, ConfigLoader::TYPE_SHARDED);
+        expect($directory . '/app.php')->toBeFile()
+            ->and($directory . '/__flat.php')->toBeFile()
+            ->and($directory . '/config.php')->not->toBeFile();
+
+        $loader->writeCache($config, $directory, ConfigLoader::TYPE_SINGLE);
+        expect($directory . '/config.php')->toBeFile()
+            ->and($directory . '/app.php')->not->toBeFile()
+            ->and($directory . '/__flat.php')->not->toBeFile();
+
+        $loader->writeCache($config, $directory, ConfigLoader::TYPE_SHARDED);
+        expect($directory . '/app.php')->toBeFile()
+            ->and($directory . '/__flat.php')->toBeFile()
+            ->and($directory . '/config.php')->not->toBeFile();
+    } finally {
+        configCacheRemoveDirectory($project);
+    }
+});
+
+it('falls back to source config when the ArrayKit single cache is corrupt', function (): void {
+    $project = configCacheProject([
+        'config/app.php' => <<<'PHP'
+<?php
+
+return [
+    'name' => 'source',
+    'config_cache' => ['type' => 'single'],
+];
+PHP,
+    ]);
+
+    try {
+        $loader = new ConfigLoader();
+        $config = $loader->load(['base_path' => $project]);
+        $directory = $project . '/bootstrap/cache/config';
+        $loader->writeCache($config, $directory);
+
+        file_put_contents($directory . '/config.php', "<?php\n\nreturn 'corrupt';\n");
+
+        $cached = $loader->load(['base_path' => $project]);
+
+        expect($cached->get('app.name'))->toBe('source')
+            ->and($cached->isCompiled())->toBeFalse();
     } finally {
         configCacheRemoveDirectory($project);
     }
