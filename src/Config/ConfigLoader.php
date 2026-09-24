@@ -80,7 +80,6 @@ final class ConfigLoader
         ?string $type = null,
         ?string $basePath = null,
     ): string {
-        ConfigExportValidator::assertExportable($config->all());
         $this->ensureCacheDirectory($cacheDirectory);
         $cacheType = $this->cacheType($config, $type);
         $sourceBasePath = $basePath ?? $this->basePath($config->all());
@@ -365,6 +364,22 @@ final class ConfigLoader
             if (!is_file($file) || !chmod($file, 0664)) {
                 throw new \RuntimeException(sprintf('Unable to finalize lazy config cache "%s".', $file));
             }
+
+            try {
+                $materialized = require $file;
+            } catch (\Throwable $exception) {
+                throw new \RuntimeException(sprintf(
+                    'Unable to validate ArrayKit namespace config cache "%s".',
+                    $file,
+                ), previous: $exception);
+            }
+            if (!is_array($materialized)) {
+                throw new \RuntimeException(sprintf(
+                    'ArrayKit namespace config cache "%s" did not return an array.',
+                    $file,
+                ));
+            }
+            ConfigExportValidator::assertExportable([$namespace => $materialized]);
         }
 
         return [
@@ -399,6 +414,19 @@ final class ConfigLoader
                 $path,
             ));
         }
+
+        $materialized = new Config();
+        try {
+            if (!$materialized->loadCache($path)) {
+                throw new \RuntimeException('ArrayKit rejected its generated single config cache.');
+            }
+        } catch (\Throwable $exception) {
+            throw new \RuntimeException(sprintf(
+                'Unable to validate ArrayKit single config cache "%s".',
+                $path,
+            ), previous: $exception);
+        }
+        ConfigExportValidator::assertExportable($this->map($materialized->all()));
 
         return [
             '_format' => self::CACHE_FORMAT,
