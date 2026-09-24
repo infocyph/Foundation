@@ -12,21 +12,6 @@ use Infocyph\Pathwise\StreamHandler\PublicFileResolver;
 use Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
-function pathwise41Remove(string $directory): void
-{
-    if (!is_dir($directory)) {
-        return;
-    }
-    $files = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS),
-        RecursiveIteratorIterator::CHILD_FIRST,
-    );
-    foreach ($files as $file) {
-        $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
-    }
-    rmdir($directory);
-}
-
 $operations = max(100, (int) (getenv('PATHWISE_RUNTIME_OPERATIONS') ?: 2_000));
 $repetitions = max(3, (int) (getenv('PATHWISE_RUNTIME_REPETITIONS') ?: 7));
 $warmup = max(20, (int) (getenv('PATHWISE_RUNTIME_WARMUP') ?: 100));
@@ -167,5 +152,5 @@ try {
         json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL,
     );
 } finally {
-    pathwise41Remove($base);
+    BenchmarkSupport::removeDirectory($base);
 }
