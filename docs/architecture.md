@@ -209,9 +209,23 @@ from request/job hot paths.
 
 ## Configuration artifacts versus release artifacts
 
-Development/build commands may use Foundation's single or sharded config cache
-to reduce source parsing while composing a graph. That cache is separate from
-the immutable production release generation.
+Development/build commands may use Foundation's `single` or `sharded` config
+cache to reduce source parsing while composing a graph. The artifact mechanics
+remain ArrayKit-native:
+
+- `single` is an ArrayKit `Config::exportCache()/loadCache()` whole-config PHP
+  artifact;
+- `sharded` is ArrayKit `LazyFileConfig` namespace caching plus the native
+  `__flat.php` exact-leaf acceleration index.
+
+Foundation owns cache policy, application defaults/presets, provider compilation,
+schema/source identity, and atomic publication; it does not maintain a parallel
+config serialization/cache engine. There is no separate Foundation/ArrayKit
+`fused` mode: `__flat.php` supplies fused leaf acceleration inside the
+sharded strategy.
+
+This development/build config cache is separate from the immutable production
+release generation, whose normalized `config.php` snapshot is generation-owned.
 
 The removed Foundation 2/early-Foundation-3 switches
 `app.container.compiled`, `app.container.compiled_activation`,
