@@ -9,7 +9,6 @@ use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\Foundation\Filesystem\StorageRegistry;
 use Infocyph\Pathwise\Storage\StorageContext;
 use Infocyph\Pathwise\StreamHandler\PublicFileResolver;
-use Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 $operations = max(100, (int) (getenv('PATHWISE_RUNTIME_OPERATIONS') ?: 2_000));
@@ -44,61 +43,61 @@ $registry->disk('uploads');
 
 try {
     $subjects = [];
-    $subjects['direct_context_construct_two_disks'] = BenchmarkSupport::measure(
+    $subjects['direct_context_construct_two_disks'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => new StorageContext($directConfigs, 'uploads'),
         $operations,
         $repetitions,
         $warmup,
     );
-    $subjects['foundation_registry_construct_two_disks'] = BenchmarkSupport::measure(
+    $subjects['foundation_registry_construct_two_disks'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => new StorageRegistry($foundationConfig, $paths),
         $operations,
         $repetitions,
         $warmup,
     );
-    $subjects['direct_context_path'] = BenchmarkSupport::measure(
+    $subjects['direct_context_path'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $context->path('bench/file.txt', 'uploads'),
         $operations,
         $repetitions,
         $warmup,
     );
-    $subjects['foundation_registry_path'] = BenchmarkSupport::measure(
+    $subjects['foundation_registry_path'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $registry->path('bench/file.txt', 'uploads'),
         $operations,
         $repetitions,
         $warmup,
     );
-    $subjects['direct_context_local_path'] = BenchmarkSupport::measure(
+    $subjects['direct_context_local_path'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $context->localPath('bench/file.txt', 'uploads'),
         $operations,
         $repetitions,
         $warmup,
     );
-    $subjects['foundation_registry_local_path'] = BenchmarkSupport::measure(
+    $subjects['foundation_registry_local_path'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $registry->localPath('bench/file.txt', 'uploads'),
         $operations,
         $repetitions,
         $warmup,
     );
-    $subjects['direct_context_warm_filesystem'] = BenchmarkSupport::measure(
+    $subjects['direct_context_warm_filesystem'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $context->filesystem('uploads'),
         $operations,
         $repetitions,
         $warmup,
     );
-    $subjects['foundation_registry_warm_disk'] = BenchmarkSupport::measure(
+    $subjects['foundation_registry_warm_disk'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $registry->disk('uploads'),
         $operations,
         $repetitions,
         $warmup,
     );
-    $subjects['direct_public_file_resolution'] = BenchmarkSupport::measure(
+    $subjects['direct_public_file_resolution'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $directPublic->resolve($base . '/public', 'asset.txt'),
         $operations,
         $repetitions,
         $warmup,
     );
-    $subjects['foundation_public_file_resolution'] = BenchmarkSupport::measure(
+    $subjects['foundation_public_file_resolution'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
         static fn() => $foundationPublic->resolve('asset.txt'),
         $operations,
         $repetitions,
@@ -118,23 +117,23 @@ try {
         'warmup_operations' => $warmup,
         'subjects' => $subjects,
         'ratios' => [
-            'registry_construct_vs_context' => BenchmarkSupport::ratio(
+            'registry_construct_vs_context' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::ratio(
                 (float) $subjects['foundation_registry_construct_two_disks']['median_ns'],
                 (float) $subjects['direct_context_construct_two_disks']['median_ns'],
             ),
-            'registry_path_vs_context' => BenchmarkSupport::ratio(
+            'registry_path_vs_context' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::ratio(
                 (float) $subjects['foundation_registry_path']['median_ns'],
                 (float) $subjects['direct_context_path']['median_ns'],
             ),
-            'registry_local_path_vs_context' => BenchmarkSupport::ratio(
+            'registry_local_path_vs_context' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::ratio(
                 (float) $subjects['foundation_registry_local_path']['median_ns'],
                 (float) $subjects['direct_context_local_path']['median_ns'],
             ),
-            'registry_warm_disk_vs_context' => BenchmarkSupport::ratio(
+            'registry_warm_disk_vs_context' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::ratio(
                 (float) $subjects['foundation_registry_warm_disk']['median_ns'],
                 (float) $subjects['direct_context_warm_filesystem']['median_ns'],
             ),
-            'public_resolution_bridge_vs_direct' => BenchmarkSupport::ratio(
+            'public_resolution_bridge_vs_direct' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::ratio(
                 (float) $subjects['foundation_public_file_resolution']['median_ns'],
                 (float) $subjects['direct_public_file_resolution']['median_ns'],
             ),
@@ -152,5 +151,5 @@ try {
         json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL,
     );
 } finally {
-    BenchmarkSupport::removeDirectory($base);
+    \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::removeDirectory($base);
 }
