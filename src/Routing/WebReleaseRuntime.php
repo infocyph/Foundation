@@ -57,10 +57,11 @@ final readonly class WebReleaseRuntime
         string $releaseManifestPath,
         ?RuntimeAdapterInterface $adapter = null,
         array $foundationCapabilities = [],
+        ?string $matcherCachePath = null,
     ): self {
         self::assertCompiledConfig($config);
 
-        return self::boot($config, $releaseManifestPath, $adapter, false, $foundationCapabilities);
+        return self::boot($config, $releaseManifestPath, $adapter, false, $foundationCapabilities, $matcherCachePath);
     }
 
     /**
@@ -94,11 +95,12 @@ final readonly class WebReleaseRuntime
         string $trustedManifestSha256,
         ?RuntimeAdapterInterface $adapter = null,
         array $foundationCapabilities = [],
+        ?string $matcherCachePath = null,
     ): self {
         self::assertCompiledConfig($config);
         self::assertTrustedManifest($releaseManifestPath, $trustedManifestSha256);
 
-        return self::boot($config, $releaseManifestPath, $adapter, true, $foundationCapabilities);
+        return self::boot($config, $releaseManifestPath, $adapter, true, $foundationCapabilities, $matcherCachePath);
     }
 
     private static function assertCompiledConfig(ConfigRepository $config): void
@@ -137,6 +139,7 @@ final readonly class WebReleaseRuntime
         ?RuntimeAdapterInterface $adapter,
         bool $prevalidated,
         array $foundationCapabilities,
+        ?string $matcherCachePath = null,
     ): self {
         $graph = new WebGraphFactory()->compose($config, $foundationCapabilities);
         $settings = new WebReleaseConfiguration($graph);
@@ -210,7 +213,7 @@ final readonly class WebReleaseRuntime
         $kernel = $prevalidated
             ? CompiledRouterKernel::fromPrevalidatedArtifact(
                 log: $logger,
-                matcher: $settings->matcher(),
+                matcher: $settings->matcher($matcherCachePath),
                 container: $container,
                 artifactPath: $routerPath,
                 trustedArtifactFingerprint: $routerFingerprint,
@@ -224,7 +227,7 @@ final readonly class WebReleaseRuntime
             )
             : CompiledRouterKernel::fromCompiledArtifact(
                 log: $logger,
-                matcher: $settings->matcher(),
+                matcher: $settings->matcher($matcherCachePath),
                 container: $container,
                 artifactPath: $routerPath,
                 environment: $environment,
