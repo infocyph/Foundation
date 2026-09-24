@@ -34,7 +34,7 @@ final class FoundationReleaseTreeDigest
 
             if ($entry->isLink()) {
                 $target = readlink($path);
-                if (!is_string($target) || $target === '') {
+                if (!is_string($target)) {
                     throw new \RuntimeException(sprintf(
                         'Unable to read Foundation release symlink "%s".',
                         $relative,
