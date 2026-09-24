@@ -77,6 +77,33 @@ final readonly class WebReleaseCompiler
         return $release;
     }
 
+    /** @param array<string, mixed> $release */
+    private function assertNoSkippedDefinitions(array $release): void
+    {
+        $intermix = $release['intermix'] ?? null;
+        $skipped = is_array($intermix) ? ($intermix['skipped'] ?? null) : null;
+        if (!is_array($skipped)) {
+            throw new \UnexpectedValueException('Foundation web release is missing the InterMix skipped-definition report.');
+        }
+        if ($skipped === []) {
+            return;
+        }
+
+        $details = [];
+        foreach ($skipped as $id => $reason) {
+            $details[] = sprintf(
+                '%s: %s',
+                is_string($id) ? $id : (string) $id,
+                is_string($reason) ? $reason : 'unknown static-compilation failure',
+            );
+        }
+
+        throw new \RuntimeException(
+            'Foundation web release contains definitions that were not statically compiled: '
+            . implode('; ', $details),
+        );
+    }
+
     private function compileMatcherCache(WebReleaseConfiguration $settings, string $routerPath): ?string
     {
         if ($settings->matcherName() !== 'sharded') {
@@ -109,32 +136,5 @@ final readonly class WebReleaseCompiler
         $reader->aliasIndex();
 
         return $cacheDirectory;
-    }
-
-    /** @param array<string, mixed> $release */
-    private function assertNoSkippedDefinitions(array $release): void
-    {
-        $intermix = $release['intermix'] ?? null;
-        $skipped = is_array($intermix) ? ($intermix['skipped'] ?? null) : null;
-        if (!is_array($skipped)) {
-            throw new \UnexpectedValueException('Foundation web release is missing the InterMix skipped-definition report.');
-        }
-        if ($skipped === []) {
-            return;
-        }
-
-        $details = [];
-        foreach ($skipped as $id => $reason) {
-            $details[] = sprintf(
-                '%s: %s',
-                is_string($id) ? $id : (string) $id,
-                is_string($reason) ? $reason : 'unknown static-compilation failure',
-            );
-        }
-
-        throw new \RuntimeException(
-            'Foundation web release contains definitions that were not statically compiled: '
-            . implode('; ', $details),
-        );
     }
 }
