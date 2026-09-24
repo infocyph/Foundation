@@ -8,7 +8,7 @@ it('attempts every cleanup while preserving an existing primary failure', functi
     $primary = new RuntimeException('primary');
     $calls = [];
 
-    CleanupGuard::run(
+    $suppressed = CleanupGuard::run(
         $primary,
         static function () use (&$calls): void {
             $calls[] = 'first';
@@ -19,7 +19,9 @@ it('attempts every cleanup while preserving an existing primary failure', functi
         },
     );
 
-    expect($calls)->toBe(['first', 'second']);
+    expect($calls)->toBe(['first', 'second'])
+        ->and($suppressed)->toBeInstanceOf(LogicException::class)
+        ->and($suppressed?->getMessage())->toBe('cleanup');
 });
 
 it('throws the first cleanup failure only when no primary failure exists', function (): void {
