@@ -312,7 +312,11 @@ PHP);
 
         sort($latencies);
         $attempted = $this->operations * $this->repetitions;
-        $spread = $this->spread($sampleRpms);
+        sort($sampleRpms);
+        $medianRpm = $this->percentile($sampleRpms, 0.50) ?? 0.0;
+        $spread = $medianRpm > 0.0
+            ? ((max($sampleRpms) - min($sampleRpms)) / $medianRpm) * 100
+            : 0.0;
         $stableEnvironment = getenv('FOUNDATION_BENCHMARK_STABLE') === '1';
 
         return [
@@ -449,20 +453,7 @@ PHP);
         };
     }
 
-    /** @param list<float> $values Per-repetition successful-RPM samples. */
-    private function spread(array $values): float
-    {
-        if ($values === []) {
-            return 0.0;
-        }
-
-        sort($values);
-        $median = $this->percentile($values, 0.50) ?? 0.0;
-
-        return $median > 0.0 ? ((max($values) - min($values)) / $median) * 100 : 0.0;
-    }
-
-    /**
+        /**
      * @param string $outputPath Destination for the benchmark result.
      * @param array<string, mixed> $document Complete PHPForge benchmark document.
      */
