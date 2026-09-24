@@ -8,7 +8,6 @@ use Infocyph\DBLayer\Connection\ConnectionConfig;
 use Infocyph\DBLayer\Connection\Pool;
 use Infocyph\DBLayer\Connection\PoolManager;
 use Infocyph\Foundation\Runtime\RuntimeExecutionState;
-use Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -44,13 +43,13 @@ $dedicated = new Connection($config, 'warm-dedicated');
 $dedicated->scalar('select ? as value', [42]);
 
 $subjects = [];
-$subjects['construct_connection'] = BenchmarkSupport::measure(
+$subjects['construct_connection'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
     static fn() => new Connection($config, 'construct'),
     $operations,
     $repetitions,
     $warmup,
 );
-$subjects['open_select_disconnect'] = BenchmarkSupport::measure(
+$subjects['open_select_disconnect'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
     static function () use ($config): void {
         $connection = new Connection($config, 'new');
         $connection->scalar('select 1');
@@ -60,7 +59,7 @@ $subjects['open_select_disconnect'] = BenchmarkSupport::measure(
     $repetitions,
     $warmup,
 );
-$subjects['pool_checkout_select_release'] = BenchmarkSupport::measure(
+$subjects['pool_checkout_select_release'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
     static function () use ($manager): void {
         $lease = $manager->checkout('default');
         $lease->connection()->scalar('select 1');
@@ -70,13 +69,13 @@ $subjects['pool_checkout_select_release'] = BenchmarkSupport::measure(
     $repetitions,
     $warmup,
 );
-$subjects['warm_dedicated_prepared_select'] = BenchmarkSupport::measure(
+$subjects['warm_dedicated_prepared_select'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
     static fn() => $dedicated->scalar('select ? as value', [42]),
     $operations,
     $repetitions,
     $warmup,
 );
-$subjects['pool_prepared_select_release'] = BenchmarkSupport::measure(
+$subjects['pool_prepared_select_release'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
     static function () use ($manager): void {
         $lease = $manager->checkout('default');
         $lease->connection()->scalar('select ? as value', [42]);
@@ -86,7 +85,7 @@ $subjects['pool_prepared_select_release'] = BenchmarkSupport::measure(
     $repetitions,
     $warmup,
 );
-$subjects['foundation_execution_dedicated'] = BenchmarkSupport::measure(
+$subjects['foundation_execution_dedicated'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
     static function () use ($config): void {
         $state = new RuntimeExecutionState();
         $state->connection('default', $config)->scalar('select 1');
@@ -96,7 +95,7 @@ $subjects['foundation_execution_dedicated'] = BenchmarkSupport::measure(
     $repetitions,
     $warmup,
 );
-$subjects['foundation_execution_leased'] = BenchmarkSupport::measure(
+$subjects['foundation_execution_leased'] = \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::measure(
     static function () use ($manager): void {
         $state = new RuntimeExecutionState();
         $state->leasedConnection('default', $manager)->scalar('select 1');
@@ -126,9 +125,9 @@ $report = [
     'warmup_operations' => $warmup,
     'subjects' => $subjects,
     'ratios' => [
-        'pool_vs_open_select_disconnect' => BenchmarkSupport::ratio($poolNs, $openNs),
-        'foundation_leased_vs_dedicated' => BenchmarkSupport::ratio($leasedNs, $dedicatedNs),
-        'foundation_lease_overhead_vs_raw_pool' => BenchmarkSupport::ratio($leasedNs, $poolNs),
+        'pool_vs_open_select_disconnect' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::ratio($poolNs, $openNs),
+        'foundation_leased_vs_dedicated' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::ratio($leasedNs, $dedicatedNs),
+        'foundation_lease_overhead_vs_raw_pool' => \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::ratio($leasedNs, $poolNs),
     ],
     'decision_input' => [
         'pool_default_enabled' => false,
