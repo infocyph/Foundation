@@ -67,7 +67,6 @@ final class GeneratedRuntimeMetadata
                 'Foundation generated runtime metadata has no deterministic provider boot order.',
             );
         }
-
     }
 
     /**
