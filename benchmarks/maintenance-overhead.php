@@ -29,7 +29,6 @@ function foundationMaintenanceBenchmarkMode(string $mode): array
 declare(strict_types=1);
 
 use Infocyph\Webrick\Router\Facade\Router;
-use Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport;
 
 Router::get('/benchmark', \Infocyph\Foundation\Benchmarks\Support\FoundationMaintenanceBenchmarkHandler::class);
 PHP);
@@ -91,7 +90,7 @@ PHP);
             $samples[] = (hrtime(true) - $started) / $operations;
         }
     } finally {
-        BenchmarkSupport::removeDirectory($project);
+        \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::removeDirectory($project);
     }
 
     sort($samples);
