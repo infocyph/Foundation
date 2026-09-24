@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Composer\InstalledVersions;
+use Infocyph\Foundation\Diagnostics\ReadinessReport;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Module\Internal\ModulePlatformResolver;
 use Infocyph\Foundation\Module\ModuleCatalog;
@@ -80,6 +82,59 @@ it('rejects direct root constraints that can fall below the supported module flo
             ->toContain('outside the supported module range ^5.1');
     } finally {
         moduleStateRemoveDirectory($basePath);
+    }
+});
+
+it('accepts exact supported pins and fails closed on unsupported consumer constraint syntax', function (): void {
+    $version = InstalledVersions::getVersion('infocyph/dblayer');
+    expect($version)->toBeString();
+    preg_match('/^(\d+\.\d+\.\d+)/', (string) $version, $match);
+    $exact = $match[1] ?? throw new RuntimeException('Unable to derive the installed DBLayer release.');
+
+    $cases = [
+        'exact' => [$exact, true],
+        'tilde' => ['~5.1', null],
+        'range' => ['>=5.1 <6.0', null],
+        'union' => ['^5.1 || ^6.0', null],
+        'alias' => ['dev-main as 5.1.x-dev', null],
+    ];
+
+    foreach ($cases as $name => [$constraint, $expected]) {
+        $basePath = moduleStateBasePath('constraint-' . $name);
+        moduleStateWriteComposer($basePath, ['infocyph/dblayer' => $constraint]);
+
+        try {
+            $application = Foundation::cli([
+                'base_path' => $basePath,
+                '_config_cache' => false,
+                'app' => ['capabilities' => ['database']],
+            ]);
+            $database = moduleStateFind(
+                (new ModuleStateResolver($application, new ModuleCatalog()))->all(),
+                'database',
+            );
+            $package = $database['packages']['infocyph/dblayer'] ?? null;
+
+            expect($package)->toBeArray()
+                ->and($package['direct_constraint_compatible'] ?? 'missing')->toBe($expected);
+
+            if ($expected === true) {
+                expect($database['installed'])->toBeTrue()
+                    ->and($database['ready'])->toBeTrue();
+            } else {
+                expect($package['compatible'] ?? 'missing')->toBeNull()
+                    ->and($database['installed'])->toBeFalse()
+                    ->and($database['ready'])->toBeFalse()
+                    ->and(implode(' ', $database['blockers']))->toContain('Unable to verify direct Composer constraint');
+
+                $readiness = new ReadinessReport($application)->generate();
+                expect($readiness['checks']['module:database']['ready'] ?? true)->toBeFalse()
+                    ->and($readiness['checks']['module:database']['detail'] ?? '')
+                    ->toContain('Unable to verify direct Composer constraint');
+            }
+        } finally {
+            moduleStateRemoveDirectory($basePath);
+        }
     }
 });
 
