@@ -60,22 +60,13 @@ final class NotificationServiceProvider extends ServiceProvider
     private function registerMail(ContainerBuilder $builder): void
     {
         if (!$builder->definitions()->has(EmailSenderFactory::class)) {
-            $builder->singleton(EmailSenderFactory::class, FactoryDefinition::staticFactory(
-                NotificationGraphFactory::class,
-                'emailSenderFactory',
-            ));
+            $builder->singleton(EmailSenderFactory::class, FactoryDefinition::construct(EmailSenderFactory::class));
         }
         if (!$builder->definitions()->has(EmailReceiverFactory::class)) {
-            $builder->singleton(EmailReceiverFactory::class, FactoryDefinition::staticFactory(
-                NotificationGraphFactory::class,
-                'emailReceiverFactory',
-            ));
+            $builder->singleton(EmailReceiverFactory::class, FactoryDefinition::construct(EmailReceiverFactory::class));
         }
         if (!$builder->definitions()->has(EmailMailboxFactory::class)) {
-            $builder->singleton(EmailMailboxFactory::class, FactoryDefinition::staticFactory(
-                NotificationGraphFactory::class,
-                'emailMailboxFactory',
-            ));
+            $builder->singleton(EmailMailboxFactory::class, FactoryDefinition::construct(EmailMailboxFactory::class));
         }
         if (!$builder->definitions()->has(EmailLimits::class)) {
             $builder->singleton(EmailLimits::class, FactoryDefinition::staticFactory(
