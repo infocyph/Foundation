@@ -40,6 +40,13 @@ final class ConfigExportValidator
         return true;
     }
 
+    private static function allowedLeaf(mixed $value, bool $allowDelayed): bool
+    {
+        return $value === null
+            || is_scalar($value)
+            || ($allowDelayed && ($value instanceof EnvReference || $value instanceof \Closure));
+    }
+
     private static function walk(
         mixed $value,
         string $path,
@@ -54,11 +61,7 @@ final class ConfigExportValidator
             ));
         }
 
-        if ($value === null || is_scalar($value)) {
-            return;
-        }
-
-        if ($allowDelayed && ($value instanceof EnvReference || $value instanceof \Closure)) {
+        if (self::allowedLeaf($value, $allowDelayed)) {
             return;
         }
 
