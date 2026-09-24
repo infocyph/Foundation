@@ -140,7 +140,7 @@ Every work item must record its final commit, dependency identities, commands, e
 | **B** | Session lifecycle correctness | **DONE** | Primary-failure precedence, finite duration validation, all configured shared-lock backends, stale-owner rotation/invalidation, failure cleanup, bounded offline pruning and streaming finalization are covered. Current-source workflow #1717 is green. |
 | **C** | Runtime support + sustained evidence | **DONE** | The 3.0 support statement is deliberately narrowed to rows exercised by Foundation CI: ordinary Webrick/SAPI, generated releases, persistent-adapter semantics, CLI/worker/scheduler and sustained isolation. Native FPM/Runwire/FrankenPHP/RoadRunner/Swoole/Workerman certification is explicitly deferred; representative and attribution evidence is retained without converting adapter availability into a support claim. |
 | **D** | Release artifacts + rollback | **DONE** | Read-only-source builds, serialized/staged publication, fail-closed trust/config/dependency identities, failed-stage recovery, rollback guidance, generated-secret isolation and key fallback/rotation are covered. Runtime generation leases enforce drain-safe pruning. Current-source workflow #1717 is green. Infbyte handoff remains explicitly deferred. |
-| **E** | Readiness, trust boundaries, architecture | **PARTIAL** | F30-10 readiness semantics and F30-12 architecture ownership are implemented and covered, including versioned `app:ready` output and explicit cold-capability agreement. F30-11 trust-boundary closure remains. |
+| **E** | Readiness, trust boundaries, architecture | **PARTIAL** | F30-10 readiness semantics and F30-12 architecture ownership are complete. F30-11 source/test closure is now implemented, including multi-process auth lockout-counter evidence; current-head all-green workflow evidence is pending before Batch E is marked done. |
 | **F** | CI reproducibility + documentation | **PARTIAL** | Current-source workflow #1717 is green across PHP 8.4/8.5 stable+lowest, services, analysis, clean install, benchmarks and disposable production consumers. The reusable PHPForge workflow is pinned to `fdec64cf4460f13116eb0e2f3405acadd3e84377`; release notes and the final candidate evidence index remain. |
 
 Tracker rule: mark a batch **DONE** only when its required acceptance criteria are backed by current-source tests, workflow evidence or an explicitly narrowed support statement. Historical green runs do not close a current batch.
@@ -336,13 +336,13 @@ Sources: `src/Diagnostics/ReadinessReport.php`, `src/Module/ModuleStateResolver.
 
 Existing OAuth, MFA, passkey, rotation, revocation and authorization suites are substantial. Extend coverage at the Foundation boundary instead of recreating specialist protocol tests.
 
-- [ ] Trace login, MFA completion, password reset/change, logout, role changes and revocation across persistent hosts and distributed stores.
-- [ ] Verify browser-session rotation is explicit and correct when app authentication/privilege state changes; keep browser sessions distinct from auth refresh/device sessions.
-- [ ] Exercise trusted proxy/host/origin configuration with CSRF, secure cookies, redirects, signed links and OAuth callback URLs.
-- [ ] Verify public error responses and logs never expose credentials, cookies, tokens, MFA seeds or key locators.
-- [ ] Test rate-limit/lockout/replay behavior across two processes and dependency outages, preserving the existing fail-closed policy where required.
-- [ ] Review migration/rollback and retention behavior for existing auth data and active sessions.
-- [ ] Route cryptographic/protocol issues to Epicrypt/OTP and atomic-store issues to CacheLayer/DBLayer, then add Foundation integration regressions.
+- [x] Cover login, MFA completion, password reset/change, logout, role/permission changes and revocation, then pair those flows with persistent execution-scope reset and durable cross-process revocation evidence. Native host-specific behavior remains limited to the certified 3.0 runtime scope.
+- [x] Verify browser-session rotation/invalidation is explicit and stale-owner safe when application authority changes; keep browser sessions distinct from auth refresh/device sessions.
+- [x] Exercise Foundation behavior against the effective Webrick request: CSRF origin rejection, secure cookies, signed-link policy and OAuth redirect/callback validation. Forwarded proxy parsing/trust remains Webrick/host-adapter ownership and is not duplicated in Foundation.
+- [x] Verify public error responses, diagnostics and logs do not expose credentials, cookies, tokens, MFA seeds, private-key material or deployment key locators.
+- [x] Exercise replay/CAS/auth lockout-counter state from independent processes against shared Redis and verify production rejects non-atomic, host-local or fail-open distributed auth state.
+- [x] Review migration/rollback and retention behavior for existing auth/session/OAuth data, additive schema changes, active sessions and rolling key windows.
+- [x] Keep cryptographic/protocol mechanics with Epicrypt/OTP and atomic/durable mechanics with CacheLayer/DBLayer; Foundation tests only its integration/orchestration boundaries.
 
 **Acceptance:** realistic negative paths pass with no cross-user leakage, unintended authentication bypass, secret disclosure or silently weakened policy. A security-review checklist is evidence only when its cases are executed or tied to existing tests.
 

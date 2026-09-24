@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use Infocyph\CacheLayer\Cache\Cache;
 use Infocyph\CacheLayer\Cache\CacheOptions;
+use Infocyph\CacheLayer\Counter\AtomicCounters;
+use Infocyph\Foundation\Auth\Adapter\CacheLayer\AtomicCounterStore;
 use Infocyph\Foundation\Auth\Adapter\CacheLayer\CacheLayerTtlStore;
 use Infocyph\Foundation\Communication\CacheLayerWebhookReplayStore;
 
@@ -51,7 +53,7 @@ it('fails composition when the selected CacheLayer store cannot provide atomic s
         ->toThrow(LogicException::class, 'atomic cache capability');
 });
 
-it('allows exactly one replay claimant one consume recipient and one CAS winner under contention', function (): void {
+it('preserves replay consume CAS and auth lockout atomicity under process contention', function (): void {
     $dsn = foundationCacheLayer33RedisDsn();
     $namespace = 'foundation-33-' . bin2hex(random_bytes(8));
     $cache = Cache::redis(
@@ -77,6 +79,12 @@ it('allows exactly one replay claimant one consume recipient and one CAS winner 
         $cas = foundationCacheLayer33Workers('cas', $namespace, $dsn, 'cas-contention', 8);
         expect(array_count_values($cas))->toMatchArray(['1' => 1, '0' => 7])
             ->and($cache->get('cas-contention'))->toBe(1);
+
+        $counter = new AtomicCounterStore(AtomicCounters::redis($namespace, $dsn));
+        $counter->reset('login:shared-account');
+        $increments = foundationCacheLayer33Workers('counter', $namespace, $dsn, 'login:shared-account', 8);
+        expect($increments)->toBe(['1', '2', '3', '4', '5', '6', '7', '8']);
+        $counter->reset('login:shared-account');
     } finally {
         $cache->clear();
     }
@@ -142,6 +150,7 @@ function foundationCacheLayer33Workers(
         $results[] = match (true) {
             $decoded === true => '1',
             $decoded === false => '0',
+            is_int($decoded) => (string) $decoded,
             is_string($decoded) => $decoded,
             default => throw new RuntimeException('Unexpected CacheLayer concurrency worker result.'),
         };
