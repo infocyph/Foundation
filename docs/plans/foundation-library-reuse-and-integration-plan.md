@@ -30,7 +30,7 @@ This plan is source-backed integration remediation. Performance claims require m
 | 4 | F5 legacy refresh-token retirement | Complete for Foundation 3.x compatibility boundary | Epicrypt path canonical; legacy runtime tests moved; credential cutover policy explicit; contention QA green |
 | 5 | F6 CSRF overlap decision | Complete — QA validated, no code change | Foundation 3.x keeps raw-token semantics; Webrick masked-token expansion is not adopted implicitly |
 | 6 | Documentation and architecture guards | Complete | Ownership boundaries and native-owner guards recorded and validated |
-| 7 | F8 default/named cache identity | Implemented; QA closure pending | Default and explicit configured names share canonical store identity |
+| 7 | F8 default/named cache identity | Complete | Default and explicit configured names share canonical store identity in development and generated runtime |
 | 8 | F9 named cache registry ownership | Implemented; QA closure pending | Confirmed application-owned consumers reuse CacheManager resources |
 | 9 | F10 TalkingBytes 2.2 typed HTTP composition | Implemented; QA closure pending | Foundation parses base HTTP config once and TalkingBytes owns composition |
 | 10 | Final release and consumer gates | In progress | Final-revision CI, production database/Redis evidence, clean install, and Infbyte certification |
@@ -340,7 +340,7 @@ Do not automatically extract Foundation browser-session stores, auth database st
 - [x] Correct canonical cache-store identity.
 - [x] Add development behavioral regression coverage.
 - [x] Add generated-runtime identity coverage.
-- [ ] Execute F8 focused and generated-runtime coverage.
+- [x] Execute F8 focused and generated-runtime coverage.
 
 ### Batch 8 — F9 named cache registry ownership
 
@@ -460,6 +460,15 @@ Batch 6 is closed.
 - Architecture/registration guards cover native service selection and retired ownership.
 - The architecture guards passed in GitHub Actions run `36168426947` together with syntax, references, duplicate analysis, Pest, Pint, PHPCS, Deptrac, Rector, and PHP 8.4/8.5 analysis.
 - Release/consumer certification is intentionally moved to Batch 10 so later F8-F10 work is validated before final closure.
+
+## Batch 7 QA closure — 2026-09-26
+
+Batch 7 / F8 is closed.
+
+- `tests/Feature/CacheManagerIdentityTest.php` covers default/explicit-name identity, replacement, distinct named stores, application isolation, default-name changes, and lock-provider invalidation behavior.
+- `tests/Feature/GeneratedNonWebRuntimeTest.php` covers generated-runtime identity parity.
+- Both regressions are part of the full Pest suite that passed across PHP 8.4/8.5 stable and lowest rows in GitHub Actions run `36168426947`.
+- The canonical `__default__` sentinel split is no longer present in the active implementation.
 
 ## Current implementation evidence
 
