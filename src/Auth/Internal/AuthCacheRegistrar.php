@@ -23,11 +23,8 @@ final readonly class AuthCacheRegistrar extends AbstractAuthRegistrar
     {
         if ($drivers->cache() === AuthCacheDriver::CACHE) {
             $topology = new SharedStateTopology($this->app->config());
-            if ($topology->cacheStoreScope() === SharedStateTopology::PROCESS) {
-                $this->recipe(CounterStoreInterface::class, InMemoryCounterStore::class, [
-                    $this->ref(ClockInterface::class),
-                ]);
-            } else {
+            $scope = $topology->cacheStoreScope();
+            if (in_array($scope, [SharedStateTopology::HOST, SharedStateTopology::CLUSTER], true)) {
                 $counter = $this->stringConfig('cache.default_counter', '');
                 if ($counter === '') {
                     throw new \LogicException(
@@ -40,6 +37,10 @@ final readonly class AuthCacheRegistrar extends AbstractAuthRegistrar
                     AtomicCounterStore::class,
                     [$this->ref(AtomicCounterStoreInterface::class)],
                 );
+            } else {
+                $this->recipe(CounterStoreInterface::class, InMemoryCounterStore::class, [
+                    $this->ref(ClockInterface::class),
+                ]);
             }
 
             $this->recipe(TtlStoreInterface::class, CacheLayerTtlStore::class, [
