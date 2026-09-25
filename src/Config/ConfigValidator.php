@@ -211,7 +211,16 @@ final readonly class ConfigValidator
         }
 
         $counter = $this->stringConfig('cache.default_counter', '');
-        if ($counter !== '' && !$this->config->has('cache.counters.' . $counter)) {
+        if ($counter === '') {
+            $issues[] = new ConfigIssue(
+                'cache.default_counter must select an atomic counter when auth.drivers.cache uses cache.',
+                'cache.default_counter',
+            );
+
+            return;
+        }
+
+        if (!$this->config->has('cache.counters.' . $counter)) {
             $issues[] = new ConfigIssue(
                 sprintf('cache.counters.%s must exist when cache.default_counter is configured.', $counter),
                 'cache.counters.' . $counter,
