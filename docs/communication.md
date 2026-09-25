@@ -63,6 +63,12 @@ $billing = $clients->http('billing');
 optional decorators. Foundation does not wrap `HttpRequest`, `HttpResponse`,
 fakes, multipart bodies, request pools, middleware, or signing helpers.
 
+Foundation parses each selected HTTP profile once into TalkingBytes'
+`HttpClientConfig`, applies the application production-TLS policy to that typed
+object, and passes the same object to TalkingBytes 2.2's resolved composer.
+Authentication, cookies, retry, rate limiting, circuit breaking and idempotency
+remain TalkingBytes-owned and are composed without reparsing the base options.
+
 In production, configured Foundation HTTP profiles must keep both TLS peer and
 host verification enabled. Applications that deliberately construct a native
 TalkingBytes client outside Foundation own that decision themselves.
