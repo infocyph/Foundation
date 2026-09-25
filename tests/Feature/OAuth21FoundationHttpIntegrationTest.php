@@ -4,11 +4,30 @@ declare(strict_types=1);
 
 use Infocyph\DBLayer\DB;
 use Infocyph\Epicrypt\Certificate\KeyPairGenerator;
+use Infocyph\Epicrypt\Token\Opaque\OpaqueToken;
+use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerOAuthClientStore;
+use Infocyph\Foundation\Auth\Contract\Security\PasswordHasherInterface;
+use Infocyph\Foundation\Auth\Contract\Security\PasswordVerificationResult;
+use Infocyph\Foundation\Auth\Contract\Security\PasswordVerifierInterface;
+use Infocyph\Foundation\Auth\OAuth\Authorization\AuthorizationRequest;
+use Infocyph\Foundation\Auth\OAuth\Authorization\AuthorizationRequestValidator;
+use Infocyph\Foundation\Auth\OAuth\Client\OAuthClient;
+use Infocyph\Foundation\Auth\OAuth\Client\OAuthClientManager;
+use Infocyph\Foundation\Auth\OAuth\Contract\JwkSetProviderInterface;
+use Infocyph\Foundation\Auth\OAuth\Contract\OAuthClientStoreInterface;
 use Infocyph\Foundation\Auth\OAuth\Http\OAuthAuthorizationController;
 use Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpHandler;
+use Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpInput;
+use Infocyph\Foundation\Auth\OAuth\Http\OAuthHttpResponseFactory;
 use Infocyph\Foundation\Auth\OAuth\Http\OAuthRateLimitMiddleware;
+use Infocyph\Foundation\Auth\OAuth\Metadata\AuthorizationServerMetadata;
 use Infocyph\Foundation\Auth\OAuth\OAuthManager;
+use Infocyph\Foundation\Auth\OAuth\Scope\OAuthScopeResolver;
+use Infocyph\Foundation\Auth\OAuth\Value\OAuthClientType;
+use Infocyph\Foundation\Auth\OAuth\Value\OAuthGrantType;
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Foundation;
+use Infocyph\Foundation\Tests\Fixtures\OAuth21FlowFixture;
 use Infocyph\Foundation\Routing\WebReleaseCompiler;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Router\Build\CompiledRouterArtifact;
@@ -276,21 +295,171 @@ function foundationOAuthHttpRemoveProject(string $root): void
     rmdir($root);
 }
 
-
-it('keeps each OAuth HTTP authorization attempt to one native protocol evaluation call', function (): void {
-    $source = file_get_contents(
-        dirname(__DIR__, 2) . '/src/Auth/OAuth/Http/OAuthHttpHandler.php',
+it('performs one native OAuth protocol validation per HTTP authorization request', function (): void {
+    $fixture = new OAuth21FlowFixture();
+    $clientStore = new FoundationOAuthClientStoreProbe(
+        new DBLayerOAuthClientStore($fixture->factory, $fixture->tables),
     );
-    expect($source)->toBeString();
+    $config = new ConfigRepository([
+        'auth' => [
+            'oauth' => [
+                'issuer' => 'https://issuer.example.test',
+                'oidc' => ['enabled' => false],
+                'scope_permissions' => [],
+                'routes' => [
+                    'authorization' => '/oauth/authorize',
+                    'token' => '/oauth/token',
+                    'revocation' => '/oauth/revoke',
+                    'introspection' => '/oauth/introspect',
+                    'jwks' => '/.well-known/jwks.json',
+                ],
+                'grants' => [OAuthGrantType::AuthorizationCode->value],
+            ],
+        ],
+    ]);
+    $clients = new OAuthClientManager(
+        $clientStore,
+        new class implements PasswordHasherInterface {
+            public function hash(string $plainPassword, array $context = []): string
+            {
+                unset($context);
 
-    $start = strpos($source, 'public function authorization(Request $request)');
-    $end = strpos($source, 'public function authorizationApproved(', $start ?: 0);
-    expect($start)->not->toBeFalse()
-        ->and($end)->not->toBeFalse();
+                return password_hash($plainPassword, PASSWORD_BCRYPT, ['cost' => 4]);
+            }
+        },
+        new class implements PasswordVerifierInterface {
+            public function verify(string $plainPassword, string $storedHash): PasswordVerificationResult
+            {
+                return new PasswordVerificationResult(password_verify($plainPassword, $storedHash));
+            }
+        },
+        $fixture->clock,
+        new OpaqueToken(),
+        false,
+    );
+    $requests = new AuthorizationRequestValidator(
+        $clients,
+        new OAuthScopeResolver($clientStore, $config),
+        $config,
+    );
+    $manager = new OAuthManager(
+        $requests,
+        $fixture->consents,
+        $fixture->codes,
+        $fixture->tokens,
+        $fixture->revocation,
+        $fixture->introspection,
+        new AuthorizationServerMetadata($config),
+        new class implements JwkSetProviderInterface {
+            public function jwks(): array
+            {
+                return ['keys' => []];
+            }
+        },
+        $clients,
+    );
+    $handler = new OAuthHttpHandler(
+        $manager,
+        new OAuthHttpInput(),
+        new OAuthHttpResponseFactory(),
+        $config,
+    );
+    $redirectUri = 'https://client.example.test/callback';
+    $audience = 'https://api.example.test';
+    $verifier = str_repeat('v', 64);
 
-    $method = substr($source, (int) $start, (int) $end - (int) $start);
+    try {
+        $registration = $clients->register(
+            OAuthClientType::Public,
+            [OAuthGrantType::AuthorizationCode],
+            [$redirectUri],
+            ['profile.read'],
+            [$audience],
+        );
+        $clientStore->resetCounts();
 
-    expect(substr_count($method, 'authorizationProtocolResult('))->toBe(1)
-        ->and($method)->not->toContain('authorizationRedirectContext($parameters)')
-        ->not->toContain('validateAuthorizationRequest($parameters)');
+        $query = http_build_query([
+            'client_id' => $registration->client->clientId,
+            'redirect_uri' => $redirectUri,
+            'response_type' => 'code',
+            'code_challenge' => OAuth21FlowFixture::pkceChallenge($verifier),
+            'code_challenge_method' => 'S256',
+            'scope' => 'profile.read',
+        ], '', '&', PHP_QUERY_RFC3986);
+        $result = $handler->authorization(Request::fake(
+            headers: ['Host' => 'issuer.example.test'],
+            uri: 'https://issuer.example.test/oauth/authorize?' . $query,
+        ));
+
+        expect($result)->toBeInstanceOf(AuthorizationRequest::class)
+            ->and($clientStore->redirectUriReads)->toBe(1)
+            ->and($clientStore->findReads)->toBe(2)
+            ->and($clientStore->scopeReads)->toBe(2);
+    } finally {
+        $fixture->close();
+    }
 });
+
+final class FoundationOAuthClientStoreProbe implements OAuthClientStoreInterface
+{
+    public int $findReads = 0;
+
+    public int $redirectUriReads = 0;
+
+    public int $scopeReads = 0;
+
+    public function __construct(private readonly OAuthClientStoreInterface $inner) {}
+
+    public function find(string $clientId): ?OAuthClient
+    {
+        ++$this->findReads;
+
+        return $this->inner->find($clientId);
+    }
+
+    public function list(int $limit = 100): array
+    {
+        return $this->inner->list($limit);
+    }
+
+    public function redirectUris(string $clientId): array
+    {
+        ++$this->redirectUriReads;
+
+        return $this->inner->redirectUris($clientId);
+    }
+
+    public function register(OAuthClient $client, array $redirectUris, array $scopes): void
+    {
+        $this->inner->register($client, $redirectUris, $scopes);
+    }
+
+    public function replaceRedirectUris(string $clientId, array $redirectUris, int $createdAt): void
+    {
+        $this->inner->replaceRedirectUris($clientId, $redirectUris, $createdAt);
+    }
+
+    public function replaceScopes(string $clientId, array $scopes, int $createdAt): void
+    {
+        $this->inner->replaceScopes($clientId, $scopes, $createdAt);
+    }
+
+    public function resetCounts(): void
+    {
+        $this->findReads = 0;
+        $this->redirectUriReads = 0;
+        $this->scopeReads = 0;
+    }
+
+    public function save(OAuthClient $client): void
+    {
+        $this->inner->save($client);
+    }
+
+    public function scopes(string $clientId): array
+    {
+        ++$this->scopeReads;
+
+        return $this->inner->scopes($clientId);
+    }
+}
