@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Session;
 
-use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Filesystem\PathManager;
 use Psr\Container\ContainerInterface;
@@ -27,7 +27,7 @@ final class SessionGraphFactory
     public static function lockedManager(
         SessionConfig $config,
         SessionStoreFactory $stores,
-        CacheLayerFactory $cache,
+        CacheManager $cache,
         ContainerInterface $container,
     ): SessionManager {
         return new SessionManager(
