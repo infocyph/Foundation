@@ -7,7 +7,6 @@ namespace Infocyph\Foundation\Auth\Internal;
 use Infocyph\CacheLayer\Cache\CacheInterface;
 use Infocyph\CacheLayer\Counter\AtomicCounterStoreInterface;
 use Infocyph\Foundation\Auth\Adapter\CacheLayer\AtomicCounterStore;
-use Infocyph\Foundation\Auth\Adapter\CacheLayer\CacheLayerCounterStore;
 use Infocyph\Foundation\Auth\Adapter\CacheLayer\CacheLayerTtlStore;
 use Infocyph\Foundation\Auth\Contract\Cache\CounterStoreInterface;
 use Infocyph\Foundation\Auth\Contract\Cache\TtlStoreInterface;
@@ -23,11 +22,16 @@ final readonly class AuthCacheRegistrar extends AbstractAuthRegistrar
     {
         if ($drivers->cache() === AuthCacheDriver::CACHE) {
             $counter = $this->stringConfig('cache.default_counter', '');
+            if ($counter === '') {
+                throw new \LogicException(
+                    'Cache-backed authentication requires cache.default_counter to select an atomic counter resource.',
+                );
+            }
 
             $this->recipe(
                 CounterStoreInterface::class,
-                $counter === '' ? CacheLayerCounterStore::class : AtomicCounterStore::class,
-                [$this->ref($counter === '' ? CacheInterface::class : AtomicCounterStoreInterface::class)],
+                AtomicCounterStore::class,
+                [$this->ref(AtomicCounterStoreInterface::class)],
             );
             $this->recipe(TtlStoreInterface::class, CacheLayerTtlStore::class, [
                 $this->ref(CacheInterface::class),
