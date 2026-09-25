@@ -25,7 +25,7 @@ This plan is source-backed integration remediation. Performance claims require m
 | 0 | Baseline, public surface, persistence/compatibility inventory | Complete | Direct callers, generated graph roots, public compatibility, refresh-token persistence requirements recorded |
 | 1 | F1 native Webrick CacheLayer throttle bridge | Complete | Native bridge selected; compatibility wrapper deprecated/outside default graph; final matrix green |
 | 2 | F2 auth atomic counter hardening | Complete | Shared auth state cannot silently use read/modify/write counters; process-local state remains supported |
-| 3A | F3 OAuth authorization single evaluation | Implemented; final validation pending | HTTP path reuses one native protocol result |
+| 3A | F3 OAuth authorization single evaluation | Complete | HTTP path reuses one native protocol result; runtime operation-count coverage green |
 | 3B | F4 Pathwise download preparation reuse | Implemented; final validation pending | No-range/stale-If-Range full response reuses initial preparation |
 | 4 | F5 legacy refresh-token retirement | Implemented as 3.x deprecation/compatibility boundary; final validation pending | Epicrypt path canonical; legacy runtime tests moved; credential cutover policy explicit |
 | 5 | F6 CSRF overlap decision | Complete — no code change | Foundation 3.x keeps raw-token semantics; Webrick masked-token expansion is not adopted implicitly |
@@ -300,8 +300,8 @@ Do not automatically extract Foundation browser-session stores, auth database st
 
 - [x] Remove successful-path duplicate native validation.
 - [x] Reuse one protocol result for redirectable failures where it remains simple and safe.
-- [ ] Add validation-operation-count coverage. Runtime probe implemented; fresh execution pending.
-- [ ] Re-run OAuth HTTP/OIDC/redirect/audit tests.
+- [x] Add validation-operation-count coverage. Runtime probe executed successfully.
+- [x] Re-run OAuth HTTP/OIDC/redirect/audit tests.
 
 ### Batch 3B — F4 Pathwise download preparation
 
@@ -374,6 +374,16 @@ at `297d34f0ba07eaf55a5e184334ae8e8863293f86`.
 - Missing shared atomic counter configuration fails explicitly.
 - The earlier QA regressions in `RuntimeCapabilityConfigTest` and passkey composition were resolved before the final validation run.
 - GitHub Actions run `36168426947` completed all PHP 8.4/8.5 stable/lowest QA rows successfully with the F2 regression coverage enabled.
+
+## Batch 3A QA closure — 2026-09-26
+
+Batch 3A is closed against the single-evaluation OAuth implementation validated
+at `297d34f0ba07eaf55a5e184334ae8e8863293f86`.
+
+- The HTTP authorization path carries one `AuthorizationProtocolResult` through native validation, redirect/error handling, and Foundation mapping.
+- The runtime client-store operation-count regression probe executes in the full Pest suite and passed.
+- OAuth HTTP, redirect safety, OIDC, PKCE/scope mapping, and audit regression coverage completed successfully in GitHub Actions run `36168426947`.
+- No request-global or singleton protocol-result cache was introduced.
 
 ## Current implementation evidence
 
