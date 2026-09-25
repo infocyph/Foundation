@@ -2,7 +2,7 @@
 
 Date: 2026-09-25
 
-Status: active implementation
+Status: open findings and remaining verification only
 
 Branch: `foundation-3/library-reuse-hardening`
 
@@ -451,3 +451,139 @@ Three follow-up quality issues were addressed on the branch:
 
 The F3/F4 operation-count tracker items intentionally remain unchecked until
 these new runtime probes are executed successfully in a fresh local or CI run.
+
+
+## Follow-up findings F8-F10
+
+Review baseline: `e7c3e369e761f06afec414752e9c707abb00b1a0`.
+
+| Finding | Priority | Status | Next step |
+| --- | --- | --- | --- |
+| F8 — Default/named cache identity | P2 | Implemented; fresh verification pending | Run identity/replacement/dev-generated parity coverage |
+| F9 — Consumers bypass cache registry | P2 | Implemented for confirmed application-owned named resources; fresh verification pending | Run invalidation, lock/resource, PDO recursion, lifecycle suites |
+| F10 — HTTP configuration parsed twice | P3 | Deferred; TalkingBytes API prerequisite | Add/use a native typed-config + resolved middleware composition entry point before changing Foundation |
+
+### F8 — Default cache selection and its explicit name create different stores
+
+**Priority:** P2  
+**Status:** implementation complete; execution gate open.
+
+The original `CacheManager` stored `store(null)` under a private
+`__default__` key and `store('name')` under the configured name. That made
+the default accessor and its explicit configured name separate CacheLayer
+instances, which is observably incorrect for instance-owned memory state.
+
+Implemented:
+
+- `CacheLayerFactory::storeName()` resolves the canonical configured name.
+- `CacheManager::store()` and `useStore()` use that canonical name; the
+  `__default__` sentinel is gone.
+- A later explicit default-store configuration change resolves the new named
+  store rather than mutating an old alias entry. Previously resolved named
+  stores remain accessible by their actual names.
+- No process-static cache state was introduced.
+- Behavioral coverage checks both access orders, shared values, delete/clear,
+  replacement, distinct named-store isolation, independent-application
+  isolation, default-name changes, and generated-runtime parity.
+
+Acceptance remains open until those tests execute successfully on the final
+candidate.
+
+- [x] Correct canonical cache-store identity.
+- [x] Add development behavioral regression coverage.
+- [x] Add generated-runtime identity coverage.
+- [ ] Execute F8 focused and generated-runtime coverage.
+
+### F9 — Consumers bypass the named cache registry and recreate resources
+
+**Priority:** P2  
+**Status:** implementation complete for confirmed application-owned resources;
+execution/lifecycle gate open.
+
+Implemented application/generation-owned resolution:
+
+- DBLayer query caching now resolves
+  `CacheManager::store(database.query_cache.store)` instead of calling
+  `CacheLayerFactory::make()` independently.
+- The DB query-cache resolution guard remains in place. PDO-backed CacheLayer
+  stores continue to obtain generation-owned infrastructure PDO via
+  `DBLayerFactory::infrastructureConnection()`, which does not bind the query
+  cache and therefore avoids recursive execution-cache composition.
+- `CacheManager` memoizes lock providers by canonical store identity. For
+  native store locks it supplies the already-resolved registry store to
+  `CacheLayerFactory`; it does not construct another cache merely to extract
+  the lock provider.
+- `useStore()` invalidates the corresponding memoized lock provider so a later
+  native lock selection follows the replacement store.
+- Browser-session locking, OTP challenge state, passkey ceremony state, webhook
+  replay state, migration locks, scheduler overlap locks, and singleton-worker
+  locks now resolve through `CacheManager`.
+- Lock handles remain per-acquisition and are never memoized.
+- CacheLayer counters, clusters, schema/infrastructure construction, and the
+  execution-bound transactional invalidation factory remain outside the named
+  application store registry where their lifecycle requires it.
+
+Regression coverage added:
+
+- DBLayer connection query cache is the same object as the configured named
+  registry store.
+- Writes/clear operations are visible through both DBLayer and the registry.
+- A supported registry replacement is rebound when the DBLayer connection is
+  next resolved.
+- PDO-backed named query-cache construction verifies infrastructure PDO remains
+  separate from the execution connection.
+- Disabled query caching verifies neither the CacheLayer factory nor
+  CacheManager is touched.
+- Repeated named/default lock resolution returns one provider while acquisitions
+  return separate handles; replacing the store invalidates that provider.
+- Existing transaction commit/rollback invalidation and browser-session lock
+  lifecycle suites remain required final gates.
+
+- [x] Unify DB query-cache resolution with named-cache ownership.
+- [x] Reuse generation-owned session/application lock providers.
+- [x] Route MFA/passkey/webhook named cache state through CacheManager.
+- [x] Route migration/scheduler/worker coordination through CacheManager.
+- [x] Preserve transactional invalidation and infrastructure-PDO boundaries.
+- [x] Add identity/invalidation/replacement/PDO/resource-reuse coverage.
+- [ ] Execute focused F9 lifecycle and persistent-runtime coverage.
+
+### F10 — HTTP profile construction parses native configuration twice
+
+**Priority:** P3  
+**Status:** deferred; no Foundation runtime change.
+
+Current TalkingBytes ownership was checked before changing Foundation:
+
+- `HttpClient::fromResolvedConfig(array)` delegates to
+  `HttpClientFactory::fromArray()`.
+- `HttpClientFactory::fromArray()` creates
+  `HttpClientConfig::fromArray()` and then applies authentication, cookies,
+  retry, rate limiting, circuit breaking, and idempotency composition.
+- `HttpClient::fromConfig(HttpClientConfig)` accepts a typed base config but
+  does not perform that resolved optional middleware/auth composition.
+
+Therefore Foundation cannot safely remove the second parse by switching to
+`fromConfig()`; doing so would drop behavior. A semantics-preserving
+optimization requires a TalkingBytes-owned entry point that accepts the
+already-validated `HttpClientConfig` together with the resolved optional
+protocol configuration and composes the same middleware/auth state.
+
+No measurable throughput or security defect is claimed, so Foundation does not
+invent a parallel HTTP client composer for this P3 item.
+
+- [x] Evaluate the current TalkingBytes typed/native APIs.
+- [x] Record the native API prerequisite.
+- [ ] Implement only after a suitable TalkingBytes API is released and measured
+      benefit justifies the change.
+
+## Follow-up verification gates
+
+- [ ] Run new F8/F9 identity, invalidation, replacement, and resource-reuse regression tests.
+- [ ] Verify development/generated graph parity, PDO-backed cache composition, transactional invalidation, and persistent request/job isolation.
+- [ ] Complete Redis/Valkey-backed counter and lock contention/expiry verification; prior host Redis connection refusal left this open.
+- [ ] If F10 is later implemented, verify configuration-parse counts, production TLS enforcement, protocol middleware, and scoped client-state isolation.
+- [ ] Run the complete required PHPForge QA, analysis, security, duplicate, and architecture checks on the final candidate.
+- [ ] Run relevant representative benchmarks before making throughput claims.
+- [ ] Validate the PHP 8.4/8.5 stable/lowest dependency matrix and relevant production database engines on the final revision.
+- [ ] Verify clean production installation and the Infbyte consumer against the final candidate.
+- [ ] Record final-revision CI and remaining gate results before release.
