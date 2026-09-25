@@ -300,14 +300,14 @@ Do not automatically extract Foundation browser-session stores, auth database st
 
 - [x] Remove successful-path duplicate native validation.
 - [x] Reuse one protocol result for redirectable failures where it remains simple and safe.
-- [x] Add validation-operation-count coverage.
+- [ ] Add validation-operation-count coverage. Runtime probe implemented; fresh execution pending.
 - [ ] Re-run OAuth HTTP/OIDC/redirect/audit tests.
 
 ### Batch 3B — F4 Pathwise download preparation
 
 - [x] Reuse initial preparation when effective range is null.
 - [x] Preserve stream/body freshness checks.
-- [x] Add preparation/storage-operation-count coverage.
+- [ ] Add preparation/storage-operation-count coverage. Runtime probe implemented; fresh execution pending.
 - [ ] Re-run filesystem trust-boundary/range/offload tests.
 
 ### Batch 4 — F5 refresh-token consolidation
@@ -409,12 +409,45 @@ Regression coverage added after the review:
   composition explicitly;
 - existing Redis multi-process contention coverage continues to exercise
   Foundation's `AtomicCounterStore`;
-- the OAuth HTTP authorization method is guarded to contain exactly one
-  `authorizationProtocolResult()` call and no old double-evaluation entry
-  points;
-- the filesystem response method is guarded to reuse `$baseManifest` for a
-  null effective range and to contain only the range-specific second
-  `prepareDownload()` call.
+- the initial OAuth and filesystem operation-count guards were source-structure
+  checks only; these were later superseded by runtime probes after follow-up
+  review.
 
 These corrections and new tests require a fresh local/CI rerun before any
 previous failing validation item can be marked green.
+
+
+## 2026-09-25 follow-up verification and runtime instrumentation
+
+The next local verification pass confirmed that the earlier F1/F2 blockers were
+fixed and reported no additional runtime defect. Evidence from that pass:
+
+- focused/changed selection: **27 tests passed**;
+- PHP syntax: **passed across 876 files**;
+- reference analysis: **passed**;
+- PHPStan: **passed**;
+- full release/CI, performance, production-database, and Infbyte consumer gates
+  remained pending.
+
+Three follow-up quality issues were addressed on the branch:
+
+1. **Skip-policy:** the Redis-extension `markTestSkipped()` path was removed.
+   The registration test now inspects the live InterMix definition graph and
+   verifies `CounterStoreInterface -> AtomicCounterStore` and Webrick
+   `AtomicCounterInterface -> AtomicCounterAdapter` without resolving or
+   connecting to Redis.
+2. **F3 runtime operation count:** the source-string guard was replaced with a
+   runtime DBLayer OAuth client-store probe. A real `OAuthHttpHandler`
+   authorization request now records the client-store reads made by Epicrypt
+   validation. The regression expects one redirect-URI read for the protocol
+   evaluation; the former double-evaluation path would perform two.
+3. **F4 runtime operation count:** the source-string guard was replaced with a
+   runtime Flysystem metadata probe used through Pathwise. Full and stale
+   `If-Range` responses are expected to perform one size/MIME/mtime read each,
+   while a valid range performs two, proving the instrumentation detects the
+   range-specific re-preparation.
+4. **Pint:** `OAuthManager` authorization imports were restored to the bundled
+   PHPForge/Pint alphabetical ordering.
+
+The F3/F4 operation-count tracker items intentionally remain unchecked until
+these new runtime probes are executed successfully in a fresh local or CI run.
