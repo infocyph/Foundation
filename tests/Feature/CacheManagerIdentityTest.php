@@ -51,6 +51,33 @@ it('canonicalizes default and explicit cache store identity in both access order
     $second->container()->unset();
 });
 
+it('follows an explicit default-store change without a reserved alias key', function (): void {
+    $application = Foundation::cli([
+        'app' => ['capabilities' => ['cache']],
+        'cache' => [
+            'default' => 'memory',
+            'prefix' => 'foundation-cache-default-change:',
+            'stores' => [
+                'memory' => ['driver' => 'memory'],
+                'secondary' => ['driver' => 'memory'],
+            ],
+        ],
+    ]);
+    $manager = $application->make(CacheManager::class);
+    $memory = $manager->store();
+    $memory->set('identity', 'memory', 60);
+
+    $application->config()->set('cache.default', 'secondary');
+    $secondary = $manager->store();
+
+    expect($secondary)->toBe($manager->store('secondary'))
+        ->and($secondary)->not->toBe($memory)
+        ->and($secondary->get('identity'))->toBeNull()
+        ->and($manager->store('memory')->get('identity'))->toBe('memory');
+
+    $application->container()->unset();
+});
+
 it('applies default identity consistently to replacement delete and clear operations', function (): void {
     $application = Foundation::cli([
         'app' => ['capabilities' => ['cache']],
@@ -136,6 +163,13 @@ it('reuses generation-owned lock providers without sharing lock handles', functi
         expect($first)->not->toBeNull()
             ->and($second)->not->toBeNull()
             ->and($first)->not->toBe($second);
+
+        $replacement = Cache::memory('foundation-cache-lock-replacement');
+        $manager->useStore($replacement, 'memory');
+        $replacementLock = $manager->lock('memory');
+
+        expect($replacementLock)->not->toBe($default)
+            ->and($manager->lock())->toBe($replacementLock);
     } finally {
         $default->release($first);
         $explicit->release($second);
