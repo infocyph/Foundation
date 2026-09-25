@@ -26,10 +26,15 @@ function foundationDbLayer51QueryRuntime(array $config): array
 
         public bool $cacheFactoryTouched = false;
 
+        public bool $cacheManagerTouched = false;
+
         public function get(string $id): mixed
         {
             if ($id === CacheLayerFactory::class) {
                 $this->cacheFactoryTouched = true;
+            }
+            if ($id === CacheManager::class) {
+                $this->cacheManagerTouched = true;
             }
 
             return $this->services[$id]
@@ -40,6 +45,9 @@ function foundationDbLayer51QueryRuntime(array $config): array
         {
             if ($id === CacheLayerFactory::class) {
                 $this->cacheFactoryTouched = true;
+            }
+            if ($id === CacheManager::class) {
+                $this->cacheManagerTouched = true;
             }
 
             return array_key_exists($id, $this->services);
@@ -83,7 +91,8 @@ it('keeps CacheLayer completely cold when DBLayer query caching is disabled', fu
     $connection = $database->connection();
 
     expect($connection->hasQueryCache())->toBeFalse()
-        ->and($container->cacheFactoryTouched)->toBeFalse();
+        ->and($container->cacheFactoryTouched)->toBeFalse()
+        ->and($container->cacheManagerTouched)->toBeFalse();
 
     $state->cleanup();
 });
