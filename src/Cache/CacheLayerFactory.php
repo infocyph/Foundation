@@ -147,11 +147,6 @@ final readonly class CacheLayerFactory
         );
     }
 
-    public function storeName(?string $name = null): string
-    {
-        return $name ?? $this->stringConfig('cache.default', 'memory');
-    }
-
     public function nodeMaintenance(string $name): NodeCacheMaintenance
     {
         $store = $this->stores()[$name] ?? null;
@@ -179,6 +174,11 @@ final readonly class CacheLayerFactory
         }
 
         return $transport->pruneBefore(time() - $retentionSeconds, max(1, $limit));
+    }
+
+    public function storeName(?string $name = null): string
+    {
+        return $name ?? $this->stringConfig('cache.default', 'memory');
     }
 
     /** @param array<string,mixed> $store */
