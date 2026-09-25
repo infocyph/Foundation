@@ -9,7 +9,7 @@ use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\Connection\ConnectionConfig;
 use Infocyph\DBLayer\Connection\Pool;
 use Infocyph\DBLayer\Connection\PoolManager;
-use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Exception\ConfigurationException;
 use Infocyph\Foundation\Runtime\RuntimeExecutionState;
 use Psr\Container\ContainerInterface;
@@ -32,10 +32,6 @@ final class DBLayerFactory
     private array $pooledConfigurations = [];
 
     private ?PoolManager $poolManager = null;
-
-    private ?CacheInterface $queryCache = null;
-
-    private bool $queryCacheResolved = false;
 
     private bool $resolvingQueryCache = false;
 
@@ -145,11 +141,7 @@ final class DBLayerFactory
 
     private function queryCache(): CacheInterface
     {
-        if ($this->queryCacheResolved && $this->queryCache instanceof CacheInterface) {
-            return $this->queryCache;
-        }
-
-        if (!$this->container->has(CacheLayerFactory::class)) {
+        if (!$this->container->has(CacheManager::class)) {
             throw new ConfigurationException(
                 'Database query caching requires the Foundation cache capability and an explicit database.query_cache.store.',
             );
@@ -158,15 +150,12 @@ final class DBLayerFactory
         $this->resolvingQueryCache = true;
 
         try {
-            $factory = $this->container->get(CacheLayerFactory::class);
-            if (!$factory instanceof CacheLayerFactory) {
-                throw new ConfigurationException('CacheLayerFactory binding is invalid.');
+            $manager = $this->container->get(CacheManager::class);
+            if (!$manager instanceof CacheManager) {
+                throw new ConfigurationException('CacheManager binding is invalid.');
             }
 
-            $this->queryCache = $factory->make($this->resolver->queryCacheStore());
-            $this->queryCacheResolved = true;
-
-            return $this->queryCache;
+            return $manager->store($this->resolver->queryCacheStore());
         } finally {
             $this->resolvingQueryCache = false;
         }
