@@ -66,7 +66,7 @@ final class CacheServiceProvider extends ServiceProvider
         $builder->singleton(LockProviderInterface::class, FactoryDefinition::staticFactory(
             CacheGraphFactory::class,
             'lock',
-            [new ServiceReference(CacheLayerFactory::class)],
+            [new ServiceReference(CacheManager::class)],
         ));
 
         // CacheLayer memoizers are explicit process-local utilities. Foundation
