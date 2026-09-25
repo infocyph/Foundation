@@ -283,7 +283,7 @@ it('keeps core auth ready while tracking OTP and passkey feature state independe
 
 it('reports optional integrations separately from managed module ownership', function (): void {
     $basePath = moduleStateBasePath('optional-integrations');
-    moduleStateWriteComposer($basePath, ['infocyph/talkingbytes' => '^2.1']);
+    moduleStateWriteComposer($basePath, ['infocyph/talkingbytes' => '^2.2']);
 
     try {
         $application = Foundation::cli([
