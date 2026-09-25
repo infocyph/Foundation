@@ -191,7 +191,7 @@ jobs:
             );
           ' "$foundation"
 
-          composer update infocyph/foundation --with-all-dependencies --no-interaction --prefer-dist --no-progress
+          composer update --no-dev --no-interaction --prefer-dist --no-progress
           composer check-platform-reqs
 
           foundation_version="$(php -r 'require "vendor/autoload.php"; echo Composer\InstalledVersions::getPrettyVersion("infocyph/foundation") ?? "";')"
