@@ -128,3 +128,15 @@ it('keeps application-owned named cache consumers on the CacheManager registry',
             ->not->toContain('CacheLayerFactory');
     }
 });
+
+
+it('keeps TalkingBytes typed HTTP composition on the native 2.2 path', function (): void {
+    $source = file_get_contents(
+        dirname(__DIR__, 2) . '/src/Communication/CommunicationProfiles.php',
+    );
+
+    expect($source)->toBeString()
+        ->toContain('HttpClientConfig::fromArray($array)')
+        ->toContain('baseConfig: $config')
+        ->not->toContain('return HttpClient::fromResolvedConfig($array);');
+});
