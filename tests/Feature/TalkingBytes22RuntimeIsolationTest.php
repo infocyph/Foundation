@@ -10,6 +10,7 @@ use Infocyph\Foundation\Foundation;
 use Infocyph\TalkingBytes\Email\Emailer;
 use Infocyph\TalkingBytes\Email\EmailMessage;
 use Infocyph\TalkingBytes\Http\HttpClient;
+use Infocyph\TalkingBytes\Webhook\Contracts\WebhookReplayStore;
 use Infocyph\TalkingBytes\Webhook\Testing\WebhookTestFactory;
 
 it('keeps mutable TalkingBytes clients isolated across sequential Foundation execution scopes', function (): void {
@@ -138,6 +139,61 @@ it('uses TalkingBytes v2 bound webhook signatures with Foundation atomic replay 
     $tampered['X-TB-Delivery'] = 'foundation-delivery-8';
     expect(fn() => $receiver->receive($payload, $tampered))
         ->toThrow(RuntimeException::class, 'signature_mismatch');
+});
+
+it('honors TalkingBytes 2.2 replay TTL lower bounds through the Foundation replay-store boundary', function (): void {
+    $secret = 'foundation-talkingbytes-22-ttl-secret';
+    $app = Foundation::web([
+        'base_path' => dirname(__DIR__, 2),
+        '_config_cache' => false,
+        'communication' => [
+            'webhooks' => [
+                'default_inbound' => 'default',
+                'inbound' => [
+                    'default' => [
+                        'secret' => $secret,
+                        'max_age_seconds' => 300,
+                        'replay' => [
+                            'enabled' => true,
+                            'ttl_seconds' => 60,
+                            'namespace' => 'ttl-lower-bound',
+                        ],
+                    ],
+                ],
+            ],
+        ],
+    ])->boot();
+
+    $store = new class implements WebhookReplayStore {
+        public int $ttl = 0;
+
+        public function claim(string $namespace, string $deliveryId, int $ttlSeconds): bool
+        {
+            unset($namespace, $deliveryId);
+            $this->ttl = $ttlSeconds;
+
+            return true;
+        }
+    };
+
+    $receiver = $app->make(CommunicationProfiles::class)->webhookReceiver(
+        'default',
+        $store,
+        60,
+    );
+
+    [$payload, $headers] = WebhookTestFactory::signedJson(
+        $secret,
+        'order.created',
+        ['id' => 8],
+        'foundation-delivery-ttl',
+        time() + 120,
+    );
+
+    $receiver->receive($payload, $headers);
+
+    expect($store->ttl)->toBeGreaterThan(60)
+        ->and($store->ttl)->toBeGreaterThanOrEqual(600);
 });
 
 function foundationTalkingBytes22StatefulApplication(): \Infocyph\Foundation\Application\Application
