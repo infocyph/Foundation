@@ -69,3 +69,32 @@ The original planning boundary anticipated an Infbyte-owned `routes/oauth.php`.
 The completed integration supersedes that boundary: Foundation conditionally
 registers the protocol routes, endpoint throttling and consent presentation
 itself. Infbyte remains OAuth-neutral.
+
+
+## Foundation 3 ownership update
+
+Foundation 3 supersedes the earlier refresh-token ownership decision above.
+
+The active OAuth runtime now delegates refresh-token artifact issuance, inspection, rotation,
+reuse detection, authorization revocation, client/DPoP binding, and scope narrowing to
+Epicrypt's `RefreshTokenManager` and native refresh-token contracts. Foundation keeps the
+application persistence mapping through `DBLayerEpicryptRefreshTokenStore`, account and
+authorization policy, audit delivery, schema ownership, and lifecycle composition.
+
+The earlier Foundation-specific `OAuthRefreshTokenCoordinator`,
+`OAuthRefreshTokenStoreInterface`, `DBLayerOAuthRefreshTokenStore`, and associated
+record/result/status types are **compatibility-only in Foundation 3.x**. They are not
+registered in the default service graph and must not be used for new runtime composition.
+
+Legacy refresh credentials cannot be transparently converted into Epicrypt refresh artifacts:
+the active format carries Epicrypt-owned protected artifact state that is not reconstructible
+from the legacy stored hash alone. Deployments upgrading from an explicitly wired legacy
+Foundation OAuth refresh flow must therefore choose an explicit cutover policy:
+
+1. allow the compatibility flow to remain isolated until its existing credentials expire, or
+2. revoke the legacy OAuth refresh families and require affected clients to reauthorize.
+
+Do not reinterpret legacy rows as active Epicrypt records. Both formats may coexist in the
+shared refresh table during a bounded transition, and normal pruning removes expired rows.
+A future Foundation major may remove the compatibility-only types after the documented
+deprecation window.

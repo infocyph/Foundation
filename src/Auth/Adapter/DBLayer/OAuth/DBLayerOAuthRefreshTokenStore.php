@@ -12,6 +12,7 @@ use Infocyph\Foundation\Auth\OAuth\Token\OAuthRefreshRotationResult;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthRefreshRotationStatus;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthRefreshTokenRecord;
 
+/** @deprecated Foundation 3 runtime uses DBLayerEpicryptRefreshTokenStore. */
 final readonly class DBLayerOAuthRefreshTokenStore extends DBLayerStore implements OAuthRefreshTokenStoreInterface
 {
     public function findByHash(string $tokenHash): ?OAuthRefreshTokenRecord

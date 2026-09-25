@@ -19,7 +19,7 @@ it('models managed feature and optional package roles without broadening install
         ])
         ->and($modules['communication']['packages']['grpc/grpc']['role'] ?? null)->toBe('optional')
         ->and($catalog->managedPackages($modules['communication']))->toBe([
-            'infocyph/talkingbytes' => '^2.1',
+            'infocyph/talkingbytes' => '^2.2',
         ])
         ->and($modules['messaging']['packages']['infocyph/runwire']['role'] ?? null)->toBe('optional')
         ->and($catalog->managedPackages($modules['messaging']))->toBe([
@@ -48,7 +48,7 @@ it('pins the complete seven-specialist module contract', function (): void {
         $specialists,
     ))->toBe([
         'auth' => [],
-        'communication' => ['infocyph/talkingbytes' => '^2.1'],
+        'communication' => ['infocyph/talkingbytes' => '^2.2'],
         'database' => ['infocyph/dblayer' => '^5.1'],
         'filesystem' => ['infocyph/pathwise' => '^4.1'],
         'messaging' => ['infocyph/omnibus' => '^2.6'],

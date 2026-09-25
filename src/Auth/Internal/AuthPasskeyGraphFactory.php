@@ -12,18 +12,18 @@ use Infocyph\Foundation\Auth\Contract\Id\AuthIdGeneratorInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
 use Infocyph\Foundation\Auth\Passkey\PasskeyCredentialStoreInterface;
 use Infocyph\Foundation\Auth\Passkey\PasskeyServiceInterface;
-use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\OTP\Passkey;
 
 final class AuthPasskeyGraphFactory
 {
     public static function passkey(
         WebAuthnConfigResolver $config,
-        CacheLayerFactory $cache,
+        CacheManager $cache,
         ?string $storeName,
     ): Passkey {
         $resolved = $config->resolve();
-        $store = $cache->make($storeName);
+        $store = $cache->store($storeName);
 
         if (!$store instanceof AuthenticationStateCacheInterface) {
             throw new \LogicException(

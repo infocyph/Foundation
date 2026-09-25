@@ -328,7 +328,9 @@ final readonly class FilesystemResponseFactory
         }
 
         $rangeHeader = $this->freshRangeHeader($request, $baseManifest);
-        $manifest = $processor->prepareDownload($resolvedPath, $downloadName, $rangeHeader);
+        $manifest = $rangeHeader === null
+            ? $baseManifest
+            : $processor->prepareDownload($resolvedPath, $downloadName, $rangeHeader);
         $mergedHeaders = $this->mergeHeaders($manifest->headers, $headers);
 
         if ($this->isHead($request)) {

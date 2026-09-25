@@ -97,11 +97,12 @@ final readonly class CacheLayerFactory
         };
     }
 
-    public function lock(?string $storeName = null): LockProviderInterface
-    {
+    public function lock(
+        ?string $storeName = null,
+        ?CacheInterface $resolvedStore = null,
+    ): LockProviderInterface {
         $lock = ValueNormalizer::associativeArray($this->config->get('cache.lock', []));
-        $storeName ??= $this->stringOrNull($lock['store'] ?? null)
-            ?? $this->stringConfig('cache.default', 'memory');
+        $storeName = $this->lockStoreName($storeName);
         $store = $this->stores()[$storeName] ?? ['driver' => $storeName];
         $driver = $this->driver($storeName, $store);
 
@@ -109,7 +110,7 @@ final readonly class CacheLayerFactory
             return $this->lockProvider($store, $lock, $driver);
         }
 
-        $cache = $this->make($storeName);
+        $cache = $resolvedStore ?? $this->make($storeName);
         if ($cache instanceof AuthenticationStateCacheInterface) {
             $native = $cache->authenticationStateLock();
             if ($native instanceof LockProviderInterface) {
@@ -123,9 +124,21 @@ final readonly class CacheLayerFactory
         ));
     }
 
+    public function lockStoreName(?string $storeName = null): string
+    {
+        if ($storeName !== null) {
+            return $storeName;
+        }
+
+        $lock = ValueNormalizer::associativeArray($this->config->get('cache.lock', []));
+
+        return $this->stringOrNull($lock['store'] ?? null)
+            ?? $this->storeName();
+    }
+
     public function make(?string $name = null): CacheInterface
     {
-        $name ??= $this->stringConfig('cache.default', 'memory');
+        $name = $this->storeName($name);
         $store = $this->stores()[$name] ?? ['driver' => $name];
         $driver = $this->driver($name, $store);
 
@@ -163,6 +176,11 @@ final readonly class CacheLayerFactory
         }
 
         return $transport->pruneBefore(time() - $retentionSeconds, max(1, $limit));
+    }
+
+    public function storeName(?string $name = null): string
+    {
+        return $name ?? $this->stringConfig('cache.default', 'memory');
     }
 
     /** @param array<string,mixed> $store */

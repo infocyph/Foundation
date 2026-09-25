@@ -58,7 +58,7 @@ it('keeps TalkingBytes communication and email graphs cold until their Foundatio
 });
 
 it('keeps mailbox instances caller-owned and spool receivers execution-scoped', function (): void {
-    $root = sys_get_temp_dir() . '/foundation-talkingbytes-21-email-' . bin2hex(random_bytes(6));
+    $root = sys_get_temp_dir() . '/foundation-talkingbytes-22-email-' . bin2hex(random_bytes(6));
     $spool = $root . '/spool';
     $processing = $root . '/processing';
     $processed = $root . '/processed';
@@ -140,11 +140,11 @@ it('keeps mailbox instances caller-owned and spool receivers execution-scoped', 
 
         expect($firstReceiver)->not->toBe($secondReceiver);
     } finally {
-        foundationTalkingBytes21EmailRemove($root);
+        foundationTalkingBytes22EmailRemove($root);
     }
 });
 
-function foundationTalkingBytes21EmailRemove(string $directory): void
+function foundationTalkingBytes22EmailRemove(string $directory): void
 {
     if (!is_dir($directory)) {
         return;

@@ -129,10 +129,107 @@ jobs:
             fi
           )
 
+  infbyte-consumer:
+    name: Infbyte candidate consumer - PHP ${{ matrix.php-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: ["8.4", "8.5"]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          tools: composer:v2
+          extensions: "pcntl, pdo_sqlite"
+          coverage: none
+
+      - name: Checkout Infbyte consumer
+        uses: actions/checkout@v7
+        with:
+          repository: infocyph/Infbyte
+          ref: main
+          path: .infbyte-consumer
+
+      - name: Verify Infbyte against the Foundation candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          foundation="$GITHUB_WORKSPACE"
+          consumer="$GITHUB_WORKSPACE/.infbyte-consumer"
+
+          php -r '
+            $path = $argv[1] . "/composer.json";
+            $composer = json_decode(file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
+            $composer["version"] = "3.0.99";
+            file_put_contents(
+                $path,
+                json_encode($composer, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL,
+            );
+          ' "$foundation"
+
+          cd "$consumer"
+          php -r '
+            $path = "composer.json";
+            $composer = json_decode(file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
+            $repositories = is_array($composer["repositories"] ?? null)
+                ? $composer["repositories"]
+                : [];
+            array_unshift($repositories, [
+                "type" => "path",
+                "url" => $argv[1],
+                "options" => ["symlink" => false],
+            ]);
+            $composer["repositories"] = $repositories;
+            file_put_contents(
+                $path,
+                json_encode($composer, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL,
+            );
+          ' "$foundation"
+
+          composer update --no-dev --no-interaction --prefer-dist --no-progress
+          composer check-platform-reqs
+
+          foundation_version="$(php -r 'require "vendor/autoload.php"; echo Composer\InstalledVersions::getPrettyVersion("infocyph/foundation") ?? "";')"
+          if [[ "$foundation_version" != "3.0.99" ]]; then
+            printf 'Expected candidate Foundation 3.0.99 path package, got %s\n' "$foundation_version" >&2
+            exit 1
+          fi
+
+          candidate_hash="$(sha256sum "$foundation/src/Foundation.php" | awk '{print $1}')"
+          installed_hash="$(sha256sum vendor/infocyph/foundation/src/Foundation.php | awk '{print $1}')"
+          if [[ "$candidate_hash" != "$installed_hash" ]]; then
+            echo "Infbyte did not install the current Foundation candidate source." >&2
+            exit 1
+          fi
+
+          php infbyte app:install
+          APP_ENV=production APP_DEBUG=false APP_CAPABILITIES= php infbyte config:validate --production
+          release="$(APP_ENV=production APP_DEBUG=false APP_CAPABILITIES= php infbyte optimize --json=1)"
+          APP_ENV=production APP_DEBUG=false APP_CAPABILITIES= php infbyte app:ready
+
+          printf '%s' "$release" | php -r '
+            $release = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
+            if (!is_string($release["generation"] ?? null) || $release["generation"] === "") {
+                fwrite(STDERR, "Infbyte candidate release generation is missing.\n");
+                exit(1);
+            }
+            if (!is_string($release["manifest_sha256"] ?? null)
+                || preg_match("/^[a-f0-9]{64}$/D", $release["manifest_sha256"]) !== 1
+            ) {
+                fwrite(STDERR, "Infbyte candidate manifest digest is invalid.\n");
+                exit(1);
+            }
+          '
+
   release-evidence:
     name: Release evidence
-    needs: [phpforge, production-consumer]
-    if: ${{ always() && needs.phpforge.result == 'success' && needs.production-consumer.result == 'success' }}
+    needs: [phpforge, production-consumer, infbyte-consumer]
+    if: ${{ always() && needs.phpforge.result == 'success' && needs.production-consumer.result == 'success' && needs.infbyte-consumer.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

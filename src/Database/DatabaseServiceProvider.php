@@ -7,7 +7,7 @@ namespace Infocyph\Foundation\Database;
 use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
-use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthMfaRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthOAuthRevisionSchema;
@@ -105,8 +105,8 @@ final class DatabaseServiceProvider extends ServiceProvider
                 new ServiceReference(ConfigRepository::class),
                 new ServiceReference(DBLayerFactory::class),
                 new ServiceReference(ContainerInterface::class),
-                $builder->definitions()->has(CacheLayerFactory::class)
-                    ? new ServiceReference(CacheLayerFactory::class)
+                $builder->definitions()->has(CacheManager::class)
+                    ? new ServiceReference(CacheManager::class)
                     : null,
             ],
         ));

@@ -17,6 +17,7 @@ use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\ServiceReference;
+use Infocyph\Webrick\Interop\CacheLayer\AtomicCounterAdapter;
 use Infocyph\Webrick\Middleware\Throttle\AtomicCounterInterface as WebrickAtomicCounterInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\SimpleCache\CacheInterface as SimpleCacheInterface;
@@ -65,7 +66,7 @@ final class CacheServiceProvider extends ServiceProvider
         $builder->singleton(LockProviderInterface::class, FactoryDefinition::staticFactory(
             CacheGraphFactory::class,
             'lock',
-            [new ServiceReference(CacheLayerFactory::class)],
+            [new ServiceReference(CacheManager::class)],
         ));
 
         // CacheLayer memoizers are explicit process-local utilities. Foundation
@@ -81,7 +82,7 @@ final class CacheServiceProvider extends ServiceProvider
                 [new ServiceReference(CacheLayerFactory::class), $counter],
             ));
             $builder->singleton(WebrickAtomicCounterInterface::class, FactoryDefinition::construct(
-                WebrickAtomicCounter::class,
+                AtomicCounterAdapter::class,
                 [new ServiceReference(AtomicCounterStoreInterface::class)],
             ));
         }

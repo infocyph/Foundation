@@ -78,7 +78,10 @@ return [
     | Outbound profiles select an HTTP profile, optional signing secret, and
     | retry policy. Inbound profiles select one secret (or a secret list in
     | application config) and a maximum accepted signature age. Replay state is
-    | composed through CacheLayer when enabled; production WebhookReceiver
+    | composed through CacheLayer when enabled. TalkingBytes may increase a
+    | configured replay TTL to retain a claim through the full accepted
+    | signature window; the CacheLayer store must honor that requested lower
+    | bound. Production WebhookReceiver
     | activation requires replay protection even if this development default is
     | false. Replace the development secret before accepting production traffic.
     |

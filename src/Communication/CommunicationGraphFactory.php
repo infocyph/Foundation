@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Communication;
 
-use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\TalkingBytes\Grpc\GrpcInboundDispatcher;
@@ -70,7 +70,7 @@ final class CommunicationGraphFactory
     public static function protectedWebhookReceiver(
         CommunicationProfiles $profiles,
         ConfigRepository $config,
-        CacheLayerFactory $cache,
+        CacheManager $cache,
     ): WebhookReceiver {
         $profile = $config->get('communication.webhooks.default_inbound', 'default');
         $profile = is_string($profile) && trim($profile) !== '' ? trim($profile) : 'default';
@@ -84,7 +84,7 @@ final class CommunicationGraphFactory
         }
 
         $ttl = max(1, ValueNormalizer::int($replay['ttl_seconds'] ?? null, 86_400));
-        $replayStore = new CacheLayerWebhookReplayStore($cache->make($store));
+        $replayStore = new CacheLayerWebhookReplayStore($cache->store($store));
 
         return $profiles->webhookReceiver($profile, $replayStore, $ttl);
     }

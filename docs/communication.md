@@ -63,6 +63,12 @@ $billing = $clients->http('billing');
 optional decorators. Foundation does not wrap `HttpRequest`, `HttpResponse`,
 fakes, multipart bodies, request pools, middleware, or signing helpers.
 
+Foundation parses each selected HTTP profile once into TalkingBytes'
+`HttpClientConfig`, applies the application production-TLS policy to that typed
+object, and passes the same object to TalkingBytes 2.2's resolved composer.
+Authentication, cookies, retry, rate limiting, circuit breaking and idempotency
+remain TalkingBytes-owned and are composed without reparsing the base options.
+
 In production, configured Foundation HTTP profiles must keep both TLS peer and
 host verification enabled. Applications that deliberately construct a native
 TalkingBytes client outside Foundation own that decision themselves.
@@ -98,10 +104,13 @@ second replay abstraction.
 
 Production inbound profiles reject the shipped `change-me` secret. Outbound
 profiles may select a named HTTP profile and optional TalkingBytes retry/signing
-policy. Foundation 3 with TalkingBytes 2.1 uses the native bound webhook `v2`
+policy. Foundation 3 with TalkingBytes 2.2 uses the native bound webhook `v2`
 signature path end-to-end; timestamp, event, delivery ID and exact raw body are
-authenticated together. Do not mix native TalkingBytes 2.0 senders with 2.1
-receivers during a rolling deployment.
+authenticated together. TalkingBytes 2.2 also keeps replay claims for at least
+the remaining accepted signature window (including its clock-correction
+reserve); Foundation's CacheLayer replay store honors the TTL requested by the
+native receiver. The historical 2.0-to-2.1 rolling-deployment signature warning
+still applies to applications upgrading directly from 2.0.
 
 Replay protection stays provider-neutral in TalkingBytes. Foundation supplies
 its CacheLayer-backed implementation, whose `claim()` path requires native
@@ -266,7 +275,7 @@ use Infocyph\TalkingBytes\Email\Parser\RawEmailParser;
 
 ## Inbound gRPC worker lifecycle
 
-TalkingBytes 2.1 supplies the accepted-exchange boundary through
+TalkingBytes 2.2 supplies the accepted-exchange boundary through
 `GrpcInboundSource` and `GrpcInboundDispatcher::serveOne()`. Foundation does
 not open a gRPC socket or implement the native server/runtime. Applications bind
 a process-owned `GrpcInboundSource` (or configure
@@ -294,7 +303,7 @@ loop.
 
 ## Runtime lifetime model
 
-Foundation follows TalkingBytes 2.1's state model rather than promoting all
+Foundation follows TalkingBytes 2.2's state model rather than promoting all
 protocol objects to process singletons:
 
 | Binding/object | Foundation lifetime | Reason |

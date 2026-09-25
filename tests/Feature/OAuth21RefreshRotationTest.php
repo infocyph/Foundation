@@ -4,17 +4,20 @@ declare(strict_types=1);
 
 use Infocyph\DBLayer\DB;
 use Infocyph\DBLayer\Migration\MigrationRunner;
-use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerOAuthRefreshTokenStore;
-use Infocyph\Foundation\Auth\OAuth\Token\OAuthRefreshRotationStatus;
-use Infocyph\Foundation\Auth\OAuth\Token\OAuthRefreshTokenRecord;
+use Infocyph\Epicrypt\Auth\OAuth\RefreshTokenGrant;
+use Infocyph\Epicrypt\Auth\OAuth\RefreshTokenInspectionStatus;
+use Infocyph\Epicrypt\Auth\OAuth\RefreshTokenRecord;
+use Infocyph\Epicrypt\Auth\OAuth\RefreshTokenRotationStatus;
+use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerEpicryptRefreshTokenStore;
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Database\AuthSchema\AuthOAuthEpicryptProtocolSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthOAuthRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DatabaseConnectionResolver;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
 
-it('rotates an OAuth refresh token exactly once and classifies replay', function (): void {
+it('rotates the active Epicrypt OAuth refresh token exactly once and revokes the family on replay', function (): void {
     DB::purge();
     $config = new ConfigRepository([
         'database' => [
@@ -33,65 +36,54 @@ it('rotates an OAuth refresh token exactly once and classifies replay', function
     );
     $tables = new AuthTables();
     $connection = $factory->connection();
-    $revision = new AuthOAuthRevisionSchema($tables);
-    $runner = new MigrationRunner($connection, [$revision]);
-    $store = new DBLayerOAuthRefreshTokenStore($factory, $tables);
+    $runner = new MigrationRunner($connection, [
+        new AuthOAuthRevisionSchema($tables),
+        new AuthOAuthEpicryptProtocolSchema($tables),
+    ]);
+    $store = new DBLayerEpicryptRefreshTokenStore($factory, $tables);
+    $familyId = str_repeat('F', 43);
 
-    $current = new OAuthRefreshTokenRecord(
-        id: 'refresh-1',
-        tokenHash: hash('sha256', 'refresh-token-1'),
-        familyId: 'family-1',
-        clientId: 'client-1',
-        accountId: 'account-1',
-        deviceId: 'device-1',
+    $grant = new RefreshTokenGrant(
         authorizationId: 'authorization-1',
-        scopes: ['profile.read'],
+        subject: 'account-1',
+        clientId: 'client-1',
         audiences: ['https://api.example.test'],
-        issuedAt: 100,
+        scopes: ['profile.read'],
         expiresAt: 1000,
     );
-    $replacement = new OAuthRefreshTokenRecord(
-        id: 'refresh-2',
-        tokenHash: hash('sha256', 'refresh-token-2'),
-        familyId: 'family-1',
-        clientId: 'client-1',
-        accountId: 'account-1',
-        deviceId: 'device-1',
-        authorizationId: 'authorization-1',
-        scopes: ['profile.read'],
-        audiences: ['https://api.example.test'],
-        issuedAt: 200,
-        expiresAt: 1100,
+    $current = new RefreshTokenRecord(
+        tokenId: str_repeat('A', 32),
+        familyId: $familyId,
+        grant: $grant,
+        issuedAt: 100,
+        idleExpiresAt: 900,
     );
-    $replayReplacement = new OAuthRefreshTokenRecord(
-        id: 'refresh-3',
-        tokenHash: hash('sha256', 'refresh-token-3'),
-        familyId: 'family-1',
-        clientId: 'client-1',
-        accountId: 'account-1',
-        deviceId: 'device-1',
-        authorizationId: 'authorization-1',
-        scopes: ['profile.read'],
-        audiences: ['https://api.example.test'],
+    $replacement = new RefreshTokenRecord(
+        tokenId: str_repeat('B', 32),
+        familyId: $familyId,
+        grant: $grant,
+        issuedAt: 200,
+        idleExpiresAt: 900,
+    );
+    $replayReplacement = new RefreshTokenRecord(
+        tokenId: str_repeat('C', 32),
+        familyId: $familyId,
+        grant: $grant,
         issuedAt: 201,
-        expiresAt: 1101,
+        idleExpiresAt: 900,
     );
 
     try {
         $runner->run();
-        $store->save($current);
+        expect($store->create($current))->toBeTrue();
 
-        $first = $store->rotate($current->tokenHash, $replacement, 200);
-        $second = $store->rotate($current->tokenHash, $replayReplacement, 201);
+        $first = $store->rotate($current, $replacement, 'client-1', null, 200);
+        $second = $store->rotate($current, $replayReplacement, 'client-1', null, 201);
 
-        expect($first->status)->toBe(OAuthRefreshRotationStatus::Rotated)
-            ->and($second->status)->toBe(OAuthRefreshRotationStatus::Reused)
-            ->and($store->findByHash($replacement->tokenHash)?->id)->toBe('refresh-2')
-            ->and($store->findByHash($replayReplacement->tokenHash))->toBeNull();
-
-        $store->revokeFamily('family-1', 202);
-
-        expect($store->findByHash($replacement->tokenHash)?->revokedAt)->toBe(202);
+        expect($first)->toBe(RefreshTokenRotationStatus::ROTATED)
+            ->and($second)->toBe(RefreshTokenRotationStatus::REUSED)
+            ->and($store->inspect($replacement, 202))->toBe(RefreshTokenInspectionStatus::REVOKED)
+            ->and($store->inspect($replayReplacement, 202))->toBe(RefreshTokenInspectionStatus::INVALID);
     } finally {
         DB::purge();
     }

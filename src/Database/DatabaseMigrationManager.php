@@ -9,7 +9,7 @@ use Infocyph\DBLayer\Migration\Migration;
 use Infocyph\DBLayer\Migration\MigrationRunner;
 use Infocyph\DBLayer\Migration\Seeder;
 use Infocyph\DBLayer\Migration\SeedRunner;
-use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Psr\Container\ContainerInterface;
@@ -20,7 +20,7 @@ final readonly class DatabaseMigrationManager
         private ConfigRepository $config,
         private DBLayerFactory $factory,
         private ContainerInterface $services,
-        private ?CacheLayerFactory $cache = null,
+        private ?CacheManager $cache = null,
     ) {}
 
     public function runner(?string $connection = null): MigrationRunner
@@ -78,7 +78,7 @@ final readonly class DatabaseMigrationManager
         if ($store === null) {
             return null;
         }
-        if (!$this->cache instanceof CacheLayerFactory) {
+        if (!$this->cache instanceof CacheManager) {
             throw new \LogicException(
                 'Database migration locks require the Foundation cache capability.',
             );

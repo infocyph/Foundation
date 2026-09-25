@@ -74,3 +74,69 @@ it('keeps optional specialist packages out of the Foundation runtime requirement
         'web-auth/webauthn-lib',
     );
 });
+
+
+it('keeps specialist native owners selected at Foundation integration seams', function (): void {
+    $root = dirname(__DIR__, 2);
+
+    $cacheProvider = file_get_contents($root . '/src/Cache/CacheServiceProvider.php');
+    $authCacheRegistrar = file_get_contents($root . '/src/Auth/Internal/AuthCacheRegistrar.php');
+    $oauthRegistrar = file_get_contents($root . '/src/Auth/Internal/AuthOAuthRegistrar.php');
+
+    expect($cacheProvider)->toBeString()
+        ->toContain('Webrick\\Interop\\CacheLayer\\AtomicCounterAdapter')
+        ->not->toContain('WebrickAtomicCounter::class')
+        ->and($authCacheRegistrar)->toBeString()
+        ->toContain('AtomicCounterStore::class')
+        ->not->toContain('CacheLayerCounterStore::class')
+        ->and($oauthRegistrar)->toBeString()
+        ->toContain('DBLayerEpicryptRefreshTokenStore::class')
+        ->not->toContain('DBLayerOAuthRefreshTokenStore::class')
+        ->not->toContain('OAuthRefreshTokenCoordinator::class');
+});
+
+it('keeps compatibility-only owners outside normal runtime selection', function (): void {
+    $root = dirname(__DIR__, 2);
+    $legacyCounter = file_get_contents($root . '/src/Cache/WebrickAtomicCounter.php');
+    $legacyRefresh = file_get_contents($root . '/src/Auth/OAuth/Token/OAuthRefreshTokenCoordinator.php');
+
+    expect($legacyCounter)->toBeString()
+        ->toContain('@deprecated')
+        ->toContain('AtomicCounterAdapter')
+        ->and($legacyRefresh)->toBeString()
+        ->toContain('@deprecated');
+});
+
+
+it('keeps application-owned named cache consumers on the CacheManager registry', function (): void {
+    $root = dirname(__DIR__, 2);
+    $paths = [
+        'src/Auth/Internal/AuthMfaGraphFactory.php',
+        'src/Auth/Internal/AuthPasskeyGraphFactory.php',
+        'src/Communication/CommunicationGraphFactory.php',
+        'src/Database/DBLayerFactory.php',
+        'src/Database/DatabaseMigrationManager.php',
+        'src/Scheduling/ScheduleManager.php',
+        'src/Session/SessionGraphFactory.php',
+        'src/Worker/WorkerManager.php',
+    ];
+
+    foreach ($paths as $path) {
+        $source = file_get_contents($root . '/' . $path);
+        expect($source)->toBeString()
+            ->toContain('CacheManager')
+            ->not->toContain('CacheLayerFactory');
+    }
+});
+
+
+it('keeps TalkingBytes typed HTTP composition on the native 2.2 path', function (): void {
+    $source = file_get_contents(
+        dirname(__DIR__, 2) . '/src/Communication/CommunicationProfiles.php',
+    );
+
+    expect($source)->toBeString()
+        ->toContain('HttpClientConfig::fromArray($array)')
+        ->toContain('baseConfig: $config')
+        ->not->toContain('return HttpClient::fromResolvedConfig($array);');
+});

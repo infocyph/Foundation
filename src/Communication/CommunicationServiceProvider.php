@@ -6,7 +6,7 @@ namespace Infocyph\Foundation\Communication;
 
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
-use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\InterMix\DI\ContainerBuilder;
@@ -140,7 +140,7 @@ final class CommunicationServiceProvider extends ServiceProvider
 
             return;
         }
-        if (!$builder->definitions()->has(CacheLayerFactory::class)) {
+        if (!$builder->definitions()->has(CacheManager::class)) {
             throw new \LogicException(
                 'Webhook replay protection requires the Foundation cache capability.',
             );
@@ -152,7 +152,7 @@ final class CommunicationServiceProvider extends ServiceProvider
             [
                 new ServiceReference(CommunicationProfiles::class),
                 new ServiceReference(ConfigRepository::class),
-                new ServiceReference(CacheLayerFactory::class),
+                new ServiceReference(CacheManager::class),
             ],
         ));
     }

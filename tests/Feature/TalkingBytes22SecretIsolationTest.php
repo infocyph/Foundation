@@ -9,7 +9,7 @@ use Infocyph\Foundation\Logging\JsonLogger;
 use Infocyph\Foundation\Runtime\GeneratedRuntimeCompiler;
 
 it('keeps communication secrets out of runtime identity metadata logs and cache keys', function (): void {
-    $root = sys_get_temp_dir() . '/foundation-talkingbytes-21-secrets-' . bin2hex(random_bytes(6));
+    $root = sys_get_temp_dir() . '/foundation-talkingbytes-22-secrets-' . bin2hex(random_bytes(6));
     $artifact = $root . '/bootstrap/cache/worker.php';
     $log = $root . '/storage/logs/communication.log';
 
@@ -130,11 +130,11 @@ it('keeps communication secrets out of runtime identity metadata logs and cache 
 
         expect($report['metadata_path'])->toBe($artifact . '.foundation.json');
     } finally {
-        foundationTalkingBytes21SecretRemove($root);
+        foundationTalkingBytes22SecretRemove($root);
     }
 });
 
-function foundationTalkingBytes21SecretRemove(string $directory): void
+function foundationTalkingBytes22SecretRemove(string $directory): void
 {
     if (!is_dir($directory)) {
         return;

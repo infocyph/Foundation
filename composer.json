@@ -22,7 +22,7 @@
         "infocyph/pathwise": "^4.1",
         "infocyph/phpforge": "dev-main@dev",
         "infocyph/reqshield": "^3.2",
-        "infocyph/talkingbytes": "^2.1",
+        "infocyph/talkingbytes": "^2.2",
         "opis/closure": "^4.5",
         "web-auth/webauthn-lib": "^5.3.9"
     },
@@ -90,7 +90,7 @@
         ],
         "benchmark:representative": "@php benchmarks/run-representative.php",
         "benchmark:reqshield": "@php benchmarks/reqshield-32-utilization.php",
-        "benchmark:talkingbytes": "@php benchmarks/talkingbytes-21-utilization.php",
+        "benchmark:talkingbytes": "@php benchmarks/talkingbytes-22-utilization.php",
         "benchmark:uid": "@php benchmarks/uid-runtime-utilization.php"
     }
 }

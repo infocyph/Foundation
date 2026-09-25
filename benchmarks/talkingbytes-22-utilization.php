@@ -153,7 +153,7 @@ $report = [
     'schema_version' => 1,
     'generated_at' => gmdate(DATE_ATOM),
     'metadata' => [
-        'suite' => 'foundation-talkingbytes-2.1-utilization',
+        'suite' => 'foundation-talkingbytes-2.2-utilization',
         'talkingbytes' => InstalledVersions::getPrettyVersion('infocyph/talkingbytes') ?? 'unknown',
         'boundary' => 'TalkingBytes owns protocol/resolved-composition mechanics; Foundation adds named application profiles, path/secret policy and DI lifetime selection.',
     ],
@@ -180,8 +180,8 @@ $report = [
         ),
     ],
     'attribution' => [
-        'http' => 'Both subjects use TalkingBytes 2.1 resolved HTTP composition; Foundation adds named profile lookup plus production TLS policy.',
-        'webhook' => 'Both subjects use TalkingBytes 2.1 verifier composition; Foundation adds named profile lookup and application secret policy.',
+        'http' => 'Both subjects use TalkingBytes 2.2 resolved HTTP composition; Foundation adds named profile lookup plus production TLS policy.',
+        'webhook' => 'Both subjects use TalkingBytes 2.2 verifier composition; Foundation adds named profile lookup and application secret policy.',
         'grpc' => 'Both subjects use TalkingBytes GrpcClientFactory; Foundation adds named retry-profile selection.',
         'email' => 'Both subjects use TalkingBytes EmailSenderFactory::fromResolvedConfig(); Foundation adds sender/transport lookup plus application path/secret resolution.',
         'native_protocol_benchmarks' => 'HTTP transport, webhook crypto/delivery, gRPC transport/streaming, email protocol/network and parser microbenchmarks remain TalkingBytes-owned and are intentionally not duplicated here.',
@@ -195,5 +195,5 @@ if (!is_dir($build) && !mkdir($build, 0777, true) && !is_dir($build)) {
 }
 
 $encoded = json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-file_put_contents($build . '/talkingbytes-2.1-benchmark.json', $encoded . PHP_EOL);
+file_put_contents($build . '/talkingbytes-2.2-benchmark.json', $encoded . PHP_EOL);
 fwrite(STDOUT, $encoded . PHP_EOL);

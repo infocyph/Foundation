@@ -27,13 +27,33 @@ final readonly class OAuthHttpHandler
     {
         try {
             $parameters = $this->input->authorizationQuery($request);
-            $redirect = $this->oauth->authorizationRedirectContext($parameters);
+            $result = $this->oauth->authorizationProtocolResult($parameters);
+        } catch (OAuthProtocolException $exception) {
+            return $this->responses->error($exception);
+        }
+
+        if ($result->request !== null) {
+            try {
+                return $this->oauth->validateAuthorizationResult($result);
+            } catch (OAuthProtocolException $exception) {
+                try {
+                    $redirect = $this->oauth->authorizationRedirectContextFor($parameters, $result);
+                } catch (OAuthProtocolException) {
+                    return $this->responses->error($exception);
+                }
+
+                return $this->responses->authorizationError($redirect, $exception, $this->issuer());
+            }
+        }
+
+        try {
+            $redirect = $this->oauth->authorizationRedirectContextFor($parameters, $result);
         } catch (OAuthProtocolException $exception) {
             return $this->responses->error($exception);
         }
 
         try {
-            return $this->oauth->validateAuthorizationRequest($parameters);
+            return $this->oauth->validateAuthorizationResult($result);
         } catch (OAuthProtocolException $exception) {
             return $this->responses->authorizationError($redirect, $exception, $this->issuer());
         }
