@@ -208,12 +208,18 @@ final readonly class ConfigValidator
                 sprintf('cache.stores.%s must exist when auth.drivers.cache uses cache.', $store),
                 'cache.stores.' . $store,
             );
+
+            return;
+        }
+
+        if ((new SharedStateTopology($this->config))->cacheStoreScope($store) === SharedStateTopology::PROCESS) {
+            return;
         }
 
         $counter = $this->stringConfig('cache.default_counter', '');
         if ($counter === '') {
             $issues[] = new ConfigIssue(
-                'cache.default_counter must select an atomic counter when auth.drivers.cache uses cache.',
+                'cache.default_counter must select an atomic counter when auth.drivers.cache uses shared state.',
                 'cache.default_counter',
             );
 
