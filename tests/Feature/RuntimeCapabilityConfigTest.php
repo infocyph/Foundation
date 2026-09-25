@@ -180,7 +180,6 @@ it('preserves strict auth production policy when auth is explicitly selected', f
     );
 });
 
-
 it('requires an atomic counter when auth uses shared cache state', function (): void {
     $config = new ConfigRepository([
         'app' => [
@@ -209,7 +208,6 @@ it('requires an atomic counter when auth uses shared cache state', function (): 
 
     expect($keys)->toContain('cache.default_counter');
 });
-
 
 it('selects the atomic auth counter adapter when shared auth cache is configured', function (): void {
     if (!class_exists(\Redis::class)) {
