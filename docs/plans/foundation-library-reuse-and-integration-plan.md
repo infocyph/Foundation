@@ -28,7 +28,7 @@ This plan is source-backed integration remediation. Performance claims require m
 | 3A | F3 OAuth authorization single evaluation | Complete | HTTP path reuses one native protocol result; runtime operation-count coverage green |
 | 3B | F4 Pathwise download preparation reuse | Complete | No-range/stale-If-Range full response reuses initial preparation; trust-boundary checks preserved |
 | 4 | F5 legacy refresh-token retirement | Complete for Foundation 3.x compatibility boundary | Epicrypt path canonical; legacy runtime tests moved; credential cutover policy explicit; contention QA green |
-| 5 | F6 CSRF overlap decision | Complete — no code change | Foundation 3.x keeps raw-token semantics; Webrick masked-token expansion is not adopted implicitly |
+| 5 | F6 CSRF overlap decision | Complete — QA validated, no code change | Foundation 3.x keeps raw-token semantics; Webrick masked-token expansion is not adopted implicitly |
 | 6 | Documentation, architecture guards, full release validation | In progress | Ownership docs updated; execution/CI/consumer gates still pending |
 | Deferred | F7 HttpKernel public compatibility facade | Deferred for Foundation 3.x | Revisit only in approved public API compatibility window |
 
@@ -323,7 +323,7 @@ Do not automatically extract Foundation browser-session stores, auth database st
 - [x] Prove exact semantic parity or explicitly approve masked-token expansion.
 - [x] Reuse native Webrick mechanics only when the resulting contract/lifecycle is simpler and intentional.
 - [x] Otherwise document no-change decision and retain Foundation raw-token comparison.
-- [ ] Run browser-session/CSRF/origin/persistent-worker tests.
+- [x] Run browser-session/CSRF/origin/persistent-worker tests.
 
 ### Batch 6 — Closure and release gates
 
@@ -406,6 +406,15 @@ Batch 4 is closed for the Foundation 3.x compatibility boundary.
 - `DBLayerEpicryptRefreshTokenStore::rotate()` now uses a bounded three-attempt DBLayer transaction retry; DBLayer retries only classified transaction contention/deadlock/serialization failures.
 - The exactly-once rotation/reuse assertion remains unchanged and passed across PHP 8.4/8.5 stable and lowest rows in GitHub Actions run `36168426947`.
 - Existing credential/table compatibility policy remains explicit; no silent wire or persistence break was introduced.
+
+## Batch 5 QA closure — 2026-09-26
+
+Batch 5 is closed with the deliberate no-change decision.
+
+- Foundation continues to accept its existing raw CSRF proof contract only.
+- Webrick masked-token acceptance is not adopted implicitly because it would broaden the public security contract.
+- Foundation retains safe-method bypass, configurable proof extraction, Origin policy, session rotation, and 419/no-store response policy.
+- Browser-session, CSRF/origin, and persistent-runtime regression coverage completed successfully in GitHub Actions run `36168426947`.
 
 ## Current implementation evidence
 
