@@ -78,7 +78,10 @@ final readonly class CommunicationProfiles
             throw new \LogicException('Production HTTP profiles must verify both TLS peers and hosts.');
         }
 
-        return HttpClient::fromResolvedConfig($array);
+        return HttpClient::fromResolvedConfig(
+            $array,
+            baseConfig: $config,
+        );
     }
 
     public function httpConfig(?string $profile = null): HttpClientConfig
