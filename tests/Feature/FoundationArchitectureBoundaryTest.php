@@ -74,3 +74,35 @@ it('keeps optional specialist packages out of the Foundation runtime requirement
         'web-auth/webauthn-lib',
     );
 });
+
+
+it('keeps specialist native owners selected at Foundation integration seams', function (): void {
+    $root = dirname(__DIR__, 2);
+
+    $cacheProvider = file_get_contents($root . '/src/Cache/CacheServiceProvider.php');
+    $authCacheRegistrar = file_get_contents($root . '/src/Auth/Internal/AuthCacheRegistrar.php');
+    $oauthRegistrar = file_get_contents($root . '/src/Auth/Internal/AuthOAuthRegistrar.php');
+
+    expect($cacheProvider)->toBeString()
+        ->toContain('Webrick\\Interop\\CacheLayer\\AtomicCounterAdapter')
+        ->not->toContain('FactoryDefinition::construct(' . PHP_EOL . '                WebrickAtomicCounter::class')
+        ->and($authCacheRegistrar)->toBeString()
+        ->toContain('AtomicCounterStore::class')
+        ->not->toContain('CacheLayerCounterStore::class')
+        ->and($oauthRegistrar)->toBeString()
+        ->toContain('DBLayerEpicryptRefreshTokenStore::class')
+        ->not->toContain('DBLayerOAuthRefreshTokenStore::class')
+        ->not->toContain('OAuthRefreshTokenCoordinator::class');
+});
+
+it('keeps compatibility-only owners outside normal runtime selection', function (): void {
+    $root = dirname(__DIR__, 2);
+    $legacyCounter = file_get_contents($root . '/src/Cache/WebrickAtomicCounter.php');
+    $legacyRefresh = file_get_contents($root . '/src/Auth/OAuth/Token/OAuthRefreshTokenCoordinator.php');
+
+    expect($legacyCounter)->toBeString()
+        ->toContain('@deprecated')
+        ->toContain('AtomicCounterAdapter')
+        ->and($legacyRefresh)->toBeString()
+        ->toContain('@deprecated');
+});
