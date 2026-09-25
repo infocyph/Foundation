@@ -461,7 +461,7 @@ Review baseline: `e7c3e369e761f06afec414752e9c707abb00b1a0`.
 | --- | --- | --- | --- |
 | F8 — Default/named cache identity | P2 | Implemented; fresh verification pending | Run identity/replacement/dev-generated parity coverage |
 | F9 — Consumers bypass cache registry | P2 | Implemented for confirmed application-owned named resources; fresh verification pending | Run invalidation, lock/resource, PDO recursion, lifecycle suites |
-| F10 — HTTP configuration parsed twice | P3 | Deferred; TalkingBytes API prerequisite | Add/use a native typed-config + resolved middleware composition entry point before changing Foundation |
+| F10 — HTTP configuration parsed twice | P3 | Implemented against released TalkingBytes 2.2; verification pending | Run HTTP profile/TLS/middleware and benchmark gates |
 
 ### F8 — Default cache selection and its explicit name create different stores
 
@@ -550,40 +550,68 @@ Regression coverage added:
 ### F10 — HTTP profile construction parses native configuration twice
 
 **Priority:** P3  
-**Status:** deferred; no Foundation runtime change.
+**Status:** implemented against TalkingBytes 2.2; execution/benchmark gate open.
 
-Current TalkingBytes ownership was checked before changing Foundation:
+TalkingBytes 2.2 released the library-owned typed composition prerequisite:
 
-- `HttpClient::fromResolvedConfig(array)` delegates to
-  `HttpClientFactory::fromArray()`.
-- `HttpClientFactory::fromArray()` creates
-  `HttpClientConfig::fromArray()` and then applies authentication, cookies,
-  retry, rate limiting, circuit breaking, and idempotency composition.
-- `HttpClient::fromConfig(HttpClientConfig)` accepts a typed base config but
-  does not perform that resolved optional middleware/auth composition.
+- `HttpClientFactory::fromConfig(HttpClientConfig, array, ...)` composes
+  authentication, cookies, retry, rate limiting, circuit breaking, and
+  idempotency around an already-parsed base HTTP configuration.
+- `HttpClient::fromResolvedConfig(..., baseConfig: $config)` exposes the same
+  path through the public facade while preserving existing array-only callers.
 
-Therefore Foundation cannot safely remove the second parse by switching to
-`fromConfig()`; doing so would drop behavior. A semantics-preserving
-optimization requires a TalkingBytes-owned entry point that accepts the
-already-validated `HttpClientConfig` together with the resolved optional
-protocol configuration and composes the same middleware/auth state.
+Foundation now parses each selected HTTP profile once with
+`HttpClientConfig::fromArray()`, applies its production TLS policy to that
+typed object, and passes the same object back to TalkingBytes as
+`baseConfig:`. TalkingBytes owns all optional middleware/auth composition and
+does not reparse the base HTTP options on this path.
 
-No measurable throughput or security defect is claimed, so Foundation does not
-invent a parallel HTTP client composer for this P3 item.
+TalkingBytes 2.2 was also reviewed across Foundation's other integration
+surfaces. Its release is API-compatible for the email sender/receiver/mailbox,
+webhook replay-store, and gRPC factory contracts Foundation consumes. The new
+webhook replay TTL is explicitly a lower bound; Foundation's atomic CacheLayer
+store already honors the TTL requested by the native receiver.
 
-- [x] Evaluate the current TalkingBytes typed/native APIs.
-- [x] Record the native API prerequisite.
-- [ ] Implement only after a suitable TalkingBytes API is released and measured
-      benefit justifies the change.
+No throughput claim is made until the representative benchmark is rerun.
+
+- [x] Evaluate the released TalkingBytes 2.2 native APIs.
+- [x] Raise the Foundation communication dependency floor to `^2.2`.
+- [x] Reuse the typed HTTP base configuration through native resolved composition.
+- [x] Preserve Foundation production TLS policy and TalkingBytes optional middleware composition.
+- [x] Cross-check email, webhook and gRPC integration contracts against 2.2.
+- [ ] Execute the TalkingBytes 2.2 focused integration tests and representative benchmark.
 
 ## Follow-up verification gates
 
 - [ ] Run new F8/F9 identity, invalidation, replacement, and resource-reuse regression tests.
 - [ ] Verify development/generated graph parity, PDO-backed cache composition, transactional invalidation, and persistent request/job isolation.
 - [ ] Complete Redis/Valkey-backed counter and lock contention/expiry verification; prior host Redis connection refusal left this open.
-- [ ] If F10 is later implemented, verify configuration-parse counts, production TLS enforcement, protocol middleware, and scoped client-state isolation.
+- [ ] Verify F10 production TLS enforcement, protocol middleware, scoped client-state isolation, and the TalkingBytes 2.2 construction benchmark.
 - [ ] Run the complete required PHPForge QA, analysis, security, duplicate, and architecture checks on the final candidate.
 - [ ] Run relevant representative benchmarks before making throughput claims.
 - [ ] Validate the PHP 8.4/8.5 stable/lowest dependency matrix and relevant production database engines on the final revision.
 - [ ] Verify clean production installation and the Infbyte consumer against the final candidate.
 - [ ] Record final-revision CI and remaining gate results before release.
+
+
+### TalkingBytes 2.2 integration refresh
+
+TalkingBytes tag `2.2` is now the Foundation communication baseline. The
+release is a compatible minor but contains broad protocol hardening: HTTP
+credential/cookie/redirect/download correctness, spool claim behavior, DKIM
+verification corrections, generated gRPC stream final-status handling, and
+webhook replay-window retention.
+
+Foundation's cross-check found no required adapter rewrite outside F10:
+
+- HTTP now uses the released typed-base resolved-composition API.
+- Email profile construction remains on native `EmailSenderFactory`,
+  `EmailReceiverFactory`, `EmailMailboxFactory` and typed config objects.
+- Webhook replay storage still implements the native `WebhookReplayStore`;
+  its atomic CacheLayer claim honors the larger TTL TalkingBytes 2.2 may request.
+- gRPC callable/native/generated client and inbound-dispatch contracts remain
+  compatible; the corrected native/generated stream status behavior stays
+  TalkingBytes-owned.
+
+The old TalkingBytes 2.1 benchmark/test labels are being refreshed to 2.2 so
+release evidence identifies the dependency actually under test.
