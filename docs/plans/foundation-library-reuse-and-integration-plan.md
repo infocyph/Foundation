@@ -27,7 +27,7 @@ This plan is source-backed integration remediation. Performance claims require m
 | 2 | F2 auth atomic counter hardening | Complete | Shared auth state cannot silently use read/modify/write counters; process-local state remains supported |
 | 3A | F3 OAuth authorization single evaluation | Complete | HTTP path reuses one native protocol result; runtime operation-count coverage green |
 | 3B | F4 Pathwise download preparation reuse | Complete | No-range/stale-If-Range full response reuses initial preparation; trust-boundary checks preserved |
-| 4 | F5 legacy refresh-token retirement | Implemented as 3.x deprecation/compatibility boundary; final validation pending | Epicrypt path canonical; legacy runtime tests moved; credential cutover policy explicit |
+| 4 | F5 legacy refresh-token retirement | Complete for Foundation 3.x compatibility boundary | Epicrypt path canonical; legacy runtime tests moved; credential cutover policy explicit; contention QA green |
 | 5 | F6 CSRF overlap decision | Complete — no code change | Foundation 3.x keeps raw-token semantics; Webrick masked-token expansion is not adopted implicitly |
 | 6 | Documentation, architecture guards, full release validation | In progress | Ownership docs updated; execution/CI/consumer gates still pending |
 | Deferred | F7 HttpKernel public compatibility facade | Deferred for Foundation 3.x | Revisit only in approved public API compatibility window |
@@ -316,7 +316,7 @@ Do not automatically extract Foundation browser-session stores, auth database st
 - [x] Move legacy concurrency/reuse/audit assertions to active Epicrypt path.
 - [x] Retire unused legacy coordinator/store/contracts/types once coverage is equivalent.
 - [x] Update OAuth ownership/migration documentation.
-- [ ] Re-run refresh rotation/concurrency and full OAuth integration tests.
+- [x] Re-run refresh rotation/concurrency and full OAuth integration tests.
 
 ### Batch 5 — F6 CSRF decision
 
@@ -395,6 +395,17 @@ validated at `297d34f0ba07eaf55a5e184334ae8e8863293f86`.
 - Pathwise stream/body freshness and trust-boundary revalidation remains intact.
 - The runtime Flysystem metadata-count regression probe executed successfully in the full Pest suite.
 - Filesystem range, conditional, offload, traversal/root, and file-change regression coverage passed in GitHub Actions run `36168426947`.
+
+## Batch 4 QA closure — 2026-09-26
+
+Batch 4 is closed for the Foundation 3.x compatibility boundary.
+
+- Active refresh rotation, replay/family revocation, and audit coverage targets Epicrypt's native manager/store path.
+- Legacy Foundation refresh execution remains deprecated compatibility-only rather than active graph ownership.
+- The migrated concurrent refresh test exposed transient SQLite `BUSY/LOCKED` contention on the active store.
+- `DBLayerEpicryptRefreshTokenStore::rotate()` now uses a bounded three-attempt DBLayer transaction retry; DBLayer retries only classified transaction contention/deadlock/serialization failures.
+- The exactly-once rotation/reuse assertion remains unchanged and passed across PHP 8.4/8.5 stable and lowest rows in GitHub Actions run `36168426947`.
+- Existing credential/table compatibility policy remains explicit; no silent wire or persistence break was introduced.
 
 ## Current implementation evidence
 
