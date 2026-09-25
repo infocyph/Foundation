@@ -73,7 +73,7 @@ Foundation 3 currently requires:
 - Composer runtime API `^2.0`.
 
 Optional integration floors are DBLayer `^5.1`, Epicrypt `^3.1`, Omnibus `^2.6`,
-OTP `^6.1`, Pathwise `^4.1`, ReqShield `^3.2`, TalkingBytes `^2.1`, and WebAuthn
+OTP `^6.1`, Pathwise `^4.1`, ReqShield `^3.2`, TalkingBytes `^2.2`, and WebAuthn
 `^5.3.9` when passkeys are selected. A consuming application must require the
 optional packages it uses; Foundation's `require-dev` does not install them for
 consumers.
