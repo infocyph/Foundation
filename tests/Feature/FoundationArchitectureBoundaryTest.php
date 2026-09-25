@@ -124,21 +124,7 @@ it('keeps application-owned named cache consumers on the CacheManager registry',
     foreach ($paths as $path) {
         $source = file_get_contents($root . '/' . $path);
         expect($source)->toBeString()
-            ->toContain('CacheManager');
-    }
-
-    foreach ([
-        'src/Auth/Internal/AuthMfaGraphFactory.php',
-        'src/Auth/Internal/AuthPasskeyGraphFactory.php',
-        'src/Communication/CommunicationGraphFactory.php',
-        'src/Database/DBLayerFactory.php',
-        'src/Database/DatabaseMigrationManager.php',
-        'src/Scheduling/ScheduleManager.php',
-        'src/Session/SessionGraphFactory.php',
-        'src/Worker/WorkerManager.php',
-    ] as $path) {
-        $source = file_get_contents($root . '/' . $path);
-        expect($source)->toBeString()
+            ->toContain('CacheManager')
             ->not->toContain('CacheLayerFactory');
     }
 });
