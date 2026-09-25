@@ -81,7 +81,7 @@ final class CacheServiceProvider extends ServiceProvider
                 [new ServiceReference(CacheLayerFactory::class), $counter],
             ));
             $builder->singleton(WebrickAtomicCounterInterface::class, FactoryDefinition::construct(
-                WebrickAtomicCounter::class,
+                AtomicCounterAdapter::class,
                 [new ServiceReference(AtomicCounterStoreInterface::class)],
             ));
         }
