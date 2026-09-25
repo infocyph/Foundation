@@ -330,7 +330,14 @@ final readonly class OAuthManager
     /** @param array<string, mixed> $parameters */
     public function validateAuthorizationRequest(array $parameters): AuthorizationRequest
     {
-        return $this->validateAuthorizationResult($this->authorizationProtocolResult($parameters));
+        try {
+            return $this->authorizationRequests->validate($parameters);
+        } catch (OAuthProtocolException $exception) {
+            $reason = $exception->error === 'invalid_scope' ? 'scope_validation' : 'authorization_request';
+            $this->recordInvalidRequest($exception, $reason);
+
+            throw $exception;
+        }
     }
 
     public function validateAuthorizationResult(AuthorizationProtocolResult $result): AuthorizationRequest
