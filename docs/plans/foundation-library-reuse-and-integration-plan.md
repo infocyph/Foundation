@@ -26,7 +26,7 @@ This plan is source-backed integration remediation. Performance claims require m
 | 1 | F1 native Webrick CacheLayer throttle bridge | Complete | Native bridge selected; compatibility wrapper deprecated/outside default graph; final matrix green |
 | 2 | F2 auth atomic counter hardening | Complete | Shared auth state cannot silently use read/modify/write counters; process-local state remains supported |
 | 3A | F3 OAuth authorization single evaluation | Complete | HTTP path reuses one native protocol result; runtime operation-count coverage green |
-| 3B | F4 Pathwise download preparation reuse | Implemented; final validation pending | No-range/stale-If-Range full response reuses initial preparation |
+| 3B | F4 Pathwise download preparation reuse | Complete | No-range/stale-If-Range full response reuses initial preparation; trust-boundary checks preserved |
 | 4 | F5 legacy refresh-token retirement | Implemented as 3.x deprecation/compatibility boundary; final validation pending | Epicrypt path canonical; legacy runtime tests moved; credential cutover policy explicit |
 | 5 | F6 CSRF overlap decision | Complete — no code change | Foundation 3.x keeps raw-token semantics; Webrick masked-token expansion is not adopted implicitly |
 | 6 | Documentation, architecture guards, full release validation | In progress | Ownership docs updated; execution/CI/consumer gates still pending |
@@ -307,8 +307,8 @@ Do not automatically extract Foundation browser-session stores, auth database st
 
 - [x] Reuse initial preparation when effective range is null.
 - [x] Preserve stream/body freshness checks.
-- [ ] Add preparation/storage-operation-count coverage. Runtime probe implemented; fresh execution pending.
-- [ ] Re-run filesystem trust-boundary/range/offload tests.
+- [x] Add preparation/storage-operation-count coverage. Runtime probe executed successfully.
+- [x] Re-run filesystem trust-boundary/range/offload tests.
 
 ### Batch 4 — F5 refresh-token consolidation
 
@@ -384,6 +384,17 @@ at `297d34f0ba07eaf55a5e184334ae8e8863293f86`.
 - The runtime client-store operation-count regression probe executes in the full Pest suite and passed.
 - OAuth HTTP, redirect safety, OIDC, PKCE/scope mapping, and audit regression coverage completed successfully in GitHub Actions run `36168426947`.
 - No request-global or singleton protocol-result cache was introduced.
+
+## Batch 3B QA closure — 2026-09-26
+
+Batch 3B is closed against the Pathwise preparation-reuse implementation
+validated at `297d34f0ba07eaf55a5e184334ae8e8863293f86`.
+
+- Full/no-effective-range responses reuse the first Pathwise preparation.
+- Valid range responses still perform the range-specific preparation.
+- Pathwise stream/body freshness and trust-boundary revalidation remains intact.
+- The runtime Flysystem metadata-count regression probe executed successfully in the full Pest suite.
+- Filesystem range, conditional, offload, traversal/root, and file-change regression coverage passed in GitHub Actions run `36168426947`.
 
 ## Current implementation evidence
 
