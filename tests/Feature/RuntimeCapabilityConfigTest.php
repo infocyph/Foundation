@@ -9,6 +9,8 @@ use Infocyph\Foundation\Config\ConfigValidator;
 use Infocyph\Foundation\Config\Internal\ConfiguredCapabilities;
 use Infocyph\Foundation\Diagnostics\ReadinessReport;
 use Infocyph\Foundation\Foundation;
+use Infocyph\InterMix\DI\Build\DefinitionGraph;
+use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\Webrick\Interop\CacheLayer\AtomicCounterAdapter;
 use Infocyph\Webrick\Middleware\Throttle\AtomicCounterInterface as WebrickAtomicCounterInterface;
 
@@ -209,11 +211,7 @@ it('requires an atomic counter when auth uses shared cache state', function (): 
     expect($keys)->toContain('cache.default_counter');
 });
 
-it('selects the atomic auth counter adapter when shared auth cache is configured', function (): void {
-    if (!class_exists(\Redis::class)) {
-        $this->markTestSkipped('The Redis extension is required to construct CacheLayer atomic counters.');
-    }
-
+it('registers atomic auth and Webrick counter adapters without requiring a Redis runtime', function (): void {
     $application = Foundation::cli([
         'app' => [
             'capabilities' => ['auth', 'cache'],
@@ -234,16 +232,22 @@ it('selects the atomic auth counter adapter when shared auth cache is configured
             'counters' => [
                 'auth-lockouts' => [
                     'driver' => 'redis',
-                    'client' => new \Redis(),
+                    'dsn' => 'redis://127.0.0.1:6379',
                 ],
             ],
         ],
     ]);
+    $definitions = DefinitionGraph::from(
+        $application->container()->getRepository(),
+    )->definitions();
 
-    expect($application->make(CounterStoreInterface::class))
-        ->toBeInstanceOf(AtomicCounterStore::class)
-        ->and($application->make(WebrickAtomicCounterInterface::class))
-        ->toBeInstanceOf(AtomicCounterAdapter::class);
+    $authCounter = $definitions[CounterStoreInterface::class] ?? null;
+    $webrickCounter = $definitions[WebrickAtomicCounterInterface::class] ?? null;
+
+    expect($authCounter)->toBeInstanceOf(FactoryDefinition::class)
+        ->and($authCounter?->class)->toBe(AtomicCounterStore::class)
+        ->and($webrickCounter)->toBeInstanceOf(FactoryDefinition::class)
+        ->and($webrickCounter?->class)->toBe(AtomicCounterAdapter::class);
 });
 
 it('fails composition when shared auth cache has no atomic counter selection', function (): void {
