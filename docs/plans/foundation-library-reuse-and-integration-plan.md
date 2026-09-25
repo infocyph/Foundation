@@ -23,7 +23,7 @@ This plan is source-backed integration remediation. Performance claims require m
 | Batch | Scope | Status | Exit condition |
 | --- | --- | --- | --- |
 | 0 | Baseline, public surface, persistence/compatibility inventory | Complete | Direct callers, generated graph roots, public compatibility, refresh-token persistence requirements recorded |
-| 1 | F1 native Webrick CacheLayer throttle bridge | Implemented; final validation pending | Native bridge selected; compatibility wrapper deprecated/outside default graph |
+| 1 | F1 native Webrick CacheLayer throttle bridge | Complete | Native bridge selected; compatibility wrapper deprecated/outside default graph; final matrix green |
 | 2 | F2 auth atomic counter hardening | Implemented; final validation pending | Shared auth state cannot silently use read/modify/write counters |
 | 3A | F3 OAuth authorization single evaluation | Implemented; final validation pending | HTTP path reuses one native protocol result |
 | 3B | F4 Pathwise download preparation reuse | Implemented; final validation pending | No-range/stale-If-Range full response reuses initial preparation |
@@ -286,7 +286,7 @@ Do not automatically extract Foundation browser-session stores, auth database st
 - [x] Select Webrick `Interop\CacheLayer\AtomicCounterAdapter` in Foundation graph.
 - [x] Preserve/deprecate Foundation wrapper only if public compatibility requires it.
 - [x] Add native-owner registration/architecture coverage.
-- [ ] Run focused cache/throttle tests.
+- [x] Run focused cache/throttle tests.
 
 ### Batch 2 — F2 atomic auth counters
 
@@ -353,6 +353,16 @@ The review baseline uses Foundation `fc9b3258646ac744e61fd02e18d9b98e5afff2e8` a
 The source review confirmed F1-F5 directly. F6 is an overlap with a semantic mismatch, not an automatic replacement. F7 is intentionally deferred because generated production already removes the facade and Foundation 3.x exposes it publicly.
 
 The earlier planning baseline reported a focused test run of 25 passed, 1 failed, 169 assertions; the failure was Redis connection refusal during a contention test, not an established counter implementation failure. Implementation batches must produce their own fresh validation evidence rather than inheriting that planning result.
+
+## Batch 1 QA closure — 2026-09-26
+
+Batch 1 is closed against implementation head `297d34f0ba07eaf55a5e184334ae8e8863293f86`.
+
+- Webrick's native `AtomicCounterAdapter` remains the selected throttle bridge.
+- The compatibility Foundation wrapper remains outside the default graph.
+- GitHub Actions run `36168426947` completed successfully across PHP 8.4/8.5 stable and lowest QA rows, both analysis rows, clean install, both benchmark rows, all production-consumer rows, and release evidence.
+- The full QA suite included the native-owner registration and cache/auth composition regression coverage added for F1.
+- No F1-specific failure remained on the validated implementation head.
 
 ## Current implementation evidence
 
