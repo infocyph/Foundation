@@ -285,7 +285,7 @@ Do not automatically extract Foundation browser-session stores, auth database st
 
 - [x] Select Webrick `Interop\CacheLayer\AtomicCounterAdapter` in Foundation graph.
 - [x] Preserve/deprecate Foundation wrapper only if public compatibility requires it.
-- [ ] Add native-owner registration/architecture coverage.
+- [x] Add native-owner registration/architecture coverage.
 - [ ] Run focused cache/throttle tests.
 
 ### Batch 2 — F2 atomic auth counters
@@ -328,7 +328,7 @@ Do not automatically extract Foundation browser-session stores, auth database st
 ### Batch 6 — Closure and release gates
 
 - [x] Update `docs/architecture/ownership-boundaries.md`.
-- [ ] Add architecture guards for selected native owners and forbidden retired owners.
+- [x] Add architecture guards for selected native owners and forbidden retired owners.
 - [ ] Run focused suites for each changed subsystem.
 - [ ] Run required PHPForge QA/analysis/security/duplicate/architecture flow.
 - [ ] Run relevant benchmarks/operation-count checks.
