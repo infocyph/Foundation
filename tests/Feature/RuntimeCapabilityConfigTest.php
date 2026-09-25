@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Infocyph\Foundation\Auth\Adapter\CacheLayer\AtomicCounterStore;
+use Infocyph\Foundation\Auth\Contract\Cache\CounterStoreInterface;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Config\ConfigValidator;
 use Infocyph\Foundation\Config\Internal\ConfiguredCapabilities;
@@ -204,4 +206,61 @@ it('requires an atomic counter when auth uses shared cache state', function (): 
     );
 
     expect($keys)->toContain('cache.default_counter');
+});
+
+
+it('selects the atomic auth counter adapter when shared auth cache is configured', function (): void {
+    $application = Foundation::cli([
+        'app' => [
+            'capabilities' => ['auth', 'cache'],
+        ],
+        'auth' => [
+            'drivers' => [
+                'cache' => 'cache',
+            ],
+        ],
+        'cache' => [
+            'default' => 'memory',
+            'default_counter' => 'auth-lockouts',
+            'stores' => [
+                'memory' => [
+                    'driver' => 'memory',
+                ],
+            ],
+            'counters' => [
+                'auth-lockouts' => [
+                    'driver' => 'redis',
+                    'dsn' => 'redis://127.0.0.1:6379',
+                ],
+            ],
+        ],
+    ]);
+
+    expect($application->make(CounterStoreInterface::class))
+        ->toBeInstanceOf(AtomicCounterStore::class);
+});
+
+it('fails composition when shared auth cache has no atomic counter selection', function (): void {
+    expect(fn() => Foundation::cli([
+        'app' => [
+            'capabilities' => ['auth', 'cache'],
+        ],
+        'auth' => [
+            'drivers' => [
+                'cache' => 'cache',
+            ],
+        ],
+        'cache' => [
+            'default' => 'memory',
+            'stores' => [
+                'memory' => [
+                    'driver' => 'memory',
+                ],
+            ],
+            'counters' => [],
+        ],
+    ]))->toThrow(
+        LogicException::class,
+        'Cache-backed authentication requires cache.default_counter to select an atomic counter resource.',
+    );
 });
