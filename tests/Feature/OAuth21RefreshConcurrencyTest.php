@@ -4,17 +4,18 @@ declare(strict_types=1);
 
 use Infocyph\DBLayer\DB;
 use Infocyph\DBLayer\Migration\MigrationRunner;
-use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerOAuthRefreshTokenStore;
-use Infocyph\Foundation\Auth\OAuth\Token\OAuthRefreshRotationStatus;
-use Infocyph\Foundation\Auth\OAuth\Token\OAuthRefreshTokenRecord;
+use Infocyph\Epicrypt\Auth\OAuth\RefreshTokenGrant;
+use Infocyph\Epicrypt\Auth\OAuth\RefreshTokenRecord;
+use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerEpicryptRefreshTokenStore;
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Database\AuthSchema\AuthOAuthEpicryptProtocolSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthOAuthRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DatabaseConnectionResolver;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
 
-it('allows exactly one refresh rotation and revokes the family after concurrent replay', function (): void {
+it('allows exactly one active Epicrypt refresh rotation and revokes the family after concurrent replay', function (): void {
     DB::purge();
     $root = dirname(__DIR__, 2);
     $directory = sys_get_temp_dir() . '/foundation-oauth-refresh-race-' . bin2hex(random_bytes(6));
@@ -27,14 +28,18 @@ it('allows exactly one refresh rotation and revokes the family after concurrent 
     $script = $directory . '/rotate.php';
     $resultA = $directory . '/a.result';
     $resultB = $directory . '/b.result';
-    $currentHash = hash('sha256', 'refresh-concurrency-current');
-    $familyId = 'family-concurrent';
+    $currentId = str_repeat('A', 32);
+    $familyId = str_repeat('F', 43);
     $now = time();
+    $expiresAt = $now + 3600;
 
     $factory = oauth21RefreshConcurrencyFactory($database, 'setup');
     $tables = new AuthTables();
-    $runner = new MigrationRunner($factory->connection(), [new AuthOAuthRevisionSchema($tables)]);
-    $store = new DBLayerOAuthRefreshTokenStore($factory, $tables);
+    $runner = new MigrationRunner($factory->connection(), [
+        new AuthOAuthRevisionSchema($tables),
+        new AuthOAuthEpicryptProtocolSchema($tables),
+    ]);
+    $store = new DBLayerEpicryptRefreshTokenStore($factory, $tables);
 
     $child = <<<'PHP'
 <?php
@@ -44,16 +49,16 @@ declare(strict_types=1);
 require $argv[1] . '/vendor/autoload.php';
 
 use Infocyph\DBLayer\DB;
-use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerOAuthRefreshTokenStore;
-use Infocyph\Foundation\Auth\OAuth\Token\OAuthRefreshRotationStatus;
-use Infocyph\Foundation\Auth\OAuth\Token\OAuthRefreshTokenRecord;
+use Infocyph\Epicrypt\Auth\OAuth\RefreshTokenGrant;
+use Infocyph\Epicrypt\Auth\OAuth\RefreshTokenRecord;
+use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerEpicryptRefreshTokenStore;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\Foundation\Database\DatabaseConnectionResolver;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
 
-[$database, $barrier, $result, $name, $currentHash, $replacementHash, $replacementId, $familyId, $now] = array_slice($argv, 2);
+[$database, $barrier, $result, $name, $currentId, $replacementId, $familyId, $now, $expiresAt] = array_slice($argv, 2);
 DB::purge();
 $config = new ConfigRepository([
     'database' => [
@@ -63,29 +68,35 @@ $config = new ConfigRepository([
 ]);
 $factory = new DBLayerFactory(new DatabaseConnectionResolver($config), RuntimeStateContainer::execution());
 $factory->connection()->setQueryTimeoutMs(5000);
-$store = new DBLayerOAuthRefreshTokenStore($factory, new AuthTables());
-$replacement = new OAuthRefreshTokenRecord(
-    id: $replacementId,
-    tokenHash: $replacementHash,
-    familyId: $familyId,
-    clientId: 'oc_concurrent',
-    accountId: 'account-1',
-    deviceId: 'device-1',
+$store = new DBLayerEpicryptRefreshTokenStore($factory, new AuthTables());
+$grant = new RefreshTokenGrant(
     authorizationId: 'authorization-1',
-    scopes: ['profile.read'],
+    subject: 'account-1',
+    clientId: 'oc_concurrent',
     audiences: ['https://api.example.test'],
+    scopes: ['profile.read'],
+    expiresAt: (int) $expiresAt,
+);
+$current = new RefreshTokenRecord(
+    tokenId: $currentId,
+    familyId: $familyId,
+    grant: $grant,
+    issuedAt: (int) $now - 10,
+    idleExpiresAt: (int) $expiresAt - 1,
+);
+$replacement = new RefreshTokenRecord(
+    tokenId: $replacementId,
+    familyId: $familyId,
+    grant: $grant,
     issuedAt: (int) $now,
-    expiresAt: (int) $now + 3600,
+    idleExpiresAt: (int) $expiresAt - 1,
 );
 while (!is_file($barrier)) {
     usleep(1000);
 }
 try {
-    $rotation = $store->rotate($currentHash, $replacement, (int) $now);
-    if ($rotation->status === OAuthRefreshRotationStatus::Reused) {
-        $store->revokeFamily($familyId, (int) $now + 1);
-    }
-    file_put_contents($result, $rotation->status->value);
+    $rotation = $store->rotate($current, $replacement, 'oc_concurrent', null, (int) $now);
+    file_put_contents($result, strtolower($rotation->name));
 } catch (Throwable $exception) {
     file_put_contents($result, 'error:' . $exception::class . ':' . $exception->getMessage());
     exit(2);
@@ -96,31 +107,31 @@ PHP;
 
     try {
         $runner->run();
-        $store->save(new OAuthRefreshTokenRecord(
-            id: 'refresh-current',
-            tokenHash: $currentHash,
-            familyId: $familyId,
-            clientId: 'oc_concurrent',
-            accountId: 'account-1',
-            deviceId: 'device-1',
+        $grant = new RefreshTokenGrant(
             authorizationId: 'authorization-1',
-            scopes: ['profile.read'],
+            subject: 'account-1',
+            clientId: 'oc_concurrent',
             audiences: ['https://api.example.test'],
+            scopes: ['profile.read'],
+            expiresAt: $expiresAt,
+        );
+        expect($store->create(new RefreshTokenRecord(
+            tokenId: $currentId,
+            familyId: $familyId,
+            grant: $grant,
             issuedAt: $now - 10,
-            expiresAt: $now + 3600,
-        ));
+            idleExpiresAt: $expiresAt - 1,
+        )))->toBeTrue();
         DB::purge();
         file_put_contents($script, $child);
 
-        $replacementA = hash('sha256', 'refresh-concurrency-a');
-        $replacementB = hash('sha256', 'refresh-concurrency-b');
         $processA = oauth21StartRefreshContentionProcess([
             PHP_BINARY, $script, $root, $database, $barrier, $resultA, 'refresh-a',
-            $currentHash, $replacementA, 'refresh-a', $familyId, (string) $now,
+            $currentId, str_repeat('B', 32), $familyId, (string) $now, (string) $expiresAt,
         ]);
         $processB = oauth21StartRefreshContentionProcess([
             PHP_BINARY, $script, $root, $database, $barrier, $resultB, 'refresh-b',
-            $currentHash, $replacementB, 'refresh-b', $familyId, (string) $now,
+            $currentId, str_repeat('C', 32), $familyId, (string) $now, (string) $expiresAt,
         ]);
 
         touch($barrier);
@@ -142,8 +153,8 @@ PHP;
         );
         expect($rows)->toHaveCount(2);
 
-        $current = array_values(array_filter($rows, static fn(array $row): bool => ($row['id'] ?? null) === 'refresh-current'))[0] ?? null;
-        $replacement = array_values(array_filter($rows, static fn(array $row): bool => ($row['id'] ?? null) !== 'refresh-current'))[0] ?? null;
+        $current = array_values(array_filter($rows, static fn(array $row): bool => ($row['id'] ?? null) === $currentId))[0] ?? null;
+        $replacement = array_values(array_filter($rows, static fn(array $row): bool => ($row['id'] ?? null) !== $currentId))[0] ?? null;
         expect($current)->not->toBeNull()
             ->and($current['rotated_at'] ?? null)->not->toBeNull()
             ->and($current['revoked_at'] ?? null)->not->toBeNull()
