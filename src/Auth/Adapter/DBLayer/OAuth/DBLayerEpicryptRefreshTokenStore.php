@@ -15,6 +15,8 @@ use Infocyph\Foundation\Auth\Adapter\DBLayer\DBLayerStore;
 
 final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore implements RefreshTokenStoreInterface
 {
+    private const int ROTATION_TRANSACTION_ATTEMPTS = 3;
+
     public function create(#[\SensitiveParameter] RefreshTokenRecord $record): bool
     {
         try {
@@ -114,6 +116,7 @@ final readonly class DBLayerEpicryptRefreshTokenStore extends DBLayerStore imple
                 $dpopKeyThumbprint,
                 $now,
             ),
+            self::ROTATION_TRANSACTION_ATTEMPTS,
         );
 
         return $result instanceof RefreshTokenRotationStatus
