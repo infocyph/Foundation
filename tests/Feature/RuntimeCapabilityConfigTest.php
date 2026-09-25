@@ -212,6 +212,10 @@ it('requires an atomic counter when auth uses shared cache state', function (): 
 
 
 it('selects the atomic auth counter adapter when shared auth cache is configured', function (): void {
+    if (!class_exists(\Redis::class)) {
+        $this->markTestSkipped('The Redis extension is required to construct CacheLayer atomic counters.');
+    }
+
     $application = Foundation::cli([
         'app' => [
             'capabilities' => ['auth', 'cache'],
@@ -232,7 +236,7 @@ it('selects the atomic auth counter adapter when shared auth cache is configured
             'counters' => [
                 'auth-lockouts' => [
                     'driver' => 'redis',
-                    'client' => new Redis(),
+                    'client' => new \Redis(),
                 ],
             ],
         ],
