@@ -15,24 +15,33 @@ use Infocyph\Foundation\Auth\Driver\AuthCacheDriver;
 use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
 use Infocyph\Foundation\Auth\Support\ArrayTtlStore;
 use Infocyph\Foundation\Auth\Support\InMemoryCounterStore;
+use Infocyph\Foundation\Config\SharedStateTopology;
 
 final readonly class AuthCacheRegistrar extends AbstractAuthRegistrar
 {
     public function register(AuthDriverResolver $drivers): void
     {
         if ($drivers->cache() === AuthCacheDriver::CACHE) {
-            $counter = $this->stringConfig('cache.default_counter', '');
-            if ($counter === '') {
-                throw new \LogicException(
-                    'Cache-backed authentication requires cache.default_counter to select an atomic counter resource.',
+            $topology = new SharedStateTopology($this->app->config());
+            if ($topology->cacheStoreScope() === SharedStateTopology::PROCESS) {
+                $this->recipe(CounterStoreInterface::class, InMemoryCounterStore::class, [
+                    $this->ref(ClockInterface::class),
+                ]);
+            } else {
+                $counter = $this->stringConfig('cache.default_counter', '');
+                if ($counter === '') {
+                    throw new \LogicException(
+                        'Shared cache-backed authentication requires cache.default_counter to select an atomic counter resource.',
+                    );
+                }
+
+                $this->recipe(
+                    CounterStoreInterface::class,
+                    AtomicCounterStore::class,
+                    [$this->ref(AtomicCounterStoreInterface::class)],
                 );
             }
 
-            $this->recipe(
-                CounterStoreInterface::class,
-                AtomicCounterStore::class,
-                [$this->ref(AtomicCounterStoreInterface::class)],
-            );
             $this->recipe(TtlStoreInterface::class, CacheLayerTtlStore::class, [
                 $this->ref(CacheInterface::class),
             ]);
