@@ -2,7 +2,7 @@
 
 Date: 2026-09-25
 
-Status: open findings and remaining verification only
+Status: complete — implementation, staged QA, and release gates closed
 
 Branch: `foundation-3/library-reuse-hardening`
 
@@ -33,7 +33,7 @@ This plan is source-backed integration remediation. Performance claims require m
 | 7 | F8 default/named cache identity | Complete | Default and explicit configured names share canonical store identity in development and generated runtime |
 | 8 | F9 named cache registry ownership | Complete | Confirmed application-owned consumers reuse CacheManager resources without crossing lifecycle boundaries |
 | 9 | F10 TalkingBytes 2.2 typed HTTP composition | Complete | Foundation parses base HTTP config once; TalkingBytes owns composition; focused integration and benchmark gates green |
-| 10 | Final release and consumer gates | In progress | Final-revision CI, production database/Redis evidence, clean install, and Infbyte certification |
+| 10 | Final release and consumer gates | Complete | Final candidate CI, production database/Redis evidence, clean install, and real Infbyte candidate certification are green |
 | Deferred | F7 HttpKernel public compatibility facade | Deferred for Foundation 3.x | Revisit only in approved public API compatibility window |
 
 
@@ -363,14 +363,14 @@ Do not automatically extract Foundation browser-session stores, auth database st
 
 ### Batch 10 — Final release and consumer gates
 
-- [ ] Run focused suites for each changed subsystem on the final candidate.
-- [ ] Run required PHPForge QA/analysis/security/duplicate/architecture flow on the final revision.
-- [ ] Run relevant benchmarks/operation-count checks on the final revision.
-- [ ] Validate PHP 8.4/8.5 stable/lowest dependency rows through CI.
-- [ ] Validate production database and Redis/Valkey-backed contention paths where CI services support them.
-- [ ] Validate clean production installation.
-- [ ] Validate Infbyte consumer against the final Foundation branch/revision.
-- [ ] Update this tracker to final state with evidence.
+- [x] Run focused suites for each changed subsystem on the final candidate.
+- [x] Run required PHPForge QA/analysis/security/duplicate/architecture flow on the final revision.
+- [x] Run relevant benchmarks/operation-count checks on the final revision.
+- [x] Validate PHP 8.4/8.5 stable/lowest dependency rows through CI.
+- [x] Validate production database and Redis/Valkey-backed contention paths where CI services support them.
+- [x] Validate clean production installation.
+- [x] Validate Infbyte consumer against the final Foundation branch/revision.
+- [x] Update this tracker to final state with evidence.
 
 
 ## Prevention and completion gates
@@ -490,6 +490,30 @@ Batch 9 / F10 is closed.
 - Both PHP 8.4/8.5 benchmark rows and all four QA rows passed in GitHub Actions run `36168426947`.
 - Email, webhook, and gRPC integration contracts remain native TalkingBytes-owned; Foundation retains only its application policy/persistence adapters.
 
+## Batch 10 QA closure — 2026-09-26
+
+Batch 10 is closed against final candidate implementation head
+`44fa8d0fa7fa3f5891c75bc159452cbc4cb25e96`.
+
+GitHub Actions run `36202421388` completed successfully with:
+
+- PHP 8.4 and PHP 8.5, each on prefer-stable and prefer-lowest QA rows;
+- PHP 8.4/8.5 analysis;
+- PHP 8.4/8.5 representative benchmark rows;
+- clean installation;
+- four isolated production-consumer rows;
+- two real Infbyte `main` candidate-consumer rows, installing the current Foundation workspace rather than the last published tag;
+- MySQL, PostgreSQL, SQLite, Redis, Valkey, and Memcached integration services with skipped-test failure enforcement;
+- Redis atomic counter/process contention and Redis/Valkey/session lock contention coverage;
+- release evidence.
+
+The shared PHPForge `Security Report` presentation job is conditionally skipped on
+this pull-request run; executable audit/analyzer and QA security gates completed
+successfully. No project quality/security standard was bypassed or suppressed.
+
+The permanent Foundation workflow now retains the real Infbyte candidate-consumer
+matrix and makes release evidence depend on it.
+
 ## Current implementation evidence
 
 Implemented branch changes:
@@ -595,14 +619,14 @@ Review baseline: `e7c3e369e761f06afec414752e9c707abb00b1a0`.
 
 | Finding | Priority | Status | Next step |
 | --- | --- | --- | --- |
-| F8 — Default/named cache identity | P2 | Implemented; fresh verification pending | Run identity/replacement/dev-generated parity coverage |
-| F9 — Consumers bypass cache registry | P2 | Implemented for confirmed application-owned named resources; fresh verification pending | Run invalidation, lock/resource, PDO recursion, lifecycle suites |
-| F10 — HTTP configuration parsed twice | P3 | Implemented against released TalkingBytes 2.2; verification pending | Run HTTP profile/TLS/middleware and benchmark gates |
+| F8 — Default/named cache identity | P2 | Complete | Identity/replacement/development/generated parity coverage green |
+| F9 — Consumers bypass cache registry | P2 | Complete for confirmed application-owned named resources | Invalidation, lock/resource, PDO recursion, and lifecycle suites green |
+| F10 — HTTP configuration parsed twice | P3 | Complete against released TalkingBytes 2.2 | HTTP profile/TLS/middleware and benchmark gates green |
 
 ### F8 — Default cache selection and its explicit name create different stores
 
 **Priority:** P2  
-**Status:** implementation complete; execution gate open.
+**Status:** complete; implementation and execution gates closed.
 
 The original `CacheManager` stored `store(null)` under a private
 `__default__` key and `store('name')` under the configured name. That made
@@ -622,19 +646,17 @@ Implemented:
   replacement, distinct named-store isolation, independent-application
   isolation, default-name changes, and generated-runtime parity.
 
-Acceptance remains open until those tests execute successfully on the final
-candidate.
+Acceptance is closed: the dedicated identity/replacement/generated-runtime tests passed on the final candidate.
 
 - [x] Correct canonical cache-store identity.
 - [x] Add development behavioral regression coverage.
 - [x] Add generated-runtime identity coverage.
-- [ ] Execute F8 focused and generated-runtime coverage.
+- [x] Execute F8 focused and generated-runtime coverage.
 
 ### F9 — Consumers bypass the named cache registry and recreate resources
 
 **Priority:** P2  
-**Status:** implementation complete for confirmed application-owned resources;
-execution/lifecycle gate open.
+**Status:** complete for confirmed application-owned resources; execution and lifecycle gates closed.
 
 Implemented application/generation-owned resolution:
 
@@ -681,12 +703,12 @@ Regression coverage added:
 - [x] Route migration/scheduler/worker coordination through CacheManager.
 - [x] Preserve transactional invalidation and infrastructure-PDO boundaries.
 - [x] Add identity/invalidation/replacement/PDO/resource-reuse coverage.
-- [ ] Execute focused F9 lifecycle and persistent-runtime coverage.
+- [x] Execute focused F9 lifecycle and persistent-runtime coverage.
 
 ### F10 — HTTP profile construction parses native configuration twice
 
 **Priority:** P3  
-**Status:** implemented against TalkingBytes 2.2; execution/benchmark gate open.
+**Status:** complete against TalkingBytes 2.2; execution and benchmark gates closed.
 
 TalkingBytes 2.2 released the library-owned typed composition prerequisite:
 
@@ -715,19 +737,19 @@ No throughput claim is made until the representative benchmark is rerun.
 - [x] Reuse the typed HTTP base configuration through native resolved composition.
 - [x] Preserve Foundation production TLS policy and TalkingBytes optional middleware composition.
 - [x] Cross-check email, webhook and gRPC integration contracts against 2.2.
-- [ ] Execute the TalkingBytes 2.2 focused integration tests and representative benchmark.
+- [x] Execute the TalkingBytes 2.2 focused integration tests and representative benchmark.
 
 ## Follow-up verification gates
 
-- [ ] Run new F8/F9 identity, invalidation, replacement, and resource-reuse regression tests.
-- [ ] Verify development/generated graph parity, PDO-backed cache composition, transactional invalidation, and persistent request/job isolation.
-- [ ] Complete Redis/Valkey-backed counter and lock contention/expiry verification; prior host Redis connection refusal left this open.
-- [ ] Verify F10 production TLS enforcement, protocol middleware, scoped client-state isolation, and the TalkingBytes 2.2 construction benchmark.
-- [ ] Run the complete required PHPForge QA, analysis, security, duplicate, and architecture checks on the final candidate.
-- [ ] Run relevant representative benchmarks before making throughput claims.
-- [ ] Validate the PHP 8.4/8.5 stable/lowest dependency matrix and relevant production database engines on the final revision.
-- [ ] Verify clean production installation and the Infbyte consumer against the final candidate.
-- [ ] Record final-revision CI and remaining gate results before release.
+- [x] Run new F8/F9 identity, invalidation, replacement, and resource-reuse regression tests.
+- [x] Verify development/generated graph parity, PDO-backed cache composition, transactional invalidation, and persistent request/job isolation.
+- [x] Complete Redis/Valkey-backed counter and lock contention/expiry verification; prior host Redis connection refusal left this open.
+- [x] Verify F10 production TLS enforcement, protocol middleware, scoped client-state isolation, and the TalkingBytes 2.2 construction benchmark.
+- [x] Run the complete required PHPForge QA, analysis, security, duplicate, and architecture checks on the final candidate.
+- [x] Run relevant representative benchmarks before making throughput claims.
+- [x] Validate the PHP 8.4/8.5 stable/lowest dependency matrix and relevant production database engines on the final revision.
+- [x] Verify clean production installation and the Infbyte consumer against the final candidate.
+- [x] Record final-revision CI and remaining gate results before release.
 
 
 ### TalkingBytes 2.2 integration refresh
