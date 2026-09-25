@@ -106,3 +106,39 @@ it('keeps compatibility-only owners outside normal runtime selection', function 
         ->and($legacyRefresh)->toBeString()
         ->toContain('@deprecated');
 });
+
+
+it('keeps application-owned named cache consumers on the CacheManager registry', function (): void {
+    $root = dirname(__DIR__, 2);
+    $paths = [
+        'src/Auth/Internal/AuthMfaGraphFactory.php',
+        'src/Auth/Internal/AuthPasskeyGraphFactory.php',
+        'src/Communication/CommunicationGraphFactory.php',
+        'src/Database/DBLayerFactory.php',
+        'src/Database/DatabaseMigrationManager.php',
+        'src/Scheduling/ScheduleManager.php',
+        'src/Session/SessionGraphFactory.php',
+        'src/Worker/WorkerManager.php',
+    ];
+
+    foreach ($paths as $path) {
+        $source = file_get_contents($root . '/' . $path);
+        expect($source)->toBeString()
+            ->toContain('CacheManager');
+    }
+
+    foreach ([
+        'src/Auth/Internal/AuthMfaGraphFactory.php',
+        'src/Auth/Internal/AuthPasskeyGraphFactory.php',
+        'src/Communication/CommunicationGraphFactory.php',
+        'src/Database/DBLayerFactory.php',
+        'src/Database/DatabaseMigrationManager.php',
+        'src/Scheduling/ScheduleManager.php',
+        'src/Session/SessionGraphFactory.php',
+        'src/Worker/WorkerManager.php',
+    ] as $path) {
+        $source = file_get_contents($root . '/' . $path);
+        expect($source)->toBeString()
+            ->not->toContain('CacheLayerFactory');
+    }
+});
