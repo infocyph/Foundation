@@ -24,7 +24,7 @@ This plan is source-backed integration remediation. Performance claims require m
 | --- | --- | --- | --- |
 | 0 | Baseline, public surface, persistence/compatibility inventory | Complete | Direct callers, generated graph roots, public compatibility, refresh-token persistence requirements recorded |
 | 1 | F1 native Webrick CacheLayer throttle bridge | Complete | Native bridge selected; compatibility wrapper deprecated/outside default graph; final matrix green |
-| 2 | F2 auth atomic counter hardening | Implemented; final validation pending | Shared auth state cannot silently use read/modify/write counters |
+| 2 | F2 auth atomic counter hardening | Complete | Shared auth state cannot silently use read/modify/write counters; process-local state remains supported |
 | 3A | F3 OAuth authorization single evaluation | Implemented; final validation pending | HTTP path reuses one native protocol result |
 | 3B | F4 Pathwise download preparation reuse | Implemented; final validation pending | No-range/stale-If-Range full response reuses initial preparation |
 | 4 | F5 legacy refresh-token retirement | Implemented as 3.x deprecation/compatibility boundary; final validation pending | Epicrypt path canonical; legacy runtime tests moved; credential cutover policy explicit |
@@ -294,7 +294,7 @@ Do not automatically extract Foundation browser-session stores, auth database st
 - [x] Preserve explicit in-memory development/test state.
 - [x] Document fixed-window expiry contract.
 - [x] Add registrar/configuration/concurrency tests.
-- [ ] Run focused auth/cache tests.
+- [x] Run focused auth/cache tests.
 
 ### Batch 3A — F3 OAuth authorization evaluation
 
@@ -363,6 +363,17 @@ Batch 1 is closed against implementation head `297d34f0ba07eaf55a5e184334ae8e886
 - GitHub Actions run `36168426947` completed successfully across PHP 8.4/8.5 stable and lowest QA rows, both analysis rows, clean install, both benchmark rows, all production-consumer rows, and release evidence.
 - The full QA suite included the native-owner registration and cache/auth composition regression coverage added for F1.
 - No F1-specific failure remained on the validated implementation head.
+
+## Batch 2 QA closure — 2026-09-26
+
+Batch 2 is closed against the corrected atomic-counter implementation validated
+at `297d34f0ba07eaf55a5e184334ae8e8863293f86`.
+
+- Host/cluster-visible auth cache state requires the configured native atomic counter resource.
+- Process-local and non-state cache backends no longer get misclassified as shared state.
+- Missing shared atomic counter configuration fails explicitly.
+- The earlier QA regressions in `RuntimeCapabilityConfigTest` and passkey composition were resolved before the final validation run.
+- GitHub Actions run `36168426947` completed all PHP 8.4/8.5 stable/lowest QA rows successfully with the F2 regression coverage enabled.
 
 ## Current implementation evidence
 
