@@ -31,7 +31,7 @@ This plan is source-backed integration remediation. Performance claims require m
 | 5 | F6 CSRF overlap decision | Complete — QA validated, no code change | Foundation 3.x keeps raw-token semantics; Webrick masked-token expansion is not adopted implicitly |
 | 6 | Documentation and architecture guards | Complete | Ownership boundaries and native-owner guards recorded and validated |
 | 7 | F8 default/named cache identity | Complete | Default and explicit configured names share canonical store identity in development and generated runtime |
-| 8 | F9 named cache registry ownership | Implemented; QA closure pending | Confirmed application-owned consumers reuse CacheManager resources |
+| 8 | F9 named cache registry ownership | Complete | Confirmed application-owned consumers reuse CacheManager resources without crossing lifecycle boundaries |
 | 9 | F10 TalkingBytes 2.2 typed HTTP composition | Implemented; QA closure pending | Foundation parses base HTTP config once and TalkingBytes owns composition |
 | 10 | Final release and consumer gates | In progress | Final-revision CI, production database/Redis evidence, clean install, and Infbyte certification |
 | Deferred | F7 HttpKernel public compatibility facade | Deferred for Foundation 3.x | Revisit only in approved public API compatibility window |
@@ -350,7 +350,7 @@ Do not automatically extract Foundation browser-session stores, auth database st
 - [x] Route migration/scheduler/worker coordination through CacheManager.
 - [x] Preserve transactional invalidation and infrastructure-PDO boundaries.
 - [x] Add identity/invalidation/replacement/PDO/resource-reuse coverage.
-- [ ] Execute focused F9 lifecycle and persistent-runtime coverage.
+- [x] Execute focused F9 lifecycle and persistent-runtime coverage.
 
 ### Batch 9 — F10 TalkingBytes 2.2 typed HTTP composition
 
@@ -469,6 +469,16 @@ Batch 7 / F8 is closed.
 - `tests/Feature/GeneratedNonWebRuntimeTest.php` covers generated-runtime identity parity.
 - Both regressions are part of the full Pest suite that passed across PHP 8.4/8.5 stable and lowest rows in GitHub Actions run `36168426947`.
 - The canonical `__default__` sentinel split is no longer present in the active implementation.
+
+## Batch 8 QA closure — 2026-09-26
+
+Batch 8 / F9 is closed.
+
+- `tests/Feature/DBLayer51QueryCacheIntegrationTest.php` covers named query-cache identity, invalidation visibility, replacement, disabled-cache cold behavior, and infrastructure-PDO separation.
+- `tests/Feature/CacheManagerIdentityTest.php` covers lock-provider reuse and replacement invalidation while keeping lock handles per acquisition.
+- Existing browser-session locking, transactional invalidation, scheduler/worker coordination, MFA/passkey state, webhook replay, and persistent-runtime suites remain active regression gates.
+- The full QA matrix passed these paths on implementation head `297d34f0ba07eaf55a5e184334ae8e8863293f86` in GitHub Actions run `36168426947`.
+- Counter/cluster/infrastructure and execution-bound transactional cache lifecycles remain intentionally outside the named application-store registry where their ownership differs.
 
 ## Current implementation evidence
 
