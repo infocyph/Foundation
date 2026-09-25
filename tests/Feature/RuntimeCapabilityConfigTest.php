@@ -175,3 +175,33 @@ it('preserves strict auth production policy when auth is explicitly selected', f
         'auth.drivers.notifications',
     );
 });
+
+
+it('requires an atomic counter when auth uses shared cache state', function (): void {
+    $config = new ConfigRepository([
+        'app' => [
+            'capabilities' => ['auth', 'cache'],
+        ],
+        'auth' => [
+            'drivers' => [
+                'cache' => 'cache',
+            ],
+        ],
+        'cache' => [
+            'default' => 'memory',
+            'stores' => [
+                'memory' => [
+                    'driver' => 'memory',
+                ],
+            ],
+            'counters' => [],
+        ],
+    ]);
+
+    $keys = array_column(
+        new ConfigValidator($config)->validate()->toArray()['issues'],
+        'key',
+    );
+
+    expect($keys)->toContain('cache.default_counter');
+});
