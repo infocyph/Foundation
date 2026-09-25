@@ -8,7 +8,7 @@ use Infocyph\CacheLayer\Cache\CacheInterface;
 use Infocyph\Foundation\Auth\Contract\Cache\CounterStoreInterface;
 use Infocyph\Foundation\Cache\FoundationCacheKey;
 
-final readonly class CacheLayerCounterStore implements CounterStoreInterface
+/**\n * @deprecated Shared authentication counters must use AtomicCounterStore.\n */\nfinal readonly class CacheLayerCounterStore implements CounterStoreInterface
 {
     /**
      * This adapter preserves TTL semantics but is not guaranteed atomic unless
