@@ -189,7 +189,7 @@ final class ModuleCatalog
         'communication' => [
             'packages' => [
                 'infocyph/talkingbytes' => [
-                    'constraint' => '^2.1',
+                    'constraint' => '^2.2',
                     'role' => 'required',
                     'features' => [],
                 ],
