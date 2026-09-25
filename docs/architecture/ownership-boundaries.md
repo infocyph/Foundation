@@ -82,3 +82,27 @@ Current Foundation 3 decisions:
 - `HttpKernel` remains a Foundation 3.x public/development compatibility facade.
   Generated production web graphs already remove it and execute through Webrick's
   native release runtime.
+
+
+### Named cache resource identity
+
+Foundation's `CacheManager` owns application/generation identity for named
+CacheLayer stores and lock providers. The configured default store is an alias
+of its canonical configured name, not a second cache identity. Consumers that
+select a named application cache resource—including DBLayer query caching,
+browser-session coordination, OTP/passkey transient state, webhook replay
+state, migration locks, scheduler overlap locks, and singleton-worker locks—
+resolve that resource through `CacheManager`.
+
+`CacheLayerFactory` remains the construction boundary for CacheLayer-native
+stores, counters, clusters, transports, schema/runtime helpers, and explicit
+infrastructure clients. It does not become a second application cache registry.
+
+Lock providers may be generation-owned and reused; each acquired lock handle
+remains operation/request/job-local and must retain its native acquire,
+refresh, and release lifecycle.
+
+The transactional invalidation factory is intentionally separate. It binds
+CacheLayer's outbox to the exact execution-owned DBLayer transaction/PDO and
+must not be globally memoized or redirected through infrastructure-owned PDO
+state.
