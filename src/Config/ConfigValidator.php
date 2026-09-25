@@ -212,7 +212,8 @@ final readonly class ConfigValidator
             return;
         }
 
-        if ((new SharedStateTopology($this->config))->cacheStoreScope($store) === SharedStateTopology::PROCESS) {
+        $scope = (new SharedStateTopology($this->config))->cacheStoreScope($store);
+        if (!in_array($scope, [SharedStateTopology::HOST, SharedStateTopology::CLUSTER], true)) {
             return;
         }
 
