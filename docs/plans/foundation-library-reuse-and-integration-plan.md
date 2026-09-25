@@ -22,15 +22,47 @@ This plan is source-backed integration remediation. Performance claims require m
 
 | Batch | Scope | Status | Exit condition |
 | --- | --- | --- | --- |
-| 0 | Baseline, public surface, persistence/compatibility inventory | In progress | Direct callers, generated graph roots, public compatibility, refresh-token persistence requirements recorded |
-| 1 | F1 native Webrick CacheLayer throttle bridge | Pending | Native bridge selected in dev/generated graph; compatibility handled |
-| 2 | F2 auth atomic counter hardening | Pending | Shared auth state cannot silently use read/modify/write counters |
-| 3A | F3 OAuth authorization single evaluation | Pending | Normal HTTP authorization performs one native protocol validation |
-| 3B | F4 Pathwise download preparation reuse | Pending | No-range/stale-If-Range full response reuses initial preparation |
-| 4 | F5 legacy refresh-token retirement | Pending | Epicrypt path canonical; persistence/credential migration strategy explicit; legacy machinery retired safely |
-| 5 | F6 CSRF overlap decision | Pending | Exact proof semantics preserved, or Webrick masked-token support adopted explicitly |
-| 6 | Documentation, architecture guards, full release validation | Pending | Required QA/integration/consumer gates green |
+| 0 | Baseline, public surface, persistence/compatibility inventory | Complete | Direct callers, generated graph roots, public compatibility, refresh-token persistence requirements recorded |
+| 1 | F1 native Webrick CacheLayer throttle bridge | Implemented; final validation pending | Native bridge selected; compatibility wrapper deprecated/outside default graph |
+| 2 | F2 auth atomic counter hardening | Implemented; final validation pending | Shared auth state cannot silently use read/modify/write counters |
+| 3A | F3 OAuth authorization single evaluation | Implemented; final validation pending | HTTP path reuses one native protocol result |
+| 3B | F4 Pathwise download preparation reuse | Implemented; final validation pending | No-range/stale-If-Range full response reuses initial preparation |
+| 4 | F5 legacy refresh-token retirement | Implemented as 3.x deprecation/compatibility boundary; final validation pending | Epicrypt path canonical; legacy runtime tests moved; credential cutover policy explicit |
+| 5 | F6 CSRF overlap decision | Complete — no code change | Foundation 3.x keeps raw-token semantics; Webrick masked-token expansion is not adopted implicitly |
+| 6 | Documentation, architecture guards, full release validation | In progress | Ownership docs updated; execution/CI/consumer gates still pending |
 | Deferred | F7 HttpKernel public compatibility facade | Deferred for Foundation 3.x | Revisit only in approved public API compatibility window |
+
+
+## Batch 0 inventory record
+
+- **Baseline/branch:** work started from `main` at
+  `fc9b3258646ac744e61fd02e18d9b98e5afff2e8` on
+  `foundation-3/library-reuse-hardening`.
+- **F1:** the duplicate Foundation Webrick counter bridge is selected only by
+  `CacheServiceProvider`; Webrick already ships the matching native
+  `AtomicCounterAdapter`. No separate runtime policy lives in the Foundation
+  wrapper.
+- **F2:** shared auth counter selection is centralized in `AuthCacheRegistrar`.
+  Production validation already requires Redis/Valkey atomic state; development
+  composition previously had the weaker implicit fallback.
+- **F3:** public manager/validator entry points are retained for compatibility,
+  while the normal HTTP authorization path now carries one request-local
+  `AuthorizationProtocolResult` through redirect/error and Foundation mapping.
+- **F4:** normal streamed/local download responses called Pathwise preparation
+  twice; offload responses use only the initial preparation. Pathwise
+  `streamChunks()` performs a later intentional freshness/trust check that must
+  not be removed.
+- **F5:** the active service graph registers Epicrypt `RefreshTokenManager` and
+  `DBLayerEpicryptRefreshTokenStore`. Legacy Foundation coordinator/store/types
+  were referenced by compatibility tests/fixtures, not the default graph.
+  Active and legacy rows share the Foundation-owned refresh table but use
+  different artifact/state contracts.
+- **F6:** Foundation currently accepts only the stored raw 64-hex CSRF proof.
+  Webrick also accepts its masked proof form; substituting Webrick matching would
+  broaden the accepted contract.
+- **F7:** `Application::http()` retains `HttpKernel` publicly in the
+  development/embedded surface, while `WebProductionGraph` removes it from
+  generated production.
 
 ## Confirmed findings
 
@@ -240,62 +272,62 @@ Do not automatically extract Foundation browser-session stores, auth database st
 
 ### Batch 0 — Baseline and compatibility inventory
 
-- [ ] Record current main/base SHA and branch.
-- [ ] Inventory F1 public usage and graph roots.
-- [ ] Inventory F2 callers/configuration paths.
-- [ ] Inventory F3 public/internal call surfaces.
-- [ ] Inventory F4 response paths and short-circuit behavior.
-- [ ] Inventory F5 legacy classes, tests, table mappings, and credential compatibility.
-- [ ] Record F6 exact current accepted proof semantics.
-- [ ] Record F7 as deferred Foundation 3.x compatibility surface.
+- [x] Record current main/base SHA and branch.
+- [x] Inventory F1 public usage and graph roots.
+- [x] Inventory F2 callers/configuration paths.
+- [x] Inventory F3 public/internal call surfaces.
+- [x] Inventory F4 response paths and short-circuit behavior.
+- [x] Inventory F5 legacy classes, tests, table mappings, and credential compatibility.
+- [x] Record F6 exact current accepted proof semantics.
+- [x] Record F7 as deferred Foundation 3.x compatibility surface.
 
 ### Batch 1 — F1 Webrick native bridge
 
-- [ ] Select Webrick `Interop\CacheLayer\AtomicCounterAdapter` in Foundation graph.
-- [ ] Preserve/deprecate Foundation wrapper only if public compatibility requires it.
+- [x] Select Webrick `Interop\CacheLayer\AtomicCounterAdapter` in Foundation graph.
+- [x] Preserve/deprecate Foundation wrapper only if public compatibility requires it.
 - [ ] Add native-owner registration/architecture coverage.
 - [ ] Run focused cache/throttle tests.
 
 ### Batch 2 — F2 atomic auth counters
 
-- [ ] Remove implicit shared non-atomic fallback.
-- [ ] Preserve explicit in-memory development/test state.
-- [ ] Document fixed-window expiry contract.
+- [x] Remove implicit shared non-atomic fallback.
+- [x] Preserve explicit in-memory development/test state.
+- [x] Document fixed-window expiry contract.
 - [ ] Add registrar/configuration/concurrency tests.
 - [ ] Run focused auth/cache tests.
 
 ### Batch 3A — F3 OAuth authorization evaluation
 
-- [ ] Remove successful-path duplicate native validation.
-- [ ] Reuse one protocol result for redirectable failures where it remains simple and safe.
+- [x] Remove successful-path duplicate native validation.
+- [x] Reuse one protocol result for redirectable failures where it remains simple and safe.
 - [ ] Add validation-operation-count coverage.
 - [ ] Re-run OAuth HTTP/OIDC/redirect/audit tests.
 
 ### Batch 3B — F4 Pathwise download preparation
 
-- [ ] Reuse initial preparation when effective range is null.
-- [ ] Preserve stream/body freshness checks.
+- [x] Reuse initial preparation when effective range is null.
+- [x] Preserve stream/body freshness checks.
 - [ ] Add preparation/storage-operation-count coverage.
 - [ ] Re-run filesystem trust-boundary/range/offload tests.
 
 ### Batch 4 — F5 refresh-token consolidation
 
-- [ ] Freeze persistence and existing-credential upgrade policy.
-- [ ] Move legacy concurrency/reuse/audit assertions to active Epicrypt path.
-- [ ] Retire unused legacy coordinator/store/contracts/types once coverage is equivalent.
-- [ ] Update OAuth ownership/migration documentation.
+- [x] Freeze persistence and existing-credential upgrade policy.
+- [x] Move legacy concurrency/reuse/audit assertions to active Epicrypt path.
+- [x] Retire unused legacy coordinator/store/contracts/types once coverage is equivalent.
+- [x] Update OAuth ownership/migration documentation.
 - [ ] Re-run refresh rotation/concurrency and full OAuth integration tests.
 
 ### Batch 5 — F6 CSRF decision
 
-- [ ] Prove exact semantic parity or explicitly approve masked-token expansion.
-- [ ] Reuse native Webrick mechanics only when the resulting contract/lifecycle is simpler and intentional.
-- [ ] Otherwise document no-change decision and retain Foundation raw-token comparison.
+- [x] Prove exact semantic parity or explicitly approve masked-token expansion.
+- [x] Reuse native Webrick mechanics only when the resulting contract/lifecycle is simpler and intentional.
+- [x] Otherwise document no-change decision and retain Foundation raw-token comparison.
 - [ ] Run browser-session/CSRF/origin/persistent-worker tests.
 
 ### Batch 6 — Closure and release gates
 
-- [ ] Update `docs/architecture/ownership-boundaries.md`.
+- [x] Update `docs/architecture/ownership-boundaries.md`.
 - [ ] Add architecture guards for selected native owners and forbidden retired owners.
 - [ ] Run focused suites for each changed subsystem.
 - [ ] Run required PHPForge QA/analysis/security/duplicate/architecture flow.
@@ -321,3 +353,30 @@ The review baseline uses Foundation `fc9b3258646ac744e61fd02e18d9b98e5afff2e8` a
 The source review confirmed F1-F5 directly. F6 is an overlap with a semantic mismatch, not an automatic replacement. F7 is intentionally deferred because generated production already removes the facade and Foundation 3.x exposes it publicly.
 
 The earlier planning baseline reported a focused test run of 25 passed, 1 failed, 169 assertions; the failure was Redis connection refusal during a contention test, not an established counter implementation failure. Implementation batches must produce their own fresh validation evidence rather than inheriting that planning result.
+
+## Current implementation evidence
+
+Implemented branch changes:
+
+- F1 default graph now selects Webrick's native CacheLayer atomic-counter bridge;
+  the Foundation wrapper delegates and is deprecated.
+- F2 cache-backed auth now requires `cache.default_counter`; the non-atomic
+  shared fallback is deprecated and no longer selected.
+- F3 the HTTP authorization path evaluates Epicrypt protocol input once and
+  reuses the resulting protocol object for Foundation mapping and safe redirect
+  handling.
+- F4 full/no-effective-range responses reuse Pathwise's initial preparation;
+  later stream/body freshness validation remains intact.
+- F5 active refresh rotation, contention, and audit tests now target Epicrypt's
+  store/manager path. Legacy Foundation refresh types remain deprecated
+  compatibility-only surfaces for the Foundation 3.x line rather than being
+  removed in a patch/minor hardening pass.
+- F6 intentionally makes no runtime change because native Webrick matching would
+  silently expand accepted CSRF proof formats.
+- F7 remains deferred.
+
+At the time this tracker was updated, the branch was ahead of `main` with no
+upstream divergence. GitHub Actions had not produced a branch run, and no pull
+request was opened because merge/review ownership remains external to this task.
+Therefore unchecked execution gates below remain genuinely pending; they are not
+claimed as passing.
