@@ -6,7 +6,7 @@ namespace Infocyph\Foundation\Worker;
 
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Application\RuntimeMode;
-use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Messaging\OmnibusWorkerFactory;
 use Infocyph\Foundation\Operations\RuntimeControl;
@@ -399,7 +399,7 @@ final readonly class WorkerManager
             ));
         }
 
-        $lock = $app->make(CacheLayerFactory::class)->lock();
+        $lock = $app->make(CacheManager::class)->lock();
         $handle = $lock->acquire(
             'foundation:worker:' . $name,
             $definition['lock_wait_seconds'],
