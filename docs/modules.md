@@ -6,7 +6,7 @@ Modules are application purposes, not Composer-package discovery aliases.
 | Module | Managed package(s) | Module-owned config | Module schema |
 | --- | --- | --- | --- |
 | `auth` | feature packages: `infocyph/otp ^6.1`, `web-auth/webauthn-lib ^5.3.9` | none | `auth` |
-| `communication` | `infocyph/talkingbytes ^2.1` | `communication.php` | none |
+| `communication` | `infocyph/talkingbytes ^2.2` | `communication.php` | none |
 | `database` | `infocyph/dblayer ^5.1` | `database.php` | none |
 | `filesystem` | `infocyph/pathwise ^4.1` | `filesystem.php` | none |
 | `messaging` | `infocyph/omnibus ^2.6` | `messaging.php` | `messaging` |
