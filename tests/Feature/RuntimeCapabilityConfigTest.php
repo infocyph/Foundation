@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Infocyph\Foundation\Auth\Adapter\CacheLayer\AtomicCounterStore;
 use Infocyph\Foundation\Auth\Contract\Cache\CounterStoreInterface;
+use Infocyph\Foundation\Auth\Support\InMemoryCounterStore;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Config\ConfigValidator;
 use Infocyph\Foundation\Config\Internal\ConfiguredCapabilities;
@@ -193,10 +194,11 @@ it('requires an atomic counter when auth uses shared cache state', function (): 
             ],
         ],
         'cache' => [
-            'default' => 'memory',
+            'default' => 'shared-auth',
             'stores' => [
-                'memory' => [
-                    'driver' => 'memory',
+                'shared-auth' => [
+                    'driver' => 'file',
+                    'path' => 'storage/cache/shared-auth',
                 ],
             ],
             'counters' => [],
@@ -222,11 +224,12 @@ it('registers atomic auth and Webrick counter adapters without requiring a Redis
             ],
         ],
         'cache' => [
-            'default' => 'memory',
+            'default' => 'shared-auth',
             'default_counter' => 'auth-lockouts',
             'stores' => [
-                'memory' => [
-                    'driver' => 'memory',
+                'shared-auth' => [
+                    'driver' => 'file',
+                    'path' => 'storage/cache/shared-auth',
                 ],
             ],
             'counters' => [
@@ -261,16 +264,46 @@ it('fails composition when shared auth cache has no atomic counter selection', f
             ],
         ],
         'cache' => [
-            'default' => 'memory',
+            'default' => 'shared-auth',
             'stores' => [
-                'memory' => [
-                    'driver' => 'memory',
+                'shared-auth' => [
+                    'driver' => 'file',
+                    'path' => 'storage/cache/shared-auth',
                 ],
             ],
             'counters' => [],
         ],
     ]))->toThrow(
         LogicException::class,
-        'Cache-backed authentication requires cache.default_counter to select an atomic counter resource.',
+        'Shared cache-backed authentication requires cache.default_counter to select an atomic counter resource.',
     );
+});
+
+
+it('uses an in-memory counter for process-local CacheLayer auth state', function (): void {
+    $application = Foundation::cli([
+        'app' => [
+            'capabilities' => ['auth', 'cache'],
+        ],
+        'auth' => [
+            'drivers' => [
+                'cache' => 'cache',
+            ],
+        ],
+        'cache' => [
+            'default' => 'memory',
+            'stores' => [
+                'memory' => [
+                    'driver' => 'memory',
+                ],
+            ],
+        ],
+    ]);
+    $definitions = DefinitionGraph::from(
+        $application->container()->getRepository(),
+    )->definitions();
+    $counter = $definitions[CounterStoreInterface::class] ?? null;
+
+    expect($counter)->toBeInstanceOf(FactoryDefinition::class)
+        ->and($counter?->class)->toBe(InMemoryCounterStore::class);
 });
