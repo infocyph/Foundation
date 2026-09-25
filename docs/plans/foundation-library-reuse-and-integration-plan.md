@@ -613,5 +613,5 @@ Foundation's cross-check found no required adapter rewrite outside F10:
   compatible; the corrected native/generated stream status behavior stays
   TalkingBytes-owned.
 
-The old TalkingBytes 2.1 benchmark/test labels are being refreshed to 2.2 so
-release evidence identifies the dependency actually under test.
+The old TalkingBytes 2.1 benchmark/test labels were refreshed to 2.2 so release
+evidence identifies the dependency actually under test.
