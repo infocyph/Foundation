@@ -293,21 +293,21 @@ Do not automatically extract Foundation browser-session stores, auth database st
 - [x] Remove implicit shared non-atomic fallback.
 - [x] Preserve explicit in-memory development/test state.
 - [x] Document fixed-window expiry contract.
-- [ ] Add registrar/configuration/concurrency tests.
+- [x] Add registrar/configuration/concurrency tests.
 - [ ] Run focused auth/cache tests.
 
 ### Batch 3A — F3 OAuth authorization evaluation
 
 - [x] Remove successful-path duplicate native validation.
 - [x] Reuse one protocol result for redirectable failures where it remains simple and safe.
-- [ ] Add validation-operation-count coverage.
+- [x] Add validation-operation-count coverage.
 - [ ] Re-run OAuth HTTP/OIDC/redirect/audit tests.
 
 ### Batch 3B — F4 Pathwise download preparation
 
 - [x] Reuse initial preparation when effective range is null.
 - [x] Preserve stream/body freshness checks.
-- [ ] Add preparation/storage-operation-count coverage.
+- [x] Add preparation/storage-operation-count coverage.
 - [ ] Re-run filesystem trust-boundary/range/offload tests.
 
 ### Batch 4 — F5 refresh-token consolidation
@@ -380,3 +380,41 @@ upstream divergence. GitHub Actions had not produced a branch run, and no pull
 request was opened because merge/review ownership remains external to this task.
 Therefore unchecked execution gates below remain genuinely pending; they are not
 claimed as passing.
+
+## 2026-09-25 review correction
+
+A fresh local review after the first implementation pass found two concrete
+blockers and refined the validation state:
+
+- F1: `CacheServiceProvider` referenced `AtomicCounterAdapter` without importing
+  Webrick's native class, causing configured-counter startup to resolve
+  `Infocyph\Foundation\Cache\AtomicCounterAdapter`. Fixed by importing
+  `Infocyph\Webrick\Interop\CacheLayer\AtomicCounterAdapter`.
+- F2: the retained compatibility `CacheLayerCounterStore` contained literal
+  `\\n` sequences around its deprecation docblock, producing a PHP syntax
+  error. Fixed by replacing them with real newlines.
+- Review verification before those corrections: broader OAuth/session/cache/
+  filesystem/runtime selection **101 passed**; changed/focused selection
+  **19 passed, 1 failed** on the native-adapter architecture check; syntax scan
+  reported **1 error across 876 files**, which also blocked reference analysis.
+- Full QA, performance, production-database, CI, and Infbyte consumer gates were
+  still open at that review point.
+
+Regression coverage added after the review:
+
+- configured cache/auth composition now resolves
+  `CounterStoreInterface` to Foundation's `AtomicCounterStore` and Webrick's
+  throttle interface to Webrick's native `AtomicCounterAdapter`;
+- shared auth cache without `cache.default_counter` is required to fail
+  composition explicitly;
+- existing Redis multi-process contention coverage continues to exercise
+  Foundation's `AtomicCounterStore`;
+- the OAuth HTTP authorization method is guarded to contain exactly one
+  `authorizationProtocolResult()` call and no old double-evaluation entry
+  points;
+- the filesystem response method is guarded to reuse `$baseManifest` for a
+  null effective range and to contain only the range-specific second
+  `prepareDownload()` call.
+
+These corrections and new tests require a fresh local/CI rerun before any
+previous failing validation item can be marked green.
