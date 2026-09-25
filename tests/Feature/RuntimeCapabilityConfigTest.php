@@ -9,6 +9,8 @@ use Infocyph\Foundation\Config\ConfigValidator;
 use Infocyph\Foundation\Config\Internal\ConfiguredCapabilities;
 use Infocyph\Foundation\Diagnostics\ReadinessReport;
 use Infocyph\Foundation\Foundation;
+use Infocyph\Webrick\Interop\CacheLayer\AtomicCounterAdapter;
+use Infocyph\Webrick\Middleware\Throttle\AtomicCounterInterface as WebrickAtomicCounterInterface;
 
 it('validates migration, messaging, logging, and JsonDispatch configuration before runtime', function (): void {
     $app = Foundation::cli([
@@ -237,7 +239,9 @@ it('selects the atomic auth counter adapter when shared auth cache is configured
     ]);
 
     expect($application->make(CounterStoreInterface::class))
-        ->toBeInstanceOf(AtomicCounterStore::class);
+        ->toBeInstanceOf(AtomicCounterStore::class)
+        ->and($application->make(WebrickAtomicCounterInterface::class))
+        ->toBeInstanceOf(AtomicCounterAdapter::class);
 });
 
 it('fails composition when shared auth cache has no atomic counter selection', function (): void {
