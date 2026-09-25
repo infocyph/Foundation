@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Infocyph\Foundation\Communication\CommunicationProfiles;
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Foundation;
 use Infocyph\TalkingBytes\Grpc\GrpcStatus;
 use Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundResponse;
@@ -179,11 +180,9 @@ it('preserves TalkingBytes 2.2 resolved middleware composition through the typed
 });
 
 it('keeps Foundation production TLS policy when using TalkingBytes 2.2 typed composition', function (): void {
-    $app = Foundation::web([
+    $profiles = new CommunicationProfiles(new ConfigRepository([
         'app' => [
-            'base_path' => dirname(__DIR__, 2),
             'env' => 'production',
-            'capabilities' => ['communication'],
         ],
         'communication' => [
             'http' => [
@@ -196,8 +195,8 @@ it('keeps Foundation production TLS policy when using TalkingBytes 2.2 typed com
                 ],
             ],
         ],
-    ]);
+    ]));
 
-    expect(fn() => $app->make(CommunicationProfiles::class)->http())
+    expect(fn() => $profiles->http())
         ->toThrow(LogicException::class, 'Production HTTP profiles must verify both TLS peers and hosts.');
 });
