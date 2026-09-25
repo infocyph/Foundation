@@ -29,7 +29,11 @@ This plan is source-backed integration remediation. Performance claims require m
 | 3B | F4 Pathwise download preparation reuse | Complete | No-range/stale-If-Range full response reuses initial preparation; trust-boundary checks preserved |
 | 4 | F5 legacy refresh-token retirement | Complete for Foundation 3.x compatibility boundary | Epicrypt path canonical; legacy runtime tests moved; credential cutover policy explicit; contention QA green |
 | 5 | F6 CSRF overlap decision | Complete — QA validated, no code change | Foundation 3.x keeps raw-token semantics; Webrick masked-token expansion is not adopted implicitly |
-| 6 | Documentation, architecture guards, full release validation | In progress | Ownership docs updated; execution/CI/consumer gates still pending |
+| 6 | Documentation and architecture guards | Complete | Ownership boundaries and native-owner guards recorded and validated |
+| 7 | F8 default/named cache identity | Implemented; QA closure pending | Default and explicit configured names share canonical store identity |
+| 8 | F9 named cache registry ownership | Implemented; QA closure pending | Confirmed application-owned consumers reuse CacheManager resources |
+| 9 | F10 TalkingBytes 2.2 typed HTTP composition | Implemented; QA closure pending | Foundation parses base HTTP config once and TalkingBytes owns composition |
+| 10 | Final release and consumer gates | In progress | Final-revision CI, production database/Redis evidence, clean install, and Infbyte certification |
 | Deferred | F7 HttpKernel public compatibility facade | Deferred for Foundation 3.x | Revisit only in approved public API compatibility window |
 
 
@@ -325,17 +329,49 @@ Do not automatically extract Foundation browser-session stores, auth database st
 - [x] Otherwise document no-change decision and retain Foundation raw-token comparison.
 - [x] Run browser-session/CSRF/origin/persistent-worker tests.
 
-### Batch 6 — Closure and release gates
+### Batch 6 — Documentation and architecture guards
 
 - [x] Update `docs/architecture/ownership-boundaries.md`.
 - [x] Add architecture guards for selected native owners and forbidden retired owners.
-- [ ] Run focused suites for each changed subsystem.
-- [ ] Run required PHPForge QA/analysis/security/duplicate/architecture flow.
-- [ ] Run relevant benchmarks/operation-count checks.
-- [ ] Validate PHP 8.4/8.5 and relevant stable/lowest dependency rows through CI.
+- [x] Validate ownership/architecture guards in the full PHPForge QA suite.
+
+### Batch 7 — F8 canonical cache identity
+
+- [x] Correct canonical cache-store identity.
+- [x] Add development behavioral regression coverage.
+- [x] Add generated-runtime identity coverage.
+- [ ] Execute F8 focused and generated-runtime coverage.
+
+### Batch 8 — F9 named cache registry ownership
+
+- [x] Unify DB query-cache resolution with named-cache ownership.
+- [x] Reuse generation-owned session/application lock providers.
+- [x] Route MFA/passkey/webhook named cache state through CacheManager.
+- [x] Route migration/scheduler/worker coordination through CacheManager.
+- [x] Preserve transactional invalidation and infrastructure-PDO boundaries.
+- [x] Add identity/invalidation/replacement/PDO/resource-reuse coverage.
+- [ ] Execute focused F9 lifecycle and persistent-runtime coverage.
+
+### Batch 9 — F10 TalkingBytes 2.2 typed HTTP composition
+
+- [x] Evaluate the released TalkingBytes 2.2 native APIs.
+- [x] Raise the Foundation communication dependency floor to `^2.2`.
+- [x] Reuse the typed HTTP base configuration through native resolved composition.
+- [x] Preserve Foundation production TLS policy and TalkingBytes optional middleware composition.
+- [x] Cross-check email, webhook and gRPC integration contracts against 2.2.
+- [ ] Execute the TalkingBytes 2.2 focused integration tests and representative benchmark.
+
+### Batch 10 — Final release and consumer gates
+
+- [ ] Run focused suites for each changed subsystem on the final candidate.
+- [ ] Run required PHPForge QA/analysis/security/duplicate/architecture flow on the final revision.
+- [ ] Run relevant benchmarks/operation-count checks on the final revision.
+- [ ] Validate PHP 8.4/8.5 stable/lowest dependency rows through CI.
+- [ ] Validate production database and Redis/Valkey-backed contention paths where CI services support them.
 - [ ] Validate clean production installation.
 - [ ] Validate Infbyte consumer against the final Foundation branch/revision.
 - [ ] Update this tracker to final state with evidence.
+
 
 ## Prevention and completion gates
 
@@ -415,6 +451,15 @@ Batch 5 is closed with the deliberate no-change decision.
 - Webrick masked-token acceptance is not adopted implicitly because it would broaden the public security contract.
 - Foundation retains safe-method bypass, configurable proof extraction, Origin policy, session rotation, and 419/no-store response policy.
 - Browser-session, CSRF/origin, and persistent-runtime regression coverage completed successfully in GitHub Actions run `36168426947`.
+
+## Batch 6 QA closure — 2026-09-26
+
+Batch 6 is closed.
+
+- Ownership boundaries document the specialist-library/native-owner rules.
+- Architecture/registration guards cover native service selection and retired ownership.
+- The architecture guards passed in GitHub Actions run `36168426947` together with syntax, references, duplicate analysis, Pest, Pint, PHPCS, Deptrac, Rector, and PHP 8.4/8.5 analysis.
+- Release/consumer certification is intentionally moved to Batch 10 so later F8-F10 work is validated before final closure.
 
 ## Current implementation evidence
 
