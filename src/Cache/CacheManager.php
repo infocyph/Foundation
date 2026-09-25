@@ -37,7 +37,7 @@ final class CacheManager
     {
         $key = $this->factory->lockStoreName($storeName);
 
-        return $this->locks[$key] ??= $this->factory->lock($storeName);
+        return $this->locks[$key] ??= $this->factory->lock($key, $this->store($key));
     }
 
     public function store(?string $name = null): CacheInterface
@@ -81,7 +81,9 @@ final class CacheManager
 
     public function useStore(CacheInterface $store, ?string $name = null): CacheInterface
     {
-        $this->stores[$this->factory->storeName($name)] = $store;
+        $key = $this->factory->storeName($name);
+        $this->stores[$key] = $store;
+        unset($this->locks[$key]);
 
         return $store;
     }
