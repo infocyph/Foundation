@@ -230,7 +230,7 @@ it('selects the atomic auth counter adapter when shared auth cache is configured
             'counters' => [
                 'auth-lockouts' => [
                     'driver' => 'redis',
-                    'dsn' => 'redis://127.0.0.1:6379',
+                    'client' => new Redis(),
                 ],
             ],
         ],
