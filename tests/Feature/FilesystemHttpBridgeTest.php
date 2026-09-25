@@ -263,7 +263,11 @@ it('prepares Pathwise download metadata once for full and stale If-Range respons
     $storage = new StorageRegistry(
         $config,
         $paths,
-        ['probe' => static fn(array $definition): Filesystem => $filesystem],
+        ['probe' => static function (array $definition) use ($filesystem): Filesystem {
+            unset($definition);
+
+            return $filesystem;
+        }],
     );
     $container = new class implements ContainerInterface {
         public function get(string $id): never
@@ -273,6 +277,8 @@ it('prepares Pathwise download metadata once for full and stale If-Range respons
 
         public function has(string $id): bool
         {
+            unset($id);
+
             return false;
         }
     };
