@@ -212,7 +212,7 @@ final readonly class ConfigValidator
             return;
         }
 
-        $scope = (new SharedStateTopology($this->config))->cacheStoreScope($store);
+        $scope = new SharedStateTopology($this->config)->cacheStoreScope($store);
         if (!in_array($scope, [SharedStateTopology::HOST, SharedStateTopology::CLUSTER], true)) {
             return;
         }
