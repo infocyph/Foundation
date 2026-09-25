@@ -14,9 +14,9 @@ use Infocyph\DBLayer\Connection\Connection;
  * Foundation application topology for named CacheLayer stores.
  *
  * Generic cache, locking, counter, node and cluster operations remain native
- * CacheLayer APIs. Database query-cache selection is owned separately by
- * DBLayerFactory so resolving the application default store never mutates the
- * process-static DBLayer facade.
+ * CacheLayer APIs. Foundation owns application/generation identity for named
+ * stores and lock providers so consumers selecting the same resource share one
+ * configured instance without introducing process-static cache state.
  */
 final class CacheManager
 {
