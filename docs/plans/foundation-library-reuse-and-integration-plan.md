@@ -32,7 +32,7 @@ This plan is source-backed integration remediation. Performance claims require m
 | 6 | Documentation and architecture guards | Complete | Ownership boundaries and native-owner guards recorded and validated |
 | 7 | F8 default/named cache identity | Complete | Default and explicit configured names share canonical store identity in development and generated runtime |
 | 8 | F9 named cache registry ownership | Complete | Confirmed application-owned consumers reuse CacheManager resources without crossing lifecycle boundaries |
-| 9 | F10 TalkingBytes 2.2 typed HTTP composition | Implemented; QA closure pending | Foundation parses base HTTP config once and TalkingBytes owns composition |
+| 9 | F10 TalkingBytes 2.2 typed HTTP composition | Complete | Foundation parses base HTTP config once; TalkingBytes owns composition; focused integration and benchmark gates green |
 | 10 | Final release and consumer gates | In progress | Final-revision CI, production database/Redis evidence, clean install, and Infbyte certification |
 | Deferred | F7 HttpKernel public compatibility facade | Deferred for Foundation 3.x | Revisit only in approved public API compatibility window |
 
@@ -359,7 +359,7 @@ Do not automatically extract Foundation browser-session stores, auth database st
 - [x] Reuse the typed HTTP base configuration through native resolved composition.
 - [x] Preserve Foundation production TLS policy and TalkingBytes optional middleware composition.
 - [x] Cross-check email, webhook and gRPC integration contracts against 2.2.
-- [ ] Execute the TalkingBytes 2.2 focused integration tests and representative benchmark.
+- [x] Execute the TalkingBytes 2.2 focused integration tests and representative benchmark.
 
 ### Batch 10 — Final release and consumer gates
 
@@ -479,6 +479,16 @@ Batch 8 / F9 is closed.
 - Existing browser-session locking, transactional invalidation, scheduler/worker coordination, MFA/passkey state, webhook replay, and persistent-runtime suites remain active regression gates.
 - The full QA matrix passed these paths on implementation head `297d34f0ba07eaf55a5e184334ae8e8863293f86` in GitHub Actions run `36168426947`.
 - Counter/cluster/infrastructure and execution-bound transactional cache lifecycles remain intentionally outside the named application-store registry where their ownership differs.
+
+## Batch 9 QA closure — 2026-09-26
+
+Batch 9 / F10 is closed.
+
+- `tests/Feature/CommunicationIntegrationTest.php` certifies the TalkingBytes 2.2 typed HTTP path while preserving Foundation's production TLS policy.
+- `tests/Feature/TalkingBytes22RuntimeIsolationTest.php` covers runtime isolation and the 2.2 replay-window contract.
+- `benchmarks/talkingbytes-22-utilization.php` is the representative construction/utilization benchmark for the released integration line.
+- Both PHP 8.4/8.5 benchmark rows and all four QA rows passed in GitHub Actions run `36168426947`.
+- Email, webhook, and gRPC integration contracts remain native TalkingBytes-owned; Foundation retains only its application policy/persistence adapters.
 
 ## Current implementation evidence
 
