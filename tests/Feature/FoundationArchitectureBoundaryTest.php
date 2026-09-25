@@ -85,7 +85,7 @@ it('keeps specialist native owners selected at Foundation integration seams', fu
 
     expect($cacheProvider)->toBeString()
         ->toContain('Webrick\\Interop\\CacheLayer\\AtomicCounterAdapter')
-        ->not->toContain('FactoryDefinition::construct(' . PHP_EOL . '                WebrickAtomicCounter::class')
+        ->not->toContain('WebrickAtomicCounter::class')
         ->and($authCacheRegistrar)->toBeString()
         ->toContain('AtomicCounterStore::class')
         ->not->toContain('CacheLayerCounterStore::class')
