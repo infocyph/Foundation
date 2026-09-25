@@ -275,3 +275,22 @@ function foundationOAuthHttpRemoveProject(string $root): void
     }
     rmdir($root);
 }
+
+
+it('keeps each OAuth HTTP authorization attempt to one native protocol evaluation call', function (): void {
+    $source = file_get_contents(
+        dirname(__DIR__, 2) . '/src/Auth/OAuth/Http/OAuthHttpHandler.php',
+    );
+    expect($source)->toBeString();
+
+    $start = strpos($source, 'public function authorization(Request $request)');
+    $end = strpos($source, 'public function authorizationApproved(', $start ?: 0);
+    expect($start)->not->toBeFalse()
+        ->and($end)->not->toBeFalse();
+
+    $method = substr($source, (int) $start, (int) $end - (int) $start);
+
+    expect(substr_count($method, 'authorizationProtocolResult('))->toBe(1)
+        ->and($method)->not->toContain('authorizationRedirectContext($parameters)')
+        ->not->toContain('validateAuthorizationRequest($parameters)');
+});
