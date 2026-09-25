@@ -183,6 +183,7 @@ it('keeps Foundation production TLS policy when using TalkingBytes 2.2 typed com
         'app' => [
             'base_path' => dirname(__DIR__, 2),
             'env' => 'production',
+            'capabilities' => ['communication'],
         ],
         'communication' => [
             'http' => [
