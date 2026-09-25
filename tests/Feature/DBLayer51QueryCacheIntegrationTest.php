@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use Infocyph\CacheLayer\Cache\Cache;
 use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\DatabaseConnectionResolver;
 use Infocyph\Foundation\Database\DBLayerFactory;
@@ -12,7 +14,7 @@ use Infocyph\Foundation\Runtime\RuntimeExecutionState;
 use Psr\Container\ContainerInterface;
 
 /**
- * @return array{DBLayerFactory,RuntimeExecutionState,object,ConfigRepository}
+ * @return array{DBLayerFactory,RuntimeExecutionState,object,ConfigRepository,CacheManager}
  */
 function foundationDbLayer51QueryRuntime(array $config): array
 {
@@ -53,8 +55,13 @@ function foundationDbLayer51QueryRuntime(array $config): array
         static fn(?string $name = null) => $database->infrastructureConnection($name),
     );
     $container->services[CacheLayerFactory::class] = $cache;
+    $manager = new CacheManager(
+        $cache,
+        static fn(?string $name = null) => $database->connection($name),
+    );
+    $container->services[CacheManager::class] = $manager;
 
-    return [$database, $state, $container, $repository];
+    return [$database, $state, $container, $repository, $manager];
 }
 
 it('keeps CacheLayer completely cold when DBLayer query caching is disabled', function (): void {
@@ -200,14 +207,96 @@ it('builds PDO-backed CacheLayer infrastructure without borrowing an execution c
             ],
         ]);
 
-        /** @var CacheLayerFactory $cache */
-        $cache = $container->get(CacheLayerFactory::class);
-        $cache->make('database');
+        /** @var CacheManager $cache */
+        $cache = $container->get(CacheManager::class);
+        $cache->store('database');
 
         expect($state->hasDatabaseConnections())->toBeFalse();
 
         $applicationConnection = $database->connection();
         expect($applicationConnection)->not->toBe($database->infrastructureConnection());
+
+        $state->cleanup();
+    } finally {
+        if (is_dir($basePath)) {
+            rmdir($basePath);
+        }
+    }
+});
+
+
+it('shares the configured named query cache with the application cache registry and honors replacement', function (): void {
+    [$database, $state, , , $manager] = foundationDbLayer51QueryRuntime([
+        'app' => ['base_path' => sys_get_temp_dir()],
+        'database' => [
+            'default' => 'default',
+            'query_cache' => ['enabled' => true, 'store' => 'db-query'],
+            'connections' => [
+                'default' => ['driver' => 'sqlite', 'database' => ':memory:'],
+            ],
+        ],
+        'cache' => [
+            'prefix' => 'foundation-db51-registry-test:',
+            'default' => 'memory',
+            'stores' => [
+                'memory' => ['driver' => 'memory'],
+                'db-query' => ['driver' => 'memory'],
+            ],
+        ],
+    ]);
+
+    $named = $manager->store('db-query');
+    $connection = $database->connection();
+
+    expect($connection->queryCache())->toBe($named);
+
+    $connection->queryCache()->set('registry-marker', 'shared', 60);
+    expect($named->get('registry-marker'))->toBe('shared');
+
+    $named->clear();
+    expect($connection->queryCache()->get('registry-marker'))->toBeNull();
+
+    $replacement = Cache::memory('foundation-db51-replacement');
+    $replacement->set('replacement-marker', 'active', 60);
+    $manager->useStore($replacement, 'db-query');
+
+    $rebound = $database->connection();
+    expect($rebound)->toBe($connection)
+        ->and($rebound->queryCache())->toBe($replacement)
+        ->and($rebound->queryCache()->get('replacement-marker'))->toBe('active');
+
+    $state->cleanup();
+});
+
+it('resolves a PDO-backed named query cache through the registry without recursive execution binding', function (): void {
+    $basePath = sys_get_temp_dir() . '/foundation-db51-pdo-query-' . bin2hex(random_bytes(6));
+    mkdir($basePath, 0777, true);
+
+    try {
+        [$database, $state, , , $manager] = foundationDbLayer51QueryRuntime([
+            'app' => ['base_path' => $basePath],
+            'database' => [
+                'default' => 'default',
+                'query_cache' => ['enabled' => true, 'store' => 'db-query'],
+                'connections' => [
+                    'default' => ['driver' => 'sqlite', 'database' => ':memory:'],
+                ],
+            ],
+            'cache' => [
+                'prefix' => 'foundation-db51-pdo-query-test:',
+                'stores' => [
+                    'db-query' => [
+                        'driver' => 'pdo',
+                        'connection' => 'default',
+                        'namespace' => 'foundation-db51-pdo-query-test.db-query',
+                    ],
+                ],
+            ],
+        ]);
+
+        $connection = $database->connection();
+        expect($connection->queryCache())->toBe($manager->store('db-query'))
+            ->and($database->infrastructureConnection())->not->toBe($connection);
 
         $state->cleanup();
     } finally {
