@@ -214,3 +214,23 @@ function foundationFilesystemRemoveDirectory(string $directory): void
     }
     rmdir($directory);
 }
+
+
+it('keeps full downloads to the initial Pathwise preparation and only reprepares for an effective range', function (): void {
+    $source = file_get_contents(
+        dirname(__DIR__, 2) . '/src/Filesystem/FilesystemResponseFactory.php',
+    );
+    expect($source)->toBeString();
+
+    $start = strpos($source, 'private function respond(');
+    $end = strpos($source, 'private function shortCircuitResponse(', $start ?: 0);
+    expect($start)->not->toBeFalse()
+        ->and($end)->not->toBeFalse();
+
+    $method = substr($source, (int) $start, (int) $end - (int) $start);
+
+    expect(substr_count($method, 'prepareDownload('))->toBe(1)
+        ->and($method)->toContain('$manifest = $rangeHeader === null')
+        ->toContain('? $baseManifest')
+        ->toContain(': $processor->prepareDownload($resolvedPath, $downloadName, $rangeHeader)');
+});
