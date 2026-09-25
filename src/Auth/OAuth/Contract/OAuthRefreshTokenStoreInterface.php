@@ -7,6 +7,7 @@ namespace Infocyph\Foundation\Auth\OAuth\Contract;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthRefreshRotationResult;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthRefreshTokenRecord;
 
+/** @deprecated Foundation 3 runtime uses Epicrypt RefreshTokenStoreInterface. */
 interface OAuthRefreshTokenStoreInterface
 {
     public function findByHash(string $tokenHash): ?OAuthRefreshTokenRecord;
