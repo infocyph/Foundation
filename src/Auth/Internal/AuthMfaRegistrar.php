@@ -17,7 +17,7 @@ use Infocyph\Foundation\Auth\Mfa\MfaVerifierInterface;
 use Infocyph\Foundation\Auth\Mfa\RecoveryCodeServiceInterface;
 use Infocyph\Foundation\Auth\Support\InMemoryRecoveryCodeService;
 use Infocyph\Foundation\Auth\Support\SimpleMfaVerifier;
-use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\OTP\Contracts\RecoveryCodeStoreInterface;
 use Infocyph\OTP\RecoveryCodes;
@@ -87,7 +87,7 @@ final readonly class AuthMfaRegistrar extends AbstractAuthRegistrar
                 AuthMfaGraphFactory::class,
                 'challengeFactors',
                 [
-                    $this->ref(CacheLayerFactory::class),
+                    $this->ref(CacheManager::class),
                     $storeName,
                 ],
             );
