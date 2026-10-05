@@ -218,7 +218,7 @@ Development/build configuration caching remains separate from production release
 artifacts. Foundation 3 delegates both supported layouts to ArrayKit:
 
 - `app.config_cache.type=sharded` uses ArrayKit's native lazy namespace cache
-  and `__flat.php` exact-leaf index;
+  and the active ArrayKit flat exact-leaf index (`.arraykit-flat.php` on 5.3 generations; legacy `__flat.php` on 5.2);
 - `app.config_cache.type=single` uses ArrayKit's native whole-config
   `exportCache()/loadCache()` artifact at `bootstrap/cache/config/config.php`.
 
