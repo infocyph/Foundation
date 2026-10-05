@@ -155,41 +155,6 @@ final class ArrayKitConfigCache
         }
     }
 
-    /** @param list<string> $namespaces */
-    private function removeStaleFiles(string $directory, array $namespaces, bool $keepFlat = true): void
-    {
-        $keep = array_fill_keys([
-            ...$namespaces,
-            ...($keepFlat ? ['__flat'] : []),
-            '__manifest',
-        ], true);
-
-        foreach (glob(rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . '*.php') ?: [] as $file) {
-            if (!isset($keep[pathinfo($file, PATHINFO_FILENAME)]) && !unlink($file)) {
-                throw new \RuntimeException(sprintf(
-                    'Unable to remove stale config cache artifact "%s".',
-                    $file,
-                ));
-            }
-        }
-    }
-
-    private function removeNativeGenerationArtifacts(string $directory): void
-    {
-        $root = rtrim($directory, DIRECTORY_SEPARATOR);
-        $pointer = $root . DIRECTORY_SEPARATOR . self::ARRAYKIT_GENERATION_POINTER;
-        if (is_file($pointer) && !unlink($pointer)) {
-            throw new \RuntimeException(sprintf(
-                'Unable to remove stale ArrayKit namespace generation pointer "%s".',
-                $pointer,
-            ));
-        }
-
-        foreach (glob($root . DIRECTORY_SEPARATOR . self::ARRAYKIT_GENERATION_PREFIX . '*', GLOB_ONLYDIR) ?: [] as $generation) {
-            $this->removeDirectory($generation);
-        }
-    }
-
     private function removeDirectory(string $directory): void
     {
         foreach (scandir($directory) ?: [] as $entry) {
@@ -217,6 +182,41 @@ final class ArrayKitConfigCache
                 'Unable to remove stale ArrayKit namespace cache generation "%s".',
                 $directory,
             ));
+        }
+    }
+
+    private function removeNativeGenerationArtifacts(string $directory): void
+    {
+        $root = rtrim($directory, DIRECTORY_SEPARATOR);
+        $pointer = $root . DIRECTORY_SEPARATOR . self::ARRAYKIT_GENERATION_POINTER;
+        if (is_file($pointer) && !unlink($pointer)) {
+            throw new \RuntimeException(sprintf(
+                'Unable to remove stale ArrayKit namespace generation pointer "%s".',
+                $pointer,
+            ));
+        }
+
+        foreach (glob($root . DIRECTORY_SEPARATOR . self::ARRAYKIT_GENERATION_PREFIX . '*', GLOB_ONLYDIR) ?: [] as $generation) {
+            $this->removeDirectory($generation);
+        }
+    }
+
+    /** @param list<string> $namespaces */
+    private function removeStaleFiles(string $directory, array $namespaces, bool $keepFlat = true): void
+    {
+        $keep = array_fill_keys([
+            ...$namespaces,
+            ...($keepFlat ? ['__flat'] : []),
+            '__manifest',
+        ], true);
+
+        foreach (glob(rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . '*.php') ?: [] as $file) {
+            if (!isset($keep[pathinfo($file, PATHINFO_FILENAME)]) && !unlink($file)) {
+                throw new \RuntimeException(sprintf(
+                    'Unable to remove stale config cache artifact "%s".',
+                    $file,
+                ));
+            }
         }
     }
 
