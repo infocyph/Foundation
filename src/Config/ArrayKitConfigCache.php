@@ -11,6 +11,12 @@ final class ArrayKitConfigCache
 {
     public const string SINGLE_FILE = 'config.php';
 
+    private const string ARRAYKIT_FLAT_INDEX_FILE = '.arraykit-flat.php';
+
+    private const string ARRAYKIT_GENERATION_POINTER = '.arraykit-generation';
+
+    private const string ARRAYKIT_GENERATION_PREFIX = '.arraykit-gen-';
+
     /** @return array<string,mixed>|null */
     public function loadSingle(string $path): ?array
     {
@@ -55,9 +61,11 @@ final class ArrayKitConfigCache
             namespaceCacheDirectory: $directory,
         )->warmNamespaceCache($namespaces);
 
+        $activeDirectory = $this->activeNamespaceCacheDirectory($directory);
         foreach ($namespaces as $namespace) {
-            $this->validateNamespace($directory, $namespace);
+            $this->validateNamespace($activeDirectory, $namespace);
         }
+        $this->finalizeNativeMetadata($directory, $activeDirectory);
 
         return $namespaces;
     }
@@ -66,6 +74,7 @@ final class ArrayKitConfigCache
     public function writeSingle(array $config, string $directory): void
     {
         $this->removeStaleFiles($directory, [], keepFlat: false);
+        $this->removeNativeGenerationArtifacts($directory);
 
         $native = new Config();
         if (!$native->loadArray($config)) {
@@ -89,6 +98,107 @@ final class ArrayKitConfigCache
         }
 
         ConfigExportValidator::assertExportable($materialized);
+    }
+
+    private function activeNamespaceCacheDirectory(string $directory): string
+    {
+        $root = rtrim($directory, DIRECTORY_SEPARATOR);
+        $pointer = $root . DIRECTORY_SEPARATOR . self::ARRAYKIT_GENERATION_POINTER;
+        if (!is_file($pointer) || !is_readable($pointer)) {
+            return $root;
+        }
+
+        $generation = trim((string) file_get_contents($pointer));
+        if (preg_match('/^\.arraykit-gen-[a-f0-9]+$/', $generation) !== 1) {
+            throw new \RuntimeException(sprintf(
+                'ArrayKit namespace cache generation pointer "%s" is invalid.',
+                $pointer,
+            ));
+        }
+
+        $active = $root . DIRECTORY_SEPARATOR . $generation;
+        if (!is_dir($active)) {
+            throw new \RuntimeException(sprintf(
+                'ArrayKit namespace cache generation "%s" is missing.',
+                $active,
+            ));
+        }
+
+        return $active;
+    }
+
+    private function finalizeNativeMetadata(string $directory, string $activeDirectory): void
+    {
+        $root = rtrim($directory, DIRECTORY_SEPARATOR);
+        $pointer = $root . DIRECTORY_SEPARATOR . self::ARRAYKIT_GENERATION_POINTER;
+        if (is_file($pointer) && !chmod($pointer, 0664)) {
+            throw new \RuntimeException(sprintf(
+                'Unable to finalize ArrayKit namespace cache generation pointer "%s".',
+                $pointer,
+            ));
+        }
+
+        $flat = $activeDirectory . DIRECTORY_SEPARATOR . self::ARRAYKIT_FLAT_INDEX_FILE;
+        if (is_file($flat) && !chmod($flat, 0664)) {
+            throw new \RuntimeException(sprintf(
+                'Unable to finalize ArrayKit namespace flat index "%s".',
+                $flat,
+            ));
+        }
+
+        $legacyFlat = $root . DIRECTORY_SEPARATOR . '__flat.php';
+        if ($activeDirectory === $root && is_file($legacyFlat) && !chmod($legacyFlat, 0664)) {
+            throw new \RuntimeException(sprintf(
+                'Unable to finalize legacy ArrayKit namespace flat index "%s".',
+                $legacyFlat,
+            ));
+        }
+    }
+
+    private function removeDirectory(string $directory): void
+    {
+        foreach (scandir($directory) ?: [] as $entry) {
+            if ($entry === '.' || $entry === '..') {
+                continue;
+            }
+
+            $path = $directory . DIRECTORY_SEPARATOR . $entry;
+            if (is_dir($path)) {
+                $this->removeDirectory($path);
+
+                continue;
+            }
+
+            if (!unlink($path)) {
+                throw new \RuntimeException(sprintf(
+                    'Unable to remove stale ArrayKit namespace cache artifact "%s".',
+                    $path,
+                ));
+            }
+        }
+
+        if (!rmdir($directory)) {
+            throw new \RuntimeException(sprintf(
+                'Unable to remove stale ArrayKit namespace cache generation "%s".',
+                $directory,
+            ));
+        }
+    }
+
+    private function removeNativeGenerationArtifacts(string $directory): void
+    {
+        $root = rtrim($directory, DIRECTORY_SEPARATOR);
+        $pointer = $root . DIRECTORY_SEPARATOR . self::ARRAYKIT_GENERATION_POINTER;
+        if (is_file($pointer) && !unlink($pointer)) {
+            throw new \RuntimeException(sprintf(
+                'Unable to remove stale ArrayKit namespace generation pointer "%s".',
+                $pointer,
+            ));
+        }
+
+        foreach (glob($root . DIRECTORY_SEPARATOR . self::ARRAYKIT_GENERATION_PREFIX . '*', GLOB_ONLYDIR) ?: [] as $generation) {
+            $this->removeDirectory($generation);
+        }
     }
 
     /** @param list<string> $namespaces */

@@ -25,7 +25,7 @@ publication of the surrounding cache directory.
 
 - `sharded` is the default and uses ArrayKit `LazyFileConfig` namespace-cache
   warming. It writes one PHP file per namespace plus ArrayKit's shared
-  `__flat.php` exact-leaf index, so scalar/null reads such as `cache.default`
+  the active ArrayKit flat exact-leaf index (`.arraykit-flat.php` on 5.3 generations; legacy `__flat.php` on 5.2), so scalar/null reads such as `cache.default`
   can avoid loading an entire namespace shard.
 - `single` uses ArrayKit `Config::exportCache()` to write
   `bootstrap/cache/config/config.php` and `Config::loadCache()` to load it.
@@ -34,7 +34,7 @@ publication of the surrounding cache directory.
 
 ArrayKit does not expose a separate routing-style `fused` config mode. The
 sharded layout already includes the fused exact-leaf acceleration layer through
-`__flat.php`; the whole-config equivalent is `single`.
+the active ArrayKit flat index; the whole-config equivalent is `single`.
 
 Choose the cache layout by measured build/development workload. Switching modes
 removes stale native artifacts from the other layout. During cache build,

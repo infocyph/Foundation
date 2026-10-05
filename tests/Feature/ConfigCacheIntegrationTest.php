@@ -23,8 +23,8 @@ it('loads lazy namespace caches before project config files', function (): void 
         $cached = (new ConfigLoader())->load(['base_path' => $project]);
 
         expect($cached->get('app.name'))->toBe('source')
-            ->and($project . '/bootstrap/cache/config/app.php')->toBeFile()
-            ->and($project . '/bootstrap/cache/config/__flat.php')->toBeFile();
+            ->and(configCacheNamespaceArtifact($project . '/bootstrap/cache/config', 'app'))->toBeFile()
+            ->and(configCacheFlatIndexArtifact($project . '/bootstrap/cache/config'))->toBeFile();
     } finally {
         configCacheRemoveDirectory($project);
     }
@@ -48,7 +48,7 @@ it('can bypass and clear lazy config caches', function (): void {
         $cached->clearLazyCache();
 
         expect($bypassed->get('app.name'))->toBe('changed')
-            ->and($project . '/bootstrap/cache/config/app.php')->not->toBeFile();
+            ->and(configCacheNamespaceArtifact($project . '/bootstrap/cache/config', 'app'))->not->toBeFile();
     } finally {
         configCacheRemoveDirectory($project);
     }
@@ -109,8 +109,8 @@ it('boots from a sharded lazy cache without loading environment or scanning conf
         $loader->writeCache($config, $project . '/bootstrap/cache/config');
 
         $manifest = $project . '/bootstrap/cache/config/__manifest.php';
-        $namespace = $project . '/bootstrap/cache/config/app.php';
-        $flat = $project . '/bootstrap/cache/config/__flat.php';
+        $namespace = configCacheNamespaceArtifact($project . '/bootstrap/cache/config', 'app');
+        $flat = configCacheFlatIndexArtifact($project . '/bootstrap/cache/config');
         expect(fileperms($manifest) & 0777)->toBe(0664)
             ->and(fileperms($namespace) & 0777)->toBe(0664)
             ->and($flat)->toBeFile();
@@ -186,8 +186,8 @@ PHP,
             ->and($cached->isCompiled())->toBeTrue()
             ->and($manifestFile)->toBeFile()
             ->and($compiledFile)->toBeFile()
-            ->and($cacheDirectory . '/app.php')->not->toBeFile()
-            ->and($cacheDirectory . '/__flat.php')->not->toBeFile();
+            ->and(configCacheNamespaceArtifact($cacheDirectory, 'app'))->not->toBeFile()
+            ->and(configCacheFlatIndexArtifact($cacheDirectory))->not->toBeFile();
     } finally {
         configCacheRemoveDirectory($project);
     }
@@ -211,18 +211,18 @@ PHP,
         $directory = $project . '/bootstrap/cache/config';
 
         $loader->writeCache($config, $directory, ConfigLoader::TYPE_SHARDED);
-        expect($directory . '/app.php')->toBeFile()
-            ->and($directory . '/__flat.php')->toBeFile()
+        expect(configCacheNamespaceArtifact($directory, 'app'))->toBeFile()
+            ->and(configCacheFlatIndexArtifact($directory))->toBeFile()
             ->and($directory . '/config.php')->not->toBeFile();
 
         $loader->writeCache($config, $directory, ConfigLoader::TYPE_SINGLE);
         expect($directory . '/config.php')->toBeFile()
-            ->and($directory . '/app.php')->not->toBeFile()
-            ->and($directory . '/__flat.php')->not->toBeFile();
+            ->and(configCacheNamespaceArtifact($directory, 'app'))->not->toBeFile()
+            ->and(configCacheFlatIndexArtifact($directory))->not->toBeFile();
 
         $loader->writeCache($config, $directory, ConfigLoader::TYPE_SHARDED);
-        expect($directory . '/app.php')->toBeFile()
-            ->and($directory . '/__flat.php')->toBeFile()
+        expect(configCacheNamespaceArtifact($directory, 'app'))->toBeFile()
+            ->and(configCacheFlatIndexArtifact($directory))->toBeFile()
             ->and($directory . '/config.php')->not->toBeFile();
     } finally {
         configCacheRemoveDirectory($project);
@@ -298,8 +298,8 @@ PHP,
                 if ($type === ConfigLoader::TYPE_SINGLE) {
                     expect($directory . '/config.php')->toBeFile();
                 } else {
-                    expect($directory . '/app.php')->toBeFile()
-                        ->and($directory . '/__flat.php')->toBeFile();
+                    expect(configCacheNamespaceArtifact($directory, 'app'))->toBeFile()
+                        ->and(configCacheFlatIndexArtifact($directory))->toBeFile();
                 }
             } finally {
                 configCacheRemoveDirectory($project);
@@ -422,6 +422,42 @@ it('keeps production requirements limited to the Foundation runtime core', funct
             'web-auth/webauthn-lib',
         );
 });
+
+function configCacheActiveDirectory(string $directory): string
+{
+    $directory = rtrim($directory, DIRECTORY_SEPARATOR);
+    $pointer = $directory . DIRECTORY_SEPARATOR . '.arraykit-generation';
+    if (!is_file($pointer) || !is_readable($pointer)) {
+        return $directory;
+    }
+
+    $generation = trim((string) file_get_contents($pointer));
+    if (preg_match('/^\\.arraykit-gen-[a-f0-9]+$/', $generation) !== 1) {
+        return $directory;
+    }
+
+    $active = $directory . DIRECTORY_SEPARATOR . $generation;
+
+    return is_dir($active) ? $active : $directory;
+}
+
+function configCacheFlatIndexArtifact(string $directory): string
+{
+    $active = configCacheActiveDirectory($directory);
+    $native = $active . DIRECTORY_SEPARATOR . '.arraykit-flat.php';
+
+    return is_file($native)
+        ? $native
+        : rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . '__flat.php';
+}
+
+function configCacheNamespaceArtifact(string $directory, string $namespace): string
+{
+    return configCacheActiveDirectory($directory)
+        . DIRECTORY_SEPARATOR
+        . $namespace
+        . '.php';
+}
 
 /**
  * @param array<string, string> $files

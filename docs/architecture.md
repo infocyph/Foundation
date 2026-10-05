@@ -221,7 +221,7 @@ remain ArrayKit-native:
 Foundation owns cache policy, application defaults/presets, provider compilation,
 schema/source identity, and atomic publication; it does not maintain a parallel
 config serialization/cache engine. There is no separate Foundation/ArrayKit
-`fused` mode: `__flat.php` supplies fused leaf acceleration inside the
+`fused` mode: ArrayKit's active flat index supplies fused leaf acceleration inside the
 sharded strategy.
 
 This development/build config cache is separate from the immutable production
