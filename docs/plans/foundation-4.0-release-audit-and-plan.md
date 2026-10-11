@@ -795,6 +795,11 @@ The four PHP 8.4/8.5 lowest/stable QA jobs on source `c31b6e8` passed Pest and R
 - CacheLayer 4 `NodeCacheConfig` takes `options: CacheOptions` rather than deleted `failOpen:`. Foundation applies existing merged config through `cacheOptions($store)`, with native safe object/Closure deserialization defaults **false** rather than implicitly opting back into unsafe payloads.
 - **Pending QA:** SQLite node/cluster/outbox/race tests, exact-head PHPStan and PHPForge formatting, and real shared transport history and invalidation tests. CacheLayer 4 stored signed envelopes are not interchangeable with 3.x; drain or invalidate previously signed records before 4.0 cutover.
 
+### Coordinated-major Composer acceptance — consumer workflow defect
+
+- The first coordinated-major attempt reached [workflow 38137321328](https://github.com/infocyph/Foundation/actions/runs/38137321328), whose optional `--no-dev` consumers failed Composer resolution before runtime because `.github/workflows/security-standards.yml` **still explicitly constrained DBLayer `^5.1`**. With Foundation's new `^6.0` optional integration floor this is a real incompatible test fixture, not a source API regression.
+- Updated that CI consumer to DBLayer `^6.0` while preserving both PHP 8.4/8.5 and lowest/stable permutations and the core-only minimal topology. Retain the explicit Composer floor in tests and `ModuleCatalog`. Recheck exact-head jobs before closing any acceptance item.
+
 ### Batch 2 — adopt latest container and specialist APIs
 
 - [ ] Complete InterMix graph composition before finalization for every mode;
