@@ -110,6 +110,21 @@ final readonly class WebReleaseRuntime
         }
     }
 
+    /** @param array<string, mixed> $manifest */
+    private static function assertManifestIdentity(
+        array $manifest,
+        string $environment,
+        string $configFingerprint,
+    ): void
+    {
+        if (($manifest['environment'] ?? null) !== $environment
+            || !is_string($manifest['config_fingerprint'] ?? null)
+            || !hash_equals($configFingerprint, $manifest['config_fingerprint'])
+        ) {
+            throw new \RuntimeException('Foundation web release configuration identity mismatch.');
+        }
+    }
+
     private static function assertTrustedManifest(string $releaseManifestPath, string $trustedSha256): void
     {
         $trustedSha256 = strtolower(trim($trustedSha256));
@@ -129,20 +144,6 @@ final readonly class WebReleaseRuntime
         }
     }
 
-    /** @param array<string, mixed> $manifest */
-    private static function assertManifestIdentity(
-        array $manifest,
-        string $environment,
-        string $configFingerprint,
-    ): void {
-        if (($manifest['environment'] ?? null) !== $environment
-            || !is_string($manifest['config_fingerprint'] ?? null)
-            || !hash_equals($configFingerprint, $manifest['config_fingerprint'])
-        ) {
-            throw new \RuntimeException('Foundation web release configuration identity mismatch.');
-        }
-    }
-
     /**
      * @param array<string, mixed>|ConfigRepository $config
      * @param array<int|string, mixed> $foundationCapabilities
@@ -154,7 +155,8 @@ final readonly class WebReleaseRuntime
         bool $prevalidated,
         array $foundationCapabilities,
         ?string $matcherCachePath = null,
-    ): self {
+    ): self
+    {
         $graph = new WebGraphFactory()->compose($config, $foundationCapabilities);
         $settings = new WebReleaseConfiguration($graph);
         $settings->assertArtifactSafeMiddleware();
@@ -165,11 +167,7 @@ final readonly class WebReleaseRuntime
         $configFingerprint = $settings->configFingerprint();
         self::assertManifestIdentity($manifest, $environment, $configFingerprint);
 
-        $intermix = $manifest['intermix'] ?? null;
-        $webrick = $manifest['webrick'] ?? null;
-        if (!is_array($intermix) || !is_array($webrick)) {
-            throw new \UnexpectedValueException('Foundation web release manifest is incomplete.');
-        }
+        [$intermix, $webrick] = self::manifestArtifacts($manifest);
 
         $intermixPath = $settings->resolvePath(self::stringField($intermix, 'path'));
         $routerPath = $settings->resolvePath(self::stringField($webrick, 'path'));
@@ -257,6 +255,21 @@ final readonly class WebReleaseRuntime
         $server = new RuntimeServer($kernel, $runtimeAdapter);
 
         return new self($container, $kernel, $server, $capabilities);
+    }
+
+    /**
+     * @param array<string, mixed> $manifest
+     * @return array{array<array-key, mixed>, array<array-key, mixed>}
+     */
+    private static function manifestArtifacts(array $manifest): array
+    {
+        $intermix = $manifest['intermix'] ?? null;
+        $webrick = $manifest['webrick'] ?? null;
+        if (!is_array($intermix) || !is_array($webrick)) {
+            throw new \UnexpectedValueException('Foundation web release manifest is incomplete.');
+        }
+
+        return [$intermix, $webrick];
     }
 
     /** @param array<array-key, mixed> $source */
