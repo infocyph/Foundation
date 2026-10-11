@@ -750,6 +750,13 @@ The 4.0 runtime and `AuthOAuthRegistrar` already use Epicrypt's native `RefreshT
 
 **QA gate:** native OAuth refresh/rotation/replay/revocation tests plus full PHPForge supported matrix on the new commit. This one removal closes a clear legacy cluster, **not** the whole Batch 2 library/ABI audit; other suspected obsolete files require reachability and persisted-data evidence first.
 
+### Native specialist adoption checkpoint — Pathwise 4.2 and Epicrypt 3.2 (2026-10-11)
+
+- Updated **published Pathwise 4.2 and Epicrypt 3.2** version floors consistently in `composer.json`, `ModuleCatalog` and both configuration/module contract tests. These are separately published native improvements, not compatibility shims or unrelated feature development.
+- Pathwise 4.2 retains 4.x APIs while hardening upload byte budgets, archive/path containment, scanner deadlines, and optional host-owned Runwire contexts. Epicrypt 3.2 retains 3.x APIs while tightening JOSE/JWKS public-unicast destinations, replay retention and streaming cancellation semantics. Foundation still owns app policy and config; native libraries own transport/crypto/storage/streaming internals.
+- **CI acceptance pending:** require supported PHP 8.4/8.5 lowest/stable QA, complete real release dependency graph and relevant upload/range, OAuth/replay/JWKS regressions. Changed on this source SHA; previous jobs cannot certify it.
+- Retained-binary auth/security data compatibility and changed destination policy require explicit migration/race test coverage in Batch 4. Remaining coupled major upgrades InterMix 11/Webrick 6, CacheLayer 4/DBLayer 6/Omnibus 3/OTP 7/UID 6, and ReqShield 3.3 remain **open**.
+
 ### Batch 2 — adopt latest container and specialist APIs
 
 - [ ] Complete InterMix graph composition before finalization for every mode;

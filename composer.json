@@ -16,10 +16,10 @@
     "require-dev": {
         "ext-sodium": "*",
         "infocyph/dblayer": "^5.1",
-        "infocyph/epicrypt": "^3.1",
+        "infocyph/epicrypt": "^3.2",
         "infocyph/omnibus": "^2.6",
         "infocyph/otp": "^6.1",
-        "infocyph/pathwise": "^4.1",
+        "infocyph/pathwise": "^4.2",
         "infocyph/phpforge": "dev-main@dev",
         "infocyph/reqshield": "^3.2",
         "infocyph/talkingbytes": "^2.3",

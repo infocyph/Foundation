@@ -245,7 +245,7 @@ final class ModuleCatalog
         'filesystem' => [
             'packages' => [
                 'infocyph/pathwise' => [
-                    'constraint' => '^4.1',
+                    'constraint' => '^4.2',
                     'role' => 'required',
                     'features' => [],
                 ],
@@ -452,7 +452,7 @@ final class ModuleCatalog
         'security' => [
             'packages' => [
                 'infocyph/epicrypt' => [
-                    'constraint' => '^3.1',
+                    'constraint' => '^3.2',
                     'role' => 'required',
                     'features' => [],
                 ],

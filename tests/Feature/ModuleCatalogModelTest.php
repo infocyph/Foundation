@@ -50,9 +50,9 @@ it('pins the complete seven-specialist module contract', function (): void {
         'auth' => [],
         'communication' => ['infocyph/talkingbytes' => '^2.3'],
         'database' => ['infocyph/dblayer' => '^5.1'],
-        'filesystem' => ['infocyph/pathwise' => '^4.1'],
+        'filesystem' => ['infocyph/pathwise' => '^4.2'],
         'messaging' => ['infocyph/omnibus' => '^2.6'],
-        'security' => ['infocyph/epicrypt' => '^3.1'],
+        'security' => ['infocyph/epicrypt' => '^3.2'],
         'validation' => ['infocyph/reqshield' => '^3.2'],
     ])->and(array_map(
         static fn(array $definition): array => $definition['config'],
