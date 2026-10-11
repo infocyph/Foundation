@@ -3,13 +3,20 @@
 declare(strict_types=1);
 
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Filesystem\FilesystemMalwareScannerResolver;
+use Infocyph\Foundation\Filesystem\FilesystemPublicFileResolver;
 use Infocyph\Foundation\Filesystem\FilesystemResponseFactory;
 use Infocyph\Foundation\Filesystem\FilesystemTransferFactory;
 use Infocyph\Foundation\Filesystem\FilesystemUploadRequestHandler;
+use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\Foundation\Filesystem\StorageRegistry;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Body\FileBody;
+use League\Flysystem\Filesystem;
+use League\Flysystem\Local\LocalFilesystemAdapter;
+use Psr\Container\ContainerInterface;
 
 
 /** @return array{Application,string} */
@@ -213,4 +220,166 @@ function foundationFilesystemRemoveDirectory(string $directory): void
         $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
     }
     rmdir($directory);
+}
+
+it('prepares Pathwise download metadata once for full and stale If-Range responses', function (): void {
+    $basePath = sys_get_temp_dir() . '/foundation-download-probe-' . bin2hex(random_bytes(5));
+    $storageRoot = $basePath . '/storage';
+    mkdir($storageRoot, 0775, true);
+
+    $filesystem = new FoundationFilesystemMetadataProbe(
+        new LocalFilesystemAdapter($storageRoot),
+    );
+    $config = new ConfigRepository([
+        'app' => ['base_path' => $basePath],
+        'filesystem' => [
+            'default' => 'probe',
+            'disks' => [
+                'probe' => ['driver' => 'probe'],
+            ],
+            'downloads' => [
+                'disk' => 'probe',
+                'directory' => '',
+                'allowed_roots' => [],
+                'allowed_extensions' => [],
+                'blocked_extensions' => [],
+                'block_hidden_files' => true,
+                'chunk_size' => 8192,
+                'default_name' => 'download.bin',
+                'force_attachment' => true,
+                'max_size' => 0,
+                'range_requests' => true,
+            ],
+            'uploads' => [
+                'malware_scan' => ['mode' => 'off'],
+            ],
+            'public_files' => [
+                'root' => 'public',
+                'symlink_policy' => 'reject',
+            ],
+        ],
+    ]);
+    $paths = new PathManager($basePath);
+    $storage = new StorageRegistry(
+        $config,
+        $paths,
+        ['probe' => static function (array $definition) use ($filesystem): Filesystem {
+            unset($definition);
+
+            return $filesystem;
+        }],
+    );
+    $container = new class implements ContainerInterface {
+        public function get(string $id): never
+        {
+            throw new LogicException(sprintf('No test service "%s" is registered.', $id));
+        }
+
+        public function has(string $id): bool
+        {
+            unset($id);
+
+            return false;
+        }
+    };
+    $transfers = new FilesystemTransferFactory(
+        $config,
+        $paths,
+        $storage,
+        new FilesystemMalwareScannerResolver($config, $container),
+    );
+    $responses = new FilesystemResponseFactory(
+        $config,
+        $transfers,
+        $storage,
+        new FilesystemPublicFileResolver($config, $paths),
+    );
+    $filesystem->write('payload.txt', 'runtime Pathwise preparation probe');
+
+    try {
+        $filesystem->resetMetadataCounts();
+        $full = $responses->download(
+            Request::fake(headers: ['Host' => 'localhost'], uri: 'http://localhost/download'),
+            'payload.txt',
+            disk: 'probe',
+        );
+
+        expect($full->getStatusCode())->toBe(200)
+            ->and($filesystem->fileSizeReads)->toBe(1)
+            ->and($filesystem->mimeTypeReads)->toBe(1)
+            ->and($filesystem->lastModifiedReads)->toBe(1);
+
+        $filesystem->resetMetadataCounts();
+        $stale = $responses->download(
+            Request::fake(
+                headers: [
+                    'Host' => 'localhost',
+                    'Range' => 'bytes=0-6',
+                    'If-Range' => '"stale-validator"',
+                ],
+                uri: 'http://localhost/download',
+            ),
+            'payload.txt',
+            disk: 'probe',
+        );
+
+        expect($stale->getStatusCode())->toBe(200)
+            ->and($filesystem->fileSizeReads)->toBe(1)
+            ->and($filesystem->mimeTypeReads)->toBe(1)
+            ->and($filesystem->lastModifiedReads)->toBe(1);
+
+        $filesystem->resetMetadataCounts();
+        $partial = $responses->download(
+            Request::fake(
+                headers: ['Host' => 'localhost', 'Range' => 'bytes=0-6'],
+                uri: 'http://localhost/download',
+            ),
+            'payload.txt',
+            disk: 'probe',
+        );
+
+        expect($partial->getStatusCode())->toBe(206)
+            ->and($filesystem->fileSizeReads)->toBe(2)
+            ->and($filesystem->mimeTypeReads)->toBe(2)
+            ->and($filesystem->lastModifiedReads)->toBe(2);
+    } finally {
+        foundationFilesystemRemoveDirectory($basePath);
+    }
+});
+
+final class FoundationFilesystemMetadataProbe extends Filesystem
+{
+    public int $fileSizeReads = 0;
+
+    public int $lastModifiedReads = 0;
+
+    public int $mimeTypeReads = 0;
+
+    public function fileSize(string $path): int
+    {
+        ++$this->fileSizeReads;
+
+        return parent::fileSize($path);
+    }
+
+    public function lastModified(string $path): int
+    {
+        ++$this->lastModifiedReads;
+
+        return parent::lastModified($path);
+    }
+
+    public function mimeType(string $path): string
+    {
+        ++$this->mimeTypeReads;
+
+        return parent::mimeType($path);
+    }
+
+    public function resetMetadataCounts(): void
+    {
+        $this->fileSizeReads = 0;
+        $this->lastModifiedReads = 0;
+        $this->mimeTypeReads = 0;
+    }
 }
