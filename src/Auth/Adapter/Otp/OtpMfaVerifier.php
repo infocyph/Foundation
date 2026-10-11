@@ -124,12 +124,12 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         throw new \InvalidArgumentException(sprintf('OTP factor option "%s" must be an integer.', $key));
     }
 
-    /** @return array{algorithm:string,counter:int,digits:int,look_ahead:int,period:int,secret:?string,suite:?string,window:int} */
     private function ocraCounterAccepted(MfaFactor $factor, bool $counterEnabled, ?int $nextCounter): bool
     {
         return !$counterEnabled || ($nextCounter !== null && $this->advanceCounter($factor, $nextCounter));
     }
 
+    /** @return array{algorithm:string,counter:int,digits:int,look_ahead:int,period:int,secret:?string,suite:?string,window:int} */
     private function otpConfig(MfaFactor $factor): array
     {
         $otp = ValueNormalizer::associativeArray($factor->metadata['otp'] ?? null);
