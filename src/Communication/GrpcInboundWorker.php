@@ -28,13 +28,6 @@ final readonly class GrpcInboundWorker implements WorkerProvider
         private ConfigRepository $config,
     ) {}
 
-    private static function monotonicNanoseconds(): int
-    {
-        $value = hrtime(true);
-
-        return is_int($value) ? $value : (int) ((float) $value * 1_000_000_000);
-    }
-
     public function run(WorkerRuntime $runtime): int
     {
         $sourceService = $this->sourceService();
@@ -66,6 +59,13 @@ final readonly class GrpcInboundWorker implements WorkerProvider
         }
 
         return 0;
+    }
+
+    private static function monotonicNanoseconds(): int
+    {
+        $value = hrtime(true);
+
+        return is_int($value) ? $value : (int) ((float) $value * 1_000_000_000);
     }
 
     private function cancellationSignal(WorkerRuntime $runtime): CancellationSignal
