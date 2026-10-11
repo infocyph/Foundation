@@ -395,7 +395,7 @@ it('keeps production requirements limited to the Foundation runtime core', funct
     expect($composer['require'])->toBe([
         'php' => '^8.4',
         'composer-runtime-api' => '^2.0',
-        'infocyph/arraykit' => '^5.2',
+        'infocyph/arraykit' => '^5.3.1',
         'infocyph/cachelayer' => '^3.4',
         'infocyph/intermix' => '^10.1.1',
         'infocyph/uid' => '^5.0',
@@ -409,7 +409,7 @@ it('keeps production requirements limited to the Foundation runtime core', funct
         ->and($composer['require-dev']['infocyph/otp'] ?? null)->toBe('^6.1')
         ->and($composer['require-dev']['infocyph/pathwise'] ?? null)->toBe('^4.1')
         ->and($composer['require-dev']['infocyph/reqshield'] ?? null)->toBe('^3.2')
-        ->and($composer['require-dev']['infocyph/talkingbytes'] ?? null)->toBe('^2.1')
+        ->and($composer['require-dev']['infocyph/talkingbytes'] ?? null)->toBe('^2.3')
         ->and(array_keys($composer['suggest']))->toContain(
             'ext-sodium',
             'infocyph/dblayer',
