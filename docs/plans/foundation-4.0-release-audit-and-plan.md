@@ -725,6 +725,13 @@ Keep only unresolved findings and required release evidence after release.
 
 **Do not infer full Batch 2 completion:** InterMix 11.1/CacheLayer 4.0/Webrick 6.0 and other published majors (DBLayer 6, Epicrypt 3.2, Omnibus 3, OTP 7, Pathwise 4.2, ReqShield 3.3, TalkingBytes 2.3, UID 6, Runwire 2.1.1) still require a whole-surface native migration, provider/host lifecycle redesign, real-backend tests and compatibility evidence. `ModuleCatalog`, configured defaults, documentation and CI constraints must be updated together with each final native graph, without retaining old branches as compatibility aliases.
 
+### QA remediation checkpoint — latest diagnosed failures
+
+- **Pest and Rector:** all four PHP 8.4/8.5 lowest/stable combinations passed in the completed [38129825567](https://github.com/infocyph/Foundation/actions/runs/38129825567) test run; production consumers, clean install and both benchmark jobs passed. That run's red QA jobs were **Pint only**, specifically `CacheLayerFactory` brace position and `RuntimeCoreValidator` class-method separation. A subsequent commit uses a single-line constructor declaration with its body on the following line, plus the required method spacing.
+- **PHPStan:** the 2026-10-11 analysis after the validated refactors reports **26 function cognitive-complexity findings, four class findings, and zero additional type diagnostics**, improved from 34 function findings. Strict thresholds are unchanged; the quality gate is still **red** until the remaining methods/classes are decomposed and verified.
+- **Additional remediation committed for next-run verification:** focused OTP issuer/algorithm policy, typed module dependency and alias checks, reverse log tail buffer, compiled config provider validation, bounded session expiration scan, sanitized OAuth audit predicate, terminal numeric choice and completion option enumeration. These extracts keep all public behavior and error contracts. Do not mark QA green from passing functional tests alone.
+- **Major migration sequencing:** UID 6 requires coordinated Omnibus 3/CacheLayer 4/DBLayer 6; InterMix 11.1 and Webrick 6 require native graph finalization and provider redesign before the version bump. Preserve a solvable `composer.json` until a complete coordinated migration can be tested.
+
 ### Batch 2 — adopt latest container and specialist APIs
 
 - [ ] Complete InterMix graph composition before finalization for every mode;

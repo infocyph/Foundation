@@ -112,6 +112,7 @@ final readonly class RuntimeCoreValidator
                 $key,
             )];
     }
+
     /** @return list<ConfigIssue> */
     private function notificationChannelIssues(mixed $channels): array
     {
@@ -136,5 +137,4 @@ final readonly class RuntimeCoreValidator
 
         return [];
     }
-
 }

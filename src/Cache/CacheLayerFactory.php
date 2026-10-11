@@ -45,11 +45,7 @@ final readonly class CacheLayerFactory
     private Closure $database;
 
     /** @param callable(?string):Connection $database */
-    public function __construct(
-        private ConfigRepository $config,
-        private PathManager $paths,
-        callable $database,
-    )
+    public function __construct(private ConfigRepository $config, private PathManager $paths, callable $database)
     {
         $this->database = Closure::fromCallable($database);
     }
