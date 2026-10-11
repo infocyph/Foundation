@@ -40,6 +40,7 @@ final class ArrayKitConfigCache
      */
     public function writeSharded(array $config, string $directory): array
     {
+        $this->assertPublicationRoot($directory);
         $namespaces = [];
         foreach ($config as $namespace => $value) {
             if (is_array($value) && preg_match('/^[A-Za-z0-9_-]+$/', $namespace) === 1) {
@@ -65,6 +66,7 @@ final class ArrayKitConfigCache
     /** @param array<string,mixed> $config */
     public function writeSingle(array $config, string $directory): void
     {
+        $this->assertPublicationRoot($directory);
         $this->removeStaleFiles($directory, [], keepFlat: false);
 
         $native = new Config();
@@ -89,6 +91,13 @@ final class ArrayKitConfigCache
         }
 
         ConfigExportValidator::assertExportable($materialized);
+    }
+
+    private function assertPublicationRoot(string $directory): void
+    {
+        if (is_link($directory)) {
+            throw new \RuntimeException('ArrayKit configuration cache publication root cannot be a symbolic link.');
+        }
     }
 
     /** @param list<string> $namespaces */
