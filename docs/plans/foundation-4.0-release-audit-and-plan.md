@@ -830,6 +830,12 @@ The four PHP 8.4/8.5 lowest/stable QA jobs on source `c31b6e8` passed Pest and R
 - Latest analysis on `5264626f` reduced method-complexity findings to **13** (classes remain three), but exposed an unintended `missingType.iterableValue` diagnostic because the `writeManifest()` PHPDoc moved to the new `validatedNamespaces()` method. Restored the typed payload contract at its original method.
 - Separated the format/schema header test from `loadCacheManifest()` to bring that method under the 12-point PHPForge budget; schema fingerprint and invalid-manifest fail-closed behavior are unchanged. Check next exact SHA before claiming acceptance.
 
+### PHPForge DB migration preview refactor — pending QA
+
+- After the verified [workflow 38139110800](https://github.com/infocyph/Foundation/actions/runs/38139110800), exact-head PHP 8.4/8.5 lowest/stable functional QA, both benchmarks, four production consumers and clean install pass; PHPStan still blocks the full gate on **12 method / 3 class cognitive-complexity findings** with no unrelated type diagnostics.
+- `DatabaseSystemCommand::migrate()` now delegates DBLayer6 `MigrationRunner::pretend()` presentation to a typed `showMigrationPreview()` handler, keeping CLI text/JSON output, binding redaction behavior, error semantics and unchanged migration execution.
+- The new source/plan SHA needs its own quality and DB command test acceptance. No PHPForge rules are disabled.
+
 ### Batch 2 — adopt latest container and specialist APIs
 
 - [ ] Complete InterMix graph composition before finalization for every mode;
