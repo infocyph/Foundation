@@ -35,6 +35,12 @@ This document contains a preserved baseline audit and a subsequent implementatio
 - `src/Routing/WebReleaseRuntime.php`: Pint `ordered_class_elements` / `no_superfluous_phpdoc_tags` / formatting; `boot()` has undocumented array shapes, mismatched `WebGraphFactory::compose()` argument and method complexity **13/12**.
 - `src/Cache/CacheLayerFactory.php`: class complexity **87/80**; `src/Config/ConfigValidator.php`: **82/80**. Keep PHPForge's function/class/dependency budgets **12/80/120** and do not suppress diagnostics.
 
+### Q0 implementation checkpoint — source fixes, pending exact-head verification
+
+- `24ea74e3162febd47070333671b43eace721217f`: moved the existing exact shape `array{algorithm:string,counter:int,digits:int,look_ahead:int,period:int,secret:?string,suite:?string,window:int}` from `OtpMfaVerifier::ocraCounterAccepted(): bool` to its actual owner `otpConfig(): array`. No runtime code/OTP security contract changed. This directly addresses the erroneous Rector/comment-policy PHPDoc and is expected to re-enable native HOTP/OCRA/TOTP static argument inference. **Unverified until the new exact-head PHPStan and PHPForge QA completes.**
+- `8a92cbbf02017085b9283a713fda96776c3e1fde`: moved `WebReleaseRuntime::boot()` array/ConfigRepository and capabilities PHPDocs from their accidental attachment to `assertManifestIdentity()` back onto `boot()`; kept its manifest-identity parameter contract immediately above the assertion method. This targets the missing iterable annotations and native `WebGraphFactory::compose()` type error. No generated runtime/trust logic changed. **Pint method ordering, 13/12 boot complexity and both class-complexity findings remain unverified/open.**
+- [Exact-head workflow 38149407200](https://github.com/infocyph/Foundation/actions/runs/38149407200) was queued when recorded for `8a92cbbf`. Do not infer a pass from a queued workflow, or from the prior QA. Complete Q0 only after reviewing its actual logs and resolving the remaining real failures.
+
 ### Ordered execution queue (working tasks, **not** additional acceptance checkboxes)
 
 | Order | Work | Evidence required before status advances | Status |
