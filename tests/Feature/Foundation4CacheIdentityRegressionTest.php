@@ -3,7 +3,11 @@
 declare(strict_types=1);
 
 use Infocyph\CacheLayer\Cache\Cache;
+use Infocyph\Foundation\Cache\CacheLayerFactory;
 use Infocyph\Foundation\Cache\CacheManager;
+use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Filesystem\PathManager;
+use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
 use Infocyph\Foundation\Foundation;
 
 it('resolves the configured default and explicit store to the same instance in either order', function (): void {
@@ -105,4 +109,30 @@ it('shares native lock providers by named resource but not acquired handles', fu
         $explicit->release($second);
         $application->container()->unset();
     }
+});
+
+it('does not instantiate the cache backend for a separately configured native lock driver', function (): void {
+    $config = new ConfigRepository([
+        'cache' => [
+            'default' => 'pdo-store',
+            'stores' => [
+                'pdo-store' => ['driver' => 'pdo', 'connection' => 'primary'],
+            ],
+            'lock' => ['driver' => 'file', 'directory' => sys_get_temp_dir()],
+        ],
+    ]);
+    $factory = new CacheLayerFactory(
+        $config,
+        new PathManager(sys_get_temp_dir()),
+        static fn(?string $name = null): never => throw new LogicException('Database backend must remain cold.'),
+    );
+    $manager = new CacheManager(
+        $factory,
+        static fn(?string $name = null): never => throw new LogicException('Database backend must remain cold.'),
+    );
+
+    $provider = $manager->lock();
+
+    expect($provider)->toBeInstanceOf(LockProviderInterface::class)
+        ->and($manager->lock('pdo-store'))->toBe($provider);
 });
