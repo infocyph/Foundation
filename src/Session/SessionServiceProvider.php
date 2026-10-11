@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Session;
 
+use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Config\ConfigRepository;
-use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\Foundation\Logging\ExceptionReporter;
