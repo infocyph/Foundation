@@ -95,17 +95,10 @@ final readonly class CacheTopologyValidator
             if (!is_string($cluster['node_id'] ?? null) || $cluster['node_id'] === '') {
                 $issues[] = new ConfigIssue($key . '.node_id must be a stable explicit instance identity.', $key . '.node_id');
             }
-            if (!is_string($store)
-                || !isset($stores[$store])
-                || !is_array($stores[$store])
-                || ($stores[$store]['driver'] ?? null) !== 'node'
-            ) {
+            if (!$this->referencesNodeStore($store, $stores)) {
                 $issues[] = new ConfigIssue($key . '.store must reference a node cache store.', $key . '.store');
             }
-            if (!is_string($transport)
-                || !isset($transports[$transport])
-                || !is_array($transports[$transport])
-            ) {
+            if (!$this->referencesSharedTransport($transport, $transports)) {
                 $issues[] = new ConfigIssue($key . '.transport must reference a configured shared transport.', $key . '.transport');
             }
             if ($this->reservedPurpose($name) || $this->reservedPurpose($cluster['purpose'] ?? null)) {
@@ -117,6 +110,21 @@ final readonly class CacheTopologyValidator
         }
 
         return $issues;
+    }
+
+    /** @param array<string,mixed> $stores */
+    private function referencesNodeStore(mixed $name, array $stores): bool
+    {
+        return is_string($name)
+            && isset($stores[$name])
+            && is_array($stores[$name])
+            && ($stores[$name]['driver'] ?? null) === 'node';
+    }
+
+    /** @param array<string,mixed> $transports */
+    private function referencesSharedTransport(mixed $name, array $transports): bool
+    {
+        return is_string($name) && isset($transports[$name]) && is_array($transports[$name]);
     }
 
     /**
