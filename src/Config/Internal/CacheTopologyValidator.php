@@ -59,6 +59,12 @@ final readonly class CacheTopologyValidator
         return $named;
     }
 
+    /** @param array<string,mixed> $cluster */
+    private function hasStableNodeId(array $cluster): bool
+    {
+        return is_string($cluster['node_id'] ?? null) && $cluster['node_id'] !== '';
+    }
+
     private function isAbsolutePath(string $path): bool
     {
         return preg_match('/^(?:[A-Z]:[\\\\\\/]|\\\\\\\\|\/)/i', $path) === 1;
@@ -107,7 +113,7 @@ final readonly class CacheTopologyValidator
             $key = 'cache.clusters.' . $name;
             $store = $cluster['store'] ?? null;
             $transport = $cluster['transport'] ?? null;
-            if (!is_string($cluster['node_id'] ?? null) || $cluster['node_id'] === '') {
+            if (!$this->hasStableNodeId($cluster)) {
                 $issues[] = new ConfigIssue($key . '.node_id must be a stable explicit instance identity.', $key . '.node_id');
             }
             if (!$this->referencesNodeStore($store, $stores)) {
