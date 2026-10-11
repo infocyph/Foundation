@@ -863,6 +863,12 @@ The four PHP 8.4/8.5 lowest/stable QA jobs on source `c31b6e8` passed Pest and R
 - PHPStan reported **seven method and two class complexity findings**, with no unrelated type diagnostics. Endpoint rate-policy and OpenID principal-state helper extractions are committed on this source but require exact-head QA before additional reduction claims.
 - Full InterMix 11.1/Webrick 6 API and host graph migration remains unchecked; production release readiness is not established by the OAuth quality work alone.
 
+### Epicrypt adapter simplification — 2026-10-11 (pending exact-head QA)
+
+- OAuth scope-audience mapping delegates configured audience list normalization to one private helper, retaining first-seen order, de-duplication and invalid-list behavior before native Epicrypt scope validation.
+- OAuth key resolver delegates the same environment locator validation, minimum 32-byte root, purpose derivation and key-ring entry metadata to a dedicated typed method; Epicrypt still owns cryptography and replay/rotation primitives.
+- Both helpers require PHPStan, Pint/Rector and security integration verification on the source commit. Do not mark the native InterMix/Webrick or full Batch 2 acceptance criteria complete.
+
 ### Batch 2 — adopt latest container and specialist APIs
 
 - [ ] Complete InterMix graph composition before finalization for every mode;

@@ -42,6 +42,20 @@ final readonly class EpicryptOAuthScopeAudienceResolver implements OAuthScopeAud
         }
     }
 
+    /** @param array<string,true> $selected */
+    private function collectMappedAudiences(array &$selected, mixed $configured): void
+    {
+        $values = is_string($configured) ? [$configured] : $configured;
+        if (!is_array($values) || !array_is_list($values)) {
+            continue;
+        }
+        foreach ($values as $audience) {
+            if (is_string($audience) && $audience !== '') {
+                $selected[$audience] = true;
+            }
+        }
+    }
+
     /**
      * @param list<string> $scopes
      * @return list<string>
@@ -56,16 +70,7 @@ final readonly class EpicryptOAuthScopeAudienceResolver implements OAuthScopeAud
         /** @var array<string, true> $selected */
         $selected = [];
         foreach ($scopes as $scope) {
-            $configured = $mapping[$scope] ?? null;
-            $values = is_string($configured) ? [$configured] : $configured;
-            if (!is_array($values) || !array_is_list($values)) {
-                continue;
-            }
-            foreach ($values as $audience) {
-                if (is_string($audience) && $audience !== '') {
-                    $selected[$audience] = true;
-                }
-            }
+            $this->collectMappedAudiences($selected, $mapping[$scope] ?? null);
         }
 
         return array_keys($selected);
