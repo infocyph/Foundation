@@ -398,7 +398,7 @@ it('keeps production requirements limited to the Foundation runtime core', funct
         'infocyph/arraykit' => '^5.3.1',
         'infocyph/cachelayer' => '^3.4',
         'infocyph/intermix' => '^10.1.1',
-        'infocyph/uid' => '^5.0',
+        'infocyph/uid' => '^6.0',
         'infocyph/webrick' => '^5.4',
         'psr/log' => '^3.0.2',
     ])->and($composer['minimum-stability'] ?? null)->toBe('stable')
