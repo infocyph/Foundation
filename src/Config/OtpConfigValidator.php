@@ -23,18 +23,7 @@ final readonly class OtpConfigValidator
     {
         $issues = [];
 
-        $issuer = $this->config->get('auth.otp.issuer', 'Foundation');
-        if (!is_string($issuer) || trim($issuer) === '') {
-            $issues[] = new ConfigIssue('auth.otp.issuer must be a non-empty string.', 'auth.otp.issuer');
-        }
-
-        $algorithm = $this->config->get('auth.otp.totp.algorithm', 'sha1');
-        if (!is_string($algorithm) || !in_array(strtolower(trim($algorithm)), ['sha1', 'sha256', 'sha512'], true)) {
-            $issues[] = new ConfigIssue(
-                'auth.otp.totp.algorithm must be one of: sha1, sha256, sha512.',
-                'auth.otp.totp.algorithm',
-            );
-        }
+        $this->validateIssuerAndAlgorithm($issues);
 
         $this->range($issues, 'auth.otp.totp.digits', 6, 9, 6);
         $this->range($issues, 'auth.otp.totp.period', 1, 86400, 30);
@@ -108,6 +97,23 @@ final readonly class OtpConfigValidator
             $issues[] = new ConfigIssue(
                 sprintf('%s must be an integer between %d and %d.', $key, $minimum, $maximum),
                 $key,
+            );
+        }
+    }
+
+    /** @param list<ConfigIssue> $issues */
+    private function validateIssuerAndAlgorithm(array &$issues): void
+    {
+        $issuer = $this->config->get('auth.otp.issuer', 'Foundation');
+        if (!is_string($issuer) || trim($issuer) === '') {
+            $issues[] = new ConfigIssue('auth.otp.issuer must be a non-empty string.', 'auth.otp.issuer');
+        }
+    
+        $algorithm = $this->config->get('auth.otp.totp.algorithm', 'sha1');
+        if (!is_string($algorithm) || !in_array(strtolower(trim($algorithm)), ['sha1', 'sha256', 'sha512'], true)) {
+            $issues[] = new ConfigIssue(
+                'auth.otp.totp.algorithm must be one of: sha1, sha256, sha512.',
+                'auth.otp.totp.algorithm',
             );
         }
     }
