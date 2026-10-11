@@ -691,11 +691,13 @@ final class ModuleCatalog
             if ($requested !== $package || $requirement['role'] !== 'feature') {
                 continue;
             }
+
             return $this->resolvePackageFeature($package, $requirement, $definition, $requestedFeatures);
         }
 
         return false;
     }
+
     /**
      * @phpstan-param PackageRequirement $requirement
      * @phpstan-param ModuleDefinition $definition
@@ -726,5 +728,4 @@ final class ModuleCatalog
             implode(', ', $requirement['features']),
         ));
     }
-
 }
