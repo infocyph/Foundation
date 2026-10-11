@@ -28,13 +28,7 @@ final readonly class RuntimeProcessRegistry
             if ($record === null) {
                 continue;
             }
-            if ($visibility === 'host' && !hash_equals($host, $record['host'])) {
-                continue;
-            }
-            if ($kind !== null && $record['kind'] !== $kind) {
-                continue;
-            }
-            if ($name !== null && $record['name'] !== $name) {
+            if (!$this->matchesRecord($record, $visibility, $host, $kind, $name)) {
                 continue;
             }
             $records[] = [...$record, 'running' => $this->heartbeatFresh($record['heartbeat_at'])];
@@ -206,6 +200,19 @@ final readonly class RuntimeProcessRegistry
         }
 
         return is_array($record) ? $this->normalizeRecord($record) : null;
+    }
+
+    /** @param array{id:string,kind:string,name:string,pid:int,started_at:string,heartbeat_at:string,host:string} $record */
+    private function matchesRecord(
+        array $record,
+        string $visibility,
+        string $host,
+        ?string $kind,
+        ?string $name,
+    ): bool {
+        return !($visibility === 'host' && !hash_equals($host, $record['host']))
+            && ($kind === null || $record['kind'] === $kind)
+            && ($name === null || $record['name'] === $name);
     }
 
     /** @param array{id:string,kind:string,name:string,pid:int,started_at:string,heartbeat_at:string,host:string} $record */
