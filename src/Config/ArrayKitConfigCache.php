@@ -109,12 +109,12 @@ final class ArrayKitConfigCache
 
         $generation = trim((string) file_get_contents($pointer));
         if (preg_match('/^\\.arraykit-gen-[a-f0-9]+$/', $generation) !== 1) {
-            throw new \\RuntimeException('ArrayKit namespace cache generation pointer is invalid.');
+            throw new \RuntimeException('ArrayKit namespace cache generation pointer is invalid.');
         }
 
         $active = $root . DIRECTORY_SEPARATOR . $generation;
         if (!is_dir($active) || is_link($active)) {
-            throw new \\RuntimeException('ArrayKit namespace cache generation is not a trusted directory.');
+            throw new \RuntimeException('ArrayKit namespace cache generation is not a trusted directory.');
         }
 
         return $active;
@@ -125,7 +125,7 @@ final class ArrayKitConfigCache
         $root = rtrim($directory, DIRECTORY_SEPARATOR);
         $pointer = $root . DIRECTORY_SEPARATOR . '.arraykit-generation';
         if (is_link($pointer)) {
-            throw new \\RuntimeException('ArrayKit generation pointer cannot be a symbolic link.');
+            throw new \RuntimeException('ArrayKit generation pointer cannot be a symbolic link.');
         }
         if (is_file($pointer)) {
             $this->activeCacheDirectory($directory);
@@ -133,12 +133,12 @@ final class ArrayKitConfigCache
 
         foreach (glob($root . DIRECTORY_SEPARATOR . '.arraykit-gen-*') ?: [] as $generation) {
             if (is_link($generation) || !is_dir($generation)) {
-                throw new \\RuntimeException('ArrayKit cache generation cannot be a symbolic link or non-directory.');
+                throw new \RuntimeException('ArrayKit cache generation cannot be a symbolic link or non-directory.');
             }
 
             $entries = scandir($generation);
             if ($entries === false) {
-                throw new \\RuntimeException('Unable to inspect ArrayKit namespace cache generation.');
+                throw new \RuntimeException('Unable to inspect ArrayKit namespace cache generation.');
             }
             foreach ($entries as $entry) {
                 if ($entry === '.' || $entry === '..') {
@@ -146,7 +146,7 @@ final class ArrayKitConfigCache
                 }
                 $path = $generation . DIRECTORY_SEPARATOR . $entry;
                 if (is_link($path) || !is_file($path) || !str_ends_with($entry, '.php')) {
-                    throw new \\RuntimeException('ArrayKit generation contains an unsafe file or symbolic link.');
+                    throw new \RuntimeException('ArrayKit generation contains an unsafe file or symbolic link.');
                 }
             }
         }
@@ -159,7 +159,7 @@ final class ArrayKitConfigCache
 
         $pointer = $root . DIRECTORY_SEPARATOR . '.arraykit-generation';
         if (is_file($pointer) && !unlink($pointer)) {
-            throw new \\RuntimeException('Unable to remove obsolete ArrayKit generation pointer.');
+            throw new \RuntimeException('Unable to remove obsolete ArrayKit generation pointer.');
         }
 
         foreach (glob($root . DIRECTORY_SEPARATOR . '.arraykit-gen-*') ?: [] as $generation) {
@@ -167,11 +167,11 @@ final class ArrayKitConfigCache
                 if ($entry !== '.' && $entry !== '..'
                     && !unlink($generation . DIRECTORY_SEPARATOR . $entry)
                 ) {
-                    throw new \\RuntimeException('Unable to remove obsolete ArrayKit generation artifact.');
+                    throw new \RuntimeException('Unable to remove obsolete ArrayKit generation artifact.');
                 }
             }
             if (!rmdir($generation)) {
-                throw new \\RuntimeException('Unable to remove obsolete ArrayKit generation directory.');
+                throw new \RuntimeException('Unable to remove obsolete ArrayKit generation directory.');
             }
         }
     }
