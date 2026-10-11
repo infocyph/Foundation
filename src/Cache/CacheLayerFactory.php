@@ -41,10 +41,16 @@ use Infocyph\Foundation\Support\ValueNormalizer;
  */
 final readonly class CacheLayerFactory
 {
-    /** @param Closure(?string):Connection $database */
-    public function __construct(private ConfigRepository $config, private PathManager $paths, private Closure $database)
-    {
-        // Backend construction remains deferred until a store or lock is selected.
+    /** @var Closure(?string):Connection */
+    private Closure $database;
+
+    /** @param callable(?string):Connection $database */
+    public function __construct(
+        private ConfigRepository $config,
+        private PathManager $paths,
+        callable $database,
+    ) {
+        $this->database = Closure::fromCallable($database);
     }
 
     public function cluster(string $name): ClusterRuntime
