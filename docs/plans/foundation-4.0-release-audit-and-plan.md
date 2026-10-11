@@ -9,9 +9,9 @@ This document contains a preserved baseline audit and a subsequent implementatio
 
 ## Live implementation status — 2026-10-11, PR #20
 
-**Authoritative checkpoint:** draft [PR #20](https://github.com/infocyph/Foundation/pull/20), `feature/foundation-3` @ `e90e25ebefa29732c0a65dd8505709c1f4602d04` (147 commits ahead of `main`, 96 changed files, 10 deleted files). No merge, release tag, or publication. This section supersedes historical "pending", version-floor, and blocker statements in dated audit/execution notes below; those notes preserve the actual QA sequence but are **not current status**.
+**Authoritative source checkpoint (the subsequent tracker-only commit changes no production source):** draft [PR #20](https://github.com/infocyph/Foundation/pull/20), `feature/foundation-3` @ `e90e25ebefa29732c0a65dd8505709c1f4602d04` (147 commits ahead of `main`, 96 changed files, 10 deleted files). No merge, release tag, or publication. This section supersedes historical "pending", version-floor, and blocker statements in dated audit/execution notes below; those notes preserve the actual QA sequence but are **not current status**.
 
-**Progress by acceptance checklist:** Batch 1 **5/6** checked, remaining native-reuse/removal and migration evidence outstanding; Batch 2 **0/8** checked. Batch 3 **0/4**, Batch 4 **0/7**, Batch 5 **0/4**, and Batch 6 **0/7** checked. These ratios are strict acceptance-item counts, **not estimates of percent implementation**. No batch is fully certified; Batch 2's version upgrades are not proof of runtime/API acceptance.
+**Progress by acceptance checklist:** Batch 1 **5/6** checked, remaining native-reuse/removal and migration evidence outstanding; Batch 2 **0/8** checked. Batch 3 **0/4**, Batch 4 **0/7**, Batch 5 **0/4**, and Batch 6 **0/8** checked. These ratios are strict acceptance-item counts, **not estimates of percent implementation**. No batch is fully certified; Batch 2's version upgrades are not proof of runtime/API acceptance.
 
 | Scope | Current branch state | Remaining certification |
 | --- | --- | --- |
