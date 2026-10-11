@@ -617,9 +617,9 @@ cleanup, and zero competing host lifecycle actions.
 The connected GitHub integration has **no write permission** for `infocyph/ArrayKit`: both branch creation and issue creation return HTTP 403. This is a real Batch 1 blocker. The direct native patch for `src/Config/Concerns/BaseConfigTrait.php` is:
 
 ```diff
--            if (\\ReflectionReference::fromArrayElement($cursor, $segment) !== null) {
+-            if (\ReflectionReference::fromArrayElement($cursor, $segment) !== null) {
 +            $key = (string) (int) $segment === $segment ? (int) $segment : $segment;
-+            if (\\ReflectionReference::fromArrayElement($cursor, $key) !== null) {
++            if (\ReflectionReference::fromArrayElement($cursor, $key) !== null) {
                  return false;
              }
 ```
