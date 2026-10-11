@@ -28,34 +28,18 @@ final readonly class GrpcInboundWorker implements WorkerProvider
         private ConfigRepository $config,
     ) {}
 
+    private static function monotonicNanoseconds(): int
+    {
+        $value = hrtime(true);
+
+        return is_int($value) ? $value : (int) ((float) $value * 1_000_000_000);
+    }
+
     public function run(WorkerRuntime $runtime): int
     {
         $sourceService = $this->sourceService();
         $source = $this->source($sourceService);
-        $lastHeartbeat = self::monotonicNanoseconds();
-        $heartbeatInterval = $this->heartbeatIntervalMilliseconds() * 1_000_000;
-
-        $cancellation = CancellationSignal::fromCallable(
-            function () use ($runtime, &$lastHeartbeat, $heartbeatInterval): bool {
-                if ($runtime->stopRequested()) {
-                    return true;
-                }
-
-                $now = self::monotonicNanoseconds();
-                if (($now - $lastHeartbeat) < $heartbeatInterval) {
-                    return false;
-                }
-
-                try {
-                    $runtime->heartbeat();
-                } catch (WorkerRestartRequested) {
-                    return true;
-                }
-                $lastHeartbeat = $now;
-
-                return $runtime->stopRequested();
-            },
-        );
+        $cancellation = $this->cancellationSignal($runtime);
 
         while (!$cancellation->isRequested()) {
             $served = $runtime->execute(
@@ -84,11 +68,32 @@ final readonly class GrpcInboundWorker implements WorkerProvider
         return 0;
     }
 
-    private static function monotonicNanoseconds(): int
+    private function cancellationSignal(WorkerRuntime $runtime): CancellationSignal
     {
-        $value = hrtime(true);
+        $lastHeartbeat = self::monotonicNanoseconds();
+        $heartbeatInterval = $this->heartbeatIntervalMilliseconds() * 1_000_000;
 
-        return is_int($value) ? $value : (int) ((float) $value * 1_000_000_000);
+        return CancellationSignal::fromCallable(
+            function () use ($runtime, &$lastHeartbeat, $heartbeatInterval): bool {
+                if ($runtime->stopRequested()) {
+                    return true;
+                }
+
+                $now = self::monotonicNanoseconds();
+                if (($now - $lastHeartbeat) < $heartbeatInterval) {
+                    return false;
+                }
+
+                try {
+                    $runtime->heartbeat();
+                } catch (WorkerRestartRequested) {
+                    return true;
+                }
+                $lastHeartbeat = $now;
+
+                return $runtime->stopRequested();
+            },
+        );
     }
 
     private function heartbeatIntervalMilliseconds(): int

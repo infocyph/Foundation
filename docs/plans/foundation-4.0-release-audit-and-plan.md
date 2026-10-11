@@ -836,6 +836,15 @@ The four PHP 8.4/8.5 lowest/stable QA jobs on source `c31b6e8` passed Pest and R
 - `DatabaseSystemCommand::migrate()` now delegates DBLayer6 `MigrationRunner::pretend()` presentation to a typed `showMigrationPreview()` handler, keeping CLI text/JSON output, binding redaction behavior, error semantics and unchanged migration execution.
 - The new source/plan SHA needs its own quality and DB command test acceptance. No PHPForge rules are disabled.
 
+### Batch 2 QA remediation — PHPForge and native boundaries (2026-10-11)
+
+- Verified [workflow 38139493508](https://github.com/infocyph/Foundation/actions/runs/38139493508) at `bd027243`: four Pest/Pint/Rector QA jobs run successfully except for **Pint on `DatabaseSystemCommand`** (one `ordered_class_elements` / brace-layout issue). All four production consumers, clean install, and both benchmarks passed. PHPStan reports **11 method and three class complexity violations**, with no unrelated type errors; strict 12/80 budgets are unchanged.
+- **Formatter fix in this commit:** moved `showMigrationPreview()` to its correct private-method ordering between `showDatabase()` and `showTable()`, retaining the DBLayer 6 native `MigrationRunner::pretend()` output and binding behavior. Requires exact-head Pint confirmation.
+- **OAuth schema migration:** split `AuthOAuthEpicryptProtocolSchema::down()` into index-drop and column-drop operations. The same presence checks, deletion order, checkpoint, and persisted-data effects remain. Does not remove retained migration history.
+- **Host-owned lifecycle:** `GrpcInboundWorker` now builds its TalkingBytes cancellation/heartbeat closure in a dedicated helper; the worker loop continues to borrow `WorkerRuntime` and never starts or closes a host runtime.
+- **Console:** separated inline command execution/status/error recording from supervised `CommandExecutionCoordinator::run()`, preserving lock lifecycle and primary exceptions. No CLI ABI or output change.
+- **Acceptance:** next exact-commit PHP 8.4/8.5 lowest/stable Pest/Pint/PHPCS/Rector, PHPStan and service integration jobs must validate these changes before any Batch 2 checklist is closed. InterMix 11.1/Webrick 6 runtime-graph redesign and the remaining class complexity remain open.
+
 ### Batch 2 — adopt latest container and specialist APIs
 
 - [ ] Complete InterMix graph composition before finalization for every mode;
