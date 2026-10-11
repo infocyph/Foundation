@@ -98,6 +98,7 @@ it('keeps specialist native owners selected at Foundation integration seams', fu
 it('removes superseded native counters and OAuth refresh implementations', function (): void {
     $root = dirname(__DIR__, 2);
     $obsolete = [
+        'src/Auth/Adapter/WebAuthn/WebAuthnRuntime.php',
         'src/Cache/WebrickAtomicCounter.php',
         'src/Auth/Adapter/CacheLayer/CacheLayerCounterStore.php',
         'src/Auth/OAuth/Token/OAuthRefreshTokenCoordinator.php',

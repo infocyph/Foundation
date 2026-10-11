@@ -9,7 +9,6 @@ use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailVerificationM
 use Infocyph\Foundation\Auth\Authentication\Login\Authenticator;
 use Infocyph\Foundation\Auth\Authentication\PasswordReset\PasswordResetManager;
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\TokenAuthManager;
-use Infocyph\Foundation\Auth\Adapter\WebAuthn\WebAuthnRuntime;
 use Infocyph\Foundation\Auth\AuthManager;
 use Infocyph\Foundation\Auth\AuthServices;
 use Infocyph\Foundation\Auth\Contract\Cache\CounterStoreInterface;
@@ -280,7 +279,7 @@ it('keeps optional auth adapters lazy until their capabilities are selected', fu
         foreach ([
             AccessTokenServiceInterface::class, AccountProviderInterface::class, AuthIdGeneratorInterface::class,
             AuthNotifierInterface::class, CounterStoreInterface::class, MfaVerifierInterface::class,
-            PasskeyServiceInterface::class, PasswordHasherInterface::class, TtlStoreInterface::class, WebAuthnRuntime::class,
+            PasskeyServiceInterface::class, PasswordHasherInterface::class, TtlStoreInterface::class,
         ] as $service) {
             expect($repository->hasResolvedSingleton($service))->toBeFalse();
         }

@@ -757,6 +757,8 @@ The 4.0 runtime and `AuthOAuthRegistrar` already use Epicrypt's native `RefreshT
 - **CI acceptance pending:** require supported PHP 8.4/8.5 lowest/stable QA, complete real release dependency graph and relevant upload/range, OAuth/replay/JWKS regressions. Changed on this source SHA; previous jobs cannot certify it.
 - Retained-binary auth/security data compatibility and changed destination policy require explicit migration/race test coverage in Batch 4. Remaining coupled major upgrades InterMix 11/Webrick 6, CacheLayer 4/DBLayer 6/Omnibus 3/OTP 7/UID 6, and ReqShield 3.3 remain **open**.
 
+- **Obsolete WebAuthn sentinel deleted:** `src/Auth/Adapter/WebAuthn/WebAuthnRuntime.php` was an empty `@deprecated` compatibility placeholder explicitly stating OTP owns ceremonies, with no runtime registrations. The cold-resolution test now covers actual lazy auth services rather than an unused placeholder; the architecture test enforces its absence. No OTP ceremony/persisted data owner was removed. Native OTP 7 remains a coordinated CacheLayer 4 upgrade.
+
 ### Batch 2 — adopt latest container and specialist APIs
 
 - [ ] Complete InterMix graph composition before finalization for every mode;
