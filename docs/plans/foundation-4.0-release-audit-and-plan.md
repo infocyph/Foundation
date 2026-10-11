@@ -800,6 +800,8 @@ The four PHP 8.4/8.5 lowest/stable QA jobs on source `c31b6e8` passed Pest and R
 - The first coordinated-major attempt reached [workflow 38137321328](https://github.com/infocyph/Foundation/actions/runs/38137321328), whose optional `--no-dev` consumers failed Composer resolution before runtime because `.github/workflows/security-standards.yml` **still explicitly constrained DBLayer `^5.1`**. With Foundation's new `^6.0` optional integration floor this is a real incompatible test fixture, not a source API regression.
 - Updated that CI consumer to DBLayer `^6.0` while preserving both PHP 8.4/8.5 and lowest/stable permutations and the core-only minimal topology. Retain the explicit Composer floor in tests and `ModuleCatalog`. Recheck exact-head jobs before closing any acceptance item.
 
+- **Native cluster-identity QA cleanup:** clustered node identity and CacheLayer4 transport-history generation checks are isolated in one typed validation helper, preserving both exact errors and their order while avoiding a new PHPForge `validateClusters()` complexity violation. Acceptance awaits the next PHP 8.4/8.5 analysis.
+
 ### Batch 2 — adopt latest container and specialist APIs
 
 - [ ] Complete InterMix graph composition before finalization for every mode;

@@ -105,6 +105,23 @@ final readonly class CacheTopologyValidator
     }
 
     /**
+     * @param array<mixed> $cluster
+     * @return list<ConfigIssue>
+     */
+    private function validateClusterIdentity(array $cluster, string $key): array
+    {
+        $issues = [];
+        if (!$this->hasStableNodeId($cluster)) {
+            $issues[] = new ConfigIssue($key . '.node_id must be a stable explicit instance identity.', $key . '.node_id');
+        }
+        if (!$this->hasStableTransportIdentity($cluster)) {
+            $issues[] = new ConfigIssue($key . '.transport_identity must be a stable history identity (1-128 A-Z, a-z, 0-9, _, ., -).', $key . '.transport_identity');
+        }
+
+        return $issues;
+    }
+
+    /**
      * @param array<string,mixed> $clusters
      * @param array<string,mixed> $stores
      * @param array<string,mixed> $transports
@@ -121,12 +138,7 @@ final readonly class CacheTopologyValidator
             $key = 'cache.clusters.' . $name;
             $store = $cluster['store'] ?? null;
             $transport = $cluster['transport'] ?? null;
-            if (!$this->hasStableNodeId($cluster)) {
-                $issues[] = new ConfigIssue($key . '.node_id must be a stable explicit instance identity.', $key . '.node_id');
-            }
-            if (!$this->hasStableTransportIdentity($cluster)) {
-                $issues[] = new ConfigIssue($key . '.transport_identity must be a stable history identity (1-128 A-Z, a-z, 0-9, _, ., -).', $key . '.transport_identity');
-            }
+            array_push($issues, ...$this->validateClusterIdentity($cluster, $key));
             if (!$this->referencesNodeStore($store, $stores)) {
                 $issues[] = new ConfigIssue($key . '.store must reference a node cache store.', $key . '.store');
             }
