@@ -782,6 +782,12 @@ The four PHP 8.4/8.5 lowest/stable QA jobs on source `c31b6e8` passed Pest and R
 - PHPStan counts improved to **14 function-level and three class-level complexity findings**, with zero unrelated type diagnostics. The analyzers remain red. Complete PHP 8.4/8.5 lowest/stable QA and both benchmarks must be checked on this latest commit.
 - Native-core upgrade group and incomplete compatibility mappings remain unchanged. Obsolete files were removed only after verifying native Epicrypt/OTP owners and retained data migrations.
 
+### Coordinated major native-dependency attempt (2026-10-11; QA pending)
+
+- Set the **coordinated and Composer-compatible version group**: CacheLayer `^4.0`, DBLayer `^6.0`, Omnibus `^3.0`, UID `^6.0`, OTP `^7.0`, and ReqShield `^3.3`. The already adopted Pathwise `^4.2`, Epicrypt `^3.2`, TalkingBytes `^2.3`, and ArrayKit `^5.3.1` remain unchanged; Webrick `^5.4` and InterMix `^10.1.1` are explicitly still awaiting a separately coordinated runtime-graph migration.
+- Updated **production constraints, development-only optional package constraints, ModuleCatalog module floors, and both dependency-contract test suites in one tree change**. Omnibus 3's UID6/DBLayer6/CacheLayer4 requirements are no longer contradictory; this does **not** certify unchanged PHP integration APIs.
+- **Required QA before acceptance:** Composer lowest/stable resolution on PHP 8.4 and 8.5, production installation with only direct requirements, real service tests, native cluster configuration including transport identity and history, DBLayer6 cache visibility and pooling, Omnibus settlement/cancellation, OTP state migration and ReqShield DB bridge. Any failing contracts must be fixed natively without resurrecting 5.x/3.x fallback paths. Do not mark the Batch 2 native API items complete until verified.
+
 ### Batch 2 — adopt latest container and specialist APIs
 
 - [ ] Complete InterMix graph composition before finalization for every mode;

@@ -69,7 +69,7 @@ final class ModuleCatalog
         'auth' => [
             'packages' => [
                 'infocyph/otp' => [
-                    'constraint' => '^6.1',
+                    'constraint' => '^7.0',
                     'role' => 'feature',
                     'features' => ['otp', 'passkey'],
                 ],
@@ -225,7 +225,7 @@ final class ModuleCatalog
         'database' => [
             'packages' => [
                 'infocyph/dblayer' => [
-                    'constraint' => '^5.1',
+                    'constraint' => '^6.0',
                     'role' => 'required',
                     'features' => [],
                 ],
@@ -345,7 +345,7 @@ final class ModuleCatalog
         'messaging' => [
             'packages' => [
                 'infocyph/omnibus' => [
-                    'constraint' => '^2.6',
+                    'constraint' => '^3.0',
                     'role' => 'required',
                     'features' => [],
                 ],
@@ -487,7 +487,7 @@ final class ModuleCatalog
         'validation' => [
             'packages' => [
                 'infocyph/reqshield' => [
-                    'constraint' => '^3.2',
+                    'constraint' => '^3.3',
                     'role' => 'required',
                     'features' => [],
                 ],
