@@ -3,15 +3,32 @@
 Audit date: 2026-10-11. Target: **Foundation 4.0**, upgrading directly from
 published Foundation 2.1.1 and skipping publication of Foundation 3.
 
-**Release status: blocked.** ArrayKit 5.3.1 resolves the audited numeric-path
-issue and Foundation now requires that corrective version. Broader InterMix,
-Webrick, CacheLayer and specialist-library upgrades, application/host runtime
-redesign, security verification, and immutable release certification remain open.
-Unsafe symlink traversal in the historical ArrayKit acceptance branch is not adopted.
+**Release status: blocked.** ArrayKit 5.3.1 is required and the original numeric-key defect is fixed upstream. CacheLayer 4 and the coordinated optional-module majors have been selected, but their complete native API/runtime acceptance is pending. InterMix 11.1 and Webrick 6 remain unadopted; host scope, security, migration and release certification are open. Unsafe symlink traversal from the old ArrayKit acceptance branch was not adopted.
 
-This document records the audit and the work still required. It does not certify
-the library as vulnerability-free. Production source, dependency requirements,
-and branch integration have not been changed by this audit.
+This document contains a preserved baseline audit and a subsequent implementation log. The **live implementation status above** reflects later committed source and dependency changes; the original audit did not itself alter production code. This record does not certify the library as vulnerability-free.
+
+## Live implementation status — 2026-10-11, PR #20
+
+**Authoritative checkpoint:** draft [PR #20](https://github.com/infocyph/Foundation/pull/20), `feature/foundation-3` @ `e90e25ebefa29732c0a65dd8505709c1f4602d04` (147 commits ahead of `main`, 96 changed files, 10 deleted files). No merge, release tag, or publication. This section supersedes historical "pending", version-floor, and blocker statements in dated audit/execution notes below; those notes preserve the actual QA sequence but are **not current status**.
+
+**Progress by acceptance checklist:** Batch 1 **5/6** checked, remaining native-reuse/removal and migration evidence outstanding; Batch 2 **0/8** checked. Batch 3 **0/4**, Batch 4 **0/7**, Batch 5 **0/4**, and Batch 6 **0/7** checked. These ratios are strict acceptance-item counts, **not estimates of percent implementation**. No batch is fully certified; Batch 2's version upgrades are not proof of runtime/API acceptance.
+
+| Scope | Current branch state | Remaining certification |
+| --- | --- | --- |
+| Core published packages | ArrayKit `^5.3.1`, CacheLayer `^4.0`, UID `^6.0`, InterMix `^10.1.1`, Webrick `^5.4` | **Migrate InterMix 11.1 + Webrick 6 together**, before graph finalization; verify compiled/development modes and native scope ownership. CacheLayer 4 cluster transport identity/history/cursors must pass actual native/backed tests |
+| Optional integration floors (dev) | DBLayer `^6.0`, Epicrypt `^3.2`, Omnibus `^3.0`, OTP `^7.0`, Pathwise `^4.2`, ReqShield `^3.3`, TalkingBytes `^2.3` | Full public API/consumer compatibility matrix, optional production activation and real backend support—not just Composer resolution |
+| Native ownership/obsolete source | 10 removed files in PR diff: local Webrick counter, local auth counter, seven parallel OAuth refresh implementations/contracts and one WebAuthn sentinel | Retain native Epicrypt/OTP and persisted-data migration semantics; finish symbol-by-symbol redundancy audit with grounded migration/replacement evidence |
+| PHP 8.4/8.5 consumer install | All four lowest/stable production-consumer jobs and clean install **pass** on current SHA | Does not establish full runtime or API compatibility |
+| Benchmarks | PHP 8.4/8.5 benchmark jobs **pass** on current SHA | The later sustained-host RPM/latency/CPU/RSS gate is separate and still open |
+| Functional PHPForge QA | Pest **passes**, but all four QA jobs **fail** on current SHA | Repair OTP comment-policy / Rector doc mismatch and WebReleaseRuntime Pint ordering/spacing; rerun all lowest/stable combinations |
+| PHPStan | Both PHP 8.4 and 8.5 analysis jobs **fail**; latest report totals 24 diagnostics | OTP factor-config return/value types and native OTP call argument types, WebReleaseRuntime boot parameter types and graph call, plus CacheLayerFactory/ConfigValidator class and web boot method complexity; no analyzer suppressions |
+| Runwire and release readiness | Runwire 2.1.1 remains host-owned target; no completed end-to-end host/runtime acceptance | Batch 3 propagation, Batch 4 security/persistence, Batch 5 real consumer/migration and Batch 6 immutable release gates remain open |
+
+**Latest exact-head CI:** [run 38142909218](https://github.com/infocyph/Foundation/actions/runs/38142909218), **failed**. Passed: all four production consumers, clean installation, both benchmarks, and Pest in the inspected PHP 8.5 stable job. Failed: all four full PHPForge QA jobs and both analysis jobs; security and release-evidence jobs were skipped. Earlier [run 38142575025](https://github.com/infocyph/Foundation/actions/runs/38142575025) at `25cbe6c` had all four full QA jobs green but was superseded by changes to the current source. Do **not** transfer that green result to the newer SHA.
+
+**Concrete current QA repair queue (no source changes in this tracker-only update):** remove the incompatible array-return PHPDoc on `OtpMfaVerifier::ocraCounterAccepted(): bool`, preserve actual typed `otpConfig()` payloads/nullable contracts for OTP 7 constructors and verify calls, correct `WebReleaseRuntime::boot()` type documentation / `WebGraphFactory::compose()` invocation, then follow PHPForge's `ordered_class_elements` and whitespace rules. The analyzer still reports CacheLayerFactory class complexity **87/80**, ConfigValidator **82/80**, and web boot method **13/12**. Run new QA after source changes; don't check acceptance based on code edits alone.
+
+**Tracker freshness rules:** compare `composer.json`, `ModuleCatalog`, source removals, published module APIs, tests, and *exact source SHA* before checking an item; retain the originating workflow for each result. Historical audit branch comparisons and earlier version/failure descriptions below are dated snapshots, not current blockers. Mark Batch 2 complete only when **all eight** native compatibility and service-backed acceptance criteria are supported. Do not conflate PR draft status, QA status, merge, tag or publication.
 
 ## Engineering contract
 
@@ -105,13 +122,11 @@ entries and release gates pass; do not claim it from this audit or plan alone.
 | --- | --- | --- |
 | Published Foundation 2.1.1 | `f6749ebe0aa1f93c6b3586e8cb63ecc1f552d98b` | Required migration and comparison baseline |
 | `main` / `origin/main` | `fc9b3258646ac744e61fd02e18d9b98e5afff2e8` | All post-2.1.1 main changes are part of Foundation 4 |
-| Current `feature/foundation-3` | `fc9b3258646ac744e61fd02e18d9b98e5afff2e8` | Also current remote main at audit time |
+| `feature/foundation-3` at original audit | `fc9b3258646ac744e61fd02e18d9b98e5afff2e8` | **Historical snapshot only**; current working SHA is in live status above |
 | `foundation-3/library-reuse-hardening` | `2f1e19e1f089e95d3a81fec62cda66a5cd1751d8` | 126 commits beyond current head; 65 changed files |
 | `origin/arraykit-5.3/acceptance` | `8f1bc1097e0543f08209a226f1a76fe41459c82b` | Seven commits beyond current head; six changed files |
 
-Both named branches fork from the current head. Their implementation evidence
-must be revalidated after reconciliation with today's dependencies. Neither
-branch has been imported during this audit.
+At the original audit, both named branches forked from the then-current main, and neither was imported by the read-only audit. Their applicable changes were subsequently selectively reconciled on PR #20; see the live status and integration log. Historical branch SHAs are not current working revisions.
 
 The 2.1.1-to-current comparison spans 1,261 commits and 496 changed files
 (42,104 insertions, 11,372 deletions). Production PHP source grew from 580 to
@@ -138,8 +153,7 @@ main tree, including every change after published 2.1.1. The two named branches
 provide additional work to assess. Every change must be accounted for, but its
 code/API may be retained, redesigned, delegated, or removed under the approved
 breaking redesign. Do not accidentally discard a security invariant or recreate
-an older defect when reconciling branches. Main and the working branch were
-verified against the remote again on 2026-10-11 and have the same head.
+an older defect when reconciling branches. Main and the working branch matched at the **initial audit**, before PR #20 implementation; they no longer share a head.
 
 The following inventory makes main's release scope explicit. It is based on
 `git diff 2.1.1 main`, first-parent merges, current source, and tests; historical
@@ -635,7 +649,7 @@ Foundation `composer.json` now requires `infocyph/arraykit:^5.3.1`, excluding th
 - **Cache reproductions and implementation:** `tests/Feature/Foundation4CacheIdentityRegressionTest.php` now covers default/named identity in both access orders, configured default changes, replacement, native lock provider identity, and distinct acquired lock handles. The cache manager/factory/DI graph and DBLayer query-cache integration now share one application-managed registry. The existing DBLayer query-cache feature suite was reconciled with the hardening branch and covers registry identity, cache replacement, and PDO infrastructure isolation. **F4-04 implementation is partial until latest-API migration and QA.**
 - **Throwing diagnostics regression:** `SessionMiddleware` protects an original request throwable against secondary cleanup-logger failures; `BrowserSessionIntegrationTest` now checks exact exception identity, exactly two releases over two requests, one recorded warning, and no active session afterward. **F4-05 pending QA.**
 - **ArrayKit publication safety:** `ArrayKitConfigCache` and `ConfigLoader` now reject symlinked publication roots before writing. `Foundation4ArrayKitPublicationSafetyTest.php` covers linked roots and both root-level and nested planted native-generation symlinks with an external sentinel. This preserves a regression against the unsafe acceptance-branch deletion behavior but does **not** resolve the generation-layout defect or certify full F4-03.
-- **Upstream blocker — F4-02:** ArrayKit 5.3 `BaseConfigTrait::isReadCacheSafePath()` still passes canonical numeric-string segments to `ReflectionReference::fromArrayElement()`, which requires their normalized integer array keys. A corrective native patch and numeric/negative/literal/reference tests were prepared for a separate ArrayKit branch, but GitHub rejected branch creation with HTTP **403 Resource not accessible by integration**. **No upstream commit or PR was created.** Foundation must consume a published corrective ArrayKit version; do not add a local override.
+- **Historical, resolved upstream blocker — F4-02:** ArrayKit 5.3 initially failed on numeric-string keys, and the GitHub installation initially refused upstream writes. Permissions were later resolved; ArrayKit PR #36 produced the native fix, published as **5.3.1**, which Foundation now requires. This historical failure is no longer an active blocker.
 - **QA:** PR-triggered [Security & Standards runs](https://github.com/infocyph/Foundation/actions?query=branch%3Afeature%2Ffoundation-3) execute on pushed commits; the current rollout is not certified. Current main's unrelated Rector/complexity failures and published ArrayKit 5.3 incompatibility remain blockers. Do not mark the grouped Batch 1 acceptance checkboxes complete on source edits alone.
 
 ### Batch 1 continuation — Foundation cache-generation fixes and QA (2026-10-11)
@@ -645,7 +659,7 @@ Foundation `composer.json` now requires `infocyph/arraykit:^5.3.1`, excluding th
 - **Rector:** applied the reported nullsafe/coalesce modernization in `Auth/OAuth/Authorization/AuthorizationRequestValidator.php` without changing its result contract.
 - **Cold lock configuration:** an explicitly configured native lock driver no longer eagerly resolves the default cache backend. A new regression checks the PDO-backed cache remains cold while obtaining a native file lock.
 - **CI distinction:** Previous finalized PR run [38118514862](https://github.com/infocyph/Foundation/actions/runs/38118514862) at SHA `197f68c` had **471 passing / 8 failing Pest tests**, quality and complexity failures; the eight clustered in ArrayKit cache artifacts and the native numeric-path issue. Subsequent source commits invalidate that run as certification. The current PR run should be evaluated **only after** the latest source/tracker SHA stabilizes.
-- **Remaining blockers:** ArrayKit 5.3 numeric read-cache key normalization requires an upstream published fix; writing a branch in `infocyph/ArrayKit` returned `403 Resource not accessible by integration`, so there is no upstream PR. Full framework ownership and auth-flow disposition are not yet approved or completed. Latest native majors, Runwire propagation and release QA remain unimplemented. **No Batch 1 checkbox is closed and Batch 2 is not started.**
+- **Historical checkpoint, superseded:** The ArrayKit numeric-key issue and upstream repository access were later resolved; Batch 1 now has five checked acceptance items and Batch 2 has begun. The current blockers and actual version floors are in the live status above.
 
 - **Follow-up validation:** `tests/Feature/Foundation4ArrayKitPublicationSafetyTest.php` now also asserts that linked, malformed, and missing native generation pointers fail safely without modifying external sentinel files. The previous security check exceeded the PHPForge per-function cognitive-complexity threshold; the pointer and directory checks were separated before the latest run. This is an **unverified fix**, not a passing QA result.
 - **Current commit-specific gate:** evaluate the most recent PR run after the tracker is updated; passing consumer-install/benchmark jobs from superseded commits are informative only. No approval to progress past Batch 1 until upstream ArrayKit and required behavioral evidence are available.
@@ -656,7 +670,7 @@ The hardening branch's MFA, passkey, browser-session and database-migration cons
 
 On [CI run 38120431178](https://github.com/infocyph/Foundation/actions/runs/38120431178), the PHP 8.5 stable test suite produced **491 passed, two failed**, both caused by the published ArrayKit `ReflectionReference` numeric-key defect. Four PHP 8.4/8.5 production consumer variants and clean install passed; Rector, reference checks and architectural boundaries passed. That run also detected Pint ordering/braces violations in newly edited `CacheLayerFactory` and `ArrayKitConfigCache`, and PHPCS unused test callback parameters; all three have since been corrected in subsequent commits. PHPStan still reports 34 function and four class complexity violations distributed across the broader 4.0 redesign, without new API/type diagnostics. None of these commits relaxes a quality gate.
 
-**Batch 1 status:** first two architecture/branch-disposition inventory items complete at capability level. Runtime compatibility and per-symbol code removal are explicitly Batch 2 work, not hidden Batch 1 completion. Tests and native helper integration need passing final-commit QA; the upstream ArrayKit patch still cannot be pushed or published through this GitHub connection (branch and issue creation both fail HTTP 403), so remaining Batch 1 checkboxes stay open. Historical tests on previous commits do not certify the next source SHA.
+**Historical Batch 1 checkpoint, superseded:** At this point the first two inventory items were complete and ArrayKit repository access was still blocked. ArrayKit 5.3.1 has since been published and adopted; **five of six** Batch 1 acceptance items are now checked. The remaining native-reuse/removal acceptance evidence is still open and source-head QA must be used.
 
 ### Provisional mechanism dispositions (Batch 1 ownership review, incomplete)
 
@@ -719,11 +733,11 @@ Keep only unresolved findings and required release evidence after release.
 | `RuntimeFactoryDefinition`, `FactoryDefinition::construct/staticFactory` | Foundation services requiring runtime-only Webrick objects, live error handlers, route registrars, generated runtime recipes | Keep compile-safe data/recipes in the exportable graph; register live closures only for explicitly unsupported development operations. Remove builder inspection and early `development()` calls from provider helpers. |
 | No `ContainerBuilder::definitions()`, no mutable `options()` | Path/Auth/Communication/Messaging/Logging and 12+ other providers, `FoundationGraph::createBuilder()` | Replace implicit live-definition inspection with deterministic composition-time ownership/topology and native `enableDebugTracing()`. Don't finalize `definitionGraph()` while contributions remain. |
 
-**Native UID 6.0 integration (dependency coupling confirmed; implementation pending):** A focused upgrade attempt set `infocyph/uid:^6.0` and reused `UidIntegrationTest` / `UidRuntimeBoundaryTest` coverage for native `Id::ulid()` and `Id::uuid7()`. Composer's release matrix **rejected this isolated upgrade**: installed `infocyph/omnibus:2.6` requires `infocyph/uid:^5.0`. Published Omnibus 3.0 requires UID 6.0 **and explicitly conflicts with CacheLayer below 4.0 and DBLayer below 6.0**. Thus `UID 6.0 + Omnibus 3.0 + CacheLayer 4.0 + DBLayer 6.0` is one coordinated native-major resolution and corresponding API migration; do not force an unsatisfiable dependency graph or add a compatibility fallback. The temporary UID-only constraint changes were reverted; the current branch keeps the existing installable UID 5.0 floor until those native dependencies and their consumers migrate together. The retained UID runtime tests cover monotonic output, fork uniqueness, supplied IDs and worker/scheduler isolation; UID 6 Sonyflake/Randflake/decimal and optional GenerationContext remain specialist-owned.
+**Historical UID 6.0 isolation attempt (superseded by coordinated-major upgrade):** A focused upgrade attempt set `infocyph/uid:^6.0` and reused `UidIntegrationTest` / `UidRuntimeBoundaryTest` coverage for native `Id::ulid()` and `Id::uuid7()`. Composer's release matrix **rejected this isolated upgrade**: installed `infocyph/omnibus:2.6` requires `infocyph/uid:^5.0`. Published Omnibus 3.0 requires UID 6.0 **and explicitly conflicts with CacheLayer below 4.0 and DBLayer below 6.0**. Thus `UID 6.0 + Omnibus 3.0 + CacheLayer 4.0 + DBLayer 6.0` is one coordinated native-major resolution and corresponding API migration; do not force an unsatisfiable dependency graph or add a compatibility fallback. The isolated UID-only change was reverted **at that time**. A later coordinated Composer update successfully selected **UID ^6.0, Omnibus ^3.0, CacheLayer ^4.0, and DBLayer ^6.0** together; consult the live package table, not this historical stage, for current floors. The retained UID runtime tests cover monotonic output, fork uniqueness, supplied IDs and worker/scheduler isolation; UID 6 Sonyflake/Randflake/decimal and optional GenerationContext remain specialist-owned.
 
 **PHPForge complexity remediation:** `RuntimeCoreValidator::notifications()` now delegates channel-map validation to one cohesive policy helper while preserving first-error semantics; `CacheTopologyValidator::validateClusters()` delegates configured-node-store, shared-transport and stable-node-ID predicates without duplicating storage mechanics. Baseline was **34 method + 4 class** findings; intermediate analysis confirmed one method issue removed and reduced cluster validation from complexity 15 to 13; a further extraction targets the strict 12 budget. Final-head analysis must confirm the net counts before claiming closure.
 
-**Do not infer full Batch 2 completion:** InterMix 11.1/CacheLayer 4.0/Webrick 6.0 and other published majors (DBLayer 6, Epicrypt 3.2, Omnibus 3, OTP 7, Pathwise 4.2, ReqShield 3.3, TalkingBytes 2.3, UID 6, Runwire 2.1.1) still require a whole-surface native migration, provider/host lifecycle redesign, real-backend tests and compatibility evidence. `ModuleCatalog`, configured defaults, documentation and CI constraints must be updated together with each final native graph, without retaining old branches as compatibility aliases.
+**Do not infer full Batch 2 completion:** The **version floors** for CacheLayer 4, DBLayer 6, Epicrypt 3.2, Omnibus 3, OTP 7, Pathwise 4.2, ReqShield 3.3, TalkingBytes 2.3, and UID 6 were subsequently updated. InterMix 11.1/Webrick 6 are still on older floors, and **every upgraded specialist still requires complete applicable API/consumer acceptance**, provider/host lifecycle redesign where relevant, real-backend tests and compatibility evidence. `ModuleCatalog`, configured defaults, documentation and CI constraints must be updated together with each final native graph, without retaining old branches as compatibility aliases.
 
 ### QA remediation checkpoint — latest diagnosed failures
 
