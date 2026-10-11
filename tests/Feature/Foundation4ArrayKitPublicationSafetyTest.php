@@ -131,3 +131,34 @@ it('preserves native generations for readers pinned before a single-mode transit
         rmdir($root);
     }
 });
+
+it('rejects untrusted native generation pointers before writing a cache', function (string $kind): void {
+    $root = sys_get_temp_dir() . '/foundation4-generation-pointer-' . bin2hex(random_bytes(6));
+    mkdir($root, 0700);
+    $cache = $root . '/cache';
+    mkdir($cache, 0700);
+    $pointer = $cache . '/.arraykit-generation';
+    $outside = $root . '/external';
+    file_put_contents($outside, 'outside-data');
+
+    if ($kind === 'linked') {
+        symlink($outside, $pointer);
+    } else {
+        file_put_contents($pointer, $kind === 'invalid' ? '../external' : '.arraykit-gen-deadbeef');
+    }
+
+    try {
+        $writer = new ArrayKitConfigCache();
+        expect(fn() => $writer->writeSharded(['app' => ['name' => 'safe']], $cache))
+            ->toThrow(RuntimeException::class)
+            ->and(fn() => $writer->writeSingle(['app' => ['name' => 'safe']], $cache))
+            ->toThrow(RuntimeException::class)
+            ->and(file_get_contents($outside))->toBe('outside-data')
+            ->and($cache . '/config.php')->not->toBeFile();
+    } finally {
+        unlink($pointer);
+        unlink($outside);
+        rmdir($cache);
+        rmdir($root);
+    }
+})->with(['linked', 'invalid', 'missing']);
