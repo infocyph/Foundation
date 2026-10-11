@@ -1,0 +1,27 @@
+name: Foundation Pint Diagnostic (temporary)
+on:
+  push:
+    branches: [feature/foundation-3]
+jobs:
+  formatter-diff:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, sodium, pdo_sqlite, zip
+          tools: composer:v2
+          coverage: none
+      - name: Install PHPForge and Pint
+        run: composer install --no-interaction --prefer-dist --no-progress --no-scripts --ignore-platform-reqs
+      - name: Print formatter's exact expected changes without committing them
+        shell: bash
+        run: |
+          cp src/Config/ConfigValidator.php /tmp/foundation-before-pint.php
+          vendor/bin/pint --config=vendor/infocyph/phpforge/resources/pint.json src/Config/ConfigValidator.php || true
+          echo '=== PINTER FORMATTED DIFF START ==='
+          diff -u /tmp/foundation-before-pint.php src/Config/ConfigValidator.php || true
+          echo '=== PINTER FORMATTED DIFF END ==='
