@@ -808,6 +808,12 @@ The four PHP 8.4/8.5 lowest/stable QA jobs on source `c31b6e8` passed Pest and R
 - Preserved **intentional negative tests** using stale DBLayer `^5.0`, as those still establish direct-constraint rejection under the new `^6.0` floor. The fake composer executable and real activation/schema behavior remain unchanged.
 - Two **non-version** failures remain independent: the CacheLayer 4 node/cluster write-read returns null, and DBLayer/InterMix persistent execution memoization yields an unexpected extra call. These are native behavior acceptance blockers and cannot be fixed by changing version expectations.
 
+### CacheLayer 4 recovery-policy test correction (2026-10-11)
+
+- CacheLayer 4's native `ClusterRecoveryManager::recoverIfRequired()` **clears node cache on first untrusted or reset invalidation history** before binding the durable `transport_identity`. The previous cluster integration test wrote to the node cache *before* creating `ClusterRuntime`, so the first native cursor recovery correctly invalidated it. Initialize the cluster before writing cache data in the roundtrip test.
+- Added a separate regression verifying that *pre-initialization writes do not survive a new cursor/history generation*. This preserves native fail-closed recovery; no bypass, no fallback to CacheLayer 3 semantics.
+- The persistent execution memoizer result remains separately unexplained; no change to its expectations until its host/runtime ownership is identified.
+
 ### Batch 2 — adopt latest container and specialist APIs
 
 - [ ] Complete InterMix graph composition before finalization for every mode;

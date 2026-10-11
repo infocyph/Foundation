@@ -14,14 +14,25 @@ use Infocyph\Foundation\Foundation;
 
 it('creates node cache stores and reports configured cluster status', function (): void {
     $app = foundationClusterCacheApplication();
+    $cluster = $app->make(CacheLayerFactory::class)->cluster('catalog');
     $manager = $app->make(CacheManager::class);
     $cache = $manager->store('catalog');
     $cache->set('product.42', 'cached');
-    $status = $app->make(CacheLayerFactory::class)->cluster('catalog')->status();
+    $status = $cluster->status();
 
     expect($cache->get('product.42'))->toBe('cached')
         ->and($status->cluster)->toBe('catalog')
         ->and($status->nodeId)->toBe('node-a');
+});
+
+it('clears stale node contents when a fresh cluster invalidation history initializes', function (): void {
+    $app = foundationClusterCacheApplication();
+    $cache = $app->make(CacheManager::class)->store('catalog');
+    $cache->set('stale.42', 'untrusted-history');
+
+    $app->make(CacheLayerFactory::class)->cluster('catalog');
+
+    expect($cache->get('stale.42'))->toBeNull();
 });
 
 it('publishes cache invalidations through the transactional outbox only after commit', function (): void {
