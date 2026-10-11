@@ -124,11 +124,11 @@ it('does not instantiate the cache backend for a separately configured native lo
     $factory = new CacheLayerFactory(
         $config,
         new PathManager(sys_get_temp_dir()),
-        static fn(?string $name = null): never => throw new LogicException('Database backend must remain cold.'),
+        static fn(?string $name = null): never => throw new LogicException('Database backend ' . ($name ?? 'default') . ' must remain cold.'),
     );
     $manager = new CacheManager(
         $factory,
-        static fn(?string $name = null): never => throw new LogicException('Database backend must remain cold.'),
+        static fn(?string $name = null): never => throw new LogicException('Database backend ' . ($name ?? 'default') . ' must remain cold.'),
     );
 
     $provider = $manager->lock();
