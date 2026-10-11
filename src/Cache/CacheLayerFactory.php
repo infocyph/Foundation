@@ -41,14 +41,8 @@ use Infocyph\Foundation\Support\ValueNormalizer;
  */
 final readonly class CacheLayerFactory
 {
-    public function __construct(
-        private ConfigRepository $config,
-        private PathManager $paths,
-        /** @var Closure(?string):Connection */
-        private Closure $database
-    )
-    {
-    }
+    /** @param Closure(?string):Connection $database */
+    public function __construct(private ConfigRepository $config, private PathManager $paths, private Closure $database) {}
 
     public function cluster(string $name): ClusterRuntime
     {
