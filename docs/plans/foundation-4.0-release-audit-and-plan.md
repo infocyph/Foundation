@@ -3,11 +3,11 @@
 Audit date: 2026-10-11. Target: **Foundation 4.0**, upgrading directly from
 published Foundation 2.1.1 and skipping publication of Foundation 3.
 
-**Release status: blocked.** The current source does not support the latest
-published dependency set. Both named branches contain applicable work, but the
-ArrayKit acceptance branch also contains destructive symlink cleanup. An
-upstream ArrayKit numeric-path defect, container migration, runtime composition,
-and fresh release verification remain required.
+**Release status: blocked.** ArrayKit 5.3.1 resolves the audited numeric-path
+issue and Foundation now requires that corrective version. Broader InterMix,
+Webrick, CacheLayer and specialist-library upgrades, application/host runtime
+redesign, security verification, and immutable release certification remain open.
+Unsafe symlink traversal in the historical ArrayKit acceptance branch is not adopted.
 
 This document records the audit and the work still required. It does not certify
 the library as vulnerability-free. Production source, dependency requirements,
@@ -249,7 +249,7 @@ freezing the release. An ArrayKit corrective release is required below.
 
 | Package | Published version | Released source reference |
 | --- | --- | --- |
-| `infocyph/arraykit` | 5.3 | `5f7265555d2906176411b21283381d376aa9e53e` |
+| `infocyph/arraykit` | **5.3.1** | `e77bf72a40c64b94f62e69f3b2662ce2dc47efec` |
 | `infocyph/cachelayer` | 4.0 | `58ae96dfe14ee45a528247c00c6a3d727160f833` |
 | `infocyph/dblayer` | 6.0 | `85b9a6373628692f1bf74ba20a31649fad767f2a` |
 | `infocyph/epicrypt` | 3.2 | `8b1cdf370a8676e536db96b7bd0ae66347141512` |
@@ -612,21 +612,24 @@ cleanup, and zero competing host lifecycle actions.
 | Acceptance branch: recursively deleting `.arraykit-gen-*` with `is_dir()` | **Rejected/deleted as unsafe** | Planted root and nested symlink sentinels must survive; never eagerly unlink pinned generations |
 | ArrayKit published 5.3 native numeric read-cache lookup | **Fix/publish upstream, not in Foundation** | Correct PHP numeric-string offset handling before `ReflectionReference::fromArrayElement()`; still blocked by repository write permission |
 
-### Upstream ArrayKit patch ready for maintainer
+### ArrayKit F4-02 — upstream correction published and consumed
 
-The connected GitHub integration has **no write permission** for `infocyph/ArrayKit`: both branch creation and issue creation return HTTP 403. This is a real Batch 1 blocker. The direct native patch for `src/Config/Concerns/BaseConfigTrait.php` is:
+ArrayKit **5.3.1**, published 2026-10-11 ([release](https://github.com/infocyph/ArrayKit/releases/tag/5.3.1), commit `e77bf72a40c64b94f62e69f3b2662ce2dc47efec`), includes the canonical numeric-string array-key fix from [ArrayKit PR #36](https://github.com/infocyph/ArrayKit/pull/36). Native `BaseConfigTrait::isReadCacheSafePath()` now normalizes integer-string array offsets before `ReflectionReference::fromArrayElement()` without altering literal string keys, reference detection or strict typing. ArrayKit's four PHP 8.4/8.5 Pest QA variants and both benchmarks passed on that PR. Its pre-existing complexity gate is independent.
 
-```diff
--            if (\ReflectionReference::fromArrayElement($cursor, $segment) !== null) {
-+            $key = (string) (int) $segment === $segment ? (int) $segment : $segment;
-+            if (\ReflectionReference::fromArrayElement($cursor, $key) !== null) {
-                 return false;
-             }
-```
-
-Require upstream tests for `app.servers.0`, `app.servers.1`, negative integer keys, leading-zero and plus-prefixed literal keys, missing paths, referenced values and cache invalidation after mutation. The last gate is **published corrected ArrayKit** → Composer constraint and lock refresh → actual current-head PHP 8.4/8.5 CI; writing this patch into Foundation or its vendor directory does not satisfy the acceptance criterion.
+Foundation `composer.json` now requires `infocyph/arraykit:^5.3.1`, excluding the defective 5.3.0 from both lowest and stable resolution. The existing numeric-path and OAuth environment integration regressions are retained. **F4-02 upstream cause fixed and published.** Foundation-side batch acceptance remains contingent on the final supported dependency matrix, unaffected security/ownership behavior and real CI proof.
 
 ## Active Batch 1 execution log
+
+### Batch 1 — post-ArrayKit-5.3.1 checkpoint (2026-10-11)
+
+- Verified official 5.3.1 published tag and corrected numeric-key source. Foundation core minimum version changed to `^5.3.1`; dedicated ArrayKit upstream PR #36 has native regression coverage.
+- The first post-upgrade Foundation run [38126272273](https://github.com/infocyph/Foundation/actions/runs/38126272273) removed both historical `ReflectionException` failures, passing **492/493 tests** on PHP 8.4 stable dependencies. Its remaining test failure was a stale literal Composer baseline `^5.2`; this expectation is corrected. PHPForge Pint also flagged conflicting multiline empty-constructor formatting: the CacheLayer factory now uses an explicit readonly-closure property assignment.
+- Lowest-version QA exposed `TalkingBytes 2.1` missing the native typed `fromResolvedConfig(..., baseConfig:)` API already used by Foundation. The dev requirement and communication module floor were updated to published `TalkingBytes ^2.3` with matching module/config tests. No old-version fallback was added. Production dependency sets stay narrowly scoped.
+- Hardening-branch cache ownership is now unified for scheduler/worker leadership, webhook replay, browser session, MFA/passkeys, migration/query cache, native auth counters and config topology validation. Carried forward source-architecture, runtime identity, OAuth rotation and communication integration regressions.
+- **Outstanding evidence:** new exact-head PHP 8.4/8.5 lowest/stable QA, benchmarks and scope regression inspection. Pre-existing 34 function / four class PHPStan cognitive-complexity findings remain tracked under Batch 2, with thresholds unchanged. Batch 1 remaining checkboxes are not marked complete until their own evidence is confirmed.
+- InterMix 11.1 native builder/graph/finalization and all other specialist major upgrades remain Batch 2, not part of this isolated ArrayKit 5.3.1 acceptance increment.
+
+
 
 - **2026-10-11 — Draft PR:** [Foundation #20](https://github.com/infocyph/Foundation/pull/20), `feature/foundation-3` → `main`. The PR remains draft; merge, tagging, and publication are excluded.
 - **Cache reproductions and implementation:** `tests/Feature/Foundation4CacheIdentityRegressionTest.php` now covers default/named identity in both access orders, configured default changes, replacement, native lock provider identity, and distinct acquired lock handles. The cache manager/factory/DI graph and DBLayer query-cache integration now share one application-managed registry. The existing DBLayer query-cache feature suite was reconciled with the hardening branch and covers registry identity, cache replacement, and PDO infrastructure isolation. **F4-04 implementation is partial until latest-API migration and QA.**
@@ -693,9 +696,9 @@ Keep only unresolved findings and required release evidence after release.
 - [x] Account for every post-2.1.1 main change group and both branches with an
   explicit retain/redesign/delegate/delete decision, migration notes, and
   meaningful behavioral coverage; retain security invariants when replacing code.
-- [ ] Convert the confirmed ArrayKit numeric-path, generation/symlink, cache
+- [x] Convert the confirmed ArrayKit numeric-path, generation/symlink, cache
   identity, and throwing-logger probes into owner-appropriate regressions.
-- [ ] Resolve and publish the native ArrayKit patch; refresh the dependency table.
+- [x] Resolve and publish the native ArrayKit patch; refresh the dependency table.
 - [ ] Reconcile both named branches against the intended 4.0 design, keeping
   applicable fixes and correcting unsafe generation cleanup before adoption.
 - [ ] Reuse branch-owned cache/protocol/download changes and remove redundant
