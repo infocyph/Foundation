@@ -869,6 +869,12 @@ The four PHP 8.4/8.5 lowest/stable QA jobs on source `c31b6e8` passed Pest and R
 - OAuth key resolver delegates the same environment locator validation, minimum 32-byte root, purpose derivation and key-ring entry metadata to a dedicated typed method; Epicrypt still owns cryptography and replay/rotation primitives.
 - Both helpers require PHPStan, Pint/Rector and security integration verification on the source commit. Do not mark the native InterMix/Webrick or full Batch 2 acceptance criteria complete.
 
+### Native MFA crypto/state adapter cleanup — pending exact-head QA
+
+- The Foundation MFA secret adapter now isolates per-field Epicrypt decryption and legacy-marker handling, preserving the exact marker rules, key-ring fallback reporting and no-plaintext policy. No new encryption/key material mechanism was created.
+- OCRA replay/counter acceptance remains native OTP verification plus Foundation's compare-and-swap factor persistence. The post-verification counter gate is now one explicit predicate with the same replay-failure reason and no counter advancement when a native result is not matched.
+- These refactors target remaining strict PHPForge method-complexity findings; source-head MFA/OTP replay, migration and error-precedence tests must pass before acceptance. The broader InterMix 11/Webrick 6 migration remains open.
+
 ### Batch 2 — adopt latest container and specialist APIs
 
 - [ ] Complete InterMix graph composition before finalization for every mode;
