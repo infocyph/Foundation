@@ -20,6 +20,7 @@ use Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException;
 use Infocyph\Foundation\Auth\OAuth\Scope\OAuthScopeResolver;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthGrantType;
 
+/** @deprecated Foundation 4 runtime uses Epicrypt RefreshTokenManager; delete during native OAuth redesign. */
 final readonly class OAuthRefreshTokenCoordinator
 {
     public function __construct(
