@@ -62,31 +62,6 @@ final readonly class RuntimeCoreValidator
     }
 
     /** @return list<ConfigIssue> */
-    private function notificationChannelIssues(mixed $channels): array
-    {
-        if (!is_array($channels)) {
-            return [new ConfigIssue(
-                'notifications.channels must be a channel service map.',
-                'notifications.channels',
-            )];
-        }
-
-        foreach ($channels as $name => $definition) {
-            if (!is_string($name)
-                || trim($name) === ''
-                || ((!is_string($definition) || trim($definition) === '') && !is_object($definition))
-            ) {
-                return [new ConfigIssue(
-                    'notifications.channels must map non-empty names to service class names or channel instances.',
-                    'notifications.channels',
-                )];
-            }
-        }
-
-        return [];
-    }
-
-    /** @return list<ConfigIssue> */
     public function responses(): array
     {
         $issues = [];
@@ -137,4 +112,29 @@ final readonly class RuntimeCoreValidator
                 $key,
             )];
     }
+    /** @return list<ConfigIssue> */
+    private function notificationChannelIssues(mixed $channels): array
+    {
+        if (!is_array($channels)) {
+            return [new ConfigIssue(
+                'notifications.channels must be a channel service map.',
+                'notifications.channels',
+            )];
+        }
+
+        foreach ($channels as $name => $definition) {
+            if (!is_string($name)
+                || trim($name) === ''
+                || ((!is_string($definition) || trim($definition) === '') && !is_object($definition))
+            ) {
+                return [new ConfigIssue(
+                    'notifications.channels must map non-empty names to service class names or channel instances.',
+                    'notifications.channels',
+                )];
+            }
+        }
+
+        return [];
+    }
+
 }
