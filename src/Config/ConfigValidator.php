@@ -356,5 +356,4 @@ final readonly class ConfigValidator
             );
         }
     }
-
 }
