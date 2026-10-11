@@ -78,6 +78,43 @@ it('keeps InterMix definition caching opt-in when CacheLayer is active', functio
     }
 });
 
+it('preserves canonical cache identity in generated non-web runtimes', function (): void {
+    $project = foundationGeneratedRuntimeProject();
+    $config = foundationGeneratedRuntimeConfig($project);
+    $config['cache'] = [
+        'default' => 'memory',
+        'prefix' => 'foundation-generated-cache:',
+        'stores' => [
+            'memory' => ['driver' => 'memory'],
+        ],
+    ];
+    $artifact = $project . '/bootstrap/cache/cache-cli.php';
+
+    try {
+        $report = new GeneratedRuntimeCompiler()->compile(
+            $config,
+            RuntimeMode::Cli,
+            $artifact,
+            ['cache'],
+        );
+        $runtime = GeneratedRuntime::loadPrevalidated(
+            $config,
+            RuntimeMode::Cli,
+            $artifact,
+            $report['metadata_sha256'],
+            $report['digest'],
+            ['cache'],
+        );
+        $manager = $runtime->application->make(CacheManager::class);
+
+        expect($manager->store())->toBe($manager->store('memory'));
+        $manager->store()->set('generated-alias', 'shared', 60);
+        expect($manager->store('memory')->get('generated-alias'))->toBe('shared');
+    } finally {
+        foundationGeneratedRuntimeRemove($project);
+    }
+});
+
 it('compiles and reuses minimal generated CLI and scheduler runtimes', function (): void {
     $project = foundationGeneratedRuntimeProject();
     $config = foundationGeneratedRuntimeConfig($project);
