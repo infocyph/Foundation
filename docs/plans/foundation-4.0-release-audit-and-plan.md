@@ -802,6 +802,12 @@ The four PHP 8.4/8.5 lowest/stable QA jobs on source `c31b6e8` passed Pest and R
 
 - **Native cluster-identity QA cleanup:** clustered node identity and CacheLayer4 transport-history generation checks are isolated in one typed validation helper, preserving both exact errors and their order while avoiding a new PHPForge `validateClusters()` complexity violation. Acceptance awaits the next PHP 8.4/8.5 analysis.
 
+### Native majors: module lifecycle regression reconciliation (2026-10-11)
+
+- After the test-parser fix, PHP 8.5 lowest/stable matrix produced **484 passing / 16 failing Pest cases** on source `4a9707cb`. Fourteen failures clustered around stale mock Composer root constraints, module install command expectations, and old `ModuleCatalog` version assertions, which still referenced DBLayer 5.1 / Omnibus 2.6 / OTP 6.1 / CacheLayer 3.4. Updated the three affected module test suites to use published DBLayer 6 / Omnibus 3 / OTP 7 / CacheLayer 4 floors.
+- Preserved **intentional negative tests** using stale DBLayer `^5.0`, as those still establish direct-constraint rejection under the new `^6.0` floor. The fake composer executable and real activation/schema behavior remain unchanged.
+- Two **non-version** failures remain independent: the CacheLayer 4 node/cluster write-read returns null, and DBLayer/InterMix persistent execution memoization yields an unexpected extra call. These are native behavior acceptance blockers and cannot be fixed by changing version expectations.
+
 ### Batch 2 — adopt latest container and specialist APIs
 
 - [ ] Complete InterMix graph composition before finalization for every mode;
