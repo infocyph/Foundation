@@ -150,6 +150,19 @@ final readonly class RuntimeProcessRegistry
         return is_string($host) && $host !== '' ? $host : 'unknown';
     }
 
+    /** @param array{id:string,kind:string,name:string,pid:int,started_at:string,heartbeat_at:string,host:string} $record */
+    private function matchesRecord(
+        array $record,
+        string $visibility,
+        string $host,
+        ?string $kind,
+        ?string $name,
+    ): bool {
+        return !($visibility === 'host' && !hash_equals($host, $record['host']))
+            && ($kind === null || $record['kind'] === $kind)
+            && ($name === null || $record['name'] === $name);
+    }
+
     /**
      * @param array<int|string, mixed> $record
      * @return array{id:string,kind:string,name:string,pid:int,started_at:string,heartbeat_at:string,host:string}|null
@@ -200,19 +213,6 @@ final readonly class RuntimeProcessRegistry
         }
 
         return is_array($record) ? $this->normalizeRecord($record) : null;
-    }
-
-    /** @param array{id:string,kind:string,name:string,pid:int,started_at:string,heartbeat_at:string,host:string} $record */
-    private function matchesRecord(
-        array $record,
-        string $visibility,
-        string $host,
-        ?string $kind,
-        ?string $name,
-    ): bool {
-        return !($visibility === 'host' && !hash_equals($host, $record['host']))
-            && ($kind === null || $record['kind'] === $kind)
-            && ($name === null || $record['name'] === $name);
     }
 
     /** @param array{id:string,kind:string,name:string,pid:int,started_at:string,heartbeat_at:string,host:string} $record */

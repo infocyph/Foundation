@@ -102,8 +102,7 @@ final readonly class CacheLayerFactory
     public function lock(
         ?string $storeName = null,
         CacheInterface|Closure|null $resolvedStore = null,
-    ): LockProviderInterface
-    {
+    ): LockProviderInterface {
         $lock = ValueNormalizer::associativeArray($this->config->get('cache.lock', []));
         $storeName = $this->lockStoreName($storeName);
         $store = $this->stores()[$storeName] ?? ['driver' => $storeName];
@@ -617,8 +616,7 @@ final readonly class CacheLayerFactory
         CacheDriver $fallbackDriver,
         array $global,
         array $local,
-    ): array
-    {
+    ): array {
         $name = $this->stringOrNull($local['store'] ?? null);
         if ($name === null && $local === []) {
             $name = $this->stringOrNull($global['store'] ?? null);

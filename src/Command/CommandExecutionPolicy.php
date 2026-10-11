@@ -104,6 +104,7 @@ final readonly class CommandExecutionPolicy
             'termination_grace_seconds' => $this->terminationGraceSeconds,
         ];
     }
+
     private function assertTimeouts(?float $timeoutSeconds, ?float $idleTimeoutSeconds): void
     {
         foreach (['timeout' => $timeoutSeconds, 'idle timeout' => $idleTimeoutSeconds] as $label => $seconds) {
@@ -112,5 +113,4 @@ final readonly class CommandExecutionPolicy
             }
         }
     }
-
 }

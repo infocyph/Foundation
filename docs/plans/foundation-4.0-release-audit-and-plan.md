@@ -732,6 +732,12 @@ Keep only unresolved findings and required release evidence after release.
 - **Additional remediation committed for next-run verification:** focused OTP issuer/algorithm policy, typed module dependency and alias checks, reverse log tail buffer, compiled config provider validation, bounded session expiration scan, sanitized OAuth audit predicate, terminal numeric choice and completion option enumeration. These extracts keep all public behavior and error contracts. Do not mark QA green from passing functional tests alone.
 - **Major migration sequencing:** UID 6 requires coordinated Omnibus 3/CacheLayer 4/DBLayer 6; InterMix 11.1 and Webrick 6 require native graph finalization and provider redesign before the version bump. Preserve a solvable `composer.json` until a complete coordinated migration can be tested.
 
+### 2026-10-11 QA follow-up — 19 method / 3 class findings
+
+- GitHub Actions [38130507296](https://github.com/infocyph/Foundation/actions/runs/38130507296) on `c166cbe` passed the functional Pest, Rector, and PHPCS gates for the inspected PHP 8.4 stable job, four production consumer configurations and clean install. QA jobs remained red **only due to Pint** on constructor/multiline brace placement and method grouping in `CacheLayerFactory`, `RuntimeProcessRegistry` and `CommandExecutionPolicy`. This commit fixes those exact locations, aligning multiline function braces with the verified PHPForge house style and sorting private methods.
+- PHPStan reported **19 function complexity and three class complexity** findings, improved from the opening 34 function / four class findings; no other type diagnostics. Static analysis remains blocked. The native InterMix/Webrick/CacheLayer/DBLayer/Omnibus major migration and authentication/provider simplification remain required and unchecked.
+- Existing regression suites, production-only installation, and native ownership constraints remain mandatory. Check only the newest source-head workflow before certifying any checklist or declaring QA green.
+
 ### Batch 2 — adopt latest container and specialist APIs
 
 - [ ] Complete InterMix graph composition before finalization for every mode;
