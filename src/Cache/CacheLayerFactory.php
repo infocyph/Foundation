@@ -46,7 +46,8 @@ final readonly class CacheLayerFactory
         private PathManager $paths,
         /** @var Closure(?string):Connection */
         private Closure $database,
-    ) {}
+    ) {
+    }
 
     public function cluster(string $name): ClusterRuntime
     {
