@@ -186,6 +186,10 @@ final class ConfigLoader
 
     private function ensureCacheDirectory(string $directory): void
     {
+        if (is_link($directory)) {
+            throw new \RuntimeException('Configuration cache publication root cannot be a symbolic link.');
+        }
+
         if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
             throw new \RuntimeException(sprintf('Unable to create config cache directory "%s".', $directory));
         }
