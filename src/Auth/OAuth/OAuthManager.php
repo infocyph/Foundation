@@ -14,6 +14,7 @@ use Infocyph\Foundation\Auth\Audit\AuthEventType;
 use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Auth\OAuth\Audit\OAuthAuditRecorder;
 use Infocyph\Foundation\Auth\OAuth\Authorization\AuthorizationCodeManager;
+use Infocyph\Foundation\Auth\OAuth\Authorization\AuthorizationProtocolResult;
 use Infocyph\Foundation\Auth\OAuth\Authorization\AuthorizationRedirectContext;
 use Infocyph\Foundation\Auth\OAuth\Authorization\AuthorizationRequest;
 use Infocyph\Foundation\Auth\OAuth\Authorization\AuthorizationRequestValidator;
@@ -67,10 +68,30 @@ final readonly class OAuthManager
     }
 
     /** @param array<string, mixed> $parameters */
-    public function authorizationRedirectContext(array $parameters): AuthorizationRedirectContext
+    public function authorizationProtocolResult(array $parameters): AuthorizationProtocolResult
     {
         try {
-            return $this->authorizationRequests->redirectContext($parameters);
+            return $this->authorizationRequests->evaluate($parameters);
+        } catch (OAuthProtocolException $exception) {
+            $this->recordInvalidRequest($exception, 'redirect_validation');
+
+            throw $exception;
+        }
+    }
+
+    /** @param array<string, mixed> $parameters */
+    public function authorizationRedirectContext(array $parameters): AuthorizationRedirectContext
+    {
+        return $this->authorizationRedirectContextFor($parameters, $this->authorizationProtocolResult($parameters));
+    }
+
+    /** @param array<string, mixed> $parameters */
+    public function authorizationRedirectContextFor(
+        array $parameters,
+        AuthorizationProtocolResult $result,
+    ): AuthorizationRedirectContext {
+        try {
+            return $this->authorizationRequests->redirectContextFor($parameters, $result);
         } catch (OAuthProtocolException $exception) {
             $this->recordInvalidRequest($exception, 'redirect_validation');
 
@@ -311,6 +332,18 @@ final readonly class OAuthManager
     {
         try {
             return $this->authorizationRequests->validate($parameters);
+        } catch (OAuthProtocolException $exception) {
+            $reason = $exception->error === 'invalid_scope' ? 'scope_validation' : 'authorization_request';
+            $this->recordInvalidRequest($exception, $reason);
+
+            throw $exception;
+        }
+    }
+
+    public function validateAuthorizationResult(AuthorizationProtocolResult $result): AuthorizationRequest
+    {
+        try {
+            return $this->authorizationRequests->validateResult($result);
         } catch (OAuthProtocolException $exception) {
             $reason = $exception->error === 'invalid_scope' ? 'scope_validation' : 'authorization_request';
             $this->recordInvalidRequest($exception, $reason);
