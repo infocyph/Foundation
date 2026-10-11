@@ -44,7 +44,7 @@ final readonly class CacheTopologyValidator
         return $named;
     }
 
-    /** @param array<string,mixed> $cluster */
+    /** @param array<mixed> $cluster */
     private function hasStableNodeId(array $cluster): bool
     {
         return is_string($cluster['node_id'] ?? null) && $cluster['node_id'] !== '';
