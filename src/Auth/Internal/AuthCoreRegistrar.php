@@ -18,7 +18,7 @@ use Infocyph\InterMix\DI\Support\ServiceReference;
 
 final readonly class AuthCoreRegistrar
 {
-    public function __construct(private ContainerBuilder $builder) {}
+    public function __construct(private ContainerBuilder $builder, private ConfigRepository $config) {}
 
     public function register(AuthDriverResolver $drivers): void
     {
@@ -42,15 +42,11 @@ final readonly class AuthCoreRegistrar
         );
 
         if (!$this->builder->definitions()->has(PasswordPolicyInterface::class)) {
-            $config = $this->builder->development()->get(ConfigRepository::class);
-            if (!$config instanceof ConfigRepository) {
-                throw new \RuntimeException('Password policy configuration must resolve to ConfigRepository.');
-            }
             $this->builder->singleton(
                 PasswordPolicyInterface::class,
                 FactoryDefinition::construct(BaselinePasswordPolicy::class, [
-                    $config->getInt('auth.password_policy.min_length', 12) ?? 12,
-                    $config->getInt('auth.password_policy.max_length', 1024) ?? 1024,
+                    $this->config->getInt('auth.password_policy.min_length', 12) ?? 12,
+                    $this->config->getInt('auth.password_policy.max_length', 1024) ?? 1024,
                 ]),
             );
         }

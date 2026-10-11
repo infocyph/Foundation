@@ -57,7 +57,7 @@ final class AuthServiceProvider extends ServiceProvider
         $secrets = new AuthSecretResolver($app->config());
         $epicryptTokens = new EpicryptTokenPolicyResolver($app);
 
-        new AuthCoreRegistrar($builder)->register($drivers);
+        new AuthCoreRegistrar($builder, $app->config())->register($drivers);
         new AuthProductionGuard($app)->guard($drivers);
         new AuthStoreRegistrar($app, $builder)->register($drivers);
         new AuthCacheRegistrar($app, $builder)->register($drivers);
