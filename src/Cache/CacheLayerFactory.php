@@ -28,6 +28,7 @@ use Infocyph\CacheLayer\Node\NodeCacheConfig;
 use Infocyph\CacheLayer\Support\RedisConnection;
 use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\Foundation\Cache\Internal\CacheTierDescriptorResolver;
+use Infocyph\Foundation\Cache\Internal\MemcachedConnector;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Exception\ConfigurationException;
 use Infocyph\Foundation\Filesystem\PathManager;
@@ -263,7 +264,7 @@ final readonly class CacheLayerFactory
             CacheDriver::LOCAL => $this->localCache($namespace, $store, $options),
             CacheDriver::MEMCACHE => Cache::memcached(
                 namespace: $namespace,
-                servers: $this->servers($store['servers'] ?? null),
+                servers: MemcachedConnector::servers($store['servers'] ?? null),
                 client: ($store['client'] ?? null) instanceof \Memcached ? $store['client'] : null,
                 options: $options,
             ),
@@ -379,7 +380,7 @@ final readonly class CacheLayerFactory
         return match ($driver) {
             'file' => new FileLockProvider($this->directory($lock), $retry),
             'memcache', 'memcached' => new MemcachedLockProvider(
-                $this->memcachedClient($store, $lock),
+                MemcachedConnector::client($store, $lock),
                 $prefix,
                 $retry,
             ),
@@ -395,28 +396,6 @@ final readonly class CacheLayerFactory
             ),
             default => throw new ConfigurationException(sprintf('Unsupported cache lock driver "%s".', $driver)),
         };
-    }
-
-    /**
-     * @param array<string,mixed> $store
-     * @param array<string,mixed> $lock
-     */
-    private function memcachedClient(array $store, array $lock): \Memcached
-    {
-        $client = $lock['client'] ?? $store['client'] ?? null;
-        if ($client instanceof \Memcached) {
-            return $client;
-        }
-        if (!class_exists(\Memcached::class)) {
-            throw new ConfigurationException('Memcached lock provider requires the Memcached extension.');
-        }
-
-        $client = new \Memcached();
-        if (!$client->addServers($this->servers($lock['servers'] ?? $store['servers'] ?? null))) {
-            throw new ConfigurationException('Memcached lock provider could not configure its servers.');
-        }
-
-        return $client;
     }
 
     /** @return array<string,array<string,mixed>> */
@@ -649,36 +628,6 @@ final readonly class CacheLayerFactory
         return is_array($value) && $value !== []
             ? ValueNormalizer::stringList($value)
             : ['127.0.0.1:6379'];
-    }
-
-    /** @return list<array{0:string,1:int,2:int}> */
-    private function servers(mixed $value): array
-    {
-        if (!is_array($value) || $value === []) {
-            return [['127.0.0.1', 11211, 0]];
-        }
-
-        $servers = [];
-        foreach ($value as $server) {
-            if (is_array($server) && isset($server[0], $server[1]) && is_string($server[0])) {
-                $servers[] = [
-                    $server[0],
-                    ValueNormalizer::int($server[1], 11211),
-                    ValueNormalizer::int($server[2] ?? null, 0),
-                ];
-
-                continue;
-            }
-
-            $server = ValueNormalizer::associativeArray($server);
-            $servers[] = [
-                ValueNormalizer::string($server['host'] ?? null, '127.0.0.1'),
-                ValueNormalizer::int($server['port'] ?? null, 11211),
-                ValueNormalizer::int($server['weight'] ?? null, 0),
-            ];
-        }
-
-        return $servers;
     }
 
     /** @param array<string,mixed> $store */
