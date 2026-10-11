@@ -77,10 +77,11 @@ it('preserves native CacheLayer 4 history across two nodes and fails closed when
                     ],
                 ],
             ]),
-            new PathManager($base),
-            static fn(?string $name = null): never => throw new LogicException(
-                'Native Redis Stream cluster must not require a DBLayer connection.',
-            ),
+            new PathManager($base, ['cache' => 'storage/cache']),
+            static fn(?string $name = null): never => throw new LogicException(sprintf(
+                'Native Redis Stream cluster must not require DBLayer connection "%s".',
+                $name ?? 'default',
+            )),
         );
     };
 
