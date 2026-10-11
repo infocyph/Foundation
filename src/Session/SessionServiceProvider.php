@@ -9,6 +9,7 @@ use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\Foundation\Logging\ExceptionReporter;
@@ -30,8 +31,8 @@ final class SessionServiceProvider extends ServiceProvider
         $lock = is_array($session['lock'] ?? null) ? $session['lock'] : [];
 
         $this->registerCore($builder, $context);
-        $this->registerStore($builder, $driver);
-        $this->registerManager($builder, ($lock['enabled'] ?? false) === true);
+        $this->registerStore($builder, $context, $driver);
+        $this->registerManager($builder, $context, ($lock['enabled'] ?? false) === true);
         $this->registerMiddleware($builder, $context);
     }
 
@@ -63,10 +64,10 @@ final class SessionServiceProvider extends ServiceProvider
         );
     }
 
-    private function registerManager(ContainerBuilder $builder, bool $lockEnabled): void
+    private function registerManager(ContainerBuilder $builder, FoundationBuildContext $context, bool $lockEnabled): void
     {
         if ($lockEnabled) {
-            if (!$builder->definitions()->has(CacheManager::class)) {
+            if (!$context->permitsCapability('cache')) {
                 throw new \LogicException('Session locking requires the Foundation cache capability.');
             }
             $builder->singleton(SessionManager::class, FactoryDefinition::staticFactory(
@@ -123,16 +124,16 @@ final class SessionServiceProvider extends ServiceProvider
         $builder->alias('foundation.session', SessionManager::class);
     }
 
-    private function registerStore(ContainerBuilder $builder, string $driver): void
+    private function registerStore(ContainerBuilder $builder, FoundationBuildContext $context, string $driver): void
     {
         $storeArguments = [new ServiceReference(SessionConfig::class)];
         if ($driver === 'cache') {
-            if (!$builder->definitions()->has(CacheManager::class)) {
+            if (!$context->permitsCapability('cache')) {
                 throw new \LogicException('Cache-backed sessions require the Foundation cache capability.');
             }
             $storeArguments[] = new ServiceReference(CacheManager::class);
         } elseif ($driver === 'database') {
-            if (!$builder->definitions()->has(DBLayerFactory::class)) {
+            if (!$context->permitsCapability('database') || !class_exists(Connection::class)) {
                 throw new \LogicException('Database-backed sessions require the Foundation database capability.');
             }
             $storeArguments[] = null;
@@ -144,7 +145,7 @@ final class SessionServiceProvider extends ServiceProvider
             $storeArguments,
         ));
 
-        if ($builder->definitions()->has(DBLayerFactory::class)) {
+        if ($context->permitsCapability('database') && class_exists(Connection::class)) {
             $builder->singleton(SessionDatabaseSchema::class, FactoryDefinition::construct(
                 SessionDatabaseSchema::class,
                 [new ServiceReference(SessionConfig::class), new ServiceReference(DBLayerFactory::class)],

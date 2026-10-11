@@ -140,7 +140,7 @@ final class CommunicationServiceProvider extends ServiceProvider
 
             return;
         }
-        if (!$builder->definitions()->has(CacheManager::class)) {
+        if (!$context->permitsCapability('cache')) {
             throw new \LogicException(
                 'Webhook replay protection requires the Foundation cache capability.',
             );
