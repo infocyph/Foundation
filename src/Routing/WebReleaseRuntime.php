@@ -129,11 +129,7 @@ final readonly class WebReleaseRuntime
         }
     }
 
-    /**
-     * @param array<string, mixed>|ConfigRepository $config
-     * @param array<int|string, mixed> $foundationCapabilities
-     */
-    /** @param array<string,mixed> $manifest */
+    /** @param array<string, mixed> $manifest */
     private static function assertManifestIdentity(
         array $manifest,
         string $environment,
@@ -147,6 +143,10 @@ final readonly class WebReleaseRuntime
         }
     }
 
+    /**
+     * @param array<string, mixed>|ConfigRepository $config
+     * @param array<int|string, mixed> $foundationCapabilities
+     */
     private static function boot(
         array|ConfigRepository $config,
         string $releaseManifestPath,
