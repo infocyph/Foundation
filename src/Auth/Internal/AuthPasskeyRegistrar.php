@@ -14,7 +14,7 @@ use Infocyph\Foundation\Auth\Passkey\PasskeyCredentialStoreInterface;
 use Infocyph\Foundation\Auth\Passkey\PasskeyServiceInterface;
 use Infocyph\Foundation\Auth\Support\DisabledPasskeyService;
 use Infocyph\Foundation\Auth\Support\InMemoryPasskeyService;
-use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\OTP\Passkey;
 use Webauthn\PublicKeyCredential;
@@ -47,7 +47,7 @@ final readonly class AuthPasskeyRegistrar extends AbstractAuthRegistrar
                 'passkey',
                 [
                     $this->ref(WebAuthnConfigResolver::class),
-                    $this->ref(CacheLayerFactory::class),
+                    $this->ref(CacheManager::class),
                     $storeName,
                 ],
             );
