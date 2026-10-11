@@ -77,6 +77,17 @@ final readonly class FoundationBuildContext
     }
 
     /**
+     * Match bootstrap's explicit capability and module override policy before
+     * the full provider graph is finalized; never inspect partial definitions.
+     */
+    public function permitsCapability(string $capability): bool
+    {
+        return $this->hasCapabilityOverride($capability)
+            ? $this->hasCapability($capability)
+            : (!$this->capabilitiesExplicit || $this->hasCapability($capability));
+    }
+
+    /**
      * @param array<int|string, mixed>|null $capabilities
      * @return array<int|string, mixed>|null
      */

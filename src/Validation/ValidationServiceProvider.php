@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Validation;
 
+use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Config\ConfigRepository;
@@ -29,7 +30,7 @@ final class ValidationServiceProvider extends ServiceProvider
         $validation = is_array($context->config['validation'] ?? null) ? $context->config['validation'] : [];
         $connection = $validation['database_connection'] ?? null;
         $connection = is_string($connection) && $connection !== '' ? $connection : null;
-        $hasDatabase = $builder->definitions()->has(DBLayerFactory::class);
+        $hasDatabase = $context->permitsCapability('database') && class_exists(Connection::class);
 
         $builder->singleton(SchemaRegistry::class, FactoryDefinition::staticFactory(
             ValidationGraphFactory::class,

@@ -9,6 +9,7 @@ use Infocyph\CacheLayer\Cache\Cache;
 use Infocyph\CacheLayer\Cache\CacheInterface;
 use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
 use Infocyph\CacheLayer\Counter\AtomicCounterStoreInterface;
+use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Config\ConfigRepository;
@@ -26,7 +27,7 @@ final class CacheServiceProvider extends ServiceProvider
 {
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        $hasDatabase = $builder->definitions()->has(DBLayerFactory::class);
+        $hasDatabase = $context->permitsCapability('database') && class_exists(Connection::class);
         $builder->singleton(CacheLayerFactory::class, FactoryDefinition::staticFactory(
             CacheGraphFactory::class,
             $hasDatabase ? 'layerFactory' : 'layerFactoryWithoutDatabase',

@@ -105,7 +105,7 @@ final class DatabaseServiceProvider extends ServiceProvider
                 new ServiceReference(ConfigRepository::class),
                 new ServiceReference(DBLayerFactory::class),
                 new ServiceReference(ContainerInterface::class),
-                $builder->definitions()->has(CacheManager::class)
+                $context->permitsCapability('cache')
                     ? new ServiceReference(CacheManager::class)
                     : null,
             ],
