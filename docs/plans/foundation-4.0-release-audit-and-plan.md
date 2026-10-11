@@ -819,6 +819,12 @@ The four PHP 8.4/8.5 lowest/stable QA jobs on source `c31b6e8` passed Pest and R
 - CacheLayer 4 `Memoizer` fingerprints Closure **instance identity**. The persistent-runtime test previously allocated a new Closure on each execution but expected a cache hit. `FoundationPersistentMemoCalls` now retains the callable across executions; the test continues to require the original one miss/one hit behavior and separate once-memoization, principal, session and transaction isolation.
 - This is a test adaptation to a published native contract, not a production workaround. The exact-head matrix must verify it.
 
+### Additional complexity cleanup, pending QA
+
+- `ConfigLoader::loadCacheManifest()` delegates native sharded-cache namespace validation to one typed private method; invalid content still fails closed, and duplicate namespace identity and order are unchanged.
+- `ModuleDependencyResolver::resolve()` delegates per-feature dependency resolution to a typed private method without altering module blocker order or capability readiness. Both edits target PHPForge's 12-point method complexity gate.
+- New syntax, Rector, PHPStan, and feature tests are required before treating these as complete.
+
 ### Batch 2 — adopt latest container and specialist APIs
 
 - [ ] Complete InterMix graph composition before finalization for every mode;

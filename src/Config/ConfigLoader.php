@@ -230,17 +230,14 @@ final class ConfigLoader
             return null;
         }
 
-        $namespaces = [];
-        foreach ($payload['_namespaces'] as $namespace) {
-            if (!is_string($namespace) || preg_match('/^[A-Za-z0-9_-]+$/', $namespace) !== 1) {
-                return null;
-            }
-            $namespaces[$namespace] = true;
+        $namespaces = $this->validatedNamespaces($payload['_namespaces']);
+        if ($namespaces === null) {
+            return null;
         }
 
         return [
             'type' => self::TYPE_SHARDED,
-            'namespaces' => array_keys($namespaces),
+            'namespaces' => $namespaces,
             'complete' => ($payload['_complete'] ?? false) === true,
         ];
     }
@@ -386,6 +383,23 @@ final class ConfigLoader
     }
 
     /** @param array<string, mixed> $payload */
+    /**
+     * @param array<array-key,mixed> $values
+     * @return list<string>|null
+     */
+    private function validatedNamespaces(array $values): ?array
+    {
+        $namespaces = [];
+        foreach ($values as $namespace) {
+            if (!is_string($namespace) || preg_match('/^[A-Za-z0-9_-]+$/', $namespace) !== 1) {
+                return null;
+            }
+            $namespaces[$namespace] = true;
+        }
+
+        return array_keys($namespaces);
+    }
+
     private function writeManifest(string $directory, array $payload): void
     {
         $target = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . self::MANIFEST_FILE;
