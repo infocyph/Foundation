@@ -98,18 +98,20 @@ final class ModuleCatalogValidator
         array $modules,
         string $owner,
     ): void {
-                if (!isset($modules[$dependency['target']])) {
-                    throw new \LogicException(sprintf(
-                        'Module dependency "%s" targets unknown module "%s".',
-                        $scope,
-                        $dependency['target'],
-                    ));
-                }
-                if ($dependency['target'] === $owner) {
-                    throw new \LogicException(sprintf('Module "%s" cannot depend on itself.', $owner));
-                }
-            } elseif ($dependency['target'] === '') {
-                throw new \LogicException(sprintf('Capability dependency "%s" has an empty target.', $scope));
+        if ($dependency['type'] === 'module') {
+            if (!isset($modules[$dependency['target']])) {
+                throw new \LogicException(sprintf(
+                    'Module dependency "%s" targets unknown module "%s".',
+                    $scope,
+                    $dependency['target'],
+                ));
+            }
+            if ($dependency['target'] === $owner) {
+                throw new \LogicException(sprintf('Module "%s" cannot depend on itself.', $owner));
+            }
+        } elseif ($dependency['target'] === '') {
+            throw new \LogicException(sprintf('Capability dependency "%s" has an empty target.', $scope));
+        }
     }
 
     /** @phpstan-param array<string,ModuleFeature> $features */
