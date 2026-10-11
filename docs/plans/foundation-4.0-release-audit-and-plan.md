@@ -558,6 +558,13 @@ generation, completed requests, missing capabilities, no coroutine scope, and
 Runwire absent. Assert exact instance identity, no cross-tenant state, exactly-once
 cleanup, and zero competing host lifecycle actions.
 
+## Active Batch 1 execution log
+
+- **2026-10-11 — PR opened:** [#20](https://github.com/infocyph/Foundation/pull/20), draft, `feature/foundation-3` → `main`. Merge/tag/publication are excluded.
+- **2026-10-11 — Regression committed:** `76b1385` introduces `tests/Feature/Foundation4CacheIdentityRegressionTest.php`, checking configured default/named store identity in both access orders and default replacement. These tests capture the expected contract and are **not marked passing**. The current `CacheManager` still caches `__default__` separately and has not been repaired.
+- **QA status:** Not executed for this new commit yet. The existing [current-main CI failure](https://github.com/infocyph/Foundation/actions/runs/38105311540) predates Batch 1 work and cannot certify it.
+- **Next Batch 1 dependencies:** map auth/browser-session ownership and source-level API dispositions; add owner-appropriate numeric-path, generation/symlink and throwing-reporter regressions; obtain a published upstream ArrayKit fix before closing Batch 1. Do not import the unsafe symlink-recursing `arraykit-5.3/acceptance` implementation.
+
 ## Implementation batches and acceptance
 
 Every checkbox below is open. Update this plan as work closes; retain only
