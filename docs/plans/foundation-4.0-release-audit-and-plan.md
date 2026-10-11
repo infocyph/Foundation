@@ -814,6 +814,11 @@ The four PHP 8.4/8.5 lowest/stable QA jobs on source `c31b6e8` passed Pest and R
 - Added a separate regression verifying that *pre-initialization writes do not survive a new cursor/history generation*. This preserves native fail-closed recovery; no bypass, no fallback to CacheLayer 3 semantics.
 - The persistent execution memoizer result remains separately unexplained; no change to its expectations until its host/runtime ownership is identified.
 
+### CacheLayer 4 memoization regression fix
+
+- CacheLayer 4 `Memoizer` fingerprints Closure **instance identity**. The persistent-runtime test previously allocated a new Closure on each execution but expected a cache hit. `FoundationPersistentMemoCalls` now retains the callable across executions; the test continues to require the original one miss/one hit behavior and separate once-memoization, principal, session and transaction isolation.
+- This is a test adaptation to a published native contract, not a production workaround. The exact-head matrix must verify it.
+
 ### Batch 2 — adopt latest container and specialist APIs
 
 - [ ] Complete InterMix graph composition before finalization for every mode;
