@@ -79,7 +79,25 @@ final class ModuleCatalogValidator
                 throw new \LogicException(sprintf('Module dependency "%s" must explain why it is required.', $scope));
             }
 
-            if ($dependency['type'] === 'module') {
+            $this->assertDependencyTarget($scope, $dependency, $modules, $owner);
+
+            $when = $dependency['when'] ?? null;
+            if ($when !== null) {
+                $this->assertPredicate($scope, $when);
+            }
+        }
+    }
+
+    /**
+     * @phpstan-param ModuleDependency $dependency
+     * @phpstan-param array<string,ModuleDefinition> $modules
+     */
+    private function assertDependencyTarget(
+        string $scope,
+        array $dependency,
+        array $modules,
+        string $owner,
+    ): void {
                 if (!isset($modules[$dependency['target']])) {
                     throw new \LogicException(sprintf(
                         'Module dependency "%s" targets unknown module "%s".',
@@ -92,13 +110,6 @@ final class ModuleCatalogValidator
                 }
             } elseif ($dependency['target'] === '') {
                 throw new \LogicException(sprintf('Capability dependency "%s" has an empty target.', $scope));
-            }
-
-            $when = $dependency['when'] ?? null;
-            if ($when !== null) {
-                $this->assertPredicate($scope, $when);
-            }
-        }
     }
 
     /** @phpstan-param array<string,ModuleFeature> $features */
