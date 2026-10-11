@@ -133,6 +133,20 @@ final readonly class WebReleaseRuntime
      * @param array<string, mixed>|ConfigRepository $config
      * @param array<int|string, mixed> $foundationCapabilities
      */
+    /** @param array<string,mixed> $manifest */
+    private static function assertManifestIdentity(
+        array $manifest,
+        string $environment,
+        string $configFingerprint,
+    ): void {
+        if (($manifest['environment'] ?? null) !== $environment
+            || !is_string($manifest['config_fingerprint'] ?? null)
+            || !hash_equals($configFingerprint, $manifest['config_fingerprint'])
+        ) {
+            throw new \RuntimeException('Foundation web release configuration identity mismatch.');
+        }
+    }
+
     private static function boot(
         array|ConfigRepository $config,
         string $releaseManifestPath,
@@ -149,12 +163,7 @@ final readonly class WebReleaseRuntime
 
         $environment = $settings->environment();
         $configFingerprint = $settings->configFingerprint();
-        if (($manifest['environment'] ?? null) !== $environment
-            || !is_string($manifest['config_fingerprint'] ?? null)
-            || !hash_equals($configFingerprint, $manifest['config_fingerprint'])
-        ) {
-            throw new \RuntimeException('Foundation web release configuration identity mismatch.');
-        }
+        self::assertManifestIdentity($manifest, $environment, $configFingerprint);
 
         $intermix = $manifest['intermix'] ?? null;
         $webrick = $manifest['webrick'] ?? null;
