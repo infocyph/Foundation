@@ -35,6 +35,7 @@ final readonly class GrantResolver
 
         return $matches;
     }
+
     private function eligible(AccessGrant $grant, Ability $ability, int $now): bool
     {
         if ($grant->isRevoked() || $grant->isExpiredAt($now)) {
@@ -47,5 +48,4 @@ final readonly class GrantResolver
         return ($grant->resourceType === null || $grant->resourceType === $ability->resourceType)
             && ($grant->resourceId === null || $grant->resourceId === $ability->resourceId);
     }
-
 }

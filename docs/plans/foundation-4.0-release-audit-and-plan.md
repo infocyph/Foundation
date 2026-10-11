@@ -776,6 +776,12 @@ The four PHP 8.4/8.5 lowest/stable QA jobs on source `c31b6e8` passed Pest and R
 - `ParsedInput::consumeShortOptions()` delegates the existing short-option attached/following-token value handling, preserving token consumption, error text, unknown flags and grouped short options.
 - These changes are separate from the specialist-major migration; require exact-head authorization and CLI parsing regression QA before checking their completion.
 
+### 2026-10-11 exact-head QA — grant helper formatting and complexity
+
+- [Workflow 38135271645](https://github.com/infocyph/Foundation/actions/runs/38135271645) on `15632476` passed production installation and all four core consumer combinations; its PHP 8.5 stable job passed Pest, Rector and PHPCS but Pint reported the missing method separation in `GrantResolver`. The source fix is committed here, without exceptions or rule changes.
+- PHPStan counts improved to **14 function-level and three class-level complexity findings**, with zero unrelated type diagnostics. The analyzers remain red. Complete PHP 8.4/8.5 lowest/stable QA and both benchmarks must be checked on this latest commit.
+- Native-core upgrade group and incomplete compatibility mappings remain unchanged. Obsolete files were removed only after verifying native Epicrypt/OTP owners and retained data migrations.
+
 ### Batch 2 — adopt latest container and specialist APIs
 
 - [ ] Complete InterMix graph composition before finalization for every mode;
