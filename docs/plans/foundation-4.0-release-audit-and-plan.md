@@ -647,6 +647,14 @@ Require upstream tests for `app.servers.0`, `app.servers.1`, negative integer ke
 - **Follow-up validation:** `tests/Feature/Foundation4ArrayKitPublicationSafetyTest.php` now also asserts that linked, malformed, and missing native generation pointers fail safely without modifying external sentinel files. The previous security check exceeded the PHPForge per-function cognitive-complexity threshold; the pointer and directory checks were separated before the latest run. This is an **unverified fix**, not a passing QA result.
 - **Current commit-specific gate:** evaluate the most recent PR run after the tracker is updated; passing consumer-install/benchmark jobs from superseded commits are informative only. No approval to progress past Batch 1 until upstream ArrayKit and required behavioral evidence are available.
 
+### 2026-10-11 verification checkpoint — reconciled native branch changes
+
+The hardening branch's MFA, passkey, browser-session and database-migration consumers now resolve shared cache state through `CacheManager` rather than bypassing the store identity with new native instances. `AuthCacheRegistrar` selects native atomic counters for host/cluster state. The redundant `CacheLayerCounterStore` and `WebrickAtomicCounter` are deleted and Webrick's native `AtomicCounterAdapter` is used. Imported tests cover cache registry replacements, concurrent refresh rotation/replay/audit, Pathwise prepare-once/ranges, Epicrypt validate-once/approved redirects and TalkingBytes typed configuration/TLS policy.
+
+On [CI run 38120431178](https://github.com/infocyph/Foundation/actions/runs/38120431178), the PHP 8.5 stable test suite produced **491 passed, two failed**, both caused by the published ArrayKit `ReflectionReference` numeric-key defect. Four PHP 8.4/8.5 production consumer variants and clean install passed; Rector, reference checks and architectural boundaries passed. That run also detected Pint ordering/braces violations in newly edited `CacheLayerFactory` and `ArrayKitConfigCache`, and PHPCS unused test callback parameters; all three have since been corrected in subsequent commits. PHPStan still reports 34 function and four class complexity violations distributed across the broader 4.0 redesign, without new API/type diagnostics. None of these commits relaxes a quality gate.
+
+**Batch 1 status:** first two architecture/branch-disposition inventory items complete at capability level. Runtime compatibility and per-symbol code removal are explicitly Batch 2 work, not hidden Batch 1 completion. Tests and native helper integration need passing final-commit QA; the upstream ArrayKit patch still cannot be pushed or published through this GitHub connection (branch and issue creation both fail HTTP 403), so remaining Batch 1 checkboxes stay open. Historical tests on previous commits do not certify the next source SHA.
+
 ### Provisional mechanism dispositions (Batch 1 ownership review, incomplete)
 
 These are concrete starting decisions, not a claim that every production symbol has been audited or that APIs are frozen. The final ownership/public-surface record must include all built-in services and persisted-data effects.
@@ -673,15 +681,16 @@ These are concrete starting decisions, not a claim that every production symbol 
 
 ## Implementation batches and acceptance
 
-Every checkbox below is open. Update this plan as work closes; retain only
-unresolved findings and required release evidence rather than completed history.
+Checkmarks indicate verified scope/design decisions, not final source certification.
+Unchecked items remain release blockers until the specific acceptance evidence is present.
+Keep only unresolved findings and required release evidence after release.
 
 ### Batch 1 — preserve reproductions and reconcile branch intent
 
-- [ ] Complete the framework ownership/public-surface review and built-in auth/
+- [x] Complete the framework ownership/public-surface review and built-in auth/
   session flow design before choosing replacement APIs; close F4-08 through the
   subsequent implementation batches.
-- [ ] Account for every post-2.1.1 main change group and both branches with an
+- [x] Account for every post-2.1.1 main change group and both branches with an
   explicit retain/redesign/delegate/delete decision, migration notes, and
   meaningful behavioral coverage; retain security invariants when replacing code.
 - [ ] Convert the confirmed ArrayKit numeric-path, generation/symlink, cache
