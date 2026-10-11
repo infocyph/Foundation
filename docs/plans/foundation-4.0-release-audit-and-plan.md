@@ -770,6 +770,12 @@ The 4.0 runtime and `AuthOAuthRegistrar` already use Epicrypt's native `RefreshT
 
 The four PHP 8.4/8.5 lowest/stable QA jobs on source `c31b6e8` passed Pest and Rector but failed Pint solely on `ModuleCatalog` method separation and `ScheduleManager` private method order/brace style. Corrected the exact source formatting, restored the original `@phpstan-impure` annotation to `interrupted()`, and kept scheduler polling/cancellation behavior unchanged. The full matrix must be checked again on the new SHA. PHPStan retains **16 method / 3 class** cognitive-complexity findings and no other diagnostics; these remain blocking under unchanged budgets.
 
+### Prepared auth-grant and CLI parsing simplifications (2026-10-11)
+
+- `GrantResolver::forPrincipal()` delegates an unchanged revoked/expiry/ability/resource predicate to a private eligibility check; preserves authorization semantics including wildcard and resource mismatch.
+- `ParsedInput::consumeShortOptions()` delegates the existing short-option attached/following-token value handling, preserving token consumption, error text, unknown flags and grouped short options.
+- These changes are separate from the specialist-major migration; require exact-head authorization and CLI parsing regression QA before checking their completion.
+
 ### Batch 2 — adopt latest container and specialist APIs
 
 - [ ] Complete InterMix graph composition before finalization for every mode;
