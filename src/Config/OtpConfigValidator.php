@@ -108,7 +108,7 @@ final readonly class OtpConfigValidator
         if (!is_string($issuer) || trim($issuer) === '') {
             $issues[] = new ConfigIssue('auth.otp.issuer must be a non-empty string.', 'auth.otp.issuer');
         }
-    
+
         $algorithm = $this->config->get('auth.otp.totp.algorithm', 'sha1');
         if (!is_string($algorithm) || !in_array(strtolower(trim($algorithm)), ['sha1', 'sha256', 'sha512'], true)) {
             $issues[] = new ConfigIssue(
