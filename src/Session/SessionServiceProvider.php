@@ -7,7 +7,6 @@ namespace Infocyph\Foundation\Session;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceProvider;
-use Infocyph\Foundation\Cache\CacheLayerFactory;
 use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\DBLayerFactory;
@@ -67,7 +66,7 @@ final class SessionServiceProvider extends ServiceProvider
     private function registerManager(ContainerBuilder $builder, bool $lockEnabled): void
     {
         if ($lockEnabled) {
-            if (!$builder->definitions()->has(CacheLayerFactory::class)) {
+            if (!$builder->definitions()->has(CacheManager::class)) {
                 throw new \LogicException('Session locking requires the Foundation cache capability.');
             }
             $builder->singleton(SessionManager::class, FactoryDefinition::staticFactory(
@@ -76,7 +75,7 @@ final class SessionServiceProvider extends ServiceProvider
                 [
                     new ServiceReference(SessionConfig::class),
                     new ServiceReference(SessionStoreFactory::class),
-                    new ServiceReference(CacheLayerFactory::class),
+                    new ServiceReference(CacheManager::class),
                     new ServiceReference(ContainerInterface::class),
                 ],
             ));
