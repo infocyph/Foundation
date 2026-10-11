@@ -95,14 +95,23 @@ it('keeps specialist native owners selected at Foundation integration seams', fu
         ->not->toContain('OAuthRefreshTokenCoordinator::class');
 });
 
-it('keeps compatibility-only owners outside normal runtime selection', function (): void {
+it('removes superseded native counters and OAuth refresh implementations', function (): void {
     $root = dirname(__DIR__, 2);
-    $legacyCounter = $root . '/src/Cache/WebrickAtomicCounter.php';
-    $legacyRefresh = file_get_contents($root . '/src/Auth/OAuth/Token/OAuthRefreshTokenCoordinator.php');
+    $obsolete = [
+        'src/Cache/WebrickAtomicCounter.php',
+        'src/Auth/Adapter/CacheLayer/CacheLayerCounterStore.php',
+        'src/Auth/OAuth/Token/OAuthRefreshTokenCoordinator.php',
+        'src/Auth/OAuth/Token/OAuthRefreshTokenIssue.php',
+        'src/Auth/OAuth/Token/OAuthRefreshTokenRecord.php',
+        'src/Auth/OAuth/Token/OAuthRefreshRotationResult.php',
+        'src/Auth/OAuth/Token/OAuthRefreshRotationStatus.php',
+        'src/Auth/OAuth/Contract/OAuthRefreshTokenStoreInterface.php',
+        'src/Auth/Adapter/DBLayer/OAuth/DBLayerOAuthRefreshTokenStore.php',
+    ];
 
-    expect($legacyCounter)->not->toBeFile()
-        ->and($legacyRefresh)->toBeString()
-        ->toContain('@deprecated');
+    foreach ($obsolete as $path) {
+        expect($root . '/' . $path)->not->toBeFile();
+    }
 });
 
 

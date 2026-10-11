@@ -744,6 +744,12 @@ Keep only unresolved findings and required release evidence after release.
 - **PHPStan remains red** on both PHP versions: exactly **19 function** and **three class** cognitive-complexity findings under the unchanged 12/80 engineering budgets; no other type/API diagnostics. The full workflow therefore fails. Do not describe the PR or Batch 2 as release-ready.
 - The source revision tested is `079f6d75a00d09f6ee03b22ce869af8ec1ccea97`. This tracker-only update does not modify tested source. Unresolved native-major migrations, auth/DI scope lifecycle, real-service release certification and performance acceptance stay unchecked.
 
+### Obsolete-file removal — native Epicrypt refresh-token boundary (2026-10-11)
+
+The 4.0 runtime and `AuthOAuthRegistrar` already use Epicrypt's native `RefreshTokenManager` and `DBLayerEpicryptRefreshTokenStore`, with tested replay, rotation and audit semantics. The old parallel Foundation coordinator/record/issue/rotation/store-interface and `DBLayerOAuthRefreshTokenStore` are **not selected by the runtime** and exist only as a dead legacy mechanism. Removed all seven obsolete production PHP files, together with their unused OAuth fixture field/import/instantiation. Updated `FoundationArchitectureBoundaryTest` to require those files to be absent, not merely marked `@deprecated`. Retained Epicrypt OAuth refresh, concurrency and audit test suites and existing persisted-data migration schema; **schema/data removal is not authorized by class removal**.
+
+**QA gate:** native OAuth refresh/rotation/replay/revocation tests plus full PHPForge supported matrix on the new commit. This one removal closes a clear legacy cluster, **not** the whole Batch 2 library/ABI audit; other suspected obsolete files require reachability and persisted-data evidence first.
+
 ### Batch 2 — adopt latest container and specialist APIs
 
 - [ ] Complete InterMix graph composition before finalization for every mode;
