@@ -46,8 +46,7 @@ final readonly class CacheLayerFactory
         private PathManager $paths,
         /** @var Closure(?string):Connection */
         private Closure $database,
-    ) {
-    }
+    ) {}
 
     public function cluster(string $name): ClusterRuntime
     {
@@ -616,7 +615,8 @@ final readonly class CacheLayerFactory
         CacheDriver $fallbackDriver,
         array $global,
         array $local,
-    ): array {
+    ): array
+    {
         $name = $this->stringOrNull($local['store'] ?? null);
         if ($name === null && $local === []) {
             $name = $this->stringOrNull($global['store'] ?? null);
