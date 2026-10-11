@@ -47,9 +47,9 @@ final class CacheGraphFactory
         );
     }
 
-    public static function lock(CacheLayerFactory $factory): LockProviderInterface
+    public static function lock(CacheManager $manager): LockProviderInterface
     {
-        return $factory->lock();
+        return $manager->lock();
     }
 
     public static function manager(
