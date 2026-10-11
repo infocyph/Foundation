@@ -96,7 +96,7 @@ final class ArrayKitConfigCache
 
         // Once the single cache is valid, remove only verified native artifacts.
         $this->removeStaleFiles($directory, [pathinfo(self::SINGLE_FILE, PATHINFO_FILENAME)], keepFlat: false);
-        $this->removeNativeGenerations($directory);
+        $this->retireNativeGenerationPointer($directory);
     }
 
     private function activeCacheDirectory(string $directory): string
@@ -152,27 +152,16 @@ final class ArrayKitConfigCache
         }
     }
 
-    private function removeNativeGenerations(string $directory): void
+    /**
+     * Existing readers may be pinned to an older ArrayKit generation. Never
+     * delete those directories during an in-place cache mode transition.
+     * Release-owned generation garbage collection follows the host's lease.
+     */
+    private function retireNativeGenerationPointer(string $directory): void
     {
-        $root = rtrim($directory, DIRECTORY_SEPARATOR);
-        $this->assertNativeGenerationsSafe($directory);
-
-        $pointer = $root . DIRECTORY_SEPARATOR . '.arraykit-generation';
+        $pointer = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . '.arraykit-generation';
         if (is_file($pointer) && !unlink($pointer)) {
-            throw new \RuntimeException('Unable to remove obsolete ArrayKit generation pointer.');
-        }
-
-        foreach (glob($root . DIRECTORY_SEPARATOR . '.arraykit-gen-*') ?: [] as $generation) {
-            foreach (scandir($generation) ?: [] as $entry) {
-                if ($entry !== '.' && $entry !== '..'
-                    && !unlink($generation . DIRECTORY_SEPARATOR . $entry)
-                ) {
-                    throw new \RuntimeException('Unable to remove obsolete ArrayKit generation artifact.');
-                }
-            }
-            if (!rmdir($generation)) {
-                throw new \RuntimeException('Unable to remove obsolete ArrayKit generation directory.');
-            }
+            throw new \RuntimeException('Unable to retire obsolete ArrayKit generation pointer.');
         }
     }
 
