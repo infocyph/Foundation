@@ -181,7 +181,6 @@ final readonly class CacheLayerFactory
         return $transport->pruneBefore(time() - $retentionSeconds, max(1, $limit));
     }
 
-    /** @param array<string,mixed> $store */
     public function storeName(?string $name = null): string
     {
         return $name ?? $this->stringConfig('cache.default', 'memory');
