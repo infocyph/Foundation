@@ -759,6 +759,13 @@ The 4.0 runtime and `AuthOAuthRegistrar` already use Epicrypt's native `RefreshT
 
 - **Obsolete WebAuthn sentinel deleted:** `src/Auth/Adapter/WebAuthn/WebAuthnRuntime.php` was an empty `@deprecated` compatibility placeholder explicitly stating OTP owns ceremonies, with no runtime registrations. The cold-resolution test now covers actual lazy auth services rather than an unused placeholder; the architecture test enforces its absence. No OTP ceremony/persisted data owner was removed. Native OTP 7 remains a coordinated CacheLayer 4 upgrade.
 
+### Focused complexity regressions — package features, sanitizer pipelines, scheduler (2026-10-11)
+
+- `ModuleCatalog::requestFeature()` delegates only the shared-package ambiguity decision to a typed private policy method; the same one-feature fast path, intersection semantics, and explicit-feature errors remain.
+- `ValidatorFactory::sanitizerMap()` delegates normalized per-field pipelines to a cohesive filter, preserving scalar/callable and permitted step ordering and omission of empty or invalid definitions.
+- `ScheduleManager::work()` delegates its bounded interrupted sleep loop without changing runtime token checks, heartbeat ordering, process registry ownership or primary error preservation.
+- These are **source edits awaiting exact-head Pest/Pint/Rector/PHPStan QA**. Strict 12/80 complexity limits stay enabled and the native-major migration still blocks Batch 2 completion.
+
 ### Batch 2 — adopt latest container and specialist APIs
 
 - [ ] Complete InterMix graph composition before finalization for every mode;

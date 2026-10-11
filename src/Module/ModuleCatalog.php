@@ -691,26 +691,40 @@ final class ModuleCatalog
             if ($requested !== $package || $requirement['role'] !== 'feature') {
                 continue;
             }
-            if (count($requirement['features']) === 1) {
-                return $requirement['features'][0];
-            }
-
-            $explicit = $this->normalizeFeatures($definition, $requestedFeatures);
-            $matching = array_values(array_intersect($requirement['features'], $explicit));
-            if (count($matching) === 1) {
-                return $matching[0];
-            }
-            if ($matching !== []) {
-                return null;
-            }
-
-            throw new \InvalidArgumentException(sprintf(
-                'Package "%s" is shared by features %s; request the module with --feature explicitly.',
-                $package,
-                implode(', ', $requirement['features']),
-            ));
+            return $this->resolvePackageFeature($package, $requirement, $definition, $requestedFeatures);
         }
 
         return false;
     }
+    /**
+     * @phpstan-param PackageRequirement $requirement
+     * @phpstan-param ModuleDefinition $definition
+     * @param list<string> $requestedFeatures
+     */
+    private function resolvePackageFeature(
+        string $package,
+        array $requirement,
+        array $definition,
+        array $requestedFeatures,
+    ): ?string {
+        if (count($requirement['features']) === 1) {
+            return $requirement['features'][0];
+        }
+
+        $explicit = $this->normalizeFeatures($definition, $requestedFeatures);
+        $matching = array_values(array_intersect($requirement['features'], $explicit));
+        if (count($matching) === 1) {
+            return $matching[0];
+        }
+        if ($matching !== []) {
+            return null;
+        }
+
+        throw new \InvalidArgumentException(sprintf(
+            'Package "%s" is shared by features %s; request the module with --feature explicitly.',
+            $package,
+            implode(', ', $requirement['features']),
+        ));
+    }
+
 }

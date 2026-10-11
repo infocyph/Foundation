@@ -132,12 +132,8 @@ final readonly class ScheduleManager
                     break;
                 }
 
-                $remaining = $sleepSeconds;
-                while ($remaining-- > 0) {
-                    if ($this->interrupted($control, $runtimeToken, $scheduleToken)) {
-                        return 0;
-                    }
-                    usleep(1_000_000);
+                if ($this->interruptedDuringWait($sleepSeconds, $control, $runtimeToken, $scheduleToken)) {
+                    return 0;
                 }
             }
 
@@ -218,6 +214,22 @@ final readonly class ScheduleManager
     }
 
     /** @phpstan-impure */
+    private function interruptedDuringWait(
+        int $seconds,
+        RuntimeControl $control,
+        string $runtimeToken,
+        string $scheduleToken,
+    ): bool {
+        while ($seconds-- > 0) {
+            if ($this->interrupted($control, $runtimeToken, $scheduleToken)) {
+                return true;
+            }
+            usleep(1_000_000);
+        }
+
+        return false;
+    }
+
     private function interrupted(
         RuntimeControl $control,
         string $runtimeToken,
