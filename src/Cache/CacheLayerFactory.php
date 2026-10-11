@@ -71,6 +71,7 @@ final readonly class CacheLayerFactory
             new ClusterCacheConfig(
                 cluster: $this->requiredString($cluster, 'cluster', 'cache.clusters.' . $name),
                 nodeId: $this->requiredString($cluster, 'node_id', 'cache.clusters.' . $name),
+                transportIdentity: $this->requiredString($cluster, 'transport_identity', 'cache.clusters.' . $name),
                 consumerBatchSize: max(1, ValueNormalizer::int($cluster['consumer_batch_size'] ?? null, 1_000)),
                 invalidateLocallyFirst: ValueNormalizer::bool($cluster['invalidate_locally_first'] ?? null, true),
             ),
@@ -244,8 +245,8 @@ final readonly class CacheLayerFactory
             maxPayloadBytes: is_numeric($maxPayload) ? max(1, (int) $maxPayload) : 8_388_608,
             compressionThreshold: is_numeric($threshold) && (int) $threshold > 0 ? (int) $threshold : null,
             compressionLevel: max(1, min(9, ValueNormalizer::int($compression['level'] ?? null, 6))),
-            allowClosures: ValueNormalizer::bool($serialization['allow_closure_payloads'] ?? null, true),
-            allowObjects: ValueNormalizer::bool($serialization['allow_object_payloads'] ?? null, true),
+            allowClosures: ValueNormalizer::bool($serialization['allow_closure_payloads'] ?? null, false),
+            allowObjects: ValueNormalizer::bool($serialization['allow_object_payloads'] ?? null, false),
             failOpen: ValueNormalizer::bool($store['fail_open'] ?? null, true),
         );
     }
@@ -459,8 +460,8 @@ final readonly class CacheLayerFactory
             lockDirectory: $this->directoryFrom($store, 'lock_directory'),
             busyTimeoutMs: max(0, ValueNormalizer::int($store['busy_timeout_ms'] ?? null, 1_000)),
             apcuEnabled: ValueNormalizer::bool($store['apcu_enabled'] ?? null, true),
-            failOpen: ValueNormalizer::bool($store['fail_open'] ?? null, true),
             lockProvider: $this->nodeLockProvider($store),
+            options: $this->cacheOptions($store),
         );
     }
 

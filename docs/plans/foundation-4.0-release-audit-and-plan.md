@@ -788,6 +788,13 @@ The four PHP 8.4/8.5 lowest/stable QA jobs on source `c31b6e8` passed Pest and R
 - Updated **production constraints, development-only optional package constraints, ModuleCatalog module floors, and both dependency-contract test suites in one tree change**. Omnibus 3's UID6/DBLayer6/CacheLayer4 requirements are no longer contradictory; this does **not** certify unchanged PHP integration APIs.
 - **Required QA before acceptance:** Composer lowest/stable resolution on PHP 8.4 and 8.5, production installation with only direct requirements, real service tests, native cluster configuration including transport identity and history, DBLayer6 cache visibility and pooling, Omnibus settlement/cancellation, OTP state migration and ReqShield DB bridge. Any failing contracts must be fixed natively without resurrecting 5.x/3.x fallback paths. Do not mark the Batch 2 native API items complete until verified.
 
+### CacheLayer 4 native contract migration — cluster history identity (2026-10-11; pending QA)
+
+- `CacheLayerFactory::cluster()` passes a **required explicitly configured** durable `transport_identity` to native `ClusterCacheConfig`; every history reset needs a fresh, never-used value. The value is **not inferred** from cluster, node ID, or transport name because that could silently reuse a stale history generation.
+- `CacheTopologyValidator` rejects missing/invalid transport identities with the same format as native `ClusterInput::transportIdentity()`. Publishable `resources/config/cache.php` includes the key and an explicit history-reset comment; `ClusterCacheIntegrationTest` covers valid and missing identity.
+- CacheLayer 4 `NodeCacheConfig` takes `options: CacheOptions` rather than deleted `failOpen:`. Foundation applies existing merged config through `cacheOptions($store)`, with native safe object/Closure deserialization defaults **false** rather than implicitly opting back into unsafe payloads.
+- **Pending QA:** SQLite node/cluster/outbox/race tests, exact-head PHPStan and PHPForge formatting, and real shared transport history and invalidation tests. CacheLayer 4 stored signed envelopes are not interchangeable with 3.x; drain or invalidate previously signed records before 4.0 cutover.
+
 ### Batch 2 — adopt latest container and specialist APIs
 
 - [ ] Complete InterMix graph composition before finalization for every mode;

@@ -105,6 +105,7 @@ it('rejects unsafe cluster topology and non-atomic counter configuration', funct
     $validation = $app->make(ConfigValidator::class)->validate();
     expect($validation->fails())->toBeTrue()
         ->and($validation->messages())->toContain('cache.clusters.auth.node_id must be a stable explicit instance identity.')
+        ->and($validation->messages())->toContain('cache.clusters.auth.transport_identity must be a stable history identity (1-128 A-Z, a-z, 0-9, _, ., -).')
         ->and($validation->messages())->toContain('cache.clusters.auth cannot be used for auth, session, security, or idempotency state.')
         ->and($validation->messages())->toContain('cache.counters.auth must use Redis or Valkey for atomic increments.');
 });
@@ -179,7 +180,8 @@ function foundationClusterCacheApplication(): \Infocyph\Foundation\Application\A
             ],
             'clusters' => [
                 'catalog' => [
-                    'store' => 'catalog', 'cluster' => 'catalog', 'node_id' => 'node-a', 'transport' => 'events',
+                    'store' => 'catalog', 'cluster' => 'catalog', 'node_id' => 'node-a',
+                    'transport' => 'events', 'transport_identity' => 'catalog-events-v1',
                 ],
             ],
         ],

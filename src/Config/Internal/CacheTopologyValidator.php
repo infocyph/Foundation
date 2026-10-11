@@ -50,6 +50,14 @@ final readonly class CacheTopologyValidator
         return is_string($cluster['node_id'] ?? null) && $cluster['node_id'] !== '';
     }
 
+    /** @param array<mixed> $cluster */
+    private function hasStableTransportIdentity(array $cluster): bool
+    {
+        $identity = $cluster['transport_identity'] ?? null;
+
+        return is_string($identity) && preg_match('/^[A-Za-z0-9_.-]{1,128}$/D', $identity) === 1;
+    }
+
     private function isAbsolutePath(string $path): bool
     {
         return preg_match('/^(?:[A-Z]:[\\\\\\/]|\\\\\\\\|\/)/i', $path) === 1;
@@ -115,6 +123,9 @@ final readonly class CacheTopologyValidator
             $transport = $cluster['transport'] ?? null;
             if (!$this->hasStableNodeId($cluster)) {
                 $issues[] = new ConfigIssue($key . '.node_id must be a stable explicit instance identity.', $key . '.node_id');
+            }
+            if (!$this->hasStableTransportIdentity($cluster)) {
+                $issues[] = new ConfigIssue($key . '.transport_identity must be a stable history identity (1-128 A-Z, a-z, 0-9, _, ., -).', $key . '.transport_identity');
             }
             if (!$this->referencesNodeStore($store, $stores)) {
                 $issues[] = new ConfigIssue($key . '.store must reference a node cache store.', $key . '.store');
