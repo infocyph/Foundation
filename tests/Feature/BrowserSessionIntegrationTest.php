@@ -341,6 +341,7 @@ it('reports cleanup failures without replacing the primary session failure', fun
     $store->save($id, new \Infocyph\Foundation\Session\SessionPayload(['value' => 1], [], time() + 60));
 
     $locks = new class implements LockProviderInterface {
+        public int $releases = 0;
         public function acquire(string $key, float $waitSeconds, float $leaseSeconds = 30.0): ?LockHandle
         {
             unset($waitSeconds);
@@ -356,6 +357,7 @@ it('reports cleanup failures without replacing the primary session failure', fun
         public function release(?LockHandle $handle): void
         {
             if ($handle !== null) {
+                ++$this->releases;
                 throw new RuntimeException('cleanup-secret');
             }
         }
@@ -364,8 +366,14 @@ it('reports cleanup failures without replacing the primary session failure', fun
         /** @var list<array{level:mixed,message:string,context:array<string,mixed>}> */
         public array $records = [];
 
+        public bool $fail = false;
+
         public function log($level, string|Stringable $message, array $context = []): void
         {
+            if ($this->fail) {
+                throw new RuntimeException('secondary reporting failed');
+            }
+
             $this->records[] = [
                 'level' => $level,
                 'message' => (string) $message,
@@ -401,6 +409,33 @@ it('reports cleanup failures without replacing the primary session failure', fun
         ->and(json_encode($logger->records, JSON_THROW_ON_ERROR))
         ->not->toContain('cleanup-secret')
         ->not->toContain('primary application failed');
+
+    expect($locks->releases)->toBe(1);
+    $logger->fail = true;
+    $primary = new RuntimeException('primary failure must win');
+    $caught = null;
+    try {
+        browserSessionWithinScope(
+            $container,
+            static fn(): Response => $middleware(
+                Request::fake(uri: 'https://example.test/reporter-failure')
+                    ->withCookieParams(['infbyte_session' => $id]),
+                static function (Request $request) use ($primary): never {
+                    BrowserSession::fromRequest($request)->get('value');
+
+                    throw $primary;
+                },
+            ),
+        );
+    } catch (Throwable $exception) {
+        $caught = $exception;
+    }
+
+    expect($caught)->toBe($primary)
+        ->and($locks->releases)->toBe(2)
+        ->and($logger->records)->toHaveCount(1);
+    expect(fn() => browserSessionWithinScope($container, static fn(): BrowserSession => $manager->current()))
+        ->toThrow(LogicException::class, 'No browser session is active');
 });
 
 it('releases CacheLayer session locks when request handling fails', function (): void {
