@@ -6,7 +6,7 @@ use Infocyph\DBLayer\DB;
 use Infocyph\DBLayer\Migration\MigrationRunner;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
-use Infocyph\Foundation\Cache\CacheManager;
+use Infocyph\Foundation\Cache\CacheServiceProvider;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\DatabaseMigrationManager;
 use Infocyph\Foundation\Foundation;
@@ -28,7 +28,7 @@ it('binds configured migration locks from the complete capability topology, not 
 
     $application = Foundation::cli($config);
     try {
-        expect($application->has(CacheManager::class))->toBeTrue()
+        expect($application->providers()->classes())->toContain(CacheServiceProvider::class)
             ->and($application->make(DatabaseMigrationManager::class)->runner())->toBeInstanceOf(MigrationRunner::class);
     } finally {
         DB::purge();
@@ -39,7 +39,7 @@ it('binds configured migration locks from the complete capability topology, not 
     $databaseOnly = Foundation::cli($config);
 
     try {
-        expect($databaseOnly->has(CacheManager::class))->toBeFalse()
+        expect($databaseOnly->providers()->classes())->not->toContain(CacheServiceProvider::class)
             ->and(fn() => $databaseOnly->make(DatabaseMigrationManager::class)->runner())
             ->toThrow(LogicException::class, 'Database migration locks require the Foundation cache capability.');
     } finally {
