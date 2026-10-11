@@ -94,26 +94,7 @@ final class DatabaseSystemCommand extends SystemCommand
     {
         $runner = $this->migrations->runner($this->connectionName());
         if ($this->flag('pretend')) {
-            $preview = $runner->pretend();
-            if ($this->io()->machineReadable()) {
-                return $this->emit(['migrations' => $preview, 'pretend' => true]);
-            }
-            if ($preview === []) {
-                $this->io()->info('No pending migration SQL.');
-
-                return ExitCode::SUCCESS;
-            }
-            foreach ($preview as $migration => $statements) {
-                $this->io()->writeln($migration . ':');
-                foreach ($statements as $statement) {
-                    $this->io()->writeln('  ' . $statement['sql']);
-                    if ($statement['bindings'] !== []) {
-                        $this->io()->writeln('    bindings=' . json_encode($statement['bindings'], JSON_THROW_ON_ERROR));
-                    }
-                }
-            }
-
-            return ExitCode::SUCCESS;
+            return $this->showMigrationPreview($runner->pretend());
         }
 
         $migrations = $runner->run($this->flag('step'));
@@ -225,6 +206,32 @@ final class DatabaseSystemCommand extends SystemCommand
         $value = $this->option($name);
 
         return $value === null ? $default : $this->positiveInt($name, $value);
+    }
+
+    /**
+     * @param array<string,list<array{sql:string,bindings:array<int|string,mixed>}>> $preview
+     */
+    private function showMigrationPreview(array $preview): int
+    {
+        if ($this->io()->machineReadable()) {
+            return $this->emit(['migrations' => $preview, 'pretend' => true]);
+        }
+        if ($preview === []) {
+            $this->io()->info('No pending migration SQL.');
+
+            return ExitCode::SUCCESS;
+        }
+        foreach ($preview as $migration => $statements) {
+            $this->io()->writeln($migration . ':');
+            foreach ($statements as $statement) {
+                $this->io()->writeln('  ' . $statement['sql']);
+                if ($statement['bindings'] !== []) {
+                    $this->io()->writeln('    bindings=' . json_encode($statement['bindings'], JSON_THROW_ON_ERROR));
+                }
+            }
+        }
+
+        return ExitCode::SUCCESS;
     }
 
     /** @return list<array<string,mixed>>|null */
