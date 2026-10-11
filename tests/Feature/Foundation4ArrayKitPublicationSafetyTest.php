@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Infocyph\ArrayKit\Config\LazyFileConfig;
 use Infocyph\Foundation\Config\ArrayKitConfigCache;
 use Infocyph\Foundation\Config\ConfigLoader;
 use Infocyph\Foundation\Config\ConfigRepository;
@@ -88,3 +89,45 @@ it('does not traverse planted native generation symlinks while publishing a sing
         rmdir($root);
     }
 })->with([false, true]);
+
+it('preserves native generations for readers pinned before a single-mode transition', function (): void {
+    $root = sys_get_temp_dir() . '/foundation4-pinned-generation-' . bin2hex(random_bytes(6));
+    $cache = $root . '/cache';
+    mkdir($cache, 0700, true);
+
+    try {
+        $writer = new ArrayKitConfigCache();
+        $writer->writeSharded([
+            'app' => ['name' => 'before'],
+            'db' => ['host' => 'original'],
+        ], $cache);
+
+        $generation = trim((string) file_get_contents($cache . '/.arraykit-generation'));
+        expect($generation)->toMatch('/^\.arraykit-gen-[a-f0-9]+$/');
+
+        $reader = new LazyFileConfig(
+            directory: $cache,
+            namespaceCacheDirectory: $cache,
+        );
+        expect($reader->get('app.name'))->toBe('before');
+
+        $writer->writeSingle(['app' => ['name' => 'after']], $cache);
+
+        expect($cache . '/.arraykit-generation')->not->toBeFile()
+            ->and($cache . '/' . $generation . '/db.php')->toBeFile()
+            ->and($reader->get('db.host'))->toBe('original')
+            ->and($writer->loadSingle($cache . '/config.php')['app']['name'] ?? null)->toBe('after');
+    } finally {
+        $entries = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($cache, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST,
+        );
+        foreach ($entries as $entry) {
+            $entry->isDir() && !$entry->isLink()
+                ? rmdir($entry->getPathname())
+                : unlink($entry->getPathname());
+        }
+        rmdir($cache);
+        rmdir($root);
+    }
+});
