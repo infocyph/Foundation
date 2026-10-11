@@ -699,11 +699,31 @@ Keep only unresolved findings and required release evidence after release.
 - [x] Convert the confirmed ArrayKit numeric-path, generation/symlink, cache
   identity, and throwing-logger probes into owner-appropriate regressions.
 - [x] Resolve and publish the native ArrayKit patch; refresh the dependency table.
-- [ ] Reconcile both named branches against the intended 4.0 design, keeping
+- [x] Reconcile both named branches against the intended 4.0 design, keeping
   applicable fixes and correcting unsafe generation cleanup before adoption.
 - [ ] Reuse branch-owned cache/protocol/download changes and remove redundant
   implementations, aliases and compatibility glue with explicit replacement/
   removal and migration evidence.
+
+### Batch 2 implementation log — start of native-major adoption (2026-10-11)
+
+**Order and acceptance:** complete Foundation-owned regression/formatting QA from Batch 1; then migrate InterMix graph construction across **all four application modes** and development/compiled artifacts as one coherent native contract. Subsequent native-major integration changes must use the package's published contract directly and preserve production-only optionality. Never compile or resolve a partial graph in the middle of provider contribution.
+
+**Confirmed InterMix 11.1 contract and affected Foundation call sites:**
+
+| Native 11.1 interface | Foundation current call sites | Required change / no compatibility fallback |
+| --- | --- | --- |
+| `ContainerBuilder::create()`, `factory(id, Closure|FactoryDefinition, LifetimeEnum, tags)`, `autowire()`, `value()`, `alias()`, `input()` | `FoundationGraph`, `Application::create()`, `Bootstrapper`, built-in and custom service providers/registrars | Compose explicit recipes, lifetimes and scoped seed identities **before** `build()`; replace `singleton`, `scoped`, `bind`, and `bindFactory` with native definitions. No mutable-container emulation. |
+| `ContainerBuilder::build()`, `definitionGraph()`, `compile()`, `production()` | `Application`, `NonWebGraphFactory`, non-web release compiler and Webrick release compiler | Provider contributions cannot follow `build()`; compiling finalizes the same exact graph. No `development()` or pre-finalization runtime resolutions. |
+| `RuntimeContainerInterface`, `ScopeContext` | `ExecutionScope`, worker/CLI/scheduler runtime and generated container binding | Borrow native runtime instances and scope contexts, preserve exact identity, reject stale/foreign scopes, and don't assume mutable `Container`/generated `ProductionContainer` subtypes. |
+| `RuntimeFactoryDefinition`, `FactoryDefinition::construct/staticFactory` | Foundation services requiring runtime-only Webrick objects, live error handlers, route registrars, generated runtime recipes | Keep compile-safe data/recipes in the exportable graph; register live closures only for explicitly unsupported development operations. Remove builder inspection and early `development()` calls from provider helpers. |
+| No `ContainerBuilder::definitions()`, no mutable `options()` | Path/Auth/Communication/Messaging/Logging and 12+ other providers, `FoundationGraph::createBuilder()` | Replace implicit live-definition inspection with deterministic composition-time ownership/topology and native `enableDebugTracing()`. Don't finalize `definitionGraph()` while contributions remain. |
+
+**Native UID 6.0 integration:** Foundation now requires `infocyph/uid:^6.0` rather than 5.x. The verified applicable call paths are `ExecutionId::generate()` (native `Id::ulid()`) and `UidAuthIdGenerator` (native `Id::ulid()` / `Id::uuid7()`); existing `UidIntegrationTest` and `UidRuntimeBoundaryTest` cover output validation, monotonic ordering, fork uniqueness, scheduler/worker IDs, and externally supplied correlation identity. UID 6.0's Sonyflake/Randflake/decimal encoding and optional GenerationContext are **native capabilities**, not new Foundation facade responsibilities. Production PHP 8.4 baseline already meets UID 6.0's PHP requirement. Real final-head QA is pending.
+
+**PHPForge complexity remediation:** `RuntimeCoreValidator::notifications()` now delegates channel-map validation to one cohesive policy helper while preserving first-error semantics; `CacheTopologyValidator::validateClusters()` delegates configured-node-store, shared-transport and stable-node-ID predicates without duplicating storage mechanics. Baseline was **34 method + 4 class** findings; intermediate analysis confirmed one method issue removed and reduced cluster validation from complexity 15 to 13; a further extraction targets the strict 12 budget. Final-head analysis must confirm the net counts before claiming closure.
+
+**Do not infer full Batch 2 completion:** InterMix 11.1/CacheLayer 4.0/Webrick 6.0 and other published majors (DBLayer 6, Epicrypt 3.2, Omnibus 3, OTP 7, Pathwise 4.2, ReqShield 3.3, TalkingBytes 2.3, UID 6, Runwire 2.1.1) still require a whole-surface native migration, provider/host lifecycle redesign, real-backend tests and compatibility evidence. `ModuleCatalog`, configured defaults, documentation and CI constraints must be updated together with each final native graph, without retaining old branches as compatibility aliases.
 
 ### Batch 2 — adopt latest container and specialist APIs
 
