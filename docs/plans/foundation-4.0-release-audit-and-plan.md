@@ -851,6 +851,12 @@ The four PHP 8.4/8.5 lowest/stable QA jobs on source `c31b6e8` passed Pest and R
 - **OAuth validation separation:** isolated framework-owned signing-key locators, active key selection and key validity windows into `OAuthSigningConfigValidator`, leaving general OAuth grants/routes/database/rate policies in `OAuthConfigValidator`. The ordering and error messages of all produced `ConfigIssue` values are preserved, and native Epicrypt continues to own JOSE signing/token mechanics. This is intentional framework policy, not a compatibility wrapper.
 - **Acceptance:** Run OAuth configuration/security and actual PHPForge PHP 8.4/8.5 lowest/stable tests on this new source commit; the signing split and command formatting remain **unverified** until that run. Remaining native InterMix 11.1/Webrick 6 graph migration and other complete Batch 2 criteria stay open.
 
+### Native OAuth policy complexity continuation (staged, pending QA)
+
+- General OAuth endpoint rate-limit checks now delegate each configured endpoint's required max/window shape to one Foundation-owned policy method; unsupported policy shapes and per-field errors remain ordered and unchanged.
+- `OAuthManager::openIdInteraction()` now delegates execution-local principal/authentication metadata normalization to one typed `OpenIdInteractionState` factory method. OpenID protocol evaluation, clock default, consent decision, and all interactive errors remain native Epicrypt policy and unchanged.
+- These code edits are **staged**, not accepted, until they are pushed and source-head PHPForge/CI runs validate them. Do not count them toward certified complexity improvement ahead of CI.
+
 ### Batch 2 — adopt latest container and specialist APIs
 
 - [ ] Complete InterMix graph composition before finalization for every mode;

@@ -208,32 +208,9 @@ final readonly class OAuthManager
             throw new \LogicException('OpenID Connect interaction policy is unavailable.');
         }
 
-        $accountId = $principal?->accountId();
-        $metadata = $principal?->metadata() ?? [];
-        $authenticationTime = $metadata['auth_time'] ?? null;
-        if (!is_int($authenticationTime) || $authenticationTime < 1) {
-            $authenticationTime = is_string($accountId) && $accountId !== ''
-                ? ($this->clock?->now() ?? time())
-                : null;
-        }
-        $authenticationContext = $metadata['acr'] ?? null;
-        $authenticationContext = is_string($authenticationContext) && $authenticationContext !== ''
-            ? $authenticationContext
-            : null;
-        $authenticationMethods = $metadata['amr'] ?? [];
-        $authenticationMethods = is_array($authenticationMethods)
-            ? array_values(array_filter($authenticationMethods, is_string(...)))
-            : [];
-
         $result = $this->openIdInteractions->evaluate(
             $request->openIdProtocol,
-            new OpenIdInteractionState(
-                subject: is_string($accountId) && $accountId !== '' ? $accountId : null,
-                authenticationTime: $authenticationTime,
-                authenticationContext: $authenticationContext,
-                authenticationMethods: $authenticationMethods,
-                consentRequired: $principal === null || !$this->hasConsent($principal, $request),
-            ),
+            $this->openIdInteractionState($request, $principal),
         );
         if ($result->error instanceof OpenIdInteractionErrorCode) {
             throw new OAuthProtocolException(
@@ -350,6 +327,36 @@ final readonly class OAuthManager
 
             throw $exception;
         }
+    }
+
+    private function openIdInteractionState(
+        AuthorizationRequest $request,
+        ?PrincipalInterface $principal,
+    ): OpenIdInteractionState {
+        $accountId = $principal?->accountId();
+        $metadata = $principal?->metadata() ?? [];
+        $authenticationTime = $metadata['auth_time'] ?? null;
+        if (!is_int($authenticationTime) || $authenticationTime < 1) {
+            $authenticationTime = is_string($accountId) && $accountId !== ''
+                ? ($this->clock?->now() ?? time())
+                : null;
+        }
+        $authenticationContext = $metadata['acr'] ?? null;
+        $authenticationContext = is_string($authenticationContext) && $authenticationContext !== ''
+            ? $authenticationContext
+            : null;
+        $authenticationMethods = $metadata['amr'] ?? [];
+        $authenticationMethods = is_array($authenticationMethods)
+            ? array_values(array_filter($authenticationMethods, is_string(...)))
+            : [];
+
+        return new OpenIdInteractionState(
+            subject: is_string($accountId) && $accountId !== '' ? $accountId : null,
+            authenticationTime: $authenticationTime,
+            authenticationContext: $authenticationContext,
+            authenticationMethods: $authenticationMethods,
+            consentRequired: $principal === null || !$this->hasConsent($principal, $request),
+        );
     }
 
     private function recordInvalidRequest(OAuthProtocolException $exception, string $reason): void

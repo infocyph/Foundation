@@ -143,6 +143,27 @@ final readonly class OAuthConfigValidator
     }
 
     /** @param list<ConfigIssue> $issues */
+    private function validateRateLimitEndpoint(array &$issues, string $endpoint, mixed $policy): void
+    {
+        $key = 'auth.oauth.rate_limits.' . $endpoint;
+        if (!is_array($policy) || array_is_list($policy)) {
+            $issues[] = new ConfigIssue(sprintf('%s must define max and window.', $key), $key);
+
+            return;
+        }
+
+        foreach (['max', 'window'] as $field) {
+            $value = $policy[$field] ?? null;
+            if (!is_int($value) || $value < 1) {
+                $issues[] = new ConfigIssue(
+                    sprintf('%s.%s must be a positive integer.', $key, $field),
+                    $key . '.' . $field,
+                );
+            }
+        }
+    }
+
+    /** @param list<ConfigIssue> $issues */
     private function validateRateLimits(array &$issues): void
     {
         $limits = $this->config->get('auth.oauth.rate_limits');
@@ -161,23 +182,7 @@ final readonly class OAuthConfigValidator
         }
 
         foreach ($endpoints as $endpoint) {
-            $policy = $limits[$endpoint] ?? null;
-            $key = 'auth.oauth.rate_limits.' . $endpoint;
-            if (!is_array($policy) || array_is_list($policy)) {
-                $issues[] = new ConfigIssue(sprintf('%s must define max and window.', $key), $key);
-
-                continue;
-            }
-
-            foreach (['max', 'window'] as $field) {
-                $value = $policy[$field] ?? null;
-                if (!is_int($value) || $value < 1) {
-                    $issues[] = new ConfigIssue(
-                        sprintf('%s.%s must be a positive integer.', $key, $field),
-                        $key . '.' . $field,
-                    );
-                }
-            }
+            $this->validateRateLimitEndpoint($issues, $endpoint, $limits[$endpoint] ?? null);
         }
     }
 
