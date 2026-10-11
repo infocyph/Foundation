@@ -62,6 +62,7 @@ it('keeps native PDO outbox events inside the same DBLayer transaction across no
 
         return new CacheLayerFactory(
             new ConfigRepository([
+                'app' => ['base_path' => $base],
                 'cache' => [
                     'stores' => [
                         'node' => [
@@ -96,14 +97,22 @@ it('keeps native PDO outbox events inside the same DBLayer transaction across no
         );
     };
 
+    $schemaReady = false;
     try {
         $sourceFactory = $factory('node-a', $writer);
         $targetFactory = $factory('node-b', $reader);
         $source = $sourceFactory->cluster('events');
         $target = $targetFactory->cluster('events');
+        $schemaReady = true;
         $manager = new CacheManager(
             $sourceFactory,
-            static fn(?string $name = null): Connection => $writer,
+            static function (?string $name = null) use ($writer): Connection {
+                if ($name !== null && $name !== 'primary') {
+                    throw new LogicException('Unexpected transactional outbox database connection name.');
+                }
+
+                return $writer;
+            },
             $sourceFactory,
         );
         $source->cache()->set('product.42', 'source');
@@ -140,11 +149,13 @@ it('keeps native PDO outbox events inside the same DBLayer transaction across no
             ->and($target->consume())->toBe(1)
             ->and($target->cache()->get('product.42'))->toBeNull();
     } finally {
-        $pdo = $writer->getPdo();
-        $delete = $pdo->prepare('DELETE FROM cachelayer_invalidation_events WHERE cluster_name = ?');
-        $delete->execute([$clusterName]);
-        $delete = $pdo->prepare('DELETE FROM cachelayer_invalidation_clusters WHERE cluster_name = ?');
-        $delete->execute([$clusterName]);
+        if ($schemaReady) {
+            $pdo = $writer->getPdo();
+            $delete = $pdo->prepare('DELETE FROM cachelayer_invalidation_events WHERE cluster_name = ?');
+            $delete->execute([$clusterName]);
+            $delete = $pdo->prepare('DELETE FROM cachelayer_invalidation_clusters WHERE cluster_name = ?');
+            $delete->execute([$clusterName]);
+        }
         $writer->disconnect();
         $reader->disconnect();
 
