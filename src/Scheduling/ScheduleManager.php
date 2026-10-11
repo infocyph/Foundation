@@ -8,7 +8,7 @@ use Closure;
 use Infocyph\CacheLayer\Cache\Lock\LockHandle;
 use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
 use Infocyph\Foundation\Application\Application;
-use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Cache\FoundationCacheKey;
 use Infocyph\Foundation\Command\CommandStatus;
 use Infocyph\Foundation\Operations\ExecutionHistory;
@@ -477,7 +477,7 @@ final readonly class ScheduleManager
             $this->record($history, $executionId, $name, CommandStatus::Waiting, metadata: $identity);
         }
 
-        $lock = $this->application->make(CacheLayerFactory::class)->lock();
+        $lock = $this->application->make(CacheManager::class)->lock();
         $handle = $lock->acquire(
             FoundationCacheKey::fingerprint('schedule-lock', 'scheduled-command', $entry->identity()),
             $entry->overlapWaitSeconds(),
