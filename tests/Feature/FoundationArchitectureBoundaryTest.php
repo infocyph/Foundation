@@ -97,12 +97,10 @@ it('keeps specialist native owners selected at Foundation integration seams', fu
 
 it('keeps compatibility-only owners outside normal runtime selection', function (): void {
     $root = dirname(__DIR__, 2);
-    $legacyCounter = file_get_contents($root . '/src/Cache/WebrickAtomicCounter.php');
+    $legacyCounter = $root . '/src/Cache/WebrickAtomicCounter.php';
     $legacyRefresh = file_get_contents($root . '/src/Auth/OAuth/Token/OAuthRefreshTokenCoordinator.php');
 
-    expect($legacyCounter)->toBeString()
-        ->toContain('@deprecated')
-        ->toContain('AtomicCounterAdapter')
+    expect($legacyCounter)->not->toBeFile()
         ->and($legacyRefresh)->toBeString()
         ->toContain('@deprecated');
 });
