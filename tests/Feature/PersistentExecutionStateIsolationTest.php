@@ -79,6 +79,8 @@ final class FoundationPersistentMemoCalls
 {
     public int $memo = 0;
 
+    public ?Closure $memoClosure = null;
+
     public int $once = 0;
 }
 
@@ -239,9 +241,11 @@ it('isolates execution state while preserving bounded process-local memoizers', 
 
 function foundationPersistentMemoized(FoundationPersistentMemoCalls $calls): int
 {
-    return Memoizer::instance()->get(static function () use ($calls): int {
+    $calls->memoClosure ??= static function () use ($calls): int {
         return ++$calls->memo;
-    });
+    };
+
+    return Memoizer::instance()->get($calls->memoClosure);
 }
 
 function foundationPersistentOnce(FoundationPersistentMemoCalls $calls): int
