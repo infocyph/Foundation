@@ -99,7 +99,7 @@ final readonly class CacheLayerFactory
 
     public function lock(
         ?string $storeName = null,
-        ?CacheInterface $resolvedStore = null,
+        CacheInterface|Closure|null $resolvedStore = null,
     ): LockProviderInterface {
         $lock = ValueNormalizer::associativeArray($this->config->get('cache.lock', []));
         $storeName = $this->lockStoreName($storeName);
@@ -110,7 +110,9 @@ final readonly class CacheLayerFactory
             return $this->lockProvider($store, $lock, $driver);
         }
 
-        $cache = $resolvedStore ?? $this->make($storeName);
+        $cache = $resolvedStore instanceof Closure
+            ? $resolvedStore()
+            : ($resolvedStore ?? $this->make($storeName));
         if ($cache instanceof AuthenticationStateCacheInterface) {
             $native = $cache->authenticationStateLock();
             if ($native instanceof LockProviderInterface) {
