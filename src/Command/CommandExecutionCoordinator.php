@@ -220,6 +220,7 @@ final class CommandExecutionCoordinator
         callable $inline,
     ): int {
         $this->record($history, $executionId, $name, CommandStatus::Running);
+
         try {
             $exitCode = $inline($executionId);
             $this->record(

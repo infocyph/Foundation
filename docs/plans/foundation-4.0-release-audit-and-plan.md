@@ -845,6 +845,12 @@ The four PHP 8.4/8.5 lowest/stable QA jobs on source `c31b6e8` passed Pest and R
 - **Console:** separated inline command execution/status/error recording from supervised `CommandExecutionCoordinator::run()`, preserving lock lifecycle and primary exceptions. No CLI ABI or output change.
 - **Acceptance:** next exact-commit PHP 8.4/8.5 lowest/stable Pest/Pint/PHPCS/Rector, PHPStan and service integration jobs must validate these changes before any Batch 2 checklist is closed. InterMix 11.1/Webrick 6 runtime-graph redesign and the remaining class complexity remain open.
 
+### Batch 2 OAuth signing configuration ownership and latest QA (2026-10-11)
+
+- [GitHub Actions 38141265917](https://github.com/infocyph/Foundation/actions/runs/38141265917) at `9d3a44a`: Pest, Rector and PHPCS passed in the inspected QA runs; one Pint style issue in the extracted `CommandExecutionCoordinator::runInline()` requires a blank line before `try`. All four production consumer configurations and clean installation passed. PHPStan fell to **eight function-level and three class-level complexity findings**, without unrelated type errors.
+- **OAuth validation separation:** isolated framework-owned signing-key locators, active key selection and key validity windows into `OAuthSigningConfigValidator`, leaving general OAuth grants/routes/database/rate policies in `OAuthConfigValidator`. The ordering and error messages of all produced `ConfigIssue` values are preserved, and native Epicrypt continues to own JOSE signing/token mechanics. This is intentional framework policy, not a compatibility wrapper.
+- **Acceptance:** Run OAuth configuration/security and actual PHPForge PHP 8.4/8.5 lowest/stable tests on this new source commit; the signing split and command formatting remain **unverified** until that run. Remaining native InterMix 11.1/Webrick 6 graph migration and other complete Batch 2 criteria stay open.
+
 ### Batch 2 — adopt latest container and specialist APIs
 
 - [ ] Complete InterMix graph composition before finalization for every mode;
