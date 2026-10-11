@@ -738,6 +738,12 @@ Keep only unresolved findings and required release evidence after release.
 - PHPStan reported **19 function complexity and three class complexity** findings, improved from the opening 34 function / four class findings; no other type diagnostics. Static analysis remains blocked. The native InterMix/Webrick/CacheLayer/DBLayer/Omnibus major migration and authentication/provider simplification remain required and unchecked.
 - Existing regression suites, production-only installation, and native ownership constraints remain mandatory. Check only the newest source-head workflow before certifying any checklist or declaring QA green.
 
+### Confirmed functional QA — source revision 079f6d75 (2026-10-11)
+
+- [GitHub Actions 38130823344](https://github.com/infocyph/Foundation/actions/runs/38130823344) **passed all four PHPForge QA jobs** (PHP 8.4/8.5, lowest/stable), including Pest, Pint, PHPCS and Rector. All four production-consumer configurations, clean install, and both benchmark jobs passed. The prior source-level formatting failures in `CacheLayerFactory`, `CommandExecutionPolicy` and `RuntimeProcessRegistry` are resolved without silencing rules.
+- **PHPStan remains red** on both PHP versions: exactly **19 function** and **three class** cognitive-complexity findings under the unchanged 12/80 engineering budgets; no other type/API diagnostics. The full workflow therefore fails. Do not describe the PR or Batch 2 as release-ready.
+- The source revision tested is `079f6d75a00d09f6ee03b22ce869af8ec1ccea97`. This tracker-only update does not modify tested source. Unresolved native-major migrations, auth/DI scope lifecycle, real-service release certification and performance acceptance stay unchecked.
+
 ### Batch 2 — adopt latest container and specialist APIs
 
 - [ ] Complete InterMix graph composition before finalization for every mode;
