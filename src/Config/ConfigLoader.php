@@ -210,11 +210,7 @@ final class ConfigLoader
         } catch (\Throwable) {
             return null;
         }
-        if (!is_array($payload) || ($payload['_format'] ?? null) !== self::CACHE_FORMAT) {
-            return null;
-        }
-        $schema = $payload['_schema'] ?? null;
-        if (!is_string($schema) || !hash_equals($this->schemaFingerprint(), $schema)) {
+        if (!is_array($payload) || !$this->validManifestHeader($payload)) {
             return null;
         }
 
@@ -382,7 +378,6 @@ final class ConfigLoader
         return hash('xxh128', implode('|', $metadata));
     }
 
-    /** @param array<string, mixed> $payload */
     /**
      * @param array<array-key,mixed> $values
      * @return list<string>|null
@@ -400,6 +395,19 @@ final class ConfigLoader
         return array_keys($namespaces);
     }
 
+    /** @param array<array-key,mixed> $payload */
+    private function validManifestHeader(array $payload): bool
+    {
+        if (($payload['_format'] ?? null) !== self::CACHE_FORMAT) {
+            return false;
+        }
+
+        $schema = $payload['_schema'] ?? null;
+
+        return is_string($schema) && hash_equals($this->schemaFingerprint(), $schema);
+    }
+
+    /** @param array<string,mixed> $payload */
     private function writeManifest(string $directory, array $payload): void
     {
         $target = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . self::MANIFEST_FILE;

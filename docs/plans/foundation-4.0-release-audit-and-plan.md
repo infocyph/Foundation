@@ -825,6 +825,11 @@ The four PHP 8.4/8.5 lowest/stable QA jobs on source `c31b6e8` passed Pest and R
 - `ModuleDependencyResolver::resolve()` delegates per-feature dependency resolution to a typed private method without altering module blocker order or capability readiness. Both edits target PHPForge's 12-point method complexity gate.
 - New syntax, Rector, PHPStan, and feature tests are required before treating these as complete.
 
+### PHPStan regression from manifest extraction (2026-10-11)
+
+- Latest analysis on `5264626f` reduced method-complexity findings to **13** (classes remain three), but exposed an unintended `missingType.iterableValue` diagnostic because the `writeManifest()` PHPDoc moved to the new `validatedNamespaces()` method. Restored the typed payload contract at its original method.
+- Separated the format/schema header test from `loadCacheManifest()` to bring that method under the 12-point PHPForge budget; schema fingerprint and invalid-manifest fail-closed behavior are unchanged. Check next exact SHA before claiming acceptance.
+
 ### Batch 2 — adopt latest container and specialist APIs
 
 - [ ] Complete InterMix graph composition before finalization for every mode;
