@@ -45,20 +45,7 @@ final class ModuleCatalogValidator
         $owners = [];
 
         foreach ($modules as $name => $definition) {
-            $this->registerAlias($owners, $name, $name);
-            foreach ($definition['aliases'] as $alias) {
-                $this->registerAlias($owners, $alias, $name);
-            }
-            foreach ($definition['features'] as $feature) {
-                foreach ($feature['aliases'] as $alias) {
-                    $this->registerAlias($owners, $alias, $name);
-                }
-            }
-            foreach ($definition['packages'] as $package => $requirement) {
-                if ($requirement['role'] !== 'optional') {
-                    $this->registerAlias($owners, $package, $name);
-                }
-            }
+            $this->registerModuleAliases($owners, $name, $definition);
         }
     }
 
@@ -271,6 +258,28 @@ final class ModuleCatalogValidator
         }
 
         $owners[$normalized] = $module;
+    }
+
+    /**
+     * @param array<string,string> $owners
+     * @phpstan-param ModuleDefinition $definition
+     */
+    private function registerModuleAliases(array &$owners, string $name, array $definition): void
+    {
+        $this->registerAlias($owners, $name, $name);
+        foreach ($definition['aliases'] as $alias) {
+            $this->registerAlias($owners, $alias, $name);
+        }
+        foreach ($definition['features'] as $feature) {
+            foreach ($feature['aliases'] as $alias) {
+                $this->registerAlias($owners, $alias, $name);
+            }
+        }
+        foreach ($definition['packages'] as $package => $requirement) {
+            if ($requirement['role'] !== 'optional') {
+                $this->registerAlias($owners, $package, $name);
+            }
+        }
     }
 
     /**
