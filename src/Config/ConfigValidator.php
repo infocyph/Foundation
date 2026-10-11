@@ -19,9 +19,7 @@ use Infocyph\Foundation\Config\Internal\WebAuthnConfigValidator;
 
 final readonly class ConfigValidator
 {
-    public function __construct(
-        private ConfigRepository $config,
-    ) {}
+    public function __construct(private ConfigRepository $config) {}
 
     public function validate(): ConfigValidationResult
     {

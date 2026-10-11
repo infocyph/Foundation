@@ -115,8 +115,7 @@ final readonly class WebReleaseRuntime
         array $manifest,
         string $environment,
         string $configFingerprint,
-    ): void
-    {
+    ): void {
         if (($manifest['environment'] ?? null) !== $environment
             || !is_string($manifest['config_fingerprint'] ?? null)
             || !hash_equals($configFingerprint, $manifest['config_fingerprint'])
@@ -155,8 +154,7 @@ final readonly class WebReleaseRuntime
         bool $prevalidated,
         array $foundationCapabilities,
         ?string $matcherCachePath = null,
-    ): self
-    {
+    ): self {
         $graph = new WebGraphFactory()->compose($config, $foundationCapabilities);
         $settings = new WebReleaseConfiguration($graph);
         $settings->assertArtifactSafeMiddleware();
