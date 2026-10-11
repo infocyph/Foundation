@@ -6,6 +6,7 @@ namespace Infocyph\Foundation\Cache;
 
 use Closure;
 use Infocyph\CacheLayer\Cache\CacheInterface;
+use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
 use Infocyph\CacheLayer\Cluster\Outbox\ClusterOutbox;
 use Infocyph\DBLayer\Connection\Connection;
 
@@ -13,12 +14,15 @@ use Infocyph\DBLayer\Connection\Connection;
  * Foundation application topology for named CacheLayer stores.
  *
  * Generic cache, locking, counter, node and cluster operations remain native
- * CacheLayer APIs. Database query-cache selection is owned separately by
- * DBLayerFactory so resolving the application default store never mutates the
- * process-static DBLayer facade.
+ * CacheLayer APIs. Foundation owns application/generation identity for named
+ * stores and lock providers so consumers selecting the same resource share one
+ * configured instance without introducing process-static cache state.
  */
 final class CacheManager
 {
+    /** @var array<string, LockProviderInterface> */
+    private array $locks = [];
+
     /** @var array<string, CacheInterface> */
     private array $stores = [];
 
@@ -29,14 +33,18 @@ final class CacheManager
         private readonly ?CacheLayerFactory $transactionalFactory = null,
     ) {}
 
+    public function lock(?string $storeName = null): LockProviderInterface
+    {
+        $key = $this->factory->lockStoreName($storeName);
+
+        return $this->locks[$key] ??= $this->factory->lock($key, $this->store($key));
+    }
+
     public function store(?string $name = null): CacheInterface
     {
-        $key = $name ?? '__default__';
-        if (isset($this->stores[$key])) {
-            return $this->stores[$key];
-        }
+        $key = $this->factory->storeName($name);
 
-        return $this->stores[$key] = $this->factory->make($name);
+        return $this->stores[$key] ??= $this->factory->make($key);
     }
 
     /**
@@ -73,7 +81,9 @@ final class CacheManager
 
     public function useStore(CacheInterface $store, ?string $name = null): CacheInterface
     {
-        $this->stores[$name ?? '__default__'] = $store;
+        $key = $this->factory->storeName($name);
+        $this->stores[$key] = $store;
+        unset($this->locks[$key]);
 
         return $store;
     }
