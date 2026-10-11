@@ -558,6 +558,74 @@ generation, completed requests, missing capabilities, no coroutine scope, and
 Runwire absent. Assert exact instance identity, no cross-tenant state, exactly-once
 cleanup, and zero competing host lifecycle actions.
 
+## Batch 1 — complete capability-level ownership and migration disposition
+
+**Inventory baseline:** the reviewed current production tree contains **666 PHP source files** (including 377 under `Auth/`). These counts classify ownership and work size, not API-retention requirements. All listed areas are part of the 2.1.1 → 4.0 cumulative review; the exact per-symbol removal list and ABI changes are completed during Batch 2 rather than using the old signatures as compatibility requirements.
+
+| Source area (PHP files) | Unique Foundation framework responsibility | Native owner / implementation disposition for 4.0 |
+| --- | --- | --- |
+| `Application/` (8), `Bootstrap/` (1), `Foundation.php` (1) | Four application modes, application bootstrap, provider contributions and application-facing entry points | **Redesign** graph assembly before InterMix finalization; keep meaningful framework facade, remove obsolete builder forwarding |
+| `Container/` (2), `Runtime/` (13) | Execution-scoped context, Foundation resource cleanup, passed-instance host bridge | **Delegate** graph, scope, compile and execution primitives to InterMix 11.1 and Runwire 2.1.1; never create competing lifecycle/host loops |
+| `Auth/` (377) | Account/device lifecycle, application login/consent/MFA/passkey policy, authorization, principal, OAuth HTTP presentation | **Retain framework policy; delegate** crypto/protocol/token internals to Epicrypt 3.2, OTP 7, UID 6 and native atomic stores; delete dormant duplicate refresh/counter engines |
+| `Session/` (18) | Browser state, cookies, flash, rotation, CSRF policy and scoped HTTP session orchestration | **Retain distinct browser-session feature**, delegate locks/transactions/Webrick scope, coordinate but never conflate account/device authentication sessions |
+| `Cache/` (9) | Capability activation, configured store identity and application-backed services | **Retain thin registry only**; delegate caching, counters, lock handles, clusters and invalidation to CacheLayer 4; remove local Webrick counter implementation |
+| `Config/` (30) | Config selection, validation, deployment defaults, trust policy and cache publication | **Delegate** parsing, interpolation, cache generations and materialization to ArrayKit; keep outer manifest and trusted release path policy; no shadow parser |
+| `Release/` (7), `Operations/` (6) | Staged application release, generation/fence/lease policy, readiness, activation and operational control | **Retain** outer atomic publication and operational policy; trust only owner-validated native InterMix/Webrick/ArrayKit artifacts |
+| `Http/` (30), `Routing/` (18) | Middleware selection, authentication/authorization placement, application responses and route registration | **Delegate** request parsing, matcher execution, routing, rate-limits and emission to Webrick 6; no sharded/fused route clones |
+| `Database/` (16) | Schema policy, named application connections, migration deployment and auth data mappings | **Delegate** transactions, leases, retry policy and query caching to DBLayer 6; preserve one transactional owner per request/job |
+| `Filesystem/` (11) | Application upload/download permissions, disk/profile choices, HTTP response integration | **Delegate** storage, archive, ranges, integrity, streaming and file containment to Pathwise 4.2; avoid preparing one download twice |
+| `Validation/` (5) | Form requests, application rule and error presentation | **Delegate** rule implementations/sanitization to ReqShield 3.3; no second native validator engine |
+| `Communication/` (5), `Notifications/` (12) | Application profile selection, templates, recipients, notification channels and delivery policy | **Delegate** HTTP, email, webhook, gRPC transport and retry mechanics to TalkingBytes 2.3; retain framework notifications even without optional communications |
+| `Messaging/` (14) | Job declarations, middleware and application outbox/dispatch policy | **Delegate** broker, delivery, retry and durable messaging to Omnibus 3; preserve transaction/outbox atomicity |
+| `Scheduling/` (6), `Worker/` (5), `Process/` (8) | Application schedules, command/job execution, leadership policy, worker management and operational reporting | **Retain framework orchestration**, delegate timer/host supervision/concurrency to Runwire, leadership locks to CacheLayer; never borrow then close host contexts |
+| `Command/` (31) | Command registration, built-in operational commands, application CLI parsing and output policy | **Retain** useful reusable console framework; do not duplicate native process execution or scheduler mechanics |
+| `Module/` (11), `Generator/` (1) | Installation/activation/readiness, dependencies and developer scaffolding | **Retain** module/catalog policy and generation orchestration; align native published versions rather than accepting obsolete floors |
+| `Security/` (4), `Logging/` (5), `Diagnostics/` (1) | Trusted environment/secret policy, safe application-level logging, failure precedence and readiness | **Retain policy**; use specialist security primitives and PSR logging, never replace root failures with secondary reporting |
+| `Testing/` (5), `Exception/` (5), `Support/` (1) | Framework test fixtures, domain errors and genuinely shared policy utilities | **Retain only meaningful framework contracts**; remove generic duplicate wrappers and native error/normalizer clones when moving APIs |
+
+**Auth subdomain disposition:** `Auth/Adapter/` (69) is a published-owner boundary, not a place for alternative crypto/DB/cache engines. `OAuth/` (60) keeps Foundation consent/client/audit/HTTP/persistence mapping and delegates protocol, DPoP and refresh-family mechanics to Epicrypt. `Authentication/` (55) retains account workflows including login, verification, recovery, impersonation, passwordless and device/session policy. `Authorization/` (25) retains application gates, tenancy and resource decisions. `Mfa/` (14), `Passkey/` (13), `Otp/` (4) retain enrollment/step-up/use policy but delegate native OTP and WebAuthn ceremonies. `Principal/` (6) keeps exactly one execution-local identity; `Internal/` (26) registers only needed services; `Support/` (42) and `Contract/` (22) require individual removal/replacement checks during Batch 2 rather than blanket retention. `Account/`, `Device/`, `Audit/`, `Http/`, `Notification/` and `Driver/` provide the remaining application contracts and policy.
+
+### Exact authentication and browser-session composition contract (design accepted for implementation)
+
+1. **Web request entry:** the host/Webrick owns the request and HTTP scope. `SessionMiddleware` resolves one browser-session container, obtains a native lock if required, and binds only browser state. `CsrfMiddleware` verifies browser-originated mutating operations according to application policy.
+2. **Login:** `Auth/Http/AuthActions::login()` delegates to Foundation authentication/account workflows, which enforce native Epicrypt password/token decisions, deployment-visible native atomic lockout counters, account status, device verification and selected MFA/step-up. No account/device auth session is committed if validation or atomic conditions fail.
+3. **Persistence and identity:** `Auth/Authentication/Session/SessionManager` creates/rotates/updates/revokes **account/device authentication sessions**, using DBLayer transaction ownership and native atomic security state. That record is distinct from `Session/SessionManager`'s browser key-value/cookie state. The browser can reference an auth-session ID but cannot itself become the authority for authenticated account state. Set exactly one `CurrentPrincipalContext` instance for that execution.
+4. **Authorization:** `Auth/Authorization/Gate/` and application policies resolve account, tenant, role, delegation and resource decisions from the current execution's principal. Prevent stale principal/permissions from crossing persistent worker tasks, tenants or nested contexts.
+5. **Response/cleanup:** rotate browser identifiers where required by login/logout; apply cookie, CSRF, expiry and persistence policy before Webrick output. On error preserve the primary throwable even if lock release, session reset or logging fails; release/reset exactly once. Deferred output and native body streaming belong to Webrick/Pathwise, not a second Foundation execution loop.
+6. **Logout/revocation/recovery:** revoke selected auth-session or device/account records and derived credentials according to application policy, separately invalidate browser presentation and clear the execution principal. Account suspension/password change/refresh reuse triggers appropriate family/device invalidation. Reuse the same DBLayer transaction for atomic writes and selected CacheLayer invalidation/leases.
+7. **Bearer/API and non-web:** bearer authentication resolves tokens through the chosen native protocol validator, maps them to one execution-local principal and authorizes without creating browser state; CLI/worker/scheduler start with an unauthenticated or explicitly delegated principal, no invented HTTP request or implicit Runwire host.
+8. **Concurrency/migration:** native Runwire and InterMix scopes remain host-owned; nested/child tasks explicitly inherit only allowed identity and cancellation context, and restore the previous principal. Retained account password hashes, browser cookies/sessions, auth-session/device records, refresh families, OTP/recovery/passkey credentials and outbox messages require schema/data migration and failure/race tests in Batches 4–5, **not legacy compatibility shims**.
+
+### Source-range and branch disposition
+
+| Reviewed change group | Retain / redesign / delegate / delete | Behavior carried forward / evidence |
+| --- | --- | --- |
+| Post-published-2.1.1 main: four-mode builder/provider graph and generated runtimes | **Redesign** InterMix graph and ABI | Provider ordering, scope isolation, compiled/development parity; Batch 2 and migration |
+| Main: release generations, maintenance, Webrick fused/sharded routes and native configuration | **Retain trust policy; delegate native mechanisms** | Atomic staging, manifest/fence, reader lifetimes, no symlink traversal, native route matching |
+| Main: auth, MFA, passkey, OAuth, notification, messaging and application services | **Retain application policy; delegate protocols and storage** | Credential/replay/race security and real database state, tested in Batches 2–5 |
+| Main: DB, cache, worker, HTTP, files, CLI, scheduler and configuration endpoints | **Retain framework services; delegate storage/host engines** | No process/request resource leaks, cold optional providers, native lock/transaction scope |
+| `foundation-3/library-reuse-hardening`: canonical cache identities, lock registry, query cache, session/MFA/passkey/migration consumers | **Integrated on PR #20** | Current cache/DB/session/auth registrars plus named-store, named-lock and query-cache regressions |
+| Hardening branch: Webrick native atomic adapter, shared auth counters | **Integrated**; redundant Foundation `WebrickAtomicCounter` and unsafe `CacheLayerCounterStore` **deleted** | Host/cluster auth counters require native atomic resources; process-only uses native in-memory counters |
+| Hardening branch: Epicrypt validated OAuth protocol and DBLayer bounded refresh transaction retries | **Integrated current-version intent; redesign old refresh duplicates later** | One protocol evaluation per request, approved redirect/error/audit mappings and bounded transactions; tests imported |
+| Hardening branch: Pathwise native HTTP range preparation, TalkingBytes resolved HTTP configuration | **Integrated** | Avoid duplicate download preparation and repeat immutable HTTP parsing; TLS remains production fail-closed |
+| `arraykit-5.3/acceptance`: cache generation discovery, root/flat artifacts | **Selectively redesigned** | Native generation-aware validation, pinned readers and safe mode transitions, with no recursive symlink traversal |
+| Acceptance branch: recursively deleting `.arraykit-gen-*` with `is_dir()` | **Rejected/deleted as unsafe** | Planted root and nested symlink sentinels must survive; never eagerly unlink pinned generations |
+| ArrayKit published 5.3 native numeric read-cache lookup | **Fix/publish upstream, not in Foundation** | Correct PHP numeric-string offset handling before `ReflectionReference::fromArrayElement()`; still blocked by repository write permission |
+
+### Upstream ArrayKit patch ready for maintainer
+
+The connected GitHub integration has **no write permission** for `infocyph/ArrayKit`: both branch creation and issue creation return HTTP 403. This is a real Batch 1 blocker. The direct native patch for `src/Config/Concerns/BaseConfigTrait.php` is:
+
+```diff
+-            if (\\ReflectionReference::fromArrayElement($cursor, $segment) !== null) {
++            $key = (string) (int) $segment === $segment ? (int) $segment : $segment;
++            if (\\ReflectionReference::fromArrayElement($cursor, $key) !== null) {
+                 return false;
+             }
+```
+
+Require upstream tests for `app.servers.0`, `app.servers.1`, negative integer keys, leading-zero and plus-prefixed literal keys, missing paths, referenced values and cache invalidation after mutation. The last gate is **published corrected ArrayKit** → Composer constraint and lock refresh → actual current-head PHP 8.4/8.5 CI; writing this patch into Foundation or its vendor directory does not satisfy the acceptance criterion.
+
 ## Active Batch 1 execution log
 
 - **2026-10-11 — Draft PR:** [Foundation #20](https://github.com/infocyph/Foundation/pull/20), `feature/foundation-3` → `main`. The PR remains draft; merge, tagging, and publication are excluded.
