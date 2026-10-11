@@ -34,7 +34,7 @@ final readonly class OAuthConfigValidator
         $this->validatePkce($issues);
         $this->validateResourceAudiences($issues);
         $this->validateScopePermissions($issues);
-        $issues = [...$issues, ...(new OAuthSigningConfigValidator($this->config))->validate()];
+        $issues = [...$issues, ...new OAuthSigningConfigValidator($this->config)->validate()];
         $issues = [...$issues, ...new OpenIdConfigValidator($this->config)->validate()];
         $this->validateRoutes($issues);
         $this->validateRateLimits($issues);
@@ -302,6 +302,4 @@ final readonly class OAuthConfigValidator
 
         return is_array($parts) && !isset($parts['scheme'], $parts['host'], $parts['query'], $parts['fragment']);
     }
-
-
 }

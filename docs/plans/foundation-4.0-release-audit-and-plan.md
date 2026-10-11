@@ -857,6 +857,12 @@ The four PHP 8.4/8.5 lowest/stable QA jobs on source `c31b6e8` passed Pest and R
 - `OAuthManager::openIdInteraction()` now delegates execution-local principal/authentication metadata normalization to one typed `OpenIdInteractionState` factory method. OpenID protocol evaluation, clock default, consent decision, and all interactive errors remain native Epicrypt policy and unchanged.
 - These code edits are **staged**, not accepted, until they are pushed and source-head PHPForge/CI runs validate them. Do not count them toward certified complexity improvement ahead of CI.
 
+### OAuth signing split — QA corrections on staged follow-up (2026-10-11)
+
+- [Workflow 38141784843](https://github.com/infocyph/Foundation/actions/runs/38141784843) passed Pest, PHPCS, all four production consumers, clean install and both benchmarks, while Rector required the PHP 8.4 `new Class(...)->method()` syntax and Pint required closing/spacing repairs in the extracted OAuth validators. These precise issues are corrected here without disabling tooling.
+- PHPStan reported **seven method and two class complexity findings**, with no unrelated type diagnostics. Endpoint rate-policy and OpenID principal-state helper extractions are committed on this source but require exact-head QA before additional reduction claims.
+- Full InterMix 11.1/Webrick 6 API and host graph migration remains unchecked; production release readiness is not established by the OAuth quality work alone.
+
 ### Batch 2 — adopt latest container and specialist APIs
 
 - [ ] Complete InterMix graph composition before finalization for every mode;

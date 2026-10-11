@@ -211,4 +211,5 @@ final readonly class OAuthSigningConfigValidator
         }
 
         return true;
-    }}
+    }
+}
