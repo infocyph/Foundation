@@ -26,21 +26,6 @@ final readonly class CacheTopologyValidator
         return $issues;
     }
 
-    /** @param array<string,mixed> $stores */
-    private function referencesNodeStore(mixed $name, array $stores): bool
-    {
-        return is_string($name)
-            && isset($stores[$name])
-            && is_array($stores[$name])
-            && ($stores[$name]['driver'] ?? null) === 'node';
-    }
-
-    /** @param array<string,mixed> $transports */
-    private function referencesSharedTransport(mixed $name, array $transports): bool
-    {
-        return is_string($name) && isset($transports[$name]) && is_array($transports[$name]);
-    }
-
     /** @return array<string,mixed> */
     private function definitions(string $key): array
     {
@@ -81,6 +66,21 @@ final readonly class CacheTopologyValidator
         $file = str_replace('\\', '/', $file);
 
         return str_starts_with($file, $directory . '/');
+    }
+
+    /** @param array<string,mixed> $stores */
+    private function referencesNodeStore(mixed $name, array $stores): bool
+    {
+        return is_string($name)
+            && isset($stores[$name])
+            && is_array($stores[$name])
+            && ($stores[$name]['driver'] ?? null) === 'node';
+    }
+
+    /** @param array<string,mixed> $transports */
+    private function referencesSharedTransport(mixed $name, array $transports): bool
+    {
+        return is_string($name) && isset($transports[$name]) && is_array($transports[$name]);
     }
 
     private function reservedPurpose(mixed $value): bool
