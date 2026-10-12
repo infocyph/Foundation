@@ -102,6 +102,7 @@ it('resolves optional authorization policies against the completed runtime graph
 
         public function resolve(mixed $resource): ?PolicyInterface
         {
+            expect($resource)->toBeInstanceOf(stdClass::class);
             $this->calls++;
 
             return null;
