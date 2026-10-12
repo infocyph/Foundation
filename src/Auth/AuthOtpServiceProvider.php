@@ -37,7 +37,7 @@ final class AuthOtpServiceProvider extends ServiceProvider
         }
 
         if ($context->permitsCapability('auth')
-            && (new AuthDriverResolver($config))->mfa() === AuthMfaDriver::OTP
+            && new AuthDriverResolver($config)->mfa() === AuthMfaDriver::OTP
         ) {
             return;
         }
