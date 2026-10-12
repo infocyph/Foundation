@@ -24,6 +24,7 @@ use Infocyph\Foundation\Worker\WorkerProvider;
 use Infocyph\Foundation\Worker\WorkerRuntime;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\InterMix\DI\Support\ServiceReference;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
@@ -199,23 +200,24 @@ final class FoundationPhase8ReleaseProvider extends ServiceProvider
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($context);
-        $builder->singleton(
+        $builder->factory(
             FoundationPhase8ReleaseProbe::class,
             FactoryDefinition::construct(
                 FoundationPhase8ReleaseProbe::class,
                 [new ServiceReference(RuntimeMode::class)],
             ),
         );
-        $builder->scoped(
+        $builder->factory(
             FoundationPhase8ReleaseScopedProbe::class,
             FactoryDefinition::construct(FoundationPhase8ReleaseScopedProbe::class),
+            LifetimeEnum::Scoped,
         );
         foreach ([
             FoundationPhase8ReleaseCliCommand::class,
             FoundationPhase8ReleaseSchedulerCommand::class,
             FoundationPhase8ReleaseWorkerProvider::class,
         ] as $service) {
-            $builder->singleton(
+            $builder->factory(
                 $service,
                 FactoryDefinition::construct(
                     $service,
