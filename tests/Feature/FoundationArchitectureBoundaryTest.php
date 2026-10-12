@@ -183,3 +183,14 @@ it('uses deterministic registrations without inspecting unfinished provider grap
             ->not->toContain('->definitions()->has(');
     }
 });
+
+it('prevents partial DI graph introspection in native authentication registrations', function (): void {
+    $root = dirname(__DIR__, 2) . '/src/Auth/Internal/';
+
+    foreach (['AuthTokenRegistrar.php', 'AuthManagerRegistrar.php', 'AuthMfaRegistrar.php'] as $name) {
+        $source = file_get_contents($root . $name);
+        expect($source)->toBeString()
+            ->not->toContain('hasExplicitBinding(')
+            ->not->toContain('->definitions()->has(');
+    }
+});

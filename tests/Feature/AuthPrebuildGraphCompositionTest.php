@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
+use Infocyph\Foundation\Auth\Adapter\Otp\OtpProvisioningService;
+use Infocyph\Foundation\Auth\AuthOtpServiceProvider;
 use Infocyph\Foundation\Auth\AuthServiceProvider;
 use Infocyph\Foundation\Auth\Authentication\Lockout\LockoutManager;
 use Infocyph\Foundation\Auth\Contract\Security\PasswordPolicyInterface;
@@ -62,4 +64,21 @@ it('registers optional token managers from the selected token driver rather than
         ->toBe(class_exists(PurposeToken::class))
         ->and($builder->definitions()->has(TokenAuthManager::class))
         ->toBe(class_exists(PurposeToken::class));
+});
+
+it('selects exactly one native OTP registration owner when authentication chooses OTP', function (): void {
+    $context = FoundationBuildContext::fromConfig(
+        new ConfigRepository([
+            'app' => ['env' => 'testing'],
+            'auth' => ['drivers' => ['mfa' => 'otp']],
+        ]),
+        RuntimeMode::Cli,
+        ['auth', 'otp'],
+    );
+    $builder = FoundationGraph::compose($context);
+    new AuthOtpServiceProvider()->contribute($builder, $context);
+    expect($builder->definitions()->has(OtpProvisioningService::class))->toBeFalse();
+
+    new AuthServiceProvider()->contribute($builder, $context);
+    expect($builder->definitions()->has(OtpProvisioningService::class))->toBeTrue();
 });
