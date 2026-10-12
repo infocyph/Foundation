@@ -45,7 +45,6 @@ final readonly class GrpcInboundWorker implements WorkerProvider
 
                     return $dispatcher->serveOne($source, $cancellation);
                 },
-                ['foundation.grpc.inbound.source_service' => $sourceService],
             );
 
             if ($served || $cancellation->isRequested()) {

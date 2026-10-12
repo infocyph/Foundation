@@ -66,6 +66,17 @@ final class MessagingServiceProvider extends ServiceProvider
         $builder->alias('foundation.messaging', MessageBus::class);
     }
 
+    /**
+     * @param array<array-key, mixed> $source
+     * @return array<array-key, mixed>
+     */
+    private function arrayValue(array $source, string $key): array
+    {
+        $value = $source[$key] ?? null;
+
+        return is_array($value) ? $value : [];
+    }
+
     /** @param array<array-key, mixed> $messaging */
     private function assertDurableConfiguration(
         FoundationBuildContext $context,
@@ -94,17 +105,6 @@ final class MessagingServiceProvider extends ServiceProvider
                 'Durable database consumers/workers require an explicit messaging.durable.failure_store policy.',
             );
         }
-    }
-
-    /**
-     * @param array<array-key, mixed> $source
-     * @return array<array-key, mixed>
-     */
-    private function arrayValue(array $source, string $key): array
-    {
-        $value = $source[$key] ?? null;
-
-        return is_array($value) ? $value : [];
     }
 
     /**
@@ -188,18 +188,6 @@ final class MessagingServiceProvider extends ServiceProvider
         ));
     }
 
-    /** @param array<array-key, mixed> $messaging */
-    private function registerExecutionInputs(ContainerBuilder $builder, array $messaging): void
-    {
-        $builder->input(Envelope::class);
-        $builder->input('omnibus.message');
-        foreach (array_keys($this->arrayValue($messaging, 'handlers')) as $id) {
-            if (is_string($id) && (class_exists($id) || interface_exists($id))) {
-                $builder->input($id);
-            }
-        }
-    }
-
     private function registerDurableServices(ContainerBuilder $builder, bool $enabled): void
     {
         if (!$enabled) {
@@ -274,6 +262,18 @@ final class MessagingServiceProvider extends ServiceProvider
             [new ServiceReference(ListenerProviderInterface::class), new ServiceReference(MessageBus::class)],
         ));
         $builder->alias(EventDispatcherInterface::class, EventDispatcher::class);
+    }
+
+    /** @param array<array-key, mixed> $messaging */
+    private function registerExecutionInputs(ContainerBuilder $builder, array $messaging): void
+    {
+        $builder->input(Envelope::class);
+        $builder->input('omnibus.message');
+        foreach (array_keys($this->arrayValue($messaging, 'handlers')) as $id) {
+            if (is_string($id) && (class_exists($id) || interface_exists($id))) {
+                $builder->input($id);
+            }
+        }
     }
 
     private function registerExecutionScope(ContainerBuilder $builder): void

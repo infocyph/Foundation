@@ -16,6 +16,7 @@ use Infocyph\Foundation\Runtime\ExecutionId;
 use Infocyph\Foundation\Session\SessionManager;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Omnibus\Consumer\ExecutionScope as OmnibusExecutionScope;
 use Infocyph\Omnibus\Envelope\Envelope;
 use Infocyph\Omnibus\Envelope\MessageIdStamp;
@@ -63,9 +64,10 @@ final class FoundationPersistentStateProvider extends ServiceProvider
     {
         unset($context);
 
-        $builder->scoped(
+        $builder->factory(
             'persistent.execution.scoped',
             FactoryDefinition::construct(FoundationPersistentScopedProbe::class),
+            LifetimeEnum::Scoped,
         );
     }
 }

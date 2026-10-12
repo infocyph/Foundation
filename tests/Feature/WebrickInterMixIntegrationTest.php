@@ -108,6 +108,11 @@ final readonly class ProductionFoundationGateway implements FoundationTestGatewa
     }
 }
 
+final readonly class FoundationGatewayConsumer
+{
+    public function __construct(public FoundationTestGateway $gateway) {}
+}
+
 final class FoundationScopedProbe
 {
     private static int $nextSequence = 0;
@@ -125,7 +130,6 @@ it('applies InterMix environment bindings from the application environment', fun
         {
             unset($context);
 
-            $builder->autowire(FoundationTestGateway::class, ProductionFoundationGateway::class);
             $builder->bindInterfaceForEnv('local', FoundationTestGateway::class, LocalFoundationGateway::class);
             $builder->bindInterfaceForEnv('production', FoundationTestGateway::class, ProductionFoundationGateway::class);
         }
@@ -136,7 +140,8 @@ it('applies InterMix environment bindings from the application environment', fun
         'providers' => ['web' => [$provider]],
     ]);
 
-    expect($app->make(FoundationTestGateway::class))->toBeInstanceOf(LocalFoundationGateway::class);
+    expect($app->container()->make(FoundationGatewayConsumer::class)->gateway)
+        ->toBeInstanceOf(LocalFoundationGateway::class);
 });
 
 it('scopes request-lifetime services through the HTTP kernel', function (): void {
