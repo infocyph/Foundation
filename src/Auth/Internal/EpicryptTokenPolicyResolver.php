@@ -5,18 +5,18 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Auth\Internal;
 
 use Infocyph\Epicrypt\Token\Jwt\Enum\SymmetricJwtAlgorithm;
-use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Exception\ConfigurationException;
 
 final readonly class EpicryptTokenPolicyResolver
 {
     public function __construct(
-        private Application $app,
+        private ConfigRepository $config,
     ) {}
 
     public function algorithm(): SymmetricJwtAlgorithm
     {
-        $configured = $this->app->config()->get('security.jwt.algorithm', SymmetricJwtAlgorithm::HS256->value);
+        $configured = $this->config->get('security.jwt.algorithm', SymmetricJwtAlgorithm::HS256->value);
         if (!is_string($configured)) {
             throw new ConfigurationException('security.jwt.algorithm must be HS256, HS384, or HS512.');
         }
@@ -56,7 +56,7 @@ final readonly class EpicryptTokenPolicyResolver
 
     private function nonNegativeInt(string $key, int $default): int
     {
-        $value = $this->app->config()->get('security.jwt.' . $key, $default);
+        $value = $this->config->get('security.jwt.' . $key, $default);
         if (is_int($value) && $value >= 0) {
             return $value;
         }
@@ -69,7 +69,7 @@ final readonly class EpicryptTokenPolicyResolver
 
     private function positiveInt(string $key, int $default): int
     {
-        $value = $this->app->config()->get('security.jwt.' . $key, $default);
+        $value = $this->config->get('security.jwt.' . $key, $default);
         if (is_int($value) && $value > 0) {
             return $value;
         }
@@ -82,7 +82,7 @@ final readonly class EpicryptTokenPolicyResolver
 
     private function requiredValue(string $key): string
     {
-        $value = $this->app->config()->get('security.jwt.' . $key);
+        $value = $this->config->get('security.jwt.' . $key);
         if (!is_string($value) || trim($value) === '') {
             throw new ConfigurationException(sprintf(
                 'security.jwt.%s must be configured when auth.drivers.tokens is "security".',
