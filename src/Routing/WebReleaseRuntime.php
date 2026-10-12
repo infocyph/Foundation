@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Routing;
 
+use Infocyph\Foundation\Bootstrap\Bootstrapper;
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Container\FoundationGraph;
 use Infocyph\Foundation\Http\Response\ExceptionRenderer;
 use Infocyph\Foundation\Logging\HttpExceptionLogger;
 use Infocyph\Foundation\Runtime\LoadedReleaseGeneration;
@@ -185,11 +187,16 @@ final readonly class WebReleaseRuntime
                 expectedEnvironment: $environment,
                 expectedConfigFingerprint: $configFingerprint,
             );
-        new WebProductionGraph()->prepareRuntime($graph->builder, $artifact);
-        $container = $prevalidated
-            ? $graph->builder->productionPrevalidated($intermixPath, $intermixDigest)
-            : $graph->builder->production($intermixPath);
-        $graph->application->container()->unset();
+        try {
+            $builder = FoundationGraph::compose($graph->context);
+            new Bootstrapper()->contribute($builder, $graph->context, $graph->providers);
+            new WebProductionGraph()->prepareRuntime($builder, $artifact);
+            $container = $prevalidated
+                ? $builder->productionPrevalidated($intermixPath, $intermixDigest)
+                : $builder->production($intermixPath);
+        } finally {
+            $graph->application->container()->unset();
+        }
 
         $logger = $container->get(LoggerInterface::class);
         if (!$logger instanceof LoggerInterface) {

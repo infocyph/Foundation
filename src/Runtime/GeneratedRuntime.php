@@ -10,6 +10,7 @@ use Infocyph\Foundation\Application\ServiceProviderInterface;
 use Infocyph\Foundation\Application\ServiceRegistry;
 use Infocyph\Foundation\Bootstrap\Bootstrapper;
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Container\FoundationGraph;
 use Infocyph\InterMix\DI\Build\StaticRuntimeGenerator;
 use Infocyph\InterMix\DI\ProductionContainer;
 
@@ -193,11 +194,14 @@ final readonly class GeneratedRuntime
         $graph = new NonWebGraphFactory()->compose($config, $runtime, $capabilities);
 
         try {
-            new NonWebProductionGraph()->prepare($graph->builder);
             $artifactPath = GeneratedRuntimeMetadata::resolvePath($graph->application, $artifactPath);
             $metadata = GeneratedRuntimeMetadata::read($artifactPath);
             GeneratedRuntimeMetadata::assertMatches($metadata, $graph);
-            $container = $graph->builder->production($artifactPath);
+
+            $builder = FoundationGraph::compose($graph->context);
+            $graph->bootstrapper->contribute($builder, $graph->context, $graph->providers);
+            new NonWebProductionGraph()->prepare($builder);
+            $container = $builder->production($artifactPath);
         } finally {
             $graph->application->container()->unset();
         }
