@@ -28,6 +28,17 @@ This document contains a preserved baseline audit and a subsequent implementatio
 
 **Baseline QA:** [run 38245184478](https://github.com/infocyph/Foundation/actions/runs/38245184478) at `9e162051` **FAILED**: PHPForge 0/4; one PHP 8.4 configuration 61 failed/470 passed Pest, two Pint findings. PHPStan 2/2, consumer installs 4/4, benchmark 2/2, clean install passed. This verifies fewer Pest failures than parent `9f5596de` (78 failed/453 passed) but **does not certify any subsequent head**. If a newer workflow is cancelled due to subsequent tracker commits, use the next exact-head workflow, never mark cancelled as passed.
 
+**Subsequent native-scope test reconciliation (source committed, unverified):**
+
+| Test contract | Commit | Boundary used | Evidence |
+| --- | --- | --- | --- |
+| Database migration provider selection | `d0a05f84` | Explicit `Application::execution()->run()` CLI scope before resolving database-backed migration runner | Full PHPForge QA pending |
+| DBLayer migration/transaction integration | `d3b593a3` | Native CLI execution scope around the existing persistence assertions, without allowing global state | Full PHPForge QA pending |
+| Auth credential/token lifecycle and MFA/passkey flows | `10dc6794` | Explicit Webrick `webrick.request` scope around previously root-executed browser auth tests | Full PHPForge QA pending |
+| Auth verification notification | `13a5bd79` | Explicit Webrick request scope with unchanged notification/replay assertions | Full PHPForge QA pending |
+
+**Native behavior remains strict:** no root-scope fallback, no global singleton conversion for request state, and no bypass of InterMix scope validation. Do not treat scoped fixture changes as conclusive until the exact-source runtime regression tests pass.
+
 **Still open, not downgraded:** native compiled scoped-input ABI in InterMix 11.1, root-scope resolution in auth/DB/worker boundaries, remaining test-only InterMix internal access, provider registration parity, Webrick 6.0.1 trusted generated/fused/sharded matcher behavior, persisted data/security/migration/release gates. Do not add compatibility shims or untrusted frozen fallback.
 
 ### Live Batch 2 remediation ledger — Webrick 6.0.1 and CI diagnosis (2026-10-12)
