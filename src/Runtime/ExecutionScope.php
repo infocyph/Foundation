@@ -34,9 +34,7 @@ final readonly class ExecutionScope
             throw new \LogicException('Web request scope is owned by Webrick and cannot be entered by Foundation.');
         }
 
-        if (array_key_exists(RuntimeMode::class, $seeds)) {
-            throw new \InvalidArgumentException('Execution scope cannot override its runtime mode.');
-        }
+        self::assertRuntimeModeSeed($seeds);
 
         $executionId ??= ExecutionId::generate();
         $seeds[ExecutionId::class] = $executionId;
@@ -96,6 +94,14 @@ final readonly class ExecutionScope
 
         /** @var T $result */
         return $result;
+    }
+
+    /** @param array<string, mixed> $seeds */
+    private static function assertRuntimeModeSeed(array $seeds): void
+    {
+        if (array_key_exists(RuntimeMode::class, $seeds)) {
+            throw new \InvalidArgumentException('Execution scope cannot override its runtime mode.');
+        }
     }
 
     /**
