@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Release;
 
 use Infocyph\Foundation\Application\RuntimeMode;
+use Infocyph\Foundation\Config\ConfigLoader;
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Routing\WebReleaseCompiler;
 use Infocyph\Foundation\Runtime\GeneratedRuntimeCompiler;
 use Infocyph\Foundation\Runtime\GeneratedRuntimeMetadata;
@@ -223,8 +225,13 @@ final readonly class FoundationReleaseCompiler
     ): array {
         ReleaseGenerationLease::initialize($stage);
         $this->mkdir($stage . '/web');
+        // The deployed release uses an immutable, compiled ConfigRepository.
+        // Compile against that exact graph identity, not the development-only
+        // ConfigRepository(compiled: false) definition.
+        $normalizedConfig = new ConfigLoader()->load($config);
+        $compiledConfig = new ConfigRepository($normalizedConfig->all(), compiled: true);
         $web = $this->web->compile(
-            $config,
+            $compiledConfig,
             $stage . '/web/container.php',
             $stage . '/web/router.php',
             $stage . '/web/release.json',
@@ -403,6 +410,7 @@ final readonly class FoundationReleaseCompiler
 
             $relativeTarget = substr($target, strlen($directory) + 1);
             $temporary = $pointer . '.relative-' . bin2hex(random_bytes(8));
+
             try {
                 if (!symlink($relativeTarget, $temporary) || !rename($temporary, $pointer)) {
                     throw new \RuntimeException(sprintf('Unable to publish portable %s runtime pointer.', $mode));

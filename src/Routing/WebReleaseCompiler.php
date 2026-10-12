@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Routing;
 
 use Infocyph\Foundation\Bootstrap\Bootstrapper;
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Container\FoundationGraph;
 use Infocyph\InterMix\DI\Support\InputDefinition;
 use Infocyph\Webrick\Request\Request;
@@ -32,12 +33,12 @@ final readonly class WebReleaseCompiler
     }
 
     /**
-     * @param array<string, mixed> $config
+     * @param array<string, mixed>|ConfigRepository $config
      * @param array<int|string, mixed> $capabilities Explicit production capability topology; [] is minimal.
      * @return array<string, mixed>
      */
     public function compile(
-        array $config,
+        array|ConfigRepository $config,
         string $intermixPath,
         string $routerPath,
         string $releaseManifestPath,
