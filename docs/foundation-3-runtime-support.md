@@ -72,8 +72,8 @@ specialist-library/native-protocol benchmarks.
 - `RepresentativeBenchmark`: minimal JSON, route-selected browser session,
   application bearer auth and durable OAuth bearer resolution, with successful
   RPM, p50/p95/p99, failures and memory growth.
-- `dblayer-51-utilization.php`: Foundation DBLayer integration attribution.
-- `omnibus-26-utilization.php`: Foundation messaging ingress/consumer
+- `dblayer-utilization.php`: Foundation DBLayer integration attribution.
+- `omnibus-utilization.php`: Foundation messaging ingress/consumer
   integration attribution.
 - `phase9-http-attribution.php`: Foundation versus direct Webrick HTTP/runtime
   attribution under the same process/environment.

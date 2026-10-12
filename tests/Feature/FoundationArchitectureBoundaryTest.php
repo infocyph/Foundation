@@ -148,3 +148,20 @@ it('keeps TalkingBytes typed HTTP composition on the native 2.3 path', function 
         ->toContain('baseConfig: $config')
         ->not->toContain('return HttpClient::fromResolvedConfig($array);');
 });
+
+
+it('keeps specialist benchmark commands bound to maintained entrypoint paths', function (): void {
+    $root = dirname(__DIR__, 2);
+    $composer = json_decode(
+        file_get_contents($root . '/composer.json') ?: '',
+        true,
+        flags: JSON_THROW_ON_ERROR,
+    );
+    $scripts = $composer['scripts'] ?? [];
+
+    foreach (['cachelayer', 'dblayer', 'epicrypt', 'omnibus', 'otp', 'pathwise', 'reqshield', 'talkingbytes'] as $package) {
+        $path = 'benchmarks/' . $package . '-utilization.php';
+        expect($scripts['benchmark:' . $package] ?? null)->toBe('@php ' . $path)
+            ->and(is_file($root . '/' . $path))->toBeTrue();
+    }
+});
