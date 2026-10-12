@@ -16,9 +16,7 @@ use Infocyph\Foundation\Exception\ConfigurationException;
 
 final readonly class AuthProductionGuard
 {
-    public function __construct(
-        private ConfigRepository $config,
-    ) {}
+    public function __construct(private ConfigRepository $config) {}
 
     public function guard(AuthDriverResolver $drivers): void
     {
