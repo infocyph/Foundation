@@ -35,6 +35,7 @@ final class WebGraphFactory
         $providers = new ServiceRegistry();
         $bootstrapper->compose($builder, $context, $providers);
 
+        $bindings = DevelopmentRuntimeBindings::register($builder);
         $container = $builder->development();
         $runtimeConfig = $container->get(ConfigRepository::class);
         if (!$runtimeConfig instanceof ConfigRepository) {
@@ -48,7 +49,7 @@ final class WebGraphFactory
             bootstrapper: $bootstrapper,
             runtimeMode: RuntimeMode::Web,
         );
-        DevelopmentRuntimeBindings::register($builder, $application, $container);
+        $bindings->attach($application);
 
         return new WebGraphComposition($builder, $application, $context, $runtimeConfig);
     }

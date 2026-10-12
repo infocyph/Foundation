@@ -39,6 +39,7 @@ final class NonWebGraphFactory
         $providers = new ServiceRegistry();
         $bootstrapper->compose($builder, $context, $providers);
 
+        $bindings = DevelopmentRuntimeBindings::register($builder);
         $container = $builder->development();
         $runtimeConfig = $container->get(ConfigRepository::class);
         if (!$runtimeConfig instanceof ConfigRepository) {
@@ -52,7 +53,7 @@ final class NonWebGraphFactory
             bootstrapper: $bootstrapper,
             runtimeMode: $runtime,
         );
-        DevelopmentRuntimeBindings::register($builder, $application, $container);
+        $bindings->attach($application);
 
         return new NonWebGraphComposition(
             builder: $builder,

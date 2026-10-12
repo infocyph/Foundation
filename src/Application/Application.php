@@ -43,6 +43,7 @@ final class Application
         $providers = new ServiceRegistry();
         $bootstrapper->compose($builder, $context, $providers);
 
+        $bindings = DevelopmentRuntimeBindings::register($builder);
         $container = $builder->development();
         $runtimeConfig = $container->get(ConfigRepository::class);
         if (!$runtimeConfig instanceof ConfigRepository) {
@@ -55,7 +56,7 @@ final class Application
             bootstrapper: $bootstrapper,
             runtimeMode: $runtimeMode,
         );
-        DevelopmentRuntimeBindings::register($builder, $app, $container);
+        $bindings->attach($app);
 
         return $app;
     }
