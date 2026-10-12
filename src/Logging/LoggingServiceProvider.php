@@ -20,20 +20,18 @@ final class LoggingServiceProvider extends ServiceProvider
         $logging = is_array($context->config['logging'] ?? null) ? $context->config['logging'] : [];
         $exceptions = is_array($logging['exceptions'] ?? null) ? $logging['exceptions'] : [];
 
-        if (!$builder->definitions()->has(LoggerInterface::class)) {
-            $driver = ValueNormalizer::string($logging['driver'] ?? null, 'null');
-            $definition = $driver === 'null'
-                ? FactoryDefinition::construct(NullLogger::class)
-                : FactoryDefinition::construct(JsonLogger::class, [
-                    $driver,
-                    ValueNormalizer::string($logging['level'] ?? null, 'warning'),
-                    $this->logPath($context, $logging['path'] ?? null),
-                    ValueNormalizer::stringList($logging['redact'] ?? []),
-                    ValueNormalizer::bool($exceptions['include_message'] ?? null, false),
-                    ValueNormalizer::bool($exceptions['include_trace'] ?? null, false),
-                ]);
-            $builder->singleton(LoggerInterface::class, $definition);
-        }
+        $driver = ValueNormalizer::string($logging['driver'] ?? null, 'null');
+        $definition = $driver === 'null'
+            ? FactoryDefinition::construct(NullLogger::class)
+            : FactoryDefinition::construct(JsonLogger::class, [
+                $driver,
+                ValueNormalizer::string($logging['level'] ?? null, 'warning'),
+                $this->logPath($context, $logging['path'] ?? null),
+                ValueNormalizer::stringList($logging['redact'] ?? []),
+                ValueNormalizer::bool($exceptions['include_message'] ?? null, false),
+                ValueNormalizer::bool($exceptions['include_trace'] ?? null, false),
+            ]);
+        $builder->singleton(LoggerInterface::class, $definition);
 
         $builder->singleton(
             ExceptionReporter::class,

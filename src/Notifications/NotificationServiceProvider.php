@@ -59,50 +59,32 @@ final class NotificationServiceProvider extends ServiceProvider
 
     private function registerMail(ContainerBuilder $builder): void
     {
-        if (!$builder->definitions()->has(EmailSenderFactory::class)) {
-            $builder->singleton(EmailSenderFactory::class, FactoryDefinition::construct(EmailSenderFactory::class));
-        }
-        if (!$builder->definitions()->has(EmailReceiverFactory::class)) {
-            $builder->singleton(EmailReceiverFactory::class, FactoryDefinition::construct(EmailReceiverFactory::class));
-        }
-        if (!$builder->definitions()->has(EmailMailboxFactory::class)) {
-            $builder->singleton(EmailMailboxFactory::class, FactoryDefinition::construct(EmailMailboxFactory::class));
-        }
-        if (!$builder->definitions()->has(EmailLimits::class)) {
-            $builder->singleton(EmailLimits::class, FactoryDefinition::staticFactory(
-                NotificationGraphFactory::class,
-                'emailLimits',
-                [new ServiceReference(ConfigRepository::class)],
-            ));
-        }
-        if (!$builder->definitions()->has(RawEmailParser::class)) {
-            $builder->singleton(RawEmailParser::class, FactoryDefinition::staticFactory(
-                NotificationGraphFactory::class,
-                'rawEmailParser',
-                [new ServiceReference(EmailLimits::class)],
-            ));
-        }
-        if (!$builder->definitions()->has(BounceParser::class)) {
-            $builder->singleton(BounceParser::class, FactoryDefinition::construct(BounceParser::class));
-        }
-        if (!$builder->definitions()->has(AuthenticationResultsParser::class)) {
-            $builder->singleton(
-                AuthenticationResultsParser::class,
-                FactoryDefinition::construct(AuthenticationResultsParser::class),
-            );
-        }
-        if (!$builder->definitions()->has(DkimPublicKeyResolver::class)) {
-            $builder->singleton(
-                DkimPublicKeyResolver::class,
-                FactoryDefinition::construct(DnsDkimPublicKeyResolver::class),
-            );
-        }
-        if (!$builder->definitions()->has(DkimVerifier::class)) {
-            $builder->singleton(DkimVerifier::class, FactoryDefinition::construct(
-                DkimVerifier::class,
-                [new ServiceReference(DkimPublicKeyResolver::class)],
-            ));
-        }
+        $builder->singleton(EmailSenderFactory::class, FactoryDefinition::construct(EmailSenderFactory::class));
+        $builder->singleton(EmailReceiverFactory::class, FactoryDefinition::construct(EmailReceiverFactory::class));
+        $builder->singleton(EmailMailboxFactory::class, FactoryDefinition::construct(EmailMailboxFactory::class));
+        $builder->singleton(EmailLimits::class, FactoryDefinition::staticFactory(
+            NotificationGraphFactory::class,
+            'emailLimits',
+            [new ServiceReference(ConfigRepository::class)],
+        ));
+        $builder->singleton(RawEmailParser::class, FactoryDefinition::staticFactory(
+            NotificationGraphFactory::class,
+            'rawEmailParser',
+            [new ServiceReference(EmailLimits::class)],
+        ));
+        $builder->singleton(BounceParser::class, FactoryDefinition::construct(BounceParser::class));
+        $builder->singleton(
+            AuthenticationResultsParser::class,
+            FactoryDefinition::construct(AuthenticationResultsParser::class),
+        );
+        $builder->singleton(
+            DkimPublicKeyResolver::class,
+            FactoryDefinition::construct(DnsDkimPublicKeyResolver::class),
+        );
+        $builder->singleton(DkimVerifier::class, FactoryDefinition::construct(
+            DkimVerifier::class,
+            [new ServiceReference(DkimPublicKeyResolver::class)],
+        ));
 
         $builder->singleton(EmailProfiles::class, FactoryDefinition::construct(
             EmailProfiles::class,
@@ -116,28 +98,24 @@ final class NotificationServiceProvider extends ServiceProvider
             ],
         ));
 
-        if (!$builder->definitions()->has(Emailer::class)) {
-            $builder->bind(
-                Emailer::class,
-                FactoryDefinition::staticFactory(
-                    NotificationGraphFactory::class,
-                    'emailer',
-                    [new ServiceReference(EmailProfiles::class)],
-                ),
-                LifetimeEnum::Scoped,
-            );
-        }
-        if (!$builder->definitions()->has(SpoolEmailReceiver::class)) {
-            $builder->bind(
-                SpoolEmailReceiver::class,
-                FactoryDefinition::staticFactory(
-                    NotificationGraphFactory::class,
-                    'spoolReceiver',
-                    [new ServiceReference(EmailProfiles::class)],
-                ),
-                LifetimeEnum::Scoped,
-            );
-        }
+        $builder->bind(
+            Emailer::class,
+            FactoryDefinition::staticFactory(
+                NotificationGraphFactory::class,
+                'emailer',
+                [new ServiceReference(EmailProfiles::class)],
+            ),
+            LifetimeEnum::Scoped,
+        );
+        $builder->bind(
+            SpoolEmailReceiver::class,
+            FactoryDefinition::staticFactory(
+                NotificationGraphFactory::class,
+                'spoolReceiver',
+                [new ServiceReference(EmailProfiles::class)],
+            ),
+            LifetimeEnum::Scoped,
+        );
 
         $builder->singleton(Mailer::class, FactoryDefinition::construct(
             Mailer::class,

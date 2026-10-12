@@ -35,57 +35,43 @@ final class CommunicationServiceProvider extends ServiceProvider
             CommunicationProfiles::class,
             [new ServiceReference(ConfigRepository::class)],
         ));
-        if (!$builder->definitions()->has(HttpClientConfig::class)) {
-            $builder->singleton(HttpClientConfig::class, FactoryDefinition::staticFactory(
+        $builder->singleton(HttpClientConfig::class, FactoryDefinition::staticFactory(
+            CommunicationGraphFactory::class,
+            'httpConfig',
+            [new ServiceReference(CommunicationProfiles::class)],
+        ));
+        $builder->bind(
+            HttpClient::class,
+            FactoryDefinition::staticFactory(
                 CommunicationGraphFactory::class,
-                'httpConfig',
+                'http',
                 [new ServiceReference(CommunicationProfiles::class)],
-            ));
-        }
-        if (!$builder->definitions()->has(HttpClient::class)) {
-            $builder->bind(
-                HttpClient::class,
-                FactoryDefinition::staticFactory(
-                    CommunicationGraphFactory::class,
-                    'http',
-                    [new ServiceReference(CommunicationProfiles::class)],
-                ),
-                LifetimeEnum::Scoped,
-            );
-        }
-        if (!$builder->definitions()->has(WebhookSender::class)) {
-            $builder->bind(
-                WebhookSender::class,
-                FactoryDefinition::staticFactory(
-                    CommunicationGraphFactory::class,
-                    'webhookSender',
-                    [new ServiceReference(CommunicationProfiles::class)],
-                ),
-                LifetimeEnum::Scoped,
-            );
-        }
-        if (!$builder->definitions()->has(WebhookVerifier::class)) {
-            $builder->singleton(WebhookVerifier::class, FactoryDefinition::staticFactory(
+            ),
+            LifetimeEnum::Scoped,
+        );
+        $builder->bind(
+            WebhookSender::class,
+            FactoryDefinition::staticFactory(
                 CommunicationGraphFactory::class,
-                'webhookVerifier',
+                'webhookSender',
                 [new ServiceReference(CommunicationProfiles::class)],
-            ));
-        }
-        if (!$builder->definitions()->has(WebhookReceiver::class)) {
-            $this->registerWebhookReceiver($builder, $context);
-        }
-        if (!$builder->definitions()->has(GrpcInboundDispatcher::class)) {
-            $this->registerGrpcDispatcher($builder, $context);
-        }
-        if (!$builder->definitions()->has(GrpcInboundWorker::class)) {
-            $builder->singleton(GrpcInboundWorker::class, FactoryDefinition::construct(
-                GrpcInboundWorker::class,
-                [
-                    new ServiceReference(ContainerInterface::class),
-                    new ServiceReference(ConfigRepository::class),
-                ],
-            ));
-        }
+            ),
+            LifetimeEnum::Scoped,
+        );
+        $builder->singleton(WebhookVerifier::class, FactoryDefinition::staticFactory(
+            CommunicationGraphFactory::class,
+            'webhookVerifier',
+            [new ServiceReference(CommunicationProfiles::class)],
+        ));
+        $this->registerWebhookReceiver($builder, $context);
+        $this->registerGrpcDispatcher($builder, $context);
+        $builder->singleton(GrpcInboundWorker::class, FactoryDefinition::construct(
+            GrpcInboundWorker::class,
+            [
+                new ServiceReference(ContainerInterface::class),
+                new ServiceReference(ConfigRepository::class),
+            ],
+        ));
 
         $builder->alias('foundation.communication', CommunicationProfiles::class);
     }

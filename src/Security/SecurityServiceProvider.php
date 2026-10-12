@@ -26,27 +26,21 @@ final class SecurityServiceProvider extends ServiceProvider
         $security = is_array($context->config['security'] ?? null) ? $context->config['security'] : [];
         $password = is_array($security['password'] ?? null) ? $security['password'] : [];
 
-        if (!$builder->definitions()->has(PasswordHashOptions::class)) {
-            $builder->singleton(
-                PasswordHashOptions::class,
-                FactoryDefinition::staticFactory(
-                    SecurityGraphFactory::class,
-                    'passwordOptions',
-                    [$password],
-                ),
-            );
-        }
-        if (!$builder->definitions()->has(PasswordHasher::class)) {
-            $builder->singleton(
-                PasswordHasher::class,
-                FactoryDefinition::construct(PasswordHasher::class, [
-                    new ServiceReference(PasswordHashOptions::class),
-                ]),
-            );
-        }
-        if (!$builder->definitions()->has(AeadCipher::class)) {
-            $builder->singleton(AeadCipher::class, FactoryDefinition::construct(AeadCipher::class));
-        }
+        $builder->singleton(
+            PasswordHashOptions::class,
+            FactoryDefinition::staticFactory(
+                SecurityGraphFactory::class,
+                'passwordOptions',
+                [$password],
+            ),
+        );
+        $builder->singleton(
+            PasswordHasher::class,
+            FactoryDefinition::construct(PasswordHasher::class, [
+                new ServiceReference(PasswordHashOptions::class),
+            ]),
+        );
+        $builder->singleton(AeadCipher::class, FactoryDefinition::construct(AeadCipher::class));
 
         $builder->alias('foundation.security', AeadCipher::class);
         $builder->alias('foundation.crypto', AeadCipher::class);
