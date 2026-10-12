@@ -98,16 +98,14 @@ final readonly class AuthManagerRegistrar extends AbstractAuthRegistrar
                 $this->ref(AuditEventStoreInterface::class), $this->ref(AuthIdGeneratorInterface::class),
                 $this->intConfig('auth.password_reset_ttl', 3600), $this->ref(ClockInterface::class),
             ], LifetimeEnum::Scoped);
-        }
-        if ($tokenServicesAvailable) {
+
             $this->recipe(EmailVerificationManager::class, EmailVerificationManager::class, [
                 $this->ref(EmailVerificationTokenServiceInterface::class), $this->ref(EmailVerificationStoreInterface::class),
                 $this->ref(AccountStoreInterface::class), $this->ref(AuthNotifierInterface::class),
                 $this->ref(AuditEventStoreInterface::class), $this->ref(AuthIdGeneratorInterface::class),
                 $this->intConfig('auth.email_verification_ttl', 3600), $this->ref(ClockInterface::class),
             ], LifetimeEnum::Scoped);
-        }
-        if ($tokenServicesAvailable) {
+
             $this->recipe(PasswordlessManager::class, PasswordlessManager::class, [
                 $this->ref(PasswordlessTokenServiceInterface::class), $this->ref(AuthNotifierInterface::class),
             ], LifetimeEnum::Scoped);
