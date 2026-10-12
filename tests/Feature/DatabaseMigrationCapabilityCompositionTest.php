@@ -32,7 +32,6 @@ it('binds configured migration locks from the complete capability topology, not 
             ->and($application->make(DatabaseMigrationManager::class)->runner())->toBeInstanceOf(MigrationRunner::class);
     } finally {
         DB::purge();
-        $application->container()->unset();
     }
 
     $config['app']['capabilities'] = ['database'];
@@ -44,7 +43,6 @@ it('binds configured migration locks from the complete capability topology, not 
             ->toThrow(LogicException::class, 'Database migration locks require the Foundation cache capability.');
     } finally {
         DB::purge();
-        $databaseOnly->container()->unset();
     }
 });
 

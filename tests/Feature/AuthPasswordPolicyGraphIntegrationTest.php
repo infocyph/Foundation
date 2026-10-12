@@ -17,13 +17,9 @@ it('registers configured password policy without resolving a development contain
         ],
     ]);
 
-    try {
-        $policy = $app->make(PasswordPolicyInterface::class);
-        expect($policy)->toBeInstanceOf(BaselinePasswordPolicy::class)
-            ->and($policy->validate('abcdefghijklm')->valid)->toBeFalse()
-            ->and($policy->validate('abcdefghijklmn')->valid)->toBeTrue()
-            ->and($policy->validate('abcdefghijklmnopq')->valid)->toBeFalse();
-    } finally {
-        $app->container()->unset();
-    }
+    $policy = $app->make(PasswordPolicyInterface::class);
+    expect($policy)->toBeInstanceOf(BaselinePasswordPolicy::class)
+        ->and($policy->validate('abcdefghijklm')->valid)->toBeFalse()
+        ->and($policy->validate('abcdefghijklmn')->valid)->toBeTrue()
+        ->and($policy->validate('abcdefghijklmnopq')->valid)->toBeFalse();
 });
