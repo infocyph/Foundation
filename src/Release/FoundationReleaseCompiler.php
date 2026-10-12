@@ -15,12 +15,25 @@ use Infocyph\Webrick\Router\Build\ReleaseCompiler as WebrickReleaseCompiler;
 /** Coordinates one immutable Foundation release generation across all runtimes. */
 final readonly class FoundationReleaseCompiler
 {
+    private ActiveGeneration $active;
+
+    private GeneratedRuntimeCompiler $nonWeb;
+
+    private WebReleaseCompiler $web;
+
+    private WorkerTopology $workerTopology;
+
     public function __construct(
-        private WebReleaseCompiler $web = new WebReleaseCompiler(),
-        private GeneratedRuntimeCompiler $nonWeb = new GeneratedRuntimeCompiler(),
-        private ActiveGeneration $active = new ActiveGeneration(),
-        private WorkerTopology $workerTopology = new WorkerTopology(),
-    ) {}
+        WebReleaseCompiler $web = new WebReleaseCompiler(),
+        GeneratedRuntimeCompiler $nonWeb = new GeneratedRuntimeCompiler(),
+        ActiveGeneration $active = new ActiveGeneration(),
+        WorkerTopology $workerTopology = new WorkerTopology(),
+    ) {
+        $this->active = $active;
+        $this->nonWeb = $nonWeb;
+        $this->web = $web;
+        $this->workerTopology = $workerTopology;
+    }
 
     /**
      * Capability topology is explicit for every generated runtime. Omitted runtime
