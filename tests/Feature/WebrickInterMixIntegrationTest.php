@@ -125,6 +125,7 @@ it('applies InterMix environment bindings from the application environment', fun
         {
             unset($context);
 
+            $builder->autowire(FoundationTestGateway::class, ProductionFoundationGateway::class);
             $builder->bindInterfaceForEnv('local', FoundationTestGateway::class, LocalFoundationGateway::class);
             $builder->bindInterfaceForEnv('production', FoundationTestGateway::class, ProductionFoundationGateway::class);
         }
