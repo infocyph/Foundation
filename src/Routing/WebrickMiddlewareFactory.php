@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Routing;
 
 use Infocyph\CacheLayer\Cache\CacheInterface;
-use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Support\ValueNormalizer;
@@ -26,12 +25,13 @@ use Infocyph\Webrick\Middleware\VaryAccumulatorMiddleware;
 use Infocyph\Webrick\Middleware\VerifySignedUrlMiddleware;
 use Infocyph\Webrick\Router\Dispatch\MiddlewareAliases;
 use Infocyph\Webrick\Router\Url\SignedUrlConfig;
+use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class WebrickMiddlewareFactory
 {
     public function __construct(
-        private Application $app,
+        private ContainerInterface $container,
         private ConfigRepository $config,
         private LoggerInterface $logger,
     ) {}
@@ -109,7 +109,7 @@ final readonly class WebrickMiddlewareFactory
     {
         $store = ValueNormalizer::nullableString($name);
 
-        return $this->app->make(CacheManager::class)->store($store);
+        return $this->container->get(CacheManager::class)->store($store);
     }
 
     /**
@@ -450,7 +450,7 @@ final readonly class WebrickMiddlewareFactory
     private function resolveClass(string $class): object|string
     {
         try {
-            $service = $this->app->make($class);
+            $service = $this->container->get($class);
 
             return is_object($service) ? $service : $class;
         } catch (\Throwable) {

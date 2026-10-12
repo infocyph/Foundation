@@ -9,39 +9,45 @@ use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Exception\ConfigurationException;
 use Infocyph\Foundation\Filesystem\PathManager;
+use Infocyph\InterMix\DI\Container;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\ServiceReference;
 use Infocyph\Webrick\Router\Definition\Registrar;
 use Infocyph\Webrick\Router\Route\Collection;
+use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 
 final class RoutingServiceProvider extends ServiceProvider
 {
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        $app = $this->application($builder, $context);
-        new MiddlewareConfigValidator($app->config())->validate();
-        $container = $builder->development();
+        new MiddlewareConfigValidator(new ConfigRepository($context->config, $context->compiledConfig))->validate();
         $router = is_array($context->config['router'] ?? null) ? $context->config['router'] : [];
 
         // Live Webrick router composition remains a development/test path. Production
         // releases use WebReleaseCompiler + WebReleaseRuntime and never resolve this factory.
-        $builder->bindFactory(WebrickMiddlewareFactory::class, fn() => new WebrickMiddlewareFactory(
-            app: $app,
-            config: $app->config(),
-            logger: $app->make(LoggerInterface::class),
+        $builder->singleton(WebrickMiddlewareFactory::class, FactoryDefinition::construct(
+            WebrickMiddlewareFactory::class,
+            [
+                new ServiceReference(ContainerInterface::class),
+                new ServiceReference(ConfigRepository::class),
+                new ServiceReference(LoggerInterface::class),
+            ],
         ));
         $builder->singleton(RouteMiddlewareRegistrar::class, FactoryDefinition::construct(
             RouteMiddlewareRegistrar::class,
             [new ServiceReference(WebrickMiddlewareFactory::class)],
         ));
-        $builder->bindFactory(WebrickRouterFactory::class, fn() => new WebrickRouterFactory(
-            $app->config(),
-            $app->make(WebrickMiddlewareFactory::class),
-            $app->make(RouteMiddlewareRegistrar::class),
-            $container,
-            $app->make(LoggerInterface::class),
+        $builder->singleton(WebrickRouterFactory::class, FactoryDefinition::construct(
+            WebrickRouterFactory::class,
+            [
+                new ServiceReference(ConfigRepository::class),
+                new ServiceReference(WebrickMiddlewareFactory::class),
+                new ServiceReference(RouteMiddlewareRegistrar::class),
+                new ServiceReference(Container::class),
+                new ServiceReference(LoggerInterface::class),
+            ],
         ));
         $builder->singleton(RoutePresetRegistrar::class, FactoryDefinition::construct(
             RoutePresetRegistrar::class,
@@ -57,8 +63,16 @@ final class RoutingServiceProvider extends ServiceProvider
                 new ServiceReference(RoutePresetRegistrar::class),
             ],
         ));
-        $builder->bindFactory(Registrar::class, fn() => $app->make(WebrickRouterFactory::class)->router());
-        $builder->bindFactory(Collection::class, fn() => $app->make(WebrickRouterFactory::class)->routes());
+        $builder->singleton(Registrar::class, FactoryDefinition::staticFactory(
+            WebrickRuntimeFactory::class,
+            'registrar',
+            [new ServiceReference(WebrickRouterFactory::class)],
+        ));
+        $builder->singleton(Collection::class, FactoryDefinition::staticFactory(
+            WebrickRuntimeFactory::class,
+            'routes',
+            [new ServiceReference(WebrickRouterFactory::class)],
+        ));
         $builder->singleton(RouteFileLoader::class, FactoryDefinition::construct(
             RouteFileLoader::class,
             [
