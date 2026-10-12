@@ -5,7 +5,10 @@ declare(strict_types=1);
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Auth\AuthServiceProvider;
+use Infocyph\Foundation\Auth\Authentication\Lockout\LockoutManager;
 use Infocyph\Foundation\Auth\Contract\Security\PasswordPolicyInterface;
+use Infocyph\Foundation\Auth\Internal\AuthSecretResolver;
+use Infocyph\Foundation\Auth\Passkey\PasskeyManager;
 use Infocyph\Epicrypt\Token\Payload\PurposeToken;
 use Infocyph\Foundation\Auth\Authentication\PasswordReset\PasswordResetManager;
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\TokenAuthManager;
@@ -41,9 +44,9 @@ it('contributes the built-in token secret and passkey lockout services without i
     $builder = FoundationGraph::compose($context);
     new AuthServiceProvider()->contribute($builder, $context);
 
-    expect($builder->definitions()->has(\\Infocyph\\Foundation\\Auth\\Internal\\AuthSecretResolver::class))->toBeTrue()
-        ->and($builder->definitions()->has(\\Infocyph\\Foundation\\Auth\\Authentication\\Lockout\\LockoutManager::class))->toBeTrue()
-        ->and($builder->definitions()->has(\\Infocyph\\Foundation\\Auth\\Passkey\\PasskeyManager::class))->toBeTrue();
+    expect($builder->definitions()->has(AuthSecretResolver::class))->toBeTrue()
+        ->and($builder->definitions()->has(LockoutManager::class))->toBeTrue()
+        ->and($builder->definitions()->has(PasskeyManager::class))->toBeTrue();
 });
 
 it('registers optional token managers from the selected token driver rather than unfinished definition lookups', function (): void {
