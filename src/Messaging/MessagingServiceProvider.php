@@ -66,17 +66,6 @@ final class MessagingServiceProvider extends ServiceProvider
         $builder->alias('foundation.messaging', MessageBus::class);
     }
 
-    /**
-     * @param array<array-key, mixed> $source
-     * @return array<array-key, mixed>
-     */
-    private function arrayValue(array $source, string $key): array
-    {
-        $value = $source[$key] ?? null;
-
-        return is_array($value) ? $value : [];
-    }
-
     /** @param array<array-key, mixed> $messaging */
     private function assertDurableConfiguration(
         FoundationBuildContext $context,
@@ -105,6 +94,17 @@ final class MessagingServiceProvider extends ServiceProvider
                 'Durable database consumers/workers require an explicit messaging.durable.failure_store policy.',
             );
         }
+    }
+
+    /**
+     * @param array<array-key, mixed> $source
+     * @return array<array-key, mixed>
+     */
+    private function arrayValue(array $source, string $key): array
+    {
+        $value = $source[$key] ?? null;
+
+        return is_array($value) ? $value : [];
     }
 
     /**
