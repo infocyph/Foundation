@@ -48,9 +48,11 @@ it('keeps test service replacements confined to their own application and type',
     $left = Foundation::cli([]);
     $right = Foundation::cli([]);
     $frozen = $left->make(TestKit::class)->freezeTime(1_700_000_000);
+    $other = $right->make(TestKit::class)->freezeTime(1_700_000_001);
 
     expect($left->make(ClockInterface::class))->toBe($frozen)
-        ->and($right->make(ClockInterface::class))->not->toBe($frozen);
+        ->and($right->make(ClockInterface::class))->toBe($other)
+        ->and($other)->not->toBe($frozen);
 
     expect(fn() => $left->replaceForTesting(ClockInterface::class, new stdClass()))
         ->toThrow(InvalidArgumentException::class);
