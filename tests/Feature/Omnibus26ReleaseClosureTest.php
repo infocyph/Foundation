@@ -37,12 +37,12 @@ final class FoundationOmnibus26CommandStateProvider extends ServiceProvider
     {
         unset($context);
 
-        $builder->bindFactory(
+        $builder->factory(
             FailureStore::class,
             static fn(): FailureStore => self::$failures
                 ?? throw new LogicException('Omnibus command failure store fixture is not initialized.'),
         );
-        $builder->bindFactory(
+        $builder->factory(
             TransportRegistry::class,
             static fn(): TransportRegistry => self::$transports
                 ?? throw new LogicException('Omnibus command transport registry fixture is not initialized.'),
