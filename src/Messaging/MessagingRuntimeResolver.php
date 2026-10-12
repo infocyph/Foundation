@@ -15,9 +15,7 @@ use Psr\Container\ContainerInterface;
  */
 final readonly class MessagingRuntimeResolver
 {
-    public function __construct(private ContainerInterface $container)
-    {
-    }
+    public function __construct(private ContainerInterface $container) {}
 
     public function callable(mixed $definition): callable
     {
