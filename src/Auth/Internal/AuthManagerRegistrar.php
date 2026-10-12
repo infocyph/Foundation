@@ -139,7 +139,7 @@ final readonly class AuthManagerRegistrar extends AbstractAuthRegistrar
             $this->ref(PasskeyServiceInterface::class), $this->ref(PasskeyCredentialCompareAndSwapStoreInterface::class),
             $this->ref(AuditEventStoreInterface::class), $this->ref(AuthNotifierInterface::class),
             $this->ref(AuthIdGeneratorInterface::class),
-            $this->hasExplicitBinding(LockoutManager::class) ? $this->ref(LockoutManager::class) : null,
+            $this->ref(LockoutManager::class),
             $this->ref(ClockInterface::class),
         ], LifetimeEnum::Scoped);
         $this->recipe(DeviceManager::class, DeviceManager::class, [

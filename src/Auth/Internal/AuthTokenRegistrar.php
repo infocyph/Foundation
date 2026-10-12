@@ -133,10 +133,6 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
 
     private function registerSecretResolver(): void
     {
-        if ($this->hasExplicitBinding(AuthSecretResolver::class)) {
-            return;
-        }
-
         $this->recipe(AuthSecretResolver::class, AuthSecretResolver::class, [
             $this->ref(ConfigRepository::class),
         ]);

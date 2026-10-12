@@ -28,3 +28,17 @@ it('contributes authentication services before any Application runtime has been 
     expect($builder->definitions()->has(AuthDriverResolver::class))->toBeTrue()
         ->and($builder->definitions()->has(PasswordPolicyInterface::class))->toBeTrue();
 });
+
+it('contributes the built-in token secret and passkey lockout services without inspecting partial definitions', function (): void {
+    $context = FoundationBuildContext::fromConfig(
+        new ConfigRepository(['app' => ['env' => 'testing']]),
+        RuntimeMode::Cli,
+        ['auth'],
+    );
+    $builder = FoundationGraph::compose($context);
+    new AuthServiceProvider()->contribute($builder, $context);
+
+    expect($builder->definitions()->has(\\Infocyph\\Foundation\\Auth\\Internal\\AuthSecretResolver::class))->toBeTrue()
+        ->and($builder->definitions()->has(\\Infocyph\\Foundation\\Auth\\Authentication\\Lockout\\LockoutManager::class))->toBeTrue()
+        ->and($builder->definitions()->has(\\Infocyph\\Foundation\\Auth\\Passkey\\PasskeyManager::class))->toBeTrue();
+});
