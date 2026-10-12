@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Routing;
 
+use Infocyph\Foundation\Bootstrap\Bootstrapper;
+use Infocyph\Foundation\Container\FoundationGraph;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\Webrick\Router\Build\ReleaseCompiler as WebrickReleaseCompiler;
 use Infocyph\Webrick\Router\Build\RouterArtifactLoader;
@@ -35,6 +37,8 @@ final readonly class WebReleaseCompiler
         array $capabilities = [],
     ): array {
         $graph = $this->graphs->compose($config, $capabilities);
+        $builder = FoundationGraph::compose($graph->context);
+        new Bootstrapper()->contribute($builder, $graph->context, $graph->providers);
         $settings = new WebReleaseConfiguration($graph);
         $settings->assertArtifactSafeMiddleware();
 
@@ -43,7 +47,7 @@ final readonly class WebReleaseCompiler
         $releaseManifestPath = $settings->resolvePath($releaseManifestPath);
 
         $release = $this->compiler->compile(
-            builder: $graph->builder,
+            builder: $builder,
             register: static function (Registrar $registrar) use ($graph): void {
                 $graph->application->make(RouteFileLoader::class)->loadForRelease($registrar);
             },

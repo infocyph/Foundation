@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Runtime;
 
 use Infocyph\Foundation\Application\RuntimeMode;
+use Infocyph\Foundation\Container\FoundationGraph;
 
 /** Compiles one verified CLI, worker, or scheduler InterMix artifact. */
 final class GeneratedRuntimeCompiler
@@ -33,7 +34,9 @@ final class GeneratedRuntimeCompiler
         $stagedPath = null;
 
         try {
-            new NonWebProductionGraph()->prepare($graph->builder);
+            $builder = FoundationGraph::compose($graph->context);
+            $graph->bootstrapper->contribute($builder, $graph->context, $graph->providers);
+            new NonWebProductionGraph()->prepare($builder);
             $artifactPath = GeneratedRuntimeMetadata::resolvePath($graph->application, $artifactPath);
             $directory = dirname($artifactPath);
             if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
@@ -42,8 +45,8 @@ final class GeneratedRuntimeCompiler
 
             $stagedPath = $directory . DIRECTORY_SEPARATOR . '.foundation-'
                 . basename($artifactPath) . '-' . bin2hex(random_bytes(6));
-            $graph->builder->validate(strict: true);
-            $report = $graph->builder->compile($stagedPath);
+            $builder->validate(strict: true);
+            $report = $builder->compile($stagedPath);
             $this->assertNoSkippedDefinitions($report['skipped']);
             GeneratedRuntimeMetadata::write(
                 $stagedPath,
