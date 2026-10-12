@@ -126,7 +126,7 @@ final class NotificationServiceProvider extends ServiceProvider
             [new ServiceReference(Mailer::class)],
         ));
 
-        $builder->alias('foundation.notifications.emailer', Emailer::class, LifetimeEnum::Scoped);
+        $builder->alias('foundation.notifications.emailer', Emailer::class);
         $builder->alias('foundation.email', Mailer::class);
     }
 }

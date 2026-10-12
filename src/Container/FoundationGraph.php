@@ -8,8 +8,14 @@ use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\RuntimeModeFactory;
 use Infocyph\Foundation\Config\ConfigExportValidator;
+use Infocyph\Foundation\Command\CommandContext;
+use Infocyph\Foundation\Command\CommandDefinition;
+use Infocyph\Foundation\Command\CommandDescriptor;
+use Infocyph\Foundation\Command\CommandIO;
+use Infocyph\Foundation\Command\ParsedInput;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Runtime\ExecutionScope;
+use Infocyph\Foundation\Runtime\ExecutionId;
 use Infocyph\Foundation\Runtime\RuntimeExecutionState;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
@@ -44,6 +50,21 @@ final class FoundationGraph
                 new ServiceReference(RuntimeMode::class),
             ],
         ));
+
+        if ($context->runtimeMode !== RuntimeMode::Web) {
+            $builder->input(ExecutionId::class);
+        }
+        if ($context->runtimeMode === RuntimeMode::Cli) {
+            foreach ([
+                ParsedInput::class,
+                CommandIO::class,
+                CommandContext::class,
+                CommandDescriptor::class,
+                CommandDefinition::class,
+            ] as $id) {
+                $builder->input($id);
+            }
+        }
 
         return $builder;
     }

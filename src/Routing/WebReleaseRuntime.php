@@ -179,7 +179,7 @@ final readonly class WebReleaseRuntime
         $container = $prevalidated
             ? $builder->productionPrevalidated($intermixPath, $intermixDigest)
             : $builder->production($intermixPath);
-        $graph->application->container()->unset();
+
 
         $logger = $container->get(LoggerInterface::class);
         if (!$logger instanceof LoggerInterface) {

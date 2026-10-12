@@ -168,35 +168,20 @@ final readonly class WorkerManager
         }
 
         $container = $this->application->container();
-        foreach ([
-            \Infocyph\Foundation\Cache\CacheManager::class,
-            \Infocyph\CacheLayer\Cache\CacheInterface::class,
-            \Infocyph\CacheLayer\Cache\Cache::class,
-            \Infocyph\CacheLayer\Cache\Lock\LockProviderInterface::class,
-            \Infocyph\CacheLayer\Counter\AtomicCounterStoreInterface::class,
-            \Infocyph\DBLayer\Connection\Connection::class,
-            \Infocyph\Omnibus\Consumer\Consumer::class,
-            \Infocyph\Omnibus\Failure\FailureStore::class,
-            \Infocyph\Omnibus\Transport\TransportRegistry::class,
-            \Infocyph\TalkingBytes\Http\HttpClient::class,
-        ] as $service) {
-            if ($container->isResolved($service)) {
-                throw new \LogicException(sprintf(
-                    'Pooled workers must fork before resolving process-bound service "%s".',
-                    $service,
-                ));
-            }
+        if (!$container->has(\Infocyph\Foundation\Runtime\ForkSafetyTracker::class)) {
+            throw new \LogicException('Pooled workers require a monitored, fresh development runtime before forking.');
+        }
+        $tracker = $container->get(\Infocyph\Foundation\Runtime\ForkSafetyTracker::class);
+        if (!$tracker instanceof \Infocyph\Foundation\Runtime\ForkSafetyTracker) {
+            throw new \LogicException('Foundation pooled-worker resolution tracker binding is invalid.');
         }
 
-        if ($container->isResolved(\Infocyph\Foundation\Runtime\RuntimeExecutionState::class)) {
-            $state = $container->get(\Infocyph\Foundation\Runtime\RuntimeExecutionState::class);
-            if ($state instanceof \Infocyph\Foundation\Runtime\RuntimeExecutionState
-                && $state->hasDatabaseConnections()
-            ) {
-                throw new \LogicException(
-                    'Pooled workers must fork before opening DBLayer connections in the parent process.',
-                );
-            }
+        $resolved = $tracker->firstResolvedService();
+        if ($resolved !== null) {
+            throw new \LogicException(sprintf(
+                'Pooled workers must fork before resolving process-bound service "%s".',
+                $resolved,
+            ));
         }
 
         $db = \Infocyph\DBLayer\DB::class;

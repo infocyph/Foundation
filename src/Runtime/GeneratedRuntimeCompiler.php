@@ -73,7 +73,7 @@ final class GeneratedRuntimeCompiler
             if (is_string($stagedPath)) {
                 $this->removeStaged($stagedPath);
             }
-            $graph->application->container()->unset();
+
         }
     }
 
