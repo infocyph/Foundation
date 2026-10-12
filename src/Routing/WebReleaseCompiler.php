@@ -8,6 +8,7 @@ use Infocyph\Foundation\Bootstrap\Bootstrapper;
 use Infocyph\Foundation\Container\FoundationGraph;
 use Infocyph\Webrick\Router\Build\ReleaseCompiler as WebrickReleaseCompiler;
 use Infocyph\Webrick\Router\Build\RouterArtifactLoader;
+use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Router\Definition\Registrar;
 use Infocyph\Webrick\Router\Matching\FusedMatcher;
 use Infocyph\Webrick\Router\Matching\GeneratedMatcher;
@@ -38,6 +39,9 @@ final readonly class WebReleaseCompiler
         $builder = FoundationGraph::compose($graph->context);
         new Bootstrapper()->contribute($builder, $graph->context, $graph->providers);
         new WebProductionGraph()->prepare($builder);
+        // Webrick's native release compiler registers its own scoped Request input.
+        // Remove Foundation's development declaration before that single registration.
+        $builder->unbind(Request::class);
         $settings = new WebReleaseConfiguration($graph);
         $settings->assertArtifactSafeMiddleware();
 
