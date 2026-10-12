@@ -28,11 +28,6 @@ abstract readonly class AbstractAuthRegistrar
         return ValueNormalizer::bool($this->config->get($key, $default), $default);
     }
 
-    protected function hasExplicitBinding(string $id): bool
-    {
-        return $this->builder->definitions()->has($id);
-    }
-
     protected function intConfig(string $key, int $default): int
     {
         return ValueNormalizer::int($this->config->get($key, $default), $default);

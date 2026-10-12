@@ -24,9 +24,23 @@ use Infocyph\Foundation\Auth\Authorization\Role\RoleStoreInterface;
 use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Auth\Contract\Id\AuthIdGeneratorInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AuditEventStoreInterface;
+use Psr\Container\ContainerInterface;
+use UnexpectedValueException;
 
 final readonly class AuthAuthorizationRegistrar extends AbstractAuthRegistrar
 {
+    public static function gate(ContainerInterface $container, PermissionAuthorizer $fallback): Gate
+    {
+        $policy = $container->has(PolicyResolverInterface::class)
+            ? $container->get(PolicyResolverInterface::class)
+            : null;
+        if ($policy !== null && !$policy instanceof PolicyResolverInterface) {
+            throw new UnexpectedValueException('Configured policy resolver must implement PolicyResolverInterface.');
+        }
+
+        return new Gate($policy, $fallback);
+    }
+
     public function register(): void
     {
         $this->recipe(RoleManager::class, RoleManager::class, [
@@ -63,10 +77,8 @@ final readonly class AuthAuthorizationRegistrar extends AbstractAuthRegistrar
             $this->ref(RolePermissionResolver::class),
             $this->ref(GrantResolver::class),
         ]);
-        $this->recipe(Gate::class, Gate::class, [
-            $this->hasExplicitBinding(PolicyResolverInterface::class)
-                ? $this->ref(PolicyResolverInterface::class)
-                : null,
+        $this->staticRecipe(Gate::class, self::class, 'gate', [
+            $this->ref(ContainerInterface::class),
             $this->ref(PermissionAuthorizer::class),
         ]);
         $this->recipe(AuditingAuthorizer::class, AuditingAuthorizer::class, [

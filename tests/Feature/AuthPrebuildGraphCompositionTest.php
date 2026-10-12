@@ -8,9 +8,14 @@ use Infocyph\Foundation\Auth\Adapter\Otp\OtpProvisioningService;
 use Infocyph\Foundation\Auth\AuthOtpServiceProvider;
 use Infocyph\Foundation\Auth\AuthServiceProvider;
 use Infocyph\Foundation\Auth\Authentication\Lockout\LockoutManager;
+use Infocyph\Foundation\Auth\Authorization\Gate\Gate;
+use Infocyph\Foundation\Auth\Authorization\Policy\PolicyInterface;
+use Infocyph\Foundation\Auth\Authorization\Policy\PolicyResolverInterface;
 use Infocyph\Foundation\Auth\Contract\Security\PasswordPolicyInterface;
+use Infocyph\Foundation\Auth\Internal\AuthAuthorizationRegistrar;
 use Infocyph\Foundation\Auth\Internal\AuthSecretResolver;
 use Infocyph\Foundation\Auth\Passkey\PasskeyManager;
+use Infocyph\Foundation\Auth\Principal\Principal;
 use Infocyph\Epicrypt\Token\Payload\PurposeToken;
 use Infocyph\Foundation\Auth\Authentication\PasswordReset\PasswordResetManager;
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\TokenAuthManager;
@@ -81,4 +86,32 @@ it('selects exactly one native OTP registration owner when authentication choose
 
     new AuthServiceProvider()->contribute($builder, $context);
     expect($builder->definitions()->has(OtpProvisioningService::class))->toBeTrue();
+});
+
+it('resolves optional authorization policies against the completed runtime graph', function (): void {
+    $context = FoundationBuildContext::fromConfig(
+        new ConfigRepository(['app' => ['env' => 'testing']]),
+        RuntimeMode::Cli,
+        ['auth'],
+    );
+    $builder = FoundationGraph::compose($context);
+    new AuthServiceProvider()->contribute($builder, $context);
+
+    $resolver = new class implements PolicyResolverInterface {
+        public int $calls = 0;
+
+        public function resolve(mixed $resource): ?PolicyInterface
+        {
+            $this->calls++;
+
+            return null;
+        }
+    };
+    $builder->value(PolicyResolverInterface::class, $resolver);
+    $container = $builder->development();
+    $gate = $container->get(Gate::class);
+
+    expect($gate)->toBeInstanceOf(Gate::class);
+    $gate->can(new Principal('policy-test', accountId: 'policy-test'), 'view', new stdClass());
+    expect($resolver->calls)->toBe(1);
 });
