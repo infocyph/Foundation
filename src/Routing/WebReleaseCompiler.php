@@ -6,6 +6,7 @@ namespace Infocyph\Foundation\Routing;
 
 use Infocyph\Foundation\Bootstrap\Bootstrapper;
 use Infocyph\Foundation\Container\FoundationGraph;
+use Infocyph\InterMix\DI\Support\InputDefinition;
 use Infocyph\Webrick\Router\Build\ReleaseCompiler as WebrickReleaseCompiler;
 use Infocyph\Webrick\Router\Build\RouterArtifactLoader;
 use Infocyph\Webrick\Request\Request;
@@ -65,7 +66,7 @@ final readonly class WebReleaseCompiler
             preGlobalTags: [],
             postGlobalTags: [],
         );
-        $this->assertNoSkippedDefinitions($release);
+        $this->assertNoSkippedDefinitions($release, $builder->definitionGraph()->definitions());
         $matcherCachePath = $this->compileMatcherCache($settings, $routerPath);
 
         $runtimeManifestPath = WebrickReleaseCompiler::runtimeManifestPath($releaseManifestPath);
@@ -84,25 +85,34 @@ final readonly class WebReleaseCompiler
         return $release;
     }
 
-    /** @param array<string, mixed> $release */
-    private function assertNoSkippedDefinitions(array $release): void
+    /**
+     * @param array<string, mixed> $release
+     * @param array<string, mixed> $definitions
+     */
+    private function assertNoSkippedDefinitions(array $release, array $definitions): void
     {
         $intermix = $release['intermix'] ?? null;
         $skipped = is_array($intermix) ? ($intermix['skipped'] ?? null) : null;
         if (!is_array($skipped)) {
             throw new \UnexpectedValueException('Foundation web release is missing the InterMix skipped-definition report.');
         }
-        if ($skipped === []) {
-            return;
-        }
-
         $details = [];
         foreach ($skipped as $id => $reason) {
+            // Webrick owns this explicitly declared request-scope input.
+            // All other dynamic definitions remain prohibited.
+            if ($id === Request::class && ($definitions[$id] ?? null) instanceof InputDefinition) {
+                continue;
+            }
+
             $details[] = sprintf(
                 '%s: %s',
                 is_string($id) ? $id : (string) $id,
                 is_string($reason) ? $reason : 'unknown static-compilation failure',
             );
+        }
+
+        if ($details === []) {
+            return;
         }
 
         throw new \RuntimeException(
