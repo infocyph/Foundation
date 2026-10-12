@@ -13,7 +13,6 @@ use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Database\DatabaseMigrationManager;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Session\SessionManager;
-use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Omnibus\Event\EventDispatcher;
 use Infocyph\Omnibus\MessageBus;
 use Infocyph\Omnibus\Routing\RouteMap;
@@ -59,7 +58,7 @@ final readonly class TestKit
     public function fakeHttp(?FakeHttpTransport $transport = null): HttpClient
     {
         $client = HttpClient::fake($transport);
-        $this->application->container()->bind(HttpClient::class, $client, LifetimeEnum::Singleton);
+        $this->application->replaceForTesting(HttpClient::class, $client);
 
         return $client;
     }
@@ -76,12 +75,10 @@ final readonly class TestKit
         $bus = new MessageBus($this->application->make(RouteMap::class), $registry);
         $listeners = $this->application->make(ListenerProviderInterface::class);
         $events = new EventDispatcher($listeners, $bus);
-        $container = $this->application->container();
-
-        $container->bind(TransportRegistry::class, $registry, LifetimeEnum::Singleton);
-        $container->bind(MessageBus::class, $bus, LifetimeEnum::Singleton);
-        $container->bind(EventDispatcher::class, $events, LifetimeEnum::Singleton);
-        $container->bind(EventDispatcherInterface::class, $events, LifetimeEnum::Singleton);
+        $this->application->replaceForTesting(TransportRegistry::class, $registry);
+        $this->application->replaceForTesting(MessageBus::class, $bus);
+        $this->application->replaceForTesting(EventDispatcher::class, $events);
+        $this->application->replaceForTesting(EventDispatcherInterface::class, $events);
 
         return $sender;
     }
@@ -89,7 +86,7 @@ final readonly class TestKit
     public function fakeNotifications(): Emailer
     {
         $emailer = Emailer::fake();
-        $this->application->container()->bind(Emailer::class, $emailer, LifetimeEnum::Singleton);
+        $this->application->replaceForTesting(Emailer::class, $emailer);
 
         return $emailer;
     }
@@ -102,7 +99,7 @@ final readonly class TestKit
     public function freezeTime(?int $timestamp = null): FrozenClock
     {
         $clock = new FrozenClock($timestamp ?? time());
-        $this->application->container()->bind(ClockInterface::class, $clock, LifetimeEnum::Singleton);
+        $this->application->replaceForTesting(ClockInterface::class, $clock);
 
         return $clock;
     }

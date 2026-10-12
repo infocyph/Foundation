@@ -25,6 +25,9 @@ final class Application
 
     private ?LoadedReleaseGeneration $loadedReleaseGeneration = null;
 
+    /** @var array<string, object>|null */
+    private ?array $testingOverrides = null;
+
     public function __construct(
         private readonly ConfigRepository $config,
         private readonly ContainerInterface $container,
@@ -196,6 +199,10 @@ final class Application
     public function make(string $id): mixed
     {
         try {
+            if ($this->testingOverrides !== null && isset($this->testingOverrides[$id])) {
+                return $this->testingOverrides[$id];
+            }
+
             if (!$this->container->has($id)
                 && $this->container instanceof \Infocyph\InterMix\DI\RuntimeContainerInterface
                 && class_exists($id)
@@ -212,6 +219,24 @@ final class Application
 
             throw new ServiceResolutionException($message, previous: $exception);
         }
+    }
+
+    /**
+     * Supply an application-local fake without mutating the immutable InterMix runtime.
+     * TestKit owns this restricted boundary; compiled and production runtimes reject it.
+     *
+     * @internal
+     */
+    public function replaceForTesting(string $id, object $service): void
+    {
+        if ($this->config->isProduction() || $this->loadedReleaseGeneration !== null) {
+            throw new \LogicException('Test service replacements require a non-production, non-compiled application.');
+        }
+        if ((class_exists($id) || interface_exists($id)) && !$service instanceof $id) {
+            throw new \InvalidArgumentException(sprintf('Test replacement for "%s" has an incompatible type.', $id));
+        }
+
+        $this->testingOverrides[$id] = $service;
     }
 
     public function paths(): PathManager

@@ -44,6 +44,18 @@ it('composes package fakes without replacing their implementations', function ()
         ->and($clock->advance(60)->now())->toBe(1_700_000_060);
 });
 
+it('keeps test service replacements confined to their own application and type', function (): void {
+    $left = Foundation::cli([]);
+    $right = Foundation::cli([]);
+    $frozen = $left->make(TestKit::class)->freezeTime(1_700_000_000);
+
+    expect($left->make(ClockInterface::class))->toBe($frozen)
+        ->and($right->make(ClockInterface::class))->not->toBe($frozen);
+
+    expect(fn() => $left->replaceForTesting(ClockInterface::class, new stdClass()))
+        ->toThrow(InvalidArgumentException::class);
+});
+
 it('exposes the configured filesystem operator through the testing boundary', function (): void {
     $basePath = sys_get_temp_dir() . '/foundation-files-' . bin2hex(random_bytes(6));
     $app = Foundation::cli([
