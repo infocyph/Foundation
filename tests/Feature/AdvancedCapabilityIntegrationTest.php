@@ -8,6 +8,7 @@ use Infocyph\Foundation\Auth\Mfa\MfaFactorType;
 use Infocyph\Foundation\Foundation;
 use Infocyph\OTP\HOTP;
 use Infocyph\OTP\OCRA;
+use Infocyph\Webrick\Runtime\Http\RuntimeRequestContext;
 
 it('supports secure HOTP and OCRA MFA workflows', function (): void {
     $app = Foundation::web([
@@ -37,7 +38,8 @@ it('supports secure HOTP and OCRA MFA workflows', function (): void {
         ],
     ])->boot();
 
-    $mfa = $app->make(AuthServices::class)->mfa();
+    $app->container()->withinScope(RuntimeRequestContext::REQUEST_SCOPE, static function () use ($app): void {
+        $mfa = $app->make(AuthServices::class)->mfa();
     $hotpSecret = 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP';
     $hotp = new HOTP($hotpSecret);
     $hotpEnrollment = $mfa->enrollFactor(
@@ -89,6 +91,7 @@ it('supports secure HOTP and OCRA MFA workflows', function (): void {
     expect($ocraVerification->successful())->toBeTrue()
         ->and($replayedOcraVerification->successful())->toBeFalse()
         ->and($replayedOcraVerification->code)->toBe('mfa_code_replayed');
+    });
 });
 
 it('keeps WebAuthn policy limited to OTP passkey inputs', function (): void {
