@@ -123,11 +123,22 @@ it('compiles and reuses minimal generated CLI and scheduler runtimes', function 
         foreach ([RuntimeMode::Cli, RuntimeMode::Scheduler] as $mode) {
             $artifact = $project . '/bootstrap/cache/' . $mode->value . '.php';
             $report = $compiler->compile($config, $mode, $artifact);
+            $runtimeFile = realpath($artifact);
+            expect($runtimeFile)->toBeString();
             expect($report['runtime'])->toBe($mode->value)
-                ->and($report['skipped'])->toBe([])
+                ->and(array_keys($report['skipped']))->toBe($mode === RuntimeMode::Cli
+                    ? [
+                        \Infocyph\Foundation\Command\CommandContext::class,
+                        \Infocyph\Foundation\Command\CommandDefinition::class,
+                        \Infocyph\Foundation\Command\CommandDescriptor::class,
+                        \Infocyph\Foundation\Command\CommandIO::class,
+                        \Infocyph\Foundation\Command\ParsedInput::class,
+                        ExecutionId::class,
+                    ] : [ExecutionId::class, \Infocyph\Foundation\Scheduling\ScheduledCommand::class])
+                ->and(array_unique(array_values($report['skipped'])))->toBe(['definition requires the dynamic runtime'])
                 ->and($report['capabilities'])->toBe([])
                 ->and(is_file($artifact))->toBeTrue()
-                ->and(is_file($artifact . '.meta.json'))->toBeTrue()
+                ->and(is_file(dirname((string) $runtimeFile) . '/manifest.json'))->toBeTrue()
                 ->and(is_file($artifact . '.foundation.json'))->toBeTrue();
 
             $runtime = GeneratedRuntime::load($config, $mode, $artifact);
@@ -216,7 +227,9 @@ it('leaves InterMix manifest validation to the InterMix production loader', func
 
     try {
         $report = new GeneratedRuntimeCompiler()->compile($config, RuntimeMode::Cli, $artifact);
-        $manifestPath = $artifact . '.meta.json';
+        $runtimeFile = realpath($artifact);
+        expect($runtimeFile)->toBeString();
+        $manifestPath = dirname((string) $runtimeFile) . '/manifest.json';
         $manifest = json_decode(
             (string) file_get_contents($manifestPath),
             true,
@@ -260,7 +273,11 @@ it('keeps one trusted worker container hot while isolating provider jobs and Omn
             $artifact,
             ['messaging'],
         );
-        expect($report['skipped'])->toBe([])
+        expect(array_keys($report['skipped']))->toBe([
+            ExecutionId::class,
+            Envelope::class,
+            'omnibus.message',
+        ])->and(array_unique(array_values($report['skipped'])))->toBe(['definition requires the dynamic runtime'])
             ->and($report['capabilities'])->toBe(['messaging' => true]);
 
         file_put_contents(
@@ -395,9 +412,12 @@ it('keeps the last good artifact when a new build contains skipped definitions',
 
     try {
         $compiler->compile($config, RuntimeMode::Cli, $artifact);
+        $runtimeFile = realpath($artifact);
+        expect($runtimeFile)->toBeString();
+        $manifestPath = dirname((string) $runtimeFile) . '/manifest.json';
         $before = [
             hash_file('sha256', $artifact),
-            hash_file('sha256', $artifact . '.meta.json'),
+            hash_file('sha256', $manifestPath),
             hash_file('sha256', $artifact . '.foundation.json'),
         ];
 
@@ -408,7 +428,7 @@ it('keeps the last good artifact when a new build contains skipped definitions',
 
         expect([
             hash_file('sha256', $artifact),
-            hash_file('sha256', $artifact . '.meta.json'),
+            hash_file('sha256', $manifestPath),
             hash_file('sha256', $artifact . '.foundation.json'),
         ])->toBe($before);
     } finally {

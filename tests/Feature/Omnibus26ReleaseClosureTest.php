@@ -168,7 +168,9 @@ it('executes Omnibus failure administration and queue monitoring through the rea
 
     try {
         $listed = new FoundationOmnibus26CommandIO();
-        expect($dispatcher->run(['infbyte', 'queue:failed', '--limit=10'], $listed))->toBe(ExitCode::SUCCESS)
+        $status = $dispatcher->run(['infbyte', 'queue:failed', '--limit=10'], $listed);
+        expect($listed->errors)->toBe([])
+            ->and($status)->toBe(ExitCode::SUCCESS)
             ->and($listed->json)->toHaveCount(1)
             ->and($listed->json[0])->toHaveCount(3);
 
