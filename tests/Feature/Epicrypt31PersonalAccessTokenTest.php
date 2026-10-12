@@ -54,48 +54,51 @@ it('uses Epicrypt PATs with authoritative serialized DB state and never persists
 
     try {
         $app->boot();
-        $app->make(AuthSchemaInstaller::class)->install();
+        $app->container()->withinScope('webrick.request', static function () use ($app): void {
+            $app->make(AuthSchemaInstaller::class)->install();
 
-        $tokens = $app->make(PersonalAccessTokenManager::class);
-        $first = $tokens->issue('account-1', 'automation', ['orders.read']);
-        $verified = $tokens->verify($first->token);
+            $tokens = $app->make(PersonalAccessTokenManager::class);
+            $first = $tokens->issue('account-1', 'automation', ['orders.read']);
+            $verified = $tokens->verify($first->token);
 
-        expect($verified->accepted())->toBeTrue()
-            ->and($verified->allows('orders.read'))->toBeTrue()
-            ->and($verified->allows('orders.write'))->toBeFalse()
-            ->and($tokens->list('account-1'))->toHaveCount(1);
+            expect($verified->accepted())->toBeTrue()
+                ->and($verified->allows('orders.read'))->toBeTrue()
+                ->and($verified->allows('orders.write'))->toBeFalse()
+                ->and($tokens->list('account-1'))->toHaveCount(1);
 
-        $tables = $app->make(AuthTables::class);
-        $connection = $app->make(DBLayerFactory::class)->connection();
-        $row = $connection->select(
-            sprintf('SELECT * FROM %s WHERE token_id = ?', $tables->personalAccessTokens()),
-            [$first->record->tokenId],
-        )[0] ?? null;
-        expect($row)->toBeArray()
-            ->and(json_encode($row, JSON_THROW_ON_ERROR))->not->toContain($first->token);
+            $tables = $app->make(AuthTables::class);
+            $connection = $app->make(DBLayerFactory::class)->connection();
+            $row = $connection->select(
+                sprintf('SELECT * FROM %s WHERE token_id = ?', $tables->personalAccessTokens()),
+                [$first->record->tokenId],
+            )[0] ?? null;
+            expect($row)->toBeArray()
+                ->and(json_encode($row, JSON_THROW_ON_ERROR))->not->toContain($first->token);
 
-        $revoked = $tokens->revoke($first->record->tokenId, 'account-1');
-        $again = $tokens->revoke($first->record->tokenId, 'account-1');
-        expect($revoked?->revokedAt)->not->toBeNull()
-            ->and($again?->revokedAt)->toBe($revoked?->revokedAt)
-            ->and($tokens->verify($first->token)->accepted())->toBeFalse();
+            $revoked = $tokens->revoke($first->record->tokenId, 'account-1');
+            $again = $tokens->revoke($first->record->tokenId, 'account-1');
+            expect($revoked?->revokedAt)->not->toBeNull()
+                ->and($again?->revokedAt)->toBe($revoked?->revokedAt)
+                ->and($tokens->verify($first->token)->accepted())->toBeFalse();
 
-        $beforeA = $tokens->issue('account-1', 'before-a', ['orders.read']);
-        $beforeB = $tokens->issue('account-1', 'before-b', ['orders.read']);
-        expect($tokens->revokeAll('account-1'))->toBe(2)
-            ->and($tokens->revokeAll('account-1'))->toBe(0)
-            ->and($tokens->verify($beforeA->token)->accepted())->toBeFalse()
-            ->and($tokens->verify($beforeB->token)->accepted())->toBeFalse();
+            $beforeA = $tokens->issue('account-1', 'before-a', ['orders.read']);
+            $beforeB = $tokens->issue('account-1', 'before-b', ['orders.read']);
+            expect($tokens->revokeAll('account-1'))->toBe(2)
+                ->and($tokens->revokeAll('account-1'))->toBe(0)
+                ->and($tokens->verify($beforeA->token)->accepted())->toBeFalse()
+                ->and($tokens->verify($beforeB->token)->accepted())->toBeFalse();
 
-        $after = $tokens->issue('account-1', 'after-revoke-all', ['orders.read']);
-        expect($tokens->verify($after->token)->accepted())->toBeTrue();
+            $after = $tokens->issue('account-1', 'after-revoke-all', ['orders.read']);
+            expect($tokens->verify($after->token)->accepted())->toBeTrue();
 
-        $state = $connection->select(
-            sprintf('SELECT revision FROM %s WHERE subject_hash = ?', $tables->personalAccessTokenSubjects()),
-            [hash('sha3-256', "foundation.personal-access-token.subject\0account-1")],
-        )[0] ?? null;
-        expect($state)->toBeArray()
-            ->and((int) ($state['revision'] ?? 0))->toBeGreaterThanOrEqual(5);
+            $state = $connection->select(
+                sprintf('SELECT revision FROM %s WHERE subject_hash = ?', $tables->personalAccessTokenSubjects()),
+                [hash('sha3-256', "foundation.personal-access-token.subject\0account-1")],
+            )[0] ?? null;
+            expect($state)->toBeArray()
+                ->and((int) ($state['revision'] ?? 0))->toBeGreaterThanOrEqual(5);
+
+        });
     } finally {
         unset($app);
         foundationPatRemove($base);
