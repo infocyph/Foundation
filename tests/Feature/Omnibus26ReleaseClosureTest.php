@@ -37,6 +37,9 @@ final class FoundationOmnibus26CommandStateProvider extends ServiceProvider
     {
         unset($context);
 
+        // The selected test provider intentionally replaces the default module bindings.
+        $builder->unbind(FailureStore::class);
+        $builder->unbind(TransportRegistry::class);
         $builder->factory(
             FailureStore::class,
             static fn(): FailureStore => self::$failures

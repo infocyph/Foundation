@@ -5,12 +5,19 @@ declare(strict_types=1);
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceProvider;
+use Infocyph\Foundation\Command\CommandContext;
+use Infocyph\Foundation\Command\CommandDefinition;
+use Infocyph\Foundation\Command\CommandDescriptor;
+use Infocyph\Foundation\Command\CommandIO;
+use Infocyph\Foundation\Command\ParsedInput;
 use Infocyph\Foundation\Routing\WebGraphFactory;
 use Infocyph\Foundation\Routing\WebReleaseCompiler;
 use Infocyph\Foundation\Routing\WebReleaseRuntime;
 use Infocyph\Foundation\Runtime\GeneratedRuntime;
 use Infocyph\Foundation\Runtime\GeneratedRuntimeCompiler;
 use Infocyph\Foundation\Runtime\NonWebGraphFactory;
+use Infocyph\Foundation\Runtime\ExecutionId;
+use Infocyph\Foundation\Scheduling\ScheduledCommand;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
@@ -103,7 +110,23 @@ it('keeps InterMix development and generated production semantics aligned for no
 
             $artifact = $runtimeRoot . '/bootstrap/cache/container.php';
             $report = new GeneratedRuntimeCompiler()->compile($config, $mode, $artifact);
-            expect($report['skipped'])->toBe([]);
+            $inputIds = match ($mode) {
+                RuntimeMode::Cli => [
+                    CommandContext::class,
+                    CommandDefinition::class,
+                    CommandDescriptor::class,
+                    CommandIO::class,
+                    ParsedInput::class,
+                    ExecutionId::class,
+                ],
+                RuntimeMode::Worker => [ExecutionId::class],
+                RuntimeMode::Scheduler => [ExecutionId::class, ScheduledCommand::class],
+                RuntimeMode::Web => throw new LogicException('Web parity uses the Webrick graph.'),
+            };
+            expect($report['skipped'])->toBe(array_fill_keys(
+                $inputIds,
+                'definition requires the dynamic runtime',
+            ));
             $production = GeneratedRuntime::load($config, $mode, $artifact);
             $productionNode = $production->application->make(Phase9ParityNode::class);
             $productionScopes = phase9ParityScopes($production->application);
