@@ -6,6 +6,7 @@ namespace Infocyph\Foundation\Runtime;
 
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Container\FoundationGraph;
+use Infocyph\InterMix\DI\Support\InputDefinition;
 
 /** Compiles one verified CLI, worker, or scheduler InterMix artifact. */
 final class GeneratedRuntimeCompiler
@@ -47,7 +48,7 @@ final class GeneratedRuntimeCompiler
                 . basename($artifactPath) . '-' . bin2hex(random_bytes(6));
             $builder->validate(strict: true);
             $report = $builder->compile($stagedPath);
-            $this->assertNoSkippedDefinitions($report['skipped']);
+            $this->assertNoSkippedDefinitions($report['skipped'], $builder->definitionGraph()->definitions());
             GeneratedRuntimeMetadata::write(
                 $stagedPath,
                 GeneratedRuntimeMetadata::create($graph, $report),
@@ -73,26 +74,33 @@ final class GeneratedRuntimeCompiler
             if (is_string($stagedPath)) {
                 $this->removeStaged($stagedPath);
             }
-
         }
     }
 
-    /** @param array<string,string> $skipped */
-    private function assertNoSkippedDefinitions(array $skipped): void
+    /**
+     * InterMix 11 explicitly keeps scope input definitions in the dynamic graph.
+     * Only those declared inputs may be skipped by static compilation.
+     *
+     * @param array<string,string> $skipped
+     * @param array<string,mixed> $definitions
+     */
+    private function assertNoSkippedDefinitions(array $skipped, array $definitions): void
     {
-        if ($skipped === []) {
-            return;
-        }
-
         $details = [];
         foreach ($skipped as $id => $reason) {
+            if (($definitions[$id] ?? null) instanceof InputDefinition) {
+                continue;
+            }
+
             $details[] = sprintf('%s: %s', $id, $reason);
         }
 
-        throw new \RuntimeException(
-            'Foundation generated runtime contains definitions that were not statically compiled: '
-            . implode('; ', $details),
-        );
+        if ($details !== []) {
+            throw new \RuntimeException(
+                'Foundation generated runtime contains definitions that were not statically compiled: '
+                . implode('; ', $details),
+            );
+        }
     }
 
     private function publish(string $stagedPath, string $artifactPath): void
