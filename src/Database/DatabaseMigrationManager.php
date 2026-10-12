@@ -12,6 +12,7 @@ use Infocyph\DBLayer\Migration\SeedRunner;
 use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Support\ValueNormalizer;
+use Infocyph\InterMix\DI\RuntimeContainerInterface;
 use Psr\Container\ContainerInterface;
 
 final readonly class DatabaseMigrationManager
@@ -108,7 +109,11 @@ final readonly class DatabaseMigrationManager
 
     private function resolve(string $definition): object
     {
-        $resolved = $this->services->get($definition);
+        $resolved = $this->services instanceof RuntimeContainerInterface
+            && !$this->services->has($definition)
+            && class_exists($definition)
+                ? $this->services->make($definition)
+                : $this->services->get($definition);
         if (!is_object($resolved)) {
             throw new \UnexpectedValueException(sprintf(
                 'Database definition "%s" did not resolve to an object.',
