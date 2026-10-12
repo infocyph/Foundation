@@ -12,10 +12,10 @@ use Infocyph\Foundation\Runtime\ExecutionId;
 use Infocyph\Foundation\Runtime\GeneratedRuntime;
 use Infocyph\Foundation\Runtime\GeneratedRuntimeCompiler;
 use Infocyph\Foundation\Runtime\NonWebGraphFactory;
-use Infocyph\Foundation\Runtime\NonWebProductionGraph;
 use Infocyph\Foundation\Worker\WorkerRuntime;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\InterMix\DI\Support\ServiceReference;
 use Infocyph\Omnibus\Envelope\Envelope;
 use Infocyph\Omnibus\Envelope\MessageIdStamp;
@@ -42,7 +42,7 @@ final class FoundationGeneratedRuntimeDynamicProvider extends ServiceProvider
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($context);
-        $builder->bindFactory('foundation.generated.dynamic', static fn(): stdClass => new stdClass());
+        $builder->factory('foundation.generated.dynamic', static fn(): stdClass => new stdClass());
     }
 }
 
@@ -51,29 +51,28 @@ final class FoundationGeneratedRuntimeProvider extends ServiceProvider
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($context);
-        $builder->singleton(FoundationGeneratedRuntimeProbe::class, FactoryDefinition::construct(
+        $builder->factory(FoundationGeneratedRuntimeProbe::class, FactoryDefinition::construct(
             FoundationGeneratedRuntimeProbe::class,
             [new ServiceReference(RuntimeMode::class)],
         ));
-        $builder->scoped(
+        $builder->factory(
             FoundationGeneratedRuntimeScopedProbe::class,
             FactoryDefinition::construct(FoundationGeneratedRuntimeScopedProbe::class),
+            LifetimeEnum::Scoped,
         );
     }
 }
 
-it('keeps InterMix definition caching opt-in when CacheLayer is active', function (): void {
+it('keeps native CacheLayer definitions exportable after graph finalization', function (): void {
     $project = foundationGeneratedRuntimeProject();
     $config = foundationGeneratedRuntimeConfig($project);
     $graph = new NonWebGraphFactory()->compose($config, RuntimeMode::Cli, ['cache']);
 
     try {
-        new NonWebProductionGraph()->prepare($graph->builder);
-
-        expect($graph->builder->definitions()->has(CacheManager::class))->toBeTrue()
-            ->and($graph->builder->development()->getRepository()->getDefinitionCache())->toBeNull();
+        $definitions = $graph->builder->definitionGraph();
+        expect($definitions->hasDefinition(CacheManager::class))->toBeTrue()
+            ->and($definitions->definitions()[CacheManager::class])->toBeInstanceOf(FactoryDefinition::class);
     } finally {
-        $graph->application->container()->unset();
         foundationGeneratedRuntimeRemove($project);
     }
 });
