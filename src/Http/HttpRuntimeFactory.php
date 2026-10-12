@@ -54,5 +54,4 @@ final class HttpRuntimeFactory
 
         return $renderer;
     }
-
 }
