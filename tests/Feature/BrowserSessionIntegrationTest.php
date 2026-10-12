@@ -9,6 +9,8 @@ use Infocyph\CacheLayer\Cache\Lock\LockProviderInterface;
 use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\Connection\ConnectionConfig;
 use Infocyph\DBLayer\Exceptions\QueryException;
+use Infocyph\Foundation\Application\FoundationBuildContext;
+use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Foundation;
@@ -27,10 +29,29 @@ use Infocyph\Foundation\Session\Store\FileSessionStore;
 use Infocyph\InterMix\DI\Container;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 use Infocyph\Webrick\Runtime\Http\RuntimeRequestContext;
 use Psr\Log\AbstractLogger;
+
+final class BrowserSessionResolutionProbe extends ServiceProvider
+{
+    private bool $resolved = false;
+
+    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
+    {
+        unset($context);
+        $builder->onResolved(SessionManager::class, function (string $service): void {
+            $this->resolved = $service === SessionManager::class;
+        });
+    }
+
+    public function wasResolved(): bool
+    {
+        return $this->resolved;
+    }
+}
 
 it('persists session data and expires flash data after its next request', function (): void {
     [$middleware] = browserSessionStack();
@@ -192,20 +213,24 @@ PHP,
     ]);
 
     try {
-        $app = Foundation::web(['base_path' => $project, 'session' => ['driver' => 'array']]);
-        $repository = $app->container()->getRepository();
-        expect($repository->hasResolvedSingleton(SessionManager::class))->toBeFalse();
+        $probe = new BrowserSessionResolutionProbe();
+        $app = Foundation::web([
+            'base_path' => $project,
+            'session' => ['driver' => 'array'],
+            'providers' => ['web' => [$probe]],
+        ]);
+        expect($probe->wasResolved())->toBeFalse();
         $leanResponse = $app->handle(Request::fake(
             headers: ['Host' => 'example.test'], uri: 'https://example.test/lean',
         ));
         expect($leanResponse->getStatusCode())->toBe(200)
-            ->and($repository->hasResolvedSingleton(SessionManager::class))->toBeFalse();
+            ->and($probe->wasResolved())->toBeFalse();
         $stateResponse = $app->handle(Request::fake(
             headers: ['Host' => 'example.test'], uri: 'https://example.test/state',
         ));
         expect($stateResponse->getStatusCode())->toBe(200)
             ->and(browserSessionJson($stateResponse))->toBe(['has' => true])
-            ->and($repository->hasResolvedSingleton(SessionManager::class))->toBeTrue();
+            ->and($probe->wasResolved())->toBeTrue();
     } finally {
         browserSessionRemoveDirectory($project);
     }
@@ -630,12 +655,13 @@ function browserSessionStack(): array
 function browserSessionContainer(): Container
 {
     $builder = ContainerBuilder::create('foundation-browser-session-test');
-    $builder->scoped(
+    $builder->factory(
         SessionExecutionState::class,
         FactoryDefinition::construct(SessionExecutionState::class),
+        LifetimeEnum::Scoped,
     );
 
-    return $builder->development();
+    return $builder->build();
 }
 
 function browserSessionWithinScope(Container $container, callable $callback): mixed
