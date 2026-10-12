@@ -172,6 +172,7 @@ it('uses deterministic registrations without inspecting unfinished provider grap
         'Auth/Internal/AuthCoreRegistrar.php',
         'Communication/CommunicationServiceProvider.php',
         'Logging/LoggingServiceProvider.php',
+        'Messaging/MessagingServiceProvider.php',
         'Notifications/NotificationServiceProvider.php',
         'Security/SecurityServiceProvider.php',
     ];

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Messaging;
 
+use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Config\ConfigRepository;
@@ -47,7 +48,7 @@ final class MessagingServiceProvider extends ServiceProvider
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         $messaging = is_array($context->config['messaging'] ?? null) ? $context->config['messaging'] : [];
-        $durable = $this->durableState($builder, $messaging);
+        $durable = $this->durableState($context, $messaging);
 
         $this->registerRuntimeServices($builder);
         $this->registerDurableServices($builder, $durable['enabled']);
@@ -75,7 +76,7 @@ final class MessagingServiceProvider extends ServiceProvider
 
     /** @param array<array-key, mixed> $messaging */
     private function assertDurableConfiguration(
-        ContainerBuilder $builder,
+        FoundationBuildContext $context,
         array $messaging,
         bool $enabled,
         string $failureDriver,
@@ -86,7 +87,7 @@ final class MessagingServiceProvider extends ServiceProvider
                 'Messaging references the database transport but messaging.durable.enabled is false.',
             );
         }
-        if ($enabled && !$builder->definitions()->has(DBLayerFactory::class)) {
+        if ($enabled && (!$context->permitsCapability('database') || !class_exists(Connection::class))) {
             throw new ConfigurationException(
                 'messaging.durable.enabled requires the Foundation database capability.',
             );
@@ -99,7 +100,6 @@ final class MessagingServiceProvider extends ServiceProvider
         if (
             $this->usesDatabaseConsumer($messaging)
             && $failureDriver === ''
-            && !$builder->definitions()->has(FailureStore::class)
         ) {
             throw new ConfigurationException(
                 'Durable database consumers/workers require an explicit messaging.durable.failure_store policy or FailureStore binding.',
@@ -111,13 +111,13 @@ final class MessagingServiceProvider extends ServiceProvider
      * @param array<array-key, mixed> $messaging
      * @return array{enabled:bool,failure_driver:string}
      */
-    private function durableState(ContainerBuilder $builder, array $messaging): array
+    private function durableState(FoundationBuildContext $context, array $messaging): array
     {
         $durable = $this->arrayValue($messaging, 'durable');
         $enabled = ValueNormalizer::bool($durable['enabled'] ?? null, false);
         $failureDriver = strtolower(ValueNormalizer::string($durable['failure_store'] ?? null, ''));
 
-        $this->assertDurableConfiguration($builder, $messaging, $enabled, $failureDriver);
+        $this->assertDurableConfiguration($context, $messaging, $enabled, $failureDriver);
 
         return ['enabled' => $enabled, 'failure_driver' => $failureDriver];
     }
@@ -274,9 +274,6 @@ final class MessagingServiceProvider extends ServiceProvider
         bool $durableEnabled,
         string $failureDriver,
     ): void {
-        if ($builder->definitions()->has(FailureStore::class)) {
-            return;
-        }
         if ($durableEnabled && $failureDriver === 'database') {
             $builder->alias(FailureStore::class, DBLayerFailureStore::class);
 
