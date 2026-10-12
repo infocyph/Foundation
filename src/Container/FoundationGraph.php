@@ -21,6 +21,7 @@ use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\InterMix\DI\Support\ServiceReference;
+use Infocyph\Webrick\Request\Request;
 use Psr\Container\ContainerInterface;
 
 final class FoundationGraph
@@ -51,7 +52,9 @@ final class FoundationGraph
             ],
         ));
 
-        if ($context->runtimeMode !== RuntimeMode::Web) {
+        if ($context->runtimeMode === RuntimeMode::Web) {
+            $builder->input(Request::class);
+        } else {
             $builder->input(ExecutionId::class);
         }
         if ($context->runtimeMode === RuntimeMode::Cli) {
