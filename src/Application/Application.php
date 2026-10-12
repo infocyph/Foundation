@@ -39,14 +39,15 @@ final class Application
         $sourceConfig = new ConfigLoader()->load($config);
         $context = FoundationBuildContext::fromConfig($sourceConfig, $runtimeMode);
         $builder = FoundationGraph::compose($context);
+        $bootstrapper = new Bootstrapper();
+        $providers = new ServiceRegistry();
+        $bootstrapper->compose($builder, $context, $providers);
+
         $container = $builder->development();
         $runtimeConfig = $container->get(ConfigRepository::class);
         if (!$runtimeConfig instanceof ConfigRepository) {
             throw new \LogicException('Foundation graph did not produce a ConfigRepository.');
         }
-
-        $bootstrapper = new Bootstrapper();
-        $providers = new ServiceRegistry();
         $app = new self(
             config: $runtimeConfig,
             container: $container,
@@ -55,7 +56,6 @@ final class Application
             runtimeMode: $runtimeMode,
         );
         DevelopmentRuntimeBindings::register($builder, $app, $container);
-        $bootstrapper->compose($builder, $context, $providers);
 
         return $app;
     }

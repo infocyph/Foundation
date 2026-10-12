@@ -31,14 +31,16 @@ final class WebGraphFactory
             : new ConfigLoader()->load($config);
         $context = FoundationBuildContext::fromConfig($sourceConfig, RuntimeMode::Web, $capabilities);
         $builder = FoundationGraph::compose($context);
+        $bootstrapper = new Bootstrapper();
+        $providers = new ServiceRegistry();
+        $bootstrapper->compose($builder, $context, $providers);
+
         $container = $builder->development();
         $runtimeConfig = $container->get(ConfigRepository::class);
         if (!$runtimeConfig instanceof ConfigRepository) {
             throw new \LogicException('Foundation web graph did not produce a ConfigRepository.');
         }
 
-        $bootstrapper = new Bootstrapper();
-        $providers = new ServiceRegistry();
         $application = new Application(
             config: $runtimeConfig,
             container: $container,
@@ -47,7 +49,6 @@ final class WebGraphFactory
             runtimeMode: RuntimeMode::Web,
         );
         DevelopmentRuntimeBindings::register($builder, $application, $container);
-        $bootstrapper->compose($builder, $context, $providers);
 
         return new WebGraphComposition($builder, $application, $context, $runtimeConfig);
     }
