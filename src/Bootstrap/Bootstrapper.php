@@ -110,10 +110,18 @@ final class Bootstrapper
             $registry->add($provider);
         }
 
-        $registry->contribute($builder, $context);
-        $this->registerScopeCleanup($builder, $context);
+        $this->contribute($builder, $context, $registry);
 
         return $registry;
+    }
+
+    public function contribute(
+        ContainerBuilder $builder,
+        FoundationBuildContext $context,
+        ServiceRegistry $registry,
+    ): void {
+        $registry->contribute($builder, $context);
+        $this->registerScopeCleanup($builder, $context);
     }
 
     private function assertProviderGroup(int|string $group, mixed $entries): void

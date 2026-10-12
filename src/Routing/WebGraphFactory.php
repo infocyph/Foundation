@@ -51,6 +51,6 @@ final class WebGraphFactory
         );
         $bindings->attach($application);
 
-        return new WebGraphComposition($builder, $application, $context, $runtimeConfig);
+        return new WebGraphComposition($builder, $application, $context, $runtimeConfig, $providers);
     }
 }
