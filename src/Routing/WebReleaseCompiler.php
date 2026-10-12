@@ -9,12 +9,12 @@ use Infocyph\Foundation\Container\FoundationGraph;
 use Infocyph\InterMix\DI\Support\InputDefinition;
 use Infocyph\Webrick\Router\Build\ReleaseCompiler as WebrickReleaseCompiler;
 use Infocyph\Webrick\Router\Build\RouterArtifactLoader;
-use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Router\Definition\Registrar;
 use Infocyph\Webrick\Router\Matching\FusedMatcher;
 use Infocyph\Webrick\Router\Matching\GeneratedMatcher;
 use Infocyph\Webrick\Router\Matching\MatcherInterface;
 use Infocyph\Webrick\Router\Matching\ShardedMatcher;
+use Infocyph\Webrick\Request\Request;
 
 /** Coordinates the Foundation web graph through Webrick's single release compiler. */
 final readonly class WebReleaseCompiler

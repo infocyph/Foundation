@@ -10,7 +10,7 @@
         "infocyph/cachelayer": "^4.0",
         "infocyph/intermix": "^11.1",
         "infocyph/uid": "^6.0",
-        "infocyph/webrick": "^6.0.1",
+        "infocyph/webrick": "^6.0.2",
         "psr/log": "^3.0.2"
     },
     "require-dev": {

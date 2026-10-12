@@ -70,6 +70,7 @@ final class FoundationPersistentStateProvider extends ServiceProvider
             FactoryDefinition::construct(FoundationPersistentScopedProbe::class),
             LifetimeEnum::Scoped,
         );
+        $builder->input(FoundationPersistentMessage::class);
     }
 }
 
