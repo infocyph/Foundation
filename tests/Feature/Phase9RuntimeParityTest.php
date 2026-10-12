@@ -49,12 +49,12 @@ final class Phase9ParityProvider extends ServiceProvider
     {
         unset($context);
 
-        $builder->bind(
+        $builder->factory(
             Phase9ParityLeaf::class,
             FactoryDefinition::construct(Phase9ParityLeaf::class, ['phase-9-parity']),
             LifetimeEnum::Singleton,
         );
-        $builder->bind(
+        $builder->factory(
             Phase9ParityNode::class,
             FactoryDefinition::construct(Phase9ParityNode::class, [
                 new ServiceReference(Phase9ParityLeaf::class),
@@ -62,7 +62,7 @@ final class Phase9ParityProvider extends ServiceProvider
             ]),
             LifetimeEnum::Transient,
         );
-        $builder->bind(
+        $builder->factory(
             Phase9ParityScopedProbe::class,
             FactoryDefinition::construct(Phase9ParityScopedProbe::class),
             LifetimeEnum::Scoped,
