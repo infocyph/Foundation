@@ -37,4 +37,4 @@ jobs:
       - name: Show first native contract failure
         env:
           TEST_NAME: ${{ matrix.test }}
-        run: vendor/bin/pest "tests/Feature/${TEST_NAME}.php" --stop-on-failure --colors=never
+        run: vendor/bin/pest --configuration=vendor/infocyph/phpforge/resources/pest.xml --stop-on-failure "tests/Feature/${TEST_NAME}.php"
