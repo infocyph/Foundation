@@ -15,12 +15,12 @@ use Infocyph\Webrick\Router\Definition\Registrar;
 it('contributes native route and HTTP factories without a partially resolved Application', function (): void {
     $context = FoundationBuildContext::fromConfig(new ConfigRepository([]), RuntimeMode::Web, []);
     $builder = FoundationGraph::compose($context);
-    expect($builder->definitions()->has(Application::class))->toBeFalse();
-
     new RoutingServiceProvider()->contribute($builder, $context);
     new HttpServiceProvider()->contribute($builder, $context);
 
-    expect($builder->definitions()->has(Registrar::class))->toBeTrue()
-        ->and($builder->definitions()->has(WebrickRouterFactory::class))->toBeTrue()
-        ->and($builder->definitions()->has(\Infocyph\Foundation\Http\HttpKernel::class))->toBeTrue();
+    $definitions = $builder->definitionGraph()->definitions();
+    expect(array_key_exists(Application::class, $definitions))->toBeFalse()
+        ->and(array_key_exists(Registrar::class, $definitions))->toBeTrue()
+        ->and(array_key_exists(WebrickRouterFactory::class, $definitions))->toBeTrue()
+        ->and(array_key_exists(\Infocyph\Foundation\Http\HttpKernel::class, $definitions))->toBeTrue();
 });
