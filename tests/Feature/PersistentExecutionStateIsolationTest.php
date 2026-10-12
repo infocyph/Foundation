@@ -120,7 +120,7 @@ it('isolates execution state while preserving bounded process-local memoizers', 
         $principal = $app->make(CurrentPrincipalContext::class);
         $sessions = $app->make(SessionManager::class);
         $databaseFactory = $app->make(DBLayerFactory::class);
-        $database = $databaseFactory->connection();
+        $database = $databaseFactory->infrastructureConnection();
         $database->getPdo()->exec('CREATE TABLE runtime_state (value TEXT NOT NULL)');
 
         $firstScoped = null;

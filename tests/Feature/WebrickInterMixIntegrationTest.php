@@ -282,9 +282,11 @@ PHP,
             ]]],
             'session' => ['driver' => 'array'],
         ]);
-        $app->make(DBLayerFactory::class)->connection()->statement(
-            'CREATE TABLE worker_contexts (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)',
-        );
+        $app->container()->withinScope('webrick.request', static function () use ($app): void {
+            $app->make(DBLayerFactory::class)->connection()->statement(
+                'CREATE TABLE worker_contexts (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)',
+            );
+        });
         $client = $app->make(TestKit::class)->http()->withHeaders(['X-Test-Client' => 'foundation']);
         $client->post('/testing/activate-contexts', ['name' => 'request'])
             ->assertStatus(202)->assertHeader('X-Test-Context', 'active')->assertJson(['activated' => true]);
@@ -343,7 +345,10 @@ it('resolves auth actions and selected auth capabilities through DI only', funct
         ->and($probe->saw(MfaManager::class))->toBeFalse()
         ->and($app->make(AuthActions::class))->toBeInstanceOf(AuthActions::class)
         ->and($probe->saw(Authenticator::class))->toBeFalse()
-        ->and($app->make(AuthServices::class)->mfa())->toBeInstanceOf(MfaManager::class)
+        ->and($app->container()->withinScope(
+            'webrick.request',
+            static fn(): MfaManager => $app->make(AuthServices::class)->mfa(),
+        ))->toBeInstanceOf(MfaManager::class)
         ->and($probe->saw(MfaManager::class))->toBeFalse();
 });
 

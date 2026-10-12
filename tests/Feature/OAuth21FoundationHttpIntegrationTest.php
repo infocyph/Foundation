@@ -5,6 +5,8 @@ declare(strict_types=1);
 use Infocyph\DBLayer\DB;
 use Infocyph\Epicrypt\Certificate\KeyPairGenerator;
 use Infocyph\Epicrypt\Token\Opaque\OpaqueToken;
+use Infocyph\Foundation\Application\FoundationBuildContext;
+use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerOAuthClientStore;
 use Infocyph\Foundation\Auth\Contract\Security\PasswordHasherInterface;
 use Infocyph\Foundation\Auth\Contract\Security\PasswordVerificationResult;
@@ -28,6 +30,7 @@ use Infocyph\Foundation\Auth\OAuth\Value\OAuthGrantType;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Tests\Fixtures\OAuth21FlowFixture;
+use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\Foundation\Routing\WebReleaseCompiler;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Router\Build\CompiledRouterArtifact;
@@ -36,16 +39,28 @@ use Infocyph\Webrick\Router\Dispatch\MiddlewareAliases;
 
 it('keeps the Foundation-owned OAuth HTTP surface absent while disabled', function (): void {
     $root = foundationOAuthHttpProject();
+    $observer = new class extends ServiceProvider {
+        public bool $resolved = false;
+
+        public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
+        {
+            unset($context);
+            $builder->onResolved(OAuthManager::class, function (): void {
+                $this->resolved = true;
+            });
+        }
+    };
 
     try {
         $app = Foundation::web([
             'base_path' => $root,
             '_config_cache' => false,
             'router' => ['cache' => false, 'files' => []],
+            'providers' => ['web' => [$observer]],
         ])->boot();
 
         expect(foundationOAuthHttpRoutes($app->make(Registrar::class)))->toBe([])
-            ->and($app->container()->getRepository()->hasResolvedSingleton(OAuthManager::class))->toBeFalse();
+            ->and($observer->resolved)->toBeFalse();
     } finally {
         foundationOAuthHttpRemoveProject($root);
     }

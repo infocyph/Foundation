@@ -13,6 +13,16 @@ This document contains a preserved baseline audit and a subsequent implementatio
 
 **Acceptance checklist, independently counted against the six batch lists:** Batch 1 **6/6 accepted**, Batch 2 **1/8 accepted**, Batch 3 **0/4**, Batch 4 **0/7**, Batch 5 **0/4**, Batch 6 **0/8**; total **7/37** checked. These are *verified acceptance criteria*, not percentages of implementation effort. Batch 1 closes only its **branch-owned reuse/removal/reconciliation scope**; full per-symbol framework audit, native-major contract acceptance, persisted data rehearsal, security and performance remain expressly open in Batches 2–6.
 
+### Batch 2 source-owned QA remediation and criterion accounting — 2026-10-12
+
+**Current exact-source red baseline:** [Security & Standards 38249332344](https://github.com/infocyph/Foundation/actions/runs/38249332344), `f16b16d6`: Pest **40 failed / 493 passed** in PHP 8.4 stable and **40 failed / 491 passed** in PHP 8.5 lowest; PHPForge Pint failure in `WebReleaseCompiler`; Rector/PHPCS/reference and duplicate checks passed, PHPStan 2/2, production consumer installs 4/4, benchmarks 2/2 and clean install passed. Do not replace this baseline with earlier green old-major runs.
+
+**This remediation commit (QA pending):** removes four test-only calls to protected InterMix `getRepository()`, replacing mutable repository inspection with native public `onResolved()` observers and capability registration checks; explicitly `unbind()`s the logger before a test's intentionally custom PSR override; uses the infrastructure-owned DB connection for out-of-scope fixture setup; moves two Webrick integration fixtures to request scope; adjusts WebReleaseCompiler constructor formatting. Assertions about deferred resolution, native provider policy, database ownership and request isolation remain in place. *All tests and quality gates need new exact-head evidence; no accepted box changes from committing this code.*
+
+**Criterion #6 gap audit:** Composer core minimums are updated (`arraykit:^5.3.1`, `cachelayer:^4.0`, `intermix:^11.1`, `uid:^6.0`, `webrick:^6.0.1`). This is only one portion of the composite criterion: `ModuleCatalog`, optional guards, publishable configs, examples, migration docs, consumer CI constraints and dependency compatibility records still need a full evidence pass. **Remain open, do not turn 1/8 into 2/8 merely by matching Composer.**
+
+**Blocker separation:** Native InterMix 11 scoped `InputDefinition` currently requires frozen fallback in trusted production artifacts; generated non-web/source-free boot and stage release remain red. No fallback, untrusted source discovery, softened compilation, or CI skip is authorized. Record upstream ABI status separately from Foundation-owned test and documentation remediation.
+
 ### October 12 — current Batch 2 source/QA checkpoint
 
 **Single working branch:** `feature/foundation-3` / draft PR #20. **Acceptance strictly unchanged:** Batch 1 `6/6`, Batch 2 `1/8`, total `7/37`; remaining batches pending. **Webrick floor:** `^6.0.1`.

@@ -2,11 +2,14 @@
 
 declare(strict_types=1);
 
+use Infocyph\Foundation\Application\FoundationBuildContext;
+use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Exception\ConfigurationException;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Messaging\ConsumerFactory;
 use Infocyph\Foundation\Messaging\MessagingDatabaseSchema;
+use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\Omnibus\Envelope\Envelope;
 use Infocyph\Omnibus\Integration\DBLayer\AfterCommitDispatcher;
 use Infocyph\Omnibus\Integration\DBLayer\DBLayerFailureStore;
@@ -201,7 +204,22 @@ it('requires an explicit failure-store policy for durable consumers', function (
 });
 
 it('keeps the DBLayer durable graph cold when durable messaging is disabled', function (): void {
+    $observer = new class extends ServiceProvider {
+        /** @var array<string, bool> */
+        public array $resolved = [];
+
+        public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
+        {
+            unset($context);
+            foreach ([DBLayerFactory::class, DBLayerTransport::class] as $id) {
+                $builder->onResolved($id, function (string $resolved): void {
+                    $this->resolved[$resolved] = true;
+                });
+            }
+        }
+    };
     $app = Foundation::worker([
+        'providers' => ['common' => [$observer]],
         'messaging' => [
             'default_route' => ['transport' => 'sync', 'queue' => 'default'],
             'routes' => [],
@@ -209,16 +227,14 @@ it('keeps the DBLayer durable graph cold when durable messaging is disabled', fu
             'workers' => [],
         ],
     ]);
-    $repository = $app->container()->getRepository();
 
-    expect($repository->hasResolvedSingleton(DBLayerFactory::class))->toBeFalse()
-        ->and($repository->hasFunctionReference(DBLayerTransport::class))->toBeFalse();
+    expect($observer->resolved)->toBe([])
+        ->and($app->has(DBLayerTransport::class))->toBeFalse();
 
     $app->make(MessageBus::class);
 
-    expect($repository->hasResolvedSingleton(DBLayerFactory::class))->toBeFalse()
-        ->and($repository->hasFunctionReference(DBLayerTransport::class))->toBeFalse()
-        ->and($repository->hasResolvedSingleton(DBLayerTransport::class))->toBeFalse();
+    expect($observer->resolved)->toBe([])
+        ->and($app->has(DBLayerTransport::class))->toBeFalse();
 });
 
 /** @return array{0:\Infocyph\Foundation\Application\Application,1:string} */
