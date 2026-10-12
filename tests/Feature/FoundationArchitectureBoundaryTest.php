@@ -165,3 +165,20 @@ it('keeps specialist benchmark commands bound to maintained entrypoint paths', f
             ->and(is_file($root . '/' . $path))->toBeTrue();
     }
 });
+
+it('uses deterministic registrations without inspecting unfinished provider graphs', function (): void {
+    $root = dirname(__DIR__, 2);
+    $providers = [
+        'Auth/Internal/AuthCoreRegistrar.php',
+        'Communication/CommunicationServiceProvider.php',
+        'Logging/LoggingServiceProvider.php',
+        'Notifications/NotificationServiceProvider.php',
+        'Security/SecurityServiceProvider.php',
+    ];
+
+    foreach ($providers as $path) {
+        $source = file_get_contents($root . '/src/' . $path);
+        expect($source)->toBeString()
+            ->not->toContain('->definitions()->has(');
+    }
+});

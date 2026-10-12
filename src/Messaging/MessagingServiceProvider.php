@@ -140,13 +140,11 @@ final class MessagingServiceProvider extends ServiceProvider
 
     private function registerBusServices(ContainerBuilder $builder, bool $durableEnabled): void
     {
-        if (!$builder->definitions()->has(MessageBus::class)) {
-            $builder->singleton(MessageBus::class, FactoryDefinition::construct(
-                MessageBus::class,
-                [new ServiceReference(RouteMap::class), new ServiceReference(TransportRegistry::class)],
-            ));
-        }
-        if ($durableEnabled && !$builder->definitions()->has(AfterCommitDispatcher::class)) {
+        $builder->singleton(MessageBus::class, FactoryDefinition::construct(
+            MessageBus::class,
+            [new ServiceReference(RouteMap::class), new ServiceReference(TransportRegistry::class)],
+        ));
+        if ($durableEnabled) {
             $builder->scoped(AfterCommitDispatcher::class, FactoryDefinition::staticFactory(
                 MessagingGraphFactory::class,
                 'afterCommit',
@@ -201,14 +199,12 @@ final class MessagingServiceProvider extends ServiceProvider
                 new ServiceReference(SystemClock::class),
             ],
         ));
-        if (!$builder->definitions()->has(EnvelopeSerializer::class)) {
-            $builder->singleton(JsonEnvelopeSerializer::class, FactoryDefinition::staticFactory(
-                MessagingGraphFactory::class,
-                'durableSerializer',
-                [new ServiceReference(OmnibusDurableFactory::class)],
-            ));
-            $builder->alias(EnvelopeSerializer::class, JsonEnvelopeSerializer::class);
-        }
+        $builder->singleton(JsonEnvelopeSerializer::class, FactoryDefinition::staticFactory(
+            MessagingGraphFactory::class,
+            'durableSerializer',
+            [new ServiceReference(OmnibusDurableFactory::class)],
+        ));
+        $builder->alias(EnvelopeSerializer::class, JsonEnvelopeSerializer::class);
 
         $builder->singleton(DBLayerTransport::class, FactoryDefinition::staticFactory(
             MessagingGraphFactory::class,
@@ -234,9 +230,7 @@ final class MessagingServiceProvider extends ServiceProvider
                 new ServiceReference(EnvelopeSerializer::class),
             ],
         ));
-        if (!$builder->definitions()->has(WorkflowStore::class)) {
-            $builder->alias(WorkflowStore::class, DBLayerWorkflowStore::class);
-        }
+        $builder->alias(WorkflowStore::class, DBLayerWorkflowStore::class);
         $builder->singleton(MessagingDatabaseSchema::class, FactoryDefinition::construct(
             MessagingDatabaseSchema::class,
             [
@@ -257,17 +251,13 @@ final class MessagingServiceProvider extends ServiceProvider
                 $this->arrayValue($messaging, 'listeners'),
             ],
         ));
-        if (!$builder->definitions()->has(ListenerProviderInterface::class)) {
-            $builder->alias(ListenerProviderInterface::class, ListenerMap::class);
-        }
+        $builder->alias(ListenerProviderInterface::class, ListenerMap::class);
 
         $builder->singleton(EventDispatcher::class, FactoryDefinition::construct(
             EventDispatcher::class,
             [new ServiceReference(ListenerProviderInterface::class), new ServiceReference(MessageBus::class)],
         ));
-        if (!$builder->definitions()->has(EventDispatcherInterface::class)) {
-            $builder->alias(EventDispatcherInterface::class, EventDispatcher::class);
-        }
+        $builder->alias(EventDispatcherInterface::class, EventDispatcher::class);
     }
 
     private function registerExecutionScope(ContainerBuilder $builder): void
@@ -276,9 +266,7 @@ final class MessagingServiceProvider extends ServiceProvider
             InterMixExecutionScope::class,
             [new ServiceReference(FoundationExecutionScope::class)],
         ));
-        if (!$builder->definitions()->has(ExecutionScope::class)) {
-            $builder->alias(ExecutionScope::class, InterMixExecutionScope::class);
-        }
+        $builder->alias(ExecutionScope::class, InterMixExecutionScope::class);
     }
 
     private function registerFailureStore(
@@ -310,18 +298,16 @@ final class MessagingServiceProvider extends ServiceProvider
             'handlerMap',
             [new ServiceReference(MessagingRuntimeResolver::class), $handlers],
         ));
-        if (!$builder->definitions()->has(HandlerInvoker::class)) {
-            $builder->singleton(HandlerInvoker::class, FactoryDefinition::staticFactory(
-                MessagingGraphFactory::class,
-                'handlerInvoker',
-                [
-                    new ServiceReference(MessagingRuntimeResolver::class),
-                    new ServiceReference(HandlerMap::class),
-                    $handlerMiddleware,
-                    $jobMiddleware,
-                ],
-            ));
-        }
+        $builder->singleton(HandlerInvoker::class, FactoryDefinition::staticFactory(
+            MessagingGraphFactory::class,
+            'handlerInvoker',
+            [
+                new ServiceReference(MessagingRuntimeResolver::class),
+                new ServiceReference(HandlerMap::class),
+                $handlerMiddleware,
+                $jobMiddleware,
+            ],
+        ));
     }
 
     private function registerRuntimeServices(ContainerBuilder $builder): void
@@ -372,17 +358,15 @@ final class MessagingServiceProvider extends ServiceProvider
             SyncTransport::class,
             [new ServiceReference(HandlerInvoker::class)],
         ));
-        if (!$builder->definitions()->has(TransportRegistry::class)) {
-            $builder->singleton(TransportRegistry::class, FactoryDefinition::staticFactory(
-                MessagingGraphFactory::class,
-                'transports',
-                [
-                    new ServiceReference(SyncTransport::class),
-                    new ServiceReference(InMemoryTransport::class),
-                    $durableEnabled ? new ServiceReference(DBLayerTransport::class) : null,
-                ],
-            ));
-        }
+        $builder->singleton(TransportRegistry::class, FactoryDefinition::staticFactory(
+            MessagingGraphFactory::class,
+            'transports',
+            [
+                new ServiceReference(SyncTransport::class),
+                new ServiceReference(InMemoryTransport::class),
+                $durableEnabled ? new ServiceReference(DBLayerTransport::class) : null,
+            ],
+        ));
     }
 
     /** @param array<array-key, mixed> $messaging */
