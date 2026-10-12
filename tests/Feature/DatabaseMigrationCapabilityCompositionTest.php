@@ -28,8 +28,11 @@ it('binds configured migration locks from the complete capability topology, not 
 
     $application = Foundation::cli($config);
     try {
-        expect($application->providers()->classes())->toContain(CacheServiceProvider::class)
-            ->and($application->make(DatabaseMigrationManager::class)->runner())->toBeInstanceOf(MigrationRunner::class);
+        expect($application->providers()->classes())->toContain(CacheServiceProvider::class);
+        $application->execution()->run(static function () use ($application): void {
+            expect($application->make(DatabaseMigrationManager::class)->runner())
+                ->toBeInstanceOf(MigrationRunner::class);
+        });
     } finally {
         DB::purge();
     }
@@ -38,9 +41,11 @@ it('binds configured migration locks from the complete capability topology, not 
     $databaseOnly = Foundation::cli($config);
 
     try {
-        expect($databaseOnly->providers()->classes())->not->toContain(CacheServiceProvider::class)
-            ->and(fn() => $databaseOnly->make(DatabaseMigrationManager::class)->runner())
-            ->toThrow(LogicException::class, 'Database migration locks require the Foundation cache capability.');
+        expect($databaseOnly->providers()->classes())->not->toContain(CacheServiceProvider::class);
+        $databaseOnly->execution()->run(static function () use ($databaseOnly): void {
+            expect(fn() => $databaseOnly->make(DatabaseMigrationManager::class)->runner())
+                ->toThrow(LogicException::class, 'Database migration locks require the Foundation cache capability.');
+        });
     } finally {
         DB::purge();
     }
