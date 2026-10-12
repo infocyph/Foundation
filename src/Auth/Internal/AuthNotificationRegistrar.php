@@ -52,12 +52,12 @@ final readonly class AuthNotificationRegistrar extends AbstractAuthRegistrar
     /** @return list<string> */
     private function criticalTypes(): array
     {
-        return $this->stringList($this->app->config()->get('notifications.auth.critical_types', []));
+        return $this->stringList($this->config->get('notifications.auth.critical_types', []));
     }
 
     private function notificationFrom(): ?string
     {
-        return $this->nullableString($this->app->config()->get('notifications.auth.from'))
-            ?? $this->nullableString($this->app->config()->get('notifications.email.default_from'));
+        return $this->nullableString($this->config->get('notifications.auth.from'))
+            ?? $this->nullableString($this->config->get('notifications.email.default_from'));
     }
 }

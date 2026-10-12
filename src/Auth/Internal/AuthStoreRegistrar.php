@@ -85,7 +85,7 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
 
     private function authConnection(): ?string
     {
-        $default = $this->app->config()->get('database.default');
+        $default = $this->config->get('database.default');
 
         return is_string($default) && $default !== '' ? $default : null;
     }

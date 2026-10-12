@@ -38,7 +38,7 @@ final readonly class AuthPasskeyRegistrar extends AbstractAuthRegistrar
                 $this->ref(ConfigRepository::class),
             ]);
 
-            $configured = $this->app->config()->get('auth.passkey.state.store');
+            $configured = $this->config->get('auth.passkey.state.store');
             $storeName = is_string($configured) && trim($configured) !== '' ? trim($configured) : null;
 
             $this->staticRecipe(

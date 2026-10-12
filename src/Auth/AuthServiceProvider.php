@@ -52,25 +52,25 @@ final class AuthServiceProvider extends ServiceProvider
 {
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        $app = $this->application($builder, $context);
-        $drivers = new AuthDriverResolver($app->config());
-        $secrets = new AuthSecretResolver($app->config());
-        $epicryptTokens = new EpicryptTokenPolicyResolver($app->config());
+        $config = new ConfigRepository($context->config, $context->compiledConfig);
+        $drivers = new AuthDriverResolver($config);
+        $secrets = new AuthSecretResolver($config);
+        $epicryptTokens = new EpicryptTokenPolicyResolver($config);
 
-        new AuthCoreRegistrar($builder, $app->config())->register($drivers);
-        new AuthProductionGuard($app->config())->guard($drivers);
-        new AuthStoreRegistrar($app, $builder)->register($drivers);
-        new AuthCacheRegistrar($app, $builder)->register($drivers);
-        new AuthPasswordRegistrar($app, $builder)->register($drivers);
-        new AuthTokenRegistrar($app, $builder, $secrets, $epicryptTokens)->register($drivers);
-        new AuthMfaRegistrar($app, $builder)->register($drivers);
-        new AuthPasskeyRegistrar($app, $builder)->register($drivers);
-        new AuthPersonalAccessTokenRegistrar($app, $builder)->register();
-        new AuthNotificationRegistrar($app, $builder)->register($drivers);
-        new AuthManagerRegistrar($app, $builder)->register($drivers);
-        new AuthAuthorizationRegistrar($app, $builder)->register();
-        new AuthRuntimeRegistrar($app, $builder)->register();
-        $oauth = new AuthOAuthRegistrar($app, $builder);
+        new AuthCoreRegistrar($builder, $config)->register($drivers);
+        new AuthProductionGuard($config)->guard($drivers);
+        new AuthStoreRegistrar($config, $builder)->register($drivers);
+        new AuthCacheRegistrar($config, $builder)->register($drivers);
+        new AuthPasswordRegistrar($config, $builder)->register($drivers);
+        new AuthTokenRegistrar($config, $builder, $secrets, $epicryptTokens)->register($drivers);
+        new AuthMfaRegistrar($config, $builder)->register($drivers);
+        new AuthPasskeyRegistrar($config, $builder)->register($drivers);
+        new AuthPersonalAccessTokenRegistrar($config, $builder)->register();
+        new AuthNotificationRegistrar($config, $builder)->register($drivers);
+        new AuthManagerRegistrar($config, $builder)->register($drivers);
+        new AuthAuthorizationRegistrar($config, $builder)->register();
+        new AuthRuntimeRegistrar($config, $builder)->register();
+        $oauth = new AuthOAuthRegistrar($config, $builder);
         $oauth->register();
 
         if ($context->runtimeMode->value === 'web') {

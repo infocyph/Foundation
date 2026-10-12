@@ -117,7 +117,7 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
 
     private function authConnection(): ?string
     {
-        $connection = $this->app->config()->get('database.default');
+        $connection = $this->config->get('database.default');
 
         return is_string($connection) && $connection !== '' ? $connection : null;
     }
@@ -402,7 +402,7 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
             $this->ref(PasswordVerifierInterface::class),
             $this->ref(ClockInterface::class),
             $this->ref(OpaqueToken::class),
-            $this->app->config()->isProduction(),
+            $this->config->isProduction(),
         ]);
         $this->recipe(OAuthScopeResolver::class, OAuthScopeResolver::class, [
             $this->ref(OAuthClientStoreInterface::class),

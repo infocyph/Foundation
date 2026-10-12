@@ -79,7 +79,7 @@ final readonly class AuthMfaRegistrar extends AbstractAuthRegistrar
             );
         }
 
-        $configured = $this->app->config()->get('auth.otp.replay.store');
+        $configured = $this->config->get('auth.otp.replay.store');
         $storeName = is_string($configured) && trim($configured) !== '' ? trim($configured) : null;
         if (!$this->hasExplicitBinding(OtpChallengeFactorService::class)) {
             $this->staticRecipe(

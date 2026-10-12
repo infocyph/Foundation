@@ -7,6 +7,7 @@ namespace Infocyph\Foundation\Auth;
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Auth\Internal\AuthMfaRegistrar;
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Config\OtpConfigValidator;
 use Infocyph\Foundation\Exception\ConfigurationException;
 use Infocyph\InterMix\DI\ContainerBuilder;
@@ -22,8 +23,8 @@ final class AuthOtpServiceProvider extends ServiceProvider
             );
         }
 
-        $app = $this->application($builder, $context);
-        $issues = new OtpConfigValidator($app->config())->validate();
+        $config = new ConfigRepository($context->config, $context->compiledConfig);
+        $issues = new OtpConfigValidator($config)->validate();
         if ($issues !== []) {
             throw new ConfigurationException(
                 'Invalid Foundation OTP configuration: ' . implode(
@@ -33,6 +34,6 @@ final class AuthOtpServiceProvider extends ServiceProvider
             );
         }
 
-        new AuthMfaRegistrar($app, $builder)->registerOtpSupport();
+        new AuthMfaRegistrar($config, $builder)->registerOtpSupport();
     }
 }

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Internal;
 
-use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
@@ -14,7 +14,7 @@ use Infocyph\InterMix\DI\Support\ServiceReference;
 abstract readonly class AbstractAuthRegistrar
 {
     public function __construct(
-        protected Application $app,
+        protected ConfigRepository $config,
         protected ContainerBuilder $builder,
     ) {}
 
@@ -25,7 +25,7 @@ abstract readonly class AbstractAuthRegistrar
 
     protected function boolConfig(string $key, bool $default): bool
     {
-        return ValueNormalizer::bool($this->app->config()->get($key, $default), $default);
+        return ValueNormalizer::bool($this->config->get($key, $default), $default);
     }
 
     protected function hasExplicitBinding(string $id): bool
@@ -35,7 +35,7 @@ abstract readonly class AbstractAuthRegistrar
 
     protected function intConfig(string $key, int $default): int
     {
-        return ValueNormalizer::int($this->app->config()->get($key, $default), $default);
+        return ValueNormalizer::int($this->config->get($key, $default), $default);
     }
 
     protected function nullableString(mixed $value): ?string
@@ -99,7 +99,7 @@ abstract readonly class AbstractAuthRegistrar
 
     protected function stringConfig(string $key, string $default): string
     {
-        return ValueNormalizer::string($this->app->config()->get($key, $default), $default);
+        return ValueNormalizer::string($this->config->get($key, $default), $default);
     }
 
     /** @return list<string> */

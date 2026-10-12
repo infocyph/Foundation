@@ -22,7 +22,7 @@ final readonly class AuthCacheRegistrar extends AbstractAuthRegistrar
     public function register(AuthDriverResolver $drivers): void
     {
         if ($drivers->cache() === AuthCacheDriver::CACHE) {
-            $topology = new SharedStateTopology($this->app->config());
+            $topology = new SharedStateTopology($this->config);
             $scope = $topology->cacheStoreScope();
             if (in_array($scope, [SharedStateTopology::HOST, SharedStateTopology::CLUSTER], true)) {
                 $counter = $this->stringConfig('cache.default_counter', '');

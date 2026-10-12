@@ -32,7 +32,7 @@ final readonly class AuthPersonalAccessTokenRegistrar extends AbstractAuthRegist
         $this->requirePackage(Connection::class, 'infocyph/dblayer', 'database');
         $this->requirePackage(PersonalAccessTokenManager::class, 'infocyph/epicrypt', 'crypto');
 
-        $connection = $this->nullableString($this->app->config()->get('database.default'));
+        $connection = $this->nullableString($this->config->get('database.default'));
         $store = DBLayerEpicryptPersonalAccessTokenStore::class;
 
         $this->recipe($store, $store, [
