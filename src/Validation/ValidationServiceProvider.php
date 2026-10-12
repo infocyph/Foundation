@@ -32,14 +32,14 @@ final class ValidationServiceProvider extends ServiceProvider
         $connection = is_string($connection) && $connection !== '' ? $connection : null;
         $hasDatabase = $context->permitsCapability('database') && class_exists(Connection::class);
 
-        $builder->singleton(SchemaRegistry::class, FactoryDefinition::staticFactory(
+        $builder->factory(SchemaRegistry::class, FactoryDefinition::staticFactory(
             ValidationGraphFactory::class,
             'schemaRegistry',
             [new ServiceReference(ConfigRepository::class)],
         ));
 
         if ($hasDatabase) {
-            $builder->singleton(DBLayerDatabaseProvider::class, FactoryDefinition::staticFactory(
+            $builder->factory(DBLayerDatabaseProvider::class, FactoryDefinition::staticFactory(
                 ValidationGraphFactory::class,
                 'databaseProvider',
                 [new ServiceReference(DBLayerFactory::class), $connection],
@@ -47,7 +47,7 @@ final class ValidationServiceProvider extends ServiceProvider
             $builder->alias(DatabaseProvider::class, DBLayerDatabaseProvider::class);
         }
 
-        $builder->singleton(ValidatorFactory::class, FactoryDefinition::construct(
+        $builder->factory(ValidatorFactory::class, FactoryDefinition::construct(
             ValidatorFactory::class,
             [
                 new ServiceReference(ConfigRepository::class),

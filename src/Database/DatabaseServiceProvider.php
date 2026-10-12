@@ -19,6 +19,7 @@ use Infocyph\Foundation\Database\AuthSchema\AuthSchemaInstaller;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\InterMix\DI\Support\ServiceReference;
 use Psr\Container\ContainerInterface;
 
@@ -40,50 +41,54 @@ final class DatabaseServiceProvider extends ServiceProvider
             : [];
         $personalAccessEnabled = ($personalAccess['enabled'] ?? false) === true;
 
-        $builder->singleton(DatabaseConnectionResolver::class, FactoryDefinition::construct(
+        $builder->factory(DatabaseConnectionResolver::class, FactoryDefinition::construct(
             DatabaseConnectionResolver::class,
             [new ServiceReference(ConfigRepository::class)],
         ));
-        $builder->singleton(DBLayerFactory::class, FactoryDefinition::construct(DBLayerFactory::class, [
+        $builder->factory(DBLayerFactory::class, FactoryDefinition::construct(DBLayerFactory::class, [
             new ServiceReference(DatabaseConnectionResolver::class),
             new ServiceReference(ContainerInterface::class),
         ]));
-        $builder->scoped(Connection::class, FactoryDefinition::staticFactory(
-            DatabaseGraphFactory::class,
-            'connection',
-            [new ServiceReference(DBLayerFactory::class)],
-        ));
+        $builder->factory(
+            Connection::class,
+            FactoryDefinition::staticFactory(
+                DatabaseGraphFactory::class,
+                'connection',
+                [new ServiceReference(DBLayerFactory::class)],
+            ),
+            LifetimeEnum::Scoped,
+        );
 
-        $builder->singleton(AuthTables::class, FactoryDefinition::construct(AuthTables::class));
-        $builder->singleton(AuthSchema::class, FactoryDefinition::construct(
+        $builder->factory(AuthTables::class, FactoryDefinition::construct(AuthTables::class));
+        $builder->factory(AuthSchema::class, FactoryDefinition::construct(
             AuthSchema::class,
             [new ServiceReference(AuthTables::class)],
         ));
-        $builder->singleton(AuthMfaRevisionSchema::class, FactoryDefinition::construct(
+        $builder->factory(AuthMfaRevisionSchema::class, FactoryDefinition::construct(
             AuthMfaRevisionSchema::class,
             [new ServiceReference(AuthTables::class)],
         ));
-        $builder->singleton(AuthPasskeyRevisionSchema::class, FactoryDefinition::construct(
+        $builder->factory(AuthPasskeyRevisionSchema::class, FactoryDefinition::construct(
             AuthPasskeyRevisionSchema::class,
             [new ServiceReference(AuthTables::class)],
         ));
-        $builder->singleton(AuthPasskeyRecordSchema::class, FactoryDefinition::construct(
+        $builder->factory(AuthPasskeyRecordSchema::class, FactoryDefinition::construct(
             AuthPasskeyRecordSchema::class,
             [new ServiceReference(AuthTables::class)],
         ));
         if ($oauthEnabled) {
-            $builder->singleton(AuthOAuthRevisionSchema::class, FactoryDefinition::construct(
+            $builder->factory(AuthOAuthRevisionSchema::class, FactoryDefinition::construct(
                 AuthOAuthRevisionSchema::class,
                 [new ServiceReference(AuthTables::class)],
             ));
         }
         if ($personalAccessEnabled) {
-            $builder->singleton(AuthPersonalAccessTokenSchema::class, FactoryDefinition::construct(
+            $builder->factory(AuthPersonalAccessTokenSchema::class, FactoryDefinition::construct(
                 AuthPersonalAccessTokenSchema::class,
                 [new ServiceReference(AuthTables::class)],
             ));
         }
-        $builder->singleton(AuthSchemaInstaller::class, FactoryDefinition::construct(
+        $builder->factory(AuthSchemaInstaller::class, FactoryDefinition::construct(
             AuthSchemaInstaller::class,
             [
                 new ServiceReference(DBLayerFactory::class),
@@ -99,7 +104,7 @@ final class DatabaseServiceProvider extends ServiceProvider
             ],
         ));
 
-        $builder->singleton(DatabaseMigrationManager::class, FactoryDefinition::construct(
+        $builder->factory(DatabaseMigrationManager::class, FactoryDefinition::construct(
             DatabaseMigrationManager::class,
             [
                 new ServiceReference(ConfigRepository::class),

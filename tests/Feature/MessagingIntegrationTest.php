@@ -9,6 +9,7 @@ use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Testing\TestKit;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Omnibus\Consumer\Command\ConsumeRequest;
 use Infocyph\Omnibus\Consumer\Command\ConsumerTask;
 use Infocyph\Omnibus\Envelope\Envelope;
@@ -122,9 +123,10 @@ function foundationMessagingApplication(array $messaging = []): Application
         {
             unset($context);
 
-            $builder->scoped(
+            $builder->factory(
                 FoundationMessageProbe::class,
                 FactoryDefinition::construct(FoundationMessageProbe::class),
+                LifetimeEnum::Scoped,
             );
         }
     };
@@ -163,14 +165,24 @@ beforeEach(function (): void {
 });
 
 it('keeps Omnibus deferred until messaging is selected', function (): void {
-    $app = Foundation::cli();
-    $repository = $app->container()->getRepository();
+    $observer = new class extends ServiceProvider {
+        public bool $resolved = false;
 
-    expect($repository->hasResolvedSingleton(MessageBus::class))->toBeFalse()
+        public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
+        {
+            unset($context);
+            $builder->onResolved(MessageBus::class, function (string $id): void {
+                $this->resolved = $id === MessageBus::class;
+            });
+        }
+    };
+    $app = Foundation::cli(['providers' => ['cli' => [$observer]]]);
+
+    expect($observer->resolved)->toBeFalse()
         ->and($app->has(MessageBus::class))->toBeTrue()
-        ->and($repository->hasResolvedSingleton(MessageBus::class))->toBeFalse()
+        ->and($observer->resolved)->toBeFalse()
         ->and($app->make(MessageBus::class))->toBeInstanceOf(MessageBus::class)
-        ->and($repository->hasResolvedSingleton(MessageBus::class))->toBeTrue();
+        ->and($observer->resolved)->toBeTrue();
 });
 
 it('wires explicit event listeners and Foundation messaging fakes', function (): void {

@@ -48,7 +48,7 @@ abstract readonly class AbstractAuthRegistrar
         array $arguments = [],
         LifetimeEnum $lifetime = LifetimeEnum::Singleton,
     ): void {
-        $this->builder->bind(
+        $this->builder->factory(
             $id,
             FactoryDefinition::construct($class, $arguments),
             $lifetime,
@@ -85,7 +85,7 @@ abstract readonly class AbstractAuthRegistrar
         array $arguments = [],
         LifetimeEnum $lifetime = LifetimeEnum::Singleton,
     ): void {
-        $this->builder->bind(
+        $this->builder->factory(
             $id,
             FactoryDefinition::staticFactory($factoryClass, $method, $arguments),
             $lifetime,

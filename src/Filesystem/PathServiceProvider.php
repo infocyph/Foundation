@@ -25,7 +25,7 @@ final class PathServiceProvider extends ServiceProvider
         $app = is_array($context->config['app'] ?? null) ? $context->config['app'] : [];
         $paths = is_array($context->config['paths'] ?? null) ? $context->config['paths'] : [];
 
-        $builder->singleton(
+        $builder->factory(
             PathManager::class,
             FactoryDefinition::construct(PathManager::class, [
                 $this->basePath($app['base_path'] ?? null),

@@ -26,7 +26,7 @@ final class SecurityServiceProvider extends ServiceProvider
         $security = is_array($context->config['security'] ?? null) ? $context->config['security'] : [];
         $password = is_array($security['password'] ?? null) ? $security['password'] : [];
 
-        $builder->singleton(
+        $builder->factory(
             PasswordHashOptions::class,
             FactoryDefinition::staticFactory(
                 SecurityGraphFactory::class,
@@ -34,13 +34,13 @@ final class SecurityServiceProvider extends ServiceProvider
                 [$password],
             ),
         );
-        $builder->singleton(
+        $builder->factory(
             PasswordHasher::class,
             FactoryDefinition::construct(PasswordHasher::class, [
                 new ServiceReference(PasswordHashOptions::class),
             ]),
         );
-        $builder->singleton(AeadCipher::class, FactoryDefinition::construct(AeadCipher::class));
+        $builder->factory(AeadCipher::class, FactoryDefinition::construct(AeadCipher::class));
 
         $builder->alias('foundation.security', AeadCipher::class);
         $builder->alias('foundation.crypto', AeadCipher::class);

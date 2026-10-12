@@ -27,7 +27,7 @@ final class RoutingServiceProvider extends ServiceProvider
 
         // Live Webrick router composition remains a development/test path. Production
         // releases use WebReleaseCompiler + WebReleaseRuntime and never resolve this factory.
-        $builder->singleton(WebrickMiddlewareFactory::class, FactoryDefinition::construct(
+        $builder->factory(WebrickMiddlewareFactory::class, FactoryDefinition::construct(
             WebrickMiddlewareFactory::class,
             [
                 new ServiceReference(ContainerInterface::class),
@@ -35,11 +35,11 @@ final class RoutingServiceProvider extends ServiceProvider
                 new ServiceReference(LoggerInterface::class),
             ],
         ));
-        $builder->singleton(RouteMiddlewareRegistrar::class, FactoryDefinition::construct(
+        $builder->factory(RouteMiddlewareRegistrar::class, FactoryDefinition::construct(
             RouteMiddlewareRegistrar::class,
             [new ServiceReference(WebrickMiddlewareFactory::class)],
         ));
-        $builder->singleton(WebrickRouterFactory::class, FactoryDefinition::construct(
+        $builder->factory(WebrickRouterFactory::class, FactoryDefinition::construct(
             WebrickRouterFactory::class,
             [
                 new ServiceReference(ConfigRepository::class),
@@ -49,31 +49,31 @@ final class RoutingServiceProvider extends ServiceProvider
                 new ServiceReference(LoggerInterface::class),
             ],
         ));
-        $builder->singleton(RoutePresetRegistrar::class, FactoryDefinition::construct(
+        $builder->factory(RoutePresetRegistrar::class, FactoryDefinition::construct(
             RoutePresetRegistrar::class,
             [
                 new ServiceReference(RouteMiddlewareRegistrar::class),
                 new ServiceReference(ConfigRepository::class),
             ],
         ));
-        $builder->singleton(OAuthRouteRegistrar::class, FactoryDefinition::construct(
+        $builder->factory(OAuthRouteRegistrar::class, FactoryDefinition::construct(
             OAuthRouteRegistrar::class,
             [
                 new ServiceReference(ConfigRepository::class),
                 new ServiceReference(RoutePresetRegistrar::class),
             ],
         ));
-        $builder->singleton(Registrar::class, FactoryDefinition::staticFactory(
+        $builder->factory(Registrar::class, FactoryDefinition::staticFactory(
             WebrickRuntimeFactory::class,
             'registrar',
             [new ServiceReference(WebrickRouterFactory::class)],
         ));
-        $builder->singleton(Collection::class, FactoryDefinition::staticFactory(
+        $builder->factory(Collection::class, FactoryDefinition::staticFactory(
             WebrickRuntimeFactory::class,
             'routes',
             [new ServiceReference(WebrickRouterFactory::class)],
         ));
-        $builder->singleton(RouteFileLoader::class, FactoryDefinition::construct(
+        $builder->factory(RouteFileLoader::class, FactoryDefinition::construct(
             RouteFileLoader::class,
             [
                 new ServiceReference(PathManager::class),

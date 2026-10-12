@@ -12,13 +12,11 @@ it('removes transient runtime identities without mutable definition introspectio
     $builder->value(Application::class, 'development-only');
     $builder->value(Container::class, 'development-only');
 
-    new NonWebProductionGraph()->prepare($builder);
+    $production = new NonWebProductionGraph();
+    $production->prepare($builder);
+    $production->prepare($builder);
 
-    expect($builder->definitions()->has(Application::class))->toBeFalse()
-        ->and($builder->definitions()->has(Container::class))->toBeFalse();
-
-    new NonWebProductionGraph()->prepare($builder);
-
-    expect($builder->definitions()->has(Application::class))->toBeFalse()
-        ->and($builder->definitions()->has(Container::class))->toBeFalse();
+    $definitions = $builder->definitionGraph();
+    expect($definitions->hasDefinition(Application::class))->toBeFalse()
+        ->and($definitions->hasDefinition(Container::class))->toBeFalse();
 });

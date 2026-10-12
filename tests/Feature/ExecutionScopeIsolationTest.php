@@ -21,7 +21,7 @@ final class FoundationExecutionScopeProvider extends ServiceProvider
     {
         unset($context);
 
-        $builder->bindFactory(
+        $builder->factory(
             FoundationExecutionScopeProbe::class,
             static fn(): FoundationExecutionScopeProbe => new FoundationExecutionScopeProbe(),
             LifetimeEnum::Scoped,

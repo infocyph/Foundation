@@ -19,6 +19,7 @@ use Infocyph\Foundation\Scheduling\SchedulerRuntime;
 use Infocyph\Foundation\Worker\WorkerRuntime;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\Omnibus\Envelope\Envelope;
 use Infocyph\Omnibus\Envelope\MessageIdStamp;
 
@@ -39,9 +40,10 @@ final class FoundationPhase7GeneratedProvider extends ServiceProvider
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($context);
-        $builder->scoped(
+        $builder->factory(
             FoundationPhase7GeneratedScopedProbe::class,
             FactoryDefinition::construct(FoundationPhase7GeneratedScopedProbe::class),
+            LifetimeEnum::Scoped,
         );
     }
 }

@@ -10,7 +10,10 @@ use Infocyph\Foundation\Config\ConfigValidator;
 use Infocyph\Foundation\Config\Internal\ConfiguredCapabilities;
 use Infocyph\Foundation\Diagnostics\ReadinessReport;
 use Infocyph\Foundation\Foundation;
-use Infocyph\InterMix\DI\Build\DefinitionGraph;
+use Infocyph\Foundation\Application\FoundationBuildContext;
+use Infocyph\Foundation\Application\RuntimeMode;
+use Infocyph\Foundation\Bootstrap\Bootstrapper;
+use Infocyph\Foundation\Container\FoundationGraph;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\Webrick\Interop\CacheLayer\AtomicCounterAdapter;
 use Infocyph\Webrick\Middleware\Throttle\AtomicCounterInterface as WebrickAtomicCounterInterface;
@@ -240,9 +243,7 @@ it('registers atomic auth and Webrick counter adapters without requiring a Redis
             ],
         ],
     ]);
-    $definitions = DefinitionGraph::from(
-        $application->container()->getRepository(),
-    )->definitions();
+    $definitions = foundationRuntimeCapabilityDefinitions($application->config());
 
     $authCounter = $definitions[CounterStoreInterface::class] ?? null;
     $webrickCounter = $definitions[WebrickAtomicCounterInterface::class] ?? null;
@@ -299,11 +300,19 @@ it('uses an in-memory counter for process-local CacheLayer auth state', function
             ],
         ],
     ]);
-    $definitions = DefinitionGraph::from(
-        $application->container()->getRepository(),
-    )->definitions();
+    $definitions = foundationRuntimeCapabilityDefinitions($application->config());
     $counter = $definitions[CounterStoreInterface::class] ?? null;
 
     expect($counter)->toBeInstanceOf(FactoryDefinition::class)
         ->and($counter?->class)->toBe(InMemoryCounterStore::class);
 });
+
+/** @return array<string, mixed> */
+function foundationRuntimeCapabilityDefinitions(ConfigRepository $config): array
+{
+    $context = FoundationBuildContext::fromConfig($config, RuntimeMode::Cli);
+    $builder = FoundationGraph::compose($context);
+    new Bootstrapper()->compose($builder, $context);
+
+    return $builder->definitionGraph()->definitions();
+}

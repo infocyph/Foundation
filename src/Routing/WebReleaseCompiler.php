@@ -6,10 +6,8 @@ namespace Infocyph\Foundation\Routing;
 
 use Infocyph\Foundation\Bootstrap\Bootstrapper;
 use Infocyph\Foundation\Container\FoundationGraph;
-use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\Webrick\Router\Build\ReleaseCompiler as WebrickReleaseCompiler;
 use Infocyph\Webrick\Router\Build\RouterArtifactLoader;
-use Infocyph\Webrick\Router\Build\RouterBuildResult;
 use Infocyph\Webrick\Router\Definition\Registrar;
 use Infocyph\Webrick\Router\Matching\FusedMatcher;
 use Infocyph\Webrick\Router\Matching\GeneratedMatcher;
@@ -39,6 +37,7 @@ final readonly class WebReleaseCompiler
         $graph = $this->graphs->compose($config, $capabilities);
         $builder = FoundationGraph::compose($graph->context);
         new Bootstrapper()->contribute($builder, $graph->context, $graph->providers);
+        new WebProductionGraph()->prepare($builder);
         $settings = new WebReleaseConfiguration($graph);
         $settings->assertArtifactSafeMiddleware();
 
@@ -61,9 +60,6 @@ final readonly class WebReleaseCompiler
             postGlobal: [],
             preGlobalTags: [],
             postGlobalTags: [],
-            enrichGraph: static function (ContainerBuilder $builder, RouterBuildResult $routes): void {
-                new WebProductionGraph()->prepareBuild($builder, $routes);
-            },
         );
         $this->assertNoSkippedDefinitions($release);
         $matcherCachePath = $this->compileMatcherCache($settings, $routerPath);

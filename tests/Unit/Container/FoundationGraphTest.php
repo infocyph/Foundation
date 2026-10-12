@@ -17,9 +17,9 @@ it('creates a fresh deterministic builder for each runtime composition', functio
     $second = FoundationGraph::compose($context);
 
     expect($first)->not->toBe($second)
-        ->and($first->development())->not->toBe($second->development())
-        ->and($first->development()->getRepository()->getAlias())->toBe($runtimeMode->containerAlias())
-        ->and($second->development()->getRepository()->getAlias())->toBe($runtimeMode->containerAlias());
+        ->and($first->build())->not->toBe($second->build())
+        ->and($first->build()->get(RuntimeMode::class))->toBe($runtimeMode)
+        ->and($second->build()->get(RuntimeMode::class))->toBe($runtimeMode);
 })->with(RuntimeMode::cases());
 
 it('keeps core graph values equivalent in development and generated production', function (RuntimeMode $runtimeMode): void {
@@ -35,7 +35,7 @@ it('keeps core graph values equivalent in development and generated production',
         ['cache' => true],
     );
     $builder = FoundationGraph::compose($context);
-    $development = $builder->development();
+    $development = $builder->build();
 
     $artifact = tempnam(sys_get_temp_dir(), 'foundation-graph-');
     if ($artifact === false) {
@@ -74,7 +74,7 @@ it('keeps non-exportable config usable in development and reports the dynamic bo
         RuntimeMode::Cli,
     );
     $builder = FoundationGraph::compose($context);
-    $development = $builder->development();
+    $development = $builder->build();
     $developmentConfig = $development->get(ConfigRepository::class);
     if (!$developmentConfig instanceof ConfigRepository) {
         throw new RuntimeException('Development graph did not resolve ConfigRepository.');
