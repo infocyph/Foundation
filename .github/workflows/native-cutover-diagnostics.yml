@@ -37,4 +37,11 @@ jobs:
       - name: Show first native contract failure
         env:
           TEST_NAME: ${{ matrix.test }}
-        run: vendor/bin/pest --configuration=vendor/infocyph/phpforge/resources/pest.xml --stop-on-failure "tests/Feature/${TEST_NAME}.php"
+        shell: bash
+        run: |
+          sed \
+            -e "s#bootstrap=\"vendor/autoload.php\"#bootstrap=\"$GITHUB_WORKSPACE/vendor/autoload.php\"#" \
+            -e "s#<directory>./tests</directory>#<directory>$GITHUB_WORKSPACE/tests</directory>#" \
+            -e "s#<directory suffix=\".php\">./src</directory>#<directory suffix=\".php\">$GITHUB_WORKSPACE/src</directory>#" \
+            vendor/infocyph/phpforge/resources/pest.xml > "$RUNNER_TEMP/native-pest.xml"
+          vendor/bin/pest --configuration="$RUNNER_TEMP/native-pest.xml" --stop-on-failure "tests/Feature/${TEST_NAME}.php"
