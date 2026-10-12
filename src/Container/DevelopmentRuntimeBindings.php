@@ -16,11 +16,7 @@ final class DevelopmentRuntimeBindings
         Application $application,
         Container $container,
     ): void {
-        if (!$builder->definitions()->has(Application::class)) {
-            $builder->value(Application::class, $application);
-        }
-        if (!$builder->definitions()->has(Container::class)) {
-            $builder->value(Container::class, $container);
-        }
+        $builder->value(Application::class, $application);
+        $builder->value(Container::class, $container);
     }
 }
