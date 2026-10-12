@@ -60,8 +60,9 @@ compilation; production boot does not reopen the mutable development container.
 
 See [Architecture and lifecycle](docs/architecture.md),
 [Configuration](docs/configuration.md), and the
-[Foundation 3 migration guide](docs/foundation-3-migration.md) for the complete
-runtime contract.
+[Foundation 4 migration guide](docs/foundation-4-migration.md) for the direct
+upgrade from 2.1.1. The [Foundation 3 migration guide](docs/foundation-3-migration.md)
+remains as historical background, not a prerequisite.
 
 ## Runtime hosts
 
@@ -152,7 +153,7 @@ Operational behavior and safety constraints are documented in
 
 The [documentation index](docs/README.md) links the focused guides for HTTP,
 authentication, sessions, database, storage, communication, JSON resources,
-logging, testing, security, and Foundation 3 migration. Configuration templates
+logging, testing, security, and the Foundation 4 upgrade path. Configuration templates
 under `resources/config/` are the canonical key-by-key reference.
 
 ## Verification

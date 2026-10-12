@@ -101,7 +101,7 @@ The live InterMix composition knobs are intentionally small:
 - `app.container.debug_tracing.enabled` and `.level` — InterMix diagnostic tracing.
 
 The following old runtime switches are removed and must not be carried into
-Foundation 3 application configuration:
+Foundation 4 application configuration:
 
 - `app.container.alias`;
 - `app.container.compiled`;

@@ -39,6 +39,48 @@ it('keeps documented specialist package floors synchronized with ModuleCatalog',
     }
 });
 
+it('keeps Composer core and specialist module floors on one supported generation', function (): void {
+    $manifest = json_decode(
+        (string) file_get_contents(dirname(__DIR__, 2) . '/composer.json'),
+        true,
+        512,
+        JSON_THROW_ON_ERROR,
+    );
+    expect($manifest)->toBeArray();
+
+    $core = [
+        'infocyph/arraykit' => '^5.3.1',
+        'infocyph/cachelayer' => '^4.0',
+        'infocyph/intermix' => '^11.1',
+        'infocyph/uid' => '^6.0',
+        'infocyph/webrick' => '^6.0.2',
+    ];
+    foreach ($core as $package => $constraint) {
+        expect($manifest['require'][$package] ?? null)->toBe($constraint);
+    }
+
+    $catalog = new ModuleCatalog();
+    foreach ($catalog->all() as $module) {
+        foreach ($catalog->managedPackages($module) as $package => $constraint) {
+            expect($manifest['require-dev'][$package] ?? $manifest['require'][$package] ?? null)
+                ->toBe($constraint);
+        }
+    }
+});
+
+it('keeps all publishable module templates aligned with the configuration guide', function (): void {
+    $root = dirname(__DIR__, 2);
+    $documentation = file_get_contents($root . '/docs/configuration.md');
+    expect($documentation)->toBeString();
+
+    foreach (new ModuleCatalog()->all() as $module) {
+        foreach ($module['config'] as $filename) {
+            expect($root . '/resources/config/' . $filename)->toBeFile()
+                ->and($documentation)->toContain('`resources/config/' . $filename . '`');
+        }
+    }
+});
+
 it('pins the complete seven-specialist module contract', function (): void {
     $catalog = new ModuleCatalog();
     $modules = $catalog->all();

@@ -5,7 +5,8 @@ owns application lifecycle and integration policy; standalone libraries retain
 their domain behavior.
 
 - [Architecture and lifecycle](architecture.md)
-- [Foundation 3.0 release notes](foundation-3-release-notes.md)
+- [Foundation 2.1.1 → 4.0 direct migration (draft)](foundation-4-migration.md)
+- [Foundation 3.0 release notes (historical)](foundation-3-release-notes.md)
 - [Foundation 2.0 through 2.x → 3.0 migration](foundation-3-migration.md)
 - [Foundation 3.0 release evidence](evidence/foundation-3.0/README.md)
 - [Runtime hosting and Runwire](runtime-hosting.md)
