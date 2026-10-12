@@ -1,0 +1,35 @@
+name: Remove Consolidated Cutover Branch
+
+on:
+  push:
+    branches:
+      - feature/foundation-3
+    paths:
+      - .github/workflows/native-cutover-branch-cleanup.yml
+
+permissions:
+  contents: read
+
+jobs:
+  remove-redundant-branch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Require exact transferred source and full ancestry
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          EXPECTED_SOURCE: 2b01c2ba6f6d6e34d2e2f7450b5ffe02b6e028f6
+        shell: bash
+        run: |
+          set -euo pipefail
+          native_ref="repos/$REPOSITORY/git/ref/heads/feature/foundation-4-native-cutover"
+          main_ref="repos/$REPOSITORY/git/ref/heads/feature/foundation-3"
+          native_sha="$(gh api "$native_ref" --jq '.object.sha')"
+          test "$native_sha" = "$EXPECTED_SOURCE"
+          main_sha="$(gh api "$main_ref" --jq '.object.sha')"
+          result="$(gh api "repos/$REPOSITORY/compare/$native_sha...$main_sha" --jq '.status')"
+          test "$result" = "ahead"
+          gh api --method DELETE "repos/$REPOSITORY/git/refs/heads/feature/foundation-4-native-cutover"
+          echo "Deleted fully merged temporary cutover branch."
