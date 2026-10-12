@@ -187,16 +187,13 @@ final readonly class WebReleaseRuntime
                 expectedEnvironment: $environment,
                 expectedConfigFingerprint: $configFingerprint,
             );
-        try {
-            $builder = FoundationGraph::compose($graph->context);
-            new Bootstrapper()->contribute($builder, $graph->context, $graph->providers);
-            new WebProductionGraph()->prepareRuntime($builder, $artifact);
-            $container = $prevalidated
-                ? $builder->productionPrevalidated($intermixPath, $intermixDigest)
-                : $builder->production($intermixPath);
-        } finally {
-            $graph->application->container()->unset();
-        }
+        $builder = FoundationGraph::compose($graph->context);
+        new Bootstrapper()->contribute($builder, $graph->context, $graph->providers);
+        new WebProductionGraph()->prepareRuntime($builder, $artifact);
+        $container = $prevalidated
+            ? $builder->productionPrevalidated($intermixPath, $intermixDigest)
+            : $builder->production($intermixPath);
+        $graph->application->container()->unset();
 
         $logger = $container->get(LoggerInterface::class);
         if (!$logger instanceof LoggerInterface) {
