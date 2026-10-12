@@ -17,6 +17,7 @@ use Infocyph\Foundation\Scheduling\ScheduleManager;
 use Infocyph\Foundation\Scheduling\SchedulerRuntime;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\LifetimeEnum;
 
 final class FoundationSchedulerRuntimeIO implements CommandIO
 {
@@ -133,9 +134,10 @@ final class FoundationSchedulerServiceProvider extends ServiceProvider
     {
         unset($context);
 
-        $builder->scoped(
+        $builder->factory(
             'scheduler.runtime.scoped',
             FactoryDefinition::construct(FoundationSchedulerScopedProbe::class),
+            LifetimeEnum::Scoped,
         );
     }
 }
