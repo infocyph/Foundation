@@ -39,58 +39,58 @@ it('supports secure HOTP and OCRA MFA workflows', function (): void {
     ])->boot();
 
     $app->container()->withinScope(RuntimeRequestContext::REQUEST_SCOPE, static function () use ($app): void {
-        $mfa = $app->make(AuthServices::class)->mfa();
-    $hotpSecret = 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP';
-    $hotp = new HOTP($hotpSecret);
-    $hotpEnrollment = $mfa->enrollFactor(
-        'account-hotp',
-        MfaFactorType::HOTP,
-        'Hardware token',
-        ['otp' => ['algorithm' => 'sha1', 'counter' => 0, 'digits' => 6, 'secret' => $hotpSecret]],
-        enabled: true,
-    );
+            $mfa = $app->make(AuthServices::class)->mfa();
+        $hotpSecret = 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP';
+        $hotp = new HOTP($hotpSecret);
+        $hotpEnrollment = $mfa->enrollFactor(
+            'account-hotp',
+            MfaFactorType::HOTP,
+            'Hardware token',
+            ['otp' => ['algorithm' => 'sha1', 'counter' => 0, 'digits' => 6, 'secret' => $hotpSecret]],
+            enabled: true,
+        );
 
-    $hotpFactorId = $hotpEnrollment->factor?->id;
-    expect($hotpFactorId)->toBeString()->not->toBeEmpty();
+        $hotpFactorId = $hotpEnrollment->factor?->id;
+        expect($hotpFactorId)->toBeString()->not->toBeEmpty();
 
-    $firstChallenge = $mfa->issueChallenge('account-hotp', factorId: $hotpFactorId);
-    $firstVerification = $mfa->verifyChallenge((string) $firstChallenge->challenge?->id, $hotp->generate(0));
-    $replayedChallenge = $mfa->issueChallenge('account-hotp', factorId: $hotpFactorId);
-    $replayedVerification = $mfa->verifyChallenge((string) $replayedChallenge->challenge?->id, $hotp->generate(0));
-    $secondVerification = $mfa->verifyChallenge((string) $replayedChallenge->challenge?->id, $hotp->generate(1));
+        $firstChallenge = $mfa->issueChallenge('account-hotp', factorId: $hotpFactorId);
+        $firstVerification = $mfa->verifyChallenge((string) $firstChallenge->challenge?->id, $hotp->generate(0));
+        $replayedChallenge = $mfa->issueChallenge('account-hotp', factorId: $hotpFactorId);
+        $replayedVerification = $mfa->verifyChallenge((string) $replayedChallenge->challenge?->id, $hotp->generate(0));
+        $secondVerification = $mfa->verifyChallenge((string) $replayedChallenge->challenge?->id, $hotp->generate(1));
 
-    expect($firstVerification->successful())->toBeTrue()
-        ->and($replayedVerification->successful())->toBeFalse()
-        ->and($replayedVerification->code)->toBe('mfa_code_invalid')
-        ->and($secondVerification->successful())->toBeTrue();
+        expect($firstVerification->successful())->toBeTrue()
+            ->and($replayedVerification->successful())->toBeFalse()
+            ->and($replayedVerification->code)->toBe('mfa_code_invalid')
+            ->and($secondVerification->successful())->toBeTrue();
 
-    $ocraSecret = OCRA::generateSecret(20);
-    $ocra = OCRA::fromBase32('OCRA-1:HOTP-SHA1-6:QN08', $ocraSecret);
-    $ocraEnrollment = $mfa->enrollFactor(
-        'account-ocra',
-        MfaFactorType::OCRA,
-        'Challenge token',
-        ['otp' => ['secret' => $ocraSecret, 'suite' => 'OCRA-1:HOTP-SHA1-6:QN08']],
-        enabled: true,
-    );
-    $ocraFactorId = $ocraEnrollment->factor?->id;
-    $challengeValue = '12345678';
-    $ocraChallenge = $mfa->issueChallenge(
-        'account-ocra',
-        factorId: $ocraFactorId,
-        context: ['ocra_challenge' => $challengeValue],
-    );
-    $ocraVerification = $mfa->verifyChallenge((string) $ocraChallenge->challenge?->id, $ocra->generate($challengeValue));
-    $replayedOcraChallenge = $mfa->issueChallenge(
-        'account-ocra',
-        factorId: $ocraFactorId,
-        context: ['ocra_challenge' => $challengeValue],
-    );
-    $replayedOcraVerification = $mfa->verifyChallenge((string) $replayedOcraChallenge->challenge?->id, $ocra->generate($challengeValue));
+        $ocraSecret = OCRA::generateSecret(20);
+        $ocra = OCRA::fromBase32('OCRA-1:HOTP-SHA1-6:QN08', $ocraSecret);
+        $ocraEnrollment = $mfa->enrollFactor(
+            'account-ocra',
+            MfaFactorType::OCRA,
+            'Challenge token',
+            ['otp' => ['secret' => $ocraSecret, 'suite' => 'OCRA-1:HOTP-SHA1-6:QN08']],
+            enabled: true,
+        );
+        $ocraFactorId = $ocraEnrollment->factor?->id;
+        $challengeValue = '12345678';
+        $ocraChallenge = $mfa->issueChallenge(
+            'account-ocra',
+            factorId: $ocraFactorId,
+            context: ['ocra_challenge' => $challengeValue],
+        );
+        $ocraVerification = $mfa->verifyChallenge((string) $ocraChallenge->challenge?->id, $ocra->generate($challengeValue));
+        $replayedOcraChallenge = $mfa->issueChallenge(
+            'account-ocra',
+            factorId: $ocraFactorId,
+            context: ['ocra_challenge' => $challengeValue],
+        );
+        $replayedOcraVerification = $mfa->verifyChallenge((string) $replayedOcraChallenge->challenge?->id, $ocra->generate($challengeValue));
 
-    expect($ocraVerification->successful())->toBeTrue()
-        ->and($replayedOcraVerification->successful())->toBeFalse()
-        ->and($replayedOcraVerification->code)->toBe('mfa_code_replayed');
+        expect($ocraVerification->successful())->toBeTrue()
+            ->and($replayedOcraVerification->successful())->toBeFalse()
+            ->and($replayedOcraVerification->code)->toBe('mfa_code_replayed');
     });
 });
 
