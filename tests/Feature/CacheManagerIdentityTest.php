@@ -47,8 +47,6 @@ it('canonicalizes default and explicit cache store identity in both access order
     $explicitFirst->set('alias-check', 'explicit-first', 60);
     expect($defaultSecond->get('alias-check'))->toBe('explicit-first');
 
-    $first->container()->unset();
-    $second->container()->unset();
 });
 
 it('follows an explicit default-store change without a reserved alias key', function (): void {
@@ -75,7 +73,6 @@ it('follows an explicit default-store change without a reserved alias key', func
         ->and($secondary->get('identity'))->toBeNull()
         ->and($manager->store('memory')->get('identity'))->toBe('memory');
 
-    $application->container()->unset();
 });
 
 it('applies default identity consistently to replacement delete and clear operations', function (): void {
@@ -104,7 +101,6 @@ it('applies default identity consistently to replacement delete and clear operat
     expect($manager->store('memory')->clear())->toBeTrue()
         ->and($manager->store()->get('clear-me'))->toBeNull();
 
-    $application->container()->unset();
 });
 
 it('keeps distinct named stores and application cache registries isolated', function (): void {
@@ -134,8 +130,6 @@ it('keeps distinct named stores and application cache registries isolated', func
         ->and($secondManager->store()->get('isolated'))->toBeNull()
         ->and($secondManager->store('secondary')->get('isolated'))->toBeNull();
 
-    $first->container()->unset();
-    $second->container()->unset();
 });
 
 it('reuses generation-owned lock providers without sharing lock handles', function (): void {
@@ -173,6 +167,5 @@ it('reuses generation-owned lock providers without sharing lock handles', functi
     } finally {
         $default->release($first);
         $explicit->release($second);
-        $application->container()->unset();
     }
 });
