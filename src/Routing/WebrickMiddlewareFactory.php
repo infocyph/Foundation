@@ -109,7 +109,12 @@ final readonly class WebrickMiddlewareFactory
     {
         $store = ValueNormalizer::nullableString($name);
 
-        return $this->container->get(CacheManager::class)->store($store);
+        $manager = $this->container->get(CacheManager::class);
+        if (!$manager instanceof CacheManager) {
+            throw new \UnexpectedValueException('Webrick cache middleware requires the Foundation cache manager.');
+        }
+
+        return $manager->store($store);
     }
 
     /**
