@@ -266,10 +266,18 @@ it('builds activates and boots all four runtimes from one immutable Foundation g
             ->and($foundationManifest['worker']['provider_topology'] ?? null)->toBe('worker/providers.php')
             ->and($foundationManifest['worker']['provider_topology_sha256'] ?? null)->toMatch('/^[a-f0-9]{64}$/D');
 
-        foreach (['cli', 'worker', 'scheduler'] as $runtime) {
-            expect(is_file($generation . '/' . $runtime . '/container.php'))->toBeTrue()
-                ->and(is_file($generation . '/' . $runtime . '/container.php.meta.json'))->toBeTrue()
-                ->and(is_file($generation . '/' . $runtime . '/container.php.foundation.json'))->toBeTrue();
+        foreach (['web', 'cli', 'worker', 'scheduler'] as $runtime) {
+            $pointer = $generation . '/' . $runtime . '/container.php';
+            $target = realpath($pointer);
+            expect(is_link($pointer))->toBeTrue()
+                ->and(is_file($pointer))->toBeTrue()
+                ->and(readlink($pointer))->toStartWith('container.php.builds/')
+                ->and($target)->toBeString()
+                ->and(is_file(dirname((string) $target) . '/manifest.json'))->toBeTrue();
+
+            if ($runtime !== 'web') {
+                expect(is_file($pointer . '.foundation.json'))->toBeTrue();
+            }
         }
 
         $trustedFoundationSha256 = hash_file('sha256', $release['manifest']);
