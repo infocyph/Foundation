@@ -305,17 +305,19 @@ it('creates and uses the portable DBLayer session schema on SQLite', function ()
                 'connections' => ['session' => ['driver' => 'sqlite', 'database' => 'database/session.sqlite']],
             ],
         ]);
-        $schema = $app->make(\Infocyph\Foundation\Session\SessionDatabaseSchema::class);
-        $schema->install();
-        $connection = $app->make(DBLayerFactory::class)->connection('session');
-        $store = new DatabaseSessionStore($connection, 'browser_sessions');
-        $id = str_repeat('d', 64);
-        $payload = new \Infocyph\Foundation\Session\SessionPayload(['role' => 'admin'], [], time() + 60);
-        $store->save($id, $payload);
-        expect($schema->readiness()['installed'])->toBeTrue()
-            ->and($store->load($id, time())?->data)->toBe(['role' => 'admin']);
-        $store->save(str_repeat('e', 64), new \Infocyph\Foundation\Session\SessionPayload([], [], time() - 1));
-        expect($store->prune(time(), 1))->toBe(1);
+        $app->execution()->run(static function () use ($app): void {
+            $schema = $app->make(\Infocyph\Foundation\Session\SessionDatabaseSchema::class);
+            $schema->install();
+            $connection = $app->make(DBLayerFactory::class)->connection('session');
+            $store = new DatabaseSessionStore($connection, 'browser_sessions');
+            $id = str_repeat('d', 64);
+            $payload = new \Infocyph\Foundation\Session\SessionPayload(['role' => 'admin'], [], time() + 60);
+            $store->save($id, $payload);
+            expect($schema->readiness()['installed'])->toBeTrue()
+                ->and($store->load($id, time())?->data)->toBe(['role' => 'admin']);
+            $store->save(str_repeat('e', 64), new \Infocyph\Foundation\Session\SessionPayload([], [], time() - 1));
+            expect($store->prune(time(), 1))->toBe(1);
+        });
     } finally {
         \Infocyph\DBLayer\DB::purge();
         browserSessionRemoveDirectory($project);
