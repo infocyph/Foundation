@@ -70,11 +70,11 @@
         "benchmark:arraykit": "@php benchmarks/arraykit-config-utilization.php",
         "benchmark:cachelayer": "@php benchmarks/cachelayer-utilization.php",
         "benchmark:dblayer": "@php benchmarks/dblayer-utilization.php",
-        "benchmark:epicrypt": "@php benchmarks/epicrypt-31-utilization.php",
+        "benchmark:epicrypt": "@php benchmarks/epicrypt-utilization.php",
         "benchmark:maintenance": "@php benchmarks/maintenance-overhead.php",
         "benchmark:omnibus": "@php benchmarks/omnibus-utilization.php",
         "benchmark:otp": "@php benchmarks/otp-utilization.php",
-        "benchmark:pathwise": "@php benchmarks/pathwise-41-utilization.php",
+        "benchmark:pathwise": "@php benchmarks/pathwise-utilization.php",
         "benchmark:phase9:di": "@php benchmarks/phase9-di-attribution.php",
         "benchmark:phase9:http": "@php benchmarks/phase9-http-attribution.php",
         "benchmark:release": [
@@ -89,8 +89,8 @@
             "@benchmark:talkingbytes"
         ],
         "benchmark:representative": "@php benchmarks/run-representative.php",
-        "benchmark:reqshield": "@php benchmarks/reqshield-32-utilization.php",
-        "benchmark:talkingbytes": "@php benchmarks/talkingbytes-21-utilization.php",
+        "benchmark:reqshield": "@php benchmarks/reqshield-utilization.php",
+        "benchmark:talkingbytes": "@php benchmarks/talkingbytes-utilization.php",
         "benchmark:uid": "@php benchmarks/uid-runtime-utilization.php"
     }
 }
