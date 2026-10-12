@@ -6,6 +6,7 @@ namespace Infocyph\Foundation\Runtime;
 
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Container\FoundationGraph;
+use Infocyph\InterMix\DI\Build\StaticRuntimePlanner;
 use Infocyph\InterMix\DI\Support\InputDefinition;
 
 /** Compiles one verified CLI, worker, or scheduler InterMix artifact. */
@@ -32,49 +33,44 @@ final class GeneratedRuntimeCompiler
         array $capabilities = [],
     ): array {
         $graph = new NonWebGraphFactory()->compose($config, $runtime, $capabilities);
-        $stagedPath = null;
+        $builder = FoundationGraph::compose($graph->context);
+        $graph->bootstrapper->contribute($builder, $graph->context, $graph->providers);
+        new NonWebProductionGraph()->prepare($builder);
 
-        try {
-            $builder = FoundationGraph::compose($graph->context);
-            $graph->bootstrapper->contribute($builder, $graph->context, $graph->providers);
-            new NonWebProductionGraph()->prepare($builder);
-            $artifactPath = GeneratedRuntimeMetadata::resolvePath($graph->application, $artifactPath);
-            $directory = dirname($artifactPath);
-            if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
-                throw new \RuntimeException(sprintf('Unable to create generated runtime directory "%s".', $directory));
-            }
-
-            $stagedPath = $directory . DIRECTORY_SEPARATOR . '.foundation-'
-                . basename($artifactPath) . '-' . bin2hex(random_bytes(6));
-            $builder->validate(strict: true);
-            $report = $builder->compile($stagedPath);
-            $this->assertNoSkippedDefinitions($report['skipped'], $builder->definitionGraph()->definitions());
-            GeneratedRuntimeMetadata::write(
-                $stagedPath,
-                GeneratedRuntimeMetadata::create($graph, $report),
-            );
-            $metadataSha256 = hash_file('sha256', GeneratedRuntimeMetadata::path($stagedPath));
-            if (!is_string($metadataSha256)) {
-                throw new \RuntimeException('Unable to hash generated runtime metadata.');
-            }
-
-            $this->publish($stagedPath, $artifactPath);
-
-            return [
-                'runtime' => $runtime->value,
-                'path' => $artifactPath,
-                'digest' => $report['digest'],
-                'compiled' => $report['compiled'],
-                'skipped' => $report['skipped'],
-                'metadata_path' => GeneratedRuntimeMetadata::path($artifactPath),
-                'metadata_sha256' => $metadataSha256,
-                'capabilities' => $graph->context->capabilities,
-            ];
-        } finally {
-            if (is_string($stagedPath)) {
-                $this->removeStaged($stagedPath);
-            }
+        $artifactPath = GeneratedRuntimeMetadata::resolvePath($graph->application, $artifactPath);
+        $directory = dirname($artifactPath);
+        if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
+            throw new \RuntimeException(sprintf('Unable to create generated runtime directory "%s".', $directory));
         }
+
+        $builder->validate(strict: true);
+        $definitions = $builder->definitionGraph()->definitions();
+        $planned = new StaticRuntimePlanner()->plan($builder->definitionGraph());
+        $this->assertNoSkippedDefinitions($planned['skipped'], $definitions);
+
+        // InterMix 11 publishes an immutable build directory and activates its
+        // runtime symlink itself. Foundation publishes only its own metadata.
+        $report = $builder->compile($artifactPath);
+        $this->assertNoSkippedDefinitions($report['skipped'], $definitions);
+        GeneratedRuntimeMetadata::write(
+            $artifactPath,
+            GeneratedRuntimeMetadata::create($graph, $report),
+        );
+        $metadataSha256 = hash_file('sha256', GeneratedRuntimeMetadata::path($artifactPath));
+        if (!is_string($metadataSha256)) {
+            throw new \RuntimeException('Unable to hash generated runtime metadata.');
+        }
+
+        return [
+            'runtime' => $runtime->value,
+            'path' => $artifactPath,
+            'digest' => $report['digest'],
+            'compiled' => $report['compiled'],
+            'skipped' => $report['skipped'],
+            'metadata_path' => GeneratedRuntimeMetadata::path($artifactPath),
+            'metadata_sha256' => $metadataSha256,
+            'capabilities' => $graph->context->capabilities,
+        ];
     }
 
     /**
@@ -103,34 +99,4 @@ final class GeneratedRuntimeCompiler
         }
     }
 
-    private function publish(string $stagedPath, string $artifactPath): void
-    {
-        $pairs = [
-            [$stagedPath, $artifactPath],
-            [$stagedPath . '.meta.json', $artifactPath . '.meta.json'],
-            [GeneratedRuntimeMetadata::path($stagedPath), GeneratedRuntimeMetadata::path($artifactPath)],
-        ];
-
-        foreach ($pairs as [$source, $target]) {
-            if (!is_file($source) || !rename($source, $target)) {
-                throw new \RuntimeException(sprintf(
-                    'Unable to publish generated runtime artifact "%s".',
-                    $target,
-                ));
-            }
-        }
-    }
-
-    private function removeStaged(string $stagedPath): void
-    {
-        foreach ([
-            $stagedPath,
-            $stagedPath . '.meta.json',
-            GeneratedRuntimeMetadata::path($stagedPath),
-        ] as $path) {
-            if (is_file($path)) {
-                unlink($path);
-            }
-        }
-    }
 }
