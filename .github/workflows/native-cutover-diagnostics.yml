@@ -1,0 +1,40 @@
+name: Native Major Cutover Diagnostics
+
+on:
+  push:
+    branches:
+      - feature/foundation-4-native-cutover
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'composer.json'
+      - '.github/workflows/native-cutover-diagnostics.yml'
+  workflow_dispatch:
+
+jobs:
+  native-contract:
+    name: Native contract - ${{ matrix.test }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        test:
+          - AdvancedCapabilityIntegrationTest
+          - BrowserSessionIntegrationTest
+          - GeneratedNonWebRuntimeTest
+          - MessagingIntegrationTest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          extensions: mbstring, pdo, pdo_sqlite, redis, memcached
+          coverage: none
+      - name: Install test dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Show first native contract failure
+        env:
+          TEST_NAME: ${{ matrix.test }}
+        run: vendor/bin/pest "tests/Feature/${TEST_NAME}.php" --stop-on-failure --colors=never
