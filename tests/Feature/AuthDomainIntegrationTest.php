@@ -40,119 +40,121 @@ function foundationAuthApplication(): Application
 
 it('composes the complete credential and token lifecycle without eager sibling services', function (): void {
     $app = foundationAuthApplication();
-    $services = $app->make(AuthServices::class);
-    $actions = $app->make(AuthActions::class);
-    $hasher = $services->passwordHasher();
-    $created = $services->accounts()->create(
-        'person@example.test',
-        $hasher->hash('initial-secret'),
-        ['tenant' => 'alpha'],
-        AccountStatus::PENDING_VERIFICATION,
-    );
-    $account = $created->account;
+    $app->container()->withinScope('webrick.request', static function () use ($app): void {
+        $services = $app->make(AuthServices::class);
+        $actions = $app->make(AuthActions::class);
+        $hasher = $services->passwordHasher();
+        $created = $services->accounts()->create(
+            'person@example.test',
+            $hasher->hash('initial-secret'),
+            ['tenant' => 'alpha'],
+            AccountStatus::PENDING_VERIFICATION,
+        );
+        $account = $created->account;
 
-    expect($account)->toBeInstanceOf(Account::class);
-    if (!$account instanceof Account) {
-        throw new LogicException('Expected an account.');
-    }
+        expect($account)->toBeInstanceOf(Account::class);
+        if (!$account instanceof Account) {
+            throw new LogicException('Expected an account.');
+        }
 
-    expect($actions->login([
-        'identifier' => 'person@example.test',
-        'password' => 'wrong-secret',
-    ])->failed())->toBeTrue();
-
-    $verification = $services->emailVerification()->issue(
-        $account->id(),
-        $account->identifier(),
-    );
-    expect($verification->token)->not->toBeNull()
-        ->and($services->emailVerification()->verify($verification->token ?? '')->verified())->toBeTrue();
-
-    $login = $actions->login([
-        'identifier' => 'person@example.test',
-        'password' => 'initial-secret',
-        'context' => ['device_id' => 'device-1'],
-    ]);
-    $session = $login->session;
-
-    expect($login->authenticated())->toBeTrue()
-        ->and($session)->not->toBeNull();
-    if (!$session instanceof AuthSession) {
-        throw new LogicException('Expected an authentication session.');
-    }
-
-    $sessionStore = $app->make(SessionStoreInterface::class);
-    $rotated = $services->sessions()->rotate($session->id);
-
-    expect($sessionStore->find($session->id))->toBeNull()
-        ->and($sessionStore->find($rotated->id))->not->toBeNull()
-        ->and($services->passwordChanges()->changeWithPlainPassword(
-            $account->id(),
-            'initial-secret',
-            'changed-secret',
-            $hasher,
-            $services->passwordPolicy(),
-        )->successful())->toBeTrue()
-        ->and($actions->login([
+        expect($actions->login([
             'identifier' => 'person@example.test',
-            'password' => 'changed-secret',
-        ])->authenticated())->toBeTrue();
+            'password' => 'wrong-secret',
+        ])->failed())->toBeTrue();
 
-    $services->principals()->set($login->principal);
-    expect($actions->logout($rotated->id)->loggedOut)->toBeTrue()
-        ->and($services->principals()->get())->toBeNull()
-        ->and($sessionStore->find($rotated->id))->toBeNull();
+        $verification = $services->emailVerification()->issue(
+            $account->id(),
+            $account->identifier(),
+        );
+        expect($verification->token)->not->toBeNull()
+            ->and($services->emailVerification()->verify($verification->token ?? '')->verified())->toBeTrue();
 
-    $reset = $services->passwordResets()->issue($account->id());
-    expect($reset->token)->not->toBeNull()
-        ->and($services->passwordResets()->completeWithPlainPassword(
-            $reset->token ?? '',
-            'reset-secret',
-            $hasher,
-            $services->passwordPolicy(),
-        )->completed())->toBeTrue()
-        ->and($services->passwordResets()->complete(
-            $reset->token ?? '',
-            $hasher->hash('replayed-secret'),
-        )->failed())->toBeTrue();
+        $login = $actions->login([
+            'identifier' => 'person@example.test',
+            'password' => 'initial-secret',
+            'context' => ['device_id' => 'device-1'],
+        ]);
+        $session = $login->session;
 
-    $passwordless = $services->passwordless()->issue($account->identifier());
-    expect($passwordless->token)->not->toBeNull()
-        ->and($services->passwordless()->verify($passwordless->token ?? '')->successful())->toBeTrue();
+        expect($login->authenticated())->toBeTrue()
+            ->and($session)->not->toBeNull();
+        if (!$session instanceof AuthSession) {
+            throw new LogicException('Expected an authentication session.');
+        }
 
-    $remember = $services->rememberMe()->issue($account->id(), 'device-1');
-    expect($remember->token)->not->toBeNull()
-        ->and($services->rememberMe()->verify($remember->token?->value ?? '')->verified())->toBeTrue();
+        $sessionStore = $app->make(SessionStoreInterface::class);
+        $rotated = $services->sessions()->rotate($session->id);
 
-    $now = time();
-    $access = $services->tokens()->issueAccessToken(new AccessTokenClaims(
-        subjectId: $account->id(),
-        actorId: null,
-        issuedAt: $now,
-        expiresAt: $now + 300,
-        scopes: ['profile.read'],
-    ));
-    $refresh = $services->tokens()->issueRefreshToken($account->id(), 'web', 'device-1');
+        expect($sessionStore->find($session->id))->toBeNull()
+            ->and($sessionStore->find($rotated->id))->not->toBeNull()
+            ->and($services->passwordChanges()->changeWithPlainPassword(
+                $account->id(),
+                'initial-secret',
+                'changed-secret',
+                $hasher,
+                $services->passwordPolicy(),
+            )->successful())->toBeTrue()
+            ->and($actions->login([
+                'identifier' => 'person@example.test',
+                'password' => 'changed-secret',
+            ])->authenticated())->toBeTrue();
 
-    expect($access->token)->not->toBeNull()
-        ->and($services->tokens()->verifyAccessToken($access->token ?? '')->successful())->toBeTrue()
-        ->and($refresh->token)->not->toBeNull()
-        ->and($refresh->refreshToken)->not->toBeNull()
-        ->and($services->tokens()->verifyRefreshToken($refresh->token ?? '')->successful())->toBeTrue();
+        $services->principals()->set($login->principal);
+        expect($actions->logout($rotated->id)->loggedOut)->toBeTrue()
+            ->and($services->principals()->get())->toBeNull()
+            ->and($sessionStore->find($rotated->id))->toBeNull();
 
-    $refreshRecord = $refresh->refreshToken;
-    if (!$refreshRecord instanceof RefreshTokenRecord) {
-        throw new LogicException('Expected a refresh token record.');
-    }
-    $rotation = $services->tokens()->rotateRefreshToken($refreshRecord);
+        $reset = $services->passwordResets()->issue($account->id());
+        expect($reset->token)->not->toBeNull()
+            ->and($services->passwordResets()->completeWithPlainPassword(
+                $reset->token ?? '',
+                'reset-secret',
+                $hasher,
+                $services->passwordPolicy(),
+            )->completed())->toBeTrue()
+            ->and($services->passwordResets()->complete(
+                $reset->token ?? '',
+                $hasher->hash('replayed-secret'),
+            )->failed())->toBeTrue();
 
-    expect($rotation->successful())->toBeTrue()
-        ->and($services->tokens()->revokeRefreshFamily($refreshRecord->familyId)->successful())->toBeTrue()
-        ->and($services->tokens()->rotateRefreshToken($rotation->record ?? $refreshRecord)->failed())->toBeTrue();
+        $passwordless = $services->passwordless()->issue($account->identifier());
+        expect($passwordless->token)->not->toBeNull()
+            ->and($services->passwordless()->verify($passwordless->token ?? '')->successful())->toBeTrue();
 
-    $notifier = $app->make(AuthNotifierInterface::class);
-    expect($notifier)->toBeInstanceOf(CollectingAuthNotifier::class)
-        ->and($notifier->notifications())->not->toBeEmpty();
+        $remember = $services->rememberMe()->issue($account->id(), 'device-1');
+        expect($remember->token)->not->toBeNull()
+            ->and($services->rememberMe()->verify($remember->token?->value ?? '')->verified())->toBeTrue();
+
+        $now = time();
+        $access = $services->tokens()->issueAccessToken(new AccessTokenClaims(
+            subjectId: $account->id(),
+            actorId: null,
+            issuedAt: $now,
+            expiresAt: $now + 300,
+            scopes: ['profile.read'],
+        ));
+        $refresh = $services->tokens()->issueRefreshToken($account->id(), 'web', 'device-1');
+
+        expect($access->token)->not->toBeNull()
+            ->and($services->tokens()->verifyAccessToken($access->token ?? '')->successful())->toBeTrue()
+            ->and($refresh->token)->not->toBeNull()
+            ->and($refresh->refreshToken)->not->toBeNull()
+            ->and($services->tokens()->verifyRefreshToken($refresh->token ?? '')->successful())->toBeTrue();
+
+        $refreshRecord = $refresh->refreshToken;
+        if (!$refreshRecord instanceof RefreshTokenRecord) {
+            throw new LogicException('Expected a refresh token record.');
+        }
+        $rotation = $services->tokens()->rotateRefreshToken($refreshRecord);
+
+        expect($rotation->successful())->toBeTrue()
+            ->and($services->tokens()->revokeRefreshFamily($refreshRecord->familyId)->successful())->toBeTrue()
+            ->and($services->tokens()->rotateRefreshToken($rotation->record ?? $refreshRecord)->failed())->toBeTrue();
+
+        $notifier = $app->make(AuthNotifierInterface::class);
+        expect($notifier)->toBeInstanceOf(CollectingAuthNotifier::class)
+            ->and($notifier->notifications())->not->toBeEmpty();
+    });
 });
 
 it('locks repeated login failures and supports an explicit unlock', function (): void {
@@ -225,102 +227,104 @@ it('composes permissions roles grants gates and denial auditing', function (): v
 
 it('composes MFA passkeys devices impersonation and step-up state', function (): void {
     $app = foundationAuthApplication();
-    $services = $app->make(AuthServices::class);
-    $created = $services->accounts()->create('secure@example.test');
-    $target = $created->account;
+    $app->container()->withinScope('webrick.request', static function () use ($app): void {
+        $services = $app->make(AuthServices::class);
+        $created = $services->accounts()->create('secure@example.test');
+        $target = $created->account;
 
-    expect($target)->not->toBeNull();
-    if (!$target instanceof Account) {
-        throw new LogicException('Expected an account.');
-    }
+        expect($target)->not->toBeNull();
+        if (!$target instanceof Account) {
+            throw new LogicException('Expected an account.');
+        }
 
-    $device = $services->devices()->register($target->id(), 'Laptop', 'fingerprint')->device;
-    expect($device)->not->toBeNull();
-    if (!$device instanceof DeviceRecord) {
-        throw new LogicException('Expected a device.');
-    }
+        $device = $services->devices()->register($target->id(), 'Laptop', 'fingerprint')->device;
+        expect($device)->not->toBeNull();
+        if (!$device instanceof DeviceRecord) {
+            throw new LogicException('Expected a device.');
+        }
 
-    expect($services->devices()->trust($device->id)->successful())->toBeTrue()
-        ->and($services->devices()->touch($device->id)->successful())->toBeTrue()
-        ->and($services->devices()->listForAccount($target->id()))->toHaveCount(1);
+        expect($services->devices()->trust($device->id)->successful())->toBeTrue()
+            ->and($services->devices()->touch($device->id)->successful())->toBeTrue()
+            ->and($services->devices()->listForAccount($target->id()))->toHaveCount(1);
 
-    $enrollment = $services->mfa()->enrollFactor(
-        $target->id(),
-        MfaFactorType::TOTP,
-        'Primary',
-        enabled: true,
-    );
-    $challenge = $services->mfa()->issueChallenge($target->id(), factorId: $enrollment->factor?->id);
-
-    expect($enrollment->successful())->toBeTrue()
-        ->and($challenge->challenge)->not->toBeNull();
-    if (!$enrollment->factor instanceof MfaFactor || !$challenge->challenge instanceof MfaChallenge) {
-        throw new LogicException('Expected MFA enrollment and challenge state.');
-    }
-
-    expect($services->mfa()->verifyChallenge(
-        $challenge->challenge->id,
-        '000000',
-        ['session_id' => 'session-1'],
-    )->successful())->toBeTrue()
-        ->and($services->mfa()->isSatisfied($target->id(), 'session-1'))->toBeTrue()
-        ->and($services->mfa()->verifyRecoveryCode(
+        $enrollment = $services->mfa()->enrollFactor(
             $target->id(),
-            $enrollment->recoveryCodes[0] ?? '',
-        )->successful())->toBeTrue();
+            MfaFactorType::TOTP,
+            'Primary',
+            enabled: true,
+        );
+        $challenge = $services->mfa()->issueChallenge($target->id(), factorId: $enrollment->factor?->id);
 
-    $registration = $services->passkeys()->startRegistration($target->id());
-    if (!$registration->challenge instanceof PasskeyChallenge) {
-        throw new LogicException('Expected a passkey registration challenge.');
-    }
-    $registered = $services->passkeys()->finishRegistration(new PasskeyRegistrationResult(
-        challengeId: $registration->challenge->id,
-        accountId: $target->id(),
-        credentialId: 'credential-1',
-        publicKey: 'public-key',
-        transports: ['internal'],
-    ));
-    $authentication = $services->passkeys()->startAuthentication($target->id());
-    if (!$authentication->challenge instanceof PasskeyChallenge) {
-        throw new LogicException('Expected a passkey authentication challenge.');
-    }
+        expect($enrollment->successful())->toBeTrue()
+            ->and($challenge->challenge)->not->toBeNull();
+        if (!$enrollment->factor instanceof MfaFactor || !$challenge->challenge instanceof MfaChallenge) {
+            throw new LogicException('Expected MFA enrollment and challenge state.');
+        }
 
-    expect($registered->successful())->toBeTrue()
-        ->and($services->passkeys()->finishAuthentication(new PasskeyAuthenticationResult(
-            challengeId: $authentication->challenge->id,
+        expect($services->mfa()->verifyChallenge(
+            $challenge->challenge->id,
+            '000000',
+            ['session_id' => 'session-1'],
+        )->successful())->toBeTrue()
+            ->and($services->mfa()->isSatisfied($target->id(), 'session-1'))->toBeTrue()
+            ->and($services->mfa()->verifyRecoveryCode(
+                $target->id(),
+                $enrollment->recoveryCodes[0] ?? '',
+            )->successful())->toBeTrue();
+
+        $registration = $services->passkeys()->startRegistration($target->id());
+        if (!$registration->challenge instanceof PasskeyChallenge) {
+            throw new LogicException('Expected a passkey registration challenge.');
+        }
+        $registered = $services->passkeys()->finishRegistration(new PasskeyRegistrationResult(
+            challengeId: $registration->challenge->id,
+            accountId: $target->id(),
             credentialId: 'credential-1',
-            clientData: 'client-data',
-            authenticatorData: 'authenticator-data',
-            signature: 'signature',
-        ))->successful())->toBeTrue();
+            publicKey: 'public-key',
+            transports: ['internal'],
+        ));
+        $authentication = $services->passkeys()->startAuthentication($target->id());
+        if (!$authentication->challenge instanceof PasskeyChallenge) {
+            throw new LogicException('Expected a passkey authentication challenge.');
+        }
 
-    $actor = new Principal('operator', accountId: 'operator');
-    $impersonation = $services->impersonation()->startImpersonation($actor, $target);
-    expect($impersonation->successful())->toBeTrue();
-    if ($impersonation->principal === null || $impersonation->session === null) {
-        throw new LogicException('Expected an impersonation session.');
-    }
+        expect($registered->successful())->toBeTrue()
+            ->and($services->passkeys()->finishAuthentication(new PasskeyAuthenticationResult(
+                challengeId: $authentication->challenge->id,
+                credentialId: 'credential-1',
+                clientData: 'client-data',
+                authenticatorData: 'authenticator-data',
+                signature: 'signature',
+            ))->successful())->toBeTrue();
 
-    $stopped = $services->impersonation()->stopImpersonation($impersonation->session);
-    expect($impersonation->principal->accountId())->toBe($target->id())
-        ->and($stopped->principal?->id())->toBe('operator');
+        $actor = new Principal('operator', accountId: 'operator');
+        $impersonation = $services->impersonation()->startImpersonation($actor, $target);
+        expect($impersonation->successful())->toBeTrue();
+        if ($impersonation->principal === null || $impersonation->session === null) {
+            throw new LogicException('Expected an impersonation session.');
+        }
 
-    $oldSession = new AuthSession(
-        id: 'old-session',
-        accountId: $target->id(),
-        deviceId: $device->id,
-        createdAt: time() - 3600,
-        lastSeenAt: time() - 3600,
-        expiresAt: time() + 3600,
-        recentAuthAt: time() - 3600,
-    );
-    expect($services->stepUp()->requiresStepUp($oldSession, 'invoice.approve'))->toBeTrue();
+        $stopped = $services->impersonation()->stopImpersonation($impersonation->session);
+        expect($impersonation->principal->accountId())->toBe($target->id())
+            ->and($stopped->principal?->id())->toBe('operator');
 
-    $services->stepUp()->markSatisfied(
-        $oldSession->accountId,
-        $oldSession->id,
-        'invoice.approve',
-    );
-    expect($services->stepUp()->requiresStepUp($oldSession, 'invoice.approve'))->toBeFalse()
-        ->and($services->devices()->revoke($device->id)->successful())->toBeTrue();
+        $oldSession = new AuthSession(
+            id: 'old-session',
+            accountId: $target->id(),
+            deviceId: $device->id,
+            createdAt: time() - 3600,
+            lastSeenAt: time() - 3600,
+            expiresAt: time() + 3600,
+            recentAuthAt: time() - 3600,
+        );
+        expect($services->stepUp()->requiresStepUp($oldSession, 'invoice.approve'))->toBeTrue();
+
+        $services->stepUp()->markSatisfied(
+            $oldSession->accountId,
+            $oldSession->id,
+            'invoice.approve',
+        );
+        expect($services->stepUp()->requiresStepUp($oldSession, 'invoice.approve'))->toBeFalse()
+            ->and($services->devices()->revoke($device->id)->successful())->toBeTrue();
+    });
 });
