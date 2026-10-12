@@ -34,9 +34,11 @@ use Infocyph\Foundation\Auth\Contract\Storage\{
     RememberTokenStoreInterface,
     SessionStoreInterface
 };
+use Infocyph\Epicrypt\Token\Payload\PurposeToken;
 use Infocyph\Foundation\Auth\Device\{DeviceManager, DeviceStoreInterface};
 use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
 use Infocyph\Foundation\Auth\Driver\AuthMfaDriver;
+use Infocyph\Foundation\Auth\Driver\AuthTokenDriver;
 use Infocyph\Foundation\Auth\Mfa\{
     MfaFactorCompareAndSwapStoreInterface,
     MfaFactorStoreInterface,
@@ -56,6 +58,9 @@ final readonly class AuthManagerRegistrar extends AbstractAuthRegistrar
 {
     public function register(AuthDriverResolver $drivers): void
     {
+        $tokenServicesAvailable = $drivers->tokens() === AuthTokenDriver::SECURITY
+            || class_exists(PurposeToken::class);
+
         $this->recipe(SessionConfig::class, SessionConfig::class, [
             $this->intConfig('auth.session_ttl', 3600),
             $this->intConfig('auth.recent_auth_window', 900),
@@ -86,7 +91,7 @@ final readonly class AuthManagerRegistrar extends AbstractAuthRegistrar
             $this->ref(AuthNotifierInterface::class), $this->ref(AuthIdGeneratorInterface::class),
             $this->ref(ClockInterface::class),
         ], LifetimeEnum::Scoped);
-        if ($this->hasExplicitBinding(PasswordResetTokenServiceInterface::class)) {
+        if ($tokenServicesAvailable) {
             $this->recipe(PasswordResetManager::class, PasswordResetManager::class, [
                 $this->ref(PasswordResetTokenServiceInterface::class), $this->ref(PasswordResetStoreInterface::class),
                 $this->ref(AccountStoreInterface::class), $this->ref(AuthNotifierInterface::class),
@@ -94,7 +99,7 @@ final readonly class AuthManagerRegistrar extends AbstractAuthRegistrar
                 $this->intConfig('auth.password_reset_ttl', 3600), $this->ref(ClockInterface::class),
             ], LifetimeEnum::Scoped);
         }
-        if ($this->hasExplicitBinding(EmailVerificationTokenServiceInterface::class)) {
+        if ($tokenServicesAvailable) {
             $this->recipe(EmailVerificationManager::class, EmailVerificationManager::class, [
                 $this->ref(EmailVerificationTokenServiceInterface::class), $this->ref(EmailVerificationStoreInterface::class),
                 $this->ref(AccountStoreInterface::class), $this->ref(AuthNotifierInterface::class),
@@ -102,7 +107,7 @@ final readonly class AuthManagerRegistrar extends AbstractAuthRegistrar
                 $this->intConfig('auth.email_verification_ttl', 3600), $this->ref(ClockInterface::class),
             ], LifetimeEnum::Scoped);
         }
-        if ($this->hasExplicitBinding(PasswordlessTokenServiceInterface::class)) {
+        if ($tokenServicesAvailable) {
             $this->recipe(PasswordlessManager::class, PasswordlessManager::class, [
                 $this->ref(PasswordlessTokenServiceInterface::class), $this->ref(AuthNotifierInterface::class),
             ], LifetimeEnum::Scoped);
@@ -112,9 +117,7 @@ final readonly class AuthManagerRegistrar extends AbstractAuthRegistrar
             $this->ref(AuditEventStoreInterface::class), $this->ref(AuthIdGeneratorInterface::class),
             $this->ref(ClockInterface::class),
         ]);
-        if ($this->hasExplicitBinding(AccessTokenServiceInterface::class)
-            && $this->hasExplicitBinding(RefreshTokenServiceInterface::class)
-        ) {
+        if ($tokenServicesAvailable) {
             $this->recipe(TokenAuthManager::class, TokenAuthManager::class, [
                 $this->ref(AccessTokenServiceInterface::class), $this->ref(RefreshTokenServiceInterface::class),
                 $this->ref(RefreshTokenStoreInterface::class), $this->ref(AuditEventStoreInterface::class),
