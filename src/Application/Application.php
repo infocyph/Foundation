@@ -203,7 +203,8 @@ final class Application
                 return $this->testingOverrides[$id];
             }
 
-            if (!$this->container->has($id)
+            if (
+                !$this->container->has($id)
                 && $this->container instanceof \Infocyph\InterMix\DI\RuntimeContainerInterface
                 && class_exists($id)
             ) {
@@ -219,6 +220,21 @@ final class Application
 
             throw new ServiceResolutionException($message, previous: $exception);
         }
+    }
+
+    public function paths(): PathManager
+    {
+        return $this->make(PathManager::class);
+    }
+
+    public function providers(): ServiceRegistry
+    {
+        return $this->providers;
+    }
+
+    public function publicPath(string $path = ''): string
+    {
+        return $this->paths()->public($path);
     }
 
     /**
@@ -237,21 +253,6 @@ final class Application
         }
 
         $this->testingOverrides[$id] = $service;
-    }
-
-    public function paths(): PathManager
-    {
-        return $this->make(PathManager::class);
-    }
-
-    public function providers(): ServiceRegistry
-    {
-        return $this->providers;
-    }
-
-    public function publicPath(string $path = ''): string
-    {
-        return $this->paths()->public($path);
     }
 
     public function resourcesPath(string $path = ''): string

@@ -15,7 +15,9 @@ use Psr\Container\ContainerInterface;
  */
 final readonly class MessagingRuntimeResolver
 {
-    public function __construct(private ContainerInterface $container) {}
+    public function __construct(private ContainerInterface $container)
+    {
+    }
 
     public function callable(mixed $definition): callable
     {
@@ -167,6 +169,7 @@ final readonly class MessagingRuntimeResolver
     {
         return is_array($value) ? $value : [];
     }
+
     private function resolveService(string $id): mixed
     {
         if ($this->container->has($id)) {
@@ -178,5 +181,4 @@ final readonly class MessagingRuntimeResolver
 
         throw new \InvalidArgumentException(sprintf('Configured messaging service "%s" does not exist.', $id));
     }
-
 }
