@@ -20,6 +20,7 @@ use Infocyph\Omnibus\Clock\SystemClock;
 use Infocyph\Omnibus\Consumer\Command\ConsumerTask;
 use Infocyph\Omnibus\Consumer\Consumer;
 use Infocyph\Omnibus\Consumer\ExecutionScope;
+use Infocyph\Omnibus\Envelope\Envelope;
 use Infocyph\Omnibus\Event\EventDispatcher;
 use Infocyph\Omnibus\Event\ListenerMap;
 use Infocyph\Omnibus\Failure\FailureStore;
@@ -51,6 +52,7 @@ final class MessagingServiceProvider extends ServiceProvider
         $messaging = is_array($context->config['messaging'] ?? null) ? $context->config['messaging'] : [];
         $durable = $this->durableState($context, $messaging);
 
+        $this->registerExecutionInputs($builder, $messaging);
         $this->registerRuntimeServices($builder);
         $this->registerDurableServices($builder, $durable['enabled']);
         $this->registerHandlerServices($builder, $messaging);
@@ -184,6 +186,18 @@ final class MessagingServiceProvider extends ServiceProvider
             OmnibusWorkerFactory::class,
             [new ServiceReference(ConfigRepository::class), new ServiceReference(ContainerInterface::class)],
         ));
+    }
+
+    /** @param array<array-key, mixed> $messaging */
+    private function registerExecutionInputs(ContainerBuilder $builder, array $messaging): void
+    {
+        $builder->input(Envelope::class);
+        $builder->input('omnibus.message');
+        foreach (array_keys($this->arrayValue($messaging, 'handlers')) as $id) {
+            if (is_string($id) && (class_exists($id) || interface_exists($id))) {
+                $builder->input($id);
+            }
+        }
     }
 
     private function registerDurableServices(ContainerBuilder $builder, bool $enabled): void
