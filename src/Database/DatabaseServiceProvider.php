@@ -18,8 +18,8 @@ use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchemaInstaller;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 use Infocyph\InterMix\DI\ContainerBuilder;
-use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\InterMix\DI\Support\ServiceReference;
 use Psr\Container\ContainerInterface;
 

@@ -162,6 +162,11 @@ final readonly class MessagingRuntimeResolver
         return $service;
     }
 
+    /** @return array<array-key, mixed> */
+    private function map(mixed $value): array
+    {
+        return is_array($value) ? $value : [];
+    }
     private function resolveService(string $id): mixed
     {
         if ($this->container->has($id)) {
@@ -174,9 +179,4 @@ final readonly class MessagingRuntimeResolver
         throw new \InvalidArgumentException(sprintf('Configured messaging service "%s" does not exist.', $id));
     }
 
-    /** @return array<array-key, mixed> */
-    private function map(mixed $value): array
-    {
-        return is_array($value) ? $value : [];
-    }
 }

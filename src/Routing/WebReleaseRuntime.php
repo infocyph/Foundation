@@ -180,7 +180,6 @@ final readonly class WebReleaseRuntime
             ? $builder->productionPrevalidated($intermixPath, $intermixDigest)
             : $builder->production($intermixPath);
 
-
         $logger = $container->get(LoggerInterface::class);
         if (!$logger instanceof LoggerInterface) {
             throw new \LogicException('Compiled Foundation web runtime did not produce a PSR logger.');

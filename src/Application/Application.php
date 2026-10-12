@@ -196,6 +196,13 @@ final class Application
     public function make(string $id): mixed
     {
         try {
+            if (!$this->container->has($id)
+                && $this->container instanceof \Infocyph\InterMix\DI\RuntimeContainerInterface
+                && class_exists($id)
+            ) {
+                return $this->container->make($id);
+            }
+
             return $this->container->get($id);
         } catch (\Throwable $exception) {
             $message = sprintf('Unable to resolve service "%s".', $id);

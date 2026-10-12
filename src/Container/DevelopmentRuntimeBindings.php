@@ -39,7 +39,6 @@ final class DevelopmentRuntimeBindings
             });
         }
 
-
         return $bindings;
     }
 

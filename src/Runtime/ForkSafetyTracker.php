@@ -13,13 +13,13 @@ final class ForkSafetyTracker
     /** @var array<string, true> */
     private array $resolved = [];
 
-    public function mark(string $id): void
-    {
-        $this->resolved[$id] = true;
-    }
-
     public function firstResolvedService(): ?string
     {
         return array_key_first($this->resolved);
+    }
+
+    public function mark(string $id): void
+    {
+        $this->resolved[$id] = true;
     }
 }
