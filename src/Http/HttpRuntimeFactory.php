@@ -24,11 +24,15 @@ final class HttpRuntimeFactory
             logger: static fn(): LoggerInterface => self::logger($container),
             debug: $debug,
             requestIdHeader: 'X-Request-Id',
-            responseRenderer: static fn(Request $request, Throwable $exception): ?Response =>
-                ExceptionRenderer::supports($exception)
-                    ? self::renderer($container)->render($request, $exception)
-                    : null,
+            responseRenderer: static fn(Request $request, Throwable $exception): ?Response => ExceptionRenderer::supports($exception)
+                ? self::renderer($container)->render($request, $exception)
+                : null,
         );
+    }
+
+    public static function routerKernel(WebrickRouterFactory $factory, ErrorHandler $errorHandler): RouterKernel
+    {
+        return $factory->kernel($errorHandler);
     }
 
     private static function logger(ContainerInterface $container): LoggerInterface
@@ -51,8 +55,4 @@ final class HttpRuntimeFactory
         return $renderer;
     }
 
-    public static function routerKernel(WebrickRouterFactory $factory, ErrorHandler $errorHandler): RouterKernel
-    {
-        return $factory->kernel($errorHandler);
-    }
 }
