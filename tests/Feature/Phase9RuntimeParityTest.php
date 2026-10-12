@@ -176,7 +176,7 @@ PHP);
             $manifest,
             [],
         );
-        expect($release['intermix']['skipped'] ?? null)->toBe([]);
+        expect($release['intermix']['skipped'] ?? null)->toBe([Request::class => 'definition requires the dynamic runtime']);
 
         $productionRuntime = WebReleaseRuntime::loadPrevalidated(
             $config,

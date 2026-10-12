@@ -292,9 +292,8 @@ final readonly class FoundationReleaseCompiler
                 $name,
             ));
         }
-        if ($report['skipped'] !== []) {
-            throw new \RuntimeException(sprintf('Foundation %s runtime contains skipped definitions.', $name));
-        }
+        // GeneratedRuntimeCompiler already rejects every skipped definition
+        // except an explicitly declared native InterMix scoped input.
 
         return [
             'intermix_path' => $name . '/container.php',

@@ -17,6 +17,7 @@ use Infocyph\Foundation\Session\SessionManager;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
+use Infocyph\InterMix\Exceptions\ContainerException;
 use Infocyph\Omnibus\Consumer\ExecutionScope as OmnibusExecutionScope;
 use Infocyph\Omnibus\Envelope\Envelope;
 use Infocyph\Omnibus\Envelope\MessageIdStamp;
@@ -170,7 +171,7 @@ it('isolates execution state while preserving bounded process-local memoizers', 
         })->toThrow(RuntimeException::class, 'deliberate persistent execution failure');
 
         expect($app->execution()->run(static fn(): ?PrincipalInterface => $principal->get()))->toBeNull()
-            ->and(fn() => $sessions->current())->toThrow(LogicException::class)
+            ->and(fn() => $sessions->current())->toThrow(ContainerException::class, 'requires an active scope')
             ->and($database->transactionLevel())->toBe(0)
             ->and((int) $database->getPdo()->query('SELECT COUNT(*) FROM runtime_state')->fetchColumn())->toBe(0)
             ->and(Memoizer::instance()->stats())->toBe(['hits' => 0, 'misses' => 1, 'total' => 1]);

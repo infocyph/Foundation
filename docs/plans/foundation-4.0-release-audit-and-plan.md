@@ -13,6 +13,18 @@ This document contains a preserved baseline audit and a subsequent implementatio
 
 **Acceptance checklist, independently counted against the six batch lists:** Batch 1 **6/6 accepted**, Batch 2 **1/8 accepted**, Batch 3 **0/4**, Batch 4 **0/7**, Batch 5 **0/4**, Batch 6 **0/8**; total **7/37** checked. These are *verified acceptance criteria*, not percentages of implementation effort. Batch 1 closes only its **branch-owned reuse/removal/reconciliation scope**; full per-symbol framework audit, native-major contract acceptance, persisted data rehearsal, security and performance remain expressly open in Batches 2–6.
 
+### Native InputDefinition ABI reconciliation (next focused source changes)
+
+**Completed exact-source QA:** [workflow 38252449854](https://github.com/infocyph/Foundation/actions/runs/38252449854), `14b8c88f`: PHP 8.4 stable Pest **33 failed / 501 passed** (down from 34/499 at `56a9ef94`), PHPForge QA 0/4 due to Pest and Pint; PHPStan 2/2, production consumers 4/4, benchmarks 2/2 and clean install passed. The source-doc floor check and secret-isolation path correction exercised successfully as far as their relevant assertions; the latter now progresses to the blocked frozen-fallback path. Focused native [38252442889](https://github.com/infocyph/Foundation/actions/runs/38252442889) still 3/4 green: only GeneratedNonWebRuntimeTest fails.
+
+**New correction set (exact-head QA pending):**
+- `WebReleaseCompiler` retains both optional typed dependency-injection parameters but uses explicitly assigned readonly fields in the constructor, removing the PHPForge constructor-bracing conflict; no route/compile changes.
+- Persistent-worker fixture checks InterMix root-scope misuse using native `ContainerException`, preserving the prohibition on accessing scoped session state outside execution.
+- Web release assertions require the *exact native* `Request::class => 'definition requires the dynamic runtime'` skip report from InterMix 11, not the incompatible old-major empty report.
+- `FoundationReleaseCompiler` no longer re-rejects native scoped inputs after `GeneratedRuntimeCompiler::assertNoSkippedDefinitions()` has already allowed only declared `InputDefinition` entries and rejected everything else. This removes duplicate validation policy but **does not** allow other dynamic definitions or bypass the upstream frozen-fallback/manifest identity boundary.
+
+**Remaining blockers remain explicit:** native InterMix 11 source-free compiled input ABI/fallback support, complete generated web/non-web artifact and epoch identity contracts, old metadata test fixtures, request/worker fork-safety scope tests, runtime parity, real service/cancellation/security/release QA. **Batch 2 stays 1/8; overall 7/37.** No merge, tag or publication.
+
 ### Batch 2 exact-source QA progression and documentation alignment — 2026-10-12
 
 **Latest verified completed run:** [Security & Standards #38251511566](https://github.com/infocyph/Foundation/actions/runs/38251511566), source `56a9ef94`: PHP 8.4 stable **34 Pest failed / 499 passed**, PHP 8.5 lowest **34 failed / 497 passed**, PHPForge QA 0/4 (Pest + Pint). PHPStan 2/2, consumer install 4/4, benchmarks 2/2, clean install successful; security report/release evidence were skipped. The prior `f16b16d6` run had 40 failures and 493 passes on PHP 8.4 stable; 6 additional failures were removed without disabling tests. **The unresolved InterMix 11 static-input fallback issue still fails focused native diagnostics.**

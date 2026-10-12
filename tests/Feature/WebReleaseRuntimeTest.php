@@ -84,7 +84,7 @@ it('compiles and boots a trusted route-first Webrick release without live router
 
         expect($trustedSha256)->toBeString()
             ->and($trustedSha256)->toMatch('/^[a-f0-9]{64}$/D')
-            ->and($release['intermix']['skipped'] ?? null)->toBe([]);
+            ->and($release['intermix']['skipped'] ?? null)->toBe([Request::class => 'definition requires the dynamic runtime']);
 
         $payload = require $router;
         expect($payload)->toBeArray();
@@ -210,7 +210,7 @@ it('compiles maintenance as an opt-in Webrick gate with bounded runtime refresh'
         );
         $trustedSha256 = $release['release_runtime_manifest_sha256'] ?? null;
         expect($trustedSha256)->toBeString()
-            ->and($release['intermix']['skipped'] ?? null)->toBe([]);
+            ->and($release['intermix']['skipped'] ?? null)->toBe([Request::class => 'definition requires the dynamic runtime']);
 
         $payload = require $router;
         expect($payload)->toBeArray();

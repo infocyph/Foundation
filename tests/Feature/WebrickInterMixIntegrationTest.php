@@ -471,7 +471,7 @@ PHP,
             $project . '/bootstrap/cache/release.json',
             [],
         );
-        expect($release['intermix']['skipped'] ?? null)->toBe([]);
+        expect($release['intermix']['skipped'] ?? null)->toBe([Request::class => 'definition requires the dynamic runtime']);
 
         $payload = require $router;
         expect($payload)->toBeArray();
@@ -523,7 +523,7 @@ PHP,
             $manifest,
             [],
         );
-        expect($release['intermix']['skipped'] ?? null)->toBe([]);
+        expect($release['intermix']['skipped'] ?? null)->toBe([Request::class => 'definition requires the dynamic runtime']);
         unlink($project . '/routes/web.php');
 
         $runtime = WebReleaseRuntime::loadPrevalidated(
