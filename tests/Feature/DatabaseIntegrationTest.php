@@ -110,33 +110,35 @@ it('runs configured migrations seeders and database test transactions', function
     ]);
 
     try {
-        $factory = $app->make(DBLayerFactory::class);
-        $migrations = $app->make(DatabaseMigrationManager::class);
-        $connection = $factory->connection();
-        $runner = $migrations->runner();
-        $testing = $app->make(TestKit::class);
+        $app->execution()->run(static function () use ($app): void {
+            $factory = $app->make(DBLayerFactory::class);
+            $migrations = $app->make(DatabaseMigrationManager::class);
+            $connection = $factory->connection();
+            $runner = $migrations->runner();
+            $testing = $app->make(TestKit::class);
 
-        expect($runner->run())->toBe(['20260730000000_create_foundation_examples'])
-            ->and($migrations->seed())->toBe(1)
-            ->and($connection->select('SELECT name FROM foundation_examples ORDER BY id'))
-            ->toBe([['name' => 'seeded']]);
+            expect($runner->run())->toBe(['20260730000000_create_foundation_examples'])
+                ->and($migrations->seed())->toBe(1)
+                ->and($connection->select('SELECT name FROM foundation_examples ORDER BY id'))
+                ->toBe([['name' => 'seeded']]);
 
-        $result = $testing->database()->transaction(
-            function () use ($connection): string {
-                $connection->statement(
-                    'INSERT INTO foundation_examples (name) VALUES (?)',
-                    ['temporary'],
-                );
+            $result = $testing->database()->transaction(
+                function () use ($connection): string {
+                    $connection->statement(
+                        'INSERT INTO foundation_examples (name) VALUES (?)',
+                        ['temporary'],
+                    );
 
-                return 'completed';
-            },
-        );
+                    return 'completed';
+                },
+            );
 
-        expect($result)->toBe('completed')
-            ->and($connection->select('SELECT name FROM foundation_examples ORDER BY id'))
-            ->toBe([['name' => 'seeded']])
-            ->and($testing->database()->refresh())
-            ->toBe(['20260730000000_create_foundation_examples']);
+            expect($result)->toBe('completed')
+                ->and($connection->select('SELECT name FROM foundation_examples ORDER BY id'))
+                ->toBe([['name' => 'seeded']])
+                ->and($testing->database()->refresh())
+                ->toBe(['20260730000000_create_foundation_examples']);
+        });
     } finally {
         DB::purge();
         foundationDatabaseRemove($basePath);
