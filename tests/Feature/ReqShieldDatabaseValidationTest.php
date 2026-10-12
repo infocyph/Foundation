@@ -48,7 +48,7 @@ it('validates database-backed ReqShield 3.2 rules through the native DBLayer 5.1
             $database = $app->make(DBLayerFactory::class)->connection();
             $validators = $app->make(ValidatorFactory::class);
 
-                $pdo = $database->getPdo();
+            $pdo = $database->getPdo();
             $pdo->exec('CREATE TABLE categories (id INTEGER PRIMARY KEY)');
             $pdo->exec('CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT NOT NULL, deleted_at TEXT NULL)');
             $pdo->exec('INSERT INTO categories (id) VALUES (1), (2), (3), (4), (5)');
@@ -119,7 +119,6 @@ it('validates database-backed ReqShield 3.2 rules through the native DBLayer 5.1
                         'soft_delete_column' => 'deleted_at',
                     ],
                 ]))->toBe([5]);
-
         });
     } finally {
         DB::purge();
