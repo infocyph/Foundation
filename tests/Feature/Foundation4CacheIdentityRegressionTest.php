@@ -27,7 +27,6 @@ it('resolves the configured default and explicit store to the same instance in e
 
         expect($first)->toBe($second);
 
-        $application->container()->unset();
     }
 });
 
@@ -49,7 +48,6 @@ it('replaces both names of the configured default without divergent instances', 
     expect($manager->store())->toBe($replacement)
         ->and($manager->store('memory'))->toBe($replacement);
 
-    $application->container()->unset();
 });
 
 it('follows configuration default changes without using a reserved cache alias', function (): void {
@@ -75,7 +73,6 @@ it('follows configuration default changes without using a reserved cache alias',
         ->and($manager->store('memory')->get('switch-marker'))->toBe('original')
         ->and($manager->store()->get('switch-marker'))->toBeNull();
 
-    $application->container()->unset();
 });
 
 it('shares native lock providers by named resource but not acquired handles', function (): void {
@@ -107,7 +104,6 @@ it('shares native lock providers by named resource but not acquired handles', fu
     } finally {
         $provider->release($first);
         $explicit->release($second);
-        $application->container()->unset();
     }
 });
 
