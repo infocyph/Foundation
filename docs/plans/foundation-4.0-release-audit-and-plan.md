@@ -13,6 +13,21 @@ This document contains a preserved baseline audit and a subsequent implementatio
 
 **Acceptance checklist, independently counted against the six batch lists:** Batch 1 **6/6 accepted**, Batch 2 **1/8 accepted**, Batch 3 **0/4**, Batch 4 **0/7**, Batch 5 **0/4**, Batch 6 **0/8**; total **7/37** checked. These are *verified acceptance criteria*, not percentages of implementation effort. Batch 1 closes only its **branch-owned reuse/removal/reconciliation scope**; full per-symbol framework audit, native-major contract acceptance, persisted data rehearsal, security and performance remain expressly open in Batches 2–6.
 
+### October 12 — current Batch 2 source/QA checkpoint
+
+**Single working branch:** `feature/foundation-3` / draft PR #20. **Acceptance strictly unchanged:** Batch 1 `6/6`, Batch 2 `1/8`, total `7/37`; remaining batches pending. **Webrick floor:** `^6.0.1`.
+
+| Revision / evidence | Completed work or result | Acceptance |
+| --- | --- | --- |
+| [QA 38247574397](https://github.com/infocyph/Foundation/actions/runs/38247574397) (`72c52bb0`) | PHP 8.4 Pest 49 failed / 484 passed stable, 49 / 482 lowest; PHPForge Pint also red; consumers/analysis/install green | RED, not accepted |
+| [`1471dd10`](https://github.com/infocyph/Foundation/commit/1471dd1032c352ad03dcd2eb7bbe0052cc6a3c49), [QA 38248489044](https://github.com/infocyph/Foundation/actions/runs/38248489044) | Native gRPC seed, persistent-worker fixture, environment-conditional injection, ordered messaging provider; PHP 8.4 stable 46 failed / 487 passed, Pint only `WebReleaseCompiler` remaining; analysis, consumer install, benchmarks and clean install passed | RED, 3 fewer Pest failures; no full acceptance |
+| [`061349c0`](https://github.com/infocyph/Foundation/commit/061349c034ac002f7b51a31f5b26112956dc0343), `31834e77` | Native Webrick request-scope fixtures for OTP, ReqShield database validation and Epicrypt PAT, follow-up indentation cleanup | Committed; exact-head full QA not certified |
+| [`4a5920fa`](https://github.com/infocyph/Foundation/commit/4a5920fa21675d9519a881d6a1968cde64fad676) | Foundation web-release compiler now accepts a skipped definition **only when it is the native Webrick `Request` input declared as InterMix `InputDefinition`**; all other skipped definitions remain fatal | Committed; full QA and trusted runtime boot still pending |
+
+**Important trust boundary:** accepting Webrick's explicit dynamic request-scope input in the compile report does **not** change InterMix artifact loading, frozen-fallback rejection, manifest identity verification, or the requirement for source-free trusted production execution. InterMix 11.1 still cannot load scoped-input artifacts without its frozen fallback graph. This is a **blocking upstream ABI problem** until verified fixed; do not add a Foundation bypass.
+
+**Remaining source-owned QA:** root-scope test fixtures in auth/DB/worker paths, four test files calling protected InterMix `getRepository()`, logging override collision, generated artifact parity/equality tests, OAuth/Omnibus lifecycle cases, and PHPForge WebReleaseCompiler formatting. Continue defect-by-defect with CI at exact SHA and update the matrix after completion.
+
 ### Native cutover follow-up — sequential defect ledger (2026-10-12)
 
 **Scope:** PR #20, one branch `feature/foundation-3`; releases/merges/tags forbidden. **Strict acceptance stays Batch 2 1/8; overall 7/37.** A committed defect correction is not treated as verified or accepted before exact-source QA.
