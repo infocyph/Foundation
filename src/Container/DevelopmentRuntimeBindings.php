@@ -16,8 +16,8 @@ final class DevelopmentRuntimeBindings
     public static function register(ContainerBuilder $builder): self
     {
         $bindings = new self();
-        $builder->bindFactory(Application::class, static fn(): Application => $bindings->application());
-        $builder->bindFactory(Container::class, static fn(Container $runtime): Container => $runtime);
+        $builder->factory(Application::class, static fn(): Application => $bindings->application());
+        $builder->factory(Container::class, static fn(Container $runtime): Container => $runtime);
 
         return $bindings;
     }

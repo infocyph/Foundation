@@ -15,7 +15,6 @@ use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 use Infocyph\Webrick\Router\Build\ReleaseCompiler as WebrickReleaseCompiler;
 use Infocyph\Webrick\Router\Build\ReleaseManifestLoader;
-use Infocyph\Webrick\Router\Build\RouterArtifactLoader;
 use Infocyph\Webrick\Router\Kernel\CompiledRouterKernel;
 use Infocyph\Webrick\Router\Kernel\ErrorHandler;
 use Infocyph\Webrick\Runtime\Http\RuntimeAdapterInterface;
@@ -174,22 +173,9 @@ final readonly class WebReleaseRuntime
         $intermixDigest = self::stringField($intermix, 'digest');
         $routerFingerprint = self::stringField($webrick, 'fingerprint');
 
-        $routerLoader = new RouterArtifactLoader();
-        $artifact = $prevalidated
-            ? $routerLoader->loadPrevalidated(
-                path: $routerPath,
-                trustedArtifactFingerprint: $routerFingerprint,
-                expectedEnvironment: $environment,
-                expectedConfigFingerprint: $configFingerprint,
-            )
-            : $routerLoader->load(
-                path: $routerPath,
-                expectedEnvironment: $environment,
-                expectedConfigFingerprint: $configFingerprint,
-            );
         $builder = FoundationGraph::compose($graph->context);
         new Bootstrapper()->contribute($builder, $graph->context, $graph->providers);
-        new WebProductionGraph()->prepareRuntime($builder, $artifact);
+        new WebProductionGraph()->prepare($builder);
         $container = $prevalidated
             ? $builder->productionPrevalidated($intermixPath, $intermixDigest)
             : $builder->production($intermixPath);

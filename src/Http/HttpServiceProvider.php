@@ -32,15 +32,15 @@ final class HttpServiceProvider extends ServiceProvider
         $refreshMilliseconds = $this->nonNegativeInt($maintenance['refresh_milliseconds'] ?? null, 1000);
         $retryAfter = $this->nonNegativeInt($maintenance['retry_after'] ?? null, 3600);
 
-        $builder->singleton(AuthResponseFactory::class, FactoryDefinition::construct(AuthResponseFactory::class));
-        $builder->singleton(AuthExceptionMapper::class, FactoryDefinition::construct(
+        $builder->factory(AuthResponseFactory::class, FactoryDefinition::construct(AuthResponseFactory::class));
+        $builder->factory(AuthExceptionMapper::class, FactoryDefinition::construct(
             AuthExceptionMapper::class,
             [new ServiceReference(AuthResponseFactory::class)],
         ));
-        $builder->singleton(ValidationExceptionMapper::class, FactoryDefinition::construct(
+        $builder->factory(ValidationExceptionMapper::class, FactoryDefinition::construct(
             ValidationExceptionMapper::class,
         ));
-        $builder->singleton(ExceptionRenderer::class, FactoryDefinition::construct(
+        $builder->factory(ExceptionRenderer::class, FactoryDefinition::construct(
             ExceptionRenderer::class,
             [
                 new ServiceReference(AuthExceptionMapper::class),
@@ -48,7 +48,7 @@ final class HttpServiceProvider extends ServiceProvider
             ],
         ));
 
-        $builder->singleton(MaintenanceManager::class, FactoryDefinition::construct(
+        $builder->factory(MaintenanceManager::class, FactoryDefinition::construct(
             MaintenanceManager::class,
             [
                 new ServiceReference(ConfigRepository::class),
@@ -56,7 +56,7 @@ final class HttpServiceProvider extends ServiceProvider
                 new ServiceReference(ContainerInterface::class),
             ],
         ));
-        $builder->singleton(MaintenanceRuntimeState::class, FactoryDefinition::construct(
+        $builder->factory(MaintenanceRuntimeState::class, FactoryDefinition::construct(
             MaintenanceRuntimeState::class,
             [
                 new ServiceReference(MaintenanceManager::class),
@@ -67,17 +67,17 @@ final class HttpServiceProvider extends ServiceProvider
 
         // Error-handler and live RouterKernel ownership remain development/embedded-only.
         // Production web execution uses the compiled Webrick release runtime.
-        $builder->singleton(ErrorHandler::class, FactoryDefinition::staticFactory(
+        $builder->factory(ErrorHandler::class, FactoryDefinition::staticFactory(
             HttpRuntimeFactory::class,
             'errorHandler',
             [new ServiceReference(ContainerInterface::class), ($appConfig['debug'] ?? false) === true],
         ));
-        $builder->singleton(RouterKernel::class, FactoryDefinition::staticFactory(
+        $builder->factory(RouterKernel::class, FactoryDefinition::staticFactory(
             HttpRuntimeFactory::class,
             'routerKernel',
             [new ServiceReference(WebrickRouterFactory::class), new ServiceReference(ErrorHandler::class)],
         ));
-        $builder->singleton(HttpKernel::class, FactoryDefinition::construct(
+        $builder->factory(HttpKernel::class, FactoryDefinition::construct(
             HttpKernel::class,
             [new ServiceReference(RouterKernel::class)],
         ));

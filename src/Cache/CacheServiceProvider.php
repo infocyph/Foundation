@@ -28,7 +28,7 @@ final class CacheServiceProvider extends ServiceProvider
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         $hasDatabase = $context->permitsCapability('database') && class_exists(Connection::class);
-        $builder->singleton(CacheLayerFactory::class, FactoryDefinition::staticFactory(
+        $builder->factory(CacheLayerFactory::class, FactoryDefinition::staticFactory(
             CacheGraphFactory::class,
             $hasDatabase ? 'layerFactory' : 'layerFactoryWithoutDatabase',
             $hasDatabase
@@ -42,7 +42,7 @@ final class CacheServiceProvider extends ServiceProvider
                     new ServiceReference(PathManager::class),
                 ],
         ));
-        $builder->singleton(CacheManager::class, FactoryDefinition::staticFactory(
+        $builder->factory(CacheManager::class, FactoryDefinition::staticFactory(
             CacheGraphFactory::class,
             $hasDatabase ? 'manager' : 'managerWithoutDatabase',
             $hasDatabase
@@ -54,7 +54,7 @@ final class CacheServiceProvider extends ServiceProvider
                 ]
                 : [new ServiceReference(CacheLayerFactory::class)],
         ));
-        $builder->singleton(CacheInterface::class, FactoryDefinition::staticFactory(
+        $builder->factory(CacheInterface::class, FactoryDefinition::staticFactory(
             CacheGraphFactory::class,
             'store',
             [new ServiceReference(CacheManager::class)],
@@ -64,7 +64,7 @@ final class CacheServiceProvider extends ServiceProvider
         $builder->alias(AuthenticationStateCacheInterface::class, CacheInterface::class);
         $builder->alias(SimpleCacheInterface::class, CacheInterface::class);
         $builder->alias(CacheItemPoolInterface::class, CacheInterface::class);
-        $builder->singleton(LockProviderInterface::class, FactoryDefinition::staticFactory(
+        $builder->factory(LockProviderInterface::class, FactoryDefinition::staticFactory(
             CacheGraphFactory::class,
             'lock',
             [new ServiceReference(CacheManager::class)],
@@ -77,12 +77,12 @@ final class CacheServiceProvider extends ServiceProvider
         $cache = is_array($context->config['cache'] ?? null) ? $context->config['cache'] : [];
         $counter = $cache['default_counter'] ?? null;
         if (is_string($counter) && $counter !== '') {
-            $builder->singleton(AtomicCounterStoreInterface::class, FactoryDefinition::staticFactory(
+            $builder->factory(AtomicCounterStoreInterface::class, FactoryDefinition::staticFactory(
                 CacheGraphFactory::class,
                 'counters',
                 [new ServiceReference(CacheLayerFactory::class), $counter],
             ));
-            $builder->singleton(WebrickAtomicCounterInterface::class, FactoryDefinition::construct(
+            $builder->factory(WebrickAtomicCounterInterface::class, FactoryDefinition::construct(
                 AtomicCounterAdapter::class,
                 [new ServiceReference(AtomicCounterStoreInterface::class)],
             ));

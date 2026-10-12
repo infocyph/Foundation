@@ -22,24 +22,24 @@ final readonly class AuthCoreRegistrar
 
     public function register(AuthDriverResolver $drivers): void
     {
-        $this->builder->singleton(
+        $this->builder->factory(
             ClockInterface::class,
             FactoryDefinition::construct(SystemClock::class),
         );
-        $this->builder->singleton(
+        $this->builder->factory(
             AuthDriverResolver::class,
             FactoryDefinition::construct(AuthDriverResolver::class, [
                 new ServiceReference(ConfigRepository::class),
             ]),
         );
-        $this->builder->singleton(
+        $this->builder->factory(
             AuthIdGeneratorInterface::class,
             FactoryDefinition::construct(UidAuthIdGenerator::class, [
                 new ServiceReference(ConfigRepository::class),
             ]),
         );
 
-        $this->builder->singleton(
+        $this->builder->factory(
             PasswordPolicyInterface::class,
             FactoryDefinition::construct(BaselinePasswordPolicy::class, [
                 $this->config->getInt('auth.password_policy.min_length', 12) ?? 12,

@@ -31,9 +31,9 @@ final class LoggingServiceProvider extends ServiceProvider
                 ValueNormalizer::bool($exceptions['include_message'] ?? null, false),
                 ValueNormalizer::bool($exceptions['include_trace'] ?? null, false),
             ]);
-        $builder->singleton(LoggerInterface::class, $definition);
+        $builder->factory(LoggerInterface::class, $definition);
 
-        $builder->singleton(
+        $builder->factory(
             ExceptionReporter::class,
             FactoryDefinition::construct(ExceptionReporter::class, [
                 new ServiceReference(LoggerInterface::class),
@@ -44,7 +44,7 @@ final class LoggingServiceProvider extends ServiceProvider
                 ValueNormalizer::int($exceptions['throttle_limit'] ?? null, 1),
             ]),
         );
-        $builder->singleton(
+        $builder->factory(
             HttpExceptionLogger::class,
             FactoryDefinition::construct(HttpExceptionLogger::class, [
                 new ServiceReference(ExceptionReporter::class),

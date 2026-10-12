@@ -44,7 +44,7 @@ final class Application
         $bootstrapper->compose($builder, $context, $providers);
 
         $bindings = DevelopmentRuntimeBindings::register($builder);
-        $container = $builder->development();
+        $container = $builder->build();
         $runtimeConfig = $container->get(ConfigRepository::class);
         if (!$runtimeConfig instanceof ConfigRepository) {
             throw new \LogicException('Foundation graph did not produce a ConfigRepository.');

@@ -85,7 +85,7 @@ final class AuthServiceProvider extends ServiceProvider
         FoundationBuildContext $context,
         bool $oauthEnabled,
     ): void {
-        $builder->singleton(SessionPrincipalResolver::class, FactoryDefinition::construct(
+        $builder->factory(SessionPrincipalResolver::class, FactoryDefinition::construct(
             SessionPrincipalResolver::class,
             [
                 new ServiceReference(ConfigRepository::class),
@@ -94,7 +94,7 @@ final class AuthServiceProvider extends ServiceProvider
                 new ServiceReference(ClockInterface::class),
             ],
         ));
-        $builder->singleton(BearerTokenPrincipalResolver::class, FactoryDefinition::construct(
+        $builder->factory(BearerTokenPrincipalResolver::class, FactoryDefinition::construct(
             BearerTokenPrincipalResolver::class,
             [
                 new ServiceReference(ConfigRepository::class),
@@ -102,7 +102,7 @@ final class AuthServiceProvider extends ServiceProvider
                 new ServiceReference(AccountProviderInterface::class),
             ],
         ));
-        $builder->singleton(RememberMePrincipalResolver::class, FactoryDefinition::construct(
+        $builder->factory(RememberMePrincipalResolver::class, FactoryDefinition::construct(
             RememberMePrincipalResolver::class,
             [
                 new ServiceReference(ConfigRepository::class),
@@ -111,7 +111,7 @@ final class AuthServiceProvider extends ServiceProvider
             ],
         ));
         if ($oauthEnabled) {
-            $builder->singleton(OAuthBearerTokenPrincipalResolver::class, FactoryDefinition::construct(
+            $builder->factory(OAuthBearerTokenPrincipalResolver::class, FactoryDefinition::construct(
                 OAuthBearerTokenPrincipalResolver::class,
                 [
                     new ServiceReference(ConfigRepository::class),
@@ -120,7 +120,7 @@ final class AuthServiceProvider extends ServiceProvider
             ));
         }
 
-        $builder->singleton(RequestPrincipalResolver::class, FactoryDefinition::staticFactory(
+        $builder->factory(RequestPrincipalResolver::class, FactoryDefinition::staticFactory(
             AuthHttpGraphFactory::class,
             'requestPrincipalResolver',
             [
@@ -132,19 +132,19 @@ final class AuthServiceProvider extends ServiceProvider
                 $this->principalResolverOrder($context, $oauthEnabled),
             ],
         ));
-        $builder->singleton(ResolvePrincipalMiddleware::class, FactoryDefinition::construct(
+        $builder->factory(ResolvePrincipalMiddleware::class, FactoryDefinition::construct(
             ResolvePrincipalMiddleware::class,
             [new ServiceReference(CurrentPrincipalContext::class), new ServiceReference(RequestPrincipalResolver::class)],
         ));
-        $builder->singleton(AuthMiddleware::class, FactoryDefinition::construct(
+        $builder->factory(AuthMiddleware::class, FactoryDefinition::construct(
             AuthMiddleware::class,
             [new ServiceReference(CurrentPrincipalContext::class), new ServiceReference(AuthResponseFactory::class)],
         ));
-        $builder->singleton(GuestMiddleware::class, FactoryDefinition::construct(
+        $builder->factory(GuestMiddleware::class, FactoryDefinition::construct(
             GuestMiddleware::class,
             [new ServiceReference(CurrentPrincipalContext::class), new ServiceReference(AuthResponseFactory::class)],
         ));
-        $builder->singleton(VerifiedMiddleware::class, FactoryDefinition::construct(
+        $builder->factory(VerifiedMiddleware::class, FactoryDefinition::construct(
             VerifiedMiddleware::class,
             [
                 new ServiceReference(CurrentPrincipalContext::class),
@@ -152,11 +152,11 @@ final class AuthServiceProvider extends ServiceProvider
                 new ServiceReference(AuthResponseFactory::class),
             ],
         ));
-        $builder->singleton(MfaRequiredMiddleware::class, FactoryDefinition::construct(
+        $builder->factory(MfaRequiredMiddleware::class, FactoryDefinition::construct(
             MfaRequiredMiddleware::class,
             [new ServiceReference(CurrentPrincipalContext::class), new ServiceReference(AuthResponseFactory::class)],
         ));
-        $builder->singleton(RecentAuthMiddleware::class, FactoryDefinition::construct(
+        $builder->factory(RecentAuthMiddleware::class, FactoryDefinition::construct(
             RecentAuthMiddleware::class,
             [new ServiceReference(CurrentPrincipalContext::class), new ServiceReference(AuthResponseFactory::class)],
         ));

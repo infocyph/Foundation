@@ -6,7 +6,6 @@ namespace Infocyph\Foundation\Routing;
 
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\InterMix\DI\Container;
-use Infocyph\InterMix\DI\Invoker;
 use Infocyph\Webrick\Interfaces\RouteInterface;
 use Infocyph\Webrick\Router\Definition\Registrar;
 use Infocyph\Webrick\Router\Facade\Router;
@@ -60,7 +59,7 @@ final class WebrickRouterFactory
                     );
                 }
             },
-            invoker: Invoker::with($this->container),
+            invoker: $this->container,
             registrarOptions: [
                 'autoSlashRedirect' => (bool) $this->config->get('router.auto_slash_redirect', false),
                 'exposeUrlServices' => (bool) $this->config->get('router.expose_url_services', false),

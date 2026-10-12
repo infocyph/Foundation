@@ -38,14 +38,15 @@ final class SessionServiceProvider extends ServiceProvider
 
     private function registerCore(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        $builder->singleton(SessionConfig::class, FactoryDefinition::staticFactory(
+        $builder->factory(SessionConfig::class, FactoryDefinition::staticFactory(
             SessionGraphFactory::class,
             'config',
             [new ServiceReference(ConfigRepository::class), new ServiceReference(PathManager::class)],
         ));
-        $builder->scoped(
+        $builder->factory(
             SessionExecutionState::class,
             FactoryDefinition::construct(SessionExecutionState::class),
+            LifetimeEnum::Scoped,
         );
 
         if ($context->runtimeMode !== RuntimeMode::Web) {
@@ -70,7 +71,7 @@ final class SessionServiceProvider extends ServiceProvider
             if (!$context->permitsCapability('cache')) {
                 throw new \LogicException('Session locking requires the Foundation cache capability.');
             }
-            $builder->singleton(SessionManager::class, FactoryDefinition::staticFactory(
+            $builder->factory(SessionManager::class, FactoryDefinition::staticFactory(
                 SessionGraphFactory::class,
                 'lockedManager',
                 [
@@ -84,7 +85,7 @@ final class SessionServiceProvider extends ServiceProvider
             return;
         }
 
-        $builder->singleton(SessionManager::class, FactoryDefinition::staticFactory(
+        $builder->factory(SessionManager::class, FactoryDefinition::staticFactory(
             SessionGraphFactory::class,
             'manager',
             [
@@ -104,11 +105,11 @@ final class SessionServiceProvider extends ServiceProvider
                 ? new ServiceReference(ExceptionReporter::class)
                 : null,
         ];
-        $builder->singleton(SessionMiddleware::class, FactoryDefinition::construct(
+        $builder->factory(SessionMiddleware::class, FactoryDefinition::construct(
             SessionMiddleware::class,
             $arguments,
         ));
-        $builder->bind(
+        $builder->factory(
             BrowserSession::class,
             FactoryDefinition::staticFactory(
                 SessionGraphFactory::class,
@@ -117,7 +118,7 @@ final class SessionServiceProvider extends ServiceProvider
             ),
             LifetimeEnum::Scoped,
         );
-        $builder->singleton(CsrfMiddleware::class, FactoryDefinition::construct(
+        $builder->factory(CsrfMiddleware::class, FactoryDefinition::construct(
             CsrfMiddleware::class,
             [new ServiceReference(SessionConfig::class)],
         ));
@@ -140,13 +141,13 @@ final class SessionServiceProvider extends ServiceProvider
             $storeArguments[] = new ServiceReference(DBLayerFactory::class);
         }
 
-        $builder->singleton(SessionStoreFactory::class, FactoryDefinition::construct(
+        $builder->factory(SessionStoreFactory::class, FactoryDefinition::construct(
             SessionStoreFactory::class,
             $storeArguments,
         ));
 
         if ($context->permitsCapability('database') && class_exists(Connection::class)) {
-            $builder->singleton(SessionDatabaseSchema::class, FactoryDefinition::construct(
+            $builder->factory(SessionDatabaseSchema::class, FactoryDefinition::construct(
                 SessionDatabaseSchema::class,
                 [new ServiceReference(SessionConfig::class), new ServiceReference(DBLayerFactory::class)],
             ));

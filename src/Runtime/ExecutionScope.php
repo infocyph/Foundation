@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Runtime;
 
 use Infocyph\Foundation\Application\RuntimeMode;
-use Infocyph\InterMix\DI\Container;
-use Infocyph\InterMix\DI\ProductionContainer;
+use Infocyph\InterMix\DI\RuntimeContainerInterface;
 use Psr\Container\ContainerInterface;
 
 final readonly class ExecutionScope
@@ -110,12 +109,10 @@ final readonly class ExecutionScope
      */
     private function withinScope(string $scope, callable $callback, array $seeds): mixed
     {
-        return match (true) {
-            $this->container instanceof Container => $this->container->withinScope($scope, $callback, $seeds),
-            $this->container instanceof ProductionContainer => $this->container->withinScope($scope, $callback, $seeds),
-            default => throw new \LogicException(
-                'Foundation execution scopes require an InterMix development or generated production container.',
-            ),
-        };
+        if (!$this->container instanceof RuntimeContainerInterface) {
+            throw new \LogicException('Foundation execution scopes require an InterMix runtime container.');
+        }
+
+        return $this->container->withinScope($scope, $callback, $seeds);
     }
 }
