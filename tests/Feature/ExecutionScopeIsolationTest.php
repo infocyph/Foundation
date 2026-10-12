@@ -172,3 +172,14 @@ it('keeps the primary execution exception when explicit or scope-leave cleanup a
         static fn(): never => throw new DomainException('primary execution failure'),
     ))->toThrow(DomainException::class, 'primary execution failure');
 });
+
+it('keeps the configured non-web runtime mode separate from scope inputs', function (): void {
+    $app = Foundation::cli(['app' => ['env' => 'testing']])->boot();
+
+    expect($app->execution()->run(static fn(): RuntimeMode => $app->make(RuntimeMode::class)))
+        ->toBe(RuntimeMode::Cli)
+        ->and(fn() => $app->execution()->run(
+            static fn(): null => null,
+            [RuntimeMode::class => RuntimeMode::Web],
+        ))->toThrow(InvalidArgumentException::class, 'cannot override its runtime mode');
+});
