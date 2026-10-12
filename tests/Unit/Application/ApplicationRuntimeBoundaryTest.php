@@ -107,10 +107,10 @@ it('registers development identities before materialization and attaches the app
     $builder = FoundationGraph::compose($context);
     $bindings = DevelopmentRuntimeBindings::register($builder);
 
-    expect($builder->definitions()->has(Application::class))->toBeTrue()
-        ->and($builder->definitions()->has(Container::class))->toBeTrue();
+    expect($builder->definitionGraph()->hasDefinition(Application::class))->toBeTrue()
+        ->and($builder->definitionGraph()->hasDefinition(Container::class))->toBeTrue();
 
-    $container = $builder->development();
+    $container = $builder->build();
     $config = $container->get(ConfigRepository::class);
     if (!$config instanceof ConfigRepository) {
         throw new RuntimeException('Development graph did not resolve ConfigRepository.');
