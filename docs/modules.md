@@ -5,13 +5,13 @@ Modules are application purposes, not Composer-package discovery aliases.
 
 | Module | Managed package(s) | Module-owned config | Module schema |
 | --- | --- | --- | --- |
-| `auth` | feature packages: `infocyph/otp ^6.1`, `web-auth/webauthn-lib ^5.3.9` | none | `auth` |
-| `communication` | `infocyph/talkingbytes ^2.1` | `communication.php` | none |
-| `database` | `infocyph/dblayer ^5.1` | `database.php` | none |
-| `filesystem` | `infocyph/pathwise ^4.1` | `filesystem.php` | none |
-| `messaging` | `infocyph/omnibus ^2.6` | `messaging.php` | `messaging` |
-| `security` | `infocyph/epicrypt ^3.1` | `security.php` | none |
-| `validation` | `infocyph/reqshield ^3.2` | `validation.php` | none |
+| `auth` | feature packages: `infocyph/otp ^7.0`, `web-auth/webauthn-lib ^5.3.9` | none | `auth` |
+| `communication` | `infocyph/talkingbytes ^2.3` | `communication.php` | none |
+| `database` | `infocyph/dblayer ^6.0` | `database.php` | none |
+| `filesystem` | `infocyph/pathwise ^4.2` | `filesystem.php` | none |
+| `messaging` | `infocyph/omnibus ^3.0` | `messaging.php` | `messaging` |
+| `security` | `infocyph/epicrypt ^3.2` | `security.php` | none |
+| `validation` | `infocyph/reqshield ^3.3` | `validation.php` | none |
 
 Foundation-native capabilities such as cache, notifications, logging, operations,
 responses/resources, and browser sessions are not new specialist package
@@ -41,7 +41,7 @@ php infbyte module:schema:install session
 ```
 
 Database-backed session schemas require DBLayer and a configured connection.
-These built-in commands remain supported in 3.0. The catalog therefore contains
+These built-in commands remain supported in Foundation 4.0. The catalog therefore contains
 11 entries: seven specialist namespaces and four built-in entries. `auth` is
 core-backed with optional features, rather than a `built_in: true` entry.
 

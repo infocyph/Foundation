@@ -169,7 +169,7 @@ it('isolates execution state while preserving bounded process-local memoizers', 
             });
         })->toThrow(RuntimeException::class, 'deliberate persistent execution failure');
 
-        expect($principal->get())->toBeNull()
+        expect($app->execution()->run(static fn(): ?PrincipalInterface => $principal->get()))->toBeNull()
             ->and(fn() => $sessions->current())->toThrow(LogicException::class)
             ->and($database->transactionLevel())->toBe(0)
             ->and((int) $database->getPdo()->query('SELECT COUNT(*) FROM runtime_state')->fetchColumn())->toBe(0)

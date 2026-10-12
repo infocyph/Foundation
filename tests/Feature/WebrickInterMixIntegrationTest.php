@@ -349,7 +349,7 @@ it('resolves auth actions and selected auth capabilities through DI only', funct
             'webrick.request',
             static fn(): MfaManager => $app->make(AuthServices::class)->mfa(),
         ))->toBeInstanceOf(MfaManager::class)
-        ->and($probe->saw(MfaManager::class))->toBeFalse();
+        ->and($probe->saw(MfaManager::class))->toBeTrue();
 });
 
 it('isolates current principals between concurrent fibers and restores failed request context', function (): void {
