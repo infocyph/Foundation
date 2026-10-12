@@ -17,6 +17,7 @@ use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Runtime\ExecutionId;
 use Infocyph\Foundation\Runtime\ExecutionScope;
 use Infocyph\Foundation\Runtime\RuntimeExecutionState;
+use Infocyph\Foundation\Scheduling\ScheduledCommand;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
@@ -56,6 +57,9 @@ final class FoundationGraph
             $builder->input(Request::class);
         } else {
             $builder->input(ExecutionId::class);
+        }
+        if ($context->runtimeMode === RuntimeMode::Scheduler) {
+            $builder->input(ScheduledCommand::class);
         }
         if ($context->runtimeMode === RuntimeMode::Cli) {
             foreach ([
