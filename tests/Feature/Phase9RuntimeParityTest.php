@@ -123,10 +123,10 @@ it('keeps InterMix development and generated production semantics aligned for no
                 RuntimeMode::Scheduler => [ExecutionId::class, ScheduledCommand::class],
                 RuntimeMode::Web => throw new LogicException('Web parity uses the Webrick graph.'),
             };
-            expect($report['skipped'])->toBe(array_fill_keys(
-                $inputIds,
-                'definition requires the dynamic runtime',
-            ));
+            expect($report['skipped'])->toBe([]);
+            foreach ($inputIds as $inputId) {
+                expect($report['compiled'])->toContain($inputId);
+            }
             $production = GeneratedRuntime::load($config, $mode, $artifact);
             $productionNode = $production->application->make(Phase9ParityNode::class);
             $productionScopes = phase9ParityScopes($production->application);
@@ -199,7 +199,7 @@ PHP);
             $manifest,
             [],
         );
-        expect($release['intermix']['skipped'] ?? null)->toBe([Request::class => 'definition requires the dynamic runtime']);
+        expect($release['intermix']['skipped'] ?? null)->toBe([]);
 
         $productionRuntime = WebReleaseRuntime::loadPrevalidated(
             $config,

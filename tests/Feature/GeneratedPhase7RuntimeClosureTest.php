@@ -80,10 +80,7 @@ it('runs the existing scheduler manager on one trusted generated container with 
             $artifact,
             ['cache'],
         );
-        expect($report['skipped'])->toBe([
-            ExecutionId::class => 'definition requires the dynamic runtime',
-            ScheduledCommand::class => 'definition requires the dynamic runtime',
-        ])->and($report['capabilities'])->toBe(['cache' => true]);
+        expect($report['skipped'])->toBe([])->and($report['capabilities'])->toBe(['cache' => true]);
 
         foundationPhase7PoisonProviders($project, 'generated scheduler rebuilt source providers');
         $runtime = GeneratedRuntime::loadPrevalidated(

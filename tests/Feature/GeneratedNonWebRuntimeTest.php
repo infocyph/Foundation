@@ -126,16 +126,7 @@ it('compiles and reuses minimal generated CLI and scheduler runtimes', function 
             $runtimeFile = realpath($artifact);
             expect($runtimeFile)->toBeString();
             expect($report['runtime'])->toBe($mode->value)
-                ->and(array_keys($report['skipped']))->toBe($mode === RuntimeMode::Cli
-                    ? [
-                        \Infocyph\Foundation\Command\CommandContext::class,
-                        \Infocyph\Foundation\Command\CommandDefinition::class,
-                        \Infocyph\Foundation\Command\CommandDescriptor::class,
-                        \Infocyph\Foundation\Command\CommandIO::class,
-                        \Infocyph\Foundation\Command\ParsedInput::class,
-                        ExecutionId::class,
-                    ] : [ExecutionId::class, \Infocyph\Foundation\Scheduling\ScheduledCommand::class])
-                ->and(array_unique(array_values($report['skipped'])))->toBe(['definition requires the dynamic runtime'])
+                ->and($report['skipped'])->toBe([])
                 ->and($report['capabilities'])->toBe([])
                 ->and(is_file($artifact))->toBeTrue()
                 ->and(is_file(dirname((string) $runtimeFile) . '/manifest.json'))->toBeTrue()
@@ -252,7 +243,7 @@ it('leaves InterMix manifest validation to the InterMix production loader', func
             $report['digest'],
         ))->toThrow(
             \Infocyph\InterMix\Exceptions\ContainerException::class,
-            'Prevalidated static runtime does not match the active deployment digest.',
+            'Static runtime manifest does not match its immutable build identity.',
         );
     } finally {
         foundationGeneratedRuntimeRemove($project);
@@ -273,11 +264,7 @@ it('keeps one trusted worker container hot while isolating provider jobs and Omn
             $artifact,
             ['messaging'],
         );
-        expect(array_keys($report['skipped']))->toBe([
-            ExecutionId::class,
-            Envelope::class,
-            'omnibus.message',
-        ])->and(array_unique(array_values($report['skipped'])))->toBe(['definition requires the dynamic runtime'])
+        expect($report['skipped'])->toBe([])
             ->and($report['capabilities'])->toBe(['messaging' => true]);
 
         file_put_contents(

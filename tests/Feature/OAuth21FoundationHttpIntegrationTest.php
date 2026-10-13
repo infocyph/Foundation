@@ -115,7 +115,7 @@ it('includes Foundation OAuth routes in compiled Webrick releases', function ():
             $root . '/bootstrap/cache/release.json',
             ['auth', 'cache', 'database', 'session'],
         );
-        expect($release['intermix']['skipped'] ?? null)->toBe([Request::class => 'definition requires the dynamic runtime']);
+        expect($release['intermix']['skipped'] ?? null)->toBe([]);
 
         $payload = require $router;
         expect($payload)->toBeArray();
