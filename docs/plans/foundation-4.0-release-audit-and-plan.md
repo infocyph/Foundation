@@ -7,6 +7,14 @@ published Foundation 2.1.1 and skipping publication of Foundation 3.
 
 This document contains a preserved baseline audit and a subsequent implementation log. The **live implementation status above** reflects later committed source and dependency changes; the original audit did not itself alter production code. This record does not certify the library as vulnerability-free.
 
+### 2026-10-13 — Batch 2 implementation checkpoint: published dependency floors
+
+**Committed at [4537705c](https://github.com/infocyph/Foundation/commit/4537705ce53c3183a0da686a65d7fec62f69cbd5):** Composer now directly requires InterMix `^11.2` and Webrick `^6.0.3`; selected optional DBLayer floor is `^6.1`. ModuleCatalog, module/Composer tests, database docs and direct 2.1.1-to-4.0 migration guide were synchronized. These edits are **committed but require exact-head QA**; no Batch 2 criterion newly accepted.
+
+**Pre-change QA detail:** [Security & Standards 38404617890](https://github.com/infocyph/Foundation/actions/runs/38404617890) at `feb9d706` resolved all three new releases in prefer-stable (18 failed/519 passed), but lowest resolved InterMix 11.1/Webrick 6.0.2/DBLayer 6.0 (19 failed/516 passed). Consumers 4/4, PHPStan 2/2, benchmarks 2/2, clean install and Pint passed. The new Composer floor is meant to remove this mixed-version ambiguity. ABI 3 compiler/test alignment, web release identity and worker seed declaration remain unfinished.
+
+**Strict acceptance:** Batch 1 6/6; Batch 2 2/8 (#6/#8 previously accepted; #6 pending re-verification against the new floor); overall 8/37. Keep PR #20 draft, no merge, tag, or publication.
+
 ### 2026-10-13 — Published InterMix 11.2 / Webrick 6.0.3 / DBLayer 6.1 cutover plan
 
 **Status: plan synchronized first; no Foundation Composer, source, catalog, documentation, or test modifications in this tracker-only commit.** Work only on existing `feature/foundation-3` / draft [PR #20](https://github.com/infocyph/Foundation/pull/20). Keep all QA, security, artifact-integrity and performance gates unchanged. Confirm Composer/Packagist package availability before adoption; GitHub tagging alone did not guarantee immediate package-index visibility during the Webrick 6.0.2 cutover.
