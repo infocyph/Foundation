@@ -188,7 +188,9 @@ final readonly class ProcessRunner
             // child. Preserve the original failure if termination also fails.
             CleanupGuard::run(
                 $exception,
-                fn(): void => $this->tree->terminate($process, $options->terminationGraceSeconds, $tree),
+                function () use ($process, $options, $tree): void {
+                    $this->tree->terminate($process, $options->terminationGraceSeconds, $tree);
+                },
                 static function () use ($process): void {
                     proc_close($process);
                 },
