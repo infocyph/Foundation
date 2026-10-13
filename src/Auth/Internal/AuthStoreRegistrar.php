@@ -86,7 +86,6 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
         );
     }
 
-
     public function register(AuthDriverResolver $drivers): void
     {
         if ($drivers->storage() === AuthStorageDriver::DATABASE) {
