@@ -7,6 +7,16 @@ published Foundation 2.1.1 and skipping publication of Foundation 3.
 
 This document contains a preserved baseline audit and a subsequent implementation log. The **live implementation status above** reflects later committed source and dependency changes; the original audit did not itself alter production code. This record does not certify the library as vulnerability-free.
 
+### 2026-10-13 — Batch 2 #4/#5 native-boundary declaration register (85 files)
+
+**Source-level symbolic discovery:** From the complete 662-file inventory, signature-level enumeration has now been recorded for **85 high-risk PHP source files / 489 named method/function declarations** at source `182b5de4` (unchanged in the current candidate). This includes `Bootstrap/Container/Runtime` (16 files, 75 methods), `Routing/` (18, 132), `Release/` (7, 70), browser `Session/` (18, 109), and authentication registrars `Auth/Internal/` (26, 103). Each record links the native owner and actual declaration names; it is a **source-text discovery pass**, not a PHP AST/reachability proof or a final retain/delete disposition. **577 production PHP files remain outside this method-level pass** (including most of `Auth/` and specialist adapters). No green job or method-name census alone closes #4/#5.
+
+**Reviewed records:** [Core runtime/DI](foundation-4.0-batch2-runtime-methods.md), [Webrick routing](foundation-4.0-batch2-routing-methods.md), [trusted publication](foundation-4.0-batch2-release-methods.md), [browser sessions](foundation-4.0-batch2-browser-session-methods.md), [auth registrars A](foundation-4.0-batch2-auth-registrars-a.md), [auth registrars B](foundation-4.0-batch2-auth-registrars-b.md). The [complete file census](foundation-4.0-batch2-native-ownership-inventory.md) remains the 662-file coverage list. Next inspect actual direct/reflective consumers, owner-specific behavior, persisted state and native-method duplication; record retain/delegate/redesign/delete per symbol before acceptance.
+
+**Exact-head QA proof:** [Security & Standards #38424269111](https://github.com/infocyph/Foundation/actions/runs/38424269111) at `e2321309` **completed SUCCESS**, including QA 4/4 PHP 8.4/8.5 lowest/stable, PHPStan 2/2, consumers 4/4, benchmarks 2/2, clean install and release evidence. The only modifications in this declaration register are Markdown; recheck current HEAD after commit as usual.
+
+**Acceptance:** Batch 2 **5/8**, total **11/37**. #3–#5 remain open; no further published-library failure is currently evidenced. PR #20 remains draft and unmerged, no tag or release.
+
 ### 2026-10-13 — Exact-source native binding and secret-isolation QA accepted as evidence
 
 **Fully successful exact-source run:** [Security & Standards #38423337232](https://github.com/infocyph/Foundation/actions/runs/38423337232) at [`182b5de4`](https://github.com/infocyph/Foundation/commit/182b5de43ade527ce427d5c1bf347a0d65efd3ee): PHP 8.4/8.5 × lowest/stable **4/4 functional/quality QA passed**; PHPStan **2/2**, production consumer installs **4/4**, benchmarks **2/2**, clean install and release evidence passed. This supersedes the prior red test-only run `57500fe8`. The complete 662-source-file census and revised tracker were present at this exact tested SHA.
