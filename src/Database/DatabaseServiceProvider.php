@@ -25,6 +25,12 @@ use Psr\Container\ContainerInterface;
 
 final class DatabaseServiceProvider extends ServiceProvider
 {
+    /** One native exportable InterMix recipe for a Foundation execution-owned DBLayer connection. */
+    public static function scopedConnection(DBLayerFactory $factory): Connection
+    {
+        return $factory->connection();
+    }
+
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         if (!class_exists(Connection::class)) {
@@ -52,8 +58,8 @@ final class DatabaseServiceProvider extends ServiceProvider
         $builder->factory(
             Connection::class,
             FactoryDefinition::staticFactory(
-                DatabaseGraphFactory::class,
-                'connection',
+                self::class,
+                'scopedConnection',
                 [new ServiceReference(DBLayerFactory::class)],
             ),
             LifetimeEnum::Scoped,
