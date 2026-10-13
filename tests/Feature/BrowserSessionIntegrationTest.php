@@ -89,6 +89,21 @@ it('persists session data and expires flash data after its next request', functi
         ->and($first->getHeaderLine('Set-Cookie'))->toContain('Secure', 'HttpOnly', 'SameSite=Lax');
 });
 
+it('finalizes abandoned browser sessions when their native request scope is discarded', function (): void {
+    [, $manager, , , $container] = browserSessionStack();
+
+    $session = browserSessionWithinScope($container, static function () use ($manager): BrowserSession {
+        $session = $manager->open(null);
+        $manager->enter($session);
+        $session->put('scope_owned', true);
+
+        return $session;
+    });
+
+    expect(fn() => $session->put('after_scope', true))
+        ->toThrow(LogicException::class, 'finalized for this request');
+});
+
 it('finalizes browser sessions before deferred response bodies are produced', function (): void {
     [$middleware, $manager, $store, , $container] = browserSessionStack();
 

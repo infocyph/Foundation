@@ -86,6 +86,16 @@ it('compiles and boots a trusted route-first Webrick release without live router
             ->and($trustedSha256)->toMatch('/^[a-f0-9]{64}$/D')
             ->and($release['intermix']['skipped'] ?? null)->toBe([]);
 
+        $compiled = realpath($intermix);
+        expect($compiled)->toBeString();
+        $metadata = json_decode(
+            (string) file_get_contents(dirname($compiled) . '/manifest.json'),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+        expect($metadata['fallback']['required'] ?? null)->toBeFalse()
+            ->and($metadata['fallback']['identity_required'] ?? null)->toBeFalse();
+
         $payload = require $router;
         expect($payload)->toBeArray();
         $artifact = CompiledRouterArtifact::fromPayload($payload);
