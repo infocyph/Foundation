@@ -23,6 +23,7 @@ use Infocyph\Foundation\Auth\Adapter\DBLayer\{
     DBLayerSessionStore
 };
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\MfaSecretProtector;
+use Infocyph\Foundation\Auth\Audit\AuthEvent;
 use Infocyph\Foundation\Auth\Authorization\Grant\GrantStoreInterface;
 use Infocyph\Foundation\Auth\Authorization\Permission\{PermissionAssignmentStoreInterface, PermissionStoreInterface};
 use Infocyph\Foundation\Auth\Authorization\Role\{RoleAssignmentStoreInterface, RoleStoreInterface};
@@ -47,6 +48,7 @@ use Infocyph\Foundation\Auth\Passkey\{
     PasskeyCredentialCompareAndSwapStoreInterface,
     PasskeyCredentialStoreInterface
 };
+use Infocyph\Foundation\Auth\Support\ForwardingAuditEventStore;
 use Infocyph\Foundation\Auth\Support\{
     InMemoryAccountStore,
     InMemoryAuditEventStore,
@@ -70,6 +72,18 @@ use Psr\EventDispatcher\EventDispatcherInterface;
 
 final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
 {
+    public static function forwardingAuditStore(
+        AuditEventStoreInterface $storage,
+        EventDispatcherInterface $dispatcher,
+    ): AuditEventStoreInterface {
+        return new ForwardingAuditEventStore(
+            $storage,
+            static function (AuthEvent $event) use ($dispatcher): void {
+                $dispatcher->dispatch($event);
+            },
+        );
+    }
+
     private const string AUDIT_STORAGE = 'foundation.auth.audit.storage';
 
     public function register(AuthDriverResolver $drivers): void
@@ -224,7 +238,7 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
         if ($this->boolConfig('messaging.forward_auth_events', false)) {
             $this->staticRecipe(
                 AuditEventStoreInterface::class,
-                AuthStoreGraphFactory::class,
+                self::class,
                 'forwardingAuditStore',
                 [
                     $this->ref(self::AUDIT_STORAGE),

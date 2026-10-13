@@ -14,6 +14,8 @@ it('contains no retired runtime cache paths', function (): void {
         'RouteCachePath' => 'retired Foundation route cache freshness/path layer',
         'DatabaseGraphFactory' => 'retired DBLayer scoped connection forwarding class',
         'class NotificationGraphFactory' => 'retired standalone TalkingBytes factory helper',
+        'class AuthRuntimeGraphFactory' => 'retired stateless authentication manager forwarding factory',
+        'class AuthStoreGraphFactory' => 'retired audit-event forwarding recipe class',
         "'route:cache'" => 'retired standalone route cache command',
         "'route:clear'" => 'retired standalone route cache clear command',
     ];
