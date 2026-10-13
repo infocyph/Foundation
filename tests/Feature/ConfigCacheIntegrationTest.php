@@ -397,13 +397,13 @@ it('keeps production requirements limited to the Foundation runtime core', funct
         'composer-runtime-api' => '^2.0',
         'infocyph/arraykit' => '^5.3.1',
         'infocyph/cachelayer' => '^4.0',
-        'infocyph/intermix' => '^11.1',
+        'infocyph/intermix' => '^11.2',
         'infocyph/uid' => '^6.0',
-        'infocyph/webrick' => '^6.0.2',
+        'infocyph/webrick' => '^6.0.3',
         'psr/log' => '^3.0.2',
     ])->and($composer['minimum-stability'] ?? null)->toBe('stable')
         ->and($composer['require-dev'] ?? [])->not->toHaveKey('infocyph/cachelayer')
-        ->and($composer['require-dev']['infocyph/dblayer'] ?? null)->toBe('^6.0')
+        ->and($composer['require-dev']['infocyph/dblayer'] ?? null)->toBe('^6.1')
         ->and($composer['require-dev']['infocyph/epicrypt'] ?? null)->toBe('^3.2')
         ->and($composer['require-dev']['infocyph/omnibus'] ?? null)->toBe('^3.0')
         ->and($composer['require-dev']['infocyph/otp'] ?? null)->toBe('^7.0')

@@ -11,14 +11,14 @@ Foundation 3 intermediate release is **not** part of the migration. Read the
 ## Version and package requirements
 
 Foundation 4 requires PHP 8.4+ and Composer 2. The candidate's direct production
-dependencies are ArrayKit `^5.3.1`, CacheLayer `^4.0`, InterMix `^11.1`,
-UID `^6.0`, and Webrick `^6.0.2`.
+dependencies are ArrayKit `^5.3.1`, CacheLayer `^4.0`, InterMix `^11.2`,
+UID `^6.0`, and Webrick `^6.0.3`.
 
 Select only required optional specialist modules and their current major floors:
 
 | Purpose | Composer package constraint |
 | --- | --- |
-| Database/migrations | `infocyph/dblayer:^6.0` |
+| Database/migrations | `infocyph/dblayer:^6.1` |
 | Communication/HTTP/gRPC/email | `infocyph/talkingbytes:^2.3` |
 | Messaging/queues/workers | `infocyph/omnibus:^3.0` |
 | Filesystem/storage | `infocyph/pathwise:^4.2` |
@@ -34,8 +34,8 @@ an optional host integration, not a Foundation production dependency.
 
 **Before updating application Composer constraints**, confirm all required
 published versions are resolvable by Composer/Packagist. In particular,
-Webrick 6.0.2 includes a corrected format-3 release-manifest loader; earlier
-versions cannot load freshly generated 6.0.2-format artifacts. Do not work
+Webrick 6.0.3 requires InterMix 11.2 and its compiled ABI 3; rebuild all
+previous InterMix and Webrick artifacts instead of reusing incompatible ones. Do not work
 around missing package-index versions with transient dev aliases for release QA.
 
 ## Explicit runtime and provider ownership
@@ -119,10 +119,10 @@ stale or mismatched manifests; never silently accept older format-2 Webrick
 release manifests. Webrick 6.0.2 changes its response-cache namespace
 from `webrick.hr.v4.` to `webrick.hr.v5.`.
 
-The InterMix 11 source-free compiled scoped-input/frozen-fallback contract
-remains an **open release blocker** in the current candidate. Do not
-deploy it as certified until the upstream native ABI and Foundation
-source-free runtime parity checks are green.
+InterMix 11.2 provides native source-free compiled scoped inputs (ABI 3).
+Foundation's generated web, CLI, worker and scheduler release identity, scoped
+seed isolation and prevalidated loaders must still pass exact-release QA
+before production deployment is certified.
 
 ## Preserve data and verify
 

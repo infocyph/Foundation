@@ -51,9 +51,9 @@ it('keeps Composer core and specialist module floors on one supported generation
     $core = [
         'infocyph/arraykit' => '^5.3.1',
         'infocyph/cachelayer' => '^4.0',
-        'infocyph/intermix' => '^11.1',
+        'infocyph/intermix' => '^11.2',
         'infocyph/uid' => '^6.0',
-        'infocyph/webrick' => '^6.0.2',
+        'infocyph/webrick' => '^6.0.3',
     ];
     foreach ($core as $package => $constraint) {
         expect($manifest['require'][$package] ?? null)->toBe($constraint);
@@ -103,7 +103,7 @@ it('pins the complete seven-specialist module contract', function (): void {
     ))->toBe([
         'auth' => [],
         'communication' => ['infocyph/talkingbytes' => '^2.3'],
-        'database' => ['infocyph/dblayer' => '^6.0'],
+        'database' => ['infocyph/dblayer' => '^6.1'],
         'filesystem' => ['infocyph/pathwise' => '^4.2'],
         'messaging' => ['infocyph/omnibus' => '^3.0'],
         'security' => ['infocyph/epicrypt' => '^3.2'],

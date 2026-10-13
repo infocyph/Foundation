@@ -1,6 +1,6 @@
 # Database migrations and seeding
 
-Foundation composes DBLayer 6 for application database configuration,
+Foundation composes DBLayer 6.1 for application database configuration,
 migrations, schema inspection, and operational commands. DBLayer remains the
 owner of connections, queries, transactions, schema grammar, migration
 execution, replicas, pooling, query caching, and telemetry.
@@ -115,7 +115,7 @@ php infbyte migrate:fresh --force
 
 Every migration command accepts `--connection=<name>`.
 
-`migrate --pretend` delegates directly to DBLayer 6
+`migrate --pretend` delegates directly to DBLayer 6.1
 `MigrationRunner::pretend()`. DBLayer returns pending migration IDs mapped to an
 ordered list of `sql` + `bindings` records. Foundation only renders that native
 preview; it does not implement a second SQL compiler or migration engine.

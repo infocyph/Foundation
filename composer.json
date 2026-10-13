@@ -8,14 +8,14 @@
         "composer-runtime-api": "^2.0",
         "infocyph/arraykit": "^5.3.1",
         "infocyph/cachelayer": "^4.0",
-        "infocyph/intermix": "^11.1",
+        "infocyph/intermix": "^11.2",
         "infocyph/uid": "^6.0",
-        "infocyph/webrick": "^6.0.2",
+        "infocyph/webrick": "^6.0.3",
         "psr/log": "^3.0.2"
     },
     "require-dev": {
         "ext-sodium": "*",
-        "infocyph/dblayer": "^6.0",
+        "infocyph/dblayer": "^6.1",
         "infocyph/epicrypt": "^3.2",
         "infocyph/omnibus": "^3.0",
         "infocyph/otp": "^7.0",

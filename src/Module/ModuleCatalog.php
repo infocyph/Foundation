@@ -225,7 +225,7 @@ final class ModuleCatalog
         'database' => [
             'packages' => [
                 'infocyph/dblayer' => [
-                    'constraint' => '^6.0',
+                    'constraint' => '^6.1',
                     'role' => 'required',
                     'features' => [],
                 ],
