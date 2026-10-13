@@ -15,6 +15,14 @@ This document contains a preserved baseline audit and a subsequent implementatio
 
 **Strict acceptance:** Batch 1 6/6; Batch 2 2/8 (#6/#8 previously accepted; #6 pending re-verification against the new floor); overall 8/37. Keep PR #20 draft, no merge, tag, or publication.
 
+### 2026-10-13 — ABI 3 compiler and test migration checkpoint
+
+**Committed on `feature/foundation-3`:** [ff0ab1b4](https://github.com/infocyph/Foundation/commit/ff0ab1b4be0cf31a49de203c7a66e20732ad7edc) rejects all skipped dynamic InterMix compilation definitions rather than exempting old scoped inputs; ABI 3 must compile declared inputs. [a21640ee](https://github.com/infocyph/Foundation/commit/a21640ee277925057ce9c0f7eb020995af1dd92c) migrates generated web/non-web fixture expectations to native scoped compilation, retaining negative manifest assertions. These are implementation changes only, not accepted contracts.
+
+**Latest exact-head QA:** [Security & Standards #38411854377](https://github.com/infocyph/Foundation/actions/runs/38411854377) at `a21640ee` pending when recorded; [Native Major Cutover Diagnostics #38411843449](https://github.com/infocyph/Foundation/actions/runs/38411843449) queued. The older diagnostic run [#38411723437](https://github.com/infocyph/Foundation/actions/runs/38411723437) was red at `ff0ab1b4` before the fixture migration. Do not mark the updated source as passing or infer acceptance from the older run.
+
+**Still open:** Webrick/InterMix compiled release-identity fallback, missing explicit worker custom input, per-scope isolation, exact manifest/digest trust checks, four PHPForge variants, optional DBLayer 6.1 real-service behavior and owner contracts. Strict Batch 2 **2/8**, total **8/37**, PR draft and unmerged.
+
 ### 2026-10-13 — Published InterMix 11.2 / Webrick 6.0.3 / DBLayer 6.1 cutover plan
 
 **Status: plan synchronized first; no Foundation Composer, source, catalog, documentation, or test modifications in this tracker-only commit.** Work only on existing `feature/foundation-3` / draft [PR #20](https://github.com/infocyph/Foundation/pull/20). Keep all QA, security, artifact-integrity and performance gates unchanged. Confirm Composer/Packagist package availability before adoption; GitHub tagging alone did not guarantee immediate package-index visibility during the Webrick 6.0.2 cutover.
