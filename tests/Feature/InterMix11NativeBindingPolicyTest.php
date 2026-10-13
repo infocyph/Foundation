@@ -46,7 +46,7 @@ it('keeps optional InterMix class auto-binding disabled in every native Foundati
             $report = $builder->compile($path, strict: true);
             expect($report['skipped'])->toBe([]);
             $runtime = $runtimeType === 'compiled'
-                ? ContainerBuilder::loadProductionArtifact($path, $report['graph'])
+                ? ContainerBuilder::loadProductionArtifact($path, $report['graph'], $context->environment)
                 : new StaticRuntimeGenerator()->loadPrevalidated($path, $report['digest']);
         }
 
