@@ -52,6 +52,7 @@ final class FoundationGeneratedRuntimeProvider extends ServiceProvider
     {
         if ($context->runtimeMode === RuntimeMode::Worker) {
             $builder->input('foundation.worker.job');
+            $builder->input(stdClass::class);
         }
         $builder->factory(FoundationGeneratedRuntimeProbe::class, FactoryDefinition::construct(
             FoundationGeneratedRuntimeProbe::class,
