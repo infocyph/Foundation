@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Auth\Internal;
 
 use Infocyph\Foundation\Auth\Adapter\TalkingBytes\AuthNotificationMapper;
+use Infocyph\Foundation\Auth\Adapter\TalkingBytes\TalkingBytesAuthNotifier;
 use Infocyph\Foundation\Auth\Contract\Notification\AuthNotifierInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
 use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
@@ -17,6 +18,25 @@ use Infocyph\TalkingBytes\Email\Emailer;
 
 final readonly class AuthNotificationRegistrar extends AbstractAuthRegistrar
 {
+    /** @param list<string> $criticalTypes */
+    public static function talkingBytes(
+        EmailProfiles $profiles,
+        AuthNotificationMapper $mapper,
+        AccountProviderInterface $accounts,
+        array $criticalTypes,
+        bool $failSilently,
+        ?string $from,
+    ): AuthNotifierInterface {
+        return new TalkingBytesAuthNotifier(
+            emailer: $profiles->authEmailer(),
+            mapper: $mapper,
+            accounts: $accounts,
+            criticalTypes: $criticalTypes,
+            failSilently: $failSilently,
+            from: $from,
+        );
+    }
+
     public function register(AuthDriverResolver $drivers): void
     {
         if ($drivers->notifications() === AuthNotificationDriver::TALKINGBYTES) {
@@ -26,7 +46,7 @@ final readonly class AuthNotificationRegistrar extends AbstractAuthRegistrar
             ]);
             $this->staticRecipe(
                 AuthNotifierInterface::class,
-                AuthNotificationGraphFactory::class,
+                self::class,
                 'talkingBytes',
                 [
                     $this->ref(EmailProfiles::class),

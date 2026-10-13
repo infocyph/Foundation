@@ -7,6 +7,12 @@ published Foundation 2.1.1 and skipping publication of Foundation 3.
 
 This document contains a preserved baseline audit and a subsequent implementation log. The **live implementation status above** reflects later committed source and dependency changes; the original audit did not itself alter production code. This record does not certify the library as vulnerability-free.
 
+### 2026-10-14 — Batch 2 #5: retire redundant notification and filesystem recipe helpers
+
+**Source change pending exact-head QA:** Removed `AuthNotificationGraphFactory` and `FilesystemGraphFactory`, which were only stateless InterMix recipe relays to the already-owning registrar/provider. Their exact signatures and lifetimes remain on `AuthNotificationRegistrar` and `FilesystemServiceProvider`; new `NativeFactoryOwnershipTest` verifies registered factory signatures for TalkingBytes auth notification and native Pathwise download/upload/operator. Legacy symbol exclusion assertions prevent reintroduction. No new container, adapter, fallback or transport was created. The existing `SecurityGraphFactory` remains intentionally separate because it validates configured Epicrypt password options; it is not a mere forwarding relay.
+
+**Remaining gate:** this incremental pruning does not establish individual caller/necessity disposition for the rest of the framework. Batch 2 **7/8**, overall **13/37**, until thorough symbol-level evidence and the complete exact-head pipeline succeed.
+
 ### 2026-10-14 — Batch 2 #5 audit continuation (not yet accepted)
 
 **Current candidate:** `feature/foundation-3`; strict Batch 2 **7/8**, overall **13/37**. The last acceptance criterion remains the exhaustive responsibility and caller audit for all retained/added production classes, methods and functions. The `NativeProductionSymbolOwnerInventoryTest` assigns namespace-level owner categories to declared symbols, but this is structural census evidence only: it does **not** demonstrate method-level reachability, actual necessity, absence of native duplication, or an explicit retain/delegate/delete decision. The original 662-file inventory is a dated snapshot; the source tree has since changed through factory removals, so historical counts must not be treated as exact live totals.

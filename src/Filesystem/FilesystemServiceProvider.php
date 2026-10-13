@@ -20,6 +20,21 @@ use Psr\Container\ContainerInterface;
 
 final class FilesystemServiceProvider extends ServiceProvider
 {
+    public static function download(FilesystemTransferFactory $transfers): DownloadProcessor
+    {
+        return $transfers->download();
+    }
+
+    public static function operator(StorageRegistry $storage): FilesystemOperator
+    {
+        return $storage->disk();
+    }
+
+    public static function upload(FilesystemTransferFactory $transfers): UploadProcessor
+    {
+        return $transfers->upload();
+    }
+
     public function boot(Application $app): void
     {
         // Validate topology and required scanner composition before traffic while
@@ -56,14 +71,14 @@ final class FilesystemServiceProvider extends ServiceProvider
             new ServiceReference(FilesystemMalwareScannerResolver::class),
         ]));
         $builder->factory(FilesystemOperator::class, FactoryDefinition::staticFactory(
-            FilesystemGraphFactory::class,
+            self::class,
             'operator',
             [new ServiceReference(StorageRegistry::class)],
         ));
         $builder->factory(
             UploadProcessor::class,
             FactoryDefinition::staticFactory(
-                FilesystemGraphFactory::class,
+                self::class,
                 'upload',
                 [new ServiceReference(FilesystemTransferFactory::class)],
             ),
@@ -72,7 +87,7 @@ final class FilesystemServiceProvider extends ServiceProvider
         $builder->factory(
             DownloadProcessor::class,
             FactoryDefinition::staticFactory(
-                FilesystemGraphFactory::class,
+                self::class,
                 'download',
                 [new ServiceReference(FilesystemTransferFactory::class)],
             ),
