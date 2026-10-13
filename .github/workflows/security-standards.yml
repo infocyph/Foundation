@@ -106,7 +106,7 @@ jobs:
             ],
             "require": {
               "infocyph/foundation": "*",
-              "infocyph/dblayer": "^6.0"
+              "infocyph/dblayer": "^6.1"
             }
           }
           JSON

@@ -93,7 +93,7 @@ it('keeps non-exportable config usable in development and reports the dynamic bo
 
         expect($developmentConfig->get('runtime.factory'))->toBe($dynamicValue)
             ->and($report['skipped'])->toHaveKey(ConfigRepository::class)
-            ->and($report['skipped'][ConfigRepository::class])->toBe('definition requires the dynamic runtime')
+            ->and($report['skipped'][ConfigRepository::class])->toBe('literal value requires the frozen dynamic fallback')
             ->and($report['skipped'])->not->toHaveKey(RuntimeMode::class)
             ->and($production->get(ConfigRepository::class))->toBe($developmentConfig);
     } finally {

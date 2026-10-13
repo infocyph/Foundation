@@ -6,7 +6,6 @@ namespace Infocyph\Foundation\Session;
 
 use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\Foundation\Application\FoundationBuildContext;
-use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Config\ConfigRepository;
@@ -15,7 +14,6 @@ use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\Foundation\Logging\ExceptionReporter;
 use Infocyph\Foundation\Session\Middleware\CsrfMiddleware;
 use Infocyph\Foundation\Session\Middleware\SessionMiddleware;
-use Infocyph\InterMix\DI\Container;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
@@ -30,13 +28,13 @@ final class SessionServiceProvider extends ServiceProvider
         $driver = is_string($session['driver'] ?? null) ? $session['driver'] : 'file';
         $lock = is_array($session['lock'] ?? null) ? $session['lock'] : [];
 
-        $this->registerCore($builder, $context);
+        $this->registerCore($builder);
         $this->registerStore($builder, $context, $driver);
         $this->registerManager($builder, $context, ($lock['enabled'] ?? false) === true);
         $this->registerMiddleware($builder, $context);
     }
 
-    private function registerCore(ContainerBuilder $builder, FoundationBuildContext $context): void
+    private function registerCore(ContainerBuilder $builder): void
     {
         $builder->factory(SessionConfig::class, FactoryDefinition::staticFactory(
             SessionGraphFactory::class,
@@ -49,20 +47,6 @@ final class SessionServiceProvider extends ServiceProvider
             LifetimeEnum::Scoped,
         );
 
-        if ($context->runtimeMode !== RuntimeMode::Web) {
-            return;
-        }
-
-        $builder->onScopeLeave(
-            $context->runtimeMode->scopeName(),
-            static function (string $scope, Container $container): void {
-                unset($scope);
-                $state = $container->get(SessionExecutionState::class);
-                if ($state instanceof SessionExecutionState) {
-                    $state->reset(false);
-                }
-            },
-        );
     }
 
     private function registerManager(ContainerBuilder $builder, FoundationBuildContext $context, bool $lockEnabled): void
