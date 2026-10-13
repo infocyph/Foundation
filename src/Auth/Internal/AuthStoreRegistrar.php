@@ -72,6 +72,8 @@ use Psr\EventDispatcher\EventDispatcherInterface;
 
 final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
 {
+    private const string AUDIT_STORAGE = 'foundation.auth.audit.storage';
+
     public static function forwardingAuditStore(
         AuditEventStoreInterface $storage,
         EventDispatcherInterface $dispatcher,
@@ -84,7 +86,6 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
         );
     }
 
-    private const string AUDIT_STORAGE = 'foundation.auth.audit.storage';
 
     public function register(AuthDriverResolver $drivers): void
     {
