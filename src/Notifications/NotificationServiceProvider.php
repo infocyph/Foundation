@@ -8,6 +8,7 @@ use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Filesystem\PathManager;
+use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
@@ -28,6 +29,30 @@ use Psr\Container\ContainerInterface;
 
 final class NotificationServiceProvider extends ServiceProvider
 {
+    public static function emailer(EmailProfiles $profiles): Emailer
+    {
+        return $profiles->sender();
+    }
+
+    public static function emailLimits(ConfigRepository $config): EmailLimits
+    {
+        $limits = ValueNormalizer::associativeArray(
+            $config->get('notifications.email.parsing.limits', []),
+        );
+
+        return EmailLimits::fromArray($limits);
+    }
+
+    public static function rawEmailParser(EmailLimits $limits): RawEmailParser
+    {
+        return new RawEmailParser(limits: $limits);
+    }
+
+    public static function spoolReceiver(EmailProfiles $profiles): SpoolEmailReceiver
+    {
+        return $profiles->spoolReceiver();
+    }
+
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         unset($context);
@@ -63,12 +88,12 @@ final class NotificationServiceProvider extends ServiceProvider
         $builder->factory(EmailReceiverFactory::class, FactoryDefinition::construct(EmailReceiverFactory::class));
         $builder->factory(EmailMailboxFactory::class, FactoryDefinition::construct(EmailMailboxFactory::class));
         $builder->factory(EmailLimits::class, FactoryDefinition::staticFactory(
-            NotificationGraphFactory::class,
+            self::class,
             'emailLimits',
             [new ServiceReference(ConfigRepository::class)],
         ));
         $builder->factory(RawEmailParser::class, FactoryDefinition::staticFactory(
-            NotificationGraphFactory::class,
+            self::class,
             'rawEmailParser',
             [new ServiceReference(EmailLimits::class)],
         ));
@@ -101,7 +126,7 @@ final class NotificationServiceProvider extends ServiceProvider
         $builder->factory(
             Emailer::class,
             FactoryDefinition::staticFactory(
-                NotificationGraphFactory::class,
+                self::class,
                 'emailer',
                 [new ServiceReference(EmailProfiles::class)],
             ),
@@ -110,7 +135,7 @@ final class NotificationServiceProvider extends ServiceProvider
         $builder->factory(
             SpoolEmailReceiver::class,
             FactoryDefinition::staticFactory(
-                NotificationGraphFactory::class,
+                self::class,
                 'spoolReceiver',
                 [new ServiceReference(EmailProfiles::class)],
             ),

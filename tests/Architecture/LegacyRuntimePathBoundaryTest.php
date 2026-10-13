@@ -12,6 +12,8 @@ it('contains no retired runtime cache paths', function (): void {
         '->compilationReport(' => 'legacy InterMix resolver-map compilation report',
         'RouteCacheManager' => 'retired Foundation standalone route cache manager',
         'RouteCachePath' => 'retired Foundation route cache freshness/path layer',
+        'DatabaseGraphFactory' => 'retired DBLayer scoped connection forwarding class',
+        'class NotificationGraphFactory' => 'retired standalone TalkingBytes factory helper',
         "'route:cache'" => 'retired standalone route cache command',
         "'route:clear'" => 'retired standalone route cache clear command',
     ];
