@@ -414,8 +414,8 @@ final class ModuleCatalog
                 ],
             ],
             'platform' => [
-                'extensions' => ['pcntl', 'posix'],
-                'optional_extensions' => ['memcached', 'msgpack', 'redis'],
+                'extensions' => [],
+                'optional_extensions' => ['memcached', 'msgpack', 'pcntl', 'posix', 'redis'],
                 'packages' => [],
             ],
         ],

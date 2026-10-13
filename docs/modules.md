@@ -172,7 +172,11 @@ boundary rather than duplicating Composer's platform resolver.
 
 Required PHP extensions are hard blockers for an enabled module. Optional
 extensions are diagnostics. Feature-specific platform requirements block only a
-selected feature. Database readiness also includes the PDO extension implied by
+selected feature. Omnibus 3.0 ordinary dispatch, request/FPM consumers and
+single-process workers do not require PCNTL/POSIX; these are optional
+process-host diagnostics, not a messaging-module hard blocker. Selected
+process-pool and signal-driven hosts validate their own native requirements.
+Database readiness also includes the PDO extension implied by
 the configured active driver, such as `pdo_sqlite`, `pdo_mysql`,
 `pdo_pgsql`, or `pdo_sqlsrv`.
 

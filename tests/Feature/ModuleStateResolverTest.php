@@ -307,6 +307,46 @@ it('reports optional integrations separately from managed module ownership', fun
     }
 });
 
+it('keeps ordinary Omnibus messaging portable without PCNTL or POSIX requirements', function (): void {
+    $basePath = moduleStateBasePath('portable-messaging');
+    moduleStateWriteComposer($basePath, ['infocyph/omnibus' => '^3.0']);
+
+    try {
+        $application = Foundation::cli([
+            'base_path' => $basePath,
+            '_config_cache' => false,
+            'app' => ['capabilities' => ['messaging']],
+        ]);
+        $messaging = moduleStateFind(
+            (new ModuleStateResolver($application, new ModuleCatalog()))->all(),
+            'messaging',
+        );
+
+        expect($messaging['platform']['extensions'])->toBe([])
+            ->and($messaging['platform_ready'])->toBeTrue()
+            ->and($messaging['platform_status']['required_extensions'])->toBe([])
+            ->and($messaging['platform_status']['optional_extensions'])->toHaveKeys(['pcntl', 'posix']);
+
+        $definition = (new ModuleCatalog())->resolve('messaging');
+        $definition['platform']['optional_extensions'][] = 'foundation_missing_optional_extension';
+        $resolver = new ModulePlatformResolver($application);
+        $optional = $resolver->resolve('messaging', $definition, [], true);
+
+        expect($optional['ready'])->toBeTrue()
+            ->and($optional['blockers'])->toBe([])
+            ->and($optional['optional_extensions']['foundation_missing_optional_extension'])->toBeFalse();
+
+        $definition['platform']['extensions'][] = 'foundation_missing_required_extension';
+        $required = $resolver->resolve('messaging', $definition, [], true);
+
+        expect($required['ready'])->toBeFalse()
+            ->and(implode(' ', $required['blockers']))
+            ->toContain('ext-foundation_missing_required_extension');
+    } finally {
+        moduleStateRemoveDirectory($basePath);
+    }
+});
+
 it('evaluates conditional specialist module dependencies against explicit topology', function (): void {
     $basePath = moduleStateBasePath('dependencies');
     moduleStateWriteComposer($basePath, [
