@@ -7,7 +7,6 @@ namespace Infocyph\Foundation\Routing;
 use Infocyph\Foundation\Bootstrap\Bootstrapper;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Container\FoundationGraph;
-use Infocyph\InterMix\DI\Support\InputDefinition;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Router\Build\ReleaseCompiler as WebrickReleaseCompiler;
 use Infocyph\Webrick\Router\Build\RouterArtifactLoader;
@@ -74,7 +73,7 @@ final readonly class WebReleaseCompiler
             preGlobalTags: [],
             postGlobalTags: [],
         );
-        $this->assertNoSkippedDefinitions($release, $builder->definitionGraph()->definitions());
+        $this->assertNoSkippedDefinitions($release);
         $matcherCachePath = $this->compileMatcherCache($settings, $routerPath);
 
         $runtimeManifestPath = WebrickReleaseCompiler::runtimeManifestPath($releaseManifestPath);
@@ -95,9 +94,8 @@ final readonly class WebReleaseCompiler
 
     /**
      * @param array<string, mixed> $release
-     * @param array<string, mixed> $definitions
      */
-    private function assertNoSkippedDefinitions(array $release, array $definitions): void
+    private function assertNoSkippedDefinitions(array $release): void
     {
         $intermix = $release['intermix'] ?? null;
         $skipped = is_array($intermix) ? ($intermix['skipped'] ?? null) : null;
@@ -106,12 +104,6 @@ final readonly class WebReleaseCompiler
         }
         $details = [];
         foreach ($skipped as $id => $reason) {
-            // Webrick owns this explicitly declared request-scope input.
-            // All other dynamic definitions remain prohibited.
-            if ($id === Request::class && ($definitions[$id] ?? null) instanceof InputDefinition) {
-                continue;
-            }
-
             $details[] = sprintf(
                 '%s: %s',
                 is_string($id) ? $id : (string) $id,

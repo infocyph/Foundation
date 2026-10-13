@@ -7,7 +7,6 @@ namespace Infocyph\Foundation\Runtime;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Container\FoundationGraph;
 use Infocyph\InterMix\DI\Build\StaticRuntimePlanner;
-use Infocyph\InterMix\DI\Support\InputDefinition;
 
 /** Compiles one verified CLI, worker, or scheduler InterMix artifact. */
 final class GeneratedRuntimeCompiler
@@ -44,14 +43,13 @@ final class GeneratedRuntimeCompiler
         }
 
         $builder->validate(strict: true);
-        $definitions = $builder->definitionGraph()->definitions();
         $planned = new StaticRuntimePlanner()->plan($builder->definitionGraph());
-        $this->assertNoSkippedDefinitions($planned['skipped'], $definitions);
+        $this->assertNoSkippedDefinitions($planned['skipped']);
 
         // InterMix 11 publishes an immutable build directory and activates its
         // runtime symlink itself. Foundation publishes only its own metadata.
         $report = $builder->compile($artifactPath);
-        $this->assertNoSkippedDefinitions($report['skipped'], $definitions);
+        $this->assertNoSkippedDefinitions($report['skipped']);
         GeneratedRuntimeMetadata::write(
             $artifactPath,
             GeneratedRuntimeMetadata::create($graph, $report),
@@ -73,29 +71,21 @@ final class GeneratedRuntimeCompiler
         ];
     }
 
-    /**
-     * InterMix 11 explicitly keeps scope input definitions in the dynamic graph.
-     * Only those declared inputs may be skipped by static compilation.
-     *
-     * @param array<string,string> $skipped
-     * @param array<string,mixed> $definitions
-     */
-    private function assertNoSkippedDefinitions(array $skipped, array $definitions): void
+    /** @param array<string,string> $skipped */
+    private function assertNoSkippedDefinitions(array $skipped): void
     {
+        if ($skipped === []) {
+            return;
+        }
+
         $details = [];
         foreach ($skipped as $id => $reason) {
-            if (($definitions[$id] ?? null) instanceof InputDefinition) {
-                continue;
-            }
-
             $details[] = sprintf('%s: %s', $id, $reason);
         }
 
-        if ($details !== []) {
-            throw new \RuntimeException(
-                'Foundation generated runtime contains definitions that were not statically compiled: '
-                . implode('; ', $details),
-            );
-        }
+        throw new \RuntimeException(
+            'Foundation generated runtime contains definitions that were not statically compiled: '
+            . implode('; ', $details),
+        );
     }
 }
