@@ -7,6 +7,16 @@ published Foundation 2.1.1 and skipping publication of Foundation 3.
 
 This document contains a preserved baseline audit and a subsequent implementation log. The **live implementation status above** reflects later committed source and dependency changes; the original audit did not itself alter production code. This record does not certify the library as vulnerability-free.
 
+### 2026-10-13 — Batch 2 #4 substantive cleanup: interactive process failure lifecycle
+
+**Observed ownership defect:** Foundation's own `ProcessRunner::runInteractive()` restored signal handlers when a user-supplied `heartbeat` or `cancelled` callback threw, but previously skipped `ProcessTree::terminate()` and `proc_close()`; this could orphan an interactive subprocess and leak process handles. This is actual Foundation CLI/subprocess lifecycle policy, **not** a missing Runwire/Webrick native library feature. The existing normal exit/timeout logic remains unchanged.
+
+**Implemented:** [`4d64dfb2`](https://github.com/infocyph/Foundation/commit/4d64dfb2f04c8500752b02d3ace686514635e307) adds cleanup in the exceptional interactive path using existing `CleanupGuard::run($primaryFailure, ...)` to preserve the originating callback exception, terminate the process, close/reap the child and still restore signal handlers. [`70d15e34`](https://github.com/infocyph/Foundation/commit/70d15e34bdf60ee60143ba1194c59150f97b785b) uses an explicit void closure for PHP syntax/type correctness. A new two-case `InteractiveProcessLifecycleTest.php` exercises throwing heartbeat and cancellation callbacks against a real child, checks the original error propagates and confirms its PID is no longer alive on POSIX. No new subprocess engine or external dependency was introduced.
+
+**QA:** New exact-head [Security & Standards #38428581193](https://github.com/infocyph/Foundation/actions/runs/38428581193) is pending at `70d15e34`; previous [#38425613023](https://github.com/infocyph/Foundation/actions/runs/38425613023) passed all jobs at docs-only `6ac6dd08`. No acceptance change until runtime tests, PHPForge, consumers and benchmarks are green again.
+
+**Strict tracker:** Batch 2 **5/8**, overall **11/37**, #3/#4/#5 open. The process cleanup fix advances #4 and #5 with one concrete class/method disposition but is not a substitute for complete native-owner audits. PR #20 stays draft, no merge/tag/release.
+
 ### 2026-10-13 — Batch 2 #4/#5 native-boundary declaration register (85 files)
 
 **Source-level symbolic discovery:** From the complete 662-file inventory, signature-level enumeration has now been recorded for **85 high-risk PHP source files / 489 named method/function declarations** at source `182b5de4` (unchanged in the current candidate). This includes `Bootstrap/Container/Runtime` (16 files, 75 methods), `Routing/` (18, 132), `Release/` (7, 70), browser `Session/` (18, 109), and authentication registrars `Auth/Internal/` (26, 103). Each record links the native owner and actual declaration names; it is a **source-text discovery pass**, not a PHP AST/reachability proof or a final retain/delete disposition. **577 production PHP files remain outside this method-level pass** (including most of `Auth/` and specialist adapters). No green job or method-name census alone closes #4/#5.
