@@ -13,7 +13,7 @@ it('separates direct module ownership from transitive package availability', fun
     $basePath = moduleStateBasePath('ownership');
 
     try {
-        moduleStateWriteComposer($basePath, ['infocyph/dblayer' => '^6.0']);
+        moduleStateWriteComposer($basePath, ['infocyph/dblayer' => '^6.1']);
         $directApp = Foundation::cli([
             'base_path' => $basePath,
             '_config_cache' => false,
@@ -79,7 +79,7 @@ it('rejects direct root constraints that can fall below the supported module flo
             ->and($database['installed'])->toBeFalse()
             ->and($database['ready'])->toBeFalse()
             ->and(implode(' ', $database['blockers']))
-            ->toContain('outside the supported module range ^6.0');
+            ->toContain('outside the supported module range ^6.1');
     } finally {
         moduleStateRemoveDirectory($basePath);
     }
@@ -182,7 +182,7 @@ it('reports unknown Composer ownership instead of silently treating packages as 
 
 it('separates effective configuration publication and explicit activation state', function (): void {
     $basePath = moduleStateBasePath('activation');
-    moduleStateWriteComposer($basePath, ['infocyph/dblayer' => '^6.0']);
+    moduleStateWriteComposer($basePath, ['infocyph/dblayer' => '^6.1']);
 
     try {
         $inferredApp = Foundation::cli([
@@ -311,7 +311,7 @@ it('evaluates conditional specialist module dependencies against explicit topolo
     $basePath = moduleStateBasePath('dependencies');
     moduleStateWriteComposer($basePath, [
         'infocyph/omnibus' => '^3.0',
-        'infocyph/dblayer' => '^6.0',
+        'infocyph/dblayer' => '^6.1',
     ]);
 
     try {
@@ -394,7 +394,7 @@ it('evaluates selected auth feature dependencies against core capabilities', fun
 
 it('reports runtime platform readiness and hard-blocks missing required extensions', function (): void {
     $basePath = moduleStateBasePath('platform');
-    moduleStateWriteComposer($basePath, ['infocyph/dblayer' => '^6.0']);
+    moduleStateWriteComposer($basePath, ['infocyph/dblayer' => '^6.1']);
 
     try {
         $application = Foundation::cli([

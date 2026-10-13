@@ -39,7 +39,9 @@ final class FoundationPhase7GeneratedProvider extends ServiceProvider
 {
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        unset($context);
+        if ($context->runtimeMode === RuntimeMode::Worker) {
+            $builder->input('foundation.phase7.worker.item');
+        }
         $builder->factory(
             FoundationPhase7GeneratedScopedProbe::class,
             FactoryDefinition::construct(FoundationPhase7GeneratedScopedProbe::class),

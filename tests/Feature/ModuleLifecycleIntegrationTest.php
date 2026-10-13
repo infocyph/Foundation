@@ -131,7 +131,7 @@ it('exposes canonical module list and alias-aware module details through the com
             ->and($database['activation_explicit'] ?? null)->toBeFalse()
             ->and($database['configured'] ?? null)->toBeTrue()
             ->and($database['config_published'] ?? null)->toBeFalse()
-            ->and($database['packages']['infocyph/dblayer']['constraint'] ?? null)->toBe('^6.0');
+            ->and($database['packages']['infocyph/dblayer']['constraint'] ?? null)->toBe('^6.1');
 
         $show = new FoundationModuleLifecycleIO();
         expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:show', 'db'], $show))->toBe(ExitCode::SUCCESS);
@@ -144,7 +144,7 @@ it('exposes canonical module list and alias-aware module details through the com
             ->and($details['enabled'] ?? null)->toBeTrue()
             ->and($details['configured'] ?? null)->toBeTrue()
             ->and($details['config_published'] ?? null)->toBeFalse()
-            ->and($details['packages']['infocyph/dblayer']['constraint'] ?? null)->toBe('^6.0')
+            ->and($details['packages']['infocyph/dblayer']['constraint'] ?? null)->toBe('^6.1')
             ->and($details['schema_status'] ?? null)->toBe([]);
     } finally {
         DB::purge();
@@ -200,7 +200,7 @@ it('keeps CacheLayer core-owned and outside the module catalog', function (): vo
 
 it('persists explicit module activation without rewriting application capability config', function (): void {
     $basePath = moduleLifecycleBasePath('activation');
-    moduleLifecycleWriteComposer($basePath, ['infocyph/dblayer' => '^6.0']);
+    moduleLifecycleWriteComposer($basePath, ['infocyph/dblayer' => '^6.1']);
 
     try {
         $enableDispatcher = moduleLifecycleDispatcher($basePath);
@@ -276,7 +276,7 @@ it('runs module install and direct-package removal dry-runs and refuses built-in
             ->toBe(ExitCode::SUCCESS);
 
         expect(moduleLifecycleCommands($commandLog))->toBe([
-            ['require', 'infocyph/dblayer:^6.0', '--with-all-dependencies', '--no-interaction', '--dry-run'],
+            ['require', 'infocyph/dblayer:^6.1', '--with-all-dependencies', '--no-interaction', '--dry-run'],
             ['remove', 'infocyph/dblayer', '--with-all-dependencies', '--no-interaction', '--dry-run'],
         ]);
     } finally {
@@ -478,7 +478,7 @@ it('preserves application config and database data when an optional module is re
 
 it('repairs a module after Composer ownership already succeeded', function (): void {
     $basePath = moduleLifecycleBasePath('repair');
-    moduleLifecycleWriteComposer($basePath, ['infocyph/dblayer' => '^6.0']);
+    moduleLifecycleWriteComposer($basePath, ['infocyph/dblayer' => '^6.1']);
 
     try {
         $dispatcher = moduleLifecycleDispatcher($basePath, ['app' => ['capabilities' => []]]);

@@ -50,7 +50,9 @@ final class FoundationGeneratedRuntimeProvider extends ServiceProvider
 {
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        unset($context);
+        if ($context->runtimeMode === RuntimeMode::Worker) {
+            $builder->input('foundation.worker.job');
+        }
         $builder->factory(FoundationGeneratedRuntimeProbe::class, FactoryDefinition::construct(
             FoundationGeneratedRuntimeProbe::class,
             [new ServiceReference(RuntimeMode::class)],
