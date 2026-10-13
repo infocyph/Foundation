@@ -17,25 +17,12 @@ use Infocyph\Webrick\Router\Build\ReleaseCompiler as WebrickReleaseCompiler;
 /** Coordinates one immutable Foundation release generation across all runtimes. */
 final readonly class FoundationReleaseCompiler
 {
-    private ActiveGeneration $active;
-
-    private GeneratedRuntimeCompiler $nonWeb;
-
-    private WebReleaseCompiler $web;
-
-    private WorkerTopology $workerTopology;
-
     public function __construct(
-        WebReleaseCompiler $web = new WebReleaseCompiler(),
-        GeneratedRuntimeCompiler $nonWeb = new GeneratedRuntimeCompiler(),
-        ActiveGeneration $active = new ActiveGeneration(),
-        WorkerTopology $workerTopology = new WorkerTopology(),
-    ) {
-        $this->active = $active;
-        $this->nonWeb = $nonWeb;
-        $this->web = $web;
-        $this->workerTopology = $workerTopology;
-    }
+        private WebReleaseCompiler $web = new WebReleaseCompiler(),
+        private GeneratedRuntimeCompiler $nonWeb = new GeneratedRuntimeCompiler(),
+        private ActiveGeneration $active = new ActiveGeneration(),
+        private WorkerTopology $workerTopology = new WorkerTopology(),
+    ) {}
 
     /**
      * Capability topology is explicit for every generated runtime. Omitted runtime
@@ -401,7 +388,7 @@ final readonly class FoundationReleaseCompiler
                 || !is_string($builds)
                 || !is_string($target)
                 || $builds !== $directory . DIRECTORY_SEPARATOR . 'container.php.builds'
-                || dirname(dirname($target)) !== $builds
+                || dirname($target, 2) !== $builds
                 || basename($target) !== 'runtime.php'
                 || !is_file(dirname($target) . '/manifest.json')
             ) {

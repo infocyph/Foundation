@@ -43,6 +43,9 @@ final class FoundationPhase7GeneratedProvider extends ServiceProvider
             $builder->input('foundation.phase7.worker.item');
             $builder->input(\stdClass::class);
         }
+        if ($context->runtimeMode === RuntimeMode::Scheduler) {
+            $builder->input('foundation.phase7.scheduler.item');
+        }
         $builder->factory(
             FoundationPhase7GeneratedScopedProbe::class,
             FactoryDefinition::construct(FoundationPhase7GeneratedScopedProbe::class),

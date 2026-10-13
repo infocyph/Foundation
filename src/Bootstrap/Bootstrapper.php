@@ -252,5 +252,4 @@ final class Bootstrapper
 
         return $normalized;
     }
-
 }

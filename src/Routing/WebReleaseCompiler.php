@@ -19,17 +19,10 @@ use Infocyph\Webrick\Router\Matching\ShardedMatcher;
 /** Coordinates the Foundation web graph through Webrick's single release compiler. */
 final readonly class WebReleaseCompiler
 {
-    private WebrickReleaseCompiler $compiler;
-
-    private WebGraphFactory $graphs;
-
     public function __construct(
-        WebGraphFactory $graphs = new WebGraphFactory(),
-        WebrickReleaseCompiler $compiler = new WebrickReleaseCompiler(),
-    ) {
-        $this->compiler = $compiler;
-        $this->graphs = $graphs;
-    }
+        private WebGraphFactory $graphs = new WebGraphFactory(),
+        private WebrickReleaseCompiler $compiler = new WebrickReleaseCompiler(),
+    ) {}
 
     /**
      * @param array<string, mixed>|ConfigRepository $config
