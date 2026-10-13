@@ -7,6 +7,14 @@ published Foundation 2.1.1 and skipping publication of Foundation 3.
 
 This document contains a preserved baseline audit and a subsequent implementation log. The **live implementation status above** reflects later committed source and dependency changes; the original audit did not itself alter production code. This record does not certify the library as vulnerability-free.
 
+### 2026-10-13 — Interactive subprocess cleanup: full CI accepted as Batch 2 #4/#5 evidence
+
+**Authoritative exact-source proof:** [Security & Standards #38428696176](https://github.com/infocyph/Foundation/actions/runs/38428696176) at [`9c09c83f`](https://github.com/infocyph/Foundation/commit/9c09c83fae1206951b088b4b50656a84b775331d) **COMPLETED SUCCESS**: PHPForge PHP 8.4/8.5 lowest/stable QA **4/4**, PHPStan **2/2**, production consumer installation **4/4**, benchmarks **2/2**, clean installation and release-evidence publication all succeeded. New throwing-heartbeat/cancellation subprocess regressions passed. Earlier failing CI at `4d64dfb2` caught invalid PHP `void` arrow syntax; it was fixed in `70d15e34` before this green run. This is a verified source fix, not a pending claim.
+
+**Specific accepted ownership disposition (not an entire batch criterion):** `ProcessRunner::runInteractive` owns the execution boundary for Foundation CLI/module/scheduler child processes. It now uses existing Foundation `CleanupGuard` to preserve the originating lifecycle exception while terminating and reaping the child and restoring signal handlers. Native Runwire host/worker supervision stays delegated to Runwire/Omnibus and remains in Batch 3's host verification scope.
+
+**Tracker unchanged:** Batch 2 **5/8**, overall **11/37**. Criterion #4 still requires the complete built-in service ownership consolidation audit; #5 still requires all production public/protected symbols and indirect callers. Keep PR #20 draft; no merge/tag/release.
+
 ### 2026-10-13 — Batch 2 #4 substantive cleanup: interactive process failure lifecycle
 
 **Observed ownership defect:** Foundation's own `ProcessRunner::runInteractive()` restored signal handlers when a user-supplied `heartbeat` or `cancelled` callback threw, but previously skipped `ProcessTree::terminate()` and `proc_close()`; this could orphan an interactive subprocess and leak process handles. This is actual Foundation CLI/subprocess lifecycle policy, **not** a missing Runwire/Webrick native library feature. The existing normal exit/timeout logic remains unchanged.
