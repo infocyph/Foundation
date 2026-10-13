@@ -3,9 +3,17 @@
 Audit date: 2026-10-11. Target: **Foundation 4.0**, upgrading directly from
 published Foundation 2.1.1 and skipping publication of Foundation 3.
 
-**Release status: blocked pending compiled web-release cleanup ownership and full PHPForge QA.** The candidate now declares production **InterMix `^11.2` and Webrick `^6.0.3`**, with selected optional **DBLayer `^6.1`** (committed at [`4537705c`](https://github.com/infocyph/Foundation/commit/4537705ce53c3183a0da686a65d7fec62f69cbd5)). InterMix 11.2 provides native scoped-input compilation; the remaining release-identity failures concern dynamic scope-leave cleanup/fallback requirements, not absence of ABI 3 input support. **All four PHPForge QA variants must pass on one exact source SHA** before accepting further criteria. Historical snapshots below preserve their original dated claims. Batch 2 **2/8**, total **8/37** accepted pending final native behavior and CI. PR #20 remains draft and unmerged.
+**Release status: native InterMix 11.2 / Webrick 6.0.3 / optional DBLayer 6.1 integration now passes the entire PHPForge Security & Standards pipeline.** [Exact-source workflow #38418473098](https://github.com/infocyph/Foundation/actions/runs/38418473098) at [`4ddaf18a`](https://github.com/infocyph/Foundation/commit/4ddaf18a5e7495bd2226360ec0ab7458d7d2e266) completed **success**: PHP 8.4/8.5 lowest/stable QA **4/4**, PHPStan **2/2**, production consumers **4/4**, benchmarks **2/2**, clean install, release constraints and release evidence. Remaining Batch 2 work is the exhaustive per-library compatibility disposition and framework/symbol ownership audits (criteria #3–#5), **not failing upstream ABI/CI**. **Batch 2: 5/8 accepted; overall: 11/37.** Historical dated snapshots below remain unchanged. PR #20 stays draft/unmerged; no tag or release.
 
 This document contains a preserved baseline audit and a subsequent implementation log. The **live implementation status above** reflects later committed source and dependency changes; the original audit did not itself alter production code. This record does not certify the library as vulnerability-free.
+
+### 2026-10-13 — Coordinated native cutover: full PHPForge release evidence green
+
+**Authoritative exact-source pass:** [Security & Standards #38418473098](https://github.com/infocyph/Foundation/actions/runs/38418473098) at `4ddaf18a` **completed SUCCESS**. PHP 8.4/8.5 × lowest/stable **all four functional/quality configurations passed** (Pest, Pint, PHPCS, Rector, reference integrity, Deptrac); PHPStan 2/2, consumers 4/4, benchmarks 2/2, clean install and **release evidence** passed. Release evidence artifact was published by the workflow. This validates published InterMix `^11.2`, Webrick `^6.0.3`, optional DBLayer `^6.1` across the CI-selected service topologies, not every possible optional adapter in every external host. Post-evidence documentation-only commits need a fresh head CI confirmation; the tested PHP source remains `4ddaf18a`.
+
+**Closing source fixes:** [59874487](https://github.com/infocyph/Foundation/commit/59874487af0b74120a8075c6d2a41d492151da77) removed dynamic web `onScopeLeave` registration, using native scoped `RuntimeExecutionState` cleanup and request-owned browser-session release, with `SessionExecutionState::__destruct()` as fail-safe and obsolete `RuntimeScopeCleanup.php` removed. [abb83dcd](https://github.com/infocyph/Foundation/commit/abb83dcd2d1a46820b8f253c77acb32b3b16ba09) restored the native session runtime import. [48beb552](https://github.com/infocyph/Foundation/commit/48beb5526ea3053cd16707cb3ba31e1b8e9b433c) added assertions that the compiled InterMix web artifact has **no frozen fallback requirement** and an abandoned session is finalized at request-scope exit. [4ddaf18a](https://github.com/infocyph/Foundation/commit/4ddaf18a5e7495bd2226360ec0ab7458d7d2e266) registered the declared scheduler scope input, removed recycled `spl_object_id()` test false-positives, and closed Pint/Rector reports with native constructor promotion. No external library patch or lowered validation was used.
+
+**Acceptance with evidence:** Batch 2 **#1** (InterMix native graph/input/scope/compiled parity), **#2** (Webrick 6/CacheLayer 4 and CI-selected specialist native APIs, compiled routing, cluster/SQL outbox), **#6** (dependency/documentation floors, now reconfirmed), **#7** (full native PHPForge QA and release evidence), **#8** (real service/session-contention provisioning) accepted on the exact tested source and scope. **5/8 accepted; overall 11/37.** This is **not** 8/8: #3 requires closing the entire applicable published-library/consumer compatibility ledger including selected external hosts/state migrations; #4 requires an exhaustive native framework-service duplication/ownership review; #5 requires complete per-symbol obsolete-path and required-responsibility accounting. Do not check these merely because CI is green. No merge/tag/publication.
 
 ### 2026-10-13 — Retire duplicate native cutover diagnostic workflow
 
@@ -1374,10 +1382,12 @@ The four PHP 8.4/8.5 lowest/stable QA jobs on source `c31b6e8` passed Pest and R
 
 ### Batch 2 — adopt latest container and specialist APIs
 
-- [ ] Complete InterMix graph composition before finalization for every mode;
+- [x] Complete InterMix graph composition before finalization for every mode;
   migrate native lifetimes, inputs, scopes, compilation, and custom providers.
-- [ ] Adopt Webrick 6, CacheLayer 4, and remaining latest module APIs, including
+  **Accepted on source `4ddaf18a`:** all compiled/development web, CLI, worker and scheduler scope/seed, provider, prevalidated identity and release-isolation contracts passed full PHPForge QA 4/4, including source-free ABI 3 regression tests.
+- [x] Adopt Webrick 6, CacheLayer 4, and remaining latest module APIs, including
   cluster identity/history policy and transaction/outbox ownership.
+  **Accepted on source `4ddaf18a`:** compiled Webrick 6.0.3 release modes, CacheLayer 4 native cluster/history and PDO outbox, selected module integration, session contention and required CI service backends passed. Optional unselected host/transport expansion remains separately tracked under #3/Batch 3.
 - [ ] Complete the per-library compatibility record for the whole applicable
   native surface and all Foundation consumers; implement every required contract
   without retaining obsolete wrappers or limiting changes to a small diff.
@@ -1388,8 +1398,9 @@ The four PHP 8.4/8.5 lowest/stable QA jobs on source `c31b6e8` passed Pest and R
   symbols and duplicated/legacy paths rather than adding compatibility layers.
 - [x] Align Composer, `ModuleCatalog`, dependency guards, publishable configuration,
   CI consumer constraints, examples, and test expectations with the same floors.
-  **Accepted on source `38db3a51`:** [workflow 38264552371](https://github.com/infocyph/Foundation/actions/runs/38264552371) — 4/4 consumers, clean install, 2/2 analysis, 2/2 benchmarks and module/docs/config regression tests passed. Unrelated Pest/Pint release QA failures remain in criteria #1/#2/#7.
-- [ ] Fix current Rector/complexity findings and all latest-candidate API failures.
+  **Revalidated on source `4ddaf18a`:** [workflow 38418473098](https://github.com/infocyph/Foundation/actions/runs/38418473098) passed 4/4 consumers, full PHPForge QA, analysis, benchmarks, clean install and release evidence against the coordinated published floors. Historical initial acceptance: `38db3a51`.
+- [x] Fix current Rector/complexity findings and all latest-candidate API failures.
+  **Accepted on source `4ddaf18a`:** PHPForge 8.4/8.5 × stable/lowest 4/4 passed Pint, Rector, Pest, PHPCS; PHPStan 2/2 and final release evidence passed, without disabling rules.
 - [x] Provision MySQL, PostgreSQL, Redis, Valkey, and Memcached for required tests;
   verify current session contention scenarios rather than skipping them.
 
