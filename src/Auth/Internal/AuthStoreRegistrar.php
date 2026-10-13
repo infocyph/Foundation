@@ -48,8 +48,8 @@ use Infocyph\Foundation\Auth\Passkey\{
     PasskeyCredentialCompareAndSwapStoreInterface,
     PasskeyCredentialStoreInterface
 };
-use Infocyph\Foundation\Auth\Support\ForwardingAuditEventStore;
 use Infocyph\Foundation\Auth\Support\{
+    ForwardingAuditEventStore,
     InMemoryAccountStore,
     InMemoryAuditEventStore,
     InMemoryDeviceStore,
