@@ -74,6 +74,7 @@ it('keeps non-exportable config usable in development and reports the dynamic bo
         RuntimeMode::Cli,
     );
     $builder = FoundationGraph::compose($context);
+    $builder->releaseIdentity('foundation-dynamic-config-fixture');
     $development = $builder->build();
     $developmentConfig = $development->get(ConfigRepository::class);
     if (!$developmentConfig instanceof ConfigRepository) {
