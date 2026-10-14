@@ -80,5 +80,4 @@ final readonly class ConfiguredCapabilities
 
         return false;
     }
-
 }

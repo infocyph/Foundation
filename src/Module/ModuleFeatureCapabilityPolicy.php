@@ -125,5 +125,4 @@ final class ModuleFeatureCapabilityPolicy
             ? $value === ($when['value'] ?? null)
             : (is_string($value) ? trim($value) !== '' : $value !== null && $value !== false && $value !== []);
     }
-
 }
