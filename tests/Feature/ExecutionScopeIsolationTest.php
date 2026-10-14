@@ -183,3 +183,82 @@ it('keeps the configured non-web runtime mode separate from scope inputs', funct
             [RuntimeMode::class => RuntimeMode::Web],
         ))->toThrow(InvalidArgumentException::class, 'cannot override its runtime mode');
 });
+
+it('forwards one host-owned InterMix scope through a child Fiber without taking ownership', function (): void {
+    $app = Foundation::worker([
+        'app' => ['env' => 'testing'],
+        'providers' => ['common' => [FoundationExecutionScopeProvider::class]],
+    ])->boot();
+
+    $owner = new Fiber(static function () use ($app): array {
+        return $app->execution()->run(
+            static function (ExecutionId $executionId) use ($app): array {
+                $state = $app->make(FoundationExecutionScopeProbe::class);
+                $context = $app->runtime()->captureScopeContext();
+                Fiber::suspend([$context, $state, $executionId]);
+
+                return [
+                    $app->make(FoundationExecutionScopeProbe::class),
+                    $app->make(ExecutionId::class),
+                ];
+            },
+            executionId: new ExecutionId('host-owned-worker'),
+        );
+    });
+    [$context, $state, $originalId] = $owner->start();
+
+    $child = new Fiber(static fn(): array => $app->execution()->withinBorrowedScope(
+        $context,
+        static fn(ExecutionId $id): array => [
+            $id,
+            $app->make(FoundationExecutionScopeProbe::class),
+        ],
+    ));
+    $borrowed = $child->start();
+    expect($child->isTerminated())->toBeTrue();
+    $borrowed = $child->getReturn();
+
+    expect($borrowed[0])->toBe($originalId)
+        ->and($borrowed[1])->toBe($state);
+
+    $owner->resume();
+    [$ownerState, $ownerId] = $owner->getReturn();
+    expect($ownerState)->toBe($state)
+        ->and($ownerId)->toBe($originalId)
+        ->and(fn(): mixed => $app->execution()->withinBorrowedScope(
+            $context,
+            static fn(ExecutionId $id): ExecutionId => $id,
+        ))->toThrow(ContainerException::class);
+});
+
+it('preserves thrown child failures without closing the borrowed owner scope', function (): void {
+    $app = Foundation::cli([
+        'app' => ['env' => 'testing'],
+        'providers' => ['common' => [FoundationExecutionScopeProvider::class]],
+    ])->boot();
+
+    $owner = new Fiber(static function () use ($app): mixed {
+        return $app->execution()->run(
+            static function (ExecutionId $id) use ($app): array {
+                $state = $app->make(FoundationExecutionScopeProbe::class);
+                $context = $app->runtime()->captureScopeContext();
+                Fiber::suspend([$context, $state, $id]);
+
+                return [$app->make(FoundationExecutionScopeProbe::class), $app->make(ExecutionId::class)];
+            },
+            executionId: new ExecutionId('host-parent'),
+        );
+    });
+    [$context, $state, $id] = $owner->start();
+
+    expect(fn(): mixed => $app->execution()->withinBorrowedScope(
+        $context,
+        static fn(): never => throw new DomainException('host child failure'),
+    ))->toThrow(DomainException::class, 'host child failure');
+
+    $owner->resume();
+    [$after, $afterId] = $owner->getReturn();
+
+    expect($after)->toBe($state)
+        ->and($afterId)->toBe($id);
+});
