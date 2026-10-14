@@ -29,6 +29,8 @@ use Infocyph\Foundation\Benchmarks\Phase9ServerHandler;
 use Infocyph\Webrick\Router\Facade\Router;
 
 Router::get('/json', [Phase9ServerHandler::class, 'json']);
+Router::get('/failure', [Phase9ServerHandler::class, 'failure']);
+Router::get('/slow', [Phase9ServerHandler::class, 'slow']);
 PHP;
 file_put_contents($app . '/routes/web.php', $routeSource . PHP_EOL, LOCK_EX);
 
