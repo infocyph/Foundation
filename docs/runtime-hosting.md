@@ -51,11 +51,11 @@ A Runwire-hosted Foundation application must:
    Restart or replace applications through their actual lifetime owner rather
    than replacing a loaded generation in place.
 
-The installed Webrick bridge is an integration building block. Foundation's
-concrete host bootstrap recipes and end-to-end certification are tracked in
-[F30-06 of the 3.0 plan](plans/foundation-3.0-improvement-and-release-plan.md#f30-06--build-a-real-server-acceptance-matrix).
-This document propagates upstream ownership and the required composition
-contract; it does not claim that every real-server acceptance job has passed.
+The installed Webrick bridge remains the runtime integration boundary. Foundation 4
+accepted the compiled host identity, generation leases, cancellation, deferred
+response drain and scoped native selected-module propagation in [Batch 3's
+release plan](plans/foundation-4.0-release-audit-and-plan.md). A deployment must
+still rehearse its actual chosen FPM/RoadRunner/Swoole host and transport.
 
 ## Borrowed non-web scope propagation (Batch 3)
 
@@ -75,14 +75,12 @@ Expired handles, unrelated container handles and missing scoped execution IDs
 must fail, not trigger new runtime construction. This API intentionally rejects
 web mode: Webrick is the sole owner of its HTTP request scope.
 
-This initial Batch 3 feature is verified in
-`tests/Feature/ExecutionScopeIsolationTest.php` and the
-[exact-source QA run #38492996211](https://github.com/infocyph/Foundation/actions/runs/38492996211).
-It does **not** yet certify complete Runwire hosting: Runwire's selected
-`RuntimeContext` and per-request `RequestContext`, optional `CoroutineScope`,
-transport writer, cancellation and deadline must continue through Webrick's
-`RunwireRuntimeAdapter` / `RunwireInterMixScopeBridge` and each selected
-native package. The normal no-Runwire PHP path remains unchanged.
+Batch 3 completed full native compiled-host Runwire identity, request/writer,
+coroutine scope, cancellation and deferred output coverage ([QA #38508326050](https://github.com/infocyph/Foundation/actions/runs/38508326050)).
+Call `WebReleaseRuntime::runwireApplication($runtime)` only on a *trusted
+runwire-enabled generation*, passing the exact host-owned Runwire `RuntimeContext`
+instance, not a newly generated substitute. The normal non-Runwire path remains
+unchanged. See the [worker smoke](examples/foundation-4-runwire-worker.php).
 
 ## Optional dependency and separate worker support
 

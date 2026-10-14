@@ -6,7 +6,10 @@ not a statement that 4.0 has been published or that release QA has passed.
 Foundation 4.0 upgrades directly from published 2.1.1; installing an unpublished
 Foundation 3 intermediate release is **not** part of the migration. Read the
 [architecture](architecture.md), [modules](modules.md), and
-[configuration](configuration.md) guides alongside this document.
+[configuration](configuration.md) guides alongside this document. Review the
+[2.1.1 removed API and contract map](foundation-4-api-map.md) and
+[retained-data restore rehearsal](foundation-4-retained-data-rehearsal.md)
+before any deployment.
 
 ## Version and package requirements
 
@@ -143,3 +146,19 @@ and service-backed integration). Track exact source SHA, dependency versions
 and CI links. Do not merge, tag or publish Foundation 4 until all
 applicable release gates are accepted. The detailed acceptance tracker is
 [`foundation-4.0-release-audit-and-plan.md`](plans/foundation-4.0-release-audit-and-plan.md).
+
+
+## Runnable candidate bootstrap examples
+
+The checked-in [CLI smoke](examples/foundation-4-core.php) and optional
+[Runwire worker input smoke](examples/foundation-4-runwire-worker.php)
+are runnable in a checkout with compatible installed packages:
+
+```bash
+php docs/examples/foundation-4-core.php
+# Only if optional Runwire was installed/selected:
+php docs/examples/foundation-4-runwire-worker.php
+```
+
+These are *development* smoke checks; real hosted Runwire HTTP requires a
+trusted compiled Webrick release and the host-supplied writer/context.

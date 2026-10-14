@@ -6,6 +6,8 @@ their domain behavior.
 
 - [Architecture and lifecycle](architecture.md)
 - [Foundation 2.1.1 → 4.0 direct migration (draft)](foundation-4-migration.md)
+- [2.1.1 removed API/provider/config replacement map](foundation-4-api-map.md)
+- [Retained-data backup/restore and downgrade rehearsal](foundation-4-retained-data-rehearsal.md)
 - [Foundation 3.0 release notes (historical)](foundation-3-release-notes.md)
 - [Foundation 2.0 through 2.x → 3.0 migration](foundation-3-migration.md)
 - [Foundation 3.0 release evidence](evidence/foundation-3.0/README.md)
