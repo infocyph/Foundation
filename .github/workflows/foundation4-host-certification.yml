@@ -51,6 +51,7 @@ jobs:
         env:
           FOUNDATION_HOST_REQUESTS: "900"
           FOUNDATION_HOST_REPEATS: "3"
+          FOUNDATION_HOST_SOAK_SECONDS: "30"
           FOUNDATION_HOST_RESULT_DIR: ${{ github.workspace }}/build/foundation4-host
         run: bash benchmarks/foundation4-host-certify.sh
       - name: Capture host toolchain and dependency identity
