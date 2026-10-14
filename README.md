@@ -60,10 +60,9 @@ compilation; production boot does not reopen the mutable development container.
 
 See [Architecture and lifecycle](docs/architecture.md),
 [Configuration](docs/configuration.md), and the
-[Foundation 4 migration guide](docs/foundation-4-migration.md),
-[2.1.1 API replacement map](docs/foundation-4-api-map.md), and
-[retained-data restore rehearsal](docs/foundation-4-retained-data-rehearsal.md) for the direct
-upgrade from 2.1.1. The [Foundation 3 migration guide](docs/foundation-3-migration.md)
+[Foundation 4 setup guide](docs/foundation-4-migration.md),
+[current 4.0 public/provider/configuration contract](docs/foundation-4-api-map.md), and
+[Foundation 4 persistence/recovery guide](docs/foundation-4-retained-data-rehearsal.md). The [Foundation 3 migration guide](docs/foundation-3-migration.md)
 remains as historical background, not a prerequisite.
 
 ## Runtime hosts
