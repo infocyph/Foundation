@@ -52,6 +52,51 @@ final class ModuleArchitectureValidator
         $this->assertAcyclic($edges);
     }
 
+    /** @param array<string,list<string>> $edges */
+    private function assertAcyclic(array $edges): void
+    {
+        $visiting = [];
+        $visited = [];
+        $visit = static function (string $node) use (&$visit, &$visiting, &$visited, $edges): void {
+            if (isset($visited[$node])) {
+                return;
+            }
+            if (isset($visiting[$node])) {
+                throw new \LogicException(sprintf('Cyclic optional feature dependencies at "%s".', $node));
+            }
+            $visiting[$node] = true;
+            foreach ($edges[$node] ?? [] as $next) {
+                $visit($next);
+            }
+            unset($visiting[$node]);
+            $visited[$node] = true;
+        };
+        foreach (array_keys($edges) as $node) {
+            $visit($node);
+        }
+    }
+
+    /** @param array{key:string,operator:'equals'|'not-empty',value?:bool|int|string}|null $when */
+    private function assertCondition(string $id, ?array $when): void
+    {
+        if ($when === null) {
+            return;
+        }
+        if ($when['key'] === '' || ($when['operator'] === 'equals' && !array_key_exists('value', $when))) {
+            throw new \LogicException(sprintf('Invalid conditional dependency on "%s".', $id));
+        }
+    }
+
+    /** @param list<string> $configs */
+    private function assertConfiguration(string $id, array $configs): void
+    {
+        foreach ($configs as $config) {
+            if (preg_match('/^[a-z][a-z0-9_]*\.php$/D', $config) !== 1) {
+                throw new \LogicException(sprintf('Invalid config ownership path on "%s".', $id));
+            }
+        }
+    }
+
     /**
      * @phpstan-param ArchitectureFeature $definition
      * @phpstan-param array<string,ArchitectureModule> $modules
@@ -79,6 +124,16 @@ final class ModuleArchitectureValidator
         $edges[$id] = $this->resolveDependencies($id, $definition['dependencies'], $modules);
     }
 
+    private function assertPackageRole(string $id, string $package, string $constraint): void
+    {
+        if ($package === '' || $constraint === '' || in_array($package, self::CORE_OR_DEVELOPMENT_PACKAGES, true)) {
+            throw new \LogicException(sprintf('Invalid optional package owner "%s" on "%s".', $package, $id));
+        }
+        if ($package === 'infocyph/otp' && !in_array($id, ['security.mfa', 'security.passkey'], true)) {
+            throw new \LogicException('OTP shared ownership is limited to MFA and passkey.');
+        }
+    }
+
     /**
      * @param array<string,string> $packages
      * @param array<string,list<array{id:string,constraint:string}>> $packageOwners
@@ -93,16 +148,6 @@ final class ModuleArchitectureValidator
         }
     }
 
-    private function assertPackageRole(string $id, string $package, string $constraint): void
-    {
-        if ($package === '' || $constraint === '' || in_array($package, self::CORE_OR_DEVELOPMENT_PACKAGES, true)) {
-            throw new \LogicException(sprintf('Invalid optional package owner "%s" on "%s".', $package, $id));
-        }
-        if ($package === 'infocyph/otp' && !in_array($id, ['security.mfa', 'security.passkey'], true)) {
-            throw new \LogicException('OTP shared ownership is limited to MFA and passkey.');
-        }
-    }
-
     /** @param list<array{id:string,constraint:string}> $owners */
     private function assertPackageSharing(string $id, string $package, string $constraint, array $owners): void
     {
@@ -111,13 +156,6 @@ final class ModuleArchitectureValidator
         }
         if ($owners !== [] && $owners[0]['constraint'] !== $constraint) {
             throw new \LogicException(sprintf('Conflicting shared constraints for "%s" at "%s".', $package, $id));
-        }
-    }
-
-    private function assertSelectionKey(string $id, ?string $key): void
-    {
-        if ($key !== null && !in_array($id, ['security.mfa', 'security.passkey'], true)) {
-            throw new \LogicException(sprintf('Unexpected selected authentication driver on "%s".', $id));
         }
     }
 
@@ -133,16 +171,6 @@ final class ModuleArchitectureValidator
         }
     }
 
-    /** @param list<string> $configs */
-    private function assertConfiguration(string $id, array $configs): void
-    {
-        foreach ($configs as $config) {
-            if (preg_match('/^[a-z][a-z0-9_]*\.php$/D', $config) !== 1) {
-                throw new \LogicException(sprintf('Invalid config ownership path on "%s".', $id));
-            }
-        }
-    }
-
     /**
      * @param list<string> $schemas
      * @param array<string,string> $owners
@@ -154,6 +182,13 @@ final class ModuleArchitectureValidator
                 throw new \LogicException(sprintf('Invalid or duplicate schema owner on "%s".', $id));
             }
             $owners[$schema] = $id;
+        }
+    }
+
+    private function assertSelectionKey(string $id, ?string $key): void
+    {
+        if ($key !== null && !in_array($id, ['security.mfa', 'security.passkey'], true)) {
+            throw new \LogicException(sprintf('Unexpected selected authentication driver on "%s".', $id));
         }
     }
 
@@ -180,38 +215,4 @@ final class ModuleArchitectureValidator
         return $edges;
     }
 
-    /** @param array{key:string,operator:'equals'|'not-empty',value?:bool|int|string}|null $when */
-    private function assertCondition(string $id, ?array $when): void
-    {
-        if ($when === null) {
-            return;
-        }
-        if ($when['key'] === '' || ($when['operator'] === 'equals' && !array_key_exists('value', $when))) {
-            throw new \LogicException(sprintf('Invalid conditional dependency on "%s".', $id));
-        }
-    }
-
-    /** @param array<string,list<string>> $edges */
-    private function assertAcyclic(array $edges): void
-    {
-        $visiting = [];
-        $visited = [];
-        $visit = static function (string $node) use (&$visit, &$visiting, &$visited, $edges): void {
-            if (isset($visited[$node])) {
-                return;
-            }
-            if (isset($visiting[$node])) {
-                throw new \LogicException(sprintf('Cyclic optional feature dependencies at "%s".', $node));
-            }
-            $visiting[$node] = true;
-            foreach ($edges[$node] ?? [] as $next) {
-                $visit($next);
-            }
-            unset($visiting[$node]);
-            $visited[$node] = true;
-        };
-        foreach (array_keys($edges) as $node) {
-            $visit($node);
-        }
-    }
 }
