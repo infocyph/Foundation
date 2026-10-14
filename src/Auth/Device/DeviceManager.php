@@ -66,7 +66,7 @@ final readonly class DeviceManager
         }
 
         if ($device->isRevoked()) {
-            return new DeviceResult(DeviceStatus::REVOKED, device: $device, code: 'device_revoked');
+            return new DeviceResult(DeviceStatus::REJECTED, device: $device, code: 'device_revoked');
         }
 
         $this->devices->touch($deviceId, $seenAt ?? $this->clock->now());
@@ -83,7 +83,7 @@ final readonly class DeviceManager
         }
 
         if ($device->isRevoked()) {
-            return new DeviceResult(DeviceStatus::REVOKED, device: $device, code: 'device_revoked');
+            return new DeviceResult(DeviceStatus::REJECTED, device: $device, code: 'device_revoked');
         }
 
         $this->devices->markTrusted($deviceId, true);

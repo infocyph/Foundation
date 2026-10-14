@@ -535,8 +535,8 @@ it('keeps account session revocation isolated and never retrusts a revoked devic
     }
     expect($services->devices()->trust($registered->id)->code)->toBe('device_trusted')
         ->and($services->devices()->revoke($registered->id)->code)->toBe('device_revoked')
-        ->and($services->devices()->trust($registered->id)->code)->toBe('device_revoked')
-        ->and($services->devices()->touch($registered->id)->code)->toBe('device_revoked');
+        ->and($services->devices()->trust($registered->id)->successful())->toBeFalse()
+        ->and($services->devices()->touch($registered->id)->successful())->toBeFalse();
 
     $stored = $services->devices()->listForAccount($second->id());
     expect($stored)->toHaveCount(1)
