@@ -124,3 +124,85 @@ it('rejects missing stale mismatched and cancelled host Runwire worker seeds bef
         $otherRequest->complete();
     }
 });
+
+it('keeps exact host Runwire identities in source-free compiled worker CLI and scheduler releases', function (): void {
+    $project = sys_get_temp_dir() . '/foundation-runwire-generated-' . bin2hex(random_bytes(6));
+    mkdir($project . '/bootstrap/cache', 0777, true);
+    $config = [
+        'app' => [
+            'base_path' => $project,
+            'env' => 'production',
+            'debug' => false,
+            'capabilities' => ['runwire' => true],
+        ],
+        '_config_cache' => false,
+    ];
+
+    try {
+        $compiler = new \Infocyph\Foundation\Runtime\GeneratedRuntimeCompiler();
+
+        foreach ([
+            \Infocyph\Foundation\Application\RuntimeMode::Worker,
+            \Infocyph\Foundation\Application\RuntimeMode::Cli,
+            \Infocyph\Foundation\Application\RuntimeMode::Scheduler,
+        ] as $mode) {
+            $artifact = $project . '/bootstrap/cache/runwire-' . $mode->value . '.php';
+            $report = $compiler->compile($config, $mode, $artifact, ['runwire']);
+            expect($report['skipped'])->toBe([])
+                ->and($report['capabilities']['runwire'] ?? null)->toBeTrue();
+
+            $generated = \Infocyph\Foundation\Runtime\GeneratedRuntime::loadPrevalidated(
+                $config,
+                $mode,
+                $artifact,
+                $report['metadata_sha256'],
+                $report['digest'],
+                ['runwire'],
+            );
+            $nativeRuntime = RuntimeContext::standalone();
+            $nativeRequest = RequestContext::create($nativeRuntime);
+
+            try {
+                $result = $generated->application->execution()->run(
+                    static function (ExecutionId $id) use ($generated): array {
+                        $runtime = $generated->application->make(RuntimeContext::class);
+                        $request = $generated->application->make(RequestContext::class);
+                        $context = $generated->container->captureScopeContext();
+                        $child = new Fiber(static fn(): array => $generated->application->execution()
+                            ->withinBorrowedScope(
+                                $context,
+                                static fn(ExecutionId $borrowed): array => [
+                                    $borrowed,
+                                    $generated->application->make(RuntimeContext::class),
+                                    $generated->application->make(RequestContext::class),
+                                ],
+                            ));
+                        $child->start();
+
+                        return [$id, $runtime, $request, $child->getReturn()];
+                    },
+                    [
+                        RuntimeContext::class => $nativeRuntime,
+                        RequestContext::class => $nativeRequest,
+                    ],
+                    new ExecutionId('compiled-' . $mode->value),
+                );
+
+                expect($result[1])->toBe($nativeRuntime)
+                    ->and($result[2])->toBe($nativeRequest)
+                    ->and($result[3])->toBe([$result[0], $nativeRuntime, $nativeRequest]);
+            } finally {
+                $nativeRequest->complete();
+            }
+        }
+    } finally {
+        $files = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($project, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST,
+        );
+        foreach ($files as $file) {
+            $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
+        }
+        rmdir($project);
+    }
+});
