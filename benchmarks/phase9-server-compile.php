@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Infocyph\Foundation\Benchmarks\Phase9ServerHandler;
 use Infocyph\Foundation\Benchmarks\Phase9NativeReadHandler;
+use Infocyph\Foundation\Benchmarks\Phase9ServerHandler;
 use Infocyph\Foundation\Config\ConfigLoader;
 use Infocyph\Foundation\Routing\WebReleaseCompiler;
 
