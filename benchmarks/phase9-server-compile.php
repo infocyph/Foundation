@@ -26,6 +26,7 @@ $routeSource = <<<'PHP'
 
 declare(strict_types=1);
 
+use Infocyph\Foundation\Benchmarks\Phase9NativeReadHandler;
 use Infocyph\Foundation\Benchmarks\Phase9ServerHandler;
 use Infocyph\Webrick\Router\Facade\Router;
 
