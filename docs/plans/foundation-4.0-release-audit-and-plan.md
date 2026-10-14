@@ -4,7 +4,20 @@ Audit date: 2026-10-11. Target: **Foundation 4.0 as a clean major release**.
 No backward-compatibility, migration-path, or source-signature parity obligation
 exists for Foundation 2.x, unreleased 3.x, or retired specialist majors.
 
-**Live release checkpoint (2026-10-14): B1 6/6, B2 8/8, B3 4/4, B4 7/7, B5 4/4, B6 2/8 = 31/37 (83.8%).** Batch 5's four 4.0-native contracts are accepted on exact-source [`6435bd89`](https://github.com/infocyph/Foundation/commit/6435bd8986ce6eb3139e40173a33c7a69a2e9b34), [Security & Standards #38526599007](https://github.com/infocyph/Foundation/actions/runs/38526599007) **SUCCESS**: QA 4/4, PHPStan 2/2, production consumers 4/4, benchmark jobs 2/2, clean install, PHPForge doctor and release evidence. The old-major API inventory guard is retired, and current 4.0 API/state tests pass. Keep native library ownership, explicit application policy, no duplicate Runwire/Webrick/CacheLayer/DBLayer/OTP/Epicrypt/Omnibus/Pathwise/TalkingBytes. Infbyte integration is a separate future task. All earlier date-stamped legacy-diff checkpoint notes below are history, not live release policy. PR #20 is draft; no merge/tag/publication.
+**Live release checkpoint (2026-10-14): B1 6/6, B2 8/8, B3 4/4, B4 7/7, B5 4/4, B6 3/8 = 32/37 (86.5%).** Batch 5's four 4.0-native contracts are accepted on exact-source [`6435bd89`](https://github.com/infocyph/Foundation/commit/6435bd8986ce6eb3139e40173a33c7a69a2e9b34), [Security & Standards #38526599007](https://github.com/infocyph/Foundation/actions/runs/38526599007) **SUCCESS**: QA 4/4, PHPStan 2/2, production consumers 4/4, benchmark jobs 2/2, clean install, PHPForge doctor and release evidence. The old-major API inventory guard is retired, and current 4.0 API/state tests pass. Keep native library ownership, explicit application policy, no duplicate Runwire/Webrick/CacheLayer/DBLayer/OTP/Epicrypt/Omnibus/Pathwise/TalkingBytes. Infbyte integration is a separate future task. All earlier date-stamped legacy-diff checkpoint notes below are history, not live release policy. PR #20 is draft; no merge/tag/publication.
+
+### 2026-10-14 — Foundation-only code closure and selected-owner host confirmation
+
+**Exact implementation source `8af4e1e0` verified:** [Security & Standards #38552807973](https://github.com/infocyph/Foundation/actions/runs/38552807973) **SUCCESS** (all PHP 8.4/8.5 × lowest/stable QA, both PHPStan analyses, production selected/no-dev consumers, benchmark jobs, clean installation, PHPForge doctor and release evidence). [Native host #38552807316](https://github.com/infocyph/Foundation/actions/runs/38552807316) **SUCCESS** on the **same exact commit**, including both original compiled Webrick/InterMix JSON minimal host load and the additional `native-read` FPM/Runwire selected DBLayer/CacheLayer/credential workload. All response-validation checks passed; contained HTTP 500, cancellation/reset, prefork native Runwire worker replacement and bounded soak windows passed. No Infbyte application or older-version migrations are involved.
+
+**Selected-owner pilot (four workers, concurrency 10, two 30-second windows per host):**
+- FPM: 18,805 and 18,306 valid requests, **zero failures**, p99 20.8/21.6 ms, live process-tree RSS start/end ~280.1/280.3 MB.
+- Runwire: 57,093 and 54,945 valid requests, **zero failures**, p99 ~13.8 ms, live process-tree RSS start/end ~264.2/265.1 MB.
+- These are synthetic local SQLite + persistent CacheLayer file reads with a low-work-factor fixture credential hash, not full OAuth/authentication, production DB/cache distributions, an external service topology or a matched 4.0 performance baseline. Cross-host throughput comparisons here are *not* grounds for the 2% release regression claim.
+
+**Batch 6 #2 ACCEPTED for the frozen implementation-source matrix:** PHP 8.4/8.5 lowest/stable, selected real service integration, source/development and trusted compiled release consumers, `--no-dev` and dependency manifest evidence are green at `8af4e1e0`. Final documentation-only updates will be rechecked; **reopen #2 if the Foundation executable source or resolved dependency set changes**. This acceptance does not satisfy full release signoff (#7), which depends on the outstanding host requirements.
+
+**Remaining open: Batch 6 #4/#5/#6/#7/#8.** The strict 2% baseline/candidate budget, comparable dedicated production-equivalent workloads, actual query/cache/connection telemetry, longer multi-service persistent soak, final all-gate signoff and reviewed publication metadata cannot be fabricated from shared-runner pilot data. The release notes remain draft until certification. **Overall: 32/37 (86.5%).** PR #20 stays DRAFT; no merge, tag, publishing, or Infbyte modifications.
 
 ### 2026-10-14 — Green exact-head FPM/Runwire sustained soak (pilot)
 
@@ -1954,7 +1967,7 @@ Added `docs/examples/foundation-4-compiled-release.php`, executed inside all fou
 - [x] Run PHPForge doctor/config diagnostics, then review necessary `ic:process`
   changes sequentially; run full `ic:tests` and required release checks without
   suppressions, missing-service exemptions, or skipped evidence.
-- [ ] Verify supported PHP 8.4/8.5, lowest/latest dependencies, compiled/development
+- [x] Verify supported PHP 8.4/8.5, lowest/latest dependencies, compiled/development
   graphs, production consumers, and required service matrices on the final SHA.
   Record toolchain/workflow references and the resolved dependency manifest.
 - [x] Close every **current 4.0 native integration** contract and verify no
