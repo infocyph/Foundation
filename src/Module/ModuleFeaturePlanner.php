@@ -9,6 +9,7 @@ namespace Infocyph\Foundation\Module;
  * snapshot of Composer/root ownership and host configuration; no file writes.
  *
  * @phpstan-import-type Context from ModuleFeatureResolver
+ * @phpstan-import-type PackageState from ModuleFeatureResolver
  * @phpstan-import-type Resolution from ModuleFeatureResolver
  * @phpstan-import-type FeatureState from ModuleFeatureResolver
  * @phpstan-type FeaturePlan array{
@@ -142,7 +143,6 @@ final readonly class ModuleFeaturePlanner
     }
 
     /**
-     * @phpstan-import-type PackageState from ModuleFeatureResolver
      * @phpstan-param array<string,PackageState> $packages
      * @param array{require:array<string,string>,remove:list<string>,activate:array<string,bool>,publish:list<string>,schemas:list<string>} $effects
      * @param list<string> $warnings
