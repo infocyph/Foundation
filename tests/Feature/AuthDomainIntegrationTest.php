@@ -376,3 +376,50 @@ it('keeps direct permissions and delegated resource grants isolated across princ
     expect($authorizer->can($alphaPrincipal, 'invoice.approve', $owned)->allowed)->toBeFalse()
         ->and($authorizer->can($alphaPrincipal, 'invoice.view')->allowed)->toBeTrue();
 });
+
+it('does not extend rejected sessions for suspended locked or disabled accounts', function (): void {
+    $app = foundationAuthApplication();
+    $services = $app->make(AuthServices::class);
+    $account = $services->accounts()->create('session-status@example.test')->account;
+    if (!$account instanceof Account) {
+        throw new LogicException('Expected the session account.');
+    }
+
+    $sessions = $app->make(SessionStoreInterface::class);
+    $issuedAt = time() - 120;
+    $session = new AuthSession(
+        id: 'suspended-account-session',
+        accountId: $account->id(),
+        deviceId: 'device-1',
+        createdAt: $issuedAt,
+        lastSeenAt: $issuedAt,
+        expiresAt: time() + 3600,
+    );
+    $sessions->create($session);
+    $resolver = new \Infocyph\Foundation\Http\Resolver\SessionPrincipalResolver(
+        new \Infocyph\Foundation\Config\ConfigRepository([]),
+        $sessions,
+        $services->accountProvider(),
+        new \Infocyph\Foundation\Auth\Support\SystemClock(),
+    );
+    $request = \Infocyph\Webrick\Request\Request::fake(
+        headers: ['X-Session-Id' => $session->id],
+    );
+
+    $services->accounts()->suspend($account->id());
+    expect($resolver->resolve($request))->toBeNull()
+        ->and($sessions->find($session->id)?->lastSeenAt)->toBe($issuedAt);
+
+    $services->accounts()->unlock($account->id());
+    expect($resolver->resolve($request)?->accountId())->toBe($account->id())
+        ->and($sessions->find($session->id)?->lastSeenAt)->toBeGreaterThan($issuedAt);
+
+    $sessions->create($session);
+    $services->accounts()->lock($account->id());
+    expect($resolver->resolve($request))->toBeNull()
+        ->and($sessions->find($session->id)?->lastSeenAt)->toBe($issuedAt);
+
+    $services->accounts()->disable($account->id());
+    expect($resolver->resolve($request))->toBeNull()
+        ->and($sessions->find($session->id)?->lastSeenAt)->toBe($issuedAt);
+});

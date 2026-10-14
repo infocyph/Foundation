@@ -57,13 +57,18 @@ final class SessionPrincipalResolver extends AbstractPrincipalResolver
             return null;
         }
 
-        $this->sessions->touch($sessionId, $now);
-
-        return $this->principalForAccount($account, [
+        $principal = $this->principalForAccount($account, [
             'auth_via' => 'session',
             'device_id' => $session->deviceId,
             'session_id' => $session->id,
         ]);
+        if ($principal === null) {
+            return null;
+        }
+
+        $this->sessions->touch($sessionId, $now);
+
+        return $principal;
     }
 
     private function sessionId(Request $request): ?string
