@@ -138,6 +138,12 @@ final readonly class WebReleaseRuntime
             }
         }
 
+        // A runtime from a retired process cannot own this host after a fork.
+        $pid = getmypid();
+        if (!is_int($pid) || $runtime->pid !== $pid) {
+            throw new \LogicException('Runwire web host runtime belongs to a different process.');
+        }
+
         // Each Runwire host independently protects its immutable release against
         // pruning, even if the bootstrap loader or another host is destroyed.
         $generation = $this->loadedReleaseGeneration;

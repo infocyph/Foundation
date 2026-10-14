@@ -109,6 +109,16 @@ it('rejects missing stale mismatched and cancelled host Runwire worker seeds bef
             ],
         ))->toThrow(\Infocyph\Runwire\Exception\CancelledException::class)
             ->and($executed)->toBeFalse();
+
+        $request->complete();
+        expect(fn() => $app->execution()->run(
+            $work,
+            seeds: [
+                RuntimeContext::class => $runtime,
+                RequestContext::class => $request,
+            ],
+        ))->toThrow(LogicException::class, 'completed')
+            ->and($executed)->toBeFalse();
     } finally {
         $request->complete();
         $otherRequest->complete();

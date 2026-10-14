@@ -339,6 +339,16 @@ it('boots an explicitly compiled Runwire web host through native Webrick and Int
             (string) $release['release_runtime_manifest_sha256'],
             foundationCapabilities: $capabilities,
         );
+        $staleProcess = \Infocyph\Runwire\RuntimeContext::fromCapabilities(
+            new \Infocyph\Runwire\RuntimeCapabilities(
+                \Infocyph\Runwire\Runtime\Enum\RuntimeDriver::NATIVE,
+            ),
+            'stale-process',
+            pid: (int) getmypid() + 1,
+        );
+        expect(fn(): mixed => $loaded->runwireApplication($staleProcess))
+            ->toThrow(LogicException::class, 'different process');
+
         $runtime = \Infocyph\Runwire\RuntimeContext::standalone();
         $host = $loaded->runwireApplication($runtime);
 
@@ -394,10 +404,56 @@ final class FoundationRunwireReleaseContextHandler
         \Infocyph\Runwire\RequestContext $runwireRequest,
         \Infocyph\Webrick\Request\Request $request,
     ): \Infocyph\Webrick\Response\Response {
+        // Exercise the published selected-library APIs inside real compiled
+        // Webrick dispatch, not merely in standalone library contract tests.
+        $epicrypt = new \Infocyph\Epicrypt\Integration\Runwire\RunwireExecutionContext($runtime, $runwireRequest);
+        $pathwise = new \Infocyph\Pathwise\Integration\Runwire\RunwireExecutionContext($runtime, $runwireRequest);
+        $reqshield = new \Infocyph\ReqShield\Support\RunwireExecution($runtime, $runwireRequest);
+        $uid = new \Infocyph\UID\Runtime\RunwireBinding($runtime, $runwireRequest);
+        $epicrypt->checkpoint();
+        $pathwise->checkpoint();
+        $reqshield->checkpoint();
+        $uid->assertActive();
+        \Infocyph\OTP\Support\RunwireState::checkpoint(
+            new \Infocyph\CacheLayer\Integration\Runwire\RunwireExecutionContext($runtime, $runwireRequest),
+        );
+
+        $connection = new \Infocyph\DBLayer\Connection\Connection(
+            \Infocyph\DBLayer\Connection\ConnectionConfig::fromArray([
+                'driver' => 'sqlite',
+                'database' => ':memory:',
+            ]),
+        );
+        $database = $connection->withRunwire(
+            $runtime,
+            static fn(): ?array => $connection->runwireBinding(),
+            $runwireRequest,
+        );
+        $messaging = new \Infocyph\Omnibus\Integration\Runwire\RunwireBinding();
+        $messageContext = $messaging->withRunwire(
+            $runtime,
+            static fn(): array => [$messaging->runtime(), $messaging->request()],
+            $runwireRequest,
+        );
+
         return \Infocyph\Webrick\Response\Response::json([
             'mode' => $runtime->mode,
             'request' => $runwireRequest->requestId,
             'path' => $request->getUri()->getPath(),
+            'native_modules' => [
+                'arraykit' => \Infocyph\ArrayKit\Collection\LazyCollection::from([1, 2])
+                    ->withRunwire($runtime, $runwireRequest)->all(),
+                'dblayer' => $database === [
+                    'runtime' => $runtime, 'request' => $runwireRequest, 'scope' => null,
+                ],
+                'omnibus' => $messageContext === [$runtime, $runwireRequest],
+                'talkingbytes' => (new \Infocyph\TalkingBytes\Integration\Runwire\RunwireBinding(
+                    $runtime,
+                    $runwireRequest,
+                ))->deadline() === null,
+                'restored' => $connection->runwireBinding() === null
+                    && $messaging->runtime() === null,
+            ],
         ]);
     }
 }
@@ -470,6 +526,13 @@ it('sends the exact host Runwire request through compiled Webrick and native Int
                     'mode' => $runtime->mode,
                     'request' => 'foundation-native-request',
                     'path' => '/runwire-context',
+                    'native_modules' => [
+                        'arraykit' => [1, 2],
+                        'dblayer' => true,
+                        'omnibus' => true,
+                        'talkingbytes' => true,
+                        'restored' => true,
+                    ],
                 ]);
         } finally {
             $host->shutdown();
@@ -530,6 +593,7 @@ it('retains the trusted web release lease for the Runwire host lifetime', functi
         );
         $weak = WeakReference::create($generation);
         $host = $release->runwireApplication(\Infocyph\Runwire\RuntimeContext::standalone());
+        $secondHost = $release->runwireApplication(\Infocyph\Runwire\RuntimeContext::standalone());
 
         unset($lease, $generation, $release);
         gc_collect_cycles();
@@ -540,8 +604,18 @@ it('retains the trusted web release lease for the Runwire host lifetime', functi
             ))->toBeNull();
 
         $host->start();
+        $secondHost->start();
         $host->shutdown();
         unset($host);
+        gc_collect_cycles();
+
+        expect(\Infocyph\Foundation\Runtime\ReleaseGenerationLease::tryExclusive(
+            $project,
+            $generationName,
+        ))->toBeNull();
+
+        $secondHost->shutdown();
+        unset($secondHost);
         gc_collect_cycles();
 
         $exclusive = \Infocyph\Foundation\Runtime\ReleaseGenerationLease::tryExclusive(
