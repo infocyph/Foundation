@@ -214,5 +214,4 @@ final class ModuleArchitectureValidator
 
         return $edges;
     }
-
 }
