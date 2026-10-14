@@ -543,6 +543,120 @@ it('sends the exact host Runwire request through compiled Webrick and native Int
     }
 });
 
+
+final class FoundationRunwireInterleavedHandler
+{
+    public static function show(
+        \Infocyph\Runwire\RuntimeContext $runtime,
+        \Infocyph\Runwire\RequestContext $runwireRequest,
+    ): \Infocyph\Webrick\Response\Response {
+        $execution = new \Infocyph\UID\Runtime\RunwireBinding($runtime, $runwireRequest);
+        $execution->assertActive();
+        Fiber::suspend($runwireRequest->requestId);
+        $execution->assertActive();
+
+        return \Infocyph\Webrick\Response\Response::json([
+            'request' => $runwireRequest->requestId,
+            'runtime' => $runtime->mode,
+        ]);
+    }
+}
+
+it('isolates two interleaved compiled Runwire requests when one host request is cancelled', function (): void {
+    $project = foundationWebReleaseProject();
+    file_put_contents(
+        $project . '/routes/web.php',
+        "\nRouter::get('/runwire-interleaved', [FoundationRunwireInterleavedHandler::class, 'show']);\n",
+        FILE_APPEND,
+    );
+    $config = [
+        'app' => ['base_path' => $project, 'env' => 'production', 'debug' => false],
+        '_config_cache' => false,
+        'router' => [
+            'files' => ['web.php'],
+            'matcher' => 'fused',
+            'middleware' => ['globals' => ['pre' => [], 'post' => []]],
+        ],
+    ];
+    $manifest = $project . '/bootstrap/cache/release.json';
+
+    try {
+        $report = new WebReleaseCompiler()->compile(
+            $config,
+            $project . '/bootstrap/cache/intermix.php',
+            $project . '/bootstrap/cache/router.php',
+            $manifest,
+            capabilities: ['runwire'],
+        );
+        $loaded = WebReleaseRuntime::loadPrevalidated(
+            $config,
+            $manifest,
+            (string) $report['release_runtime_manifest_sha256'],
+            foundationCapabilities: ['runwire'],
+        );
+        $runtime = \Infocyph\Runwire\RuntimeContext::fromCapabilities(
+            new \Infocyph\Runwire\RuntimeCapabilities(
+                \Infocyph\Runwire\Runtime\Enum\RuntimeDriver::NATIVE,
+            ),
+            'interleaved',
+            concurrent: true,
+        );
+        $host = $loaded->runwireApplication($runtime);
+        $first = \Infocyph\Runwire\RequestContext::create($runtime, requestId: 'interleaved-first');
+        $second = \Infocyph\Runwire\RequestContext::create($runtime, requestId: 'interleaved-second');
+        $firstWriter = new \Infocyph\Foundation\Tests\Fixtures\RunwireCollectingWriter();
+        $secondWriter = new \Infocyph\Foundation\Tests\Fixtures\RunwireCollectingWriter();
+
+        $worker = static function (
+            \Infocyph\Runwire\RequestContext $request,
+            \Infocyph\Foundation\Tests\Fixtures\RunwireCollectingWriter $writer,
+        ) use ($host): Fiber {
+            return new Fiber(static function () use ($host, $request, $writer): void {
+                $native = new \Infocyph\Runwire\Http\HttpRequest(
+                    method: 'GET',
+                    target: '/runwire-interleaved',
+                    version: \Infocyph\Runwire\Http\Enum\ProtocolVersion::HTTP_1_1,
+                    headers: \Infocyph\Runwire\Http\Headers::fromArray(['Host' => 'release.test']),
+                    body: new \Infocyph\Foundation\Tests\Fixtures\RunwireEmptyBody(),
+                    context: $request,
+                );
+                $host->handle($native, $writer, completeResponse: true);
+            });
+        };
+        $firstFiber = $worker($first, $firstWriter);
+        $secondFiber = $worker($second, $secondWriter);
+        $host->start();
+
+        try {
+            expect($firstFiber->start())->toBe('interleaved-first')
+                ->and($secondFiber->start())->toBe('interleaved-second')
+                ->and($first->completed())->toBeFalse()
+                ->and($second->completed())->toBeFalse();
+
+            $first->cancel(\Infocyph\Runwire\Runtime\Enum\CancellationReason::HOST_CANCELLED);
+            $secondFiber->resume();
+            $firstFiber->resume();
+
+            expect($firstFiber->isTerminated())->toBeTrue()
+                ->and($secondFiber->isTerminated())->toBeTrue()
+                ->and($first->completed())->toBeTrue()
+                ->and($second->completed())->toBeTrue()
+                ->and($secondWriter->status)->toBe(200)
+                ->and($secondWriter->endCalls)->toBe(1)
+                ->and(json_decode($secondWriter->body, true, flags: JSON_THROW_ON_ERROR))->toBe([
+                    'request' => 'interleaved-second',
+                    'runtime' => 'interleaved',
+                ])
+                ->and($firstWriter->endCalls)->toBeLessThanOrEqual(1);
+        } finally {
+            $host->shutdown();
+        }
+    } finally {
+        foundationResetWebrickProductionRegistries();
+        foundationWebReleaseRemove($project);
+    }
+});
+
 it('retains the trusted web release lease for the Runwire host lifetime', function (): void {
     $project = foundationWebReleaseProject();
     $config = [
