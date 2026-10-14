@@ -137,3 +137,78 @@ it('preserves native coroutine runtime request and scope through structured chil
 
     expect(CacheRunwireIntegration::runtime())->toBeNull();
 });
+
+it('detaches a throwing native child and reuses InterMix for the next host-owned request', function (): void {
+    $runtime = RuntimeContext::fromCapabilities(
+        new RuntimeCapabilities(
+            RuntimeDriver::NATIVE,
+            runwireLoopAvailable: true,
+            supportsRunwireCoroutines: true,
+        ),
+        'foundation-failed-child',
+    );
+    $builder = ContainerBuilder::create('foundation.runwire.failure.' . bin2hex(random_bytes(6)));
+    RunwireIntegration::registerInputs($builder);
+    $container = $builder->build();
+    $integration = new RunwireIntegration($container, ownsCacheLayerLifecycle: true);
+    $integration->bind($runtime);
+    $coroutines = new CoroutineRuntime();
+    $failedRequest = RequestContext::create($runtime);
+    $nextRequest = null;
+
+    try {
+        expect(fn(): mixed => $coroutines->runRequest(
+            $failedRequest,
+            static function (CoroutineScope $scope) use ($integration, $failedRequest): mixed {
+                return $integration->withinRequest(
+                    $failedRequest,
+                    $scope,
+                    static function (RuntimeContainerInterface $owner) use (
+                        $scope,
+                        $integration,
+                        $failedRequest,
+                    ): mixed {
+                        expect($owner->get(RequestContext::class))->toBe($failedRequest);
+                        $child = $scope->spawn($integration->wrapChild(
+                            $failedRequest,
+                            $scope,
+                            static function (RuntimeContainerInterface $borrowed) use ($failedRequest): never {
+                                expect($borrowed->get(RequestContext::class))->toBe($failedRequest);
+
+                                throw new DomainException('structured child failure');
+                            },
+                        ));
+
+                        return $child->await();
+                    },
+                );
+            },
+        ))->toThrow(DomainException::class, 'structured child failure');
+
+        expect(CacheRunwireIntegration::current())->toBeNull();
+
+        $nextRequest = RequestContext::create($runtime);
+        $result = $coroutines->runRequest(
+            $nextRequest,
+            static function (CoroutineScope $scope) use ($integration, $nextRequest): array {
+                return $integration->withinRequest(
+                    $nextRequest,
+                    $scope,
+                    static fn(RuntimeContainerInterface $owner): array => [
+                        $owner->get(RequestContext::class),
+                        CacheRunwireIntegration::current()?->request,
+                    ],
+                );
+            },
+        );
+
+        expect($result)->toBe([$nextRequest, $nextRequest])
+            ->and(CacheRunwireIntegration::current())->toBeNull();
+    } finally {
+        $integration->release($runtime);
+        $failedRequest->complete();
+        $nextRequest?->complete();
+    }
+
+    expect(CacheRunwireIntegration::runtime())->toBeNull();
+});
