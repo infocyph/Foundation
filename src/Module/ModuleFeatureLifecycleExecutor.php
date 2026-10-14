@@ -49,7 +49,7 @@ final readonly class ModuleFeatureLifecycleExecutor
     /**
      * @param list<string> $features
      * @phpstan-param Context $context
-     * @param Closure():array<string,mixed>|null $refresh
+     * @phpstan-param Closure():Context|null $refresh
      * @phpstan-return Outcome
      */
     public function apply(
@@ -92,6 +92,23 @@ final readonly class ModuleFeatureLifecycleExecutor
             ]);
         }
 
+        return $this->applyInstallOrRepair($operation, $features, $context, $plan['requested'], $refresh);
+    }
+
+    /**
+     * @param list<string> $features
+     * @param list<string> $requested
+     * @phpstan-param Context $context
+     * @phpstan-param Closure():Context|null $refresh
+     * @phpstan-return Outcome
+     */
+    private function applyInstallOrRepair(
+        string $operation,
+        array $features,
+        array $context,
+        array $requested,
+        ?Closure $refresh,
+    ): array {
         // A phase snapshot is mandatory: Composer may have mutated the root
         // manifest and transitive graph, even if only some packages completed.
         if ($refresh === null) {
@@ -100,20 +117,13 @@ final readonly class ModuleFeatureLifecycleExecutor
 
         $result = $this->composer->applyPackages($operation, $features, $context);
         if (!$result->successful()) {
-            return $this->failed($operation, $plan['requested'], 'composer', $result->exitCode);
+            return $this->failed($operation, $requested, 'composer', $result->exitCode);
         }
 
         $phases = [$this->phase('composer', 'complete', 'Reconcile packages; no automatic rollback.')];
 
         try {
             $updated = $refresh();
-            if (!isset($updated['root_known'], $updated['root_requirements'], $updated['installed'], $updated['enabled'], $updated['config'], $updated['extensions'])
-                || !is_array($updated['root_requirements'])
-                || !is_array($updated['installed'])
-            ) {
-                throw new \RuntimeException('Refreshed Composer/feature context is incomplete.');
-            }
-
             $postPlan = $this->planner->plan('repair', $features, $updated);
             if (!$postPlan['applicable'] || $postPlan['effects']['require'] !== []) {
                 throw new \RuntimeException('Composer still has unresolved selected feature packages.');
@@ -125,11 +135,11 @@ final readonly class ModuleFeatureLifecycleExecutor
         } catch (\Throwable $failure) {
             $phases[] = $this->phase('reconcile', 'failed', $failure->getMessage());
 
-            return $this->outcome($operation, $plan['requested'], 'partial', $phases,
+            return $this->outcome($operation, $requested, 'partial', $phases,
                 'Re-read Composer and configuration state; run repair for the same selected features.');
         }
 
-        return $this->outcome($operation, $plan['requested'], 'complete', $phases);
+        return $this->outcome($operation, $requested, 'complete', $phases);
     }
 
     /**

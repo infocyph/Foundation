@@ -45,15 +45,11 @@ final readonly class ModuleFeatureSchemaExecutor
         ) {
             throw new \RuntimeException('Unexpected optional schema ownership.');
         }
-        if (($context['config']['messaging']['durable']['enabled'] ?? false) !== true) {
+        if (!$this->durableEnabled($context['config'])) {
             return [];
         }
 
-        foreach (['infocyph/omnibus', 'infocyph/dblayer'] as $package) {
-            if (!isset($context['installed'][$package], $context['root_requirements'][$package])) {
-                throw new \RuntimeException(sprintf('Install direct required package %s before schema work.', $package));
-            }
-        }
+        $this->assertOwnedPackages($context);
 
         if ($dryRun) {
             return [];
@@ -61,12 +57,44 @@ final readonly class ModuleFeatureSchemaExecutor
 
         $manager = new ModuleSchemaManager($this->application, new ModuleCatalog());
         $result = $manager->install('messaging', $connection, true);
-        foreach ($result as $status) {
+        $this->assertReady($result);
+
+        return $result;
+  
+    /**
+     * @phpstan-param Context $context
+     */
+    private function assertOwnedPackages(array $context): void
+    {
+        foreach (['infocyph/omnibus', 'infocyph/dblayer'] as $package) {
+            if (!isset($context['installed'][$package], $context['root_requirements'][$package])) {
+                throw new \RuntimeException(sprintf('Install direct required package %s before schema work.', $package));
+            }
+        }
+    }
+
+    /**
+     * @param list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}> $results
+     */
+    private function assertReady(array $results): void
+    {
+        foreach ($results as $status) {
             if ($status['applicable'] && !$status['installed']) {
                 throw new \RuntimeException('Messaging schema is not ready: ' . $status['detail']);
             }
         }
+    }
 
-        return $result;
+    /** @param array<string,mixed> $config */
+    private function durableEnabled(array $config): bool
+    {
+        $messaging = $config['messaging'] ?? null;
+        if (!is_array($messaging)) {
+            return false;
+        }
+
+        $durable = $messaging['durable'] ?? null;
+
+        return is_array($durable) && ($durable['enabled'] ?? false) === true;
     }
 }
