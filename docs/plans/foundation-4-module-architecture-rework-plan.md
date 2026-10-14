@@ -1,6 +1,6 @@
 # Foundation 4 — Module Architecture & Lifecycle Rework Plan
 
-> **Status:** ARCHITECTURE DIRECTION APPROVED — detailed design/audit still open. **Implementation: not started.**
+> **Status:** ARCHITECTURE APPROVED; Batch 0 source audit and detailed engineering design recorded; baseline CI pending. **Behavioral module implementation: not started.**
 > **Approved target:** prebuilt Foundation Core + preconfigured development QA + **3 optional modules / 9 independently selectable features**.
 >
 > **Working branch:** `feature/foundation-3` · **PR:** [#20](https://github.com/infocyph/Foundation/pull/20) (keep draft)  
@@ -166,20 +166,20 @@ These are semantic boundaries, **not** an instruction to create one class per no
 
 | ID | Decision | Status | Selected direction / remaining question |
 | --- | --- | --- | --- |
-| D01 | Catalog scope | **OPEN** | Prefer a curated deterministic catalog; decide whether explicit third-party feature registration is permitted without auto-discovery. |
+| D01 | Catalog scope | **DESIGN SELECTED** | Three first-party curated modules, nine features, deterministic validation; no filesystem/package discovery or third-party registry in this rework. |
 | D02 | Public module structure | **APPROVED** | Exactly `data`, `security`, `execution`; no five-category runtime hierarchy. Core and QA outside the optional module catalog. |
 | D03 | Core and built-in semantics | **APPROVED** | Foundation Core prebuilt/required. Auth policy, cache, logging, operations, resources, session, notifications stay Core-owned; no built-in pseudo-modules. |
-| D04 | Capability source | **OPEN** | Establish exact `app.capabilities` vs partial module override precedence; explicit production topology remains authoritative. |
+| D04 | Capability source | **DESIGN SELECTED** | Explicit production `app.capabilities` allow-list is authoritative and cannot be broadened by module overrides; partial dev overrides permitted when no full topology is declared. |
 | D05 | Package/feature granularity | **APPROVED** | Nine independently selectable features, precisely scoped packages, real conditional prerequisites and shared ownership. No install-all-on-category-selection. |
-| D06 | Plan/apply | **OPEN** | Prefer one pure planner and phase-based executor; verify error recovery/atomicity boundaries. |
-| D07 | Config ownership | **OPEN** | Respect application-owned config; publish and validate separately. |
-| D08 | Schema ownership | **OPEN** | Real native/core schema owner map; no auto-destructive module action. |
-| D09 | Public CLI/JSON contracts | **OPEN** | Proposed commands use `--feature` under 3 module IDs; settle help, alias removal and JSON schema revision. |
-| D10 | Performance guardrails | **OPEN** | Decide verified cache/compile points after measuring cold/warm module operations. |
+| D06 | Plan/apply | **DESIGN SELECTED** | One pure versioned plan and smallest practical phase executor; Composer/config/schema cannot be one atomic transaction and repair must be idempotent. |
+| D07 | Config ownership | **DESIGN SELECTED** | Feature-owned config only, preserving application files; reuse staging/backup/symlink guards and distinguish publication from validity. |
+| D08 | Schema ownership | **DESIGN SELECTED** | Core auth/session/cache schemas remain Core; Omnibus messaging schema belongs to `execution.messaging`; DBLayer is infrastructure, not other domains' schema owner. |
+| D09 | Public CLI/JSON contracts | **DESIGN SELECTED** | `module:<verb> <data|security|execution> --feature=<name>` for mutations; bare module names inspect/plan only; version breaking machine payloads as v2; no ambiguous `runtime` bare alias. |
+| D10 | Performance guardrails | **DESIGN SELECTED** | Static catalog and compiled native graph, no hot-path Composer/module scans; characterize cold/warm CLI and enforce 2% sustained successful host RPM budget. |
 | D11 | Engineering tooling | **APPROVED** | PHPForge preconfigured for development/CI and release QA only; never installed or activated as a production module. |
 | D12 | Optional native runtime | **APPROVED** | `execution.runtime` is Runwire and remains host-owned. `execution.messaging` is Omnibus; neither silently activates the other. |
 
-For remaining open decisions, log **chosen option, rejected alternatives, rationale, affected files, QA/benchmark impact, date and status** in the decision log. Do not reopen D02/D03/D05/D11/D12 without a new explicit architecture decision.
+For implementation-stage decisions, keep the **selected design** and source-backed rationale in [Batch 0 audit](foundation-4-module-batch0-audit.md); re-open only on concrete conflicting native-library evidence, tests or performance. D02/D03/D05/D11/D12 were approved by the user; D01/D04/D06–D10 are **engineering design selections pending implementation and QA**, not additional user approvals.
 
 
 ## 6. Implementation batches and acceptance tracker
@@ -188,7 +188,7 @@ For remaining open decisions, log **chosen option, rejected alternatives, ration
 
 | Batch | Workstream | Status | Acceptance |
 | --- | --- | --- | --- |
-| **0** | Audit, baseline evidence and remaining design decisions | **OPEN (0/5)** | Audit report + concrete design decisions + baseline tests/metrics |
+| **0** | Audit, baseline evidence and remaining design decisions | **IN PROGRESS (3/5)** | Audit report + concrete design decisions + baseline tests/metrics |
 | **1** | Exactly three public modules and nine feature definitions | **OPEN (0/5)** | Stable definitions, validated category/ownership contracts |
 | **2** | Dependency/state resolution and pure planning | **OPEN (0/6)** | Deterministic topology, blockers, versioned no-side-effect plans |
 | **3** | Install/enable/disable/remove/repair execution | **OPEN (0/7)** | Safe explicit mutations, atomic boundaries, idempotent recovery |
@@ -196,15 +196,15 @@ For remaining open decisions, log **chosen option, rejected alternatives, ration
 | **5** | All nine specialist features, schemas and native ownership | **OPEN (0/7)** | Auth, cache, database, messaging and other owners proven |
 | **6** | CLI/API UX, docs, templates and upgrade notes | **OPEN (0/6)** | Machine/human UX verified with doc/test parity |
 | **7** | Full regression, performance and release re-certification | **OPEN (0/7)** | Complete QA, no-dev matrix, measured performance, final evidence |
-| **Total** | **49 scoped acceptance items** | **0/49 (0%)** | **0/8 batches accepted** |
+| **Total** | **49 scoped acceptance items** | **3/49 (6.1%)** | **0/8 batches accepted** |
 
 ### Batch 0 — Audit and approved architecture
 
-- [ ] Trace module operations from CLI through catalog, state, activation, Composer runner, config publication, schema manager and native graph.
+- [x] Trace module operations from CLI through catalog, state, activation, Composer runner, config publication, schema manager and native graph. **Evidence:** [Batch 0 source audit](foundation-4-module-batch0-audit.md) §A.
 - [ ] Record current commands, JSON schema contracts, error/exit codes and real root-package ownership cases with golden fixtures.
-- [ ] Inventory all 11 **current** catalog entries and their exact mapping into prebuilt Core, three approved modules, nine features, PHPForge QA and external-dependency roles.
+- [x] Inventory all 11 **current** catalog entries and their exact mapping into prebuilt Core, three approved modules, nine features, PHPForge QA and external-dependency roles. **Evidence:** [Batch 0 audit](foundation-4-module-batch0-audit.md) §A.
 - [ ] Establish representative baseline: module:list/show/plan/doctor cold/warm, install/remove dry-run, selected/disabled compiled runtime, worker lifecycle and memory; record machine/toolchain/environment.
-- [ ] Resolve the remaining **OPEN** decisions D01/D04/D06–D10 (and D09 CLI JSON specifics), confirm the already **APPROVED** Core + 3 modules/9 features boundary, file ownership and batch order before source changes.
+- [x] Resolve detailed engineering decisions D01/D04/D06–D10 (including D09 CLI JSON), confirm the **APPROVED** Core + 3 modules/9 features boundary, source ownership and batch order. **Evidence:** [Batch 0 audit](foundation-4-module-batch0-audit.md) §B. These are selected for implementation validation; no runtime code has changed.
 
 **QA gate:** no behavior changes; exact-branch baseline QA recorded, design choices explicit, no invented performance or existing defect claims.
 
@@ -297,7 +297,7 @@ For remaining open decisions, log **chosen option, rejected alternatives, ration
 - **Evidence:** every checked item names its test, run, exact source SHA and resolution. No 100% or release-ready label without verified CI and representative host gates.
 - **Source boundary:** Foundation only. No Infbyte or other library changes until separately requested. Current PR #20 stays draft. No merge, release, tag or publish.
 
-## 8. Decision log (update before coding)
+## 8. Decision log (architecture selected; keep synchronized)
 
 | Decision | Selected resolution | Rationale/evidence | Status |
 | --- | --- | --- | --- |
@@ -306,7 +306,7 @@ For remaining open decisions, log **chosen option, rejected alternatives, ration
 | D05 | Exactly 9 independently selectable features: 2 data + 4 security + 3 execution | Explicit user approval; one module does not install all grouped libraries | **APPROVED — 2026-10-14** |
 | D11 | PHPForge remains its own preconfigured development/QA layer | Explicit user approval; no production PHPForge module/runtime activation | **APPROVED — 2026-10-14** |
 | D12 | Runwire under `execution.runtime`, native host-owned and separate from Omnibus | Approved grouping and established native runtime-ownership requirement | **APPROVED — 2026-10-14** |
-| D01, D04, D06–D10 | Detailed curated catalog registration, capability precedence, lifecycle, schemas, CLI JSON and performance | To be resolved from Batch 0 source audit; do not infer implementation details from the high-level approval | **OPEN** |
+| D01, D04, D06–D10 | Curated first-party catalog; production explicit capability allow-list; pure planner; feature-owned config; Core/native schema ownership; versioned feature-level CLI; measured hot-path guardrails | [Source-backed decisions, options and rationale](foundation-4-module-batch0-audit.md) §B. Engineering selections, **not** user approval of every implementation detail. Reopen on test/native evidence. | **DESIGN SELECTED — 2026-10-14** |
 
 ## 9. Change log / progress journal
 
@@ -314,5 +314,7 @@ For remaining open decisions, log **chosen option, rejected alternatives, ration
 | --- | --- | --- | --- |
 | 2026-10-14 | Drafted dedicated Foundation 4 module architecture and lifecycle plan. No module implementation, no QA acceptance claimed. | Plan-only commit `b36749c0`; implementation source baseline retained | **0/49 tasks, 0/8 batches** |
 | 2026-10-14 | **Approved target: prebuilt Core + separate PHPForge QA + exactly 3 optional public modules / 9 independent features**. Rewrote ownership mapping, decisions, batch acceptance and lifecycle examples accordingly. | **Plan-only update; no source changes or acceptance QA claimed.** Previous 11-entry catalog remains current runtime baseline. | **0/49 implementation tasks, 0/8 batches; 5 architecture decisions approved** |
+| 2026-10-14 | Traced old module CLI/catalog/resolver/activation/config/schema/native graph; inventoried 11→3/9 mapping and selected D01/D04/D06–D10. Added isolated CLI cold/warm benchmarking runner and release-evidence capture. | [Source audit](foundation-4-module-batch0-audit.md); `benchmarks/foundation4-module-cli-baseline.php`; `.github/workflows/security-standards.yml`. **Baseline CI/fixtures remain pending.** | **Batch 0 3/5; 3/49 tasks, 0/8 batches** |
 
-**Next action:** complete **Batch 0** against the **already-approved 3-module/9-feature target**; inspect current execution flow, settle only remaining open decision records and benchmark the current 11-entry catalog. Then implement each batch with QA and tracker synchronization. Do not change Foundation module APIs before completing the source audit.
+
+**Next action:** finish Batch 0 items #2 and #4 after the isolated CLI runner and full exact-head QA produce archived baseline measurements. Confirm pre-rework golden machine contracts and compile/worker host evidence; only then mark Batch 0 5/5 and proceed into Batch 1 source changes.
