@@ -126,8 +126,9 @@ final class Foundation4HostComparison
                 $values = [];
                 foreach ($runs as $run) {
                     if (!is_array($run)
-                        || ($run['requests'] ?? null) !== $report['request_count']
-                        || ($run['successful'] ?? null) !== $report['request_count']
+                        || !is_int($run['requests'] ?? null)
+                        || $run['requests'] < $report['request_count']
+                        || ($run['successful'] ?? null) !== $run['requests']
                         || ($run['failed'] ?? null) !== 0
                         || !self::positiveNumber($run['rpm'] ?? null)
                         || !self::positiveNumber($run['duration_seconds'] ?? null)
