@@ -24,10 +24,12 @@ final readonly class ConfiguredCapabilities
 
     public function enabled(string $capability): bool
     {
-        if (!ModuleFeatureCapabilityPolicy::permits($capability, $this->featureSelections)) {
-            return false;
-        }
+        return ModuleFeatureCapabilityPolicy::permits($capability, $this->featureSelections)
+            && $this->legacyEnabled($capability);
+    }
 
+    private function legacyEnabled(string $capability): bool
+    {
         if ($this->config->has('modules.capabilities.' . $capability)) {
             return ValueNormalizer::bool(
                 $this->config->get('modules.capabilities.' . $capability),
