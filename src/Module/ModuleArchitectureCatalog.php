@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Module;
 
+use Infocyph\Foundation\Module\Internal\ModuleArchitectureValidator;
+
 /**
  * Fixed Foundation 4 optional feature taxonomy. Required Core libraries and
  * development-only PHPForge are intentionally not application modules.
@@ -12,7 +14,7 @@ namespace Infocyph\Foundation\Module;
  * Existing module commands still use ModuleCatalog::all() until the state
  * resolver, planner and mutation commands migrate together.
  *
- * @phpstan-type FeatureDependency array{target:string,when?:array{key:string,equals:bool|int|string}}
+ * @phpstan-type FeatureDependency array{target:string,when?:array{key:string,operator:'equals'|'not-empty',value?:bool|int|string}}
  * @phpstan-type ArchitectureFeature array{
  *     description:string,
  *     owner:string,
@@ -86,7 +88,7 @@ final class ModuleArchitectureCatalog
                     'dependencies' => [
                         [
                             'target' => 'data.database',
-                            'when' => ['key' => 'validation.database_connection', 'equals' => true],
+                            'when' => ['key' => 'validation.database_connection', 'operator' => 'not-empty'],
                         ],
                     ],
                     'selection_key' => null,
@@ -139,7 +141,7 @@ final class ModuleArchitectureCatalog
                     'dependencies' => [
                         [
                             'target' => 'data.database',
-                            'when' => ['key' => 'messaging.durable.enabled', 'equals' => true],
+                            'when' => ['key' => 'messaging.durable.enabled', 'operator' => 'equals', 'value' => true],
                         ],
                     ],
                     'selection_key' => null,
@@ -204,115 +206,13 @@ final class ModuleArchitectureCatalog
     }
 
     /**
-     * Validate the fixed architecture and every selected feature's metadata.
-     * The optional argument permits isolated invalid-graph regression fixtures.
+     * Validate fixed module IDs, package ownership, dependency constraints,
+     * schemas and platform metadata without altering application state.
      *
      * @phpstan-param array<string,ArchitectureModule>|null $modules
      */
     public function validate(?array $modules = null): void
     {
-        $modules ??= self::MODULES;
-        if (array_keys($modules) !== array_keys(self::FEATURE_IDS)) {
-            throw new \LogicException('Foundation optional catalog must contain only data, security and execution.');
-        }
-
-        $edges = [];
-        $packageOwners = [];
-        $schemaOwners = [];
-
-        foreach (self::FEATURE_IDS as $module => $requiredFeatures) {
-            $features = $modules[$module]['features'];
-            if (array_keys($features) !== $requiredFeatures || trim($modules[$module]['description']) === '') {
-                throw new \LogicException(sprintf('Invalid or reordered features on module "%s".', $module));
-            }
-
-            foreach ($features as $name => $definition) {
-                $id = $module . '.' . $name;
-                if (trim($definition['description']) === '' || !isset($definition['packages'][$definition['owner']])) {
-                    throw new \LogicException(sprintf('Optional feature "%s" has no declared native owner.', $id));
-                }
-
-                foreach ($definition['packages'] as $package => $constraint) {
-                    if ($package === '' || $constraint === '' || $package === 'infocyph/phpforge'
-                        || in_array($package, ['infocyph/arraykit', 'infocyph/cachelayer', 'infocyph/intermix', 'infocyph/uid', 'infocyph/webrick', 'psr/log', 'opis/closure'], true)
-                    ) {
-                        throw new \LogicException(sprintf('Invalid optional package owner "%s" on "%s".', $package, $id));
-                    }
-
-                    $existing = $packageOwners[$package] ?? [];
-                    if ($existing !== [] && $package !== 'infocyph/otp') {
-                        throw new \LogicException(sprintf('Package "%s" has multiple unrelated feature owners.', $package));
-                    }
-                    if ($package === 'infocyph/otp' && !in_array($id, ['security.mfa', 'security.passkey'], true)) {
-                        throw new \LogicException('OTP shared ownership is limited to MFA and passkey.');
-                    }
-                    if ($existing !== [] && $existing[0]['constraint'] !== $constraint) {
-                        throw new \LogicException(sprintf('Conflicting shared constraints for "%s".', $package));
-                    }
-                    $packageOwners[$package][] = ['id' => $id, 'constraint' => $constraint];
-                }
-
-                if (($definition['selection_key'] !== null) && !in_array($id, ['security.mfa', 'security.passkey'], true)) {
-                    throw new \LogicException(sprintf('Unexpected selected authentication driver on "%s".', $id));
-                }
-                foreach (['extensions', 'optional_extensions'] as $kind) {
-                    foreach ($definition['platform'][$kind] as $extension) {
-                        if (preg_match('/^[a-z][a-z0-9_]*$/D', $extension) !== 1) {
-                            throw new \LogicException(sprintf('Invalid platform extension on "%s".', $id));
-                        }
-                    }
-                }
-
-                foreach ($definition['config'] as $config) {
-                    if (preg_match('/^[a-z][a-z0-9_]*\.php$/D', $config) !== 1) {
-                        throw new \LogicException(sprintf('Invalid config ownership path on "%s".', $id));
-                    }
-                }
-                foreach ($definition['schemas'] as $schema) {
-                    if (preg_match('/^[a-z][a-z0-9_]*$/D', $schema) !== 1 || isset($schemaOwners[$schema])) {
-                        throw new \LogicException(sprintf('Invalid or duplicate schema owner on "%s".', $id));
-                    }
-                    $schemaOwners[$schema] = $id;
-                }
-
-                $edges[$id] = [];
-                foreach ($definition['dependencies'] as $dependency) {
-                    $target = $dependency['target'];
-                    [$targetModule, $targetFeature] = array_pad(explode('.', $target, 3), 3, null);
-                    if (!is_string($targetModule) || !is_string($targetFeature)
-                        || !isset($modules[$targetModule]['features'][$targetFeature])
-                        || $target === $id || substr_count($target, '.') !== 1
-                    ) {
-                        throw new \LogicException(sprintf('Unknown or self-referential feature dependency "%s" on "%s".', $target, $id));
-                    }
-                    if (isset($dependency['when'])
-                        && (($dependency['when']['key'] ?? '') === '' || !array_key_exists('equals', $dependency['when']))
-                    ) {
-                        throw new \LogicException(sprintf('Invalid conditional dependency on "%s".', $id));
-                    }
-                    $edges[$id][] = $target;
-                }
-            }
-        }
-
-        $visiting = [];
-        $visited = [];
-        $visit = static function (string $node) use (&$visit, &$visiting, &$visited, $edges): void {
-            if (isset($visited[$node])) {
-                return;
-            }
-            if (isset($visiting[$node])) {
-                throw new \LogicException(sprintf('Cyclic optional feature dependencies at "%s".', $node));
-            }
-            $visiting[$node] = true;
-            foreach ($edges[$node] ?? [] as $next) {
-                $visit($next);
-            }
-            unset($visiting[$node]);
-            $visited[$node] = true;
-        };
-        foreach (array_keys($edges) as $node) {
-            $visit($node);
-        }
+        new ModuleArchitectureValidator()->validate($modules ?? self::MODULES, self::FEATURE_IDS);
     }
 }
