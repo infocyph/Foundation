@@ -1,6 +1,6 @@
 # Foundation 4 — Module Architecture & Lifecycle Rework Plan
 
-> **Status:** Batch 0 **5/5 ACCEPTED** on `a4afa89c` (exact-source full QA, CLI baseline and native host). **Batch 1 started**; no module runtime cutover yet.
+> **Status:** Batch 0 **5/5 ACCEPTED** on `a4afa89c`; Batch 1 **5/5 ACCEPTED** on `4f307fba` (full QA and native host). **Batch 2 is next**; existing 11-entry CLI has not yet been cut over.
 > **Approved target:** prebuilt Foundation Core + preconfigured development QA + **3 optional modules / 9 independently selectable features**.
 >
 > **Working branch:** `feature/foundation-3` · **PR:** [#20](https://github.com/infocyph/Foundation/pull/20) (keep draft)  
@@ -189,14 +189,14 @@ For implementation-stage decisions, keep the **selected design** and source-back
 | Batch | Workstream | Status | Acceptance |
 | --- | --- | --- | --- |
 | **0** | Audit, baseline evidence and remaining design decisions | **COMPLETE (5/5)** | Audit report + concrete design decisions + baseline tests/metrics |
-| **1** | Exactly three public modules and nine feature definitions | **OPEN (0/5)** | Stable definitions, validated category/ownership contracts |
+| **1** | Exactly three public modules and nine feature definitions | **COMPLETE (5/5)** | Stable definitions, validated category/ownership contracts |
 | **2** | Dependency/state resolution and pure planning | **OPEN (0/6)** | Deterministic topology, blockers, versioned no-side-effect plans |
 | **3** | Install/enable/disable/remove/repair execution | **OPEN (0/7)** | Safe explicit mutations, atomic boundaries, idempotent recovery |
 | **4** | Three-module selected feature graph and prebuilt Core | **OPEN (0/6)** | One immutable selected native graph, no runtime discovery |
 | **5** | All nine specialist features, schemas and native ownership | **OPEN (0/7)** | Auth, cache, database, messaging and other owners proven |
 | **6** | CLI/API UX, docs, templates and upgrade notes | **OPEN (0/6)** | Machine/human UX verified with doc/test parity |
 | **7** | Full regression, performance and release re-certification | **OPEN (0/7)** | Complete QA, no-dev matrix, measured performance, final evidence |
-| **Total** | **49 scoped acceptance items** | **5/49 (10.2%)** | **1/8 batches accepted** |
+| **Total** | **49 scoped acceptance items** | **10/49 (20.4%)** | **2/8 batches accepted** |
 
 ### Batch 0 — Audit and approved architecture
 
@@ -210,13 +210,13 @@ For implementation-stage decisions, keep the **selected design** and source-back
 
 ### Batch 1 — Canonical module and domain model
 
-- [ ] Define **exactly 3 public module IDs** and **9 independently selectable feature IDs**, stable aliases, dependency/platform invariants and precise package ownership; Core is not a module kind.
-- [ ] Implement the approved `data`/`security`/`execution` taxonomy and nine feature definitions; remove the 11-entry optional/public pseudo-module shape without deleting built-in Core functionality.
-- [ ] Keep required Core and development-only PHPForge outside module installation; distinguish PSR Log, WebAuthn, Sodium and Opis/Closure from optional native package ownership.
-- [ ] Validate catalog collisions, package feature co-ownership, dependency cycles, config/schema identifiers and supported library floors.
-- [ ] Refactor oversized metadata only when tests and profiling show improved clarity/maintainability without hot-path regressions.
+- [x] Define **exactly 3 public module IDs** and **9 independently selectable feature IDs**, stable fully qualified feature IDs, dependency/platform invariants and precise package ownership; Core is not a module kind. **Evidence:** `ModuleArchitectureCatalog`, `ModuleArchitectureCatalogTest`; [QA #38577822789](https://github.com/infocyph/Foundation/actions/runs/38577822789).
+- [x] Implement approved `data`/`security`/`execution` taxonomy and nine feature definitions as **canonical target metadata** (`ModuleCatalog::architecture()`), without deleting built-in Core functionality. **Staged acceptance:** existing 11-entry legacy CLI/state remains live until the coordinated **Batch 6 public catalog cutover**; this is **not** a claim that `module:list` already shows three modules. See explicit Batch 6 cutover gate below.
+- [x] Keep required Core and development-only PHPForge outside optional module definitions; distinguish PSR Log, WebAuthn, Sodium and Opis/Closure from optional native feature package ownership. **Evidence:** metadata and Composer floor/ownership tests, [QA #38577822789](https://github.com/infocyph/Foundation/actions/runs/38577822789).
+- [x] Validate catalog collisions, package feature co-ownership, dependency cycles, config/schema identifiers and supported library floors. **Evidence:** `ModuleArchitectureValidator` + negative fixture tests (including Core schema, duplicate config and OTP shared constraint), [QA #38577822789](https://github.com/infocyph/Foundation/actions/runs/38577822789).
+- [x] Keep curated metadata static and move structural validation into focused `ModuleArchitectureValidator` methods instead of expanding the legacy catalog or hot request graph. **Evidence:** 2/2 PHPStan, 4/4 PHPForge QA, benchmark jobs and existing native FPM/Runwire host workflow **SUCCESS** at `4f307fba`, [QA #38577822789](https://github.com/infocyph/Foundation/actions/runs/38577822789) / [host #38577821971](https://github.com/infocyph/Foundation/actions/runs/38577821971). No claim of 2% production-RPM certification.
 
-**QA gate:** full **11-current → 3-module/9-feature** ownership map; exactly 3 public modules and 9 features in deterministic golden output; Core/QA not installable; catalog/validator tests; no dynamic scans.
+**Batch 1 QA ACCEPTED:** fixed **11-current → 3-module/9-feature** ownership mapping, 3 target modules / 9 feature IDs in deterministic golden **target catalog** tests, Core/QA exclusion and no dynamic scans. Existing CLI output remains 11 until **Batch 6**. [Exact source `4f307fba`](https://github.com/infocyph/Foundation/commit/4f307fba765be4c08f440a2a31ab082650cf35d7): [Security & Standards #38577822789](https://github.com/infocyph/Foundation/actions/runs/38577822789) **SUCCESS**; [FPM/Runwire host #38577821971](https://github.com/infocyph/Foundation/actions/runs/38577821971) **SUCCESS**.
 
 ### Batch 2 — Pure state/dependency resolver and planner
 
@@ -266,7 +266,7 @@ For implementation-stage decisions, keep the **selected design** and source-back
 
 ### Batch 6 — Command UX, documentation and catalog publishing
 
-- [ ] Reconcile CLI list/show/doctor/plan/install/remove/enable/disable/repair/config/schema behavior with exactly `data`, `security`, `execution` and their feature-level operations.
+- [ ] **Cut over** current 11-entry live CLI catalog to exactly three public modules/nine feature IDs after Batches 2–5 resolve planning, package/state and mutation owners; reconcile list/show/doctor/plan/install/remove/enable/disable/repair/config/schema behavior. Built-in Core introspection remains non-installable. **This is the deferred public-cutover gate from Batch 1; do not count B6 completed while 11 are still public.**
 - [ ] Keep deterministic human tables and machine JSON contracts, including versioned changes.
 - [ ] Display the approved three modules, nine feature IDs and separate Core/QA boundary; never make choosing a top-level module install all its features.
 - [ ] Synchronize `docs/modules.md`, architecture/configuration guides, Composer suggestions and generated CLI examples for Core + **3 modules / 9 features** and their external dependencies.
@@ -318,4 +318,6 @@ For implementation-stage decisions, keep the **selected design** and source-back
 | 2026-10-14 | **Batch 0 complete: 5/5**. Existing 11-entry contract, CLI golden fixture, cold/warm observations, 16 MiB PHP allocation, native selected/disabled host paths and design decisions verified on exact source `a4afa89c`. | [QA #38570463538](https://github.com/infocyph/Foundation/actions/runs/38570463538) **SUCCESS**; [native host #38570462819](https://github.com/infocyph/Foundation/actions/runs/38570462819) **SUCCESS**; [audit evidence](foundation-4-module-batch0-audit.md) §C. | **5/49; Batch 0 5/5 accepted** |
 
 
-**Next action:** Batch 1: implement the fixed three-module/nine-feature metadata contract and exhaustive structural tests without breaking the still-live old CLI/state during the staged cutover. Track the public 11-entry switch separately until its users are rewritten in Batches 2–6; no speculative compatibility bridge to older released Foundation majors.
+| 2026-10-14 | **Batch 1 complete: 5/5**. Canonical immutable 3-module/9-feature taxonomy, validated package floors/shared OTP, conditional dependencies, Core/QA exclusion and schema/config collision guards, fully qualified features. **11-entry public CLI cutover explicitly deferred to B6**; new metadata is read-only, avoiding broken mid-migration install/repair. | [QA #38577822789](https://github.com/infocyph/Foundation/actions/runs/38577822789) **SUCCESS 15 jobs / 1 intentionally skipped**, [native host #38577821971](https://github.com/infocyph/Foundation/actions/runs/38577821971) **SUCCESS** at exact source `4f307fba`; `ModuleArchitectureCatalogTest`. | **10/49; Batch 0 5/5, Batch 1 5/5** |
+
+**Next action:** implement **Batch 2** pure feature-level intent/state normalization and deterministic side-effect-free planning, with focused tests and full exact-source QA. Existing 11-entry CLI remains live until Batch 6 public cutover; no 2.x/3.x compatibility layer.
