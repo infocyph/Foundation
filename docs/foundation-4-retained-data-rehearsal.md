@@ -1,22 +1,17 @@
-# Foundation 2.1.1 → 4.0 data and restore rehearsal
+# Foundation 4 state integrity and recovery
 
-**Not a completed production migration.** Automated `Foundation4RetainedDataRestoreTest` adds a *synthetic published 2.1.1 table-shape* auth SQLite snapshot (including the missing legacy passkey credential-record column), native additive revisions, and byte-hash verified restore/reopen. It is **not** a backup of real production 2.1.1 records and does not test external queue/object storage restore. Preserve a consistent *real* 2.1.1 backup and verify a restore in an isolated staging environment. Successful code rollback does **not** restore persistent data.
+This is a **Foundation 4.0-native** release acceptance guide, not a migration guide for an earlier major. Previous deployment backups, old schema readers, and downgrade compatibility are not release blockers.
 
-1. Record source SHA, Composer lock, DB vendor/schema revisions, host topology and every active application capability. Block ingress, scheduled jobs, queue consumers and outbound integrations before taking a consistent backup of database, encryption keys (protected separately), durable queue/outbox, cache replay state and file/object storage. Hash and encrypt the snapshot; never commit it.
-2. Restore that snapshot into an isolated network and confirm old 2.1.1 readers can still read original rows and objects. Capture counts/IDs/hashes before any migration.
-3. Install the Foundation 4 candidate with exact published specialist majors, rebuild InterMix 11.2 ABI-3 graph and Webrick 6 format-3 web/CLI/worker/scheduler artifacts. Apply **additive** auth/OAuth/MFA/passkey/messaging schema migrations; compare dry-run, applied IDs and post-run readiness. Mixed-version writes require expand/contract ordering.
-4. Reopen each retained family below with the actual selected native owner and fresh processes. Do **not** silently rehash password records, reinterpret OAuth families, weaken OTP replay state or deserialize arbitrary queue payloads. If a format is incompatible, document an explicit transform or targeted revocation with operator approval.
-5. Verify rollback independently: stop new writers, restore both data and keys/queues/files from snapshot, compare row digests and queue counts, and confirm old readers still work. Record RPO/RTO and which new-format writes cannot be downgraded.
+## Verify current selected capabilities
 
-| Retained data | Required outcome | Related automated evidence (not full real-backup proof) |
-| --- | --- | --- |
-| Password hashes / account statuses | Exact digest retention, sample verification, disabled/suspended denial | `AuthDomainIntegrationTest` |
-| Auth/browser sessions, remember tokens | Expiration/rotation/revocation and cross-account separation | `OAuth21SchemaUpgradeTest`, `BrowserSessionIntegrationTest` |
-| OAuth refresh families, PATs, codes and consents | Native Epicrypt reuse/revocation, double-consume rejection and key verification | `OAuth21RefreshConcurrencyTest`, `OAuth21DurableRevocationProcessTest` |
-| MFA secrets and recovery codes | Correct AAD/key read, single-use recovery, revision CAS | `Epicrypt3MfaSecretProtectionTest` |
-| Passkey credential counters and challenge state | Preserve credential ID, RP/origin, counters and verifier state | `OtpPasskeyIntegrationTest`, `OAuth21SchemaUpgradeTest` |
-| Omnibus queue envelopes, retries and dead letters | Native-version codec compatibility and no double-delivery | `Omnibus26ReleaseClosureTest`, `SchedulerRuntimeClosureTest` |
-| CacheLayer outbox/webhook replay keys | Rollback zero event, committed event once, replay dedupe across nodes | `CacheLayer4PdoOutboxIntegrationTest`, `CacheLayer33AtomicIntegrationTest` |
-| Pathwise/object storage | Retain byte hashes and paths; verify ACL/traversal safeguards | `FilesystemPathwise41TrustBoundaryTest` |
+1. Produce a fresh Foundation 4 dataset using the selected published native owners. Record source SHA, dependency lock, schema migration IDs and service topology.
+2. Exercise password/account/session state, refresh token families, MFA/recovery, passkey credential records, and token revocation/replay denial. Check isolated request and worker lifecycles with real selected service adapters.
+3. Exercise Omnibus durable queue retries/dead letters, CacheLayer transaction outbox, cache replay counters and Pathwise files where selected. Validate idempotency, transaction rollback, cancellation and recovery.
+4. Snapshot the **4.0-created** database and selected durable state with writes stopped. Restore in an isolated process, preserving keys and external storage when applicable. Verify record digests, permissions, state isolation and no duplicate event replay.
+5. Capture CI source SHA, service matrix, backup/restore checksums, per-domain counts and any gaps. Do not promote unit or synthetic SQLite evidence to claims about unexercised production service backends.
 
-**Evidence log:** source/target SHA, lock hashes, signed backup manifest and restore hash, actual migration IDs, per-family before/after counts, token incompatibilities/revocations, replay outcomes, DB version, restore run time, encrypted key IDs (not secrets), and CI. Mark absent services **not applicable with reason**. `OAuth21SchemaUpgradeTest` starts from a 2.0-shaped schema, while `OAuth21SchemaRollbackTest` runs transactional SQLite rollbacks. Neither is a complete production 2.1.1 snapshot restoration. A data restore is an independent Batch 5 acceptance prerequisite.
+## Acceptance boundary
+
+The existing `Foundation4RetainedDataRestoreTest` verifies an isolated SQLite backup/restore path but was originally designed around a simulated earlier schema. It is supporting evidence only until refocused on current 4.0 state. The Batch 4 integration suites already exercise native auth, OAuth, OTP/passkey, DBLayer/CacheLayer outbox and durable Omnibus behavior. Batch 5 still requires a cohesive current-state recovery acceptance; its checklist must remain open until that evidence is verified.
+
+Real customer recovery procedures remain an operator responsibility. Foundation 4 release certification does **not** depend on transforming records from older Foundation major versions.
