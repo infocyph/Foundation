@@ -2,81 +2,10 @@
 
 declare(strict_types=1);
 
+use Infocyph\Foundation\Benchmarks\Support\FoundationModuleBaselineIO;
 use Infocyph\Foundation\Command\CommandDispatcher;
-use Infocyph\Foundation\Command\CommandIO;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
-
-/**
- * Read-only, no-output collector for the existing Foundation module CLI.
- * Kept outside production src; this benchmarks the pre-rework contract.
- */
-final class FoundationModuleBaselineIO implements CommandIO
-{
-    /** @var list<string> */
-    public array $errors = [];
-
-    public mixed $payload = null;
-
-    public function choice(string $question, array $choices, ?string $default = null): string
-    {
-        throw new LogicException('Module baseline does not accept interactive choices.');
-    }
-
-    public function confirm(string $question, bool $default = false): bool
-    {
-        return false;
-    }
-
-    public function error(string $message): void
-    {
-        $this->errors[] = $message;
-    }
-
-    public function info(string $message): void {}
-
-    public function interactive(): bool
-    {
-        return false;
-    }
-
-    public function json(mixed $value): void
-    {
-        $this->payload = $value;
-    }
-
-    public function machineReadable(): bool
-    {
-        return true;
-    }
-
-    public function note(string $message): void {}
-
-    public function password(string $question): string
-    {
-        throw new LogicException('Module baseline does not request secrets.');
-    }
-
-    public function quiet(): bool
-    {
-        return true;
-    }
-
-    public function read(string $question, ?string $default = null): string
-    {
-        throw new LogicException('Module baseline does not accept interactive text.');
-    }
-
-    public function success(string $message): void {}
-
-    public function table(array $headers, array $rows): void {}
-
-    public function warning(string $message): void {}
-
-    public function write(string $message): void {}
-
-    public function writeln(string $message = ''): void {}
-}
 
 /** @param list<float> $samples */
 function foundationModuleBaselinePercentile(array $samples, float $quantile): float
