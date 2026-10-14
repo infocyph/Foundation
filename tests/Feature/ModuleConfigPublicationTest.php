@@ -225,3 +225,41 @@ function moduleConfigRemoveDirectory(string $directory): void
     }
     rmdir($directory);
 }
+
+it('serializes activation updates without dropping unrelated capability overrides', function (): void {
+    $basePath = sys_get_temp_dir() . '/foundation-module-activation-lock-' . bin2hex(random_bytes(5));
+
+    try {
+        $application = Foundation::cli(['base_path' => $basePath, '_config_cache' => false]);
+        $manager = new \Infocyph\Foundation\Module\ModuleActivationManager($application, new ModuleCatalog());
+        $manager->disable('filesystem');
+        $manager->disable('validation');
+
+        $path = $basePath . '/config/modules.php';
+        $capabilities = (require $path)['capabilities'];
+        expect($capabilities['filesystem'])->toBeFalse()
+            ->and($capabilities['validation'])->toBeFalse()
+            ->and($basePath . '/config/modules.php.lock')->toBeFile();
+    } finally {
+        moduleConfigRemoveDirectory($basePath);
+    }
+});
+
+it('rejects an application-provided symbolic-linked activation lock', function (): void {
+    $basePath = sys_get_temp_dir() . '/foundation-module-lock-symlink-' . bin2hex(random_bytes(5));
+    mkdir($basePath . '/config', 0775, true);
+    $outside = $basePath . '/outside.txt';
+    file_put_contents($outside, 'unchanged');
+    symlink($outside, $basePath . '/config/modules.php.lock');
+
+    try {
+        $application = Foundation::cli(['base_path' => $basePath, '_config_cache' => false]);
+        $manager = new \Infocyph\Foundation\Module\ModuleActivationManager($application, new ModuleCatalog());
+        expect(fn() => $manager->disable('filesystem'))
+            ->toThrow(RuntimeException::class, 'Refusing symbolic-linked module activation lock.')
+            ->and(file_get_contents($outside))->toBe('unchanged')
+            ->and($basePath . '/config/modules.php')->not->toBeFile();
+    } finally {
+        moduleConfigRemoveDirectory($basePath);
+    }
+});

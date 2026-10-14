@@ -121,6 +121,30 @@ final readonly class ModuleActivationManager
             throw new \RuntimeException(sprintf('Unable to create config directory "%s".', $directory));
         }
 
+        $lockPath = $path . '.lock';
+        if (is_link($lockPath)) {
+            throw new \RuntimeException('Refusing symbolic-linked module activation lock.');
+        }
+        $lock = fopen($lockPath, 'c');
+        if ($lock === false) {
+            throw new \RuntimeException('Unable to open module activation lock.');
+        }
+
+        try {
+            if (is_link($lockPath) || !flock($lock, LOCK_EX)) {
+                throw new \RuntimeException('Unable to acquire safe module activation lock.');
+            }
+
+            return $this->writeUnderLock($path, $module, $enabled);
+        } finally {
+            flock($lock, LOCK_UN);
+            fclose($lock);
+        }
+    }
+
+    private function writeUnderLock(string $path, string $module, bool $enabled): string
+    {
+        $directory = dirname($path);
         $config = $this->load($path);
         $capabilities = $config['capabilities'] ?? [];
         if (!is_array($capabilities)) {
