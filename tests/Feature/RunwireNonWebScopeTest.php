@@ -163,13 +163,16 @@ it('keeps exact host Runwire identities in source-free compiled worker CLI and s
             $nativeRequest = RequestContext::create($nativeRuntime);
 
             try {
-                $result = $generated->application->execution()->run(
-                    static function (ExecutionId $id) use ($generated): array {
+                // Resolve the execution entry on the owner carrier before
+                // attaching the borrowed scope in a child Fiber. A compiled
+                // production fallback may initialize its own scope on first use.
+                $execution = $generated->application->execution();
+                $result = $execution->run(
+                    static function (ExecutionId $id) use ($generated, $execution): array {
                         $runtime = $generated->application->make(RuntimeContext::class);
                         $request = $generated->application->make(RequestContext::class);
                         $context = $generated->container->captureScopeContext();
-                        $child = new Fiber(static fn(): array => $generated->application->execution()
-                            ->withinBorrowedScope(
+                        $child = new Fiber(static fn(): array => $execution->withinBorrowedScope(
                                 $context,
                                 static fn(ExecutionId $borrowed): array => [
                                     $borrowed,
