@@ -15,8 +15,11 @@ use InvalidArgumentException;
 final class Foundation4HostComparison
 {
     private const float MAX_VARIATION_PERCENT = 2.5;
+
     private const int MIN_REPETITIONS = 5;
+
     private const float MIN_SUSTAINED_SECONDS = 30.0;
+
     private const float REGRESSION_BUDGET_PERCENT = 2.0;
 
     /**
