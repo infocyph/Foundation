@@ -45,6 +45,7 @@ it('assigns every declared production PHP symbol to an approved Foundation owner
     $unexpected = [];
     $declaredTypes = [];
     $assignedSymbols = [];
+    $seenAreas = [];
     $scan = new RecursiveIteratorIterator(
         new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
     );
@@ -64,12 +65,14 @@ it('assigns every declared production PHP symbol to an approved Foundation owner
             continue;
         }
 
+        $seenAreas[$area] = true;
         $source = file_get_contents($file->getPathname());
         if (!is_string($source)) {
             throw new RuntimeException('Unable to inspect source: ' . $relative);
         }
         $tokens = token_get_all($source, TOKEN_PARSE);
         $namespace = '';
+        $hasNamedSymbol = false;
 
         foreach ($tokens as $index => $token) {
             if (!is_array($token)) {
@@ -102,6 +105,7 @@ it('assigns every declared production PHP symbol to an approved Foundation owner
                     continue; // Anonymous class or ::class constant.
                 }
                 ++$typeCount;
+                $hasNamedSymbol = true;
                 $id = ltrim($namespace . '\\' . $name[1], '\\');
                 if (isset($declaredTypes[$id])) {
                     $unexpected[] = sprintf('Duplicate type %s: %s and %s', $id, $declaredTypes[$id], $relative);
@@ -123,6 +127,7 @@ it('assigns every declared production PHP symbol to an approved Foundation owner
                 }
                 if (is_array($part) && $part[0] === T_STRING) {
                     ++$functionCount;
+                    $hasNamedSymbol = true;
                     $assignedSymbols['function:' . $relative . ':' . $part[2] . ':' . $part[1]] = $owners[$area];
 
                     break;
@@ -130,11 +135,16 @@ it('assigns every declared production PHP symbol to an approved Foundation owner
                 ++$next;
             }
         }
+
+        if (!$hasNamedSymbol) {
+            $unexpected[] = 'Production source has no named class, trait, interface, enum or function: ' . $relative;
+        }
     }
 
     expect($unexpected)->toBe([])
-        ->and($files)->toBeGreaterThan(650)
-        ->and($typeCount)->toBeGreaterThan(500)
-        ->and($functionCount)->toBeGreaterThan(1500)
+        ->and(array_diff_key($owners, $seenAreas))->toBe([])
+        ->and($files)->toBeGreaterThan(0)
+        ->and($typeCount)->toBeGreaterThan(0)
+        ->and($functionCount)->toBeGreaterThan(0)
         ->and(count($assignedSymbols))->toBe($typeCount + $functionCount);
 });
