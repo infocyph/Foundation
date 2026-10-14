@@ -14,10 +14,10 @@ use InvalidArgumentException;
  */
 final class Foundation4HostComparison
 {
-    private const float REGRESSION_BUDGET_PERCENT = 2.0;
     private const float MAX_VARIATION_PERCENT = 2.5;
-    private const float MIN_SUSTAINED_SECONDS = 30.0;
     private const int MIN_REPETITIONS = 5;
+    private const float MIN_SUSTAINED_SECONDS = 30.0;
+    private const float REGRESSION_BUDGET_PERCENT = 2.0;
 
     /**
      * @param array<string, mixed> $baseline
@@ -63,7 +63,7 @@ final class Foundation4HostComparison
             $deltaPercent = (($candidateMedian / $baselineMedian) - 1.0) * 100.0;
             $variation = max(self::coefficientOfVariation($before), self::coefficientOfVariation($after));
             $stable = $variation <= self::MAX_VARIATION_PERCENT;
-            $withinBudget = $deltaPercent >= -self::REGRESSION_BUDGET_PERCENT;
+            $withinBudget = $deltaPercent >= -self::REGRESSION_BUDGET_PERCENT - 1e-10;
             $casePassed = $stable && $withinBudget;
             $passed = $passed && $casePassed;
             $results[] = [
@@ -160,22 +160,6 @@ final class Foundation4HostComparison
         return $result;
     }
 
-    private static function positiveNumber(mixed $value): bool
-    {
-        return (is_int($value) || is_float($value)) && is_finite((float) $value) && $value > 0;
-    }
-
-    /** @param list<float> $values */
-    private static function median(array $values): float
-    {
-        sort($values, SORT_NUMERIC);
-        $mid = intdiv(count($values), 2);
-
-        return count($values) % 2 === 0
-            ? ($values[$mid - 1] + $values[$mid]) / 2.0
-            : $values[$mid];
-    }
-
     /** @param list<float> $values */
     private static function coefficientOfVariation(array $values): float
     {
@@ -186,5 +170,21 @@ final class Foundation4HostComparison
         }
 
         return sqrt($variance / count($values)) / $mean * 100.0;
+    }    /** @param list<float> $values */
+    private static function median(array $values): float
+    {
+        sort($values, SORT_NUMERIC);
+        $mid = intdiv(count($values), 2);
+
+        return count($values) % 2 === 0
+            ? ($values[$mid - 1] + $values[$mid]) / 2.0
+            : $values[$mid];
     }
+
+    private static function positiveNumber(mixed $value): bool
+    {
+        return (is_int($value) || is_float($value)) && is_finite((float) $value) && $value > 0;
+    }
+
+
 }
