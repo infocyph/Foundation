@@ -4,7 +4,19 @@ Audit date: 2026-10-11. Target: **Foundation 4.0 as a clean major release**.
 No backward-compatibility, migration-path, or source-signature parity obligation
 exists for Foundation 2.x, unreleased 3.x, or retired specialist majors.
 
-**Live release checkpoint (2026-10-14): B1 6/6, B2 8/8, B3 4/4, B4 7/7, B5 4/4, B6 0/8 = 29/37 (78.4%).** Batch 5's four 4.0-native contracts are accepted on exact-source [`6435bd89`](https://github.com/infocyph/Foundation/commit/6435bd8986ce6eb3139e40173a33c7a69a2e9b34), [Security & Standards #38526599007](https://github.com/infocyph/Foundation/actions/runs/38526599007) **SUCCESS**: QA 4/4, PHPStan 2/2, production consumers 4/4, benchmark jobs 2/2, clean install, PHPForge doctor and release evidence. The old-major API inventory guard is retired, and current 4.0 API/state tests pass. Keep native library ownership, explicit application policy, no duplicate Runwire/Webrick/CacheLayer/DBLayer/OTP/Epicrypt/Omnibus/Pathwise/TalkingBytes. Infbyte integration is a separate future task. All earlier date-stamped legacy-diff checkpoint notes below are history, not live release policy. PR #20 is draft; no merge/tag/publication.
+**Live release checkpoint (2026-10-14): B1 6/6, B2 8/8, B3 4/4, B4 7/7, B5 4/4, B6 2/8 = 31/37 (83.8%).** Batch 5's four 4.0-native contracts are accepted on exact-source [`6435bd89`](https://github.com/infocyph/Foundation/commit/6435bd8986ce6eb3139e40173a33c7a69a2e9b34), [Security & Standards #38526599007](https://github.com/infocyph/Foundation/actions/runs/38526599007) **SUCCESS**: QA 4/4, PHPStan 2/2, production consumers 4/4, benchmark jobs 2/2, clean install, PHPForge doctor and release evidence. The old-major API inventory guard is retired, and current 4.0 API/state tests pass. Keep native library ownership, explicit application policy, no duplicate Runwire/Webrick/CacheLayer/DBLayer/OTP/Epicrypt/Omnibus/Pathwise/TalkingBytes. Infbyte integration is a separate future task. All earlier date-stamped legacy-diff checkpoint notes below are history, not live release policy. PR #20 is draft; no merge/tag/publication.
+
+### 2026-10-14 — Batch 6 release preflight: #1 and #3 accepted, host certification remains open
+
+**Exact-source preflight:** [`b881aa1e`](https://github.com/infocyph/Foundation/commit/b881aa1e329d24eae49a4722dceaeebb311d412c), [Security & Standards #38527611898](https://github.com/infocyph/Foundation/actions/runs/38527611898) **full SUCCESS**: QA 4/4 PHP 8.4/8.5 lowest/stable, PHPStan 2/2, production consumers 4/4, component benchmarks 2/2, clean install and release evidence. Doctor/config reports **healthy**, active PHPForge config was inspected and Composer's release dependency audit passed. The reusable PHPForge QA job runs the full service-provisioned quality suite; the separate release-evidence job runs constraints and audit without pointlessly repeating service-dependent tests in an unprovisioned runner. No suppression/missing-service carve-outs were introduced. `ic:process`-equivalent formatting/refactor checks are green; no additional source transformation was indicated.
+
+**#1 ACCEPTED:** Doctor, config inventory/active config, release constraints/audit, and complete no-skipped-service CI quality matrix verified in the above run.
+
+**#3 ACCEPTED (selected current 4.0 surface):** Earlier Batch 2 #4/#5 native-owner review and symbol inventory, Batch 3 native scoped host-boundary acceptance, and Batch 4 security/persistence/selected specialist checks remain supported by `NativeProductionSymbolOwnerInventoryTest`, `NativeInternalSymbolReachabilityTest`, `NativePrivateMethodUseTest`, `FoundationArchitectureBoundaryTest`, `NativeFactoryOwnershipTest` and real selected-native integration tests in the exact-source full QA. No production source changed in Batch 5/this preflight. No blanket promise for unselected integrations or older versions. Reopen this gate if later production changes affect ownership.
+
+**#2, #4–#8 STILL OPEN:** PHP/dependency/consumer evidence is available but #2 explicitly requires certification on the final immutable SHA and dependency manifest. #4/#5 require dedicated comparable production-equivalent baseline/candidate sustained successful-RPM, CPU/process-tree RSS, p50/p95/p99 and selected workload/concurrency/worker telemetry. #6 requires actual FPM and native Runwire persistent HTTP host/soak, not in-process smoke. #7 depends on those mandatory gates passing on the final SHA. #8 has [draft notes](../foundation-4.0-release-notes-draft.md), not reviewed final publication metadata. Component microbenchmarks and clean CI alone cannot satisfy host RPM or the 2% regression budget.
+
+**Strict acceptance:** B1 6/6, B2 8/8, B3 4/4, B4 7/7, B5 4/4, **B6 2/8** = **31/37 (83.8%)**. Foundation-only branch, PR stays draft, no merge/tag/publish and no Infbyte work.
 
 ### 2026-10-14 — Batch 5 complete: 4/4 accepted on exact-source QA
 
@@ -1905,13 +1917,13 @@ Added `docs/examples/foundation-4-compiled-release.php`, executed inside all fou
 
 ### Batch 6 — certify one immutable release candidate
 
-- [ ] Run PHPForge doctor/config diagnostics, then review necessary `ic:process`
+- [x] Run PHPForge doctor/config diagnostics, then review necessary `ic:process`
   changes sequentially; run full `ic:tests` and required release checks without
   suppressions, missing-service exemptions, or skipped evidence.
 - [ ] Verify supported PHP 8.4/8.5, lowest/latest dependencies, compiled/development
   graphs, production consumers, and required service matrices on the final SHA.
   Record toolchain/workflow references and the resolved dependency manifest.
-- [ ] Close every **current 4.0 native integration** contract and verify no
+- [x] Close every **current 4.0 native integration** contract and verify no
   redundant production mechanism or shadow library owner remains. Unverified
   selected 4.0 behavior blocks certification; older major-version compatibility
   is explicitly not a release requirement.
