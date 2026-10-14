@@ -5,6 +5,8 @@ declare(strict_types=1);
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceProvider;
+use Infocyph\Foundation\Auth\Principal\CurrentPrincipalContext;
+use Infocyph\Foundation\Auth\Principal\Principal;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Runtime\ExecutionId;
 use Infocyph\Foundation\Runtime\RuntimeExecutionState;
@@ -324,4 +326,36 @@ it('rejects forged host runtime inputs rather than creating a Runwire identity',
         static fn(): null => null,
         [\Infocyph\Runwire\RuntimeContext::class => new stdClass()],
     ))->toThrow(LogicException::class, 'host-owned runtime context');
+});
+
+it('clears each principal between selected-feature CLI worker scheduler executions', function (): void {
+    foreach ([RuntimeMode::Cli, RuntimeMode::Worker, RuntimeMode::Scheduler] as $mode) {
+        $config = [
+            'app' => ['env' => 'testing', 'capabilities' => ['auth', 'database']],
+            'modules' => ['features' => ['data.database' => true]],
+        ];
+        $app = match ($mode) {
+            RuntimeMode::Cli => Foundation::cli($config),
+            RuntimeMode::Worker => Foundation::worker($config),
+            RuntimeMode::Scheduler => Foundation::scheduler($config),
+            RuntimeMode::Web => throw new LogicException('Webrick owns request principal scopes.'),
+        };
+        $app->boot();
+
+        $first = $app->execution()->run(static function () use ($app, $mode): string {
+            $principal = $app->make(CurrentPrincipalContext::class);
+            expect($principal->get())->toBeNull();
+            $principal->set(new Principal($mode->value . '-account'));
+
+            return $principal->require()->id();
+        });
+        $second = $app->execution()->run(static function () use ($app): ?string {
+            $principal = $app->make(CurrentPrincipalContext::class);
+
+            return $principal->get()?->id();
+        });
+
+        expect($first)->toBe($mode->value . '-account')
+            ->and($second)->toBeNull();
+    }
 });
