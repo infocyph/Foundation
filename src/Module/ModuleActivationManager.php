@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Module;
 
-use Infocyph\Foundation\Application\Application;
 use Closure;
+use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Config\ConfigCacheManager;
 
 /**
@@ -178,6 +178,23 @@ final readonly class ModuleActivationManager
 
     /**
      * @param array<string,mixed> $config
+     * @return array<string,mixed>
+     */
+    private function updateCapability(array $config, string $module, bool $enabled): array
+    {
+        $capabilities = $config['capabilities'] ?? [];
+        if (!is_array($capabilities)) {
+            throw new \RuntimeException('modules.capabilities must be a capability map.');
+        }
+        $capabilities[$module] = $enabled;
+        ksort($capabilities);
+        $config['capabilities'] = $capabilities;
+
+        return $config;
+    }
+
+    /**
+     * @param array<string,mixed> $config
      * @param array<string,bool> $changes
      * @param list<string> $enabled
      * @return array<string,mixed>
@@ -208,17 +225,9 @@ final readonly class ModuleActivationManager
 
     private function write(string $module, bool $enabled): string
     {
-        return $this->mutate(static function (array $config) use ($module, $enabled): array {
-            $capabilities = $config['capabilities'] ?? [];
-            if (!is_array($capabilities)) {
-                throw new \RuntimeException('modules.capabilities must be a capability map.');
-            }
-            $capabilities[$module] = $enabled;
-            ksort($capabilities);
-            $config['capabilities'] = $capabilities;
-
-            return $config;
-        });
+        return $this->mutate(
+            fn(array $config): array => $this->updateCapability($config, $module, $enabled),
+        );
     }
 
     /**
