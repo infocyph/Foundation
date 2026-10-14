@@ -516,6 +516,12 @@ final class ModuleCatalog
         ],
     ];
 
+    /** @return array<string, ModuleDefinition> */
+    public function all(): array
+    {
+        return self::MODULES;
+    }
+
     /**
      * Fixed 4.0 module blueprint used during the staged lifecycle cutover.
      * Legacy current module state/commands remain unchanged until Batch 2+.
@@ -525,12 +531,6 @@ final class ModuleCatalog
     public function architecture(): array
     {
         return new ModuleArchitectureCatalog()->all();
-    }
-
-    /** @return array<string, ModuleDefinition> */
-    public function all(): array
-    {
-        return self::MODULES;
     }
 
     /**
