@@ -28,6 +28,13 @@ final class Foundation4HostComparison
     {
         foreach ([$baseline, $candidate] as $report) {
             if (($report['schema'] ?? null) !== 2
+                || !is_string($report['sha'] ?? null)
+                || preg_match('/^[a-f0-9]{40}$/D', $report['sha']) !== 1
+                || !is_string($report['php'] ?? null)
+                || $report['php'] === ''
+                || !is_int($report['request_count'] ?? null)
+                || $report['request_count'] < 100
+                || !is_int($report['repetitions'] ?? null)
                 || !is_string($report['hardware_id'] ?? null)
                 || $report['hardware_id'] === ''
                 || !is_string($report['composer_lock_sha256'] ?? null)
