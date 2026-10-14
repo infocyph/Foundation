@@ -61,12 +61,14 @@ $configLoader->writeCache(
 $config = $sourceConfig + ['_config_cache' => $configCache];
 
 $manifest = $app . '/bootstrap/cache/release.json';
+$runwireEnabled = getenv('FOUNDATION_HOST_RUNWIRE') === '1';
+$selectedCapabilities = $runwireEnabled ? ['runwire'] : [];
 $release = new WebReleaseCompiler()->compile(
     $config,
     $app . '/bootstrap/cache/intermix.php',
     $app . '/bootstrap/cache/router.php',
     $manifest,
-    [],
+    $selectedCapabilities,
 );
 
 $trustedSha256 = $release['release_runtime_manifest_sha256'] ?? null;
@@ -111,6 +113,50 @@ WebReleaseRuntime::loadPrevalidated(
 PHP, var_export($autoload, true));
 file_put_contents($app . '/public/index.php', $frontController . PHP_EOL, LOCK_EX);
 
+if ($runwireEnabled) {
+    // Native Runwire owns the listener, worker context and lifecycle.
+    // Build Foundation only after Runwire supplies the actual worker context.
+    $nativeEntry = <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+use Infocyph\Foundation\Routing\WebReleaseRuntime;
+use Infocyph\Runwire\Runtime;
+use Infocyph\Runwire\Runtime\RuntimeApplicationFactoryInterface;
+use Infocyph\Runwire\Runtime\RuntimeApplicationInterface;
+use Infocyph\Runwire\RuntimeContext;
+use Infocyph\Runwire\Server;
+
+require %s;
+
+$address = getenv('FOUNDATION_HOST_LISTEN') ?: '127.0.0.1:18781';
+$workers = (int) (getenv('FOUNDATION_HOST_WORKERS') ?: 1);
+$factory = new class implements RuntimeApplicationFactoryInterface {
+    public function create(RuntimeContext $runtime): RuntimeApplicationInterface
+    {
+        $release = WebReleaseRuntime::loadPrevalidated(
+            require __DIR__ . '/config.php',
+            __DIR__ . '/bootstrap/cache/release.json',
+            require __DIR__ . '/trust.php',
+            foundationCapabilities: ['runwire'],
+        );
+
+        return $release->runwireApplication($runtime);
+    }
+};
+
+Runtime::create()
+    ->listen(Server::httpApplicationFactory($address, $factory)->withWorkers($workers))
+    ->run();
+PHP;
+    file_put_contents(
+        $app . '/runwire-server.php',
+        sprintf($nativeEntry, var_export($autoload, true)) . PHP_EOL,
+        LOCK_EX,
+    );
+}
+
 $opcacheProbe = <<<'PHP'
 <?php
 
@@ -136,6 +182,7 @@ $result = [
     'trusted_manifest_sha256' => $trustedSha256,
     'intermix_skipped' => $skipped,
     'handler' => Phase9ServerHandler::class . '::json',
+    'native_runwire' => $runwireEnabled,
 ];
 
 $output = getenv('PHASE9_SERVER_COMPILE_OUTPUT') ?: $repository . '/build/phase9-server-compile.json';
