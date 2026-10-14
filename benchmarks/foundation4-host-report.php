@@ -28,7 +28,7 @@ function f4HostLoad(string $path, int $expectedRequests): array
     ];
 }
 
-/** @return array{peak_rss_mb:float,peak_process_cpu_percent:float,peak_processes:int,samples:int} */
+/** @return array{first_rss_mb:float,last_rss_mb:float,peak_rss_mb:float,peak_process_cpu_percent:float,peak_processes:int,samples:int} */
 function f4HostSamples(string $path): array
 {
     $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
@@ -37,6 +37,8 @@ function f4HostSamples(string $path): array
     }
 
     $maxRssKb = 0.0;
+    $firstRssKb = null;
+    $lastRssKb = 0.0;
     $maxCpu = 0.0;
     $maxProcesses = 0;
     foreach (array_slice($lines, 1) as $line) {
@@ -44,7 +46,10 @@ function f4HostSamples(string $path): array
         if (count($values) !== 4) {
             throw new RuntimeException(sprintf('Invalid process sample: %s', $line));
         }
-        $maxRssKb = max($maxRssKb, (float) $values[1]);
+        $rssKb = (float) $values[1];
+        $firstRssKb ??= $rssKb;
+        $lastRssKb = $rssKb;
+        $maxRssKb = max($maxRssKb, $rssKb);
         $maxCpu = max($maxCpu, (float) $values[2]);
         $maxProcesses = max($maxProcesses, (int) $values[3]);
     }
@@ -53,6 +58,8 @@ function f4HostSamples(string $path): array
     }
 
     return [
+        'first_rss_mb' => round((float) $firstRssKb / 1024, 2),
+        'last_rss_mb' => round($lastRssKb / 1024, 2),
         'peak_rss_mb' => round($maxRssKb / 1024, 2),
         'peak_process_cpu_percent' => round($maxCpu, 2),
         'peak_processes' => $maxProcesses,
