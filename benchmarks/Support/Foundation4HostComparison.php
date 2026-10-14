@@ -138,6 +138,11 @@ final class Foundation4HostComparison
                         throw new InvalidArgumentException(sprintf('Invalid or unsustained evidence for %s.', $key));
                     }
 
+                    $actualRpm = (float) $run['successful'] * 60.0 / (float) $run['duration_seconds'];
+                    if (abs($actualRpm - (float) $run['rpm']) / $actualRpm > 0.005) {
+                        throw new InvalidArgumentException(sprintf('Inconsistent successful RPM for %s.', $key));
+                    }
+
                     $values[] = (float) $run['rpm'];
                 }
 
