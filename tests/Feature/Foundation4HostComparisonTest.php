@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Infocyph\Foundation\Benchmarks\Support\Foundation4HostComparison;
 
 /** @return array<string, mixed> */
-function foundationHostFixture(float $rpm = 6000.0): array
+function foundationHostFixture(float $rpm = 1000.0): array
 {
     $hosts = [];
     foreach (['fpm', 'runwire'] as $host) {
@@ -18,7 +18,7 @@ function foundationHostFixture(float $rpm = 6000.0): array
                         'requests' => 1000,
                         'successful' => 1000,
                         'failed' => 0,
-                        'duration_seconds' => 60.0,
+                        'duration_seconds' => 60_000.0 / $rpm,
                         'rpm' => $rpm,
                         'peak_rss_mb' => 100.0,
                         'samples' => 30,
@@ -44,7 +44,7 @@ function foundationHostFixture(float $rpm = 6000.0): array
 
 it('accepts a stable throughput change inside the strict 2 percent budget', function (): void {
     $base = foundationHostFixture();
-    $candidate = foundationHostFixture(5880.0);
+    $candidate = foundationHostFixture(980.0);
     $candidate['sha'] = str_repeat('c', 40);
 
     $result = Foundation4HostComparison::compare($base, $candidate);
@@ -56,7 +56,7 @@ it('accepts a stable throughput change inside the strict 2 percent budget', func
 });
 
 it('rejects a throughput regression exceeding 2 percent', function (): void {
-    $result = Foundation4HostComparison::compare(foundationHostFixture(), foundationHostFixture(5879.0));
+    $result = Foundation4HostComparison::compare(foundationHostFixture(), foundationHostFixture(979.0));
 
     expect($result['passed'])->toBeFalse()
         ->and($result['cases'][0]['status'])->toBe('regression');
@@ -64,7 +64,8 @@ it('rejects a throughput regression exceeding 2 percent', function (): void {
 
 it('rejects noisy evidence instead of silently waiving the throughput budget', function (): void {
     $candidate = foundationHostFixture();
-    $candidate['hosts']['fpm'][0]['runs'][0]['rpm'] = 3000.0;
+    $candidate['hosts']['fpm'][0]['runs'][0]['rpm'] = 500.0;
+    $candidate['hosts']['fpm'][0]['runs'][0]['duration_seconds'] = 120.0;
 
     $result = Foundation4HostComparison::compare(foundationHostFixture(), $candidate);
 
