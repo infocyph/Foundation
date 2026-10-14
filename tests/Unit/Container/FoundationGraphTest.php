@@ -6,6 +6,7 @@ use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Container\FoundationGraph;
+use Infocyph\InterMix\DI\Support\FactoryDefinition;
 
 it('creates a fresh deterministic builder for each runtime composition', function (RuntimeMode $runtimeMode): void {
     $context = FoundationBuildContext::fromConfig(
@@ -15,6 +16,11 @@ it('creates a fresh deterministic builder for each runtime composition', functio
 
     $first = FoundationGraph::compose($context);
     $second = FoundationGraph::compose($context);
+    $runtimeFactory = $first->definitionGraph()->definitions()[RuntimeMode::class] ?? null;
+
+    expect($runtimeFactory)->toBeInstanceOf(FactoryDefinition::class)
+        ->and($runtimeFactory->signature()['class'])->toBe(RuntimeMode::class)
+        ->and($runtimeFactory->signature()['method'])->toBe('from');
 
     expect($first)->not->toBe($second)
         ->and($first->build())->not->toBe($second->build())

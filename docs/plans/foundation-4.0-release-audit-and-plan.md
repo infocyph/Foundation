@@ -7,6 +7,12 @@ published Foundation 2.1.1 and skipping publication of Foundation 3.
 
 This document contains a preserved baseline audit and a subsequent implementation log. The **live implementation status above** reflects later committed source and dependency changes; the original audit did not itself alter production code. This record does not certify the library as vulnerability-free.
 
+### 2026-10-14 — Batch 2 #5: direct native RuntimeMode factory contract (pending QA)
+
+**Implementation:** The one-method `Application/RuntimeModeFactory` was a pure `RuntimeMode::from()` trampoline. `FoundationGraph` now declares the backed enum's own public static `from` method as the native InterMix factory, removing the extra production class and autoload. `FoundationGraphTest` asserts the exact exported recipe; its existing development and compiled production tests cover all four runtime modes, including a source-compiled graph. InterMix's native `FactoryDefinition::staticFactory` requires a public static method, which PHP's backed enum `from()` provides. Retired-wrapper assertions prevent reintroduction. **Do not accept this symbol removal until code-head QA verifies compiled and development parity.**
+
+**Acceptance:** Batch 2 #5 remains open for all other symbol/caller dispositions; strict **7/8**, overall **13/37**.
+
 ### 2026-10-14 — Batch 2 #5 incremental pruning accepted on exact-head QA
 
 **Fully green code-head gate:** [Security & Standards #38488180932](https://github.com/infocyph/Foundation/actions/runs/38488180932), source [`dadc4354`](https://github.com/infocyph/Foundation/commit/dadc43540f669a30319fab207938b0e93b01458d), completed **SUCCESS**: PHPForge PHP 8.4/8.5 lowest/stable **4/4**, PHPStan **2/2**, production consumers **4/4**, benchmarks **2/2**, clean install and release-evidence publication passed. The earlier [#38487541946](https://github.com/infocyph/Foundation/actions/runs/38487541946) was also fully green at `27d035a0`. No test, formatter, analysis, or release-gate bypass was needed; auth import sorting and the new native recipe tests passed.

@@ -6,7 +6,6 @@ namespace Infocyph\Foundation\Container;
 
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
-use Infocyph\Foundation\Application\RuntimeModeFactory;
 use Infocyph\Foundation\Command\CommandContext;
 use Infocyph\Foundation\Command\CommandDefinition;
 use Infocyph\Foundation\Command\CommandDescriptor;
@@ -36,7 +35,7 @@ final class FoundationGraph
     {
         self::registerConfigRepository($builder, $context);
         $builder->factory(RuntimeMode::class, FactoryDefinition::staticFactory(
-            RuntimeModeFactory::class,
+            RuntimeMode::class,
             'from',
             [$context->runtimeMode->value],
         ));

@@ -19,6 +19,7 @@ it('contains no retired runtime cache paths', function (): void {
         'class AuthNotificationGraphFactory' => 'retired auth notification forwarding recipe class',
         'class FilesystemGraphFactory' => 'retired Pathwise forwarding recipe class',
         'class WebrickRuntimeFactory' => 'retired development-only Webrick identity forwarding class',
+        'class RuntimeModeFactory' => 'retired wrapper around native backed enum from()',
         "'route:cache'" => 'retired standalone route cache command',
         "'route:clear'" => 'retired standalone route cache clear command',
     ];
