@@ -89,20 +89,7 @@ final class Bootstrapper
         $registry ??= new ServiceRegistry();
         $registry->add(new PathServiceProvider());
 
-        foreach (self::OPTIONAL_BUILT_INS as $provider) {
-            $capability = self::OPTIONAL_CAPABILITIES[$provider];
-            if (!$context->permitsCapability($capability)) {
-                continue;
-            }
-            if (!$this->providerDependencyAvailable($provider)) {
-                if ($context->featureSelections !== null && ModuleFeatureCapabilityPolicy::owner($capability) !== null) {
-                    throw new \LogicException(sprintf('Selected feature provider %s is unavailable.', $capability));
-                }
-
-                continue;
-            }
-            $registry->add($this->instantiateProvider($provider));
-        }
+        $this->registerOptionalProviders($context, $registry);
 
         if ($context->runtimeMode === RuntimeMode::Web) {
             foreach (self::WEB_BUILT_INS as $provider) {
@@ -128,6 +115,24 @@ final class Bootstrapper
         ServiceRegistry $registry,
     ): void {
         $registry->contribute($builder, $context);
+    }
+
+    private function registerOptionalProviders(FoundationBuildContext $context, ServiceRegistry $registry): void
+    {
+        foreach (self::OPTIONAL_BUILT_INS as $provider) {
+            $capability = self::OPTIONAL_CAPABILITIES[$provider];
+            if (!$context->permitsCapability($capability)) {
+                continue;
+            }
+            if (!$this->providerDependencyAvailable($provider)) {
+                if ($context->featureSelections !== null && ModuleFeatureCapabilityPolicy::owner($capability) !== null) {
+                    throw new \LogicException(sprintf('Selected feature provider %s is unavailable.', $capability));
+                }
+
+                continue;
+            }
+            $registry->add($this->instantiateProvider($provider));
+        }
     }
 
     private function assertProviderGroup(int|string $group, mixed $entries): void
