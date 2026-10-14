@@ -56,14 +56,14 @@ sample_tree() {
         END {
             totalRss=0; totalCpu=0; count=0
             for (p in parents) {
-                next=p
+                cursor=p
                 for (i=0; i<12; i++) {
-                    if (next==r1 || (r2>0 && next==r2)) {
+                    if (cursor==r1 || (r2>0 && cursor==r2)) {
                         totalRss+=rss[p]; totalCpu+=cpu[p]; count++
                         break
                     }
-                    if (!parents[next] || parents[next]==next) break
-                    next=parents[next]
+                    if (!parents[cursor] || parents[cursor]==cursor) break
+                    cursor=parents[cursor]
                 }
             }
             printf "%.0f,%.2f,%d\n",totalRss,totalCpu,count
