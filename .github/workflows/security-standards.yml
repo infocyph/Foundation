@@ -230,7 +230,7 @@ jobs:
         run: |
           composer validate --strict
           composer ic:release:constraints
-          composer ic:release:guard
+          composer ic:release:audit
       - name: Execute migration bootstrap smoke examples
         run: |
           php docs/examples/foundation-4-core.php
