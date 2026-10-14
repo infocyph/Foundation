@@ -60,6 +60,32 @@ final class ModuleFeatureCapabilityPolicy
         return $selected;
     }
 
+    public static function owner(string $capability): ?string
+    {
+        return self::CAPABILITY_OWNERS[$capability] ?? null;
+    }
+
+    /** @param array<string,bool>|null $selections */
+    public static function permits(string $capability, ?array $selections): bool
+    {
+        $owner = self::owner($capability);
+        if ($owner === null || $selections === null) {
+            return true;
+        }
+
+        return $selections[$owner] ?? false;
+    }
+
+    /**
+     * @param array<string,bool>|null $selections
+     */
+    public static function selected(string $feature, ?array $selections): bool
+    {
+        new ModuleArchitectureCatalog()->resolve($feature);
+
+        return $selections[$feature] ?? false;
+    }
+
     /**
      * @param array<string,bool> $selected
      */
@@ -100,31 +126,4 @@ final class ModuleFeatureCapabilityPolicy
             : (is_string($value) ? trim($value) !== '' : $value !== null && $value !== false && $value !== []);
     }
 
-    /**
-     * @param array<string,bool>|null $selections
-     */
-    public static function owner(string $capability): ?string
-    {
-        return self::CAPABILITY_OWNERS[$capability] ?? null;
-    }
-
-    public static function permits(string $capability, ?array $selections): bool
-    {
-        $owner = self::owner($capability);
-        if ($owner === null || $selections === null) {
-            return true;
-        }
-
-        return $selections[$owner] ?? false;
-    }
-
-    /**
-     * @param array<string,bool>|null $selections
-     */
-    public static function selected(string $feature, ?array $selections): bool
-    {
-        new ModuleArchitectureCatalog()->resolve($feature);
-
-        return $selections[$feature] ?? false;
-    }
 }
