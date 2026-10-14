@@ -190,13 +190,13 @@ For implementation-stage decisions, keep the **selected design** and source-back
 | --- | --- | --- | --- |
 | **0** | Audit, baseline evidence and remaining design decisions | **COMPLETE (5/5)** | Audit report + concrete design decisions + baseline tests/metrics |
 | **1** | Exactly three public modules and nine feature definitions | **COMPLETE (5/5)** | Stable definitions, validated category/ownership contracts |
-| **2** | Dependency/state resolution and pure planning | **IN QA (0/6 accepted; 6/6 implemented)** | Deterministic topology, blockers, versioned no-side-effect plans |
+| **2** | Dependency/state resolution and pure planning | **6/6 checklist complete; QA BLOCKED, 0/6 certified** | Deterministic topology, blockers, versioned no-side-effect plans |
 | **3** | Install/enable/disable/remove/repair execution | **OPEN (0/7)** | Safe explicit mutations, atomic boundaries, idempotent recovery |
 | **4** | Three-module selected feature graph and prebuilt Core | **OPEN (0/6)** | One immutable selected native graph, no runtime discovery |
 | **5** | All nine specialist features, schemas and native ownership | **OPEN (0/7)** | Auth, cache, database, messaging and other owners proven |
 | **6** | CLI/API UX, docs, templates and upgrade notes | **OPEN (0/6)** | Machine/human UX verified with doc/test parity |
 | **7** | Full regression, performance and release re-certification | **OPEN (0/7)** | Complete QA, no-dev matrix, measured performance, final evidence |
-| **Total** | **49 scoped acceptance items** | **10/49 (20.4%)** | **2/8 batches accepted** |
+| **Total** | **49 scoped acceptance items** | **16/49 checked (32.7%); 10/49 certified (20.4%)** | **2/8 batches accepted** |
 
 ### Batch 0 — Audit and approved architecture
 
@@ -220,14 +220,14 @@ For implementation-stage decisions, keep the **selected design** and source-back
 
 ### Batch 2 — Pure state/dependency resolver and planner
 
-- [ ] One normalization pipeline for the **3 approved public module IDs + 9 feature IDs**, their requested feature aliases and explicit capability policy.
-- [ ] Correct direct/transitive/unknown package-state and supported root Composer constraint decisions.
-- [ ] Evaluate conditional dependencies, native runtime/platform requirements and dependency cycles in predictable order.
-- [ ] Build immutable read-only plan records for install/enable/disable/remove/repair, including phase effects and blockers.
-- [ ] Keep observability/read status separate from mutation; planner must have zero FS/network/Composer side effects.
-- [ ] Version schema of machine-readable plan/state output if semantics change; compare deterministic fixtures.
+- [x] One normalization pipeline for the **3 approved public module IDs + 9 feature IDs**, their requested feature aliases and explicit capability policy.
+- [x] Correct direct/transitive/unknown package-state and supported root Composer constraint decisions.
+- [x] Evaluate conditional dependencies, native runtime/platform requirements and dependency cycles in predictable order.
+- [x] Build immutable read-only plan records for install/enable/disable/remove/repair, including phase effects and blockers.
+- [x] Keep observability/read status separate from mutation; planner must have zero FS/network/Composer side effects.
+- [x] Version schema of machine-readable plan/state output if semantics change; compare deterministic fixtures.
 
-**QA gate:** all **9 selected features** independently covered (including passkey without MFA activation, messaging without Runwire, filesystem without DB), conditional dependency matrix, absent/partial config, root ownership unknown, malformed inputs and platform conditions; no mutation during dry-run.
+**QA gate (still OPEN — block Batch 2 acceptance until full CI GREEN):** all **9 selected features** independently covered (including passkey without MFA activation, messaging without Runwire, filesystem without DB), conditional dependency matrix, absent/partial config, root ownership unknown, malformed inputs and platform conditions; no mutation during dry-run.
 
 ### Batch 3 — Safe lifecycle mutations
 
@@ -322,4 +322,6 @@ For implementation-stage decisions, keep the **selected design** and source-back
 
 | 2026-10-14 | **Batch 2 implementation checkpoint: 6/6 scoped areas implemented, 0/6 accepted pending QA.** Pure `ModuleFeatureResolver` and `ModuleFeaturePlanner`, 12 feature tests, versioned schema 2, dependency and package ownership, selected-feature retention; prior QA `38584332155` RED from Pint/Rector (not accepted). Correct unused parameter and class method separation and repeat exact-head QA. | [Prior QA #38584332155](https://github.com/infocyph/Foundation/actions/runs/38584332155) **RED**; latest follow-up must be green before accepting. No module CLI/runtime cutover. | **10/49 accepted; Batch 2 0/6 accepted (6/6 coded)** |
 
-**Next action:** finish **Batch 2** acceptance. The new resolver/planner and 12 focused tests are implemented, but prior full QA was RED from Pint and Rector on new source; keep 0/6 **accepted** until exact-head PHPForge QA, PHPStan, benchmarks and native-host checks succeed. Then mark verified Batch 2 items and proceed to Batch 3. Existing 11-entry CLI remains live until Batch 6 cutover.
+| 2026-10-14 | **B2 detailed checklist synchronized: six tasks checked as implemented/unit-tested, batch remains unaccepted.** QA #38588533187 passed Pest/PHPCS/Deptrac/Rector and PHPStan analyses but failed Pint on constructors; several required jobs and #38588532052 native host failed dependency download (GitHub codeload 429). Refactored constructors with explicit readonly initialization and retain all other native/feature invariants. | [QA #38588533187](https://github.com/infocyph/Foundation/actions/runs/38588533187) RED (Pint + dependency throttling), [host #38588532052](https://github.com/infocyph/Foundation/actions/runs/38588532052) RED (HTTP 429); **no acceptance** pending rerun. | **16/49 implementation checkboxes; 10/49 certified, B2 0/6 certified** |
+
+**Next action:** Batch 2 is **6/6 implemented/checked but 0/6 certified**. QA #38588533187 passed Pest, PHPStan 8.4/8.5, PHPCS, Deptrac and Rector on feature code but failed Pint (constructor formatting); other workers/host were blocked by GitHub codeload HTTP 429. The constructor style is refactored for a non-empty initialization path. **Re-run exact-source full QA and host after transient download throttle clears before certifying Batch 2 or starting Batch 3.** Existing 11-entry CLI remains live until Batch 6 cutover.

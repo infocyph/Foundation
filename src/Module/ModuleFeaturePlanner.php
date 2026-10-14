@@ -21,10 +21,15 @@ namespace Infocyph\Foundation\Module;
  */
 final readonly class ModuleFeaturePlanner
 {
-    public function __construct(
-        private ModuleFeatureResolver $resolver = new ModuleFeatureResolver(),
-        private ModuleArchitectureCatalog $catalog = new ModuleArchitectureCatalog(),
-    ) {}
+    private ModuleArchitectureCatalog $catalog;
+
+    private ModuleFeatureResolver $resolver;
+
+    public function __construct(?ModuleFeatureResolver $resolver = null, ?ModuleArchitectureCatalog $catalog = null)
+    {
+        $this->resolver = $resolver ?? new ModuleFeatureResolver();
+        $this->catalog = $catalog ?? new ModuleArchitectureCatalog();
+    }
 
     /**
      * @param list<string> $features

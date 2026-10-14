@@ -37,7 +37,12 @@ namespace Infocyph\Foundation\Module;
  */
 final readonly class ModuleFeatureResolver
 {
-    public function __construct(private ModuleArchitectureCatalog $catalog = new ModuleArchitectureCatalog()) {}
+    private ModuleArchitectureCatalog $catalog;
+
+    public function __construct(?ModuleArchitectureCatalog $catalog = null)
+    {
+        $this->catalog = $catalog ?? new ModuleArchitectureCatalog();
+    }
 
     /** @param list<string> $features
      *  @return list<string>
