@@ -78,30 +78,6 @@ final readonly class ModuleFeaturePlanner
         ];
     }
 
-    /**
-     * @param list<string> $requested
-     * @phpstan-param Context $context
-     * @return list<string>
-     */
-    private function requirements(array $requested, array $context): array
-    {
-        $required = $requested;
-        $queue = $requested;
-
-        while ($queue !== []) {
-            $id = array_shift($queue);
-            $one = $this->resolver->resolve([$id], $context)['states'][$id];
-
-            foreach ($one['dependencies'] as $dependency) {
-                if (!in_array($dependency, $required, true)) {
-                    $required[] = $dependency;
-                    $queue[] = $dependency;
-                }
-            }
-        }
-
-        return $this->resolver->normalize($required);
-    }
 
     /**
      * @phpstan-param Resolution $snapshot
@@ -143,43 +119,16 @@ final readonly class ModuleFeaturePlanner
     }
 
     /**
-     * @phpstan-param array<string,PackageState> $packages
-     * @param array{require:array<string,string>,remove:list<string>,activate:array<string,bool>,publish:list<string>,schemas:list<string>} $effects
-     * @param list<string> $warnings
-     */
-    private function planPackages(array $packages, array &$effects, array &$warnings): void
-    {
-        foreach ($packages as $package => $state) {
-            if ($state['direct']) {
-                continue;
-            }
-
-            $effects['require'][$package] = $state['constraint'];
-
-            if ($state['transitive']) {
-                $warnings[] = sprintf('Package %s is available transitively; make ownership direct.', $package);
-            }
-        }
-    }
-
-    /**
-     * @phpstan-param FeatureState $state
      * @phpstan-param Context $context
-     * @param array{require:array<string,string>,remove:list<string>,activate:array<string,bool>,publish:list<string>,schemas:list<string>} $effects
+     * @param list<string> $blockers
      */
-    private function planAssets(array $state, array $context, array &$effects): void
+    private function checkDependents(string $id, array $context, array &$blockers): void
     {
-        foreach ($state['config'] as $filename) {
-            if (!in_array($filename, $context['published_configs'] ?? [], true)
-                && !in_array($filename, $effects['publish'], true)
-            ) {
-                $effects['publish'][] = $filename;
-            }
-        }
+        $active = $this->resolver->resolve($context['enabled'], $context)['states'];
 
-        foreach ($state['schemas'] as $schema) {
-            if (!in_array($schema, $effects['schemas'], true)) {
-                $effects['schemas'][] = $schema;
+        foreach ($active as $dependent => $state) {
+            if ($dependent !== $id && in_array($id, $state['dependencies'], true)) {
+                $blockers[] = sprintf('Feature %s still depends on %s.', $dependent, $id);
             }
         }
     }
@@ -219,21 +168,6 @@ final readonly class ModuleFeaturePlanner
     }
 
     /**
-     * @phpstan-param Context $context
-     * @param list<string> $blockers
-     */
-    private function checkDependents(string $id, array $context, array &$blockers): void
-    {
-        $active = $this->resolver->resolve($context['enabled'], $context)['states'];
-
-        foreach ($active as $dependent => $state) {
-            if ($dependent !== $id && in_array($id, $state['dependencies'], true)) {
-                $blockers[] = sprintf('Feature %s still depends on %s.', $dependent, $id);
-            }
-        }
-    }
-
-    /**
      * @phpstan-param FeatureState $state
      * @phpstan-param Context $context
      * @param array{require:array<string,string>,remove:list<string>,activate:array<string,bool>,publish:list<string>,schemas:list<string>} $effects
@@ -267,5 +201,72 @@ final readonly class ModuleFeaturePlanner
                 $effects['remove'][] = $package;
             }
         }
+    }
+
+    /**
+     * @phpstan-param FeatureState $state
+     * @phpstan-param Context $context
+     * @param array{require:array<string,string>,remove:list<string>,activate:array<string,bool>,publish:list<string>,schemas:list<string>} $effects
+     */
+    private function planAssets(array $state, array $context, array &$effects): void
+    {
+        foreach ($state['config'] as $filename) {
+            if (!in_array($filename, $context['published_configs'] ?? [], true)
+                && !in_array($filename, $effects['publish'], true)
+            ) {
+                $effects['publish'][] = $filename;
+            }
+        }
+
+        foreach ($state['schemas'] as $schema) {
+            if (!in_array($schema, $effects['schemas'], true)) {
+                $effects['schemas'][] = $schema;
+            }
+        }
+    }
+
+    /**
+     * @phpstan-param array<string,PackageState> $packages
+     * @param array{require:array<string,string>,remove:list<string>,activate:array<string,bool>,publish:list<string>,schemas:list<string>} $effects
+     * @param list<string> $warnings
+     */
+    private function planPackages(array $packages, array &$effects, array &$warnings): void
+    {
+        foreach ($packages as $package => $state) {
+            if ($state['direct']) {
+                continue;
+            }
+
+            $effects['require'][$package] = $state['constraint'];
+
+            if ($state['transitive']) {
+                $warnings[] = sprintf('Package %s is available transitively; make ownership direct.', $package);
+            }
+        }
+    }
+
+    /**
+     * @param list<string> $requested
+     * @phpstan-param Context $context
+     * @return list<string>
+     */
+    private function requirements(array $requested, array $context): array
+    {
+        $required = $requested;
+        $queue = $requested;
+
+        while ($queue !== []) {
+            $id = array_shift($queue);
+            $one = $this->resolver->resolve([$id], $context)['states'][$id];
+
+            foreach ($one['dependencies'] as $dependency) {
+                if (!in_array($dependency, $required, true)) {
+                    $required[] = $dependency;
+                    $queue[] = $dependency;
+                }
+            }
+        }
+
+        return $this->resolver->normalize($required);
     }
 }
