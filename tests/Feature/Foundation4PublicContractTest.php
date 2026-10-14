@@ -46,15 +46,13 @@ it('publishes the Foundation 4 provider graph contract as native InterMix builde
 
     $method = new ReflectionMethod(ServiceProviderInterface::class, 'contribute');
     $parameters = $method->getParameters();
-    $returnType = $method->getReturnType();
+    $types = array_map(
+        static fn(ReflectionParameter $parameter): string => (string) $parameter->getType(),
+        $parameters,
+    );
 
-    expect($parameters)->toHaveCount(2)
-        ->and($parameters[0]->getType())->toBeInstanceOf(ReflectionNamedType::class)
-        ->and($parameters[0]->getType()?->getName())->toBe(ContainerBuilder::class)
-        ->and($parameters[1]->getType())->toBeInstanceOf(ReflectionNamedType::class)
-        ->and($parameters[1]->getType()?->getName())->toBe(FoundationBuildContext::class)
-        ->and($returnType)->toBeInstanceOf(ReflectionNamedType::class)
-        ->and($returnType?->getName())->toBe('void');
+    expect($types)->toBe([ContainerBuilder::class, FoundationBuildContext::class])
+        ->and((string) $method->getReturnType())->toBe('void');
 
     Foundation4PublicContractProvider::$booted = 0;
     $app = Foundation::cli([
