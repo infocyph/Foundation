@@ -221,6 +221,8 @@ jobs:
           coverage: none
       - name: Install release-evidence dependencies
         run: composer update --no-interaction --prefer-dist --no-progress --prefer-stable
+      - name: Diagnose Foundation 4 release tooling
+        run: composer ic:doctor
       - name: Complete PHPForge release-guard constraints
         run: |
           composer validate --strict
@@ -246,6 +248,8 @@ jobs:
           } > "$directory/manifest.env"
           php -m | sort > "$directory/php-extensions.txt"
           composer show --locked --format=json > "$directory/dependencies.json"
+          sha256sum composer.lock > "$directory/composer-lock.sha256"
+          php --ini=diff > "$directory/php-ini-diff.txt"
           git ls-files 'tests/*.php' 'tests/**/*.php' | sort > "$directory/test-files.txt"
           awk 'NF { count++ } END { printf "test_file_inventory=%d\n", count }' "$directory/test-files.txt" > "$directory/test-inventory.env"
       - uses: actions/upload-artifact@v7
