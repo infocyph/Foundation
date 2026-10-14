@@ -22,6 +22,6 @@ Foundation 4.0 is a deliberate breaking major release. This document describes *
 
 The Security & Standards matrix verifies PHP 8.4/8.5, lowest/stable dependency resolution, production `--no-dev` core-only, database-only, and selected-specialist consumers. The full selected consumer builds and boots a trusted compiled Webrick route and CLI/worker/scheduler generations; the Runwire worker validates host-owned request/runtime identity.
 
-Use [the Foundation 4 setup guide](foundation-4-migration.md) and [current-state recovery guidance](foundation-4-retained-data-rehearsal.md). Source APIs and canonical `resources/config/` files remain authoritative. Additional current-4.0 contract verification is an open Batch 5 acceptance gate until supported by exact-source CI.
+Use [the Foundation 4 setup guide](foundation-4-migration.md) and [current-state recovery guidance](foundation-4-retained-data-rehearsal.md). Source APIs and canonical `resources/config/` files remain authoritative. Current 4.0 contract verification is accepted for the declared Foundation-owned surface on [Security & Standards #38526599007](https://github.com/infocyph/Foundation/actions/runs/38526599007), including `Foundation4PublicContractTest`, the native capability policy and the trusted compiled release/Runwire consumer matrix. This is not a guarantee for unselected external hosts or deployments.
 
 **No compatibility alias or retained public API parity with Foundation 2.x or 3.x is required.** Infbyte application integration is an independent follow-up.
