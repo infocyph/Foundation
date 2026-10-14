@@ -2,6 +2,8 @@
 
 **Snapshot:** `57500fe8e97a6cb1f36f3be652bf9d5f0847bd9b` on `feature/foundation-3` (2026-10-13). Generated from GitHub's complete non-truncated recursive source tree. **662 tracked production PHP source paths, across 31 top-level groups.** This lists every source file on the captured revision; it is **not** a claim that every public method/function has been read or accepted.
 
+**Reconciliation 2026-10-14:** this file is a preserved **662-path historical snapshot**, not the current full source tree. The current tree at `dadc4354` contains **655** production PHP files after the removal of seven unnecessary factory classes. The exact code-head [full green QA #38488180932](https://github.com/infocyph/Foundation/actions/runs/38488180932) proves those removals. The remainder of Batch 2 #5 remains subject to individual symbol/consumer ownership review; original unchecked dispositions below are not implicitly accepted.
+
 ## Review and acceptance rules
 
 - This is the complete **file-level census for Batch 2 #4/#5**, not their symbol-level acceptance. Every file below begins at **pending full per-symbol disposition**. This avoids treating a namespace ownership decision as proof every method is necessary.
