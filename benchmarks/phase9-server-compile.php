@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use Infocyph\Foundation\Benchmarks\Phase9NativeReadHandler;
 use Infocyph\Foundation\Benchmarks\Phase9ServerHandler;
 use Infocyph\Foundation\Config\ConfigLoader;
 use Infocyph\Foundation\Routing\WebReleaseCompiler;
@@ -66,12 +65,15 @@ $configLoader->writeCache(
 $config = $sourceConfig + ['_config_cache' => $configCache];
 
 $profile = getenv('FOUNDATION_HOST_WORKLOAD_PROFILE') ?: 'json-minimal';
+
 if (!in_array($profile, ['json-minimal', 'native-read'], true)) {
     throw new RuntimeException('Unsupported native HTTP benchmark profile.');
 }
+
 if ($profile === 'native-read') {
     foreach (['storage', 'storage/cache'] as $folder) {
         $target = $app . '/' . $folder;
+
         if (!is_dir($target) && !mkdir($target, 0775, true)) {
             throw new RuntimeException('Unable to initialize benchmark storage.');
         }
@@ -83,19 +85,23 @@ if ($profile === 'native-read') {
             'database' => $app . '/storage/benchmark.sqlite',
         ]),
     );
+
     try {
         $db->execute('CREATE TABLE benchmark_items (id INTEGER PRIMARY KEY, item_value TEXT NOT NULL)');
         $db->execute('INSERT INTO benchmark_items (id, item_value) VALUES (?, ?)', [42, 'value-42']);
     } finally {
         $db->disconnect();
     }
+
     if (!\Infocyph\CacheLayer\Cache\Cache::file(
         'foundation-host',
         $app . '/storage/cache',
     )->set('item-42', 'cached-42')) {
         throw new RuntimeException('Unable to initialize native CacheLayer fixture.');
     }
+
     $credential = password_hash('foundation-native-fixture', PASSWORD_BCRYPT, ['cost' => 4]);
+
     if (file_put_contents($app . '/storage/credential.hash', $credential, LOCK_EX) === false) {
         throw new RuntimeException('Unable to initialize benchmark credential digest.');
     }
