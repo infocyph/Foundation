@@ -410,6 +410,12 @@ it('sends the exact host Runwire request through compiled Webrick and native Int
     $config = [
         'app' => ['base_path' => $project, 'env' => 'production', 'debug' => false],
         '_config_cache' => false,
+        'logging' => [
+            'driver' => 'file',
+            'level' => 'debug',
+            'path' => $project . '/storage/logs/runwire-diagnostic.log',
+            'exceptions' => ['include_message' => true, 'include_trace' => false],
+        ],
         'router' => [
             'files' => ['web.php'],
             'matcher' => 'fused',
@@ -448,6 +454,13 @@ it('sends the exact host Runwire request through compiled Webrick and native Int
 
         try {
             $host->handle($native, $writer, completeResponse: true);
+            if ($writer->status !== 200) {
+                $logPath = $project . '/storage/logs/runwire-diagnostic.log';
+                $diagnostics = is_file($logPath) ? (string) file_get_contents($logPath) : '(no log file)';
+
+                throw new RuntimeException('Compiled Runwire request failed: ' . $writer->body . ' ' . $diagnostics);
+            }
+
             expect($writer->status)->toBe(200)
                 ->and($writer->endCalls)->toBe(1)
                 ->and($request->completed())->toBeTrue()

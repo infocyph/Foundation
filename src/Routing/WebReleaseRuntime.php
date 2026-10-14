@@ -94,6 +94,25 @@ final readonly class WebReleaseRuntime
     }
 
     /**
+     * Trusted load from a normalized config snapshot owned by the same Foundation generation.
+     *
+     * @param array<int|string, mixed> $foundationCapabilities Must match compile-time topology; [] is minimal.
+     */
+    public static function loadPrevalidatedCompiled(
+        ConfigRepository $config,
+        string $releaseManifestPath,
+        string $trustedManifestSha256,
+        ?RuntimeAdapterInterface $adapter = null,
+        array $foundationCapabilities = [],
+        ?string $matcherCachePath = null,
+    ): self {
+        self::assertCompiledConfig($config);
+        self::assertTrustedManifest($releaseManifestPath, $trustedManifestSha256);
+
+        return self::boot($config, $releaseManifestPath, $adapter, true, $foundationCapabilities, $matcherCachePath);
+    }
+
+    /**
      * Construct the selected Webrick/Runwire host application from this trusted
      * compiled web generation and a caller-owned Runwire runtime.
      *
@@ -144,25 +163,6 @@ final readonly class WebReleaseRuntime
 
             throw $exception;
         }
-    }
-
-    /**
-     * Trusted load from a normalized config snapshot owned by the same Foundation generation.
-     *
-     * @param array<int|string, mixed> $foundationCapabilities Must match compile-time topology; [] is minimal.
-     */
-    public static function loadPrevalidatedCompiled(
-        ConfigRepository $config,
-        string $releaseManifestPath,
-        string $trustedManifestSha256,
-        ?RuntimeAdapterInterface $adapter = null,
-        array $foundationCapabilities = [],
-        ?string $matcherCachePath = null,
-    ): self {
-        self::assertCompiledConfig($config);
-        self::assertTrustedManifest($releaseManifestPath, $trustedManifestSha256);
-
-        return self::boot($config, $releaseManifestPath, $adapter, true, $foundationCapabilities, $matcherCachePath);
     }
 
     private static function assertCompiledConfig(ConfigRepository $config): void
