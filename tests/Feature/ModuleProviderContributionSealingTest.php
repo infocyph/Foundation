@@ -90,3 +90,18 @@ it('rejects a provider registering new owners while a graph is being contributed
         ->toThrow(LogicException::class, 'registration is closed')
         ->and($registry->classes())->toBe([FoundationB4LateProvider::class]);
 });
+
+it('refuses a new build context after provider ownership has been sealed', function (): void {
+    $original = FoundationBuildContext::fromConfig(new ConfigRepository([
+        'app' => ['capabilities' => []],
+    ]), RuntimeMode::Cli);
+    $different = FoundationBuildContext::fromConfig(new ConfigRepository([
+        'app' => ['capabilities' => ['auth']],
+    ]), RuntimeMode::Worker);
+    $registry = new ServiceRegistry();
+    $registry->add(new FoundationB4FirstProvider());
+    $registry->contribute(FoundationGraph::compose($original), $original);
+
+    expect(fn() => $registry->contribute(FoundationGraph::compose($different), $different))
+        ->toThrow(LogicException::class, 'cannot switch build context');
+});

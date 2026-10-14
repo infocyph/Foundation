@@ -8,6 +8,8 @@ use Infocyph\InterMix\DI\ContainerBuilder;
 
 final class ServiceRegistry
 {
+    private ?FoundationBuildContext $contributedContext = null;
+
     /** @var array<class-string<ServiceProviderInterface>, ServiceProviderInterface> */
     private array $providers = [];
 
@@ -37,8 +39,12 @@ final class ServiceRegistry
 
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
-        // Seal before the first callback so providers cannot add late graph
-        // owners while this or a subsequent immutable builder is composed.
+        if ($this->contributedContext !== null && $this->contributedContext !== $context) {
+            throw new \LogicException('Foundation provider graph cannot switch build context after contribution.');
+        }
+
+        // Seal the exact context and providers before invoking any callback.
+        $this->contributedContext = $context;
         $this->sealed = true;
 
         foreach ($this->providers as $provider) {
