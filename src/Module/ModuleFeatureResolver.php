@@ -14,6 +14,7 @@ namespace Infocyph\Foundation\Module;
  *     root_requirements:array<string,string>,
  *     installed:array<string,string>,
  *     enabled:list<string>,
+ *     selected_features?:list<string>,
  *     config:array<string,mixed>,
  *     extensions:list<string>,
  *     allowlist?:list<string>,
@@ -205,6 +206,10 @@ final readonly class ModuleFeatureResolver
 
             if ($state['compatible'] === false) {
                 $blockers[] = sprintf('Installed %s is outside supported range %s.', $package, $constraint);
+            }
+
+            if ($state['compatible'] === null && $state['version'] !== null) {
+                $blockers[] = sprintf('Cannot verify installed version of %s against %s.', $package, $constraint);
             }
 
             if ($state['root_compatible'] === false) {

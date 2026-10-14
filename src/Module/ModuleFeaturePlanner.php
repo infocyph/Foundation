@@ -96,6 +96,10 @@ final readonly class ModuleFeaturePlanner
         $state = $snapshot['states'][$id];
 
         if ($operation === 'install' || $operation === 'repair') {
+            foreach ($state['missing_extensions'] as $extension) {
+                $blockers[] = sprintf('Extension %s is required for %s.', $extension, $id);
+            }
+
             $this->planAssets($state, $context, $effects);
 
             return;
@@ -186,7 +190,10 @@ final readonly class ModuleFeaturePlanner
             $blockers[] = sprintf('Disable feature %s before removal.', $id);
         }
 
-        $other = array_values(array_diff($context['enabled'], [$id]));
+        $other = array_values(array_diff(
+            array_unique([...$context['enabled'], ...($context['selected_features'] ?? [])]),
+            [$id],
+        ));
         $otherRequired = $this->requirements($other, $context);
         $usedPackages = [];
 

@@ -142,6 +142,44 @@ it('preserves root content and emits stable repeatable effects for repair', func
         ->and($plan['effects']['activate'])->toBe([]);
 });
 
+it('plans each of the nine independent features without pulling unrelated sibling packages', function (): void {
+    $catalog = new ModuleArchitectureCatalog();
+    $planner = new ModuleFeaturePlanner();
+    $context = f4FeatureFixture();
+
+    foreach ($catalog->all() as $module => $definition) {
+        foreach ($definition['features'] as $feature => $metadata) {
+            $id = $module . '.' . $feature;
+            $plan = $planner->plan('install', [$id], $context);
+            expect($plan['requested'])->toBe([$id])
+                ->and($plan['effects']['activate'])->toBe([])
+                ->and($plan['applicable'])->toBeTrue()
+                ->and(array_keys($plan['effects']['require']))->toBe(array_keys($metadata['packages']));
+        }
+    }
+});
+
+it('preserves disabled but explicitly selected feature ownership when removing shared packages', function (): void {
+    $planner = new ModuleFeaturePlanner();
+    $context = f4FeatureFixture();
+    $context['root_requirements']['infocyph/otp'] = '^7.0';
+    $context['installed']['infocyph/otp'] = '7.0.0';
+    $context['selected_features'] = ['security.passkey'];
+
+    expect($planner->plan('remove', ['security.mfa'], $context)['effects']['remove'])->toBe([]);
+});
+
+it('fails closed on unknown installed versions and unavailable required extensions', function (): void {
+    $planner = new ModuleFeaturePlanner();
+    $context = f4FeatureFixture();
+    $context['installed']['infocyph/dblayer'] = 'unstable-opaque';
+    expect($planner->plan('install', ['data.database'], $context)['applicable'])->toBeFalse();
+
+    $context['installed'] = [];
+    $context['extensions'] = [];
+    expect($planner->plan('install', ['data.database'], $context)['applicable'])->toBeFalse();
+});
+
 it('denies malformed operations and feature-less module installs', function (): void {
     $planner = new ModuleFeaturePlanner();
     $ctx = f4FeatureFixture();
