@@ -112,3 +112,21 @@ it('rejects missing platform prerequisites without creating config', function ()
         featureConfigCleanup($path);
     }
 });
+
+it('rejects symbolic-linked project config directories without writing outside application root', function (): void {
+    $path = featureConfigBasePath();
+    $outside = sys_get_temp_dir() . '/foundation-config-outside-' . bin2hex(random_bytes(6));
+    mkdir($outside, 0775, true);
+    symlink($outside, $path . '/config');
+
+    try {
+        $app = Foundation::cli(['base_path' => $path, '_config_cache' => false]);
+        $publisher = new ModuleFeatureConfigPublisher($app);
+        expect(fn() => $publisher->publish(['execution.communication'], featureConfigContext()))
+            ->toThrow(RuntimeException::class, 'Refusing symbolic-linked project config directory.')
+            ->and($outside . '/communication.php')->not->toBeFile();
+    } finally {
+        featureConfigCleanup($path);
+        rmdir($outside);
+    }
+});

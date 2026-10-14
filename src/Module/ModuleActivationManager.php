@@ -151,6 +151,9 @@ final readonly class ModuleActivationManager
     {
         $path = $this->application->configPath('modules.php');
         $directory = dirname($path);
+        if (is_link($directory)) {
+            throw new \RuntimeException('Refusing symbolic-linked module activation directory.');
+        }
         if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
             throw new \RuntimeException(sprintf('Unable to create config directory "%s".', $directory));
         }

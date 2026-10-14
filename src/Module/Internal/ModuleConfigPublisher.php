@@ -52,6 +52,9 @@ final readonly class ModuleConfigPublisher
 
     private function ensureDirectory(string $directory): void
     {
+        if (is_link($directory)) {
+            throw new \RuntimeException('Refusing symbolic-linked project config directory.');
+        }
         if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
             throw new \RuntimeException(sprintf('Unable to create project config directory "%s".', $directory));
         }
