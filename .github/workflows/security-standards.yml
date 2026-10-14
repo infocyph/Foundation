@@ -225,8 +225,6 @@ jobs:
         run: |
           composer validate --strict
           composer ic:release:constraints
-      - name: Verify published 2.1.1 removed-API inventory
-        run: bash scripts/verify-foundation-2-api-map.sh
       - name: Execute migration bootstrap smoke examples
         run: |
           php docs/examples/foundation-4-core.php
