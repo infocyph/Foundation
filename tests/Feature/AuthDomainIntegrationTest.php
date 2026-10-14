@@ -423,3 +423,81 @@ it('does not extend rejected sessions for suspended locked or disabled accounts'
     expect($resolver->resolve($request))->toBeNull()
         ->and($sessions->find($session->id)?->lastSeenAt)->toBe($issuedAt);
 });
+
+it('rechecks direct and role permissions after revocation with the same authorizer instance', function (): void {
+    $services = foundationAuthApplication()->make(AuthServices::class);
+    $account = $services->accounts()->create('permission-revoke@example.test')->account;
+    if (!$account instanceof Account) {
+        throw new LogicException('Expected an authorization account.');
+    }
+
+    $principal = new Principal($account->id(), accountId: $account->id());
+    $permission = $services->permissions()->create('reports:read');
+    $role = $services->roles()->create('reports-reader');
+    $services->permissions()->assignToRole($role->id, $permission->id);
+    $services->roles()->assign($account->id(), $role->id);
+    $authorizer = $services->authorizer();
+
+    expect($authorizer->can($principal, 'reports:read')->allowed)->toBeTrue();
+    $services->permissions()->revokeFromRole($role->id, $permission->id);
+    expect($authorizer->can($principal, 'reports:read')->allowed)->toBeFalse();
+
+    $services->permissions()->assignToRole($role->id, $permission->id);
+    expect($authorizer->can($principal, 'reports:read')->allowed)->toBeTrue();
+    $services->roles()->revoke($account->id(), $role->id);
+    expect($authorizer->can($principal, 'reports:read')->allowed)->toBeFalse();
+
+    $services->permissions()->assignToAccount($account->id(), $permission->id);
+    expect($authorizer->can($principal, 'reports:read')->allowed)->toBeTrue();
+    $services->permissions()->revokeFromAccount($account->id(), $permission->id);
+    expect($authorizer->can($principal, 'reports:read')->allowed)->toBeFalse();
+});
+
+it('applies tenant denial before a broad permission can authorize a foreign resource', function (): void {
+    $services = foundationAuthApplication()->make(AuthServices::class);
+    $account = $services->accounts()->create('tenant-guard@example.test')->account;
+    if (!$account instanceof Account) {
+        throw new LogicException('Expected an account.');
+    }
+
+    $principal = new Principal(
+        $account->id(),
+        accountId: $account->id(),
+        metadata: ['tenant' => 'alpha'],
+    );
+    $permission = $services->permissions()->create('invoice:*');
+    $services->permissions()->assignToAccount($account->id(), $permission->id);
+    $services->gate()->before(
+        static function (
+            \Infocyph\Foundation\Auth\Principal\PrincipalInterface $actor,
+            string $ability,
+            mixed $resource,
+            array $context,
+        ): ?AuthorizationDecision {
+            unset($context);
+            if ($ability !== 'invoice:approve') {
+                return null;
+            }
+
+            $tenant = is_array($resource) ? ($resource['tenant'] ?? null) : null;
+            if (!is_string($tenant) || $tenant !== ($actor->metadata()['tenant'] ?? null)) {
+                return AuthorizationDecision::deny('tenant_mismatch');
+            }
+
+            return null;
+        },
+    );
+    $authorizer = $services->authorizer();
+
+    expect($authorizer->can($principal, 'invoice:approve', [
+        'tenant' => 'alpha',
+        'id' => 'invoice-1',
+    ])->allowed)->toBeTrue()
+        ->and($authorizer->can($principal, 'invoice:approve', [
+            'tenant' => 'beta',
+            'id' => 'invoice-2',
+        ])->code)->toBe('tenant_mismatch')
+        ->and($authorizer->can($principal, 'invoice:approve', [
+            'id' => 'invoice-3',
+        ])->allowed)->toBeFalse();
+});
