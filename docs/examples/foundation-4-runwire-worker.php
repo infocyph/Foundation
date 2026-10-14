@@ -27,6 +27,7 @@ $app = Foundation::worker([
 
 $runtime = RuntimeContext::standalone();
 $request = RequestContext::create($runtime);
+
 try {
     $app->execution()->run(
         static function (ExecutionId $id) use ($app, $runtime, $request): void {

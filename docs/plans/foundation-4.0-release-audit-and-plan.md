@@ -3,7 +3,7 @@
 Audit date: 2026-10-11. Target: **Foundation 4.0**, upgrading directly from
 published Foundation 2.1.1 and skipping publication of Foundation 3.
 
-**Live release checkpoint (2026-10-14): Batch 1 6/6, Batch 2 8/8, Batch 3 4/4 and Batch 4 7/7 accepted; overall 25/37. Batch 5 active (0/4 accepted).** Latest fully green Batch 4 implementation [`1ccab59b`](https://github.com/infocyph/Foundation/commit/1ccab59b9d5e4bee2c6cc4ac98db544d6a0e746d), [Security & Standards #38512181935](https://github.com/infocyph/Foundation/actions/runs/38512181935) **SUCCESS**: PHPForge QA PHP 8.4/8.5 lowest/stable **4/4**, PHPStan **2/2**, production consumer installs **4/4**, benchmark jobs **2/2**, clean install and release evidence passed. Batch 4 accepted all seven native-composition gates below using existing real-service integration tests plus this batch's targeted production fixes and regressions. Native libraries retain their implementation ownership; tenant scope still requires an explicit application Gate/policy, and account/device session/token revocation requires the documented explicit owner APIs rather than an implicit hidden cascade. No fallback or BC for retired library series, no shadow owner of Runwire/Webrick/CacheLayer/DBLayer/OTP/Epicrypt/Omnibus/Pathwise/TalkingBytes. **Prior 0/7/pending QA notes below are preserved historical checkpoints, not live acceptance.** PR #20 remains draft; no merge, tag or publication.
+**Live release checkpoint (2026-10-14): Batch 1 6/6, Batch 2 8/8, Batch 3 4/4 and Batch 4 7/7 accepted; overall 25/37. Batch 5 active (0/4 accepted). Infbyte application work explicitly deferred until Foundation finishes.** Latest fully green Batch 4 implementation [`1ccab59b`](https://github.com/infocyph/Foundation/commit/1ccab59b9d5e4bee2c6cc4ac98db544d6a0e746d), [Security & Standards #38512181935](https://github.com/infocyph/Foundation/actions/runs/38512181935) **SUCCESS**: PHPForge QA PHP 8.4/8.5 lowest/stable **4/4**, PHPStan **2/2**, production consumer installs **4/4**, benchmark jobs **2/2**, clean install and release evidence passed. Batch 4 accepted all seven native-composition gates below using existing real-service integration tests plus this batch's targeted production fixes and regressions. Native libraries retain their implementation ownership; tenant scope still requires an explicit application Gate/policy, and account/device session/token revocation requires the documented explicit owner APIs rather than an implicit hidden cascade. No fallback or BC for retired library series, no shadow owner of Runwire/Webrick/CacheLayer/DBLayer/OTP/Epicrypt/Omnibus/Pathwise/TalkingBytes. **Prior 0/7/pending QA notes below are preserved historical checkpoints, not live acceptance.** PR #20 remains draft; no merge, tag or publication.
 
 ### 2026-10-14 — Batch 4 complete: 7/7 accepted, release audit gate closed
 
@@ -1776,6 +1776,14 @@ Extended the **four PHP 8.4/8.5 × stable/lowest** production-consumer matrix: b
 
 Compared source trees of published 2.1.1 (`f6749ebe0aa1f93c6b3586e8cb63ecc1f552d98b`) and current branch. `docs/foundation-4-api-map.md` enumerates **all 28 removed PHP source paths** and migration destinations, plus changed provider, DI, route cache, module, configuration, OAuth and passed-instance Runwire contracts. `docs/foundation-4-retained-data-rehearsal.md` explicitly distinguishes backup restoration from code rollback, inventories eight retained-data families and cites existing test evidence without asserting a real 2.1.1 backup has been restored. Both guides are linked from the migration guide and root/docs navigation; runtime-hosting documentation no longer claims Batch 3 is unfinished. Added runnable CLI and optional Runwire worker source examples. **CI pending; Batch 5 remains 0/4, overall 25/37.** An actual Infbyte application rehearsal is not done: its published root constraint currently points to Foundation `^3.0.1`.
 
+### 2026-10-14 — Foundation-first scope and current QA remediation
+
+**User-approved scope:** finish Foundation's own 4.0 release gates **before** updating Infbyte. Infbyte application configuration, skeleton, routes and version-constraint changes are a separate later task. Foundation Batch 5 gate #4 now requires core-only, database-only, full published-specialist `--no-dev` installs, native Runwire host input isolation and native Foundation release compilation; no Infbyte CI clone or forced skeleton rewrite. Previous Infbyte exploratory rehearsals remain historical evidence, not a blocking dependency.
+
+**Verified prior CI failure:** [`a7f00a3b`](https://github.com/infocyph/Foundation/commit/a7f00a3bb05bc5d22a2de6b3c61c37af6671f9eb), [Security & Standards #38516363971](https://github.com/infocyph/Foundation/actions/runs/38516363971), failed **Pint only** in all four PHPForge variants: `docs/examples/foundation-4-runwire-worker.php` still needed a blank line before `try`. Pest, PHPCS, Rector, duplicate scan, reference integrity, PHPStan 2/2, production consumers 4/4, benchmarks 2/2 and clean install passed; release evidence was skipped because QA failed. Fixed source example formatting; **new exact-head QA pending**. Do not count those previously failed jobs as passing.
+
+**Remaining release boundary:** the synthetic SQLite retained-data restoration test and migration runbook **cannot represent restoration of real customer 2.1.1 backups**. Foundation can verify additive fixture migrations and a rollback guard, but production operators must still rehearse their own backups, keys and durable queue/object state. A transparent release acceptance decision must distinguish supported upgrade tooling from application-specific live migration.
+
 ### Batch 5 — direct migration and consumer rehearsal
 
 - [ ] Write current Foundation 4 release/migration guidance and runnable examples;
@@ -1787,10 +1795,12 @@ Compared source trees of published 2.1.1 (`f6749ebe0aa1f93c6b3586e8cb63ecc1f552d
   secrets/recovery codes, passkey credentials, queue payloads, and durable outbox
   data. Use additive migrations where possible; test backup restoration and
   explicit downgrade limits. Code rollback does not establish data rollback.
-- [ ] Exercise production `--no-dev` consumers with both core-only and complete
-  applicable module topologies, explicit Runwire hosts, and Infbyte against the
-  candidate source and published dependencies. Adapt the skeleton to the approved breaking surface while
-  preserving the Foundation-framework/Infbyte-application responsibility boundary.
+- [ ] Exercise Foundation production `--no-dev` consumers with core-only,
+  database-only and complete selected published-specialist topologies, including
+  explicit host-owned Runwire context propagation, release compilation and
+  no dev-only dependency leakage. Keep actual Infbyte application/skeleton
+  migration in a **separate post-Foundation follow-up**; it is not a Foundation
+  4.0 acceptance dependency.
 
 ### Batch 6 — certify one immutable release candidate
 

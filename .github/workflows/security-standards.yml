@@ -204,44 +204,6 @@ jobs:
             fi
           )
 
-          # Clone the real Infbyte skeleton into an isolated CI directory.
-          # Override only its Composer resolution; do not edit Infbyte main.
-          skeleton="$RUNNER_TEMP/foundation-infbyte-rehearsal"
-          git clone --depth=1 https://github.com/infocyph/Infbyte.git "$skeleton"
-          (
-            cd "$skeleton"
-            php -r '
-              $file = "composer.json";
-              $manifest = json_decode(file_get_contents($file), true, 512, JSON_THROW_ON_ERROR);
-              $manifest["repositories"] = [
-                  ["type" => "path", "url" => getenv("GITHUB_WORKSPACE"), "options" => ["symlink" => false]],
-              ];
-              $manifest["minimum-stability"] = "dev";
-              $manifest["prefer-stable"] = true;
-              $manifest["require"]["infocyph/foundation"] = "*";
-              file_put_contents($file, json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n");
-            '
-            composer update "${composer_args[@]}"
-            php infbyte list > commands.txt
-            php infbyte route:list > routes.txt
-            php infbyte optimize
-            php -r '
-              require "vendor/autoload.php";
-              $app = require "bootstrap/app.php";
-              if (!$app instanceof \Infocyph\Foundation\Application\Application) {
-                  fwrite(STDERR, "Infbyte bootstrap did not return a Foundation application.\n");
-                  exit(1);
-              }
-              if (!class_exists(\Infocyph\Foundation\Release\FoundationReleaseBootstrap::class)) {
-                  fwrite(STDERR, "Trusted web release bootstrap is absent.\n");
-                  exit(1);
-              }
-            '
-            if composer show infocyph/phpforge >/dev/null 2>&1; then
-              echo "PHPForge leaked into Infbyte production rehearsal." >&2
-              exit 1
-            fi
-          )
 
   release-evidence:
     name: Release evidence

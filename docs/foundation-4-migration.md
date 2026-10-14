@@ -162,3 +162,7 @@ php docs/examples/foundation-4-runwire-worker.php
 
 These are *development* smoke checks; real hosted Runwire HTTP requires a
 trusted compiled Webrick release and the host-supplied writer/context.
+
+## Foundation-first release boundary
+
+Foundation 4.0 is implemented and verified independently of the Infbyte application skeleton. Updating Infbyte's Composer constraint, routes, providers, bootstrap and release artifacts is a **separate follow-up after Foundation is ready**. The Foundation CI consumer matrix verifies core-only, database-only and published optional-package/Runwire deployments without cloning or rewriting Infbyte. The [API replacement map](foundation-4-api-map.md) remains the downstream migration reference. Operators must still restore and validate their **own** retained production data; the supplied synthetic rehearsal cannot certify external deployments.
