@@ -62,14 +62,7 @@ final readonly class ModuleFeaturePlanner
         }
 
         if (in_array($operation, ['install', 'repair'], true)) {
-            foreach ($required as $id) {
-                $state = $snapshot['states'][$id];
-                foreach ($state['missing_extensions'] as $extension) {
-                    $blockers[] = sprintf('Extension %s is required for %s.', $extension, $id);
-                }
-                $this->planAssets($state, $context, $effects);
-                $this->planPackages($state['packages'], $effects, $warnings);
-            }
+            $this->planRequiredEffects($required, $snapshot, $context, $effects, $blockers, $warnings);
         } elseif ($operation === 'enable') {
             foreach (array_diff($required, $requested) as $id) {
                 $this->checkEnable($id, $snapshot['states'][$id], $context, $blockers);
@@ -218,6 +211,32 @@ final readonly class ModuleFeaturePlanner
             if ($packageState['direct'] && !isset($usedPackages[$package])) {
                 $effects['remove'][] = $package;
             }
+        }
+    }
+
+    /**
+     * @param list<string> $required
+     * @phpstan-param Resolution $snapshot
+     * @phpstan-param Context $context
+     * @param array{require:array<string,string>,remove:list<string>,activate:array<string,bool>,publish:list<string>,schemas:list<string>} $effects
+     * @param list<string> $blockers
+     * @param list<string> $warnings
+     */
+    private function planRequiredEffects(
+        array $required,
+        array $snapshot,
+        array $context,
+        array &$effects,
+        array &$blockers,
+        array &$warnings,
+    ): void {
+        foreach ($required as $id) {
+            $state = $snapshot['states'][$id];
+            foreach ($state['missing_extensions'] as $extension) {
+                $blockers[] = sprintf('Extension %s is required for %s.', $extension, $id);
+            }
+            $this->planAssets($state, $context, $effects);
+            $this->planPackages($state['packages'], $effects, $warnings);
         }
     }
 
