@@ -114,6 +114,31 @@ it('resolves only qualified canonical feature IDs without ambiguous old aliases'
         ->and(fn() => $catalog->resolve('data.database.extra'))->toThrow(InvalidArgumentException::class);
 });
 
+it('rejects invalid schema ownership, unsafe config paths, platform names and shared-package floors', function (): void {
+    $catalog = new ModuleArchitectureCatalog();
+    $definitions = $catalog->all();
+
+    $schema = $definitions;
+    $schema['security']['features']['crypto']['schemas'] = ['messaging'];
+    expect(fn() => $catalog->validate($schema))->toThrow(LogicException::class, 'duplicate schema owner');
+
+    $path = $definitions;
+    $path['data']['features']['filesystem']['config'] = ['../config.php'];
+    expect(fn() => $catalog->validate($path))->toThrow(LogicException::class, 'Invalid config ownership path');
+
+    $platform = $definitions;
+    $platform['data']['features']['database']['platform']['extensions'] = ['not an extension'];
+    expect(fn() => $catalog->validate($platform))->toThrow(LogicException::class, 'Invalid platform extension');
+
+    $shared = $definitions;
+    $shared['security']['features']['passkey']['packages']['infocyph/otp'] = '^6.0';
+    expect(fn() => $catalog->validate($shared))->toThrow(LogicException::class, 'Conflicting shared constraints');
+
+    $missing = $definitions;
+    unset($missing['security']['features']['mfa']);
+    expect(fn() => $catalog->validate($missing))->toThrow(LogicException::class, 'Invalid or reordered features');
+});
+
 it('exposes the approved catalog via ModuleCatalog without changing existing runtime calls before cutover', function (): void {
     $current = new ModuleCatalog();
     $target = new ModuleArchitectureCatalog();
