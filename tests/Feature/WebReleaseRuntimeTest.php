@@ -391,11 +391,13 @@ final class FoundationRunwireReleaseContextHandler
 {
     public static function show(
         \Infocyph\Runwire\RuntimeContext $runtime,
-        \Infocyph\Runwire\RequestContext $request,
+        \Infocyph\Runwire\RequestContext $runwireRequest,
+        \Infocyph\Webrick\Request\Request $request,
     ): \Infocyph\Webrick\Response\Response {
         return \Infocyph\Webrick\Response\Response::json([
             'mode' => $runtime->mode,
-            'request' => $request->requestId,
+            'request' => $runwireRequest->requestId,
+            'path' => $request->getUri()->getPath(),
         ]);
     }
 }
@@ -467,6 +469,7 @@ it('sends the exact host Runwire request through compiled Webrick and native Int
                 ->and(json_decode($writer->body, true, flags: JSON_THROW_ON_ERROR))->toBe([
                     'mode' => $runtime->mode,
                     'request' => 'foundation-native-request',
+                    'path' => '/runwire-context',
                 ]);
         } finally {
             $host->shutdown();
