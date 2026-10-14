@@ -66,7 +66,7 @@ try {
             $flags[$id] = true;
         }
         $config = [
-            'app' => ['base_path' => $root, 'env' => 'production', 'capabilities' => $capabilities],
+            'app' => ['base_path' => $root, 'env' => 'local', 'capabilities' => $capabilities],
             '_config_cache' => false,
             'modules' => ['features' => $flags],
         ];
