@@ -7,6 +7,7 @@ on:
     paths:
       - .github/workflows/foundation4-host-certification.yml
       - benchmarks/foundation4-host-certify.sh
+      - benchmarks/foundation4-host-load.php
       - benchmarks/foundation4-host-report.php
       - benchmarks/phase9-server-compile.php
 
@@ -27,7 +28,7 @@ jobs:
         with:
           php-version: "8.4"
           tools: composer:v2
-          extensions: "mbstring, intl, sodium, pcntl, posix, sockets, pdo, pdo_sqlite, pdo_mysql, pdo_pgsql, redis, memcached"
+          extensions: "mbstring, intl, sodium, curl, pcntl, posix, sockets, pdo, pdo_sqlite, pdo_mysql, pdo_pgsql, redis, memcached"
           ini-values: "opcache.enable_cli=1"
           coverage: none
       - name: Install native host and load tools
@@ -36,10 +37,10 @@ jobs:
           sudo apt-get install -y -qq software-properties-common
           sudo add-apt-repository -y ppa:ondrej/php
           sudo apt-get update -qq
-          sudo apt-get install -y -qq nginx apache2-utils php8.4-fpm
+          sudo apt-get install -y -qq nginx php8.4-fpm
           php-fpm8.4 -v
           nginx -v
-          ab -V
+          php -r 'if (!extension_loaded("curl")) { exit(1); }'
       - name: Resolve Foundation 4 and selected Runwire dependencies
         run: composer update --no-interaction --no-progress --prefer-dist --prefer-stable
       - name: Exercise FPM and native Runwire host processes
