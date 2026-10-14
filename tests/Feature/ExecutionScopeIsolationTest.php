@@ -7,6 +7,7 @@ use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Runtime\ExecutionId;
+use Infocyph\Foundation\Runtime\RuntimeExecutionState;
 use Infocyph\Foundation\Exception\ServiceResolutionException;
 use Infocyph\InterMix\DI\Container;
 use Infocyph\InterMix\DI\ContainerBuilder;
@@ -261,4 +262,66 @@ it('preserves thrown child failures without closing the borrowed owner scope', f
 
     expect($after)->toBe($state)
         ->and($afterId)->toBe($id);
+});
+
+
+it('keeps scoped module runtime state separate across selected CLI worker scheduler jobs', function (): void {
+    foreach ([
+        RuntimeMode::Cli,
+        RuntimeMode::Worker,
+        RuntimeMode::Scheduler,
+    ] as $mode) {
+        $app = match ($mode) {
+            RuntimeMode::Cli => Foundation::cli([
+                'app' => ['env' => 'testing', 'capabilities' => ['database']],
+                'modules' => ['features' => ['data.database' => true]],
+            ]),
+            RuntimeMode::Worker => Foundation::worker([
+                'app' => ['env' => 'testing', 'capabilities' => ['database']],
+                'modules' => ['features' => ['data.database' => true]],
+            ]),
+            RuntimeMode::Scheduler => Foundation::scheduler([
+                'app' => ['env' => 'testing', 'capabilities' => ['database']],
+                'modules' => ['features' => ['data.database' => true]],
+            ]),
+            RuntimeMode::Web => throw new LogicException('Webrick owns web request scopes.'),
+        };
+        $app->boot();
+        $previous = null;
+
+        foreach (['first', 'second'] as $label) {
+            $observed = $app->execution()->run(
+                static function (ExecutionId $id) use ($app): array {
+                    $state = $app->make(RuntimeExecutionState::class);
+
+                    return [
+                        'id' => (string) $id,
+                        'state' => $state,
+                        'same' => $state === $app->make(RuntimeExecutionState::class),
+                    ];
+                },
+                executionId: new ExecutionId($mode->value . '-' . $label),
+            );
+
+            expect($observed['id'])->toBe($mode->value . '-' . $label)
+                ->and($observed['same'])->toBeTrue()
+                ->and($observed['state'])->toBeInstanceOf(RuntimeExecutionState::class);
+            if ($previous instanceof RuntimeExecutionState) {
+                expect($observed['state'])->not->toBe($previous);
+            }
+            $previous = $observed['state'];
+        }
+    }
+});
+
+it('rejects forged host runtime inputs rather than creating a Runwire identity', function (): void {
+    $app = Foundation::worker([
+        'app' => ['env' => 'testing'],
+        'modules' => ['features' => ['execution.runtime' => true]],
+    ])->boot();
+
+    expect(fn() => $app->execution()->run(
+        static fn(): null => null,
+        [\Infocyph\Runwire\RuntimeContext::class => new stdClass()],
+    ))->toThrow(LogicException::class, 'host-owned runtime context');
 });
