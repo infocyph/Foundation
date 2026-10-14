@@ -100,6 +100,49 @@ assert_ready() {
     return 1
 }
 
+probe_failure_and_cancellation() {
+    local url="$1" code
+    code="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 5 "$url/failure")"
+    if [[ "$code" != "500" ]]; then
+        echo "Expected a contained HTTP 500 failure, received $code" >&2
+        return 1
+    fi
+    assert_ready "$url"
+
+    if curl --silent --max-time 0.05 --output /dev/null "$url/slow"; then
+        echo "Client cancellation probe unexpectedly completed its delayed request." >&2
+        return 1
+    fi
+    sleep 0.3
+    assert_ready "$url"
+    echo "Verified failed-request recovery and client cancellation for $url"
+}
+
+probe_runwire_replacement() {
+    local parent="$SERVICE_PID" original current
+    local -a children=()
+    mapfile -t children < <(pgrep -P "$parent" || true)
+    if (( ${#children[@]} < 4 )); then
+        echo "Runwire prefork replacement check requires four live native workers." >&2
+        return 1
+    fi
+    original="${children[0]}"
+    kill -TERM "$original"
+    for _ in $(seq 1 100); do
+        if ! kill -0 "$original" 2>/dev/null; then
+            mapfile -t children < <(pgrep -P "$parent" || true)
+            if (( ${#children[@]} >= 4 )); then
+                assert_ready "http://127.0.0.1:$PORT_RUNWIRE"
+                echo "Verified native Runwire worker replacement of $original"
+                return 0
+            fi
+        fi
+        sleep 0.1
+    done
+    echo "Native Runwire supervisor did not replace terminated worker $original" >&2
+    return 1
+}
+
 start_fpm() {
     local workers="$1" app="$2"
     local cfg="$OUTPUT/fpm-$workers.conf" pool="$OUTPUT/fpm-$workers.pool.conf"
@@ -199,6 +242,10 @@ for host in fpm runwire; do
                 echo "Validated $prefix"
             done
         done
+        probe_failure_and_cancellation "$url"
+        if [[ "$host" == "runwire" && "$workers" -eq 4 ]]; then
+            probe_runwire_replacement
+        fi
         stop_service
     done
 done
