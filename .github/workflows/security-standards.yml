@@ -229,11 +229,26 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git fetch --no-tags --depth=1 origin refs/tags/2.1.1
-          baseline="$(git rev-parse FETCH_HEAD)"
-          mapfile -t removed < <(
-            comm -23 \
-              <(git ls-tree -r --name-only "$baseline" -- src | grep -E '^src/.*[.]php
+          git fetch --depth=1 --no-tags origin refs/tags/2.1.1
+          git ls-tree -r --name-only FETCH_HEAD -- src | grep "[.]php" | LC_ALL=C sort > "$RUNNER_TEMP/foundation-old-php.txt"
+          git ls-tree -r --name-only HEAD -- src | grep "[.]php" | LC_ALL=C sort > "$RUNNER_TEMP/foundation-new-php.txt"
+          comm -23 "$RUNNER_TEMP/foundation-old-php.txt" "$RUNNER_TEMP/foundation-new-php.txt" > "$RUNNER_TEMP/foundation-removed-php.txt"
+          count="$(wc -l < "$RUNNER_TEMP/foundation-removed-php.txt")"
+          if [ "$count" -ne 28 ]; then
+            echo "Unexpected 2.1.1 removed API count: $count (expected 28)" >&2
+            exit 1
+          fi
+          while IFS= read -r path; do
+            symbol="${path#src/}"
+            symbol="${symbol%.php}"
+            if ! grep -Fq "$symbol" docs/foundation-4-api-map.md; then
+              echo "Missing removed API mapping: $path" >&2
+              exit 1
+            fi
+          done < "$RUNNER_TEMP/foundation-removed-php.txt"
+          echo "Verified all 28 removed published Foundation 2.1.1 PHP paths."
+      - name: Execute migration bootstrap smoke examples
+        run: |
           php docs/examples/foundation-4-core.php
           php docs/examples/foundation-4-runwire-worker.php
       - name: Capture release evidence
