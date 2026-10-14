@@ -66,7 +66,7 @@ it('refuses malformed, bare, unknown or non-boolean module feature overrides bef
     ] as $features) {
         expect(fn() => FoundationBuildContext::fromConfig(new ConfigRepository([
             'modules' => ['features' => $features],
-        ]), RuntimeMode::Cli))->toThrow(Throwable::class);
+        ]), RuntimeMode::Cli))->toThrow(Exception::class);
     }
 });
 

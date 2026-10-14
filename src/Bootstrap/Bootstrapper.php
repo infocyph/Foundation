@@ -21,8 +21,8 @@ use Infocyph\Foundation\Filesystem\PathServiceProvider;
 use Infocyph\Foundation\Http\HttpServiceProvider;
 use Infocyph\Foundation\Http\JsonDispatch\JsonDispatchServiceProvider;
 use Infocyph\Foundation\Logging\LoggingServiceProvider;
-use Infocyph\Foundation\Module\ModuleFeatureCapabilityPolicy;
 use Infocyph\Foundation\Messaging\MessagingServiceProvider;
+use Infocyph\Foundation\Module\ModuleFeatureCapabilityPolicy;
 use Infocyph\Foundation\Notifications\NotificationServiceProvider;
 use Infocyph\Foundation\Routing\RouteFileLoader;
 use Infocyph\Foundation\Routing\RoutingServiceProvider;
@@ -115,24 +115,6 @@ final class Bootstrapper
         ServiceRegistry $registry,
     ): void {
         $registry->contribute($builder, $context);
-    }
-
-    private function registerOptionalProviders(FoundationBuildContext $context, ServiceRegistry $registry): void
-    {
-        foreach (self::OPTIONAL_BUILT_INS as $provider) {
-            $capability = self::OPTIONAL_CAPABILITIES[$provider];
-            if (!$context->permitsCapability($capability)) {
-                continue;
-            }
-            if (!$this->providerDependencyAvailable($provider)) {
-                if ($context->featureSelections !== null && ModuleFeatureCapabilityPolicy::owner($capability) !== null) {
-                    throw new \LogicException(sprintf('Selected feature provider %s is unavailable.', $capability));
-                }
-
-                continue;
-            }
-            $registry->add($this->instantiateProvider($provider));
-        }
     }
 
     private function assertProviderGroup(int|string $group, mixed $entries): void
@@ -264,5 +246,23 @@ final class Bootstrapper
         }
 
         return $normalized;
+    }
+
+    private function registerOptionalProviders(FoundationBuildContext $context, ServiceRegistry $registry): void
+    {
+        foreach (self::OPTIONAL_BUILT_INS as $provider) {
+            $capability = self::OPTIONAL_CAPABILITIES[$provider];
+            if (!$context->permitsCapability($capability)) {
+                continue;
+            }
+            if (!$this->providerDependencyAvailable($provider)) {
+                if ($context->featureSelections !== null && ModuleFeatureCapabilityPolicy::owner($capability) !== null) {
+                    throw new \LogicException(sprintf('Selected feature provider %s is unavailable.', $capability));
+                }
+
+                continue;
+            }
+            $registry->add($this->instantiateProvider($provider));
+        }
     }
 }

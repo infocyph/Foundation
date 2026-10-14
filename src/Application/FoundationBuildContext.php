@@ -95,15 +95,6 @@ final readonly class FoundationBuildContext
         return $legacyAllowed && ModuleFeatureCapabilityPolicy::permits($capability, $this->featureSelections);
     }
 
-    private function rawCapability(string $capability): bool
-    {
-        if (array_key_exists($capability, $this->capabilityOverrides)) {
-            return $this->capabilityOverrides[$capability];
-        }
-
-        return $this->capabilities[$capability] ?? false;
-    }
-
     /**
      * @param array<int|string, mixed>|null $capabilities
      * @return array<int|string, mixed>|null
@@ -177,5 +168,14 @@ final readonly class FoundationBuildContext
             'off' => TraceLevelEnum::Off,
             default => TraceLevelEnum::Node,
         };
+    }
+
+    private function rawCapability(string $capability): bool
+    {
+        if (array_key_exists($capability, $this->capabilityOverrides)) {
+            return $this->capabilityOverrides[$capability];
+        }
+
+        return $this->capabilities[$capability] ?? false;
     }
 }
