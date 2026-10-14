@@ -131,7 +131,7 @@ final readonly class ModuleActivationManager
         }
 
         try {
-            if (is_link($lockPath) || !flock($lock, LOCK_EX)) {
+            if (!flock($lock, LOCK_EX)) {
                 throw new \RuntimeException('Unable to acquire safe module activation lock.');
             }
 
