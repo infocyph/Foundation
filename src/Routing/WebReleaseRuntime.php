@@ -86,7 +86,9 @@ final readonly class WebReleaseRuntime
                     $server->handle($request, $writer);
                 },
                 runtimeContext: $runtime,
-                shutdown: static fn(): mixed => $integration->release($runtime),
+                shutdown: static function () use ($integration, $runtime): void {
+                    $integration->release($runtime);
+                },
             );
         } catch (\Throwable $exception) {
             $integration->release($runtime);
