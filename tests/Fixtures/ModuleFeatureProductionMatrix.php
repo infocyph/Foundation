@@ -95,10 +95,9 @@ try {
             throw new RuntimeException('Webrick-owned graph providers leaked into CLI compilation.');
         }
 
-        // Validate immutable compilation for Core-only, a selected specialist,
-        // and the complete optional topology. The full provider-selection
-        // matrix above still runs for every individual feature in --no-dev.
-        if ($index === 0 || ($mode === 'all' && (count($selectedIds) === 1 && $selectedIds[0] === 'data.database' || count($selectedIds) === 9))) {
+        // Compile each selected topology, rather than checking only planner
+        // output, in a genuine --no-dev production-consumer dependency tree.
+        {
             $artifact = $root . '/bootstrap/cache/matrix-' . $index . '.php';
             $report = new GeneratedRuntimeCompiler()->compile($config, RuntimeMode::Cli, $artifact, $capabilities);
             if ($report['skipped'] !== []) {
