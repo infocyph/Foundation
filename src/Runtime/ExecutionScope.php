@@ -176,16 +176,7 @@ final readonly class ExecutionScope
             $request->cancellation->throwIfCancelled();
         }
 
-        if (array_key_exists(CoroutineScope::class, $seeds)) {
-            $scope = $seeds[CoroutineScope::class];
-            if (!$scope instanceof CoroutineScope || !$runtime->supports(RuntimeCapability::RUNWIRE_COROUTINES)) {
-                throw new \LogicException('Runwire execution coroutine scope requires a compatible host runtime.');
-            }
-            // The public non-mutating guard checks the active native task and
-            // closed-scope state without starting a scheduler or yielding.
-            $scope->hasLocal(new TaskLocal());
-            $scope->cancellation()->throwIfCancelled();
-        }
+        self::assertRunwireScopeSeed($seeds, $runtime);
     }
 
     /** @param array<string, mixed> $seeds */
@@ -194,6 +185,25 @@ final readonly class ExecutionScope
         if (array_key_exists(RuntimeMode::class, $seeds)) {
             throw new \InvalidArgumentException('Execution scope cannot override its runtime mode.');
         }
+    }
+
+    /**
+     * @param array<string, mixed> $seeds
+     */
+    private static function assertRunwireScopeSeed(array $seeds, RuntimeContext $runtime): void
+    {
+        if (!array_key_exists(CoroutineScope::class, $seeds)) {
+            return;
+        }
+
+        $scope = $seeds[CoroutineScope::class];
+        if (!$scope instanceof CoroutineScope || !$runtime->supports(RuntimeCapability::RUNWIRE_COROUTINES)) {
+            throw new \LogicException('Runwire execution coroutine scope requires a compatible host runtime.');
+        }
+
+        // A native read-only guard verifies the current task and live scope.
+        $scope->hasLocal(new TaskLocal());
+        $scope->cancellation()->throwIfCancelled();
     }
 
     /**
