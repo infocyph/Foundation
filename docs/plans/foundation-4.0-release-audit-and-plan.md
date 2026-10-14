@@ -3,7 +3,27 @@
 Audit date: 2026-10-11. Target: **Foundation 4.0**, upgrading directly from
 published Foundation 2.1.1 and skipping publication of Foundation 3.
 
-**Live release checkpoint (2026-10-14): Batch 1 6/6, Batch 2 8/8 accepted; Batch 3 in progress (0/4 accepted); overall 14/37.** **Latest fully green Batch 3 implementation:** [`9fefd574`](https://github.com/infocyph/Foundation/commit/9fefd574eb1928020f65430348c9101cd743f2f3), [QA #38505924046](https://github.com/infocyph/Foundation/actions/runs/38505924046); Runwire native context inputs now cover explicitly selected web, worker, CLI and scheduler graphs, with host-seed process/request/cancellation guards and native structured child-task tests. Full Batch 3 criterion acceptance remains pending.  The selected native InterMix 11.2 / Webrick 6.0.3 / CacheLayer 4 / optional DBLayer 6.1 graph and service cutover is green. [Security & Standards #38491340356](https://github.com/infocyph/Foundation/actions/runs/38491340356) at [`994c1e36`](https://github.com/infocyph/Foundation/commit/994c1e3624f92a77aa6b029c80ac166decef4e82) completed **SUCCESS**: PHP 8.4/8.5 lowest/stable QA 4/4, PHPStan 2/2, production consumer installs 4/4, benchmarks 2/2, clean install and release evidence passed. Batch 2's final production-symbol ownership gate was accepted on the bounded evidence recorded in [the Batch 2 acceptance ledger](foundation-4.0-batch2-symbol-ownership-acceptance.md). Batch 3 Runwire host ownership, Batch 4 security/persistence concurrency, migration and release certification **are not accepted**. PR #20 stays draft; do not merge, tag or publish.
+**Live release checkpoint (2026-10-14): Batch 1 6/6, Batch 2 8/8, Batch 3 4/4 accepted; Batch 4 in progress (0/7 accepted); overall 18/37.** Latest full green Batch 3 implementation [`0a808972`](https://github.com/infocyph/Foundation/commit/0a8089728e0f3a3bc6c61883e0776199ab59be3b), [Security & Standards #38508326050](https://github.com/infocyph/Foundation/actions/runs/38508326050) **SUCCESS**: PHPForge QA PHP 8.4/8.5 lowest/stable **4/4**, PHPStan **2/2**, production consumer installs **4/4**, benchmark jobs **2/2**, clean install and release evidence. All four Runwire native acceptance gates below are checked on source/test evidence; Runwire remains explicit and host-owned, with InterMix/Webrick/CacheLayer's native integrations, no shadow host or scheduler. Selected runtime dependencies: InterMix ^11.2, Webrick ^6.0.3, CacheLayer ^4, optional DBLayer ^6.1; Runwire 2.1.1 is development/test optional. **Batch 4 is NOT accepted**: distributed security/persistence contention, full auth/OAuth/MFA/browser flows and multi-mode lifecycle remain under audit and implementation. PR #20 remains draft; no merge, tag or publication. Prior "pending QA"/"0/4" notes below are historical snapshots, superseded by this live checkpoint.
+
+### 2026-10-14 — Batch 4 start: security and persistence evidence ledger
+
+**Status: Batch 4 0/7 accepted; total 18/37.** Start with security gate #1 while keeping its many independent subrequirements open until independently verified. Do not infer a full gate pass from one added test. New source: `AuthDomainIntegrationTest` exercises direct permission account isolation, resource-type/resource-ID-scoped delegation, different principals, revocation and expired-grant rejection. CI for this Batch 4 test is **pending**. These checks validate principal/resource isolation but do not themselves establish trusted tenant policy enforcement.
+
+| Gate | Existing relevant tests / native owner | Remaining validation before acceptance | Status |
+| --- | --- | --- | --- |
+| #1 Authentication/authorization | `AuthDomainIntegrationTest`, `BrowserSessionIntegrationTest`, `SessionLockContentionTest`, `ProductionSecurityClosureTest`; CacheLayer atomic lock ownership | Tenant-aware policy boundary, stale authorization/permission state, active-session effects of account suspension, cookie/CSRF/rate limits, distributed lock/counter load | **0/1** |
+| #2 Full built-in auth flows | `AuthDomainIntegrationTest`, `BrowserSessionIntegrationTest`, `AuthReleaseClosureTest` | Comprehensive cross-request browser/auth session, device revocation, step-up/recovery, token/session invalidation and native owner boundary evidence | **0/1** |
+| #3 OAuth / token races | `OAuth21AuthorizationCodeConcurrencyTest`, `OAuth21RefreshConcurrencyTest`, `OAuth21AuditSecurityTest`, Epicrypt OAuth/PKCE suites | Broader real-DB races, approved redirect/PKCE negative combinations, repeated revocation/reuse and auditable atomicity | **0/1** |
+| #4 MFA / passkeys | `OtpPasskeyIntegrationTest`, `Epicrypt3MfaSecretProtectionTest` | Real-backend OTP/recovery replay contention, counter CAS, WebAuthn origin/RP and credential lease races | **0/1** |
+| #5 Persistence / messaging | `PersistentDatabaseLifecycleTest`, `PersistentExecutionStateIsolationTest`, `SessionLockContentionTest`, Omnibus integrations | Outbox/rollback atomicity, duplicates, webhook replay, elected scheduler, reconnects and generation resets under actual contention | **0/1** |
+| #6 HTTP / filesystem / communication | `ProductionSecurityClosureTest`, `WebReleaseRuntimeTest`, HTTP security suites | Proxy trust, uploads/paths, redirects, native response streaming, TLS/SSRF and redacted failure/reporting negative matrix | **0/1** |
+| #7 Persistent lifecycle | `PersistentRuntimeSoakTest`, `PersistentDatabaseLifecycleTest`, Batch 3 Runwire host isolation | Cross-mode concurrent request/task/failure/resource-bounds and dependency-replacement soak acceptance | **0/1** |
+
+No fallback or BC for retired dependency families, no duplicate native module ownership, and no reduction of authentication validation to make tests pass.
+
+### 2026-10-14 — Batch 3 final acceptance (exact CI green)
+
+All four Batch 3 checklist gates were accepted against source `0a808972` with full [Security & Standards #38508326050](https://github.com/infocyph/Foundation/actions/runs/38508326050) SUCCESS. Prior QA-red attempts retained in this audit log are historical failures, not current project blockers. Live count is **Batch 3 4/4, Batch 4 0/7, total 18/37**.
 
 ### 2026-10-14 — Batch 3 QA fixture warning and exact-head retry
 
@@ -39,14 +59,16 @@ published Foundation 2.1.1 and skipping publication of Foundation 3.
 
 **Source change (new HEAD, pending CI):** `WebReleaseRuntimeTest` runs two real compiled Webrick route executions through separate Fibers under the same native Runwire host and runtime. Both route callbacks suspend with their distinct injected `RequestContext`; the host cancels only the first; the second resumes to complete normally with exactly one response emission and no cross-request identity. The first must finalize without stealing the other's state. This regression exercises actual in-flight host cancellation and overlapping InterMix scopes; it does not simulate admission via independently constructed libraries. **Strict acceptance remains 0/4, overall 14/37** pending exact-head CI and the remaining lifecycle matrix.
 
-### Live Batch 3 criterion ledger — 2026-10-14
+### Live Batch 3 criterion ledger — accepted 4/4 on 2026-10-14
 
-| Criterion | Committed/verified evidence | Remaining strict acceptance | Status |
-| --- | --- | --- | --- |
-| #1 Native scope propagation | Compiled Webrick + InterMix request identity, real Runwire structured child scope, worker/CLI/scheduler owned and borrowed input seeds (CI #38500753968) | Complete compiled/non-web parity and nested host boundaries | **In progress; 0/1 accepted** |
-| #2 Selected library forwarding | Direct all-owner ABI matrix, intermediary borrowed Fiber, native Runwire coroutine child with DBLayer/Omnibus/CacheLayer; compiled Webrick route selected-module dispatch (CI #38502975203) | Full integrated fanout and failure paths | **In progress; 0/1 accepted** |
-| #3 Capability and host identity | Plain-PHP fallback, explicit capability, mismatched/cancelled/completed requests, web/non-web PID checks, two host leases (CI #38502975203) | New same-PID wrong-generation compiled-host rejection pending QA; generation replacement under concurrent work remains | **In progress; 0/1 accepted** |
-| #4 Cleanup and isolation | Native owned/borrowed cleanup, throwing child recovery, native deferred writer drain and concurrent in-flight cancellation (CI #38505924046) | Throwing reporter, cross-generation nested teardown, wider concurrent isolation matrix | **In progress; 0/1 accepted** |
+| Gate | Exact published/native integration and regression evidence | Acceptance |
+| --- | --- | --- |
+| #1 Native scope propagation | `WebReleaseRuntimeTest`, `RunwireNonWebScopeTest`, `RunwireCoroutineScopeIntegrationTest`: compiled web and trusted generated worker/CLI/scheduler, owned and borrowed InterMix scope, native task propagation | **Accepted** |
+| #2 Library forwarding | `RunwireSelectedNativeBoundaryTest`, `WebReleaseRuntimeTest`: all selected owner API contracts, direct route/module forwarding, native intermediary/borrowed Fiber, actual Runwire structured children | **Accepted** |
+| #3 Host capability and identity | Plain-PHP fallback, no implicit Runwire host, incompatible PID/completed/cancelled/wrong runtime requests, distinct same-PID generations, overlapping host instances, independent generation leases | **Accepted** |
+| #4 Cleanup and isolation | Native structured child failure/reuse, throwing reporter with fresh request, owned/borrowed DI cleanup, cancellation during two concurrent requests, deferred pressured writer single finalization, generation overlap | **Accepted** |
+
+**Exact-head QA sign-off:** [`0a808972`](https://github.com/infocyph/Foundation/commit/0a8089728e0f3a3bc6c61883e0776199ab59be3b), [CI #38508326050](https://github.com/infocyph/Foundation/actions/runs/38508326050) **SUCCESS**, 4/4 PHPForge QA, 2/2 PHPStan, 4/4 production consumers, 2/2 benchmark jobs, clean install and release evidence passed. No skipped quality acceptance. Earlier `3cbcd38d` (scope attachment) and `a40333f8` (three PHPCS fixture warnings) were red; fixed in `7f48b90c` and `0a808972` respectively. **Batch 3 4/4, overall 18/37.** This acceptance is for Batch 3 Runwire boundaries, not security certification of Batch 4+.
 
 **Verified implementation increment (CI #38502975203 SUCCESS):** strengthen compiled Webrick route to invoke selected native package APIs through the exact injected runtime/request; reject stale-process web hosts before acquiring generation leases; prove two independently constructed hosts prevent early prune when one shuts down; explicitly reject completed non-web requests. These are genuine coverage increments, **not 4/4 sign-off**. Strict counts remain Batch 3 **0/4**, overall **14/37** until accepted exact-head QA plus remaining cases. No change to native owner boundaries or optional Runwire production dependency.
 
@@ -1639,13 +1661,13 @@ The four PHP 8.4/8.5 lowest/stable QA jobs on source `c31b6e8` passed Pest and R
 
 ### Batch 3 — accept and forward host-owned Runwire contexts
 
-- [ ] Implement complete scoped Foundation context propagation through native
+- [x] Implement complete scoped Foundation context propagation through native
   bridges, with only the required framework/plugin surface.
-- [ ] Forward exact runtime/request/scope through relevant native module APIs,
+- [x] Forward exact runtime/request/scope through relevant native module APIs,
   direct calls, intermediary chains, and child tasks.
-- [ ] Verify capability fallback and absence of Runwire without implicit runtime
+- [x] Verify capability fallback and absence of Runwire without implicit runtime
   creation; preserve generation/process/request boundaries and host ownership.
-- [ ] Cover borrowed versus owned DI cleanup, throwing callbacks/reporters,
+- [x] Cover borrowed versus owned DI cleanup, throwing callbacks/reporters,
   cancellation, nested contexts, deferred output, and concurrent state isolation.
 
 ### Batch 4 — verify security and persistence composition

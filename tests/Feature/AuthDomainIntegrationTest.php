@@ -328,3 +328,51 @@ it('composes MFA passkeys devices impersonation and step-up state', function ():
             ->and($services->devices()->revoke($device->id)->successful())->toBeTrue();
     });
 });
+
+it('keeps direct permissions and delegated resource grants isolated across principals and revocations', function (): void {
+    $services = foundationAuthApplication()->make(AuthServices::class);
+    $alpha = $services->accounts()->create('scoped-alpha@example.test', metadata: ['tenant' => 'alpha'])->account;
+    $beta = $services->accounts()->create('scoped-beta@example.test', metadata: ['tenant' => 'beta'])->account;
+    if (!$alpha instanceof Account || !$beta instanceof Account) {
+        throw new LogicException('Expected both tenant account fixtures.');
+    }
+
+    $alphaPrincipal = new Principal($alpha->id(), accountId: $alpha->id(), metadata: ['tenant' => 'alpha']);
+    $betaPrincipal = new Principal($beta->id(), accountId: $beta->id(), metadata: ['tenant' => 'beta']);
+    $permission = $services->permissions()->create('invoice.view');
+    $services->permissions()->assignToAccount($alpha->id(), $permission->id);
+    $grant = $services->delegation()->grant(
+        $alphaPrincipal->id(),
+        'invoice.approve',
+        resourceType: 'invoice',
+        resourceId: 'alpha-invoice-1',
+    );
+    if ($grant->grant === null) {
+        throw new LogicException('Expected a resource-scoped delegated grant.');
+    }
+
+    $owned = ['type' => 'invoice', 'id' => 'alpha-invoice-1'];
+    $foreign = ['type' => 'invoice', 'id' => 'beta-invoice-1'];
+    $wrongType = ['type' => 'document', 'id' => 'alpha-invoice-1'];
+    $authorizer = $services->authorizer();
+
+    expect($authorizer->can($alphaPrincipal, 'invoice.view')->allowed)->toBeTrue()
+        ->and($authorizer->can($betaPrincipal, 'invoice.view')->allowed)->toBeFalse()
+        ->and($authorizer->can($alphaPrincipal, 'invoice.approve', $owned)->allowed)->toBeTrue()
+        ->and($authorizer->can($betaPrincipal, 'invoice.approve', $owned)->allowed)->toBeFalse()
+        ->and($authorizer->can($alphaPrincipal, 'invoice.approve', $foreign)->allowed)->toBeFalse()
+        ->and($authorizer->can($alphaPrincipal, 'invoice.approve', $wrongType)->allowed)->toBeFalse();
+
+    $services->delegation()->revoke($grant->grant->id, $alphaPrincipal->id());
+    expect($authorizer->can($alphaPrincipal, 'invoice.approve', $owned)->allowed)->toBeFalse();
+
+    $services->delegation()->grant(
+        $alphaPrincipal->id(),
+        'invoice.approve',
+        resourceType: 'invoice',
+        resourceId: 'alpha-invoice-1',
+        expiresAt: time() - 1,
+    );
+    expect($authorizer->can($alphaPrincipal, 'invoice.approve', $owned)->allowed)->toBeFalse()
+        ->and($authorizer->can($alphaPrincipal, 'invoice.view')->allowed)->toBeTrue();
+});
