@@ -28,6 +28,24 @@ final readonly class ConfiguredCapabilities
             && $this->legacyEnabled($capability);
     }
 
+    public function explicit(?string $capability = null): bool
+    {
+        if ($capability !== null
+            && $this->featureSelections !== null
+            && ModuleFeatureCapabilityPolicy::owner($capability) !== null
+        ) {
+            return true;
+        }
+
+        if ($capability !== null) {
+            return $this->config->has('app.capabilities')
+                || $this->config->has('modules.capabilities.' . $capability);
+        }
+
+        return $this->config->has('app.capabilities')
+            || is_array($this->config->get('modules.capabilities'));
+    }
+
     private function legacyEnabled(string $capability): bool
     {
         if ($this->config->has('modules.capabilities.' . $capability)) {
@@ -63,21 +81,4 @@ final readonly class ConfiguredCapabilities
         return false;
     }
 
-    public function explicit(?string $capability = null): bool
-    {
-        if ($capability !== null
-            && $this->featureSelections !== null
-            && ModuleFeatureCapabilityPolicy::owner($capability) !== null
-        ) {
-            return true;
-        }
-
-        if ($capability !== null) {
-            return $this->config->has('app.capabilities')
-                || $this->config->has('modules.capabilities.' . $capability);
-        }
-
-        return $this->config->has('app.capabilities')
-            || is_array($this->config->get('modules.capabilities'));
-    }
 }
