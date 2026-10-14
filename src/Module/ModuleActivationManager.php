@@ -5,15 +5,61 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Module;
 
 use Infocyph\Foundation\Application\Application;
+use Closure;
 use Infocyph\Foundation\Config\ConfigCacheManager;
 
-/** @phpstan-import-type ResolvedModule from ModuleCatalog */
+/**
+ * @phpstan-import-type ResolvedModule from ModuleCatalog
+ * @phpstan-import-type Context from ModuleFeatureResolver
+ */
 final readonly class ModuleActivationManager
 {
     public function __construct(
         private Application $application,
         private ModuleCatalog $catalog,
     ) {}
+
+    /**
+     * Persist selected optional feature overrides without changing the legacy
+     * module capability map. The production graph adopts these in Batch 4/6.
+     *
+     * @param list<string> $features
+     * @phpstan-param Context $context
+     */
+    public function applyFeatures(string $operation, array $features, array $context): string
+    {
+        if (!in_array($operation, ['enable', 'disable'], true)) {
+            throw new \InvalidArgumentException('Feature activation requires enable or disable.');
+        }
+
+        $plan = new ModuleFeaturePlanner()->plan($operation, $features, $context);
+        if (!$plan['applicable']) {
+            throw new \RuntimeException('Feature activation is blocked: ' . implode('; ', $plan['blockers']));
+        }
+
+        return $this->mutate(static function (array $config) use ($plan, $context): array {
+            $flags = $config['features'] ?? [];
+            if (!is_array($flags)) {
+                throw new \RuntimeException('modules.features must be a feature map.');
+            }
+            foreach ($flags as $id => $active) {
+                if (!is_string($id) || !is_bool($active)) {
+                    throw new \RuntimeException('modules.features must contain boolean feature flags.');
+                }
+                if ($active !== in_array($id, $context['enabled'], true)) {
+                    throw new \RuntimeException('Feature activation changed; re-plan before applying.');
+                }
+            }
+
+            foreach ($plan['effects']['activate'] as $id => $active) {
+                $flags[$id] = $active;
+            }
+            ksort($flags);
+            $config['features'] = $flags;
+
+            return $config;
+        });
+    }
 
     public function disable(string $module): string
     {
@@ -113,7 +159,10 @@ final readonly class ModuleActivationManager
         return $normalized;
     }
 
-    private function write(string $module, bool $enabled): string
+    /**
+     * @param Closure(array<string,mixed>):array<string,mixed> $change
+     */
+    private function mutate(Closure $change): string
     {
         $path = $this->application->configPath('modules.php');
         $directory = dirname($path);
@@ -135,25 +184,35 @@ final readonly class ModuleActivationManager
                 throw new \RuntimeException('Unable to acquire safe module activation lock.');
             }
 
-            return $this->writeUnderLock($path, $module, $enabled);
+            return $this->writeUnderLock($path, $change);
         } finally {
             flock($lock, LOCK_UN);
             fclose($lock);
         }
     }
 
-    private function writeUnderLock(string $path, string $module, bool $enabled): string
+    private function write(string $module, bool $enabled): string
+    {
+        return $this->mutate(static function (array $config) use ($module, $enabled): array {
+            $capabilities = $config['capabilities'] ?? [];
+            if (!is_array($capabilities)) {
+                throw new \RuntimeException('modules.capabilities must be a capability map.');
+            }
+            $capabilities[$module] = $enabled;
+            ksort($capabilities);
+            $config['capabilities'] = $capabilities;
+
+            return $config;
+        });
+    }
+
+    /**
+     * @param Closure(array<string,mixed>):array<string,mixed> $change
+     */
+    private function writeUnderLock(string $path, Closure $change): string
     {
         $directory = dirname($path);
-        $config = $this->load($path);
-        $capabilities = $config['capabilities'] ?? [];
-        if (!is_array($capabilities)) {
-            throw new \RuntimeException('modules.capabilities must be a capability map.');
-        }
-        $capabilities[$module] = $enabled;
-        ksort($capabilities);
-        $config['capabilities'] = $capabilities;
-
+        $config = $change($this->load($path));
         $temporary = tempnam($directory, '.foundation-modules-');
         if ($temporary === false) {
             throw new \RuntimeException('Unable to allocate module activation staging file.');
