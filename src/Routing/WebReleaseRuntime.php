@@ -10,6 +10,7 @@ use Infocyph\Foundation\Container\FoundationGraph;
 use Infocyph\Foundation\Http\Response\ExceptionRenderer;
 use Infocyph\Foundation\Logging\HttpExceptionLogger;
 use Infocyph\Foundation\Runtime\LoadedReleaseGeneration;
+use Infocyph\Foundation\Runtime\ReleaseGenerationLease;
 use Infocyph\InterMix\DI\ProductionContainer;
 use Infocyph\InterMix\DI\ScopeContext;
 use Infocyph\InterMix\Integration\Runwire\RunwireIntegration;
@@ -137,9 +138,13 @@ final readonly class WebReleaseRuntime
             }
         }
 
-        // Retain the immutable generation and its advisory lease for the
-        // complete host lifetime, even when the bootstrap loader is discarded.
+        // Each Runwire host independently protects its immutable release against
+        // pruning, even if the bootstrap loader or another host is destroyed.
         $generation = $this->loadedReleaseGeneration;
+        $hostLease = $generation === null ? null : ReleaseGenerationLease::acquireShared(
+            $generation->releaseRoot,
+            $generation->generation,
+        );
         $integration = new RunwireIntegration($this->container);
         $integration->bind($runtime);
 
@@ -153,16 +158,24 @@ final readonly class WebReleaseRuntime
             $server = new RuntimeServer($this->kernel, $adapter);
 
             return new RunwireRuntimeApplication(
-                handler: static function (HttpRequest $request, ResponseWriterInterface $writer) use ($server, $generation): void {
+                handler: static function (HttpRequest $request, ResponseWriterInterface $writer) use ($server): void {
                     $server->handle($request, $writer);
                 },
                 runtimeContext: $runtime,
-                shutdown: static function () use ($integration, $runtime): void {
-                    $integration->release($runtime);
+                shutdown: static function () use ($integration, $runtime, $hostLease): void {
+                    try {
+                        $integration->release($runtime);
+                    } finally {
+                        $hostLease?->release();
+                    }
                 },
             );
         } catch (\Throwable $exception) {
-            $integration->release($runtime);
+            try {
+                $integration->release($runtime);
+            } finally {
+                $hostLease?->release();
+            }
 
             throw $exception;
         }

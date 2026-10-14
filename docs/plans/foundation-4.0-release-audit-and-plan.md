@@ -7,6 +7,12 @@ published Foundation 2.1.1 and skipping publication of Foundation 3.
 
 This document contains a preserved baseline audit and a subsequent implementation log. The **live implementation status above** reflects later committed source and dependency changes; the original audit did not itself alter production code. This record does not certify the library as vulnerability-free.
 
+### 2026-10-14 — Batch 3: independent host-held release generation lease (pending QA)
+
+**Fix after analysis:** `5470cc28` used a closure capture solely to hold the release identity, which PHPStan correctly rejects as unused. The revised implementation gives each native Runwire host its **own shared `ReleaseGenerationLease::acquireShared`** for its loaded Foundation generation; the host releases exactly its lease after native InterMix release on shutdown (or failed construction), and the lease destructor is the final guard for abandoned hosts. The ordinary source-only release without loaded generation does not need an outer generation lock. The lock regression now proves original generation metadata can be garbage-collected **while the host's distinct prune-protection lease remains held**, and that the lock is exclusively acquirable after host shutdown. This avoids duplicate Runwire/runtime/scheduler ownership and avoids competing host objects releasing each other's generation lease.
+
+**Acceptance status:** Batch 3 **0/4**, overall **14/37**, until exact-source tests/analysis/benchmarks pass and native host + module + child-task contracts are fully evidenced.
+
 ### 2026-10-14 — Batch 3 compiled host dispatch green; generation lease hardening underway
 
 **Verified exact-source release:** [Security & Standards #38496464415](https://github.com/infocyph/Foundation/actions/runs/38496464415) at [`8f216b8b`](https://github.com/infocyph/Foundation/commit/8f216b8b06926eb88c97ef7dd2414907e86edc9b) completed **SUCCESS**: PHPForge QA **4/4** across PHP 8.4/8.5 stable/lowest (including 570+ Pest tests, native library API matrix, compiled Runwire request dispatch, explicit no-Runwire rejection), PHPStan **2/2**, production consumers **4/4**, benchmarks **2/2**, clean install and release evidence. The route regression checks exact host `RuntimeContext` and `RequestContext` DI identities, separate Webrick `Request` parameter binding, request path, single response writer end, native request completion, and no implicit runtime creation.

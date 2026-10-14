@@ -533,7 +533,7 @@ it('retains the trusted web release lease for the Runwire host lifetime', functi
 
         unset($lease, $generation, $release);
         gc_collect_cycles();
-        expect($weak->get())->toBeInstanceOf(\Infocyph\Foundation\Runtime\LoadedReleaseGeneration::class)
+        expect($weak->get())->toBeNull()
             ->and(\Infocyph\Foundation\Runtime\ReleaseGenerationLease::tryExclusive(
                 $project,
                 $generationName,
