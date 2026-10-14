@@ -103,7 +103,7 @@ it('assigns every declared production PHP symbol to an approved Foundation owner
         }
 
         $seenAreas[$area] = true;
-        $owner = $owner;
+        $owner = $owners[$area];
         foreach ($detailedOwners as $prefix => $responsibility) {
             if (str_starts_with($relative, $prefix)) {
                 $owner = $responsibility;
