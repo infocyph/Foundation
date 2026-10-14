@@ -479,3 +479,79 @@ it('sends the exact host Runwire request through compiled Webrick and native Int
         foundationWebReleaseRemove($project);
     }
 });
+
+it('retains the trusted web release lease for the Runwire host lifetime', function (): void {
+    $project = foundationWebReleaseProject();
+    $config = [
+        'app' => ['base_path' => $project, 'env' => 'production', 'debug' => false],
+        '_config_cache' => false,
+        'router' => [
+            'files' => ['web.php'],
+            'matcher' => 'fused',
+            'middleware' => ['globals' => ['pre' => [], 'post' => []]],
+        ],
+    ];
+    $manifest = $project . '/bootstrap/cache/release.json';
+    $generationName = 'runwire-host-test';
+    $directory = $project . '/generations/' . $generationName;
+
+    try {
+        $report = new WebReleaseCompiler()->compile(
+            $config,
+            $project . '/bootstrap/cache/intermix.php',
+            $project . '/bootstrap/cache/router.php',
+            $manifest,
+            capabilities: ['runwire'],
+        );
+        $loaded = WebReleaseRuntime::loadPrevalidated(
+            $config,
+            $manifest,
+            (string) $report['release_runtime_manifest_sha256'],
+            foundationCapabilities: ['runwire'],
+        );
+
+        mkdir($directory, 0777, true);
+        \Infocyph\Foundation\Runtime\ReleaseGenerationLease::initialize($directory);
+        $lease = \Infocyph\Foundation\Runtime\ReleaseGenerationLease::acquireShared(
+            $project,
+            $generationName,
+        );
+        $generation = new \Infocyph\Foundation\Runtime\LoadedReleaseGeneration(
+            $project,
+            $generationName,
+            lease: $lease,
+        );
+        $release = new WebReleaseRuntime(
+            $loaded->container,
+            $loaded->kernel,
+            $loaded->server,
+            $loaded->capabilities,
+            $generation,
+        );
+        $weak = WeakReference::create($generation);
+        $host = $release->runwireApplication(\Infocyph\Runwire\RuntimeContext::standalone());
+
+        unset($lease, $generation, $release);
+        gc_collect_cycles();
+        expect($weak->get())->toBeInstanceOf(\Infocyph\Foundation\Runtime\LoadedReleaseGeneration::class)
+            ->and(\Infocyph\Foundation\Runtime\ReleaseGenerationLease::tryExclusive(
+                $project,
+                $generationName,
+            ))->toBeNull();
+
+        $host->start();
+        $host->shutdown();
+        unset($host);
+        gc_collect_cycles();
+
+        $exclusive = \Infocyph\Foundation\Runtime\ReleaseGenerationLease::tryExclusive(
+            $project,
+            $generationName,
+        );
+        expect($exclusive)->toBeInstanceOf(\Infocyph\Foundation\Runtime\ReleaseGenerationLease::class);
+        $exclusive?->release();
+    } finally {
+        foundationResetWebrickProductionRegistries();
+        foundationWebReleaseRemove($project);
+    }
+});

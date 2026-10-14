@@ -137,6 +137,9 @@ final readonly class WebReleaseRuntime
             }
         }
 
+        // Retain the immutable generation and its advisory lease for the
+        // complete host lifetime, even when the bootstrap loader is discarded.
+        $generation = $this->loadedReleaseGeneration;
         $integration = new RunwireIntegration($this->container);
         $integration->bind($runtime);
 
@@ -150,7 +153,7 @@ final readonly class WebReleaseRuntime
             $server = new RuntimeServer($this->kernel, $adapter);
 
             return new RunwireRuntimeApplication(
-                handler: static function (HttpRequest $request, ResponseWriterInterface $writer) use ($server): void {
+                handler: static function (HttpRequest $request, ResponseWriterInterface $writer) use ($server, $generation): void {
                     $server->handle($request, $writer);
                 },
                 runtimeContext: $runtime,
