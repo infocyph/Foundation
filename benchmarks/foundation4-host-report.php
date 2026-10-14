@@ -91,6 +91,7 @@ $result = [
     'php' => PHP_VERSION,
     'request_count' => $requests,
     'repetitions' => $repeats,
+    'soak_window_seconds' => (int) (getenv('FOUNDATION_HOST_SOAK_SECONDS') ?: 0),
     'endpoint' => '/json',
     'protocol' => 'HTTP/1.1 with per-response status/body checks',
     'hosts' => [],
@@ -115,6 +116,32 @@ foreach (['fpm', 'runwire'] as $host) {
                 'runs' => $runs,
             ];
         }
+    }
+}
+
+$soakSeconds = $result['soak_window_seconds'];
+if ($soakSeconds > 0) {
+    if ($soakSeconds < 30 || $soakSeconds > 300) {
+        throw new RuntimeException('Invalid sustained host soak duration.');
+    }
+
+    $result['soak'] = [];
+    foreach (['fpm', 'runwire'] as $host) {
+        $windows = [];
+        foreach ([1, 2] as $period) {
+            $prefix = sprintf('%s-soak-w4-c10-p%d', $host, $period);
+            $load = f4HostLoad($root . '/' . $prefix . '.load.json', $requests);
+            if ($load['duration_seconds'] < $soakSeconds) {
+                throw new RuntimeException(sprintf('Insufficient %s soak duration.', $host));
+            }
+            $windows[] = [...$load, ...f4HostSamples($root . '/' . $prefix . '.samples.csv')];
+        }
+        $result['soak'][$host] = [
+            'workers' => 4,
+            'concurrency' => 10,
+            'windows' => $windows,
+            'status' => 'correct_responses_only_not_production_certification',
+        ];
     }
 }
 
