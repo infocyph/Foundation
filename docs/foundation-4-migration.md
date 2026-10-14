@@ -1,15 +1,15 @@
-# Foundation 4.0: direct upgrade from 2.1.1
+# Foundation 4.0: setup and runtime contracts
 
-**Status:** migration guide for the Foundation 4.0 candidate on draft PR #20;
-not a statement that 4.0 has been published or that release QA has passed.
+**Status:** setup and production-runtime guide for the Foundation 4.0 candidate
+on draft PR #20, not a publication announcement. Foundation 4.0 is a deliberate
+breaking major release; prior-version API signatures, legacy configuration,
+schema conversions and downgrade support are outside its release acceptance.
 
-Foundation 4.0 upgrades directly from published 2.1.1; installing an unpublished
-Foundation 3 intermediate release is **not** part of the migration. Read the
-[architecture](architecture.md), [modules](modules.md), and
-[configuration](configuration.md) guides alongside this document. Review the
-[2.1.1 removed API and contract map](foundation-4-api-map.md) and
-[retained-data restore rehearsal](foundation-4-retained-data-rehearsal.md)
-before any deployment.
+Read [architecture](architecture.md), [modules](modules.md),
+[configuration](configuration.md), the
+[current 4.0 public/provider/configuration contract](foundation-4-api-map.md),
+and [4.0-native state integrity and recovery](foundation-4-retained-data-rehearsal.md)
+before production deployment.
 
 ## Version and package requirements
 
@@ -35,15 +35,14 @@ Do not blindly install all optional modules. CacheLayer remains a Foundation
 production dependency, not a separately installable module. Runwire 2.1.1 is
 an optional host integration, not a Foundation production dependency.
 
-**Before updating application Composer constraints**, confirm all required
+**Before installing Foundation 4**, confirm all required
 published versions are resolvable by Composer/Packagist. In particular,
-Webrick 6.0.3 requires InterMix 11.2 and its compiled ABI 3; rebuild all
-previous InterMix and Webrick artifacts instead of reusing incompatible ones. Do not work
+Webrick 6.0.3 requires InterMix 11.2 and its compiled ABI 3; generate a fresh trusted InterMix/Webrick release from the current 4.0 source. Do not work
 around missing package-index versions with transient dev aliases for release QA.
 
 ## Explicit runtime and provider ownership
 
-Replace implicit environment/SAPI-based runtime selection with the entrypoint
+Choose the explicit entrypoint
 appropriate to the process:
 
 ```php
@@ -68,10 +67,8 @@ return [
 ```
 
 Application providers now contribute native InterMix 11 graph definitions
-before `build()`. Remove calls to retired builder helpers such as
-`singleton()`, `scoped()`, `definitions()` and container `unset()`;
-use supported native `factory()` lifetimes, `input()`, declarative
-providers and the immutable definition graph instead. Do not use protected
+before `build()`. Use native InterMix `factory()` lifetimes, `input()`, declarative providers,
+and the immutable graph. Do not mutate finalized service definitions. Do not use protected
 InterMix repository introspection to make application policy decisions.
 
 Webrick owns web request scopes. Foundation owns CLI, worker and scheduled
@@ -82,10 +79,9 @@ successive requests/jobs.
 
 ## Configuration and modules
 
-Remove the retired settings `app.container.alias`,
-`app.container.compiled`, `app.container.compiled_activation`, and
-`router.cache`; compiled artifact selection belongs to the release
-generation, not application configuration.
+Compiled artifact selection belongs to the immutable release generation,
+not to mutable per-request configuration. Use current `resources/config/`
+templates as the authoritative available keys.
 
 Keep production `app.capabilities` explicit. Installed optional packages
 alone must not activate production capabilities. Configuration templates
@@ -109,18 +105,14 @@ removing modules. Preserve application-authored configuration.
 
 ## Rebuild trusted release artifacts
 
-Do **not** reuse old InterMix 10 / Webrick 5 compiled containers, route
-artifacts, cache manifests or stale response-cache namespaces. Rebuild a
-single immutable Foundation 4 generation from normalized configuration and
+Build a single immutable Foundation 4 generation from normalized configuration and
 the declared capability topology. The release must contain a matching
 InterMix graph, Webrick 6 format-3 router manifest, non-web compiled
 artifacts, worker provider topology and verified release identity.
 
 Production may not fall back to project provider, route, config or source
 discovery when an artifact is missing or invalid. Reject corrupt, tampered,
-stale or mismatched manifests; never silently accept older format-2 Webrick
-release manifests. Webrick 6.0.2 changes its response-cache namespace
-from `webrick.hr.v4.` to `webrick.hr.v5.`.
+stale or mismatched manifests; never silently accept an unsupported Webrick release manifest.
 
 InterMix 11.2 provides native source-free compiled scoped inputs (ABI 3).
 Foundation's generated web, CLI, worker and scheduler release identity, scoped
@@ -129,10 +121,11 @@ before production deployment is certified.
 
 ## Preserve data and verify
 
-Before switching production processes, back up database and persistent
-session/queue/cache state. Rehearse schema changes and retained-state
-compatibility (OAuth grants/PATs, OTP and passkeys, sessions, queues,
-transactional outbox, cache identities) against a copy of real data.
+Using current Foundation 4 schemas and selected native owners, verify state
+integrity and recovery for auth/session/token records, OTP/passkeys, durable
+queues, outbox and cache replay state. Test isolated backup/restore and
+recovery with the configured service topology; transformation of earlier
+major-version deployment data is outside Foundation 4 release acceptance.
 
 At minimum, verify real MySQL/PostgreSQL and Redis/Valkey/Memcached where
 selected; FPM and a supported persistent host; fork/cancellation/reset
@@ -165,7 +158,7 @@ trusted compiled Webrick release and the host-supplied writer/context.
 
 ## Foundation-first release boundary
 
-Foundation 4.0 is implemented and verified independently of the Infbyte application skeleton. Updating Infbyte's Composer constraint, routes, providers, bootstrap and release artifacts is a **separate follow-up after Foundation is ready**. The Foundation CI consumer matrix verifies core-only, database-only and published optional-package/Runwire deployments without cloning or rewriting Infbyte. The [API replacement map](foundation-4-api-map.md) remains the downstream migration reference. Operators must still restore and validate their **own** retained production data; the supplied synthetic rehearsal cannot certify external deployments.
+Foundation 4.0 is implemented and verified independently of the Infbyte application skeleton. Integrating an Infbyte application is a **separate follow-up after Foundation is ready**. The Foundation CI consumer matrix verifies core-only, database-only and published optional-package/Runwire deployments without cloning or rewriting Infbyte. The [API replacement map](foundation-4-api-map.md) remains the downstream migration reference. Operators must still validate their own selected production recovery and durable-state procedures; unit/synthetic fixtures alone do not certify external deployments.
 
 ## Production no-dev compiled-release smoke
 
