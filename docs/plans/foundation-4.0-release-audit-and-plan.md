@@ -1,9 +1,41 @@
 # Foundation 4.0 audit and release plan
 
-Audit date: 2026-10-11. Target: **Foundation 4.0**, upgrading directly from
-published Foundation 2.1.1 and skipping publication of Foundation 3.
+Audit date: 2026-10-11. Target: **Foundation 4.0 as a clean major release**.
+No backward-compatibility, migration-path, or source-signature parity obligation
+exists for Foundation 2.x, unreleased 3.x, or retired specialist majors.
 
-**Live release checkpoint (2026-10-14): Batch 1 6/6, Batch 2 8/8, Batch 3 4/4, Batch 4 7/7, Batch 5 2/4 accepted; overall 27/37 (73.0%). Two Batch 5 gates remain open: complete retained-signature/API-contract audit and real-data restoration/rehearsal. Infbyte application work stays deferred until Foundation finishes.** Latest fully green Batch 5 implementation [`e4336f61`](https://github.com/infocyph/Foundation/commit/e4336f61aa1eb6dd4a150498512eebebc8e32b47), [Security & Standards #38519985850](https://github.com/infocyph/Foundation/actions/runs/38519985850) **SUCCESS**: PHPForge QA PHP 8.4/8.5 lowest/stable **4/4**, PHPStan **2/2**, production consumer installs **4/4**, benchmark jobs **2/2**, clean install and release evidence passed. Batch 4 accepted all seven native-composition gates below using existing real-service integration tests plus this batch's targeted production fixes and regressions. Native libraries retain their implementation ownership; tenant scope still requires an explicit application Gate/policy, and account/device session/token revocation requires the documented explicit owner APIs rather than an implicit hidden cascade. No fallback or BC for retired library series, no shadow owner of Runwire/Webrick/CacheLayer/DBLayer/OTP/Epicrypt/Omnibus/Pathwise/TalkingBytes. **Prior 0/7/pending QA notes below are preserved historical checkpoints, not live acceptance.** PR #20 remains draft; no merge, tag or publication.
+**Live release checkpoint (2026-10-14): Batch 1 6/6, Batch 2 8/8, Batch 3 4/4, Batch 4 7/7, Batch 5 2/4 accepted; overall 27/37 (73.0%). Two Batch 5 gates remain open: validate the current 4.0 public/provider/configuration contract, and verify native 4.0 state integrity and restoration under the selected services. Infbyte application work stays deferred until Foundation finishes.** Latest fully green Batch 5 implementation [`e4336f61`](https://github.com/infocyph/Foundation/commit/e4336f61aa1eb6dd4a150498512eebebc8e32b47), [Security & Standards #38519985850](https://github.com/infocyph/Foundation/actions/runs/38519985850) **SUCCESS**: PHPForge QA PHP 8.4/8.5 lowest/stable **4/4**, PHPStan **2/2**, production consumer installs **4/4**, benchmark jobs **2/2**, clean install and release evidence passed. Batch 4 accepted all seven native-composition gates below using existing real-service integration tests plus this batch's targeted production fixes and regressions. Native libraries retain their implementation ownership; tenant scope still requires an explicit application Gate/policy, and account/device session/token revocation requires the documented explicit owner APIs rather than an implicit hidden cascade. No fallback or BC for retired library series, no shadow owner of Runwire/Webrick/CacheLayer/DBLayer/OTP/Epicrypt/Omnibus/Pathwise/TalkingBytes. **Prior 0/7/pending QA notes below are preserved historical checkpoints, not live acceptance.** PR #20 remains draft; no merge, tag or publication.
+
+### 2026-10-14 — 4.0-only release mandate supersedes legacy migration gates
+
+**User decision:** 4.0 is a deliberate breaking major version. Release acceptance
+is based only on the **candidate 4.0 implementation**, currently published
+compatible native-library APIs, security, durability, performance, and production
+runtime evidence. No Foundation 2.1.1/3.x method inventory, old configuration
+translation, backward compatibility shim, prior-deployment backup migration,
+legacy-data shape reproduction, downgrade, or Infbyte skeleton migration is a
+Foundation 4.0 release criterion.
+
+**Batch 5 #2 (OPEN):** Document and verify the **actual 4.0 public API**,
+ServiceProviderInterface::contribute(ContainerBuilder, FoundationBuildContext),
+runtime modes, explicit capabilities, native InterMix/Webrick/Runwire ownership,
+immutable production artifact policy, and source configuration contract. Verify
+real examples and current contract checks against today's implementation.
+Compare against no earlier Foundation tag.
+
+**Batch 5 #3 (OPEN):** Prove **4.0-native** persistence and failure integrity:
+password/session/token family state, MFA/passkey records, durable queue/outbox,
+selected service integration, replay/cancellation and backup/restore mechanics.
+Use 4.0-created fixtures and selected native packages; production-specific
+recovery of a customer's earlier deployment is a separate operator responsibility,
+not release-blocking source compatibility.
+
+**Acceptance arithmetic unchanged:** B1 6/6, B2 8/8, B3 4/4, B4 7/7,
+B5 2/4, B6 0/8 = 27/37, until replacement gates receive exact-source CI
+and direct evidence. The earlier date-stamped 2.1.1 comparisons in this ledger
+are historical process notes, **not live acceptance requirements**.
+Remove the previous-tag API-diff CI guard; certify current 4.0 contracts instead.
+PR stays DRAFT; no merge/tag/publication.
 
 ### 2026-10-14 — Batch 4 complete: 7/7 accepted, release audit gate closed
 
@@ -1823,23 +1855,24 @@ Added `docs/examples/foundation-4-compiled-release.php`, executed inside all fou
 | Gate | Decision and direct evidence |
 | --- | --- |
 | **#1 Guide/examples/navigation/runtime claims** | **ACCEPTED.** `docs/foundation-4-migration.md`, `docs/README.md`, root README and `docs/runtime-hosting.md` align with the candidate; release evidence executes CLI + optional Runwire worker examples. |
-| **#2 Every changed/removed public API and provider/config contract** | **OPEN.** `docs/foundation-4-api-map.md` covers 28 removed PHP paths, mechanically verified against published 2.1.1 by `scripts/verify-foundation-2-api-map.sh`. Still need explicit retained-symbol **signature/API diff** and verification of all changed provider/configuration contracts; path coverage alone is insufficient to declare *every changed API* mapped. |
-| **#3 Retained data, restore, downgrade** | **OPEN.** `Foundation4RetainedDataRestoreTest` passes additive migration and SHA-preserving restore against **synthetic published 2.1.1 schema-shaped** SQLite data, including passkey schema evolution. No actual previous-deployment backup and complete keys/queue/files/outbox external restore evidence exists; operator runbook explicitly requires that work. Do not mistake a code rollback for a data rollback. |
+| **#2 Current Foundation 4 public contracts** | **OPEN under revised mandate.** Certify only 4.0 public entrypoints, provider graph contribution, runtime/capability configuration, generated release/trust identity, and native-library ownership using executable source/consumer contract checks. Prior-tag API diffs are not required. |
+| **#3 Current Foundation 4 state integrity/recovery** | **OPEN under revised mandate.** Validate 4.0-created auth/session/OAuth/MFA/passkey records, selected DB/cache/messaging durability, cross-request replay protection and isolated current-state backup/restore. Real migration of prior customer records and old-format downgrade are explicitly out of scope. |
 | **#4 Foundation no-dev native consumer matrix** | **ACCEPTED.** Four PHP 8.4/8.5 stable/lowest production consumer jobs pass core-only, DB-only, full published-specialist/Runwire installs, no PHPForge leakage, trusted compiled Webrick web + InterMix CLI/worker/scheduler artifact rebuild/load, HTTP dispatch and host-owned Runwire identity. Infbyte application remains a separate future task. |
 
 **Tracker correction:** Earlier Batch 5 `0/4` and `pending CI` notes below are historical checkpoints, not the current accepted result. Remaining counts: B5 2/4; B6 0/8; **27/37 overall**. PR remains draft; no merge, release, tag or Infbyte modifications.
 
-### Batch 5 — direct migration and consumer rehearsal
+### Batch 5 — Foundation 4 native contracts and production readiness
 
-- [x] Write current Foundation 4 release/migration guidance and runnable examples;
-  update documentation navigation and runtime claims together.
-- [ ] Map every changed/removed 2.1.1 API and provider/configuration contract to its
-  replacement. Explain dependency majors, compiled graph regeneration, and the
-  passed-instance Runwire API. Rebuild generated artifacts for the accepted ABI.
-- [ ] Rehearse retained password hashes, sessions/tokens, refresh families, MFA
-  secrets/recovery codes, passkey credentials, queue payloads, and durable outbox
-  data. Use additive migrations where possible; test backup restoration and
-  explicit downgrade limits. Code rollback does not establish data rollback.
+- [x] Publish current Foundation 4 setup/architecture guidance and executable
+  bootstrap examples; synchronize navigation, ownership and runtime claims.
+- [ ] Verify and document the *current* Foundation 4 public API, provider graph,
+  configuration/capability policies, native-owner entrypoints, trusted immutable
+  release ABI and host-passed Runwire contracts. No prior-version signature
+  diff or compatibility alias is required.
+- [ ] Validate fresh Foundation 4 state: password/account/session/refresh-token
+  families, MFA/recovery/passkey, queue/outbox, cache replay and selected storage
+  integrity; exercise rollback/restoration of 4.0-created state and real selected
+  owner recovery. No mandatory historic customer backup conversion/downgrade.
 - [x] Exercise Foundation production `--no-dev` consumers with core-only,
   database-only and complete selected published-specialist topologies, including
   explicit host-owned Runwire context propagation, release compilation and
@@ -1855,9 +1888,10 @@ Added `docs/examples/foundation-4-compiled-release.php`, executed inside all fou
 - [ ] Verify supported PHP 8.4/8.5, lowest/latest dependencies, compiled/development
   graphs, production consumers, and required service matrices on the final SHA.
   Record toolchain/workflow references and the resolved dependency manifest.
-- [ ] Close every required compatibility-record entry and verify no extra
-  production surface or duplicate mechanism remains. Any unresolved integration
-  contract blocks the 100% compatibility claim and the release.
+- [ ] Close every **current 4.0 native integration** contract and verify no
+  redundant production mechanism or shadow library owner remains. Unverified
+  selected 4.0 behavior blocks certification; older major-version compatibility
+  is explicitly not a release requirement.
 - [ ] Establish comparable baseline/candidate sustained host measurements with
   valid response checks, repeated runs and medians, cold/warm routes, realistic
   authentication/database/cache workloads, concurrency 1/10/50, and one/four
