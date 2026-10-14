@@ -8,6 +8,11 @@ if ($argc !== 5) {
 [, $url, $requested, $parallel, $output] = $argv;
 $requests = (int) $requested;
 $concurrency = (int) $parallel;
+$minimumSeconds = (float) (getenv('FOUNDATION_HOST_MIN_SECONDS') ?: 0);
+if (!is_finite($minimumSeconds) || $minimumSeconds < 0 || $minimumSeconds > 300) {
+    throw new InvalidArgumentException('Sustained benchmark duration must be 0-300 seconds.');
+}
+$minimumNanoseconds = (int) ($minimumSeconds * 1_000_000_000);
 if ($requests < 100 || $concurrency < 1 || $concurrency > 100 || !str_starts_with($url, 'http://127.0.0.1:')) {
     throw new InvalidArgumentException('Invalid local HTTP load parameters.');
 }
@@ -41,7 +46,7 @@ try {
         $sent++;
     }
 
-    while ($finished < $requests) {
+    while ($finished < $sent || $sent < $requests || hrtime(true) - $start < $minimumNanoseconds) {
         do {
             $state = curl_multi_exec($multi, $running);
         } while ($state === CURLM_CALL_MULTI_PERFORM);
@@ -70,7 +75,10 @@ try {
 
             curl_multi_remove_handle($multi, $handle);
             $finished++;
-            if ($sent < $requests) {
+            if ($sent < $requests || hrtime(true) - $start < $minimumNanoseconds) {
+                if ($sent >= 1_000_000) {
+                    throw new RuntimeException('Load sample limit reached before sustained interval completed.');
+                }
                 curl_multi_add_handle($multi, $handle);
                 $sent++;
             }
@@ -101,6 +109,8 @@ $percentile = static function (float $fraction) use ($latencies): float {
 $record = [
     'protocol' => 'HTTP/1.1',
     'requests' => $finished,
+    'required_requests' => $requests,
+    'minimum_duration_seconds' => $minimumSeconds,
     'successful' => count($latencies),
     'failed' => $errors,
     'concurrency' => $concurrency,
@@ -116,6 +126,6 @@ if (file_put_contents($output, $json, LOCK_EX) === false) {
     throw new RuntimeException('Unable to persist HTTP/1.1 load evidence.');
 }
 fwrite(STDOUT, $json);
-if ($errors !== 0 || $finished !== $requests) {
+if ($errors !== 0 || $finished < $requests || $duration < $minimumSeconds) {
     throw new RuntimeException(sprintf('HTTP load failed: %s', $firstError ?? 'request count mismatch'));
 }
