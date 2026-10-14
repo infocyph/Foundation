@@ -817,6 +817,92 @@ it('defers Runwire response finalization until native writer drain and completes
     }
 });
 
+
+it('rejects a distinct same-process Runwire generation without poisoning the compiled host', function (): void {
+    $project = foundationWebReleaseProject();
+    file_put_contents(
+        $project . '/routes/web.php',
+        "\nRouter::get('/runwire-context', [FoundationRunwireReleaseContextHandler::class, 'show']);\n",
+        FILE_APPEND,
+    );
+    $config = [
+        'app' => ['base_path' => $project, 'env' => 'production', 'debug' => false],
+        '_config_cache' => false,
+        'router' => [
+            'files' => ['web.php'],
+            'matcher' => 'fused',
+            'middleware' => ['globals' => ['pre' => [], 'post' => []]],
+        ],
+    ];
+    $manifest = $project . '/bootstrap/cache/release.json';
+
+    try {
+        $report = new WebReleaseCompiler()->compile(
+            $config,
+            $project . '/bootstrap/cache/intermix.php',
+            $project . '/bootstrap/cache/router.php',
+            $manifest,
+            capabilities: ['runwire'],
+        );
+        $loaded = WebReleaseRuntime::loadPrevalidated(
+            $config,
+            $manifest,
+            (string) $report['release_runtime_manifest_sha256'],
+            foundationCapabilities: ['runwire'],
+        );
+        $capabilities = new \Infocyph\Runwire\RuntimeCapabilities(
+            \Infocyph\Runwire\Runtime\Enum\RuntimeDriver::NATIVE,
+        );
+        $hostRuntime = \Infocyph\Runwire\RuntimeContext::fromCapabilities(
+            $capabilities,
+            'generation-seven',
+            generation: 7,
+        );
+        $otherRuntime = \Infocyph\Runwire\RuntimeContext::fromCapabilities(
+            $capabilities,
+            'generation-eight',
+            generation: 8,
+        );
+        $wrong = \Infocyph\Runwire\RequestContext::create($otherRuntime);
+        $right = \Infocyph\Runwire\RequestContext::create($hostRuntime);
+        $native = static fn(\Infocyph\Runwire\RequestContext $context):
+            \Infocyph\Runwire\Http\HttpRequest => new \Infocyph\Runwire\Http\HttpRequest(
+                method: 'GET',
+                target: '/runwire-context',
+                version: \Infocyph\Runwire\Http\Enum\ProtocolVersion::HTTP_1_1,
+                headers: \Infocyph\Runwire\Http\Headers::fromArray(['Host' => 'release.test']),
+                body: new \Infocyph\Foundation\Tests\Fixtures\RunwireEmptyBody(),
+                context: $context,
+            );
+        $host = $loaded->runwireApplication($hostRuntime);
+        $host->start();
+
+        try {
+            $badWriter = new \Infocyph\Foundation\Tests\Fixtures\RunwireCollectingWriter();
+            expect(fn(): mixed => $host->handle($native($wrong), $badWriter, completeResponse: true))
+                ->toThrow(LogicException::class, 'different runtime context')
+                ->and($badWriter->endCalls)->toBe(0)
+                ->and($wrong->completed())->toBeFalse();
+
+            $goodWriter = new \Infocyph\Foundation\Tests\Fixtures\RunwireCollectingWriter();
+            $host->handle($native($right), $goodWriter, completeResponse: true);
+
+            expect($goodWriter->status)->toBe(200)
+                ->and($goodWriter->endCalls)->toBe(1)
+                ->and($right->completed())->toBeTrue()
+                ->and(json_decode($goodWriter->body, true, flags: JSON_THROW_ON_ERROR)['request'])
+                ->toBe($right->requestId);
+        } finally {
+            $host->shutdown();
+            $wrong->complete();
+            $right->complete();
+        }
+    } finally {
+        foundationResetWebrickProductionRegistries();
+        foundationWebReleaseRemove($project);
+    }
+});
+
 it('retains the trusted web release lease for the Runwire host lifetime', function (): void {
     $project = foundationWebReleaseProject();
     $config = [
