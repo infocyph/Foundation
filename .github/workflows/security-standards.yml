@@ -221,12 +221,16 @@ jobs:
           coverage: none
       - name: Install release-evidence dependencies
         run: composer update --no-interaction --prefer-dist --no-progress --prefer-stable
-      - name: Diagnose Foundation 4 release tooling
-        run: composer ic:doctor
+      - name: Diagnose Foundation 4 release tooling and active configuration
+        run: |
+          composer ic:doctor
+          composer ic:list-config
+          composer ic:active-config
       - name: Complete PHPForge release-guard constraints
         run: |
           composer validate --strict
           composer ic:release:constraints
+          composer ic:release:guard
       - name: Execute migration bootstrap smoke examples
         run: |
           php docs/examples/foundation-4-core.php
