@@ -92,6 +92,103 @@ final readonly class ModuleFeatureResolver
         ];
     }
 
+
+    /**
+     * @param list<array{target:string,when?:array{key:string,operator:'equals'|'not-empty',value?:bool|int|string}}> $dependencies
+     * @param array<string,mixed> $config
+     * @return list<string>
+     */
+    private function activeDependencies(array $dependencies, array $config): array
+    {
+        $active = [];
+
+        foreach ($dependencies as $dependency) {
+            if (!isset($dependency['when']) || $this->condition($dependency['when'], $config)) {
+                $active[] = $dependency['target'];
+            }
+        }
+
+        return $active;
+    }
+
+    /** @phpstan-param Context $context */
+    private function allowed(string $id, array $context): bool
+    {
+        if (isset($context['allowlist']) && !in_array($id, $context['allowlist'], true)) {
+            return false;
+        }
+
+        return ($context['overrides'][$id] ?? true) !== false;
+    }
+
+    /**
+     * @param array{key:string,operator:'equals'|'not-empty',value?:bool|int|string} $when
+     * @param array<string,mixed> $config
+     */
+    private function condition(array $when, array $config): bool
+    {
+        $value = $config;
+
+        foreach (explode('.', $when['key']) as $key) {
+            if (!is_array($value) || !array_key_exists($key, $value)) {
+                return false;
+            }
+
+            $value = $value[$key];
+        }
+
+        if ($when['operator'] === 'equals') {
+            return $value === ($when['value'] ?? null);
+        }
+
+        return is_string($value) ? trim($value) !== '' : $value !== null && $value !== false && $value !== [];
+    }
+
+    /** @return array{string,string}|null */
+    private function constraintBounds(string $constraint): ?array
+    {
+        if (preg_match('/^\^(\d+)(?:\.(\d+))?(?:\.(\d+))?$/D', $constraint, $match) !== 1) {
+            return null;
+        }
+
+        $major = (int) $match[1];
+
+        return [
+            sprintf('%d.%d.%d', $major, (int) ($match[2] ?? 0), (int) ($match[3] ?? 0)),
+            sprintf('%d.0.0', $major + 1),
+        ];
+    }
+
+    /**
+     * Conservative fixed major-floor comparison; unsupported Composer syntax
+     * returns null and must be resolved by a real Composer solver at apply.
+     */
+    private function constraintMatches(string $actual, string $required): ?bool
+    {
+        if (preg_match('/^\^(\d+)(?:\.(\d+))?(?:\.(\d+))?$/D', $required, $floor) !== 1) {
+            return null;
+        }
+
+        $major = (int) $floor[1];
+        $lower = sprintf('%d.%d.%d', $major, (int) ($floor[2] ?? 0), (int) ($floor[3] ?? 0));
+        $upper = sprintf('%d.0.0', $major + 1);
+
+        if (str_starts_with($actual, '^')) {
+            $nested = $this->constraintBounds($actual);
+
+            return $nested !== null
+                && version_compare($nested[0], $lower, '>=')
+                && version_compare($nested[1], $upper, '<=');
+        }
+
+        $version = ltrim($actual, 'v');
+
+        return preg_match('/^\d+(?:\.\d+){0,2}$/D', $version) === 1
+            ? version_compare($version, $lower, '>=')
+                && version_compare($version, $upper, '<')
+            : null;
+    }
+
     /**
      * @phpstan-param Context $context
      * @phpstan-return FeatureState
@@ -154,101 +251,5 @@ final readonly class ModuleFeatureResolver
             'compatible' => $version === null ? null : $this->constraintMatches($version, $constraint),
             'root_compatible' => $root === null ? null : $this->constraintMatches($root, $constraint),
         ];
-    }
-
-    /**
-     * Conservative fixed major-floor comparison; unsupported Composer syntax
-     * returns null and must be resolved by a real Composer solver at apply.
-     */
-    private function constraintMatches(string $actual, string $required): ?bool
-    {
-        if (preg_match('/^\^(\d+)(?:\.(\d+))?(?:\.(\d+))?$/D', $required, $floor) !== 1) {
-            return null;
-        }
-
-        $major = (int) $floor[1];
-        $lower = sprintf('%d.%d.%d', $major, (int) ($floor[2] ?? 0), (int) ($floor[3] ?? 0));
-        $upper = sprintf('%d.0.0', $major + 1);
-
-        if (str_starts_with($actual, '^')) {
-            $nested = $this->constraintBounds($actual);
-
-            return $nested !== null
-                && version_compare($nested[0], $lower, '>=')
-                && version_compare($nested[1], $upper, '<=');
-        }
-
-        $version = ltrim($actual, 'v');
-
-        return preg_match('/^\d+(?:\.\d+){0,2}$/D', $version) === 1
-            ? version_compare($version, $lower, '>=')
-                && version_compare($version, $upper, '<')
-            : null;
-    }
-
-    /** @return array{string,string}|null */
-    private function constraintBounds(string $constraint): ?array
-    {
-        if (preg_match('/^\^(\d+)(?:\.(\d+))?(?:\.(\d+))?$/D', $constraint, $match) !== 1) {
-            return null;
-        }
-
-        $major = (int) $match[1];
-
-        return [
-            sprintf('%d.%d.%d', $major, (int) ($match[2] ?? 0), (int) ($match[3] ?? 0)),
-            sprintf('%d.0.0', $major + 1),
-        ];
-    }
-
-    /**
-     * @param list<array{target:string,when?:array{key:string,operator:'equals'|'not-empty',value?:bool|int|string}}> $dependencies
-     * @param array<string,mixed> $config
-     * @return list<string>
-     */
-    private function activeDependencies(array $dependencies, array $config): array
-    {
-        $active = [];
-
-        foreach ($dependencies as $dependency) {
-            if (!isset($dependency['when']) || $this->condition($dependency['when'], $config)) {
-                $active[] = $dependency['target'];
-            }
-        }
-
-        return $active;
-    }
-
-    /**
-     * @param array{key:string,operator:'equals'|'not-empty',value?:bool|int|string} $when
-     * @param array<string,mixed> $config
-     */
-    private function condition(array $when, array $config): bool
-    {
-        $value = $config;
-
-        foreach (explode('.', $when['key']) as $key) {
-            if (!is_array($value) || !array_key_exists($key, $value)) {
-                return false;
-            }
-
-            $value = $value[$key];
-        }
-
-        if ($when['operator'] === 'equals') {
-            return $value === ($when['value'] ?? null);
-        }
-
-        return is_string($value) ? trim($value) !== '' : $value !== null && $value !== false && $value !== [];
-    }
-
-    /** @phpstan-param Context $context */
-    private function allowed(string $id, array $context): bool
-    {
-        if (isset($context['allowlist']) && !in_array($id, $context['allowlist'], true)) {
-            return false;
-        }
-
-        return ($context['overrides'][$id] ?? true) !== false;
     }
 }
