@@ -6,6 +6,15 @@ OUTPUT="${FOUNDATION_HOST_RESULT_DIR:-$ROOT/build/foundation4-host}"
 REQUESTS="${FOUNDATION_HOST_REQUESTS:-900}"
 REPEATS="${FOUNDATION_HOST_REPEATS:-3}"
 SOAK_SECONDS="${FOUNDATION_HOST_SOAK_SECONDS:-0}"
+PROFILE="${FOUNDATION_HOST_WORKLOAD_PROFILE:-json-minimal}"
+if [[ "$PROFILE" != "json-minimal" && "$PROFILE" != "native-read" ]]; then
+    echo "Unsupported Foundation 4 workload profile: $PROFILE" >&2
+    exit 1
+fi
+ENDPOINT="/json"
+if [[ "$PROFILE" == "native-read" ]]; then
+    ENDPOINT="/native"
+fi
 LOAD_TIMEOUT_SECONDS="$(awk -v min="${FOUNDATION_HOST_MIN_SECONDS:-0}" 'BEGIN { if (min < 0 || min > 300) exit 1; printf "%.0f", min + 90 }')"
 FPM_BIN="${FOUNDATION_HOST_FPM_BIN:-php-fpm8.4}"
 PORT_FPM="${FOUNDATION_HOST_FPM_PORT:-18780}"
@@ -90,7 +99,7 @@ start_sampler() {
 assert_ready() {
     local url="$1" body
     for _ in $(seq 1 100); do
-        if body="$(curl --silent --fail --max-time 2 "$url/json" 2>/dev/null)" &&
+        if body="$(curl --silent --fail --max-time 2 "$url$ENDPOINT" 2>/dev/null)" &&
             [[ "$body" == '{"ok":true}' ]]; then
             return 0
         fi
@@ -157,7 +166,7 @@ run_soak() {
         start_sampler "$OUTPUT/$prefix.samples.csv"
         if ! FOUNDATION_HOST_MIN_SECONDS="$SOAK_SECONDS" \
             timeout "$((SOAK_SECONDS + 90))s" php "$ROOT/benchmarks/foundation4-host-load.php" \
-            "$url/json" "$REQUESTS" 10 "$OUTPUT/$prefix.load.json" \
+            "$url$ENDPOINT" "$REQUESTS" 10 "$OUTPUT/$prefix.load.json" \
             > "$OUTPUT/$prefix.load.log"; then
             echo "Sustained $host window $window returned an invalid response." >&2
             return 1
@@ -187,7 +196,7 @@ pm.max_children = $workers
 clear_env = no
 catch_workers_output = yes
 POOL
-    setsid "$FPM_BIN" -F -y "$cfg" > "$OUTPUT/fpm-$workers.stdout.log" 2>&1 &
+    FOUNDATION_HOST_APP="$app" setsid "$FPM_BIN" -F -y "$cfg" > "$OUTPUT/fpm-$workers.stdout.log" 2>&1 &
     SERVICE_PID=$!
 
     local nginx_conf="$OUTPUT/nginx-$workers.conf"
@@ -220,6 +229,7 @@ NGINX
 
 start_runwire() {
     local workers="$1" app="$2"
+    FOUNDATION_HOST_APP="$app" \
     FOUNDATION_HOST_LISTEN="127.0.0.1:$PORT_RUNWIRE" \
         FOUNDATION_HOST_WORKERS="$workers" \
         setsid php "$app/runwire-server.php" > "$OUTPUT/runwire-$workers.stdout.log" 2>&1 &
@@ -246,14 +256,14 @@ for host in fpm runwire; do
         for concurrency in 1 10 50; do
             for repetition in $(seq 1 "$REPEATS"); do
                 prefix="$host-w$workers-c$concurrency-r$repetition"
-                body="$(curl --silent --show-error --fail --max-time 3 "$url/json")"
+                body="$(curl --silent --show-error --fail --max-time 3 "$url$ENDPOINT")"
                 [[ "$body" == '{"ok":true}' ]] || {
                     echo "$prefix: invalid JSON before load" >&2
                     exit 1
                 }
                 start_sampler "$OUTPUT/$prefix.samples.csv"
                 if ! timeout "${LOAD_TIMEOUT_SECONDS}s" php "$ROOT/benchmarks/foundation4-host-load.php" \
-                    "$url/json" "$REQUESTS" "$concurrency" "$OUTPUT/$prefix.load.json" \
+                    "$url$ENDPOINT" "$REQUESTS" "$concurrency" "$OUTPUT/$prefix.load.json" \
                     > "$OUTPUT/$prefix.load.log"; then
                     echo "$prefix: HTTP/1.1 response-validation load failed" >&2
                     exit 1
@@ -261,7 +271,7 @@ for host in fpm runwire; do
                 kill "$SAMPLER_PID" 2>/dev/null || true
                 wait "$SAMPLER_PID" 2>/dev/null || true
                 SAMPLER_PID=""
-                body="$(curl --silent --show-error --fail --max-time 3 "$url/json")"
+                body="$(curl --silent --show-error --fail --max-time 3 "$url$ENDPOINT")"
                 [[ "$body" == '{"ok":true}' ]] || {
                     echo "$prefix: invalid JSON after load" >&2
                     exit 1
@@ -284,4 +294,5 @@ FOUNDATION_HOST_RESULT_DIR="$OUTPUT" \
     FOUNDATION_HOST_REQUESTS="$REQUESTS" \
     FOUNDATION_HOST_REPEATS="$REPEATS" \
     FOUNDATION_HOST_SOAK_SECONDS="$SOAK_SECONDS" \
+    FOUNDATION_HOST_WORKLOAD_PROFILE="$PROFILE" \
     php "$ROOT/benchmarks/foundation4-host-report.php"
