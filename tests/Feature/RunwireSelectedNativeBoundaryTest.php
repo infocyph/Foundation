@@ -216,11 +216,16 @@ it('rejects host cancellation at the native intermediary and child boundaries', 
     $bridge->bind($runtime);
     try {
         $request->cancel(\Infocyph\Runwire\Runtime\Enum\CancellationReason::HOST_CANCELLED);
-        expect(fn(): mixed => $bridge->withinRequest(
-            $request,
-            null,
-            static fn(): string => 'unexpected',
-        ))->toThrow(\Infocyph\Runwire\Exception\CancelledException::class)
+        expect($request->cancelled())->toBeTrue()
+            ->and(fn(): mixed => $request->cancellation->throwIfCancelled())
+            ->toThrow(\Infocyph\Runwire\Exception\CancelledException::class)
+            ->and(fn(): mixed => $bridge->withinRequest(
+                $request,
+                null,
+                static function () use ($runtime, $request): void {
+                    (new ReqShieldRunwire($runtime, $request))->checkpoint();
+                },
+            ))->toThrow(\Infocyph\Runwire\Exception\CancelledException::class)
             ->and(fn(): mixed => (new ReqShieldRunwire($runtime, $request))->checkpoint())
             ->toThrow(\Infocyph\Runwire\Exception\CancelledException::class)
             ->and(fn(): mixed => (new UidRunwire($runtime, $request))->assertActive())
