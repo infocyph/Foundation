@@ -5,6 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUTPUT="${FOUNDATION_HOST_RESULT_DIR:-$ROOT/build/foundation4-host}"
 REQUESTS="${FOUNDATION_HOST_REQUESTS:-900}"
 REPEATS="${FOUNDATION_HOST_REPEATS:-3}"
+LOAD_TIMEOUT_SECONDS="$(awk -v min="${FOUNDATION_HOST_MIN_SECONDS:-0}" 'BEGIN { if (min < 0 || min > 300) exit 1; printf "%.0f", min + 90 }')"
 FPM_BIN="${FOUNDATION_HOST_FPM_BIN:-php-fpm8.4}"
 PORT_FPM="${FOUNDATION_HOST_FPM_PORT:-18780}"
 PORT_RUNWIRE="${FOUNDATION_HOST_RUNWIRE_PORT:-18781}"
@@ -225,7 +226,7 @@ for host in fpm runwire; do
                     exit 1
                 }
                 start_sampler "$OUTPUT/$prefix.samples.csv"
-                if ! timeout 90s php "$ROOT/benchmarks/foundation4-host-load.php" \
+                if ! timeout "${LOAD_TIMEOUT_SECONDS}s" php "$ROOT/benchmarks/foundation4-host-load.php" \
                     "$url/json" "$REQUESTS" "$concurrency" "$OUTPUT/$prefix.load.json" \
                     > "$OUTPUT/$prefix.load.log"; then
                     echo "$prefix: HTTP/1.1 response-validation load failed" >&2
