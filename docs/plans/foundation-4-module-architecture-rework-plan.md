@@ -1,6 +1,6 @@
 # Foundation 4 — Module Architecture & Lifecycle Rework Plan
 
-> **Status:** ARCHITECTURE APPROVED; Batch 0 source audit and detailed engineering design recorded; baseline CI pending. **Behavioral module implementation: not started.**
+> **Status:** Batch 0 **5/5 ACCEPTED** on `a4afa89c` (exact-source full QA, CLI baseline and native host). **Batch 1 started**; no module runtime cutover yet.
 > **Approved target:** prebuilt Foundation Core + preconfigured development QA + **3 optional modules / 9 independently selectable features**.
 >
 > **Working branch:** `feature/foundation-3` · **PR:** [#20](https://github.com/infocyph/Foundation/pull/20) (keep draft)  
@@ -188,7 +188,7 @@ For implementation-stage decisions, keep the **selected design** and source-back
 
 | Batch | Workstream | Status | Acceptance |
 | --- | --- | --- | --- |
-| **0** | Audit, baseline evidence and remaining design decisions | **IN PROGRESS (3/5)** | Audit report + concrete design decisions + baseline tests/metrics |
+| **0** | Audit, baseline evidence and remaining design decisions | **COMPLETE (5/5)** | Audit report + concrete design decisions + baseline tests/metrics |
 | **1** | Exactly three public modules and nine feature definitions | **OPEN (0/5)** | Stable definitions, validated category/ownership contracts |
 | **2** | Dependency/state resolution and pure planning | **OPEN (0/6)** | Deterministic topology, blockers, versioned no-side-effect plans |
 | **3** | Install/enable/disable/remove/repair execution | **OPEN (0/7)** | Safe explicit mutations, atomic boundaries, idempotent recovery |
@@ -196,14 +196,14 @@ For implementation-stage decisions, keep the **selected design** and source-back
 | **5** | All nine specialist features, schemas and native ownership | **OPEN (0/7)** | Auth, cache, database, messaging and other owners proven |
 | **6** | CLI/API UX, docs, templates and upgrade notes | **OPEN (0/6)** | Machine/human UX verified with doc/test parity |
 | **7** | Full regression, performance and release re-certification | **OPEN (0/7)** | Complete QA, no-dev matrix, measured performance, final evidence |
-| **Total** | **49 scoped acceptance items** | **3/49 (6.1%)** | **0/8 batches accepted** |
+| **Total** | **49 scoped acceptance items** | **5/49 (10.2%)** | **1/8 batches accepted** |
 
 ### Batch 0 — Audit and approved architecture
 
 - [x] Trace module operations from CLI through catalog, state, activation, Composer runner, config publication, schema manager and native graph. **Evidence:** [Batch 0 source audit](foundation-4-module-batch0-audit.md) §A.
-- [ ] Record current commands, JSON schema contracts, error/exit codes and real root-package ownership cases with golden fixtures.
+- [x] Record current commands, JSON schema contracts, error/exit codes and real root-package ownership cases with golden fixtures. **Evidence:** [source audit](foundation-4-module-batch0-audit.md) §A and version-1 contract tests, [QA #38570463538](https://github.com/infocyph/Foundation/actions/runs/38570463538).
 - [x] Inventory all 11 **current** catalog entries and their exact mapping into prebuilt Core, three approved modules, nine features, PHPForge QA and external-dependency roles. **Evidence:** [Batch 0 audit](foundation-4-module-batch0-audit.md) §A.
-- [ ] Establish representative baseline: module:list/show/plan/doctor cold/warm, install/remove dry-run, selected/disabled compiled runtime, worker lifecycle and memory; record machine/toolchain/environment.
+- [x] Establish representative baseline: module:list/show/plan/doctor cold/warm, install/remove dry-run, selected/disabled compiled runtime, worker lifecycle and memory; record machine/toolchain/environment. **Evidence:** [baseline CLI report, PHP 8.5.11 (15 warm samples)](foundation-4-module-batch0-audit.md) §C in [QA artifact #38570463538](https://github.com/infocyph/Foundation/actions/runs/38570463538), [native host #38570462819](https://github.com/infocyph/Foundation/actions/runs/38570462819). These do not certify production-equivalent RPM.
 - [x] Resolve detailed engineering decisions D01/D04/D06–D10 (including D09 CLI JSON), confirm the **APPROVED** Core + 3 modules/9 features boundary, source ownership and batch order. **Evidence:** [Batch 0 audit](foundation-4-module-batch0-audit.md) §B. These are selected for implementation validation; no runtime code has changed.
 
 **QA gate:** no behavior changes; exact-branch baseline QA recorded, design choices explicit, no invented performance or existing defect claims.
@@ -315,6 +315,7 @@ For implementation-stage decisions, keep the **selected design** and source-back
 | 2026-10-14 | Drafted dedicated Foundation 4 module architecture and lifecycle plan. No module implementation, no QA acceptance claimed. | Plan-only commit `b36749c0`; implementation source baseline retained | **0/49 tasks, 0/8 batches** |
 | 2026-10-14 | **Approved target: prebuilt Core + separate PHPForge QA + exactly 3 optional public modules / 9 independent features**. Rewrote ownership mapping, decisions, batch acceptance and lifecycle examples accordingly. | **Plan-only update; no source changes or acceptance QA claimed.** Previous 11-entry catalog remains current runtime baseline. | **0/49 implementation tasks, 0/8 batches; 5 architecture decisions approved** |
 | 2026-10-14 | Traced old module CLI/catalog/resolver/activation/config/schema/native graph; inventoried 11→3/9 mapping and selected D01/D04/D06–D10. Added isolated CLI cold/warm benchmarking runner and release-evidence capture. | [Source audit](foundation-4-module-batch0-audit.md); `benchmarks/foundation4-module-cli-baseline.php`; `.github/workflows/security-standards.yml`. **Baseline CI/fixtures remain pending.** | **Batch 0 3/5; 3/49 tasks, 0/8 batches** |
+| 2026-10-14 | **Batch 0 complete: 5/5**. Existing 11-entry contract, CLI golden fixture, cold/warm observations, 16 MiB PHP allocation, native selected/disabled host paths and design decisions verified on exact source `a4afa89c`. | [QA #38570463538](https://github.com/infocyph/Foundation/actions/runs/38570463538) **SUCCESS**; [native host #38570462819](https://github.com/infocyph/Foundation/actions/runs/38570462819) **SUCCESS**; [audit evidence](foundation-4-module-batch0-audit.md) §C. | **5/49; Batch 0 5/5 accepted** |
 
 
-**Next action:** finish Batch 0 items #2 and #4 after the isolated CLI runner and full exact-head QA produce archived baseline measurements. Confirm pre-rework golden machine contracts and compile/worker host evidence; only then mark Batch 0 5/5 and proceed into Batch 1 source changes.
+**Next action:** Batch 1: implement the fixed three-module/nine-feature metadata contract and exhaustive structural tests without breaking the still-live old CLI/state during the staged cutover. Track the public 11-entry switch separately until its users are rewritten in Batches 2–6; no speculative compatibility bridge to older released Foundation majors.
