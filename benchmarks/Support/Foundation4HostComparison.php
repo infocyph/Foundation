@@ -180,7 +180,9 @@ final class Foundation4HostComparison
         }
 
         return sqrt($variance / count($values)) / $mean * 100.0;
-    }    /** @param list<float> $values */
+    }
+
+    /** @param list<float> $values */
     private static function median(array $values): float
     {
         sort($values, SORT_NUMERIC);
@@ -195,6 +197,4 @@ final class Foundation4HostComparison
     {
         return (is_int($value) || is_float($value)) && is_finite((float) $value) && $value > 0;
     }
-
-
 }
