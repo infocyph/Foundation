@@ -126,6 +126,14 @@ it('rejects invalid schema ownership, unsafe config paths, platform names and sh
     $path['data']['features']['filesystem']['config'] = ['../config.php'];
     expect(fn() => $catalog->validate($path))->toThrow(LogicException::class, 'Invalid config ownership path');
 
+    $collision = $definitions;
+    $collision['data']['features']['filesystem']['config'] = ['database.php'];
+    expect(fn() => $catalog->validate($collision))->toThrow(LogicException::class, 'Duplicate config ownership');
+
+    $coreSchema = $definitions;
+    $coreSchema['security']['features']['crypto']['schemas'] = ['auth'];
+    expect(fn() => $catalog->validate($coreSchema))->toThrow(LogicException::class, 'schema owner');
+
     $platform = $definitions;
     $platform['data']['features']['database']['platform']['extensions'] = ['not an extension'];
     expect(fn() => $catalog->validate($platform))->toThrow(LogicException::class, 'Invalid platform extension');

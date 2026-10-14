@@ -24,6 +24,8 @@ final class ModuleArchitectureValidator
         'opis/closure',
     ];
 
+    private const array CORE_SCHEMAS = ['auth', 'session', 'cache'];
+
     /**
      * @phpstan-param array<string,ArchitectureModule> $modules
      * @param array<string,list<string>> $expected
@@ -35,6 +37,7 @@ final class ModuleArchitectureValidator
         }
 
         $packageOwners = [];
+        $configOwners = [];
         $schemaOwners = [];
         $edges = [];
         foreach ($expected as $module => $featureIds) {
@@ -45,7 +48,7 @@ final class ModuleArchitectureValidator
 
             foreach ($features as $name => $definition) {
                 $id = $module . '.' . $name;
-                $this->assertFeature($id, $definition, $modules, $packageOwners, $schemaOwners, $edges);
+                $this->assertFeature($id, $definition, $modules, $packageOwners, $configOwners, $schemaOwners, $edges);
             }
         }
 
@@ -87,13 +90,20 @@ final class ModuleArchitectureValidator
         }
     }
 
-    /** @param list<string> $configs */
-    private function assertConfiguration(string $id, array $configs): void
+    /**
+     * @param list<string> $configs
+     * @param array<string,string> $owners
+     */
+    private function assertConfiguration(string $id, array $configs, array &$owners): void
     {
         foreach ($configs as $config) {
             if (preg_match('/^[a-z][a-z0-9_]*\.php$/D', $config) !== 1) {
                 throw new \LogicException(sprintf('Invalid config ownership path on "%s".', $id));
             }
+            if (isset($owners[$config])) {
+                throw new \LogicException(sprintf('Duplicate config ownership for "%s".', $config));
+            }
+            $owners[$config] = $id;
         }
     }
 
@@ -101,6 +111,7 @@ final class ModuleArchitectureValidator
      * @phpstan-param ArchitectureFeature $definition
      * @phpstan-param array<string,ArchitectureModule> $modules
      * @param array<string,list<array{id:string,constraint:string}>> $packageOwners
+     * @param array<string,string> $configOwners
      * @param array<string,string> $schemaOwners
      * @param array<string,list<string>> $edges
      */
@@ -109,6 +120,7 @@ final class ModuleArchitectureValidator
         array $definition,
         array $modules,
         array &$packageOwners,
+        array &$configOwners,
         array &$schemaOwners,
         array &$edges,
     ): void {
@@ -119,7 +131,7 @@ final class ModuleArchitectureValidator
         $this->assertPackages($id, $definition['packages'], $packageOwners);
         $this->assertSelectionKey($id, $definition['selection_key']);
         $this->assertPlatform($id, $definition['platform']);
-        $this->assertConfiguration($id, $definition['config']);
+        $this->assertConfiguration($id, $definition['config'], $configOwners);
         $this->assertSchemas($id, $definition['schemas'], $schemaOwners);
         $edges[$id] = $this->resolveDependencies($id, $definition['dependencies'], $modules);
     }
@@ -178,7 +190,9 @@ final class ModuleArchitectureValidator
     private function assertSchemas(string $id, array $schemas, array &$owners): void
     {
         foreach ($schemas as $schema) {
-            if (preg_match('/^[a-z][a-z0-9_]*$/D', $schema) !== 1 || isset($owners[$schema])) {
+            if (preg_match('/^[a-z][a-z0-9_]*$/D', $schema) !== 1 || isset($owners[$schema])
+                || in_array($schema, self::CORE_SCHEMAS, true)
+            ) {
                 throw new \LogicException(sprintf('Invalid or duplicate schema owner on "%s".', $id));
             }
             $owners[$schema] = $id;
