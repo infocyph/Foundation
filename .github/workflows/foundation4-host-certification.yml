@@ -33,6 +33,9 @@ jobs:
       - name: Install native host and load tools
         run: |
           sudo apt-get update -qq
+          sudo apt-get install -y -qq software-properties-common
+          sudo add-apt-repository -y ppa:ondrej/php
+          sudo apt-get update -qq
           sudo apt-get install -y -qq nginx apache2-utils php8.4-fpm
           php-fpm8.4 -v
           nginx -v
@@ -52,8 +55,12 @@ jobs:
           php -v > build/foundation4-host/php-version.txt
           php -m > build/foundation4-host/php-extensions.txt
           php --ini=diff > build/foundation4-host/php-ini-diff.txt
-          composer show --locked --format=json > build/foundation4-host/dependencies.json
-          sha256sum composer.lock > build/foundation4-host/composer-lock.sha256
+          if test -f composer.lock; then
+            composer show --locked --format=json > build/foundation4-host/dependencies.json
+            sha256sum composer.lock > build/foundation4-host/composer-lock.sha256
+          else
+            printf 'dependency_resolution=not_completed\\n' > build/foundation4-host/dependency-resolution.env
+          fi
           git rev-parse HEAD > build/foundation4-host/commit.txt
       - uses: actions/upload-artifact@v7
         if: always()
