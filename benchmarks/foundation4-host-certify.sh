@@ -84,12 +84,12 @@ sample_tree() {
 }
 
 start_sampler() {
-    local file="$1"
+    local file="$1" sample
     printf 'timestamp,rss_kb,cpu_percent,processes\n' > "$file"
     (
         while :; do
-            printf '%s,' "$(date +%s.%N)" >> "$file"
-            sample_tree "$SERVICE_PID" "${PROXY_PID:-0}" >> "$file"
+            sample="$(sample_tree "$SERVICE_PID" "${PROXY_PID:-0}")" || break
+            printf '%s,%s\n' "$(date +%s.%N)" "$sample" >> "$file"
             sleep 0.2
         done
     ) &
