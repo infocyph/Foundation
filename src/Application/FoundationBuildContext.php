@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Application;
 
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Module\ModuleFeatureCapabilityPolicy;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\InterMix\DI\Support\TraceLevelEnum;
 
@@ -14,6 +15,7 @@ final readonly class FoundationBuildContext
      * @param array<string, mixed> $config
      * @param array<string, bool> $capabilities
      * @param array<string, bool> $capabilityOverrides
+     * @param array<string, bool>|null $featureSelections
      */
     public function __construct(
         public RuntimeMode $runtimeMode,
@@ -26,6 +28,7 @@ final readonly class FoundationBuildContext
         public bool $debugTracing,
         public TraceLevelEnum $debugTraceLevel,
         public bool $capabilitiesExplicit = false,
+        public ?array $featureSelections = null,
     ) {}
 
     /**
@@ -59,21 +62,24 @@ final readonly class FoundationBuildContext
                 ValueNormalizer::string($config->get('app.container.debug_tracing.level'), 'node'),
             ),
             capabilitiesExplicit: $capabilities !== null,
+            featureSelections: ModuleFeatureCapabilityPolicy::fromConfig($config),
         );
     }
 
     public function hasCapability(string $capability): bool
     {
-        if (array_key_exists($capability, $this->capabilityOverrides)) {
-            return $this->capabilityOverrides[$capability];
-        }
-
-        return $this->capabilities[$capability] ?? false;
+        return $this->rawCapability($capability)
+            && ModuleFeatureCapabilityPolicy::permits($capability, $this->featureSelections);
     }
 
     public function hasCapabilityOverride(string $capability): bool
     {
         return array_key_exists($capability, $this->capabilityOverrides);
+    }
+
+    public function hasFeature(string $feature): bool
+    {
+        return ModuleFeatureCapabilityPolicy::selected($feature, $this->featureSelections);
     }
 
     /**
@@ -82,9 +88,20 @@ final readonly class FoundationBuildContext
      */
     public function permitsCapability(string $capability): bool
     {
-        return $this->hasCapabilityOverride($capability)
-            ? $this->hasCapability($capability)
-            : (!$this->capabilitiesExplicit || $this->hasCapability($capability));
+        $legacyAllowed = $this->hasCapabilityOverride($capability)
+            ? $this->rawCapability($capability)
+            : (!$this->capabilitiesExplicit || $this->rawCapability($capability));
+
+        return $legacyAllowed && ModuleFeatureCapabilityPolicy::permits($capability, $this->featureSelections);
+    }
+
+    private function rawCapability(string $capability): bool
+    {
+        if (array_key_exists($capability, $this->capabilityOverrides)) {
+            return $this->capabilityOverrides[$capability];
+        }
+
+        return $this->capabilities[$capability] ?? false;
     }
 
     /**
