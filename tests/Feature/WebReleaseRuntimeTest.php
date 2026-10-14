@@ -386,3 +386,80 @@ it('refuses implicit Runwire host construction from a plain PHP web release', fu
         foundationWebReleaseRemove($project);
     }
 });
+
+final class FoundationRunwireReleaseContextHandler
+{
+    public static function show(
+        \Infocyph\Runwire\RuntimeContext $runtime,
+        \Infocyph\Runwire\RequestContext $request,
+    ): \Infocyph\Webrick\Response\Response {
+        return \Infocyph\Webrick\Response\Response::json([
+            'mode' => $runtime->mode,
+            'request' => $request->requestId,
+        ]);
+    }
+}
+
+it('sends the exact host Runwire request through compiled Webrick and native InterMix', function (): void {
+    $project = foundationWebReleaseProject();
+    file_put_contents(
+        $project . '/routes/web.php',
+        "\nRouter::get('/runwire-context', [FoundationRunwireReleaseContextHandler::class, 'show']);\n",
+        FILE_APPEND,
+    );
+    $config = [
+        'app' => ['base_path' => $project, 'env' => 'production', 'debug' => false],
+        '_config_cache' => false,
+        'router' => [
+            'files' => ['web.php'],
+            'matcher' => 'fused',
+            'middleware' => ['globals' => ['pre' => [], 'post' => []]],
+        ],
+    ];
+    $manifest = $project . '/bootstrap/cache/release.json';
+
+    try {
+        $report = new WebReleaseCompiler()->compile(
+            $config,
+            $project . '/bootstrap/cache/intermix.php',
+            $project . '/bootstrap/cache/router.php',
+            $manifest,
+            capabilities: ['runwire'],
+        );
+        $loaded = WebReleaseRuntime::loadPrevalidated(
+            $config,
+            $manifest,
+            (string) $report['release_runtime_manifest_sha256'],
+            foundationCapabilities: ['runwire'],
+        );
+        $runtime = \Infocyph\Runwire\RuntimeContext::standalone();
+        $request = \Infocyph\Runwire\RequestContext::create($runtime, requestId: 'foundation-native-request');
+        $native = new \Infocyph\Runwire\Http\HttpRequest(
+            method: 'GET',
+            target: '/runwire-context',
+            version: \Infocyph\Runwire\Http\Enum\ProtocolVersion::HTTP_1_1,
+            headers: \Infocyph\Runwire\Http\Headers::fromArray(['Host' => 'release.test']),
+            body: new \Infocyph\Foundation\Tests\Fixtures\RunwireEmptyBody(),
+            context: $request,
+        );
+        $writer = new \Infocyph\Foundation\Tests\Fixtures\RunwireCollectingWriter();
+        $host = $loaded->runwireApplication($runtime);
+        $host->start();
+
+        try {
+            $host->handle($native, $writer, completeResponse: true);
+            expect($writer->status)->toBe(200)
+                ->and($writer->endCalls)->toBe(1)
+                ->and($request->completed())->toBeTrue()
+                ->and(json_decode($writer->body, true, flags: JSON_THROW_ON_ERROR))->toBe([
+                    'mode' => $runtime->mode,
+                    'request' => 'foundation-native-request',
+                ]);
+        } finally {
+            $host->shutdown();
+        }
+    } finally {
+        foundationResetWebrickProductionRegistries();
+        foundationWebReleaseRemove($project);
+    }
+});
