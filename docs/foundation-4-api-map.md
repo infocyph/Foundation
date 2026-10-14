@@ -1,54 +1,27 @@
-# Foundation 2.1.1 → 4.0 replacement map
+# Foundation 4.0 public API and native ownership contract
 
-**Source comparison:** published tag `2.1.1`, commit `f6749ebe0aa1f93c6b3586e8cb63ecc1f552d98b` versus draft Foundation 4 branch `feature/foundation-3`. This table accounts for **all 28 removed PHP paths beneath `src/`**. A replacement is a migration destination, not a compatibility alias or identical constructor. Retained class signatures can also have changed; rebuild and retest all consumer source and generated artifacts.
+Foundation 4.0 is a deliberate breaking major release. This document describes **current 4.0** entrypoints and integration responsibilities; it is **not** a backwards-compatibility, removed-symbol, or migration map.
 
-## Removed source paths
+## Current public application contract
 
-| Published 2.1.1 path (relative to `src/`, add `.php`) | Foundation 4 migration destination |
+| Surface | Supported 4.0 behavior |
 | --- | --- |
-| `Auth/Adapter/CacheLayer/CacheLayerCounterStore` | CacheLayer native AtomicCounterStore; reject non-atomic stores |
-| `Auth/Adapter/DBLayer/OAuth/DBLayerOAuthRefreshTokenStore` | DBLayerEpicryptRefreshTokenStore for Epicrypt-owned refresh rotation |
-| `Auth/Adapter/WebAuthn/NoneWebAuthnAttestationPolicy` | native OTP Passkey/WebAuthn attestation policy |
-| `Auth/Adapter/WebAuthn/Support/Base64Url` | native OTP/WebAuthn codec |
-| `Auth/Adapter/WebAuthn/WebAuthnAttestationPolicyInterface` | OTP/WebAuthn-owned attestation contract |
-| `Auth/Adapter/WebAuthn/WebAuthnChallengeRecord` | native OTP Passkey challenge |
-| `Auth/Adapter/WebAuthn/WebAuthnChallengeStore` | native OTP Passkey state store |
-| `Auth/Adapter/WebAuthn/WebAuthnCredentialMapper` | native OTP/WebAuthn credential mapping |
-| `Auth/Adapter/WebAuthn/WebAuthnException` | native ceremony exception translated at application boundary |
-| `Auth/Adapter/WebAuthn/WebAuthnPasskeyService` | AuthServices::passkeys() with selected OTP Passkey |
-| `Auth/Adapter/WebAuthn/WebAuthnPublicKeyOptionsFactory` | native OTP Passkey public-key options |
-| `Auth/Adapter/WebAuthn/WebAuthnRuntime` | native selected OTP Passkey runtime |
-| `Auth/OAuth/Contract/OAuthRefreshTokenStoreInterface` | native Epicrypt OAuth refresh store contract |
-| `Auth/OAuth/Token/OAuthRefreshRotationResult` | Epicrypt refresh-rotation result |
-| `Auth/OAuth/Token/OAuthRefreshRotationStatus` | Epicrypt refresh-rotation status |
-| `Auth/OAuth/Token/OAuthRefreshTokenCoordinator` | Epicrypt OAuth token manager/exchange |
-| `Auth/OAuth/Token/OAuthRefreshTokenIssue` | Epicrypt refresh-token issuance |
-| `Auth/OAuth/Token/OAuthRefreshTokenRecord` | Epicrypt Auth/OAuth/RefreshTokenRecord; preserve old family IDs as opaque |
-| `Auth/Support/HmacTokenCodec` | configured Epicrypt purpose-token policy, or explicit Foundation simple-token driver |
-| `Config/ConfigMerger` | ConfigLoader + compiled ConfigRepository; no per-request merges |
-| `Container/ContainerCacheManager` | InterMix native generated graph in immutable release |
-| `Container/ContainerFactory` | FoundationGraph + native InterMix ContainerBuilder |
-| `Module/Internal/CacheSchemaManager` | Cache/CacheSchemaManager with cache:schema:install/status |
-| `Routing/RouteCacheManager` | native Webrick 6 compiled/fused route release |
-| `Routing/RouteCachePath` | release trust identity and Webrick native manifest paths |
-| `Runtime/RuntimeContextTracker` | ExecutionScope with scoped RuntimeExecutionState and host-passed Runwire contexts |
-| `Validation/ReqShieldDatabaseProvider` | ReqShield native database validation contracts |
-| `Validation/ValidationSchemaRegistry` | ReqShield native schema validation ownership |
+| Bootstrap | `Foundation::web()`, `::cli()`, `::worker()`, `::scheduler()`; select the runtime explicitly |
+| Providers | `ServiceProviderInterface::contribute(ContainerBuilder, FoundationBuildContext)` declares services at graph-build time; `boot(Application)` performs post-finalization side effects, never graph mutation |
+| Resolution | `Application::make()` in its valid owner scope; `Application::container()` is development-only and is unavailable in generated production runtimes |
+| Non-web scope | `ExecutionScope::run()` and `::withinBorrowedScope()` preserve native InterMix input/scope ownership |
+| Capabilities | Explicit `app.capabilities` selects optional integrations; installing a library does not activate it |
+| Native HTTP | Webrick owns HTTP request lifecycle, route matching and response output |
+| Release | InterMix ABI 3 + Webrick 6 format-3 artifacts are generated as one trusted immutable release with validated generation/dependency identity |
+| Runwire | Optional and explicitly selected; host passes exact `RuntimeContext` and request/scope inputs to the native Webrick/InterMix integration; Foundation does not create another server, scheduler or context owner |
+| Persistence | DBLayer owns database operations/migrations; CacheLayer owns cache/counters/outbox; Omnibus owns messaging |
+| Authentication | Foundation owns application policy; Epicrypt owns crypto/OAuth/token operations; OTP/WebAuthn owns MFA and passkey ceremonies |
+| Other specialists | Pathwise owns filesystem/storage, TalkingBytes owns communication, ReqShield owns validation, ArrayKit owns configuration primitives |
 
-## Changed retained contracts and configuration
+## Release contract verification
 
-| 2.1.1 behavior/entry | Direct 4.0 action |
-| --- | --- |
-| `ServiceProviderInterface::register(Application)`, `$app->register`, legacy binding helpers | Graph-time `ServiceProvider::contribute(ContainerBuilder, FoundationBuildContext)` with native InterMix `factory` / `input` / lifetime declarations. No runtime mutation |
-| `Application::container()` used as mutable singleton registry | Resolve through `make()` only inside an active owner scope; use `ExecutionScope::run()` for CLI/worker/scheduler, Webrick for web |
-| `app.container.alias`, `app.container.compiled`, `app.container.compiled_activation`, `router.cache` | Remove settings; generate one trusted immutable release with InterMix ABI 3 and Webrick 6 format-3 router |
-| Optional cache/cachelayer module | CacheLayer `^4` is directly required; use `cache:schema:status` and `cache:schema:install`, not `module:install cache` |
-| Legacy optional modules and embedded notification ownership | Seven specialist modules and four built-ins; explicitly select optional features and retain native notifications |
-| Foundation-owned token/WebAuthn/OAuth refresh semantics | Epicrypt owns OAuth/token cryptography, OTP Passkey owns ceremonies, Foundation owns app policy and persistence integration |
-| Old independently generated container/router/cached config | Throw away artifacts; recompile web/CLI/worker/scheduler and worker topology under a single generation with trusted SHA and dependency identity |
-| Runwire installation or implicit process context | Only when capability selected: pass *host-owned* `Runwire\RuntimeContext` to `WebReleaseRuntime::runwireApplication($runtime)`; pass request/CoroutineScope through native Webrick bridge; no second emitter/host |
-| Worker child scope recreation | Capture live native InterMix `ScopeContext` on the owner and attach through `ExecutionScope::withinBorrowedScope`; no additional cleanup |
+The Security & Standards matrix verifies PHP 8.4/8.5, lowest/stable dependency resolution, production `--no-dev` core-only, database-only, and selected-specialist consumers. The full selected consumer builds and boots a trusted compiled Webrick route and CLI/worker/scheduler generations; the Runwire worker validates host-owned request/runtime identity.
 
-The 4.0 [migration guide](foundation-4-migration.md), [data/restore rehearsal](foundation-4-retained-data-rehearsal.md), and [CLI example](examples/foundation-4-core.php) provide the cutover workflow. **No backwards-compatibility shim** is provided for retired symbols.
+Use [the Foundation 4 setup guide](foundation-4-migration.md) and [current-state recovery guidance](foundation-4-retained-data-rehearsal.md). Source APIs and canonical `resources/config/` files remain authoritative. Additional current-4.0 contract verification is an open Batch 5 acceptance gate until supported by exact-source CI.
 
-Infbyte application's [main composer manifest](https://github.com/infocyph/Infbyte/blob/main/composer.json) still requires Foundation `^3.0.1` as of 2026-10-14; candidate rehearsals must use an isolated temporary Composer path repository and update the application constraints separately before a 4.x release.
+**No compatibility alias or retained public API parity with Foundation 2.x or 3.x is required.** Infbyte application integration is an independent follow-up.
