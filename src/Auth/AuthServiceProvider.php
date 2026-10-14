@@ -12,6 +12,8 @@ use Infocyph\Foundation\Auth\Contract\Security\AccessTokenServiceInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AccountProviderInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\SessionStoreInterface;
 use Infocyph\Foundation\Auth\Driver\AuthDriverResolver;
+use Infocyph\Foundation\Auth\Driver\AuthMfaDriver;
+use Infocyph\Foundation\Auth\Driver\AuthPasskeyDriver;
 use Infocyph\Foundation\Auth\Internal\AuthAuthorizationRegistrar;
 use Infocyph\Foundation\Auth\Internal\AuthCacheRegistrar;
 use Infocyph\Foundation\Auth\Internal\AuthCoreRegistrar;
@@ -54,6 +56,14 @@ final class AuthServiceProvider extends ServiceProvider
     {
         $config = new ConfigRepository($context->config, $context->compiledConfig);
         $drivers = new AuthDriverResolver($config);
+        if ($context->featureSelections !== null) {
+            if ($drivers->mfa() === AuthMfaDriver::OTP && !$context->hasFeature('security.mfa')) {
+                throw new \LogicException('OTP MFA requires explicitly enabled security.mfa module feature.');
+            }
+            if ($drivers->passkey() === AuthPasskeyDriver::WEBAUTHN && !$context->hasFeature('security.passkey')) {
+                throw new \LogicException('WebAuthn requires explicitly enabled security.passkey module feature.');
+            }
+        }
         $secrets = new AuthSecretResolver($config);
         $epicryptTokens = new EpicryptTokenPolicyResolver($config);
 

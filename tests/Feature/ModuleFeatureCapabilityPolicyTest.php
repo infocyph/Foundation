@@ -109,3 +109,31 @@ it('contributes only selected optional native providers before the InterMix grap
         ->not->toContain(FilesystemServiceProvider::class, MessagingServiceProvider::class)
         ->and($builder->definitionGraph()->hasDefinition(\Infocyph\DBLayer\Connection\Connection::class))->toBeBool();
 });
+
+it('never silently activates OTP MFA when only passkeys are selected', function (): void {
+    $config = new ConfigRepository([
+        'app' => ['capabilities' => ['auth']],
+        'auth' => ['drivers' => ['mfa' => 'otp']],
+        'modules' => ['features' => ['security.passkey' => true]],
+    ]);
+    $context = FoundationBuildContext::fromConfig($config, RuntimeMode::Cli);
+
+    expect(fn() => new \Infocyph\Foundation\Auth\AuthServiceProvider()->contribute(
+        FoundationGraph::compose($context),
+        $context,
+    ))->toThrow(LogicException::class, 'security.mfa');
+});
+
+it('never silently activates WebAuthn when only MFA is selected', function (): void {
+    $config = new ConfigRepository([
+        'app' => ['capabilities' => ['auth']],
+        'auth' => ['drivers' => ['passkey' => 'webauthn']],
+        'modules' => ['features' => ['security.mfa' => true]],
+    ]);
+    $context = FoundationBuildContext::fromConfig($config, RuntimeMode::Cli);
+
+    expect(fn() => new \Infocyph\Foundation\Auth\AuthServiceProvider()->contribute(
+        FoundationGraph::compose($context),
+        $context,
+    ))->toThrow(LogicException::class, 'security.passkey');
+});
