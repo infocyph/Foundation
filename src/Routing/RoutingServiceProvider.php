@@ -20,6 +20,16 @@ use Psr\Log\LoggerInterface;
 
 final class RoutingServiceProvider extends ServiceProvider
 {
+    public static function registrar(WebrickRouterFactory $factory): Registrar
+    {
+        return $factory->router();
+    }
+
+    public static function routes(WebrickRouterFactory $factory): Collection
+    {
+        return $factory->routes();
+    }
+
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
         new MiddlewareConfigValidator(new ConfigRepository($context->config, $context->compiledConfig))->validate();
@@ -64,12 +74,12 @@ final class RoutingServiceProvider extends ServiceProvider
             ],
         ));
         $builder->factory(Registrar::class, FactoryDefinition::staticFactory(
-            WebrickRuntimeFactory::class,
+            self::class,
             'registrar',
             [new ServiceReference(WebrickRouterFactory::class)],
         ));
         $builder->factory(Collection::class, FactoryDefinition::staticFactory(
-            WebrickRuntimeFactory::class,
+            self::class,
             'routes',
             [new ServiceReference(WebrickRouterFactory::class)],
         ));

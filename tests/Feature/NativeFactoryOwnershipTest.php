@@ -13,6 +13,9 @@ use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\Pathwise\StreamHandler\DownloadProcessor;
 use Infocyph\Pathwise\StreamHandler\UploadProcessor;
+use Infocyph\Foundation\Routing\RoutingServiceProvider;
+use Infocyph\Webrick\Router\Definition\Registrar;
+use Infocyph\Webrick\Router\Route\Collection;
 use League\Flysystem\FilesystemOperator;
 
 it('registers native filesystem factories directly on the owning provider', function (): void {
@@ -52,4 +55,25 @@ it('registers native auth-notification factory on the owning registrar', functio
         ->and($definition->signature()['class'])->toBe(AuthNotificationRegistrar::class)
         ->and($definition->signature()['method'])->toBe('talkingBytes')
         ->and(class_exists('Infocyph\\Foundation\\Auth\\Internal\\AuthNotificationGraphFactory'))->toBeFalse();
+});
+
+it('binds the development Webrick router identities on the routing provider', function (): void {
+    $context = FoundationBuildContext::fromConfig(
+        new ConfigRepository(['app' => ['env' => 'testing']]),
+        RuntimeMode::Web,
+        ['routing'],
+    );
+    $builder = new ContainerBuilder();
+    new RoutingServiceProvider()->contribute($builder, $context);
+    $definitions = $builder->definitionGraph()->definitions();
+
+    foreach ([Registrar::class => 'registrar', Collection::class => 'routes'] as $id => $method) {
+        $definition = $definitions[$id] ?? null;
+
+        expect($definition)->toBeInstanceOf(FactoryDefinition::class)
+            ->and($definition->signature()['class'])->toBe(RoutingServiceProvider::class)
+            ->and($definition->signature()['method'])->toBe($method);
+    }
+
+    expect(class_exists('Infocyph\\Foundation\\Routing\\WebrickRuntimeFactory'))->toBeFalse();
 });

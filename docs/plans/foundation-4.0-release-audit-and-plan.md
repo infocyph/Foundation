@@ -7,6 +7,12 @@ published Foundation 2.1.1 and skipping publication of Foundation 3.
 
 This document contains a preserved baseline audit and a subsequent implementation log. The **live implementation status above** reflects later committed source and dependency changes; the original audit did not itself alter production code. This record does not certify the library as vulnerability-free.
 
+### 2026-10-14 — Batch 2 #5: development Webrick factory ownership
+
+**Source change:** Removed `WebrickRuntimeFactory`, whose two methods only returned the existing `WebrickRouterFactory::router()` and `routes()` values. `RoutingServiceProvider` now exports those exact static factory recipes with unchanged inputs and development-only semantics; the compiled/native Webrick release loader remains untouched. `NativeFactoryOwnershipTest` verifies both InterMix definitions and rejects the removed symbol. This is a per-symbol **delete/delegate-to-provider** decision, not an alternate route engine or an additional compatibility layer.
+
+**Status:** Batch 2 #5 still requires final complete source-owner/caller coverage and exact QA. Acceptance stays **7/8**.
+
 ### 2026-10-14 — Batch 2 #5: retire redundant notification and filesystem recipe helpers
 
 **Source change pending exact-head QA:** Removed `AuthNotificationGraphFactory` and `FilesystemGraphFactory`, which were only stateless InterMix recipe relays to the already-owning registrar/provider. Their exact signatures and lifetimes remain on `AuthNotificationRegistrar` and `FilesystemServiceProvider`; new `NativeFactoryOwnershipTest` verifies registered factory signatures for TalkingBytes auth notification and native Pathwise download/upload/operator. Legacy symbol exclusion assertions prevent reintroduction. No new container, adapter, fallback or transport was created. The existing `SecurityGraphFactory` remains intentionally separate because it validates configured Epicrypt password options; it is not a mere forwarding relay.
