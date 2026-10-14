@@ -104,7 +104,7 @@ it('rejects short runs, invalid responses and missing benchmark scenarios', func
     array_pop($candidate['hosts']['runwire']);
 
     expect(fn(): array => Foundation4HostComparison::compare(foundationHostFixture(), $candidate))
-        ->toThrow(InvalidArgumentException::class, 'scenario matrices are different.');
+        ->toThrow(InvalidArgumentException::class, 'Complete 1/4-worker');
 });
 
 it('refuses to treat short shared-runner smoke evidence as a certified comparison', function (): void {
