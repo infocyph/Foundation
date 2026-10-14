@@ -65,17 +65,23 @@ final readonly class ModuleFeatureLifecycleExecutor
         }
 
         if ($dryRun) {
-            return $this->outcome($operation, $plan['requested'], 'planned', [
-                $this->phase('plan', 'complete', 'No mutations performed.'),
-            ]);
+            return $this->outcome(
+                $operation,
+                $plan['requested'],
+                'planned',
+                [$this->phase('plan', 'complete', 'No mutations performed.')],
+            );
         }
 
         if ($operation === 'enable' || $operation === 'disable') {
             $this->activation->applyFeatures($operation, $features, $context);
 
-            return $this->outcome($operation, $plan['requested'], 'complete', [
-                $this->phase('activation', 'complete', 'Only explicitly requested feature flags updated.'),
-            ]);
+            return $this->outcome(
+                $operation,
+                $plan['requested'],
+                'complete',
+                [$this->phase('activation', 'complete', 'Only explicitly requested feature flags updated.')],
+            );
         }
 
         if ($operation === 'remove') {
@@ -87,9 +93,12 @@ final readonly class ModuleFeatureLifecycleExecutor
                 return $this->failed($operation, $plan['requested'], 'composer', $result->exitCode);
             }
 
-            return $this->outcome($operation, $plan['requested'], 'complete', [
-                $this->phase('composer', 'complete', 'Selected packages reconciled; schemas and data retained.'),
-            ]);
+            return $this->outcome(
+                $operation,
+                $plan['requested'],
+                'complete',
+                [$this->phase('composer', 'complete', 'Selected packages reconciled; schemas and data retained.')],
+            );
         }
 
         return $this->applyInstallOrRepair($operation, $features, $context, $plan['requested'], $refresh);
@@ -135,8 +144,13 @@ final readonly class ModuleFeatureLifecycleExecutor
         } catch (\Throwable $failure) {
             $phases[] = $this->phase('reconcile', 'failed', $failure->getMessage());
 
-            return $this->outcome($operation, $requested, 'partial', $phases,
-                'Re-read Composer and configuration state; run repair for the same selected features.');
+            return $this->outcome(
+                $operation,
+                $requested,
+                'partial',
+                $phases,
+                'Re-read Composer and configuration state; run repair for the same selected features.',
+            );
         }
 
         return $this->outcome($operation, $requested, 'complete', $phases);
@@ -148,9 +162,13 @@ final readonly class ModuleFeatureLifecycleExecutor
      */
     private function failed(string $operation, array $features, string $phase, int $exit): array
     {
-        return $this->outcome($operation, $features, 'partial', [
-            $this->phase($phase, 'failed', sprintf('Composer exited %d; no further phases ran.', $exit)),
-        ], 'Inspect Composer root/lock; re-plan and repair only the selected features.');
+        return $this->outcome(
+            $operation,
+            $features,
+            'partial',
+            [$this->phase($phase, 'failed', sprintf('Composer exited %d; no further phases ran.', $exit))],
+            'Inspect Composer root/lock; re-plan and repair only the selected features.',
+        );
     }
 
     /**
