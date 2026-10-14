@@ -903,6 +903,115 @@ it('rejects a distinct same-process Runwire generation without poisoning the com
     }
 });
 
+
+it('keeps overlapping compiled Runwire host generations isolated in distinct carriers', function (): void {
+    $project = foundationWebReleaseProject();
+    file_put_contents(
+        $project . '/routes/web.php',
+        "\nRouter::get('/runwire-interleaved', [FoundationRunwireInterleavedHandler::class, 'show']);\n",
+        FILE_APPEND,
+    );
+    $config = [
+        'app' => ['base_path' => $project, 'env' => 'production', 'debug' => false],
+        '_config_cache' => false,
+        'router' => [
+            'files' => ['web.php'],
+            'matcher' => 'fused',
+            'middleware' => ['globals' => ['pre' => [], 'post' => []]],
+        ],
+    ];
+    $manifest = $project . '/bootstrap/cache/release.json';
+
+    try {
+        $report = new WebReleaseCompiler()->compile(
+            $config,
+            $project . '/bootstrap/cache/intermix.php',
+            $project . '/bootstrap/cache/router.php',
+            $manifest,
+            capabilities: ['runwire'],
+        );
+        $loaded = WebReleaseRuntime::loadPrevalidated(
+            $config,
+            $manifest,
+            (string) $report['release_runtime_manifest_sha256'],
+            foundationCapabilities: ['runwire'],
+        );
+        $capabilities = new \Infocyph\Runwire\RuntimeCapabilities(
+            \Infocyph\Runwire\Runtime\Enum\RuntimeDriver::NATIVE,
+        );
+        $runtimeOne = \Infocyph\Runwire\RuntimeContext::fromCapabilities(
+            $capabilities,
+            'first-generation',
+            generation: 1,
+            concurrent: true,
+        );
+        $runtimeTwo = \Infocyph\Runwire\RuntimeContext::fromCapabilities(
+            $capabilities,
+            'second-generation',
+            generation: 2,
+            concurrent: true,
+        );
+        $hostOne = $loaded->runwireApplication($runtimeOne);
+        $hostTwo = $loaded->runwireApplication($runtimeTwo);
+        $requestOne = \Infocyph\Runwire\RequestContext::create($runtimeOne, requestId: 'first-generation');
+        $requestTwo = \Infocyph\Runwire\RequestContext::create($runtimeTwo, requestId: 'second-generation');
+        $writerOne = new \Infocyph\Foundation\Tests\Fixtures\RunwireCollectingWriter();
+        $writerTwo = new \Infocyph\Foundation\Tests\Fixtures\RunwireCollectingWriter();
+        $worker = static function (
+            \Infocyph\Webrick\Runtime\Http\RunwireRuntimeApplication $host,
+            \Infocyph\Runwire\RequestContext $request,
+            \Infocyph\Foundation\Tests\Fixtures\RunwireCollectingWriter $writer,
+        ): Fiber {
+            return new Fiber(static function () use ($host, $request, $writer): void {
+                $host->handle(new \Infocyph\Runwire\Http\HttpRequest(
+                    method: 'GET',
+                    target: '/runwire-interleaved',
+                    version: \Infocyph\Runwire\Http\Enum\ProtocolVersion::HTTP_1_1,
+                    headers: \Infocyph\Runwire\Http\Headers::fromArray(['Host' => 'release.test']),
+                    body: new \Infocyph\Foundation\Tests\Fixtures\RunwireEmptyBody(),
+                    context: $request,
+                ), $writer, completeResponse: true);
+            });
+        };
+
+        $hostOne->start();
+        $hostTwo->start();
+        try {
+            $first = $worker($hostOne, $requestOne, $writerOne);
+            $second = $worker($hostTwo, $requestTwo, $writerTwo);
+            expect($first->start())->toBe('first-generation')
+                ->and($second->start())->toBe('second-generation')
+                ->and($requestOne->completed())->toBeFalse()
+                ->and($requestTwo->completed())->toBeFalse();
+
+            $second->resume();
+            expect($second->isTerminated())->toBeTrue()
+                ->and($requestTwo->completed())->toBeTrue()
+                ->and($requestOne->completed())->toBeFalse();
+
+            $first->resume();
+            expect($first->isTerminated())->toBeTrue()
+                ->and($requestOne->completed())->toBeTrue()
+                ->and($writerOne->endCalls)->toBe(1)
+                ->and($writerTwo->endCalls)->toBe(1)
+                ->and(json_decode($writerOne->body, true, flags: JSON_THROW_ON_ERROR))->toBe([
+                    'request' => 'first-generation',
+                    'runtime' => 'first-generation',
+                ])
+                ->and(json_decode($writerTwo->body, true, flags: JSON_THROW_ON_ERROR))->toBe([
+                    'request' => 'second-generation',
+                    'runtime' => 'second-generation',
+                ]);
+        } finally {
+            $hostOne->shutdown();
+            $hostTwo->shutdown();
+        }
+    } finally {
+        foundationResetWebrickProductionRegistries();
+        foundationWebReleaseRemove($project);
+    }
+});
+
 it('retains the trusted web release lease for the Runwire host lifetime', function (): void {
     $project = foundationWebReleaseProject();
     $config = [

@@ -235,3 +235,63 @@ it('rejects host cancellation at the native intermediary and child boundaries', 
         $request->complete();
     }
 });
+
+it('detaches a throwing Foundation exception reporter from the native Runwire request boundary', function (): void {
+    $builder = \Infocyph\InterMix\DI\ContainerBuilder::create(
+        'foundation.runwire.throwing-reporter.' . bin2hex(random_bytes(6)),
+    );
+    InterMixRunwire::registerInputs($builder);
+    $runtime = RuntimeContext::standalone();
+    $integration = new InterMixRunwire($builder->build(), ownsCacheLayerLifecycle: true);
+    $integration->bind($runtime);
+    $failingRequest = RequestContext::create($runtime);
+    $followingRequest = RequestContext::create($runtime);
+    $logger = new \Infocyph\Foundation\Logging\HttpExceptionLogger(
+        new \Infocyph\Foundation\Logging\ExceptionReporter(
+            new class extends \Psr\Log\AbstractLogger {
+                public function log($level, string|\Stringable $message, array $context = []): void
+                {
+                    throw new DomainException('failure in native exception reporter');
+                }
+            },
+        ),
+    );
+
+    try {
+        expect(fn(): mixed => $integration->withinRequest(
+            $failingRequest,
+            null,
+            static function (\Infocyph\InterMix\DI\RuntimeContainerInterface $owner) use (
+                $runtime, $failingRequest, $logger,
+            ): void {
+                expect($owner->get(RuntimeContext::class))->toBe($runtime)
+                    ->and($owner->get(RequestContext::class))->toBe($failingRequest);
+
+                $logger->error('failure', [
+                    'status' => 500,
+                    'exception' => new RuntimeException('original handler error'),
+                ]);
+            },
+        ))->toThrow(DomainException::class, 'failure in native exception reporter');
+
+        expect(CacheRunwire::current())->toBeNull();
+
+        $result = $integration->withinRequest(
+            $followingRequest,
+            null,
+            static fn(\Infocyph\InterMix\DI\RuntimeContainerInterface $owner): array => [
+                $owner->get(RuntimeContext::class),
+                $owner->get(RequestContext::class),
+                CacheRunwire::current()?->request,
+            ],
+        );
+        expect($result)->toBe([$runtime, $followingRequest, $followingRequest])
+            ->and(CacheRunwire::current())->toBeNull();
+    } finally {
+        $integration->release($runtime);
+        $failingRequest->complete();
+        $followingRequest->complete();
+    }
+
+    expect(CacheRunwire::runtime())->toBeNull();
+});
