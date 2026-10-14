@@ -28,7 +28,7 @@ fi
 mkdir -p "$OUTPUT"
 rm -f "$OUTPUT"/*.load.json "$OUTPUT"/*.samples.csv
 printf 'source_sha=%s\nphp=%s\nfpm=%s\n' \
-    "${GITHUB_SHA:-working-tree}" "$(php -r 'echo PHP_VERSION;')" "$("$FPM_BIN" -v | head -n 1)" > "$OUTPUT/host.env"
+    "${FOUNDATION_HOST_SOURCE_SHA:-${GITHUB_SHA:-working-tree}}" "$(php -r 'echo PHP_VERSION;')" "$("$FPM_BIN" -v | head -n 1)" > "$OUTPUT/host.env"
 
 stop_service() {
     if [[ -n "$SAMPLER_PID" ]]; then
