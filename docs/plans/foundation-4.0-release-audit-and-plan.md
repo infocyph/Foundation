@@ -3,7 +3,23 @@
 Audit date: 2026-10-11. Target: **Foundation 4.0**, upgrading directly from
 published Foundation 2.1.1 and skipping publication of Foundation 3.
 
-**Live release checkpoint (2026-10-14): Batch 1 6/6, Batch 2 8/8, Batch 3 4/4 accepted; Batch 4 final validation in progress (0/7 accepted); overall 18/37.** Latest fully green Batch 4 source [`b7c353f3`](https://github.com/infocyph/Foundation/commit/b7c353f33e09b1c2612098acb7aa5c0b92d66e0a), [Security & Standards #38510079386](https://github.com/infocyph/Foundation/actions/runs/38510079386) **SUCCESS**: PHPForge QA PHP 8.4/8.5 lowest/stable **4/4**, PHPStan **2/2**, production consumer installs **4/4**, benchmark jobs **2/2**, clean install and release evidence. All four Runwire native acceptance gates below are checked on source/test evidence; Runwire remains explicit and host-owned, with InterMix/Webrick/CacheLayer's native integrations, no shadow host or scheduler. Selected runtime dependencies: InterMix ^11.2, Webrick ^6.0.3, CacheLayer ^4, optional DBLayer ^6.1; Runwire 2.1.1 is development/test optional. **Batch 4 is NOT accepted**: distributed security/persistence contention, full auth/OAuth/MFA/browser flows and multi-mode lifecycle remain under audit and implementation. PR #20 remains draft; no merge, tag or publication. Prior "pending QA"/"0/4" notes below are historical snapshots, superseded by this live checkpoint.
+**Live release checkpoint (2026-10-14): Batch 1 6/6, Batch 2 8/8, Batch 3 4/4 and Batch 4 7/7 accepted; overall 25/37. Batch 5 not started (0/4).** Latest fully green Batch 4 implementation [`1ccab59b`](https://github.com/infocyph/Foundation/commit/1ccab59b9d5e4bee2c6cc4ac98db544d6a0e746d), [Security & Standards #38512181935](https://github.com/infocyph/Foundation/actions/runs/38512181935) **SUCCESS**: PHPForge QA PHP 8.4/8.5 lowest/stable **4/4**, PHPStan **2/2**, production consumer installs **4/4**, benchmark jobs **2/2**, clean install and release evidence passed. Batch 4 accepted all seven native-composition gates below using existing real-service integration tests plus this batch's targeted production fixes and regressions. Native libraries retain their implementation ownership; tenant scope still requires an explicit application Gate/policy, and account/device session/token revocation requires the documented explicit owner APIs rather than an implicit hidden cascade. No fallback or BC for retired library series, no shadow owner of Runwire/Webrick/CacheLayer/DBLayer/OTP/Epicrypt/Omnibus/Pathwise/TalkingBytes. **Prior 0/7/pending QA notes below are preserved historical checkpoints, not live acceptance.** PR #20 remains draft; no merge, tag or publication.
+
+### 2026-10-14 — Batch 4 complete: 7/7 accepted, release audit gate closed
+
+**Evidence at exact production source:** [`1ccab59b`](https://github.com/infocyph/Foundation/commit/1ccab59b9d5e4bee2c6cc4ac98db544d6a0e746d), [Security & Standards #38512181935](https://github.com/infocyph/Foundation/actions/runs/38512181935), **full SUCCESS**. PHPForge 4/4 QA (8.4/8.5, stable/lowest); 2/2 PHPStan analyses; 4/4 consumer installs; 2/2 benchmark jobs; clean install and release evidence. Existing native feature suites run under the same full pipeline. Security Report job is nonrequired/skipped; benchmark regression-compare steps are not represented by simply passing benchmark jobs.
+
+| Gate | Accepted verification across source and real integration suites |
+| --- | --- |
+| **1/7 Authentication/authorization** | Scoped role/permission revoke-on-read, resource-aware delegation, explicit tenant-before-wildcard policy, invalid-account session freshness, CSRF cross-session/rotation, secure cookie/session fixation and expiry (`AuthDomainIntegrationTest`, `BrowserSessionIntegrationTest`); real Redis/Valkey/Memcached/MySQL/PostgreSQL session lock contention (`SessionLockContentionTest`), Redis multi-process native CacheLayer counters/CAS (`CacheLayer33AtomicIntegrationTest`), production security posture (`ProductionSecurityClosureTest`) |
+| **2/7 Full built-in flows** | Login/lockout/logout/rotation/account-specific session revocation, device revocation irreversibility and rejected trust/touch, verification/password reset/change/passwordless/remember, step-up, recovery, impersonation and native Gate/roles/grants (`AuthDomainIntegrationTest`, `AuthReleaseClosureTest`, `BrowserSessionIntegrationTest`, `OAuth21PersistentPrincipalResetTest`). Session/token revocation remains an explicit domain operation; no undocumented automatic cascade |
+| **3/7 OAuth/tokens** | Redirect/PKCE/client/scope/replay failure matrix, independent-process SQLite authorization-code single consume and Epicrypt refresh-rotation reuse family revocation, cross-process durable token revocation, audit/throttle and bounded HTTP input (`OAuth21ProtocolRejectionMatrixTest`, `OAuth21AuthorizationCodeConcurrencyTest`, `OAuth21RefreshConcurrencyTest`, `OAuth21DurableRevocationProcessTest`, `OAuth21AuditLifecycleTest`, `OAuth21HttpBoundaryTest`, `OAuth21SensitiveOutputClosureTest`); Epicrypt owns cryptographic issuance/exchange |
+| **4/7 MFA/passkeys** | OTP terminal-state/replay, one-time recovery consumption plus repeat rejection, Epicrypt-protected MFA AAD/encryption with stale-revision CAS, KeyResolver fail-closed production checks, OTP 6.1 factor protocols, native WebAuthn passkey ceremony and origin/RP production-policy validation (`OtpIntegrationTest`, `AuthDomainIntegrationTest`, `Epicrypt3MfaSecretProtectionTest`, `Epicrypt3MfaKeyResolverTest`, `Otp61FactorIntegrationTest`, `OtpPasskeyIntegrationTest`, `ProductionSecurityClosureTest`) |
+| **5/7 Persistence/messaging** | Shared MySQL/PostgreSQL DBLayer transaction rollback and native CacheLayer outbox commit propagation across two nodes with exactly one event consumption; multi-process Redis CAS/lockout counters/webhook replay, native Omnibus scoped dispatch and scheduler leadership/restart/cancellation and DB reconnect/rollback (`CacheLayer4PdoOutboxIntegrationTest`, `CacheLayer33AtomicIntegrationTest`, `PersistentDatabaseLifecycleTest`, `SchedulerRuntimeClosureTest`, `GeneratedWorkerCancellationTest`); no Foundation reimplementation of transport ownership |
+| **6/7 HTTP/filesystem/communications** | Pathwise untrusted upload and disk/path isolation, Webrick file range/conditional/chunked streaming, body handling/offload/malware-scanner policy, trusted compiled artifacts/HTTP error safety and TLS security defaults with typed TalkingBytes client/Webhook/gRPC ownership (`FilesystemPathwise41TrustBoundaryTest`, `FilesystemPathwise4IsolationTest`, `FilesystemHttpBridgeTest`, `FilesystemOffloadPolicyTest`, `FilesystemMalwareScannerResolverTest`, `WebReleaseRuntimeTest`, `CommunicationIntegrationTest`, `ProductionSecurityClosureTest`, `OAuth21HttpBoundaryTest`); host/native communication policy remains the authority for SSRF/retry/transport mechanics |
+| **7/7 Persistent lifecycle** | 1000-cycle GC leak/failure soak, 1000-cycle OAuth principal scope reset, DB rollback and memoization isolation, concurrent web/Runwire Fibers, compiled CLI/worker/scheduler source-free contexts, shared-service cleanup/release, cancellation and dependency generation leases (`PersistentRuntimeSoakTest`, `OAuth21PersistentWorkerSoakTest`, `PersistentExecutionStateIsolationTest`, `PersistentDatabaseLifecycleTest`, `RunwireNonWebScopeTest`, `WebReleaseRuntimeTest`, `GeneratedNonWebRuntimeTest`, `SchedulerRuntimeClosureTest`) |
+
+**Release tracking:** Batch 1 **6/6**, Batch 2 **8/8**, Batch 3 **4/4**, Batch 4 **7/7**; **25/37 overall**. Batch 5 **0/4** next. These are Foundation composition acceptance checks and do not claim general security certification of any upstream native library or application-specific authorization policy. Prior pending entries retained below for provenance. PR remains DRAFT.
 
 ### 2026-10-14 — Device revocation result correctness adjustment (source pending QA)
 
@@ -1706,25 +1722,25 @@ The four PHP 8.4/8.5 lowest/stable QA jobs on source `c31b6e8` passed Pest and R
 
 ### Batch 4 — verify security and persistence composition
 
-- [ ] Authentication/authorization: tenant/resource isolation, permission caches,
+- [x] Authentication/authorization: tenant/resource isolation, permission caches,
   session fixation/regeneration/expiry, CSRF, cookie policy, account suspension,
   rate limits, and atomic lock/counter behavior under concurrency.
-- [ ] Full built-in flows: login/logout, browser/auth-session coordination,
+- [x] Full built-in flows: login/logout, browser/auth-session coordination,
   account/device revocation, idle/recent-auth/step-up semantics, remember-me,
   verification, passwordless/reset/change, recovery, impersonation, gates/policies
   and delegation; verify one principal and one owner per native mechanism.
-- [ ] OAuth/tokens: approved redirects, PKCE, code consumption, refresh rotation
+- [x] OAuth/tokens: approved redirects, PKCE, code consumption, refresh rotation
   and reuse detection, revocation, bounded retries, and auditing with real database
   races. Preserve Epicrypt ownership and Foundation policy/persistence mapping.
-- [ ] MFA/passkeys: OTP terminal state/replay prevention, recovery-code consumption,
+- [x] MFA/passkeys: OTP terminal state/replay prevention, recovery-code consumption,
   encrypted secret handling, credential counters, origin/RP validation, and leases.
-- [ ] Persistence/messaging: real-backend contention, transaction rollback/outbox
+- [x] Persistence/messaging: real-backend contention, transaction rollback/outbox
   atomicity, duplicate delivery, webhook replay, scheduler leadership, cancellation,
   reconnects, and generation reset without leaked transactions or locks.
-- [ ] HTTP/filesystem/communications: trusted proxies, redirects, upload/path
+- [x] HTTP/filesystem/communications: trusted proxies, redirects, upload/path
   containment, executable configuration/artifact trust, ranges/stream failures,
   TLS/SSRF policy boundaries, retries, request body limits, and redacted diagnostics.
-- [ ] Persistent lifecycle: per-request state reset across all modes, concurrent
+- [x] Persistent lifecycle: per-request state reset across all modes, concurrent
   requests/tasks, failure cleanup, dependency replacement, and bounded resources.
 
 Extend existing meaningful feature tests. Use real services where in-memory
