@@ -251,6 +251,8 @@ it('detaches a throwing Foundation exception reporter from the native Runwire re
             new class extends \Psr\Log\AbstractLogger {
                 public function log($level, string|\Stringable $message, array $context = []): void
                 {
+                    unset($level, $message, $context);
+
                     throw new DomainException('failure in native exception reporter');
                 }
             },
