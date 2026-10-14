@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-/** @return array{requests:int,successful:int,failed:int,rpm:float,p50_ms:float,p95_ms:float,p99_ms:float} */
+/** @return array{requests:int,successful:int,failed:int,rpm:float,duration_seconds:float,p50_ms:float,p95_ms:float,p99_ms:float} */
 function f4HostLoad(string $path, int $expectedRequests): array
 {
     $result = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
@@ -20,6 +20,7 @@ function f4HostLoad(string $path, int $expectedRequests): array
         'successful' => (int) $result['successful'],
         'failed' => (int) $result['failed'],
         'rpm' => (float) $result['rpm'],
+        'duration_seconds' => (float) $result['duration_seconds'],
         'p50_ms' => (float) $result['p50_ms'],
         'p95_ms' => (float) $result['p95_ms'],
         'p99_ms' => (float) $result['p99_ms'],
@@ -76,9 +77,16 @@ $root = getenv('FOUNDATION_HOST_RESULT_DIR') ?: dirname(__DIR__) . '/build/found
 $requests = (int) (getenv('FOUNDATION_HOST_REQUESTS') ?: 900);
 $repeats = (int) (getenv('FOUNDATION_HOST_REPEATS') ?: 3);
 $result = [
-    'schema' => 1,
+    'schema' => 2,
     'classification' => 'preliminary GitHub-runner host evidence; no production-equivalent baseline comparison',
     'sha' => getenv('FOUNDATION_HOST_SOURCE_SHA') ?: (getenv('GITHUB_SHA') ?: 'working-tree'),
+    // Explicit operator-controlled identity. GitHub-hosted runners remain
+    // non-certifiable until a physically matched baseline/candidate exists.
+    'hardware_id' => getenv('FOUNDATION_CERTIFICATION_HOST_ID') ?: null,
+    'workload_profile' => getenv('FOUNDATION_HOST_WORKLOAD_PROFILE') ?: 'json-minimal',
+    'composer_lock_sha256' => is_file(dirname(__DIR__) . '/composer.lock')
+        ? hash_file('sha256', dirname(__DIR__) . '/composer.lock')
+        : null,
     'php' => PHP_VERSION,
     'request_count' => $requests,
     'repetitions' => $repeats,
