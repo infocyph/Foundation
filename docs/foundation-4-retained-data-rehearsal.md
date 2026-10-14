@@ -12,6 +12,8 @@ This is a **Foundation 4.0-native** release acceptance guide, not a migration gu
 
 ## Acceptance boundary
 
-The existing `Foundation4RetainedDataRestoreTest` verifies an isolated SQLite backup/restore path but was originally designed around a simulated earlier schema. It is supporting evidence only until refocused on current 4.0 state. The Batch 4 integration suites already exercise native auth, OAuth, OTP/passkey, DBLayer/CacheLayer outbox and durable Omnibus behavior. Batch 5 still requires a cohesive current-state recovery acceptance; its checklist must remain open until that evidence is verified.
+`Foundation4RetainedDataRestoreTest` now creates the current 4.0 auth/OAuth schemas using native DBLayer migrations, records password hashes, sessions, refresh families, MFA fields, passkey counters/record and OAuth refresh state, then checks a SHA-256 snapshot restore in a fresh connection. It proves current-state byte restoration and exact retained record values; it does **not** prove actual Epicrypt secret decryption or a networked database backup procedure.
+
+The selected-owner integration evidence is covered separately by `AuthDomainIntegrationTest`, `BrowserSessionIntegrationTest`, `OAuth21RefreshConcurrencyTest`, `OtpPasskeyIntegrationTest`, `Epicrypt3MfaSecretProtectionTest`, `CacheLayer4PdoOutboxIntegrationTest`, `Omnibus26DurableIntegrationTest`, `PersistentDatabaseLifecycleTest` and `FilesystemPathwise41TrustBoundaryTest`. Their native lifecycle, replay and rollback tests are not equivalent to a full multi-service production snapshot. Batch 5's scoped 4.0-native acceptance still requires exact-head green CI.
 
 Real customer recovery procedures remain an operator responsibility. Foundation 4 release certification does **not** depend on transforming records from older Foundation major versions.
