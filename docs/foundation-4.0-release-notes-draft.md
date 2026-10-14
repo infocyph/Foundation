@@ -36,6 +36,6 @@ Foundation 4.0 is a deliberate breaking major release. **There are no backwards-
 
 ## Certification still required before publication
 
-This draft does not certify sustained host RPM, FPM/Runwire actual server performance, production-equivalent memory/latency measurements, or external deployment data recovery. See the [release audit and plan](plans/foundation-4.0-release-audit-and-plan.md). Publish only after all applicable release gates pass on the final immutable source and dependency set.
+FPM and native Runwire have passed real HTTP smoke, cancellation, error recovery, worker replacement and bounded selected-native read/credential-cache soak on the candidate. These are shared-runner **smoke** results, not controlled sustained baseline-vs-candidate RPM or production-equivalent memory/latency certification. Production service backup/disaster recovery also requires deployment-specific validation. Release certification remains open. See the [release audit and plan](plans/foundation-4.0-release-audit-and-plan.md). Publish only after all applicable release gates pass on the final immutable source and dependency set.
 
 Final release notes should contain exact tested SHA, dependency manifest, benchmark methodology and results, confirmed compatibility scope, and publication metadata.
