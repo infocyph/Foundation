@@ -1,0 +1,64 @@
+name: Foundation 4 native HTTP host smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main, master]
+    paths:
+      - .github/workflows/foundation4-host-certification.yml
+      - benchmarks/foundation4-host-certify.sh
+      - benchmarks/foundation4-host-report.php
+      - benchmarks/phase9-server-compile.php
+
+permissions:
+  contents: read
+
+concurrency:
+  group: foundation4-host-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-host:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          extensions: "mbstring, intl, sodium, pcntl, posix, sockets, pdo, pdo_sqlite, pdo_mysql, pdo_pgsql, redis, memcached"
+          ini-values: "opcache.enable_cli=1"
+          coverage: none
+      - name: Install native host and load tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq nginx apache2-utils php8.4-fpm
+          php-fpm8.4 -v
+          nginx -v
+          ab -V
+      - name: Resolve Foundation 4 and selected Runwire dependencies
+        run: composer update --no-interaction --no-progress --prefer-dist --prefer-stable
+      - name: Exercise FPM and native Runwire host processes
+        env:
+          FOUNDATION_HOST_REQUESTS: "900"
+          FOUNDATION_HOST_REPEATS: "3"
+          FOUNDATION_HOST_RESULT_DIR: ${{ github.workspace }}/build/foundation4-host
+        run: bash benchmarks/foundation4-host-certify.sh
+      - name: Capture host toolchain and dependency identity
+        if: always()
+        run: |
+          mkdir -p build/foundation4-host
+          php -v > build/foundation4-host/php-version.txt
+          php -m > build/foundation4-host/php-extensions.txt
+          php --ini=diff > build/foundation4-host/php-ini-diff.txt
+          composer show --locked --format=json > build/foundation4-host/dependencies.json
+          sha256sum composer.lock > build/foundation4-host/composer-lock.sha256
+          git rev-parse HEAD > build/foundation4-host/commit.txt
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: foundation4-native-host-${{ github.sha }}
+          path: build/foundation4-host/
+          if-no-files-found: warn
+          retention-days: 30
