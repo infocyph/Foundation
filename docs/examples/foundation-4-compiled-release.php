@@ -23,6 +23,7 @@ final class FoundationNoDevReleaseSmokeHandler
 }
 
 $project = sys_get_temp_dir() . '/foundation-no-dev-release-' . bin2hex(random_bytes(6));
+
 foreach (['bootstrap', 'routes', 'storage'] as $directory) {
     if (!mkdir($project . '/' . $directory, 0700, true)) {
         throw new RuntimeException('Unable to create release smoke fixture.');
@@ -81,6 +82,7 @@ try {
     $worker = $loader->nonWebPrevalidated($config, RuntimeMode::Worker, $root, $sha);
     $host = RuntimeContext::standalone();
     $request = RequestContext::create($host);
+
     try {
         $worker->application->execution()->run(
             static function () use ($worker, $host, $request): void {
@@ -95,13 +97,14 @@ try {
     } finally {
         $request->complete();
     }
-    echo "Trusted Foundation 4 no-dev web/CLI/worker/scheduler generation passed.\n";
+    fwrite(STDOUT, "Trusted Foundation 4 no-dev web/CLI/worker/scheduler generation passed.\n");
 } finally {
     if (is_dir($project)) {
         $files = new RecursiveIteratorIterator(
             new RecursiveDirectoryIterator($project, FilesystemIterator::SKIP_DOTS),
             RecursiveIteratorIterator::CHILD_FIRST,
         );
+
         foreach ($files as $file) {
             /** @var SplFileInfo $file */
             $file->isLink() || !$file->isDir()
