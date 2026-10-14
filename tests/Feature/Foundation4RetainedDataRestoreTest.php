@@ -5,7 +5,6 @@ declare(strict_types=1);
 use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\Connection\ConnectionConfig;
 use Infocyph\DBLayer\Migration\MigrationRunner;
-use Infocyph\DBLayer\Schema\Blueprint;
 use Infocyph\DBLayer\Schema\SchemaManager;
 use Infocyph\Foundation\Database\AuthSchema\AuthMfaRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthOAuthEpicryptProtocolSchema;
@@ -16,61 +15,67 @@ use Infocyph\Foundation\Database\AuthSchema\AuthPasskeyRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthTables;
 
-it('restores a retained 2.1.1-shaped auth snapshot after additive Foundation 4 migrations', function (): void {
+it('restores independently created Foundation 4 auth and OAuth state from a verified snapshot', function (): void {
     $directory = sys_get_temp_dir() . '/foundation-4-restore-' . bin2hex(random_bytes(6));
     if (!mkdir($directory, 0700)) {
         throw new RuntimeException('Unable to create isolated restore directory.');
     }
 
     $working = $directory . '/application.sqlite';
-    $backup = $directory . '/pre-upgrade.sqlite';
+    $backup = $directory . '/snapshot.sqlite';
     $config = ConnectionConfig::fromArray(['driver' => 'sqlite', 'database' => $working]);
     $tables = new AuthTables();
-    $baseline = new AuthSchema($tables);
-    $mfa = new AuthMfaRevisionSchema($tables);
+    $migrations = [
+        new AuthSchema($tables),
+        new AuthMfaRevisionSchema($tables),
+        new AuthPasskeyRevisionSchema($tables),
+        new AuthPasskeyRecordSchema($tables),
+        new AuthOAuthRevisionSchema($tables),
+        new AuthOAuthEpicryptRevisionSchema($tables),
+        new AuthOAuthEpicryptProtocolSchema($tables),
+    ];
     $writer = null;
-    $candidate = null;
+    $changed = null;
     $restored = null;
 
     try {
         $writer = new Connection($config);
-        expect((new MigrationRunner($writer, [$baseline, $mfa]))->run())
-            ->toBe([$baseline->id(), $mfa->id()]);
+        expect((new MigrationRunner($writer, $migrations))->run())->toHaveCount(count($migrations));
 
-        // The published 2.1.1 AuthSchema had no credential_record column.
-        // Remove the 4.x baseline's additive field to model that exact table
-        // shape before taking a pre-upgrade backup.
-        $published = new SchemaManager($writer);
-        $published->table($tables->passkeyCredentials(), static function (Blueprint $table): void {
-            $table->dropColumn('credential_record');
-        });
-        expect($published->hasColumn($tables->passkeyCredentials(), 'credential_record'))->toBeFalse();
+        $schema = new SchemaManager($writer);
+        expect($schema->hasColumn($tables->passkeyCredentials(), 'credential_record'))->toBeTrue();
+        foreach ($tables->oauth() as $table) {
+            expect($schema->hasTable($table))->toBeTrue();
+        }
 
         $now = time();
+        $hash = password_hash('foundation-4-password', PASSWORD_BCRYPT);
+        $secret = base64_encode(random_bytes(32));
+        $credential = json_encode(['format' => 'webauthn', 'counter' => 4], JSON_THROW_ON_ERROR);
         $writer->table($tables->accounts())->insert([
-            'id' => 'preserved-account',
-            'identifier' => 'retained@example.test',
+            'id' => 'f4-account',
+            'identifier' => 'current@example.test',
             'status' => 'active',
-            'password_hash' => 'opaque-hash-from-published-format',
+            'password_hash' => $hash,
             'metadata' => '{"tenant":"alpha"}',
         ]);
         $writer->table($tables->sessions())->insert([
-            'id' => 'preserved-session',
-            'account_id' => 'preserved-account',
+            'id' => 'f4-session',
+            'account_id' => 'f4-account',
             'device_id' => null,
             'created_at' => $now - 60,
             'last_seen_at' => $now - 30,
             'expires_at' => $now + 3600,
             'recent_auth_at' => $now - 60,
-            'metadata' => '{"source":"2.1.1"}',
+            'metadata' => '{"client":"first"}',
         ]);
         $writer->table($tables->refreshTokens())->insert([
-            'id' => 'preserved-refresh',
-            'account_id' => 'preserved-account',
-            'client_id' => 'legacy-client',
+            'id' => 'f4-refresh',
+            'account_id' => 'f4-account',
+            'client_id' => 'f4-client',
             'device_id' => null,
-            'token_hash' => hash('sha256', 'opaque-refresh'),
-            'family_id' => 'original-family',
+            'token_hash' => hash('sha256', 'f4-refresh-material'),
+            'family_id' => 'f4-family',
             'issued_at' => $now - 60,
             'expires_at' => $now + 3600,
             'rotated_at' => null,
@@ -78,106 +83,112 @@ it('restores a retained 2.1.1-shaped auth snapshot after additive Foundation 4 m
             'metadata' => null,
         ]);
         $writer->table($tables->mfaFactors())->insert([
-            'id' => 'preserved-factor',
-            'account_id' => 'preserved-account',
+            'id' => 'f4-factor',
+            'account_id' => 'f4-account',
             'type' => 'totp',
-            'label' => 'original',
+            'label' => 'current',
             'enabled' => 1,
             'created_at' => $now,
-            'metadata' => '{"secret":"opaque-protected-material"}',
-            'revision' => 0,
+            'metadata' => json_encode(['protected' => $secret], JSON_THROW_ON_ERROR),
+            'revision' => 2,
         ]);
         $writer->table($tables->passkeyCredentials())->insert([
-            'id' => 'preserved-passkey',
-            'account_id' => 'preserved-account',
-            'credential_id' => 'original-credential',
-            'public_key' => 'opaque-public-key',
+            'id' => 'f4-passkey',
+            'account_id' => 'f4-account',
+            'credential_id' => 'f4-credential',
+            'credential_record' => $credential,
+            'public_key' => 'opaque-f4-public-key',
             'sign_count' => 4,
             'transports' => '["internal"]',
             'created_at' => $now,
             'last_used_at' => null,
             'revoked_at' => null,
             'metadata' => null,
+            'revision' => 3,
+        ]);
+        $writer->table($tables->oauthRefreshTokens())->insert([
+            'id' => 'f4-oauth-refresh',
+            'token_hash' => hash('sha256', 'f4-oauth-material'),
+            'family_id' => 'f4-oauth-family',
+            'client_id' => 'f4-client',
+            'account_id' => 'f4-account',
+            'device_id' => null,
+            'authorization_id' => 'f4-authorization',
+            'scopes' => '["openid"]',
+            'audiences' => '["f4-api"]',
+            'issued_at' => $now - 60,
+            'expires_at' => $now + 3600,
+            'rotated_at' => null,
+            'revoked_at' => null,
+            'metadata' => null,
         ]);
         $writer->disconnect();
 
         if (!copy($working, $backup)) {
-            throw new RuntimeException('Unable to stage the pre-upgrade SQLite snapshot.');
+            throw new RuntimeException('Unable to save the Foundation 4 snapshot.');
         }
-        $hash = hash_file('sha256', $backup);
-        expect($hash)->toBeString()->toHaveLength(64);
+        $snapshotHash = hash_file('sha256', $backup);
+        expect($snapshotHash)->toBeString()->toHaveLength(64);
 
-        $candidate = new Connection($config);
-        $migrations = [
-            $baseline,
-            $mfa,
-            new AuthPasskeyRevisionSchema($tables),
-            new AuthPasskeyRecordSchema($tables),
-            new AuthOAuthRevisionSchema($tables),
-            new AuthOAuthEpicryptRevisionSchema($tables),
-            new AuthOAuthEpicryptProtocolSchema($tables),
-        ];
-        expect((new MigrationRunner($candidate, $migrations))->run())->not->toBeEmpty();
-
-        $schema = new SchemaManager($candidate);
-        expect($schema->hasColumn($tables->passkeyCredentials(), 'credential_record'))->toBeTrue();
-
-        foreach ($tables->oauth() as $table) {
-            expect($schema->hasTable($table))->toBeTrue();
-        }
-        expect($candidate->select(
-            'SELECT password_hash FROM ' . $tables->accounts() . ' WHERE id = ?',
-            ['preserved-account'],
-        )[0]['password_hash'])->toBe('opaque-hash-from-published-format');
-
-        $candidate->table($tables->accounts())->insert([
-            'id' => 'candidate-only',
+        $changed = new Connection($config);
+        $changed->table($tables->accounts())->insert([
+            'id' => 'post-snapshot',
             'identifier' => 'new@example.test',
             'status' => 'active',
             'password_hash' => null,
             'metadata' => null,
         ]);
-        $candidate->disconnect();
+        $changed->disconnect();
 
-        // Code rollback is insufficient; restore the original *data* bytes.
         if (!copy($backup, $working)) {
-            throw new RuntimeException('Unable to restore original database bytes.');
+            throw new RuntimeException('Unable to restore Foundation 4 snapshot.');
         }
-        expect(hash_file('sha256', $working))->toBe($hash);
+        expect(hash_file('sha256', $working))->toBe($snapshotHash);
 
         $restored = new Connection($config);
-        $restoredSchema = new SchemaManager($restored);
-        expect($restoredSchema->hasColumn($tables->passkeyCredentials(), 'credential_record'))->toBeFalse();
+        expect($restored->select(
+            'SELECT id FROM ' . $tables->accounts() . ' WHERE id = ?',
+            ['post-snapshot'],
+        ))->toBe([]);
 
-        foreach ($tables->oauth() as $table) {
-            expect($restoredSchema->hasTable($table))->toBeFalse();
-        }
+        $savedHash = $restored->select(
+            'SELECT password_hash FROM ' . $tables->accounts() . ' WHERE id = ?',
+            ['f4-account'],
+        )[0]['password_hash'];
+        $savedSession = $restored->select(
+            'SELECT expires_at FROM ' . $tables->sessions() . ' WHERE id = ?',
+            ['f4-session'],
+        )[0]['expires_at'];
+        $savedFamily = $restored->select(
+            'SELECT family_id FROM ' . $tables->refreshTokens() . ' WHERE id = ?',
+            ['f4-refresh'],
+        )[0]['family_id'];
+        $savedMfa = $restored->select(
+            'SELECT metadata, revision FROM ' . $tables->mfaFactors() . ' WHERE id = ?',
+            ['f4-factor'],
+        )[0];
+        $savedPasskey = $restored->select(
+            'SELECT credential_record, sign_count, revision FROM ' . $tables->passkeyCredentials() . ' WHERE id = ?',
+            ['f4-passkey'],
+        )[0];
+        $savedOAuth = $restored->select(
+            'SELECT family_id, revoked_at FROM ' . $tables->oauthRefreshTokens() . ' WHERE id = ?',
+            ['f4-oauth-refresh'],
+        )[0];
 
-        expect($restored->select('SELECT id FROM ' . $tables->accounts() . ' WHERE id = ?', ['candidate-only']))
-            ->toBe([])
-            ->and($restored->select(
-                'SELECT password_hash FROM ' . $tables->accounts() . ' WHERE id = ?',
-                ['preserved-account'],
-            )[0]['password_hash'])->toBe('opaque-hash-from-published-format')
-            ->and($restored->select(
-                'SELECT id FROM ' . $tables->sessions() . ' WHERE id = ?',
-                ['preserved-session'],
-            ))->toHaveCount(1)
-            ->and($restored->select(
-                'SELECT family_id FROM ' . $tables->refreshTokens() . ' WHERE id = ?',
-                ['preserved-refresh'],
-            )[0]['family_id'])->toBe('original-family')
-            ->and($restored->select(
-                'SELECT metadata FROM ' . $tables->mfaFactors() . ' WHERE id = ?',
-                ['preserved-factor'],
-            )[0]['metadata'])->toContain('opaque-protected-material')
-            ->and((int) $restored->select(
-                'SELECT sign_count FROM ' . $tables->passkeyCredentials() . ' WHERE id = ?',
-                ['preserved-passkey'],
-            )[0]['sign_count'])->toBe(4);
+        expect(password_verify('foundation-4-password', $savedHash))->toBeTrue()
+            ->and((int) $savedSession)->toBe($now + 3600)
+            ->and($savedFamily)->toBe('f4-family')
+            ->and($savedMfa['metadata'])->toContain($secret)
+            ->and((int) $savedMfa['revision'])->toBe(2)
+            ->and($savedPasskey['credential_record'])->toBe($credential)
+            ->and((int) $savedPasskey['sign_count'])->toBe(4)
+            ->and((int) $savedPasskey['revision'])->toBe(3)
+            ->and($savedOAuth['family_id'])->toBe('f4-oauth-family')
+            ->and($savedOAuth['revoked_at'])->toBeNull();
     } finally {
         $writer?->disconnect();
-        $candidate?->disconnect();
+        $changed?->disconnect();
         $restored?->disconnect();
         if (is_file($working)) {
             unlink($working);
