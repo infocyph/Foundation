@@ -19,6 +19,7 @@ final readonly class Phase9NativeReadHandler
     public static function read(): Response
     {
         $root = getenv('FOUNDATION_HOST_APP');
+
         if (!is_string($root) || $root === '') {
             throw new RuntimeException('Missing Foundation native benchmark fixture.');
         }
@@ -27,6 +28,7 @@ final readonly class Phase9NativeReadHandler
             'driver' => 'sqlite',
             'database' => $root . '/storage/benchmark.sqlite',
         ]));
+
         try {
             $records = $connection->select(
                 'SELECT item_value FROM benchmark_items WHERE id = ?',
@@ -38,6 +40,7 @@ final readonly class Phase9NativeReadHandler
 
         $cached = Cache::file('foundation-host', $root . '/storage/cache')->get('item-42');
         $credential = file_get_contents($root . '/storage/credential.hash');
+
         if (!is_string($credential)
             || ($records[0]['item_value'] ?? null) !== 'value-42'
             || $cached !== 'cached-42'
