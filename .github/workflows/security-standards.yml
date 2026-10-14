@@ -78,6 +78,7 @@ jobs:
             cd "$minimal"
             composer update "${composer_args[@]}"
             vendor/bin/infbyte list > command-list.txt
+            php "$GITHUB_WORKSPACE/tests/Fixtures/ModuleFeatureProductionMatrix.php" core
             php -r 'require "vendor/autoload.php";'
             if composer show infocyph/phpforge >/dev/null 2>&1; then
               echo "PHPForge leaked into the production consumer." >&2
@@ -199,6 +200,7 @@ jobs:
               }
             '
             php "$GITHUB_WORKSPACE/docs/examples/foundation-4-compiled-release.php"
+            php "$GITHUB_WORKSPACE/tests/Fixtures/ModuleFeatureProductionMatrix.php" all
             if composer show infocyph/phpforge >/dev/null 2>&1; then
               echo "PHPForge leaked into full production consumer." >&2
               exit 1
