@@ -3,7 +3,7 @@
 > **Scope:** pre-rework source and reproducible characterization. **Approved target:** Foundation Core + PHPForge QA + **three optional public modules with nine independent features**.  
 > **Branch:** `feature/foundation-3` · **PR:** [#20](https://github.com/infocyph/Foundation/pull/20) (draft).  
 > **Tracker:** [Module architecture rework](foundation-4-module-architecture-rework-plan.md).  
-> **Status:** Source audit and design decisions recorded; cold/warm CLI measurements require successful exact-head CI artifact. This document is **not** evidence that the new module architecture is implemented.
+> **Status:** Batch 0 source/design and measured pre-rework characterization **VERIFIED** at exact source `a4afa89c`. The three-module runtime/API redesign has **not** been implemented yet.
 
 ## A. Verified pre-rework source boundaries
 
@@ -87,15 +87,30 @@ User approved the high-level Core + 3 + 9 architecture in this conversation. The
 
 The baseline runner is [`benchmarks/foundation4-module-cli-baseline.php`](../../benchmarks/foundation4-module-cli-baseline.php). On an isolated application root it measures a fresh dispatcher cold invocation and 15 warmed invocations for six existing module CLI operations, with p50/p95/p99, peak PHP allocated memory, exact PHP/runtime version and Foundation source. Its dry-run Composer subprocess is **stubbed** and never alters root requirements; it asserts the 11-entry inventory and plan schema version 1.
 
-The executable runner **must pass in CI** and its JSON artifact must be attached before declaring this baseline established. It is a **within-run microbenchmark/characterization only**. It cannot certify realistic disk/network Composer execution, true operating-system process-tree RSS, production FPM/Runwire host sustained RPM, or a 2% performance improvement. Existing [Foundation 4 native host procedure](../foundation-4-host-benchmark-certification.md) remains the release host benchmark requirement.
+The runner **PASSED** at source [`a4afa89c`](https://github.com/infocyph/Foundation/commit/a4afa89c10352890e3a058c695e3d16277e4643f) in [Security & Standards #38570463538](https://github.com/infocyph/Foundation/actions/runs/38570463538) and archived `module-cli-baseline.json` with the release-evidence artifact. It is a **within-run microbenchmark/characterization only**. It cannot certify realistic disk/network Composer execution, true operating-system process-tree RSS, production FPM/Runwire host sustained RPM, or a 2% performance improvement. Existing [Foundation 4 native host procedure](../foundation-4-host-benchmark-certification.md) remains the release host benchmark requirement.
 
-**Exact-head evidence ledger (pending on audit creation):**
+### Exact-source measured CLI baseline
+
+Recorded PHP 8.5.11 / CLI, opcache-cli disabled, `composer.json` source hash `7a8c1bab673568f9187086bf94ab624dfd2923cfd90a980f5db3970bc2f4a017`, 15 warm invocations per command:
+
+| Existing CLI operation | First invocation (ms) | Warm p50 (ms) | Warm p95 (ms) |
+| --- | ---: | ---: | ---: |
+| `module:list` | 15.618 | 1.208 | 1.505 |
+| `module:show database` | 1.567 | 1.253 | 1.536 |
+| `module:doctor messaging` | 1.290 | 1.303 | 2.634 |
+| `module:plan auth --feature=passkey` | 1.269 | 1.272 | 1.690 |
+| `module:install database --dry-run` | 1.839 | 1.402 | 2.870 |
+| `module:remove database --dry-run` | 1.883 | 1.762 | 1.852 |
+
+Peak PHP allocated memory = **16.0 MiB**. These values measure **first command invocation in an already initialized CLI process**, not full cold-process startup, real Composer solver or operating-system live process-tree RSS. Subsequent performance changes must be compared using matched machine/runtime conditions. Historical host benchmark jobs are not evidence of a candidate's 2% regression budget.
+
+**Exact-head evidence ledger (verified at `a4afa89c`):**
 
 | Gate | Source / evidence | State |
 | --- | --- | --- |
-| Current module contracts, feature aliases, root package and schema behavior | `ModuleCatalogModelTest`, `ModuleStateResolverTest`, `ModuleLifecycleIntegrationTest`, `ModuleConfigPublicationTest` | Existing regression tests; re-run for Batch 0 |
-| PHP 8.4/8.5 QA, production consumers, PHPStan, benchmarks and release evidence | [Security & Standards workflow](https://github.com/infocyph/Foundation/actions/workflows/security-standards.yml) | Await exact-head result |
-| Pre-rework CLI cold/warm module baseline | `build/release-evidence/module-cli-baseline.json` | Await exact-head CI artifact |
-| FPM/Runwire native host / selected DB/cache workload and cancellation | [Native host workflow](https://github.com/infocyph/Foundation/actions/workflows/foundation4-host-certification.yml) | Existing host matrix; re-run exact head |
+| Current module contracts, feature aliases, root package and schema behavior | `ModuleCatalogModelTest`, `ModuleStateResolverTest`, `ModuleLifecycleIntegrationTest`, `ModuleConfigPublicationTest` | **PASS** full PHPForge 8.4/8.5 × stable/lowest at source `a4afa89c` |
+| PHP 8.4/8.5 QA, production consumers, PHPStan, benchmarks and release evidence | [Security & Standards #38570463538](https://github.com/infocyph/Foundation/actions/runs/38570463538) | **SUCCESS** exact source |
+| Pre-rework CLI cold/warm module baseline | `build/release-evidence/module-cli-baseline.json` in [release-evidence artifact #38570463538](https://github.com/infocyph/Foundation/actions/runs/38570463538) | **PASS**, six commands; see observed timings above |
+| FPM/Runwire native host / selected DB/cache workload and cancellation | [Native host #38570462819](https://github.com/infocyph/Foundation/actions/runs/38570462819) | **SUCCESS** same exact source; native listener/worker lifecycle, selected DB/cache/auth fixture and live RSS/latency evidence |
 
-**Batch 0 acceptance policy:** source tracing, 11→3/9 inventory and D01–D12 design records can be accepted from this audit; golden command and benchmark baselines require the new runner to succeed in CI and be archived. Do not claim a completed batch from documentation alone.
+**Batch 0 acceptance:** **5/5 verified** — source traces, golden version-1 CLI and root Composer ownership contract tests, 11→3/9 inventory, reproducible CLI baseline with toolchain/memory data, selected/disabled native host/workers, and selected D01–D12 design record all verified on source `a4afa89c`. A **documentation-only tracker update** will follow and may run fresh CI. This closes the *audit/design batch*, not the heavy module implementation, which starts in Batch 1. Production-equivalent long soak and the 2% release RPM gate remain in the separate release tracker.
