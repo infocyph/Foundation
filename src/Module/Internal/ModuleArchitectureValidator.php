@@ -79,7 +79,10 @@ final class ModuleArchitectureValidator
         $edges[$id] = $this->resolveDependencies($id, $definition['dependencies'], $modules);
     }
 
-    /** @param array<string,list<array{id:string,constraint:string}>> $packageOwners */
+    /**
+     * @param array<string,string> $packages
+     * @param array<string,list<array{id:string,constraint:string}>> $packageOwners
+     */
     private function assertPackages(string $id, array $packages, array &$packageOwners): void
     {
         foreach ($packages as $package => $constraint) {
@@ -165,7 +168,7 @@ final class ModuleArchitectureValidator
         foreach ($dependencies as $dependency) {
             $target = $dependency['target'];
             [$module, $feature] = array_pad(explode('.', $target, 3), 3, null);
-            if (!is_string($feature) || !isset($modules[$module]['features'][$feature])
+            if (!is_string($module) || !is_string($feature) || !isset($modules[$module]['features'][$feature])
                 || $target === $id || substr_count($target, '.') !== 1
             ) {
                 throw new \LogicException(sprintf('Unknown or self-referential feature dependency "%s" on "%s".', $target, $id));
