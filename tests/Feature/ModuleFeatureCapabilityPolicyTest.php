@@ -7,6 +7,7 @@ use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceRegistry;
 use Infocyph\Foundation\Bootstrap\Bootstrapper;
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Config\Internal\ConfiguredCapabilities;
 use Infocyph\Foundation\Container\FoundationGraph;
 use Infocyph\Foundation\Database\DatabaseServiceProvider;
 use Infocyph\Foundation\Filesystem\FilesystemServiceProvider;
@@ -168,4 +169,21 @@ it('resolves conditional dependencies without expanding unrelated feature groups
         ->and($context->hasFeature('data.database'))->toBeTrue()
         ->and($context->hasFeature('execution.runtime'))->toBeFalse()
         ->and($context->hasFeature('execution.communication'))->toBeFalse();
+});
+
+it('uses the same selected-feature constraints in native config readiness and build compilation', function (): void {
+    $config = new ConfigRepository([
+        'app' => ['capabilities' => ['auth', 'cache', 'database', 'messaging']],
+        'modules' => ['features' => ['data.database' => true]],
+    ]);
+    $context = FoundationBuildContext::fromConfig($config, RuntimeMode::Worker);
+    $configured = new ConfiguredCapabilities($config);
+
+    foreach (['auth', 'cache', 'database', 'messaging'] as $capability) {
+        expect($configured->enabled($capability))->toBe($context->permitsCapability($capability));
+    }
+    expect($configured->explicit('database'))->toBeTrue()
+        ->and($configured->explicit('messaging'))->toBeTrue()
+        ->and($configured->enabled('database'))->toBeTrue()
+        ->and($configured->enabled('messaging'))->toBeFalse();
 });

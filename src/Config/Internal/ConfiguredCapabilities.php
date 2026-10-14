@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Config\Internal;
 
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Module\ModuleFeatureCapabilityPolicy;
 use Infocyph\Foundation\Support\ValueNormalizer;
 
 /**
@@ -13,10 +14,20 @@ use Infocyph\Foundation\Support\ValueNormalizer;
  */
 final readonly class ConfiguredCapabilities
 {
-    public function __construct(private ConfigRepository $config) {}
+    /** @var array<string,bool>|null */
+    private ?array $featureSelections;
+
+    public function __construct(private ConfigRepository $config)
+    {
+        $this->featureSelections = ModuleFeatureCapabilityPolicy::fromConfig($config);
+    }
 
     public function enabled(string $capability): bool
     {
+        if (!ModuleFeatureCapabilityPolicy::permits($capability, $this->featureSelections)) {
+            return false;
+        }
+
         if ($this->config->has('modules.capabilities.' . $capability)) {
             return ValueNormalizer::bool(
                 $this->config->get('modules.capabilities.' . $capability),
@@ -52,6 +63,13 @@ final readonly class ConfiguredCapabilities
 
     public function explicit(?string $capability = null): bool
     {
+        if ($capability !== null
+            && $this->featureSelections !== null
+            && ModuleFeatureCapabilityPolicy::owner($capability) !== null
+        ) {
+            return true;
+        }
+
         if ($capability !== null) {
             return $this->config->has('app.capabilities')
                 || $this->config->has('modules.capabilities.' . $capability);
