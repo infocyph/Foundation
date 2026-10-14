@@ -147,7 +147,8 @@ it('keeps native PDO outbox events inside the same DBLayer transaction across no
             ->and($source->cache()->get('product.42'))->toBeNull()
             ->and($target->cache()->get('product.42'))->toBe('target')
             ->and($target->consume())->toBe(1)
-            ->and($target->cache()->get('product.42'))->toBeNull();
+            ->and($target->cache()->get('product.42'))->toBeNull()
+            ->and($target->consume())->toBe(0);
     } finally {
         if ($schemaReady) {
             $pdo = $writer->getPdo();

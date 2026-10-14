@@ -270,7 +270,11 @@ it('composes MFA passkeys devices impersonation and step-up state', function ():
             ->and($services->mfa()->verifyRecoveryCode(
                 $target->id(),
                 $enrollment->recoveryCodes[0] ?? '',
-            )->successful())->toBeTrue();
+            )->successful())->toBeTrue()
+            ->and($services->mfa()->verifyRecoveryCode(
+                $target->id(),
+                $enrollment->recoveryCodes[0] ?? '',
+            )->successful())->toBeFalse();
 
         $registration = $services->passkeys()->startRegistration($target->id());
         if (!$registration->challenge instanceof PasskeyChallenge) {
@@ -500,4 +504,42 @@ it('applies tenant denial before a broad permission can authorize a foreign reso
         ->and($authorizer->can($principal, 'invoice:approve', [
             'id' => 'invoice-3',
         ])->allowed)->toBeFalse();
+});
+
+it('keeps account session revocation isolated and never retrusts a revoked device', function (): void {
+    $app = foundationAuthApplication();
+    $services = $app->make(AuthServices::class);
+    $first = $services->accounts()->create('session-revoke-alpha@example.test')->account;
+    $second = $services->accounts()->create('session-revoke-beta@example.test')->account;
+    if (!$first instanceof Account || !$second instanceof Account) {
+        throw new LogicException('Expected distinct account fixtures.');
+    }
+
+    $sessions = $app->make(SessionStoreInterface::class);
+    $keep = $services->sessions()->create($first->id(), 'device-keep');
+    $revoke = $services->sessions()->create($first->id(), 'device-revoke');
+    $foreign = $services->sessions()->create($second->id(), 'device-foreign');
+
+    $services->sessions()->revokeAllForAccount($first->id(), $keep->id);
+    expect($sessions->find($revoke->id))->toBeNull()
+        ->and($sessions->find($keep->id))->not->toBeNull()
+        ->and($sessions->find($foreign->id))->not->toBeNull();
+
+    $services->sessions()->revokeAllForAccount($first->id());
+    expect($sessions->find($keep->id))->toBeNull()
+        ->and($sessions->find($foreign->id))->not->toBeNull();
+
+    $registered = $services->devices()->register($second->id(), 'Laptop', 'fingerprint')->device;
+    if (!$registered instanceof DeviceRecord) {
+        throw new LogicException('Expected a registered device.');
+    }
+    expect($services->devices()->trust($registered->id)->code)->toBe('device_trusted')
+        ->and($services->devices()->revoke($registered->id)->code)->toBe('device_revoked')
+        ->and($services->devices()->trust($registered->id)->code)->toBe('device_revoked')
+        ->and($services->devices()->touch($registered->id)->code)->toBe('device_revoked');
+
+    $stored = $services->devices()->listForAccount($second->id());
+    expect($stored)->toHaveCount(1)
+        ->and($stored[0]->isRevoked())->toBeTrue()
+        ->and($stored[0]->trusted)->toBeFalse();
 });

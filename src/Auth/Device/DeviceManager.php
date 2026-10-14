@@ -65,6 +65,10 @@ final readonly class DeviceManager
             return new DeviceResult(DeviceStatus::NOT_FOUND, code: 'device_not_found');
         }
 
+        if ($device->isRevoked()) {
+            return new DeviceResult(DeviceStatus::REVOKED, device: $device, code: 'device_revoked');
+        }
+
         $this->devices->touch($deviceId, $seenAt ?? $this->clock->now());
 
         return new DeviceResult(DeviceStatus::TOUCHED, device: $this->devices->find($deviceId), code: 'device_touched');
@@ -76,6 +80,10 @@ final readonly class DeviceManager
 
         if ($device === null) {
             return new DeviceResult(DeviceStatus::NOT_FOUND, code: 'device_not_found');
+        }
+
+        if ($device->isRevoked()) {
+            return new DeviceResult(DeviceStatus::REVOKED, device: $device, code: 'device_revoked');
         }
 
         $this->devices->markTrusted($deviceId, true);
