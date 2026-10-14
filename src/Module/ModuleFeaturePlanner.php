@@ -139,7 +139,6 @@ final readonly class ModuleFeaturePlanner
 
     /**
      * @phpstan-param FeatureState $state
-     * @phpstan-param Resolution $snapshot
      * @phpstan-param Context $context
      * @param list<string> $blockers
      */
