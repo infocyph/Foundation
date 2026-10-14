@@ -103,6 +103,17 @@ it('rejects foreign modules, package ownership collisions, undeclared dependenci
     expect(fn() => $catalog->validate($core))->toThrow(LogicException::class, 'Invalid optional package owner');
 });
 
+it('resolves only qualified canonical feature IDs without ambiguous old aliases', function (): void {
+    $catalog = new ModuleArchitectureCatalog();
+
+    expect($catalog->resolve('data.database')['definition']['owner'])->toBe('infocyph/dblayer')
+        ->and($catalog->resolve('execution.runtime')['definition']['owner'])->toBe('infocyph/runwire')
+        ->and(fn() => $catalog->resolve('runtime'))->toThrow(InvalidArgumentException::class, 'module.feature')
+        ->and(fn() => $catalog->resolve('operations'))->toThrow(InvalidArgumentException::class)
+        ->and(fn() => $catalog->resolve('security.unknown'))->toThrow(InvalidArgumentException::class)
+        ->and(fn() => $catalog->resolve('data.database.extra'))->toThrow(InvalidArgumentException::class);
+});
+
 it('exposes the approved catalog via ModuleCatalog without changing existing runtime calls before cutover', function (): void {
     $current = new ModuleCatalog();
     $target = new ModuleArchitectureCatalog();

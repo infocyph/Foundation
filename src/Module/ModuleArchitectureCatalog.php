@@ -206,6 +206,26 @@ final class ModuleArchitectureCatalog
     }
 
     /**
+     * Public selection is fully qualified; bare "runtime" is deliberately
+     * invalid because it is also a historical Core operations alias.
+     *
+     * @phpstan-return array{module:string,feature:string,definition:ArchitectureFeature}
+     */
+    public function resolve(string $id): array
+    {
+        $segments = explode('.', $id);
+        if (count($segments) !== 2) {
+            throw new \InvalidArgumentException(sprintf('Feature "%s" must use module.feature.', $id));
+        }
+
+        return [
+            'module' => $segments[0],
+            'feature' => $segments[1],
+            'definition' => $this->feature($segments[0], $segments[1]),
+        ];
+    }
+
+    /**
      * Validate fixed module IDs, package ownership, dependency constraints,
      * schemas and platform metadata without altering application state.
      *
