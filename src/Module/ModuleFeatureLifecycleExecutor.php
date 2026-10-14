@@ -21,15 +21,15 @@ use Infocyph\Foundation\Application\Application;
  */
 final readonly class ModuleFeatureLifecycleExecutor
 {
-    private ModuleFeaturePlanner $planner;
+    private ModuleActivationManager $activation;
 
     private ModuleFeatureComposerExecutor $composer;
 
     private ModuleFeatureConfigPublisher $configs;
 
-    private ModuleFeatureSchemaExecutor $schemas;
+    private ModuleFeaturePlanner $planner;
 
-    private ModuleActivationManager $activation;
+    private ModuleFeatureSchemaExecutor $schemas;
 
     public function __construct(
         Application $application,
