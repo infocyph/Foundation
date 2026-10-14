@@ -86,7 +86,6 @@ try {
 } finally {
     foreach ($handles as $handle) {
         curl_multi_remove_handle($multi, $handle);
-        curl_close($handle);
     }
     curl_multi_close($multi);
 }
@@ -118,5 +117,5 @@ if (file_put_contents($output, $json, LOCK_EX) === false) {
 }
 fwrite(STDOUT, $json);
 if ($errors !== 0 || $finished !== $requests) {
-    exit(1);
+    throw new RuntimeException(sprintf('HTTP load failed: %s', $firstError ?? 'request count mismatch'));
 }
