@@ -7,6 +7,11 @@ namespace Infocyph\Foundation\Runtime;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\InterMix\DI\RuntimeContainerInterface;
 use Infocyph\InterMix\DI\ScopeContext;
+use Infocyph\Runwire\Coroutine\CoroutineScope;
+use Infocyph\Runwire\Coroutine\TaskLocal;
+use Infocyph\Runwire\RequestContext;
+use Infocyph\Runwire\Runtime\Enum\RuntimeCapability;
+use Infocyph\Runwire\RuntimeContext;
 use Psr\Container\ContainerInterface;
 
 final readonly class ExecutionScope
@@ -35,6 +40,7 @@ final readonly class ExecutionScope
         }
 
         self::assertRuntimeModeSeed($seeds);
+        self::assertHostRunwireSeeds($seeds);
 
         $executionId ??= ExecutionId::generate();
         $seeds[ExecutionId::class] = $executionId;
@@ -131,6 +137,55 @@ final readonly class ExecutionScope
                 return $callback($id);
             },
         );
+    }
+
+    /**
+     * Verify that the host supplied the authoritative Runwire inputs before
+     * creating a Foundation-owned worker/CLI/scheduler execution scope.
+     * No runtime, request or coroutine scope is generated or owned here.
+     *
+     * @param array<string, mixed> $seeds
+     */
+    private static function assertHostRunwireSeeds(array $seeds): void
+    {
+        if (
+            !array_key_exists(RuntimeContext::class, $seeds)
+            && !array_key_exists(RequestContext::class, $seeds)
+            && !array_key_exists(CoroutineScope::class, $seeds)
+        ) {
+            return;
+        }
+
+        $runtime = $seeds[RuntimeContext::class] ?? null;
+        if (!$runtime instanceof RuntimeContext) {
+            throw new \LogicException('Runwire execution inputs require the exact host-owned runtime context.');
+        }
+        $pid = getmypid();
+        if (!is_int($pid) || $runtime->pid !== $pid) {
+            throw new \LogicException('Runwire execution context belongs to a different process.');
+        }
+
+        if (array_key_exists(RequestContext::class, $seeds)) {
+            $request = $seeds[RequestContext::class];
+            if (!$request instanceof RequestContext
+                || $request->runtime() !== $runtime
+                || $request->completed()
+            ) {
+                throw new \LogicException('Runwire execution request is completed or belongs to a different runtime.');
+            }
+            $request->cancellation->throwIfCancelled();
+        }
+
+        if (array_key_exists(CoroutineScope::class, $seeds)) {
+            $scope = $seeds[CoroutineScope::class];
+            if (!$scope instanceof CoroutineScope || !$runtime->supports(RuntimeCapability::RUNWIRE_COROUTINES)) {
+                throw new \LogicException('Runwire execution coroutine scope requires a compatible host runtime.');
+            }
+            // The public non-mutating guard checks the active native task and
+            // closed-scope state without starting a scheduler or yielding.
+            $scope->hasLocal(new TaskLocal());
+            $scope->cancellation()->throwIfCancelled();
+        }
     }
 
     /** @param array<string, mixed> $seeds */
