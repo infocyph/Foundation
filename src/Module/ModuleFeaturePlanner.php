@@ -24,7 +24,9 @@ final readonly class ModuleFeaturePlanner
     public function __construct(
         private ModuleFeatureResolver $resolver = new ModuleFeatureResolver(),
         private ModuleArchitectureCatalog $catalog = new ModuleArchitectureCatalog(),
-    ) {}
+    )
+    {
+    }
 
     /**
      * @param list<string> $features
@@ -92,7 +94,8 @@ final readonly class ModuleFeaturePlanner
         array $context,
         array &$effects,
         array &$blockers,
-    ): void {
+    ): void
+    {
         $state = $snapshot['states'][$id];
 
         if ($operation === 'install' || $operation === 'repair') {
@@ -149,7 +152,8 @@ final readonly class ModuleFeaturePlanner
         array $snapshot,
         array $context,
         array &$blockers,
-    ): void {
+    ): void
+    {
         if (!$state['allowed']) {
             $blockers[] = sprintf('Production capability policy does not allow %s.', $id);
         }
@@ -183,7 +187,8 @@ final readonly class ModuleFeaturePlanner
         array $context,
         array &$effects,
         array &$blockers,
-    ): void {
+    ): void
+    {
         $this->checkDependents($id, $context, $blockers);
 
         if ($state['enabled']) {
