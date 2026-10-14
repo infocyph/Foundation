@@ -198,6 +198,7 @@ jobs:
                   $request->complete();
               }
             '
+            php "$GITHUB_WORKSPACE/docs/examples/foundation-4-compiled-release.php"
             if composer show infocyph/phpforge >/dev/null 2>&1; then
               echo "PHPForge leaked into full production consumer." >&2
               exit 1

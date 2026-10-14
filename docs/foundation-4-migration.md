@@ -166,3 +166,13 @@ trusted compiled Webrick release and the host-supplied writer/context.
 ## Foundation-first release boundary
 
 Foundation 4.0 is implemented and verified independently of the Infbyte application skeleton. Updating Infbyte's Composer constraint, routes, providers, bootstrap and release artifacts is a **separate follow-up after Foundation is ready**. The Foundation CI consumer matrix verifies core-only, database-only and published optional-package/Runwire deployments without cloning or rewriting Infbyte. The [API replacement map](foundation-4-api-map.md) remains the downstream migration reference. Operators must still restore and validate their **own** retained production data; the supplied synthetic rehearsal cannot certify external deployments.
+
+## Production no-dev compiled-release smoke
+
+In a production-like Composer consumer containing the selected published specialist packages and optional Runwire, run:
+
+```bash
+php /path/to/Foundation/docs/examples/foundation-4-compiled-release.php
+```
+
+The smoke builds a disposable trusted SHA-256 generation with native compiled Webrick web routes and CLI/worker/scheduler graphs; it dispatches HTTP and verifies an exact host-owned Runwire worker input. CI executes this through the four **full-optional --no-dev** matrices. It is not a replacement for a real application deployment or retained-data restoration.
