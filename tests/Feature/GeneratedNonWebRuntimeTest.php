@@ -489,3 +489,47 @@ function foundationGeneratedRuntimeRemove(string $directory): void
     }
     rmdir($directory);
 }
+
+
+it('treats feature selection as trusted immutable generated-runtime identity', function (): void {
+    $project = foundationGeneratedRuntimeProject();
+    $config = foundationGeneratedRuntimeConfig($project);
+    $config['modules'] = ['features' => [
+        'data.database' => false,
+        'execution.messaging' => false,
+    ]];
+    $artifact = $project . '/bootstrap/cache/cli.php';
+
+    try {
+        $report = new GeneratedRuntimeCompiler()->compile($config, RuntimeMode::Cli, $artifact);
+
+        $sameTopology = $config;
+        $sameTopology['modules']['features'] = [
+            'execution.messaging' => false,
+            'data.database' => false,
+        ];
+        expect(GeneratedRuntime::load($sameTopology, RuntimeMode::Cli, $artifact))
+            ->toBeInstanceOf(GeneratedRuntime::class);
+
+        $changed = $config;
+        $changed['modules']['features']['data.database'] = true;
+        expect(fn() => GeneratedRuntime::load($changed, RuntimeMode::Cli, $artifact))
+            ->toThrow(RuntimeException::class, 'identity does not match');
+
+        $metadata = $artifact . '.foundation.json';
+        $contents = (string) file_get_contents($metadata);
+        $forged = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
+        $forged['config_fingerprint'] = str_repeat('0', 32);
+        file_put_contents($metadata, json_encode($forged, JSON_THROW_ON_ERROR));
+
+        expect(fn() => GeneratedRuntime::loadPrevalidated(
+            $config,
+            RuntimeMode::Cli,
+            $artifact,
+            $report['metadata_sha256'],
+            $report['digest'],
+        ))->toThrow(RuntimeException::class);
+    } finally {
+        foundationGeneratedRuntimeRemove($project);
+    }
+});
