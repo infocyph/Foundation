@@ -1748,6 +1748,10 @@ tests cannot establish atomicity or isolation; keep pure definition/config check
 portable. Add tests for changed contracts and reproduced defects, not mirrored
 implementation details.
 
+### 2026-10-14 — Batch 5 latest PHPForge formatting gate (source pending CI)
+
+[QA #38515888139](https://github.com/infocyph/Foundation/actions/runs/38515888139) confirmed **4/4 expanded production consumers PASS**, native CLI/Infbyte optimized-route fix, PHPStan 2/2, and successful Pest/reference/PHPCS/Deptrac/Rector checks, but PHPForge QA initially **failed Pint** with one `blank_line_before_statement` issue in `docs/examples/foundation-4-runwire-worker.php`. The next commit inserts the required blank line; no business or native runtime behavior changes. Do not accept any Batch 5 gate before exact-head QA is complete.
+
 ### 2026-10-14 — Batch 5 real Infbyte route:list compatibility defect (fix pending exact-HEAD QA)
 
 [Candidate CI #38515224305](https://github.com/infocyph/Foundation/actions/runs/38515224305) **failed all four no-dev consumer combinations** on `php infbyte route:list`: `Unable to resolve service "foundation.router"`. This was **reproduced by code inspection** as CommandCatalog's incorrect `capabilities: ['web']` prerequisite, because `CommandResolver::activateCapabilities` tried to resolve a Webrick router from the CLI graph while `RouteInspector` already creates a temporary Webrick graph to inspect source routes. Removed only the CLI prerequisite (no change to Webrick or routing ownership) and updated `RouteInspectorTest` to prove listing with explicit empty `app.capabilities` and zero CLI router dependencies. The real cloned Infbyte `route:list` and `optimize` rehearsal stays enabled to verify this fix. **Exact-head QA pending, Batch 5 0/4, total 25/37.**

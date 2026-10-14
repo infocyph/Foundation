@@ -35,6 +35,7 @@ try {
             ) {
                 throw new LogicException('Host-owned Runwire context was not forwarded.');
             }
+
             printf("Foundation 4 Runwire worker execution: %s\n", (string) $id);
         },
         [RuntimeContext::class => $runtime, RequestContext::class => $request],
