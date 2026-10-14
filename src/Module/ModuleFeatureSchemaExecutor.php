@@ -60,7 +60,8 @@ final readonly class ModuleFeatureSchemaExecutor
         $this->assertReady($result);
 
         return $result;
-  
+    }
+
     /**
      * @phpstan-param Context $context
      */
