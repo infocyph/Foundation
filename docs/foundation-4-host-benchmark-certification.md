@@ -1,12 +1,14 @@
 # Foundation 4.0 — Native host performance certification
 
-This procedure certifies **Foundation 4 only**. It is not a legacy-version compatibility test. The routine PR host job is a minimal-JSON smoke test on shared GitHub hardware; it must not be represented as a sustained production-equivalent throughput certification.
+This procedure certifies **Foundation 4 only**. It is not a legacy-version compatibility test. The routine PR host job runs a minimal-JSON smoke and a selected-owner native-read smoke on shared GitHub hardware; neither is a production-equivalent throughput certification.
 
 ## Measurements already automated
 
 `benchmarks/foundation4-host-certify.sh` compiles a trusted Foundation Webrick/InterMix generation and launches real Nginx/PHP-FPM and native Runwire listeners. It validates each HTTP/1.1 status and response body, tests concurrency 1/10/50 with one/four workers, samples process-tree CPU and RSS during load, and exercises failed-request recovery, client cancellation, and prefork worker replacement.
 
-The ordinary GitHub job uses three short repetitions of 900 requests per case solely to identify integration failures. Every result is an artifact, not a baseline.
+The ordinary GitHub job checks 36 minimal-route samples (three repetitions), then a separate `native-read` profile with real DBLayer SQLite selects, CacheLayer file-cache reads and credential digest verification (two repetitions). Both profiles exercise FPM/Runwire and two 30-second four-worker soak windows, with contained error, cancellation and Runwire worker-replacement checks. The native fixture uses a low-work-factor testing hash and a small deterministic dataset; **it is not a production authentication, authorization or distributed database workload**. All outputs are artifacts, not controlled baselines.
+
+For the selected-owner profile, use `FOUNDATION_HOST_WORKLOAD_PROFILE=native-read` instead of `json-minimal`. The comparator rejects comparisons between different profile identities. [Native host #38552807316](https://github.com/infocyph/Foundation/actions/runs/38552807316) passed on source `8af4e1e0` with zero response-validation errors in both selected-native soak windows. Shared-runner comparisons and these fixture sizes remain insufficient to approve the 2% release budget.
 
 ## Controlled sustained comparison
 
