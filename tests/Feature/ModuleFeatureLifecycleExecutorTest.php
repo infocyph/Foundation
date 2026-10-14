@@ -222,3 +222,31 @@ it('never permits Core or QA features to enter the optional lifecycle', function
         moduleB3Cleanup($path);
     }
 });
+
+it('recovers a partially failed config phase with a repeatable repair', function (): void {
+    $path = moduleB3Dir();
+    $context = moduleB3Context();
+    $context['root_requirements'] = ['infocyph/pathwise' => '^4.2'];
+    $context['installed'] = ['infocyph/pathwise' => '4.2.1'];
+    file_put_contents($path . '/composer.json', '{"name":"test/app","require":{"infocyph/pathwise":"^4.2"}}');
+
+    try {
+        $app = Foundation::cli(['base_path' => $path, '_config_cache' => false]);
+        $runner = new ModuleFeatureLifecycleExecutor($app);
+        file_put_contents($path . '/config', 'not a directory');
+
+        $first = $runner->apply('repair', ['data.filesystem'], $context, static fn(): array => $context);
+        expect($first['status'])->toBe('partial')
+            ->and(array_column($first['phases'], 'name'))->toBe(['composer', 'reconcile'])
+            ->and($first['recovery'])->toContain('repair')
+            ->and(file_get_contents($path . '/config'))->toBe('not a directory');
+
+        unlink($path . '/config');
+        $second = $runner->apply('repair', ['data.filesystem'], $context, static fn(): array => $context);
+        expect($second['status'])->toBe('complete')
+            ->and($path . '/config/filesystem.php')->toBeFile()
+            ->and($path . '/commands.jsonl')->not->toBeFile();
+    } finally {
+        moduleB3Cleanup($path);
+    }
+});
