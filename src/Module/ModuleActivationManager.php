@@ -37,28 +37,13 @@ final readonly class ModuleActivationManager
             throw new \RuntimeException('Feature activation is blocked: ' . implode('; ', $plan['blockers']));
         }
 
-        return $this->mutate(static function (array $config) use ($plan, $context): array {
-            $flags = $config['features'] ?? [];
-            if (!is_array($flags)) {
-                throw new \RuntimeException('modules.features must be a feature map.');
-            }
-            foreach ($flags as $id => $active) {
-                if (!is_string($id) || !is_bool($active)) {
-                    throw new \RuntimeException('modules.features must contain boolean feature flags.');
-                }
-                if ($active !== in_array($id, $context['enabled'], true)) {
-                    throw new \RuntimeException('Feature activation changed; re-plan before applying.');
-                }
-            }
-
-            foreach ($plan['effects']['activate'] as $id => $active) {
-                $flags[$id] = $active;
-            }
-            ksort($flags);
-            $config['features'] = $flags;
-
-            return $config;
-        });
+        return $this->mutate(
+            fn(array $config): array => $this->updateFeatureFlags(
+                $config,
+                $plan['effects']['activate'],
+                $context['enabled'],
+            ),
+        );
     }
 
     public function disable(string $module): string
@@ -189,6 +174,36 @@ final readonly class ModuleActivationManager
             flock($lock, LOCK_UN);
             fclose($lock);
         }
+    }
+
+    /**
+     * @param array<string,mixed> $config
+     * @param array<string,bool> $changes
+     * @param list<string> $enabled
+     * @return array<string,mixed>
+     */
+    private function updateFeatureFlags(array $config, array $changes, array $enabled): array
+    {
+        $flags = $config['features'] ?? [];
+        if (!is_array($flags)) {
+            throw new \RuntimeException('modules.features must be a feature map.');
+        }
+        foreach ($flags as $id => $active) {
+            if (!is_string($id) || !is_bool($active)) {
+                throw new \RuntimeException('modules.features must contain boolean feature flags.');
+            }
+            if ($active !== in_array($id, $enabled, true)) {
+                throw new \RuntimeException('Feature activation changed; re-plan before applying.');
+            }
+        }
+
+        foreach ($changes as $id => $active) {
+            $flags[$id] = $active;
+        }
+        ksort($flags);
+        $config['features'] = $flags;
+
+        return $config;
     }
 
     private function write(string $module, bool $enabled): string
