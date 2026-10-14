@@ -103,6 +103,7 @@ try {
             RecursiveIteratorIterator::CHILD_FIRST,
         );
         foreach ($files as $file) {
+            /** @var SplFileInfo $file */
             $file->isLink() || !$file->isDir()
                 ? unlink($file->getPathname())
                 : rmdir($file->getPathname());
