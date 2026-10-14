@@ -2,51 +2,27 @@
 
 declare(strict_types=1);
 
-/** @return float|int */
-function f4HostField(string $source, string $pattern, string $label): float|int
+/** @return array{requests:int,successful:int,failed:int,rpm:float,p50_ms:float,p95_ms:float,p99_ms:float} */
+function f4HostLoad(string $path, int $expectedRequests): array
 {
-    if (preg_match($pattern, $source, $matches) !== 1) {
-        throw new RuntimeException(sprintf('Missing %s in ApacheBench output.', $label));
-    }
-
-    return str_contains($matches[1], '.') ? (float) $matches[1] : (int) $matches[1];
-}
-
-/** @return array{requests:int,failed:int,non_2xx:int,rpm:float,p50_ms:float,p95_ms:float,p99_ms:float} */
-function f4HostApacheBench(string $path, int $expectedRequests): array
-{
-    $text = file_get_contents($path);
-    if (!is_string($text) || $text === '') {
-        throw new RuntimeException(sprintf('Missing benchmark output: %s', $path));
-    }
-
-    $requests = (int) f4HostField($text, '/^Complete requests:\s+(\d+)/m', 'requests');
-    $failed = (int) f4HostField($text, '/^Failed requests:\s+(\d+)/m', 'failures');
-    $non2xx = preg_match('/^Non-2xx responses:\s+(\d+)/m', $text, $matches) === 1
-        ? (int) $matches[1]
-        : 0;
-    $length = (int) f4HostField($text, '/^Document Length:\s+(\d+)\s+bytes/m', 'document length');
-    $duration = (float) f4HostField($text, '/^Time taken for tests:\s+([\d.]+)\s+seconds/m', 'duration');
-    if ($requests !== $expectedRequests || $failed !== 0 || $non2xx !== 0 || $length !== 11 || $duration <= 0) {
-        throw new RuntimeException(sprintf(
-            '%s: invalid requests=%d failures=%d non_2xx=%d length=%d duration=%f',
-            $path,
-            $requests,
-            $failed,
-            $non2xx,
-            $length,
-            $duration,
-        ));
+    $result = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
+    if (!is_array($result)
+        || ($result['protocol'] ?? null) !== 'HTTP/1.1'
+        || ($result['requests'] ?? null) !== $expectedRequests
+        || ($result['successful'] ?? null) !== $expectedRequests
+        || ($result['failed'] ?? null) !== 0
+    ) {
+        throw new RuntimeException(sprintf('Invalid response-verified host load: %s', $path));
     }
 
     return [
-        'requests' => $requests,
-        'failed' => $failed,
-        'non_2xx' => $non2xx,
-        'rpm' => round($requests * 60 / $duration, 2),
-        'p50_ms' => (float) f4HostField($text, '/^\s*50%\s+([\d.]+)/m', 'p50'),
-        'p95_ms' => (float) f4HostField($text, '/^\s*95%\s+([\d.]+)/m', 'p95'),
-        'p99_ms' => (float) f4HostField($text, '/^\s*99%\s+([\d.]+)/m', 'p99'),
+        'requests' => (int) $result['requests'],
+        'successful' => (int) $result['successful'],
+        'failed' => (int) $result['failed'],
+        'rpm' => (float) $result['rpm'],
+        'p50_ms' => (float) $result['p50_ms'],
+        'p95_ms' => (float) $result['p95_ms'],
+        'p99_ms' => (float) $result['p99_ms'],
     ];
 }
 
@@ -107,6 +83,7 @@ $result = [
     'request_count' => $requests,
     'repetitions' => $repeats,
     'endpoint' => '/json',
+    'protocol' => 'HTTP/1.1 with per-response status/body checks',
     'hosts' => [],
 ];
 
@@ -117,7 +94,7 @@ foreach (['fpm', 'runwire'] as $host) {
             $rpms = [];
             for ($i = 1; $i <= $repeats; $i++) {
                 $prefix = sprintf('%s-w%d-c%d-r%d', $host, $workers, $concurrency, $i);
-                $ab = f4HostApacheBench($root . '/' . $prefix . '.ab.txt', $requests);
+                $ab = f4HostLoad($root . '/' . $prefix . '.load.json', $requests);
                 $telemetry = f4HostSamples($root . '/' . $prefix . '.samples.csv');
                 $runs[] = [...$ab, ...$telemetry];
                 $rpms[] = $ab['rpm'];
