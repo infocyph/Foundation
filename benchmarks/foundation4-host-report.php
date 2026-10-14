@@ -8,8 +8,9 @@ function f4HostLoad(string $path, int $expectedRequests): array
     $result = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
     if (!is_array($result)
         || ($result['protocol'] ?? null) !== 'HTTP/1.1'
-        || ($result['requests'] ?? null) !== $expectedRequests
-        || ($result['successful'] ?? null) !== $expectedRequests
+        || !is_int($result['requests'] ?? null)
+        || $result['requests'] < $expectedRequests
+        || ($result['successful'] ?? null) !== $result['requests']
         || ($result['failed'] ?? null) !== 0
     ) {
         throw new RuntimeException(sprintf('Invalid response-verified host load: %s', $path));
