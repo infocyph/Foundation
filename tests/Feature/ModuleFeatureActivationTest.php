@@ -143,3 +143,55 @@ it('rejects symlink activation lock paths and unsupported feature operations', f
         featureActivationCleanup($path);
     }
 });
+
+it('serializes concurrent module writers without losing unrelated activation overrides', function (): void {
+    $path = featureActivationBasePath();
+    $autoload = dirname(__DIR__, 2) . '/vendor/autoload.php';
+    $barrier = $path . '/start';
+    $processes = [];
+
+    try {
+        foreach (['filesystem', 'validation'] as $module) {
+            $script = 'require ' . var_export($autoload, true) . ';'
+                . 'while (!is_file(' . var_export($barrier, true) . ')) { usleep(1000); }'
+                . '$application = \Infocyph\Foundation\Foundation::cli(['
+                . "'base_path' => " . var_export($path, true) . ", '_config_cache' => false]);"
+                . '(new \Infocyph\Foundation\Module\ModuleActivationManager('
+                . '$application, new \Infocyph\Foundation\Module\ModuleCatalog()))'
+                . '->disable(' . var_export($module, true) . ');';
+
+            $pipes = [];
+            $process = proc_open(
+                [PHP_BINARY, '-r', $script],
+                [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']],
+                $pipes,
+            );
+            if (!is_resource($process)) {
+                throw new RuntimeException('Unable to start concurrent activation fixture.');
+            }
+            fclose($pipes[0]);
+            $processes[] = [$process, $pipes[1], $pipes[2]];
+        }
+
+        file_put_contents($barrier, 'go');
+        foreach ($processes as [$process, $stdout, $stderr]) {
+            stream_get_contents($stdout);
+            $error = stream_get_contents($stderr);
+            fclose($stdout);
+            fclose($stderr);
+            expect(proc_close($process))->toBe(0, $error);
+        }
+        $processes = [];
+
+        $config = require $path . '/config/modules.php';
+        expect($config['capabilities'])->toBe(['filesystem' => false, 'validation' => false]);
+    } finally {
+        foreach ($processes as [$process, $stdout, $stderr]) {
+            fclose($stdout);
+            fclose($stderr);
+            proc_terminate($process);
+            proc_close($process);
+        }
+        featureActivationCleanup($path);
+    }
+});
