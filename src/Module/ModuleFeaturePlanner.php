@@ -78,7 +78,6 @@ final readonly class ModuleFeaturePlanner
         ];
     }
 
-
     /**
      * @phpstan-param Resolution $snapshot
      * @phpstan-param Context $context
@@ -107,7 +106,7 @@ final readonly class ModuleFeaturePlanner
         }
 
         if ($operation === 'enable') {
-            $this->checkEnable($id, $state, $snapshot, $context, $blockers);
+            $this->checkEnable($id, $state, $context, $blockers);
             $effects['activate'][$id] = true;
 
             return;
@@ -147,7 +146,6 @@ final readonly class ModuleFeaturePlanner
     private function checkEnable(
         string $id,
         array $state,
-        array $snapshot,
         array $context,
         array &$blockers,
     ): void

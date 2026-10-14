@@ -93,7 +93,6 @@ final readonly class ModuleFeatureResolver
         ];
     }
 
-
     /**
      * @param list<array{target:string,when?:array{key:string,operator:'equals'|'not-empty',value?:bool|int|string}}> $dependencies
      * @param array<string,mixed> $config

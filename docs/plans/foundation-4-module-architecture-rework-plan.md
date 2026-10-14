@@ -190,7 +190,7 @@ For implementation-stage decisions, keep the **selected design** and source-back
 | --- | --- | --- | --- |
 | **0** | Audit, baseline evidence and remaining design decisions | **COMPLETE (5/5)** | Audit report + concrete design decisions + baseline tests/metrics |
 | **1** | Exactly three public modules and nine feature definitions | **COMPLETE (5/5)** | Stable definitions, validated category/ownership contracts |
-| **2** | Dependency/state resolution and pure planning | **OPEN (0/6)** | Deterministic topology, blockers, versioned no-side-effect plans |
+| **2** | Dependency/state resolution and pure planning | **IN QA (0/6 accepted; 6/6 implemented)** | Deterministic topology, blockers, versioned no-side-effect plans |
 | **3** | Install/enable/disable/remove/repair execution | **OPEN (0/7)** | Safe explicit mutations, atomic boundaries, idempotent recovery |
 | **4** | Three-module selected feature graph and prebuilt Core | **OPEN (0/6)** | One immutable selected native graph, no runtime discovery |
 | **5** | All nine specialist features, schemas and native ownership | **OPEN (0/7)** | Auth, cache, database, messaging and other owners proven |
@@ -320,4 +320,6 @@ For implementation-stage decisions, keep the **selected design** and source-back
 
 | 2026-10-14 | **Batch 1 complete: 5/5**. Canonical immutable 3-module/9-feature taxonomy, validated package floors/shared OTP, conditional dependencies, Core/QA exclusion and schema/config collision guards, fully qualified features. **11-entry public CLI cutover explicitly deferred to B6**; new metadata is read-only, avoiding broken mid-migration install/repair. | [QA #38577822789](https://github.com/infocyph/Foundation/actions/runs/38577822789) **SUCCESS 15 jobs / 1 intentionally skipped**, [native host #38577821971](https://github.com/infocyph/Foundation/actions/runs/38577821971) **SUCCESS** at exact source `4f307fba`; `ModuleArchitectureCatalogTest`. | **10/49; Batch 0 5/5, Batch 1 5/5** |
 
-**Next action:** implement **Batch 2** pure feature-level intent/state normalization and deterministic side-effect-free planning, with focused tests and full exact-source QA. Existing 11-entry CLI remains live until Batch 6 public cutover; no 2.x/3.x compatibility layer.
+| 2026-10-14 | **Batch 2 implementation checkpoint: 6/6 scoped areas implemented, 0/6 accepted pending QA.** Pure `ModuleFeatureResolver` and `ModuleFeaturePlanner`, 12 feature tests, versioned schema 2, dependency and package ownership, selected-feature retention; prior QA `38584332155` RED from Pint/Rector (not accepted). Correct unused parameter and class method separation and repeat exact-head QA. | [Prior QA #38584332155](https://github.com/infocyph/Foundation/actions/runs/38584332155) **RED**; latest follow-up must be green before accepting. No module CLI/runtime cutover. | **10/49 accepted; Batch 2 0/6 accepted (6/6 coded)** |
+
+**Next action:** finish **Batch 2** acceptance. The new resolver/planner and 12 focused tests are implemented, but prior full QA was RED from Pint and Rector on new source; keep 0/6 **accepted** until exact-head PHPForge QA, PHPStan, benchmarks and native-host checks succeed. Then mark verified Batch 2 items and proceed to Batch 3. Existing 11-entry CLI remains live until Batch 6 cutover.
