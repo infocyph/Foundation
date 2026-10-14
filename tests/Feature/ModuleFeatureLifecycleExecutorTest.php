@@ -170,3 +170,55 @@ it('never runs unrelated Core schema or optional messaging schema without durabl
         moduleB3Cleanup($path);
     }
 });
+
+it('removes only unshared feature packages and never deletes persisted application data', function (): void {
+    $path = moduleB3Dir();
+    $restore = moduleB3ComposerStub($path);
+    $context = moduleB3Context();
+    $context['root_requirements'] = [
+        'infocyph/otp' => '^7.0',
+        'web-auth/webauthn-lib' => '^5.3.9',
+    ];
+    $context['installed'] = [
+        'infocyph/otp' => '7.0.0',
+        'web-auth/webauthn-lib' => '5.3.9',
+    ];
+    $context['selected_features'] = ['security.mfa', 'security.passkey'];
+    file_put_contents($path . '/composer.json', json_encode([
+        'name' => 'test/app', 'require' => $context['root_requirements'],
+    ], JSON_THROW_ON_ERROR));
+    $data = $path . '/existing-messages.sqlite';
+    file_put_contents($data, 'keep-data');
+
+    try {
+        $app = Foundation::cli(['base_path' => $path, '_config_cache' => false]);
+        $result = new ModuleFeatureLifecycleExecutor($app)->apply('remove', ['security.passkey'], $context);
+        $commands = file($path . '/commands.jsonl', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+
+        expect($result['status'])->toBe('complete')
+            ->and($result['phases'][0]['name'])->toBe('composer')
+            ->and($result['phases'][0]['detail'])->toContain('schemas and data retained')
+            ->and(json_decode($commands[0], true))->toBe([
+                'remove', 'web-auth/webauthn-lib', '--with-all-dependencies', '--no-interaction',
+            ])
+            ->and(file_get_contents($data))->toBe('keep-data')
+            ->and($path . '/config')->not->toBeDirectory();
+    } finally {
+        $restore();
+        moduleB3Cleanup($path);
+    }
+});
+
+it('never permits Core or QA features to enter the optional lifecycle', function (): void {
+    $path = moduleB3Dir();
+    try {
+        $app = Foundation::cli(['base_path' => $path, '_config_cache' => false]);
+        $runner = new ModuleFeatureLifecycleExecutor($app);
+        expect(fn() => $runner->apply('remove', ['core.auth'], moduleB3Context()))
+            ->toThrow(InvalidArgumentException::class)
+            ->and(fn() => $runner->apply('install', ['qa.phpforge'], moduleB3Context(), dryRun: true))
+            ->toThrow(InvalidArgumentException::class);
+    } finally {
+        moduleB3Cleanup($path);
+    }
+});
