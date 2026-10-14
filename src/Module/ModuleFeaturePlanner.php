@@ -24,9 +24,7 @@ final readonly class ModuleFeaturePlanner
     public function __construct(
         private ModuleFeatureResolver $resolver = new ModuleFeatureResolver(),
         private ModuleArchitectureCatalog $catalog = new ModuleArchitectureCatalog(),
-    )
-    {
-    }
+    ) {}
 
     /**
      * @param list<string> $features
