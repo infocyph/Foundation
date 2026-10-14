@@ -225,6 +225,86 @@ jobs:
         run: |
           composer validate --strict
           composer ic:release:constraints
+      - name: Verify published 2.1.1 removed-API inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin refs/tags/2.1.1
+          baseline="$(git rev-parse FETCH_HEAD)"
+          mapfile -t removed < <(
+            comm -23 \
+              <(git ls-tree -r --name-only "$baseline" -- src | grep -E '^src/.*[.]php
+          php docs/examples/foundation-4-core.php
+          php docs/examples/foundation-4-runwire-worker.php
+      - name: Capture release evidence
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          directory=build/release-evidence
+          mkdir -p "$directory"
+          {
+            printf "source_sha=%s\n" "$SOURCE_SHA"
+            printf "ci_sha=%s\n" "$GITHUB_SHA"
+            printf "php=%s\n" "$(php -r 'echo PHP_VERSION;')"
+            printf "phpforge_workflow=%s\n" "fdec64cf4460f13116eb0e2f3405acadd3e84377"
+            printf "generated_at=%s\n" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } > "$directory/manifest.env"
+          php -m | sort > "$directory/php-extensions.txt"
+          composer show --locked --format=json > "$directory/dependencies.json"
+          git ls-files 'tests/*.php' 'tests/**/*.php' | sort > "$directory/test-files.txt"
+          awk 'NF { count++ } END { printf "test_file_inventory=%d\n", count }' "$directory/test-files.txt" > "$directory/test-inventory.env"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: foundation-release-evidence-${{ github.sha }}
+          path: build/release-evidence/
+          retention-days: 30
+ | LC_ALL=C sort) \
+              <(git ls-tree -r --name-only HEAD -- src | grep -E '^src/.*[.]php
+          php docs/examples/foundation-4-core.php
+          php docs/examples/foundation-4-runwire-worker.php
+      - name: Capture release evidence
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          directory=build/release-evidence
+          mkdir -p "$directory"
+          {
+            printf "source_sha=%s\n" "$SOURCE_SHA"
+            printf "ci_sha=%s\n" "$GITHUB_SHA"
+            printf "php=%s\n" "$(php -r 'echo PHP_VERSION;')"
+            printf "phpforge_workflow=%s\n" "fdec64cf4460f13116eb0e2f3405acadd3e84377"
+            printf "generated_at=%s\n" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } > "$directory/manifest.env"
+          php -m | sort > "$directory/php-extensions.txt"
+          composer show --locked --format=json > "$directory/dependencies.json"
+          git ls-files 'tests/*.php' 'tests/**/*.php' | sort > "$directory/test-files.txt"
+          awk 'NF { count++ } END { printf "test_file_inventory=%d\n", count }' "$directory/test-files.txt" > "$directory/test-inventory.env"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: foundation-release-evidence-${{ github.sha }}
+          path: build/release-evidence/
+          retention-days: 30
+ | LC_ALL=C sort)
+          )
+          if [ "${#removed[@]}" -ne 28 ]; then
+            echo "Published 2.1.1 source removal count drifted: ${#removed[@]} (expected 28)" >&2
+            exit 1
+          fi
+          for path in "${removed[@]}"; do
+            symbol="${path#src/}"
+            symbol="${symbol%.php}"
+            if ! grep -Fq "| \`$symbol\` |" docs/foundation-4-api-map.md; then
+              echo "Removed published 2.1.1 API is missing from migration map: $path" >&2
+              exit 1
+            fi
+          done
+          printf 'Verified all %s removed published 2.1.1 source paths.\n' "${#removed[@]}"
       - name: Execute migration bootstrap smoke examples
         run: |
           php docs/examples/foundation-4-core.php
