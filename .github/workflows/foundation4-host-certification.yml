@@ -9,6 +9,7 @@ on:
       - benchmarks/foundation4-host-certify.sh
       - benchmarks/foundation4-host-load.php
       - benchmarks/foundation4-host-report.php
+      - benchmarks/Phase9NativeReadHandler.php
       - benchmarks/phase9-server-compile.php
 
 permissions:
@@ -54,6 +55,14 @@ jobs:
           FOUNDATION_HOST_SOAK_SECONDS: "30"
           FOUNDATION_HOST_RESULT_DIR: ${{ github.workspace }}/build/foundation4-host
         run: bash benchmarks/foundation4-host-certify.sh
+      - name: Verify selected DBLayer CacheLayer and credential workload
+        env:
+          FOUNDATION_HOST_WORKLOAD_PROFILE: native-read
+          FOUNDATION_HOST_REQUESTS: "120"
+          FOUNDATION_HOST_REPEATS: "2"
+          FOUNDATION_HOST_SOAK_SECONDS: "30"
+          FOUNDATION_HOST_RESULT_DIR: ${{ github.workspace }}/build/foundation4-native
+        run: bash benchmarks/foundation4-host-certify.sh
       - name: Capture host toolchain and dependency identity
         if: always()
         run: |
@@ -72,6 +81,8 @@ jobs:
         if: always()
         with:
           name: foundation4-native-host-${{ github.sha }}
-          path: build/foundation4-host/
+          path: |
+            build/foundation4-host/
+            build/foundation4-native/
           if-no-files-found: warn
           retention-days: 30
