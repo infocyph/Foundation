@@ -44,12 +44,13 @@ final readonly class FoundationBuildContext
         ?array $capabilities = null,
     ): self {
         $capabilities = self::configuredCapabilities($config, $capabilities);
+        $features = ModuleFeatureCapabilityPolicy::fromConfig($config);
 
         return new self(
             runtimeMode: $runtimeMode,
             environment: ValueNormalizer::nullableString($config->get('app.container.environment'))
                 ?? ValueNormalizer::nullableString($config->get('app.env')),
-            config: $config->all(),
+            config: self::normalizedSourceConfig($config, $features),
             compiledConfig: $config->isCompiled(),
             capabilities: self::normalizeCapabilities($capabilities ?? []),
             capabilityOverrides: self::moduleCapabilityOverrides($config),
@@ -62,7 +63,7 @@ final readonly class FoundationBuildContext
                 ValueNormalizer::string($config->get('app.container.debug_tracing.level'), 'node'),
             ),
             capabilitiesExplicit: $capabilities !== null,
-            featureSelections: ModuleFeatureCapabilityPolicy::fromConfig($config),
+            featureSelections: $features,
         );
     }
 
@@ -156,6 +157,30 @@ final readonly class FoundationBuildContext
         ksort($normalized);
 
         return $normalized;
+    }
+
+    /**
+     * Canonicalize the selected-feature map before the InterMix graph is
+     * frozen; logically identical selections must keep the same graph digest.
+     *
+     * @param array<string,bool>|null $features
+     * @return array<string,mixed>
+     */
+    private static function normalizedSourceConfig(ConfigRepository $config, ?array $features): array
+    {
+        $source = $config->all();
+        if ($features === null) {
+            return $source;
+        }
+
+        $modules = $source['modules'] ?? [];
+        if (!is_array($modules)) {
+            throw new \UnexpectedValueException('modules must contain a keyed feature configuration map.');
+        }
+        $modules['features'] = $features;
+        $source['modules'] = $modules;
+
+        return $source;
     }
 
     private static function traceLevel(string $value): TraceLevelEnum
