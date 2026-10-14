@@ -223,6 +223,8 @@ jobs:
             '
             composer update "${composer_args[@]}"
             php infbyte list > commands.txt
+            php infbyte route:list > routes.txt
+            php infbyte optimize
             php -r '
               require "vendor/autoload.php";
               $app = require "bootstrap/app.php";

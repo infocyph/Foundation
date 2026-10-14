@@ -1748,6 +1748,10 @@ tests cannot establish atomicity or isolation; keep pure definition/config check
 portable. Add tests for changed contracts and reproduced defects, not mirrored
 implementation details.
 
+### 2026-10-14 — Batch 5 real Infbyte release build rehearsal (CI pending)
+
+Extended the actual cloned `Infbyte` skeleton candidate-source `--no-dev` workflow beyond Composer/metadata smoke: it now runs application `php infbyte route:list` and `php infbyte optimize` in each of the four PHP/dependency combinations before asserting the compiled-release bootstrap class. This tests real skeleton routes, providers and build-plane compiled Webrick/InterMix compatibility. The app's upstream Composer constraint stays untouched; CI uses a temporary path override. **Pending exact-head QA.** This is not full end-to-end FPM/Runwire host serving or a published 4.0 skeleton migration.
+
 ### 2026-10-14 — Batch 5 executable migration example acceptance (CI pending)
 
 The release-evidence workflow now **executes** both checked-in Foundation 4 migration samples on PHP 8.5 with resolved optional development packages: core-only CLI and explicitly selected host-passed Runwire worker. These run under an actual Composer installation after release constraints checks and fail CI if bootstrap/scoped DI contracts drift. This verifies sample executability rather than assuming it from a doc code fence. It does not replace the separate `--no-dev` production-consumer and Infbyte tests. **CI pending; acceptance unchanged.**
