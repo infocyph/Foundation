@@ -39,7 +39,7 @@ jobs:
         with:
           php-version: ${{ matrix.php-version }}
           tools: composer:v2
-          extensions: "mbstring, pdo, pdo_sqlite"
+          extensions: "mbstring, intl, sodium, fileinfo, zip, pdo, pdo_sqlite, pdo_mysql, pdo_pgsql, redis, memcached"
           coverage: none
       - name: Verify isolated production consumers
         shell: bash
@@ -125,6 +125,118 @@ jobs:
             '
             if composer show infocyph/phpforge >/dev/null 2>&1; then
               echo "PHPForge leaked into the optional production consumer." >&2
+              exit 1
+            fi
+          )
+
+          # Exercise the full published specialist set under production --no-dev.
+          # Availability of a library does not implicitly enable a capability.
+          full="$RUNNER_TEMP/foundation-full-consumer"
+          mkdir -p "$full/storage"
+          cat > "$full/composer.json" <<JSON
+          {
+            "name": "infocyph/foundation-full-consumer",
+            "type": "project",
+            "minimum-stability": "dev",
+            "prefer-stable": true,
+            "repositories": [
+              {"type": "path", "url": "$GITHUB_WORKSPACE", "options": {"symlink": false}}
+            ],
+            "require": {
+              "infocyph/foundation": "*",
+              "infocyph/dblayer": "^6.1",
+              "infocyph/epicrypt": "^3.2",
+              "infocyph/omnibus": "^3.0",
+              "infocyph/otp": "^7.0",
+              "infocyph/pathwise": "^4.2",
+              "infocyph/reqshield": "^3.3",
+              "infocyph/runwire": "^2.1.1",
+              "infocyph/talkingbytes": "^2.3",
+              "web-auth/webauthn-lib": "^5.3.9"
+            }
+          }
+          JSON
+          (
+            cd "$full"
+            composer update "${composer_args[@]}"
+            vendor/bin/infbyte list > commands.txt
+            vendor/bin/infbyte module:list --json > modules.json
+            php -r '
+              require "vendor/autoload.php";
+              foreach ([
+                  \Infocyph\Runwire\RuntimeContext::class,
+                  \Infocyph\DBLayer\Connection\Connection::class,
+                  \Infocyph\Omnibus\Envelope\Envelope::class,
+                  \Infocyph\TalkingBytes\Http\HttpClient::class,
+              ] as $class) {
+                  if (!class_exists($class)) {
+                      fwrite(STDERR, "Missing selected owner: " . $class . "\n");
+                      exit(1);
+                  }
+              }
+              $app = \Infocyph\Foundation\Foundation::worker([
+                  "app" => ["base_path" => getcwd(), "env" => "local", "capabilities" => ["runwire" => true]],
+                  "_config_cache" => false,
+              ])->boot();
+              $runtime = \Infocyph\Runwire\RuntimeContext::standalone();
+              $request = \Infocyph\Runwire\RequestContext::create($runtime);
+              try {
+                  $app->execution()->run(
+                      static function () use ($app, $runtime, $request): void {
+                          if ($app->make(\Infocyph\Runwire\RuntimeContext::class) !== $runtime
+                              || $app->make(\Infocyph\Runwire\RequestContext::class) !== $request
+                          ) {
+                              throw new \LogicException("Runwire host input identity changed.");
+                          }
+                      },
+                      [
+                          \Infocyph\Runwire\RuntimeContext::class => $runtime,
+                          \Infocyph\Runwire\RequestContext::class => $request,
+                      ],
+                  );
+              } finally {
+                  $request->complete();
+              }
+            '
+            if composer show infocyph/phpforge >/dev/null 2>&1; then
+              echo "PHPForge leaked into full production consumer." >&2
+              exit 1
+            fi
+          )
+
+          # Clone the real Infbyte skeleton into an isolated CI directory.
+          # Override only its Composer resolution; do not edit Infbyte main.
+          skeleton="$RUNNER_TEMP/foundation-infbyte-rehearsal"
+          git clone --depth=1 https://github.com/infocyph/Infbyte.git "$skeleton"
+          (
+            cd "$skeleton"
+            php -r '
+              $file = "composer.json";
+              $manifest = json_decode(file_get_contents($file), true, 512, JSON_THROW_ON_ERROR);
+              $manifest["repositories"] = [
+                  ["type" => "path", "url" => getenv("GITHUB_WORKSPACE"), "options" => ["symlink" => false]],
+              ];
+              $manifest["minimum-stability"] = "dev";
+              $manifest["prefer-stable"] = true;
+              $manifest["require"]["infocyph/foundation"] = "*";
+              file_put_contents($file, json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n");
+            '
+            composer update "${composer_args[@]}"
+            php infbyte list > commands.txt
+            php -r '
+              require "vendor/autoload.php";
+              $app = require "bootstrap/app.php";
+              if (!$app instanceof \Infocyph\Foundation\Application\Application) {
+                  fwrite(STDERR, "Infbyte bootstrap did not return a Foundation application.\n");
+                  exit(1);
+              }
+              if (!class_exists(\Infocyph\Foundation\Release\FoundationReleaseBootstrap::class)) {
+                  fwrite(STDERR, "Trusted web release bootstrap is absent.\n");
+                  exit(1);
+              }
+            '
+            if composer show infocyph/phpforge >/dev/null 2>&1; then
+              echo "PHPForge leaked into Infbyte production rehearsal." >&2
               exit 1
             fi
           )

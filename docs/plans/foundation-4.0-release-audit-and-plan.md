@@ -1748,6 +1748,10 @@ tests cannot establish atomicity or isolation; keep pure definition/config check
 portable. Add tests for changed contracts and reproduced defects, not mirrored
 implementation details.
 
+### 2026-10-14 — Batch 5 no-dev full topology and Infbyte candidate rehearsal (CI pending)
+
+Extended the **four PHP 8.4/8.5 × stable/lowest** production-consumer matrix: besides core-only and DBLayer-only, a third isolated `--no-dev` project installs all published specialist majors and optional Runwire, then checks native owner symbols and an explicit host-passed Runwire worker execution. A fourth CI project is a fresh temporary clone of real `infocyph/Infbyte` with a local **candidate path repository override** replacing its published `^3.0.1` Composer constraint; it checks the skeleton CLI and trusted bootstrap without changing Infbyte main. Both reject development PHPForge leakage. **This is an initial candidate smoke, not a complete compiled Infbyte deployment or a restored 2.1.1 database. CI pending, Batch 5 0/4 and total 25/37.**
+
 ### 2026-10-14 — Batch 5 migration inventory and examples (source pending QA)
 
 Compared source trees of published 2.1.1 (`f6749ebe0aa1f93c6b3586e8cb63ecc1f552d98b`) and current branch. `docs/foundation-4-api-map.md` enumerates **all 28 removed PHP source paths** and migration destinations, plus changed provider, DI, route cache, module, configuration, OAuth and passed-instance Runwire contracts. `docs/foundation-4-retained-data-rehearsal.md` explicitly distinguishes backup restoration from code rollback, inventories eight retained-data families and cites existing test evidence without asserting a real 2.1.1 backup has been restored. Both guides are linked from the migration guide and root/docs navigation; runtime-hosting documentation no longer claims Batch 3 is unfinished. Added runnable CLI and optional Runwire worker source examples. **CI pending; Batch 5 remains 0/4, overall 25/37.** An actual Infbyte application rehearsal is not done: its published root constraint currently points to Foundation `^3.0.1`.
