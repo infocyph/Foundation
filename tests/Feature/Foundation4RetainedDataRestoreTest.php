@@ -179,7 +179,7 @@ it('restores independently created Foundation 4 auth and OAuth state from a veri
         expect(password_verify('foundation-4-password', $savedHash))->toBeTrue()
             ->and((int) $savedSession)->toBe($now + 3600)
             ->and($savedFamily)->toBe('f4-family')
-            ->and($savedMfa['metadata'])->toContain($secret)
+            ->and(json_decode($savedMfa['metadata'], true, flags: JSON_THROW_ON_ERROR)['protected'])->toBe($secret)
             ->and((int) $savedMfa['revision'])->toBe(2)
             ->and($savedPasskey['credential_record'])->toBe($credential)
             ->and((int) $savedPasskey['sign_count'])->toBe(4)
