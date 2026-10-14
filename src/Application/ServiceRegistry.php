@@ -11,8 +11,14 @@ final class ServiceRegistry
     /** @var array<class-string<ServiceProviderInterface>, ServiceProviderInterface> */
     private array $providers = [];
 
+    private bool $sealed = false;
+
     public function add(ServiceProviderInterface $provider): void
     {
+        if ($this->sealed) {
+            throw new \LogicException('Foundation provider registration is closed after graph contribution.');
+        }
+
         $this->providers[$provider::class] = $provider;
     }
 
@@ -31,6 +37,10 @@ final class ServiceRegistry
 
     public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
     {
+        // Seal before the first callback so providers cannot add late graph
+        // owners while this or a subsequent immutable builder is composed.
+        $this->sealed = true;
+
         foreach ($this->providers as $provider) {
             $provider->contribute($builder, $context);
         }
