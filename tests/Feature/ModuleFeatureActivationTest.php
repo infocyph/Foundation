@@ -195,3 +195,32 @@ it('serializes concurrent module writers without losing unrelated activation ove
         featureActivationCleanup($path);
     }
 });
+
+it('does not rewrite config or invalidate its cache for unchanged feature topology', function (): void {
+    $path = featureActivationBasePath();
+    $config = $path . '/config/modules.php';
+    file_put_contents($config, "<?php\nreturn ['features' => ['security.passkey' => true]];\n");
+    $cacheDir = $path . '/bootstrap/cache/config';
+    mkdir($cacheDir, 0775, true);
+    file_put_contents($cacheDir . '/__manifest.php', '<?php return [];');
+
+    try {
+        $app = Foundation::cli(['base_path' => $path, '_config_cache' => false]);
+        $activation = new ModuleActivationManager($app, new ModuleCatalog());
+        $context = featureActivationContext();
+        $context['enabled'] = ['security.passkey'];
+
+        clearstatcache(true, $config);
+        $inode = fileinode($config);
+        $original = file_get_contents($config);
+        $result = $activation->applyFeatures('enable', ['security.passkey'], $context);
+        clearstatcache(true, $config);
+
+        expect($result)->toBe($config)
+            ->and(fileinode($config))->toBe($inode)
+            ->and(file_get_contents($config))->toBe($original)
+            ->and($cacheDir . '/__manifest.php')->toBeFile();
+    } finally {
+        featureActivationCleanup($path);
+    }
+});

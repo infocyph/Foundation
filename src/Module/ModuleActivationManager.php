@@ -239,7 +239,14 @@ final readonly class ModuleActivationManager
     private function writeUnderLock(string $path, Closure $change): string
     {
         $directory = dirname($path);
-        $config = $change($this->load($path));
+        $previous = $this->load($path);
+        $config = $change($previous);
+        if ($config === $previous) {
+            // A repeat activation with an identical feature topology must not
+            // republish the file or invalidate unrelated compiled config.
+            return $path;
+        }
+
         $temporary = tempnam($directory, '.foundation-modules-');
         if ($temporary === false) {
             throw new \RuntimeException('Unable to allocate module activation staging file.');
