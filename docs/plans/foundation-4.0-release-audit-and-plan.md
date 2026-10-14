@@ -1748,6 +1748,10 @@ tests cannot establish atomicity or isolation; keep pure definition/config check
 portable. Add tests for changed contracts and reproduced defects, not mirrored
 implementation details.
 
+### 2026-10-14 — Batch 5 executable migration example acceptance (CI pending)
+
+The release-evidence workflow now **executes** both checked-in Foundation 4 migration samples on PHP 8.5 with resolved optional development packages: core-only CLI and explicitly selected host-passed Runwire worker. These run under an actual Composer installation after release constraints checks and fail CI if bootstrap/scoped DI contracts drift. This verifies sample executability rather than assuming it from a doc code fence. It does not replace the separate `--no-dev` production-consumer and Infbyte tests. **CI pending; acceptance unchanged.**
+
 ### 2026-10-14 — Batch 5 auth retained-data snapshot / restore rehearsal (source pending QA)
 
 New `Foundation4RetainedDataRestoreTest` exercises a **file-backed** SQLite auth schema with retained password digest, active auth session, refresh-family identifier, MFA protected-field metadata and passkey counter. It snapshots DB bytes with SHA-256, runs Foundation 4 additive passkey/OAuth revisions using native DBLayer MigrationRunner, writes a candidate-only account, restores original bytes, then opens a fresh DB connection to verify all retained state and absence of new OAuth tables/account. **This is a synthetic 2.1.1-shaped schema snapshot, not an actual pre-upgrade production backup nor a queue/blob restore.** The remaining operator backup/restore rehearsal is explicit in the retained-data runbook. CI pending; no Batch 5 gate accepted (0/4, overall 25/37).

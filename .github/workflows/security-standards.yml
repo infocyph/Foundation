@@ -260,6 +260,10 @@ jobs:
         run: |
           composer validate --strict
           composer ic:release:constraints
+      - name: Execute migration bootstrap smoke examples
+        run: |
+          php docs/examples/foundation-4-core.php
+          php docs/examples/foundation-4-runwire-worker.php
       - name: Capture release evidence
         shell: bash
         env:
