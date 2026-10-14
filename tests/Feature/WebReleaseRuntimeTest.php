@@ -657,6 +657,166 @@ it('isolates two interleaved compiled Runwire requests when one host request is 
     }
 });
 
+
+final class FoundationRunwireDeferredWriter implements \Infocyph\Runwire\Http\ResponseWriterInterface
+{
+    public int $status = 0;
+
+    public int $endCalls = 0;
+
+    public string $body = '';
+
+    private bool $started = false;
+
+    private bool $ended = false;
+
+    private ?Closure $drainCallback = null;
+
+    private ?Closure $terminalCallback = null;
+
+    public function start(
+        int $status = 200,
+        ?\Infocyph\Runwire\Http\Headers $headers = null,
+    ): \Infocyph\Runwire\Network\WriteResult {
+        unset($headers);
+        $this->status = $status;
+        $this->started = true;
+
+        return new \Infocyph\Runwire\Network\WriteResult(
+            \Infocyph\Runwire\Network\Enum\WriteState::PRESSURED,
+            1,
+        );
+    }
+
+    public function write(string $chunk): \Infocyph\Runwire\Network\WriteResult
+    {
+        $this->body .= $chunk;
+
+        return new \Infocyph\Runwire\Network\WriteResult(
+            \Infocyph\Runwire\Network\Enum\WriteState::ACCEPTED,
+            0,
+        );
+    }
+
+    public function end(string $finalChunk = ''): \Infocyph\Runwire\Network\WriteResult
+    {
+        $this->body .= $finalChunk;
+        ++$this->endCalls;
+        $this->ended = true;
+        ($this->terminalCallback)?->__invoke($this);
+
+        return new \Infocyph\Runwire\Network\WriteResult(
+            \Infocyph\Runwire\Network\Enum\WriteState::ACCEPTED,
+            0,
+        );
+    }
+
+    public function isStarted(): bool
+    {
+        return $this->started;
+    }
+
+    public function isEnded(): bool
+    {
+        return $this->ended;
+    }
+
+    public function onDrain(callable $callback): self
+    {
+        $this->drainCallback = Closure::fromCallable($callback);
+
+        return $this;
+    }
+
+    public function onTerminal(callable $callback): self
+    {
+        $this->terminalCallback = Closure::fromCallable($callback);
+
+        return $this;
+    }
+
+    public function drain(): void
+    {
+        $callback = $this->drainCallback;
+        $this->drainCallback = null;
+        $callback?->__invoke($this);
+    }
+}
+
+it('defers Runwire response finalization until native writer drain and completes once', function (): void {
+    $project = foundationWebReleaseProject();
+    file_put_contents(
+        $project . '/routes/web.php',
+        "\nRouter::get('/runwire-context', [FoundationRunwireReleaseContextHandler::class, 'show']);\n",
+        FILE_APPEND,
+    );
+    $config = [
+        'app' => ['base_path' => $project, 'env' => 'production', 'debug' => false],
+        '_config_cache' => false,
+        'router' => [
+            'files' => ['web.php'],
+            'matcher' => 'fused',
+            'middleware' => ['globals' => ['pre' => [], 'post' => []]],
+        ],
+    ];
+    $manifest = $project . '/bootstrap/cache/release.json';
+
+    try {
+        $compiled = new WebReleaseCompiler()->compile(
+            $config,
+            $project . '/bootstrap/cache/intermix.php',
+            $project . '/bootstrap/cache/router.php',
+            $manifest,
+            capabilities: ['runwire'],
+        );
+        $loaded = WebReleaseRuntime::loadPrevalidated(
+            $config,
+            $manifest,
+            (string) $compiled['release_runtime_manifest_sha256'],
+            foundationCapabilities: ['runwire'],
+        );
+        $runtime = \Infocyph\Runwire\RuntimeContext::standalone();
+        $request = \Infocyph\Runwire\RequestContext::create($runtime, requestId: 'deferred-writer');
+        $native = new \Infocyph\Runwire\Http\HttpRequest(
+            method: 'GET',
+            target: '/runwire-context',
+            version: \Infocyph\Runwire\Http\Enum\ProtocolVersion::HTTP_1_1,
+            headers: \Infocyph\Runwire\Http\Headers::fromArray(['Host' => 'release.test']),
+            body: new \Infocyph\Foundation\Tests\Fixtures\RunwireEmptyBody(),
+            context: $request,
+        );
+        $writer = new FoundationRunwireDeferredWriter();
+        $host = $loaded->runwireApplication($runtime);
+        $host->start();
+
+        try {
+            $host->handle($native, $writer, completeResponse: true);
+
+            expect($writer->status)->toBe(200)
+                ->and($writer->isStarted())->toBeTrue()
+                ->and($writer->isEnded())->toBeFalse()
+                ->and($writer->endCalls)->toBe(0)
+                ->and($request->completed())->toBeFalse();
+
+            $writer->drain();
+
+            expect($writer->isEnded())->toBeTrue()
+                ->and($writer->endCalls)->toBe(1)
+                ->and($request->completed())->toBeTrue()
+                ->and(json_decode($writer->body, true, flags: JSON_THROW_ON_ERROR)['request'])
+                ->toBe('deferred-writer');
+
+            $writer->drain();
+            expect($writer->endCalls)->toBe(1);
+        } finally {
+            $host->shutdown();
+        }
+    } finally {
+        foundationResetWebrickProductionRegistries();
+        foundationWebReleaseRemove($project);
+    }
+});
+
 it('retains the trusted web release lease for the Runwire host lifetime', function (): void {
     $project = foundationWebReleaseProject();
     $config = [
