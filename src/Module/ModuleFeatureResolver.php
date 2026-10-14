@@ -8,6 +8,7 @@ namespace Infocyph\Foundation\Module;
  * Pure, fixture-friendly resolution of the selected 4.0 feature topology.
  * No Composer, environment, application filesystem or installed-version reads.
  *
+ * @phpstan-import-type ArchitectureFeature from ModuleArchitectureCatalog
  * @phpstan-type Context array{
  *     root_known:bool,
  *     root_requirements:array<string,string>,
@@ -94,7 +95,6 @@ final readonly class ModuleFeatureResolver
     /**
      * @phpstan-param Context $context
      * @phpstan-return FeatureState
-     * @phpstan-import-type ArchitectureFeature from ModuleArchitectureCatalog
      * @phpstan-param ArchitectureFeature $definition
      */
     private function featureState(string $id, array $definition, array $context): array
