@@ -212,6 +212,57 @@ it('accepts CSRF tokens only from the configured header or body', function (): v
         ->and($store->load($id, time()))->not->toBeNull();
 });
 
+it('rejects cross-session and superseded CSRF tokens without invalidating other sessions', function (): void {
+    [$sessionMiddleware, , , $config] = browserSessionStack();
+    $csrf = new CsrfMiddleware($config);
+    $bootstrap = static fn(): Response => $sessionMiddleware(
+        Request::fake(headers: ['Host' => 'example.test'], uri: 'https://example.test/form'),
+        static fn(Request $request): Response => Response::json([
+            'token' => BrowserSession::fromRequest($request)->csrfToken(),
+        ]),
+    );
+    $first = $bootstrap();
+    $second = $bootstrap();
+    $firstId = browserSessionCookieId($first);
+    $secondId = browserSessionCookieId($second);
+    $firstToken = browserSessionJson($first)['token'];
+    $secondToken = browserSessionJson($second)['token'];
+    $submit = static fn(string $id, string $token): Response => $sessionMiddleware(
+        Request::fake(
+            headers: [
+                'Host' => 'example.test',
+                'Origin' => 'https://example.test',
+                'X-CSRF-Token' => $token,
+            ],
+            method: 'POST',
+            uri: 'https://example.test/save',
+        )->withCookieParams(['infbyte_session' => $id]),
+        static fn(Request $request): Response => $csrf(
+            $request,
+            static fn(): Response => Response::json(['ok' => true]),
+        ),
+    );
+
+    expect($firstId)->not->toBe($secondId)
+        ->and($firstToken)->not->toBe($secondToken)
+        ->and($submit($secondId, $firstToken)->getStatusCode())->toBe(419)
+        ->and($submit($firstId, $firstToken)->getStatusCode())->toBe(200);
+
+    $rotated = $sessionMiddleware(
+        Request::fake(headers: ['Host' => 'example.test'], uri: 'https://example.test/rotate')
+            ->withCookieParams(['infbyte_session' => $firstId]),
+        static fn(Request $request): Response => Response::json([
+            'token' => BrowserSession::fromRequest($request)->regenerateCsrfToken(),
+        ]),
+    );
+    $replacementToken = browserSessionJson($rotated)['token'];
+
+    expect($replacementToken)->not->toBe($firstToken)
+        ->and($submit($firstId, $firstToken)->getStatusCode())->toBe(419)
+        ->and($submit($firstId, $replacementToken)->getStatusCode())->toBe(200)
+        ->and($submit($secondId, $secondToken)->getStatusCode())->toBe(200);
+});
+
 it('does not activate session services for routes that do not select them', function (): void {
     $project = browserSessionProject([
         'routes/web.php' => <<<'PHP'
