@@ -1776,6 +1776,10 @@ Extended the **four PHP 8.4/8.5 × stable/lowest** production-consumer matrix: b
 
 Compared source trees of published 2.1.1 (`f6749ebe0aa1f93c6b3586e8cb63ecc1f552d98b`) and current branch. `docs/foundation-4-api-map.md` enumerates **all 28 removed PHP source paths** and migration destinations, plus changed provider, DI, route cache, module, configuration, OAuth and passed-instance Runwire contracts. `docs/foundation-4-retained-data-rehearsal.md` explicitly distinguishes backup restoration from code rollback, inventories eight retained-data families and cites existing test evidence without asserting a real 2.1.1 backup has been restored. Both guides are linked from the migration guide and root/docs navigation; runtime-hosting documentation no longer claims Batch 3 is unfinished. Added runnable CLI and optional Runwire worker source examples. **CI pending; Batch 5 remains 0/4, overall 25/37.** An actual Infbyte application rehearsal is not done: its published root constraint currently points to Foundation `^3.0.1`.
 
+### 2026-10-14 — Move API map guard into standalone shell script
+
+`cf41bb56` was rejected by GitHub before scheduling any jobs while retaining the multi-line inline API diff. The workflow now contains only `bash scripts/verify-foundation-2-api-map.sh`; the source compare, 28 removed-path count assertion and mapping verification live in a separately inspectable shell script. Migration examples and release-evidence dependency gates are preserved. CI pending; Batch 5 remains 0/4, overall 25/37.
+
 ### 2026-10-14 — Repair malformed migration API release guard
 
 Prior `a69885d3` CI failed to parse the YAML because its generated multi-line shell step was truncated. This is a workflow-definition failure, not a release compiler or dependency regression. Restored a literal line-by-line source-diff guard and the existing runnable bootstrap smoke step. The guard checks that all 28 removed 2.1.1 PHP source paths appear in the API migration inventory. **New exact-head CI pending; acceptance not advanced.**
