@@ -235,6 +235,13 @@ jobs:
         run: |
           php docs/examples/foundation-4-core.php
           php docs/examples/foundation-4-runwire-worker.php
+      - name: Capture pre-rework Foundation module CLI baseline
+        env:
+          FOUNDATION_MODULE_BASELINE_OUTPUT: build/release-evidence/module-cli-baseline.json
+          FOUNDATION_MODULE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          mkdir -p build/release-evidence
+          php benchmarks/foundation4-module-cli-baseline.php
       - name: Capture release evidence
         shell: bash
         env:
