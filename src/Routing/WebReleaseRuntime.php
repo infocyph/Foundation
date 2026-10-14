@@ -17,7 +17,6 @@ use Infocyph\Runwire\Coroutine\CoroutineScope;
 use Infocyph\Runwire\Http\HttpRequest;
 use Infocyph\Runwire\Http\ResponseWriterInterface;
 use Infocyph\Runwire\RuntimeContext;
-
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 use Infocyph\Webrick\Router\Build\ReleaseCompiler as WebrickReleaseCompiler;
@@ -43,6 +42,56 @@ final readonly class WebReleaseRuntime
         public RuntimeCapabilities $capabilities,
         public ?LoadedReleaseGeneration $loadedReleaseGeneration = null,
     ) {}
+
+    /**
+     * @param array<string, mixed> $config
+     * @param array<int|string, mixed> $foundationCapabilities Must match compile-time topology; [] is minimal.
+     */
+    public static function load(
+        array $config,
+        string $releaseManifestPath,
+        ?RuntimeAdapterInterface $adapter = null,
+        array $foundationCapabilities = [],
+    ): self {
+        return self::boot($config, $releaseManifestPath, $adapter, false, $foundationCapabilities);
+    }
+
+    /**
+     * Load one release from a trusted normalized config snapshot without source discovery.
+     *
+     * @param array<int|string, mixed> $foundationCapabilities Must match compile-time topology; [] is minimal.
+     */
+    public static function loadCompiled(
+        ConfigRepository $config,
+        string $releaseManifestPath,
+        ?RuntimeAdapterInterface $adapter = null,
+        array $foundationCapabilities = [],
+        ?string $matcherCachePath = null,
+    ): self {
+        self::assertCompiledConfig($config);
+
+        return self::boot($config, $releaseManifestPath, $adapter, false, $foundationCapabilities, $matcherCachePath);
+    }
+
+    /**
+     * Load using an externally trusted SHA-256 identity for the exact manifest
+     * selected by Webrick. The digest must come from immutable deployment
+     * metadata, never from the release directory being validated.
+     *
+     * @param array<string, mixed> $config
+     * @param array<int|string, mixed> $foundationCapabilities Must match compile-time topology; [] is minimal.
+     */
+    public static function loadPrevalidated(
+        array $config,
+        string $releaseManifestPath,
+        string $trustedManifestSha256,
+        ?RuntimeAdapterInterface $adapter = null,
+        array $foundationCapabilities = [],
+    ): self {
+        self::assertTrustedManifest($releaseManifestPath, $trustedManifestSha256);
+
+        return self::boot($config, $releaseManifestPath, $adapter, true, $foundationCapabilities);
+    }
 
     /**
      * Construct the selected Webrick/Runwire host application from this trusted
@@ -95,56 +144,6 @@ final readonly class WebReleaseRuntime
 
             throw $exception;
         }
-    }
-
-    /**
-     * @param array<string, mixed> $config
-     * @param array<int|string, mixed> $foundationCapabilities Must match compile-time topology; [] is minimal.
-     */
-    public static function load(
-        array $config,
-        string $releaseManifestPath,
-        ?RuntimeAdapterInterface $adapter = null,
-        array $foundationCapabilities = [],
-    ): self {
-        return self::boot($config, $releaseManifestPath, $adapter, false, $foundationCapabilities);
-    }
-
-    /**
-     * Load one release from a trusted normalized config snapshot without source discovery.
-     *
-     * @param array<int|string, mixed> $foundationCapabilities Must match compile-time topology; [] is minimal.
-     */
-    public static function loadCompiled(
-        ConfigRepository $config,
-        string $releaseManifestPath,
-        ?RuntimeAdapterInterface $adapter = null,
-        array $foundationCapabilities = [],
-        ?string $matcherCachePath = null,
-    ): self {
-        self::assertCompiledConfig($config);
-
-        return self::boot($config, $releaseManifestPath, $adapter, false, $foundationCapabilities, $matcherCachePath);
-    }
-
-    /**
-     * Load using an externally trusted SHA-256 identity for the exact manifest
-     * selected by Webrick. The digest must come from immutable deployment
-     * metadata, never from the release directory being validated.
-     *
-     * @param array<string, mixed> $config
-     * @param array<int|string, mixed> $foundationCapabilities Must match compile-time topology; [] is minimal.
-     */
-    public static function loadPrevalidated(
-        array $config,
-        string $releaseManifestPath,
-        string $trustedManifestSha256,
-        ?RuntimeAdapterInterface $adapter = null,
-        array $foundationCapabilities = [],
-    ): self {
-        self::assertTrustedManifest($releaseManifestPath, $trustedManifestSha256);
-
-        return self::boot($config, $releaseManifestPath, $adapter, true, $foundationCapabilities);
     }
 
     /**
