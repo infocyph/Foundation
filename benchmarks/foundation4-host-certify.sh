@@ -13,7 +13,7 @@ SERVICE_PID=""
 PROXY_PID=""
 SAMPLER_PID=""
 
-for command in php "$FPM_BIN" nginx ab curl ps awk setsid; do
+for command in php "$FPM_BIN" nginx curl ps awk setsid; do
     if ! command -v "$command" >/dev/null 2>&1; then
         echo "Missing host certification prerequisite: $command" >&2
         exit 1
@@ -26,7 +26,7 @@ if [[ ! "$REQUESTS" =~ ^[0-9]+$ || "$REQUESTS" -lt 100 ||
 fi
 
 mkdir -p "$OUTPUT"
-rm -f "$OUTPUT"/*.ab.txt "$OUTPUT"/*.samples.csv
+rm -f "$OUTPUT"/*.load.json "$OUTPUT"/*.samples.csv
 printf 'source_sha=%s\nphp=%s\nfpm=%s\n' \
     "${GITHUB_SHA:-working-tree}" "$(php -r 'echo PHP_VERSION;')" "$("$FPM_BIN" -v | head -n 1)" > "$OUTPUT/host.env"
 
@@ -182,9 +182,10 @@ for host in fpm runwire; do
                     exit 1
                 }
                 start_sampler "$OUTPUT/$prefix.samples.csv"
-                if ! timeout 90s ab -k -s 20 -n "$REQUESTS" -c "$concurrency" \
-                    "$url/json" > "$OUTPUT/$prefix.ab.txt"; then
-                    echo "$prefix: ApacheBench failed" >&2
+                if ! timeout 90s php "$ROOT/benchmarks/foundation4-host-load.php" \
+                    "$url/json" "$REQUESTS" "$concurrency" "$OUTPUT/$prefix.load.json" \
+                    > "$OUTPUT/$prefix.load.log"; then
+                    echo "$prefix: HTTP/1.1 response-validation load failed" >&2
                     exit 1
                 fi
                 kill "$SAMPLER_PID" 2>/dev/null || true
