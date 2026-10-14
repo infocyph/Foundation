@@ -303,3 +303,86 @@ function foundationWebReleaseRemove(string $directory): void
     }
     rmdir($directory);
 }
+
+it('boots an explicitly compiled Runwire web host through native Webrick and InterMix', function (): void {
+    $project = foundationWebReleaseProject();
+    $config = [
+        'app' => [
+            'base_path' => $project,
+            'env' => 'production',
+            'debug' => false,
+        ],
+        '_config_cache' => false,
+        'router' => [
+            'files' => ['web.php'],
+            'matcher' => 'fused',
+            'middleware' => ['globals' => ['pre' => [], 'post' => []]],
+        ],
+    ];
+    $intermix = $project . '/bootstrap/cache/intermix.php';
+    $router = $project . '/bootstrap/cache/router.php';
+    $manifest = $project . '/bootstrap/cache/release.json';
+    $capabilities = ['runwire'];
+    try {
+        $release = new WebReleaseCompiler()->compile(
+            $config,
+            $intermix,
+            $router,
+            $manifest,
+            capabilities: $capabilities,
+        );
+        expect($release['intermix']['skipped'] ?? null)->toBe([]);
+
+        $loaded = WebReleaseRuntime::loadPrevalidated(
+            $config,
+            $manifest,
+            (string) $release['release_runtime_manifest_sha256'],
+            foundationCapabilities: $capabilities,
+        );
+        $runtime = \Infocyph\Runwire\RuntimeContext::standalone();
+        $host = $loaded->runwireApplication($runtime);
+
+        expect($host)->toBeInstanceOf(\Infocyph\Webrick\Runtime\Http\RunwireRuntimeApplication::class);
+        $host->start();
+        expect($host->healthy())->toBeTrue();
+        $host->shutdown();
+    } finally {
+        foundationResetWebrickProductionRegistries();
+        foundationWebReleaseRemove($project);
+    }
+});
+
+it('refuses implicit Runwire host construction from a plain PHP web release', function (): void {
+    $project = foundationWebReleaseProject();
+    $config = [
+        'app' => [
+            'base_path' => $project,
+            'env' => 'production',
+            'debug' => false,
+        ],
+        '_config_cache' => false,
+        'router' => [
+            'files' => ['web.php'],
+            'matcher' => 'fused',
+            'middleware' => ['globals' => ['pre' => [], 'post' => []]],
+        ],
+    ];
+    $intermix = $project . '/bootstrap/cache/intermix.php';
+    $router = $project . '/bootstrap/cache/router.php';
+    $manifest = $project . '/bootstrap/cache/release.json';
+    try {
+        $release = new WebReleaseCompiler()->compile($config, $intermix, $router, $manifest, []);
+        $loaded = WebReleaseRuntime::loadPrevalidated(
+            $config,
+            $manifest,
+            (string) $release['release_runtime_manifest_sha256'],
+            foundationCapabilities: [],
+        );
+
+        expect(fn(): mixed => $loaded->runwireApplication(\Infocyph\Runwire\RuntimeContext::standalone()))
+            ->toThrow(LogicException::class, 'runwire capability');
+    } finally {
+        foundationResetWebrickProductionRegistries();
+        foundationWebReleaseRemove($project);
+    }
+});

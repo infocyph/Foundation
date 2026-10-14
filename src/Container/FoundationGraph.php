@@ -16,6 +16,7 @@ use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Runtime\ExecutionId;
 use Infocyph\Foundation\Runtime\ExecutionScope;
 use Infocyph\Foundation\Runtime\RuntimeExecutionState;
+use Infocyph\InterMix\Integration\Runwire\RunwireIntegration;
 use Infocyph\Foundation\Scheduling\ScheduledCommand;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
@@ -54,6 +55,16 @@ final class FoundationGraph
 
         if ($context->runtimeMode === RuntimeMode::Web) {
             $builder->input(Request::class);
+            if ($context->hasCapability('runwire')) {
+                if (!class_exists(\Infocyph\Runwire\RuntimeContext::class)) {
+                    throw new \LogicException(
+                        'A Runwire-enabled Foundation web graph requires infocyph/runwire 2.1.1 or later.',
+                    );
+                }
+                // InterMix owns the three host inputs. They are compiled only
+                // for an explicitly selected Runwire web release topology.
+                RunwireIntegration::registerInputs($builder);
+            }
         } else {
             $builder->input(ExecutionId::class);
         }

@@ -11,6 +11,13 @@ use Infocyph\Foundation\Http\Response\ExceptionRenderer;
 use Infocyph\Foundation\Logging\HttpExceptionLogger;
 use Infocyph\Foundation\Runtime\LoadedReleaseGeneration;
 use Infocyph\InterMix\DI\ProductionContainer;
+use Infocyph\InterMix\DI\ScopeContext;
+use Infocyph\InterMix\Integration\Runwire\RunwireIntegration;
+use Infocyph\Runwire\Coroutine\CoroutineScope;
+use Infocyph\Runwire\Http\HttpRequest;
+use Infocyph\Runwire\Http\ResponseWriterInterface;
+use Infocyph\Runwire\RuntimeContext;
+
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 use Infocyph\Webrick\Router\Build\ReleaseCompiler as WebrickReleaseCompiler;
@@ -20,6 +27,8 @@ use Infocyph\Webrick\Router\Kernel\ErrorHandler;
 use Infocyph\Webrick\Runtime\Http\RuntimeAdapterInterface;
 use Infocyph\Webrick\Runtime\Http\RuntimeCapabilities;
 use Infocyph\Webrick\Runtime\Http\RuntimeServer;
+use Infocyph\Webrick\Runtime\Http\RunwireRuntimeAdapter;
+use Infocyph\Webrick\Runtime\Http\RunwireRuntimeApplication;
 use Infocyph\Webrick\Runtime\Http\SapiRuntimeAdapter;
 use Psr\Log\LoggerInterface;
 use Throwable;
@@ -34,6 +43,57 @@ final readonly class WebReleaseRuntime
         public RuntimeCapabilities $capabilities,
         public ?LoadedReleaseGeneration $loadedReleaseGeneration = null,
     ) {}
+
+    /**
+     * Construct the selected Webrick/Runwire host application from this trusted
+     * compiled web generation and a caller-owned Runwire runtime.
+     *
+     * Webrick owns HTTP adaptation/response emission, InterMix owns scoped DI,
+     * and Runwire owns request/task/cancellation/shutdown lifetimes. A host
+     * requesting this path must compile the web release with the explicit
+     * 'runwire' capability; the ordinary SAPI topology stays untouched.
+     *
+     * @param null|callable(HttpRequest):?CoroutineScope $coroutineScope
+     * @param null|callable(HttpRequest):?ScopeContext $scopeContext
+     */
+    public function runwireApplication(
+        RuntimeContext $runtime,
+        ?callable $coroutineScope = null,
+        ?callable $scopeContext = null,
+    ): RunwireRuntimeApplication {
+        foreach ([RuntimeContext::class, \Infocyph\Runwire\RequestContext::class, CoroutineScope::class] as $id) {
+            if (!$this->container->has($id)) {
+                throw new \LogicException(
+                    'Runwire web hosting requires a Foundation release compiled with the runwire capability.',
+                );
+            }
+        }
+
+        $integration = new RunwireIntegration($this->container);
+        $integration->bind($runtime);
+
+        try {
+            $adapter = new RunwireRuntimeAdapter(
+                runtimeContext: $runtime,
+                interMix: $integration,
+                coroutineScope: $coroutineScope,
+                scopeContext: $scopeContext,
+            );
+            $server = new RuntimeServer($this->kernel, $adapter);
+
+            return new RunwireRuntimeApplication(
+                handler: static function (HttpRequest $request, ResponseWriterInterface $writer) use ($server): void {
+                    $server->handle($request, $writer);
+                },
+                runtimeContext: $runtime,
+                shutdown: static fn(): mixed => $integration->release($runtime),
+            );
+        } catch (\Throwable $exception) {
+            $integration->release($runtime);
+
+            throw $exception;
+        }
+    }
 
     /**
      * @param array<string, mixed> $config
