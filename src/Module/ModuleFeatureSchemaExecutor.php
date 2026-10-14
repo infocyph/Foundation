@@ -80,7 +80,7 @@ final readonly class ModuleFeatureSchemaExecutor
     private function assertReady(array $results): void
     {
         foreach ($results as $status) {
-            if ($status['applicable'] && !$status['installed']) {
+            if (!$status['applicable'] || !$status['installed']) {
                 throw new \RuntimeException('Messaging schema is not ready: ' . $status['detail']);
             }
         }
