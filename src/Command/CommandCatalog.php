@@ -295,7 +295,9 @@ final class CommandCatalog
 
             new CommandDefinition('runtime:reload', 'Request graceful reload of persistent Foundation runtimes.', 'Operations'),
 
-            new CommandDefinition('route:list', 'List application routes.', 'Routing', capabilities: ['web'])
+            // RouteInspector constructs a temporary Webrick graph itself.
+            // This CLI command has no web router binding to activate.
+            new CommandDefinition('route:list', 'List application routes.', 'Routing')
                 ->option('routes', 'Comma-separated route files.', acceptsValue: true),
 
             new CommandDefinition('schedule:cache', 'Compile scheduler metadata.', 'Scheduling'),

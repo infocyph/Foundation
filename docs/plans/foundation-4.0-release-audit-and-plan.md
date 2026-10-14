@@ -1748,6 +1748,10 @@ tests cannot establish atomicity or isolation; keep pure definition/config check
 portable. Add tests for changed contracts and reproduced defects, not mirrored
 implementation details.
 
+### 2026-10-14 — Batch 5 real Infbyte route:list compatibility defect (fix pending exact-HEAD QA)
+
+[Candidate CI #38515224305](https://github.com/infocyph/Foundation/actions/runs/38515224305) **failed all four no-dev consumer combinations** on `php infbyte route:list`: `Unable to resolve service "foundation.router"`. This was **reproduced by code inspection** as CommandCatalog's incorrect `capabilities: ['web']` prerequisite, because `CommandResolver::activateCapabilities` tried to resolve a Webrick router from the CLI graph while `RouteInspector` already creates a temporary Webrick graph to inspect source routes. Removed only the CLI prerequisite (no change to Webrick or routing ownership) and updated `RouteInspectorTest` to prove listing with explicit empty `app.capabilities` and zero CLI router dependencies. The real cloned Infbyte `route:list` and `optimize` rehearsal stays enabled to verify this fix. **Exact-head QA pending, Batch 5 0/4, total 25/37.**
+
 ### 2026-10-14 — Batch 5 real Infbyte release build rehearsal (CI pending)
 
 Extended the actual cloned `Infbyte` skeleton candidate-source `--no-dev` workflow beyond Composer/metadata smoke: it now runs application `php infbyte route:list` and `php infbyte optimize` in each of the four PHP/dependency combinations before asserting the compiled-release bootstrap class. This tests real skeleton routes, providers and build-plane compiled Webrick/InterMix compatibility. The app's upstream Composer constraint stays untouched; CI uses a temporary path override. **Pending exact-head QA.** This is not full end-to-end FPM/Runwire host serving or a published 4.0 skeleton migration.
