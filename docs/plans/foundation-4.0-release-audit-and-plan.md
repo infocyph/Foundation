@@ -4,7 +4,20 @@ Audit date: 2026-10-11. Target: **Foundation 4.0 as a clean major release**.
 No backward-compatibility, migration-path, or source-signature parity obligation
 exists for Foundation 2.x, unreleased 3.x, or retired specialist majors.
 
-**Live release checkpoint (2026-10-14): B1 6/6, B2 8/8, B3 4/4, B4 7/7, B5 2/4, B6 0/8 = 27/37 (73.0%).** The 4.0-only product decision supersedes all earlier-major compatibility/migration gates. Batch 5 #1 and #4 remain accepted; #2 and #3 are **OPEN under revised 4.0-native acceptance criteria**, not retrospectively passed. Last verified fully green pre-mandate HEAD `267c91c7`, [Security & Standards #38522632779](https://github.com/infocyph/Foundation/actions/runs/38522632779) succeeded: QA 4/4, PHPStan 2/2, production consumers 4/4, benchmark jobs 2/2, clean install and release evidence. Subsequent documentation/workflow commits remove the prior-tag API guard and describe current 4.0 contracts; **exact-new-head CI must pass before they are accepted as verified**. Keep native library ownership, explicit application policy, no duplicate Runwire/Webrick/CacheLayer/DBLayer/OTP/Epicrypt/Omnibus/Pathwise/TalkingBytes. Infbyte integration is a separate future task. All earlier date-stamped legacy-diff checkpoint notes below are history, not live release policy. PR #20 is draft; no merge/tag/publication.
+**Live release checkpoint (2026-10-14): B1 6/6, B2 8/8, B3 4/4, B4 7/7, B5 4/4, B6 0/8 = 29/37 (78.4%).** Batch 5's four 4.0-native contracts are accepted on exact-source [`6435bd89`](https://github.com/infocyph/Foundation/commit/6435bd8986ce6eb3139e40173a33c7a69a2e9b34), [Security & Standards #38526599007](https://github.com/infocyph/Foundation/actions/runs/38526599007) **SUCCESS**: QA 4/4, PHPStan 2/2, production consumers 4/4, benchmark jobs 2/2, clean install, PHPForge doctor and release evidence. The old-major API inventory guard is retired, and current 4.0 API/state tests pass. Keep native library ownership, explicit application policy, no duplicate Runwire/Webrick/CacheLayer/DBLayer/OTP/Epicrypt/Omnibus/Pathwise/TalkingBytes. Infbyte integration is a separate future task. All earlier date-stamped legacy-diff checkpoint notes below are history, not live release policy. PR #20 is draft; no merge/tag/publication.
+
+### 2026-10-14 — Batch 5 complete: 4/4 accepted on exact-source QA
+
+**Verified:** [Security & Standards #38526599007](https://github.com/infocyph/Foundation/actions/runs/38526599007) at [`6435bd89`](https://github.com/infocyph/Foundation/commit/6435bd8986ce6eb3139e40173a33c7a69a2e9b34): QA PHP 8.4/8.5 × lowest/stable 4/4, PHPStan 2/2, production consumers 4/4, benchmark jobs 2/2, clean install and release evidence. Release evidence ran `composer ic:doctor`, Composer constraints, current bootstrap examples, and recorded resolved dependencies and lock/INI evidence. Security Report is optional/skipped. No representative sustained-host RPM certification is inferred from component benchmark jobs.
+
+| Gate | 4.0-only acceptance and scope |
+| --- | --- |
+| **#1 current guides/examples** | **ACCEPTED** in previous verified CI, reconfirmed. Current setup/runtime docs, native entrypoints and executed CLI/Runwire examples. |
+| **#2 current public/provider/config contracts** | **ACCEPTED**. `Foundation4PublicContractTest` exercises native InterMix provider contribute-before-boot, declared `ContainerBuilder`/`FoundationBuildContext` types, explicit capability-disabled policy and all runtime modes. `RuntimeCapabilityConfigTest`, `NativeCapabilityPolicyIntegrationTest`, `ExecutionScopeIsolationTest`, `FoundationReleaseEndToEndTest` and `WebReleaseRuntimeTest` cover configuration, scoped/native identity, source-free compiled generation/trust. Full-selected consumer checks prove current Webrick/InterMix/Runwire ABI. No older-tag diff is required. |
+| **#3 4.0-native retained state/recovery** | **ACCEPTED (source/rehearsal scope)**. `Foundation4RetainedDataRestoreTest` creates current DBLayer Foundation 4 auth/OAuth schemas, saves and SHA-verifies a file snapshot, then restores and verifies password, session, refresh family, MFA, passkey and OAuth records. Existing `AuthDomainIntegrationTest`, `OAuth21RefreshConcurrencyTest`, `OtpPasskeyIntegrationTest`, `Epicrypt3MfaSecretProtectionTest`, `CacheLayer4PdoOutboxIntegrationTest`, `Omnibus26DurableIntegrationTest`, `PersistentDatabaseLifecycleTest` and `FilesystemPathwise41TrustBoundaryTest` provide selected real-service ownership, replay/cancellation/rollback/trust checks. The SQLite snapshot does **not** certify operator MySQL/Postgres/object/queue multi-service disaster-recovery; deployment-specific backup testing remains an operator concern, not a Foundation 4 source compatibility gate. |
+| **#4 no-dev consumer runtime** | **ACCEPTED** previously and reconfirmed: core-only, DB-only, full published specialists, trusted compiled Webrick web, CLI/worker/scheduler and host-owned Runwire scopes, without PHPForge leakage. Infbyte remains untouched. |
+
+**Tracker:** B1 **6/6**, B2 **8/8**, B3 **4/4**, B4 **7/7**, B5 **4/4**, B6 **0/8**; **29/37** accepted. **Next:** Batch 6 release certification. Actual sustained FPM/persistent Runwire host benchmarks, profile measurements, strict 2% RPM comparison, and end-to-end host soak have not been executed. PR remains draft; no merge, tag, publish or Infbyte work.
 
 ### 2026-10-14 — Current 4.0 contract/recovery implementation, Batch 6 preflight pending
 
@@ -1875,11 +1888,11 @@ Added `docs/examples/foundation-4-compiled-release.php`, executed inside all fou
 
 - [x] Publish current Foundation 4 setup/architecture guidance and executable
   bootstrap examples; synchronize navigation, ownership and runtime claims.
-- [ ] Verify and document the *current* Foundation 4 public API, provider graph,
+- [x] Verify and document the *current* Foundation 4 public API, provider graph,
   configuration/capability policies, native-owner entrypoints, trusted immutable
   release ABI and host-passed Runwire contracts. No prior-version signature
   diff or compatibility alias is required.
-- [ ] Validate fresh Foundation 4 state: password/account/session/refresh-token
+- [x] Validate fresh Foundation 4 state: password/account/session/refresh-token
   families, MFA/recovery/passkey, queue/outbox, cache replay and selected storage
   integrity; exercise rollback/restoration of 4.0-created state and real selected
   owner recovery. No mandatory historic customer backup conversion/downgrade.
