@@ -187,3 +187,68 @@ it('denies malformed operations and feature-less module installs', function (): 
     expect(fn() => $planner->plan('install', [], $ctx))->toThrow(InvalidArgumentException::class)
         ->and(fn() => $planner->plan('deploy', ['data.database'], $ctx))->toThrow(InvalidArgumentException::class);
 });
+
+it('validates conditional prerequisite extensions and includes prerequisite config', function (): void {
+    $planner = new ModuleFeaturePlanner();
+    $context = f4FeatureFixture();
+    $context['config'] = ['messaging' => ['durable' => ['enabled' => true]]];
+    $context['extensions'] = array_values(array_diff($context['extensions'], ['pdo']));
+
+    $plan = $planner->plan('install', ['execution.messaging'], $context);
+    expect($plan['required'])->toBe(['data.database', 'execution.messaging'])
+        ->and($plan['effects']['publish'])->toBe(['database.php', 'messaging.php'])
+        ->and($plan['applicable'])->toBeFalse()
+        ->and(implode(' ', $plan['blockers']))->toContain('Extension pdo is required for data.database.');
+});
+
+it('checks conditional prerequisite readiness when enabling durable messaging', function (): void {
+    $planner = new ModuleFeaturePlanner();
+    $context = f4FeatureFixture();
+    $context['config'] = ['messaging' => ['durable' => ['enabled' => true]]];
+    $context['enabled'] = ['data.database'];
+    $context['root_requirements']['infocyph/omnibus'] = '^3.0';
+    $context['installed']['infocyph/omnibus'] = '3.0.0';
+
+    $missing = $planner->plan('enable', ['execution.messaging'], $context);
+    expect($missing['applicable'])->toBeFalse()
+        ->and(implode(' ', $missing['blockers']))->toContain('infocyph/dblayer');
+
+    $context['root_requirements']['infocyph/dblayer'] = '^6.1';
+    $context['installed']['infocyph/dblayer'] = '6.1.0';
+    expect($planner->plan('enable', ['execution.messaging'], $context)['applicable'])->toBeTrue();
+});
+
+it('allows safe disable and remove when a feature has an incompatible package', function (): void {
+    $planner = new ModuleFeaturePlanner();
+    $context = f4FeatureFixture();
+    $context['root_requirements']['infocyph/dblayer'] = '^5.0';
+    $context['installed']['infocyph/dblayer'] = '5.1.0';
+    $context['enabled'] = ['data.database'];
+
+    $disable = $planner->plan('disable', ['data.database'], $context);
+    expect($disable['applicable'])->toBeTrue()
+        ->and($disable['effects']['activate'])->toBe(['data.database' => false]);
+
+    $context['enabled'] = [];
+    $remove = $planner->plan('remove', ['data.database'], $context);
+    expect($remove['applicable'])->toBeTrue()
+        ->and($remove['effects']['remove'])->toBe(['infocyph/dblayer']);
+});
+
+it('removes jointly selected shared packages only once', function (): void {
+    $planner = new ModuleFeaturePlanner();
+    $context = f4FeatureFixture();
+    $context['selected_features'] = ['security.mfa', 'security.passkey'];
+    $context['root_requirements'] = [
+        'infocyph/otp' => '^7.0',
+        'web-auth/webauthn-lib' => '^5.3.9',
+    ];
+    $context['installed'] = [
+        'infocyph/otp' => '7.0.0',
+        'web-auth/webauthn-lib' => '5.3.9',
+    ];
+
+    $plan = $planner->plan('remove', ['security.passkey', 'security.mfa'], $context);
+    expect($plan['applicable'])->toBeTrue()
+        ->and($plan['effects']['remove'])->toBe(['infocyph/otp', 'web-auth/webauthn-lib']);
+});

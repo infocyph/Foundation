@@ -44,8 +44,10 @@ final readonly class ModuleFeatureResolver
         $this->catalog = $catalog ?? new ModuleArchitectureCatalog();
     }
 
-    /** @param list<string> $features
-     *  @return list<string>
+    /**
+     * @param list<string> $features
+     *
+     * @return list<string>
      */
     public function normalize(array $features): array
     {

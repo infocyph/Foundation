@@ -49,7 +49,7 @@ final readonly class ModuleFeaturePlanner
 
         $required = $this->requirements($requested, $context);
         $snapshot = $this->resolver->resolve($required, $context);
-        $blockers = $snapshot['blockers'];
+        $blockers = in_array($operation, ['disable', 'remove'], true) ? [] : $snapshot['blockers'];
         $warnings = [];
         $effects = ['require' => [], 'remove' => [], 'activate' => [], 'publish' => [], 'schemas' => []];
 
@@ -58,13 +58,24 @@ final readonly class ModuleFeaturePlanner
         }
 
         foreach ($requested as $id) {
-            $this->applyRequested($operation, $id, $snapshot, $context, $effects, $blockers);
+            $this->applyRequested($operation, $id, $requested, $snapshot, $context, $effects, $blockers);
         }
 
         if (in_array($operation, ['install', 'repair'], true)) {
             foreach ($required as $id) {
-                $this->planPackages($snapshot['states'][$id]['packages'], $effects, $warnings);
+                $state = $snapshot['states'][$id];
+                foreach ($state['missing_extensions'] as $extension) {
+                    $blockers[] = sprintf('Extension %s is required for %s.', $extension, $id);
+                }
+                $this->planAssets($state, $context, $effects);
+                $this->planPackages($state['packages'], $effects, $warnings);
             }
+        } elseif ($operation === 'enable') {
+            foreach (array_diff($required, $requested) as $id) {
+                $this->checkEnable($id, $snapshot['states'][$id], $context, $blockers);
+            }
+        } elseif ($operation === 'remove') {
+            $effects['remove'] = array_values(array_unique($effects['remove']));
         }
 
         $warnings = array_values(array_unique($warnings));
@@ -84,6 +95,7 @@ final readonly class ModuleFeaturePlanner
     }
 
     /**
+     * @param list<string> $requested
      * @phpstan-param Resolution $snapshot
      * @phpstan-param Context $context
      * @param array{require:array<string,string>,remove:list<string>,activate:array<string,bool>,publish:list<string>,schemas:list<string>} $effects
@@ -92,21 +104,15 @@ final readonly class ModuleFeaturePlanner
     private function applyRequested(
         string $operation,
         string $id,
+        array $requested,
         array $snapshot,
         array $context,
         array &$effects,
         array &$blockers,
-    ): void
-    {
+    ): void {
         $state = $snapshot['states'][$id];
 
         if ($operation === 'install' || $operation === 'repair') {
-            foreach ($state['missing_extensions'] as $extension) {
-                $blockers[] = sprintf('Extension %s is required for %s.', $extension, $id);
-            }
-
-            $this->planAssets($state, $context, $effects);
-
             return;
         }
 
@@ -124,7 +130,7 @@ final readonly class ModuleFeaturePlanner
             return;
         }
 
-        $this->checkRemove($id, $state, $context, $effects, $blockers);
+        $this->checkRemove($id, $requested, $state, $context, $effects, $blockers);
     }
 
     /**
@@ -152,8 +158,7 @@ final readonly class ModuleFeaturePlanner
         array $state,
         array $context,
         array &$blockers,
-    ): void
-    {
+    ): void {
         if (!$state['allowed']) {
             $blockers[] = sprintf('Production capability policy does not allow %s.', $id);
         }
@@ -176,6 +181,7 @@ final readonly class ModuleFeaturePlanner
     }
 
     /**
+     * @param list<string> $requested
      * @phpstan-param FeatureState $state
      * @phpstan-param Context $context
      * @param array{require:array<string,string>,remove:list<string>,activate:array<string,bool>,publish:list<string>,schemas:list<string>} $effects
@@ -183,12 +189,12 @@ final readonly class ModuleFeaturePlanner
      */
     private function checkRemove(
         string $id,
+        array $requested,
         array $state,
         array $context,
         array &$effects,
         array &$blockers,
-    ): void
-    {
+    ): void {
         $this->checkDependents($id, $context, $blockers);
 
         if ($state['enabled']) {
@@ -197,7 +203,7 @@ final readonly class ModuleFeaturePlanner
 
         $other = array_values(array_diff(
             array_unique([...$context['enabled'], ...($context['selected_features'] ?? [])]),
-            [$id],
+            $requested,
         ));
         $otherRequired = $this->requirements($other, $context);
         $usedPackages = [];
