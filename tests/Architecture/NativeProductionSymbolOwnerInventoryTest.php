@@ -38,6 +38,42 @@ it('assigns every declared production PHP symbol to an approved Foundation owner
         'Validation' => 'ReqShield validation selection and presentation',
         'Worker' => 'native Omnibus/Runwire worker configuration',
     ];
+    // Ordered most-specific-first: each retained symbol has an explicit
+    // application-policy or specialist-integration responsibility.
+    $detailedOwners = [
+        'Auth/Adapter/DBLayer/' => 'DBLayer persistence mappings for account/credential policy',
+        'Auth/Adapter/Epicrypt/' => 'Epicrypt crypto and token policy adapters',
+        'Auth/Adapter/Otp/' => 'OTP factor lifecycle adaptation',
+        'Auth/Adapter/TalkingBytes/' => 'TalkingBytes notification boundary',
+        'Auth/Adapter/WebAuthn/' => 'WebAuthn origin and relying-party configuration',
+        'Auth/Adapter/' => 'selected native auth adapter',
+        'Auth/Account/' => 'account identity and lifecycle',
+        'Auth/Audit/' => 'application authentication audit events',
+        'Auth/Authentication/' => 'account authentication workflow',
+        'Auth/Authorization/' => 'application grants, permissions and policy',
+        'Auth/Contract/' => 'framework authentication contracts',
+        'Auth/Device/' => 'account device policy',
+        'Auth/Driver/' => 'explicit authentication feature selection',
+        'Auth/Exception/' => 'application authentication errors',
+        'Auth/Http/' => 'authentication HTTP presentation',
+        'Auth/Internal/' => 'native auth recipes, config and production guards',
+        'Auth/Mfa/' => 'MFA factor and recovery application policy',
+        'Auth/Notification/' => 'authentication notification policy',
+        'Auth/OAuth/' => 'OAuth consent, endpoint and persistence policy above Epicrypt',
+        'Auth/Otp/' => 'OTP application orchestration',
+        'Auth/Passkey/' => 'passkey account binding and persistence policy',
+        'Auth/Principal/' => 'execution-local principal identity',
+        'Auth/Support/' => 'explicitly selected development/test auth drivers',
+        'Auth/' => 'authentication service and public facade',
+        'Http/JsonDispatch/' => 'application JSON dispatch presentation',
+        'Http/Middleware/' => 'Webrick middleware application policy',
+        'Http/Resolver/' => 'request principal selection above Webrick',
+        'Http/Resource/' => 'application response resources',
+        'Http/Response/' => 'Webrick response and exception mapping',
+        'Http/' => 'framework HTTP lifecycle and boot',
+        'Config/Internal/' => 'native ArrayKit configuration policy glue',
+        'Config/' => 'application configuration and release trust policy',
+    ];
     $root = dirname(__DIR__, 2) . '/src';
     $files = 0;
     $typeCount = 0;
@@ -46,6 +82,7 @@ it('assigns every declared production PHP symbol to an approved Foundation owner
     $declaredTypes = [];
     $assignedSymbols = [];
     $seenAreas = [];
+    $seenDetailedOwners = [];
     $scan = new RecursiveIteratorIterator(
         new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
     );
@@ -66,6 +103,16 @@ it('assigns every declared production PHP symbol to an approved Foundation owner
         }
 
         $seenAreas[$area] = true;
+        $owner = $owner;
+        foreach ($detailedOwners as $prefix => $responsibility) {
+            if (str_starts_with($relative, $prefix)) {
+                $owner = $responsibility;
+                $seenDetailedOwners[$prefix] = true;
+
+                break;
+            }
+        }
+
         $source = file_get_contents($file->getPathname());
         if (!is_string($source)) {
             throw new RuntimeException('Unable to inspect source: ' . $relative);
@@ -111,7 +158,7 @@ it('assigns every declared production PHP symbol to an approved Foundation owner
                     $unexpected[] = sprintf('Duplicate type %s: %s and %s', $id, $declaredTypes[$id], $relative);
                 }
                 $declaredTypes[$id] = $relative;
-                $assignedSymbols['type:' . $id] = $owners[$area];
+                $assignedSymbols['type:' . $id] = $owner;
 
                 continue;
             }
@@ -128,7 +175,7 @@ it('assigns every declared production PHP symbol to an approved Foundation owner
                 if (is_array($part) && $part[0] === T_STRING) {
                     ++$functionCount;
                     $hasNamedSymbol = true;
-                    $assignedSymbols['function:' . $relative . ':' . $part[2] . ':' . $part[1]] = $owners[$area];
+                    $assignedSymbols['function:' . $relative . ':' . $part[2] . ':' . $part[1]] = $owner;
 
                     break;
                 }
@@ -143,6 +190,7 @@ it('assigns every declared production PHP symbol to an approved Foundation owner
 
     expect($unexpected)->toBe([])
         ->and(array_diff_key($owners, $seenAreas))->toBe([])
+        ->and(array_diff_key($detailedOwners, $seenDetailedOwners))->toBe([])
         ->and($files)->toBeGreaterThan(0)
         ->and($typeCount)->toBeGreaterThan(0)
         ->and($functionCount)->toBeGreaterThan(0)
