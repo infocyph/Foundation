@@ -21,6 +21,7 @@ function foundationModuleBaselineCleanup(string $folder): void
         new RecursiveDirectoryIterator($folder, FilesystemIterator::SKIP_DOTS),
         RecursiveIteratorIterator::CHILD_FIRST,
     );
+
     foreach ($files as $entry) {
         $entry->isDir() && !$entry->isLink() ? rmdir($entry->getPathname()) : unlink($entry->getPathname());
     }
@@ -28,16 +29,19 @@ function foundationModuleBaselineCleanup(string $folder): void
 }
 
 $repetitions = (int) (getenv('FOUNDATION_MODULE_BASELINE_REPETITIONS') ?: 15);
+
 if ($repetitions < 5 || $repetitions > 100) {
     throw new InvalidArgumentException('Module CLI baseline requires 5-100 repetitions.');
 }
 
 $root = sys_get_temp_dir() . '/foundation4-module-baseline-' . bin2hex(random_bytes(6));
+
 if (!mkdir($root . '/bin', 0775, true)) {
     throw new RuntimeException('Failed to initialize isolated module benchmark fixture.');
 }
 
 $originalPath = getenv('PATH');
+
 try {
     $composerFixture = json_encode([
         'name' => 'foundation/module-baseline',
@@ -70,6 +74,7 @@ try {
         'remove_dry_run' => ['infbyte', 'module:remove', 'database', '--dry-run'],
     ];
     $benchmarks = [];
+
     foreach ($commands as $name => $arguments) {
         $dispatcher = CommandDispatcher::project(
             $config,
@@ -80,6 +85,7 @@ try {
         $start = hrtime(true);
         $exit = $dispatcher->run($arguments, $io);
         $cold = (hrtime(true) - $start) / 1_000_000;
+
         if ($io->errors !== [] || $exit !== 0 || !is_array($io->payload)) {
             throw new RuntimeException(sprintf(
                 'Existing module baseline %s failed: exit=%d errors=%s',
@@ -92,16 +98,19 @@ try {
         if ($name === 'list' && count($io->payload) !== 11) {
             throw new RuntimeException('Existing module inventory unexpectedly differs from 11 entries.');
         }
+
         if ($name === 'plan' && ($io->payload['schema_version'] ?? null) !== 1) {
             throw new RuntimeException('Existing module plan schema changed before the rework.');
         }
 
         $warm = [];
+
         for ($n = 0; $n < $repetitions; $n++) {
             $io = new FoundationModuleBaselineIO();
             $start = hrtime(true);
             $exit = $dispatcher->run($arguments, $io);
             $warm[] = (hrtime(true) - $start) / 1_000_000;
+
             if ($io->errors !== [] || $exit !== 0) {
                 throw new RuntimeException(sprintf('Existing module baseline %s failed during warm sampling.', $name));
             }
@@ -115,6 +124,7 @@ try {
             'warm_samples' => $repetitions,
         ];
     }
+
     if (file_get_contents($root . '/composer.json') !== $composerFixture) {
         throw new RuntimeException('Module benchmark unexpectedly mutated application Composer requirements.');
     }
@@ -136,6 +146,7 @@ try {
 
     $json = json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . PHP_EOL;
     $output = getenv('FOUNDATION_MODULE_BASELINE_OUTPUT');
+
     if (is_string($output) && $output !== '' && file_put_contents($output, $json, LOCK_EX) === false) {
         throw new RuntimeException('Unable to persist module baseline artifact.');
     }
