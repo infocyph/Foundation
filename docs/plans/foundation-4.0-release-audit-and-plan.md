@@ -1748,6 +1748,10 @@ tests cannot establish atomicity or isolation; keep pure definition/config check
 portable. Add tests for changed contracts and reproduced defects, not mirrored
 implementation details.
 
+### 2026-10-14 — Batch 5 auth retained-data snapshot / restore rehearsal (source pending QA)
+
+New `Foundation4RetainedDataRestoreTest` exercises a **file-backed** SQLite auth schema with retained password digest, active auth session, refresh-family identifier, MFA protected-field metadata and passkey counter. It snapshots DB bytes with SHA-256, runs Foundation 4 additive passkey/OAuth revisions using native DBLayer MigrationRunner, writes a candidate-only account, restores original bytes, then opens a fresh DB connection to verify all retained state and absence of new OAuth tables/account. **This is a synthetic 2.1.1-shaped schema snapshot, not an actual pre-upgrade production backup nor a queue/blob restore.** The remaining operator backup/restore rehearsal is explicit in the retained-data runbook. CI pending; no Batch 5 gate accepted (0/4, overall 25/37).
+
 ### 2026-10-14 — Batch 5 no-dev full topology and Infbyte candidate rehearsal (CI pending)
 
 Extended the **four PHP 8.4/8.5 × stable/lowest** production-consumer matrix: besides core-only and DBLayer-only, a third isolated `--no-dev` project installs all published specialist majors and optional Runwire, then checks native owner symbols and an explicit host-passed Runwire worker execution. A fourth CI project is a fresh temporary clone of real `infocyph/Infbyte` with a local **candidate path repository override** replacing its published `^3.0.1` Composer constraint; it checks the skeleton CLI and trusted bootstrap without changing Infbyte main. Both reject development PHPForge leakage. **This is an initial candidate smoke, not a complete compiled Infbyte deployment or a restored 2.1.1 database. CI pending, Batch 5 0/4 and total 25/37.**
