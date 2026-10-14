@@ -37,11 +37,11 @@ final readonly class Phase9NativeReadHandler
         }
 
         $cached = Cache::file('foundation-host', $root . '/storage/cache')->get('item-42');
-        $expected = hash('sha256', 'foundation-native-fixture');
-        $digest = hash('sha256', 'foundation-native-fixture');
-        if (($records[0]['item_value'] ?? null) !== 'value-42'
+        $credential = file_get_contents($root . '/storage/credential.hash');
+        if (!is_string($credential)
+            || ($records[0]['item_value'] ?? null) !== 'value-42'
             || $cached !== 'cached-42'
-            || !hash_equals($expected, $digest)
+            || !password_verify('foundation-native-fixture', $credential)
         ) {
             throw new RuntimeException('Native data integrity validation failed.');
         }
