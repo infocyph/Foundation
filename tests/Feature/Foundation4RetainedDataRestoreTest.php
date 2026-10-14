@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\Connection\ConnectionConfig;
 use Infocyph\DBLayer\Migration\MigrationRunner;
+use Infocyph\DBLayer\Schema\Blueprint;
 use Infocyph\DBLayer\Schema\SchemaManager;
 use Infocyph\Foundation\Database\AuthSchema\AuthMfaRevisionSchema;
 use Infocyph\Foundation\Database\AuthSchema\AuthOAuthEpicryptProtocolSchema;
@@ -35,6 +36,15 @@ it('restores a retained 2.1.1-shaped auth snapshot after additive Foundation 4 m
         $writer = new Connection($config);
         expect((new MigrationRunner($writer, [$baseline, $mfa]))->run())
             ->toBe([$baseline->id(), $mfa->id()]);
+
+        // The published 2.1.1 AuthSchema had no credential_record column.
+        // Remove the 4.x baseline's additive field to model that exact table
+        // shape before taking a pre-upgrade backup.
+        $published = new SchemaManager($writer);
+        $published->table($tables->passkeyCredentials(), static function (Blueprint $table): void {
+            $table->dropColumn('credential_record');
+        });
+        expect($published->hasColumn($tables->passkeyCredentials(), 'credential_record'))->toBeFalse();
 
         $now = time();
         $writer->table($tables->accounts())->insert([
@@ -110,6 +120,8 @@ it('restores a retained 2.1.1-shaped auth snapshot after additive Foundation 4 m
         expect((new MigrationRunner($candidate, $migrations))->run())->not->toBeEmpty();
 
         $schema = new SchemaManager($candidate);
+        expect($schema->hasColumn($tables->passkeyCredentials(), 'credential_record'))->toBeTrue();
+
         foreach ($tables->oauth() as $table) {
             expect($schema->hasTable($table))->toBeTrue();
         }
@@ -135,6 +147,8 @@ it('restores a retained 2.1.1-shaped auth snapshot after additive Foundation 4 m
 
         $restored = new Connection($config);
         $restoredSchema = new SchemaManager($restored);
+        expect($restoredSchema->hasColumn($tables->passkeyCredentials(), 'credential_record'))->toBeFalse();
+
         foreach ($tables->oauth() as $table) {
             expect($restoredSchema->hasTable($table))->toBeFalse();
         }
