@@ -22,8 +22,12 @@ jobs:
   native-host:
     runs-on: ubuntu-24.04
     timeout-minutes: 35
+    env:
+      FOUNDATION_HOST_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.4"
