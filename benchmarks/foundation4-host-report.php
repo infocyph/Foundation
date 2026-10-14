@@ -99,7 +99,7 @@ $result = [
     'request_count' => $requests,
     'repetitions' => $repeats,
     'soak_window_seconds' => (int) (getenv('FOUNDATION_HOST_SOAK_SECONDS') ?: 0),
-    'endpoint' => '/json',
+    'endpoint' => (getenv('FOUNDATION_HOST_WORKLOAD_PROFILE') === 'native-read' ? '/native' : '/json'),
     'protocol' => 'HTTP/1.1 with per-response status/body checks',
     'hosts' => [],
 ];
