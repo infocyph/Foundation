@@ -5,6 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUTPUT="${FOUNDATION_HOST_RESULT_DIR:-$ROOT/build/foundation4-host}"
 REQUESTS="${FOUNDATION_HOST_REQUESTS:-900}"
 REPEATS="${FOUNDATION_HOST_REPEATS:-3}"
+SOAK_SECONDS="${FOUNDATION_HOST_SOAK_SECONDS:-0}"
 LOAD_TIMEOUT_SECONDS="$(awk -v min="${FOUNDATION_HOST_MIN_SECONDS:-0}" 'BEGIN { if (min < 0 || min > 300) exit 1; printf "%.0f", min + 90 }')"
 FPM_BIN="${FOUNDATION_HOST_FPM_BIN:-php-fpm8.4}"
 PORT_FPM="${FOUNDATION_HOST_FPM_PORT:-18780}"
@@ -21,8 +22,10 @@ for command in php "$FPM_BIN" nginx curl ps awk setsid; do
     fi
 done
 if [[ ! "$REQUESTS" =~ ^[0-9]+$ || "$REQUESTS" -lt 100 ||
-      ! "$REPEATS" =~ ^[0-9]+$ || "$REPEATS" -lt 2 ]]; then
-    echo "Use at least 100 requests and two repetitions." >&2
+      ! "$REPEATS" =~ ^[0-9]+$ || "$REPEATS" -lt 2 ||
+      ! "$SOAK_SECONDS" =~ ^[0-9]+$ || "$SOAK_SECONDS" -gt 300 ||
+      ( "$SOAK_SECONDS" -gt 0 && "$SOAK_SECONDS" -lt 30 ) ]]; then
+    echo "Use >=100 requests, >=2 repetitions, and a soak of 0 or 30-300 seconds." >&2
     exit 1
 fi
 
@@ -144,6 +147,29 @@ probe_runwire_replacement() {
     return 1
 }
 
+run_soak() {
+    local host="$1" url="$2" window prefix
+    if (( SOAK_SECONDS == 0 )); then
+        return 0
+    fi
+    for window in 1 2; do
+        prefix="$host-soak-w4-c10-p$window"
+        start_sampler "$OUTPUT/$prefix.samples.csv"
+        if ! FOUNDATION_HOST_MIN_SECONDS="$SOAK_SECONDS" \
+            timeout "$((SOAK_SECONDS + 90))s" php "$ROOT/benchmarks/foundation4-host-load.php" \
+            "$url/json" "$REQUESTS" 10 "$OUTPUT/$prefix.load.json" \
+            > "$OUTPUT/$prefix.load.log"; then
+            echo "Sustained $host window $window returned an invalid response." >&2
+            return 1
+        fi
+        kill "$SAMPLER_PID" 2>/dev/null || true
+        wait "$SAMPLER_PID" 2>/dev/null || true
+        SAMPLER_PID=""
+        assert_ready "$url"
+        echo "Verified $host persistent HTTP soak window $window ($SOAK_SECONDS seconds)"
+    done
+}
+
 start_fpm() {
     local workers="$1" app="$2"
     local cfg="$OUTPUT/fpm-$workers.conf" pool="$OUTPUT/fpm-$workers.pool.conf"
@@ -247,6 +273,9 @@ for host in fpm runwire; do
         if [[ "$host" == "runwire" && "$workers" -eq 4 ]]; then
             probe_runwire_replacement
         fi
+        if (( workers == 4 )); then
+            run_soak "$host" "$url"
+        fi
         stop_service
     done
 done
@@ -254,4 +283,5 @@ done
 FOUNDATION_HOST_RESULT_DIR="$OUTPUT" \
     FOUNDATION_HOST_REQUESTS="$REQUESTS" \
     FOUNDATION_HOST_REPEATS="$REPEATS" \
+    FOUNDATION_HOST_SOAK_SECONDS="$SOAK_SECONDS" \
     php "$ROOT/benchmarks/foundation4-host-report.php"
