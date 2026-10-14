@@ -57,9 +57,36 @@ concrete host bootstrap recipes and end-to-end certification are tracked in
 This document propagates upstream ownership and the required composition
 contract; it does not claim that every real-server acceptance job has passed.
 
+## Borrowed non-web scope propagation (Batch 3)
+
+For work that a host has already placed inside an InterMix worker, scheduler or
+CLI execution scope, Foundation provides
+`ExecutionScope::withinBorrowedScope(ScopeContext $context, callable $handler)`.
+The caller passes the **exact native InterMix scope handle** captured from its
+original live owner; Foundation does not create a second execution ID, start
+another DI scope, or clean up host-owned state.
+
+The host controls task creation and the parent's scope lifetime. A child carrier
+may attach the passed context through `withinBorrowedScope()`; the callback
+receives the **same** `ExecutionId` object and sees the parent's scoped services.
+After child completion or exception, native InterMix detaches the borrowed
+carrier. The original scope owner still performs the single authoritative cleanup.
+Expired handles, unrelated container handles and missing scoped execution IDs
+must fail, not trigger new runtime construction. This API intentionally rejects
+web mode: Webrick is the sole owner of its HTTP request scope.
+
+This initial Batch 3 feature is verified in
+`tests/Feature/ExecutionScopeIsolationTest.php` and the
+[exact-source QA run #38492996211](https://github.com/infocyph/Foundation/actions/runs/38492996211).
+It does **not** yet certify complete Runwire hosting: Runwire's selected
+`RuntimeContext` and per-request `RequestContext`, optional `CoroutineScope`,
+transport writer, cancellation and deadline must continue through Webrick's
+`RunwireRuntimeAdapter` / `RunwireInterMixScopeBridge` and each selected
+native package. The normal no-Runwire PHP path remains unchanged.
+
 ## Optional dependency and separate worker support
 
-Applications selecting the Runwire 1.x integration install `infocyph/runwire`
+Applications selecting the Runwire 2.1 integration install `infocyph/runwire`
 explicitly. Foundation does not require it for ordinary PHP/FPM and installation
 alone does not activate a runtime. Omnibus's optional Runwire process-pool backend
 is a separate selection from HTTP hosting; see [messaging](messaging.md).
