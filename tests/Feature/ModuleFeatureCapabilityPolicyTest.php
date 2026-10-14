@@ -137,3 +137,35 @@ it('never silently activates WebAuthn when only MFA is selected', function (): v
         $context,
     ))->toThrow(LogicException::class, 'security.passkey');
 });
+
+it('rejects optional features with unsatisfied conditional prerequisites', function (): void {
+    foreach ([
+        [
+            ['execution.messaging' => true],
+            ['messaging' => ['durable' => ['enabled' => true]]],
+            'data.database',
+        ],
+        [
+            ['security.validation' => true],
+            ['validation' => ['database_connection' => 'primary']],
+            'data.database',
+        ],
+    ] as [$features, $config, $missing]) {
+        expect(fn() => FoundationBuildContext::fromConfig(new ConfigRepository([
+            ...$config,
+            'modules' => ['features' => $features],
+        ]), RuntimeMode::Worker))->toThrow(LogicException::class, $missing);
+    }
+});
+
+it('resolves conditional dependencies without expanding unrelated feature groups', function (): void {
+    $context = FoundationBuildContext::fromConfig(new ConfigRepository([
+        'messaging' => ['durable' => ['enabled' => true]],
+        'modules' => ['features' => ['execution.messaging' => true, 'data.database' => true]],
+    ]), RuntimeMode::Worker);
+
+    expect($context->hasFeature('execution.messaging'))->toBeTrue()
+        ->and($context->hasFeature('data.database'))->toBeTrue()
+        ->and($context->hasFeature('execution.runtime'))->toBeFalse()
+        ->and($context->hasFeature('execution.communication'))->toBeFalse();
+});

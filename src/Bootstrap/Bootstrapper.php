@@ -21,6 +21,7 @@ use Infocyph\Foundation\Filesystem\PathServiceProvider;
 use Infocyph\Foundation\Http\HttpServiceProvider;
 use Infocyph\Foundation\Http\JsonDispatch\JsonDispatchServiceProvider;
 use Infocyph\Foundation\Logging\LoggingServiceProvider;
+use Infocyph\Foundation\Module\ModuleFeatureCapabilityPolicy;
 use Infocyph\Foundation\Messaging\MessagingServiceProvider;
 use Infocyph\Foundation\Notifications\NotificationServiceProvider;
 use Infocyph\Foundation\Routing\RouteFileLoader;
@@ -90,7 +91,14 @@ final class Bootstrapper
 
         foreach (self::OPTIONAL_BUILT_INS as $provider) {
             $capability = self::OPTIONAL_CAPABILITIES[$provider];
-            if (!$context->permitsCapability($capability) || !$this->providerDependencyAvailable($provider)) {
+            if (!$context->permitsCapability($capability)) {
+                continue;
+            }
+            if (!$this->providerDependencyAvailable($provider)) {
+                if ($context->featureSelections !== null && ModuleFeatureCapabilityPolicy::owner($capability) !== null) {
+                    throw new \LogicException(sprintf('Selected feature provider %s is unavailable.', $capability));
+                }
+
                 continue;
             }
             $registry->add($this->instantiateProvider($provider));

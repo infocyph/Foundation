@@ -55,16 +55,62 @@ final class ModuleFeatureCapabilityPolicy
         }
 
         ksort($selected);
+        self::assertSelectedDependencies($selected, $config, $catalog);
 
         return $selected;
     }
 
     /**
+     * @param array<string,bool> $selected
+     */
+    private static function assertSelectedDependencies(
+        array $selected,
+        ConfigRepository $config,
+        ModuleArchitectureCatalog $catalog,
+    ): void {
+        foreach ($selected as $feature => $enabled) {
+            if (!$enabled) {
+                continue;
+            }
+            foreach ($catalog->resolve($feature)['definition']['dependencies'] as $dependency) {
+                $when = $dependency['when'] ?? null;
+                if ($when !== null && !self::condition($config, $when)) {
+                    continue;
+                }
+                if (!($selected[$dependency['target']] ?? false)) {
+                    throw new \LogicException(sprintf(
+                        'Selected feature %s requires active dependency %s.',
+                        $feature,
+                        $dependency['target'],
+                    ));
+                }
+            }
+        }
+    }
+
+    /**
+     * @param array{key:string,operator:'equals'|'not-empty',value?:bool|int|string} $when
+     */
+    private static function condition(ConfigRepository $config, array $when): bool
+    {
+        $value = $config->get($when['key']);
+
+        return $when['operator'] === 'equals'
+            ? $value === ($when['value'] ?? null)
+            : (is_string($value) ? trim($value) !== '' : $value !== null && $value !== false && $value !== []);
+    }
+
+    /**
      * @param array<string,bool>|null $selections
      */
+    public static function owner(string $capability): ?string
+    {
+        return self::CAPABILITY_OWNERS[$capability] ?? null;
+    }
+
     public static function permits(string $capability, ?array $selections): bool
     {
-        $owner = self::CAPABILITY_OWNERS[$capability] ?? null;
+        $owner = self::owner($capability);
         if ($owner === null || $selections === null) {
             return true;
         }
