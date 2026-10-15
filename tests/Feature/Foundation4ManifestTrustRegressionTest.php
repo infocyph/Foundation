@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Release\FoundationReleaseRuntime;
+use Infocyph\Foundation\Runtime\ReleaseGenerationLease;
 
 it('does not evaluate an untrusted executable release manifest in prevalidated boot', function (): void {
     $root = sys_get_temp_dir() . '/foundation-trust-' . bin2hex(random_bytes(8));
     $dir = $root . '/generations/probe';
     mkdir($dir, 0775, true);
+    ReleaseGenerationLease::initialize($dir);
     $marker = $root . '/executed.txt';
     $manifest = $dir . '/foundation.php';
     file_put_contents($root . '/active.json', json_encode([
@@ -33,6 +35,7 @@ it('does not evaluate an untrusted executable release manifest in prevalidated b
             unlink($marker);
         }
         unlink($manifest);
+        unlink($dir . '/' . ReleaseGenerationLease::MARKER);
         unlink($root . '/active.json');
         rmdir($dir);
         rmdir(dirname($dir));
