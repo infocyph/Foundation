@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
+use Infocyph\Epicrypt\Security\RememberToken as EpicryptRememberToken;
 use Infocyph\Foundation\Auth\AuthServices;
 use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailVerificationRequest;
 use Infocyph\Foundation\Auth\Authentication\PasswordReset\PasswordResetRequest;
 use Infocyph\Foundation\Auth\Authentication\RememberMe\RememberTokenStatus;
 use Infocyph\Foundation\Auth\Contract\Storage\RefreshTokenStoreInterface;
+use Infocyph\Foundation\Auth\Internal\AuthSecretResolver;
 use Infocyph\Foundation\Auth\Support\InMemoryEmailVerificationStore;
 use Infocyph\Foundation\Auth\Support\InMemoryPasswordResetStore;
 use Infocyph\Foundation\Foundation;
@@ -79,5 +81,22 @@ it('invalidates a rotated remember-me credential and denies replay', function ()
         expect($rotated->status)->toBe(RememberTokenStatus::ROTATED)
             ->and($remember->verify($issued->token->value)->status)->toBe(RememberTokenStatus::REUSED)
             ->and($remember->rotate($old)->status)->toBe(RememberTokenStatus::REUSED);
+    });
+});
+
+it('delegates remember-me signatures and account-device binding to native Epicrypt', function (): void {
+    $app = Foundation::web(['app' => ['base_path' => sys_get_temp_dir()], 'router' => ['files' => []]]);
+    $app->container()->withinScope('webrick.request', static function () use ($app): void {
+        $issued = $app->make(AuthServices::class)->rememberMe()->issue('owner', 'device-1');
+        $value = $issued->token?->value ?? '';
+        $parts = explode('.', $value, 2);
+        expect($parts)->toHaveCount(2);
+
+        $secrets = $app->make(AuthSecretResolver::class);
+        $native = new EpicryptRememberToken($secrets->tokenSecret(32));
+
+        expect($native->verify($parts[1], 'owner', 'device-1'))->toBeTrue()
+            ->and($native->verify($parts[1], 'wrong-owner', 'device-1'))->toBeFalse()
+            ->and($native->verify($parts[1], 'owner', 'wrong-device'))->toBeFalse();
     });
 });
