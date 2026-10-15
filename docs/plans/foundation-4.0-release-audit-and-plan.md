@@ -1,3 +1,23 @@
+## 2026-10-15 — Exact-source PHPForge and native-host QA completed (verification checkpoint)
+
+**Executable source:** [`aea1ab2ffedae30ed4f1d4eabe65f7cbe9f47198`](https://github.com/infocyph/Foundation/commit/aea1ab2ffedae30ed4f1d4eabe65f7cbe9f47198). **GitHub Actions after retry:** [Security & Standards #38749779083](https://github.com/infocyph/Foundation/actions/runs/38749779083) **SUCCESS**; [Foundation 4 native HTTP host #38749778570](https://github.com/infocyph/Foundation/actions/runs/38749778570) **SUCCESS**. The initial Actions attempt was red due to GitHub codeload HTTP 429 while retrieving PHPStan; retry of the failed jobs finished successfully at the *same* commit. No failing jobs remain in the latest attempt.
+
+| Completed source-head job family | Result |
+| --- | --- |
+| PHPForge QA — PHP 8.4/8.5 × prefer-lowest/prefer-stable | **4/4 PASS**; Pest, Pint, Rector and the configured enforcement gates |
+| PHPStan — PHP 8.4 and 8.5 | **2/2 PASS** |
+| Isolated production consumers — PHP 8.4/8.5 × lowest/stable | **4/4 PASS**; includes Core-only `--no-dev` compilation and selected-feature combinations |
+| PHPForge component benchmark jobs | **2/2 PASS**; these are *not* the B7 sustained matched-host RPM measurements |
+| Clean Composer install, release-evidence workflow, native HTTP host smoke | **PASS**; native-host test is *not* B7 certification |
+
+R1–R5 and R7–R11 source remediation and their new focused tests are part of this verified executable source. The latest R9 change removes the redundant pre-v2 module mutation paths and delegates remember-token signing and account/device verification to the **published Epicrypt native `RememberToken`**, with Foundation retaining persistence and replay policy. The source-level pass includes the added DBLayer SQLite consume/rollback/refresh tests and multi-process feature-activation contention fixture. **Do not promote these to adversarial proof** where the finding requires genuinely independent concurrent database processes, native host cancellation after operation entry, cross-tenant audits, or production failure recovery.
+
+**R6 remains open:** published DBLayer `Connection::withRunwire`, Omnibus `RunwireBinding::withRunwire`, and ReqShield validation APIs are callback/operation-scoped; merely having Runwire in InterMix DI does not bind arbitrary ordinary DBLayer queries or all Foundation-created clients. A correct owner-supported mechanism must propagate the exact active runtime/request/coroutine scope per operation, restore nesting, preserve the no-Runwire path, and cover both HTTP and non-web requests. Do not claim that a manually wrapped upstream test closes R6 or add a process-global mutable binding.
+
+**B7 remains open:** sustained authenticated, DB/cache-backed baseline-versus-candidate host RPM comparison on physically matched production-equivalent hardware, five trials of at least 30 seconds per scenario, stable median successful RPM no worse than 2% below baseline, and subsequent final release sign-off. GitHub hosted CI component benchmarks and host functional smoke do not satisfy this external test.
+
+**Acceptance ledger remains 19/37 (NO-GO)** until independently reopened security/operation evidence and B7 are collected. PR #20 stays DRAFT; no Infbyte work, merge, tag or publication. This entry supersedes stale *QA red/pending* status descriptions above/below, not their historical implementation findings.
+
 ## 2026-10-15 — R9 native-owner cutover and red-QA remediation (live checkpoint)
 
 **Implementation branch:** `feature/foundation-3`, PR #20 **DRAFT**, no merge/tag/publication or Infbyte changes. The exact-source QA handoff follows commits [`ef30b5e`](https://github.com/infocyph/Foundation/commit/ef30b5e025b5f45951ce13440aa2e790c18e7b3d) (7 Pest failures and 3 Pint files corrected), [`daa1669`](https://github.com/infocyph/Foundation/commit/daa1669755897efcb619d3b7bbc0745f7c29b931) (retired old module capability mutations), and [`a7b85ee`](https://github.com/infocyph/Foundation/commit/a7b85ee7905ab9b935d2677aa86e6fbf59080ffd) (Epicrypt-native remember-token claim regression). Do **not** treat intermediate commit successes as full source-head acceptance.
