@@ -51,7 +51,18 @@ it('forwards native host cancellation to ordinary Foundation database operations
                 ->and($factory->connection()->runwireBinding())->toBeNull()
                 ->and(NativeRunwireOperation::current())->toBeNull();
 
-            $request->cancel(CancellationReason::HOST_CANCELLED);
+            expect(fn() => CacheRunwire::share(
+                $request,
+                null,
+                static fn(): mixed => $factory->withConnection(
+                    static function (Connection $connection) use ($request): mixed {
+                        $request->cancel(CancellationReason::HOST_CANCELLED);
+
+                        return $connection->scalar('SELECT 1');
+                    },
+                ),
+            ))->toThrow(CancelledException::class);
+            expect($factory->connection()->runwireBinding())->toBeNull();
             expect(fn() => CacheRunwire::share(
                 $request,
                 null,
