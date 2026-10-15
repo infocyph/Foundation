@@ -67,11 +67,11 @@ try {
     ];
     $commands = [
         'list' => ['infbyte', 'module:list'],
-        'show' => ['infbyte', 'module:show', 'database'],
-        'doctor' => ['infbyte', 'module:doctor', 'messaging'],
-        'plan' => ['infbyte', 'module:plan', 'auth', '--feature=passkey'],
-        'install_dry_run' => ['infbyte', 'module:install', 'database', '--dry-run'],
-        'remove_dry_run' => ['infbyte', 'module:remove', 'database', '--dry-run'],
+        'show' => ['infbyte', 'module:show', 'data'],
+        'doctor' => ['infbyte', 'module:doctor', 'execution.messaging'],
+        'plan' => ['infbyte', 'module:plan', 'security.passkey'],
+        'install_dry_run' => ['infbyte', 'module:install', 'data.filesystem', '--dry-run'],
+        'remove_dry_run' => ['infbyte', 'module:remove', 'data.database', '--dry-run'],
     ];
     $benchmarks = [];
 
@@ -95,12 +95,16 @@ try {
             ));
         }
 
-        if ($name === 'list' && count($io->payload) !== 11) {
-            throw new RuntimeException('Existing module inventory unexpectedly differs from 11 entries.');
+        if ($name === 'list' && (
+            ($io->payload['schema_version'] ?? null) !== 2
+            || count($io->payload['modules'] ?? []) !== 3
+            || count(array_merge(...array_column($io->payload['modules'] ?? [], 'features'))) !== 9
+        )) {
+            throw new RuntimeException('Foundation 4 module catalog must contain exactly three groups and nine features.');
         }
 
-        if ($name === 'plan' && ($io->payload['schema_version'] ?? null) !== 1) {
-            throw new RuntimeException('Existing module plan schema changed before the rework.');
+        if ($name === 'plan' && ($io->payload['schema_version'] ?? null) !== 2) {
+            throw new RuntimeException('Foundation 4 selected feature plan must use schema version two.');
         }
 
         $warm = [];
@@ -130,15 +134,16 @@ try {
     }
     $source = dirname(__DIR__);
     $result = [
-        'schema_version' => 1,
-        'classification' => 'pre-rework module CLI baseline, synthetic local Composer process, not host RPM certification',
+        'schema_version' => 2,
+        'classification' => 'Foundation 4 public v2 CLI microbenchmark, synthetic local Composer fixture, not host RPM certification',
         'source_sha' => getenv('FOUNDATION_MODULE_SOURCE_SHA') ?: (getenv('GITHUB_SHA') ?: 'working-tree'),
         'source_composer_sha256' => hash_file('sha256', $source . '/composer.json'),
         'php' => PHP_VERSION,
         'php_sapi' => PHP_SAPI,
         'opcache_cli' => (bool) ini_get('opcache.enable_cli'),
         'fixture' => 'direct DBLayer + Omnibus + OTP, explicit empty application capabilities, isolated Composer stub',
-        'module_count' => 11,
+        'module_count' => 3,
+        'feature_count' => 9,
         'commands' => $benchmarks,
         'peak_process_php_memory_mb' => round(memory_get_peak_usage(true) / 1048576, 3),
         'memory_after_samples_mb' => round(memory_get_usage(true) / 1048576, 3),
