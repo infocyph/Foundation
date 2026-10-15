@@ -7,6 +7,7 @@ namespace Infocyph\Foundation\Command\System;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Command\ExitCode;
 use Infocyph\Foundation\Module\ModuleCatalog;
+use Infocyph\Foundation\Module\ModuleFeatureResolver;
 use Infocyph\Foundation\Module\ModuleFeatureCommandCatalog;
 use Infocyph\Foundation\Module\ModuleFeatureCommandSnapshot;
 use Infocyph\Foundation\Module\ModuleFeatureConfigPublisher;
@@ -58,7 +59,10 @@ final class ModuleSystemCommand extends SystemCommand
         );
     }
 
-    /** @return array<string,mixed> */
+    /**
+     * @phpstan-import-type Context from \Infocyph\Foundation\Module\ModuleFeatureResolver
+     * @phpstan-return Context
+     */
     private function snapshot(): array
     {
         return new ModuleFeatureCommandSnapshot($this->application)->capture();
@@ -195,10 +199,6 @@ final class ModuleSystemCommand extends SystemCommand
 
     private function publishConfig(): int
     {
-        if ($this->flag('force')) {
-            throw new \InvalidArgumentException('Foundation 4 never force-overwrites application-owned module config.');
-        }
-
         $result = new ModuleFeatureConfigPublisher($this->application)->publish(
             $this->selection(),
             $this->snapshot(),
@@ -247,7 +247,7 @@ final class ModuleSystemCommand extends SystemCommand
                 $features,
                 $snapshot,
                 $this->option('connection'),
-                $name === 'module:schema:install' && !$this->flag('applicable-only'),
+                false,
             );
         }
 
