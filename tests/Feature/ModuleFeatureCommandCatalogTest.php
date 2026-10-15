@@ -18,7 +18,10 @@ it('publishes exactly three public module groups and nine qualified features in 
 
     foreach ($inventory['modules'] as $module) {
         expect($module['features'])->not->toBeEmpty()
-            ->and($module['name'])->not->toBe('core', 'qa', 'auth', 'cache');
+            ->and($module['name'])->not->toBe('core')
+            ->and($module['name'])->not->toBe('qa')
+            ->and($module['name'])->not->toBe('auth')
+            ->and($module['name'])->not->toBe('cache');
     }
 });
 
