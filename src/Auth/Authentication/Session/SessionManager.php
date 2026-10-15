@@ -70,6 +70,10 @@ final readonly class SessionManager
         }
 
         $now = $this->clock->now();
+        if ($existing->isExpiredAt($now)) {
+            throw new SessionException(sprintf('Session "%s" has expired.', $sessionId));
+        }
+
         $replacement = new AuthSession(
             id: $this->ids->sessionId(),
             accountId: $existing->accountId,

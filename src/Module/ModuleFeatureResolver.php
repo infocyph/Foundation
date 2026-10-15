@@ -188,12 +188,12 @@ final readonly class ModuleFeatureResolver
                 && version_compare($nested[1], $upper, '<=');
         }
 
-        $version = ltrim($actual, 'v');
+        $version = self::comparableVersion($actual);
 
-        return preg_match('/^\d+(?:\.\d+){0,2}$/D', $version) === 1
-            ? version_compare($version, $lower, '>=')
-                && version_compare($version, $upper, '<')
-            : null;
+        return $version === null
+            ? null
+            : version_compare($version, $lower, '>=')
+                && version_compare($version, $upper, '<');
     }
 
     /**
@@ -241,6 +241,21 @@ final readonly class ModuleFeatureResolver
             'schemas' => $definition['schemas'],
             'blockers' => $blockers,
         ];
+    }
+
+    private static function comparableVersion(string $version): ?string
+    {
+        $version = ltrim($version, 'v');
+        if (preg_match('/^\\d+(?:\\.\\d+){0,3}$/D', $version) !== 1) {
+            return null;
+        }
+
+        $parts = explode('.', $version);
+        if (count($parts) === 4 && $parts[3] !== '0') {
+            return null;
+        }
+
+        return implode('.', array_slice(array_pad($parts, 3, '0'), 0, 3));
     }
 
     /**

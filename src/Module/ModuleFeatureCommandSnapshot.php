@@ -72,7 +72,7 @@ final readonly class ModuleFeatureCommandSnapshot
                 continue;
             }
             $name = $package['name'] ?? null;
-            $version = $package['pretty_version'] ?? $package['version'] ?? null;
+            $version = $package['version_normalized'] ?? $package['version'] ?? $package['pretty_version'] ?? null;
             if (is_string($name) && $name !== '' && is_string($version) && $version !== '') {
                 $versions[$name] = $version;
             }

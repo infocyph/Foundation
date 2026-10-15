@@ -45,7 +45,7 @@ final readonly class PasskeyCredential
             lastUsedAt: $this->lastUsedAt,
             revokedAt: $timestamp,
             metadata: $this->metadata,
-            revision: $this->revision,
+            revision: $this->revision + 1,
         );
     }
 
