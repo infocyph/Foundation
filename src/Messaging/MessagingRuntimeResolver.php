@@ -51,12 +51,17 @@ final readonly class MessagingRuntimeResolver
             return $bus->dispatch($message);
         }
 
-        return $bus->withRunwire(
+        $envelope = $bus->withRunwire(
             $context->runtime,
             static fn(): \Infocyph\Omnibus\Envelope\Envelope => $bus->dispatch($message),
             $context->request,
             $context->scope,
         );
+        if (!$envelope instanceof \Infocyph\Omnibus\Envelope\Envelope) {
+            throw new \LogicException('Native Omnibus dispatch did not return an envelope.');
+        }
+
+        return $envelope;
     }
 
     /** @return list<HandlerMiddleware> */
