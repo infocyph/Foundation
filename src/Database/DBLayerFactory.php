@@ -76,6 +76,25 @@ final class DBLayerFactory
     }
 
     /**
+     * Resolve a generation/process-owned DBLayer connection for infrastructure
+     * that retains its PDO independently of an execution scope.
+     *
+     * Application repositories and request/job work must use connection().
+     */
+    public function infrastructureConnection(?string $name = null): Connection
+    {
+        $name = $this->resolver->connectionName($name);
+
+        return $this->infrastructureConnections[$name]
+            ??= new Connection($this->configuration($name), $name);
+    }
+
+    public function resolver(): DatabaseConnectionResolver
+    {
+        return $this->resolver;
+    }
+
+    /**
      * Execute a database operation in the exact host-owned native Runwire scope.
      *
      * Raw Connection instances cannot retain a mutable request binding across
@@ -100,25 +119,6 @@ final class DBLayerFactory
             $context->request,
             $context->scope,
         );
-    }
-
-    /**
-     * Resolve a generation/process-owned DBLayer connection for infrastructure
-     * that retains its PDO independently of an execution scope.
-     *
-     * Application repositories and request/job work must use connection().
-     */
-    public function infrastructureConnection(?string $name = null): Connection
-    {
-        $name = $this->resolver->connectionName($name);
-
-        return $this->infrastructureConnections[$name]
-            ??= new Connection($this->configuration($name), $name);
-    }
-
-    public function resolver(): DatabaseConnectionResolver
-    {
-        return $this->resolver;
     }
 
     private function bindQueryCache(Connection $connection): Connection
