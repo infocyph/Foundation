@@ -24,6 +24,8 @@ use Infocyph\Foundation\Release\FoundationReleaseCompiler;
  *
  * All operations use the same fresh CLI Composer/feature snapshot and B2/B3
  * pure planner + safe lifecycle. No legacy-module fallback or aliases.
+ *
+ * @phpstan-import-type Context from \Infocyph\Foundation\Module\ModuleFeatureResolver
  */
 final class ModuleSystemCommand extends SystemCommand
 {
@@ -58,10 +60,7 @@ final class ModuleSystemCommand extends SystemCommand
         );
     }
 
-    /**
-     * @phpstan-import-type Context from \Infocyph\Foundation\Module\ModuleFeatureResolver
-     * @phpstan-return Context
-     */
+    /** @phpstan-return Context */
     private function snapshot(): array
     {
         return new ModuleFeatureCommandSnapshot($this->application)->capture();
