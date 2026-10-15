@@ -151,6 +151,12 @@ final readonly class CommunicationProfiles
         return is_string($value) && trim($value) !== '' ? trim($value) : $fallback;
     }
 
+    /** @return array<string, mixed> */
+    private function grpcConfig(?string $profile): array
+    {
+        return $this->profile('grpc.profiles', 'grpc.default_profile', $profile);
+    }
+
     private function grpcFactory(): GrpcClientFactory
     {
         $context = NativeRunwireOperation::current();
@@ -159,12 +165,6 @@ final readonly class CommunicationProfiles
         return $context === null
             ? $factory
             : $factory->withRunwire($context->runtime, $context->request, $context->scope);
-    }
-
-    /** @return array<string, mixed> */
-    private function grpcConfig(?string $profile): array
-    {
-        return $this->profile('grpc.profiles', 'grpc.default_profile', $profile);
     }
 
     /** @return array<string, mixed> */
