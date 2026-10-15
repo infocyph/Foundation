@@ -36,13 +36,20 @@ The former 11-entry public module catalog and its unqualified installable aliase
 ## Platform and integration
 
 - PHP 8.4 or 8.5, Composer 2.
-- Required: ArrayKit `^5.3.1`, CacheLayer `^4.0`, InterMix `^11.2`, UID `^6.0`, Webrick `^6.0.3`.
+- Required Core runtime: ArrayKit `^5.3.1`, CacheLayer `^4.0`, InterMix `^11.2`, UID `^6.0`, Webrick `^6.0.3`, and PSR Log (`psr/log`) `^3.0.2`.
 - Optional selected specialists: DBLayer `^6.1`, Epicrypt `^3.2`, Omnibus `^3.0`, OTP `^7.0`, Pathwise `^4.2`, ReqShield `^3.3`, TalkingBytes `^2.3`, Runwire `^2.1.1`; passkey feature uses compatible WebAuthn dependencies.
+- The WebAuthn passkey feature requires `web-auth/webauthn-lib` `^5.3.9`; `opis/closure` `^4.5` and PHPForge remain development/engineering dependencies, not required Core runtime packages.
 - Development and production `--no-dev` configurations build standalone Foundation releases; unrelated Infbyte application migration is not included.
 
 ## Major-version contract
 
 Foundation 4.0 is a deliberate breaking major release. **There are no backwards-compatibility aliases or guarantees for previous Foundation or specialist major versions.** Consumers must use the current 4.0 public/provider/capability contracts and rebuild trusted release generations.
+
+## Publication metadata audit (reviewed; approval withheld)
+
+The release candidate declares Composer package `infocyph/foundation`, type `library`, license `MIT`, PHP `^8.4`, Composer runtime API `^2.0`, PSR-4 root `Infocyph\\Foundation\\`, and shipped CLI entry `bin/infbyte`. The nine optional specialists are declared as suggested packages and available in `require-dev` for development/test coverage; application owners install only explicitly selected package requirements. The candidate `composer.json` does not hardcode a release `version`: Composer release identity will come from the operator-published Git tag.
+
+**Documentation and dependency roles have been reviewed, but publication approval has not been granted.** The release evidence must identify the **final published source SHA**, complete resolved dependency manifest, Composer lock digest, PHP/extensions and CI runs. No tag, release asset or release date should be presented as already published. The remaining controlled physical-host baseline/candidate tests and the dependent final go/no-go decision are recorded in [Batch 7 evidence](plans/foundation-4-module-batch7-evidence.md). CI smoke and synthetic benchmark results are not substitutes.
 
 ## Certification still required before publication
 

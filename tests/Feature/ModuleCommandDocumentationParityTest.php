@@ -85,3 +85,59 @@ it('keeps draft release notes explicit about the v2 features and unfinished host
         expect($notes)->toContain($feature);
     }
 });
+
+
+it('keeps Composer publication metadata and optional package roles consistent with the module catalog', function (): void {
+    $manifest = json_decode(
+        (string) file_get_contents(dirname(__DIR__, 2) . '/composer.json'),
+        true,
+        flags: JSON_THROW_ON_ERROR,
+    );
+    $core = [
+        'php' => '^8.4',
+        'composer-runtime-api' => '^2.0',
+        'infocyph/arraykit' => '^5.3.1',
+        'infocyph/cachelayer' => '^4.0',
+        'infocyph/intermix' => '^11.2',
+        'infocyph/uid' => '^6.0',
+        'infocyph/webrick' => '^6.0.3',
+        'psr/log' => '^3.0.2',
+    ];
+
+    expect($manifest['name'])->toBe('infocyph/foundation')
+        ->and($manifest['type'])->toBe('library')
+        ->and($manifest['license'])->toBe('MIT')
+        ->and($manifest['require'])->toBe($core)
+        ->and($manifest['autoload']['psr-4']['Infocyph\\Foundation\\'])->toBe('src/')
+        ->and($manifest['bin'])->toContain('bin/infbyte')
+        ->and($manifest)->not->toHaveKey('version');
+
+    foreach (new \Infocyph\Foundation\Module\ModuleArchitectureCatalog()->all() as $module) {
+        foreach ($module['features'] as $feature) {
+            foreach ($feature['packages'] as $name => $constraint) {
+                expect($manifest['require'])->not->toHaveKey($name)
+                    ->and($manifest['require-dev'][$name] ?? null)->toBe($constraint)
+                    ->and($manifest['suggest'])->toHaveKey($name);
+            }
+        }
+    }
+
+    expect($manifest['require-dev']['opis/closure'])->toBe('^4.5')
+        ->and($manifest['require'])->not->toHaveKey('opis/closure')
+        ->and($manifest['require-dev'])->toHaveKey('infocyph/phpforge');
+});
+
+it('retains explicit publication blockers in the release notes and module API documentation', function (): void {
+    $notes = (string) file_get_contents(dirname(__DIR__, 2) . '/docs/foundation-4.0-release-notes-draft.md');
+    $modules = (string) file_get_contents(dirname(__DIR__, 2) . '/docs/modules.md');
+
+    expect($notes)->toContain('Publication metadata audit (reviewed; approval withheld)')
+        ->and($notes)->toContain('psr/log')
+        ->and($notes)->toContain('web-auth/webauthn-lib')
+        ->and($notes)->toContain('opis/closure')
+        ->and($notes)->toContain('final published source SHA')
+        ->and($notes)->toContain('controlled physical-host')
+        ->and($notes)->toContain('unpublished draft')
+        ->and($modules)->toContain('not release-ready')
+        ->and($modules)->toContain('Batch 7 certification evidence');
+});

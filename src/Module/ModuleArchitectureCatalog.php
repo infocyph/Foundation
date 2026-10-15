@@ -10,9 +10,9 @@ use Infocyph\Foundation\Module\Internal\ModuleArchitectureValidator;
  * Fixed Foundation 4 optional feature taxonomy. Required Core libraries and
  * development-only PHPForge are intentionally not application modules.
  *
- * This is the target metadata for the staged module-lifecycle cutover.
- * Existing module commands still use ModuleCatalog::all() until the state
- * resolver, planner and mutation commands migrate together.
+ * Authoritative three-module/nine-feature metadata for the Foundation 4
+ * public schema-v2 module CLI, planner and lifecycle integration.
+ * Core and QA never become installable optional modules.
  *
  * @phpstan-type FeatureDependency array{target:string,when?:array{key:string,operator:'equals'|'not-empty',value?:bool|int|string}}
  * @phpstan-type ArchitectureFeature array{
