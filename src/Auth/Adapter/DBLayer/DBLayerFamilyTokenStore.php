@@ -11,6 +11,11 @@ abstract readonly class DBLayerFamilyTokenStore extends ClockedDBLayerStore
         $this->updateWhere($table, ['rotated_at' => $this->now()], 'id = ?', [$recordId]);
     }
 
+    protected function revokeTokenFamily(string $table, string $familyId): void
+    {
+        $this->updateWhere($table, ['revoked_at' => $this->now()], 'family_id = ? AND revoked_at IS NULL', [$familyId]);
+    }
+
     protected function rotateTokenIfActive(
         string $table,
         string $tokenId,
@@ -43,11 +48,6 @@ abstract readonly class DBLayerFamilyTokenStore extends ClockedDBLayerStore
 
             return true;
         }) === true;
-    }
-
-    protected function revokeTokenFamily(string $table, string $familyId): void
-    {
-        $this->updateWhere($table, ['revoked_at' => $this->now()], 'family_id = ? AND revoked_at IS NULL', [$familyId]);
     }
 
     protected function tokenFamilyWasRevoked(string $table, string $familyId): bool
