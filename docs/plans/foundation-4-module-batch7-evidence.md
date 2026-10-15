@@ -1,5 +1,8 @@
 # Foundation 4 — Module architecture Batch 7 certification evidence
 
+> **2026-10-15 current certification update (supersedes historical release counts below):** Foundation 4 executable [`aea1ab2`](https://github.com/infocyph/Foundation/commit/aea1ab2ffedae30ed4f1d4eabe65f7cbe9f47198) passed [Security & Standards #38749779083](https://github.com/infocyph/Foundation/actions/runs/38749779083) **SUCCESS** after same-SHA retry (PHPForge QA 4/4, PHPStan 2/2, production consumers 4/4, component benchmarks 2/2, clean install and release evidence) and [native-host #38749778570](https://github.com/infocyph/Foundation/actions/runs/38749778570) **SUCCESS**. All 62 PR inline review threads were resolved at the current re-audit inspection. Reopened Foundation release acceptance is **19/37, NO-GO**, not the old 32/37 quoted in archived notes. **B7 gates 3/4/7 remain blocked**: no physically controlled production-equivalent matched-host baseline/candidate measurements are recorded. R6 also remains open for normal Foundation-created operations, even though native host smoke passed. No merge, tag, release or Infbyte work.
+
+
 Checkpoint: 2026-10-15. Repository: infocyph/Foundation. PR: [#20](https://github.com/infocyph/Foundation/pull/20). Branch: \`feature/foundation-3\`.
 
 **Status: NOT fully certified (2026-10-15). B7 4/7 individually QA-checked, 0/7 fully accepted.** The B0–B6 module architecture is accepted; the last two architecture performance gates require matched, production-equivalent baseline/candidate measurements. Release-notes sign-off is blocked until those gates pass. Do not confuse repeatable CI smoke with a successful-RPM comparison, and do not merge, tag or publish on the strength of this file.
@@ -41,7 +44,7 @@ Executable parity is covered by `ModuleCommandDocumentationParityTest` and `Modu
 | 6. Review and immutable provenance | No unresolved PR review threads; exact executable SHA, PHP/toolchain and dependency/Composer lock manifest; both trackers synchronized | **PASS: zero unresolved threads and immutable CI artifact; both trackers synchronized** |
 | 7. Final notes and release decision | Module v2 docs, release metadata and upgrade notes reviewed; only accept ready after all previous gates | **BLOCKED by 3 and 4** |
 
-The separate Foundation 4.0 release-audit plan remains **32/37** and has overlapping but distinct matched-hardware performance and release requirements. Neither tracker may claim release readiness while those are incomplete.
+The separate Foundation 4.0 release-audit plan has **19/37 currently reopened-criterion acceptance**, with overlapping but distinct operation-propagation, adversarial-security, matched-host performance and release requirements. Neither tracker may claim release readiness while those are incomplete.
 
 ## Diagnostic CLI before/after comparison
 
