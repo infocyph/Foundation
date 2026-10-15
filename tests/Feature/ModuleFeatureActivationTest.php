@@ -192,7 +192,7 @@ it('serializes overlapping feature plans without silently losing changes', funct
         $config = require $path . '/config/modules.php';
         expect($successes)->toBe(1)
             ->and(count($config['features']))->toBe(1)
-            ->and(array_keys($config['features']))->toBeOneOf([['security.passkey'], ['security.mfa']]);
+            ->and(in_array(array_keys($config['features']), [['security.passkey'], ['security.mfa']], true))->toBeTrue();
     } finally {
         foreach ($processes as [$process, $stdout, $stderr]) {
             fclose($stdout);
