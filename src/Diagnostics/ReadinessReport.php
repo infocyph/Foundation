@@ -27,23 +27,28 @@ final readonly class ReadinessReport
         $checks = $this->baseChecks();
         $checks['configuration'] = $this->configurationReadiness();
         $capabilities = new ConfiguredCapabilities($this->application->config());
+        $checks = [...$checks, ...new CoreCapabilityDiagnostics()->checks($capabilities)];
 
         if ($capabilities->enabled('auth') && $this->oauthEnabled()) {
             $checks['oauth:signing'] = $this->oauthSigningReadiness();
         }
 
-        foreach (new ModuleStateResolver($this->application, new ModuleCatalog())->all() as $module) {
-            if (!$module['enabled']) {
-                continue;
-            }
+        // The historical module names are not canonical feature identifiers.
+        // Keep their legacy report only until the coordinated public B6 cutover.
+        if (!$this->application->config()->has('modules.features')) {
+            foreach (new ModuleStateResolver($this->application, new ModuleCatalog())->all() as $module) {
+                if (!$module['enabled']) {
+                    continue;
+                }
 
-            $detail = $module['blockers'] !== []
-                ? implode('; ', $module['blockers'])
-                : ($module['warnings'] !== [] ? implode('; ', $module['warnings']) : $module['status']);
-            $checks['module:' . $module['name']] = [
-                'ready' => $module['ready'],
-                'detail' => $detail,
-            ];
+                $detail = $module['blockers'] !== []
+                    ? implode('; ', $module['blockers'])
+                    : ($module['warnings'] !== [] ? implode('; ', $module['warnings']) : $module['status']);
+                $checks['module:' . $module['name']] = [
+                    'ready' => $module['ready'],
+                    'detail' => $detail,
+                ];
+            }
         }
 
         $this->appendSchemaChecks($checks, $capabilities);
