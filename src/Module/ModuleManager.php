@@ -8,7 +8,11 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Config\ConfigCacheManager;
 use Infocyph\Foundation\Module\Internal\ModuleConfigPublisher;
 
-/** Core introspection and non-destructive configuration publication only. */
+/**
+ * Core introspection and non-destructive configuration publication only.
+ *
+ * @phpstan-import-type ModuleState from ModuleStateResolver
+ */
 final readonly class ModuleManager
 {
     public function __construct(
@@ -33,5 +37,4 @@ final readonly class ModuleManager
 
         return $result;
     }
-
 }
