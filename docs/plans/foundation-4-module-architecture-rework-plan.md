@@ -1,5 +1,8 @@
 # Foundation 4 — Module Architecture & Lifecycle Rework Plan
 
+> **2026-10-15 feedback remediation checkpoint:** The Foundation 4 release re-audit remains **NO-GO, 19/37 renewed acceptance**. R5 installed Composer version normalization, R8 locked full-feature-snapshot and post-mutation dependency guards, and retirement of the redundant legacy `ModuleManager::install/remove` implementation (R9 partial) are source-implemented and awaiting exact-source verification. R9 obsolete activation methods and native remember-token ownership remain open; R6 real Runwire operation forwarding remains open. Previous B0–B6 / 46-of-49 counts are historical proof, **not revalidated end-to-end acceptance for reopened criteria**. Do not check B7 performance/sign-off without physically matched repeated host comparison and final same-SHA matrices. Main live ledger: [Foundation 4 release re-audit](foundation-4.0-release-audit-and-plan.md).
+
+
 > **Re-audit note (2026-10-15):** Historical B0–B6 acceptance numbers below are not current certification for reopened Composer, concurrency, native integration or lifecycle concerns. The Foundation 4 release re-audit currently records **19/37** accepted. Short Composer installed-version handling is source-addressed but awaiting full QA. R8 stale module feature snapshots and R9 redundant mutation paths remain open. Do not raise architecture counts or accept B7 without exact-source and production-equivalent evidence.
 
 
