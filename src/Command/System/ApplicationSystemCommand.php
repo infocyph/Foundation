@@ -54,7 +54,6 @@ final class ApplicationSystemCommand extends SystemCommand
         foreach (new ModuleManager(
             $this->application,
             new ModuleCatalog(),
-            new ProcessRunner(),
         )->all() as $module) {
             $modules[$module['name']] = $module;
         }
