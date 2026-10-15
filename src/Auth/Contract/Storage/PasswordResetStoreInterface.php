@@ -10,6 +10,9 @@ interface PasswordResetStoreInterface
 {
     public function consume(string $requestId): void;
 
+    /** @param callable():void $apply Mutates the account in the same persistence unit. */
+    public function consumeAndApply(string $requestId, callable $apply): bool;
+
     public function find(string $requestId): ?PasswordResetRequest;
 
     public function save(PasswordResetRequest $request): void;
