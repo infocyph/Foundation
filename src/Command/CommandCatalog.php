@@ -243,10 +243,12 @@ final class CommandCatalog
             new CommandDefinition('module:enable', 'Enable only installed and allowed optional features.', 'Modules')
                 ->argument('module', 'Group or qualified feature ID.', required: true)
                 ->option('feature', 'Explicit group feature.', acceptsValue: true, multiple: true),
-            new CommandDefinition('module:install', 'Install packages for explicitly selected optional features.', 'Modules')
+            $connectionOption(
+                new CommandDefinition('module:install', 'Install packages for explicitly selected optional features.', 'Modules')
                 ->argument('module', 'Group or qualified feature ID.', required: true)
                 ->option('feature', 'Explicit group feature.', acceptsValue: true, multiple: true)
-                ->option('dry-run', 'Preview without modifying Composer or config.'),
+                    ->option('dry-run', 'Preview without modifying Composer or config.'),
+            ),
             new CommandDefinition('module:list', 'List three Foundation 4 module groups and nine optional features.', 'Modules'),
             new CommandDefinition('module:plan', 'Plan explicit selected feature requirements without mutation.', 'Modules')
                 ->argument('module', 'Group or qualified feature ID.', required: true)
