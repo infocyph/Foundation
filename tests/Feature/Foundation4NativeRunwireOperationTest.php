@@ -62,7 +62,7 @@ it('forwards native host cancellation to ordinary Foundation database operations
                         return $connection->scalar('SELECT 1');
                     },
                 ),
-            ))->toThrow(CancelledException::class);
+            ))->toThrow(\Infocyph\DBLayer\Exceptions\ConnectionException::class);
             expect($factory->connection()->runwireBinding())->toBeNull();
             expect(fn() => CacheRunwire::share(
                 $request,
@@ -88,6 +88,8 @@ it('uses native ReqShield and TalkingBytes operation cancellation without retain
     $validator = new class(new ValidatorFactory(new ConfigRepository(), new SchemaRegistry())) extends FormRequest {
         protected function rules(Request $request): array
         {
+            unset($request);
+
             return ['name' => 'required|string'];
         }
     };
@@ -130,7 +132,7 @@ final readonly class FoundationNativeOperationMessage
 
 it('propagates native Runwire cancellation through Foundation Omnibus dispatch without leaking the bus', function (): void {
     $app = Foundation::cli([
-        'app' => ['capabilities' => ['runwire' => true]],
+        'app' => ['capabilities' => ['runwire' => true, 'messaging' => true]],
         'messaging' => [
             'routes' => [
                 FoundationNativeOperationMessage::class => ['transport' => 'memory', 'queue' => 'default'],
