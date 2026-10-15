@@ -8,6 +8,7 @@ use Infocyph\Foundation\Communication\CommunicationProfiles;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Foundation;
+use Infocyph\Foundation\Messaging\MessagingRuntimeResolver;
 use Infocyph\Foundation\Runtime\NativeRunwireOperation;
 use Infocyph\Foundation\Validation\FormRequest;
 use Infocyph\Foundation\Validation\ValidatorFactory;
@@ -104,6 +105,54 @@ it('uses native ReqShield and TalkingBytes operation cancellation without retain
                 null,
                 static fn(): mixed => $profiles->http(),
             ))->toThrow(CancelledException::class);
+    } finally {
+        $request->complete();
+        CacheRunwire::release($runtime);
+    }
+});
+
+final readonly class FoundationNativeOperationMessage
+{
+    public function __construct(public string $value) {}
+}
+
+it('propagates native Runwire cancellation through Foundation Omnibus dispatch without leaking the bus', function (): void {
+    $app = Foundation::cli([
+        'messaging' => [
+            'routes' => [
+                FoundationNativeOperationMessage::class => ['transport' => 'memory', 'queue' => 'default'],
+            ],
+        ],
+    ])->boot();
+    $runtime = RuntimeContext::standalone();
+    $request = RequestContext::create($runtime);
+    CacheRunwire::bind($runtime);
+
+    try {
+        $app->execution()->run(static function () use ($app, $request): void {
+            $resolver = $app->make(MessagingRuntimeResolver::class);
+            $bus = $app->make(\Infocyph\Omnibus\MessageBus::class);
+
+            expect($resolver->dispatch(new FoundationNativeOperationMessage('plain')))
+                ->toBeInstanceOf(\Infocyph\Omnibus\Envelope\Envelope::class);
+
+            CacheRunwire::share($request, null, static function () use ($resolver, $bus): void {
+                expect($resolver->dispatch(new FoundationNativeOperationMessage('bound')))
+                    ->toBeInstanceOf(\Infocyph\Omnibus\Envelope\Envelope::class)
+                    ->and($bus->runwireBinding()->request())->toBeNull();
+            });
+            expect($bus->runwireBinding()->request())->toBeNull();
+
+            $request->cancel(CancellationReason::HOST_CANCELLED);
+            expect(fn() => CacheRunwire::share(
+                $request,
+                null,
+                static fn(): mixed => $resolver->dispatch(new FoundationNativeOperationMessage('cancelled')),
+            ))->toThrow(CancelledException::class);
+        }, [
+            RuntimeContext::class => $runtime,
+            RequestContext::class => $request,
+        ]);
     } finally {
         $request->complete();
         CacheRunwire::release($runtime);
