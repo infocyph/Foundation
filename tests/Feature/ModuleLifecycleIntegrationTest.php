@@ -379,3 +379,30 @@ function moduleLifecycleRemoveDirectory(string $directory): void
     }
     rmdir($directory);
 }
+
+it('preserves a compiled release generation when disabling an already disabled feature', function (): void {
+    $path = moduleLifecycleBasePath('no-op-invalidation');
+    moduleLifecycleWriteComposer($path, []);
+    mkdir($path . '/config', 0775, true);
+    file_put_contents($path . '/config/modules.php', "<?php return ['features' => ['data.database' => false]];\n");
+    $generation = $path . '/storage/releases/generations/unchanged';
+    mkdir($generation, 0775, true);
+    file_put_contents($generation . '/marker.txt', 'retain');
+    try {
+        $dispatcher = moduleLifecycleDispatcher($path, [
+            'modules' => ['features' => ['data.database' => false]],
+        ]);
+        $io = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:disable', 'data.database'], $io))
+            ->toBe(ExitCode::SUCCESS)
+            ->and($generation . '/marker.txt')->toBeFile()
+            ->and(file_get_contents($generation . '/marker.txt'))->toBe('retain');
+
+        $again = new FoundationModuleLifecycleIO();
+        expect(moduleLifecycleRun($dispatcher, ['infbyte', 'module:disable', 'data.database'], $again))
+            ->toBe(ExitCode::SUCCESS)
+            ->and($generation . '/marker.txt')->toBeFile();
+    } finally {
+        moduleLifecycleRemoveDirectory($path);
+    }
+});

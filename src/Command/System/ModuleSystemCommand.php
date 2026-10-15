@@ -46,6 +46,22 @@ final class ModuleSystemCommand extends SystemCommand
         };
     }
 
+    /**
+     * @param list<string> $features
+     * @param list<string> $enabled
+     */
+    private function activationChanged(string $operation, array $features, array $enabled): bool
+    {
+        if ($operation === 'enable') {
+            return array_any($features, static fn(string $feature): bool => !in_array($feature, $enabled, true));
+        }
+        if ($operation === 'disable') {
+            return array_any($features, static fn(string $feature): bool => in_array($feature, $enabled, true));
+        }
+
+        return true;
+    }
+
     private function catalog(): ModuleFeatureCommandCatalog
     {
         return new ModuleFeatureCommandCatalog();
@@ -140,16 +156,20 @@ final class ModuleSystemCommand extends SystemCommand
         $operation = substr($this->canonicalName(), strlen('module:'));
         $features = $this->selection();
         $snapshot = new ModuleFeatureCommandSnapshot($this->application);
+        $context = $snapshot->capture();
         $result = new ModuleFeatureLifecycleExecutor($this->application)->apply(
             $operation,
             $features,
-            $snapshot->capture(),
+            $context,
             in_array($operation, ['install', 'repair'], true) ? $snapshot->capture(...) : null,
             in_array($operation, ['install', 'remove'], true) && $this->flag('dry-run'),
             $this->option('connection'),
         );
 
-        if ($result['status'] === 'complete' && !in_array($operation, ['install', 'repair'], true)) {
+        if ($result['status'] === 'complete'
+            && !in_array($operation, ['install', 'repair'], true)
+            && $this->activationChanged($operation, $features, $context['enabled'])
+        ) {
             $this->invalidateRelease();
         }
 
