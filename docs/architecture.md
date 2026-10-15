@@ -104,8 +104,11 @@ connection, construct a store, or add unrelated request work.
 
 Foundation 4 optional modules (`data`, `security`, `execution`) expose nine
 explicit `module.feature` selections; Core stays prebuilt and non-installable.
-Bare groups never select their siblings. Native specialist owners
-Foundation does not expose package-presence as runtime policy.
+Bare groups never select their siblings. Native specialist owners keep their
+own service implementations; Foundation selects and composes them without
+turning package presence into runtime activation policy. The public module
+commands use qualified feature names and machine schema version 2; see
+[Optional modules](modules.md) for lifecycle, package and upgrade contracts.
 
 ## Execution boundaries
 

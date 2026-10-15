@@ -66,17 +66,17 @@ Every publishable specialist key is documented inline in its Foundation template
 | Configuration | Template | Owner |
 | --- | --- | --- |
 | CacheLayer stores/counters/locks/clusters | `resources/config/cache.php` | Foundation core cache infrastructure |
-| HTTP/webhook/gRPC profiles | `resources/config/communication.php` | `communication` |
-| DBLayer connections/migrations/seeders | `resources/config/database.php` | `database` |
-| Pathwise disks/upload/download policy | `resources/config/filesystem.php` | `filesystem` |
-| PSR-3 logging/exception policy | `resources/config/logging.php` | `logging` |
-| Omnibus routes/handlers/middleware/retry/workers | `resources/config/messaging.php` | `messaging` |
-| Email and application notifications | `resources/config/notifications.php` | `communication` |
-| Runtime operations/history/maintenance | `resources/config/operations.php` | `operations` |
-| JsonDispatch response profile | `resources/config/responses.php` | `resources` |
-| Epicrypt application security policy | `resources/config/security.php` | `security` |
-| Browser sessions/CSRF | `resources/config/session.php` | `session` |
-| ReqShield validation | `resources/config/validation.php` | `validation` |
+| HTTP/webhook/gRPC profiles | `resources/config/communication.php` | `execution.communication` |
+| DBLayer connections/migrations/seeders | `resources/config/database.php` | `data.database` |
+| Pathwise disks/upload/download policy | `resources/config/filesystem.php` | `data.filesystem` |
+| PSR-3 logging/exception policy | `resources/config/logging.php` | Foundation Core |
+| Omnibus routes/handlers/middleware/retry/workers | `resources/config/messaging.php` | `execution.messaging` |
+| Email and application notifications | `resources/config/notifications.php` | Foundation Core |
+| Runtime operations/history/maintenance | `resources/config/operations.php` | Foundation Core |
+| JsonDispatch response profile | `resources/config/responses.php` | Foundation Core |
+| Epicrypt application security policy | `resources/config/security.php` | `security.crypto` |
+| Browser sessions/CSRF | `resources/config/session.php` | Foundation Core |
+| ReqShield validation | `resources/config/validation.php` | `security.validation` |
 
 Publish without overwriting host config:
 
