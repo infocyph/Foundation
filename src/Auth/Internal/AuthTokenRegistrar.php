@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Internal;
 
+use Infocyph\Epicrypt\Security\RememberToken as EpicryptRememberToken;
 use Infocyph\Epicrypt\Token\Jwt\SymmetricJwt;
 use Infocyph\Epicrypt\Token\Payload\PurposeToken;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptAccessTokenService;
@@ -77,6 +78,11 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
 
     private function bindRememberTokens(): void
     {
+        if (!class_exists(EpicryptRememberToken::class)) {
+            // Native remember-me signing is optional with security.crypto, never emulated by Foundation.
+            return;
+        }
+
         $this->recipe(RememberTokenServiceInterface::class, SimpleRememberTokenService::class, [
             $this->ref(RememberTokenStoreInterface::class),
             $this->ref(ClockInterface::class),
