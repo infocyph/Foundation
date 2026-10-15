@@ -145,7 +145,7 @@ it('keeps TalkingBytes typed HTTP composition on the native 2.3 path', function 
 
     expect($source)->toBeString()
         ->toContain('HttpClientConfig::fromArray($array)')
-        ->toContain('baseConfig: $config')
+        ->toContain('$factory->fromConfig($config, $array)')
         ->not->toContain('return HttpClient::fromResolvedConfig($array);');
 });
 

@@ -21,6 +21,7 @@ use Infocyph\Webrick\Request\Request;
 
 it('forwards native host cancellation to ordinary Foundation database operations and restores binding', function (): void {
     $app = Foundation::cli([
+        'app' => ['capabilities' => ['runwire' => true]],
         'database' => [
             'default' => 'test',
             'connections' => ['test' => ['driver' => 'sqlite', 'database' => ':memory:']],
@@ -129,6 +130,7 @@ final readonly class FoundationNativeOperationMessage
 
 it('propagates native Runwire cancellation through Foundation Omnibus dispatch without leaking the bus', function (): void {
     $app = Foundation::cli([
+        'app' => ['capabilities' => ['runwire' => true]],
         'messaging' => [
             'routes' => [
                 FoundationNativeOperationMessage::class => ['transport' => 'memory', 'queue' => 'default'],

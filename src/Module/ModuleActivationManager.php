@@ -198,7 +198,7 @@ final readonly class ModuleActivationManager
     private function updateFeatureFlags(array $config, array $changes, array $context, string $operation, array $features): array
     {
         if (isset($context['composer_fingerprint'])
-            && $context['composer_fingerprint'] !== (new ModuleFeatureCommandSnapshot($this->application))->composerFingerprint()
+            && $context['composer_fingerprint'] !== new ModuleFeatureCommandSnapshot($this->application)->composerFingerprint()
         ) {
             throw new \RuntimeException('Application Composer metadata changed; re-plan before activation.');
         }
