@@ -227,7 +227,7 @@ it('does not rewrite config or invalidate its cache for unchanged feature topolo
 
 it('rejects an enabled feature removed from the authoritative on-disk snapshot', function (): void {
     $path = featureActivationBasePath();
-    $original = "<?php\\nreturn ['features' => []];\\n";
+    $original = "<?php\nreturn ['features' => []];\n";
     file_put_contents($path . '/config/modules.php', $original);
 
     try {
@@ -237,7 +237,7 @@ it('rejects an enabled feature removed from the authoritative on-disk snapshot',
         $context['enabled'] = ['security.crypto'];
         $context['selected_features'] = ['security.crypto'];
 
-        expect(fn() => $activation->applyFeatures('enable', ['security.mfa'], $context))
+        expect(fn() => $activation->applyFeatures('enable', ['security.passkey'], $context))
             ->toThrow(RuntimeException::class)
             ->and(file_get_contents($path . '/config/modules.php'))->toBe($original);
     } finally {
