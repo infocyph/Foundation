@@ -1,5 +1,8 @@
 # Foundation 4 — Module architecture Batch 7 certification evidence
 
+> **Current source 2026-10-15:** `fd34d0d2` corrected integration test and Rector gates. Exact-head PHPForge release QA is rerunning; no new physical matched-host baseline/candidate evidence is available. Keep B7 gates 3/4/7 blocked, Foundation renewed release acceptance 19/37 NO-GO, and PR #20 draft.
+
+
 > **2026-10-15 current source note:** Native Foundation operation forwarding and locked Composer metadata freshness were implemented after the last green source [`6dff05e2`](https://github.com/infocyph/Foundation/commit/6dff05e203ad0eead583d0bc3ec12240210300f0), with exact source QA pending. B7 3/4/7 performance and final approval remain **blocked**, and the release re-audit is **19/37 NO-GO**; no shared Actions benchmark or operation-facade unit test substitutes for an authenticated physically matched FPM/Runwire baseline-versus-candidate host comparison.
 
 
