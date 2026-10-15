@@ -3,6 +3,18 @@
 declare(strict_types=1);
 
 use Infocyph\Epicrypt\Security\RememberToken as EpicryptRememberToken;
+use Infocyph\DBLayer\DB;
+use Infocyph\DBLayer\Migration\MigrationRunner;
+use Infocyph\Foundation\Auth\Adapter\DBLayer\DBLayerPasswordResetStore;
+use Infocyph\Foundation\Auth\Adapter\DBLayer\DBLayerRefreshTokenStore;
+use Infocyph\Foundation\Auth\Authentication\TokenAuth\RefreshTokenRecord;
+use Infocyph\Foundation\Auth\Support\SystemClock;
+use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Database\AuthSchema\AuthSchema;
+use Infocyph\Foundation\Database\AuthSchema\AuthTables;
+use Infocyph\Foundation\Database\DatabaseConnectionResolver;
+use Infocyph\Foundation\Database\DBLayerFactory;
+use Infocyph\Foundation\Tests\Fixtures\RuntimeStateContainer;
 use Infocyph\Foundation\Auth\AuthServices;
 use Infocyph\Foundation\Auth\Authentication\EmailVerification\EmailVerificationRequest;
 use Infocyph\Foundation\Auth\Authentication\PasswordReset\PasswordResetRequest;
@@ -99,4 +111,65 @@ it('delegates remember-me signatures and account-device binding to native Epicry
             ->and($native->verify($parts[1], 'wrong-owner', 'device-1'))->toBeFalse()
             ->and($native->verify($parts[1], 'owner', 'wrong-device'))->toBeFalse();
     });
+});
+
+it('persists single-use reset and refresh transitions through native DBLayer transactions', function (): void {
+    DB::purge();
+    $configuration = new ConfigRepository([
+        'database' => [
+            'default' => 'auth',
+            'connections' => ['auth' => ['driver' => 'sqlite', 'database' => ':memory:']],
+        ],
+    ]);
+    $factory = new DBLayerFactory(new DatabaseConnectionResolver($configuration), RuntimeStateContainer::execution());
+    $tables = new AuthTables();
+    $clock = new SystemClock();
+    $now = $clock->now();
+
+    try {
+        new MigrationRunner($factory->connection(), [new AuthSchema($tables)])->run();
+        $resets = new DBLayerPasswordResetStore($factory, $tables, $clock);
+        $resets->save(new PasswordResetRequest('reset-db', 'account', $now, $now + 300));
+
+        expect(fn() => $resets->consumeAndApply('reset-db', static function (): void {
+            throw new RuntimeException('account persistence failed');
+        }))->toThrow(RuntimeException::class, 'account persistence failed');
+
+        expect($resets->wasConsumed('reset-db'))->toBeFalse()
+            ->and($resets->consumeAndApply('reset-db', static function (): void {}))->toBeTrue()
+            ->and($resets->consumeAndApply('reset-db', static function (): void {}))->toBeFalse()
+            ->and($resets->wasConsumed('reset-db'))->toBeTrue();
+
+        $refresh = new DBLayerRefreshTokenStore($factory, $tables, $clock);
+        $current = new RefreshTokenRecord(
+            tokenHash: hash('sha256', 'refresh-1'),
+            clientId: null,
+            deviceId: null,
+            id: 'refresh-db-a',
+            accountId: 'account',
+            familyId: 'family-db',
+            issuedAt: $now,
+            expiresAt: $now + 300,
+        );
+        $replacement = new RefreshTokenRecord(
+            tokenHash: hash('sha256', 'refresh-2'),
+            clientId: null,
+            deviceId: null,
+            id: 'refresh-db-b',
+            accountId: 'account',
+            familyId: 'family-db',
+            issuedAt: $now,
+            expiresAt: $now + 300,
+        );
+        $refresh->save($current);
+        expect($refresh->rotateIfActive($current, $replacement))->toBeTrue()
+            ->and($refresh->rotateIfActive($current, $replacement))->toBeFalse()
+            ->and($refresh->find($current->id)?->rotatedAt)->toBeInt()
+            ->and($refresh->find($replacement->id)?->id)->toBe($replacement->id);
+
+        $refresh->revokeFamily('family-db');
+        expect($refresh->wasFamilyRevoked('family-db'))->toBeTrue();
+    } finally {
+        DB::purge();
+    }
 });
