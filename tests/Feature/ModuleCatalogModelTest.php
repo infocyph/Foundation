@@ -27,14 +27,17 @@ it('models managed feature and optional package roles without broadening install
         ]);
 });
 
-it('keeps documented specialist package floors synchronized with ModuleCatalog', function (): void {
+it('documents the canonical three-module feature IDs and package version floors', function (): void {
     $content = file_get_contents(dirname(__DIR__, 2) . '/docs/modules.md');
     expect($content)->toBeString();
 
-    $catalog = new ModuleCatalog();
-    foreach ($catalog->all() as $module) {
-        foreach ($catalog->managedPackages($module) as $package => $constraint) {
-            expect($content)->toContain(sprintf('`%s %s`', $package, $constraint));
+    $catalog = new \Infocyph\Foundation\Module\ModuleArchitectureCatalog();
+    foreach ($catalog->all() as $group => $definition) {
+        foreach ($definition['features'] as $feature => $metadata) {
+            expect($content)->toContain('`' . $group . '.' . $feature . '`');
+            foreach ($metadata['packages'] as $constraint) {
+                expect($content)->toContain($constraint);
+            }
         }
     }
 });
