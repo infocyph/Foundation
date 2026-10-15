@@ -25,6 +25,10 @@ final readonly class SimpleRememberTokenService implements RememberTokenServiceI
         int $ttlSeconds,
         AuthSecretResolver $secrets,
     ) {
+        if (!class_exists(EpicryptRememberToken::class)) {
+            throw new \RuntimeException('Remember-me token signing requires the optional infocyph/epicrypt package.');
+        }
+
         $this->ttlSeconds = $ttlSeconds;
 
         $nativeClock = new readonly class($clock) implements PsrClockInterface {
