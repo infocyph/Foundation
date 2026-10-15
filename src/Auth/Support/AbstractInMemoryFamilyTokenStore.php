@@ -57,6 +57,29 @@ abstract class AbstractInMemoryFamilyTokenStore
         $this->records[$replacementId] = $replacement;
     }
 
+    protected function rotateStoredIfActive(AbstractFamilyTokenRecord $expected, AbstractFamilyTokenRecord $replacement): bool
+    {
+        $actual = $this->records[$expected->id] ?? null;
+        if (!$actual instanceof AbstractFamilyTokenRecord
+            || $actual->accountId !== $expected->accountId
+            || $actual->familyId !== $expected->familyId
+            || $replacement->accountId !== $expected->accountId
+            || $replacement->familyId !== $expected->familyId
+            || $actual->rotatedAt !== null
+            || $actual->isRevoked()
+            || $actual->isExpiredAt($this->clock->now())
+            || isset($this->revokedFamilies[$actual->familyId])
+            || isset($this->records[$replacement->id])
+        ) {
+            return false;
+        }
+
+        $this->records[$expected->id] = $this->rotateRecord($actual, $this->clock->now());
+        $this->records[$replacement->id] = $replacement;
+
+        return true;
+    }
+
     protected function saveStored(object $record, string $recordId): void
     {
         $this->records[$recordId] = $record;

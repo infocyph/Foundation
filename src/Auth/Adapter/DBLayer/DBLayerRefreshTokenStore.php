@@ -25,9 +25,30 @@ final readonly class DBLayerRefreshTokenStore extends DBLayerFamilyTokenStore im
 
     public function rotate(string $tokenId, RefreshTokenRecord $replacement): void
     {
-        $this->markTokenRotated('refreshTokens', $tokenId);
+        $current = $this->find($tokenId);
+        if ($current === null || !$this->rotateIfActive($current, $replacement)) {
+            throw new \RuntimeException('Token cannot be rotated more than once.');
+        }
+    }
 
-        $this->save($replacement);
+    public function rotateIfActive(RefreshTokenRecord $current, RefreshTokenRecord $replacement): bool
+    {
+        if ($replacement->id === $current->id
+            || $replacement->accountId !== $current->accountId
+            || $replacement->familyId !== $current->familyId
+        ) {
+            return false;
+        }
+
+        return $this->rotateTokenIfActive(
+            'refreshTokens',
+            $current->id,
+            $current->accountId,
+            $current->familyId,
+            'token_hash',
+            $current->tokenHash,
+            fn() => $this->save($replacement),
+        );
     }
 
     public function save(RefreshTokenRecord $record): void

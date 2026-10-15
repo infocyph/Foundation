@@ -39,9 +39,30 @@ final readonly class DBLayerRememberTokenStore extends DBLayerFamilyTokenStore i
 
     public function rotate(string $recordId, RememberTokenRecord $replacement): void
     {
-        $this->markTokenRotated('rememberTokens', $recordId);
+        $current = $this->find($recordId);
+        if ($current === null || !$this->rotateIfActive($current, $replacement)) {
+            throw new \RuntimeException('Token cannot be rotated more than once.');
+        }
+    }
 
-        $this->save($replacement);
+    public function rotateIfActive(RememberTokenRecord $current, RememberTokenRecord $replacement): bool
+    {
+        if ($replacement->id === $current->id
+            || $replacement->accountId !== $current->accountId
+            || $replacement->familyId !== $current->familyId
+        ) {
+            return false;
+        }
+
+        return $this->rotateTokenIfActive(
+            'rememberTokens',
+            $current->id,
+            $current->accountId,
+            $current->familyId,
+            'verifier_hash',
+            $current->verifierHash,
+            fn() => $this->save($replacement),
+        );
     }
 
     public function save(RememberTokenRecord $record): void
