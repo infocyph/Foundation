@@ -233,59 +233,53 @@ final class CommandCatalog
             )->argument('name', 'Scheduled message name.', required: true),
 
             $connectionOption(
-                new CommandDefinition('module:doctor', 'Inspect module readiness, dependencies, platform and schema blockers.', 'Modules')
-                    ->argument('module', 'Module name.', required: true)
-                    ->option('feature', 'Feature context to inspect. Repeat for multiple features.', acceptsValue: true, multiple: true),
+                new CommandDefinition('module:doctor', 'Inspect a Foundation 4 module or selected feature.', 'Modules')
+                    ->argument('module', 'Group or qualified feature ID.', required: true)
+                    ->option('feature', 'Feature of the named group; repeat as needed.', acceptsValue: true, multiple: true),
             ),
-            new CommandDefinition('module:disable', 'Disable a specialist module without removing packages or data.', 'Modules')
-                ->argument('module', 'Module name.', required: true),
-            new CommandDefinition('module:enable', 'Enable an installed specialist module after dependency validation.', 'Modules')
-                ->argument('module', 'Module name.', required: true),
+            new CommandDefinition('module:disable', 'Disable only explicitly named optional features.', 'Modules')
+                ->argument('module', 'Group or qualified feature ID.', required: true)
+                ->option('feature', 'Explicit group feature.', acceptsValue: true, multiple: true),
+            new CommandDefinition('module:enable', 'Enable only installed and allowed optional features.', 'Modules')
+                ->argument('module', 'Group or qualified feature ID.', required: true)
+                ->option('feature', 'Explicit group feature.', acceptsValue: true, multiple: true),
+            new CommandDefinition('module:install', 'Install packages for explicitly selected optional features.', 'Modules')
+                ->argument('module', 'Group or qualified feature ID.', required: true)
+                ->option('feature', 'Explicit group feature.', acceptsValue: true, multiple: true)
+                ->option('dry-run', 'Preview without modifying Composer or config.'),
+            new CommandDefinition('module:list', 'List three Foundation 4 module groups and nine optional features.', 'Modules'),
+            new CommandDefinition('module:plan', 'Plan explicit selected feature requirements without mutation.', 'Modules')
+                ->argument('module', 'Group or qualified feature ID.', required: true)
+                ->option('feature', 'Explicit group feature.', acceptsValue: true, multiple: true),
             $connectionOption(
-                new CommandDefinition(
-                    'module:install',
-                    'Install a Foundation module, publish config, and provision applicable schemas.',
-                    'Modules',
-                )
-                    ->argument('module', 'Module name.', required: true)
-                    ->option('feature', 'Module feature to install. Repeat for multiple features.', acceptsValue: true, multiple: true)
-                    ->option('dry-run', 'Preview Composer changes without modifying the project.'),
+                new CommandDefinition('module:show', 'Show a Foundation 4 group or qualified feature.', 'Modules')
+                    ->argument('module', 'Group or qualified feature ID.', required: true)
+                    ->option('feature', 'Feature of named group; repeat as needed.', acceptsValue: true, multiple: true),
             ),
-            new CommandDefinition('module:list', 'List Foundation modules.', 'Modules'),
+            new CommandDefinition('module:config:publish', 'Publish missing selected feature configuration without overwriting.', 'Modules')
+                ->argument('module', 'Group or qualified feature ID.', required: true)
+                ->option('feature', 'Explicit group feature.', acceptsValue: true, multiple: true),
+            new CommandDefinition('module:repair', 'Repair explicitly selected feature dependencies and schemas.', 'Modules')
+                ->argument('module', 'Group or qualified feature ID.', required: true)
+                ->option('feature', 'Explicit group feature.', acceptsValue: true, multiple: true),
+            new CommandDefinition('module:remove', 'Remove only unshared packages for explicitly selected features.', 'Modules')
+                ->argument('module', 'Group or qualified feature ID.', required: true)
+                ->option('feature', 'Explicit group feature.', acceptsValue: true, multiple: true)
+                ->option('dry-run', 'Preview without removing packages.'),
             $connectionOption(
-                new CommandDefinition('module:plan', 'Explain module installation and dependency changes without mutation.', 'Modules')
-                    ->argument('module', 'Module name.', required: true)
-                    ->option('feature', 'Module feature to plan. Repeat for multiple features.', acceptsValue: true, multiple: true),
-            ),
-            $connectionOption(
-                new CommandDefinition('module:show', 'Show detailed module package/config/schema state.', 'Modules')
-                    ->argument('module', 'Module name.', required: true)
-                    ->option('feature', 'Feature context to show. Repeat for multiple features.', acceptsValue: true, multiple: true),
-            ),
-            new CommandDefinition('module:config:publish', 'Publish config owned by a Foundation module.', 'Modules')
-                ->argument('module', 'Module name.', required: true)
-                ->option('force', 'Replace existing module config.'),
-            $connectionOption(
-                new CommandDefinition('module:repair', 'Resume an incomplete module installation without destructive rollback.', 'Modules')
-                    ->argument('module', 'Module name.', required: true)
-                    ->option('feature', 'Module feature to repair. Repeat for multiple features.', acceptsValue: true, multiple: true),
-            ),
-            new CommandDefinition('module:remove', 'Remove an optional Foundation module.', 'Modules')
-                ->argument('module', 'Module name.', required: true)
-                ->option('feature', 'Module feature to remove. Repeat for multiple features.', acceptsValue: true, multiple: true)
-                ->option('dry-run', 'Preview Composer changes without modifying the project.'),
-            $connectionOption(
-                new CommandDefinition('module:schema:install', 'Provision database schemas owned by a module.', 'Modules')
-                    ->argument('module', 'Module name.', required: true)
-                    ->option('applicable-only', 'Provision only schemas applicable to the active topology.'),
+                new CommandDefinition('module:schema:install', 'Provision selected specialist-owned schema only.', 'Modules')
+                    ->argument('module', 'Group or qualified feature ID.', required: true)
+                    ->option('feature', 'Explicit group feature.', acceptsValue: true, multiple: true)
+                    ->option('applicable-only', 'Provision only applicable schemas.'),
             ),
             $connectionOption(
-                new CommandDefinition('module:schema:status', 'Show database schema readiness for a module.', 'Modules')
-                    ->argument('module', 'Module name.', required: true),
+                new CommandDefinition('module:schema:status', 'Inspect selected feature-owned schemas.', 'Modules')
+                    ->argument('module', 'Group or qualified feature ID.', required: true)
+                    ->option('feature', 'Explicit group feature.', acceptsValue: true, multiple: true),
             ),
             $connectionOption(new CommandDefinition(
                 'module:schema:sync',
-                'Provision all module schemas required by current configuration.',
+                'Provision only schemas for selected optional features.',
                 'Modules',
             )),
 

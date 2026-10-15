@@ -6,22 +6,24 @@ namespace Infocyph\Foundation\Command\System;
 
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Command\ExitCode;
-use Infocyph\Foundation\Module\FreshModuleSchemaRunner;
-use Infocyph\Foundation\Module\ModuleActivationManager;
 use Infocyph\Foundation\Module\ModuleCatalog;
-use Infocyph\Foundation\Module\ModuleManager;
+use Infocyph\Foundation\Module\ModuleFeatureCommandCatalog;
+use Infocyph\Foundation\Module\ModuleFeatureCommandSnapshot;
+use Infocyph\Foundation\Module\ModuleFeatureConfigPublisher;
+use Infocyph\Foundation\Module\ModuleFeatureLifecycleExecutor;
+use Infocyph\Foundation\Module\ModuleFeaturePlanner;
+use Infocyph\Foundation\Module\ModuleFeatureResolver;
+use Infocyph\Foundation\Module\ModuleFeatureSchemaExecutor;
 use Infocyph\Foundation\Module\ModuleSchemaManager;
-use Infocyph\Foundation\Process\ProcessRunner;
 use Infocyph\Foundation\Release\FoundationReleaseBootstrap;
 use Infocyph\Foundation\Release\FoundationReleaseCompiler;
 
 /**
- * @phpstan-import-type DependencyState from \Infocyph\Foundation\Module\Internal\ModuleDependencyResolver
- * @phpstan-import-type FeatureState from \Infocyph\Foundation\Module\ModuleStateResolver
- * @phpstan-import-type PackageState from \Infocyph\Foundation\Module\ModuleStateResolver
- * @phpstan-import-type PlatformResolution from \Infocyph\Foundation\Module\Internal\ModulePlatformResolver
- * @phpstan-import-type ModuleState from \Infocyph\Foundation\Module\ModuleStateResolver
- * @phpstan-import-type ResolvedModule from \Infocyph\Foundation\Module\ModuleCatalog
+ * Foundation 4 public module command boundary: three modules and nine optional
+ * qualified features. Core and PHPForge are not installable modules.
+ *
+ * All operations use the same fresh CLI Composer/feature snapshot and B2/B3
+ * pure planner + safe lifecycle. No legacy-module fallback or aliases.
  */
 final class ModuleSystemCommand extends SystemCommand
 {
@@ -30,780 +32,234 @@ final class ModuleSystemCommand extends SystemCommand
     protected function handle(): int
     {
         return match ($this->canonicalName()) {
-            'module:config:publish' => $this->publishConfig(),
-            'module:disable' => $this->disable(),
-            'module:doctor' => $this->show(),
-            'module:enable' => $this->enable(),
-            'module:install' => $this->install(),
             'module:list' => $this->listing(),
+            'module:show', 'module:doctor' => $this->inspect(),
             'module:plan' => $this->plan(),
-            'module:remove' => $this->remove(),
-            'module:repair' => $this->repair(),
-            'module:schema:install' => $this->schemaInstall(),
-            'module:schema:status' => $this->schemaStatus(),
-            'module:schema:sync' => $this->schemaSync(),
-            'module:show' => $this->show(),
-            default => throw new \LogicException('Unsupported module system command.'),
+            'module:install', 'module:remove', 'module:enable',
+            'module:disable', 'module:repair' => $this->mutateFeature(),
+            'module:config:publish' => $this->publishConfig(),
+            'module:schema:status', 'module:schema:install',
+            'module:schema:sync' => $this->schemas(),
+            default => throw new \LogicException('Unknown Foundation 4 module command.'),
         };
     }
 
-    private function catalog(): ModuleCatalog
+    private function catalog(): ModuleFeatureCommandCatalog
     {
-        return new ModuleCatalog();
+        return new ModuleFeatureCommandCatalog();
     }
 
-    /**
-     * @phpstan-param ResolvedModule $definition
-     */
-    private function completeInstall(
-        array $definition,
-        string $requested,
-        bool $dryRun,
-        ModuleManager $manager,
-    ): int {
-        $module = $definition['name'];
-        $features = $definition['requested_features'];
-        $published = $dryRun
-            ? ['published' => [], 'existing' => []]
-            : $manager->publishConfig($module);
-        $schemas = [];
-        $schemaExit = ExitCode::SUCCESS;
-
-        if (!$dryRun) {
-            $this->invalidateCompiledRuntime();
-            [$schemaExit, $schemas] = $this->freshSchemas($module, true);
-        }
-
-        if ($this->io()->machineReadable()) {
-            $this->io()->json([
-                'module' => $module,
-                'requested' => $requested,
-                'features' => $features,
-                'exit_code' => $schemaExit,
-                ...$published,
-                'owned_schemas' => $definition['schemas'],
-                'schemas' => $schemas,
-            ]);
-
-            return $schemaExit;
-        }
-
-        $label = $features === []
-            ? sprintf('Module "%s"', $module)
-            : sprintf('Module "%s" feature(s) %s', $module, implode(', ', $features));
-        $this->io()->success($label . ' installed.');
-
-        foreach ($published['published'] as $path) {
-            $this->io()->info('Published ' . $path);
-        }
-        if ($schemas === [] && $definition['schemas'] !== []) {
-            $this->io()->info('No module database schema is required by the current configuration.');
-        } else {
-            $this->renderSchemas($schemas);
-        }
-
-        return $schemaExit;
-    }
-
-    /**
-     * @phpstan-param ResolvedModule $definition
-     * @return list<array{file:string,path:string,published:bool}>
-     */
-    private function configRows(array $definition): array
+    /** @return list<string> */
+    private function selection(): array
     {
-        return array_map(
-            function (string $filename): array {
-                $path = $this->application->configPath($filename);
-
-                return [
-                    'file' => $filename,
-                    'path' => $path,
-                    'published' => is_file($path),
-                ];
-            },
-            $definition['config'],
+        return $this->catalog()->selection(
+            $this->argument(0) ?? throw new \LogicException('Expected a validated module or feature argument.'),
+            $this->values('feature'),
         );
     }
 
-    private function disable(): int
+    /** @return array<string,mixed> */
+    private function snapshot(): array
     {
-        $module = $this->catalog()->resolve($this->module())['name'];
-        $path = new ModuleActivationManager($this->application, $this->catalog())->disable($module);
-
-        if ($this->io()->machineReadable()) {
-            $this->io()->json([
-                'module' => $module,
-                'enabled' => false,
-                'activation_explicit' => true,
-                'config' => $path,
-            ]);
-
-            return ExitCode::SUCCESS;
-        }
-
-        $this->io()->success(sprintf('Module "%s" disabled.', $module));
-
-        return ExitCode::SUCCESS;
-    }
-
-    private function enable(): int
-    {
-        $module = $this->catalog()->resolve($this->module())['name'];
-        $path = new ModuleActivationManager($this->application, $this->catalog())->enable($module);
-
-        if ($this->io()->machineReadable()) {
-            $this->io()->json([
-                'module' => $module,
-                'enabled' => true,
-                'activation_explicit' => true,
-                'config' => $path,
-            ]);
-
-            return ExitCode::SUCCESS;
-        }
-
-        $this->io()->success(sprintf('Module "%s" enabled.', $module));
-
-        return ExitCode::SUCCESS;
-    }
-
-    /**
-     * @return array{int,list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}>}
-     */
-    private function freshSchemas(?string $module = null, bool $applicableOnly = false): array
-    {
-        $result = new FreshModuleSchemaRunner($this->application, $this->catalog())->run(
-            $module,
-            $this->option('connection'),
-            $this->option('env'),
-            $applicableOnly,
-        );
-        if ($result['error'] !== null) {
-            $this->io()->error($result['error']);
-        }
-
-        return [$result['exit_code'], $result['schemas']];
-    }
-
-    private function install(): int
-    {
-        $requested = $this->module();
-        $definition = $this->catalog()->resolve($requested, $this->values('feature'));
-        $features = $definition['requested_features'];
-        if (($definition['core_backed'] ?? false) === true && $features === []) {
-            return $this->installCoreNoop($definition, $requested);
-        }
-
-        $manager = $this->manager();
-        $dryRun = $this->flag('dry-run');
-        $result = $manager->install($definition['name'], $features, $dryRun);
-        if (!$result->successful()) {
-            return $result->exitCode;
-        }
-
-        return $this->completeInstall($definition, $requested, $dryRun, $manager);
-    }
-
-    /**
-     * @phpstan-param ResolvedModule $definition
-     */
-    private function installCoreNoop(array $definition, string $requested): int
-    {
-        $payload = [
-            'module' => $definition['name'],
-            'requested' => $requested,
-            'features' => [],
-            'core_backed' => true,
-            'package_action' => 'none',
-        ];
-
-        if ($this->io()->machineReadable()) {
-            $this->io()->json($payload);
-        } else {
-            $this->io()->note(sprintf(
-                'Module "%s" core is built into Foundation; use --feature=otp or --feature=passkey for specialist packages.',
-                $definition['name'],
-            ));
-        }
-
-        return ExitCode::SUCCESS;
-    }
-
-    private function invalidateCompiledRuntime(): void
-    {
-        $config = $this->application->config()->all();
-        $config['base_path'] = $this->application->basePath();
-        $app = is_array($config['app'] ?? null) ? $config['app'] : [];
-        $app['base_path'] = $this->application->basePath();
-        $config['app'] = $app;
-
-        new FoundationReleaseCompiler()->clear(
-            FoundationReleaseBootstrap::resolveReleaseRoot($config),
-        );
+        return new ModuleFeatureCommandSnapshot($this->application)->capture();
     }
 
     private function listing(): int
     {
-        $modules = $this->manager()->all();
+        $inventory = $this->catalog()->inventory();
         if ($this->io()->machineReadable()) {
-            $this->io()->json($modules);
-
-            return ExitCode::SUCCESS;
+            return $this->emit($inventory);
         }
 
         $this->io()->table(
-            ['Module', 'Status', 'Direct', 'Enabled', 'Configured', 'Ready', 'Packages', 'Purpose'],
+            ['Module', 'Feature IDs', 'Purpose'],
             array_map(
-                fn(array $module): array => [
-                    $module['name'],
-                    $module['status'],
-                    $module['direct'],
-                    $module['enabled'],
-                    $module['configured'],
-                    $module['ready'],
-                    $this->packageSummary($module['packages']),
-                    $module['description'],
+                static fn(array $group): array => [
+                    $group['name'],
+                    implode(', ', $group['features']),
+                    $group['description'],
                 ],
-                $modules,
+                $inventory['modules'],
             ),
         );
 
         return ExitCode::SUCCESS;
     }
 
-    private function manager(): ModuleManager
+    private function inspect(): int
     {
-        return new ModuleManager($this->application, $this->catalog(), new ProcessRunner());
-    }
-
-    private function module(): string
-    {
-        return $this->argument(0) ?? throw new \LogicException('Validated module argument is unavailable.');
-    }
-
-    /**
-     * @phpstan-return ModuleState
-     */
-    private function moduleState(string $name): array
-    {
-        $module = array_find(
-            $this->manager()->all(),
-            static fn(array $candidate): bool => $candidate['name'] === $name,
+        $catalog = $this->catalog();
+        $inventory = $catalog->inventory();
+        $requested = $this->argument(0) ?? throw new \LogicException('Expected a module argument.');
+        $group = explode('.', $requested, 2)[0];
+        $definition = array_find(
+            $inventory['modules'],
+            static fn(array $entry): bool => $entry['name'] === $group,
         );
-        if (!is_array($module)) {
-            throw new \LogicException(sprintf('Module "%s" is missing from the module registry.', $name));
+        if ($definition === null) {
+            throw new \InvalidArgumentException(sprintf('Unknown Foundation 4 module "%s".', $requested));
         }
 
-        return $module;
-    }
-
-    /**
-     * @param array<string,PackageState> $packages
-     * @return list<list<bool|float|int|string|null>>
-     */
-    private function packageRows(array $packages): array
-    {
-        if ($packages === []) {
-            return [['Foundation', '', true, true, false, true, 'built-in']];
-        }
-
-        return array_map(
-            static fn(string $package, array $state): array => [
-                $package,
-                $state['constraint'],
-                $state['available'],
-                $state['direct'],
-                $state['transitive'],
-                $state['compatible'] ?? '',
-                $state['version'] ?? '',
-            ],
-            array_keys($packages),
-            array_values($packages),
-        );
-    }
-
-    /** @param array<string,PackageState|string> $packages */
-    private function packageSummary(array $packages): string
-    {
-        if ($packages === []) {
-            return 'Foundation';
-        }
-
-        $summary = [];
-        foreach ($packages as $package => $state) {
-            $summary[] = $package . ' ' . (is_string($state) ? $state : ($state['version'] ?? $state['constraint']));
-        }
-
-        return implode(', ', $summary);
-    }
-
-    private function plan(): int
-    {
-        $requested = $this->module();
-        $definition = $this->catalog()->resolve($requested, $this->values('feature'));
-        $module = $this->moduleState($definition['name']);
-        $packages = $this->catalog()->installationPackages($definition, $definition['requested_features']);
-
-        $add = [];
-        $owned = [];
-        $transitive = [];
-        foreach ($packages as $package => $constraint) {
-            $state = $module['packages'][$package] ?? null;
-            if (($state['direct'] ?? false) === true) {
-                $owned[$package] = $constraint;
-
-                continue;
-            }
-            if (($state['available'] ?? false) === true) {
-                $transitive[$package] = $constraint;
-            }
-            $add[$package] = $constraint;
-        }
-
+        // A group is a read-only view of siblings, not an implicit selection.
+        $selected = str_contains($requested, '.') || $this->values('feature') !== []
+            ? $catalog->selection($requested, $this->values('feature'))
+            : $definition['features'];
+        $state = new ModuleFeatureResolver()->resolve($selected, $this->snapshot());
         $payload = [
-            'schema_version' => 1,
-            'module' => $definition['name'],
+            'schema_version' => 2,
+            'module' => $group,
             'requested' => $requested,
-            'features' => $definition['requested_features'],
-            'packages_to_add' => $add,
-            'packages_direct' => $owned,
-            'packages_transitive' => $transitive,
-            'dependencies' => $module['dependencies'],
-            'config' => $definition['config'],
-            'schemas' => $definition['schemas'],
-            'blockers' => $module['blockers'],
-            'warnings' => $module['warnings'],
+            'features' => $definition['features'],
+            'states' => $state['states'],
+            'blockers' => $state['blockers'],
+            'root_known' => $state['root_known'],
         ];
 
         if ($this->io()->machineReadable()) {
-            $this->io()->json($payload);
-
-            return ExitCode::SUCCESS;
+            return $this->emit($payload);
         }
 
         $this->io()->table(
-            ['Module', 'Features', 'Packages to add', 'Config', 'Schemas'],
-            [[
-                $definition['name'],
-                implode(', ', $definition['requested_features']) ?: '-',
-                $this->packageSummary($add),
-                implode(', ', $definition['config']) ?: '-',
-                implode(', ', $definition['schemas']) ?: '-',
-            ]],
+            ['Feature', 'Enabled', 'Allowed', 'Missing extensions'],
+            array_map(
+                static fn(string $id, array $row): array => [
+                    $id,
+                    $row['enabled'],
+                    $row['allowed'],
+                    implode(', ', $row['missing_extensions']),
+                ],
+                array_keys($state['states']),
+                array_values($state['states']),
+            ),
         );
-        $this->renderDependencies($module['dependencies']['active'], 'Required dependencies');
-        $this->renderDependencies($module['dependencies']['inactive'], 'Inactive dependencies');
-
-        foreach ($module['blockers'] as $blocker) {
+        foreach ($state['blockers'] as $blocker) {
             $this->io()->warning($blocker);
         }
 
         return ExitCode::SUCCESS;
     }
 
+    private function plan(): int
+    {
+        $plan = new ModuleFeaturePlanner()->plan('install', $this->selection(), $this->snapshot());
+        if ($this->io()->machineReadable()) {
+            $this->io()->json($plan);
+        } else {
+            $this->io()->table(
+                ['Requested feature(s)', 'Required feature(s)', 'Packages to require', 'Applicable'],
+                [[
+                    implode(', ', $plan['requested']),
+                    implode(', ', $plan['required']),
+                    implode(', ', array_keys($plan['effects']['require'])),
+                    $plan['applicable'],
+                ]],
+            );
+            foreach ($plan['blockers'] as $blocker) {
+                $this->io()->warning($blocker);
+            }
+        }
+
+        return $plan['applicable'] ? ExitCode::SUCCESS : ExitCode::FAILURE;
+    }
+
+    private function mutateFeature(): int
+    {
+        $operation = substr($this->canonicalName(), strlen('module:'));
+        $features = $this->selection();
+        $snapshot = new ModuleFeatureCommandSnapshot($this->application);
+        $result = new ModuleFeatureLifecycleExecutor($this->application)->apply(
+            $operation,
+            $features,
+            $snapshot->capture(),
+            in_array($operation, ['install', 'repair'], true) ? $snapshot->capture(...) : null,
+            in_array($operation, ['install', 'remove'], true) && $this->flag('dry-run'),
+        );
+
+        if ($result['status'] === 'complete' && !in_array($operation, ['install', 'repair'], true)) {
+            $this->invalidateRelease();
+        }
+
+        if ($this->io()->machineReadable()) {
+            $this->io()->json(['schema_version' => 2, ...$result]);
+        } else {
+            $this->io()->note(sprintf('Feature %s: %s.', $operation, $result['status']));
+            if ($result['recovery'] !== null) {
+                $this->io()->warning($result['recovery']);
+            }
+        }
+
+        return in_array($result['status'], ['complete', 'planned'], true)
+            ? ExitCode::SUCCESS
+            : ExitCode::FAILURE;
+    }
+
     private function publishConfig(): int
     {
-        $requested = $this->module();
-        $module = $this->catalog()->resolve($requested)['name'];
-        $result = $this->manager()->publishConfig($module, $this->flag('force'));
+        if ($this->flag('force')) {
+            throw new \InvalidArgumentException('Foundation 4 never force-overwrites application-owned module config.');
+        }
+
+        $result = new ModuleFeatureConfigPublisher($this->application)->publish(
+            $this->selection(),
+            $this->snapshot(),
+        );
         if ($result['published'] !== []) {
-            $this->invalidateCompiledRuntime();
+            $this->invalidateRelease();
         }
 
-        if ($this->io()->machineReadable()) {
-            $this->io()->json(['module' => $module, 'requested' => $requested, ...$result]);
-
-            return ExitCode::SUCCESS;
-        }
-
-        foreach ($result['published'] as $path) {
-            $this->io()->success('Published ' . $path);
-        }
-        foreach ($result['existing'] as $path) {
-            $this->io()->note('Already exists: ' . $path);
-        }
-        if ($result['published'] === [] && $result['existing'] === []) {
-            $this->io()->note(sprintf('Module "%s" owns no publishable config.', $module));
-        }
-
-        return ExitCode::SUCCESS;
-    }
-
-    private function remove(): int
-    {
-        $requested = $this->module();
-        $definition = $this->catalog()->resolve($requested, $this->values('feature'));
-        $module = $definition['name'];
-        $features = $definition['requested_features'];
-        $dryRun = $this->flag('dry-run');
-        $result = $this->manager()->remove($module, $features, $dryRun);
-        if ($result->successful() && !$dryRun) {
-            $this->invalidateCompiledRuntime();
-        }
-
-        if ($this->io()->machineReadable()) {
-            $this->io()->json([
-                'module' => $module,
-                'requested' => $requested,
-                'features' => $features,
-                'exit_code' => $result->exitCode,
-            ]);
-        } elseif ($result->successful()) {
-            $label = $features === []
-                ? sprintf('Module "%s"', $module)
-                : sprintf('Module "%s" feature(s) %s', $module, implode(', ', $features));
-            $this->io()->success($label . ' removed. Application schemas and shared packages were preserved.');
-        }
-
-        return $result->exitCode;
-    }
-
-    /**
-     * @phpstan-param list<DependencyState> $dependencies
-     */
-    private function renderDependencies(array $dependencies, string $title): void
-    {
-        if ($dependencies === []) {
-            return;
-        }
-
-        $this->io()->writeln();
-        $this->io()->info($title);
-        $this->io()->table(
-            ['Type', 'Target', 'Satisfied', 'Reason'],
-            array_map(
-                static fn(array $dependency): array => [
-                    $dependency['type'],
-                    $dependency['target'],
-                    $dependency['satisfied'],
-                    $dependency['reason'],
-                ],
-                $dependencies,
-            ),
+        return $this->emit(
+            ['schema_version' => 2, ...$result],
+            sprintf('%d feature-owned configuration files published.', count($result['published'])),
         );
     }
 
-    /** @phpstan-param PlatformResolution $platform */
-    private function renderPlatform(array $platform): void
+    private function schemas(): int
     {
-        $rows = [];
-        foreach ($platform['required_extensions'] as $extension => $available) {
-            $rows[] = ['required-extension', 'ext-' . $extension, $available];
-        }
-        foreach ($platform['optional_extensions'] as $extension => $available) {
-            $rows[] = ['optional-extension', 'ext-' . $extension, $available];
-        }
-        foreach ($platform['packages'] as $package => $available) {
-            $rows[] = ['package', $package, $available];
-        }
-        if ($rows === []) {
-            return;
-        }
+        $name = $this->canonicalName();
+        $snapshot = $this->snapshot();
+        $features = $name === 'module:schema:sync'
+            ? $snapshot['enabled']
+            : $this->selection();
 
-        $this->io()->writeln();
-        $this->io()->info('Platform readiness');
-        $this->io()->table(['Requirement', 'Name', 'Available'], $rows);
-    }
-
-    /**
-     * @param list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}> $schemas
-     */
-    private function renderSchemas(array $schemas): void
-    {
-        if ($schemas === []) {
-            $this->io()->note('No database schemas are owned by this module.');
-
-            return;
-        }
-
-        $visible = array_values(array_filter(
-            $schemas,
-            static fn(array $schema): bool => $schema['applicable'] || $schema['state'] !== 'not-applicable',
-        ));
-        if ($visible === []) {
-            $this->io()->info('No database schema is required by the current configuration.');
-
-            return;
-        }
-
-        $this->io()->table(
-            ['Schema', 'Module', 'Applicable', 'State', 'Detail'],
-            array_map(
-                static fn(array $schema): array => [
-                    $schema['name'],
-                    $schema['module'],
-                    $schema['applicable'],
-                    $schema['state'],
-                    $schema['detail'],
-                ],
-                $visible,
-            ),
-        );
-    }
-
-    /**
-     * @phpstan-param ModuleState $module
-     * @param array{status:string,schema_ready:bool,ready:bool,blockers:list<string>} $readiness
-     * @param list<array{file:string,path:string,published:bool}> $config
-     * @param list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}> $schemas
-     */
-    private function renderShow(array $module, array $readiness, array $config, array $schemas): void
-    {
-        $this->io()->table(
-            ['Module', 'Status', 'Built-in', 'Direct', 'Enabled', 'Configured', 'Published', 'Ready', 'Purpose'],
-            [[
-                $module['name'],
-                $readiness['status'],
-                $module['built_in'],
-                $module['direct'],
-                $module['enabled'],
-                $module['configured'],
-                $module['config_published'],
-                $readiness['ready'],
-                $module['description'],
-            ]],
-        );
-        $this->io()->writeln();
-        $this->io()->table(
-            ['Package', 'Constraint', 'Available', 'Direct', 'Transitive', 'Compatible', 'Version'],
-            $this->packageRows($module['packages']),
-        );
-
-        $this->renderShowConfig($config);
-        $this->renderDependencies($module['dependencies']['active'], 'Active dependencies');
-        $this->renderDependencies($module['dependencies']['inactive'], 'Inactive dependencies');
-        $this->renderPlatform($module['platform_status']);
-        $this->renderShowFeatures($module['features']);
-        $this->renderShowSchemas($schemas);
-    }
-
-    /** @param list<array{file:string,path:string,published:bool}> $config */
-    private function renderShowConfig(array $config): void
-    {
-        if ($config === []) {
-            return;
-        }
-
-        $this->io()->writeln();
-        $this->io()->table(
-            ['Config', 'Published', 'Path'],
-            array_map(static fn(array $entry): array => [$entry['file'], $entry['published'], $entry['path']], $config),
-        );
-    }
-
-    /** @phpstan-param array<string,FeatureState> $features */
-    private function renderShowFeatures(array $features): void
-    {
         if ($features === []) {
-            return;
+            return $this->emit(['schema_version' => 2, 'schemas' => []], 'No selected optional feature schemas.');
         }
 
-        $this->io()->writeln();
-        $this->io()->table(
-            ['Feature', 'Selected', 'Installed', 'Ready', 'Purpose'],
-            array_map(
-                static fn(string $name, array $state): array => [
-                    $name,
-                    $state['selected'],
-                    $state['installed'],
-                    $state['ready'],
-                    $state['description'],
-                ],
-                array_keys($features),
-                array_values($features),
-            ),
-        );
-    }
-
-    /** @param list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}> $schemas */
-    private function renderShowSchemas(array $schemas): void
-    {
-        if ($schemas === []) {
-            return;
+        $plan = new ModuleFeaturePlanner()->plan('repair', $features, $snapshot);
+        if (!$plan['applicable']) {
+            throw new \RuntimeException('Schema planning blocked: ' . implode('; ', $plan['blockers']));
         }
 
-        $this->io()->writeln();
-        $this->renderSchemas($schemas);
-    }
+        // Foundation core auth/session schemas are not optional feature-owned.
+        if ($plan['effects']['schemas'] !== [] && $plan['effects']['schemas'] !== ['messaging']) {
+            throw new \RuntimeException('Unexpected optional schema ownership.');
+        }
 
-    private function repair(): int
-    {
-        $requested = $this->module();
-        $definition = $this->catalog()->resolve($requested, $this->values('feature'));
-        $module = $definition['name'];
-        $state = $this->moduleState($module);
-        $features = $definition['requested_features'];
-        $needsComposer = !$state['installed']
-            || array_any(
+        if ($name === 'module:schema:status') {
+            $schemas = in_array('messaging', $plan['effects']['schemas'], true)
+                ? new ModuleSchemaManager($this->application, new ModuleCatalog())->status(
+                    'messaging',
+                    $this->option('connection'),
+                )
+                : [];
+        } else {
+            $schemas = new ModuleFeatureSchemaExecutor($this->application)->install(
                 $features,
-                static fn(string $feature): bool => !($state['features'][$feature]['installed'] ?? false),
+                $snapshot,
+                $this->option('connection'),
+                $name === 'module:schema:install' && !$this->flag('applicable-only'),
             );
-
-        $composer = 'skipped';
-        if ($needsComposer) {
-            $result = $this->manager()->install($module, $features);
-            if (!$result->successful()) {
-                return $result->exitCode;
-            }
-            $composer = 'completed';
         }
 
-        $published = $this->manager()->publishConfig($module);
-        $this->invalidateCompiledRuntime();
-        [$schemaExit, $schemas] = $this->freshSchemas($module, true);
-
-        $payload = [
-            'module' => $module,
-            'requested' => $requested,
-            'features' => $features,
-            'phases' => [
-                'composer' => $composer,
-                'config' => 'completed',
-                'runtime_invalidation' => 'completed',
-                'schemas' => $schemaExit === ExitCode::SUCCESS ? 'completed' : 'failed',
-            ],
-            ...$published,
-            'schemas' => $schemas,
-        ];
-
-        if ($this->io()->machineReadable()) {
-            $this->io()->json($payload);
-        } else {
-            $this->io()->success(sprintf('Module "%s" repair completed.', $module));
-            $this->renderSchemas($schemas);
-        }
-
-        return $schemaExit;
+        return $this->emit(['schema_version' => 2, 'schemas' => $schemas], 'Selected feature-owned schemas verified.');
     }
 
-    private function schemaInstall(): int
+    private function invalidateRelease(): void
     {
-        $requested = $this->module();
-        $module = $this->catalog()->resolve($requested)['name'];
-        $schemas = $this->schemas()->install(
-            $module,
-            $this->option('connection'),
-            $this->flag('applicable-only'),
-        );
-
-        return $this->schemaResponse($schemas, $module, $requested, true);
-    }
-
-    /**
-     * @param list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}> $schemas
-     */
-    private function schemaResponse(
-        array $schemas,
-        ?string $module = null,
-        ?string $requested = null,
-        bool $strict = false,
-    ): int {
-        $failed = array_any(
-            $schemas,
-            static fn(array $schema): bool => !$schema['installed'] && ($strict || $schema['applicable']),
-        );
-        $payload = ['schemas' => $schemas];
-        if ($module !== null) {
-            $payload['module'] = $module;
-        }
-        if ($requested !== null) {
-            $payload['requested'] = $requested;
-        }
-
-        if ($this->io()->machineReadable()) {
-            $this->io()->json($payload);
-        } else {
-            $this->renderSchemas($schemas);
-        }
-
-        return $failed ? ExitCode::FAILURE : ExitCode::SUCCESS;
-    }
-
-    private function schemas(): ModuleSchemaManager
-    {
-        return new ModuleSchemaManager($this->application, $this->catalog());
-    }
-
-    private function schemaStatus(): int
-    {
-        $requested = $this->module();
-        $module = $this->catalog()->resolve($requested)['name'];
-        $schemas = $this->schemas()->status($module, $this->option('connection'));
-
-        return $this->schemaResponse($schemas, $module, $requested, true);
-    }
-
-    private function schemaSync(): int
-    {
-        $schemas = $this->schemas()->installApplicable($this->option('connection'));
-
-        return $this->schemaResponse($schemas);
-    }
-
-    private function show(): int
-    {
-        $requested = $this->module();
-        $definition = $this->catalog()->resolve($requested, $this->values('feature'));
-        $module = $this->moduleState($definition['name']);
-        $config = $this->configRows($definition);
-        $schemas = $this->schemas()->status($definition['name'], $this->option('connection'));
-        $readiness = $this->showReadiness($module, $schemas);
-
-        if ($this->io()->machineReadable()) {
-            $this->io()->json([
-                ...$module,
-                'requested' => $requested,
-                'requested_features' => $definition['requested_features'],
-                ...$readiness,
-                'config' => $config,
-                'schema_status' => $schemas,
-            ]);
-
-            return ExitCode::SUCCESS;
-        }
-
-        $this->renderShow($module, $readiness, $config, $schemas);
-
-        return ExitCode::SUCCESS;
-    }
-
-    /**
-     * @phpstan-param ModuleState $module
-     * @param list<array{name:string,module:string,applicable:bool,installed:bool,state:string,detail:string}> $schemas
-     * @return array{status:string,schema_ready:bool,ready:bool,blockers:list<string>}
-     */
-    private function showReadiness(array $module, array $schemas): array
-    {
-        $schemaReady = !array_any(
-            $schemas,
-            static fn(array $schema): bool => $schema['applicable'] && !$schema['installed'],
-        );
-        $blockers = $module['blockers'];
-        if (!$schemaReady) {
-            $blockers[] = 'One or more applicable module schemas are not ready.';
-        }
-        $ready = $module['ready'] && $schemaReady;
-
-        return [
-            'status' => $this->showStatus($module, $schemaReady, $ready),
-            'schema_ready' => $schemaReady,
-            'ready' => $ready,
-            'blockers' => array_values(array_unique($blockers)),
-        ];
-    }
-
-    /**
-     * @phpstan-param ModuleState $module
-     */
-    private function showStatus(array $module, bool $schemaReady, bool $ready): string
-    {
-        if (!$schemaReady && $module['enabled']) {
-            return 'blocked';
-        }
-        if ($ready && !$module['built_in']) {
-            return 'ready';
-        }
-
-        return $module['status'];
+        $config = $this->application->config()->all();
+        $app = is_array($config['app'] ?? null) ? $config['app'] : [];
+        $app['base_path'] = $this->application->basePath();
+        $config['app'] = $app;
+        new FoundationReleaseCompiler()->clear(FoundationReleaseBootstrap::resolveReleaseRoot($config));
     }
 }
