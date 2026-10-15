@@ -61,6 +61,15 @@ final readonly class StepUpManager
         return $this->evaluate($session, $ability, $context)->required;
     }
 
+    private static function duration(mixed $seconds): int
+    {
+        if (!is_int($seconds) || $seconds < 1 || $seconds > self::MAX_STEP_UP_SECONDS) {
+            throw new \InvalidArgumentException('Step-up validity must be between 1 and 86400 seconds.');
+        }
+
+        return $seconds;
+    }
+
     private static function method(mixed $method): StepUpMethod
     {
         if (is_string($method)) {
@@ -70,15 +79,6 @@ final readonly class StepUpManager
         return $method instanceof StepUpMethod
             ? $method
             : throw new \InvalidArgumentException('Unsupported step-up verification method.');
-    }
-
-    private static function duration(mixed $seconds): int
-    {
-        if (!is_int($seconds) || $seconds < 1 || $seconds > self::MAX_STEP_UP_SECONDS) {
-            throw new \InvalidArgumentException('Step-up validity must be between 1 and 86400 seconds.');
-        }
-
-        return $seconds;
     }
 
     private function key(string $accountId, string $sessionId, string $ability, StepUpMethod $method): string
