@@ -17,18 +17,19 @@ Foundation 4 requires PHP 8.4+ and Composer 2. The candidate's direct production
 dependencies are ArrayKit `^5.3.1`, CacheLayer `^4.0`, InterMix `^11.2`,
 UID `^6.0`, and Webrick `^6.0.3`.
 
-Select only required optional specialist modules and their current major floors:
+Select only the optional **feature IDs** needed by this application, grouped into the three public modules `data`, `security`, and `execution`. The following packages are installed only for selected features:
 
-| Purpose | Composer package constraint |
+| Public feature | Composer package constraint |
 | --- | --- |
-| Database/migrations | `infocyph/dblayer:^6.1` |
-| Communication/HTTP/gRPC/email | `infocyph/talkingbytes:^2.3` |
-| Messaging/queues/workers | `infocyph/omnibus:^3.0` |
-| Filesystem/storage | `infocyph/pathwise:^4.2` |
-| Validation | `infocyph/reqshield:^3.3` |
-| Security/crypto | `infocyph/epicrypt:^3.2` |
-| OTP-backed authentication | `infocyph/otp:^7.0` |
-| Passkey ceremonies | `web-auth/webauthn-lib:^5.3.9` plus OTP |
+| `data.database` | `infocyph/dblayer:^6.1` |
+| `data.filesystem` | `infocyph/pathwise:^4.2` |
+| `security.crypto` | `infocyph/epicrypt:^3.2` |
+| `security.validation` | `infocyph/reqshield:^3.3` |
+| `security.mfa` | `infocyph/otp:^7.0`; OTP-driver MFA also requires explicitly selected `security.crypto` |
+| `security.passkey` | `infocyph/otp:^7.0` and `web-auth/webauthn-lib:^5.3.9`; selecting passkeys does not activate MFA |
+| `execution.runtime` | `infocyph/runwire:^2.1.1`; host-owned runtime |
+| `execution.messaging` | `infocyph/omnibus:^3.0`; durable transport requires `data.database` |
+| `execution.communication` | `infocyph/talkingbytes:^2.3` |
 
 The [module catalog](modules.md) owns optional feature and extension requirements.
 Do not blindly install all optional modules. CacheLayer remains a Foundation
@@ -88,20 +89,26 @@ alone must not activate production capabilities. Configuration templates
 under `resources/config/` are canonical; module publication must preserve
 existing application files unless an explicit force replacement is requested.
 
-Review selected module status, configuration and readiness:
+Inspect public module groups and plan **explicit qualified features**, using schema-v2 machine output where needed:
 
 ```bash
 php infbyte module:list
-php infbyte module:show database
-php infbyte module:doctor messaging
-php infbyte module:plan auth --feature=otp
+php infbyte module:show data
+php infbyte module:doctor execution.messaging
+php infbyte module:plan security --feature=mfa
+php infbyte module:plan data.database
+php infbyte module:install data.database --dry-run
+php infbyte module:install data --feature=database
+php infbyte module:enable data.database
+php infbyte module:disable data.database
+php infbyte module:repair data.database
+php infbyte module:config:publish execution.messaging
+php infbyte module:schema:status execution.messaging
 php infbyte config:validate --production
 php infbyte app:ready
 ```
 
-Use `module:install` and `module:config:publish` only for chosen
-capabilities. Review package ownership (direct versus transitive) before
-removing modules. Preserve application-authored configuration.
+The former public 11-entry module names, including `module:install database` and `module:plan auth --feature=otp`, **are removed**, not compatibility aliases. `module:list`, show, plan and lifecycle JSON use `schema_version: 2`. A bare group can be inspected but cannot install, enable or remove all of its features implicitly. Composer package installation never enables a feature; `module:enable` is explicit. `modules.features` provides the selected feature flags, and required conditional prerequisites must also be selected. Review direct versus transitive package ownership and preserve existing application configuration and durable state before removing packages. `security.mfa` with `auth.drivers.mfa=otp` requires explicit `security.crypto`; `execution.messaging` with durable transport requires `data.database`. See [the canonical v2 CLI catalog and lifecycle examples](modules.md).
 
 ## Rebuild trusted release artifacts
 

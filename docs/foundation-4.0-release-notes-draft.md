@@ -10,6 +10,16 @@
 - Runwire is optional and explicitly selected. Foundation uses the host-owned RuntimeContext/RequestContext and native Webrick/InterMix integration; it does not add a competing server or coroutine scheduler.
 - Optional specialist capabilities must be explicitly selected. Installation of an optional Composer package alone does not activate its framework integration.
 
+## Foundation 4 module CLI and breaking selection contract
+
+The Foundation 4 public module catalog contains **three groups and nine independently selectable features**:
+
+- **data** — `data.database`, `data.filesystem`
+- **security** — `security.crypto`, `security.validation`, `security.mfa`, `security.passkey`
+- **execution** — `execution.runtime`, `execution.messaging`, `execution.communication`
+
+The former 11-entry public module catalog and its unqualified installable aliases are removed. Commands such as `module:install data.database`, `module:plan security --feature=mfa`, `module:doctor execution.messaging` and `module:schema:status execution.messaging` operate on explicit feature ownership. Machine-readable inventory, plans and lifecycle responses use **`schema_version: 2`**; previous machine parsers and scripts need migration. No implicit install-all or feature activation occurs for a bare group or for installed Composer packages. `security.mfa` with the OTP driver requires explicitly selected Epicrypt-backed `security.crypto`; standalone passkeys share OTP packaging without enabling MFA. Durable Omnibus requires explicit `data.database`, not Runwire activation. Core auth/cache/logging/operations/resources/sessions/notifications and PHPForge engineering QA are not installable optional features. See [the v2 module commands and upgrade guidance](modules.md) and [migration guide](foundation-4-migration.md).
+
 ## Selected native specialists
 
 - ArrayKit, CacheLayer, InterMix, UID and Webrick form the required runtime foundation. CacheLayer is a required framework service, not a separately installable module.
@@ -38,4 +48,4 @@ Foundation 4.0 is a deliberate breaking major release. **There are no backwards-
 
 FPM and native Runwire have passed real HTTP smoke, cancellation, error recovery, worker replacement and bounded selected-native read/credential-cache soak on the candidate. These are shared-runner **smoke** results, not controlled sustained baseline-vs-candidate RPM or production-equivalent memory/latency certification. Production service backup/disaster recovery also requires deployment-specific validation. Release certification remains open. See the [release audit and plan](plans/foundation-4.0-release-audit-and-plan.md). Publish only after all applicable release gates pass on the final immutable source and dependency set.
 
-Final release notes should contain exact tested SHA, dependency manifest, benchmark methodology and results, confirmed compatibility scope, and publication metadata.
+Final release notes must contain the exact published source SHA, resolved dependency manifest and Composer lock hash, confirmed selected feature support, controlled baseline/candidate comparison artifacts (five sustained ≥30-second correct-response repetitions per FPM/Runwire case, stable variance and no greater than 2% successful-RPM regression), representative authenticated/database/cache workload metrics, and reviewed publication metadata. Until those external controlled-host measurements and the final acceptance decision are available, this document remains an **unpublished draft**; passing GitHub-runner smoke must not be described as release certification.
