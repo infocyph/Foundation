@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Communication;
 
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Runtime\NativeRunwireOperation;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\TalkingBytes\Grpc\GrpcClient;
 use Infocyph\TalkingBytes\Grpc\GrpcClientFactory;
@@ -17,6 +18,7 @@ use Infocyph\TalkingBytes\Grpc\Sender\GrpcRequest;
 use Infocyph\TalkingBytes\Grpc\Sender\GrpcResponse;
 use Infocyph\TalkingBytes\Http\HttpClient;
 use Infocyph\TalkingBytes\Http\HttpClientConfig;
+use Infocyph\TalkingBytes\Http\HttpClientFactory;
 use Infocyph\TalkingBytes\Webhook\Contracts\WebhookReplayStore;
 use Infocyph\TalkingBytes\Webhook\Webhook;
 use Infocyph\TalkingBytes\Webhook\WebhookReceiver;
@@ -36,7 +38,7 @@ final readonly class CommunicationProfiles
     /** @param callable(GrpcRequest):GrpcResponse $caller */
     public function grpc(callable $caller, ?string $profile = null): GrpcClient
     {
-        return new GrpcClientFactory()->using($caller, $this->grpcConfig($profile));
+        return $this->grpcFactory()->using($caller, $this->grpcConfig($profile));
     }
 
     /** @param array<string, string> $methodMap */
@@ -45,7 +47,7 @@ final readonly class CommunicationProfiles
         array $methodMap = [],
         ?string $profile = null,
     ): GrpcClient {
-        return new GrpcClientFactory()->usingGeneratedStub(
+        return $this->grpcFactory()->usingGeneratedStub(
             $stubClient,
             $methodMap,
             $this->grpcConfig($profile),
@@ -63,7 +65,7 @@ final readonly class CommunicationProfiles
         ?NativeGrpcStreamingInvoker $streamingInvoker = null,
         ?string $profile = null,
     ): GrpcClient {
-        return new GrpcClientFactory()->usingNative(
+        return $this->grpcFactory()->usingNative(
             $invoker,
             $streamingInvoker,
             $this->grpcConfig($profile),
@@ -78,10 +80,13 @@ final readonly class CommunicationProfiles
             throw new \LogicException('Production HTTP profiles must verify both TLS peers and hosts.');
         }
 
-        return HttpClient::fromResolvedConfig(
-            $array,
-            baseConfig: $config,
-        );
+        $context = NativeRunwireOperation::current();
+        $factory = new HttpClientFactory();
+        if ($context !== null) {
+            $factory = $factory->withRunwire($context->runtime, $context->request, $context->scope);
+        }
+
+        return $factory->fromConfig($config, $array);
     }
 
     public function httpConfig(?string $profile = null): HttpClientConfig
@@ -144,6 +149,16 @@ final readonly class CommunicationProfiles
         $value = $this->config->get('communication.' . $key, $fallback);
 
         return is_string($value) && trim($value) !== '' ? trim($value) : $fallback;
+    }
+
+    private function grpcFactory(): GrpcClientFactory
+    {
+        $context = NativeRunwireOperation::current();
+        $factory = new GrpcClientFactory();
+
+        return $context === null
+            ? $factory
+            : $factory->withRunwire($context->runtime, $context->request, $context->scope);
     }
 
     /** @return array<string, mixed> */

@@ -11,6 +11,7 @@ use Infocyph\DBLayer\Connection\Pool;
 use Infocyph\DBLayer\Connection\PoolManager;
 use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Exception\ConfigurationException;
+use Infocyph\Foundation\Runtime\NativeRunwireOperation;
 use Infocyph\Foundation\Runtime\RuntimeExecutionState;
 use Psr\Container\ContainerInterface;
 
@@ -72,6 +73,33 @@ final class DBLayerFactory
             : $state->connection($name, $config);
 
         return $this->bindQueryCache($connection);
+    }
+
+    /**
+     * Execute a database operation in the exact host-owned native Runwire scope.
+     *
+     * Raw Connection instances cannot retain a mutable request binding across
+     * concurrent operations. Native DBLayer owns operation cancellation, budget
+     * and nested-context restoration within withRunwire().
+     *
+     * @template T
+     * @param callable(Connection):T $callback
+     * @return T
+     */
+    public function withConnection(callable $callback, ?string $name = null, bool $fresh = false): mixed
+    {
+        $connection = $this->connection($name, $fresh);
+        $context = NativeRunwireOperation::current();
+        if ($context === null) {
+            return $callback($connection);
+        }
+
+        return $connection->withRunwire(
+            $context->runtime,
+            static fn(): mixed => $callback($connection),
+            $context->request,
+            $context->scope,
+        );
     }
 
     /**
