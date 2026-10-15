@@ -252,3 +252,44 @@ it('removes jointly selected shared packages only once', function (): void {
     expect($plan['applicable'])->toBeTrue()
         ->and($plan['effects']['remove'])->toBe(['infocyph/otp', 'web-auth/webauthn-lib']);
 });
+
+it('plans Epicrypt as a conditional OTP MFA prerequisite without coupling passkeys', function (): void {
+    $planner = new ModuleFeaturePlanner();
+    $context = f4FeatureFixture();
+    $context['config'] = ['auth' => ['drivers' => ['mfa' => 'otp']]];
+
+    $otp = $planner->plan('install', ['security.mfa'], $context);
+    expect($otp['required'])->toBe(['security.crypto', 'security.mfa'])
+        ->and($otp['effects']['require'])->toBe([
+            'infocyph/epicrypt' => '^3.2',
+            'infocyph/otp' => '^7.0',
+        ])
+        ->and($otp['effects']['activate'])->toBe([])
+        ->and($otp['applicable'])->toBeTrue();
+
+    $passkey = $planner->plan('install', ['security.passkey'], $context);
+    expect($passkey['required'])->toBe(['security.passkey'])
+        ->and($passkey['effects']['require'])->not->toHaveKey('infocyph/epicrypt');
+
+    $context['config']['auth']['drivers']['mfa'] = 'simple';
+    $simple = $planner->plan('install', ['security.mfa'], $context);
+    expect($simple['required'])->toBe(['security.mfa'])
+        ->and($simple['effects']['require'])->toBe(['infocyph/otp' => '^7.0']);
+});
+
+it('rejects OTP MFA enable until its selected Epicrypt prerequisite is active', function (): void {
+    $planner = new ModuleFeaturePlanner();
+    $context = f4FeatureFixture();
+    $context['config'] = ['auth' => ['drivers' => ['mfa' => 'otp']]];
+    $context['root_requirements'] = [
+        'infocyph/otp' => '^7.0',
+        'infocyph/epicrypt' => '^3.2',
+    ];
+    $context['installed'] = ['infocyph/otp' => '7.0.0', 'infocyph/epicrypt' => '3.2.0'];
+    $withoutCrypto = $planner->plan('enable', ['security.mfa'], $context);
+    expect($withoutCrypto['applicable'])->toBeFalse()
+        ->and(implode(' ', $withoutCrypto['blockers']))->toContain('Enable required feature security.crypto');
+
+    $context['enabled'] = ['security.crypto'];
+    expect($planner->plan('enable', ['security.mfa'], $context)['applicable'])->toBeTrue();
+});

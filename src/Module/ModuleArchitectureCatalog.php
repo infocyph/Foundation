@@ -100,7 +100,12 @@ final class ModuleArchitectureCatalog
                     'config' => [],
                     'schemas' => [],
                     'platform' => ['extensions' => ['ctype'], 'optional_extensions' => ['sodium']],
-                    'dependencies' => [],
+                    'dependencies' => [
+                        [
+                            'target' => 'security.crypto',
+                            'when' => ['key' => 'auth.drivers.mfa', 'operator' => 'equals', 'value' => 'otp'],
+                        ],
+                    ],
                     'selection_key' => 'auth.drivers.mfa',
                 ],
                 'passkey' => [

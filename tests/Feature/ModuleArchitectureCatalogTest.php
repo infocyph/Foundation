@@ -70,6 +70,8 @@ it('keeps selected module feature ownership separate from core schema and native
         ->and($catalog->feature('security', 'mfa')['selection_key'])->toBe('auth.drivers.mfa')
         ->and($catalog->feature('security', 'passkey')['selection_key'])->toBe('auth.drivers.passkey')
         ->and($catalog->feature('security', 'passkey')['dependencies'])->toBe([])
+        ->and($catalog->feature('security', 'mfa')['dependencies'][0]['target'])->toBe('security.crypto')
+        ->and($catalog->feature('security', 'mfa')['dependencies'][0]['when']['value'])->toBe('otp')
         ->and($catalog->feature('execution', 'runtime')['owner'])->toBe('infocyph/runwire')
         ->and($catalog->feature('execution', 'messaging')['owner'])->toBe('infocyph/omnibus')
         ->and($catalog->feature('execution', 'messaging')['dependencies'][0]['target'])->toBe('data.database')

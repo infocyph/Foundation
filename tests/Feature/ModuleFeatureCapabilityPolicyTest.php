@@ -187,3 +187,37 @@ it('uses the same selected-feature constraints in native config readiness and bu
         ->and($configured->enabled('database'))->toBeTrue()
         ->and($configured->enabled('messaging'))->toBeFalse();
 });
+
+it('requires crypto only for OTP MFA, never for standalone passkeys or simple MFA', function (): void {
+    $otp = [
+        'auth' => ['drivers' => ['mfa' => 'otp']],
+        'modules' => ['features' => ['security.mfa' => true]],
+    ];
+    expect(fn() => FoundationBuildContext::fromConfig(
+        new ConfigRepository($otp),
+        RuntimeMode::Cli,
+    ))->toThrow(LogicException::class, 'security.crypto');
+
+    $otp['modules']['features']['security.crypto'] = true;
+    $context = FoundationBuildContext::fromConfig(new ConfigRepository($otp), RuntimeMode::Cli);
+    expect($context->hasFeature('security.mfa'))->toBeTrue()
+        ->and($context->hasFeature('security.crypto'))->toBeTrue()
+        ->and($context->hasFeature('security.passkey'))->toBeFalse();
+
+    $simple = $otp;
+    $simple['auth']['drivers']['mfa'] = 'simple';
+    $simple['modules']['features'] = ['security.mfa' => true];
+    expect(FoundationBuildContext::fromConfig(
+        new ConfigRepository($simple),
+        RuntimeMode::Cli,
+    )->hasFeature('security.crypto'))->toBeFalse();
+
+    $passkey = [
+        'modules' => ['features' => ['security.passkey' => true]],
+        'auth' => ['drivers' => ['passkey' => 'webauthn']],
+    ];
+    expect(FoundationBuildContext::fromConfig(
+        new ConfigRepository($passkey),
+        RuntimeMode::Cli,
+    )->hasFeature('security.mfa'))->toBeFalse();
+});
