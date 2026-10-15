@@ -31,8 +31,7 @@ final class ModuleSystemCommand extends SystemCommand
 {
     public function __construct(private readonly Application $application) {}
 
-    protected function handle(): int
-    {
+    protected function handle(): int {
         return match ($this->canonicalName()) {
             'module:list' => $this->listing(),
             'module:show', 'module:doctor' => $this->inspect(),
@@ -46,50 +45,11 @@ final class ModuleSystemCommand extends SystemCommand
         };
     }
 
-    private function catalog(): ModuleFeatureCommandCatalog
-    {
+    private function catalog(): ModuleFeatureCommandCatalog {
         return new ModuleFeatureCommandCatalog();
     }
 
-    /** @return list<string> */
-    private function selection(): array
-    {
-        return $this->catalog()->selection(
-            $this->argument(0) ?? throw new \LogicException('Expected a validated module or feature argument.'),
-            $this->values('feature'),
-        );
-    }
-
-    /** @phpstan-return Context */
-    private function snapshot(): array
-    {
-        return new ModuleFeatureCommandSnapshot($this->application)->capture();
-    }
-
-    private function listing(): int
-    {
-        $inventory = $this->catalog()->inventory();
-        if ($this->io()->machineReadable()) {
-            return $this->emit($inventory);
-        }
-
-        $this->io()->table(
-            ['Module', 'Feature IDs', 'Purpose'],
-            array_map(
-                static fn(array $group): array => [
-                    $group['name'],
-                    implode(', ', $group['features']),
-                    $group['description'],
-                ],
-                $inventory['modules'],
-            ),
-        );
-
-        return ExitCode::SUCCESS;
-    }
-
-    private function inspect(): int
-    {
+    private function inspect(): int {
         $catalog = $this->catalog();
         $inventory = $catalog->inventory();
         $requested = $this->argument(0) ?? throw new \LogicException('Expected a module argument.');
@@ -141,31 +101,35 @@ final class ModuleSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
-    private function plan(): int
-    {
-        $plan = new ModuleFeaturePlanner()->plan('install', $this->selection(), $this->snapshot());
+    private function invalidateRelease(): void {
+        $config = $this->application->config()->all();
+        $app = is_array($config['app'] ?? null) ? $config['app'] : [];
+        $app['base_path'] = $this->application->basePath();
+        $config['app'] = $app;
+        new FoundationReleaseCompiler()->clear(FoundationReleaseBootstrap::resolveReleaseRoot($config));
+    }
+    private function listing(): int {
+        $inventory = $this->catalog()->inventory();
         if ($this->io()->machineReadable()) {
-            $this->io()->json($plan);
-        } else {
-            $this->io()->table(
-                ['Requested feature(s)', 'Required feature(s)', 'Packages to require', 'Applicable'],
-                [[
-                    implode(', ', $plan['requested']),
-                    implode(', ', $plan['required']),
-                    implode(', ', array_keys($plan['effects']['require'])),
-                    $plan['applicable'],
-                ]],
-            );
-            foreach ($plan['blockers'] as $blocker) {
-                $this->io()->warning($blocker);
-            }
+            return $this->emit($inventory);
         }
 
-        return $plan['applicable'] ? ExitCode::SUCCESS : ExitCode::FAILURE;
+        $this->io()->table(
+            ['Module', 'Feature IDs', 'Purpose'],
+            array_map(
+                static fn(array $group): array => [
+                    $group['name'],
+                    implode(', ', $group['features']),
+                    $group['description'],
+                ],
+                $inventory['modules'],
+            ),
+        );
+
+        return ExitCode::SUCCESS;
     }
 
-    private function mutateFeature(): int
-    {
+    private function mutateFeature(): int {
         $operation = substr($this->canonicalName(), strlen('module:'));
         $features = $this->selection();
         $snapshot = new ModuleFeatureCommandSnapshot($this->application);
@@ -195,8 +159,29 @@ final class ModuleSystemCommand extends SystemCommand
             : ExitCode::FAILURE;
     }
 
-    private function publishConfig(): int
-    {
+    private function plan(): int {
+        $plan = new ModuleFeaturePlanner()->plan('install', $this->selection(), $this->snapshot());
+        if ($this->io()->machineReadable()) {
+            $this->io()->json($plan);
+        } else {
+            $this->io()->table(
+                ['Requested feature(s)', 'Required feature(s)', 'Packages to require', 'Applicable'],
+                [[
+                    implode(', ', $plan['requested']),
+                    implode(', ', $plan['required']),
+                    implode(', ', array_keys($plan['effects']['require'])),
+                    $plan['applicable'],
+                ]],
+            );
+            foreach ($plan['blockers'] as $blocker) {
+                $this->io()->warning($blocker);
+            }
+        }
+
+        return $plan['applicable'] ? ExitCode::SUCCESS : ExitCode::FAILURE;
+    }
+
+    private function publishConfig(): int {
         $result = new ModuleFeatureConfigPublisher($this->application)->publish(
             $this->selection(),
             $this->snapshot(),
@@ -211,8 +196,7 @@ final class ModuleSystemCommand extends SystemCommand
         );
     }
 
-    private function schemas(): int
-    {
+    private function schemas(): int {
         $name = $this->canonicalName();
         $snapshot = $this->snapshot();
         $features = $name === 'module:schema:sync'
@@ -252,12 +236,17 @@ final class ModuleSystemCommand extends SystemCommand
         return $this->emit(['schema_version' => 2, 'schemas' => $schemas], 'Selected feature-owned schemas verified.');
     }
 
-    private function invalidateRelease(): void
-    {
-        $config = $this->application->config()->all();
-        $app = is_array($config['app'] ?? null) ? $config['app'] : [];
-        $app['base_path'] = $this->application->basePath();
-        $config['app'] = $app;
-        new FoundationReleaseCompiler()->clear(FoundationReleaseBootstrap::resolveReleaseRoot($config));
+    /** @return list<string> */
+    private function selection(): array {
+        return $this->catalog()->selection(
+            $this->argument(0) ?? throw new \LogicException('Expected a validated module or feature argument.'),
+            $this->values('feature'),
+        );
     }
+
+    /** @phpstan-return Context */
+    private function snapshot(): array {
+        return new ModuleFeatureCommandSnapshot($this->application)->capture();
+    }
+
 }
