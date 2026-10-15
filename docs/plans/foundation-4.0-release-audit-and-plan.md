@@ -1,5 +1,12 @@
 # Foundation 4.0 audit and release plan
 
+## 2026-10-15 — Security and Composer feedback remediation checkpoint
+
+On the active `feature/foundation-3` branch, first implementation addresses **R2 step-up method isolation and validation, R5 Composer normalized/short installed-version handling, R7 account-bound passkey revocation via persisted revision compare-and-swap, and R10 expired-session rotation**. Focused regression tests are added. This is a **source implementation checkpoint, not QA or release acceptance**. In particular, native MFA/passkey satisfaction handoff, real DB/concurrency verification, and full production `--no-dev` consumer verification still need evidence. R1/R3/R4/R6/R8/R9/R11 are not remedied. No upstream, Infbyte, merge, tag or publication changes.
+
+**Release acceptance remains NO-GO at 19/37**, pending exact-source PHPForge, static-analysis, security, native-host and production-consumer tests. The older 32/37 figure is historical. Track newly verified criteria only after complete evidence, and keep module B2/B3/B5/B6 acceptance reopened where affected.
+
+
 Audit date: 2026-10-11. Target: **Foundation 4.0 as a clean major release**.
 No backward-compatibility, migration-path, or source-signature parity obligation
 exists for Foundation 2.x, unreleased 3.x, or retired specialist majors.

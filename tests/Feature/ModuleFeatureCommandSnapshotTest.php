@@ -17,7 +17,7 @@ function foundationB6Project(): string
     ], JSON_THROW_ON_ERROR));
     file_put_contents($path . '/vendor/composer/installed.json', json_encode([
         'packages' => [
-            ['name' => 'infocyph/dblayer', 'version' => '6.1.0.0', 'pretty_version' => '6.1.0'],
+            ['name' => 'infocyph/dblayer', 'version' => '6.1.0.0', 'pretty_version' => '6.1'],
         ],
     ], JSON_THROW_ON_ERROR));
     file_put_contents($path . '/config/database.php', "<?php return [];\n");
@@ -50,7 +50,7 @@ it('reads a fresh root Composer and selected-feature project snapshot for the v2
 
         expect($state['root_known'])->toBeTrue()
             ->and($state['root_requirements'])->toBe(['infocyph/dblayer' => '^6.1'])
-            ->and($state['installed']['infocyph/dblayer'] ?? null)->toBe('6.1.0')
+            ->and($state['installed']['infocyph/dblayer'] ?? null)->toBe('6.1.0.0')
             ->and($state['enabled'])->toBe(['data.database'])
             ->and($state['selected_features'])->toBe(['data.database', 'data.filesystem'])
             ->and($state['published_configs'])->toBe(['database.php'])
@@ -91,6 +91,30 @@ it('preserves explicitly configured disabled feature ownership for shared packag
         $snapshot = new ModuleFeatureCommandSnapshot($app)->capture();
         expect($snapshot['enabled'])->toBe([])
             ->and($snapshot['selected_features'])->toBe(['security.mfa', 'security.passkey']);
+    } finally {
+        foundationB6Clean($path);
+    }
+});
+
+it('accepts real short installed Composer versions without false incompatibility', function (): void {
+    $path = foundationB6Project();
+    try {
+        $manifest = $path . '/vendor/composer/installed.json';
+        file_put_contents($manifest, json_encode(['packages' => [[
+            'name' => 'infocyph/dblayer', 'version_normalized' => '6.1.0.0',
+            'version' => '6.1', 'pretty_version' => '6.1',
+        ]]], JSON_THROW_ON_ERROR));
+        $app = Foundation::cli(['base_path' => $path, '_config_cache' => false]);
+        $snapshot = new ModuleFeatureCommandSnapshot($app)->capture();
+        expect($snapshot['installed']['infocyph/dblayer'])->toBe('6.1.0.0')
+            ->and((new ModuleFeaturePlanner()->plan('install', ['data.database'], $snapshot))['applicable'])->toBeTrue();
+
+        file_put_contents($manifest, json_encode(['packages' => [[
+            'name' => 'infocyph/dblayer', 'pretty_version' => '6.1',
+        ]]], JSON_THROW_ON_ERROR));
+        $fallback = new ModuleFeatureCommandSnapshot($app)->capture();
+        expect($fallback['installed']['infocyph/dblayer'])->toBe('6.1')
+            ->and((new ModuleFeaturePlanner()->plan('install', ['data.database'], $fallback))['applicable'])->toBeTrue();
     } finally {
         foundationB6Clean($path);
     }
