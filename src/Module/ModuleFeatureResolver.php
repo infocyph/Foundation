@@ -13,6 +13,7 @@ namespace Infocyph\Foundation\Module;
  *     root_known:bool,
  *     root_requirements:array<string,string>,
  *     installed:array<string,string>,
+ *     composer_fingerprint?:string,
  *     enabled:list<string>,
  *     selected_features?:list<string>,
  *     config:array<string,mixed>,

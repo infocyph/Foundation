@@ -119,3 +119,21 @@ it('accepts real short installed Composer versions without false incompatibility
         foundationB6Clean($path);
     }
 });
+
+it('rejects Composer metadata changed after the v2 plan before locked activation', function (): void {
+    $path = foundationB6Project();
+    try {
+        $app = Foundation::cli(['base_path' => $path, '_config_cache' => false]);
+        $snapshot = new ModuleFeatureCommandSnapshot($app)->capture();
+        $activation = new \Infocyph\Foundation\Module\ModuleActivationManager($app);
+        $manifest = $path . '/vendor/composer/installed.json';
+        $contents = file_get_contents($manifest);
+        file_put_contents($manifest, str_replace('6.1.0.0', '6.2.0.0', $contents));
+
+        expect(fn() => $activation->applyFeatures('enable', ['data.database'], $snapshot))
+            ->toThrow(RuntimeException::class, 'Composer metadata changed')
+            ->and(is_file($path . '/config/modules.php'))->toBeFalse();
+    } finally {
+        foundationB6Clean($path);
+    }
+});

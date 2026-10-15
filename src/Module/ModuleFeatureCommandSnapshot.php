@@ -33,6 +33,7 @@ final readonly class ModuleFeatureCommandSnapshot
             'root_known' => $root['known'],
             'root_requirements' => $root['requirements'],
             'installed' => $this->installedVersions(),
+            'composer_fingerprint' => $this->composerFingerprint(),
             'enabled' => $enabled,
             // Explicitly configured, even disabled, specialist owners protect
             // shared packages until their selection is intentionally removed.
@@ -41,6 +42,30 @@ final readonly class ModuleFeatureCommandSnapshot
             'extensions' => array_values(array_unique(array_map(strtolower(...), get_loaded_extensions()))),
             'published_configs' => $this->publishedConfigs(),
         ];
+    }
+
+    /**
+     * Change detector, not a security signature. Both the CLI and the locked
+     * activation path read the same authoritative Composer root/lock/install data.
+     */
+    public function composerFingerprint(): string
+    {
+        $parts = [];
+        foreach (['composer.json', 'composer.lock', 'vendor/composer/installed.json'] as $file) {
+            $path = $this->application->basePath($file);
+            if (is_link($path)) {
+                throw new \RuntimeException('Composer metadata must not be symlinked during module activation.');
+            }
+
+            $contents = is_file($path) ? file_get_contents($path) : null;
+            if ($contents === false) {
+                throw new \RuntimeException('Unable to read Composer metadata during module activation.');
+            }
+
+            $parts[$file] = $contents;
+        }
+
+        return hash('xxh3', serialize($parts));
     }
 
     /** @return array<string,string> */

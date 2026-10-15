@@ -35,15 +35,33 @@ final readonly class ModuleActivationManager
             throw new \RuntimeException('Feature activation is blocked: ' . implode('; ', $plan['blockers']));
         }
 
-        return $this->mutate(
-            fn(array $config): array => $this->updateFeatureFlags(
-                $config,
-                $plan['effects']['activate'],
-                $context,
-                $operation,
-                $features,
-            ),
-        );
+        $lockPath = $this->application->basePath('.foundation-module-composer.lock');
+        if (is_link($lockPath)) {
+            throw new \RuntimeException('Refusing symbolic-linked module Composer lock.');
+        }
+        $lock = fopen($lockPath, 'c');
+        if ($lock === false) {
+            throw new \RuntimeException('Unable to open module Composer lock.');
+        }
+
+        try {
+            if (!flock($lock, LOCK_SH)) {
+                throw new \RuntimeException('Unable to acquire shared module Composer lock.');
+            }
+
+            return $this->mutate(
+                fn(array $config): array => $this->updateFeatureFlags(
+                    $config,
+                    $plan['effects']['activate'],
+                    $context,
+                    $operation,
+                    $features,
+                ),
+            );
+        } finally {
+            flock($lock, LOCK_UN);
+            fclose($lock);
+        }
     }
 
     /**
@@ -179,6 +197,12 @@ final readonly class ModuleActivationManager
      */
     private function updateFeatureFlags(array $config, array $changes, array $context, string $operation, array $features): array
     {
+        if (isset($context['composer_fingerprint'])
+            && $context['composer_fingerprint'] !== (new ModuleFeatureCommandSnapshot($this->application))->composerFingerprint()
+        ) {
+            throw new \RuntimeException('Application Composer metadata changed; re-plan before activation.');
+        }
+
         $flags = $this->assertFreshFeatureFlags($config, $context);
         foreach ($changes as $id => $active) {
             $flags[$id] = $active;
