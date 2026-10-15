@@ -13,7 +13,6 @@ use Infocyph\Foundation\Module\ModuleFeatureCommandSnapshot;
 use Infocyph\Foundation\Module\ModuleFeatureConfigPublisher;
 use Infocyph\Foundation\Module\ModuleFeatureLifecycleExecutor;
 use Infocyph\Foundation\Module\ModuleFeaturePlanner;
-use Infocyph\Foundation\Module\ModuleFeatureResolver;
 use Infocyph\Foundation\Module\ModuleFeatureSchemaExecutor;
 use Infocyph\Foundation\Module\ModuleSchemaManager;
 use Infocyph\Foundation\Release\FoundationReleaseBootstrap;
