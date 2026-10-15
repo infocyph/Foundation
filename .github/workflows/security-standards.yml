@@ -116,10 +116,12 @@ jobs:
             cd "$optional"
             composer update "${composer_args[@]}"
             vendor/bin/infbyte list > command-list.txt
-            vendor/bin/infbyte module:show database --json > database-module.json
+            vendor/bin/infbyte module:show data.database --json > database-module.json
             php -r '
               $payload = json_decode(file_get_contents("database-module.json"), true, 512, JSON_THROW_ON_ERROR);
-              if (($payload["name"] ?? null) !== "database") {
+              if (($payload["schema_version"] ?? null) !== 2
+                  || ($payload["module"] ?? null) !== "data"
+                  || !isset($payload["states"]["data.database"])) {
                   fwrite(STDERR, "Database module inspection did not return the expected payload.\n");
                   exit(1);
               }
@@ -162,6 +164,15 @@ jobs:
             composer update "${composer_args[@]}"
             vendor/bin/infbyte list > commands.txt
             vendor/bin/infbyte module:list --json > modules.json
+            php -r '
+              $payload = json_decode(file_get_contents("modules.json"), true, 512, JSON_THROW_ON_ERROR);
+              if (($payload["schema_version"] ?? null) !== 2
+                  || array_column($payload["modules"] ?? [], "name") !== ["data", "security", "execution"]
+                  || count(array_merge(...array_column($payload["modules"] ?? [], "features"))) !== 9) {
+                  fwrite(STDERR, "Unexpected Foundation 4 three-module/nine-feature v2 catalog.\n");
+                  exit(1);
+              }
+            '
             php -r '
               require "vendor/autoload.php";
               foreach ([
