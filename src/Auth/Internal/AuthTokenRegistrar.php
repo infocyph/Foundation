@@ -81,6 +81,7 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
             $this->ref(RememberTokenStoreInterface::class),
             $this->ref(ClockInterface::class),
             $this->intConfig('auth.remember_me_ttl', 2592000),
+            $this->ref(AuthSecretResolver::class),
         ]);
     }
 
