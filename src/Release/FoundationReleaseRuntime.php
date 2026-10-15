@@ -285,6 +285,7 @@ final readonly class FoundationReleaseRuntime
         $generation = $current['generation'];
         $manifestPath = $current['manifest'];
         $lease = ReleaseGenerationLease::acquireShared($releaseRoot, $generation);
+
         try {
             $manifest = FoundationReleaseManifest::loadTrusted($manifestPath, $trustedSha256);
             if (($manifest['generation'] ?? null) !== $generation) {
