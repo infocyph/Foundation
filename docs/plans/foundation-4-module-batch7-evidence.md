@@ -1,5 +1,8 @@
 # Foundation 4 — Module architecture Batch 7 certification evidence
 
+> **2026-10-15 current source note:** Native Foundation operation forwarding and locked Composer metadata freshness were implemented after the last green source [`6dff05e2`](https://github.com/infocyph/Foundation/commit/6dff05e203ad0eead583d0bc3ec12240210300f0), with exact source QA pending. B7 3/4/7 performance and final approval remain **blocked**, and the release re-audit is **19/37 NO-GO**; no shared Actions benchmark or operation-facade unit test substitutes for an authenticated physically matched FPM/Runwire baseline-versus-candidate host comparison.
+
+
 > **2026-10-15 current certification update (supersedes historical release counts below):** Foundation 4 executable [`aea1ab2`](https://github.com/infocyph/Foundation/commit/aea1ab2ffedae30ed4f1d4eabe65f7cbe9f47198) passed [Security & Standards #38749779083](https://github.com/infocyph/Foundation/actions/runs/38749779083) **SUCCESS** after same-SHA retry (PHPForge QA 4/4, PHPStan 2/2, production consumers 4/4, component benchmarks 2/2, clean install and release evidence) and [native-host #38749778570](https://github.com/infocyph/Foundation/actions/runs/38749778570) **SUCCESS**. All 62 PR inline review threads were resolved at the current re-audit inspection. Reopened Foundation release acceptance is **19/37, NO-GO**, not the old 32/37 quoted in archived notes. **B7 gates 3/4/7 remain blocked**: no physically controlled production-equivalent matched-host baseline/candidate measurements are recorded. R6 also remains open for normal Foundation-created operations, even though native host smoke passed. No merge, tag, release or Infbyte work.
 
 
