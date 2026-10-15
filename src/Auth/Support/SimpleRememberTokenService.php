@@ -11,36 +11,22 @@ use Infocyph\Foundation\Auth\Authentication\RememberMe\RememberTokenVerification
 use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\RememberTokenStoreInterface;
 use Infocyph\Foundation\Auth\Internal\AuthSecretResolver;
-use Psr\Clock\ClockInterface as PsrClockInterface;
 
 final readonly class SimpleRememberTokenService implements RememberTokenServiceInterface
 {
     private EpicryptRememberToken $native;
 
-    private int $ttlSeconds;
-
     public function __construct(
         private RememberTokenStoreInterface $store,
         private ClockInterface $clock,
-        int $ttlSeconds,
+        private int $ttlSeconds,
         AuthSecretResolver $secrets,
     ) {
         if (!class_exists(EpicryptRememberToken::class)) {
             throw new \RuntimeException('Remember-me token signing requires the optional infocyph/epicrypt package.');
         }
 
-        $this->ttlSeconds = $ttlSeconds;
-
-        $nativeClock = new readonly class($clock) implements PsrClockInterface {
-            public function __construct(private ClockInterface $clock) {}
-
-            public function now(): \DateTimeImmutable
-            {
-                return new \DateTimeImmutable('@' . $this->clock->now());
-            }
-        };
-
-        $this->native = new EpicryptRememberToken($secrets->tokenSecret(32), $ttlSeconds, $nativeClock);
+        $this->native = new EpicryptRememberToken($secrets->tokenSecret(32), $this->ttlSeconds, new RememberTokenPsrClock($clock));
     }
 
     public function issue(string $accountId, string $deviceId): RememberToken
