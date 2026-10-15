@@ -43,7 +43,7 @@ final readonly class ModuleFeatureLifecycleExecutor
         $this->composer = $composer ?? new ModuleFeatureComposerExecutor($application);
         $this->configs = $configs ?? new ModuleFeatureConfigPublisher($application);
         $this->schemas = $schemas ?? new ModuleFeatureSchemaExecutor($application);
-        $this->activation = $activation ?? new ModuleActivationManager($application, new ModuleCatalog());
+        $this->activation = $activation ?? new ModuleActivationManager($application);
     }
 
     /**

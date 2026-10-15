@@ -9,14 +9,12 @@ use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Config\ConfigCacheManager;
 
 /**
- * @phpstan-import-type ResolvedModule from ModuleCatalog
  * @phpstan-import-type Context from ModuleFeatureResolver
  */
 final readonly class ModuleActivationManager
 {
     public function __construct(
         private Application $application,
-        private ModuleCatalog $catalog,
     ) {}
 
     /**
@@ -46,68 +44,6 @@ final readonly class ModuleActivationManager
                 $features,
             ),
         );
-    }
-
-    public function disable(string $module): string
-    {
-        $definition = $this->catalog->resolve($module);
-        $this->assertMutable($definition);
-        $this->assertDisableSafe($definition['name']);
-
-        return $this->write($definition['name'], false);
-    }
-
-    public function enable(string $module): string
-    {
-        $definition = $this->catalog->resolve($module);
-        $this->assertMutable($definition);
-        $state = array_find(
-            new ModuleStateResolver($this->application, $this->catalog)->all(),
-            static fn(array $candidate): bool => $candidate['name'] === $definition['name'],
-        );
-        if (!is_array($state)) {
-            throw new \RuntimeException(sprintf('Unable to resolve module "%s".', $definition['name']));
-        }
-        if (!$state['installed']) {
-            throw new \RuntimeException(sprintf(
-                'Module "%s" is not installed; install it before enabling.',
-                $definition['name'],
-            ));
-        }
-        if (!$state['dependencies_satisfied']) {
-            throw new \RuntimeException(sprintf(
-                'Module "%s" cannot be enabled: %s',
-                $definition['name'],
-                implode(' ', $state['blockers']),
-            ));
-        }
-
-        return $this->write($definition['name'], true);
-    }
-
-    private function assertDisableSafe(string $module): void
-    {
-        $states = new ModuleStateResolver($this->application, $this->catalog)->all();
-        $dependents = [];
-
-        foreach ($states as $state) {
-            if (!$state['enabled'] || $state['name'] === $module) {
-                continue;
-            }
-            foreach ($state['dependencies']['active'] as $dependency) {
-                if ($dependency['type'] === 'module' && $dependency['target'] === $module) {
-                    $dependents[] = sprintf('%s: %s', $state['name'], $dependency['reason']);
-                }
-            }
-        }
-
-        if ($dependents !== []) {
-            throw new \RuntimeException(sprintf(
-                'Module "%s" cannot be disabled while active dependents require it: %s',
-                $module,
-                implode('; ', array_values(array_unique($dependents))),
-            ));
-        }
     }
 
     /**
@@ -174,17 +110,6 @@ final readonly class ModuleActivationManager
         return $flags;
     }
 
-    /** @phpstan-param ResolvedModule $definition */
-    private function assertMutable(array $definition): void
-    {
-        if (($definition['built_in'] ?? false) === true) {
-            throw new \InvalidArgumentException(sprintf(
-                'Module "%s" is built into Foundation and has no module activation lifecycle.',
-                $definition['name'],
-            ));
-        }
-    }
-
     /** @return array<string,mixed> */
     private function load(string $path): array
     {
@@ -247,23 +172,6 @@ final readonly class ModuleActivationManager
 
     /**
      * @param array<string,mixed> $config
-     * @return array<string,mixed>
-     */
-    private function updateCapability(array $config, string $module, bool $enabled): array
-    {
-        $capabilities = $config['capabilities'] ?? [];
-        if (!is_array($capabilities)) {
-            throw new \RuntimeException('modules.capabilities must be a capability map.');
-        }
-        $capabilities[$module] = $enabled;
-        ksort($capabilities);
-        $config['capabilities'] = $capabilities;
-
-        return $config;
-    }
-
-    /**
-     * @param array<string,mixed> $config
      * @param array<string,bool> $changes
      * @phpstan-param Context $context
      * @param list<string> $features
@@ -280,13 +188,6 @@ final readonly class ModuleActivationManager
         $config['features'] = $flags;
 
         return $config;
-    }
-
-    private function write(string $module, bool $enabled): string
-    {
-        return $this->mutate(
-            fn(array $config): array => $this->updateCapability($config, $module, $enabled),
-        );
     }
 
     /**

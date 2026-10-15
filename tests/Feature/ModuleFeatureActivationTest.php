@@ -51,7 +51,7 @@ it('enables only the selected feature and preserves legacy capability policy', f
 
     try {
         $app = Foundation::cli(['base_path' => $path, '_config_cache' => false]);
-        $activation = new ModuleActivationManager($app, new ModuleCatalog());
+        $activation = new ModuleActivationManager($app);
         $result = $activation->applyFeatures('enable', ['security.passkey'], featureActivationContext());
         $config = require $result;
 
@@ -71,7 +71,7 @@ it('disables one feature without changing enabled siblings or application policy
 
     try {
         $app = Foundation::cli(['base_path' => $path, '_config_cache' => false]);
-        $activation = new ModuleActivationManager($app, new ModuleCatalog());
+        $activation = new ModuleActivationManager($app);
         $context = featureActivationContext();
         $context['enabled'] = ['security.mfa', 'security.passkey'];
         $pathToConfig = $activation->applyFeatures('disable', ['security.mfa'], $context);
@@ -91,7 +91,7 @@ it('refuses stale feature activation snapshots without overwriting application c
 
     try {
         $app = Foundation::cli(['base_path' => $path, '_config_cache' => false]);
-        $activation = new ModuleActivationManager($app, new ModuleCatalog());
+        $activation = new ModuleActivationManager($app);
         $context = featureActivationContext();
 
         expect(fn() => $activation->applyFeatures('disable', ['data.filesystem'], $context))
@@ -109,7 +109,7 @@ it('refuses to disable a dependency while an enabled feature still requires it',
 
     try {
         $app = Foundation::cli(['base_path' => $path, '_config_cache' => false]);
-        $activation = new ModuleActivationManager($app, new ModuleCatalog());
+        $activation = new ModuleActivationManager($app);
         $context = featureActivationContext();
         $context['enabled'] = ['data.database', 'execution.messaging'];
         $context['config'] = ['messaging' => ['durable' => ['enabled' => true]]];
@@ -130,7 +130,7 @@ it('rejects symlink activation lock paths and unsupported feature operations', f
 
     try {
         $app = Foundation::cli(['base_path' => $path, '_config_cache' => false]);
-        $activation = new ModuleActivationManager($app, new ModuleCatalog());
+        $activation = new ModuleActivationManager($app);
         $context = featureActivationContext();
 
         expect(fn() => $activation->applyFeatures('enable', ['security.passkey'], $context))
@@ -144,21 +144,21 @@ it('rejects symlink activation lock paths and unsupported feature operations', f
     }
 });
 
-it('serializes concurrent module writers without losing unrelated activation overrides', function (): void {
+it('serializes overlapping feature plans without silently losing changes', function (): void {
     $path = featureActivationBasePath();
     $autoload = dirname(__DIR__, 2) . '/vendor/autoload.php';
     $barrier = $path . '/start';
     $processes = [];
 
     try {
-        foreach (['filesystem', 'validation'] as $module) {
+        foreach (['security.passkey', 'security.mfa'] as $feature) {
             $script = 'require ' . var_export($autoload, true) . ';'
+                . '$context = ' . var_export(featureActivationContext(), true) . ';'
                 . 'while (!is_file(' . var_export($barrier, true) . ')) { usleep(1000); }'
-                . '$application = \Infocyph\Foundation\Foundation::cli(['
+                . '$application = \\Infocyph\\Foundation\\Foundation::cli(['
                 . "'base_path' => " . var_export($path, true) . ", '_config_cache' => false]);"
-                . '(new \Infocyph\Foundation\Module\ModuleActivationManager('
-                . '$application, new \Infocyph\Foundation\Module\ModuleCatalog()))'
-                . '->disable(' . var_export($module, true) . ');';
+                . '(new \\Infocyph\\Foundation\\Module\\ModuleActivationManager($application))'
+                . '->applyFeatures("enable", [' . var_export($feature, true) . '], $context);';
 
             $pipes = [];
             $process = proc_open(
@@ -174,17 +174,25 @@ it('serializes concurrent module writers without losing unrelated activation ove
         }
 
         file_put_contents($barrier, 'go');
+        $successes = 0;
         foreach ($processes as [$process, $stdout, $stderr]) {
             stream_get_contents($stdout);
             $error = stream_get_contents($stderr);
             fclose($stdout);
             fclose($stderr);
-            expect(proc_close($process))->toBe(0, $error);
+            $code = proc_close($process);
+            if ($code === 0) {
+                $successes++;
+            } else {
+                expect($error)->toContain('Feature activation changed');
+            }
         }
         $processes = [];
 
         $config = require $path . '/config/modules.php';
-        expect($config['capabilities'])->toBe(['filesystem' => false, 'validation' => false]);
+        expect($successes)->toBe(1)
+            ->and(count($config['features']))->toBe(1)
+            ->and(array_keys($config['features']))->toBeOneOf([['security.passkey'], ['security.mfa']]);
     } finally {
         foreach ($processes as [$process, $stdout, $stderr]) {
             fclose($stdout);
@@ -206,7 +214,7 @@ it('does not rewrite config or invalidate its cache for unchanged feature topolo
 
     try {
         $app = Foundation::cli(['base_path' => $path, '_config_cache' => false]);
-        $activation = new ModuleActivationManager($app, new ModuleCatalog());
+        $activation = new ModuleActivationManager($app);
         $context = featureActivationContext();
         $context['enabled'] = ['security.passkey'];
 
@@ -232,7 +240,7 @@ it('rejects an enabled feature removed from the authoritative on-disk snapshot',
 
     try {
         $app = Foundation::cli(['base_path' => $path, '_config_cache' => false]);
-        $activation = new ModuleActivationManager($app, new ModuleCatalog());
+        $activation = new ModuleActivationManager($app);
         $context = featureActivationContext();
         $context['enabled'] = ['security.crypto'];
         $context['selected_features'] = ['security.crypto'];
