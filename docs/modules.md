@@ -1,291 +1,71 @@
-# Modules
+# Foundation 4 optional modules
 
-Foundation's module lifecycle manages **seven specialist capability namespaces**.
-Modules are application purposes, not Composer-package discovery aliases.
+Foundation 4 has **prebuilt Core**, engineering-only **PHPForge QA**, and exactly **three optional public modules with nine individually selectable features**. No Core or QA component has an optional installation lifecycle.
 
-| Module | Managed package(s) | Module-owned config | Module schema |
+| Module | Qualified feature | Native package | Published configuration |
 | --- | --- | --- | --- |
-| `auth` | feature packages: `infocyph/otp ^7.0`, `web-auth/webauthn-lib ^5.3.9` | none | `auth` |
-| `communication` | `infocyph/talkingbytes ^2.3` | `communication.php` | none |
-| `database` | `infocyph/dblayer ^6.1` | `database.php` | none |
-| `filesystem` | `infocyph/pathwise ^4.2` | `filesystem.php` | none |
-| `messaging` | `infocyph/omnibus ^3.0` | `messaging.php` | `messaging` |
-| `security` | `infocyph/epicrypt ^3.2` | `security.php` | none |
-| `validation` | `infocyph/reqshield ^3.3` | `validation.php` | none |
+| data | `data.database` | DBLayer ^6.1 | database.php |
+| data | `data.filesystem` | Pathwise ^4.2 | filesystem.php |
+| security | `security.crypto` | Epicrypt ^3.2 | security.php |
+| security | `security.validation` | ReqShield ^3.3 | validation.php |
+| security | `security.mfa` | OTP ^7.0 | none |
+| security | `security.passkey` | OTP ^7.0, web-auth/webauthn-lib ^5.3.9 | none |
+| execution | `execution.runtime` | Runwire ^2.1.1 | none |
+| execution | `execution.messaging` | Omnibus ^3.0 | messaging.php |
+| execution | `execution.communication` | TalkingBytes ^2.3 | communication.php |
 
-Foundation-native capabilities such as cache, notifications, logging, operations,
-responses/resources, and browser sessions are not new specialist package
-namespaces. CacheLayer is a direct Foundation dependency and remains completely
-outside module install/remove/status ownership. Notifications are Foundation
-native; TalkingBytes email support is an optional integration of the native
-notification graph, not a `notifications` module alias.
+Core supplies auth, cache, logging, operations, resources, sessions, notifications, plus the native schema and readiness systems. Seven `core:*` diagnostics report Core availability without granting package installation rights. CacheLayer is a required Core dependency. PHPForge is dev-only; `opis/closure` is dev-only and `psr/log` is Core runtime. Webrick, InterMix and Runwire retain native router, DI and host ownership.
 
-## Built-in catalog entries
-
-`module:list` also includes four Foundation-native entries. They retain their
-configuration/schema commands without installing specialist packages:
-
-| Built-in entry | Published config | Schema |
-| --- | --- | --- |
-| `logging` | `logging.php` | none |
-| `operations` | `operations.php` | none |
-| `resources` | `responses.php` | none |
-| `session` | `session.php` | `session` |
-
-These entries report `built_in: true`; removal is rejected. For example:
-
-```bash
-php infbyte module:config:publish session
-php infbyte module:schema:status session
-php infbyte module:schema:install session
-```
-
-Database-backed session schemas require DBLayer and a configured connection.
-These built-in commands remain supported in Foundation 4.0. The catalog therefore contains
-11 entries: seven specialist namespaces and four built-in entries. `auth` is
-core-backed with optional features, rather than a `built_in: true` entry.
-
-Cache is not a twelfth entry. Use core `cache:schema:status` and
-`cache:schema:install` commands; enable the cache capability explicitly when
-needed. Do not run `module:install cache` or `module:remove cache`.
-
-## Inspect and plan
-
-Use the canonical purpose name in automation and documentation:
+## Inspect and plan (machine schema v2)
 
 ```bash
 php infbyte module:list
-php infbyte module:show database
-php infbyte module:doctor messaging
-php infbyte module:plan auth --feature=otp
+php infbyte module:show data
+php infbyte module:doctor security.passkey
+php infbyte module:plan data.database
+php infbyte module:plan security --feature=mfa
 ```
 
-`module:show` and `module:doctor` expose package ownership, activation,
-effective configuration, publication state, active/inactive dependencies,
-platform readiness, feature state, schema readiness, blockers, and warnings.
+`module:list` returns `schema_version: 2` with exactly three `modules` objects containing `name`, `description`, and qualified `features`. `module:show` and `module:doctor` accept a group as a **read-only** view or a qualified feature. `module:plan` requires explicit features and returns a schema-v2 `requested`, `required`, `states`, `effects`, `blockers`, `warnings`, `applicable` plan. A group alone never selects all nine or all its siblings. Missing root Composer ownership is reported and blocks mutations.
 
-`module:plan` is non-mutating. Its JSON payload is schema-versioned
-(`schema_version: 1`) and reports packages to add, packages already direct or
-transitive, dependencies, config, schemas, blockers, and warnings.
-
-Module list/show state is also schema-versioned (`schema_version: 1`). Consumers
-must tolerate additive fields within that version and should key behavior from
-named fields rather than table text.
-
-## Package ownership
-
-Foundation distinguishes:
-
-- **available** — the package exists in the resolved Composer installation;
-- **direct** — the application's root `composer.json` owns the requirement;
-- **transitive** — available only through another dependency;
-- **ownership unknown** — root Composer metadata cannot be read safely.
-
-A transitive package never silently becomes a directly installed Foundation
-module. Direct root constraints are also checked against the module catalog's
-supported version floor.
-
-Package roles are explicit:
-
-- **required** packages back a specialist module;
-- **feature** packages belong only to selected module features;
-- **optional** packages are reported integrations and are never added by a base
-  module install.
-
-## Auth is core-backed with selectable features
-
-Core authentication stays Foundation native. The `auth` module namespace
-orchestrates optional feature packages only.
+## Install, activate, repair and remove
 
 ```bash
-php infbyte module:install auth --feature=otp
-php infbyte module:install auth --feature=passkey
+php infbyte module:install data.filesystem --dry-run
+php infbyte module:install data --feature=database
+php infbyte module:enable data.database
+php infbyte module:disable data.database
+php infbyte module:repair data.filesystem
+php infbyte module:remove data.filesystem --dry-run
+php infbyte module:remove data.filesystem
 ```
 
-OTP installs only `infocyph/otp`. Passkeys install both the OTP support package
-and WebAuthn library because Foundation's passkey implementation consumes both;
-this does **not** implicitly select OTP/TOTP MFA in application configuration.
+Operations capture a fresh project-root `composer.json`, installed Composer package versions, selected `modules.features`, loaded PHP extensions and existing published configuration. Missing or symlinked root ownership fails closed. `install` reconciles the requested packages, then publishes missing feature-owned config and provisions only applicable specialist schemas; **install never enables a feature**. `enable` and `disable` atomically update `config/modules.php` after dependency validation. Unchanged feature topology does not rewrite config or invalidate caches.
 
-Conditional auth dependencies are evaluated from normalized configuration.
-Database-backed auth requires the database module, Epicrypt-backed auth drivers
-require the security module, and TalkingBytes auth delivery requires both the
-communication module and Foundation's native `notifications` capability. Selected
-OTP/passkey state consumes Foundation's core cache capability.
+Removing requires a prior disable, preserves packages shared with selected siblings, and never deletes application data, tables or migrations. Composer errors may leave a *partial* install; no unsafe compensation or blind rollback is attempted. Read the response `phases` and `recovery`, recheck root and installed Composer metadata, then run `module:repair` on the same explicit features. Only a real mutation should trigger a compiled-release rebuild.
 
-## Install versus enable
+## Selected feature dependencies
 
-Installation and activation are separate operations.
+- OTP-backed MFA (`auth.drivers.mfa=otp`) selects `security.mfa` plus the **explicit** `security.crypto` Epicrypt prerequisite; simple MFA does not. WebAuthn `security.passkey` shares an OTP package but never implicitly activates MFA or Epicrypt.
+- Durable Omnibus messaging (`messaging.durable.enabled=true`) requires `execution.messaging` and explicit `data.database`. The DBLayer transport, failure store and native schema remain Omnibus/DBLayer-owned. Neither messaging nor TalkingBytes activates Runwire automatically.
+- Database-aware ReqShield requires `data.database`. PDO, fileinfo, hash, mbstring and ctype requirements depend on the selected feature. Sodium, PCNTL and POSIX are optional host accelerators and are not universal Core requirements.
+- Direct root dependency identity matters: a Composer-transitive package does not become an application-owned optional module.
 
-```bash
-php infbyte module:plan database
-php infbyte module:install database
-php infbyte module:enable database
-php infbyte module:disable database
-```
-
-`module:install`:
-
-1. reconciles only the required/selected feature Composer packages;
-2. preserves the application's normal dev-dependency installation state;
-3. runs Composer non-interactively with dependency reconciliation;
-4. publishes missing module-owned config without overwriting application files;
-5. invalidates compiled runtime/config state;
-6. provisions only applicable schemas owned by the targeted module.
-
-It does not write activation policy. In development compatibility mode, omitted
-topology may still infer available providers; that is reported as inferred
-activation rather than explicit activation.
-
-`module:enable` and `module:disable` write an atomic, module-system-owned
-`config/modules.php` capability override. These overrides are deliberately
-partial: unspecified capabilities retain the existing `app.capabilities` or
-development discovery behavior. Enabling validates installation and active
-dependencies. Disabling refuses to break an active dependent module and never
-uninstalls packages or deletes config/data.
-
-Production release optimization still requires the application's full explicit
-`app.capabilities` list/map. `config/modules.php` is not a replacement for
-that production topology declaration.
-
-## Conditional dependencies
-
-Dependencies are catalog metadata evaluated against normalized Foundation
-configuration. Status output separates active and inactive edges and distinguishes
-specialist module dependencies from Foundation-core capability dependencies.
-
-Examples include:
-
-- durable messaging -> database;
-- database-aware validation -> database;
-- database-backed auth -> database;
-- Epicrypt auth drivers -> security;
-- TalkingBytes auth notification transport -> communication;
-- OTP/passkey feature state -> core cache capability.
-
-Dependencies are never silently auto-enabled. Planning and enablement report
-deterministic blockers instead.
-
-## Platform readiness
-
-Foundation reports only platform requirements relevant to its integration
-boundary rather than duplicating Composer's platform resolver.
-
-Required PHP extensions are hard blockers for an enabled module. Optional
-extensions are diagnostics. Feature-specific platform requirements block only a
-selected feature. Omnibus 3.0 ordinary dispatch, request/FPM consumers and
-single-process workers do not require PCNTL/POSIX; these are optional
-process-host diagnostics, not a messaging-module hard blocker. Selected
-process-pool and signal-driven hosts validate their own native requirements.
-Database readiness also includes the PDO extension implied by
-the configured active driver, such as `pdo_sqlite`, `pdo_mysql`,
-`pdo_pgsql`, or `pdo_sqlsrv`.
+## Feature-owned config and schema
 
 ```bash
-php infbyte module:doctor database
-```
-
-## Config ownership
-
-`module:config:publish` publishes only config owned by that module.
-
-```bash
-php infbyte module:config:publish communication
-php infbyte module:config:publish messaging
-```
-
-Communication owns `communication.php`; native notifications own
-`notifications.php` separately. Existing application files are preserved
-unless `--force` is explicitly requested. Forced publication uses staging and
-backup/restore behavior and refuses symbolic-link replacement.
-
-Effective `configured` state comes from resolved configuration validity;
-`config_published` is separate provenance information.
-
-## Schema lifecycle
-
-Module schema status is observational:
-
-```bash
-php infbyte module:schema:status auth
-php infbyte module:schema:status messaging
-```
-
-A targeted install is an explicit mutation and may manage the named module even
-when it is inactive:
-
-```bash
-php infbyte module:schema:install messaging
-```
-
-Aggregate synchronization follows only the active capability topology and the
-current config condition:
-
-```bash
+php infbyte module:config:publish security.crypto
+php infbyte module:config:publish execution --feature=communication
+php infbyte module:schema:status execution.messaging
+php infbyte module:schema:install execution.messaging
 php infbyte module:schema:sync
+php infbyte cache:schema:status
 ```
 
-Normal module installation no longer runs an unrelated aggregate schema sync.
-It provisions only applicable schemas for the module being installed.
+Config publishing creates only missing feature-owned templates and never force-overwrites application files. The only specialist database schema is the conditional Omnibus **durable messaging** schema. `module:schema:sync` applies only to explicitly enabled optional features. Core auth, session and cache schemas stay Core-owned and cannot be reached through the optional module lifecycle. Durable failures and transactions retain stored messages and cancellation safety.
 
-The database module owns database infrastructure, not other domains' tables.
-Current module schema owners are Foundation auth, Omnibus durable messaging, and
-Foundation browser sessions. CacheLayer schemas remain core cache infrastructure
-and use `cache:schema:status` / `cache:schema:install`.
+## Foundation 4 breaking application changes
 
-## Repair partial installations
+The former 11-entry public catalog is removed: names such as `auth`, `database`, `filesystem`, `validation`, `messaging`, `communication`, `logging`, `operations`, `resources` and `session` are **not** installable aliases. This is a major-version contract change without an older-major shim. Replace `module:install database` with `module:install data.database`, `module:install auth --feature=otp` with `module:install security.mfa` (and `security.crypto` when OTP is selected), and `module:config:publish messaging` with `module:config:publish execution.messaging`.
 
-Composer, config publication, runtime invalidation, and schema provisioning
-cannot form one transaction. Foundation therefore does not attempt unsafe
-automatic Composer rollback.
-
-```bash
-php infbyte module:repair database
-php infbyte module:repair auth --feature=otp
-```
-
-Repair is idempotent by phase: it skips already satisfied Composer ownership,
-re-publishes only missing config, invalidates compiled state, and re-runs only
-applicable targeted schemas. It never overwrites application-owned config unless
-the explicit publication force path is used and never deletes schema/data.
-
-## Safe removal
-
-Disable a whole module before removing its package ownership:
-
-```bash
-php infbyte module:disable database
-php infbyte module:remove database --dry-run
-php infbyte module:remove database
-```
-
-Removal is fail-closed. Foundation refuses removal when the module is enabled,
-when an active module/feature depends on it, or when a selected feature still
-owns the requested package. It removes only direct root requirements, preserves
-packages shared by other features, and never deletes application config,
-schemas, or data.
-
-## Aliases
-
-Purpose/package aliases remain convenience inputs where they are unambiguous,
-for example:
-
-- `db|dblayer` -> `database`;
-- `crypto|epicrypt` -> `security`;
-- `talkingbytes` -> `communication`;
-- `events|omnibus|queue|queues` -> `messaging`;
-- `files|pathwise|storage` -> `filesystem`;
-- `reqshield|validator` -> `validation`.
-
-Auth aliases `otp|mfa` select the OTP feature and
-`passkey|passkeys|webauthn` select the passkey feature. The shared
-`infocyph/otp` package requires explicit feature context when its ownership is
-otherwise ambiguous.
-
-`notifications` is intentionally **not** a communication/module alias.
-
-## Curated catalog
-
-Foundation does not scan installed packages for arbitrary module manifests.
-`ModuleCatalog` is the authoritative curated package/feature/dependency/
-platform/config/schema contract, and tests guard its specialist package floors
-against Foundation's tested dependency set.
+Upgrade by declaring current Composer package majors in the application's root manifest, selecting only the required `modules.features` and their conditional dependencies, validating plans/extension constraints, publishing missing owner configuration, and compiling a new immutable release generation. Migrate automated scripts and JSON parsers from v1 to **v2**. See [Configuration](configuration.md) and [Architecture](architecture.md).
