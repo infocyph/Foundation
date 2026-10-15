@@ -31,7 +31,8 @@ final class ModuleSystemCommand extends SystemCommand
 {
     public function __construct(private readonly Application $application) {}
 
-    protected function handle(): int {
+    protected function handle(): int
+    {
         return match ($this->canonicalName()) {
             'module:list' => $this->listing(),
             'module:show', 'module:doctor' => $this->inspect(),
@@ -45,11 +46,13 @@ final class ModuleSystemCommand extends SystemCommand
         };
     }
 
-    private function catalog(): ModuleFeatureCommandCatalog {
+    private function catalog(): ModuleFeatureCommandCatalog
+    {
         return new ModuleFeatureCommandCatalog();
     }
 
-    private function inspect(): int {
+    private function inspect(): int
+    {
         $catalog = $this->catalog();
         $inventory = $catalog->inventory();
         $requested = $this->argument(0) ?? throw new \LogicException('Expected a module argument.');
@@ -101,14 +104,17 @@ final class ModuleSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
-    private function invalidateRelease(): void {
+    private function invalidateRelease(): void
+    {
         $config = $this->application->config()->all();
         $app = is_array($config['app'] ?? null) ? $config['app'] : [];
         $app['base_path'] = $this->application->basePath();
         $config['app'] = $app;
         new FoundationReleaseCompiler()->clear(FoundationReleaseBootstrap::resolveReleaseRoot($config));
     }
-    private function listing(): int {
+
+    private function listing(): int
+    {
         $inventory = $this->catalog()->inventory();
         if ($this->io()->machineReadable()) {
             return $this->emit($inventory);
@@ -129,7 +135,8 @@ final class ModuleSystemCommand extends SystemCommand
         return ExitCode::SUCCESS;
     }
 
-    private function mutateFeature(): int {
+    private function mutateFeature(): int
+    {
         $operation = substr($this->canonicalName(), strlen('module:'));
         $features = $this->selection();
         $snapshot = new ModuleFeatureCommandSnapshot($this->application);
@@ -159,7 +166,8 @@ final class ModuleSystemCommand extends SystemCommand
             : ExitCode::FAILURE;
     }
 
-    private function plan(): int {
+    private function plan(): int
+    {
         $plan = new ModuleFeaturePlanner()->plan('install', $this->selection(), $this->snapshot());
         if ($this->io()->machineReadable()) {
             $this->io()->json($plan);
@@ -181,7 +189,8 @@ final class ModuleSystemCommand extends SystemCommand
         return $plan['applicable'] ? ExitCode::SUCCESS : ExitCode::FAILURE;
     }
 
-    private function publishConfig(): int {
+    private function publishConfig(): int
+    {
         $result = new ModuleFeatureConfigPublisher($this->application)->publish(
             $this->selection(),
             $this->snapshot(),
@@ -196,7 +205,8 @@ final class ModuleSystemCommand extends SystemCommand
         );
     }
 
-    private function schemas(): int {
+    private function schemas(): int
+    {
         $name = $this->canonicalName();
         $snapshot = $this->snapshot();
         $features = $name === 'module:schema:sync'
@@ -237,7 +247,8 @@ final class ModuleSystemCommand extends SystemCommand
     }
 
     /** @return list<string> */
-    private function selection(): array {
+    private function selection(): array
+    {
         return $this->catalog()->selection(
             $this->argument(0) ?? throw new \LogicException('Expected a validated module or feature argument.'),
             $this->values('feature'),
@@ -245,7 +256,8 @@ final class ModuleSystemCommand extends SystemCommand
     }
 
     /** @phpstan-return Context */
-    private function snapshot(): array {
+    private function snapshot(): array
+    {
         return new ModuleFeatureCommandSnapshot($this->application)->capture();
     }
 
