@@ -11,6 +11,7 @@ it('keeps direct SHA-256 hashing inside protocol and cryptographic source bounda
         '/Auth/OAuth/',
         '/Auth/Support/',
         '/Security/',
+        '/Release/FoundationReleaseManifest.php', // Trusted release-manifest authentication is an explicit cryptographic boundary.
     ];
     $violations = [];
 

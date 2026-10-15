@@ -22,7 +22,8 @@ final readonly class FoundationReleaseRuntime
         array $config,
         RuntimeMode $runtime,
         string $releaseRoot,
-    ): GeneratedRuntime {
+    ): GeneratedRuntime
+    {
         unset($config);
         $this->assertNonWeb($runtime);
         [$generation, $manifest, $directory, , $lease] = $this->activeManifest($releaseRoot);
@@ -56,7 +57,8 @@ final readonly class FoundationReleaseRuntime
         RuntimeMode $runtime,
         string $releaseRoot,
         string $trustedFoundationManifestSha256,
-    ): GeneratedRuntime {
+    ): GeneratedRuntime
+    {
         unset($config);
         $this->assertNonWeb($runtime);
         [$generation, $manifest, $directory, , $lease] = $this->trustedActiveManifestWithLease(
@@ -115,7 +117,8 @@ final readonly class FoundationReleaseRuntime
         array $config,
         string $releaseRoot,
         ?RuntimeAdapterInterface $adapter = null,
-    ): WebReleaseRuntime {
+    ): WebReleaseRuntime
+    {
         unset($config);
         [$generation, $manifest, $directory, , $lease] = $this->activeManifest($releaseRoot);
         $web = FoundationReleaseManifest::section($manifest, 'web');
@@ -136,7 +139,8 @@ final readonly class FoundationReleaseRuntime
         string $releaseRoot,
         string $trustedFoundationManifestSha256,
         ?RuntimeAdapterInterface $adapter = null,
-    ): WebReleaseRuntime {
+    ): WebReleaseRuntime
+    {
         unset($config);
         [$generation, $manifest, $directory, , $lease] = $this->trustedActiveManifestWithLease(
             $releaseRoot,
@@ -210,7 +214,8 @@ final readonly class FoundationReleaseRuntime
         string $generation,
         ReleaseGenerationLease $lease,
         ?string $trustedFoundationManifestSha256 = null,
-    ): GeneratedRuntime {
+    ): GeneratedRuntime
+    {
         $runtime->application->attachLoadedReleaseGeneration(new LoadedReleaseGeneration(
             $releaseRoot,
             $generation,
@@ -227,7 +232,8 @@ final readonly class FoundationReleaseRuntime
         string $generation,
         ReleaseGenerationLease $lease,
         ?string $trustedFoundationManifestSha256 = null,
-    ): WebReleaseRuntime {
+    ): WebReleaseRuntime
+    {
         return new WebReleaseRuntime(
             $runtime->container,
             $runtime->kernel,

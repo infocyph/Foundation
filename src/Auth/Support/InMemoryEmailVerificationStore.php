@@ -23,6 +23,7 @@ final class InMemoryEmailVerificationStore extends AbstractInMemoryConsumableSto
         }
 
         $this->consumeStored($requestId);
+
         try {
             $apply();
         } catch (\Throwable $exception) {

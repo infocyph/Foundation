@@ -138,3 +138,24 @@ it('keeps native notifications config outside communication publication failures
     }
 });
 
+function moduleConfigRemoveDirectory(string $directory): void
+{
+    if (!is_dir($directory)) {
+        return;
+    }
+
+    $files = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::CHILD_FIRST,
+    );
+
+    foreach ($files as $file) {
+        if ($file->isDir() && !$file->isLink()) {
+            rmdir($file->getPathname());
+        } else {
+            unlink($file->getPathname());
+        }
+    }
+
+    rmdir($directory);
+}

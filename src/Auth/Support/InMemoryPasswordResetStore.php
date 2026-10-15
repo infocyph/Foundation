@@ -22,6 +22,7 @@ final class InMemoryPasswordResetStore extends AbstractInMemoryConsumableStore i
         }
 
         $this->consumeStored($requestId);
+
         try {
             $apply();
         } catch (\Throwable $exception) {
