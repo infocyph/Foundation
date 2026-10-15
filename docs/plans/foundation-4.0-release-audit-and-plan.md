@@ -4,7 +4,280 @@ Audit date: 2026-10-11. Target: **Foundation 4.0 as a clean major release**.
 No backward-compatibility, migration-path, or source-signature parity obligation
 exists for Foundation 2.x, unreleased 3.x, or retired specialist majors.
 
-**Live release checkpoint (2026-10-14): B1 6/6, B2 8/8, B3 4/4, B4 7/7, B5 4/4, B6 3/8 = 32/37 (86.5%).** Batch 5's four 4.0-native contracts are accepted on exact-source [`6435bd89`](https://github.com/infocyph/Foundation/commit/6435bd8986ce6eb3139e40173a33c7a69a2e9b34), [Security & Standards #38526599007](https://github.com/infocyph/Foundation/actions/runs/38526599007) **SUCCESS**: QA 4/4, PHPStan 2/2, production consumers 4/4, benchmark jobs 2/2, clean install, PHPForge doctor and release evidence. The old-major API inventory guard is retired, and current 4.0 API/state tests pass. Keep native library ownership, explicit application policy, no duplicate Runwire/Webrick/CacheLayer/DBLayer/OTP/Epicrypt/Omnibus/Pathwise/TalkingBytes. Infbyte integration is a separate future task. All earlier date-stamped legacy-diff checkpoint notes below are history, not live release policy. PR #20 is draft; no merge/tag/publication.
+## 2026-10-15 — Current-source security and compatibility re-audit
+
+**Current decision: NO-GO.** Audited source:
+`56a96614d66a8033cde91ff5b8c1e83bab617a9e`. Current tree: **666 production PHP
+files and 211 test PHP files**. The updated module plans and their supporting
+ownership inventories were reviewed alongside the current source and tests.
+The earlier 32/37 release count and module acceptance counts below describe
+previous checkpoints; they do not override the newly reproduced findings here.
+
+**Reopened release acceptance: B1 6/6, B2 5/8, B3 3/4, B4 1/7, B5 2/4,
+B6 2/8 = 19/37 currently checked.** These are acceptance criteria, not a measure
+of code written or an estimate of implementation effort. Existing implementation
+and useful green evidence remain; thirteen criteria require renewed acceptance
+because the adversarial cases below contradict their complete-contract claims.
+Module B2/B3/B5/B6 concurrency, native integration and CLI acceptance must also be
+revisited where affected. Their historical tracker totals are not current
+certification. Dedicated matched-host performance and final sign-off remain open.
+
+Only this plan is edited by this audit. Production code, dependencies, other
+plans/documents, Infbyte, Git refs, and publication state remain untouched.
+Focused executable probes were created under `/tmp`; no production fix or new
+regression test has been implemented in this audit.
+
+### Verification refreshed on this source
+
+| Check | Current evidence | Boundary |
+| --- | --- | --- |
+| Published library versions | All locked Infocyph runtime/selected integration libraries match the latest stable Packagist releases checked on 2026-10-15: ArrayKit 5.3.1, CacheLayer 4.0, InterMix 11.2, UID 6.0, Webrick 6.0.3, DBLayer 6.1, Epicrypt 3.2, Omnibus 3.0, OTP 7.0, Pathwise 4.2, ReqShield 3.3, TalkingBytes 2.3, Runwire 2.1.1 | PHPForge retains its development-main toolchain role; a current version does not establish integration correctness |
+| Composer | `validate --strict` and `ic:release:constraints` pass | No dependency update was performed |
+| Live advisory audit | `composer audit --locked --format=json`: no advisories; development dependency `doctrine/annotations` is abandoned | Exit 1 for abandonment; do not call this an advisory or a clean all-purpose security certificate |
+| Full local PHPForge run | Syntax, references, duplicate/comment/skip checks, normalization, Pint, PHPCS, Deptrac, PHPStan and Rector pass | `ic:tests` fails overall; no gates were weakened |
+| Local Psalm retry | No errors, 98.7037% type inference | Initial sandbox IPC-socket crash resolved by rerunning with socket access |
+| Local Pest retry | **687 passed, 10 failed, five warnings, 28,177 assertions** | Ten failures require unavailable Redis/Valkey/MySQL/PostgreSQL/Memcached services; five separate warning cases are recorded below, not excused as backend failures |
+| Current-head hosted QA | [Security & Standards 38723676197](https://github.com/infocyph/Foundation/actions/runs/38723676197): success; PHP 8.4/8.5 stable/lowest QA, static analysis, four production consumers, benchmarks, clean install and release evidence succeeded | Job metadata was verified on `56a9661`; the separate Security Report job was skipped. Successful configured QA does not cover the new adversarial probes |
+| Current-head native host | [Native HTTP host smoke 38723676602](https://github.com/infocyph/Foundation/actions/runs/38723676602): success on `56a9661` | Functional smoke; not the missing physically controlled baseline/candidate RPM certification |
+
+The installed local runtime is PHP 8.5.4. PHP 8.4 evidence comes from hosted CI.
+The standalone local `ic:release:audit` could not complete inside the sandbox
+because Packagist DNS was blocked; the direct advisory query above was repeated
+successfully with network access. Local evidence is not a full green suite.
+
+### Confirmed findings and required fixes
+
+#### R1 — P1: trusted manifest PHP executes before authentication
+
+**Sources:** `Release/FoundationReleaseRuntime.php:169,274`,
+`Release/ActiveGeneration.php:70`, `Release/FoundationReleaseManifest.php:85`.
+
+`trustedActiveManifestWithLease()` calls `activeManifest()` before hashing the
+manifest. `activeManifest()` first calls `ActiveGeneration::current()`, which
+already `require`s the PHP manifest, then loads it again. Thus the purported
+trust check is reached after executable artifact content has run.
+
+**Reproduction:** an isolated release root with a valid-shaped active JSON
+pointer, a PHP manifest that writes a harmless local marker and returns `[]`,
+and a syntactically valid incorrect trusted SHA produced
+`Unsupported Foundation release manifest format` **and created the marker**.
+This is a code-execution trust-boundary defect if an attacker can alter the
+release artifact/pointer. No unauthenticated network exploit is asserted.
+
+**Required:** resolve paths and acquire ownership/lease without executing an
+unauthenticated manifest; authenticate the selected content before any PHP
+evaluation, or use a non-executable authenticated data manifest. Ensure the
+authenticated content is what is consumed and avoid duplicate manifest loads.
+Add tampered/malformed/wrong-digest side-effect-sentinel tests through trusted
+web and non-web boot, retaining dependency identity and generation-drain checks.
+
+#### R2 — P1: method-specific step-up is satisfied by generic recent login
+
+**Source:** `Auth/Authentication/StepUp/StepUpManager.php:23-48`.
+
+Without a method-specific satisfaction record, evaluation falls back to
+`recentAuthAt` for every `StepUpMethod`. A fresh session returns
+`required=false` for **MFA, passkey and password**, although none of those
+method-specific proofs was supplied. Invalid method values also silently become
+`RECENT_AUTH`. Applications relying on this result for a stronger challenge can
+accept a generic recent login instead.
+
+**Required:** distinguish generic authentication recency from proof of the
+requested method; reject invalid requirements and validate bounded age/TTL
+inputs. Consume native MFA/passkey verification results through Foundation's
+policy boundary. Test method isolation, stale/missing/revoked session evidence,
+wrong-method satisfaction, invalid requirements and concurrent request isolation.
+
+#### R3 — P1: application refresh and remember-me rotation leave replay usable
+
+**Sources:** `Auth/Authentication/TokenAuth/TokenAuthManager.php:100`,
+`Auth/Authentication/RememberMe/RememberMeManager.php:63,86`,
+`Auth/Adapter/DBLayer/DBLayerFamilyTokenStore.php:9`,
+`Auth/Support/AbstractInMemoryFamilyTokenStore.php:51`.
+
+Refresh rotation checks expiry and revocation but never rejects `rotatedAt`.
+Persistence unconditionally marks the old record and saves another replacement,
+without comparing the current durable state. Remember-me verification likewise
+ignores `rotatedAt`. Probes confirmed first, second (freshly reread old record),
+and third (stale object) refresh rotations all succeed; both the old remember
+token and its replacement verify after rotation.
+
+**Required:** one atomic durable transition from active to rotated, with failure
+and replay outcomes consumed by the framework service; validate fresh state and
+family/subject binding, enforce the defined reuse/family-revocation policy, and
+roll back partial replacement writes. Exercise memory and real database paths,
+independent competing consumers, stale objects, missing/expired/rotated/revoked
+records, family revocation and persistence failures. Reuse native security and
+transaction mechanisms. This finding is about **application token services**;
+the separately tested Epicrypt-backed OAuth refresh path is not claimed broken.
+
+#### R4 — P1: password-reset single consumption is check-then-write
+
+**Sources:** `Auth/Authentication/PasswordReset/PasswordResetManager.php:39-68`,
+`Auth/Adapter/DBLayer/DBLayerConsumableStore.php:9`, and the consumable-store
+interfaces. Email-verification consumption shares the persistence helper and
+requires the same review.
+
+Reset completion reads `wasConsumed`, then calls a void unconditional `consume`
+and changes the account password. A controlled two-Fiber barrier immediately
+before consumption let **both calls complete with the same token**, with the
+second hash becoming final. Reproduced with both the native in-memory reset
+store and the real SQLite-backed DBLayer reset store; the barrier only schedules
+an otherwise possible read-before-write interleaving.
+
+**Required:** make consumption a native atomic conditional transition whose
+result the manager must check, and coordinate consumption/password update in
+the appropriate native transaction. Cover independent-process database races,
+exactly one successful completion, failure between consumption and account
+update, retries, subject/request binding and audit/notification ordering. Do not
+duplicate a native replay or transaction engine in Foundation.
+
+#### R5 — P1: real Composer metadata rejects supported published versions
+
+**Sources:** `Module/ModuleFeatureCommandSnapshot.php:69-77`,
+`Module/ModuleFeatureResolver.php:164-197`.
+
+The snapshot prefers pretty/display versions and ignores
+`version_normalized`. Real installed metadata records DBLayer as `6.1`, Epicrypt
+as `3.2`, OTP as `7.0` and TalkingBytes as `2.3`. PHP `version_compare` treats
+`6.1` below `6.1.0`, so the resolver rejects the supported release. Copying the
+actual installed metadata into a disposable application with a direct
+`infocyph/dblayer:^6.1` requirement produced:
+`applicable=false; Installed infocyph/dblayer is outside supported range ^6.1.`
+
+**Required:** use Composer's canonical version representation/semantics at the
+snapshot boundary and compatible native comparison rather than treating display
+strings as normalized versions. Preserve strict ownership/constraint checks.
+Run real installed metadata through every applicable feature's inspect, plan,
+enable, install/repair and schema paths under production `--no-dev`; include
+two/three/four-component versions and valid/mismatched constraints. Fixtures using
+only invented `6.1.0` pretty versions do not cover the actual published packages.
+
+#### R6 — P1: DI Runwire identity is not automatic operation propagation
+
+**Sources:** `Runtime/ExecutionScope.php`, `Database/DBLayerFactory.php:60`,
+`Validation/FormRequest.php:28`, `Communication/CommunicationProfiles.php`,
+`Messaging/MessagingServiceProvider.php`, and selected native boundary tests.
+
+A real native InterMix bridge plus selected Foundation CLI execution received
+the exact runtime/request in DI and CacheLayer sharing. Nevertheless the
+Foundation-resolved DBLayer connection had `runwireBinding() === null` and the
+Foundation MessageBus had no bound runtime. Cancelling that active host request
+still allowed a normal database query and `FormRequest::validate()` to execute;
+explicit native `Connection::withRunwire()` rejected the cancelled request.
+
+Several boundary tests manually construct native bindings and explicitly call
+their Runwire APIs. Those prove upstream composition, not automatic propagation
+through Foundation's ordinary service paths.
+
+**Required:** wire operation-scoped forwarding through the actual framework
+entrypoints and native APIs for every consuming owner, preserving exact runtime,
+request and live coroutine scope through direct/intermediary calls. Include
+ReqShield's DBLayer bridge, messaging, communications, files and OTP/Epicrypt
+operations where supported. Keep normal fallback, nested restoration, scoped
+mutable clients and host ownership. Do not solve this with singleton context
+capture or a new async framework. Regression tests must use Foundation-created
+services and cancel/expire during an already-entered operation scope, including
+compiled HTTP and non-web graphs.
+
+#### R7 — P1: passkey revocation ignores the supplied account owner
+
+**Source:** `Auth/Passkey/PasskeyManager.php:139-151`.
+
+`revokeCredential($accountId, $credentialId)` ignores account ownership when
+mutating the store, then audits/notifies the supplied account. A credential
+stored for `victim-account` was revoked by calling the manager with
+`different-account` and that credential ID. Exposure depends on an application
+calling this account-oriented API; no default public route is assumed.
+
+**Required:** bind the mutation atomically to the actual account and credential
+identity, rejecting mismatches before mutation or notification. Test cross-account
+and cross-tenant attempts, legitimate revocation, competing credential updates,
+both ID forms accepted by the store, and correct audit ownership with real
+persistence. Reuse native persistence/CAS operations and OTP ceremony ownership.
+
+#### R8 — P2: stale feature snapshots can publish an invalid dependency graph
+
+**Source:** `Module/ModuleActivationManager.php:205-226`.
+
+The freshness check compares only keys still present on disk. A snapshot stating
+that crypto is enabled can therefore survive removal of that flag. Enabling OTP
+MFA against that stale snapshot wrote `['features'=>['security.mfa'=>true]]`;
+the runtime policy immediately rejected it because crypto was absent.
+
+**Required:** validate the complete authoritative selection/policy snapshot under
+the relevant native file lock, including removed keys and selected-but-disabled
+ownership, and validate the resulting dependency graph before publication.
+Re-plan after changes. Test removed flags, changed conditional dependencies,
+Composer changes during activation and concurrent enable/remove operations.
+
+#### R9 — P2: redundant mutation paths and a custom remember-token engine remain
+
+**Sources:** `Module/ModuleManager.php:32,70`, legacy activation methods in
+`Module/ModuleActivationManager.php`, `Auth/Support/SimpleRememberTokenService.php`.
+
+The new feature lifecycle has safe Composer planning/locking, but public legacy
+`ModuleManager::install/remove` still implement independent Composer mutation.
+With no root manifest, the v2 planner correctly refused; the legacy install
+path still invoked a harmless fixture Composer executable. This probe used
+`--dry-run`; no actual package installation was attempted. Preserve useful Core
+introspection/publication responsibilities while removing redundant mutation
+entrypoints and their obsolete contracts/tests.
+
+Remember-me still defines a Foundation selector/verifier wire format, hashing
+and verification implementation, although Epicrypt publishes a remember-token
+primitive. Reconcile this mechanism with that native owner; format/API
+differences are not a reason to retain a second engine in a clean major release.
+If a required native boundary is missing, record and resolve it in its owner.
+Do not classify every public method as necessary merely because it is public.
+
+#### R10 — P2: expired authentication sessions can be renewed by rotation
+
+**Source:** `Auth/Authentication/Session/SessionManager.php:59-86`.
+
+The account-auth session manager rotates any found record without checking
+expiry. A stored expired session became a new active session in a probe.
+The HTTP resolver does reject expiry; this finding concerns callers of the
+public manager rather than a demonstrated HTTP bypass. Define and enforce the
+rotation validity contract at that boundary; do not leave security dependent on
+each caller remembering an extra precheck. Test expired/revoked/missing sessions,
+absolute-expiry policy, concurrent rotation/revocation and persistence failures.
+
+#### R11 — P3: negative-path module tests emit five warnings
+
+Four cases call `file()` on an intentionally absent fixture `commands.jsonl`
+(`ModuleFeatureComposerExecutorTest.php:71`); one recovery fixture calls `mkdir`
+where a file intentionally blocks the config directory
+(`ModuleConfigPublisher.php:58`). Preserve the negative tests while checking
+absent files and translating expected I/O failures deliberately. Do not suppress
+warnings globally or weaken the detector/CI contract. These warnings are separate
+from the ten unavailable-backend failures.
+
+### Remediation and renewed acceptance order
+
+1. Fix R1 before trusting release artifacts. Fix R2/R3/R4/R7 security transitions
+   with focused regression coverage, reusing native owners and atomic operations.
+2. Fix real Composer metadata handling (R5) and the stale/parallel module mutation
+   paths (R8/R9), then exercise the public v2 API using actual consumer installs.
+3. Close R6 through ordinary Foundation service calls, not direct upstream-only
+   probes. Preserve the host's ownership and the non-Runwire synchronous path.
+4. Settle session rotation validity (R10), native remember-token ownership and
+   fixture I/O warnings (R11); update affected ownership/contract evidence.
+5. Repeat required PHPForge/service/production-consumer/native-host matrices on
+   the resulting immutable source/dependency set, then complete the existing
+   physically controlled performance and final release gates. No prior-major
+   compatibility work, extra wrapper hierarchy, Infbyte changes, merge or publish
+   is introduced by this audit.
+
+This is a broad risk-based source/composition audit with executable counterexamples,
+not proof of absence of other vulnerabilities or exhaustive behavior under every
+third-party plugin, platform, deployment or input. Green advisory/static results
+and a completed symbol census cannot support the 100% compatibility claim while
+any of the required cases above remains unresolved.
+
+## Previous release checkpoints — historical evidence
+
+**Historical release checkpoint (2026-10-14): B1 6/6, B2 8/8, B3 4/4, B4 7/7, B5 4/4, B6 3/8 = 32/37 (86.5%).** Batch 5's four 4.0-native contracts are accepted on exact-source [`6435bd89`](https://github.com/infocyph/Foundation/commit/6435bd8986ce6eb3139e40173a33c7a69a2e9b34), [Security & Standards #38526599007](https://github.com/infocyph/Foundation/actions/runs/38526599007) **SUCCESS**: QA 4/4, PHPStan 2/2, production consumers 4/4, benchmark jobs 2/2, clean install, PHPForge doctor and release evidence. The old-major API inventory guard is retired, and current 4.0 API/state tests pass. Keep native library ownership, explicit application policy, no duplicate Runwire/Webrick/CacheLayer/DBLayer/OTP/Epicrypt/Omnibus/Pathwise/TalkingBytes. Infbyte integration is a separate future task. All earlier date-stamped legacy-diff checkpoint notes below are history, not live release policy. PR #20 is draft; no merge/tag/publication.
 
 ### 2026-10-15 — Foundation 4 v2 migration and candidate notes parity verified, host sign-off still blocked
 
@@ -1859,16 +2132,22 @@ The four PHP 8.4/8.5 lowest/stable QA jobs on source `c31b6e8` passed Pest and R
 - [x] Adopt Webrick 6, CacheLayer 4, and remaining latest module APIs, including
   cluster identity/history policy and transaction/outbox ownership.
   **Accepted on source `4ddaf18a`:** compiled Webrick 6.0.3 release modes, CacheLayer 4 native cluster/history and PDO outbox, selected module integration, session contention and required CI service backends passed. Optional unselected host/transport expansion remains separately tracked under #3/Batch 3.
-- [x] Complete the per-library compatibility record for the whole applicable
+- [ ] Complete the per-library compatibility record for the whole applicable
   native surface and all Foundation consumers; implement every required contract
   without retaining obsolete wrappers or limiting changes to a small diff.
+  **Reopened 2026-10-15: R5/R6.** Real published Composer metadata and ordinary
+  Foundation operation forwarding contradict the complete-compatibility claim.
   **Accepted at `df2c349f` (QA #38430686929):** all current selected native-module/consumer APIs have concrete owner and test evidence; Omnibus 3.0 portable core platform hard blockers corrected; unselected optional hosts/transports and persisted-state security migrations explicitly remain Batch 3/4/release gates, not untested implied coverage.
-- [x] Redesign built-in framework services and remove duplicate native mechanisms
+- [ ] Redesign built-in framework services and remove duplicate native mechanisms
   according to the approved ownership map, including auth and session composition.
+  **Reopened 2026-10-15: R3/R9.** Reconcile native remember-token ownership and
+  the remaining independent application token lifecycle.
   **Accepted on `fc744609` / QA #38431864047:** native InterMix/Webrick/ArrayKit/CacheLayer/DBLayer ownership preserved; native auth/session and module providers audited at mechanism level; duplicate DBLayer forwarding factory removed and locked by QA. Exhaustive individual symbol dispositions remain #5.
-- [x] Account for every retained/added production class, method and function by
+- [ ] Account for every retained/added production class, method and function by
   required framework responsibility or plugin boundary; remove unnecessary
   symbols and duplicated/legacy paths rather than adding compatibility layers.
+  **Reopened 2026-10-15: R9.** Redundant Composer/activation mutation APIs and
+  custom remember-token mechanics need explicit removal/native-owner disposition.
 - [x] Align Composer, `ModuleCatalog`, dependency guards, publishable configuration,
   CI consumer constraints, examples, and test expectations with the same floors.
   **Revalidated on source `4ddaf18a`:** [workflow 38418473098](https://github.com/infocyph/Foundation/actions/runs/38418473098) passed 4/4 consumers, full PHPForge QA, analysis, benchmarks, clean install and release evidence against the coordinated published floors. Historical initial acceptance: `38db3a51`.
@@ -1881,8 +2160,10 @@ The four PHP 8.4/8.5 lowest/stable QA jobs on source `c31b6e8` passed Pest and R
 
 - [x] Implement complete scoped Foundation context propagation through native
   bridges, with only the required framework/plugin surface.
-- [x] Forward exact runtime/request/scope through relevant native module APIs,
+- [ ] Forward exact runtime/request/scope through relevant native module APIs,
   direct calls, intermediary chains, and child tasks.
+  **Reopened 2026-10-15: R6.** DI identity and manually constructed upstream
+  bindings do not prove forwarding by Foundation-created service operations.
 - [x] Verify capability fallback and absence of Runwire without implicit runtime
   creation; preserve generation/process/request boundaries and host ownership.
 - [x] Cover borrowed versus owned DI cleanup, throwing callbacks/reporters,
@@ -1890,24 +2171,35 @@ The four PHP 8.4/8.5 lowest/stable QA jobs on source `c31b6e8` passed Pest and R
 
 ### Batch 4 — verify security and persistence composition
 
-- [x] Authentication/authorization: tenant/resource isolation, permission caches,
+- [ ] Authentication/authorization: tenant/resource isolation, permission caches,
   session fixation/regeneration/expiry, CSRF, cookie policy, account suspension,
   rate limits, and atomic lock/counter behavior under concurrency.
-- [x] Full built-in flows: login/logout, browser/auth-session coordination,
+  **Reopened 2026-10-15: R7.** Passkey revocation ignores the requested account.
+- [ ] Full built-in flows: login/logout, browser/auth-session coordination,
   account/device revocation, idle/recent-auth/step-up semantics, remember-me,
   verification, passwordless/reset/change, recovery, impersonation, gates/policies
   and delegation; verify one principal and one owner per native mechanism.
-- [x] OAuth/tokens: approved redirects, PKCE, code consumption, refresh rotation
+  **Reopened 2026-10-15: R2/R3/R4/R10.** Method proof, replay, one-time reset
+  consumption and expired-session rotation fail focused behavioral probes.
+- [ ] OAuth/tokens: approved redirects, PKCE, code consumption, refresh rotation
   and reuse detection, revocation, bounded retries, and auditing with real database
   races. Preserve Epicrypt ownership and Foundation policy/persistence mapping.
-- [x] MFA/passkeys: OTP terminal state/replay prevention, recovery-code consumption,
+  **Reopened 2026-10-15: R3.** Application refresh tokens remain replayable;
+  existing Epicrypt OAuth-specific evidence remains useful and separate.
+- [ ] MFA/passkeys: OTP terminal state/replay prevention, recovery-code consumption,
   encrypted secret handling, credential counters, origin/RP validation, and leases.
-- [x] Persistence/messaging: real-backend contention, transaction rollback/outbox
+  **Reopened 2026-10-15: R7.** Native ceremony correctness does not establish
+  Foundation credential-owner authorization on revocation.
+- [ ] Persistence/messaging: real-backend contention, transaction rollback/outbox
   atomicity, duplicate delivery, webhook replay, scheduler leadership, cancellation,
   reconnects, and generation reset without leaked transactions or locks.
-- [x] HTTP/filesystem/communications: trusted proxies, redirects, upload/path
+  **Reopened 2026-10-15: R4.** Native SQLite reset consumption admits two
+  successful completions; transaction failure ordering also needs coverage.
+- [ ] HTTP/filesystem/communications: trusted proxies, redirects, upload/path
   containment, executable configuration/artifact trust, ranges/stream failures,
   TLS/SSRF policy boundaries, retries, request body limits, and redacted diagnostics.
+  **Reopened 2026-10-15: R1.** The trusted executable manifest is evaluated
+  before the caller-provided digest is authenticated.
 - [x] Persistent lifecycle: per-request state reset across all modes, concurrent
   requests/tasks, failure cleanup, dependency replacement, and bounded resources.
 
@@ -2003,14 +2295,18 @@ Added `docs/examples/foundation-4-compiled-release.php`, executed inside all fou
 
 - [x] Publish current Foundation 4 setup/architecture guidance and executable
   bootstrap examples; synchronize navigation, ownership and runtime claims.
-- [x] Verify and document the *current* Foundation 4 public API, provider graph,
+- [ ] Verify and document the *current* Foundation 4 public API, provider graph,
   configuration/capability policies, native-owner entrypoints, trusted immutable
   release ABI and host-passed Runwire contracts. No prior-version signature
   diff or compatibility alias is required.
-- [x] Validate fresh Foundation 4 state: password/account/session/refresh-token
+  **Reopened 2026-10-15: R1/R5/R6/R8/R9.** Renew native contract and
+  executable trust evidence after correcting the reproduced integration gaps.
+- [ ] Validate fresh Foundation 4 state: password/account/session/refresh-token
   families, MFA/recovery/passkey, queue/outbox, cache replay and selected storage
   integrity; exercise rollback/restoration of 4.0-created state and real selected
   owner recovery. No mandatory historic customer backup conversion/downgrade.
+  **Reopened 2026-10-15: R3/R4/R7/R10.** Fresh-state behavior must include
+  replay, one-time consumption, owner isolation and expiration failures.
 - [x] Exercise Foundation production `--no-dev` consumers with core-only,
   database-only and complete selected published-specialist topologies, including
   explicit host-owned Runwire context propagation, release compilation and
@@ -2026,10 +2322,12 @@ Added `docs/examples/foundation-4-compiled-release.php`, executed inside all fou
 - [x] Verify supported PHP 8.4/8.5, lowest/latest dependencies, compiled/development
   graphs, production consumers, and required service matrices on the final SHA.
   Record toolchain/workflow references and the resolved dependency manifest.
-- [x] Close every **current 4.0 native integration** contract and verify no
+- [ ] Close every **current 4.0 native integration** contract and verify no
   redundant production mechanism or shadow library owner remains. Unverified
   selected 4.0 behavior blocks certification; older major-version compatibility
   is explicitly not a release requirement.
+  **Reopened 2026-10-15: R5/R6/R9.** Current source fails actual installed-version
+  handling, automatic native operation forwarding and redundant-owner review.
 - [ ] Establish comparable baseline/candidate sustained host measurements with
   valid response checks, repeated runs and medians, cold/warm routes, realistic
   authentication/database/cache workloads, concurrency 1/10/50, and one/four
