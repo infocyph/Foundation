@@ -41,7 +41,9 @@ final readonly class ModuleActivationManager
             fn(array $config): array => $this->updateFeatureFlags(
                 $config,
                 $plan['effects']['activate'],
-                $context['enabled'],
+                $context,
+                $operation,
+                $features,
             ),
         );
     }
@@ -199,10 +201,11 @@ final readonly class ModuleActivationManager
     /**
      * @param array<string,mixed> $config
      * @param array<string,bool> $changes
-     * @param list<string> $enabled
+     * @phpstan-param Context $context
+     * @param list<string> $features
      * @return array<string,mixed>
      */
-    private function updateFeatureFlags(array $config, array $changes, array $enabled): array
+    private function updateFeatureFlags(array $config, array $changes, array $context, string $operation, array $features): array
     {
         $flags = $config['features'] ?? [];
         if (!is_array($flags)) {
@@ -212,7 +215,17 @@ final readonly class ModuleActivationManager
             if (!is_string($id) || !is_bool($active)) {
                 throw new \RuntimeException('modules.features must contain boolean feature flags.');
             }
-            if ($active !== in_array($id, $enabled, true)) {
+        }
+
+        $expected = $context['selected_features'] ?? array_keys($flags);
+        $actual = array_keys($flags);
+        sort($expected);
+        sort($actual);
+        if ($expected !== $actual || array_values(array_keys(array_filter($flags))) !== array_values(array_intersect(array_keys($flags), $context['enabled']))) {
+            throw new \RuntimeException('Feature activation changed; re-plan before applying.');
+        }
+        foreach ($context['enabled'] as $id) {
+            if (($flags[$id] ?? null) !== true) {
                 throw new \RuntimeException('Feature activation changed; re-plan before applying.');
             }
         }
@@ -221,6 +234,26 @@ final readonly class ModuleActivationManager
             $flags[$id] = $active;
         }
         ksort($flags);
+        $nextContext = $context;
+        $nextContext['enabled'] = array_keys(array_filter($flags));
+        $nextContext['selected_features'] = array_keys($flags);
+        $nextContext['config']['modules']['features'] = $flags;
+        $result = new ModuleFeaturePlanner()->plan($operation, $features, $context);
+        if (!$result['applicable']) {
+            throw new \RuntimeException('Feature activation changed; re-plan before applying.');
+        }
+        $resolved = new ModuleFeatureResolver()->resolve($nextContext['enabled'], $nextContext);
+        if ($resolved['blockers'] !== []) {
+            throw new \RuntimeException('Feature activation creates invalid dependencies: ' . implode('; ', $resolved['blockers']));
+        }
+        foreach ($resolved['states'] as $state) {
+            foreach ($state['dependencies'] as $dependency) {
+                if (!in_array($dependency, $nextContext['enabled'], true)) {
+                    throw new \RuntimeException('Feature activation creates invalid dependency graph.');
+                }
+            }
+        }
+
         $config['features'] = $flags;
 
         return $config;

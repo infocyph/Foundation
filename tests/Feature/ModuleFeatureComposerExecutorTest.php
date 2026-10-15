@@ -68,7 +68,9 @@ function f4ComposerCommands(string $root): array
 {
     return array_map(
         static fn(string $line): array => json_decode($line, true, flags: JSON_THROW_ON_ERROR),
-        file($root . '/commands.jsonl', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [],
+        is_file($root . '/commands.jsonl')
+            ? (file($root . '/commands.jsonl', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [])
+            : [],
     );
 }
 
