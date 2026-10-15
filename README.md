@@ -77,47 +77,28 @@ Runwire is optional and does not activate merely because it is installed. See
 [Runtime hosting](docs/runtime-hosting.md) for ownership, selection and the
 verification boundary.
 
-## Capabilities
+## Optional modules
 
-Foundation modules describe optional application capabilities rather than package
-names. CacheLayer is a direct Foundation dependency and core cache infrastructure,
-but the `cache` capability still remains cold until explicitly selected. Other
-optional packages such as DBLayer, Omnibus, TalkingBytes, Epicrypt, Pathwise,
-ReqShield, OTP, or WebAuthn likewise do not activate themselves merely because
-they are installed.
+Foundation 4 supplies prebuilt Core plus **three optional modules with nine individually selected features**:
 
-| Specialist module | Implementation |
+| Module | Qualified features |
 | --- | --- |
-| `auth` | Foundation auth with optional OTP and WebAuthn providers |
-| `communication` | TalkingBytes |
-| `database` | DBLayer |
-| `filesystem` | Pathwise |
-| `messaging` | Omnibus |
-| `security` | Epicrypt |
-| `validation` | ReqShield |
+| data | `data.database` (DBLayer), `data.filesystem` (Pathwise) |
+| security | `security.crypto` (Epicrypt), `security.validation` (ReqShield), `security.mfa` (OTP), `security.passkey` (OTP + WebAuthn) |
+| execution | `execution.runtime` (Runwire), `execution.messaging` (Omnibus), `execution.communication` (TalkingBytes) |
 
-The catalog also retains four built-in entries for configuration and schema
-operations: `logging`, `operations`, `resources`, and `session`. They require no
-additional Composer packages and cannot be removed. CacheLayer is core
-infrastructure, outside the module catalog; use `cache:schema:status` and
-`cache:schema:install` for core cache schemas. Notifications are native and use
-TalkingBytes only when its email integration is selected.
-
-Use the module commands to inspect, install, configure, and provision a
-specialist capability:
+Core authentication, CacheLayer, logging, operations, resources, sessions and notifications are not installable modules. PHPForge remains development/QA-only. Webrick, InterMix and Runwire retain native routing, container and host ownership.
 
 ```bash
 php infbyte module:list
-php infbyte module:show database
-php infbyte module:install database
-php infbyte module:config:publish messaging
-php infbyte module:schema:status auth
+php infbyte module:show data
+php infbyte module:plan data.database
+php infbyte module:install data.database --dry-run
+php infbyte module:config:publish execution.messaging
+php infbyte module:schema:status execution.messaging
 ```
 
-Foundation composes these libraries without replacing their native query,
-cache, filesystem, validation, communication, cryptography, or messaging APIs.
-See [Modules](docs/modules.md) for package mappings, aliases, activation rules,
-and schema ownership.
+Every mutation requires explicit feature selection, never bare-module install-all. Machine contracts use schema v2. See [Modules](docs/modules.md) for current package requirements, Core/QA boundaries, breaking migration instructions and non-destructive repair.
 
 ## Operate and deploy
 

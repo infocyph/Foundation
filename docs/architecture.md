@@ -102,8 +102,9 @@ DBLayer, Omnibus, TalkingBytes, Epicrypt, Pathwise, ReqShield, OTP, or WebAuthnâ
 does not by itself activate the corresponding runtime capability, open a
 connection, construct a store, or add unrelated request work.
 
-Purpose-first modules (`database`, `security`, `auth`, `messaging`, and so on)
-select application capabilities. One module may have several backing packages;
+Foundation 4 optional modules (`data`, `security`, `execution`) expose nine
+explicit `module.feature` selections; Core stays prebuilt and non-installable.
+Bare groups never select their siblings. Native specialist owners
 Foundation does not expose package-presence as runtime policy.
 
 ## Execution boundaries

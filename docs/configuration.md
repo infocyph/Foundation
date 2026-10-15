@@ -81,13 +81,13 @@ Every publishable specialist key is documented inline in its Foundation template
 Publish without overwriting host config:
 
 ```bash
-php infbyte module:config:publish database
-php infbyte module:config:publish operations
+php infbyte module:config:publish data.database
+php infbyte module:config:publish security.crypto
 ```
 
-Explicit replacement of module-owned configuration requires `--force`.
+Feature-owned configuration publication never overwrites an application-owned file; Core configuration has its own lifecycle and is not an optional module.
 
-`module:install <module>` publishes config for optional modules but never silently overwrites existing application config. `cache.php` is core application configuration and ships with the application skeleton rather than being module-published.
+`module:install <module.feature>` publishes only selected owner configuration; bare module groups never install all their features. `cache.php` is core application configuration and ships with the application skeleton rather than being module-published.
 
 Infrastructure values remain in their owning config; auth does not duplicate
 database/cache/security/communication settings.
