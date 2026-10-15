@@ -1,5 +1,25 @@
 # Foundation 4.0 audit and release plan
 
+## 2026-10-15 — Follow-up remediation: implementation checkpoint (exact-source acceptance pending)
+
+**Branch:** `feature/foundation-3`; PR #20 remains draft. This section supersedes only the preceding *implementation* checkpoint, not the 2026-10-15 adversarial findings or release acceptance policy.
+
+| Re-audit item | Current implementation work | Certification still required |
+| --- | --- | --- |
+| R1 | Trusted boot now resolves the active pointer without evaluating PHP, acquires the generation lease, authenticates SHA-256 bytes and loads that private copy only once; added tampering sentinel regression | Exact-source PHP 8.4/8.5 quality, malformed/wrong-digest web/non-web and trusted generation-recovery checks |
+| R2 | Method-specific step-up and bounded policy inputs enforced | Native MFA/passkey verification handoff and complete lifecycle/concurrent request evidence |
+| R3 | Refresh/remember rotation now uses conditional store transitions, DBLayer native transaction and in-memory CAS; replay invokes family revocation | Multiple-process races, stale/persisted records, rollback and native DB-backed recovery checks |
+| R4 | Password-reset and email-verification consumption use conditional store updates with the account change in the native DBLayer transaction; in-memory restores request state on failure | Independent DB process contention and partial failure/retry tests |
+| R5 | Real Composer normalized and short published version values accepted | Full feature CLI and production consumer matrices |
+| R7 | Account-aware, revision-CAS passkey revocation | Cross-tenant and DB concurrency evidence, audit identity |
+| R8 | Complete selected/enabled snapshot checked under the feature lock and candidate dependency graph revalidated; stale-flag regression added | Current Composer metadata drift during lock and concurrent enable/remove tests |
+| R9 | Retired obsolete `ModuleManager::install/remove` Composer mutation path; retained read-only Core inspection/config publication | Retire other legacy activation/mutation APIs and reconcile remember-token engine with Epicrypt native owner |
+| R10 | Expired session rotation is rejected | Real persisted revoked/expired and concurrent rotation tests |
+| R11 | Missing fixture command log and file-blocked config directory handled deliberately | Strict warnings-as-errors QA across all negative tests |
+| R6 | No equivalent automatic native operation forwarding is established yet | Ordinary Foundation-created DBLayer, messaging, ReqShield, files, OTP/Epicrypt and TalkingBytes operations must honor exact Runwire request cancellation; bound DI identity alone is insufficient |
+
+**Acceptance remains NO-GO at 19/37.** New source edits and focused regressions are **not accepted or marked complete** until same-SHA PHPForge, static analysis, production consumers, native host and the adversarial conditions above all pass. Last known test fixes addressed initial PHPForge Pint ordering, an accidentally duplicated resolver method, and newly surfaced PHPStan type/complexity errors. Intermediate workflow results belong to their own source SHA; follow the exact latest Actions jobs rather than carrying prior successes forward. Dedicated physically matched baseline/candidate host throughput and B7 final sign-off remain blocked. No Infbyte or upstream release, merge, tag or publication.
+
 ## 2026-10-15 — Security and Composer feedback remediation checkpoint
 
 On the active `feature/foundation-3` branch, first implementation addresses **R2 step-up method isolation and validation, R5 Composer normalized/short installed-version handling, R7 account-bound passkey revocation via persisted revision compare-and-swap, and R10 expired-session rotation**. Focused regression tests are added. This is a **source implementation checkpoint, not QA or release acceptance**. In particular, native MFA/passkey satisfaction handoff, real DB/concurrency verification, and full production `--no-dev` consumer verification still need evidence. R1/R3/R4/R6/R8/R9/R11 are not remedied. No upstream, Infbyte, merge, tag or publication changes.
