@@ -15,7 +15,7 @@ use Infocyph\TalkingBytes\Http\HttpClient;
 
 /**
  * @param array<string,bool> $features
- * @return array{context:FoundationBuildContext,classes:list<string>,definitions:\Infocyph\InterMix\DI\DefinitionGraph}
+ * @return array{context:FoundationBuildContext,classes:list<string>,builder:\Infocyph\InterMix\DI\ContainerBuilder}
  */
 function moduleB5ExecutionGraph(array $features): array
 {
@@ -27,7 +27,7 @@ function moduleB5ExecutionGraph(array $features): array
     $registry = new ServiceRegistry();
     new Bootstrapper()->compose($builder, $context, $registry);
 
-    return ['context' => $context, 'classes' => $registry->classes(), 'definitions' => $builder->definitionGraph()];
+    return ['context' => $context, 'classes' => $registry->classes(), 'builder' => $builder];
 }
 
 it('keeps Omnibus TalkingBytes and host-owned Runwire independently selectable', function (): void {
@@ -43,8 +43,8 @@ it('keeps Omnibus TalkingBytes and host-owned Runwire independently selectable',
 
         expect(in_array(MessagingServiceProvider::class, $graph['classes'], true))->toBe($case['messaging'])
             ->and(in_array(CommunicationServiceProvider::class, $graph['classes'], true))->toBe($case['communication'])
-            ->and($graph['definitions']->hasDefinition(MessageBus::class))->toBe($case['messaging'])
-            ->and($graph['definitions']->hasDefinition(HttpClient::class))->toBe($case['communication'])
+            ->and($graph['builder']->definitionGraph()->hasDefinition(MessageBus::class))->toBe($case['messaging'])
+            ->and($graph['builder']->definitionGraph()->hasDefinition(HttpClient::class))->toBe($case['communication'])
             ->and($graph['context']->permitsCapability('runwire'))->toBe($case['runtime']);
     }
 });
