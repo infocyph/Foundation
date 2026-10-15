@@ -16,7 +16,7 @@ Checkpoint: 2026-10-15. Repository: infocyph/Foundation. PR: [#20](https://githu
 
 ## Final module API and publication metadata audit — 2026-10-15
 
-**Documentation review: COMPLETE. Release certification: BLOCKED.** Exact audit code and draft docs [`4de9034`](https://github.com/infocyph/Foundation/commit/4de9034c874190ffe6adbb7996dc0b6c2d4c8386); [Security & Standards #38722387329](https://github.com/infocyph/Foundation/actions/runs/38722387329) and [native HTTP host #38722386530](https://github.com/infocyph/Foundation/actions/runs/38722386530) are re-running for this source at review time. The previous completed v2 documentation baseline remains green, but earlier CI must not be mistaken for certification of newer sources.
+**Documentation review: COMPLETE. Release certification: BLOCKED.** Exact audit code and draft docs [`4de9034`](https://github.com/infocyph/Foundation/commit/4de9034c874190ffe6adbb7996dc0b6c2d4c8386); [Security & Standards #38722750952](https://github.com/infocyph/Foundation/actions/runs/38722750952) **SUCCESS** and [native HTTP host #38722750628](https://github.com/infocyph/Foundation/actions/runs/38722750628) **SUCCESS** on this exact executable audit source [`b8dad2c`](https://github.com/infocyph/Foundation/commit/b8dad2c4d619f917c660a85e68480e7fdcb29c2a). Full PHPForge/consumer/static analysis/benchmark and real native-host smoke are confirmed. These results do **not** constitute physically matched baseline/candidate successful-RPM certification.
 
 | Audited component | Review result | Release implication |
 | --- | --- | --- |
