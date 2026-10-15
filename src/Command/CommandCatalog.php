@@ -261,9 +261,11 @@ final class CommandCatalog
             new CommandDefinition('module:config:publish', 'Publish missing selected feature configuration without overwriting.', 'Modules')
                 ->argument('module', 'Group or qualified feature ID.', required: true)
                 ->option('feature', 'Explicit group feature.', acceptsValue: true, multiple: true),
-            new CommandDefinition('module:repair', 'Repair explicitly selected feature dependencies and schemas.', 'Modules')
+            $connectionOption(
+                new CommandDefinition('module:repair', 'Repair explicitly selected feature dependencies and schemas.', 'Modules')
                 ->argument('module', 'Group or qualified feature ID.', required: true)
-                ->option('feature', 'Explicit group feature.', acceptsValue: true, multiple: true),
+                    ->option('feature', 'Explicit group feature.', acceptsValue: true, multiple: true),
+            ),
             new CommandDefinition('module:remove', 'Remove only unshared packages for explicitly selected features.', 'Modules')
                 ->argument('module', 'Group or qualified feature ID.', required: true)
                 ->option('feature', 'Explicit group feature.', acceptsValue: true, multiple: true)

@@ -146,6 +146,7 @@ final class ModuleSystemCommand extends SystemCommand
             $snapshot->capture(),
             in_array($operation, ['install', 'repair'], true) ? $snapshot->capture(...) : null,
             in_array($operation, ['install', 'remove'], true) && $this->flag('dry-run'),
+            $this->option('connection'),
         );
 
         if ($result['status'] === 'complete' && !in_array($operation, ['install', 'repair'], true)) {

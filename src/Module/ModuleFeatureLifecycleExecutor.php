@@ -58,6 +58,7 @@ final readonly class ModuleFeatureLifecycleExecutor
         array $context,
         ?Closure $refresh = null,
         bool $dryRun = false,
+        ?string $connection = null,
     ): array {
         $plan = $this->planner->plan($operation, $features, $context);
         if (!$plan['applicable']) {
@@ -101,7 +102,7 @@ final readonly class ModuleFeatureLifecycleExecutor
             );
         }
 
-        return $this->applyInstallOrRepair($operation, $features, $context, $plan['requested'], $refresh);
+        return $this->applyInstallOrRepair($operation, $features, $context, $plan['requested'], $refresh, $connection);
     }
 
     /**
@@ -117,6 +118,7 @@ final readonly class ModuleFeatureLifecycleExecutor
         array $context,
         array $requested,
         ?Closure $refresh,
+        ?string $connection,
     ): array {
         // A phase snapshot is mandatory: Composer may have mutated the root
         // manifest and transitive graph, even if only some packages completed.
@@ -139,7 +141,7 @@ final readonly class ModuleFeatureLifecycleExecutor
             }
             $configs = $this->configs->publish($features, $updated);
             $phases[] = $this->phase('config', 'complete', sprintf('Published %d selected templates.', count($configs['published'])));
-            $this->schemas->install($features, $updated);
+            $this->schemas->install($features, $updated, $connection);
             $phases[] = $this->phase('schema', 'complete', 'Applicable owner schemas verified without destructive reset.');
         } catch (\Throwable $failure) {
             $phases[] = $this->phase('reconcile', 'failed', $failure->getMessage());
