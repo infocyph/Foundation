@@ -110,6 +110,70 @@ final readonly class ModuleActivationManager
         }
     }
 
+    /**
+     * @phpstan-param Context $context
+     * @param array<string,bool> $flags
+     * @param list<string> $features
+     */
+    private function assertFeatureGraph(array $flags, array $context, string $operation, array $features): void
+    {
+        $nextContext = $context;
+        $nextContext['enabled'] = array_keys(array_filter($flags));
+        $nextContext['selected_features'] = array_keys($flags);
+        $modules = $nextContext['config']['modules'] ?? [];
+        $nextContext['config']['modules'] = is_array($modules)
+            ? ['features' => $flags] + $modules
+            : ['features' => $flags];
+
+        $plan = new ModuleFeaturePlanner()->plan($operation, $features, $context);
+        if (!$plan['applicable']) {
+            throw new \RuntimeException('Feature activation changed; re-plan before applying.');
+        }
+        $resolved = new ModuleFeatureResolver()->resolve($nextContext['enabled'], $nextContext);
+        if ($resolved['blockers'] !== []) {
+            throw new \RuntimeException('Feature activation creates invalid dependencies: ' . implode('; ', $resolved['blockers']));
+        }
+        foreach ($resolved['states'] as $state) {
+            foreach ($state['dependencies'] as $dependency) {
+                if (!in_array($dependency, $nextContext['enabled'], true)) {
+                    throw new \RuntimeException('Feature activation creates invalid dependency graph.');
+                }
+            }
+        }
+    }
+
+    /**
+     * @phpstan-param Context $context
+     * @param array<string,mixed> $config
+     * @return array<string,bool>
+     */
+    private function assertFreshFeatureFlags(array $config, array $context): array
+    {
+        $flags = $config['features'] ?? [];
+        if (!is_array($flags)) {
+            throw new \RuntimeException('modules.features must be a feature map.');
+        }
+        foreach ($flags as $id => $active) {
+            if (!is_string($id) || !is_bool($active)) {
+                throw new \RuntimeException('modules.features must contain boolean feature flags.');
+            }
+        }
+
+        $expected = $context['selected_features'] ?? array_keys($flags);
+        $actual = array_keys($flags);
+        sort($expected);
+        sort($actual);
+        $snapshotEnabled = $context['enabled'];
+        $actualEnabled = array_keys(array_filter($flags));
+        sort($snapshotEnabled);
+        sort($actualEnabled);
+        if ($expected !== $actual || $snapshotEnabled !== $actualEnabled) {
+            throw new \RuntimeException('Feature activation changed; re-plan before applying.');
+        }
+
+        return $flags;
+    }
+
     /** @phpstan-param ResolvedModule $definition */
     private function assertMutable(array $definition): void
     {
@@ -196,70 +260,6 @@ final readonly class ModuleActivationManager
         $config['capabilities'] = $capabilities;
 
         return $config;
-    }
-
-    /**
-     * @phpstan-param Context $context
-     * @param array<string,mixed> $config
-     * @return array<string,bool>
-     */
-    private function assertFreshFeatureFlags(array $config, array $context): array
-    {
-        $flags = $config['features'] ?? [];
-        if (!is_array($flags)) {
-            throw new \RuntimeException('modules.features must be a feature map.');
-        }
-        foreach ($flags as $id => $active) {
-            if (!is_string($id) || !is_bool($active)) {
-                throw new \RuntimeException('modules.features must contain boolean feature flags.');
-            }
-        }
-
-        $expected = $context['selected_features'] ?? array_keys($flags);
-        $actual = array_keys($flags);
-        sort($expected);
-        sort($actual);
-        $snapshotEnabled = $context['enabled'];
-        $actualEnabled = array_keys(array_filter($flags));
-        sort($snapshotEnabled);
-        sort($actualEnabled);
-        if ($expected !== $actual || $snapshotEnabled !== $actualEnabled) {
-            throw new \RuntimeException('Feature activation changed; re-plan before applying.');
-        }
-
-        return $flags;
-    }
-
-    /**
-     * @phpstan-param Context $context
-     * @param array<string,bool> $flags
-     * @param list<string> $features
-     */
-    private function assertFeatureGraph(array $flags, array $context, string $operation, array $features): void
-    {
-        $nextContext = $context;
-        $nextContext['enabled'] = array_keys(array_filter($flags));
-        $nextContext['selected_features'] = array_keys($flags);
-        $modules = $nextContext['config']['modules'] ?? [];
-        $nextContext['config']['modules'] = is_array($modules)
-            ? ['features' => $flags] + $modules
-            : ['features' => $flags];
-
-        $plan = new ModuleFeaturePlanner()->plan($operation, $features, $context);
-        if (!$plan['applicable']) {
-            throw new \RuntimeException('Feature activation changed; re-plan before applying.');
-        }
-        $resolved = new ModuleFeatureResolver()->resolve($nextContext['enabled'], $nextContext);
-        if ($resolved['blockers'] !== []) {
-            throw new \RuntimeException('Feature activation creates invalid dependencies: ' . implode('; ', $resolved['blockers']));
-        }
-        foreach ($resolved['states'] as $state) {
-            foreach ($state['dependencies'] as $dependency) {
-                if (!in_array($dependency, $nextContext['enabled'], true)) {
-                    throw new \RuntimeException('Feature activation creates invalid dependency graph.');
-                }
-            }
-        }
     }
 
     /**
