@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Auth\Support;
 
+use Infocyph\Epicrypt\Security\RememberToken as EpicryptRememberToken;
 use Infocyph\Foundation\Auth\Authentication\RememberMe\RememberToken;
 use Infocyph\Foundation\Auth\Authentication\RememberMe\RememberTokenServiceInterface;
 use Infocyph\Foundation\Auth\Authentication\RememberMe\RememberTokenVerificationResult;
 use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\RememberTokenStoreInterface;
 use Infocyph\Foundation\Auth\Internal\AuthSecretResolver;
-use Infocyph\Epicrypt\Security\RememberToken as EpicryptRememberToken;
 use Psr\Clock\ClockInterface as PsrClockInterface;
 
 final readonly class SimpleRememberTokenService implements RememberTokenServiceInterface
@@ -26,6 +26,7 @@ final readonly class SimpleRememberTokenService implements RememberTokenServiceI
         AuthSecretResolver $secrets,
     ) {
         $this->ttlSeconds = $ttlSeconds;
+
         $nativeClock = new readonly class($clock) implements PsrClockInterface {
             public function __construct(private ClockInterface $clock) {}
 
@@ -34,6 +35,7 @@ final readonly class SimpleRememberTokenService implements RememberTokenServiceI
                 return new \DateTimeImmutable('@' . $this->clock->now());
             }
         };
+
         $this->native = new EpicryptRememberToken($secrets->tokenSecret(32), $ttlSeconds, $nativeClock);
     }
 
