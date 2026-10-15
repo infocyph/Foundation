@@ -36,7 +36,7 @@ final readonly class ModuleFeatureCommandSnapshot
             'enabled' => $enabled,
             'selected_features' => $enabled,
             'config' => $config->all(),
-            'extensions' => array_values(array_unique(array_map('strtolower', get_loaded_extensions()))),
+            'extensions' => array_values(array_unique(array_map(strtolower(...), get_loaded_extensions()))),
             'published_configs' => $this->publishedConfigs(),
         ];
     }
