@@ -52,7 +52,7 @@ it('reads a fresh root Composer and selected-feature project snapshot for the v2
             ->and($state['root_requirements'])->toBe(['infocyph/dblayer' => '^6.1'])
             ->and($state['installed']['infocyph/dblayer'] ?? null)->toBe('6.1.0')
             ->and($state['enabled'])->toBe(['data.database'])
-            ->and($state['selected_features'])->toBe(['data.database'])
+            ->and($state['selected_features'])->toBe(['data.database', 'data.filesystem'])
             ->and($state['published_configs'])->toBe(['database.php'])
             ->and($plan['effects']['require'])->toBe([])
             ->and($plan['applicable'])->toBeTrue();
@@ -71,6 +71,26 @@ it('fails closed on unsafe or missing root ownership rather than guessing direct
         expect($snapshot['root_known'])->toBeFalse()
             ->and($snapshot['root_requirements'])->toBe([])
             ->and(new ModuleFeaturePlanner()->plan('install', ['data.database'], $snapshot)['applicable'])->toBeFalse();
+    } finally {
+        foundationB6Clean($path);
+    }
+});
+
+
+it('preserves explicitly configured disabled feature ownership for shared package removal', function (): void {
+    $path = foundationB6Project();
+    try {
+        $app = Foundation::cli([
+            'base_path' => $path,
+            '_config_cache' => false,
+            'modules' => ['features' => [
+                'security.mfa' => false,
+                'security.passkey' => false,
+            ]],
+        ]);
+        $snapshot = new ModuleFeatureCommandSnapshot($app)->capture();
+        expect($snapshot['enabled'])->toBe([])
+            ->and($snapshot['selected_features'])->toBe(['security.mfa', 'security.passkey']);
     } finally {
         foundationB6Clean($path);
     }

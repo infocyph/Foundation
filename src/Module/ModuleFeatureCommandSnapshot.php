@@ -34,7 +34,9 @@ final readonly class ModuleFeatureCommandSnapshot
             'root_requirements' => $root['requirements'],
             'installed' => $this->installedVersions(),
             'enabled' => $enabled,
-            'selected_features' => $enabled,
+            // Explicitly configured, even disabled, specialist owners protect
+            // shared packages until their selection is intentionally removed.
+            'selected_features' => array_keys($flags),
             'config' => $config->all(),
             'extensions' => array_values(array_unique(array_map(strtolower(...), get_loaded_extensions()))),
             'published_configs' => $this->publishedConfigs(),
