@@ -79,7 +79,11 @@ final class ActiveGeneration
         return $current;
     }
 
-    /** Return the validated pointer without executing the generation PHP manifest. */
+    /**
+     * Return the validated pointer without executing the generation PHP manifest.
+     *
+     * @return array{generation:string,manifest:string}
+     */
     public function currentPointer(string $releaseRoot): array
     {
         $releaseRoot = $this->root($releaseRoot);

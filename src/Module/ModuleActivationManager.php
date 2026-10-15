@@ -199,13 +199,11 @@ final readonly class ModuleActivationManager
     }
 
     /**
-     * @param array<string,mixed> $config
-     * @param array<string,bool> $changes
      * @phpstan-param Context $context
-     * @param list<string> $features
-     * @return array<string,mixed>
+     * @param array<string,mixed> $config
+     * @return array<string,bool>
      */
-    private function updateFeatureFlags(array $config, array $changes, array $context, string $operation, array $features): array
+    private function assertFreshFeatureFlags(array $config, array $context): array
     {
         $flags = $config['features'] ?? [];
         if (!is_array($flags)) {
@@ -221,25 +219,34 @@ final readonly class ModuleActivationManager
         $actual = array_keys($flags);
         sort($expected);
         sort($actual);
-        if ($expected !== $actual || array_values(array_keys(array_filter($flags))) !== array_values(array_intersect(array_keys($flags), $context['enabled']))) {
+        $snapshotEnabled = $context['enabled'];
+        $actualEnabled = array_keys(array_filter($flags));
+        sort($snapshotEnabled);
+        sort($actualEnabled);
+        if ($expected !== $actual || $snapshotEnabled !== $actualEnabled) {
             throw new \RuntimeException('Feature activation changed; re-plan before applying.');
         }
-        foreach ($context['enabled'] as $id) {
-            if (($flags[$id] ?? null) !== true) {
-                throw new \RuntimeException('Feature activation changed; re-plan before applying.');
-            }
-        }
 
-        foreach ($changes as $id => $active) {
-            $flags[$id] = $active;
-        }
-        ksort($flags);
+        return $flags;
+    }
+
+    /**
+     * @phpstan-param Context $context
+     * @param array<string,bool> $flags
+     * @param list<string> $features
+     */
+    private function assertFeatureGraph(array $flags, array $context, string $operation, array $features): void
+    {
         $nextContext = $context;
         $nextContext['enabled'] = array_keys(array_filter($flags));
         $nextContext['selected_features'] = array_keys($flags);
-        $nextContext['config']['modules']['features'] = $flags;
-        $result = new ModuleFeaturePlanner()->plan($operation, $features, $context);
-        if (!$result['applicable']) {
+        $modules = $nextContext['config']['modules'] ?? [];
+        $nextContext['config']['modules'] = is_array($modules)
+            ? ['features' => $flags] + $modules
+            : ['features' => $flags];
+
+        $plan = new ModuleFeaturePlanner()->plan($operation, $features, $context);
+        if (!$plan['applicable']) {
             throw new \RuntimeException('Feature activation changed; re-plan before applying.');
         }
         $resolved = new ModuleFeatureResolver()->resolve($nextContext['enabled'], $nextContext);
@@ -253,7 +260,23 @@ final readonly class ModuleActivationManager
                 }
             }
         }
+    }
 
+    /**
+     * @param array<string,mixed> $config
+     * @param array<string,bool> $changes
+     * @phpstan-param Context $context
+     * @param list<string> $features
+     * @return array<string,mixed>
+     */
+    private function updateFeatureFlags(array $config, array $changes, array $context, string $operation, array $features): array
+    {
+        $flags = $this->assertFreshFeatureFlags($config, $context);
+        foreach ($changes as $id => $active) {
+            $flags[$id] = $active;
+        }
+        ksort($flags);
+        $this->assertFeatureGraph($flags, $context, $operation, $features);
         $config['features'] = $flags;
 
         return $config;
