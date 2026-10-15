@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Infocyph\Foundation\Benchmarks\Support\Foundation4HostComparison;
 
 /** @return array<string, mixed> */
-function foundationHostFixture(float $rpm = 1000.0): array
+function foundationHostFixture(float $rpm = 1000.0, bool $candidate = false): array
 {
     $hosts = [];
     foreach (['fpm', 'runwire'] as $host) {
@@ -30,7 +30,7 @@ function foundationHostFixture(float $rpm = 1000.0): array
 
     return [
         'schema' => 2,
-        'sha' => str_repeat('a', 40),
+        'sha' => str_repeat($candidate ? 'c' : 'a', 40),
         'hardware_id' => 'same-dedicated-machine',
         'php' => '8.4.26',
         'protocol' => 'HTTP/1.1 with per-response status/body checks',
@@ -56,14 +56,14 @@ it('accepts a stable throughput change inside the strict 2 percent budget', func
 });
 
 it('rejects a throughput regression exceeding 2 percent', function (): void {
-    $result = Foundation4HostComparison::compare(foundationHostFixture(), foundationHostFixture(979.0));
+    $result = Foundation4HostComparison::compare(foundationHostFixture(), foundationHostFixture(979.0, true));
 
     expect($result['passed'])->toBeFalse()
         ->and($result['cases'][0]['status'])->toBe('regression');
 });
 
 it('rejects noisy evidence instead of silently waiving the throughput budget', function (): void {
-    $candidate = foundationHostFixture();
+    $candidate = foundationHostFixture(candidate: true);
     $candidate['hosts']['fpm'][0]['runs'][0]['rpm'] = 500.0;
     $candidate['hosts']['fpm'][0]['runs'][0]['duration_seconds'] = 120.0;
 
@@ -74,13 +74,13 @@ it('rejects noisy evidence instead of silently waiving the throughput budget', f
 });
 
 it('rejects mismatched host identities and runtime dependencies', function (): void {
-    $candidate = foundationHostFixture();
+    $candidate = foundationHostFixture(candidate: true);
     $candidate['hardware_id'] = 'another-machine';
 
     expect(fn(): array => Foundation4HostComparison::compare(foundationHostFixture(), $candidate))
         ->toThrow(InvalidArgumentException::class, 'hardware_id differs.');
 
-    $candidate = foundationHostFixture();
+    $candidate = foundationHostFixture(candidate: true);
     $candidate['composer_lock_sha256'] = str_repeat('d', 64);
 
     expect(fn(): array => Foundation4HostComparison::compare(foundationHostFixture(), $candidate))
@@ -88,19 +88,19 @@ it('rejects mismatched host identities and runtime dependencies', function (): v
 });
 
 it('rejects short runs, invalid responses and missing benchmark scenarios', function (): void {
-    $candidate = foundationHostFixture();
+    $candidate = foundationHostFixture(candidate: true);
     $candidate['hosts']['runwire'][5]['runs'][0]['duration_seconds'] = 0.2;
 
     expect(fn(): array => Foundation4HostComparison::compare(foundationHostFixture(), $candidate))
         ->toThrow(InvalidArgumentException::class, 'Invalid or unsustained evidence');
 
-    $candidate = foundationHostFixture();
+    $candidate = foundationHostFixture(candidate: true);
     $candidate['hosts']['runwire'][5]['runs'][0]['successful'] = 999;
 
     expect(fn(): array => Foundation4HostComparison::compare(foundationHostFixture(), $candidate))
         ->toThrow(InvalidArgumentException::class, 'Invalid or unsustained evidence');
 
-    $candidate = foundationHostFixture();
+    $candidate = foundationHostFixture(candidate: true);
     array_pop($candidate['hosts']['runwire']);
 
     expect(fn(): array => Foundation4HostComparison::compare(foundationHostFixture(), $candidate))
@@ -108,15 +108,22 @@ it('rejects short runs, invalid responses and missing benchmark scenarios', func
 });
 
 it('refuses to treat short shared-runner smoke evidence as a certified comparison', function (): void {
-    $candidate = foundationHostFixture();
+    $candidate = foundationHostFixture(candidate: true);
     $candidate['hardware_id'] = null;
 
     expect(fn(): array => Foundation4HostComparison::compare(foundationHostFixture(), $candidate))
         ->toThrow(InvalidArgumentException::class, 'incomplete or non-certifiable');
 
-    $candidate = foundationHostFixture();
+    $candidate = foundationHostFixture(candidate: true);
     $candidate['repetitions'] = 3;
 
     expect(fn(): array => Foundation4HostComparison::compare(foundationHostFixture(), $candidate))
         ->toThrow(InvalidArgumentException::class, 'incomplete or non-certifiable');
+});
+
+it('rejects identical immutable baseline and candidate sources even at identical RPM', function (): void {
+    $source = foundationHostFixture();
+
+    expect(fn(): array => Foundation4HostComparison::compare($source, $source))
+        ->toThrow(InvalidArgumentException::class, 'distinct immutable baseline/candidate commits');
 });

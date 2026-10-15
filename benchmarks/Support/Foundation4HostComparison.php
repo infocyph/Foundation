@@ -58,6 +58,10 @@ final class Foundation4HostComparison
             }
         }
 
+        if ($baseline['sha'] === $candidate['sha']) {
+            throw new InvalidArgumentException('Matched host comparison requires distinct immutable baseline/candidate commits.');
+        }
+
         $baselineCases = self::cases($baseline);
         $candidateCases = self::cases($candidate);
         if (array_keys($baselineCases) !== array_keys($candidateCases)) {
