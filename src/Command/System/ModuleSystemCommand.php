@@ -7,12 +7,12 @@ namespace Infocyph\Foundation\Command\System;
 use Infocyph\Foundation\Application\Application;
 use Infocyph\Foundation\Command\ExitCode;
 use Infocyph\Foundation\Module\ModuleCatalog;
-use Infocyph\Foundation\Module\ModuleFeatureResolver;
 use Infocyph\Foundation\Module\ModuleFeatureCommandCatalog;
 use Infocyph\Foundation\Module\ModuleFeatureCommandSnapshot;
 use Infocyph\Foundation\Module\ModuleFeatureConfigPublisher;
 use Infocyph\Foundation\Module\ModuleFeatureLifecycleExecutor;
 use Infocyph\Foundation\Module\ModuleFeaturePlanner;
+use Infocyph\Foundation\Module\ModuleFeatureResolver;
 use Infocyph\Foundation\Module\ModuleFeatureSchemaExecutor;
 use Infocyph\Foundation\Module\ModuleSchemaManager;
 use Infocyph\Foundation\Release\FoundationReleaseBootstrap;
@@ -261,5 +261,4 @@ final class ModuleSystemCommand extends SystemCommand
     {
         return new ModuleFeatureCommandSnapshot($this->application)->capture();
     }
-
 }
