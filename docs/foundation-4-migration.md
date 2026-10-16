@@ -14,21 +14,21 @@ before production deployment.
 ## Version and package requirements
 
 Foundation 4 requires PHP 8.4+ and Composer 2. The candidate's direct production
-dependencies are ArrayKit `^5.3.1`, CacheLayer `^4.0`, InterMix `^11.2`,
+dependencies are ArrayKit `^5.3.1`, CacheLayer `^4.0.1`, InterMix `^11.2`,
 UID `^6.0`, and Webrick `^6.0.3`.
 
 Select only the optional **feature IDs** needed by this application, grouped into the three public modules `data`, `security`, and `execution`. The following packages are installed only for selected features:
 
 | Public feature | Composer package constraint |
 | --- | --- |
-| `data.database` | `infocyph/dblayer:^6.1` |
+| `data.database` | `infocyph/dblayer:^6.1.1` |
 | `data.filesystem` | `infocyph/pathwise:^4.2` |
 | `security.crypto` | `infocyph/epicrypt:^3.2` |
 | `security.validation` | `infocyph/reqshield:^3.3` |
 | `security.mfa` | `infocyph/otp:^7.0`; OTP-driver MFA also requires explicitly selected `security.crypto` |
 | `security.passkey` | `infocyph/otp:^7.0` and `web-auth/webauthn-lib:^5.3.9`; selecting passkeys does not activate MFA |
 | `execution.runtime` | `infocyph/runwire:^2.1.1`; host-owned runtime |
-| `execution.messaging` | `infocyph/omnibus:^3.0`; durable transport requires `data.database` |
+| `execution.messaging` | `infocyph/omnibus:^3.0.1`; durable transport requires `data.database` |
 | `execution.communication` | `infocyph/talkingbytes:^2.3` |
 
 The [module catalog](modules.md) owns optional feature and extension requirements.
@@ -77,6 +77,32 @@ execution scopes. Request/job-scoped services must not be resolved from the
 root container. Parent worker processes must fork before opening process-bound
 resources. Authentication, session and database state must reset between
 successive requests/jobs.
+
+## Passed Runwire context and native operations
+
+With `execution.runtime` selected, supply the host's exact `RuntimeContext`,
+optional `RequestContext` and optional `CoroutineScope` as execution inputs.
+The compiled web host accepts the passed runtime through
+`WebReleaseRuntime::runwireApplication()`. Foundation forwards the active native
+context to ordinary DBLayer connections and Omnibus bus/consumer/worker services,
+including captured Foundation execution scopes attached with
+`ExecutionScope::withinBorrowedScope()`.
+
+Use native connection queries and `MessageBus::dispatch()` directly. The earlier
+Foundation `DBLayerFactory::withConnection()` and
+`MessagingRuntimeResolver::dispatch()` entrypoints are removed. CacheLayer owns
+context sharing/restoration, while DBLayer and Omnibus own their cancellation
+checks. Hosts retain request completion, child-task lifetime, workers and event
+loops. Without an active context, native synchronous behavior applies.
+
+## Custom authentication-session stores
+
+Implementations of `Auth\Contract\Storage\SessionStoreInterface` must implement
+`rotate(AuthSession $current, AuthSession $replacement, int $now): bool`.
+Atomically replace only the unchanged, unexpired source session. Return `false`
+after revocation, expiry or a competing update; an insertion failure must preserve
+the original session. `SessionManager` rejects a failed transition. This contract
+concerns authentication sessions; browser-session storage has its own contract.
 
 ## Configuration and modules
 

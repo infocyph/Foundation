@@ -7,7 +7,7 @@
         "php": "^8.4",
         "composer-runtime-api": "^2.0",
         "infocyph/arraykit": "^5.3.1",
-        "infocyph/cachelayer": "^4.0",
+        "infocyph/cachelayer": "^4.0.1",
         "infocyph/intermix": "^11.2",
         "infocyph/uid": "^6.0",
         "infocyph/webrick": "^6.0.3",
@@ -15,9 +15,9 @@
     },
     "require-dev": {
         "ext-sodium": "*",
-        "infocyph/dblayer": "^6.1",
+        "infocyph/dblayer": "^6.1.1",
         "infocyph/epicrypt": "^3.2",
-        "infocyph/omnibus": "^3.0",
+        "infocyph/omnibus": "^3.0.1",
         "infocyph/otp": "^7.0",
         "infocyph/pathwise": "^4.2",
         "infocyph/phpforge": "dev-main@dev",
@@ -26,6 +26,10 @@
         "infocyph/talkingbytes": "^2.3",
         "opis/closure": "^4.5",
         "web-auth/webauthn-lib": "^5.3.9"
+    },
+    "conflict": {
+        "infocyph/dblayer": "<6.1.1",
+        "infocyph/omnibus": "<3.0.1"
     },
     "suggest": {
         "ext-sodium": "Required when OTP AOTP/Ed25519 factors are enabled.",

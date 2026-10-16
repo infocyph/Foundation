@@ -5,18 +5,21 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Database;
 
 use Infocyph\CacheLayer\Cache\CacheInterface;
+use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration;
 use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\Connection\ConnectionConfig;
 use Infocyph\DBLayer\Connection\Pool;
 use Infocyph\DBLayer\Connection\PoolManager;
 use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Exception\ConfigurationException;
-use Infocyph\Foundation\Runtime\NativeRunwireOperation;
 use Infocyph\Foundation\Runtime\RuntimeExecutionState;
+use Infocyph\Runwire\RuntimeContext;
 use Psr\Container\ContainerInterface;
 
 final class DBLayerFactory
 {
+    private readonly bool $runwireEnabled;
+
     /** @var array<string, ConnectionConfig> */
     private array $configurations = [];
 
@@ -39,7 +42,9 @@ final class DBLayerFactory
     public function __construct(
         private readonly DatabaseConnectionResolver $resolver,
         private readonly ContainerInterface $container,
-    ) {}
+    ) {
+        $this->runwireEnabled = $container->has(RuntimeContext::class);
+    }
 
     public function __destruct()
     {
@@ -65,14 +70,14 @@ final class DBLayerFactory
         $state = $this->executionState();
 
         if ($fresh) {
-            return $this->bindQueryCache($state->freshConnection($name, $config));
+            return $this->configureConnection($state->freshConnection($name, $config));
         }
 
         $connection = $this->resolver->poolEnabled()
             ? $this->pooledConnection($state, $name, $config)
             : $state->connection($name, $config);
 
-        return $this->bindQueryCache($connection);
+        return $this->configureConnection($connection);
     }
 
     /**
@@ -85,8 +90,13 @@ final class DBLayerFactory
     {
         $name = $this->resolver->connectionName($name);
 
-        return $this->infrastructureConnections[$name]
+        $connection = $this->infrastructureConnections[$name]
             ??= new Connection($this->configuration($name), $name);
+        if ($this->runwireEnabled) {
+            $connection->setRunwireContextProvider(RunwireIntegration::current(...));
+        }
+
+        return $connection;
     }
 
     public function resolver(): DatabaseConnectionResolver
@@ -94,35 +104,18 @@ final class DBLayerFactory
         return $this->resolver;
     }
 
-    /**
-     * Execute a database operation in the exact host-owned native Runwire scope.
-     *
-     * Raw Connection instances cannot retain a mutable request binding across
-     * concurrent operations. Native DBLayer owns operation cancellation, budget
-     * and nested-context restoration within withRunwire().
-     *
-     * @template T
-     * @param callable(Connection):T $callback
-     * @return T
-     */
-    public function withConnection(callable $callback, ?string $name = null, bool $fresh = false): mixed
+    private function configuration(string $name): ConnectionConfig
     {
-        $connection = $this->connection($name, $fresh);
-        $context = NativeRunwireOperation::current();
-        if ($context === null) {
-            return $callback($connection);
-        }
-
-        return $connection->withRunwire(
-            $context->runtime,
-            static fn(): mixed => $callback($connection),
-            $context->request,
-            $context->scope,
-        );
+        return $this->configurations[$name]
+            ??= ConnectionConfig::fromArray($this->resolver->configuration($name));
     }
 
-    private function bindQueryCache(Connection $connection): Connection
+    private function configureConnection(Connection $connection): Connection
     {
+        if ($this->runwireEnabled) {
+            $connection->setRunwireContextProvider(RunwireIntegration::current(...));
+        }
+
         if (!$this->resolver->queryCacheEnabled() || $this->resolvingQueryCache) {
             return $connection;
         }
@@ -130,12 +123,6 @@ final class DBLayerFactory
         $connection->setQueryCache($this->queryCache());
 
         return $connection;
-    }
-
-    private function configuration(string $name): ConnectionConfig
-    {
-        return $this->configurations[$name]
-            ??= ConnectionConfig::fromArray($this->resolver->configuration($name));
     }
 
     private function executionState(): RuntimeExecutionState

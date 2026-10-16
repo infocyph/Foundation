@@ -399,10 +399,17 @@ it('refuses implicit Runwire host construction from a plain PHP web release', fu
 
 final class FoundationRunwireReleaseContextHandler
 {
+    public static function identity(\Infocyph\Runwire\RequestContext $runwireRequest): Response
+    {
+        return Response::json(['request' => $runwireRequest->requestId]);
+    }
+
     public static function show(
         \Infocyph\Runwire\RuntimeContext $runtime,
         \Infocyph\Runwire\RequestContext $runwireRequest,
         \Infocyph\Webrick\Request\Request $request,
+        \Infocyph\Foundation\Database\DBLayerFactory $factory,
+        \Infocyph\Omnibus\MessageBus $bus,
     ): \Infocyph\Webrick\Response\Response {
         // Exercise the published selected-library APIs inside real compiled
         // Webrick dispatch, not merely in standalone library contract tests.
@@ -418,23 +425,11 @@ final class FoundationRunwireReleaseContextHandler
             new \Infocyph\CacheLayer\Integration\Runwire\RunwireExecutionContext($runtime, $runwireRequest),
         );
 
-        $connection = new \Infocyph\DBLayer\Connection\Connection(
-            \Infocyph\DBLayer\Connection\ConnectionConfig::fromArray([
-                'driver' => 'sqlite',
-                'database' => ':memory:',
-            ]),
-        );
-        $database = $connection->withRunwire(
-            $runtime,
-            static fn(): ?array => $connection->runwireBinding(),
-            $runwireRequest,
-        );
-        $messaging = new \Infocyph\Omnibus\Integration\Runwire\RunwireBinding();
-        $messageContext = $messaging->withRunwire(
-            $runtime,
-            static fn(): array => [$messaging->runtime(), $messaging->request()],
-            $runwireRequest,
-        );
+        $connection = $factory->connection();
+        $database = $connection->runwireBinding();
+        $messageContext = [$bus->runwireBinding()->runtime(), $bus->runwireBinding()->request()];
+        $dispatched = $bus->dispatch(new stdClass());
+        $queried = $connection->scalar('SELECT 1');
 
         return \Infocyph\Webrick\Response\Response::json([
             'mode' => $runtime->mode,
@@ -451,8 +446,7 @@ final class FoundationRunwireReleaseContextHandler
                     $runtime,
                     $runwireRequest,
                 ))->deadline() === null,
-                'restored' => $connection->runwireBinding() === null
-                    && $messaging->runtime() === null,
+                'ordinary_calls' => $queried === 1 && $dispatched instanceof \Infocyph\Omnibus\Envelope\Envelope,
             ],
         ]);
     }
@@ -468,6 +462,11 @@ it('sends the exact host Runwire request through compiled Webrick and native Int
     $config = [
         'app' => ['base_path' => $project, 'env' => 'production', 'debug' => false],
         '_config_cache' => false,
+        'database' => [
+            'default' => 'test',
+            'connections' => ['test' => ['driver' => 'sqlite', 'database' => ':memory:']],
+        ],
+        'messaging' => ['default_route' => ['transport' => 'memory']],
         'logging' => [
             'driver' => 'file',
             'level' => 'debug',
@@ -488,13 +487,13 @@ it('sends the exact host Runwire request through compiled Webrick and native Int
             $project . '/bootstrap/cache/intermix.php',
             $project . '/bootstrap/cache/router.php',
             $manifest,
-            capabilities: ['runwire'],
+            capabilities: ['runwire', 'database', 'messaging'],
         );
         $loaded = WebReleaseRuntime::loadPrevalidated(
             $config,
             $manifest,
             (string) $report['release_runtime_manifest_sha256'],
-            foundationCapabilities: ['runwire'],
+            foundationCapabilities: ['runwire', 'database', 'messaging'],
         );
         $runtime = \Infocyph\Runwire\RuntimeContext::standalone();
         $request = \Infocyph\Runwire\RequestContext::create($runtime, requestId: 'foundation-native-request');
@@ -519,7 +518,9 @@ it('sends the exact host Runwire request through compiled Webrick and native Int
                 throw new RuntimeException('Compiled Runwire request failed: ' . $writer->body . ' ' . $diagnostics);
             }
 
-            expect($writer->status)->toBe(200)
+            expect(\Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::current())->toBeNull()
+                ->and(\Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::runtime())->toBeNull()
+                ->and($writer->status)->toBe(200)
                 ->and($writer->endCalls)->toBe(1)
                 ->and($request->completed())->toBeTrue()
                 ->and(json_decode($writer->body, true, flags: JSON_THROW_ON_ERROR))->toBe([
@@ -531,7 +532,7 @@ it('sends the exact host Runwire request through compiled Webrick and native Int
                         'dblayer' => true,
                         'omnibus' => true,
                         'talkingbytes' => true,
-                        'restored' => true,
+                        'ordinary_calls' => true,
                     ],
                 ]);
         } finally {
@@ -546,7 +547,46 @@ it('sends the exact host Runwire request through compiled Webrick and native Int
 
 final class FoundationRunwireInterleavedHandler
 {
+    public static array $observed = [];
+
     public static function show(
+        \Infocyph\Runwire\RuntimeContext $runtime,
+        \Infocyph\Runwire\RequestContext $runwireRequest,
+        \Infocyph\Foundation\Database\DBLayerFactory $factory,
+        \Infocyph\Omnibus\MessageBus $bus,
+    ): \Infocyph\Webrick\Response\Response {
+        $execution = new \Infocyph\UID\Runtime\RunwireBinding($runtime, $runwireRequest);
+        $execution->assertActive();
+        $connection = $factory->connection();
+        self::$observed[$runwireRequest->requestId] = [
+            'same_native_request' => $connection->runwireBinding()['request'] === $runwireRequest
+                && $bus->runwireBinding()->request() === $runwireRequest,
+            'database_cancelled' => false,
+            'bus_cancelled' => false,
+        ];
+        Fiber::suspend($runwireRequest->requestId);
+        if ($runwireRequest->cancelled()) {
+            try {
+                $connection->scalar('SELECT 1');
+            } catch (\Infocyph\DBLayer\Exceptions\ConnectionException) {
+                self::$observed[$runwireRequest->requestId]['database_cancelled'] = true;
+            }
+            try {
+                $bus->dispatch(new stdClass());
+            } catch (\Infocyph\Runwire\Exception\CancelledException) {
+                self::$observed[$runwireRequest->requestId]['bus_cancelled'] = true;
+            }
+            $execution->assertActive();
+        }
+        $connection->scalar('SELECT 2');
+        $bus->dispatch(new stdClass());
+
+        return \Infocyph\Webrick\Response\Response::json([
+            'request' => $runwireRequest->requestId,
+            'runtime' => $runtime->mode,
+        ]);
+    }
+    public static function identity(
         \Infocyph\Runwire\RuntimeContext $runtime,
         \Infocyph\Runwire\RequestContext $runwireRequest,
     ): \Infocyph\Webrick\Response\Response {
@@ -572,6 +612,11 @@ it('isolates two interleaved compiled Runwire requests when one host request is 
     $config = [
         'app' => ['base_path' => $project, 'env' => 'production', 'debug' => false],
         '_config_cache' => false,
+        'database' => [
+            'default' => 'test',
+            'connections' => ['test' => ['driver' => 'sqlite', 'database' => ':memory:']],
+        ],
+        'messaging' => ['default_route' => ['transport' => 'memory']],
         'router' => [
             'files' => ['web.php'],
             'matcher' => 'fused',
@@ -586,13 +631,13 @@ it('isolates two interleaved compiled Runwire requests when one host request is 
             $project . '/bootstrap/cache/intermix.php',
             $project . '/bootstrap/cache/router.php',
             $manifest,
-            capabilities: ['runwire'],
+            capabilities: ['runwire', 'database', 'messaging'],
         );
         $loaded = WebReleaseRuntime::loadPrevalidated(
             $config,
             $manifest,
             (string) $report['release_runtime_manifest_sha256'],
-            foundationCapabilities: ['runwire'],
+            foundationCapabilities: ['runwire', 'database', 'messaging'],
         );
         $runtime = \Infocyph\Runwire\RuntimeContext::fromCapabilities(
             new \Infocyph\Runwire\RuntimeCapabilities(
@@ -647,9 +692,15 @@ it('isolates two interleaved compiled Runwire requests when one host request is 
                     'request' => 'interleaved-second',
                     'runtime' => 'interleaved',
                 ])
-                ->and($firstWriter->endCalls)->toBeLessThanOrEqual(1);
+                ->and($firstWriter->endCalls)->toBeLessThanOrEqual(1)
+                ->and(FoundationRunwireInterleavedHandler::$observed['interleaved-first'])->toBe([
+                    'same_native_request' => true, 'database_cancelled' => true, 'bus_cancelled' => true,
+                ])
+                ->and(FoundationRunwireInterleavedHandler::$observed['interleaved-second']['same_native_request'])->toBeTrue()
+                ->and(\Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::current())->toBeNull();
         } finally {
             $host->shutdown();
+            FoundationRunwireInterleavedHandler::$observed = [];
         }
     } finally {
         foundationResetWebrickProductionRegistries();
@@ -747,7 +798,7 @@ it('defers Runwire response finalization until native writer drain and completes
     $project = foundationWebReleaseProject();
     file_put_contents(
         $project . '/routes/web.php',
-        "\nRouter::get('/runwire-context', [FoundationRunwireReleaseContextHandler::class, 'show']);\n",
+        "\nRouter::get('/runwire-context', [FoundationRunwireReleaseContextHandler::class, 'identity']);\n",
         FILE_APPEND,
     );
     $config = [
@@ -822,7 +873,7 @@ it('rejects a distinct same-process Runwire generation without poisoning the com
     $project = foundationWebReleaseProject();
     file_put_contents(
         $project . '/routes/web.php',
-        "\nRouter::get('/runwire-context', [FoundationRunwireReleaseContextHandler::class, 'show']);\n",
+        "\nRouter::get('/runwire-context', [FoundationRunwireReleaseContextHandler::class, 'identity']);\n",
         FILE_APPEND,
     );
     $config = [
@@ -908,7 +959,7 @@ it('keeps overlapping compiled Runwire host generations isolated in distinct car
     $project = foundationWebReleaseProject();
     file_put_contents(
         $project . '/routes/web.php',
-        "\nRouter::get('/runwire-interleaved', [FoundationRunwireInterleavedHandler::class, 'show']);\n",
+        "\nRouter::get('/runwire-interleaved', [FoundationRunwireInterleavedHandler::class, 'identity']);\n",
         FILE_APPEND,
     );
     $config = [

@@ -3,13 +3,10 @@
 declare(strict_types=1);
 
 use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwire;
-use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\Foundation\Communication\CommunicationProfiles;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Foundation;
-use Infocyph\Foundation\Messaging\MessagingRuntimeResolver;
-use Infocyph\Foundation\Runtime\NativeRunwireOperation;
 use Infocyph\Foundation\Validation\FormRequest;
 use Infocyph\Foundation\Validation\ValidatorFactory;
 use Infocyph\ReqShield\Schema\SchemaRegistry;
@@ -19,7 +16,56 @@ use Infocyph\Runwire\Runtime\Enum\CancellationReason;
 use Infocyph\Runwire\RuntimeContext;
 use Infocyph\Webrick\Request\Request;
 
-it('forwards native host cancellation to ordinary Foundation database operations and restores binding', function (): void {
+it('binds ordinary database operations to passed host inputs and restores the synchronous path', function (string $mode): void {
+    $config = [
+        'app' => ['capabilities' => ['runwire' => true]],
+        'database' => [
+            'default' => 'test',
+            'connections' => ['test' => ['driver' => 'sqlite', 'database' => ':memory:']],
+        ],
+    ];
+    $app = match ($mode) {
+        'worker' => Foundation::worker($config)->boot(),
+        'scheduler' => Foundation::scheduler($config)->boot(),
+        default => Foundation::cli($config)->boot(),
+    };
+    $runtime = RuntimeContext::standalone();
+    $request = RequestContext::create($runtime);
+    $factory = $app->make(DBLayerFactory::class);
+
+    try {
+        $app->execution()->run(static function () use ($factory): void {
+            expect($factory->connection()->scalar('SELECT 1'))->toBe(1)
+                ->and($factory->connection()->runwireBinding())->toBeNull();
+        });
+
+        $app->execution()->run(static function () use ($factory, $runtime, $request): void {
+            $connection = $factory->connection();
+            expect(CacheRunwire::current()?->runtime)->toBe($runtime)
+                ->and($connection->runwireBinding())->toBe([
+                    'runtime' => $runtime, 'request' => $request, 'scope' => null,
+                ])
+                ->and($connection->scalar('SELECT 1'))->toBe(1)
+                ->and($factory->connection(fresh: true)->scalar('SELECT 2'))->toBe(2);
+
+            $request->cancel(CancellationReason::HOST_CANCELLED);
+            expect(fn() => $connection->scalar('SELECT 1'))
+                ->toThrow(\Infocyph\DBLayer\Exceptions\ConnectionException::class);
+        }, [RuntimeContext::class => $runtime, RequestContext::class => $request]);
+
+        expect(CacheRunwire::current())->toBeNull()
+            ->and(CacheRunwire::runtime())->toBeNull()
+            ->and($request->completed())->toBeFalse();
+        $app->execution()->run(static function () use ($factory): void {
+            expect($factory->connection()->scalar('SELECT 3'))->toBe(3)
+                ->and($factory->connection()->runwireBinding())->toBeNull();
+        });
+    } finally {
+        $request->complete();
+    }
+})->with(['cli', 'worker', 'scheduler']);
+
+it('observes cancellation after entering an ordinary native database query', function (): void {
     $app = Foundation::cli([
         'app' => ['capabilities' => ['runwire' => true]],
         'database' => [
@@ -29,55 +75,26 @@ it('forwards native host cancellation to ordinary Foundation database operations
     ])->boot();
     $runtime = RuntimeContext::standalone();
     $request = RequestContext::create($runtime);
-    CacheRunwire::bind($runtime);
+    $observed = null;
+    $listener = static function (\Infocyph\DBLayer\Events\DatabaseEvents\QueryExecuting $event) use ($request, &$observed): void {
+        if ($event->sql === 'SELECT 42') {
+            $observed = $event->connection->runwireBinding();
+            $request->cancel(CancellationReason::HOST_CANCELLED);
+        }
+    };
+    \Infocyph\DBLayer\Events\Events::listen('db.query.executing', $listener);
 
     try {
-        $app->execution()->run(static function () use ($app, $request, $runtime): void {
-            $factory = $app->make(DBLayerFactory::class);
-            expect($factory->withConnection(static function (Connection $connection): mixed {
-                expect($connection->runwireBinding())->toBeNull();
-
-                return $connection->scalar('SELECT 1');
-            }))->toBe(1);
-
-            $bound = CacheRunwire::share($request, null, static function () use ($factory): array {
-                return $factory->withConnection(static function (Connection $connection): array {
-                    $binding = $connection->runwireBinding();
-                    expect($binding)->not->toBeNull();
-
-                    return [$binding['runtime'], $binding['request'], $connection->scalar('SELECT 1')];
-                });
-            });
-            expect($bound)->toBe([$runtime, $request, 1])
-                ->and($factory->connection()->runwireBinding())->toBeNull()
-                ->and(NativeRunwireOperation::current())->toBeNull();
-
-            expect(fn() => CacheRunwire::share(
-                $request,
-                null,
-                static fn(): mixed => $factory->withConnection(
-                    static function (Connection $connection) use ($request): mixed {
-                        $request->cancel(CancellationReason::HOST_CANCELLED);
-
-                        return $connection->scalar('SELECT 1');
-                    },
-                ),
-            ))->toThrow(\Infocyph\DBLayer\Exceptions\ConnectionException::class);
-            expect($factory->connection()->runwireBinding())->toBeNull();
-            expect(fn() => CacheRunwire::share(
-                $request,
-                null,
-                static fn(): mixed => $factory->withConnection(
-                    static fn(Connection $connection): mixed => $connection->scalar('SELECT 1'),
-                ),
-            ))->toThrow(CancelledException::class);
-        }, [
-            RuntimeContext::class => $runtime,
-            RequestContext::class => $request,
-        ]);
+        $app->execution()->run(static function () use ($app): void {
+            $connection = $app->make(DBLayerFactory::class)->connection();
+            expect(fn() => $connection->scalar('SELECT 42'))
+                ->toThrow(\Infocyph\DBLayer\Exceptions\ConnectionException::class);
+        }, [RuntimeContext::class => $runtime, RequestContext::class => $request]);
+        expect($observed)->toBe(['runtime' => $runtime, 'request' => $request, 'scope' => null])
+            ->and(CacheRunwire::current())->toBeNull();
     } finally {
+        \Infocyph\DBLayer\Events\Events::forget('db.query.executing', $listener);
         $request->complete();
-        CacheRunwire::release($runtime);
     }
 });
 
@@ -130,46 +147,43 @@ final readonly class FoundationNativeOperationMessage
     public function __construct(public string $value) {}
 }
 
-it('propagates native Runwire cancellation through Foundation Omnibus dispatch without leaking the bus', function (): void {
+it('propagates passed native context to ordinary bus consumer and worker operations', function (): void {
     $app = Foundation::cli([
         'app' => ['capabilities' => ['runwire' => true, 'messaging' => true]],
         'messaging' => [
-            'routes' => [
-                FoundationNativeOperationMessage::class => ['transport' => 'memory', 'queue' => 'default'],
-            ],
+            'default_route' => ['transport' => 'memory', 'queue' => 'default'],
+            'workers' => ['test' => ['transport' => 'memory']],
         ],
     ])->boot();
     $runtime = RuntimeContext::standalone();
     $request = RequestContext::create($runtime);
-    CacheRunwire::bind($runtime);
+    $bus = $app->make(\Infocyph\Omnibus\MessageBus::class);
+    $consumer = $app->make(\Infocyph\Omnibus\Consumer\Consumer::class);
+    $worker = $app->make(\Infocyph\Foundation\Messaging\OmnibusWorkerFactory::class)->make('test');
 
     try {
-        $app->execution()->run(static function () use ($app, $request): void {
-            $resolver = $app->make(MessagingRuntimeResolver::class);
-            $bus = $app->make(\Infocyph\Omnibus\MessageBus::class);
-
-            expect($resolver->dispatch(new FoundationNativeOperationMessage('plain')))
+        expect($bus->dispatch(new FoundationNativeOperationMessage('plain')))
+            ->toBeInstanceOf(\Infocyph\Omnibus\Envelope\Envelope::class);
+        $app->execution()->run(static function () use ($bus, $consumer, $worker, $runtime, $request): void {
+            foreach ([$bus, $consumer, $worker] as $service) {
+                expect($service->runwireBinding()->runtime())->toBe($runtime)
+                    ->and($service->runwireBinding()->request())->toBe($request);
+            }
+            expect($bus->dispatch(new FoundationNativeOperationMessage('bound')))
                 ->toBeInstanceOf(\Infocyph\Omnibus\Envelope\Envelope::class);
-
-            CacheRunwire::share($request, null, static function () use ($resolver, $bus): void {
-                expect($resolver->dispatch(new FoundationNativeOperationMessage('bound')))
-                    ->toBeInstanceOf(\Infocyph\Omnibus\Envelope\Envelope::class)
-                    ->and($bus->runwireBinding()->request())->toBeNull();
-            });
-            expect($bus->runwireBinding()->request())->toBeNull();
-
             $request->cancel(CancellationReason::HOST_CANCELLED);
-            expect(fn() => CacheRunwire::share(
-                $request,
-                null,
-                static fn(): mixed => $resolver->dispatch(new FoundationNativeOperationMessage('cancelled')),
-            ))->toThrow(CancelledException::class);
-        }, [
-            RuntimeContext::class => $runtime,
-            RequestContext::class => $request,
-        ]);
+            expect(fn() => $bus->dispatch(new FoundationNativeOperationMessage('cancelled')))
+                ->toThrow(CancelledException::class)
+                ->and(fn() => $consumer->run())->toThrow(CancelledException::class);
+        }, [RuntimeContext::class => $runtime, RequestContext::class => $request]);
+
+        expect($bus->runwireBinding()->request())->toBeNull()
+            ->and($consumer->runwireBinding()->request())->toBeNull()
+            ->and(CacheRunwire::runtime())->toBeNull()
+            ->and($request->completed())->toBeFalse()
+            ->and($bus->dispatch(new FoundationNativeOperationMessage('fallback')))
+            ->toBeInstanceOf(\Infocyph\Omnibus\Envelope\Envelope::class);
     } finally {
         $request->complete();
-        CacheRunwire::release($runtime);
     }
 });

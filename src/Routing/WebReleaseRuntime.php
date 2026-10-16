@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Routing;
 
+use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwireIntegration;
+
 use Infocyph\Foundation\Bootstrap\Bootstrapper;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Container\FoundationGraph;
@@ -158,14 +160,29 @@ final readonly class WebReleaseRuntime
             $adapter = new RunwireRuntimeAdapter(
                 runtimeContext: $runtime,
                 interMix: $integration,
-                coroutineScope: $coroutineScope,
+                coroutineScope: $coroutineScope === null
+                    ? null
+                    : static function (HttpRequest $request): ?CoroutineScope {
+                        unset($request);
+
+                        return CacheRunwireIntegration::current()?->scope;
+                    },
                 scopeContext: $scopeContext,
             );
             $server = new RuntimeServer($this->kernel, $adapter);
 
             return new RunwireRuntimeApplication(
-                handler: static function (HttpRequest $request, ResponseWriterInterface $writer) use ($server): void {
-                    $server->handle($request, $writer);
+                handler: static function (HttpRequest $request, ResponseWriterInterface $writer) use (
+                    $server,
+                    $runtime,
+                    $coroutineScope,
+                ): void {
+                    CacheRunwireIntegration::share(
+                        $request->context,
+                        $coroutineScope === null ? null : $coroutineScope($request),
+                        static fn() => $server->handle($request, $writer),
+                        $runtime,
+                    );
                 },
                 runtimeContext: $runtime,
                 shutdown: static function () use ($integration, $runtime, $hostLease): void {

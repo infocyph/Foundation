@@ -31,6 +31,7 @@ use Infocyph\Omnibus\Integration\DBLayer\AfterCommitDispatcher;
 use Infocyph\Omnibus\Integration\DBLayer\DBLayerFailureStore;
 use Infocyph\Omnibus\Integration\DBLayer\DBLayerTransport;
 use Infocyph\Omnibus\Integration\DBLayer\DBLayerWorkflowStore;
+use Infocyph\Omnibus\Integration\Runwire\RunwireBinding;
 use Infocyph\Omnibus\MessageBus;
 use Infocyph\Omnibus\Routing\RouteMap;
 use Infocyph\Omnibus\Scheduling\MessageFactoryMap;
@@ -142,7 +143,11 @@ final class MessagingServiceProvider extends ServiceProvider
     {
         $builder->factory(MessageBus::class, FactoryDefinition::construct(
             MessageBus::class,
-            [new ServiceReference(RouteMap::class), new ServiceReference(TransportRegistry::class)],
+            [
+                new ServiceReference(RouteMap::class),
+                new ServiceReference(TransportRegistry::class),
+                new ServiceReference(RunwireBinding::class),
+            ],
         ));
         if ($durableEnabled) {
             $builder->factory(
@@ -171,6 +176,7 @@ final class MessagingServiceProvider extends ServiceProvider
                 new ServiceReference(FailureStore::class),
                 new ServiceReference(SystemClock::class),
                 new ServiceReference(ExecutionScope::class),
+                new ServiceReference(RunwireBinding::class),
             ],
         ));
         $builder->factory(Consumer::class, FactoryDefinition::staticFactory(
@@ -325,6 +331,10 @@ final class MessagingServiceProvider extends ServiceProvider
 
     private function registerRuntimeServices(ContainerBuilder $builder): void
     {
+        $builder->factory(RunwireBinding::class, FactoryDefinition::staticFactory(
+            MessagingGraphFactory::class,
+            'runwireBinding',
+        ));
         $builder->factory(MessagingRuntimeResolver::class, FactoryDefinition::construct(
             MessagingRuntimeResolver::class,
             [new ServiceReference(ContainerInterface::class)],

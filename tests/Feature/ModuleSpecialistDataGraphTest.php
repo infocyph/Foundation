@@ -57,6 +57,6 @@ it('keeps data feature config separate and Core schema ownership out of optional
         ->and($filesystem['effects']['publish'])->toBe(['filesystem.php'])
         ->and($database['effects']['schemas'])->toBe([])
         ->and($filesystem['effects']['schemas'])->toBe([])
-        ->and($database['effects']['require'])->toBe(['infocyph/dblayer' => '^6.1'])
+        ->and($database['effects']['require'])->toBe(['infocyph/dblayer' => '^6.1.1'])
         ->and($filesystem['effects']['require'])->toBe(['infocyph/pathwise' => '^4.2']);
 });

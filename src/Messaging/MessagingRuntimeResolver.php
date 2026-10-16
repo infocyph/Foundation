@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Messaging;
 
-use Infocyph\Foundation\Runtime\NativeRunwireOperation;
 use Infocyph\InterMix\DI\RuntimeContainerInterface;
 use Infocyph\Omnibus\Handler\HandlerMiddleware;
 use Psr\Container\ContainerInterface;
@@ -33,35 +32,6 @@ final readonly class MessagingRuntimeResolver
         }
 
         return $service;
-    }
-
-    /**
-     * Dispatch through the native Omnibus operation scope. Never attach a
-     * request to a shared message bus outside the callback.
-     */
-    public function dispatch(object $message): \Infocyph\Omnibus\Envelope\Envelope
-    {
-        $bus = $this->container->get(\Infocyph\Omnibus\MessageBus::class);
-        if (!$bus instanceof \Infocyph\Omnibus\MessageBus) {
-            throw new \LogicException('Native Omnibus message bus binding is invalid.');
-        }
-
-        $context = NativeRunwireOperation::current();
-        if ($context === null) {
-            return $bus->dispatch($message);
-        }
-
-        $envelope = $bus->withRunwire(
-            $context->runtime,
-            static fn(): \Infocyph\Omnibus\Envelope\Envelope => $bus->dispatch($message),
-            $context->request,
-            $context->scope,
-        );
-        if (!$envelope instanceof \Infocyph\Omnibus\Envelope\Envelope) {
-            throw new \LogicException('Native Omnibus dispatch did not return an envelope.');
-        }
-
-        return $envelope;
     }
 
     /** @return list<HandlerMiddleware> */

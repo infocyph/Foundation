@@ -85,7 +85,9 @@ final readonly class SessionManager
             metadata: $existing->metadata,
         );
 
-        $this->sessions->rotate($sessionId, $replacement);
+        if (!$this->sessions->rotate($existing, $replacement, $this->clock->now())) {
+            throw new SessionException(sprintf('Session "%s" changed, expired or was revoked during rotation.', $sessionId));
+        }
 
         return $replacement;
     }

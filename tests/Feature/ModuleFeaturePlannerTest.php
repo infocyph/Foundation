@@ -76,8 +76,8 @@ it('rejects incompatible root constraints and installed specialist versions', fu
     expect($plan['applicable'])->toBeFalse()
         ->and(count($plan['blockers']))->toBeGreaterThanOrEqual(2);
 
-    $context['root_requirements']['infocyph/dblayer'] = '^6.1';
-    $context['installed']['infocyph/dblayer'] = '6.1.0';
+    $context['root_requirements']['infocyph/dblayer'] = '^6.1.1';
+    $context['installed']['infocyph/dblayer'] = '6.1.1';
     expect($planner->plan('install', ['data.database'], $context)['applicable'])->toBeTrue();
 });
 
@@ -89,8 +89,8 @@ it('evaluates real conditional cross-module dependencies without enabling siblin
     $plan = $planner->plan('install', ['execution.messaging'], $ctx);
     expect($plan['required'])->toBe(['data.database', 'execution.messaging'])
         ->and($plan['effects']['require'])->toBe([
-            'infocyph/dblayer' => '^6.1',
-            'infocyph/omnibus' => '^3.0',
+            'infocyph/dblayer' => '^6.1.1',
+            'infocyph/omnibus' => '^3.0.1',
         ])
         ->and($plan['effects']['activate'])->toBe([]);
 
@@ -108,7 +108,7 @@ it('requires native packages and platform before enabling an explicitly allowed 
 
     $ctx['allowlist'] = ['data.database'];
     $ctx['installed']['infocyph/dblayer'] = '6.1.1';
-    $ctx['root_requirements']['infocyph/dblayer'] = '^6.1';
+    $ctx['root_requirements']['infocyph/dblayer'] = '^6.1.1';
     expect($planner->plan('enable', ['data.database'], $ctx)['applicable'])->toBeTrue();
 
     $ctx['extensions'] = [];
@@ -137,7 +137,7 @@ it('preserves root content and emits stable repeatable effects for repair', func
 
     expect($plan['effects']['publish'])->toBe(['messaging.php'])
         ->and($plan['effects']['schemas'])->toBe(['messaging'])
-        ->and($plan['effects']['require'])->toBe(['infocyph/omnibus' => '^3.0'])
+        ->and($plan['effects']['require'])->toBe(['infocyph/omnibus' => '^3.0.1'])
         ->and($plan['effects']['remove'])->toBe([])
         ->and($plan['effects']['activate'])->toBe([]);
 });
@@ -206,15 +206,15 @@ it('checks conditional prerequisite readiness when enabling durable messaging', 
     $context = f4FeatureFixture();
     $context['config'] = ['messaging' => ['durable' => ['enabled' => true]]];
     $context['enabled'] = ['data.database'];
-    $context['root_requirements']['infocyph/omnibus'] = '^3.0';
-    $context['installed']['infocyph/omnibus'] = '3.0.0';
+    $context['root_requirements']['infocyph/omnibus'] = '^3.0.1';
+    $context['installed']['infocyph/omnibus'] = '3.0.1';
 
     $missing = $planner->plan('enable', ['execution.messaging'], $context);
     expect($missing['applicable'])->toBeFalse()
         ->and(implode(' ', $missing['blockers']))->toContain('infocyph/dblayer');
 
-    $context['root_requirements']['infocyph/dblayer'] = '^6.1';
-    $context['installed']['infocyph/dblayer'] = '6.1.0';
+    $context['root_requirements']['infocyph/dblayer'] = '^6.1.1';
+    $context['installed']['infocyph/dblayer'] = '6.1.1';
     expect($planner->plan('enable', ['execution.messaging'], $context)['applicable'])->toBeTrue();
 });
 
@@ -293,3 +293,15 @@ it('rejects OTP MFA enable until its selected Epicrypt prerequisite is active', 
     $context['enabled'] = ['security.crypto'];
     expect($planner->plan('enable', ['security.mfa'], $context)['applicable'])->toBeTrue();
 });
+
+
+it('rejects specialist versions predating the native context-provider contract', function (string $feature, string $package, string $version): void {
+    $context = f4FeatureFixture();
+    $context['installed'][$package] = $version;
+    $context['root_requirements'][$package] = '*';
+
+    expect(new ModuleFeaturePlanner()->plan('install', [$feature], $context)['applicable'])->toBeFalse();
+})->with([
+    'old DBLayer' => ['data.database', 'infocyph/dblayer', '6.1.0'],
+    'old Omnibus' => ['execution.messaging', 'infocyph/omnibus', '3.0.0'],
+]);

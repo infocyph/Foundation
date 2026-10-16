@@ -13,11 +13,11 @@ function foundationB6Project(): string
     mkdir($path . '/config', 0775, true);
     file_put_contents($path . '/composer.json', json_encode([
         'name' => 'test/application',
-        'require' => ['infocyph/dblayer' => '^6.1'],
+        'require' => ['infocyph/dblayer' => '^6.1.1'],
     ], JSON_THROW_ON_ERROR));
     file_put_contents($path . '/vendor/composer/installed.json', json_encode([
         'packages' => [
-            ['name' => 'infocyph/dblayer', 'version' => '6.1.0.0', 'pretty_version' => '6.1'],
+            ['name' => 'infocyph/dblayer', 'version' => '6.1.1.0', 'pretty_version' => '6.1.1'],
         ],
     ], JSON_THROW_ON_ERROR));
     file_put_contents($path . '/config/database.php', "<?php return [];\n");
@@ -49,8 +49,8 @@ it('reads a fresh root Composer and selected-feature project snapshot for the v2
         $plan = new ModuleFeaturePlanner()->plan('install', ['data.database'], $state);
 
         expect($state['root_known'])->toBeTrue()
-            ->and($state['root_requirements'])->toBe(['infocyph/dblayer' => '^6.1'])
-            ->and($state['installed']['infocyph/dblayer'] ?? null)->toBe('6.1.0.0')
+            ->and($state['root_requirements'])->toBe(['infocyph/dblayer' => '^6.1.1'])
+            ->and($state['installed']['infocyph/dblayer'] ?? null)->toBe('6.1.1.0')
             ->and($state['enabled'])->toBe(['data.database'])
             ->and($state['selected_features'])->toBe(['data.database', 'data.filesystem'])
             ->and($state['published_configs'])->toBe(['database.php'])
@@ -101,19 +101,19 @@ it('accepts real short installed Composer versions without false incompatibility
     try {
         $manifest = $path . '/vendor/composer/installed.json';
         file_put_contents($manifest, json_encode(['packages' => [[
-            'name' => 'infocyph/dblayer', 'version_normalized' => '6.1.0.0',
-            'version' => '6.1', 'pretty_version' => '6.1',
+            'name' => 'infocyph/dblayer', 'version_normalized' => '6.2.0.0',
+            'version' => '6.2', 'pretty_version' => '6.2',
         ]]], JSON_THROW_ON_ERROR));
         $app = Foundation::cli(['base_path' => $path, '_config_cache' => false]);
         $snapshot = new ModuleFeatureCommandSnapshot($app)->capture();
-        expect($snapshot['installed']['infocyph/dblayer'])->toBe('6.1.0.0')
+        expect($snapshot['installed']['infocyph/dblayer'])->toBe('6.2.0.0')
             ->and((new ModuleFeaturePlanner()->plan('install', ['data.database'], $snapshot))['applicable'])->toBeTrue();
 
         file_put_contents($manifest, json_encode(['packages' => [[
-            'name' => 'infocyph/dblayer', 'pretty_version' => '6.1',
+            'name' => 'infocyph/dblayer', 'pretty_version' => '6.2',
         ]]], JSON_THROW_ON_ERROR));
         $fallback = new ModuleFeatureCommandSnapshot($app)->capture();
-        expect($fallback['installed']['infocyph/dblayer'])->toBe('6.1')
+        expect($fallback['installed']['infocyph/dblayer'])->toBe('6.2')
             ->and((new ModuleFeaturePlanner()->plan('install', ['data.database'], $fallback))['applicable'])->toBeTrue();
     } finally {
         foundationB6Clean($path);
@@ -129,7 +129,7 @@ it('rejects Composer metadata changed after the v2 plan before locked activation
         $manifest = $path . '/vendor/composer/installed.json';
         $contents = file_get_contents($manifest);
         expect($contents)->toBeString();
-        file_put_contents($manifest, str_replace('6.1.0.0', '6.2.0.0', (string) $contents));
+        file_put_contents($manifest, str_replace('6.1.1.0', '6.2.0.0', (string) $contents));
 
         expect(fn() => $activation->applyFeatures('enable', ['data.database'], $snapshot))
             ->toThrow(RuntimeException::class, 'Composer metadata changed')

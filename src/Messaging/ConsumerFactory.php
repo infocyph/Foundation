@@ -11,6 +11,7 @@ use Infocyph\Omnibus\Consumer\Consumer;
 use Infocyph\Omnibus\Consumer\ExecutionScope;
 use Infocyph\Omnibus\Failure\FailureStore;
 use Infocyph\Omnibus\Handler\HandlerInvoker;
+use Infocyph\Omnibus\Integration\Runwire\RunwireBinding;
 use Infocyph\Omnibus\Retry\ExponentialRetryStrategy;
 use Infocyph\Omnibus\Transport\Receiver;
 use Infocyph\Omnibus\Transport\TransportRegistry;
@@ -24,6 +25,7 @@ final readonly class ConsumerFactory
         private FailureStore $failures,
         private SystemClock $clock,
         private ExecutionScope $scope,
+        private RunwireBinding $runwire,
     ) {}
 
     public function make(?string $transport = null): Consumer
@@ -68,6 +70,7 @@ final readonly class ConsumerFactory
             failures: $this->failures,
             clock: $this->clock,
             scope: $this->scope,
+            runwire: $this->runwire,
         );
     }
 

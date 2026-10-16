@@ -6,6 +6,11 @@ on:
     branches: [main, master]
     paths:
       - .github/workflows/foundation4-host-certification.yml
+      - composer.json
+      - composer.lock
+      - src/**
+      - resources/**
+      - tests/Feature/WebReleaseRuntimeTest.php
       - benchmarks/foundation4-host-certify.sh
       - benchmarks/foundation4-host-load.php
       - benchmarks/foundation4-host-report.php

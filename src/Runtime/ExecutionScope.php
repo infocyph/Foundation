@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Runtime;
 
+use Infocyph\CacheLayer\Integration\Runwire\RunwireExecutionContext;
+use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwireIntegration;
+
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\InterMix\DI\RuntimeContainerInterface;
 use Infocyph\InterMix\DI\ScopeContext;
@@ -40,7 +43,7 @@ final readonly class ExecutionScope
         }
 
         self::assertRuntimeModeSeed($seeds);
-        self::assertHostRunwireSeeds($seeds);
+        $native = self::hostRunwireContext($seeds);
 
         $executionId ??= ExecutionId::generate();
         $seeds[ExecutionId::class] = $executionId;
@@ -80,6 +83,7 @@ final readonly class ExecutionScope
                     }
                 },
                 $seeds,
+                $native,
             );
         } catch (\Throwable $exception) {
             $scopeFailure = $exception;
@@ -134,49 +138,16 @@ final readonly class ExecutionScope
                     throw new \LogicException('Borrowed Foundation execution scope has no valid execution ID.');
                 }
 
-                return $callback($id);
+                $native = $runtime->has(RunwireExecutionContext::class)
+                    ? $runtime->get(RunwireExecutionContext::class)
+                    : null;
+                if ($native !== null && !$native instanceof RunwireExecutionContext) {
+                    throw new \LogicException('Borrowed Foundation execution has invalid native Runwire context.');
+                }
+
+                return $this->withinRunwireContext($native, static fn(): mixed => $callback($id));
             },
         );
-    }
-
-    /**
-     * Verify that the host supplied the authoritative Runwire inputs before
-     * creating a Foundation-owned worker/CLI/scheduler execution scope.
-     * No runtime, request or coroutine scope is generated or owned here.
-     *
-     * @param array<string, mixed> $seeds
-     */
-    private static function assertHostRunwireSeeds(array $seeds): void
-    {
-        if (
-            !array_key_exists(RuntimeContext::class, $seeds)
-            && !array_key_exists(RequestContext::class, $seeds)
-            && !array_key_exists(CoroutineScope::class, $seeds)
-        ) {
-            return;
-        }
-
-        $runtime = $seeds[RuntimeContext::class] ?? null;
-        if (!$runtime instanceof RuntimeContext) {
-            throw new \LogicException('Runwire execution inputs require the exact host-owned runtime context.');
-        }
-        $pid = getmypid();
-        if (!is_int($pid) || $runtime->pid !== $pid) {
-            throw new \LogicException('Runwire execution context belongs to a different process.');
-        }
-
-        if (array_key_exists(RequestContext::class, $seeds)) {
-            $request = $seeds[RequestContext::class];
-            if (!$request instanceof RequestContext
-                || $request->runtime() !== $runtime
-                || $request->completed()
-            ) {
-                throw new \LogicException('Runwire execution request is completed or belongs to a different runtime.');
-            }
-            $request->cancellation->throwIfCancelled();
-        }
-
-        self::assertRunwireScopeSeed($seeds, $runtime);
     }
 
     /** @param array<string, mixed> $seeds */
@@ -188,12 +159,53 @@ final readonly class ExecutionScope
     }
 
     /**
+     * Verify that the host supplied the authoritative Runwire inputs before
+     * creating a Foundation-owned worker/CLI/scheduler execution scope.
+     * No runtime, request or coroutine scope is generated or owned here.
+     *
      * @param array<string, mixed> $seeds
      */
-    private static function assertRunwireScopeSeed(array $seeds, RuntimeContext $runtime): void
+    private static function hostRunwireContext(array $seeds): ?RunwireExecutionContext
+    {
+        if (
+            !array_key_exists(RuntimeContext::class, $seeds)
+            && !array_key_exists(RequestContext::class, $seeds)
+            && !array_key_exists(CoroutineScope::class, $seeds)
+        ) {
+            return CacheRunwireIntegration::current();
+        }
+
+        $runtime = $seeds[RuntimeContext::class] ?? null;
+        if (!$runtime instanceof RuntimeContext) {
+            throw new \LogicException('Runwire execution inputs require the exact host-owned runtime context.');
+        }
+        $pid = getmypid();
+        if (!is_int($pid) || $runtime->pid !== $pid) {
+            throw new \LogicException('Runwire execution context belongs to a different process.');
+        }
+
+        $request = null;
+        if (array_key_exists(RequestContext::class, $seeds)) {
+            $request = $seeds[RequestContext::class];
+            if (!$request instanceof RequestContext
+                || $request->runtime() !== $runtime
+                || $request->completed()
+            ) {
+                throw new \LogicException('Runwire execution request is completed or belongs to a different runtime.');
+            }
+            $request->cancellation->throwIfCancelled();
+        }
+
+        return new RunwireExecutionContext($runtime, $request, self::runwireScopeSeed($seeds, $runtime));
+    }
+
+    /**
+     * @param array<string, mixed> $seeds
+     */
+    private static function runwireScopeSeed(array $seeds, RuntimeContext $runtime): ?CoroutineScope
     {
         if (!array_key_exists(CoroutineScope::class, $seeds)) {
-            return;
+            return null;
         }
 
         $scope = $seeds[CoroutineScope::class];
@@ -204,18 +216,50 @@ final readonly class ExecutionScope
         // A native read-only guard verifies the current task and live scope.
         $scope->hasLocal(new TaskLocal());
         $scope->cancellation()->throwIfCancelled();
+
+        return $scope;
+    }
+
+    /** @param callable():mixed $callback */
+    private function withinRunwireContext(?RunwireExecutionContext $context, callable $callback): mixed
+    {
+        if ($context === null) {
+            return $callback();
+        }
+
+        return CacheRunwireIntegration::share(
+            $context->request,
+            $context->scope,
+            $callback,
+            $context->runtime,
+        );
     }
 
     /**
      * @param callable(ContainerInterface):mixed $callback
      * @param array<string, mixed> $seeds
      */
-    private function withinScope(string $scope, callable $callback, array $seeds): mixed
-    {
+    private function withinScope(
+        string $scope,
+        callable $callback,
+        array $seeds,
+        ?RunwireExecutionContext $native,
+    ): mixed {
         if (!$this->container instanceof RuntimeContainerInterface) {
             throw new \LogicException('Foundation execution scopes require an InterMix runtime container.');
         }
 
-        return $this->container->withinScope($scope, $callback, $seeds);
+        if ($this->container->has(RunwireExecutionContext::class)) {
+            $seeds[RunwireExecutionContext::class] = $native;
+        }
+
+        return $this->container->withinScope(
+            $scope,
+            fn(ContainerInterface $container): mixed => $this->withinRunwireContext(
+                $native,
+                static fn(): mixed => $callback($container),
+            ),
+            $seeds,
+        );
     }
 }

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Messaging;
 
+use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration;
+
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\Omnibus\Consumer\Consumer;
 use Infocyph\Omnibus\Event\ListenerMap;
@@ -13,6 +15,7 @@ use Infocyph\Omnibus\Integration\DBLayer\AfterCommitDispatcher;
 use Infocyph\Omnibus\Integration\DBLayer\DBLayerFailureStore;
 use Infocyph\Omnibus\Integration\DBLayer\DBLayerTransport;
 use Infocyph\Omnibus\Integration\DBLayer\DBLayerWorkflowStore;
+use Infocyph\Omnibus\Integration\Runwire\RunwireBinding;
 use Infocyph\Omnibus\MessageBus;
 use Infocyph\Omnibus\Routing\Route;
 use Infocyph\Omnibus\Routing\RouteMap;
@@ -110,6 +113,14 @@ final class MessagingGraphFactory
         }
 
         return new RouteMap($routes, self::route($default));
+    }
+
+    public static function runwireBinding(): RunwireBinding
+    {
+        $binding = new RunwireBinding();
+        $binding->setRunwireContextProvider(RunwireIntegration::current(...));
+
+        return $binding;
     }
 
     public static function transports(

@@ -105,14 +105,14 @@ it('isolates same-label CLI scopes across interleaved Fibers and sequential exec
     $sequentialFirst = $app->execution()->run(
         static fn(ExecutionId $executionId): array => [
             (string) $executionId,
-            spl_object_id($app->make(FoundationExecutionScopeProbe::class)),
+            $app->make(FoundationExecutionScopeProbe::class),
         ],
         executionId: new ExecutionId('sequential-one'),
     );
     $sequentialSecond = $app->execution()->run(
         static fn(ExecutionId $executionId): array => [
             (string) $executionId,
-            spl_object_id($app->make(FoundationExecutionScopeProbe::class)),
+            $app->make(FoundationExecutionScopeProbe::class),
         ],
         executionId: new ExecutionId('sequential-two'),
     );

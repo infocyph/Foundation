@@ -16,7 +16,8 @@ interface SessionStoreInterface
 
     public function revokeAllForAccount(string $accountId, ?string $exceptSessionId = null): void;
 
-    public function rotate(string $sessionId, AuthSession $replacement): void;
+    /** Atomically replace an unchanged, live session; return false after revocation or contention. */
+    public function rotate(AuthSession $current, AuthSession $replacement, int $now): bool;
 
     public function touch(string $sessionId, int $lastSeenAt): void;
 }

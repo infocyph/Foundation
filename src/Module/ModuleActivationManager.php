@@ -57,10 +57,20 @@ final readonly class ModuleActivationManager
                     $operation,
                     $features,
                 ),
+                $context['composer_fingerprint'] ?? null,
             );
         } finally {
             flock($lock, LOCK_UN);
             fclose($lock);
+        }
+    }
+
+    private function assertComposerFreshness(?string $fingerprint): void
+    {
+        if ($fingerprint !== null
+            && $fingerprint !== new ModuleFeatureCommandSnapshot($this->application)->composerFingerprint()
+        ) {
+            throw new \RuntimeException('Application Composer metadata changed; re-plan before activation.');
         }
     }
 
@@ -156,7 +166,7 @@ final readonly class ModuleActivationManager
     /**
      * @param Closure(array<string,mixed>):array<string,mixed> $change
      */
-    private function mutate(Closure $change): string
+    private function mutate(Closure $change, ?string $composerFingerprint): string
     {
         $path = $this->application->configPath('modules.php');
         $directory = dirname($path);
@@ -181,11 +191,25 @@ final readonly class ModuleActivationManager
                 throw new \RuntimeException('Unable to acquire safe module activation lock.');
             }
 
-            return $this->writeUnderLock($path, $change);
+            return $this->writeUnderLock($path, $change, $composerFingerprint);
         } finally {
             flock($lock, LOCK_UN);
             fclose($lock);
         }
+    }
+
+    private function restoreConfig(string $path, string $temporary, ?string $original, \Throwable $failure): void
+    {
+        if ($original === null) {
+            if (!unlink($path)) {
+                throw new \RuntimeException('Unable to remove stale module activation config.', previous: $failure);
+            }
+        } elseif (file_put_contents($temporary, $original, LOCK_EX) !== strlen($original)
+            || !rename($temporary, $path)
+        ) {
+            throw new \RuntimeException('Unable to restore module activation config after Composer drift.', previous: $failure);
+        }
+        new ConfigCacheManager($this->application)->clear();
     }
 
     /**
@@ -197,11 +221,7 @@ final readonly class ModuleActivationManager
      */
     private function updateFeatureFlags(array $config, array $changes, array $context, string $operation, array $features): array
     {
-        if (isset($context['composer_fingerprint'])
-            && $context['composer_fingerprint'] !== new ModuleFeatureCommandSnapshot($this->application)->composerFingerprint()
-        ) {
-            throw new \RuntimeException('Application Composer metadata changed; re-plan before activation.');
-        }
+        $this->assertComposerFreshness($context['composer_fingerprint'] ?? null);
 
         $flags = $this->assertFreshFeatureFlags($config, $context);
         foreach ($changes as $id => $active) {
@@ -217,10 +237,14 @@ final readonly class ModuleActivationManager
     /**
      * @param Closure(array<string,mixed>):array<string,mixed> $change
      */
-    private function writeUnderLock(string $path, Closure $change): string
+    private function writeUnderLock(string $path, Closure $change, ?string $composerFingerprint): string
     {
         $directory = dirname($path);
         $previous = $this->load($path);
+        $original = is_file($path) ? file_get_contents($path) : null;
+        if ($original === false) {
+            throw new \RuntimeException('Unable to preserve module activation config.');
+        }
         $config = $change($previous);
         if ($config === $previous) {
             // A repeat activation with an identical feature topology must not
@@ -237,13 +261,24 @@ final readonly class ModuleActivationManager
             . var_export($config, true)
             . ";\n";
 
+        $published = false;
+
         try {
-            if (file_put_contents($temporary, $payload, LOCK_EX) === false) {
+            if (file_put_contents($temporary, $payload, LOCK_EX) !== strlen($payload)) {
                 throw new \RuntimeException('Unable to write module activation staging file.');
             }
+            $this->assertComposerFreshness($composerFingerprint);
             if (!rename($temporary, $path)) {
                 throw new \RuntimeException('Unable to publish module activation config.');
             }
+            $published = true;
+            $this->assertComposerFreshness($composerFingerprint);
+        } catch (\Throwable $failure) {
+            if ($published) {
+                $this->restoreConfig($path, $temporary, $original, $failure);
+            }
+
+            throw $failure;
         } finally {
             if (is_file($temporary)) {
                 unlink($temporary);

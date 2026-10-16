@@ -8,6 +8,7 @@
 - One trusted, source-free compiled generation for web and non-web runtimes. Webrick retains ownership of native HTTP routing, request dispatch, route formats and response output.
 - Native InterMix scoped input/borrowed scope handling, controlled cleanup, generation identity and concurrent execution isolation.
 - Runwire is optional and explicitly selected. Foundation uses the host-owned RuntimeContext/RequestContext and native Webrick/InterMix integration; it does not add a competing server or coroutine scheduler.
+- Published CacheLayer 4.0.1, DBLayer 6.1.1 and Omnibus 3.0.1 provide context sharing and native operation providers. Ordinary Foundation-created database and messaging services receive the active host context; redundant Foundation operation wrappers are removed.
 - Optional specialist capabilities must be explicitly selected. Installation of an optional Composer package alone does not activate its framework integration.
 
 ## Foundation 4 module CLI and breaking selection contract
@@ -32,12 +33,13 @@ The former 11-entry public module catalog and its unqualified installable aliase
 - Authentication, browser session/CSRF, OAuth 2.1, passkey, one-time recovery, revocation and replay-isolation workflows are exercised through current selected native integrations.
 - Built-in persistent lifecycle covers request/worker/fiber cleanup, cancellation, transaction rollback and no cross-request principal or runtime-scope leakage.
 - Current Foundation 4 auth/OAuth persistence snapshot/restoration is tested independently of compatibility with previous major versions.
+- Authentication-session rotation now requires an atomic conditional store transition, preventing a revoked, changed or expired source session from being replaced. Custom stores must adopt the new boolean rotation contract documented in the setup guide.
 
 ## Platform and integration
 
 - PHP 8.4 or 8.5, Composer 2.
-- Required Core runtime: ArrayKit `^5.3.1`, CacheLayer `^4.0`, InterMix `^11.2`, UID `^6.0`, Webrick `^6.0.3`, and PSR Log (`psr/log`) `^3.0.2`.
-- Optional selected specialists: DBLayer `^6.1`, Epicrypt `^3.2`, Omnibus `^3.0`, OTP `^7.0`, Pathwise `^4.2`, ReqShield `^3.3`, TalkingBytes `^2.3`, Runwire `^2.1.1`; passkey feature uses compatible WebAuthn dependencies.
+- Required Core runtime: ArrayKit `^5.3.1`, CacheLayer `^4.0.1`, InterMix `^11.2`, UID `^6.0`, Webrick `^6.0.3`, and PSR Log (`psr/log`) `^3.0.2`.
+- Optional selected specialists: DBLayer `^6.1.1`, Epicrypt `^3.2`, Omnibus `^3.0.1`, OTP `^7.0`, Pathwise `^4.2`, ReqShield `^3.3`, TalkingBytes `^2.3`, Runwire `^2.1.1`; passkey feature uses compatible WebAuthn dependencies.
 - The WebAuthn passkey feature requires `web-auth/webauthn-lib` `^5.3.9`; `opis/closure` `^4.5` and PHPForge remain development/engineering dependencies, not required Core runtime packages.
 - Development and production `--no-dev` configurations build standalone Foundation releases; unrelated Infbyte application migration is not included.
 

@@ -44,10 +44,20 @@ final class InMemorySessionStore implements SessionStoreInterface
         }
     }
 
-    public function rotate(string $sessionId, AuthSession $replacement): void
+    public function rotate(AuthSession $current, AuthSession $replacement, int $now): bool
     {
-        unset($this->sessions[$sessionId]);
+        if (($this->sessions[$current->id] ?? null) != $current
+            || $current->isExpiredAt($now)
+            || $replacement->accountId !== $current->accountId
+            || isset($this->sessions[$replacement->id])
+        ) {
+            return false;
+        }
+
+        unset($this->sessions[$current->id]);
         $this->sessions[$replacement->id] = $replacement;
+
+        return true;
     }
 
     public function touch(string $sessionId, int $lastSeenAt): void

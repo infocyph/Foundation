@@ -63,6 +63,7 @@ final class FoundationGraph
             // CLI, worker and scheduler executions. Foundation supplies no
             // substitute context or fallback runtime.
             RunwireIntegration::registerInputs($builder);
+            $builder->input(\Infocyph\CacheLayer\Integration\Runwire\RunwireExecutionContext::class);
         }
 
         if ($context->runtimeMode === RuntimeMode::Web) {

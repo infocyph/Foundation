@@ -27,13 +27,19 @@ final readonly class ModuleFeatureCommandSnapshot
                 $enabled[] = $name;
             }
         }
-        $root = $this->rootRequirements();
+        $metadata = $this->composerMetadata();
+        $fingerprint = hash('xxh3', serialize($metadata));
+        $root = $this->rootRequirements($metadata['composer.json']);
+        $installed = $this->installedVersions($metadata['vendor/composer/installed.json']);
+        if ($fingerprint !== $this->composerFingerprint()) {
+            throw new \RuntimeException('Composer metadata changed while capturing the feature snapshot; retry.');
+        }
 
         return [
             'root_known' => $root['known'],
             'root_requirements' => $root['requirements'],
-            'installed' => $this->installedVersions(),
-            'composer_fingerprint' => $this->composerFingerprint(),
+            'installed' => $installed,
+            'composer_fingerprint' => $fingerprint,
             'enabled' => $enabled,
             // Explicitly configured, even disabled, specialist owners protect
             // shared packages until their selection is intentionally removed.
@@ -50,6 +56,12 @@ final readonly class ModuleFeatureCommandSnapshot
      */
     public function composerFingerprint(): string
     {
+        return hash('xxh3', serialize($this->composerMetadata()));
+    }
+
+    /** @return array<string,?string> */
+    private function composerMetadata(): array
+    {
         $parts = [];
         foreach (['composer.json', 'composer.lock', 'vendor/composer/installed.json'] as $file) {
             $path = $this->application->basePath($file);
@@ -65,18 +77,13 @@ final readonly class ModuleFeatureCommandSnapshot
             $parts[$file] = $contents;
         }
 
-        return hash('xxh3', serialize($parts));
+        return $parts;
     }
 
     /** @return array<string,string> */
-    private function installedVersions(): array
+    private function installedVersions(?string $contents): array
     {
-        $path = $this->application->basePath('vendor/composer/installed.json');
-        if (is_link($path) || !is_file($path)) {
-            return [];
-        }
-        $contents = file_get_contents($path);
-        if (!is_string($contents)) {
+        if ($contents === null) {
             return [];
         }
 
@@ -127,15 +134,9 @@ final readonly class ModuleFeatureCommandSnapshot
     }
 
     /** @return array{known:bool,requirements:array<string,string>} */
-    private function rootRequirements(): array
+    private function rootRequirements(?string $contents): array
     {
-        $path = $this->application->basePath('composer.json');
-        if (is_link($path) || !is_file($path)) {
-            return ['known' => false, 'requirements' => []];
-        }
-
-        $contents = file_get_contents($path);
-        if (!is_string($contents)) {
+        if ($contents === null) {
             return ['known' => false, 'requirements' => []];
         }
 
