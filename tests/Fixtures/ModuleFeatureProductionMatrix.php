@@ -17,6 +17,11 @@ use Infocyph\Foundation\Module\ModuleArchitectureCatalog;
 use Infocyph\Foundation\Runtime\GeneratedRuntime;
 use Infocyph\Foundation\Runtime\GeneratedRuntimeCompiler;
 
+// Catch dependency warnings even when Composer loads them before the test runner.
+error_reporting(E_ALL);
+set_error_handler(static function (int $severity, string $message, string $file, int $line): never {
+    throw new ErrorException($message, 0, $severity, $file, $line);
+}, E_DEPRECATED | E_USER_DEPRECATED);
 require getcwd() . '/vendor/autoload.php';
 
 $mode = $argv[1] ?? '';

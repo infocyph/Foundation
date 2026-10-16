@@ -103,6 +103,7 @@ $result = [
     'php' => PHP_VERSION,
     'request_count' => $requests,
     'repetitions' => $repeats,
+    'warmup_seconds' => (int) (getenv('FOUNDATION_HOST_WARMUP_SECONDS') ?: 0),
     'soak_window_seconds' => (int) (getenv('FOUNDATION_HOST_SOAK_SECONDS') ?: 0),
     'endpoint' => match (getenv('FOUNDATION_HOST_WORKLOAD_PROFILE')) {
         'native-read' => '/native',

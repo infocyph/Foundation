@@ -58,6 +58,10 @@ final class Foundation4HostComparison
             }
         }
 
+        if (($baseline['warmup_seconds'] ?? 0) !== ($candidate['warmup_seconds'] ?? 0)) {
+            throw new InvalidArgumentException('Incomparable host evidence: warmup_seconds differs.');
+        }
+
         if ($baseline['sha'] === $candidate['sha']) {
             throw new InvalidArgumentException('Matched host comparison requires distinct immutable baseline/candidate commits.');
         }

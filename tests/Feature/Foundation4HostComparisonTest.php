@@ -38,6 +38,7 @@ function foundationHostFixture(float $rpm = 1000.0, bool $candidate = false): ar
         'composer_lock_sha256' => str_repeat('b', 64),
         'request_count' => 1000,
         'repetitions' => 5,
+        'warmup_seconds' => 0,
         'hosts' => $hosts,
     ];
 }
@@ -79,6 +80,11 @@ it('rejects mismatched host identities and runtime dependencies', function (): v
 
     expect(fn(): array => Foundation4HostComparison::compare(foundationHostFixture(), $candidate))
         ->toThrow(InvalidArgumentException::class, 'hardware_id differs.');
+
+    $candidate = foundationHostFixture(candidate: true);
+    $candidate['warmup_seconds'] = 30;
+    expect(fn(): array => Foundation4HostComparison::compare(foundationHostFixture(), $candidate))
+        ->toThrow(InvalidArgumentException::class, 'warmup_seconds differs.');
 
     $candidate = foundationHostFixture(candidate: true);
     $candidate['composer_lock_sha256'] = str_repeat('d', 64);

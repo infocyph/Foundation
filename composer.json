@@ -29,7 +29,17 @@
     },
     "conflict": {
         "infocyph/dblayer": "<6.1.1",
-        "infocyph/omnibus": "<3.0.1"
+        "infocyph/omnibus": "<3.0.1",
+        "league/flysystem-local": "<3.25.1",
+        "league/mime-type-detection": "<1.16",
+        "psr/http-factory": "<1.1",
+        "spomky-labs/pki-framework": "<1.6.2",
+        "symfony/clock": "<6.4.3 || >=7.0 <7.0.3",
+        "symfony/polyfill-php83": "<1.30",
+        "symfony/property-access": "<6.4.3 || >=7.0 <7.0.3",
+        "symfony/property-info": "<6.4.3 || >=7.0 <7.0.3",
+        "symfony/serializer": "<6.4.3 || >=7.0 <7.0.3",
+        "symfony/uid": "<6.4.3 || >=7.0 <7.0.3"
     },
     "suggest": {
         "ext-sodium": "Required when OTP AOTP/Ed25519 factors are enabled.",

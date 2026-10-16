@@ -1,3 +1,63 @@
+## 2026-10-16 — Hosted minimum-graph warnings and measurement follow-up
+
+Candidate `95eccf9` passed native HTTP smoke, production consumers, analysis and
+component benchmarks, but QA failed the documentation wording assertion and
+exposed implicit-nullability deprecations in the lowest dependency lanes. The
+wording correction `b00ff5d` passed both stable QA lanes; both lowest lanes still
+failed on third-party deprecations. Those warnings were initially missed in the
+failure summary and are independent blockers, not passing QA.
+
+Current remediation declares optional transitive Composer conflicts at verified
+PHP 8.4-compatible releases: Flysystem Local 3.25.1, MIME detection 1.16, PSR HTTP
+Factory 1.1, PKI Framework 1.6.2, Symfony Clock/PropertyAccess/PropertyInfo/Serializer/
+UID 6.4.3 (also excluding 7.0.0 through 7.0.2), and PHP 8.3 polyfill 1.30. These do
+not install an unselected feature. Tagged upstream source was checked with E_ALL;
+real lowest-version autoload and 13 filesystem/native WebAuthn/documentation
+regressions pass without deprecations. The polyfill emitted warnings before
+PHPUnit installed its handler, so Pest output alone was insufficient. The PKI floor is security-driven: upstream [1.6.2 release notes](https://github.com/Spomky-Labs/pki-framework/releases/tag/1.6.2)
+list 27 advisories affecting <=1.6.1, including [unbounded DER decoder recursion](https://github.com/Spomky-Labs/pki-framework/security/advisories/GHSA-xjj7-24gw-437v).
+The first deprecation-free release 1.2.2 is therefore insufficient. Composer's
+current minimum-graph advisory output did not report these published findings;
+upstream verification must supplement that feed. No Foundation network exploit
+is asserted. Full renewed minimum/stable QA remains required before acceptance.
+
+Paired host [workflow 38837335243](https://github.com/infocyph/Foundation/actions/runs/38837335243)
+recorded two complete baseline/candidate matrices on unchanged executable source.
+Attempt 1 passed 9/12 cases; two were noisy and one stable Runwire one-worker/c50
+case exceeded the budget by 0.55 percentage points. Attempt 2 passed 8/12, with
+four **inconclusive variance** cases; all stable cases passed, including the prior
+c50 case at -1.548% (CV 0.472%). There is no confirmed fix or accepted host gate.
+The local pinned-CPU Docker repeat is noisy and is diagnostic evidence only.
+
+The next measurement records a separate 30-second warm-up across native workers
+before five >=60-second measured repetitions. This corrects the previous
+single-ready-request warm-up boundary and gives sustained samples more time;
+the comparator still enforces <=2% median RPM regression and <=2.5% CV. Raw warm-up
+data remains in artifacts and is not counted as measured throughput. Correction
+`6cd6c98` retains both 120-second host soak summaries and fails if either is
+missing. No production request path changed for these measurement corrections.
+The strict acceptance ledger remains pending final hosted evidence; historical
+green counts below do not certify these new changes.
+
+Local follow-up evidence: the security-fixed minimum graph passed **746 tests /
+28,853 assertions**, with deprecations fatal. Stable and lowest no-dev production
+consumers passed Core, database and all-selected graphs (13 selected combinations
+per mode). Tagged-source lint checked 4,374 autoloadable PHP files across the
+selected runtime graph. Published upstream advisory ranges from 59 repositories
+were checked with Composer's own Semver matcher: the earlier minimum graph matched
+27 PKI advisories; the corrected minimum and current stable graphs matched none.
+These upstream checks supplement, rather than replace, the configured audit.
+
+An extra detailed run in the `/tmp` minimum checkout was **not a full quality
+PASS**: PHPCS excluded the absolute `/tmp` path under its existing rules and
+PHPStan inferred `mixed` for the native `random_bytes()` through the old
+`random_compat` polyfill. Its 746-test/Psalm/reference results remain useful;
+no framework casts, suppressions, exclusions or artificial runtime pins were
+introduced for that extra analysis. Final full quality runs use the real project
+path and its active supported tooling; the existing hosted workflow separately
+runs stable analysis and the four stable/lowest QA permutations.
+
+
 ## 2026-10-16 — Pre-merge adversarial remediation and paired-host verification
 
 This checkpoint supersedes older statements that ordinary native operations,

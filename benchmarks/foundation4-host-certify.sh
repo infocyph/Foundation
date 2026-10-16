@@ -6,6 +6,7 @@ OUTPUT="${FOUNDATION_HOST_RESULT_DIR:-$ROOT/build/foundation4-host}"
 REQUESTS="${FOUNDATION_HOST_REQUESTS:-900}"
 REPEATS="${FOUNDATION_HOST_REPEATS:-3}"
 SOAK_SECONDS="${FOUNDATION_HOST_SOAK_SECONDS:-0}"
+WARMUP_SECONDS="${FOUNDATION_HOST_WARMUP_SECONDS:-0}"
 PROFILE="${FOUNDATION_HOST_WORKLOAD_PROFILE:-json-minimal}"
 if [[ "$PROFILE" != "json-minimal" && "$PROFILE" != "native-read" && "$PROFILE" != "authenticated-read" ]]; then
     echo "Unsupported Foundation 4 workload profile: $PROFILE" >&2
@@ -40,8 +41,10 @@ done
 if [[ ! "$REQUESTS" =~ ^[0-9]+$ || "$REQUESTS" -lt 100 ||
       ! "$REPEATS" =~ ^[0-9]+$ || "$REPEATS" -lt 2 ||
       ! "$SOAK_SECONDS" =~ ^[0-9]+$ || "$SOAK_SECONDS" -gt 300 ||
-      ( "$SOAK_SECONDS" -gt 0 && "$SOAK_SECONDS" -lt 30 ) ]]; then
-    echo "Use >=100 requests, >=2 repetitions, and a soak of 0 or 30-300 seconds." >&2
+      ( "$SOAK_SECONDS" -gt 0 && "$SOAK_SECONDS" -lt 30 ) ||
+      ! "$WARMUP_SECONDS" =~ ^[0-9]+$ || "$WARMUP_SECONDS" -gt 300 ||
+      ( "$WARMUP_SECONDS" -gt 0 && "$WARMUP_SECONDS" -lt 30 ) ]]; then
+    echo "Use >=100 requests, >=2 repetitions, and warm-up/soak windows of 0 or 30-300 seconds." >&2
     exit 1
 fi
 
@@ -275,6 +278,19 @@ for host in "${hosts[@]}"; do
         boot_finished="$(date +%s.%N)"
         php -r 'file_put_contents($argv[1], json_encode(["startup_to_ready_ms" => round(((float) $argv[3] - (float) $argv[2]) * 1000, 3), "first_valid_request_ms" => round((float) $argv[4] * 1000, 3)], JSON_THROW_ON_ERROR) . PHP_EOL);' \
             "$OUTPUT/$host-w$workers.startup.json" "$boot_started" "$boot_finished" "$READY_REQUEST_SECONDS"
+
+        if (( WARMUP_SECONDS > 0 )); then
+            prefix="$host-w$workers-warmup"
+            start_sampler "$OUTPUT/$prefix.samples.csv"
+            FOUNDATION_HOST_MIN_SECONDS="$WARMUP_SECONDS" \
+                timeout "$((WARMUP_SECONDS + 90))s" php "$ROOT/benchmarks/foundation4-host-load.php" \
+                "$url$ENDPOINT" "$REQUESTS" 50 "$OUTPUT/$prefix.load.json" > "$OUTPUT/$prefix.load.log"
+            kill "$SAMPLER_PID" 2>/dev/null || true
+            wait "$SAMPLER_PID" 2>/dev/null || true
+            SAMPLER_PID=""
+            assert_ready "$url"
+            echo "Verified $host-w$workers warm-up ($WARMUP_SECONDS seconds); starting measured repetitions"
+        fi
 
         for concurrency in "${concurrency_levels[@]}"; do
             [[ "$concurrency" == "1" || "$concurrency" == "10" || "$concurrency" == "50" ]] || exit 1

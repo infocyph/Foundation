@@ -160,7 +160,8 @@ jobs:
       FOUNDATION_HOST_FILTER_CONCURRENCY: ${{ matrix.concurrency }}
       FOUNDATION_HOST_REQUESTS: "1000"
       FOUNDATION_HOST_REPEATS: "5"
-      FOUNDATION_HOST_MIN_SECONDS: "30"
+      FOUNDATION_HOST_MIN_SECONDS: "60"
+      FOUNDATION_HOST_WARMUP_SECONDS: "30"
       FOUNDATION_HOST_SOAK_SECONDS: ${{ matrix.workers == 4 && matrix.concurrency == 10 && '120' || '0' }}
       FOUNDATION_HOST_TOOL_SHA: ${{ needs.prepare-paired-host.outputs.candidate }}
     steps:

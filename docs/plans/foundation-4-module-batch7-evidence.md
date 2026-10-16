@@ -1,3 +1,5 @@
+> **2026-10-16 live follow-up:** Paired workflow `38837335243` ran twice on unchanged candidate `95eccf9`; stable scenarios passed on the repeat, but four cases exceeded CV 2.5%, so host acceptance remains inconclusive. Stable QA passes on `b00ff5d`; lowest QA exposed third-party implicit-nullability warnings. Verified optional transitive floors and a separate 30-second warm-up plus five >=60-second trials are prepared; <=2% RPM and <=2.5% variance budgets remain unchanged. Both host soak summaries are retained and required by `6cd6c98`. Final exact-source QA and a stable full host matrix remain required. See the [current release ledger](foundation-4.0-release-audit-and-plan.md).
+
 > **2026-10-16 pre-merge update:** Native provider composition, independent SQLite/MySQL/PostgreSQL auth contention, signed native WebAuthn/HOTP step-up, child-only cursor cancellation and real Composer publication/removal races are now implemented with passing focused regressions. Final Docker authenticated smoke passed all 12 scenarios and four soak windows; stable/lowest production consumers pass. The user selected GitHub Actions for the sustained comparison: each scenario pairs baseline `6274939c395f75e5cf777aad5d7439f10792758c` and final candidate on the same runner, one lock/tool revision, five >=30-second samples, CV <=2.5% and <=2% RPM regression. Exact-source hosted QA and comparison remain pending; the strict ledger is 19/37 until final acceptance. Earlier unavailable-host statements are historical. See the [current release ledger](foundation-4.0-release-audit-and-plan.md).
 
 # Foundation 4 — Module architecture Batch 7 certification evidence
@@ -69,7 +71,7 @@ php benchmarks/foundation4-module-cli-compare.php \
   build/release-evidence/module-cli-comparison.json
 \`\`\`
 
-The v2 CLI comparator checks source identity, six command operations, repeated cold/warm p50/p95 timing, PHP/toolchain and fixture shape. It **never** certifies host RPM, and does not stand in for actual enable or compiled-boot whole-host measurements. Include direct \`module:enable\` and immutable compiled-boot timing in the controlled application profile.
+The v2 CLI comparator checks source identity, seven command operations (including actual enable and warm no-op), repeated cold/warm p50/p95 timing, PHP/toolchain and fixture shape. It **never** certifies host RPM, and does not stand in for actual enable or compiled-boot whole-host measurements. Include direct \`module:enable\` and immutable compiled-boot timing in the controlled application profile.
 
 ## Mandatory host comparison
 

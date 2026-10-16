@@ -34,7 +34,7 @@ foreach ($reports as $variant => $parts) {
     $combined['soak_window_seconds'] = PHP_INT_MAX;
     $combined['classification'] = 'same-runner baseline/candidate pairs; hardware identity is enforced separately for every scenario';
     foreach ($parts as $part) {
-        foreach (['sha', 'php', 'protocol', 'workload_profile', 'request_count', 'repetitions', 'composer_lock_sha256', 'fixture_id', 'tool_sha'] as $field) {
+        foreach (['sha', 'php', 'protocol', 'workload_profile', 'request_count', 'repetitions', 'composer_lock_sha256', 'fixture_id', 'tool_sha', 'warmup_seconds'] as $field) {
             if (!isset($part[$field]) || $part[$field] !== $combined[$field]) {
                 throw new RuntimeException('Paired host report identity mismatch: ' . $field);
             }

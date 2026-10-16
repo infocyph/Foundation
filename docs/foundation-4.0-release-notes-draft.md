@@ -45,6 +45,7 @@ The former 11-entry public module catalog and its unqualified installable aliase
 - Required Core runtime: ArrayKit `^5.3.1`, CacheLayer `^4.0.1`, InterMix `^11.2`, UID `^6.0`, Webrick `^6.0.3`, and PSR Log (`psr/log`) `^3.0.2`.
 - Optional selected specialists: DBLayer `^6.1.1`, Epicrypt `^3.2`, Omnibus `^3.0.1`, OTP `^7.0`, Pathwise `^4.2`, ReqShield `^3.3`, TalkingBytes `^2.3`, Runwire `^2.1.1`; passkey feature uses compatible WebAuthn dependencies.
 - The WebAuthn passkey feature requires `web-auth/webauthn-lib` `^5.3.9`; `opis/closure` `^4.5` and PHPForge remain development/engineering dependencies, not required Core runtime packages.
+- Optional transitive compatibility floors exclude PHP 8.4/8.5 implicit-nullability deprecations: Flysystem Local 3.25.1, MIME detection 1.16, PSR HTTP Factory 1.1, PKI Framework 1.6.2, Symfony Clock/PropertyAccess/PropertyInfo/Serializer/UID 6.4.3 (also excluding 7.0.0–7.0.2), and PHP 8.3 polyfill 1.30. Composer applies these conflicts when the package is present; optional feature installation remains explicit.
 - Development and production `--no-dev` configurations build standalone Foundation releases; unrelated Infbyte application migration is not included.
 
 ## Major-version contract
@@ -70,7 +71,7 @@ local verification. Each GitHub scenario runs the frozen baseline and candidate
 sequentially on the same runner with one dependency lock, identical benchmark
 tools and isolated equivalent PostgreSQL datasets plus Redis. The matrix covers
 FPM/Runwire, one/four workers and concurrency 1/10/50, with five runs of at least
-30 seconds, a 2.5% maximum coefficient of variation and the unchanged 2% median
+60 seconds after a separately recorded 30-second warm-up, a 2.5% maximum coefficient of variation and the unchanged 2% median
 successful-RPM regression budget. Cold compile/first-ready-request and CLI
 measurements are reported separately. This approval selects the pre-merge test
 environment; it does not establish capacity for an unmeasured production deployment.
