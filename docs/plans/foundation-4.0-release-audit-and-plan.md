@@ -1,5 +1,19 @@
 ## Current scope correction — Runwire is Core (2026-10-16)
 
+**Hosted checkpoint, executable `3d35605`:** [Security & Standards 38917716824](https://github.com/infocyph/Foundation/actions/runs/38917716824)
+and [native host smoke 38917716261](https://github.com/infocyph/Foundation/actions/runs/38917716261)
+passed. The separate manually dispatched [paired comparison 38917773579](https://github.com/infocyph/Foundation/actions/runs/38917773579)
+completed twice on unchanged source: attempt 1 passed 8/12 cases with four
+inconclusive; attempt 2 passed 10/12 with two inconclusive due to CV above 2.5%.
+All 120 measured trials and eight two-minute soak windows per attempt passed
+response validation. The full performance gate remains unsatisfied. A pinned
+local FPM four-worker/c50 reproduction was within budget (+0.614% RPM, CV
+1.383% / 1.133%), supporting diagnosis only. The PR event's paired jobs are
+skipped because those jobs require manual dispatch; their actual execution and
+immutable provenance are recorded in [current B7 evidence](foundation-4-module-batch7-evidence.md).
+Keep PR #20 draft. Stable hosted performance and final acceptance remain open;
+no source or budget change is inferred from inconclusive measurements.
+
 **Intermediary boundary follow-up:** An additional probe on `faa4ba7` reproduced
 missing Core DI inputs when an upstream library shared the runtime without an
 explicit Foundation seed map. Eight adversarial cases failed before the fix:
@@ -11,7 +25,8 @@ borrowed children, coroutine identity/cancellation and runtime-only null scopes.
 The `faa4ba7` hosted QA succeeded, but the sustained comparison was cancelled;
 that revision does not certify this follow-up. Renewed full detailed quality
 passes with 769 tests / 29,638 assertions and all configured static/security/
-formatting/reference checks. Exact hosted evidence remains required. No native mechanism or public wrapper was added.
+formatting/reference checks. Hosted quality passes on `3d35605`; sustained host
+acceptance remains open as recorded above. No native mechanism or public wrapper was added.
 
 The user requires `infocyph/runwire:^2.1.1` in production `require` and approved
 Core integration across its supported environments. It is removed from
@@ -23,13 +38,14 @@ ownership remain native. PCNTL/POSIX and host extensions remain optional.
 
 This changes the dependency graph and compiled/public module contract. The
 previous `60a7951` hosted QA, lock digest, nine-feature counts and performance
-artifacts below describe the earlier candidate, not this working tree. Local quality passes: full detailed checks (746 tests / 28,771 assertions
-before the additional CLI inventory test), final `composer ic:ci` (all 13
+artifacts below describe the earlier candidate, not the Core candidate. Local
+quality passes: full detailed checks (769 tests / 29,638 assertions), final `composer ic:ci` (all 13
 checks), stable/lowest Core/database/full no-dev consumers, exact native context
 contracts, portable runtime selection without fork facilities, and Docker HTTP
 12-case/24-trial/four-window correctness smoke. Composer validation, stable
-constraints, configured audit and actionlint pass. New hosted matrices and
-affected sustained host evidence are required for final acceptance.
+constraints, configured audit and actionlint pass. Current hosted quality and
+production matrices pass; stable sustained host evidence is still required for
+final acceptance.
 The prior pre-merge comparison was stopped at the user's request. This task does
 not resume that certification run or claim that its performance blocker is fixed.
 

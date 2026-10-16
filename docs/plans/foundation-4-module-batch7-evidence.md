@@ -1,6 +1,82 @@
-> **Core correction, 2026-10-16:** Runwire is now a required production/Core integration and `execution.runtime` is removed. The catalog has three modules/eight optional features. All immutable SHAs, lock hashes, nine-feature counts and performance results below predate this change and are retained as historical evidence. The previous host repeat was cancelled at the user's request; its partial results cannot certify the new contract. Local full quality, native/compiled/no-dev and twelve-case Docker correctness checks pass for the correction; fresh hosted QA and sustained comparison remain required before current acceptance.
-
 # Foundation 4 — Module architecture Batch 7 certification evidence
+
+## Current Core candidate — 2026-10-16
+
+Tested executable source: [`3d35605`](https://github.com/infocyph/Foundation/commit/3d356050bb87feeeb2861d5cb4bb13c400d798fe).
+Runwire `^2.1.1` is required Core; the public catalog has three modules and eight
+optional features. Shared intermediary contexts populate exact native DI inputs;
+completed/cancelled shared requests are rejected before application callbacks.
+This checkpoint updates documentation only and preserves the tested source IDs.
+
+**Quality and correctness pass; sustained performance acceptance remains open.**
+[Security & Standards 38917716824](https://github.com/infocyph/Foundation/actions/runs/38917716824)
+passed PHP 8.4/8.5 stable/lowest QA 4/4, analysis 2/2, production consumers 4/4,
+component benchmarks 2/2, clean install and release evidence. The conditional
+Security Report was skipped and is not additional security certification.
+Source `3d356050bb87feeeb2861d5cb4bb13c400d798fe` and tested merge commit
+`04c4cc762cd109bfc980a7c030f76c26e90ea2b4` share Git tree
+`10ad01cb183b6eba60ae2e5792e06e163d77f873`. The release-evidence archive digest is
+`sha256:ed2419e31ee17510b5da80649df7f6875305440b02c1d7febb85438af1fa718c`.
+Its lock and both paired attempts use SHA-256
+`e6bcad0151476776a3d876d3a9948693197f940234de656df9d921cc104e8b4e`.
+
+Local full detailed quality passed **769 tests / 29,638 assertions** and all 13
+`composer ic:ci` checks passed. Focused native forwarding passed 31 tests /
+1,112 assertions. Stable/lowest isolated production consumers, including twelve
+selected-feature configurations per mode, passed without development packages.
+The hosted manifest includes CacheLayer 4.0.1, DBLayer 6.1.1, Omnibus 3.0.1,
+Runwire 2.1.1, InterMix 11.2 and Webrick 6.0.3.
+[Ordinary native host smoke 38917716261](https://github.com/infocyph/Foundation/actions/runs/38917716261)
+passed. Both minimal/native workloads cover twelve scenarios, with zero failed
+responses and four shorter soak windows each.
+
+### PR checks and the separate manual comparison
+
+The ordinary `pull_request` event runs `native-host`; its `prepare-paired-host`,
+`paired-host` and `compare-paired-host` jobs are intentionally **skipped** by the
+workflow's `workflow_dispatch` conditions. Those skipped PR jobs are not passing
+performance evidence. The actual sustained matrix ran separately as manually
+dispatched [workflow 38917773579](https://github.com/infocyph/Foundation/actions/runs/38917773579)
+on the exact source above, with immutable baseline `6274939c395f75e5cf777aad5d7439f10792758c`.
+
+| Complete attempt | Passing cases | Inconclusive variability | Stable regression classification | Overall comparison |
+| --- | ---: | ---: | ---: | --- |
+| [1](https://github.com/infocyph/Foundation/actions/runs/38917773579/attempts/1) | 8/12 | 4/12 | 0/12 | Failed |
+| [2, unchanged source](https://github.com/infocyph/Foundation/actions/runs/38917773579/attempts/2) | 10/12 | 2/12 | 0/12 | Failed |
+
+Each attempt contains sixty measured trials per revision, all at least sixty
+seconds after recorded thirty-second warm-up, plus four two-minute soak windows
+per revision. All measured responses and all eight soak windows per attempt
+passed correctness, with live CPU/RSS telemetry. Baseline/candidate share the
+lock, fixture, tools and physical runner within each scenario. Passing samples
+from different attempts are not combined. The 2% median successful-RPM and
+2.5% maximum CV limits remain unchanged.
+
+The second attempt's unresolved scenarios are:
+
+| Scenario | Median RPM change | Maximum CV | Classification |
+| --- | ---: | ---: | --- |
+| Runwire, one worker, concurrency 50 | +0.382% | 3.011% (baseline) | Inconclusive variability |
+| Runwire, four workers, concurrency 10 | -3.252% | 7.835% | Inconclusive variability |
+
+The second attempt passes every FPM case, including four-worker/concurrency-50
+at -1.110% RPM and 0.428% CV. An independent pinned Docker reproduction of that
+case on PHP 8.5.11 measured 7,883.48 baseline versus 7,931.87 candidate median RPM
+(+0.614%), CV 1.383% / 1.133%, zero failed responses. Its 708 frozen baseline
+runtime/resource files match Git `6274939`; both variants use identical current
+benchmark tools and the same lock. This is local diagnostic evidence, not hosted
+acceptance or a claim that earlier candidates' regressions were fixed.
+
+B7 throughput/stability and final sign-off remain open. More stable GitHub
+measurement capacity is needed; no repository self-hosted runner was registered
+when inspected. A dedicated/larger runner label has been requested. PR #20
+remains draft; merge, tag, publication and Infbyte migration are not performed.
+
+## Historical evidence before the Core correction
+
+The SHAs, lock hashes, nine-feature counts and results below predate required
+Core Runwire. They do not certify the current eight-feature contract. The prior
+pre-Core repeat was cancelled at the user's request.
 
 Checkpoint: 2026-10-16. Repository: `infocyph/Foundation`. PR: [#20](https://github.com/infocyph/Foundation/pull/20). Branch: `feature/foundation-3`.
 

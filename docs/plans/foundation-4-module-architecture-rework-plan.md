@@ -1,5 +1,16 @@
 ## Core Runwire correction — approved 2026-10-16
 
+**Hosted checkpoint, executable `3d35605`:** [Security & Standards 38917716824](https://github.com/infocyph/Foundation/actions/runs/38917716824)
+passed every required quality/production lane, and [native host smoke 38917716261](https://github.com/infocyph/Foundation/actions/runs/38917716261)
+passed. The separate manual [paired comparison 38917773579](https://github.com/infocyph/Foundation/actions/runs/38917773579)
+completed twice: 8/12 pass plus four inconclusive, then 10/12 pass plus two
+inconclusive on unchanged source. All response and two-minute soak checks pass;
+CV above the unchanged 2.5% limit prevents performance acceptance. The PR event
+intentionally skips paired jobs; it does not represent the manual matrix's
+result. Current source/lock provenance, per-attempt results and the supporting
+local +0.614% FPM diagnostic are in [B7 evidence](foundation-4-module-batch7-evidence.md).
+PR #20 stays draft; throughput/stability and final sign-off remain open.
+
 **Intermediary boundary follow-up:** An additional probe on `faa4ba7` reproduced
 missing Core DI inputs when an upstream library shared the runtime without an
 explicit Foundation seed map. Eight adversarial cases failed before the fix:
@@ -11,7 +22,8 @@ borrowed children, coroutine identity/cancellation and runtime-only null scopes.
 The `faa4ba7` hosted QA succeeded, but the sustained comparison was cancelled;
 that revision does not certify this follow-up. Renewed full detailed quality
 passes with 769 tests / 29,638 assertions and all configured static/security/
-formatting/reference checks. Exact hosted evidence remains required. No native mechanism or public wrapper was added.
+formatting/reference checks. Hosted quality passes on `3d35605`; sustained host
+acceptance remains open as recorded above. No native mechanism or public wrapper was added.
 
 The user requires Runwire in `require` and approved making its integration Core.
 This supersedes the earlier optional runtime decision D12 and all historical
@@ -34,8 +46,8 @@ remain capability requirements, not Foundation installation requirements.
 Implementation and validation cover Composer roles, protected Core package
 ownership, all eight feature lifecycle plans, CLI schema-v2 output, compiled
 Core inputs, borrowed/cancelled contexts, synchronous fallback and isolated
-production `--no-dev` installs. Detailed quality passes with 746 tests / 28,771
-assertions before the added CLI inventory-provenance regression. Final
+production `--no-dev` installs. Detailed quality passes with 769 tests / 29,638
+assertions, including intermediary forwarding and CLI inventory provenance. Final
 `composer ic:ci` passes all 13 configured quality checks, including that
 additional regression. Stable/lowest no-dev consumers pass twelve selected-feature
 configurations per mode and trusted web/CLI/worker/scheduler generation. Native
@@ -44,10 +56,11 @@ portable selection succeeds with fork functions disabled; local Docker passes
 invalid responses, plus cancellation/recovery and worker replacement. Composer
 validation, stable constraints, configured audit and actionlint pass.
 Prior hosted SHA/counts below are historical and cannot certify this Core
-contract. Fresh hosted evidence is required before merge/release acceptance.
+contract. Current hosted quality passes on `3d35605`; stable host throughput
+evidence is still required before merge/release acceptance.
 The authenticated HTTP baseline remains frozen at `6274939`; its response/query/cache workload is unchanged. CLI diagnostics record each source's actual feature count and label the nine-to-eight catalog change explicitly; they do not claim equivalent-inventory throughput. Keep the HTTP 2% median RPM and 2.5% CV budgets unchanged; do not reset the baseline to hide the Core integration cost.
 
-> **Current acceptance, 2026-10-16:** Executable `60a7951` has [fully green PHP 8.4/8.5 stable/lowest QA, analysis, consumers and release evidence](https://github.com/infocyph/Foundation/actions/runs/38860725174). The release ledger is **32/37**, with reopened native integration, security and state criteria revalidated. B7 remains **4/7 engineering gates, 0/7 whole-batch accepted**; module totals remain **46/49 engineering, 42/49 batch accepted** until the strict [paired host comparison](https://github.com/infocyph/Foundation/actions/runs/38860730929) and final decision pass. The approved environment is baseline/candidate paired on the same GitHub runner, with 30-second warm-up, five >=60-second measurements, CV <=2.5% and median RPM regression <=2%. [Current B7 evidence](foundation-4-module-batch7-evidence.md). Earlier dated status paragraphs are historical. PR #20 stays draft; no merge, tag, publication or Infbyte changes.
+> **Historical acceptance before the Core correction, 2026-10-16:** Executable `60a7951` has [fully green PHP 8.4/8.5 stable/lowest QA, analysis, consumers and release evidence](https://github.com/infocyph/Foundation/actions/runs/38860725174). The release ledger is **32/37**, with reopened native integration, security and state criteria revalidated. B7 remains **4/7 engineering gates, 0/7 whole-batch accepted**; module totals remain **46/49 engineering, 42/49 batch accepted** until the strict [paired host comparison](https://github.com/infocyph/Foundation/actions/runs/38860730929) and final decision pass. The approved environment is baseline/candidate paired on the same GitHub runner, with 30-second warm-up, five >=60-second measurements, CV <=2.5% and median RPM regression <=2%. [Current B7 evidence](foundation-4-module-batch7-evidence.md). Earlier dated status paragraphs are historical. PR #20 stays draft; no merge, tag, publication or Infbyte changes.
 
 > **2026-10-16 live follow-up:** Paired workflow `38837335243` ran twice on unchanged candidate `95eccf9`; stable scenarios passed on the repeat, but four cases exceeded CV 2.5%, so host acceptance remains inconclusive. Stable QA passes on `b00ff5d`; lowest QA exposed third-party implicit-nullability warnings. Verified optional transitive floors and a separate 30-second warm-up plus five >=60-second trials are prepared; <=2% RPM and <=2.5% variance budgets remain unchanged. Both host soak summaries are retained and required by `6cd6c98`. Final exact-source QA and a stable full host matrix remain required. See the [current release ledger](foundation-4.0-release-audit-and-plan.md).
 
