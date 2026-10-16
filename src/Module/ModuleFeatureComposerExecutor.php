@@ -92,6 +92,7 @@ final readonly class ModuleFeatureComposerExecutor
      */
     private function assertRootRequirements(array $context): void
     {
+        new ModuleFeatureCommandSnapshot($this->application)->assertCurrent($context);
         $path = $this->application->basePath('composer.json');
         if (!$context['root_known'] || is_link($path) || !is_file($path)) {
             throw new \RuntimeException('Application Composer ownership is unavailable or unsafe.');

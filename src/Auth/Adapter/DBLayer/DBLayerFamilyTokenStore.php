@@ -47,7 +47,7 @@ abstract readonly class DBLayerFamilyTokenStore extends ClockedDBLayerStore
             $saveReplacement();
 
             return true;
-        }) === true;
+        }, attempts: 3) === true;
     }
 
     protected function tokenFamilyWasRevoked(string $table, string $familyId): bool

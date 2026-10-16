@@ -55,7 +55,7 @@ Epicrypt-backed environment protection is available when the `security` module
 is installed:
 
 ```bash
-php infbyte module:install security
+php infbyte module:install security.crypto
 php infbyte env:encrypt --key-file=/secure/env.key
 php infbyte env:decrypt --key-file=/secure/env.key
 ```
@@ -210,7 +210,7 @@ active file rather than remaining attached permanently to an old inode.
 Install the filesystem module when required:
 
 ```bash
-php infbyte module:install filesystem
+php infbyte module:install data.filesystem
 php infbyte storage:status
 php infbyte storage:link
 php infbyte storage:unlink
@@ -324,3 +324,24 @@ composer benchmark:representative
 
 Additional release gates should be invoked only when their corresponding
 Composer/PHPForge scripts are actually present in the release candidate.
+
+### Coordinating feature lifecycle and dependency changes
+
+The v2 feature CLI snapshots the current configuration and Composer root, lock and
+installed metadata, then verifies that snapshot under the project Composer lock.
+Feature publication checks again around its atomic rename and restores the
+previous configuration if dependency drift is detected. A stale removal plan is
+rejected when another command changes feature selection or application policy.
+Re-plan after such a rejection; do not reuse the previous plan.
+
+Foundation commands share `.foundation-module-composer.lock`. External dependency
+maintenance must use that same project lock, or run while feature lifecycle
+commands are quiesced. For example, from the application root:
+
+```sh
+flock -x .foundation-module-composer.lock composer update
+```
+
+Uncoordinated external edits are detected at publication checkpoints; they cannot
+be serialized by a lock that the external writer does not acquire. Keep deployment
+activation and manual dependency maintenance within this coordinated boundary.

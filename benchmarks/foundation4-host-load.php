@@ -12,6 +12,10 @@ $minimumSeconds = (float) (getenv('FOUNDATION_HOST_MIN_SECONDS') ?: 0);
 if (!is_finite($minimumSeconds) || $minimumSeconds < 0 || $minimumSeconds > 300) {
     throw new InvalidArgumentException('Sustained benchmark duration must be 0-300 seconds.');
 }
+$authorization = getenv('FOUNDATION_HOST_AUTHORIZATION') ?: '';
+$authenticated = getenv('FOUNDATION_HOST_WORKLOAD_PROFILE') === 'authenticated-read';
+$totalQueries = 0;
+$totalCacheHits = 0;
 $minimumNanoseconds = (int) ($minimumSeconds * 1_000_000_000);
 if ($requests < 100 || $concurrency < 1 || $concurrency > 100 || !str_starts_with($url, 'http://127.0.0.1:')) {
     throw new InvalidArgumentException('Invalid local HTTP load parameters.');
@@ -35,6 +39,8 @@ try {
         $handle = curl_init($url);
         curl_setopt_array($handle, [
             CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HEADER => $authenticated,
+            CURLOPT_HTTPHEADER => $authorization === '' ? [] : ['Authorization: ' . $authorization],
             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
             CURLOPT_TIMEOUT => 15,
             CURLOPT_CONNECTTIMEOUT => 5,
@@ -58,6 +64,19 @@ try {
             $handle = $message['handle'];
             $status = (int) curl_getinfo($handle, CURLINFO_HTTP_CODE);
             $body = curl_multi_getcontent($handle);
+            if ($authenticated) {
+                $headerBytes = (int) curl_getinfo($handle, CURLINFO_HEADER_SIZE);
+                $headers = substr((string) $body, 0, $headerBytes);
+                $body = substr((string) $body, $headerBytes);
+                $queryHeader = preg_match('/^X-Foundation-Benchmark-Queries:\s*(\d+)\s*$/im', $headers, $queryMatch);
+                $cacheHeader = preg_match('/^X-Foundation-Benchmark-Cache-Hits:\s*(\d+)\s*$/im', $headers, $cacheMatch);
+                if ($queryHeader !== 1 || $cacheHeader !== 1 || (int) $queryMatch[1] < 2 || (int) $cacheMatch[1] !== 1) {
+                    $body = 'missing authenticated query/cache evidence';
+                } else {
+                    $totalQueries += (int) $queryMatch[1];
+                    $totalCacheHits += (int) $cacheMatch[1];
+                }
+            }
             $latencyMs = (float) curl_getinfo($handle, CURLINFO_TOTAL_TIME) * 1000;
             $valid = $message['result'] === CURLE_OK && $status === 200 && $body === '{"ok":true}';
 
@@ -111,6 +130,9 @@ $record = [
     'requests' => $finished,
     'required_requests' => $requests,
     'minimum_duration_seconds' => $minimumSeconds,
+    'database_queries' => $totalQueries,
+    'application_cache_hits' => $totalCacheHits,
+    'authenticated' => $authenticated,
     'successful' => count($latencies),
     'failed' => $errors,
     'concurrency' => $concurrency,

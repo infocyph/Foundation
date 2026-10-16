@@ -33,6 +33,10 @@ The former 11-entry public module catalog and its unqualified installable aliase
 - Authentication, browser session/CSRF, OAuth 2.1, passkey, one-time recovery, revocation and replay-isolation workflows are exercised through current selected native integrations.
 - Built-in persistent lifecycle covers request/worker/fiber cleanup, cancellation, transaction rollback and no cross-request principal or runtime-scope leakage.
 - Current Foundation 4 auth/OAuth persistence snapshot/restoration is tested independently of compatibility with previous major versions.
+- Refresh/remember replacement insertion cannot overwrite an existing token identity; the native transaction rolls back both records on collision. Independent SQLite/MySQL/PostgreSQL processes exercise conditional auth transitions and account-update rollback.
+- Fresh passkey schemas store the full opaque credential ID with a unique SHA3-256 identity index, supporting case-sensitive identity without exceeding MySQL index limits. Existing Foundation 4 candidate databases must be rebuilt or explicitly brought to the current schema before deployment; readiness rejects a missing index column.
+- Feature lifecycle plans capture current configuration and Composer metadata, reject stale package-removal plans, and restore configuration after detected publication-time dependency drift. External Composer maintenance must participate in the documented project lock.
+- Native TalkingBytes email sender, mailbox and receiver factories borrow the active passed Runwire context with synchronous fallback.
 - Authentication-session rotation now requires an atomic conditional store transition, preventing a revoked, changed or expired source session from being replaced. Custom stores must adopt the new boolean rotation contract documented in the setup guide.
 
 ## Platform and integration
@@ -51,10 +55,22 @@ Foundation 4.0 is a deliberate breaking major release. **There are no backwards-
 
 The release candidate declares Composer package `infocyph/foundation`, type `library`, license `MIT`, PHP `^8.4`, Composer runtime API `^2.0`, PSR-4 root `Infocyph\\Foundation\\`, and shipped CLI entry `bin/infbyte`. The nine optional specialists are declared as suggested packages and available in `require-dev` for development/test coverage; application owners install only explicitly selected package requirements. The candidate `composer.json` does not hardcode a release `version`: Composer release identity will come from the operator-published Git tag.
 
-**Documentation and dependency roles have been reviewed, but publication approval has not been granted.** The release evidence must identify the **final published source SHA**, complete resolved dependency manifest, Composer lock digest, PHP/extensions and CI runs. No tag, release asset or release date should be presented as already published. The remaining controlled physical-host baseline/candidate tests and the dependent final go/no-go decision are recorded in [Batch 7 evidence](plans/foundation-4-module-batch7-evidence.md). CI smoke and synthetic benchmark results are not substitutes.
+**Documentation and dependency roles have been reviewed, but publication approval has not been granted.** The release evidence must identify the **final published source SHA**, complete resolved dependency manifest, Composer lock digest, PHP/extensions and CI runs. No tag, release asset or release date should be presented as already published. The remaining paired same-runner baseline/candidate tests and the dependent final go/no-go decision are recorded in [Batch 7 evidence](plans/foundation-4-module-batch7-evidence.md). CI smoke and synthetic benchmark results are not substitutes.
 
 ## Certification still required before publication
 
 FPM and native Runwire have passed real HTTP smoke, cancellation, error recovery, worker replacement and bounded selected-native read/credential-cache soak on the candidate. These are shared-runner **smoke** results, not controlled sustained baseline-vs-candidate RPM or production-equivalent memory/latency certification. Production service backup/disaster recovery also requires deployment-specific validation. Release certification remains open. See the [release audit and plan](plans/foundation-4.0-release-audit-and-plan.md). Publish only after all applicable release gates pass on the final immutable source and dependency set.
 
 Final release notes must contain the exact published source SHA, resolved dependency manifest and Composer lock hash, confirmed selected feature support, controlled baseline/candidate comparison artifacts (five sustained ≥30-second correct-response repetitions per FPM/Runwire case, stable variance and no greater than 2% successful-RPM regression), representative authenticated/database/cache workload metrics, and reviewed publication metadata. Until those external controlled-host measurements and the final acceptance decision are available, this document remains an **unpublished draft**; passing GitHub-runner smoke must not be described as release certification.
+
+### Pre-merge measurement environment (2026-10-16)
+
+The user selected GitHub Actions for the matched host comparison and Docker for
+local verification. Each GitHub scenario runs the frozen baseline and candidate
+sequentially on the same runner with one dependency lock, identical benchmark
+tools and isolated equivalent PostgreSQL datasets plus Redis. The matrix covers
+FPM/Runwire, one/four workers and concurrency 1/10/50, with five runs of at least
+30 seconds, a 2.5% maximum coefficient of variation and the unchanged 2% median
+successful-RPM regression budget. Cold compile/first-ready-request and CLI
+measurements are reported separately. This approval selects the pre-merge test
+environment; it does not establish capacity for an unmeasured production deployment.

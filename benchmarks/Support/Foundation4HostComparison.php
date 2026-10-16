@@ -72,16 +72,20 @@ final class Foundation4HostComparison
         $passed = true;
         foreach ($baselineCases as $key => $before) {
             $after = $candidateCases[$key];
-            $baselineMedian = self::median($before);
-            $candidateMedian = self::median($after);
+            if ($before['hardware_id'] !== $after['hardware_id']) {
+                throw new InvalidArgumentException('Baseline/candidate scenario hardware differs: ' . $key);
+            }
+            $baselineMedian = self::median($before['rpms']);
+            $candidateMedian = self::median($after['rpms']);
             $deltaPercent = (($candidateMedian / $baselineMedian) - 1.0) * 100.0;
-            $variation = max(self::coefficientOfVariation($before), self::coefficientOfVariation($after));
+            $variation = max(self::coefficientOfVariation($before['rpms']), self::coefficientOfVariation($after['rpms']));
             $stable = $variation <= self::MAX_VARIATION_PERCENT;
             $withinBudget = $deltaPercent >= -self::REGRESSION_BUDGET_PERCENT - 1e-10;
             $casePassed = $stable && $withinBudget;
             $passed = $passed && $casePassed;
             $results[] = [
                 'scenario' => $key,
+                'hardware_id' => $before['hardware_id'],
                 'baseline_median_successful_rpm' => round($baselineMedian, 2),
                 'candidate_median_successful_rpm' => round($candidateMedian, 2),
                 'delta_percent' => round($deltaPercent, 3),
@@ -105,7 +109,7 @@ final class Foundation4HostComparison
 
     /**
      * @param array<string, mixed> $report
-     * @return array<string, list<float>>
+     * @return array<string, array{hardware_id:string,rpms:list<float>}>
      */
     private static function cases(array $report): array
     {
@@ -153,6 +157,14 @@ final class Foundation4HostComparison
                         throw new InvalidArgumentException(sprintf('Invalid or unsustained evidence for %s.', $key));
                     }
 
+                    if ($report['workload_profile'] === 'authenticated-read'
+                        && (($run['authenticated'] ?? false) !== true
+                            || ($run['database_queries'] ?? 0) < 2 * $run['successful']
+                            || ($run['application_cache_hits'] ?? 0) !== $run['successful'])
+                    ) {
+                        throw new InvalidArgumentException('Authenticated workload query/cache evidence is incomplete.');
+                    }
+
                     $actualRpm = (float) $run['successful'] * 60.0 / (float) $run['duration_seconds'];
                     if (abs($actualRpm - (float) $run['rpm']) / $actualRpm > 0.005) {
                         throw new InvalidArgumentException(sprintf('Inconsistent successful RPM for %s.', $key));
@@ -161,7 +173,11 @@ final class Foundation4HostComparison
                     $values[] = (float) $run['rpm'];
                 }
 
-                $result[$key] = $values;
+                $hardware = $entry['hardware_id'] ?? $report['hardware_id'];
+                if (!is_string($hardware) || $hardware === '') {
+                    throw new InvalidArgumentException('Scenario hardware identity is missing.');
+                }
+                $result[$key] = ['hardware_id' => $hardware, 'rpms' => $values];
             }
         }
 

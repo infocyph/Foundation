@@ -138,3 +138,19 @@ it('rejects Composer metadata changed after the v2 plan before locked activation
         foundationB6Clean($path);
     }
 });
+
+it('reloads changed application policy and rejects a plan captured before that change', function (): void {
+    $path = foundationB6Project();
+    try {
+        file_put_contents($path . '/config/auth.php', "<?php return ['drivers' => ['passwords' => 'native']];\n");
+        $app = Foundation::cli(['base_path' => $path, '_config_cache' => false]);
+        $snapshots = new ModuleFeatureCommandSnapshot($app);
+        $old = $snapshots->capture();
+        file_put_contents($path . '/config/auth.php', "<?php return ['drivers' => ['passwords' => 'security']];\n");
+
+        expect(fn() => $snapshots->assertCurrent($old))->toThrow(RuntimeException::class, 'Feature configuration changed')
+            ->and($snapshots->capture()['config']['auth']['drivers']['passwords'])->toBe('security');
+    } finally {
+        foundationB6Clean($path);
+    }
+});

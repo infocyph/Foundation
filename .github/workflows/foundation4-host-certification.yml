@@ -2,6 +2,12 @@ name: Foundation 4 native HTTP host smoke
 
 on:
   workflow_dispatch:
+    inputs:
+      baseline_ref:
+        description: Immutable Foundation 4 baseline commit for paired authenticated host verification
+        required: true
+        default: 6274939c395f75e5cf777aad5d7439f10792758c
+        type: string
   pull_request:
     branches: [main, master]
     paths:
@@ -14,6 +20,10 @@ on:
       - benchmarks/foundation4-host-certify.sh
       - benchmarks/foundation4-host-load.php
       - benchmarks/foundation4-host-report.php
+      - benchmarks/Foundation4AuthenticatedWorkload.php
+      - benchmarks/foundation4-host-merge.php
+      - benchmarks/foundation4-module-cli-*.php
+      - benchmarks/Support/Foundation*Comparison.php
       - benchmarks/Phase9NativeReadHandler.php
       - benchmarks/phase9-server-compile.php
 
@@ -90,4 +100,185 @@ jobs:
             build/foundation4-host/
             build/foundation4-native/
           if-no-files-found: warn
+          retention-days: 30
+
+  prepare-paired-host:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    outputs:
+      candidate: ${{ steps.identity.outputs.candidate }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          extensions: "mbstring, intl, sodium, curl, pcntl, posix, sockets, pdo, pdo_sqlite, pdo_mysql, pdo_pgsql, redis, memcached"
+          coverage: none
+      - name: Freeze candidate and shared dependency manifest
+        id: identity
+        env:
+          BASELINE_REF: ${{ inputs.baseline_ref }}
+        run: |
+          [[ "$BASELINE_REF" =~ ^[a-f0-9]{40}$ ]] || { echo "An immutable baseline SHA is required." >&2; exit 1; }
+          printf 'candidate=%s\n' "$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          composer update --no-interaction --no-progress --prefer-dist --prefer-stable
+      - uses: actions/upload-artifact@v7
+        with:
+          name: foundation4-paired-host-lock
+          path: composer.lock
+          if-no-files-found: error
+
+  paired-host:
+    if: github.event_name == 'workflow_dispatch'
+    needs: prepare-paired-host
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [fpm, runwire]
+        workers: [1, 4]
+        concurrency: [1, 10, 50]
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: phpforge
+          POSTGRES_PASSWORD: Phpforge_123!
+          POSTGRES_DB: phpforge
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U phpforge -d phpforge" --health-interval 2s --health-timeout 2s --health-retries 30
+      redis:
+        image: redis:8.10-alpine
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 2s --health-timeout 2s --health-retries 30
+    env:
+      FOUNDATION_HOST_WORKLOAD_PROFILE: authenticated-read
+      FOUNDATION_HOST_FILTER_HOST: ${{ matrix.host }}
+      FOUNDATION_HOST_FILTER_WORKERS: ${{ matrix.workers }}
+      FOUNDATION_HOST_FILTER_CONCURRENCY: ${{ matrix.concurrency }}
+      FOUNDATION_HOST_REQUESTS: "1000"
+      FOUNDATION_HOST_REPEATS: "5"
+      FOUNDATION_HOST_MIN_SECONDS: "30"
+      FOUNDATION_HOST_SOAK_SECONDS: ${{ matrix.workers == 4 && matrix.concurrency == 10 && '120' || '0' }}
+      FOUNDATION_HOST_TOOL_SHA: ${{ needs.prepare-paired-host.outputs.candidate }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare-paired-host.outputs.candidate }}
+          path: candidate
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.baseline_ref }}
+          path: baseline
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          extensions: "mbstring, intl, sodium, curl, pcntl, posix, sockets, pdo, pdo_sqlite, pdo_mysql, pdo_pgsql, redis, memcached"
+          ini-values: "opcache.enable_cli=1"
+          coverage: none
+      - name: Install host prerequisites
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq software-properties-common
+          sudo add-apt-repository -y ppa:ondrej/php
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq nginx php8.4-fpm
+      - uses: actions/download-artifact@v7
+        with:
+          name: foundation4-paired-host-lock
+          path: locked-dependencies
+      - name: Prepare identical dependencies, benchmark tooling and isolated datasets
+        run: |
+          cp locked-dependencies/composer.lock candidate/composer.lock
+          cp locked-dependencies/composer.lock baseline/composer.lock
+          cp -a candidate/benchmarks/. baseline/benchmarks/
+          composer install --working-dir=candidate --no-interaction --no-progress --prefer-dist
+          composer install --working-dir=baseline --no-interaction --no-progress --prefer-dist
+          php <<'PHP'
+          <?php
+          $pdo = new PDO("pgsql:host=127.0.0.1;dbname=phpforge", "phpforge", "Phpforge_123!");
+          foreach (["foundation_baseline", "foundation_candidate"] as $database) {
+              $pdo->exec("CREATE DATABASE " . $database);
+          }
+          PHP
+          printf 'FOUNDATION_CERTIFICATION_HOST_ID=github-%s-%s-%s\n' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$(cat /proc/sys/kernel/random/boot_id)" >> "$GITHUB_ENV"
+      - name: Run baseline and candidate on this same physical runner
+        env:
+          BASELINE_SHA: ${{ inputs.baseline_ref }}
+          CANDIDATE_SHA: ${{ needs.prepare-paired-host.outputs.candidate }}
+        run: |
+          for variant in baseline candidate; do
+            if [[ "$variant" == baseline ]]; then source_sha="$BASELINE_SHA"; else source_sha="$CANDIDATE_SHA"; fi
+            FOUNDATION_HOST_SOURCE_SHA="$source_sha" \
+              FOUNDATION_HOST_PG_DATABASE="foundation_$variant" \
+              FOUNDATION_HOST_RESULT_DIR="$GITHUB_WORKSPACE/evidence/$variant" \
+              bash "$GITHUB_WORKSPACE/$variant/benchmarks/foundation4-host-certify.sh"
+            if [[ "$FOUNDATION_HOST_FILTER_HOST" == fpm && "$FOUNDATION_HOST_FILTER_WORKERS" == 1 && "$FOUNDATION_HOST_FILTER_CONCURRENCY" == 1 ]]; then
+              FOUNDATION_MODULE_SOURCE_SHA="$source_sha" \
+                FOUNDATION_MODULE_BASELINE_OUTPUT="$GITHUB_WORKSPACE/evidence/$variant/module-cli.json" \
+                php "$GITHUB_WORKSPACE/$variant/benchmarks/foundation4-module-cli-baseline.php" > "$GITHUB_WORKSPACE/evidence/$variant/module-cli.log"
+            fi
+          done
+      - name: Capture exact runtime and dependency identity
+        if: always()
+        run: |
+          mkdir -p evidence
+          php -v > evidence/php-version.txt
+          php -m > evidence/php-extensions.txt
+          php --ini=diff > evidence/php-ini-diff.txt
+          sha256sum locked-dependencies/composer.lock > evidence/composer-lock.sha256
+          lscpu > evidence/cpu.txt
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: foundation4-pair-${{ matrix.host }}-${{ matrix.workers }}-${{ matrix.concurrency }}
+          path: |
+            evidence/*/*.json
+            evidence/*/*.csv
+            evidence/*/*.log
+            evidence/*/*.env
+            evidence/*.txt
+            evidence/*.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+  compare-paired-host:
+    if: github.event_name == 'workflow_dispatch' && !cancelled() && needs.prepare-paired-host.result == 'success'
+    needs: [prepare-paired-host, paired-host]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare-paired-host.outputs.candidate }}
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          extensions: "mbstring, intl, sodium, pdo, pdo_sqlite, redis, memcached"
+          coverage: none
+      - uses: actions/download-artifact@v7
+        with:
+          name: foundation4-paired-host-lock
+      - run: composer install --no-interaction --no-progress --prefer-dist
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: foundation4-pair-*
+          path: build/paired-input
+      - name: Enforce complete matched-host matrix and unchanged budgets
+        run: |
+          mkdir -p build/paired-comparison
+          php benchmarks/foundation4-module-cli-compare.php \
+            build/paired-input/foundation4-pair-fpm-1-1/baseline/module-cli.json \
+            build/paired-input/foundation4-pair-fpm-1-1/candidate/module-cli.json \
+            build/paired-comparison/module-cli-comparison.json
+          php benchmarks/foundation4-host-merge.php build/paired-input build/paired-comparison/comparison.json
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: foundation4-paired-comparison
+          path: build/paired-comparison
+          if-no-files-found: error
           retention-days: 30

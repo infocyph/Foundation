@@ -61,26 +61,13 @@ final readonly class DBLayerRememberTokenStore extends DBLayerFamilyTokenStore i
             $current->familyId,
             'verifier_hash',
             $current->verifierHash,
-            fn() => $this->save($replacement),
+            fn() => $this->insertRecord('rememberTokens', $this->record($replacement)),
         );
     }
 
     public function save(RememberTokenRecord $record): void
     {
-        $this->upsertRecord('rememberTokens', 'id', [
-            'id' => $record->id,
-            'account_id' => $record->accountId,
-            'device_id' => $record->deviceId,
-            'selector' => $record->selector,
-            'verifier_hash' => $record->verifierHash,
-            'family_id' => $record->familyId,
-            'issued_at' => $record->issuedAt,
-            'expires_at' => $record->expiresAt,
-            'last_used_at' => $record->lastUsedAt,
-            'rotated_at' => $record->rotatedAt,
-            'revoked_at' => $record->revokedAt,
-            'metadata' => DBLayerJson::encode($record->metadata),
-        ]);
+        $this->upsertRecord('rememberTokens', 'id', $this->record($record));
     }
 
     public function wasFamilyRevoked(string $familyId): bool
@@ -107,5 +94,24 @@ final readonly class DBLayerRememberTokenStore extends DBLayerFamilyTokenStore i
             revokedAt: $this->intOrNull($row['revoked_at'] ?? null),
             metadata: DBLayerJson::decode($row['metadata'] ?? null),
         );
+    }
+
+    /** @return array<string, mixed> */
+    private function record(RememberTokenRecord $record): array
+    {
+        return [
+            'id' => $record->id,
+            'account_id' => $record->accountId,
+            'device_id' => $record->deviceId,
+            'selector' => $record->selector,
+            'verifier_hash' => $record->verifierHash,
+            'family_id' => $record->familyId,
+            'issued_at' => $record->issuedAt,
+            'expires_at' => $record->expiresAt,
+            'last_used_at' => $record->lastUsedAt,
+            'rotated_at' => $record->rotatedAt,
+            'revoked_at' => $record->revokedAt,
+            'metadata' => DBLayerJson::encode($record->metadata),
+        ];
     }
 }

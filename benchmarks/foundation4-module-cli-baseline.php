@@ -46,8 +46,8 @@ try {
     $composerFixture = json_encode([
         'name' => 'foundation/module-baseline',
         'require' => [
-            'infocyph/dblayer' => '^6.1',
-            'infocyph/omnibus' => '^3.0',
+            'infocyph/dblayer' => '^6.1.1',
+            'infocyph/omnibus' => '^3.0.1',
             'infocyph/otp' => '^7.0',
         ],
     ], JSON_THROW_ON_ERROR) . PHP_EOL;
@@ -56,6 +56,14 @@ try {
     chmod($root . '/bin/composer', 0755);
     putenv('PATH=' . $root . '/bin:' . (is_string($originalPath) ? $originalPath : ''));
 
+    mkdir($root . '/vendor/composer', 0775, true);
+    mkdir($root . '/config', 0775, true);
+    file_put_contents($root . '/config/database.php', "<?php return [];\n");
+    file_put_contents($root . '/vendor/composer/installed.json', json_encode(['packages' => [
+        ['name' => 'infocyph/dblayer', 'version' => '6.1.1.0'],
+        ['name' => 'infocyph/omnibus', 'version' => '3.0.1.0'],
+        ['name' => 'infocyph/otp', 'version' => '7.0.0.0'],
+    ]], JSON_THROW_ON_ERROR));
     $config = [
         'base_path' => $root,
         '_config_cache' => false,
@@ -72,6 +80,7 @@ try {
         'plan' => ['infbyte', 'module:plan', 'security.passkey'],
         'install_dry_run' => ['infbyte', 'module:install', 'data.filesystem', '--dry-run'],
         'remove_dry_run' => ['infbyte', 'module:remove', 'data.database', '--dry-run'],
+        'enable' => ['infbyte', 'module:enable', 'data.database'],
     ];
     $benchmarks = [];
 
@@ -141,7 +150,7 @@ try {
         'php' => PHP_VERSION,
         'php_sapi' => PHP_SAPI,
         'opcache_cli' => (bool) ini_get('opcache.enable_cli'),
-        'fixture' => 'direct DBLayer + Omnibus + OTP, explicit empty application capabilities, isolated Composer stub',
+        'fixture' => 'direct installed DBLayer + Omnibus + OTP, explicit empty capabilities, isolated Composer stub, cold enable then warm no-op',
         'module_count' => 3,
         'feature_count' => 9,
         'commands' => $benchmarks,

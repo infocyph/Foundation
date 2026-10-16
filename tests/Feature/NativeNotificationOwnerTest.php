@@ -39,3 +39,58 @@ it('exports native TalkingBytes notifications without another Foundation graph f
     expect(class_exists('Infocyph\\Foundation\\Notifications\\NotificationGraphFactory'))
         ->toBeFalse();
 });
+
+it('compiles native email defaults and forwards a passed host request without retaining it in factories', function (): void {
+    $directory = sys_get_temp_dir() . '/foundation-native-email-' . bin2hex(random_bytes(6));
+    mkdir($directory, 0700);
+    $configuration = [
+        'app' => ['base_path' => $directory, 'env' => 'production', 'debug' => false],
+        '_config_cache' => false,
+        'notifications' => ['email' => [
+            'default_sender' => 'test',
+            'senders' => ['test' => ['transport' => 'fake']],
+            'transports' => ['fake' => ['driver' => 'fake']],
+        ]],
+    ];
+    $capabilities = ['notifications', 'runwire'];
+    $runtime = \Infocyph\Runwire\RuntimeContext::standalone();
+    $request = \Infocyph\Runwire\RequestContext::create($runtime);
+    $message = \Infocyph\TalkingBytes\Email\EmailMessage::new()
+        ->from('sender@example.test')->to('receiver@example.test')->subject('Native context')->text('test');
+
+    try {
+        $artifact = $directory . '/runtime.php';
+        $report = new \Infocyph\Foundation\Runtime\GeneratedRuntimeCompiler()->compile(
+            $configuration, RuntimeMode::Worker, $artifact, $capabilities,
+        );
+        expect($report['skipped'])->toBe([]);
+        $loaded = \Infocyph\Foundation\Runtime\GeneratedRuntime::loadPrevalidated(
+            $configuration, RuntimeMode::Worker, $artifact, $report['metadata_sha256'], $report['digest'], $capabilities,
+        );
+        $app = $loaded->application;
+        $app->execution()->run(static function () use ($app, $request, $message): void {
+            $sender = $app->make(\Infocyph\Foundation\Notifications\EmailProfiles::class)->sender();
+            expect($sender->send($message)->successful)->toBeTrue();
+            $request->cancel(\Infocyph\Runwire\Runtime\Enum\CancellationReason::HOST_CANCELLED);
+            $cancelled = $sender->send($message);
+            expect($cancelled->successful)->toBeFalse()
+                ->and($cancelled->metadata['cancelled'] ?? false)->toBeTrue()
+                ->and($cancelled->metadata['attempts'] ?? -1)->toBe(0);
+        }, [\Infocyph\Runwire\RuntimeContext::class => $runtime, \Infocyph\Runwire\RequestContext::class => $request]);
+        $app->execution()->run(static function () use ($app, $message): void {
+            $sender = $app->make(\Infocyph\Foundation\Notifications\EmailProfiles::class)->sender();
+            $sender->assertable()->assertNothingSent();
+            expect($sender->send($message)->successful)->toBeTrue();
+        });
+        expect($request->completed())->toBeFalse()
+            ->and(\Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::current())->toBeNull()
+            ->and(\Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::runtime())->toBeNull();
+    } finally {
+        $request->complete();
+        $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
+        foreach ($files as $file) {
+            $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
+        }
+        rmdir($directory);
+    }
+});

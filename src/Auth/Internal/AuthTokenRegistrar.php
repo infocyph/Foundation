@@ -49,7 +49,7 @@ final readonly class AuthTokenRegistrar extends AbstractAuthRegistrar
         $this->registerSecretResolver();
 
         if ($drivers->tokens() === AuthTokenDriver::SECURITY) {
-            $this->requirePackage(SymmetricJwt::class, 'infocyph/epicrypt', 'crypto');
+            $this->requirePackage(SymmetricJwt::class, 'infocyph/epicrypt', 'security.crypto');
             $this->registerEpicryptTokens();
 
             return;

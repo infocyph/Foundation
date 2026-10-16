@@ -173,3 +173,33 @@ it('persists single-use reset and refresh transitions through native DBLayer tra
         DB::purge();
     }
 });
+
+it('rolls back token rotation instead of overwriting an existing replacement identity', function (string $kind): void {
+    $config = new ConfigRepository(['database' => [
+        'default' => 'collision',
+        'connections' => ['collision' => ['driver' => 'sqlite', 'database' => ':memory:']],
+    ]]);
+    $factory = new DBLayerFactory(new DatabaseConnectionResolver($config), RuntimeStateContainer::execution());
+    $tables = new AuthTables();
+    new MigrationRunner($factory->connection(), [new AuthSchema($tables)])->run();
+    $now = time();
+    $make = static function (string $id, string $account, string $family) use ($kind, $now): mixed {
+        return $kind === 'refresh'
+            ? new RefreshTokenRecord(hash('sha256', $id), null, null, $id, $account, $family, $now, $now + 300)
+            : new \Infocyph\Foundation\Auth\Authentication\RememberMe\RememberTokenRecord(
+                'device', $id, hash('sha256', $id), $id, $account, $family, $now, $now + 300,
+            );
+    };
+    $store = $kind === 'refresh'
+        ? new DBLayerRefreshTokenStore($factory, $tables, new SystemClock())
+        : new \Infocyph\Foundation\Auth\Adapter\DBLayer\DBLayerRememberTokenStore($factory, $tables, new SystemClock());
+    $current = $make('source', 'owner', 'family');
+    $occupied = $make('occupied', 'other-account', 'other-family');
+    $store->save($current);
+    $store->save($occupied);
+
+    expect(fn() => $store->rotateIfActive($current, $make('occupied', 'owner', 'family')))
+        ->toThrow(\Infocyph\DBLayer\Exceptions\TransactionException::class)
+        ->and($store->find('source')?->rotatedAt)->toBeNull()
+        ->and($store->find('occupied'))->toEqual($occupied);
+})->with(['refresh', 'remember']);

@@ -37,14 +37,9 @@ kept in a static registry.
 
 ## Stores
 
-Publish `config/session.php` with:
-
-```bash
-php infbyte module:config:publish session
-```
-
-The `session` catalog entry is built into Foundation, so publication does not
-invoke Composer. Its configuration and schema commands remain available in 3.0.
+Browser sessions are Core. Copy the shipped `resources/config/session.php` into
+application configuration when customizing it; optional module publication does
+not own this file.
 
 Available drivers:
 
@@ -53,7 +48,7 @@ Available drivers:
 | `array` | Tests and one-process ephemeral state | None |
 | `file` | Dependency-free local persistence | None |
 | `cache` | Shared/distributed sessions | Core `cache` capability; no module install |
-| `database` | DBLayer-backed persistence | `database` module and capability |
+| `database` | DBLayer-backed persistence | `data.database` feature |
 
 The selected store is constructed only when a session is first read or written.
 Unselected optional packages are not resolved. File and database expiry cleanup
@@ -70,16 +65,10 @@ run it outside request traffic and repeat bounded batches for large stores.
 Database pruning uses a bounded ID query and delete. Cache stores use backend TTL
 and report zero explicit prunes.
 
-For the database driver, inspect/install the portable Foundation session schema
-through the canonical module schema commands:
-
-```bash
-php infbyte module:schema:status session --connection=mysql
-php infbyte module:schema:install session --connection=mysql
-```
-
-`module:schema:sync` also installs the session schema when the current
-configuration selects `session.driver=database`.
+For the database driver, provision the Core schema through
+`SessionDatabaseSchema::install($connection)` inside a CLI execution, and inspect
+it with `readiness($connection)`. See [Core schema provisioning](database.md).
+`module:schema:sync` operates on enabled optional features only.
 
 The table contains a 64-character primary session ID, the encoded payload, and
 an indexed expiry timestamp. Foundation delegates schema grammar to DBLayer

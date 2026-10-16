@@ -8,7 +8,7 @@ namespace Infocyph\Foundation\Benchmarks\Support;
 final class FoundationModuleCliComparison
 {
     /** @var list<string> */
-    private const array COMMANDS = ['list', 'show', 'doctor', 'plan', 'install_dry_run', 'remove_dry_run'];
+    private const array COMMANDS = ['list', 'show', 'doctor', 'plan', 'install_dry_run', 'remove_dry_run', 'enable'];
 
     /**
      * @param array<string,mixed> $baseline

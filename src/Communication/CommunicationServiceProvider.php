@@ -27,7 +27,7 @@ final class CommunicationServiceProvider extends ServiceProvider
     {
         if (!class_exists(HttpClient::class)) {
             throw new \LogicException(
-                'Foundation communication services require infocyph/talkingbytes; run "php infbyte module:install communication".',
+                'Foundation communication services require infocyph/talkingbytes; run "php infbyte module:install execution.communication".',
             );
         }
 

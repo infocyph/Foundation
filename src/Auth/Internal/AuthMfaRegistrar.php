@@ -27,8 +27,8 @@ final readonly class AuthMfaRegistrar extends AbstractAuthRegistrar
     public function register(AuthDriverResolver $drivers): void
     {
         if ($drivers->mfa() === AuthMfaDriver::OTP) {
-            $this->requirePackage(TOTP::class, 'infocyph/otp', 'otp');
-            $this->requirePackage(KeyDeriver::class, 'infocyph/epicrypt', 'crypto');
+            $this->requirePackage(TOTP::class, 'infocyph/otp', 'security.mfa');
+            $this->requirePackage(KeyDeriver::class, 'infocyph/epicrypt', 'security.crypto');
             $this->registerOtpSupport();
             $this->registerOtpDriver();
 

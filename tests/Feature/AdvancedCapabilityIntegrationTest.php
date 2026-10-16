@@ -55,6 +55,17 @@ it('supports secure HOTP and OCRA MFA workflows', function (): void {
 
         $firstChallenge = $mfa->issueChallenge('account-hotp', factorId: $hotpFactorId);
         $firstVerification = $mfa->verifyChallenge((string) $firstChallenge->challenge?->id, $hotp->generate(0));
+        expect($firstVerification->successful())->toBeTrue();
+        $stepUp = $app->make(AuthServices::class)->stepUp();
+        $now = time();
+        $session = new \Infocyph\Foundation\Auth\Authentication\Session\AuthSession(
+            'verified-hotp-session', 'account-hotp', null, $now, $now, $now + 300, $now,
+        );
+        expect($stepUp->requiresStepUp($session, 'payment', ['method' => 'mfa']))->toBeTrue();
+        $stepUp->markSatisfied($session->accountId, $session->id, 'payment', \Infocyph\Foundation\Auth\Authentication\StepUp\StepUpMethod::MFA);
+        expect($stepUp->requiresStepUp($session, 'payment', ['method' => 'mfa']))->toBeFalse()
+            ->and($stepUp->requiresStepUp($session, 'payment', ['method' => 'passkey']))->toBeTrue()
+            ->and($stepUp->requiresStepUp($session, 'other-payment', ['method' => 'mfa']))->toBeTrue();
         $replayedChallenge = $mfa->issueChallenge('account-hotp', factorId: $hotpFactorId);
         $replayedVerification = $mfa->verifyChallenge((string) $replayedChallenge->challenge?->id, $hotp->generate(0));
         $secondVerification = $mfa->verifyChallenge((string) $replayedChallenge->challenge?->id, $hotp->generate(1));

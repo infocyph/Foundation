@@ -19,7 +19,7 @@ final class SecurityServiceProvider extends ServiceProvider
     {
         if (!class_exists(AeadCipher::class)) {
             throw new \LogicException(
-                'Foundation security services require infocyph/epicrypt; run "php infbyte module:install crypto".',
+                'Foundation security services require infocyph/epicrypt; run "php infbyte module:install security.crypto".',
             );
         }
 

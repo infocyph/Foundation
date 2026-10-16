@@ -28,7 +28,7 @@ final readonly class DBLayerPasswordResetStore extends DBLayerConsumableStore im
             $apply();
 
             return true;
-        }) === true;
+        }, attempts: 3) === true;
     }
 
     public function find(string $requestId): ?PasswordResetRequest

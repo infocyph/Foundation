@@ -21,7 +21,7 @@ final class AuthOtpServiceProvider extends ServiceProvider
     {
         if (!class_exists(TOTP::class)) {
             throw new \LogicException(
-                'Foundation OTP services require infocyph/otp; run "php infbyte module:install otp".',
+                'Foundation OTP services require infocyph/otp; run "php infbyte module:install security.mfa".',
             );
         }
 

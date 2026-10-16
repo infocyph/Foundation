@@ -7,7 +7,7 @@ REQUESTS="${FOUNDATION_HOST_REQUESTS:-900}"
 REPEATS="${FOUNDATION_HOST_REPEATS:-3}"
 SOAK_SECONDS="${FOUNDATION_HOST_SOAK_SECONDS:-0}"
 PROFILE="${FOUNDATION_HOST_WORKLOAD_PROFILE:-json-minimal}"
-if [[ "$PROFILE" != "json-minimal" && "$PROFILE" != "native-read" ]]; then
+if [[ "$PROFILE" != "json-minimal" && "$PROFILE" != "native-read" && "$PROFILE" != "authenticated-read" ]]; then
     echo "Unsupported Foundation 4 workload profile: $PROFILE" >&2
     exit 1
 fi
@@ -20,6 +20,13 @@ FPM_BIN="${FOUNDATION_HOST_FPM_BIN:-php-fpm8.4}"
 PORT_FPM="${FOUNDATION_HOST_FPM_PORT:-18780}"
 PORT_RUNWIRE="${FOUNDATION_HOST_RUNWIRE_PORT:-18781}"
 PORT_FCGI="${FOUNDATION_HOST_FCGI_PORT:-18790}"
+if [[ "$PROFILE" == "authenticated-read" ]]; then
+    ENDPOINT="/authenticated"
+    export FOUNDATION_HOST_AUTH_SECRET="${FOUNDATION_HOST_AUTH_SECRET:-$(php -r 'echo bin2hex(random_bytes(32));')}"
+    export FOUNDATION_HOST_MFA_SECRET="${FOUNDATION_HOST_MFA_SECRET:-$(php -r 'echo rtrim(strtr(base64_encode(random_bytes(32)), "+/", "-_"), "=");')}"
+    export AUTH_OTP_RECOVERY_HMAC_KEY="${AUTH_OTP_RECOVERY_HMAC_KEY:-$(php -r 'echo bin2hex(random_bytes(32));')}"
+fi
+AUTHORIZATION=""
 SERVICE_PID=""
 PROXY_PID=""
 SAMPLER_PID=""
@@ -97,11 +104,14 @@ start_sampler() {
 }
 
 assert_ready() {
-    local url="$1" body
+    local url="$1" body response
     for _ in $(seq 1 100); do
-        if body="$(curl --silent --fail --max-time 2 "$url$ENDPOINT" 2>/dev/null)" &&
-            [[ "$body" == '{"ok":true}' ]]; then
-            return 0
+        if response="$(curl --silent --fail --max-time 2 -H "Authorization: $AUTHORIZATION" --write-out $'\n%{time_total}' "$url$ENDPOINT" 2>/dev/null)"; then
+            body="${response%$'\n'*}"
+            if [[ "$body" == '{"ok":true}' ]]; then
+                READY_REQUEST_SECONDS="${response##*$'\n'}"
+                return 0
+            fi
         fi
         if [[ -n "$SERVICE_PID" ]] && ! kill -0 "$SERVICE_PID" 2>/dev/null; then
             echo "Host exited before readiness: $url" >&2
@@ -236,14 +246,24 @@ start_runwire() {
     SERVICE_PID=$!
 }
 
-for host in fpm runwire; do
+read -r -a hosts <<< "${FOUNDATION_HOST_FILTER_HOST:-fpm runwire}"
+read -r -a worker_counts <<< "${FOUNDATION_HOST_FILTER_WORKERS:-1 4}"
+read -r -a concurrency_levels <<< "${FOUNDATION_HOST_FILTER_CONCURRENCY:-1 10 50}"
+for host in "${hosts[@]}"; do
+    [[ "$host" == "fpm" || "$host" == "runwire" ]] || exit 1
     app="$OUTPUT/$host-app"
     FOUNDATION_HOST_RUNWIRE=$([[ "$host" == "runwire" ]] && echo 1 || echo 0) \
         PHASE9_SERVER_APP="$app" \
         PHASE9_SERVER_COMPILE_OUTPUT="$OUTPUT/$host-compile.json" \
         php "$ROOT/benchmarks/phase9-server-compile.php" > "$OUTPUT/$host-compile.log"
 
-    for workers in 1 4; do
+    if [[ "$PROFILE" == "authenticated-read" ]]; then
+        AUTHORIZATION="$(cat "$app/authorization.txt")"
+        export FOUNDATION_HOST_AUTHORIZATION="$AUTHORIZATION"
+    fi
+    for workers in "${worker_counts[@]}"; do
+        [[ "$workers" == "1" || "$workers" == "4" ]] || exit 1
+        boot_started="$(date +%s.%N)"
         if [[ "$host" == "fpm" ]]; then
             start_fpm "$workers" "$app"
             url="http://127.0.0.1:$PORT_FPM"
@@ -252,11 +272,15 @@ for host in fpm runwire; do
             url="http://127.0.0.1:$PORT_RUNWIRE"
         fi
         assert_ready "$url"
+        boot_finished="$(date +%s.%N)"
+        php -r 'file_put_contents($argv[1], json_encode(["startup_to_ready_ms" => round(((float) $argv[3] - (float) $argv[2]) * 1000, 3), "first_valid_request_ms" => round((float) $argv[4] * 1000, 3)], JSON_THROW_ON_ERROR) . PHP_EOL);' \
+            "$OUTPUT/$host-w$workers.startup.json" "$boot_started" "$boot_finished" "$READY_REQUEST_SECONDS"
 
-        for concurrency in 1 10 50; do
+        for concurrency in "${concurrency_levels[@]}"; do
+            [[ "$concurrency" == "1" || "$concurrency" == "10" || "$concurrency" == "50" ]] || exit 1
             for repetition in $(seq 1 "$REPEATS"); do
                 prefix="$host-w$workers-c$concurrency-r$repetition"
-                body="$(curl --silent --show-error --fail --max-time 3 "$url$ENDPOINT")"
+                body="$(curl --silent --show-error --fail --max-time 3 -H "Authorization: $AUTHORIZATION" "$url$ENDPOINT")"
                 [[ "$body" == '{"ok":true}' ]] || {
                     echo "$prefix: invalid JSON before load" >&2
                     exit 1
@@ -271,7 +295,7 @@ for host in fpm runwire; do
                 kill "$SAMPLER_PID" 2>/dev/null || true
                 wait "$SAMPLER_PID" 2>/dev/null || true
                 SAMPLER_PID=""
-                body="$(curl --silent --show-error --fail --max-time 3 "$url$ENDPOINT")"
+                body="$(curl --silent --show-error --fail --max-time 3 -H "Authorization: $AUTHORIZATION" "$url$ENDPOINT")"
                 [[ "$body" == '{"ok":true}' ]] || {
                     echo "$prefix: invalid JSON after load" >&2
                     exit 1

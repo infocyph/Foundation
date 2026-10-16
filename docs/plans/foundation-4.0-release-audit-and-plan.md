@@ -1,3 +1,62 @@
+## 2026-10-16 — Pre-merge adversarial remediation and paired-host verification
+
+This checkpoint supersedes older statements that ordinary native operations,
+real Composer churn and independent persisted auth contention have no executable
+coverage. The three published specialist patches are integrated. The release
+count remains **19/37 pending final immutable-source acceptance** until the
+configured hosted matrices and strict matched comparison complete.
+
+- R2: actual HOTP verification and a freshly signed native WebAuthn assertion feed
+  method-specific step-up acceptance. Other methods/sessions and replay remain
+  rejected. No Foundation verification engine or new step-up wrapper was added.
+- R3/R4/R7/R10: independent child processes contend through native SQLite, MySQL
+  and PostgreSQL stores for reset/email/refresh/remember/session/passkey state.
+  Exactly one transition wins; reset/account mutation rollback and revocation
+  before session rotation are exercised. Token replacement collisions were
+  reproduced and corrected with native transactional insertion. MySQL's invalid
+  1024-character credential unique index was replaced by a full text value and a
+  bounded SHA3-256 identity index, with case-sensitive opaque-ID regression tests.
+- R6: ordinary native DBLayer and Omnibus operations receive the published context
+  providers. A structured child is cancelled during active cursor consumption
+  while its parent remains usable. TalkingBytes email factories now forward the
+  same passed native context; compiled cancellation/restoration coverage passes.
+- R8: a real Composer downgrade races staged publication, which fails closed,
+  preserves original configuration and permits compatible retry. A second process
+  enables a feature after a removal snapshot; stale removal is rejected before
+  Composer changes dependencies. Authoritative policy files are reloaded for a
+  new snapshot, and publication compares both configuration and Composer bytes.
+  External writers must share `.foundation-module-composer.lock` or be quiesced;
+  drift checks do not serialize an external writer that ignores the lock.
+- Current CLI diagnostics/setup examples use the nine qualified feature IDs and
+  existing typed Core auth/session schema services. Obsolete public aliases are
+  not retained as compatibility shims.
+
+Local evidence: final Docker authenticated host smoke passed **12 scenarios,
+24 load runs and four 30-second soak windows**, including FPM/native Runwire,
+replacement, cancellation and error recovery. Isolated published stable/lowest
+production consumers passed Core, database and all-selected no-dev topologies
+with 13 selected configurations per dependency mode. Full PHPForge QA is being
+rerun after the last regression additions; hosted certification is still pending.
+
+**Approved host environment:** the user explicitly selected GitHub workflow
+verification and local Docker. The paired workflow uses baseline
+`6274939c395f75e5cf777aad5d7439f10792758c`, the final candidate SHA, one frozen
+Composer lock and candidate-owned identical benchmark tooling. Every one of the
+12 host/worker/concurrency scenarios pairs both revisions on the **same runner**;
+physical identity is verified per scenario. Workload responses require a real
+bearer principal, permission check, PostgreSQL reads and a validated Redis hit.
+Five repetitions of at least 30 seconds, CV <=2.5% and <=2% median successful-RPM
+regression remain mandatory. Four-worker soak jobs include two 120-second
+windows per revision. Cold compile/first-ready-request and before/after CLI
+metrics are diagnostic records alongside sustained warm throughput. A shared
+runner is not a deployment-specific capacity certificate; unstable evidence
+remains inconclusive and cannot be silently accepted.
+
+Current local logs/artifacts: `/tmp/foundation-premerge-*`; immutable workflow
+references and dependency manifests will replace this pending checkpoint after
+execution. PR #20 stays draft while required gates are open. No merge, tag,
+publication or Infbyte migration is part of this pre-merge execution.
+
 ## 2026-10-16 — Published native patches integrated; local Foundation QA passes
 
 **Source:** uncommitted Foundation changes based on `6274939c395f75e5cf777aad5d7439f10792758c` on `feature/foundation-3`. The user published the three prerequisite patches. Their actual Composer distributions are now installed; no sibling path override or development alias is used. This checkpoint supersedes the publication wait and the ordinary DBLayer/Omnibus forwarding gap described in the older checkpoints below. It does not certify the final release.

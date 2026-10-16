@@ -28,7 +28,7 @@ final readonly class DBLayerEmailVerificationStore extends DBLayerConsumableStor
             $apply();
 
             return true;
-        }) === true;
+        }, attempts: 3) === true;
     }
 
     public function find(string $requestId): ?EmailVerificationRequest

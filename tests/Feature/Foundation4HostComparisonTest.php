@@ -127,3 +127,36 @@ it('rejects identical immutable baseline and candidate sources even at identical
     expect(fn(): array => Foundation4HostComparison::compare($source, $source))
         ->toThrow(InvalidArgumentException::class, 'distinct immutable baseline/candidate commits');
 });
+
+it('requires matching physical runner identity for every paired scenario', function (): void {
+    $base = foundationHostFixture();
+    $candidate = foundationHostFixture(candidate: true);
+    $base['hosts']['fpm'][0]['hardware_id'] = 'runner-one';
+    $candidate['hosts']['fpm'][0]['hardware_id'] = 'runner-two';
+
+    expect(fn() => Foundation4HostComparison::compare($base, $candidate))
+        ->toThrow(InvalidArgumentException::class, 'scenario hardware differs');
+});
+
+it('requires authenticated query and cache evidence from every successful response', function (): void {
+    $base = foundationHostFixture();
+    $candidate = foundationHostFixture(candidate: true);
+    foreach ([&$base, &$candidate] as &$report) {
+        $report['workload_profile'] = 'authenticated-read';
+        foreach ($report['hosts'] as &$cases) {
+            foreach ($cases as &$case) {
+                foreach ($case['runs'] as &$run) {
+                    $run += ['authenticated' => true, 'database_queries' => 2000, 'application_cache_hits' => 1000];
+                }
+                unset($run);
+            }
+            unset($case);
+        }
+        unset($cases);
+    }
+    unset($report);
+    expect(Foundation4HostComparison::compare($base, $candidate)['passed'])->toBeTrue();
+    $candidate['hosts']['runwire'][0]['runs'][0]['application_cache_hits'] = 999;
+    expect(fn() => Foundation4HostComparison::compare($base, $candidate))
+        ->toThrow(InvalidArgumentException::class, 'query/cache evidence is incomplete');
+});

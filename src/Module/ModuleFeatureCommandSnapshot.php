@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Module;
 
 use Infocyph\Foundation\Application\Application;
+use Infocyph\Foundation\Config\ConfigLoader;
+use Infocyph\Foundation\Config\ConfigRepository;
 
 /**
  * CLI-only fresh Composer/project snapshot for the v2 feature planner.
@@ -16,10 +18,28 @@ final readonly class ModuleFeatureCommandSnapshot
 {
     public function __construct(private Application $application) {}
 
+    /** @phpstan-param Context $context */
+    public function assertCurrent(array $context, bool $includingActivation = true): void
+    {
+        if (isset($context['composer_fingerprint']) && $context['composer_fingerprint'] !== $this->composerFingerprint()) {
+            throw new \RuntimeException('Application Composer metadata changed; re-plan before applying.');
+        }
+        if (!isset($context['configuration_fingerprint'], $context['activation_fingerprint'])) {
+            return;
+        }
+        $current = $this->configurationFingerprint();
+        if ($context['configuration_fingerprint'] !== $current['sources']
+            || ($includingActivation && $context['activation_fingerprint'] !== $current['activation'])
+        ) {
+            throw new \RuntimeException('Feature configuration changed; re-plan before applying.');
+        }
+    }
+
     /** @phpstan-return Context */
     public function capture(): array
     {
-        $config = $this->application->config();
+        $configuration = $this->configurationFingerprint();
+        $config = $this->sourceConfiguration();
         $flags = ModuleFeatureCapabilityPolicy::fromConfig($config) ?? [];
         $enabled = [];
         foreach ($flags as $name => $active) {
@@ -35,7 +55,13 @@ final readonly class ModuleFeatureCommandSnapshot
             throw new \RuntimeException('Composer metadata changed while capturing the feature snapshot; retry.');
         }
 
+        if ($configuration !== $this->configurationFingerprint()) {
+            throw new \RuntimeException('Application configuration changed while capturing the feature snapshot; retry.');
+        }
+
         return [
+            'configuration_fingerprint' => $configuration['sources'],
+            'activation_fingerprint' => $configuration['activation'],
             'root_known' => $root['known'],
             'root_requirements' => $root['requirements'],
             'installed' => $installed,
@@ -54,7 +80,7 @@ final readonly class ModuleFeatureCommandSnapshot
      * Change detector, not a security signature. Both the CLI and the locked
      * activation path read the same authoritative Composer root/lock/install data.
      */
-    public function composerFingerprint(): string
+    private function composerFingerprint(): string
     {
         return hash('xxh3', serialize($this->composerMetadata()));
     }
@@ -78,6 +104,34 @@ final readonly class ModuleFeatureCommandSnapshot
         }
 
         return $parts;
+    }
+
+    /** @return array{sources:string,activation:string} */
+    private function configurationFingerprint(): array
+    {
+        $directory = $this->application->configPath();
+        if (is_link($directory)) {
+            throw new \RuntimeException('Module configuration directory must not be symlinked.');
+        }
+        $sources = [];
+        foreach (glob($directory . '/*.php') ?: [] as $file) {
+            if (is_link($file)) {
+                throw new \RuntimeException('Module configuration sources must not be symlinked.');
+            }
+            $bytes = file_get_contents($file);
+            if ($bytes === false) {
+                throw new \RuntimeException('Unable to read module configuration source.');
+            }
+            $sources[basename($file)] = $bytes;
+        }
+        $activation = $sources['modules.php'] ?? null;
+        unset($sources['modules.php']);
+        ksort($sources);
+
+        return [
+            'sources' => hash('xxh3', serialize($sources)),
+            'activation' => hash('xxh3', serialize($activation)),
+        ];
     }
 
     /** @return array<string,string> */
@@ -158,5 +212,21 @@ final readonly class ModuleFeatureCommandSnapshot
         }
 
         return ['known' => true, 'requirements' => $requirements];
+    }
+
+    private function sourceConfiguration(): ConfigRepository
+    {
+        $existing = $this->application->config();
+        $fresh = new ConfigLoader()->load([
+            'app' => ['base_path' => $this->application->basePath(), 'load_env' => false],
+            'paths' => ['config' => $this->application->configPath()],
+            '_config_cache' => false,
+        ]);
+        $values = $existing->all();
+        foreach (array_unique([...$existing->lazyNamespaces(), ...$fresh->lazyNamespaces()]) as $namespace) {
+            $values[$namespace] = $fresh->get($namespace);
+        }
+
+        return new ConfigRepository($values);
     }
 }

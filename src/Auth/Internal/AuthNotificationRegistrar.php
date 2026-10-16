@@ -40,7 +40,7 @@ final readonly class AuthNotificationRegistrar extends AbstractAuthRegistrar
     public function register(AuthDriverResolver $drivers): void
     {
         if ($drivers->notifications() === AuthNotificationDriver::TALKINGBYTES) {
-            $this->requirePackage(Emailer::class, 'infocyph/talkingbytes', 'communication');
+            $this->requirePackage(Emailer::class, 'infocyph/talkingbytes', 'execution.communication');
             $this->recipe(AuthNotificationMapper::class, AuthNotificationMapper::class, [
                 $this->ref(NotificationTemplateRegistry::class),
             ]);

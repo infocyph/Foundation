@@ -23,7 +23,7 @@ final class ValidationServiceProvider extends ServiceProvider
     {
         if (!class_exists(Validator::class)) {
             throw new \LogicException(
-                'Foundation validation services require infocyph/reqshield; run "php infbyte module:install validation".',
+                'Foundation validation services require infocyph/reqshield; run "php infbyte module:install security.validation".',
             );
         }
 

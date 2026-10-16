@@ -18,6 +18,9 @@ function f4HostLoad(string $path, int $expectedRequests): array
 
     return [
         'requests' => (int) $result['requests'],
+        'database_queries' => (int) ($result['database_queries'] ?? 0),
+        'application_cache_hits' => (int) ($result['application_cache_hits'] ?? 0),
+        'authenticated' => ($result['authenticated'] ?? false) === true,
         'successful' => (int) $result['successful'],
         'failed' => (int) $result['failed'],
         'rpm' => (float) $result['rpm'],
@@ -92,6 +95,8 @@ $result = [
     // non-certifiable until a physically matched baseline/candidate exists.
     'hardware_id' => getenv('FOUNDATION_CERTIFICATION_HOST_ID') ?: null,
     'workload_profile' => getenv('FOUNDATION_HOST_WORKLOAD_PROFILE') ?: 'json-minimal',
+    'tool_sha' => getenv('FOUNDATION_HOST_TOOL_SHA') ?: null,
+    'fixture_id' => getenv('FOUNDATION_HOST_WORKLOAD_PROFILE') === 'authenticated-read' ? 'foundation-auth-postgres-redis-v1' : null,
     'composer_lock_sha256' => is_file(dirname(__DIR__) . '/composer.lock')
         ? hash_file('sha256', dirname(__DIR__) . '/composer.lock')
         : null,
@@ -99,14 +104,18 @@ $result = [
     'request_count' => $requests,
     'repetitions' => $repeats,
     'soak_window_seconds' => (int) (getenv('FOUNDATION_HOST_SOAK_SECONDS') ?: 0),
-    'endpoint' => (getenv('FOUNDATION_HOST_WORKLOAD_PROFILE') === 'native-read' ? '/native' : '/json'),
+    'endpoint' => match (getenv('FOUNDATION_HOST_WORKLOAD_PROFILE')) {
+        'native-read' => '/native',
+        'authenticated-read' => '/authenticated',
+        default => '/json',
+    },
     'protocol' => 'HTTP/1.1 with per-response status/body checks',
     'hosts' => [],
 ];
 
-foreach (['fpm', 'runwire'] as $host) {
-    foreach ([1, 4] as $workers) {
-        foreach ([1, 10, 50] as $concurrency) {
+foreach (getenv('FOUNDATION_HOST_FILTER_HOST') ? [getenv('FOUNDATION_HOST_FILTER_HOST')] : ['fpm', 'runwire'] as $host) {
+    foreach (getenv('FOUNDATION_HOST_FILTER_WORKERS') ? [(int) getenv('FOUNDATION_HOST_FILTER_WORKERS')] : [1, 4] as $workers) {
+        foreach (getenv('FOUNDATION_HOST_FILTER_CONCURRENCY') ? [(int) getenv('FOUNDATION_HOST_FILTER_CONCURRENCY')] : [1, 10, 50] as $concurrency) {
             $runs = [];
             $rpms = [];
             for ($i = 1; $i <= $repeats; $i++) {
@@ -133,7 +142,7 @@ if ($soakSeconds > 0) {
     }
 
     $result['soak'] = [];
-    foreach (['fpm', 'runwire'] as $host) {
+    foreach (getenv('FOUNDATION_HOST_FILTER_HOST') ? [getenv('FOUNDATION_HOST_FILTER_HOST')] : ['fpm', 'runwire'] as $host) {
         $windows = [];
         foreach ([1, 2] as $period) {
             $prefix = sprintf('%s-soak-w4-c10-p%d', $host, $period);

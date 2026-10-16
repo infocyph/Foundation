@@ -49,7 +49,7 @@ final class FilesystemServiceProvider extends ServiceProvider
 
         if (!class_exists(StorageContext::class)) {
             throw new \LogicException(
-                'Foundation filesystem services require infocyph/pathwise ^4.1; run "php infbyte module:install filesystem".',
+                'Foundation filesystem services require infocyph/pathwise ^4.2; run "php infbyte module:install data.filesystem".',
             );
         }
 

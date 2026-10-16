@@ -54,7 +54,7 @@ final readonly class EnvironmentFileProtector
     {
         if (!class_exists(FileProtector::class)) {
             throw new \LogicException(
-                'Environment encryption requires the security module; run "php infbyte module:install security".',
+                'Environment encryption requires the security module; run "php infbyte module:install security.crypto".',
             );
         }
     }

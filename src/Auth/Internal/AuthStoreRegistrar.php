@@ -89,7 +89,7 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
     public function register(AuthDriverResolver $drivers): void
     {
         if ($drivers->storage() === AuthStorageDriver::DATABASE) {
-            $this->requirePackage(Connection::class, 'infocyph/dblayer', 'db');
+            $this->requirePackage(Connection::class, 'infocyph/dblayer', 'data.database');
             $this->registerDBLayerStores($drivers->mfa() === AuthMfaDriver::OTP);
 
             return;
@@ -124,7 +124,7 @@ final readonly class AuthStoreRegistrar extends AbstractAuthRegistrar
         ];
 
         if ($protectSecrets) {
-            $this->requirePackage(StringProtector::class, 'infocyph/epicrypt', 'crypto');
+            $this->requirePackage(StringProtector::class, 'infocyph/epicrypt', 'security.crypto');
             $this->staticRecipe(
                 MfaSecretProtector::class,
                 AuthMfaGraphFactory::class,

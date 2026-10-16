@@ -32,8 +32,8 @@ final readonly class AuthPasskeyRegistrar extends AbstractAuthRegistrar
         }
 
         if ($driver === AuthPasskeyDriver::WEBAUTHN) {
-            $this->requirePackage(Passkey::class, 'infocyph/otp', 'passkeys');
-            $this->requirePackage(PublicKeyCredential::class, 'web-auth/webauthn-lib', 'passkeys');
+            $this->requirePackage(Passkey::class, 'infocyph/otp', 'security.passkey');
+            $this->requirePackage(PublicKeyCredential::class, 'web-auth/webauthn-lib', 'security.passkey');
             $this->recipe(WebAuthnConfigResolver::class, WebAuthnConfigResolver::class, [
                 $this->ref(ConfigRepository::class),
             ]);

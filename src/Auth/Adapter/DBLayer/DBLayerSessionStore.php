@@ -73,7 +73,7 @@ final readonly class DBLayerSessionStore extends DBLayerStore implements Session
             $this->create($replacement);
 
             return true;
-        }) === true;
+        }, attempts: 3) === true;
     }
 
     public function touch(string $sessionId, int $lastSeenAt): void

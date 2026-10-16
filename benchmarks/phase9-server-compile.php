@@ -9,6 +9,12 @@ use Infocyph\Foundation\Routing\WebReleaseCompiler;
 require dirname(__DIR__) . '/vendor/autoload.php';
 
 $repository = dirname(__DIR__);
+$profile = getenv('FOUNDATION_HOST_WORKLOAD_PROFILE') ?: 'json-minimal';
+$runwireEnabled = getenv('FOUNDATION_HOST_RUNWIRE') === '1';
+$selectedCapabilities = $runwireEnabled ? ['runwire'] : [];
+if ($profile === 'authenticated-read') {
+    array_push($selectedCapabilities, 'auth', 'cache', 'notifications', 'database', 'security', 'otp', 'communication');
+}
 $app = getenv('PHASE9_SERVER_APP') ?: $repository . '/build/phase9-server-app';
 $app = rtrim($app, DIRECTORY_SEPARATOR);
 \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::removeDirectory($app);
@@ -26,11 +32,13 @@ $routeSource = <<<'PHP'
 declare(strict_types=1);
 
 use Infocyph\Foundation\Benchmarks\Phase9NativeReadHandler;
+use Infocyph\Foundation\Benchmarks\Foundation4AuthenticatedWorkload;
 use Infocyph\Foundation\Benchmarks\Phase9ServerHandler;
 use Infocyph\Webrick\Router\Facade\Router;
 
 Router::get('/json', [Phase9ServerHandler::class, 'json']);
 Router::get('/native', [Phase9NativeReadHandler::class, 'read']);
+Router::get('/authenticated', [Foundation4AuthenticatedWorkload::class, 'read']);
 Router::get('/failure', [Phase9ServerHandler::class, 'failure']);
 Router::get('/slow', [Phase9ServerHandler::class, 'slow']);
 PHP;
@@ -53,6 +61,10 @@ $sourceConfig = [
         ],
     ],
 ];
+if ($profile === 'authenticated-read') {
+    $sourceConfig = array_replace_recursive($sourceConfig, \Infocyph\Foundation\Benchmarks\Foundation4AuthenticatedWorkload::configuration($app));
+    \Infocyph\Foundation\Benchmarks\Foundation4AuthenticatedWorkload::seed($sourceConfig, $app);
+}
 $configCache = $app . '/bootstrap/cache/config';
 $configLoader = new ConfigLoader();
 $normalizedConfig = $configLoader->load($sourceConfig + ['_config_cache' => false]);
@@ -64,9 +76,7 @@ $configLoader->writeCache(
 );
 $config = $sourceConfig + ['_config_cache' => $configCache];
 
-$profile = getenv('FOUNDATION_HOST_WORKLOAD_PROFILE') ?: 'json-minimal';
-
-if (!in_array($profile, ['json-minimal', 'native-read'], true)) {
+if (!in_array($profile, ['json-minimal', 'native-read', 'authenticated-read'], true)) {
     throw new RuntimeException('Unsupported native HTTP benchmark profile.');
 }
 
@@ -108,8 +118,7 @@ if ($profile === 'native-read') {
 }
 
 $manifest = $app . '/bootstrap/cache/release.json';
-$runwireEnabled = getenv('FOUNDATION_HOST_RUNWIRE') === '1';
-$selectedCapabilities = $runwireEnabled ? ['runwire'] : [];
+$compileStarted = hrtime(true);
 $release = new WebReleaseCompiler()->compile(
     $config,
     $app . '/bootstrap/cache/intermix.php',
@@ -155,9 +164,9 @@ WebReleaseRuntime::loadPrevalidated(
     $config,
     dirname(__DIR__) . '/bootstrap/cache/release.json',
     $trustedManifestSha256,
-    foundationCapabilities: [],
+    foundationCapabilities: %s,
 )->server->handle();
-PHP, var_export($autoload, true));
+PHP, var_export($autoload, true), var_export($selectedCapabilities, true));
 file_put_contents($app . '/public/index.php', $frontController . PHP_EOL, LOCK_EX);
 
 if ($runwireEnabled) {
@@ -186,7 +195,7 @@ $factory = new class implements RuntimeApplicationFactoryInterface {
             require __DIR__ . '/config.php',
             __DIR__ . '/bootstrap/cache/release.json',
             require __DIR__ . '/trust.php',
-            foundationCapabilities: ['runwire'],
+            foundationCapabilities: %s,
         );
 
         return $release->runwireApplication($runtime);
@@ -199,7 +208,7 @@ Runtime::create()
 PHP;
     file_put_contents(
         $app . '/runwire-server.php',
-        sprintf($nativeEntry, var_export($autoload, true)) . PHP_EOL,
+        sprintf($nativeEntry, var_export($autoload, true), var_export($selectedCapabilities, true)) . PHP_EOL,
         LOCK_EX,
     );
 }
@@ -222,6 +231,7 @@ file_put_contents($app . '/public/opcache.php', $opcacheProbe . PHP_EOL, LOCK_EX
 
 $result = [
     'schema' => 1,
+    'compile_ms' => round((hrtime(true) - $compileStarted) / 1_000_000, 3),
     'app' => $app,
     'document_root' => $app . '/public',
     'config_cache' => $configCache,

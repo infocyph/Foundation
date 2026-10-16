@@ -8,7 +8,7 @@ use Infocyph\Foundation\Benchmarks\Support\FoundationModuleCliComparison;
 function b7ModuleCliReport(float $duration = 5.0): array
 {
     $commands = [];
-    foreach (['list', 'show', 'doctor', 'plan', 'install_dry_run', 'remove_dry_run'] as $name) {
+    foreach (['list', 'show', 'doctor', 'plan', 'install_dry_run', 'remove_dry_run', 'enable'] as $name) {
         $commands[$name] = [
             'cold_ms' => $duration * 2, 'warm_p50_ms' => $duration,
             'warm_p95_ms' => $duration * 1.5, 'warm_p99_ms' => $duration * 2,
@@ -30,7 +30,7 @@ it('reports v2 cold/warm CLI deltas without treating a microbenchmark as matched
     $result = FoundationModuleCliComparison::compare(b7ModuleCliReport(), $candidate);
 
     expect($result['host_rpm_certified'])->toBeFalse()
-        ->and($result['commands'])->toHaveCount(6)
+        ->and($result['commands'])->toHaveCount(7)
         ->and($result['commands'][0]['metrics']['warm_p50_ms']['delta_percent'])->toBe(10.0);
 });
 

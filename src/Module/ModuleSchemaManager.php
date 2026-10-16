@@ -100,7 +100,7 @@ final readonly class ModuleSchemaManager
                 $applicable,
                 false,
                 'unavailable',
-                'Requires the database module; run "php infbyte module:install database".',
+                'Requires the database module; run "php infbyte module:install data.database".',
             );
         }
 
@@ -161,7 +161,7 @@ final readonly class ModuleSchemaManager
                 $applicable,
                 false,
                 'unavailable',
-                'Requires the messaging module; run "php infbyte module:install messaging".',
+                'Requires the messaging module; run "php infbyte module:install execution.messaging".',
             );
         }
         if (!class_exists(\Infocyph\DBLayer\Connection\Connection::class)) {
@@ -171,7 +171,7 @@ final readonly class ModuleSchemaManager
                 $applicable,
                 false,
                 'unavailable',
-                'Durable messaging requires the database module; run "php infbyte module:install database".',
+                'Durable messaging requires the database module; run "php infbyte module:install data.database".',
             );
         }
 
@@ -250,7 +250,7 @@ final readonly class ModuleSchemaManager
                 $applicable,
                 false,
                 'unavailable',
-                'Requires the database module; run "php infbyte module:install database".',
+                'Requires the database module; run "php infbyte module:install data.database".',
             );
         }
 

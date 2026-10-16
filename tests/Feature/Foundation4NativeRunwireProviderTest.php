@@ -209,3 +209,62 @@ it('keeps the host coroutine scope in a structured child and stops native work a
         $request->complete();
     }
 });
+
+it('cancels only a child task while consuming a native cursor and keeps its host usable', function (): void {
+    $app = Foundation::worker([
+        'app' => ['capabilities' => ['runwire' => true, 'messaging' => true]],
+        'database' => ['default' => 'test', 'connections' => ['test' => ['driver' => 'sqlite', 'database' => ':memory:']]],
+        'messaging' => ['default_route' => ['transport' => 'memory']],
+    ])->boot();
+    $runtime = RuntimeContext::fromCapabilities(new \Infocyph\Runwire\RuntimeCapabilities(
+        \Infocyph\Runwire\Runtime\Enum\RuntimeDriver::NATIVE,
+        runwireLoopAvailable: true,
+        supportsRunwireCoroutines: true,
+    ), 'foundation-child-cancellation');
+    $request = RequestContext::create($runtime);
+    $state = (object) ['entered' => false, 'continued' => false];
+
+    try {
+        new \Infocyph\Runwire\Coroutine\CoroutineRuntime()->runRequest(
+            $request,
+            static function (\Infocyph\Runwire\Coroutine\CoroutineScope $scope) use ($app, $runtime, $request, $state): void {
+                $app->execution()->run(static function () use ($app, $scope, $request, $state): void {
+                    $captured = $app->runtime()->captureScopeContext();
+                    $child = $scope->spawn(static fn(): mixed => $app->execution()->withinBorrowedScope(
+                        $captured,
+                        static function () use ($app, $scope, $state, $request): void {
+                            $connection = $app->make(DBLayerFactory::class)->connection();
+                            foreach ($connection->stream('SELECT 314') as $row) {
+                                expect(array_values($row))->toBe([314])
+                                    ->and($connection->runwireBinding()['scope'])->toBe($scope)
+                                    ->and(CacheRunwire::current()?->request)->toBe($request);
+                                $state->entered = true;
+                                $scope->sleep(30);
+                                $state->continued = true;
+                            }
+                        },
+                    ));
+                    $until = microtime(true) + 5;
+                    while (!$state->entered && microtime(true) < $until) {
+                        $scope->yieldNow();
+                    }
+                    expect($state->entered)->toBeTrue()
+                        ->and($child->cancel(CancellationReason::HOST_CANCELLED))->toBeTrue()
+                        ->and(fn() => $child->await())->toThrow(CancelledException::class)
+                        ->and($state->continued)->toBeFalse()
+                        ->and($request->cancelled())->toBeFalse()
+                        ->and($scope->cancellation()->isCancelled())->toBeFalse()
+                        ->and(CacheRunwire::current()?->request)->toBe($request)
+                        ->and($app->make(DBLayerFactory::class)->connection()->scalar('SELECT 1'))->toBe(1)
+                        ->and($app->make(MessageBus::class)->dispatch(new stdClass()))
+                        ->toBeInstanceOf(\Infocyph\Omnibus\Envelope\Envelope::class);
+                }, [RuntimeContext::class => $runtime, RequestContext::class => $request, \Infocyph\Runwire\Coroutine\CoroutineScope::class => $scope]);
+            },
+        );
+        expect($request->completed())->toBeFalse()
+            ->and(CacheRunwire::current())->toBeNull()
+            ->and(CacheRunwire::runtime())->toBeNull();
+    } finally {
+        $request->complete();
+    }
+});

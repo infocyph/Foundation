@@ -19,7 +19,7 @@ final readonly class AuthPasswordRegistrar extends AbstractAuthRegistrar
     public function register(AuthDriverResolver $drivers): void
     {
         if ($drivers->passwords() === AuthPasswordDriver::SECURITY) {
-            $this->requirePackage(EpicryptPasswordEngine::class, 'infocyph/epicrypt', 'crypto');
+            $this->requirePackage(EpicryptPasswordEngine::class, 'infocyph/epicrypt', 'security.crypto');
             $this->recipe(PasswordHasherInterface::class, EpicryptPasswordHasher::class, [
                 $this->ref(EpicryptPasswordEngine::class),
             ]);

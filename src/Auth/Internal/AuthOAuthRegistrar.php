@@ -105,8 +105,8 @@ final readonly class AuthOAuthRegistrar extends AbstractAuthRegistrar
             return;
         }
 
-        $this->requirePackage(Connection::class, 'infocyph/dblayer', 'database');
-        $this->requirePackage(AsymmetricJwt::class, 'infocyph/epicrypt', 'crypto');
+        $this->requirePackage(Connection::class, 'infocyph/dblayer', 'data.database');
+        $this->requirePackage(AsymmetricJwt::class, 'infocyph/epicrypt', 'security.crypto');
 
         $this->registerFoundationStores();
         $this->registerFoundationPolicy();

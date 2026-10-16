@@ -74,7 +74,7 @@ it('restores independently created Foundation 4 auth and OAuth state from a veri
             'account_id' => 'f4-account',
             'client_id' => 'f4-client',
             'device_id' => null,
-            'token_hash' => hash('sha256', 'f4-refresh-material'),
+            'token_hash' => hash('sha3-256', 'f4-refresh-material'),
             'family_id' => 'f4-family',
             'issued_at' => $now - 60,
             'expires_at' => $now + 3600,
@@ -96,6 +96,7 @@ it('restores independently created Foundation 4 auth and OAuth state from a veri
             'id' => 'f4-passkey',
             'account_id' => 'f4-account',
             'credential_id' => 'f4-credential',
+            'credential_id_hash' => hash('sha3-256', 'f4-credential'),
             'credential_record' => $credential,
             'public_key' => 'opaque-f4-public-key',
             'sign_count' => 4,
@@ -108,7 +109,7 @@ it('restores independently created Foundation 4 auth and OAuth state from a veri
         ]);
         $writer->table($tables->oauthRefreshTokens())->insert([
             'id' => 'f4-oauth-refresh',
-            'token_hash' => hash('sha256', 'f4-oauth-material'),
+            'token_hash' => hash('sha3-256', 'f4-oauth-material'),
             'family_id' => 'f4-oauth-family',
             'client_id' => 'f4-client',
             'account_id' => 'f4-account',

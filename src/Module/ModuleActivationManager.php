@@ -57,20 +57,11 @@ final readonly class ModuleActivationManager
                     $operation,
                     $features,
                 ),
-                $context['composer_fingerprint'] ?? null,
+                $context,
             );
         } finally {
             flock($lock, LOCK_UN);
             fclose($lock);
-        }
-    }
-
-    private function assertComposerFreshness(?string $fingerprint): void
-    {
-        if ($fingerprint !== null
-            && $fingerprint !== new ModuleFeatureCommandSnapshot($this->application)->composerFingerprint()
-        ) {
-            throw new \RuntimeException('Application Composer metadata changed; re-plan before activation.');
         }
     }
 
@@ -165,8 +156,9 @@ final readonly class ModuleActivationManager
 
     /**
      * @param Closure(array<string,mixed>):array<string,mixed> $change
+     * @phpstan-param Context $context
      */
-    private function mutate(Closure $change, ?string $composerFingerprint): string
+    private function mutate(Closure $change, array $context): string
     {
         $path = $this->application->configPath('modules.php');
         $directory = dirname($path);
@@ -191,7 +183,7 @@ final readonly class ModuleActivationManager
                 throw new \RuntimeException('Unable to acquire safe module activation lock.');
             }
 
-            return $this->writeUnderLock($path, $change, $composerFingerprint);
+            return $this->writeUnderLock($path, $change, $context);
         } finally {
             flock($lock, LOCK_UN);
             fclose($lock);
@@ -221,7 +213,7 @@ final readonly class ModuleActivationManager
      */
     private function updateFeatureFlags(array $config, array $changes, array $context, string $operation, array $features): array
     {
-        $this->assertComposerFreshness($context['composer_fingerprint'] ?? null);
+        new ModuleFeatureCommandSnapshot($this->application)->assertCurrent($context);
 
         $flags = $this->assertFreshFeatureFlags($config, $context);
         foreach ($changes as $id => $active) {
@@ -236,8 +228,9 @@ final readonly class ModuleActivationManager
 
     /**
      * @param Closure(array<string,mixed>):array<string,mixed> $change
+     * @phpstan-param Context $context
      */
-    private function writeUnderLock(string $path, Closure $change, ?string $composerFingerprint): string
+    private function writeUnderLock(string $path, Closure $change, array $context): string
     {
         $directory = dirname($path);
         $previous = $this->load($path);
@@ -267,12 +260,12 @@ final readonly class ModuleActivationManager
             if (file_put_contents($temporary, $payload, LOCK_EX) !== strlen($payload)) {
                 throw new \RuntimeException('Unable to write module activation staging file.');
             }
-            $this->assertComposerFreshness($composerFingerprint);
+            new ModuleFeatureCommandSnapshot($this->application)->assertCurrent($context);
             if (!rename($temporary, $path)) {
                 throw new \RuntimeException('Unable to publish module activation config.');
             }
             $published = true;
-            $this->assertComposerFreshness($composerFingerprint);
+            new ModuleFeatureCommandSnapshot($this->application)->assertCurrent($context, false);
         } catch (\Throwable $failure) {
             if ($published) {
                 $this->restoreConfig($path, $temporary, $original, $failure);
