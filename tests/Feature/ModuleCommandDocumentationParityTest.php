@@ -136,7 +136,10 @@ it('retains explicit publication blockers in the release notes and module API do
         ->and($notes)->toContain('web-auth/webauthn-lib')
         ->and($notes)->toContain('opis/closure')
         ->and($notes)->toContain('final published source SHA')
-        ->and($notes)->toContain('controlled physical-host')
+        ->and($notes)->toContain('paired same-runner')
+        ->and($notes)->toContain('five runs of at least')
+        ->and($notes)->toContain('2.5% maximum coefficient of variation')
+        ->and($notes)->toContain('2% median')
         ->and($notes)->toContain('unpublished draft')
         ->and($modules)->toContain('not release-ready')
         ->and($modules)->toContain('Batch 7 certification evidence');
