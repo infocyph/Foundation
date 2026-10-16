@@ -30,6 +30,8 @@ foreach ($reports as $variant => $parts) {
     $combined = $parts[0];
     $combined['hardware_id'] = 'paired-per-scenario-runners';
     $combined['hosts'] = [];
+    $combined['soak'] = [];
+    $combined['soak_window_seconds'] = PHP_INT_MAX;
     $combined['classification'] = 'same-runner baseline/candidate pairs; hardware identity is enforced separately for every scenario';
     foreach ($parts as $part) {
         foreach (['sha', 'php', 'protocol', 'workload_profile', 'request_count', 'repetitions', 'composer_lock_sha256', 'fixture_id', 'tool_sha'] as $field) {
@@ -37,12 +39,36 @@ foreach ($reports as $variant => $parts) {
                 throw new RuntimeException('Paired host report identity mismatch: ' . $field);
             }
         }
+        foreach ($part['soak'] ?? [] as $host => $soak) {
+            if (isset($combined['soak'][$host])
+                || ($part['soak_window_seconds'] ?? 0) < 120
+                || count($soak['windows'] ?? []) !== 2
+            ) {
+                throw new RuntimeException('Missing or duplicate sustained host soak evidence.');
+            }
+            foreach ($soak['windows'] as $window) {
+                if (($window['duration_seconds'] ?? 0) < 120
+                    || ($window['successful'] ?? 0) < $combined['request_count']
+                    || ($window['failed'] ?? null) !== 0
+                    || ($window['samples'] ?? 0) < 10
+                    || ($window['peak_rss_mb'] ?? 0) <= 0
+                ) {
+                    throw new RuntimeException('Invalid sustained host soak evidence.');
+                }
+            }
+            $combined['soak_window_seconds'] = min($combined['soak_window_seconds'], $part['soak_window_seconds']);
+            $soak['hardware_id'] = $part['hardware_id'];
+            $combined['soak'][$host] = $soak;
+        }
         foreach ($part['hosts'] as $host => $cases) {
             foreach ($cases as $case) {
                 $case['hardware_id'] = $part['hardware_id'];
                 $combined['hosts'][$host][] = $case;
             }
         }
+    }
+    if (!isset($combined['soak']['fpm'], $combined['soak']['runwire'])) {
+        throw new RuntimeException('Both FPM and Runwire sustained soak reports are required.');
     }
     $merged[$variant] = $combined;
 }

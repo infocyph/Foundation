@@ -160,3 +160,48 @@ it('requires authenticated query and cache evidence from every successful respon
     expect(fn() => Foundation4HostComparison::compare($base, $candidate))
         ->toThrow(InvalidArgumentException::class, 'query/cache evidence is incomplete');
 });
+
+it('retains both required host soaks when aggregating separately paired scenario artifacts', function (): void {
+    $directory = sys_get_temp_dir() . '/foundation-host-merge-' . bin2hex(random_bytes(6));
+    mkdir($directory, 0700);
+    try {
+        foreach (['baseline', 'candidate'] as $variant) {
+            $report = foundationHostFixture(candidate: $variant === 'candidate');
+            $report['fixture_id'] = 'test-fixture';
+            $report['tool_sha'] = str_repeat('d', 40);
+            foreach ($report['hosts'] as $host => $cases) {
+                foreach ($cases as $case) {
+                    $part = $report;
+                    $part['hosts'] = [$host => [$case]];
+                    $part['soak_window_seconds'] = 0;
+                    if ($case['workers'] === 4 && $case['concurrency'] === 10) {
+                        $part['soak_window_seconds'] = 120;
+                        $part['soak'] = [$host => ['workers' => 4, 'concurrency' => 10, 'windows' => array_fill(0, 2, [
+                            'duration_seconds' => 120.0, 'successful' => 2000, 'failed' => 0,
+                            'samples' => 600, 'peak_rss_mb' => 100.0,
+                        ])]];
+                    }
+                    $path = sprintf('%s/%s-%d-%d/%s', $directory, $host, $case['workers'], $case['concurrency'], $variant);
+                    mkdir($path, 0700, true);
+                    file_put_contents($path . '/report.json', json_encode($part, JSON_THROW_ON_ERROR));
+                }
+            }
+        }
+        $command = [PHP_BINARY, dirname(__DIR__, 2) . '/benchmarks/foundation4-host-merge.php', $directory, $directory . '/comparison.json'];
+        $runner = new \Infocyph\Foundation\Process\ProcessRunner();
+        $result = $runner->run($command, new \Infocyph\Foundation\Process\ProcessOptions(timeoutSeconds: 30));
+        expect($result->exitCode)->toBe(0, $result->stderr);
+        foreach (['baseline', 'candidate'] as $variant) {
+            $merged = json_decode((string) file_get_contents($directory . '/' . $variant . '-merged.json'), true, flags: JSON_THROW_ON_ERROR);
+            expect($merged['soak'])->toHaveKeys(['fpm', 'runwire'])
+                ->and($merged['soak']['runwire']['windows'])->toHaveCount(2);
+        }
+        $path = $directory . '/runwire-4-10/candidate/report.json';
+        $part = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
+        unset($part['soak']);
+        file_put_contents($path, json_encode($part, JSON_THROW_ON_ERROR));
+        expect($runner->run($command, new \Infocyph\Foundation\Process\ProcessOptions(timeoutSeconds: 30))->exitCode)->not->toBe(0);
+    } finally {
+        \Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport::removeDirectory($directory);
+    }
+});
