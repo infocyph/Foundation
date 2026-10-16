@@ -20,6 +20,7 @@ final class CoreCapabilityDiagnostics
         'logging',
         'operations',
         'resources',
+        'runwire',
         'session',
         'notifications',
     ];

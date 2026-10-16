@@ -20,7 +20,7 @@ final class FoundationModuleCliComparison
         foreach ([$baseline, $candidate] as $report) {
             self::validate($report);
         }
-        foreach (['schema_version', 'php', 'php_sapi', 'opcache_cli', 'fixture', 'module_count', 'feature_count'] as $field) {
+        foreach (['schema_version', 'php', 'php_sapi', 'opcache_cli', 'fixture', 'module_count'] as $field) {
             if ($baseline[$field] !== $candidate[$field]) {
                 throw new \InvalidArgumentException(sprintf('Incomparable module CLI evidence: %s differs.', $field));
             }
@@ -45,7 +45,12 @@ final class FoundationModuleCliComparison
         }
 
         return [
-            'classification' => 'diagnostic CLI microbenchmark comparison, NOT production host RPM certification',
+            'classification' => $baseline['feature_count'] === $candidate['feature_count']
+                ? 'diagnostic CLI microbenchmark comparison, NOT production host RPM certification'
+                : 'diagnostic CLI comparison: catalog changed; timing deltas cover different inventories, NOT production host RPM certification',
+            'baseline_feature_count' => $baseline['feature_count'],
+            'candidate_feature_count' => $candidate['feature_count'],
+            'catalog_changed' => $baseline['feature_count'] !== $candidate['feature_count'],
             'baseline_sha' => $baseline['source_sha'],
             'candidate_sha' => $candidate['source_sha'],
             'commands' => $commands,
@@ -58,7 +63,8 @@ final class FoundationModuleCliComparison
     {
         if (($report['schema_version'] ?? null) !== 2
             || ($report['module_count'] ?? null) !== 3
-            || ($report['feature_count'] ?? null) !== 9
+            || !is_int($report['feature_count'] ?? null)
+            || $report['feature_count'] < 1
             || !is_string($report['php'] ?? null)
             || ($report['php'] ?? '') === ''
             || !is_string($report['php_sapi'] ?? null)

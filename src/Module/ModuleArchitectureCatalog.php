@@ -10,7 +10,7 @@ use Infocyph\Foundation\Module\Internal\ModuleArchitectureValidator;
  * Fixed Foundation 4 optional feature taxonomy. Required Core libraries and
  * development-only PHPForge are intentionally not application modules.
  *
- * Authoritative three-module/nine-feature metadata for the Foundation 4
+ * Authoritative three-module/eight-feature metadata for the Foundation 4
  * public schema-v2 module CLI, planner and lifecycle integration.
  * Core and QA never become installable optional modules.
  *
@@ -35,7 +35,7 @@ final class ModuleArchitectureCatalog
     private const array FEATURE_IDS = [
         'data' => ['database', 'filesystem'],
         'security' => ['crypto', 'validation', 'mfa', 'passkey'],
-        'execution' => ['runtime', 'messaging', 'communication'],
+        'execution' => ['messaging', 'communication'],
     ];
 
     /** @var array<string,ArchitectureModule> */
@@ -124,18 +124,8 @@ final class ModuleArchitectureCatalog
             ],
         ],
         'execution' => [
-            'description' => 'Selected persistent runtime, messaging and communication.',
+            'description' => 'Messaging and communication.',
             'features' => [
-                'runtime' => [
-                    'description' => 'Runwire-hosted persistent runtime and native worker lifecycle.',
-                    'owner' => 'infocyph/runwire',
-                    'packages' => ['infocyph/runwire' => '^2.1.1'],
-                    'config' => [],
-                    'schemas' => [],
-                    'platform' => ['extensions' => [], 'optional_extensions' => ['pcntl', 'posix']],
-                    'dependencies' => [],
-                    'selection_key' => null,
-                ],
                 'messaging' => [
                     'description' => 'Omnibus events, queue transports and durable messaging.',
                     'owner' => 'infocyph/omnibus',

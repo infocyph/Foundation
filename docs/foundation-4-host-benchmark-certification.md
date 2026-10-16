@@ -2,13 +2,35 @@
 
 This procedure certifies **Foundation 4 only**. It is not a legacy-version compatibility test. The routine PR host job runs a minimal-JSON smoke and a selected-owner native-read smoke on shared GitHub hardware; neither is a production-equivalent throughput certification.
 
+## Approved pre-merge workflow (2026-10-16)
+
+The user selected GitHub Actions for the paired comparison and Docker for local
+diagnostics. The manual workflow now supports a full `authenticated-read`
+PostgreSQL/Redis profile, distinct immutable baseline/candidate sources, one
+resolved dependency lock and benchmark revision, and the same runner for each
+pair. It records the workflow attempt and VM boot identity per matrix case;
+this proves paired VM reuse, not dedicated physical infrastructure or production
+capacity. Other matrix cases may use different runners.
+
+The twelve cases cover FPM/Runwire, one/four workers and concurrency 1/10/50.
+Each revision has a recorded 30-second warm-up followed by five >=60-second
+trials. Four-worker/concurrency-10 jobs include two >=120-second soak windows per
+host/revision, continuous live CPU/RSS, response/query/cache checks and recovery.
+The 2.5% CV and 2% median successful-RPM regression limits remain blocking.
+Unstable or failed comparisons cannot be certified by the environment approval.
+Current results and immutable artifact identities are in [Batch 7 evidence](plans/foundation-4-module-batch7-evidence.md).
+
+The dedicated-host procedure below remains available for controlled reproduction
+and deployment-specific capacity validation. Routine PR smoke and local Docker
+results remain diagnostic.
+
 ## Measurements already automated
 
 `benchmarks/foundation4-host-certify.sh` compiles a trusted Foundation Webrick/InterMix generation and launches real Nginx/PHP-FPM and native Runwire listeners. It validates each HTTP/1.1 status and response body, tests concurrency 1/10/50 with one/four workers, samples process-tree CPU and RSS during load, and exercises failed-request recovery, client cancellation, and prefork worker replacement.
 
 The ordinary GitHub job checks 36 minimal-route samples (three repetitions), then a separate `native-read` profile with real DBLayer SQLite selects, CacheLayer file-cache reads and credential digest verification (two repetitions). Both profiles exercise FPM/Runwire and two 30-second four-worker soak windows, with contained error, cancellation and Runwire worker-replacement checks. The native fixture uses a low-work-factor testing hash and a small deterministic dataset; **it is not a production authentication, authorization or distributed database workload**. All outputs are artifacts, not controlled baselines.
 
-For the selected-owner profile, use `FOUNDATION_HOST_WORKLOAD_PROFILE=native-read` instead of `json-minimal`. The comparator rejects comparisons between different profile identities. [Native host #38552807316](https://github.com/infocyph/Foundation/actions/runs/38552807316) passed on source `8af4e1e0` with zero response-validation errors in both selected-native soak windows. Shared-runner comparisons and these fixture sizes remain insufficient to approve the 2% release budget.
+For the selected-owner profile, use `FOUNDATION_HOST_WORKLOAD_PROFILE=native-read` instead of `json-minimal`. The comparator rejects comparisons between different profile identities. [Native host #38552807316](https://github.com/infocyph/Foundation/actions/runs/38552807316) passed on source `8af4e1e0` with zero response-validation errors in both selected-native soak windows. These shared-runner smoke fixtures remain insufficient to approve the 2% release budget.
 
 ## Controlled sustained comparison
 

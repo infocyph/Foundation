@@ -354,11 +354,6 @@ final class ModuleCatalog
                     'role' => 'optional',
                     'features' => ['sqs'],
                 ],
-                'infocyph/runwire' => [
-                    'constraint' => null,
-                    'role' => 'optional',
-                    'features' => ['runwire'],
-                ],
                 'php-amqplib/php-amqplib' => [
                     'constraint' => null,
                     'role' => 'optional',
@@ -378,16 +373,6 @@ final class ModuleCatalog
                         'extensions' => [],
                         'optional_extensions' => [],
                         'packages' => ['php-amqplib/php-amqplib'],
-                    ],
-                ],
-                'runwire' => [
-                    'description' => 'Runwire-backed process supervision.',
-                    'aliases' => ['runwire'],
-                    'dependencies' => [],
-                    'platform' => [
-                        'extensions' => [],
-                        'optional_extensions' => [],
-                        'packages' => ['infocyph/runwire'],
                     ],
                 ],
                 'sqs' => [

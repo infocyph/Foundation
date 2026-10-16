@@ -1,106 +1,163 @@
-> **2026-10-16 live follow-up:** Paired workflow `38837335243` ran twice on unchanged candidate `95eccf9`; stable scenarios passed on the repeat, but four cases exceeded CV 2.5%, so host acceptance remains inconclusive. Stable QA passes on `b00ff5d`; lowest QA exposed third-party implicit-nullability warnings. Verified optional transitive floors and a separate 30-second warm-up plus five >=60-second trials are prepared; <=2% RPM and <=2.5% variance budgets remain unchanged. Both host soak summaries are retained and required by `6cd6c98`. Final exact-source QA and a stable full host matrix remain required. See the [current release ledger](foundation-4.0-release-audit-and-plan.md).
-
-> **2026-10-16 pre-merge update:** Native provider composition, independent SQLite/MySQL/PostgreSQL auth contention, signed native WebAuthn/HOTP step-up, child-only cursor cancellation and real Composer publication/removal races are now implemented with passing focused regressions. Final Docker authenticated smoke passed all 12 scenarios and four soak windows; stable/lowest production consumers pass. The user selected GitHub Actions for the sustained comparison: each scenario pairs baseline `6274939c395f75e5cf777aad5d7439f10792758c` and final candidate on the same runner, one lock/tool revision, five >=30-second samples, CV <=2.5% and <=2% RPM regression. Exact-source hosted QA and comparison remain pending; the strict ledger is 19/37 until final acceptance. Earlier unavailable-host statements are historical. See the [current release ledger](foundation-4.0-release-audit-and-plan.md).
+> **Core correction, 2026-10-16:** Runwire is now a required production/Core integration and `execution.runtime` is removed. The catalog has three modules/eight optional features. All immutable SHAs, lock hashes, nine-feature counts and performance results below predate this change and are retained as historical evidence. The previous host repeat was cancelled at the user's request; its partial results cannot certify the new contract. Local full quality, native/compiled/no-dev and twelve-case Docker correctness checks pass for the correction; fresh hosted QA and sustained comparison remain required before current acceptance.
 
 # Foundation 4 — Module architecture Batch 7 certification evidence
 
-> **Current source 2026-10-15:** `fd34d0d2` corrected integration test and Rector gates. Exact-head PHPForge release QA is rerunning; no new physical matched-host baseline/candidate evidence is available. Keep B7 gates 3/4/7 blocked, Foundation renewed release acceptance 19/37 NO-GO, and PR #20 draft.
+Checkpoint: 2026-10-16. Repository: `infocyph/Foundation`. PR: [#20](https://github.com/infocyph/Foundation/pull/20). Branch: `feature/foundation-3`.
 
+**QA is green; sustained host acceptance remains open.** Executable candidate
+[`60a7951`](https://github.com/infocyph/Foundation/commit/60a795133924fa3a06ad78820aa5543cf8978e81)
+is verified against the current published native dependencies. The Foundation
+release ledger accepts **32/37** criteria. Module B7 is **4/7 individually
+QA-checked, 0/7 whole-batch accepted**; the module totals remain **46/49 engineering
+checks, 42/49 batch accepted, 7/8 batches accepted**. PR #20 stays draft.
 
-> **2026-10-15 current source note:** Native Foundation operation forwarding and locked Composer metadata freshness were implemented after the last green source [`6dff05e2`](https://github.com/infocyph/Foundation/commit/6dff05e203ad0eead583d0bc3ec12240210300f0), with exact source QA pending. B7 3/4/7 performance and final approval remain **blocked**, and the release re-audit is **19/37 NO-GO**; no shared Actions benchmark or operation-facade unit test substitutes for an authenticated physically matched FPM/Runwire baseline-versus-candidate host comparison.
+## Immutable source and quality evidence
 
+[Security & Standards 38860725174](https://github.com/infocyph/Foundation/actions/runs/38860725174)
+is **SUCCESS** on the exact candidate: PHP 8.4/8.5 × stable/lowest PHPForge QA 4/4,
+analysis 2/2, isolated production consumers 4/4, component benchmarks 2/2, clean
+install and release evidence. The conditional Security Report job is skipped;
+it is not additional security certification. No test or detector was disabled.
+The artifact records source `60a795133924fa3a06ad78820aa5543cf8978e81` and PR merge
+CI SHA `85973b4e0498ee51558f7dc0b9af9e419987eaa1`; both have identical Git tree
+`5ea2d0dcd905609673593a6e783d5cdbb7b0df37`. The release-evidence archive digest is
+`sha256:40ab5993c7be3c23cd4872becbbc0816abeb22d28921568f4754f078184a7aa3`.
+Its recorded PHP is 8.5.11, and its dependency-lock digest matches the paired
+host lock recorded below.
+Local full `composer ic:ci` and `composer ic:tests:details` pass. The minimum
+compatible graph passed 746 tests / 28,853 assertions with deprecations fatal.
 
-> **2026-10-15 current certification update (supersedes historical release counts below):** Foundation 4 executable [`aea1ab2`](https://github.com/infocyph/Foundation/commit/aea1ab2ffedae30ed4f1d4eabe65f7cbe9f47198) passed [Security & Standards #38749779083](https://github.com/infocyph/Foundation/actions/runs/38749779083) **SUCCESS** after same-SHA retry (PHPForge QA 4/4, PHPStan 2/2, production consumers 4/4, component benchmarks 2/2, clean install and release evidence) and [native-host #38749778570](https://github.com/infocyph/Foundation/actions/runs/38749778570) **SUCCESS**. All 62 PR inline review threads were resolved at the current re-audit inspection. Reopened Foundation release acceptance is **19/37, NO-GO**, not the old 32/37 quoted in archived notes. **B7 gates 3/4/7 remain blocked**: no physically controlled production-equivalent matched-host baseline/candidate measurements are recorded. R6 also remains open for normal Foundation-created operations, even though native host smoke passed. No merge, tag, release or Infbyte work.
+Published CacheLayer 4.0.1, DBLayer 6.1.1 and Omnibus 3.0.1 are used without local
+package overrides. Optional transitive constraints reject verified PHP 8.4/8.5
+incompatibilities and PKI Framework versions before security release 1.6.2.
+Composer advisory output and published upstream advisory ranges were checked;
+no selected current minimum/stable runtime version matched those advisories.
+The abandoned `doctrine/annotations` package is a development-only PHPBench
+transitive dependency, distinct from an advisory or network failure.
 
+The native/security revalidation covers ordinary passed-context operations,
+child-only cursor cancellation with reusable parent context, actual signed
+WebAuthn/HOTP proof, independent SQLite/MySQL/PostgreSQL one-winner transitions,
+rollback and revocation, manifest authentication before evaluation, and real
+Composer publication/removal races. Production symbol ownership checks prohibit
+competing library engines and retired mutation paths. The [release ledger](foundation-4.0-release-audit-and-plan.md)
+names the active criterion evidence. PR review threads were last inspected at
+63 total, zero unresolved; repeat this check before final readiness.
 
-Checkpoint: 2026-10-15. Repository: infocyph/Foundation. PR: [#20](https://github.com/infocyph/Foundation/pull/20). Branch: \`feature/foundation-3\`.
+## Historical B7 acceptance gates before the Core correction
 
-**Status: NOT fully certified (2026-10-15). B7 4/7 individually QA-checked, 0/7 fully accepted.** The B0–B6 module architecture is accepted; the last two architecture performance gates require matched, production-equivalent baseline/candidate measurements. Release-notes sign-off is blocked until those gates pass. Do not confuse repeatable CI smoke with a successful-RPM comparison, and do not merge, tag or publish on the strength of this file.
-
-## Current source and automated evidence
-
-- B6 immutable source: [6358b97](https://github.com/infocyph/Foundation/commit/6358b975a12add6d598e3e06e2724edd9a3cecfd); [PHPForge full matrix](https://github.com/infocyph/Foundation/actions/runs/38686271597) and [native FPM/Runwire smoke](https://github.com/infocyph/Foundation/actions/runs/38686270918) passed.
-- Batch 7 implementation: [3d8370](https://github.com/infocyph/Foundation/commit/3d837009eaf8f4ed598dc94286c94259b6f8ba25) adds a fail-closed **diagnostic-only** v2 CLI microbenchmark comparator. [bcf6fbb](https://github.com/infocyph/Foundation/commit/bcf6fbb7107df284e294f9cb0711f0d12b844d55) prevents invalidating a trusted release on a no-op module enable/disable and tests repeated CLI operations.
-- Latest executable [`8fa9fd4`](https://github.com/infocyph/Foundation/commit/8fa9fd48952dbfaa49e2258e5afa6a3264fa4658): [Security & Standards #38688337213](https://github.com/infocyph/Foundation/actions/runs/38688337213) **SUCCESS** with locked dependencies/release evidence archive SHA-256 `759532cc428d9ff44c46196f0faee89a68c8530f700059869188726b812c6a20`; [native HTTP host #38688336732](https://github.com/infocyph/Foundation/actions/runs/38688336732) **SUCCESS**. The host comparator rejects a same-source baseline/candidate comparison. All 52 inline PR review threads are resolved.
-- Foundation 4 final docs parity checkpoint: [`592d43d`](https://github.com/infocyph/Foundation/commit/592d43d75ec61225c9668bd7be10826c2a54e9b3); [Security & Standards #38689963558](https://github.com/infocyph/Foundation/actions/runs/38689963558) **SUCCESS** (full 8.4/8.5 × stable/lowest QA matrix, PHPStan, consumers, benchmarks, release evidence) and [native HTTP host #38689962743](https://github.com/infocyph/Foundation/actions/runs/38689962743) **SUCCESS** on identical source. `docs/foundation-4-migration.md` was corrected to the qualified v2 CLI; the unpublished notes now specify the fixed 3-module/9-feature contract and conditional specialist dependencies; two executable documentation-parity cases prohibit retired CLI examples. **This is NOT sign-off:** host throughput gates 3/4 and dependent release decision 7 remain blocked; shared GitHub-runner smoke cannot replace same-hardware physically controlled evidence. 52/52 PR review threads resolved at this checkpoint.
-- Re-run every QA and host job after the final implementation or evidence edit, using one immutable exact source SHA. Record CI SHA, dependency lock digest, PHP versions, extensions, benchmark artifacts, PR review state and final release-notes sign-off. A passing earlier SHA is not certification of a later SHA.
-- Existing B6 automated release evidence captures \`manifest.env\`, \`dependencies.json\`, \`composer-lock.sha256\`, PHP extension inventory, module v2 CLI baseline and benchmark output.
-- PR inline review audit (2026-10-15): 52 threads inspected; **zero unresolved** at inspection. Re-check on final source.
-
-## Final module API and publication metadata audit — 2026-10-15
-
-**Documentation review: COMPLETE. Release certification: BLOCKED.** Exact audit code and draft docs [`4de9034`](https://github.com/infocyph/Foundation/commit/4de9034c874190ffe6adbb7996dc0b6c2d4c8386); [Security & Standards #38722750952](https://github.com/infocyph/Foundation/actions/runs/38722750952) **SUCCESS** and [native HTTP host #38722750628](https://github.com/infocyph/Foundation/actions/runs/38722750628) **SUCCESS** on this exact executable audit source [`b8dad2c`](https://github.com/infocyph/Foundation/commit/b8dad2c4d619f917c660a85e68480e7fdcb29c2a). Full PHPForge/consumer/static analysis/benchmark and real native-host smoke are confirmed. These results do **not** constitute physically matched baseline/candidate successful-RPM certification.
-
-| Audited component | Review result | Release implication |
+| Gate | Evidence required | Current result |
 | --- | --- | --- |
-| Public module API and CLI examples | **Reviewed:** exactly `data`, `security`, `execution`, nine qualified IDs, `schema_version:2`; no executable retired aliases or implicit activation | Public v2 contract documented, no prior-major shim |
-| Candidate release notes and migration guidance | **Reviewed:** breaking contract, conditional Epicrypt/OTP MFA, passkeys, DBLayer/durable Omnibus, native Webrick/InterMix/Runwire ownership | Candidate notes remain **unpublished draft** |
-| Composer publication metadata | **Reviewed:** `infocyph/foundation`, MIT, `library`, `php:^8.4`, `composer-runtime-api:^2.0`, PSR-4 and `bin/infbyte`; Core packages in `require`, selected optional packages in `require-dev`/`suggest`, `opis/closure` dev-only, no hardcoded `version` | Exact final source tag and dependency lock must be provided only at publication time |
-| Provenance and reviewed PR | **Reviewed:** immutable CI source, dependency/Composer lock evidence, 52 resolved PR inline threads at most recent inspection; no merge/tag/publication | Repeat final provenance review against the *approved source* |
-| Dedicated matched-host performance | **UNVERIFIED:** different frozen baseline and candidate SHAs, identical hardware/toolchain/lock, five validated sustained repetitions per representative FPM/Runwire/workers/concurrency case, real auth/database/cache load, stable variance, ≤2% median successful-RPM regression | **Hard blocker for B7 gates 3 and 4** |
-| Final release approval | **NOT GRANTED** until performance, exact-source QA and operator release metadata are complete | **B7 gate 7 remains unchecked; release notes stay draft** |
+| 1. Full quality and security | Exact-source PHPForge, analysis, formatting, references and configured security checks | **PASS**, candidate `60a7951`, run 38860725174 |
+| 2. Production matrices | PHP 8.4/8.5 × stable/lowest, Core and selected native features under `--no-dev` | **PASS**, all four consumers |
+| 3. Before/after throughput and module CLI | Comparable CLI, compiled startup and complete authenticated paired-host metrics | **OPEN**, final aggregate and soak evidence under evaluation |
+| 4. ≤2% regression and stability | Five sustained trials per case, CV ≤2.5%, median successful-RPM regression ≤2%, bounded resources | **OPEN**, downloading measurements does not establish a passing comparison |
+| 5. Concurrency and recovery | Composer/publication races, real database contention, lifecycle, cancellation and recovery | **PASS**, full exact-source suites and local/native host smoke |
+| 6. Review and immutable provenance | No unresolved review threads, immutable source/toolchain/lock evidence, synchronized trackers | **PASS**, recheck final PR state before readiness |
+| 7. Final notes and release decision | Current public API, publication metadata and notes reviewed, preceding gates accepted | **BLOCKED** by gates 3 and 4 |
 
-Executable parity is covered by `ModuleCommandDocumentationParityTest` and `ModuleExternalDependencyRoleTest`; the final metadata audit extends those tests without relaxing any release gate. Do not use the GitHub-hosted smoke RPM as matched-hardware sign-off.
+## Approved paired host environment
 
-## B7 acceptance gates
+The user selected GitHub Actions for the sustained comparison and Docker for
+local diagnostics. [Workflow 38860730929](https://github.com/infocyph/Foundation/actions/runs/38860730929)
+compares frozen baseline `6274939c395f75e5cf777aad5d7439f10792758c` with candidate
+`60a795133924fa3a06ad78820aa5543cf8978e81`. Each FPM/Runwire × one/four workers ×
+concurrency 1/10/50 pair runs sequentially on the same runner. Both revisions use
+one Composer lock, the candidate benchmark tools, PHP/INI/extensions, and
+isolated equivalent PostgreSQL and Redis datasets. Runner identity is recorded
+per scenario; different matrix cases are not represented as one physical host.
 
-| Gate | Evidence required | Status |
-| --- | --- | --- |
-| 1. Full quality and security | Exact-source PHPForge 8.4/8.5 QA, PHPStan, formatting, references, duplicate/security checks and no unjustified skips | **PASS: exact-source QA 4/4, PHPStan 2/2, benchmarks 2/2** |
-| 2. Production matrices | PHP 8.4/8.5 × lowest/stable, core and all nine selected specialists under \`composer --no-dev\` | **PASS: 4/4 `--no-dev` producer/consumer matrix** |
-| 3. Before/after throughput and module CLI | Comparable CLI inspect/plan/activation/compiled boot metrics **and** real baseline/candidate matched-host HTTP successful RPM, latencies and telemetry | **BLOCKED: matched host evidence unavailable** |
-| 4. ≤2% regression and stability | At least five sustained ≥30s correct-response measurements per FPM/Runwire/1-or-4-worker/1,10,50-concurrency scenario, ≤2.5% CV, bounded memory; independent real auth/database/cache profile | **BLOCKED: controlled host evidence unavailable** |
-| 5. Concurrency and recovery | Selected lifecycle/Composer/config locking, partial repair, durable SQLite queue and schema retention, scoped session/principal, Runwire worker generation and cancellation tests | **PASS: exact-source suites and native host** |
-| 6. Review and immutable provenance | No unresolved PR review threads; exact executable SHA, PHP/toolchain and dependency/Composer lock manifest; both trackers synchronized | **PASS: zero unresolved threads and immutable CI artifact; both trackers synchronized** |
-| 7. Final notes and release decision | Module v2 docs, release metadata and upgrade notes reviewed; only accept ready after all previous gates | **BLOCKED by 3 and 4** |
+The workload uses real bearer authentication, account/permission SQL reads,
+authorized business data and a validated Redis cache hit. Every successful
+response must pass status/body, actual query-count and cache-evidence checks.
+Each revision records a separate **30-second warm-up**, then **five measured
+repetitions of at least 60 seconds**. The four-worker/concurrency-10 jobs also
+record **two 120-second soak windows per host/revision**, with continuous live
+process-tree RSS/CPU telemetry, cancellation/error recovery and Runwire worker
+replacement. First-ready-request and compile timing are separate diagnostics.
 
-The separate Foundation 4.0 release-audit plan has **19/37 currently reopened-criterion acceptance**, with overlapping but distinct operation-propagation, adversarial-security, matched-host performance and release requirements. Neither tracker may claim release readiness while those are incomplete.
+The comparator retains the existing **2.5% CV** and **2% median successful-RPM
+regression** limits. It rejects missing or mismatched source/lock/tool/fixture,
+runner identities, partial matrices, invalid responses and insufficient samples.
+The merger requires both host soak summaries and both valid ≥120-second windows.
+An unstable case remains inconclusive; a stable budget breach remains failed.
+The approved test environment does not establish capacity for an unmeasured
+production deployment.
 
-## Diagnostic CLI before/after comparison
+Artifacts are `foundation4-paired-comparison` (merged baseline/candidate reports,
+host comparison and CLI comparison), `foundation4-pair-*` (raw per-scenario
+load/telemetry/startup/soak evidence) and `foundation4-paired-host-lock` (exact
+Composer lock). Artifacts exclude generated applications and authorization files.
+The shared lock SHA-256 is
+`47721543a0f9438cfd0fa862b074c5c11953d320c1c9f14164bc4a9df9359e28`.
 
-On the same stable PHP/toolchain and matching v2 CLI fixture, run a frozen Foundation 4 v2 baseline checkout and the candidate checkout. Do not compare the historical 11-entry major-version contract as if its semantics were identical.
+## CLI and local diagnostics
 
-\`\`\`bash
-FOUNDATION_MODULE_SOURCE_SHA="$(git rev-parse HEAD)" \
-FOUNDATION_MODULE_BASELINE_OUTPUT="build/release-evidence/module-cli.json" \
-php benchmarks/foundation4-module-cli-baseline.php
+The paired workflow measures seven identical v2 command operations: list, show,
+doctor, plan, install dry-run, remove dry-run and actual enable, including cold
+and warm no-op measurements. `foundation4-module-cli-compare.php` checks their
+shape, toolchain and distinct source identities. Its result is diagnostic and
+cannot independently certify HTTP throughput. Compiled startup timing is
+recorded by the actual host harness.
 
-php benchmarks/foundation4-module-cli-compare.php \
-  /path/to/v2-baseline/module-cli.json \
-  /path/to/candidate/module-cli.json \
-  build/release-evidence/module-cli-comparison.json
-\`\`\`
+Local Docker diagnostics passed twelve FPM/Runwire scenarios, four shorter soak
+windows, authenticated response checks, cancellation/recovery and worker
+replacement. A separate four-worker Runwire probe passed the new recorded warm-up
+boundary. Local results support correctness and measurement lifecycle; they are
+not complete immutable-host throughput certification.
 
-The v2 CLI comparator checks source identity, seven command operations (including actual enable and warm no-op), repeated cold/warm p50/p95 timing, PHP/toolchain and fixture shape. It **never** certifies host RPM, and does not stand in for actual enable or compiled-boot whole-host measurements. Include direct \`module:enable\` and immutable compiled-boot timing in the controlled application profile.
+A targeted pinned-CPU Docker reproduction of FPM four-worker/concurrency-50 used
+the same baseline/candidate sources, dependency lock and benchmark tools, a
+30-second warm-up and five >=60-second trials. On PHP 8.5.11 it measured
+8,600.52 baseline versus 8,445.13 candidate median RPM (**-1.807%**), with CV
+**1.453% / 0.774%** and zero failed responses. The hosted -5.218% result was not
+reproduced in this controlled local case; PHP differs from the hosted 8.4.26
+measurement, so this is supporting evidence rather than hosted acceptance.
 
-## Mandatory host comparison
+## Candidate 60a7951 — paired attempt 1
 
-Run baseline and candidate **on physically identical dedicated infrastructure**, with an identical Composer lock, PHP/INI/extensions, datasets, host OS, worker counts, OPcache, and load generator. Keep the same benchmark tooling revision. For each checkout:
+The full comparison completed with **4/12 passing, 7/12 inconclusive variance,
+and 1/12 stable regression**. All twelve measurement jobs passed their response
+checks; the comparison job correctly failed. The failing FPM four-worker/c50 case
+measured 6,155.11 baseline versus 5,833.96 candidate successful RPM (-5.218%,
+maximum CV 2.449%). This result has not been dismissed as noise or called fixed.
+A complete repeat on unchanged source `60a7951` is in progress; samples from
+different attempts will not be combined to manufacture acceptance.
 
-\`\`\`bash
-export FOUNDATION_CERTIFICATION_HOST_ID='physically-controlled-host-id'
-export FOUNDATION_HOST_WORKLOAD_PROFILE='native-read'
-export FOUNDATION_HOST_REPEATS=5
-export FOUNDATION_HOST_REQUESTS=1000
-export FOUNDATION_HOST_MIN_SECONDS=30
-export FOUNDATION_HOST_SOAK_SECONDS=120
-export FOUNDATION_HOST_RESULT_DIR="$PWD/build/foundation4-controlled"
-bash benchmarks/foundation4-host-certify.sh
-\`\`\`
+| Scenario | Baseline RPM | Candidate RPM | Change | Maximum CV | Result |
+| --- | ---: | ---: | ---: | ---: | --- |
+| fpm-w1-c1 | 2,211.47 | 2,249.41 | +1.716% | 2.852% | inconclusive variance |
+| fpm-w1-c10 | 2,285.32 | 2,134.63 | -6.594% | 3.375% | inconclusive variance |
+| fpm-w1-c50 | 2,132.94 | 2,099.62 | -1.562% | 1.412% | pass |
+| fpm-w4-c1 | 2,152.76 | 2,164.98 | +0.568% | 1.006% | pass |
+| fpm-w4-c10 | 7,302.05 | 7,878.17 | +7.890% | 5.547% | inconclusive variance |
+| fpm-w4-c50 | 6,155.11 | 5,833.96 | -5.218% | 2.449% | regression |
+| runwire-w1-c1 | 3,158.16 | 3,467.65 | +9.800% | 3.459% | inconclusive variance |
+| runwire-w1-c10 | 4,199.87 | 4,225.37 | +0.607% | 3.103% | inconclusive variance |
+| runwire-w1-c50 | 3,388.59 | 3,467.96 | +2.342% | 2.571% | inconclusive variance |
+| runwire-w4-c1 | 3,314.43 | 3,272.12 | -1.277% | 0.556% | pass |
+| runwire-w4-c10 | 11,649.17 | 11,295.15 | -3.039% | 22.600% | inconclusive variance |
+| runwire-w4-c50 | 6,630.35 | 6,589.94 | -0.609% | 0.249% | pass |
 
-The \`native-read\` smoke is still a small synthetic SQLite/file-cache/credential fixture, **not a full production-equivalent authenticated database/cache workload**. Repeat with a controlled real representative workload before certification. Use separate directories and source SHA for baseline and candidate, then compare:
+Both baseline and candidate retain FPM and Runwire soak summaries, each with two
+>=120-second correct-response windows and continuous live process-tree samples.
+The candidate windows had no failed responses; their first-to-last RSS growth
+was at most 0.25 MiB. The seven CLI operation comparisons and compiled startup
+artifacts are present. These completeness/correctness results do not override
+the throughput/variance failure.
 
-\`\`\`bash
-php benchmarks/foundation4-host-compare.php \
-  /path/to/baseline/report.json \
-  /path/to/candidate/report.json \
-  build/foundation4-host-comparison.json
-\`\`\`
+## Earlier comparison history
 
-The current PHP comparator requires a complete 12-case FPM/Runwire worker/concurrency matrix, five runs per case, 30-second sustained valid responses, matching physical host identity, PHP version, Composer lock, declared workload and request count; it rejects >2% median successful-RPM regression and >2.5% run variance. Attach comparison JSON, per-request p50/p95/p99, live CPU/RSS samples, query/cache metrics, worker replacement, long soak and cancellation recovery evidence. Missing/incomparable/unstable evidence is **inconclusive and blocking**, never a pass.
+[Run 38837335243](https://github.com/infocyph/Foundation/actions/runs/38837335243)
+ran twice on unchanged candidate `95eccf9`. Attempt 1 passed 9/12 cases, with two
+noisy cases and a stable one-worker Runwire/concurrency-50 result at -2.549%.
+Attempt 2 passed 8/12, with four noisy cases; every stable case passed, including
+the earlier failing case at -1.548% and CV 0.472%. No reproducible runtime defect
+or performance fix was established. The measured warm-up/longer-window follow-up
+does not relax budgets or discard earlier evidence.
 
-CI's shared GitHub-hosted native HTTP smoke uses three repetitions for minimal routes and two for its selected-native profile, so it **cannot** certify this host gate even when its workflow is green.
-
-## Release boundary
-
-Complete the two blocked performance gates on representative matched hardware; repeat exact-SHA CI after any change; re-review all PR findings; update both trackers and the draft release notes. Only then consider Batch 7 7/7 and the separate Foundation 4 release audit gates. Leave PR #20 draft; user owns merge/tag/publication. Infbyte is out of scope.
+Earlier dated 19/37 counts and physically dedicated host prerequisites in the
+architecture history are superseded by the current native revalidation and the
+user-approved paired GitHub environment. Final performance acceptance is still
+required. Release notes remain an unpublished draft; merge, tag, publication and
+Infbyte migration are separate operator actions.

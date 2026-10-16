@@ -117,7 +117,8 @@ jobs:
             composer update "${composer_args[@]}"
             vendor/bin/infbyte list > command-list.txt
             vendor/bin/infbyte module:show data.database --json > database-module.json
-            php -r '
+            php /dev/stdin <<'PHP'
+          <?php
               $payload = json_decode(file_get_contents("database-module.json"), true, 512, JSON_THROW_ON_ERROR);
               if (($payload["schema_version"] ?? null) !== 2
                   || ($payload["module"] ?? null) !== "data"
@@ -125,7 +126,7 @@ jobs:
                   fwrite(STDERR, "Database module inspection did not return the expected payload.\n");
                   exit(1);
               }
-            '
+          PHP
             if composer show infocyph/phpforge >/dev/null 2>&1; then
               echo "PHPForge leaked into the optional production consumer." >&2
               exit 1
@@ -153,7 +154,6 @@ jobs:
               "infocyph/otp": "^7.0",
               "infocyph/pathwise": "^4.2",
               "infocyph/reqshield": "^3.3",
-              "infocyph/runwire": "^2.1.1",
               "infocyph/talkingbytes": "^2.3",
               "web-auth/webauthn-lib": "^5.3.9"
             }
@@ -164,16 +164,18 @@ jobs:
             composer update "${composer_args[@]}"
             vendor/bin/infbyte list > commands.txt
             vendor/bin/infbyte module:list --json > modules.json
-            php -r '
+            php /dev/stdin <<'PHP'
+          <?php
               $payload = json_decode(file_get_contents("modules.json"), true, 512, JSON_THROW_ON_ERROR);
               if (($payload["schema_version"] ?? null) !== 2
                   || array_column($payload["modules"] ?? [], "name") !== ["data", "security", "execution"]
-                  || count(array_merge(...array_column($payload["modules"] ?? [], "features"))) !== 9) {
-                  fwrite(STDERR, "Unexpected Foundation 4 three-module/nine-feature v2 catalog.\n");
+                  || count(array_merge(...array_column($payload["modules"] ?? [], "features"))) !== 8) {
+                  fwrite(STDERR, "Unexpected Foundation 4 three-module/eight-feature v2 catalog.\n");
                   exit(1);
               }
-            '
-            php -r '
+          PHP
+            php /dev/stdin <<'PHP'
+          <?php
               require "vendor/autoload.php";
               foreach ([
                   \Infocyph\Runwire\RuntimeContext::class,
@@ -187,7 +189,7 @@ jobs:
                   }
               }
               $app = \Infocyph\Foundation\Foundation::worker([
-                  "app" => ["base_path" => getcwd(), "env" => "local", "capabilities" => ["runwire" => true]],
+                  "app" => ["base_path" => getcwd(), "env" => "local", "capabilities" => []],
                   "_config_cache" => false,
               ])->boot();
               $runtime = \Infocyph\Runwire\RuntimeContext::standalone();
@@ -209,7 +211,7 @@ jobs:
               } finally {
                   $request->complete();
               }
-            '
+          PHP
             php "$GITHUB_WORKSPACE/docs/examples/foundation-4-compiled-release.php"
             php "$GITHUB_WORKSPACE/tests/Fixtures/ModuleFeatureProductionMatrix.php" all
             if composer show infocyph/phpforge >/dev/null 2>&1; then

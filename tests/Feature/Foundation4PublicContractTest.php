@@ -67,7 +67,7 @@ it('publishes the Foundation 4 provider graph contract as native InterMix builde
         ->and(Foundation4PublicContractProvider::$booted)->toBe(1);
 });
 
-it('requires explicit selected capability policy rather than implicitly activating installed optional packages', function (): void {
+it('keeps Core Runwire available while honoring explicit optional capability policy', function (): void {
     $config = new ConfigLoader()->load([
         '_config_cache' => false,
         'app' => ['env' => 'testing', 'capabilities' => ['database' => false, 'runwire' => false]],
@@ -76,8 +76,8 @@ it('requires explicit selected capability policy rather than implicitly activati
 
     expect($context->hasCapability('database'))->toBeFalse()
         ->and($context->permitsCapability('database'))->toBeFalse()
-        ->and($context->hasCapability('runwire'))->toBeFalse()
-        ->and($context->permitsCapability('runwire'))->toBeFalse();
+        ->and($context->hasCapability('runwire'))->toBeTrue()
+        ->and($context->permitsCapability('runwire'))->toBeTrue();
 });
 
 it('retains distinct explicit Foundation 4 web CLI worker and scheduler entrypoints', function (): void {

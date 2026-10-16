@@ -109,7 +109,7 @@ final class FoundationModuleLifecycleIO implements CommandIO
     }
 }
 
-it('publishes the three-group nine-feature public command inventory in version two', function (): void {
+it('publishes the three-group eight-feature public command inventory in version two', function (): void {
     $path = moduleLifecycleBasePath('public-inventory');
     try {
         $dispatcher = moduleLifecycleDispatcher($path);
@@ -121,7 +121,7 @@ it('publishes the three-group nine-feature public command inventory in version t
             ->and(array_column($payload['modules'], 'name'))->toBe(['data', 'security', 'execution'])
             ->and(array_merge(...array_column($payload['modules'], 'features')))->toBe([
                 'data.database', 'data.filesystem', 'security.crypto', 'security.validation',
-                'security.mfa', 'security.passkey', 'execution.runtime',
+                'security.mfa', 'security.passkey',
                 'execution.messaging', 'execution.communication',
             ]);
 

@@ -1,3 +1,41 @@
+## Core Runwire correction — approved 2026-10-16
+
+The user requires Runwire in `require` and approved making its integration Core.
+This supersedes the earlier optional runtime decision D12 and all historical
+three-module/nine-feature claims. The current public contract is **three modules,
+eight optional features**; `execution.runtime` is removed and rejected rather
+than retained as an alias. Eight `core:*` diagnostics include `core:runwire`.
+
+Runwire `^2.1.1` is installed in every production graph. Core declares native
+runtime/request/task inputs in web, CLI, worker and scheduler graphs without
+requiring an optional feature or capability flag. Exact caller-owned contexts
+continue through native CacheLayer/DBLayer/Omnibus/ReqShield/TalkingBytes/UID
+boundaries. An absent active context uses the native synchronous path; Foundation
+does not create substitute contexts, listeners, event loops or workers.
+
+Runwire owns environment detection and capability checks: portable CLI works
+without prefork facilities; FPM/FrankenPHP/RoadRunner use host-owned serving;
+Swoole/OpenSwoole requires explicit native host selection. Optional extensions
+remain capability requirements, not Foundation installation requirements.
+
+Implementation and validation cover Composer roles, protected Core package
+ownership, all eight feature lifecycle plans, CLI schema-v2 output, compiled
+Core inputs, borrowed/cancelled contexts, synchronous fallback and isolated
+production `--no-dev` installs. Detailed quality passes with 746 tests / 28,771
+assertions before the added CLI inventory-provenance regression. Final
+`composer ic:ci` passes all 13 configured quality checks, including that
+additional regression. Stable/lowest no-dev consumers pass twelve selected-feature
+configurations per mode and trusted web/CLI/worker/scheduler generation. Native
+portable selection succeeds with fork functions disabled; local Docker passes
+12 authenticated scenarios, 24 trials and four 30-second soak windows with no
+invalid responses, plus cancellation/recovery and worker replacement. Composer
+validation, stable constraints, configured audit and actionlint pass.
+Prior hosted SHA/counts below are historical and cannot certify this Core
+contract. Fresh hosted evidence is required before merge/release acceptance.
+The authenticated HTTP baseline remains frozen at `6274939`; its response/query/cache workload is unchanged. CLI diagnostics record each source's actual feature count and label the nine-to-eight catalog change explicitly; they do not claim equivalent-inventory throughput. Keep the HTTP 2% median RPM and 2.5% CV budgets unchanged; do not reset the baseline to hide the Core integration cost.
+
+> **Current acceptance, 2026-10-16:** Executable `60a7951` has [fully green PHP 8.4/8.5 stable/lowest QA, analysis, consumers and release evidence](https://github.com/infocyph/Foundation/actions/runs/38860725174). The release ledger is **32/37**, with reopened native integration, security and state criteria revalidated. B7 remains **4/7 engineering gates, 0/7 whole-batch accepted**; module totals remain **46/49 engineering, 42/49 batch accepted** until the strict [paired host comparison](https://github.com/infocyph/Foundation/actions/runs/38860730929) and final decision pass. The approved environment is baseline/candidate paired on the same GitHub runner, with 30-second warm-up, five >=60-second measurements, CV <=2.5% and median RPM regression <=2%. [Current B7 evidence](foundation-4-module-batch7-evidence.md). Earlier dated status paragraphs are historical. PR #20 stays draft; no merge, tag, publication or Infbyte changes.
+
 > **2026-10-16 live follow-up:** Paired workflow `38837335243` ran twice on unchanged candidate `95eccf9`; stable scenarios passed on the repeat, but four cases exceeded CV 2.5%, so host acceptance remains inconclusive. Stable QA passes on `b00ff5d`; lowest QA exposed third-party implicit-nullability warnings. Verified optional transitive floors and a separate 30-second warm-up plus five >=60-second trials are prepared; <=2% RPM and <=2.5% variance budgets remain unchanged. Both host soak summaries are retained and required by `6cd6c98`. Final exact-source QA and a stable full host matrix remain required. See the [current release ledger](foundation-4.0-release-audit-and-plan.md).
 
 > **2026-10-16 pre-merge update:** Native provider composition, independent SQLite/MySQL/PostgreSQL auth contention, signed native WebAuthn/HOTP step-up, child-only cursor cancellation and real Composer publication/removal races are now implemented with passing focused regressions. Final Docker authenticated smoke passed all 12 scenarios and four soak windows; stable/lowest production consumers pass. The user selected GitHub Actions for the sustained comparison: each scenario pairs baseline `6274939c395f75e5cf777aad5d7439f10792758c` and final candidate on the same runner, one lock/tool revision, five >=30-second samples, CV <=2.5% and <=2% RPM regression. Exact-source hosted QA and comparison remain pending; the strict ledger is 19/37 until final acceptance. Earlier unavailable-host statements are historical. See the [current release ledger](foundation-4.0-release-audit-and-plan.md).
@@ -57,7 +95,7 @@ The documented [module system](../modules.md) has **11 catalog entries**:
 | Core-backed special case | `auth` (among the seven above) | Core authentication is Foundation-owned; OTP/passkey are optional selected features. |
 | Core capability outside module catalog | `cache` / CacheLayer | Required Foundation dependency. Separate `cache:schema:*`; never `module:install cache`. |
 | Native integration outside dedicated module install alias | `notifications` | Foundation-owned notification graph; TalkingBytes email is optional integration. |
-| Optional runtime integration | Runwire | Host/runtime-owned; may be reported as optional messaging integration, not a parallel Foundation server or scheduler. |
+| Core runtime integration | Runwire | Required production dependency; native capability checks and exact host-owned context forwarding. |
 
 Current behavior worth preserving **unless a decision record explicitly supersedes it**:
 - Composer **available/direct/transitive/unknown** are different states. Transitive availability is not direct module ownership.
@@ -100,7 +138,7 @@ Current behavior worth preserving **unless a decision record explicitly supersed
 
 **“Prebuilt” describes the Foundation baseline and tooling, not a promise that every dependency's source is physically bundled in an archive.** Required Composer libraries stay required, and PHPForge remains a development dependency.
 
-### 3.2 Three public optional modules / nine optional features
+### 3.2 Three public optional modules / eight optional features
 
 | Public module | Feature ID | Primary Infocyph owner | Optional/external dependency and intended scope |
 | --- | --- | --- | --- |
@@ -110,11 +148,10 @@ Current behavior worth preserving **unless a decision record explicitly supersed
 | `security` | `validation` | **ReqShield** `^3.3` | Validation/sanitization/request security; independently selectable. |
 | `security` | `mfa` | **OTP** `^7.0` | OTP/MFA factors and their applicable crypto/platform requirements; never auto-enable passkey. |
 | `security` | `passkey` | **OTP/WebAuthn integration** | WebAuthn ceremonies via `web-auth/webauthn-lib ^5.3.9` and selected OTP support; **dependency sharing does not imply automatic activation of MFA**. |
-| **`execution` — Execution & Communication** | `runtime` | **Runwire** `^2.1.1` | Optional **host-owned** persistent runtime; no Foundation-owned duplicate listener/scheduler. |
-| `execution` | `messaging` | **Omnibus** `^3.0` | Events, queues, durable transports. Portable messaging does not automatically require Runwire; durable storage may conditionally require `data.database`. |
+| `execution` | `messaging` | **Omnibus** `^3.0` | Events, queues, durable transports. Portable messaging remains independent of the Core Runwire integration; durable storage may conditionally require `data.database`. |
 | `execution` | `communication` | **TalkingBytes** `^2.3` | HTTP/email/webhook/gRPC integration; choose features without activating unrelated runtime/messaging. |
 
-**Nine feature identities:** `data.database`, `data.filesystem`, `security.crypto`, `security.validation`, `security.mfa`, `security.passkey`, `execution.runtime`, `execution.messaging`, `execution.communication`.
+**Eight feature identities:** `data.database`, `data.filesystem`, `security.crypto`, `security.validation`, `security.mfa`, `security.passkey`, `execution.messaging`, `execution.communication`.
 
 **External/dependency boundaries:** `psr/log` belongs to Core; WebAuthn is selected only for `security.passkey`; Sodium requirements are determined by the selected crypto/MFA feature and platform; `opis/closure ^4.5` remains a **development dependency**, not a mandatory execution package. PHP `^8.4` and Composer Runtime API `^2.0` remain platform requirements. The actual Composer install plan must be computed from feature dependencies and root ownership, never from the whole category.
 
@@ -141,12 +178,12 @@ This is a **design migration within the Foundation 4 candidate**, not backward c
 | `auth` OTP and passkey selections | `security.mfa` / `security.passkey`, separately activated |
 | `messaging` | `execution.messaging` |
 | `communication` | `execution.communication` |
-| Existing optional Runwire capability | `execution.runtime` (native host-owned) |
+| Runwire integration | Required Core runtime with native host ownership |
 | `logging`, `operations`, `resources`, `session` | **Foundation Core built-ins**, not exposed as optional installable modules |
 | CacheLayer/`cache` and native notifications | **Foundation Core**, never optional installable modules |
 | PHPForge | **Engineering/QA only**, never runtime module |
 
-**Public catalog acceptance:** exactly 3 module IDs and 9 feature IDs, with no fourth pseudo-module for Core, CacheLayer or PHPForge. Dedicated built-in introspection may remain available, but it is not counted as an installable module. All 11 current entries must be accounted for by this ownership map, with no orphaned config/schema or accidental deletion of persisted data.
+**Public catalog acceptance:** exactly 3 module IDs and 8 feature IDs, with no fourth pseudo-module for Core, CacheLayer or PHPForge. Dedicated built-in introspection may remain available, but it is not counted as an installable module. All 11 current entries must be accounted for by this ownership map, with no orphaned config/schema or accidental deletion of persisted data.
 
 
 ## 4. Target contracts for the approved three-module architecture
@@ -157,7 +194,7 @@ Prefer a **curated, deterministic catalog**, potentially split into small declar
 
 - **Category presentation metadata:** three fixed module names and feature ordering only; Core and QA remain outside the module catalog. No generic domain-plugin runtime layer.
 - **ModuleDefinition:** exactly `data`, `security`, `execution`; stable public ID, feature ownership, config/schema owners and supported feature dependencies/platform checks. Built-in/core capabilities are separate non-installable Foundation metadata.
-- **FeatureDefinition:** exactly nine approved optional feature IDs (see §3.2); their own packages, platform, config predicate, native capabilities and conditional dependency edges.
+- **FeatureDefinition:** exactly eight approved optional feature IDs (see §3.2); their own packages, platform, config predicate, native capabilities and conditional dependency edges.
 - **CapabilityPolicy:** single canonical normalization of `app.capabilities` and module overrides; separate developer detection from explicit production activation.
 - **ModuleResolution:** immutable read-only, derived state for available vs root-direct/transitive, selected/active, installed, configured/published, platform, dependency and schema readiness.
 - **ModuleChangePlan:** versioned deterministic **non-mutating** install/enable/disable/remove/repair intent with exact required mutations, blockers, warnings and effects.
@@ -180,27 +217,29 @@ These are semantic boundaries, **not** an instruction to create one class per no
 
 ## 5. Architectural decisions and remaining design questions
 
-**The user has explicitly approved** Core + 3 optional modules + 9 feature IDs, with PHPForge preconfigured separately. That **resolves the top-level taxonomy and installability**, not every lifecycle, API or migration detail.
+**The user has explicitly approved** Core + 3 optional modules + 8 feature IDs, with PHPForge preconfigured separately. That **resolves the top-level taxonomy and installability**, not every lifecycle, API or migration detail.
 
 | ID | Decision | Status | Selected direction / remaining question |
 | --- | --- | --- | --- |
-| D01 | Catalog scope | **DESIGN SELECTED** | Three first-party curated modules, nine features, deterministic validation; no filesystem/package discovery or third-party registry in this rework. |
+| D01 | Catalog scope | **DESIGN SELECTED** | Three first-party curated modules, eight features, deterministic validation; no filesystem/package discovery or third-party registry in this rework. |
 | D02 | Public module structure | **APPROVED** | Exactly `data`, `security`, `execution`; no five-category runtime hierarchy. Core and QA outside the optional module catalog. |
-| D03 | Core and built-in semantics | **APPROVED** | Foundation Core prebuilt/required. Auth policy, cache, logging, operations, resources, session, notifications stay Core-owned; no built-in pseudo-modules. |
-| D04 | Capability source | **DESIGN SELECTED** | Explicit production `app.capabilities` allow-list is authoritative and cannot be broadened by module overrides; partial dev overrides permitted when no full topology is declared. |
-| D05 | Package/feature granularity | **APPROVED** | Nine independently selectable features, precisely scoped packages, real conditional prerequisites and shared ownership. No install-all-on-category-selection. |
+| D03 | Core and built-in semantics | **APPROVED** | Foundation Core prebuilt/required. Auth policy, cache, Runwire integration, logging, operations, resources, session, notifications stay Core-owned; no built-in pseudo-modules. |
+| D04 | Capability source | **DESIGN SELECTED** | Explicit production `app.capabilities` governs optional feature providers; Core Runwire input integration remains available without granting specialist capabilities; partial dev overrides permitted when no full topology is declared. |
+| D05 | Package/feature granularity | **APPROVED** | Eight independently selectable features, precisely scoped packages, real conditional prerequisites and shared ownership. No install-all-on-category-selection. |
 | D06 | Plan/apply | **DESIGN SELECTED** | One pure versioned plan and smallest practical phase executor; Composer/config/schema cannot be one atomic transaction and repair must be idempotent. |
 | D07 | Config ownership | **DESIGN SELECTED** | Feature-owned config only, preserving application files; reuse staging/backup/symlink guards and distinguish publication from validity. |
 | D08 | Schema ownership | **DESIGN SELECTED** | Core auth/session/cache schemas remain Core; Omnibus messaging schema belongs to `execution.messaging`; DBLayer is infrastructure, not other domains' schema owner. |
 | D09 | Public CLI/JSON contracts | **DESIGN SELECTED** | `module:<verb> <data|security|execution> --feature=<name>` for mutations; bare module names inspect/plan only; version breaking machine payloads as v2; no ambiguous `runtime` bare alias. |
 | D10 | Performance guardrails | **DESIGN SELECTED** | Static catalog and compiled native graph, no hot-path Composer/module scans; characterize cold/warm CLI and enforce 2% sustained successful host RPM budget. |
 | D11 | Engineering tooling | **APPROVED** | PHPForge preconfigured for development/CI and release QA only; never installed or activated as a production module. |
-| D12 | Optional native runtime | **APPROVED** | `execution.runtime` is Runwire and remains host-owned. `execution.messaging` is Omnibus; neither silently activates the other. |
+| D12 | Core native runtime | **APPROVED 2026-10-16; supersedes optional runtime** | Runwire is required Core; host ownership and capability checks remain native. Omnibus remains optional `execution.messaging`. |
 
 For implementation-stage decisions, keep the **selected design** and source-backed rationale in [Batch 0 audit](foundation-4-module-batch0-audit.md); re-open only on concrete conflicting native-library evidence, tests or performance. D02/D03/D05/D11/D12 were approved by the user; D01/D04/D06–D10 are **engineering design selections pending implementation and QA**, not additional user approvals.
 
 
-## 6. Implementation batches and acceptance tracker
+## 6. Historical implementation batches and acceptance tracker
+
+The recorded counts and immutable-source acceptances below precede the Core Runwire correction. They remain historical proof; fresh validation of the eight-feature/Core contract is recorded in the current correction section.
 
 **Progress rule:** A batch is accepted only after every item and all batch QA gates are complete, committed to the working branch, verified on exact source, and reflected in this tracker. Drafting this plan does not count as implementation.
 
@@ -303,13 +342,19 @@ For implementation-stage decisions, keep the **selected design** and source-back
 
 ### Batch 7 — Full QA, performance and release closure
 
-- [x] Complete focused/full PHPForge QA, PHPStan, formatting, references, duplicate and security gates without unjustified skipped tests. Immutable executable [`8fa9fd4`](https://github.com/infocyph/Foundation/commit/8fa9fd48952dbfaa49e2258e5afa6a3264fa4658) passed [Security & Standards #38688337213](https://github.com/infocyph/Foundation/actions/runs/38688337213): QA **4/4** (PHP 8.4/8.5 × lowest/stable), analysis **2/2**, benchmarks **2/2**, clean installation and release-evidence capture; PHPForge `fail_on_skipped_tests` remains enabled. The workflow's conditional Security Report *job* is skipped by its upstream rules, not a suppressed test run.
-- [x] Verify PHP 8.4/8.5 × prefer-lowest/stable, Core-only, selected native nine-feature topologies, 4/4 isolated `composer --no-dev` production consumers and trusted compiled generation. Exact source [`8fa9fd4`](https://github.com/infocyph/Foundation/commit/8fa9fd48952dbfaa49e2258e5afa6a3264fa4658), [Security & Standards #38688337213](https://github.com/infocyph/Foundation/actions/runs/38688337213) **SUCCESS**, [native HTTP host #38688336732](https://github.com/infocyph/Foundation/actions/runs/38688336732) **SUCCESS**.
-- [ ] Compare before/after module inspect/plan/enable/compiled boot metrics and production-equivalent successful RPM against controlled matched hardware.
-- [ ] Prove no >2% median successful-RPM regression for stable comparable workloads; flag variance or missing host evidence as **inconclusive/blocking**, never silently pass.
-- [x] Stress concurrent Composer/config mutation, partial failure and idempotent repair, worker lifecycle, persistent selected SQLite/Omnibus durability, cancellation, request/principal reset, restore and native host shutdown. `ModuleFeatureActivationTest`, `ModuleFeatureLifecycleExecutorTest`, `ModuleLifecycleIntegrationTest`, `ExecutionScopeIsolationTest`, selected messaging durable tests and host replacement/soak passed via [Security & Standards #38688337213](https://github.com/infocyph/Foundation/actions/runs/38688337213) and [native HTTP host #38688336732](https://github.com/infocyph/Foundation/actions/runs/38688336732). Added B7 CLI no-op invalidation regression so an unchanged feature command never clears a trusted release. [`8fa9fd4`](https://github.com/infocyph/Foundation/commit/8fa9fd48952dbfaa49e2258e5afa6a3264fa4658).
-- [x] Review PR #20 inline findings (**52 inspected, 0 unresolved**); record immutable executable source [`8fa9fd4`](https://github.com/infocyph/Foundation/commit/8fa9fd48952dbfaa49e2258e5afa6a3264fa4658) and [Security & Standards #38688337213](https://github.com/infocyph/Foundation/actions/runs/38688337213)/ [native HTTP host #38688336732](https://github.com/infocyph/Foundation/actions/runs/38688336732) workflows. [Release-evidence artifact](https://github.com/infocyph/Foundation/actions/runs/38688337213) includes `manifest.env`, resolved `dependencies.json`, `composer-lock.sha256`, PHP/extensions, selected v2 CLI metrics; artifact ZIP SHA-256 `759532cc428d9ff44c46196f0faee89a68c8530f700059869188726b812c6a20`. Both module and separate Foundation release trackers synchronized **without claiming missing performance certification**.
-- [ ] Review final module API docs, release notes/metadata and mark rework ready only after every necessary gate passes. **Documentation + Composer publication-metadata REVIEW COMPLETED** at [`4de9034`](https://github.com/infocyph/Foundation/commit/4de9034c874190ffe6adbb7996dc0b6c2d4c8386): validated the 3/9 v2 CLI, migration examples, Core/optional Composer requirements, `infocyph/foundation` package name, MIT library type, PHP/Composer constraints, PSR-4, shipped CLI, no hardcoded tag/version, draft notes and source/lock publication provenance; 2 added executable metadata parity checks. **Final release sign-off remains BLOCKED**: B7 gates 3 and 4 lack physically matched sustained baseline/candidate host evidence; separate release plan is still 32/37. Do not check this composite release-ready gate until those measurements pass and the final approved source/notes and metadata are recorded. [Security & Standards #38722750952](https://github.com/infocyph/Foundation/actions/runs/38722750952) and [native HTTP host #38722750628](https://github.com/infocyph/Foundation/actions/runs/38722750628) **SUCCESS** on audited executable [`b8dad2c`](https://github.com/infocyph/Foundation/commit/b8dad2c4d619f917c660a85e68480e7fdcb29c2a); the external matched-host measurements and contingent release decision remain missing.
+Current evidence is recorded in [Batch 7 certification evidence](foundation-4-module-batch7-evidence.md). The following checklist supersedes the dated historical checkpoints below.
+
+- [x] Complete focused/full PHPForge QA, analysis, formatting, references, duplicate and configured security gates. Exact executable `60a7951` passed [Security & Standards 38860725174](https://github.com/infocyph/Foundation/actions/runs/38860725174): QA 4/4, analysis 2/2, benchmarks 2/2, clean install and release evidence. The conditional Security Report job is skipped by upstream rules; no test/detector exemption was introduced.
+- [x] Verify PHP 8.4/8.5 × stable/lowest, Core-only and selected native nine-feature graphs, trusted compiled generations and all four isolated `--no-dev` production consumers on `60a7951`.
+- [ ] Compare before/after module inspect/plan/actual-enable and compiled startup metrics plus authenticated successful RPM. The user-approved [paired same-runner workflow 38860730929](https://github.com/infocyph/Foundation/actions/runs/38860730929) records one lock/tool revision, FPM/Runwire, one/four workers and concurrency 1/10/50; final comparable aggregate evidence remains under evaluation.
+- [ ] Prove no >2% median successful-RPM regression with five >=60-second measured trials after a separate 30-second warm-up, CV <=2.5% and bounded resources. Unstable or incomplete measurements remain inconclusive/blocking.
+- [x] Stress actual Composer publication/removal churn, stale snapshots, partial failure, idempotent repair, native persisted contention/rollback, scoped principal/session state, lifecycle, cancellation and recovery. Exact-source suites pass, with local Docker native-host error recovery, worker replacement and soak diagnostics.
+- [x] Inspect all 63 PR #20 inline review threads (zero unresolved, no further page), record executable `60a7951`, hosted PHP/toolchain/dependency provenance and synchronized trackers. Paired lock SHA-256: `47721543a0f9438cfd0fa862b074c5c11953d320c1c9f14164bc4a9df9359e28`. Recheck PR state before final readiness.
+- [ ] Review final module API docs, release notes/metadata and mark rework ready only after all preceding gates pass. The 3-module/9-feature v2 public contract and Composer metadata are reviewed and regression-guarded; publication approval remains withheld, candidate notes remain unpublished, and the performance-dependent decision stays open.
+
+**Current count:** B7 4/7 individually checked, 0/7 whole-batch accepted; module totals 46/49 engineering, 42/49 batch accepted. Foundation release ledger 32/37. Keep PR #20 draft while host performance/final acceptance remain open. Merge, tag, publication and Infbyte migration remain separate operator actions.
+
+**Historical B7 checkpoints:** These preserve prior-source provenance and do not replace the current checklist.
 
 **2026-10-15 Batch 7 evidence checkpoint (NOT RELEASE-READY):** **4/7 independently QA-checked engineering gates; 0/7 whole-batch accepted**. The immutable implementation [`8fa9fd4`](https://github.com/infocyph/Foundation/commit/8fa9fd48952dbfaa49e2258e5afa6a3264fa4658) passed [Security & Standards #38688337213](https://github.com/infocyph/Foundation/actions/runs/38688337213) **SUCCESS** and [native HTTP host #38688336732](https://github.com/infocyph/Foundation/actions/runs/38688336732) **SUCCESS** (correct-response HTTP FPM/Runwire, failure/cancellation, native-read and worker replacement). New `FoundationModuleCliComparison` validates comparable schema-v2 cold/warm CLI metrics and explicitly labels outputs *diagnostic only*, while the host RPM comparator now rejects self-comparison of an identical source SHA. Module no-op activation retains trusted generations. See [Batch 7 evidence and controlled-host procedure](foundation-4-module-batch7-evidence.md). **Three gates remain OPEN:** (3) actual baseline/candidate CLI/compiled boot **and** production-equivalent sustained host measurements, (4) physically matched 5×≥30s stable correct-RPM proof within the strict 2% budget plus representative auth/database/cache workload and telemetry, and (7) final release-note/readiness sign-off dependent on 3–4. Current shared GitHub CI host runs use only three minimal/two native repetitions and cannot satisfy this budget. Separate Foundation 4 release audit stays **32/37**. PR draft; no Infbyte, merge, tag or publish.
 
@@ -333,9 +378,9 @@ For implementation-stage decisions, keep the **selected design** and source-back
 | --- | --- | --- | --- |
 | D02 | Exactly 3 optional public modules: `data`, `security`, `execution` | Explicit user approval; three modules replace five functional categories as public module hierarchy; no implicit install-all | **APPROVED — 2026-10-14** |
 | D03 | Required Foundation Core and built-ins do not become installable modules | Explicit user approval that Core comes with Foundation; prevents pseudo-module removal/activation | **APPROVED — 2026-10-14** |
-| D05 | Exactly 9 independently selectable features: 2 data + 4 security + 3 execution | Explicit user approval; one module does not install all grouped libraries | **APPROVED — 2026-10-14** |
+| D05 | Exactly 8 independently selectable features: 2 data + 4 security + 2 execution | Core Runwire correction removes optional runtime; group selection still does not install all libraries | **APPROVED — 2026-10-16** |
 | D11 | PHPForge remains its own preconfigured development/QA layer | Explicit user approval; no production PHPForge module/runtime activation | **APPROVED — 2026-10-14** |
-| D12 | Runwire under `execution.runtime`, native host-owned and separate from Omnibus | Approved grouping and established native runtime-ownership requirement | **APPROVED — 2026-10-14** |
+| D12 | Runwire is required Core; `execution.runtime` is removed | User correction; environment-portable native runtime integration, separate from optional Omnibus | **APPROVED — 2026-10-16** |
 | D01, D04, D06–D10 | Curated first-party catalog; production explicit capability allow-list; pure planner; feature-owned config; Core/native schema ownership; versioned feature-level CLI; measured hot-path guardrails | [Source-backed decisions, options and rationale](foundation-4-module-batch0-audit.md) §B. Engineering selections, **not** user approval of every implementation detail. Reopen on test/native evidence. | **DESIGN SELECTED — 2026-10-14** |
 
 ## 9. Change log / progress journal

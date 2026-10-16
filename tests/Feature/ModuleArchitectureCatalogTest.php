@@ -5,18 +5,18 @@ declare(strict_types=1);
 use Infocyph\Foundation\Module\ModuleArchitectureCatalog;
 use Infocyph\Foundation\Module\ModuleCatalog;
 
-it('pins the approved Foundation 4 optional modules and nine feature IDs', function (): void {
+it('pins the approved Foundation 4 optional modules and eight feature IDs', function (): void {
     $catalog = new ModuleArchitectureCatalog();
     $catalog->validate();
 
     expect(array_keys($catalog->all()))->toBe(['data', 'security', 'execution'])
         ->and(array_keys($catalog->all()['data']['features']))->toBe(['database', 'filesystem'])
         ->and(array_keys($catalog->all()['security']['features']))->toBe(['crypto', 'validation', 'mfa', 'passkey'])
-        ->and(array_keys($catalog->all()['execution']['features']))->toBe(['runtime', 'messaging', 'communication'])
+        ->and(array_keys($catalog->all()['execution']['features']))->toBe(['messaging', 'communication'])
         ->and(array_sum(array_map(
             static fn(array $module): int => count($module['features']),
             $catalog->all(),
-        )))->toBe(9);
+        )))->toBe(8);
 });
 
 it('installs selected feature packages only, with explicit OTP passkey co-ownership', function (): void {
@@ -35,7 +35,7 @@ it('installs selected feature packages only, with explicit OTP passkey co-owners
             'web-auth/webauthn-lib' => '^5.3.9',
         ])
         ->and($catalog->packages('execution', ['messaging']))->toBe(['infocyph/omnibus' => '^3.0.1'])
-        ->and($catalog->packages('execution', ['runtime']))->toBe(['infocyph/runwire' => '^2.1.1'])
+        ->and(fn() => $catalog->packages('execution', ['runtime']))->toThrow(InvalidArgumentException::class)
         ->and($catalog->packages('execution', ['communication']))->toBe(['infocyph/talkingbytes' => '^2.3']);
 });
 
@@ -57,6 +57,7 @@ it('does not make core, PHPForge, or external developer packages installable mod
 
     expect($owned)->not->toHaveKey('infocyph/phpforge')
         ->and($owned)->not->toHaveKey('infocyph/cachelayer')
+        ->and($owned)->not->toHaveKey('infocyph/runwire')
         ->and($owned)->not->toHaveKey('psr/log')
         ->and($owned)->not->toHaveKey('opis/closure')
         ->and($manifest['require']['psr/log'] ?? null)->toBe('^3.0.2')
@@ -72,7 +73,7 @@ it('keeps selected module feature ownership separate from core schema and native
         ->and($catalog->feature('security', 'passkey')['dependencies'])->toBe([])
         ->and($catalog->feature('security', 'mfa')['dependencies'][0]['target'])->toBe('security.crypto')
         ->and($catalog->feature('security', 'mfa')['dependencies'][0]['when']['value'])->toBe('otp')
-        ->and($catalog->feature('execution', 'runtime')['owner'])->toBe('infocyph/runwire')
+        ->and(fn() => $catalog->feature('execution', 'runtime'))->toThrow(InvalidArgumentException::class)
         ->and($catalog->feature('execution', 'messaging')['owner'])->toBe('infocyph/omnibus')
         ->and($catalog->feature('execution', 'messaging')['dependencies'][0]['target'])->toBe('data.database')
         ->and($catalog->feature('data', 'database')['schemas'])->toBe([])
@@ -100,16 +101,18 @@ it('rejects foreign modules, package ownership collisions, undeclared dependenci
     $cycle['data']['features']['database']['dependencies'][] = ['target' => 'execution.messaging'];
     expect(fn() => $catalog->validate($cycle))->toThrow(LogicException::class, 'Cyclic optional feature dependencies');
 
-    $core = $modules;
-    $core['execution']['features']['messaging']['packages']['infocyph/cachelayer'] = '^4.0';
-    expect(fn() => $catalog->validate($core))->toThrow(LogicException::class, 'Invalid optional package owner');
+    foreach (['infocyph/cachelayer' => '^4.0', 'infocyph/runwire' => '^2.1.1'] as $package => $constraint) {
+        $core = $modules;
+        $core['execution']['features']['messaging']['packages'][$package] = $constraint;
+        expect(fn() => $catalog->validate($core))->toThrow(LogicException::class, 'Invalid optional package owner');
+    }
 });
 
 it('resolves only qualified canonical feature IDs without ambiguous old aliases', function (): void {
     $catalog = new ModuleArchitectureCatalog();
 
     expect($catalog->resolve('data.database')['definition']['owner'])->toBe('infocyph/dblayer')
-        ->and($catalog->resolve('execution.runtime')['definition']['owner'])->toBe('infocyph/runwire')
+        ->and(fn() => $catalog->resolve('execution.runtime'))->toThrow(InvalidArgumentException::class)
         ->and(fn() => $catalog->resolve('runtime'))->toThrow(InvalidArgumentException::class, 'module.feature')
         ->and(fn() => $catalog->resolve('operations'))->toThrow(InvalidArgumentException::class)
         ->and(fn() => $catalog->resolve('security.unknown'))->toThrow(InvalidArgumentException::class)

@@ -13,9 +13,9 @@ before production deployment.
 
 ## Version and package requirements
 
-Foundation 4 requires PHP 8.4+ and Composer 2. The candidate's direct production
+Foundation 4 requires 64-bit PHP 8.4+ and Composer 2. The candidate's direct production
 dependencies are ArrayKit `^5.3.1`, CacheLayer `^4.0.1`, InterMix `^11.2`,
-UID `^6.0`, and Webrick `^6.0.3`.
+Runwire `^2.1.1`, UID `^6.0`, Webrick `^6.0.3`, and PSR Log `^3.0.2`.
 
 Select only the optional **feature IDs** needed by this application, grouped into the three public modules `data`, `security`, and `execution`. The following packages are installed only for selected features:
 
@@ -27,14 +27,13 @@ Select only the optional **feature IDs** needed by this application, grouped int
 | `security.validation` | `infocyph/reqshield:^3.3` |
 | `security.mfa` | `infocyph/otp:^7.0`; OTP-driver MFA also requires explicitly selected `security.crypto` |
 | `security.passkey` | `infocyph/otp:^7.0` and `web-auth/webauthn-lib:^5.3.9`; selecting passkeys does not activate MFA |
-| `execution.runtime` | `infocyph/runwire:^2.1.1`; host-owned runtime |
 | `execution.messaging` | `infocyph/omnibus:^3.0.1`; durable transport requires `data.database` |
 | `execution.communication` | `infocyph/talkingbytes:^2.3` |
 
 The [module catalog](modules.md) owns optional feature and extension requirements.
 Do not blindly install all optional modules. CacheLayer remains a Foundation
-production dependency, not a separately installable module. Runwire 2.1.1 is
-an optional host integration, not a Foundation production dependency.
+production dependency, not a separately installable module. Runwire 2.1.1 is also Core: its host/context integration is always available,
+with native capability checks and synchronous fallback when no active context is passed.
 
 **Before installing Foundation 4**, confirm all required
 published versions are resolvable by Composer/Packagist. In particular,
@@ -80,7 +79,7 @@ successive requests/jobs.
 
 ## Passed Runwire context and native operations
 
-With `execution.runtime` selected, supply the host's exact `RuntimeContext`,
+Core integration accepts the host's exact `RuntimeContext`,
 optional `RequestContext` and optional `CoroutineScope` as execution inputs.
 The compiled web host accepts the passed runtime through
 `WebReleaseRuntime::runwireApplication()`. Foundation forwards the active native
@@ -176,13 +175,13 @@ applicable release gates are accepted. The detailed acceptance tracker is
 
 ## Runnable candidate bootstrap examples
 
-The checked-in [CLI smoke](examples/foundation-4-core.php) and optional
+The checked-in [CLI smoke](examples/foundation-4-core.php) and
 [Runwire worker input smoke](examples/foundation-4-runwire-worker.php)
 are runnable in a checkout with compatible installed packages:
 
 ```bash
 php docs/examples/foundation-4-core.php
-# Only if optional Runwire was installed/selected:
+# Core Runwire context forwarding:
 php docs/examples/foundation-4-runwire-worker.php
 ```
 
@@ -195,7 +194,7 @@ Foundation 4.0 is implemented and verified independently of the Infbyte applicat
 
 ## Production no-dev compiled-release smoke
 
-In a production-like Composer consumer containing the selected published specialist packages and optional Runwire, run:
+In a production-like Composer consumer containing the selected published specialist packages and Core Runwire, run:
 
 ```bash
 php /path/to/Foundation/docs/examples/foundation-4-compiled-release.php

@@ -11,6 +11,7 @@ use Infocyph\Foundation\Database\AuthSchema\AuthSchemaInstaller;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Http\Resolver\RequestPrincipalResolver;
+use Infocyph\Foundation\Module\ModuleArchitectureCatalog;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 use RuntimeException;
@@ -21,13 +22,18 @@ final class Foundation4AuthenticatedWorkload
     /** @return array<string, mixed> */
     public static function configuration(string $directory): array
     {
+        $features = [
+            'data.database' => true, 'security.crypto' => true,
+            'security.mfa' => true, 'execution.communication' => true,
+        ];
+        // Preserve the frozen pre-Core baseline's native host selection only.
+        if (isset(new ModuleArchitectureCatalog()->all()['execution']['features']['runtime'])) {
+            $features['execution.runtime'] = getenv('FOUNDATION_HOST_RUNWIRE') === '1';
+        }
+
         return [
             'app' => ['topology' => 'single_node'],
-            'modules' => ['features' => [
-                'data.database' => true, 'security.crypto' => true,
-                'security.mfa' => true, 'execution.communication' => true,
-                'execution.runtime' => getenv('FOUNDATION_HOST_RUNWIRE') === '1',
-            ]],
+            'modules' => ['features' => $features],
             'database' => [
                 'default' => 'host',
                 'connections' => ['host' => [

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-// From checkout with explicitly installed infocyph/runwire:
+// From checkout after Composer installation:
 // php docs/examples/foundation-4-runwire-worker.php
 // Demonstrates host input identity, NOT a host listener or HTTP response emitter.
 require dirname(__DIR__, 2) . '/vendor/autoload.php';
@@ -12,15 +12,10 @@ use Infocyph\Foundation\Runtime\ExecutionId;
 use Infocyph\Runwire\RequestContext;
 use Infocyph\Runwire\RuntimeContext;
 
-if (!class_exists(RuntimeContext::class)) {
-    throw new LogicException('Install optional infocyph/runwire to run this example.');
-}
-
 $app = Foundation::worker([
     'app' => [
         'base_path' => dirname(__DIR__, 2),
         'env' => 'local',
-        'capabilities' => ['runwire' => true],
     ],
     '_config_cache' => false,
 ])->boot();

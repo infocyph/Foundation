@@ -30,14 +30,12 @@ function moduleB5ExecutionGraph(array $features): array
     return ['context' => $context, 'classes' => $registry->classes(), 'builder' => $builder];
 }
 
-it('keeps Omnibus TalkingBytes and host-owned Runwire independently selectable', function (): void {
+it('keeps Omnibus and TalkingBytes selectable while Runwire is Core', function (): void {
     foreach ([
-        ['features' => [], 'messaging' => false, 'communication' => false, 'runtime' => false],
-        ['features' => ['execution.messaging' => true], 'messaging' => true, 'communication' => false, 'runtime' => false],
-        ['features' => ['execution.communication' => true], 'messaging' => false, 'communication' => true, 'runtime' => false],
-        ['features' => ['execution.runtime' => true], 'messaging' => false, 'communication' => false, 'runtime' => true],
-        ['features' => ['execution.messaging' => true, 'execution.communication' => true], 'messaging' => true, 'communication' => true, 'runtime' => false],
-        ['features' => ['execution.messaging' => true, 'execution.communication' => true, 'execution.runtime' => true], 'messaging' => true, 'communication' => true, 'runtime' => true],
+        ['features' => [], 'messaging' => false, 'communication' => false],
+        ['features' => ['execution.messaging' => true], 'messaging' => true, 'communication' => false],
+        ['features' => ['execution.communication' => true], 'messaging' => false, 'communication' => true],
+        ['features' => ['execution.messaging' => true, 'execution.communication' => true], 'messaging' => true, 'communication' => true],
     ] as $case) {
         $graph = moduleB5ExecutionGraph($case['features']);
 
@@ -45,11 +43,11 @@ it('keeps Omnibus TalkingBytes and host-owned Runwire independently selectable',
             ->and(in_array(CommunicationServiceProvider::class, $graph['classes'], true))->toBe($case['communication'])
             ->and($graph['builder']->definitionGraph()->hasDefinition(MessageBus::class))->toBe($case['messaging'])
             ->and($graph['builder']->definitionGraph()->hasDefinition(HttpClient::class))->toBe($case['communication'])
-            ->and($graph['context']->permitsCapability('runwire'))->toBe($case['runtime']);
+            ->and($graph['context']->permitsCapability('runwire'))->toBeTrue();
     }
 });
 
-it('rejects durable Omnibus without explicitly selected DBLayer and never turns on Runwire', function (): void {
+it('requires explicit DBLayer for durable Omnibus independently of Core Runwire', function (): void {
     expect(fn() => FoundationBuildContext::fromConfig(new ConfigRepository([
         'app' => ['capabilities' => ['database', 'messaging', 'runwire']],
         'messaging' => ['durable' => ['enabled' => true]],
@@ -64,6 +62,5 @@ it('rejects durable Omnibus without explicitly selected DBLayer and never turns 
 
     expect($context->hasFeature('data.database'))->toBeTrue()
         ->and($context->hasFeature('execution.messaging'))->toBeTrue()
-        ->and($context->hasFeature('execution.runtime'))->toBeFalse()
-        ->and($context->permitsCapability('runwire'))->toBeFalse();
+        ->and($context->permitsCapability('runwire'))->toBeTrue();
 });

@@ -1,3 +1,5 @@
+> **Superseded runtime decision (2026-10-16):** This is a historical pre-rework audit. The approved current target makes Runwire required Core and removes optional `execution.runtime`, leaving three modules/eight optional features. See the [current architecture plan](foundation-4-module-architecture-rework-plan.md).
+
 # Foundation 4 — Batch 0 Module Lifecycle Audit & Design Record
 
 > **Scope:** pre-rework source and reproducible characterization. **Approved target:** Foundation Core + PHPForge QA + **three optional public modules with nine independent features**.  

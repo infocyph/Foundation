@@ -8,7 +8,7 @@ use Infocyph\Foundation\Diagnostics\CoreCapabilityDiagnostics;
 use Infocyph\Foundation\Module\ModuleArchitectureCatalog;
 use Infocyph\Foundation\Module\ModuleFeaturePlanner;
 
-it('exposes exactly seven prebuilt Core services without turning them into lifecycle features', function (): void {
+it('exposes exactly eight prebuilt Core services without turning them into lifecycle features', function (): void {
     $diagnostics = new CoreCapabilityDiagnostics();
     $checks = $diagnostics->checks(new ConfiguredCapabilities(new ConfigRepository([
         'modules' => ['features' => []],
@@ -17,7 +17,7 @@ it('exposes exactly seven prebuilt Core services without turning them into lifec
 
     expect(array_keys($checks))->toBe([
         'core:auth', 'core:cache', 'core:logging', 'core:operations',
-        'core:resources', 'core:session', 'core:notifications',
+        'core:resources', 'core:runwire', 'core:session', 'core:notifications',
     ]);
     foreach ($checks as $name => $check) {
         expect($check['ready'])->toBeTrue()
@@ -28,7 +28,7 @@ it('exposes exactly seven prebuilt Core services without turning them into lifec
         ->and($checks['core:logging']['detail'])->toContain('available by policy');
 });
 
-it('keeps Core/QA identities outside the three optional modules and nine feature planner', function (): void {
+it('keeps Core/QA identities outside the three optional modules and eight feature planner', function (): void {
     $catalog = new ModuleArchitectureCatalog();
     $planner = new ModuleFeaturePlanner();
     $context = [

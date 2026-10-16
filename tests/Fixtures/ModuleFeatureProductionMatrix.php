@@ -24,6 +24,10 @@ set_error_handler(static function (int $severity, string $message, string $file,
 }, E_DEPRECATED | E_USER_DEPRECATED);
 require getcwd() . '/vendor/autoload.php';
 
+if (!class_exists(\Infocyph\Runwire\RuntimeContext::class)) {
+    throw new RuntimeException('Runwire must be available in every Foundation production installation.');
+}
+
 $mode = $argv[1] ?? '';
 if (!in_array($mode, ['core', 'all'], true)) {
     throw new InvalidArgumentException('Pass core or all production feature mode.');
@@ -47,7 +51,7 @@ foreach (new ModuleArchitectureCatalog()->all() as $module => $definition) {
         $all[] = $module . '.' . $feature;
     }
 }
-if (count($all) !== 9) {
+if (count($all) !== 8) {
     throw new RuntimeException('Unexpected Foundation 4 optional feature catalog size.');
 }
 

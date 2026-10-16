@@ -17,6 +17,7 @@ final class ModuleArchitectureValidator
         'infocyph/arraykit',
         'infocyph/cachelayer',
         'infocyph/intermix',
+        'infocyph/runwire',
         'infocyph/uid',
         'infocyph/webrick',
         'infocyph/phpforge',

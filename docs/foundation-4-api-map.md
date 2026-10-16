@@ -13,7 +13,7 @@ Foundation 4.0 is a deliberate breaking major release. This document describes *
 | Capabilities | Explicit `app.capabilities` selects optional integrations; installing a library does not activate it |
 | Native HTTP | Webrick owns HTTP request lifecycle, route matching and response output |
 | Release | InterMix ABI 3 + Webrick 6 format-3 artifacts are generated as one trusted immutable release with validated generation/dependency identity |
-| Runwire | Optional and explicitly selected; host passes exact `RuntimeContext` and request/scope inputs to the native Webrick/InterMix integration; Foundation does not create another server, scheduler or context owner |
+| Runwire | Required Core dependency, available across supported environments; host passes exact `RuntimeContext` and request/scope inputs to the native Webrick/InterMix integration; Foundation does not create another server, scheduler or context owner |
 | Persistence | DBLayer owns database operations/migrations; CacheLayer owns cache/counters/outbox; Omnibus owns messaging |
 | Authentication | Foundation owns application policy; Epicrypt owns crypto/OAuth/token operations; OTP/WebAuthn owns MFA and passkey ceremonies |
 | Other specialists | Pathwise owns filesystem/storage, TalkingBytes owns communication, ReqShield owns validation, ArrayKit owns configuration primitives |

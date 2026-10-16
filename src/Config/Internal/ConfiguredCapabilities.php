@@ -24,8 +24,9 @@ final readonly class ConfiguredCapabilities
 
     public function enabled(string $capability): bool
     {
-        return ModuleFeatureCapabilityPolicy::permits($capability, $this->featureSelections)
-            && $this->legacyEnabled($capability);
+        return $capability === 'runwire'
+            || (ModuleFeatureCapabilityPolicy::permits($capability, $this->featureSelections)
+                && $this->legacyEnabled($capability));
     }
 
     public function explicit(?string $capability = null): bool

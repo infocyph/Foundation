@@ -13,13 +13,10 @@ use Infocyph\DBLayer\Connection\PoolManager;
 use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Exception\ConfigurationException;
 use Infocyph\Foundation\Runtime\RuntimeExecutionState;
-use Infocyph\Runwire\RuntimeContext;
 use Psr\Container\ContainerInterface;
 
 final class DBLayerFactory
 {
-    private readonly bool $runwireEnabled;
-
     /** @var array<string, ConnectionConfig> */
     private array $configurations = [];
 
@@ -42,9 +39,7 @@ final class DBLayerFactory
     public function __construct(
         private readonly DatabaseConnectionResolver $resolver,
         private readonly ContainerInterface $container,
-    ) {
-        $this->runwireEnabled = $container->has(RuntimeContext::class);
-    }
+    ) {}
 
     public function __destruct()
     {
@@ -92,9 +87,7 @@ final class DBLayerFactory
 
         $connection = $this->infrastructureConnections[$name]
             ??= new Connection($this->configuration($name), $name);
-        if ($this->runwireEnabled) {
-            $connection->setRunwireContextProvider(RunwireIntegration::current(...));
-        }
+        $connection->setRunwireContextProvider(RunwireIntegration::current(...));
 
         return $connection;
     }
@@ -112,9 +105,7 @@ final class DBLayerFactory
 
     private function configureConnection(Connection $connection): Connection
     {
-        if ($this->runwireEnabled) {
-            $connection->setRunwireContextProvider(RunwireIntegration::current(...));
-        }
+        $connection->setRunwireContextProvider(RunwireIntegration::current(...));
 
         if (!$this->resolver->queryCacheEnabled() || $this->resolvingQueryCache) {
             return $connection;

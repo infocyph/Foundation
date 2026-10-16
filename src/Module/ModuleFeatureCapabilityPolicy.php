@@ -7,7 +7,7 @@ namespace Infocyph\Foundation\Module;
 use Infocyph\Foundation\Config\ConfigRepository;
 
 /**
- * Compile-time-only policy for the staged 3-module/9-feature topology.
+ * Compile-time-only policy for the staged 3-module/8-feature topology.
  * It constrains legacy capability allowlists; it cannot grant privileges.
  * Core auth/cache/logging/session/notifications remain independently owned.
  */
@@ -21,7 +21,6 @@ final class ModuleFeatureCapabilityPolicy
         'messaging' => 'execution.messaging',
         'otp' => 'security.mfa',
         'passkeys' => 'security.passkey',
-        'runwire' => 'execution.runtime',
         'security' => 'security.crypto',
         'validation' => 'security.validation',
     ];

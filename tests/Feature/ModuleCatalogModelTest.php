@@ -21,7 +21,7 @@ it('models managed feature and optional package roles without broadening install
         ->and($catalog->managedPackages($modules['communication']))->toBe([
             'infocyph/talkingbytes' => '^2.3',
         ])
-        ->and($modules['messaging']['packages']['infocyph/runwire']['role'] ?? null)->toBe('optional')
+        ->and($modules['messaging']['packages'])->not->toHaveKey('infocyph/runwire')
         ->and($catalog->managedPackages($modules['messaging']))->toBe([
             'infocyph/omnibus' => '^3.0.1',
         ]);
@@ -55,6 +55,7 @@ it('keeps Composer core and specialist module floors on one supported generation
         'infocyph/arraykit' => '^5.3.1',
         'infocyph/cachelayer' => '^4.0.1',
         'infocyph/intermix' => '^11.2',
+        'infocyph/runwire' => '^2.1.1',
         'infocyph/uid' => '^6.0',
         'infocyph/webrick' => '^6.0.3',
     ];

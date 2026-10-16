@@ -32,7 +32,7 @@ it('forwards published native providers through compiled and borrowed execution 
 
     try {
         $artifact = $project . '/bootstrap/cache/runtime.php';
-        $capabilities = ['runwire', 'database', 'messaging'];
+        $capabilities = ['database', 'messaging'];
         $report = new GeneratedRuntimeCompiler()->compile($config, $mode, $artifact, $capabilities);
         $generated = GeneratedRuntime::loadPrevalidated(
             $config, $mode, $artifact, $report['metadata_sha256'], $report['digest'], $capabilities,
@@ -107,7 +107,7 @@ it('forwards published native providers through compiled and borrowed execution 
 
 it('isolates providers across overlapping Foundation executions and preserves exception restoration', function (): void {
     $app = Foundation::cli([
-        'app' => ['capabilities' => ['runwire' => true, 'messaging' => true]],
+        'app' => ['capabilities' => ['messaging' => true]],
         'database' => [
             'default' => 'test',
             'connections' => ['test' => ['driver' => 'sqlite', 'database' => ':memory:']],
@@ -156,7 +156,7 @@ it('isolates providers across overlapping Foundation executions and preserves ex
 
 it('keeps the host coroutine scope in a structured child and stops native work after host cancellation', function (): void {
     $app = Foundation::worker([
-        'app' => ['capabilities' => ['runwire' => true, 'messaging' => true]],
+        'app' => ['capabilities' => ['messaging' => true]],
         'database' => [
             'default' => 'test',
             'connections' => ['test' => ['driver' => 'sqlite', 'database' => ':memory:']],
@@ -212,7 +212,7 @@ it('keeps the host coroutine scope in a structured child and stops native work a
 
 it('cancels only a child task while consuming a native cursor and keeps its host usable', function (): void {
     $app = Foundation::worker([
-        'app' => ['capabilities' => ['runwire' => true, 'messaging' => true]],
+        'app' => ['capabilities' => ['messaging' => true]],
         'database' => ['default' => 'test', 'connections' => ['test' => ['driver' => 'sqlite', 'database' => ':memory:']]],
         'messaging' => ['default_route' => ['transport' => 'memory']],
     ])->boot();

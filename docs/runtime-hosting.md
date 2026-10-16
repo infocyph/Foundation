@@ -2,8 +2,10 @@
 
 Foundation has four application modes: `web`, `cli`, `worker`, and `scheduler`.
 The HTTP server is a separate choice. Foundation composes application services;
-Webrick supplies HTTP semantics; a selected Runwire engine supplies runtime and
-host lifecycle. Runwire remains an optional application dependency.
+Webrick supplies HTTP semantics; Core Runwire supplies native runtime integration and
+capability-aware host lifecycle boundaries. Runwire is a required Foundation dependency and is available in
+production installations across its supported environments. PCNTL/POSIX and
+host-specific extensions enable capabilities rather than package installation.
 
 ## Ownership and selection
 
@@ -23,7 +25,7 @@ serving are different entry paths; do not start a second listener or worker pool
 inside a host-managed path.
 
 These host capabilities come from [Runwire's runtime contract](https://github.com/infocyph/Runwire#runtime-modes).
-The optional [Webrick bridge](https://github.com/infocyph/Webrick#persistent-runtimes)
+The native [Webrick bridge](https://github.com/infocyph/Webrick#persistent-runtimes)
 provides `RunwireRuntimeApplicationFactory`, `RunwireRuntimeApplication` and
 `RunwireRuntimeAdapter`. Use these existing boundaries rather than creating
 Foundation versions of Runwire host drivers. Webrick's direct host adapters
@@ -78,15 +80,16 @@ web mode: Webrick is the sole owner of its HTTP request scope.
 Batch 3 completed full native compiled-host Runwire identity, request/writer,
 coroutine scope, cancellation and deferred output coverage ([QA #38508326050](https://github.com/infocyph/Foundation/actions/runs/38508326050)).
 Call `WebReleaseRuntime::runwireApplication($runtime)` only on a *trusted
-runwire-enabled generation*, passing the exact host-owned Runwire `RuntimeContext`
-instance, not a newly generated substitute. The normal non-Runwire path remains
-unchanged. See the [worker smoke](examples/foundation-4-runwire-worker.php).
+Foundation generation with native Core inputs*, passing the exact host-owned Runwire `RuntimeContext`
+instance, not a newly generated substitute. An execution without an active passed runtime uses the synchronous native path. See the [worker smoke](examples/foundation-4-runwire-worker.php).
 
-## Optional dependency and separate worker support
+## Core dependency and separate worker support
 
-Applications selecting the Runwire 2.1 integration install `infocyph/runwire`
-explicitly. Foundation does not require it for ordinary PHP/FPM and installation
-alone does not activate a runtime. Omnibus's optional Runwire process-pool backend
+Foundation requires `infocyph/runwire:^2.1.1`, including ordinary PHP/FPM
+installations. Runwire supports FPM, FrankenPHP, RoadRunner, explicit
+Swoole/OpenSwoole hosting and portable native CLI without PCNTL/POSIX.
+The package's presence does not start listeners, workers or an event loop.
+Omnibus's optional Runwire process-pool backend
 is a separate selection from HTTP hosting; see [messaging](messaging.md).
 
 HTTP/2, HTTP/3/QUIC and native transport supervision remain Runwire concerns.

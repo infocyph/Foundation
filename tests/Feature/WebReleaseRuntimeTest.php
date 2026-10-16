@@ -362,7 +362,7 @@ it('boots an explicitly compiled Runwire web host through native Webrick and Int
     }
 });
 
-it('refuses implicit Runwire host construction from a plain PHP web release', function (): void {
+it('accepts an exact host runtime through Core inputs without an optional runtime feature', function (): void {
     $project = foundationWebReleaseProject();
     $config = [
         'app' => [
@@ -389,8 +389,12 @@ it('refuses implicit Runwire host construction from a plain PHP web release', fu
             foundationCapabilities: [],
         );
 
-        expect(fn(): mixed => $loaded->runwireApplication(\Infocyph\Runwire\RuntimeContext::standalone()))
-            ->toThrow(LogicException::class, 'runwire capability');
+        $runtime = \Infocyph\Runwire\RuntimeContext::standalone();
+        $host = $loaded->runwireApplication($runtime);
+        $host->start();
+        expect($host->healthy())->toBeTrue();
+        $host->shutdown();
+        expect(\Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration::current())->toBeNull();
     } finally {
         foundationResetWebrickProductionRegistries();
         foundationWebReleaseRemove($project);

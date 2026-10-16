@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Infocyph\Foundation\Module\ModuleFeatureCommandCatalog;
 
-it('publishes exactly three public module groups and nine qualified features in schema v2', function (): void {
+it('publishes exactly three public module groups and eight qualified features in schema v2', function (): void {
     $catalog = new ModuleFeatureCommandCatalog();
     $inventory = $catalog->inventory();
 
@@ -12,7 +12,7 @@ it('publishes exactly three public module groups and nine qualified features in 
         ->and(array_column($inventory['modules'], 'name'))->toBe(['data', 'security', 'execution'])
         ->and(array_merge(...array_column($inventory['modules'], 'features')))->toBe([
             'data.database', 'data.filesystem', 'security.crypto', 'security.validation',
-            'security.mfa', 'security.passkey', 'execution.runtime', 'execution.messaging',
+            'security.mfa', 'security.passkey', 'execution.messaging',
             'execution.communication',
         ]);
 

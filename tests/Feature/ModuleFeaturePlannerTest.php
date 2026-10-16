@@ -19,7 +19,7 @@ function f4FeatureFixture(): array
     ];
 }
 
-it('normalizes all nine features into canonical deterministic group order', function (): void {
+it('normalizes all eight features into canonical deterministic group order', function (): void {
     $resolver = new ModuleFeatureResolver();
     $catalog = new ModuleArchitectureCatalog();
     $all = [];
@@ -142,7 +142,7 @@ it('preserves root content and emits stable repeatable effects for repair', func
         ->and($plan['effects']['activate'])->toBe([]);
 });
 
-it('plans each of the nine independent features without pulling unrelated sibling packages', function (): void {
+it('plans each of the eight independent features without pulling unrelated sibling packages', function (): void {
     $catalog = new ModuleArchitectureCatalog();
     $planner = new ModuleFeaturePlanner();
     $context = f4FeatureFixture();

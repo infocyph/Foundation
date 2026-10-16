@@ -319,7 +319,7 @@ it('keeps scoped module runtime state separate across selected CLI worker schedu
 it('rejects forged host runtime inputs rather than creating a Runwire identity', function (): void {
     $app = Foundation::worker([
         'app' => ['env' => 'testing'],
-        'modules' => ['features' => ['execution.runtime' => true]],
+        'modules' => ['features' => []],
     ])->boot();
 
     expect(fn() => $app->execution()->run(

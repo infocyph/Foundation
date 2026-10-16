@@ -9,6 +9,7 @@
         "infocyph/arraykit": "^5.3.1",
         "infocyph/cachelayer": "^4.0.1",
         "infocyph/intermix": "^11.2",
+        "infocyph/runwire": "^2.1.1",
         "infocyph/uid": "^6.0",
         "infocyph/webrick": "^6.0.3",
         "psr/log": "^3.0.2"
@@ -22,7 +23,6 @@
         "infocyph/pathwise": "^4.2",
         "infocyph/phpforge": "dev-main@dev",
         "infocyph/reqshield": "^3.3",
-        "infocyph/runwire": "^2.1.1",
         "infocyph/talkingbytes": "^2.3",
         "opis/closure": "^4.5",
         "web-auth/webauthn-lib": "^5.3.9"
@@ -49,7 +49,6 @@
         "infocyph/otp": "Adds OTP-backed multi-factor authentication and Passkey/WebAuthn ceremony integration with CacheLayer-backed replay-safe state.",
         "infocyph/pathwise": "Adds filesystem, storage, upload, download, archive, sync, retention, and storage capability enforcement.",
         "infocyph/reqshield": "Adds request, command, configuration, schema, sanitization, typed input, and database validation services.",
-        "infocyph/runwire": "Optional runtime engine and FPM, FrankenPHP, RoadRunner, Swoole/OpenSwoole host adaptation through Webrick; also supports Omnibus process supervision.",
         "infocyph/talkingbytes": "Adds HTTP, inbound/outbound email, webhook, and gRPC communication services.",
         "web-auth/webauthn-lib": "Required by OTP Passkey when the WebAuthn passkey driver is selected."
     },

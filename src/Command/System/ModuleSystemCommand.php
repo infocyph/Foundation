@@ -19,7 +19,7 @@ use Infocyph\Foundation\Release\FoundationReleaseBootstrap;
 use Infocyph\Foundation\Release\FoundationReleaseCompiler;
 
 /**
- * Foundation 4 public module command boundary: three modules and nine optional
+ * Foundation 4 public module command boundary: three modules and eight optional
  * qualified features. Core and PHPForge are not installable modules.
  *
  * All operations use the same fresh CLI Composer/feature snapshot and B2/B3

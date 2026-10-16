@@ -120,9 +120,8 @@ final readonly class WebReleaseRuntime
      * compiled web generation and a caller-owned Runwire runtime.
      *
      * Webrick owns HTTP adaptation/response emission, InterMix owns scoped DI,
-     * and Runwire owns request/task/cancellation/shutdown lifetimes. A host
-     * requesting this path must compile the web release with the explicit
-     * 'runwire' capability; the ordinary SAPI topology stays untouched.
+     * and Runwire owns request/task/cancellation/shutdown lifetimes. Core
+     * declares the native inputs without creating a host or runtime.
      *
      * @param null|callable(HttpRequest):?CoroutineScope $coroutineScope
      * @param null|callable(HttpRequest):?ScopeContext $scopeContext
@@ -135,7 +134,7 @@ final readonly class WebReleaseRuntime
         foreach ([RuntimeContext::class, \Infocyph\Runwire\RequestContext::class, CoroutineScope::class] as $id) {
             if (!$this->container->has($id)) {
                 throw new \LogicException(
-                    'Runwire web hosting requires a Foundation release compiled with the runwire capability.',
+                    'Runwire web hosting requires a Foundation release with native Core runtime inputs.',
                 );
             }
         }

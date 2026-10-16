@@ -52,10 +52,10 @@ it('does not infer Runwire ownership or activate unrelated execution features', 
     foreach ([RuntimeMode::Cli, RuntimeMode::Worker, RuntimeMode::Scheduler] as $mode) {
         $context = FoundationBuildContext::fromConfig(new ConfigRepository([
             'app' => ['capabilities' => ['runwire', 'messaging', 'communication']],
-            'modules' => ['features' => ['execution.runtime' => true]],
+            'modules' => ['features' => []],
         ]), $mode);
 
-        expect($context->hasFeature('execution.runtime'))->toBeTrue()
+        expect($context->hasCapability('runwire'))->toBeTrue()
             ->and($context->hasFeature('execution.messaging'))->toBeFalse()
             ->and($context->hasFeature('execution.communication'))->toBeFalse()
             ->and($context->permitsCapability('messaging'))->toBeFalse()

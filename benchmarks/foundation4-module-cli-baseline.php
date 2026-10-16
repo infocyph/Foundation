@@ -83,6 +83,7 @@ try {
         'enable' => ['infbyte', 'module:enable', 'data.database'],
     ];
     $benchmarks = [];
+    $featureCount = 0;
 
     foreach ($commands as $name => $arguments) {
         $dispatcher = CommandDispatcher::project(
@@ -107,13 +108,17 @@ try {
         if ($name === 'list' && (
             ($io->payload['schema_version'] ?? null) !== 2
             || count($io->payload['modules'] ?? []) !== 3
-            || count(array_merge(...array_column($io->payload['modules'] ?? [], 'features'))) !== 9
+            || count(array_merge(...array_column($io->payload['modules'] ?? [], 'features'))) < 1
         )) {
-            throw new RuntimeException('Foundation 4 module catalog must contain exactly three groups and nine features.');
+            throw new RuntimeException('Foundation 4 module catalog must contain exactly three groups with nonempty feature inventory.');
         }
 
         if ($name === 'plan' && ($io->payload['schema_version'] ?? null) !== 2) {
             throw new RuntimeException('Foundation 4 selected feature plan must use schema version two.');
+        }
+
+        if ($name === 'list') {
+            $featureCount = count(array_merge(...array_column($io->payload['modules'], 'features')));
         }
 
         $warm = [];
@@ -152,7 +157,7 @@ try {
         'opcache_cli' => (bool) ini_get('opcache.enable_cli'),
         'fixture' => 'direct installed DBLayer + Omnibus + OTP, explicit empty capabilities, isolated Composer stub, cold enable then warm no-op',
         'module_count' => 3,
-        'feature_count' => 9,
+        'feature_count' => $featureCount,
         'commands' => $benchmarks,
         'peak_process_php_memory_mb' => round(memory_get_peak_usage(true) / 1048576, 3),
         'memory_after_samples_mb' => round(memory_get_usage(true) / 1048576, 3),

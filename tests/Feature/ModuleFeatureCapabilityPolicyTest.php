@@ -43,17 +43,20 @@ it('limits only specialist features and retains the explicitly selected Core top
         ->and($context->permitsCapability('cache'))->toBeTrue();
 });
 
-it('never allows selected module features to override the production capability allowlist', function (): void {
+it('keeps Core Runwire available without granting unselected specialist capabilities', function (): void {
     $context = FoundationBuildContext::fromConfig(new ConfigRepository([
         'app' => ['capabilities' => []],
-        'modules' => ['features' => ['data.database' => true, 'execution.runtime' => true]],
+        'modules' => ['features' => ['data.database' => true]],
     ]), RuntimeMode::Worker);
 
-    expect($context->hasFeature('execution.runtime'))->toBeTrue()
-        ->and($context->hasCapability('runwire'))->toBeFalse()
+    expect($context->hasCapability('runwire'))->toBeTrue()
         ->and($context->permitsCapability('database'))->toBeFalse()
-        ->and($context->permitsCapability('runwire'))->toBeFalse()
-        ->and($context->permitsCapability('auth'))->toBeFalse();
+        ->and($context->permitsCapability('runwire'))->toBeTrue()
+        ->and($context->permitsCapability('auth'))->toBeFalse()
+        ->and(new ConfiguredCapabilities(new ConfigRepository([
+            'app' => ['capabilities' => []],
+            'modules' => ['features' => [], 'capabilities' => ['runwire' => false]],
+        ]))->enabled('runwire'))->toBeTrue();
 });
 
 it('refuses malformed, bare, unknown or non-boolean module feature overrides before building', function (): void {
@@ -63,6 +66,7 @@ it('refuses malformed, bare, unknown or non-boolean module feature overrides bef
         ['database' => true],
         ['core.auth' => true],
         ['execution.unknown' => true],
+        ['execution.runtime' => true],
     ] as $features) {
         expect(fn() => FoundationBuildContext::fromConfig(new ConfigRepository([
             'modules' => ['features' => $features],
@@ -70,7 +74,7 @@ it('refuses malformed, bare, unknown or non-boolean module feature overrides bef
     }
 });
 
-it('creates a deterministic policy for nine independently selectable features across runtime modes', function (): void {
+it('creates a deterministic policy for eight independently selectable features across runtime modes', function (): void {
     $catalog = new ModuleArchitectureCatalog();
     $all = [];
     foreach ($catalog->all() as $module => $definition) {
@@ -167,7 +171,6 @@ it('resolves conditional dependencies without expanding unrelated feature groups
 
     expect($context->hasFeature('execution.messaging'))->toBeTrue()
         ->and($context->hasFeature('data.database'))->toBeTrue()
-        ->and($context->hasFeature('execution.runtime'))->toBeFalse()
         ->and($context->hasFeature('execution.communication'))->toBeFalse();
 });
 

@@ -53,18 +53,10 @@ final class FoundationGraph
             ],
         ));
 
-        if ($context->hasCapability('runwire')) {
-            if (!class_exists(\Infocyph\Runwire\RuntimeContext::class)) {
-                throw new \LogicException(
-                    'A Runwire-enabled Foundation graph requires infocyph/runwire 2.1.1 or later.',
-                );
-            }
-            // InterMix owns these declared inputs for web AND host-owned
-            // CLI, worker and scheduler executions. Foundation supplies no
-            // substitute context or fallback runtime.
-            RunwireIntegration::registerInputs($builder);
-            $builder->input(\Infocyph\CacheLayer\Integration\Runwire\RunwireExecutionContext::class);
-        }
+        // Native inputs borrow the caller's context; an ordinary synchronous
+        // execution leaves them unresolved and creates no runtime or loop.
+        RunwireIntegration::registerInputs($builder);
+        $builder->input(\Infocyph\CacheLayer\Integration\Runwire\RunwireExecutionContext::class);
 
         if ($context->runtimeMode === RuntimeMode::Web) {
             $builder->input(Request::class);

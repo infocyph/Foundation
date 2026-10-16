@@ -398,6 +398,7 @@ it('keeps production requirements limited to the Foundation runtime core', funct
         'infocyph/arraykit' => '^5.3.1',
         'infocyph/cachelayer' => '^4.0.1',
         'infocyph/intermix' => '^11.2',
+        'infocyph/runwire' => '^2.1.1',
         'infocyph/uid' => '^6.0',
         'infocyph/webrick' => '^6.0.3',
         'psr/log' => '^3.0.2',

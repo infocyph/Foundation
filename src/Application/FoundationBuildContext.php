@@ -197,6 +197,10 @@ final readonly class FoundationBuildContext
 
     private function rawCapability(string $capability): bool
     {
+        if ($capability === 'runwire') {
+            return true;
+        }
+
         if (array_key_exists($capability, $this->capabilityOverrides)) {
             return $this->capabilityOverrides[$capability];
         }

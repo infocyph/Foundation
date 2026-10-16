@@ -73,21 +73,22 @@ bridge; Runwire owns native portable/prefork execution and its FPM, FrankenPHP,
 RoadRunner and Swoole/OpenSwoole host adaptation. Foundation supplies the
 compiled application and its scoped services.
 
-Runwire is optional and does not activate merely because it is installed. See
+Runwire is a required Core dependency. Its runtime capabilities depend on the
+active host and available extensions; installation does not start a runtime. See
 [Runtime hosting](docs/runtime-hosting.md) for ownership, selection and the
 verification boundary.
 
 ## Optional modules
 
-Foundation 4 supplies prebuilt Core plus **three optional modules with nine individually selected features**:
+Foundation 4 supplies prebuilt Core plus **three optional modules with eight individually selected features**:
 
 | Module | Qualified features |
 | --- | --- |
 | data | `data.database` (DBLayer), `data.filesystem` (Pathwise) |
 | security | `security.crypto` (Epicrypt), `security.validation` (ReqShield), `security.mfa` (OTP), `security.passkey` (OTP + WebAuthn) |
-| execution | `execution.runtime` (Runwire), `execution.messaging` (Omnibus), `execution.communication` (TalkingBytes) |
+| execution | `execution.messaging` (Omnibus), `execution.communication` (TalkingBytes) |
 
-Core authentication, CacheLayer, logging, operations, resources, sessions and notifications are not installable modules. PHPForge remains development/QA-only. Webrick, InterMix and Runwire retain native routing, container and host ownership.
+Core authentication, CacheLayer, Runwire, logging, operations, resources, sessions and notifications are not installable modules. PHPForge remains development/QA-only. Webrick, InterMix and Runwire retain native routing, container and host ownership.
 
 ```bash
 php infbyte module:list

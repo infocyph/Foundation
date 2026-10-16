@@ -249,7 +249,7 @@ final class CommandCatalog
                 ->option('feature', 'Explicit group feature.', acceptsValue: true, multiple: true)
                     ->option('dry-run', 'Preview without modifying Composer or config.'),
             ),
-            new CommandDefinition('module:list', 'List three Foundation 4 module groups and nine optional features.', 'Modules'),
+            new CommandDefinition('module:list', 'List three Foundation 4 module groups and eight optional features.', 'Modules'),
             new CommandDefinition('module:plan', 'Plan explicit selected feature requirements without mutation.', 'Modules')
                 ->argument('module', 'Group or qualified feature ID.', required: true)
                 ->option('feature', 'Explicit group feature.', acceptsValue: true, multiple: true),
