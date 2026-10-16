@@ -67,10 +67,16 @@ runtime/resource files match Git `6274939`; both variants use identical current
 benchmark tools and the same lock. This is local diagnostic evidence, not hosted
 acceptance or a claim that earlier candidates' regressions were fixed.
 
-B7 throughput/stability and final sign-off remain open. More stable GitHub
-measurement capacity is needed; no repository self-hosted runner was registered
-when inspected. A dedicated/larger runner label has been requested. PR #20
-remains draft; merge, tag, publication and Infbyte migration are not performed.
+B7 throughput/stability and final sign-off remain open. The user confirmed this
+is a public repository. The workflow now permits the standard free
+`ubuntu-24.04` or `ubuntu-24.04-arm` runner for measured pairs; its run title
+distinguishes manual comparison from ordinary PR smoke. An ARM64 comparison is
+the next experiment, not an assumed stability fix or existing certification.
+Both revisions of every pair still use the same runner, lock, fixture and tools;
+limits remain unchanged. See [GitHub's standard public-runner specifications](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
+No self-hosted runner was registered when inspected; larger runners are paid
+even for public repositories and are not selected. PR #20 remains draft;
+merge, tag, publication and Infbyte migration are not performed.
 
 ## Historical evidence before the Core correction
 

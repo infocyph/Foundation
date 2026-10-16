@@ -1,4 +1,8 @@
 name: Foundation 4 native HTTP host smoke
+run-name: >-
+  ${{ github.event_name == 'workflow_dispatch'
+      && format('Foundation 4 paired host comparison ({0})', inputs.host_runner)
+      || 'Foundation 4 native HTTP host smoke' }}
 
 on:
   workflow_dispatch:
@@ -8,6 +12,14 @@ on:
         required: true
         default: 6274939c395f75e5cf777aad5d7439f10792758c
         type: string
+      host_runner:
+        description: Standard public-repository runner for both revisions of each measured pair
+        required: true
+        default: ubuntu-24.04
+        type: choice
+        options:
+          - ubuntu-24.04
+          - ubuntu-24.04-arm
   pull_request:
     branches: [main, master]
     paths:
@@ -132,7 +144,7 @@ jobs:
   paired-host:
     if: github.event_name == 'workflow_dispatch'
     needs: prepare-paired-host
-    runs-on: ubuntu-24.04
+    runs-on: ${{ inputs.host_runner || 'ubuntu-24.04' }}
     timeout-minutes: 35
     strategy:
       fail-fast: false
