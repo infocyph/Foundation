@@ -59,6 +59,16 @@ response drain and scoped native selected-module propagation in [Batch 3's
 release plan](plans/foundation-4.0-release-audit-and-plan.md). A deployment must
 still rehearse its actual chosen FPM/RoadRunner/Swoole host and transport.
 
+## Intermediary-library context forwarding
+
+When another library has already shared a native Runwire context, a non-web
+Foundation execution validates it through the same process/request/task checks
+as explicit inputs. Core seeds the exact runtime, request and coroutine objects
+into InterMix as well as forwarding them to native operations. Completed or
+cancelled shared requests are rejected before framework work starts. A
+runtime-only context leaves absent request/coroutine inputs null; Foundation
+does not manufacture them or complete caller-owned lifecycle objects.
+
 ## Borrowed non-web scope propagation (Batch 3)
 
 For work that a host has already placed inside an InterMix worker, scheduler or

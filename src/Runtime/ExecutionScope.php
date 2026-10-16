@@ -172,7 +172,15 @@ final readonly class ExecutionScope
             && !array_key_exists(RequestContext::class, $seeds)
             && !array_key_exists(CoroutineScope::class, $seeds)
         ) {
-            return CacheRunwireIntegration::current();
+            $shared = CacheRunwireIntegration::current();
+            if ($shared === null) {
+                return null;
+            }
+            $seeds = array_filter([
+                RuntimeContext::class => $shared->runtime,
+                RequestContext::class => $shared->request,
+                CoroutineScope::class => $shared->scope,
+            ], static fn(mixed $value): bool => $value !== null);
         }
 
         $runtime = $seeds[RuntimeContext::class] ?? null;
@@ -251,6 +259,17 @@ final readonly class ExecutionScope
 
         if ($this->container->has(RunwireExecutionContext::class)) {
             $seeds[RunwireExecutionContext::class] = $native;
+        }
+        if ($native !== null) {
+            foreach ([
+                RuntimeContext::class => $native->runtime,
+                RequestContext::class => $native->request,
+                CoroutineScope::class => $native->scope,
+            ] as $id => $value) {
+                if ($this->container->has($id)) {
+                    $seeds[$id] = $value;
+                }
+            }
         }
 
         return $this->container->withinScope(

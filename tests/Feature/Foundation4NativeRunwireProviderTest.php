@@ -14,7 +14,7 @@ use Infocyph\Runwire\RequestContext;
 use Infocyph\Runwire\Runtime\Enum\CancellationReason;
 use Infocyph\Runwire\RuntimeContext;
 
-it('forwards published native providers through compiled and borrowed execution scopes and recycled leases', function (RuntimeMode $mode, bool $pooled): void {
+it('forwards published native providers through compiled and borrowed execution scopes and recycled leases', function (RuntimeMode $mode, bool $pooled, bool $throughLibrary, bool $compiled): void {
     $project = sys_get_temp_dir() . '/foundation-native-provider-' . bin2hex(random_bytes(6));
     mkdir($project . '/bootstrap/cache', 0700, true);
     $config = [
@@ -33,11 +33,20 @@ it('forwards published native providers through compiled and borrowed execution 
     try {
         $artifact = $project . '/bootstrap/cache/runtime.php';
         $capabilities = ['database', 'messaging'];
-        $report = new GeneratedRuntimeCompiler()->compile($config, $mode, $artifact, $capabilities);
-        $generated = GeneratedRuntime::loadPrevalidated(
-            $config, $mode, $artifact, $report['metadata_sha256'], $report['digest'], $capabilities,
-        );
-        $app = $generated->application;
+        if ($compiled) {
+            $report = new GeneratedRuntimeCompiler()->compile($config, $mode, $artifact, $capabilities);
+            $generated = GeneratedRuntime::loadPrevalidated(
+                $config, $mode, $artifact, $report['metadata_sha256'], $report['digest'], $capabilities,
+            );
+            $app = $generated->application;
+        } else {
+            $config['app']['capabilities'] = $capabilities;
+            $app = match ($mode) {
+                RuntimeMode::Cli => Foundation::cli($config)->boot(),
+                RuntimeMode::Worker => Foundation::worker($config)->boot(),
+                default => Foundation::scheduler($config)->boot(),
+            };
+        }
         $bus = $app->make(MessageBus::class);
         $factory = $app->make(DBLayerFactory::class);
         $execution = $app->execution();
@@ -46,16 +55,20 @@ it('forwards published native providers through compiled and borrowed execution 
         for ($index = 0; $index < 2; $index++) {
             $request = RequestContext::create($runtime);
             $requests[] = $request;
-            $connection = $execution->run(static function () use ($app, $execution, $factory, $bus, $runtime, $request): mixed {
+            $callback = static function () use ($app, $execution, $factory, $bus, $runtime, $request): mixed {
                 $connection = $factory->connection();
-                expect($connection->scalar('SELECT 1'))->toBe(1)
+                expect($app->make(RuntimeContext::class))->toBe($runtime)
+                    ->and($app->make(RequestContext::class))->toBe($request)
+                    ->and($connection->scalar('SELECT 1'))->toBe(1)
                     ->and($connection->runwireBinding()['request'])->toBe($request)
                     ->and($bus->runwireBinding()->request())->toBe($request);
                 $captured = $app->runtime()->captureScopeContext();
                 $child = new Fiber(static fn(): mixed => $execution->withinBorrowedScope(
                     $captured,
-                    static function () use ($factory, $bus, $runtime, $request): mixed {
-                        expect(CacheRunwire::current()?->runtime)->toBe($runtime)
+                    static function () use ($app, $factory, $bus, $runtime, $request): mixed {
+                        expect($app->make(RuntimeContext::class))->toBe($runtime)
+                            ->and($app->make(RequestContext::class))->toBe($request)
+                            ->and(CacheRunwire::current()?->runtime)->toBe($runtime)
                             ->and(CacheRunwire::current()?->request)->toBe($request)
                             ->and($bus->runwireBinding()->request())->toBe($request)
                             ->and($factory->connection()->scalar('SELECT 2'))->toBe(2);
@@ -73,7 +86,10 @@ it('forwards published native providers through compiled and borrowed execution 
                     ->and(fn() => $bus->dispatch(new stdClass()))->toThrow(CancelledException::class);
 
                 return $connection;
-            }, [RuntimeContext::class => $runtime, RequestContext::class => $request]);
+            };
+            $connection = $throughLibrary
+                ? CacheRunwire::share($request, null, static fn(): mixed => $execution->run($callback), $runtime)
+                : $execution->run($callback, [RuntimeContext::class => $runtime, RequestContext::class => $request]);
 
             expect(CacheRunwire::current())->toBeNull()
                 ->and(CacheRunwire::runtime())->toBeNull()
@@ -103,7 +119,7 @@ it('forwards published native providers through compiled and borrowed execution 
         }
         rmdir($project);
     }
-})->with([RuntimeMode::Cli, RuntimeMode::Worker, RuntimeMode::Scheduler])->with([false, true]);
+})->with([RuntimeMode::Cli, RuntimeMode::Worker, RuntimeMode::Scheduler])->with([false, true])->with([false, true])->with([false, true]);
 
 it('isolates providers across overlapping Foundation executions and preserves exception restoration', function (): void {
     $app = Foundation::cli([
@@ -154,7 +170,7 @@ it('isolates providers across overlapping Foundation executions and preserves ex
     }
 });
 
-it('keeps the host coroutine scope in a structured child and stops native work after host cancellation', function (): void {
+it('keeps the host coroutine scope in a structured child and stops native work after host cancellation', function (bool $throughLibrary): void {
     $app = Foundation::worker([
         'app' => ['capabilities' => ['messaging' => true]],
         'database' => [
@@ -175,15 +191,16 @@ it('keeps the host coroutine scope in a structured child and stops native work a
     $observed = (object) ['cancelled' => false];
     $work = static fn(): mixed => new \Infocyph\Runwire\Coroutine\CoroutineRuntime()->runRequest(
         $request,
-        static function (\Infocyph\Runwire\Coroutine\CoroutineScope $scope) use ($app, $runtime, $request, $observed): mixed {
-            return $app->execution()->run(static function () use ($app, $scope, $request, $observed): mixed {
+        static function (\Infocyph\Runwire\Coroutine\CoroutineScope $scope) use ($app, $runtime, $request, $observed, $throughLibrary): mixed {
+            $callback = static function () use ($app, $scope, $request, $observed): mixed {
                 $captured = $app->runtime()->captureScopeContext();
                 $child = $scope->spawn(static fn(): mixed => $app->execution()->withinBorrowedScope(
                     $captured,
                     static function () use ($app, $scope, $request, $observed): void {
                         $connection = $app->make(DBLayerFactory::class)->connection();
                         $bus = $app->make(MessageBus::class);
-                        expect($connection->runwireBinding()['scope'])->toBe($scope)
+                        expect($app->make(\Infocyph\Runwire\Coroutine\CoroutineScope::class))->toBe($scope)
+                            ->and($connection->runwireBinding()['scope'])->toBe($scope)
                             ->and($bus->runwireBinding()->scope())->toBe($scope)
                             ->and(CacheRunwire::current()?->scope)->toBe($scope)
                             ->and($connection->scalar('SELECT 1'))->toBe(1);
@@ -196,7 +213,11 @@ it('keeps the host coroutine scope in a structured child and stops native work a
                 ));
 
                 return $child->await();
-            }, [RuntimeContext::class => $runtime, RequestContext::class => $request, \Infocyph\Runwire\Coroutine\CoroutineScope::class => $scope]);
+            };
+
+            return $throughLibrary
+                ? CacheRunwire::share($request, $scope, static fn(): mixed => $app->execution()->run($callback), $runtime)
+                : $app->execution()->run($callback, [RuntimeContext::class => $runtime, RequestContext::class => $request, \Infocyph\Runwire\Coroutine\CoroutineScope::class => $scope]);
         },
     );
 
@@ -208,7 +229,7 @@ it('keeps the host coroutine scope in a structured child and stops native work a
     } finally {
         $request->complete();
     }
-});
+})->with([false, true]);
 
 it('cancels only a child task while consuming a native cursor and keeps its host usable', function (): void {
     $app = Foundation::worker([
@@ -267,4 +288,50 @@ it('cancels only a child task while consuming a native cursor and keeps its host
     } finally {
         $request->complete();
     }
+});
+
+it('rejects a shared completed or cancelled host request before starting framework work', function (string $state): void {
+    $app = Foundation::cli(['_config_cache' => false, 'app' => ['capabilities' => []]])->boot();
+    $runtime = RuntimeContext::standalone();
+    $request = RequestContext::create($runtime);
+    $called = false;
+    if ($state === 'completed') {
+        $request->complete();
+    } else {
+        $request->cancel(CancellationReason::HOST_CANCELLED);
+    }
+    $expected = $state === 'completed' ? LogicException::class : CancelledException::class;
+    $callback = static function () use (&$called): void {
+        $called = true;
+    };
+
+    try {
+        CacheRunwire::share($request, null, static function () use ($app, $request, $expected, $callback): void {
+            expect(fn() => $app->execution()->run($callback))->toThrow($expected)
+                ->and(CacheRunwire::current()?->request)->toBe($request);
+        }, $runtime);
+        expect($called)->toBeFalse()
+            ->and($request->completed())->toBe($state === 'completed')
+            ->and(CacheRunwire::current())->toBeNull();
+    } finally {
+        $request->complete();
+    }
+})->with(['completed', 'cancelled']);
+
+it('forwards a shared runtime without manufacturing absent request or coroutine scopes', function (): void {
+    $app = Foundation::worker(['_config_cache' => false, 'app' => ['capabilities' => []]])->boot();
+    $runtime = RuntimeContext::standalone();
+
+    CacheRunwire::share(null, null, static function () use ($app, $runtime): void {
+        $app->execution()->run(static function () use ($app, $runtime): void {
+            expect($app->make(RuntimeContext::class))->toBe($runtime)
+                ->and($app->make(RequestContext::class))->toBeNull()
+                ->and($app->make(\Infocyph\Runwire\Coroutine\CoroutineScope::class))->toBeNull()
+                ->and(CacheRunwire::current()?->request)->toBeNull()
+                ->and(CacheRunwire::current()?->scope)->toBeNull();
+        });
+    }, $runtime);
+
+    expect(CacheRunwire::current())->toBeNull()
+        ->and(CacheRunwire::runtime())->toBeNull();
 });

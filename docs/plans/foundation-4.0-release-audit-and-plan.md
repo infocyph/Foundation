@@ -1,5 +1,18 @@
 ## Current scope correction — Runwire is Core (2026-10-16)
 
+**Intermediary boundary follow-up:** An additional probe on `faa4ba7` reproduced
+missing Core DI inputs when an upstream library shared the runtime without an
+explicit Foundation seed map. Eight adversarial cases failed before the fix:
+six compiled mode/pool combinations and completed/cancelled shared requests.
+Core now validates the shared context using the existing explicit-input checks
+and seeds exact native objects into DI. Focused validation passes 31 tests /
+1,112 assertions, including development/compiled direct/intermediary execution,
+borrowed children, coroutine identity/cancellation and runtime-only null scopes.
+The `faa4ba7` hosted QA succeeded, but the sustained comparison was cancelled;
+that revision does not certify this follow-up. Renewed full detailed quality
+passes with 769 tests / 29,638 assertions and all configured static/security/
+formatting/reference checks. Exact hosted evidence remains required. No native mechanism or public wrapper was added.
+
 The user requires `infocyph/runwire:^2.1.1` in production `require` and approved
 Core integration across its supported environments. It is removed from
 `require-dev`/`suggest` and from optional package ownership. The public optional
