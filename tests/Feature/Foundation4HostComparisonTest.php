@@ -38,7 +38,7 @@ function foundationHostFixture(float $rpm = 1000.0, bool $candidate = false): ar
         'composer_lock_sha256' => str_repeat('b', 64),
         'request_count' => 1000,
         'repetitions' => 5,
-        'warmup_seconds' => 0,
+        'warmup_seconds' => 30,
         'hosts' => $hosts,
     ];
 }
@@ -82,7 +82,7 @@ it('rejects mismatched host identities and runtime dependencies', function (): v
         ->toThrow(InvalidArgumentException::class, 'hardware_id differs.');
 
     $candidate = foundationHostFixture(candidate: true);
-    $candidate['warmup_seconds'] = 30;
+    $candidate['warmup_seconds'] = 31;
     expect(fn(): array => Foundation4HostComparison::compare(foundationHostFixture(), $candidate))
         ->toThrow(InvalidArgumentException::class, 'warmup_seconds differs.');
 
@@ -112,6 +112,30 @@ it('rejects short runs, invalid responses and missing benchmark scenarios', func
     expect(fn(): array => Foundation4HostComparison::compare(foundationHostFixture(), $candidate))
         ->toThrow(InvalidArgumentException::class, 'Complete 1/4-worker');
 });
+
+it('requires a full minute in every baseline and candidate measured trial', function (bool $candidateRun, float $seconds): void {
+    $base = foundationHostFixture();
+    $candidate = foundationHostFixture(candidate: true);
+    $run = &$base['hosts']['fpm'][0]['runs'][0];
+    if ($candidateRun) {
+        $run = &$candidate['hosts']['fpm'][0]['runs'][0];
+    }
+    $run['duration_seconds'] = $seconds;
+    $run['rpm'] = $run['successful'] * 60.0 / $seconds;
+
+    expect(fn() => Foundation4HostComparison::compare($base, $candidate))
+        ->toThrow(InvalidArgumentException::class, 'Invalid or unsustained evidence');
+})->with([false, true])->with([29.999, 30.0, 59.999]);
+
+it('requires the approved warm-up in both reports before comparing throughput', function (?int $seconds): void {
+    $base = foundationHostFixture();
+    $candidate = foundationHostFixture(candidate: true);
+    $base['warmup_seconds'] = $seconds;
+    $candidate['warmup_seconds'] = $seconds;
+
+    expect(fn() => Foundation4HostComparison::compare($base, $candidate))
+        ->toThrow(InvalidArgumentException::class, 'incomplete or non-certifiable');
+})->with([null, 0, 29]);
 
 it('refuses to treat short shared-runner smoke evidence as a certified comparison', function (): void {
     $candidate = foundationHostFixture(candidate: true);

@@ -18,7 +18,9 @@ final class Foundation4HostComparison
 
     private const int MIN_REPETITIONS = 5;
 
-    private const float MIN_SUSTAINED_SECONDS = 30.0;
+    private const float MIN_SUSTAINED_SECONDS = 60.0;
+
+    private const int MIN_WARMUP_SECONDS = 30;
 
     private const float REGRESSION_BUDGET_PERCENT = 2.0;
 
@@ -47,6 +49,8 @@ final class Foundation4HostComparison
                 || $report['workload_profile'] === ''
                 || !is_array($report['hosts'] ?? null)
                 || ($report['repetitions'] ?? 0) < self::MIN_REPETITIONS
+                || !is_int($report['warmup_seconds'] ?? null)
+                || $report['warmup_seconds'] < self::MIN_WARMUP_SECONDS
             ) {
                 throw new InvalidArgumentException('Host benchmark evidence is incomplete or non-certifiable.');
             }

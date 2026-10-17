@@ -2,9 +2,12 @@
 
 ## Coordinated Foundation / Infbyte release preparation — 2026-10-17
 
-Infbyte's current application candidate is `367e04f` on `feature/infbyte-4`;
-its [13-job candidate acceptance](https://github.com/infocyph/Infbyte/actions/runs/39020274875)
-is green against Foundation `596825a`. Both workspaces resolve the same current
+Infbyte's current application candidate is `fcc2824` on `feature/infbyte-4`;
+its [13-job candidate acceptance](https://github.com/infocyph/Infbyte/actions/runs/39048507633)
+is green. Foundation `cdefa10` also passes
+[quality and production consumers](https://github.com/infocyph/Foundation/actions/runs/39048504642)
+and [native serving](https://github.com/infocyph/Foundation/actions/runs/39048504621).
+Both workspaces resolve the same current
 Core library versions and source references, including published Runwire 2.1.2.
 Refreshed Composer checks report no outdated direct requirements and no security
 advisories; `doctrine/annotations` remains an abandoned development-tool dependency.
@@ -22,7 +25,7 @@ development candidate or an actual stable 4.x identity, rejecting other majors,
 prereleases, development aliases and stable-mode VCS overrides. Metadata fixtures
 are unit checks, not evidence of a published Foundation 4 package.
 
-Local detailed suites pass 785 Foundation tests and 51 Infbyte tests. Final
+Local detailed suites pass 794 Foundation tests and 51 Infbyte tests. Final
 commit/hosted evidence is recorded in the corresponding PRs after the final
 checks; these counts alone do not close release acceptance.
 
@@ -34,6 +37,22 @@ diagnostic tooling `7140c1a`, unchanged executable candidate `3f295de`, frozen
 baseline `6274939`, the same dependency lock and all original workload/budget
 requirements. This tests an environment limitation; it is not a runtime fix or
 a performance acceptance claim. Preserve the complete result, including failures.
+
+The complete ARM result is **6 pass, 2 measured regressions, 4 inconclusive**.
+FPM w1/c10 measures -8.037% (maximum CV 2.422%); FPM w4/c1 measures
+-2.550% (maximum CV 1.740%). All 120 measured trials and eight soak windows
+complete without failed responses. Aggregate artifact `12106763398` has digest
+`sha256:9b4850baa342fe283174b5f2bf7f20b91a8efa583c7750d3759ece100d74297a`.
+An unchanged-revision GitHub rerun will investigate reproducibility; neither
+runner selection nor a mixture of successful cases closes the release gate.
+
+The comparator now enforces the plan's full 60-second minimum for every measured
+trial and at least 30 seconds of warm-up in both reports. Previously it accepted
+30-second trials and matching absent/short warm-up values. Regression cases
+reproduce the incorrect acceptance before this correction. Replaying both complete
+CPU-controlled reports with the stricter comparator leaves their case verdicts
+unchanged: their actual measurements already satisfy these duration requirements.
+The executable framework, frozen baseline and performance budgets are unchanged.
 
 Final release order remains Foundation performance/sign-off, operator-controlled
 Foundation 4 publication, then Infbyte's stable `^4.0` manifest without a VCS

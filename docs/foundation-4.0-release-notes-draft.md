@@ -4,13 +4,15 @@
 
 > **Unpublished candidate:** PR #20 remains draft. This document is not an announcement, tag, compatibility promise, or certification. Final wording must be reviewed against the exact released source/dependency set.
 
-**Pre-merge checkpoint (2026-10-17):** Executable candidate `3f295de` has
-[fully green PHP 8.4/8.5 stable/lowest QA, analysis, production consumers and release evidence](https://github.com/infocyph/Foundation/actions/runs/39007156463)
-and [all four Swoole/OpenSwoole serving lanes](https://github.com/infocyph/Foundation/actions/runs/39007156290).
-The complete [CPU-controlled comparison](https://github.com/infocyph/Foundation/actions/runs/39010682913)
-has eight passing and four inconclusive cases, with no stable regression in this
-attempt. All 120 measured trials and eight soak windows have zero failed
-responses; four cases exceed the unchanged 2.5% variance ceiling. The release
+**Pre-merge checkpoint (2026-10-17):** Foundation `cdefa10`, with executable
+code unchanged from `3f295de`, has
+[fully green PHP 8.4/8.5 stable/lowest QA, analysis, production consumers and release evidence](https://github.com/infocyph/Foundation/actions/runs/39048504642)
+and [all four Swoole/OpenSwoole serving lanes](https://github.com/infocyph/Foundation/actions/runs/39048504621).
+The complete [ARM CPU-controlled comparison](https://github.com/infocyph/Foundation/actions/runs/39047995755)
+has six passing cases, two measured FPM regressions and four inconclusive cases.
+All 120 measured trials and eight soak windows have zero failed responses;
+performance acceptance remains open under the unchanged 2% regression and 2.5%
+variance limits. The release
 ledger is 33/37 after completing telemetry collection; stable sustained host
 performance and final acceptance remain open. No throughput fix is claimed.
 Native integration/security/state evidence has been revalidated. See
@@ -76,7 +78,7 @@ The release candidate declares Composer package `infocyph/foundation`, type `lib
 
 FPM and native Runwire have passed real HTTP smoke, cancellation, error recovery, worker replacement and bounded selected-native read/credential-cache soak on the candidate. These are shared-runner **smoke** results, not controlled sustained baseline-vs-candidate RPM or production-equivalent memory/latency certification. Production service backup/disaster recovery also requires deployment-specific validation. Release certification remains open. See the [release audit and plan](plans/foundation-4.0-release-audit-and-plan.md). Publish only after all applicable release gates pass on the final immutable source and dependency set.
 
-Final release notes must contain the exact published source SHA, resolved dependency manifest and Composer lock hash, confirmed selected feature support, controlled baseline/candidate comparison artifacts (five sustained ≥30-second correct-response repetitions per FPM/Runwire case, stable variance and no greater than 2% successful-RPM regression), representative authenticated/database/cache workload metrics, and reviewed publication metadata. Until stable comparable measurements pass and the final acceptance decision is recorded, this document remains an **unpublished draft**; passing GitHub-runner smoke must not be described as release certification.
+Final release notes must contain the exact published source SHA, resolved dependency manifest and Composer lock hash, confirmed selected feature support, controlled baseline/candidate comparison artifacts (five sustained ≥60-second correct-response repetitions after ≥30 seconds of warm-up per FPM/Runwire case, stable variance and no greater than 2% successful-RPM regression), representative authenticated/database/cache workload metrics, and reviewed publication metadata. Until stable comparable measurements pass and the final acceptance decision is recorded, this document remains an **unpublished draft**; passing GitHub-runner smoke must not be described as release certification.
 
 ### Pre-merge measurement environment (2026-10-16)
 
