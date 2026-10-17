@@ -5,10 +5,27 @@ on:
     - cron: "0 0 * * 0"
   push:
     branches: [ "main", "master" ]
+    tags: [ "v*", "[0-9]*" ]
   pull_request:
     branches: [ "main", "master", "develop", "development" ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
+  release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    needs: [phpforge, production-consumer, release-evidence, runtime-hosts]
+    uses: infocyph/phpforge/.github/workflows/release.yml@main
+    permissions:
+      contents: write
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+  runtime-hosts:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    uses: ./.github/workflows/foundation4-host-certification.yml
+    permissions:
+      contents: read
   phpforge:
     uses: infocyph/phpforge/.github/workflows/security-standards.yml@fdec64cf4460f13116eb0e2f3405acadd3e84377
     permissions:

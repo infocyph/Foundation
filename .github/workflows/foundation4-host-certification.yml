@@ -5,6 +5,7 @@ run-name: >-
       || 'Foundation 4 native HTTP host smoke' }}
 
 on:
+  workflow_call:
   workflow_dispatch:
     inputs:
       baseline_ref:

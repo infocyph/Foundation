@@ -1,5 +1,45 @@
 # Foundation 4 — Module architecture Batch 7 certification evidence
 
+## Coordinated Foundation / Infbyte release preparation — 2026-10-17
+
+Infbyte's current application candidate is `367e04f` on `feature/infbyte-4`;
+its [13-job candidate acceptance](https://github.com/infocyph/Infbyte/actions/runs/39020274875)
+is green against Foundation `596825a`. Both workspaces resolve the same current
+Core library versions and source references, including published Runwire 2.1.2.
+Refreshed Composer checks report no outdated direct requirements and no security
+advisories; `doctrine/annotations` remains an abandoned development-tool dependency.
+
+The pending tag-release wiring exposed an independent release-order defect:
+tag pushes could skip quality checks while invoking PHPForge publication.
+Regression tests reproduce the missing prerequisite and pass with the corrected
+job graph. Foundation publication now waits for PHPForge QA, production
+consumers, release constraints/audit/evidence, and the existing native-host
+workflow, reused through `workflow_call` only on tags. Normal PR host checks
+retain their existing ownership. No native mechanism or production API is added.
+Infbyte publication similarly waits for stable-only Foundation validation and
+its published Core/DBLayer consumers. Its candidate checks accept the declared
+development candidate or an actual stable 4.x identity, rejecting other majors,
+prereleases, development aliases and stable-mode VCS overrides. Metadata fixtures
+are unit checks, not evidence of a published Foundation 4 package.
+
+Local detailed suites pass 785 Foundation tests and 51 Infbyte tests. Final
+commit/hosted evidence is recorded in the corresponding PRs after the final
+checks; these counts alone do not close release acceptance.
+
+The previous x86 runner reported four CPUs across two cores with two threads
+per core; three pinned workload roles therefore could not occupy independent
+reported cores. The [ARM comparison 39047995755](https://github.com/infocyph/Foundation/actions/runs/39047995755)
+checks for four CPUs without reported sibling threads before measuring. It uses
+diagnostic tooling `7140c1a`, unchanged executable candidate `3f295de`, frozen
+baseline `6274939`, the same dependency lock and all original workload/budget
+requirements. This tests an environment limitation; it is not a runtime fix or
+a performance acceptance claim. Preserve the complete result, including failures.
+
+Final release order remains Foundation performance/sign-off, operator-controlled
+Foundation 4 publication, then Infbyte's stable `^4.0` manifest without a VCS
+override and genuine stable/lowest production resolution. Neither a unit fixture
+nor a candidate branch substitutes for that published dependency gate.
+
 ## Published Runwire worker fix adopted — 2026-10-17
 
 Runwire **2.1.2** is published and Composer-resolvable at
