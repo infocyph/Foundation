@@ -2,13 +2,27 @@
 
 declare(strict_types=1);
 
+use Infocyph\Foundation\Application\FoundationBuildContext;
+use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Routing\WebReleaseCompiler;
 use Infocyph\Foundation\Routing\WebReleaseRuntime;
+use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 use Infocyph\Webrick\Router\Build\CompiledRouterArtifact;
 use Infocyph\Webrick\Router\Build\RouteCapability;
 use Infocyph\Webrick\Router\Url\UrlGeneratorRegistry;
+
+final class FoundationReleaseCompositionCounter extends ServiceProvider
+{
+    public static int $contributions = 0;
+
+    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
+    {
+        unset($builder, $context);
+        self::$contributions++;
+    }
+}
 
 final class FoundationCompiledReleaseHandler
 {
@@ -40,6 +54,41 @@ function foundationWebReleasePlainHandler(): Response
 {
     return Response::json(['plain' => true]);
 }
+
+it('composes each provider once when loading a production web graph', function (bool $prevalidated): void {
+    $project = foundationWebReleaseProject();
+    $manifest = $project . '/bootstrap/cache/release.json';
+    $config = [
+        'app' => ['base_path' => $project, 'env' => 'production', 'debug' => false],
+        '_config_cache' => false,
+        'providers' => ['web' => [FoundationReleaseCompositionCounter::class]],
+        'router' => ['files' => ['web.php'], 'middleware' => ['globals' => ['pre' => [], 'post' => []]]],
+    ];
+
+    try {
+        $release = new WebReleaseCompiler()->compile(
+            $config,
+            $project . '/bootstrap/cache/intermix.php',
+            $project . '/bootstrap/cache/router.php',
+            $manifest,
+            capabilities: [],
+        );
+        FoundationReleaseCompositionCounter::$contributions = 0;
+
+        $runtime = $prevalidated
+            ? WebReleaseRuntime::loadPrevalidated($config, $manifest, $release['release_runtime_manifest_sha256'], foundationCapabilities: [])
+            : WebReleaseRuntime::load($config, $manifest, foundationCapabilities: []);
+
+        expect(FoundationReleaseCompositionCounter::$contributions)->toBe(1);
+        $response = $runtime->kernel->handle(Request::fake(uri: 'https://release.test/plain'));
+        expect($response->getStatusCode())->toBe(200)
+            ->and((string) $response->getBody())->toBe('{"plain":true}');
+    } finally {
+        FoundationReleaseCompositionCounter::$contributions = 0;
+        foundationResetWebrickProductionRegistries();
+        foundationWebReleaseRemove($project);
+    }
+})->with([false, true]);
 
 it('compiles and boots a trusted route-first Webrick release without live router construction', function (): void {
     $project = foundationWebReleaseProject();
@@ -229,6 +278,7 @@ it('compiles maintenance as an opt-in Webrick gate with bounded runtime refresh'
         foreach ($artifact->routes() as $route) {
             if ($route->getPath() === '/plain') {
                 $plainPlan = $artifact->planForIndex($route->getIndex());
+
                 break;
             }
         }
@@ -323,6 +373,7 @@ it('boots an explicitly compiled Runwire web host through native Webrick and Int
     $router = $project . '/bootstrap/cache/router.php';
     $manifest = $project . '/bootstrap/cache/release.json';
     $capabilities = ['runwire'];
+
     try {
         $release = new WebReleaseCompiler()->compile(
             $config,
@@ -380,6 +431,7 @@ it('accepts an exact host runtime through Core inputs without an optional runtim
     $intermix = $project . '/bootstrap/cache/intermix.php';
     $router = $project . '/bootstrap/cache/router.php';
     $manifest = $project . '/bootstrap/cache/release.json';
+
     try {
         $release = new WebReleaseCompiler()->compile($config, $intermix, $router, $manifest, []);
         $loaded = WebReleaseRuntime::loadPrevalidated(
@@ -548,10 +600,24 @@ it('sends the exact host Runwire request through compiled Webrick and native Int
     }
 });
 
-
 final class FoundationRunwireInterleavedHandler
 {
     public static array $observed = [];
+
+    public static function identity(
+        \Infocyph\Runwire\RuntimeContext $runtime,
+        \Infocyph\Runwire\RequestContext $runwireRequest,
+    ): \Infocyph\Webrick\Response\Response {
+        $execution = new \Infocyph\UID\Runtime\RunwireBinding($runtime, $runwireRequest);
+        $execution->assertActive();
+        Fiber::suspend($runwireRequest->requestId);
+        $execution->assertActive();
+
+        return \Infocyph\Webrick\Response\Response::json([
+            'request' => $runwireRequest->requestId,
+            'runtime' => $runtime->mode,
+        ]);
+    }
 
     public static function show(
         \Infocyph\Runwire\RuntimeContext $runtime,
@@ -575,6 +641,7 @@ final class FoundationRunwireInterleavedHandler
             } catch (\Infocyph\DBLayer\Exceptions\ConnectionException) {
                 self::$observed[$runwireRequest->requestId]['database_cancelled'] = true;
             }
+
             try {
                 $bus->dispatch(new stdClass());
             } catch (\Infocyph\Runwire\Exception\CancelledException) {
@@ -584,20 +651,6 @@ final class FoundationRunwireInterleavedHandler
         }
         $connection->scalar('SELECT 2');
         $bus->dispatch(new stdClass());
-
-        return \Infocyph\Webrick\Response\Response::json([
-            'request' => $runwireRequest->requestId,
-            'runtime' => $runtime->mode,
-        ]);
-    }
-    public static function identity(
-        \Infocyph\Runwire\RuntimeContext $runtime,
-        \Infocyph\Runwire\RequestContext $runwireRequest,
-    ): \Infocyph\Webrick\Response\Response {
-        $execution = new \Infocyph\UID\Runtime\RunwireBinding($runtime, $runwireRequest);
-        $execution->assertActive();
-        Fiber::suspend($runwireRequest->requestId);
-        $execution->assertActive();
 
         return \Infocyph\Webrick\Response\Response::json([
             'request' => $runwireRequest->requestId,
@@ -712,22 +765,65 @@ it('isolates two interleaved compiled Runwire requests when one host request is 
     }
 });
 
-
 final class FoundationRunwireDeferredWriter implements \Infocyph\Runwire\Http\ResponseWriterInterface
 {
-    public int $status = 0;
+    public string $body = '';
 
     public int $endCalls = 0;
 
-    public string $body = '';
-
-    private bool $started = false;
-
-    private bool $ended = false;
+    public int $status = 0;
 
     private ?Closure $drainCallback = null;
 
+    private bool $ended = false;
+
+    private bool $started = false;
+
     private ?Closure $terminalCallback = null;
+
+    public function drain(): void
+    {
+        $callback = $this->drainCallback;
+        $this->drainCallback = null;
+        $callback?->__invoke($this);
+    }
+
+    public function end(string $finalChunk = ''): \Infocyph\Runwire\Network\WriteResult
+    {
+        $this->body .= $finalChunk;
+        ++$this->endCalls;
+        $this->ended = true;
+        ($this->terminalCallback)?->__invoke($this);
+
+        return new \Infocyph\Runwire\Network\WriteResult(
+            \Infocyph\Runwire\Network\Enum\WriteState::ACCEPTED,
+            0,
+        );
+    }
+
+    public function isEnded(): bool
+    {
+        return $this->ended;
+    }
+
+    public function isStarted(): bool
+    {
+        return $this->started;
+    }
+
+    public function onDrain(callable $callback): self
+    {
+        $this->drainCallback = Closure::fromCallable($callback);
+
+        return $this;
+    }
+
+    public function onTerminal(callable $callback): self
+    {
+        $this->terminalCallback = Closure::fromCallable($callback);
+
+        return $this;
+    }
 
     public function start(
         int $status = 200,
@@ -751,50 +847,6 @@ final class FoundationRunwireDeferredWriter implements \Infocyph\Runwire\Http\Re
             \Infocyph\Runwire\Network\Enum\WriteState::ACCEPTED,
             0,
         );
-    }
-
-    public function end(string $finalChunk = ''): \Infocyph\Runwire\Network\WriteResult
-    {
-        $this->body .= $finalChunk;
-        ++$this->endCalls;
-        $this->ended = true;
-        ($this->terminalCallback)?->__invoke($this);
-
-        return new \Infocyph\Runwire\Network\WriteResult(
-            \Infocyph\Runwire\Network\Enum\WriteState::ACCEPTED,
-            0,
-        );
-    }
-
-    public function isStarted(): bool
-    {
-        return $this->started;
-    }
-
-    public function isEnded(): bool
-    {
-        return $this->ended;
-    }
-
-    public function onDrain(callable $callback): self
-    {
-        $this->drainCallback = Closure::fromCallable($callback);
-
-        return $this;
-    }
-
-    public function onTerminal(callable $callback): self
-    {
-        $this->terminalCallback = Closure::fromCallable($callback);
-
-        return $this;
-    }
-
-    public function drain(): void
-    {
-        $callback = $this->drainCallback;
-        $this->drainCallback = null;
-        $callback?->__invoke($this);
     }
 }
 
@@ -872,7 +924,6 @@ it('defers Runwire response finalization until native writer drain and completes
     }
 });
 
-
 it('rejects a distinct same-process Runwire generation without poisoning the compiled host', function (): void {
     $project = foundationWebReleaseProject();
     file_put_contents(
@@ -920,15 +971,14 @@ it('rejects a distinct same-process Runwire generation without poisoning the com
         );
         $wrong = \Infocyph\Runwire\RequestContext::create($otherRuntime);
         $right = \Infocyph\Runwire\RequestContext::create($hostRuntime);
-        $native = static fn(\Infocyph\Runwire\RequestContext $context):
-            \Infocyph\Runwire\Http\HttpRequest => new \Infocyph\Runwire\Http\HttpRequest(
-                method: 'GET',
-                target: '/runwire-context',
-                version: \Infocyph\Runwire\Http\Enum\ProtocolVersion::HTTP_1_1,
-                headers: \Infocyph\Runwire\Http\Headers::fromArray(['Host' => 'release.test']),
-                body: new \Infocyph\Foundation\Tests\Fixtures\RunwireEmptyBody(),
-                context: $context,
-            );
+        $native = static fn(\Infocyph\Runwire\RequestContext $context): \Infocyph\Runwire\Http\HttpRequest => new \Infocyph\Runwire\Http\HttpRequest(
+            method: 'GET',
+            target: '/runwire-context',
+            version: \Infocyph\Runwire\Http\Enum\ProtocolVersion::HTTP_1_1,
+            headers: \Infocyph\Runwire\Http\Headers::fromArray(['Host' => 'release.test']),
+            body: new \Infocyph\Foundation\Tests\Fixtures\RunwireEmptyBody(),
+            context: $context,
+        );
         $host = $loaded->runwireApplication($hostRuntime);
         $host->start();
 
@@ -957,7 +1007,6 @@ it('rejects a distinct same-process Runwire generation without poisoning the com
         foundationWebReleaseRemove($project);
     }
 });
-
 
 it('keeps overlapping compiled Runwire host generations isolated in distinct carriers', function (): void {
     $project = foundationWebReleaseProject();
@@ -1031,6 +1080,7 @@ it('keeps overlapping compiled Runwire host generations isolated in distinct car
 
         $hostOne->start();
         $hostTwo->start();
+
         try {
             $first = $worker($hostOne, $requestOne, $writerOne);
             $second = $worker($hostTwo, $requestTwo, $writerTwo);

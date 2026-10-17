@@ -4,7 +4,13 @@
 
 > **Unpublished candidate:** PR #20 remains draft. This document is not an announcement, tag, compatibility promise, or certification. Final wording must be reviewed against the exact released source/dependency set.
 
-**Pre-merge checkpoint (2026-10-17):** Foundation `cdefa10`, with executable
+**Current production-boot correction (2026-10-17):** Production web loading now
+composes each provider once and reuses that frozen InterMix graph for compiled
+loading. Regression cases reproduced two contributions before the correction;
+the focused web-release suite passes 12 tests and the full suite passes 796.
+Renewed exact-source hosted and sustained performance verification is required.
+
+**Earlier pre-merge checkpoint (2026-10-17):** Foundation `cdefa10`, with executable
 code unchanged from `3f295de`, has
 [fully green PHP 8.4/8.5 stable/lowest QA, analysis, production consumers and release evidence](https://github.com/infocyph/Foundation/actions/runs/39048504642)
 and [all four Swoole/OpenSwoole serving lanes](https://github.com/infocyph/Foundation/actions/runs/39048504621).

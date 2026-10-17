@@ -1,5 +1,32 @@
 # Foundation 4 — Module architecture Batch 7 certification evidence
 
+## Production graph reuse correction — 2026-10-17
+
+The unchanged FPM w4/c1 candidate reproduces its regression independently:
+-2.831% RPM (baseline/candidate CV 0.343% / 1.551%) in
+[attempt 3](https://github.com/infocyph/Foundation/actions/runs/39047995755/attempts/3),
+and -3.124% (CV 0.531% / 0.641%) in the
+[candidate-first control](https://github.com/infocyph/Foundation/actions/runs/39052678007).
+Order alone does not explain this case. FPM w1/c10 does not reproduce its earlier
+slowdown: -0.545%, CV 1.312% / 1.334%. Targeted runs remain diagnostics, not a
+fresh complete-matrix pass.
+
+[Matched Xdebug profiles](https://github.com/infocyph/Foundation/actions/runs/39052363971)
+capture 24 requests per revision and identify graph composition/validation as
+the dominant common boot cost. Instrumented medians are 112.701 / 112.784 ms;
+these are diagnostic timings, not sustained acceptance. Source review and two
+regression cases reproduce a separate deterministic inefficiency: each provider
+contributes twice during a production web load. Production now prepares its
+graph before InterMix freezes it, then reuses that graph for the native
+production loader and its compiled-identity checks. This removes the second
+composition pass while retaining Core inputs and native specialist providers.
+
+The focused web-release suite passes 12 tests / 113 assertions; the full suite
+passes 796 tests / 29,842 assertions. Final quality hooks, new exact-source
+hosted QA/serving, Infbyte integration and full paired performance measurements
+must validate the correction before acceptance. Earlier `9fbd8cd` quality and
+`3f295de` performance results below precede this runtime change.
+
 ## Coordinated Foundation / Infbyte release preparation — 2026-10-17
 
 Infbyte's current application candidate is `fcc2824` on `feature/infbyte-4`;

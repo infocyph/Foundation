@@ -6,9 +6,7 @@ namespace Infocyph\Foundation\Routing;
 
 use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwireIntegration;
 
-use Infocyph\Foundation\Bootstrap\Bootstrapper;
 use Infocyph\Foundation\Config\ConfigRepository;
-use Infocyph\Foundation\Container\FoundationGraph;
 use Infocyph\Foundation\Http\Response\ExceptionRenderer;
 use Infocyph\Foundation\Logging\HttpExceptionLogger;
 use Infocyph\Foundation\Runtime\LoadedReleaseGeneration;
@@ -255,7 +253,7 @@ final readonly class WebReleaseRuntime
         array $foundationCapabilities,
         ?string $matcherCachePath = null,
     ): self {
-        $graph = new WebGraphFactory()->compose($config, $foundationCapabilities);
+        $graph = new WebGraphFactory()->compose($config, $foundationCapabilities, new WebProductionGraph());
         $settings = new WebReleaseConfiguration($graph);
         $settings->assertArtifactSafeMiddleware();
         $releaseManifestPath = $settings->resolvePath($releaseManifestPath);
@@ -272,12 +270,9 @@ final readonly class WebReleaseRuntime
         $intermixDigest = self::stringField($intermix, 'digest');
         $routerFingerprint = self::stringField($webrick, 'fingerprint');
 
-        $builder = FoundationGraph::compose($graph->context);
-        new Bootstrapper()->contribute($builder, $graph->context, $graph->providers);
-        new WebProductionGraph()->prepare($builder);
         $container = $prevalidated
-            ? $builder->productionPrevalidated($intermixPath, $intermixDigest)
-            : $builder->production($intermixPath);
+            ? $graph->builder->productionPrevalidated($intermixPath, $intermixDigest)
+            : $graph->builder->production($intermixPath);
 
         $logger = $container->get(LoggerInterface::class);
         if (!$logger instanceof LoggerInterface) {
