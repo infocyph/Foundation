@@ -15,7 +15,7 @@ before production deployment.
 
 Foundation 4 requires 64-bit PHP 8.4+ and Composer 2. The candidate's direct production
 dependencies are ArrayKit `^5.3.1`, CacheLayer `^4.0.1`, InterMix `^11.2`,
-Runwire `^2.1.1`, UID `^6.0`, Webrick `^6.0.3`, and PSR Log `^3.0.2`.
+Runwire `^2.1.2`, UID `^6.0`, Webrick `^6.0.3`, and PSR Log `^3.0.2`.
 
 Select only the optional **feature IDs** needed by this application, grouped into the three public modules `data`, `security`, and `execution`. The following packages are installed only for selected features:
 
@@ -32,7 +32,7 @@ Select only the optional **feature IDs** needed by this application, grouped int
 
 The [module catalog](modules.md) owns optional feature and extension requirements.
 Do not blindly install all optional modules. CacheLayer remains a Foundation
-production dependency, not a separately installable module. Runwire 2.1.1 is also Core: its host/context integration is always available,
+production dependency, not a separately installable module. Runwire 2.1.2 is also Core: its host/context integration is always available,
 with native capability checks and synchronous fallback when no active context is passed.
 
 **Before installing Foundation 4**, confirm all required

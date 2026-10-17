@@ -1,3 +1,28 @@
+## Published Runwire worker fix adopted — 2026-10-17
+
+Runwire **2.1.2** is published and Composer-resolvable at
+`7e9bf20ad0737a187dfed77b723791b141b36378`; its tag includes the validated
+worker patch `23011696724bbd86b2d412a07bc34348d8d169e1`. Foundation now
+requires **`infocyph/runwire:^2.1.2`**. No Foundation-side worker/fork/context
+workaround is introduced. Composer installs the published distribution, with no
+sibling path override; all direct dependencies are current.
+
+Real Foundation CLI acceptance now covers explicit Swoole one/two-worker
+serving, concurrent bursts of sixteen isolated requests, actual worker PID/context/slot
+identity, handler-failure recovery, native AUTO/portable serving and the normal
+index entrypoint. A dedicated PHP 8.4/8.5 × Swoole/OpenSwoole hosted matrix
+requires the selected extension before running these tests; missing extensions
+cannot silently omit the worker cases in that matrix. Local detailed quality
+passes all checks (784 tests / 29,807 assertions); the real Docker Swoole
+serving/release subset passes 17 tests, including repeated fresh two-worker
+starts. All 13 final `composer ic:tests` checks, processors and actionlint
+pass. Hosted current-source QA, production
+consumers and sustained host acceptance must still be renewed.
+The frozen baseline and 2% RPM / 2.5% CV limits remain unchanged. Keep PR #20
+draft; merging, tagging, publication and Infbyte changes remain separate.
+
+> Earlier dated checkpoints below retain their original dependency/source evidence.
+
 ## Current scope correction — Runwire is Core (2026-10-16)
 
 **2026-10-17 entrypoint checkpoint:** Native Runwire command delegation and the
@@ -49,7 +74,7 @@ passes with 769 tests / 29,638 assertions and all configured static/security/
 formatting/reference checks. Hosted quality passes on `3d35605`; sustained host
 acceptance remains open as recorded above. No native mechanism or public wrapper was added.
 
-The user requires `infocyph/runwire:^2.1.1` in production `require` and approved
+The user requires `infocyph/runwire:^2.1.2` in production `require` and approved
 Core integration across its supported environments. It is removed from
 `require-dev`/`suggest` and from optional package ownership. The public optional
 catalog is now **three modules/eight features**; `execution.runtime` is rejected,

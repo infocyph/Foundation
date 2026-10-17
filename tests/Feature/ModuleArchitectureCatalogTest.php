@@ -101,7 +101,7 @@ it('rejects foreign modules, package ownership collisions, undeclared dependenci
     $cycle['data']['features']['database']['dependencies'][] = ['target' => 'execution.messaging'];
     expect(fn() => $catalog->validate($cycle))->toThrow(LogicException::class, 'Cyclic optional feature dependencies');
 
-    foreach (['infocyph/cachelayer' => '^4.0', 'infocyph/runwire' => '^2.1.1'] as $package => $constraint) {
+    foreach (['infocyph/cachelayer' => '^4.0', 'infocyph/runwire' => '^2.1.2'] as $package => $constraint) {
         $core = $modules;
         $core['execution']['features']['messaging']['packages'][$package] = $constraint;
         expect(fn() => $catalog->validate($core))->toThrow(LogicException::class, 'Invalid optional package owner');

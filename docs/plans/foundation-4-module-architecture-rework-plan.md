@@ -1,3 +1,28 @@
+## Published Runwire worker fix adopted — 2026-10-17
+
+Runwire **2.1.2** is published and Composer-resolvable at
+`7e9bf20ad0737a187dfed77b723791b141b36378`; its tag includes the validated
+worker patch `23011696724bbd86b2d412a07bc34348d8d169e1`. Foundation now
+requires **`infocyph/runwire:^2.1.2`**. No Foundation-side worker/fork/context
+workaround is introduced. Composer installs the published distribution, with no
+sibling path override; all direct dependencies are current.
+
+Real Foundation CLI acceptance now covers explicit Swoole one/two-worker
+serving, concurrent bursts of sixteen isolated requests, actual worker PID/context/slot
+identity, handler-failure recovery, native AUTO/portable serving and the normal
+index entrypoint. A dedicated PHP 8.4/8.5 × Swoole/OpenSwoole hosted matrix
+requires the selected extension before running these tests; missing extensions
+cannot silently omit the worker cases in that matrix. Local detailed quality
+passes all checks (784 tests / 29,807 assertions); the real Docker Swoole
+serving/release subset passes 17 tests, including repeated fresh two-worker
+starts. All 13 final `composer ic:tests` checks, processors and actionlint
+pass. Hosted current-source QA, production
+consumers and sustained host acceptance must still be renewed.
+The frozen baseline and 2% RPM / 2.5% CV limits remain unchanged. Keep PR #20
+draft; merging, tagging, publication and Infbyte changes remain separate.
+
+> Earlier dated checkpoints below retain their original dependency/source evidence.
+
 ## Core Runwire correction — approved 2026-10-16
 
 ### Serve and direct-host entrypoints — user clarification, 2026-10-16
@@ -33,22 +58,22 @@ Stable/lowest production consumers pass Core, database inspection, twelve full
 selected-feature configurations and trusted web/CLI/worker/scheduler generation.
 Hosted QA and performance for the new serving candidate remain pending.
 
-- [ ] Replace the built-in PHP server path with native `Runtime`, `Server` and
+- [x] Replace the built-in PHP server path with native `Runtime`, `Server` and
   host-owned `serveApplication()` selection, using Runwire's environment probe
   and selector. Validate configuration before compiling/publishing a generation;
   dry-run must not open listeners or publish artifacts.
-- [ ] Make the existing trusted `FoundationReleaseBootstrap` implement native
+- [x] Make the existing trusted `FoundationReleaseBootstrap` implement native
   `RuntimeApplicationFactoryInterface`. Its required `create(RuntimeContext)`
   loads the generation inside the actual worker/host and forwards that exact
   context to the existing Webrick bridge. Do not inherit a live compiled DI
   container across prefork or add another factory/runtime engine.
-- [ ] Expose common CLI runtime/host/port/worker and protocol-policy selections
+- [x] Expose common CLI runtime/host/port/worker and protocol-policy selections
   through native options. Runtime AUTO and protocol policy AUTO are distinct.
   Protocol defaults remain FIXED; explicit FIXED/LATENCY/THROUGHPUT/AUTO use
   `AdaptivePolicyMode::cases()`, preserve native protocol-specific tuning, and
   do not raise resource/security limits. Reject options unsupported by the
   selected host rather than pretending that its wire policy changed.
-- [ ] Retain full advanced native configuration through the same bootstrap
+- [x] Retain full advanced native configuration through the same bootstrap
   factory passed directly to Runwire's `RuntimeOptions`/`Server` APIs, including
   HTTP/3's independent inbound/outbound policies and capability requirements;
   do not mirror the library's option schema or implement adaptive scheduling.
@@ -88,7 +113,7 @@ three-module/nine-feature claims. The current public contract is **three modules
 eight optional features**; `execution.runtime` is removed and rejected rather
 than retained as an alias. Eight `core:*` diagnostics include `core:runwire`.
 
-Runwire `^2.1.1` is installed in every production graph. Core declares native
+Runwire `^2.1.2` is installed in every production graph. Core declares native
 runtime/request/task inputs in web, CLI, worker and scheduler graphs without
 requiring an optional feature or capability flag. Exact caller-owned contexts
 continue through native CacheLayer/DBLayer/Omnibus/ReqShield/TalkingBytes/UID

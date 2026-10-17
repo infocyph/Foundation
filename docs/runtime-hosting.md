@@ -153,7 +153,7 @@ instance, not a newly generated substitute. An execution without an active passe
 
 ## Core dependency and separate worker support
 
-Foundation requires `infocyph/runwire:^2.1.1`, including ordinary PHP/FPM
+Foundation requires `infocyph/runwire:^2.1.2`, including ordinary PHP/FPM
 installations. Runwire supports FPM, FrankenPHP, RoadRunner, explicit
 Swoole/OpenSwoole hosting and portable native CLI without PCNTL/POSIX.
 The package's presence does not start listeners, workers or an event loop.

@@ -6,9 +6,10 @@ use Infocyph\Foundation\Benchmarks\Support\BenchmarkSupport;
 use Infocyph\Foundation\Release\FoundationReleaseBootstrap;
 use Infocyph\Foundation\Release\FoundationReleaseCompiler;
 use Infocyph\Foundation\Tests\Fixtures\ServeProbe;
+use Infocyph\Runwire\Runtime\Enum\RuntimeDriver;
 use Infocyph\Runwire\Runtime\RuntimeEnvironmentProbe;
 
-it('serves real requests with isolated contexts and recovers after a failed request', function (bool $direct, bool $portable, int $workers): void {
+it('serves real requests with isolated contexts and recovers after a failed request', function (bool $direct, bool $portable, int $workers, RuntimeDriver $runtime = RuntimeDriver::AUTO): void {
     $project = sys_get_temp_dir() . '/foundation-serve-' . bin2hex(random_bytes(6));
     foreach (['bootstrap', 'routes', 'storage', 'public'] as $directory) {
         mkdir($project . '/' . $directory, 0700, true);
@@ -61,6 +62,9 @@ it('serves real requests with isolated contexts and recovers after a failed requ
                 . 'exit(\Infocyph\Foundation\Command\CommandDispatcher::project('
                 . var_export($config, true) . ')->run($argv));' . PHP_EOL);
             array_push($command, $project . '/infbyte', 'serve', '--port=' . $port, '--workers=' . $workers);
+            if ($runtime !== RuntimeDriver::AUTO) {
+                $command[] = '--runtime=' . $runtime->value;
+            }
         }
 
         $process = proc_open($command, [
@@ -74,7 +78,8 @@ it('serves real requests with isolated contexts and recovers after a failed requ
         fclose($pipes[0]);
         $processPid = proc_get_status($process)['pid'];
         $prefork = !$portable && new RuntimeEnvironmentProbe()->probe()->nativePreforkEligible();
-        if (!$direct && !$prefork && $workers > 1) {
+        $hostWorkers = $runtime === RuntimeDriver::SWOOLE ? $workers > 1 : $prefork;
+        if (!$direct && !$hostWorkers && $workers > 1) {
             $exit = proc_close($process);
             $process = null;
             expect($exit)->toBe(1)
@@ -104,9 +109,9 @@ it('serves real requests with isolated contexts and recovers after a failed requ
             } else {
                 expect($response['runtime_pid'])->toBe($response['pid'])
                     ->and($response['request_id'])->toBeString()->not->toBeEmpty();
-                if ($prefork) {
+                if ($hostWorkers) {
                     expect($response['pid'])->not->toBe($processPid);
-                } else {
+                } elseif ($runtime !== RuntimeDriver::SWOOLE) {
                     expect($response['pid'])->toBe($processPid);
                 }
             }
@@ -115,6 +120,27 @@ it('serves real requests with isolated contexts and recovers after a failed requ
         expect($responses)->toHaveCount(2);
         if (!$direct) {
             expect($responses[0]['request_id'])->not->toBe($responses[1]['request_id']);
+        }
+        if ($runtime === RuntimeDriver::SWOOLE) {
+            $responses = [];
+            $deadline = microtime(true) + 5;
+            do {
+                array_push($responses, ...foundationServeBurst($address));
+                if (count(array_unique(array_column($responses, 'pid'))) === $workers) {
+                    break;
+                }
+                usleep(10_000);
+            } while (microtime(true) < $deadline);
+            foreach ($responses as $response) {
+                expect($response['runtime_pid'])->toBe($response['pid'])
+                    ->and($response['worker_slot'])->toBeIn(range(0, $workers - 1));
+            }
+            expect(array_unique(array_column($responses, 'pid')))->toHaveCount($workers)
+                ->and(array_unique(array_column($responses, 'worker_slot')))->toHaveCount($workers)
+                ->and(array_unique(array_column($responses, 'request_id')))->toHaveCount(count($responses));
+            if ($hostWorkers) {
+                expect(array_column($responses, 'pid'))->not->toContain($processPid);
+            }
         }
     } finally {
         if (is_resource($process)) {
@@ -137,7 +163,52 @@ it('serves real requests with isolated contexts and recovers after a failed requ
     'Runwire portable' => [false, true, 1],
     'Runwire portable rejects pooled workers' => [false, true, 2],
     'ordinary index without serve' => [true, false, 1],
+    ...(new RuntimeEnvironmentProbe()->probe()->isAvailable(RuntimeDriver::SWOOLE) ? [
+        'Runwire Swoole one worker' => [false, false, 1, RuntimeDriver::SWOOLE],
+        'Runwire Swoole two workers' => [false, false, 2, RuntimeDriver::SWOOLE],
+    ] : []),
 ]);
+
+/** @return list<array<string, mixed>> */
+function foundationServeBurst(string $address): array
+{
+    $multi = curl_multi_init();
+    $handles = [];
+    try {
+        for ($index = 0; $index < 16; ++$index) {
+            $handle = curl_init('http://' . $address . '/probe');
+            curl_setopt_array($handle, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 5,
+                CURLOPT_HTTPHEADER => ['Connection: close'],
+                CURLOPT_FRESH_CONNECT => true,
+            ]);
+            curl_multi_add_handle($multi, $handle);
+            $handles[] = $handle;
+        }
+        do {
+            $status = curl_multi_exec($multi, $running);
+            expect($status)->toBe(CURLM_OK);
+            if ($running > 0 && curl_multi_select($multi, 0.1) === -1) {
+                usleep(1_000);
+            }
+        } while ($running > 0);
+
+        $responses = [];
+        foreach ($handles as $handle) {
+            expect(curl_errno($handle))->toBe(0)
+                ->and(curl_getinfo($handle, CURLINFO_RESPONSE_CODE))->toBe(200);
+            $responses[] = json_decode(curl_multi_getcontent($handle), true, flags: JSON_THROW_ON_ERROR);
+        }
+
+        return $responses;
+    } finally {
+        foreach ($handles as $handle) {
+            curl_multi_remove_handle($multi, $handle);
+        }
+        curl_multi_close($multi);
+    }
+}
 
 /** @param resource $process */
 function foundationServeWait(mixed $process, string $address, string $project): void

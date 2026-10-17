@@ -21,6 +21,7 @@ final class ServeProbe
         return Response::json([
             'pid' => getmypid(),
             'runtime_pid' => $shared?->runtime?->pid,
+            'worker_slot' => $shared?->runtime?->workerSlot,
             'request_id' => $shared?->request?->requestId,
             'sapi' => PHP_SAPI,
         ]);

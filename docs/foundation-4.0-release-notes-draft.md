@@ -1,6 +1,6 @@
 # Foundation 4.0 — Release candidate notes (draft)
 
-> **Core runtime correction (2026-10-16):** Runwire `^2.1.1` is required in production and integrated as Core. The optional `execution.runtime` feature is removed; the current catalog has three groups/eight features. Prior `60a7951` QA and performance results precede this change and do not certify this working tree.
+> **Core runtime correction (2026-10-17):** Runwire `^2.1.2` is required in production and integrated as Core. Its published patch constructs Swoole/OpenSwoole applications and contexts inside their actual workers. The optional `execution.runtime` feature is removed; the current catalog has three groups/eight features. Prior `60a7951` QA and performance results precede this change and do not certify this working tree.
 
 > **Unpublished candidate:** PR #20 remains draft. This document is not an announcement, tag, compatibility promise, or certification. Final wording must be reviewed against the exact released source/dependency set.
 
@@ -50,7 +50,7 @@ The former 11-entry public module catalog and its unqualified installable aliase
 ## Platform and integration
 
 - 64-bit PHP 8.4 or 8.5, Composer 2.
-- Required Core runtime: ArrayKit `^5.3.1`, CacheLayer `^4.0.1`, InterMix `^11.2`, Runwire `^2.1.1`, UID `^6.0`, Webrick `^6.0.3`, and PSR Log (`psr/log`) `^3.0.2`.
+- Required Core runtime: ArrayKit `^5.3.1`, CacheLayer `^4.0.1`, InterMix `^11.2`, Runwire `^2.1.2`, UID `^6.0`, Webrick `^6.0.3`, and PSR Log (`psr/log`) `^3.0.2`.
 - Optional selected specialists: DBLayer `^6.1.1`, Epicrypt `^3.2`, Omnibus `^3.0.1`, OTP `^7.0`, Pathwise `^4.2`, ReqShield `^3.3`, TalkingBytes `^2.3`; passkey feature uses compatible WebAuthn dependencies.
 - The WebAuthn passkey feature requires `web-auth/webauthn-lib` `^5.3.9`; `opis/closure` `^4.5` and PHPForge remain development/engineering dependencies, not required Core runtime packages.
 - Optional transitive compatibility floors exclude PHP 8.4/8.5 implicit-nullability deprecations: Flysystem Local 3.25.1, MIME detection 1.16, PSR HTTP Factory 1.1, PKI Framework 1.6.2, Symfony Clock/PropertyAccess/PropertyInfo/Serializer/UID 6.4.3 (also excluding 7.0.0–7.0.2), and PHP 8.3 polyfill 1.30. Composer applies these conflicts when the package is present; optional feature installation remains explicit.
