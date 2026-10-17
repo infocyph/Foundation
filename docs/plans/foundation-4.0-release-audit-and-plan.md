@@ -16,8 +16,14 @@ cannot silently omit the worker cases in that matrix. Local detailed quality
 passes all checks (784 tests / 29,807 assertions); the real Docker Swoole
 serving/release subset passes 17 tests, including repeated fresh two-worker
 starts. All 13 final `composer ic:tests` checks, processors and actionlint
-pass. Hosted current-source QA, production
-consumers and sustained host acceptance must still be renewed.
+pass. Current-source [Security & Standards 39007156463](https://github.com/infocyph/Foundation/actions/runs/39007156463)
+and [native/hosted serving 39007156290](https://github.com/infocyph/Foundation/actions/runs/39007156290)
+are green, including all four PHP 8.4/8.5 Swoole/OpenSwoole serving lanes and
+stable/lowest production consumers. The complete [CPU-controlled comparison 39010682913](https://github.com/infocyph/Foundation/actions/runs/39010682913)
+on unchanged candidate `3f295de` ends with eight passing and four inconclusive
+cases, zero stable regressions, and zero failed responses across 120 measured
+trials/eight soak windows. The unchanged 2.5% CV ceiling blocks acceptance.
+See [current provenance, per-case variance and Core integration evidence](foundation-4-module-batch7-evidence.md#completed-controlled-comparison--2026-10-17).
 The frozen baseline and 2% RPM / 2.5% CV limits remain unchanged. Keep PR #20
 draft; merging, tagging, publication and Infbyte changes remain separate.
 
@@ -2786,10 +2792,14 @@ Added `docs/examples/foundation-4-compiled-release.php`, executed inside all fou
   workers where the certified host supports them. Use stable production-equivalent
   infrastructure and keep the default maximum median successful-RPM regression
   at 2%; explain measured variance rather than silently changing the budget.
-- [ ] Measure CPU, live process-tree RSS during load, p50/p95/p99 latency, errors,
+- [x] Measure CPU, live process-tree RSS during load, p50/p95/p99 latency, errors,
   cache/query behavior, worker generation, and cleanup. Start measurement after
   readiness; do not substitute final-process RSS or a microbenchmark for host RPM.
-- [ ] Certify the ordinary FPM path and a native Runwire 2.1.1 persistent host;
+  Complete reports from comparison `39010682913` provide 120 measured trials
+  and eight 120-second soak windows with response validation and live telemetry.
+  This closes measurement collection only; four high-variance cases still block
+  performance certification. Current release ledger: **33/37**.
+- [ ] Certify the ordinary FPM path and a native Runwire 2.1.2 persistent host;
   include a bounded representative persistent-host soak with reset/cancellation/
   recycle checks. Claim other hosts only when their actual jobs pass. Existing
   execution-loop smoke tests alone do not certify a native server.

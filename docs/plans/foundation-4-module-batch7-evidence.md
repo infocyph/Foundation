@@ -18,12 +18,65 @@ cannot silently omit the worker cases in that matrix. Local detailed quality
 passes all checks (784 tests / 29,807 assertions); the real Docker Swoole
 serving/release subset passes 17 tests, including repeated fresh two-worker
 starts. All 13 final `composer ic:tests` checks, processors and actionlint
-pass. Hosted current-source QA, production
-consumers and sustained host acceptance must still be renewed.
+pass. Current-source [Security & Standards 39007156463](https://github.com/infocyph/Foundation/actions/runs/39007156463)
+and [native/hosted serving 39007156290](https://github.com/infocyph/Foundation/actions/runs/39007156290)
+are green, including all four PHP 8.4/8.5 Swoole/OpenSwoole serving lanes and
+stable/lowest production consumers. Sustained performance acceptance remains open.
 The frozen baseline and 2% RPM / 2.5% CV limits remain unchanged. Keep PR #20
 draft; merging, tagging, publication and Infbyte changes remain separate.
 
 > Earlier dated checkpoints below retain their original dependency/source evidence.
+
+## Completed controlled comparison — 2026-10-17
+
+Executable candidate `3f295de1a2a5a6287d016de8afe0903a0907e675` and tested
+PR merge `15f9ea99db73ba90b1750914dfcbfe61168d021e` share tree
+`f42bdab5795187637319e349e5334edd72a3f6bc`. QA and every paired variant use
+lock SHA-256 `b557fba7662dba32601c3840f69f7ac394f253d729246fcba08db44e26067cb9`.
+The QA release-evidence archive digest is
+`sha256:ef6c691a5524db8db1287363ca803385146d7ed3ae20a2ab0edabc797925d82e`.
+
+The [complete CPU-controlled comparison 39010682913](https://github.com/infocyph/Foundation/actions/runs/39010682913)
+uses diagnostic tooling `42657367badbc42ad61eb115802e5837765d4344`, while
+explicitly checking out unchanged application candidate `3f295de` and frozen
+baseline `6274939c395f75e5cf777aad5d7439f10792758c`. Server/load-generator/backend
+CPU allocation is recorded per pair; both variants use the same allocation.
+The original comparator and 2% RPM / 2.5% CV budgets are unchanged.
+
+**Complete verdict: 8 pass, 4 inconclusive variance, 0 stable regressions.**
+All twelve host/worker/concurrency cases per variant have five measured trials of at
+least 60 seconds after a separate 30-second warm-up: 120 measured trials and
+eight additional 120-second soak windows in total, all with zero failed
+responses. Telemetry and response evidence are complete; performance acceptance
+is not. Three FPM failures already exceed the variance limit in the baseline.
+
+| Inconclusive case | Candidate median RPM change | Baseline CV | Candidate CV |
+| --- | --- | --- | --- |
+| FPM w1/c1 | +3.742% | 4.582% | 1.884% |
+| FPM w1/c10 | +0.190% | 3.505% | 1.406% |
+| FPM w1/c50 | +1.125% | 3.592% | 2.415% |
+| Runwire w4/c10 | +5.529% | 1.704% | 9.620% |
+
+The aggregate artifact is `foundation4-affinity-comparison`, ID `12092548761`,
+digest `sha256:b90db39d67b4c60be057bbc0a0d9a9757bdef7823dd5ba0fcec096f426cc48ea`.
+It includes the complete baseline/candidate reports and strict comparator result.
+The previous ordinary-runner attempts also failed the complete gate; their
+stable regressions did not recur as stable regressions here. No reproducible
+performance defect is claimed fixed. Passing cases from separate attempts are
+not combined. Stable full-matrix evidence remains a release prerequisite;
+repeating shared-runner measurements without addressing variability is not a fix.
+
+Core integration requires native application/DI/request/task wiring, shared
+identities, cancellation and owner-correct cleanup, rather than package presence
+alone. Foundation composes InterMix, Webrick, CacheLayer, Runwire, ArrayKit and
+UID without reproducing their mechanisms. A fresh unchanged-source recheck
+passes **59 tests / 1,367 assertions**, covering native provider/factory ownership,
+cache identity, isolated execution, direct/intermediary/borrowed contexts,
+coroutines, cancellation and exception restoration.
+
+Remaining pre-merge gates are stable sustained performance evidence and final
+documentation/release sign-off. The current catalog is three modules/eight
+optional features. PR #20 remains draft; no merge, tag or publication is claimed.
 
 ## Current serving work and completed ARM repeats — 2026-10-17
 

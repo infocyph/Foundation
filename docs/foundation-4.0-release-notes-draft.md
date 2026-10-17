@@ -4,10 +4,16 @@
 
 > **Unpublished candidate:** PR #20 remains draft. This document is not an announcement, tag, compatibility promise, or certification. Final wording must be reviewed against the exact released source/dependency set.
 
-**Pre-merge checkpoint (2026-10-16):** Candidate `60a7951` has
-[fully green PHP 8.4/8.5 stable/lowest QA, analysis, production consumers and release evidence](https://github.com/infocyph/Foundation/actions/runs/38860725174).
-The release ledger is 32/37; sustained host comparison and final acceptance remain
-open. Native integration/security/state evidence has been revalidated. See
+**Pre-merge checkpoint (2026-10-17):** Executable candidate `3f295de` has
+[fully green PHP 8.4/8.5 stable/lowest QA, analysis, production consumers and release evidence](https://github.com/infocyph/Foundation/actions/runs/39007156463)
+and [all four Swoole/OpenSwoole serving lanes](https://github.com/infocyph/Foundation/actions/runs/39007156290).
+The complete [CPU-controlled comparison](https://github.com/infocyph/Foundation/actions/runs/39010682913)
+has eight passing and four inconclusive cases, with no stable regression in this
+attempt. All 120 measured trials and eight soak windows have zero failed
+responses; four cases exceed the unchanged 2.5% variance ceiling. The release
+ledger is 33/37 after completing telemetry collection; stable sustained host
+performance and final acceptance remain open. No throughput fix is claimed.
+Native integration/security/state evidence has been revalidated. See
 [current Batch 7 evidence](plans/foundation-4-module-batch7-evidence.md).
 
 ## Core runtime and architecture

@@ -16,8 +16,14 @@ cannot silently omit the worker cases in that matrix. Local detailed quality
 passes all checks (784 tests / 29,807 assertions); the real Docker Swoole
 serving/release subset passes 17 tests, including repeated fresh two-worker
 starts. All 13 final `composer ic:tests` checks, processors and actionlint
-pass. Hosted current-source QA, production
-consumers and sustained host acceptance must still be renewed.
+pass. Current-source [Security & Standards 39007156463](https://github.com/infocyph/Foundation/actions/runs/39007156463)
+and [native/hosted serving 39007156290](https://github.com/infocyph/Foundation/actions/runs/39007156290)
+are green, including all four PHP 8.4/8.5 Swoole/OpenSwoole serving lanes and
+stable/lowest production consumers. The complete [CPU-controlled comparison 39010682913](https://github.com/infocyph/Foundation/actions/runs/39010682913)
+on unchanged candidate `3f295de` ends with eight passing and four inconclusive
+cases, zero stable regressions, and zero failed responses across 120 measured
+trials/eight soak windows. The unchanged 2.5% CV ceiling blocks acceptance.
+See [current provenance, per-case variance and Core integration evidence](foundation-4-module-batch7-evidence.md#completed-controlled-comparison--2026-10-17).
 The frozen baseline and 2% RPM / 2.5% CV limits remain unchanged. Keep PR #20
 draft; merging, tagging, publication and Infbyte changes remain separate.
 
@@ -77,10 +83,14 @@ Hosted QA and performance for the new serving candidate remain pending.
   factory passed directly to Runwire's `RuntimeOptions`/`Server` APIs, including
   HTTP/3's independent inbound/outbound policies and capability requirements;
   do not mirror the library's option schema or implement adaptive scheduling.
-- [ ] Verify actual CLI serving, native/portable worker ownership, exact context
+- [x] Verify actual CLI serving, native/portable worker ownership, exact context
   forwarding, clean shutdown and trusted releases, plus normal FPM/index.php
   request handling without `serve`. Cover invalid selections and unavailable
   explicit runtimes, and renew affected quality/host evidence after the change.
+  Current executable `3f295de`: hosted QA and all four Swoole/OpenSwoole lanes
+  pass; local direct FPM/index.php and externally managed Swoole each pass 40
+  concurrent requests plus failure recovery. This closes serving correctness,
+  not the separate sustained performance gate.
 
 **Hosted checkpoint, executable `3d35605`:** [Security & Standards 38917716824](https://github.com/infocyph/Foundation/actions/runs/38917716824)
 passed every required quality/production lane, and [native host smoke 38917716261](https://github.com/infocyph/Foundation/actions/runs/38917716261)
@@ -452,15 +462,15 @@ The recorded counts and immutable-source acceptances below precede the Core Runw
 
 Current evidence is recorded in [Batch 7 certification evidence](foundation-4-module-batch7-evidence.md). The following checklist supersedes the dated historical checkpoints below.
 
-- [x] Complete focused/full PHPForge QA, analysis, formatting, references, duplicate and configured security gates. Exact executable `60a7951` passed [Security & Standards 38860725174](https://github.com/infocyph/Foundation/actions/runs/38860725174): QA 4/4, analysis 2/2, benchmarks 2/2, clean install and release evidence. The conditional Security Report job is skipped by upstream rules; no test/detector exemption was introduced.
-- [x] Verify PHP 8.4/8.5 × stable/lowest, Core-only and selected native nine-feature graphs, trusted compiled generations and all four isolated `--no-dev` production consumers on `60a7951`.
-- [ ] Compare before/after module inspect/plan/actual-enable and compiled startup metrics plus authenticated successful RPM. The user-approved [paired same-runner workflow 38860730929](https://github.com/infocyph/Foundation/actions/runs/38860730929) records one lock/tool revision, FPM/Runwire, one/four workers and concurrency 1/10/50; final comparable aggregate evidence remains under evaluation.
+- [x] Complete focused/full PHPForge QA, analysis, formatting, references, duplicate and configured security gates. Executable `3f295de` passed [Security & Standards 39007156463](https://github.com/infocyph/Foundation/actions/runs/39007156463): QA 4/4, analysis 2/2, benchmarks 2/2, clean install and release evidence. The conditional Security Report job is skipped by upstream rules; no test/detector exemption was introduced.
+- [x] Verify PHP 8.4/8.5 × stable/lowest, Core-only and selected native eight-feature graphs, trusted compiled generations and all four isolated `--no-dev` production consumers on `3f295de`.
+- [ ] Compare before/after module inspect/plan/actual-enable and compiled startup metrics plus authenticated successful RPM. The complete [CPU-controlled comparison 39010682913](https://github.com/infocyph/Foundation/actions/runs/39010682913) uses unchanged candidate `3f295de`, one lock and frozen baseline `6274939`, FPM/Runwire, one/four workers and concurrency 1/10/50. Eight cases pass and four exceed the variance budget; complete performance acceptance remains blocked.
 - [ ] Prove no >2% median successful-RPM regression with five >=60-second measured trials after a separate 30-second warm-up, CV <=2.5% and bounded resources. Unstable or incomplete measurements remain inconclusive/blocking.
 - [x] Stress actual Composer publication/removal churn, stale snapshots, partial failure, idempotent repair, native persisted contention/rollback, scoped principal/session state, lifecycle, cancellation and recovery. Exact-source suites pass, with local Docker native-host error recovery, worker replacement and soak diagnostics.
-- [x] Inspect all 63 PR #20 inline review threads (zero unresolved, no further page), record executable `60a7951`, hosted PHP/toolchain/dependency provenance and synchronized trackers. Paired lock SHA-256: `47721543a0f9438cfd0fa862b074c5c11953d320c1c9f14164bc4a9df9359e28`. Recheck PR state before final readiness.
-- [ ] Review final module API docs, release notes/metadata and mark rework ready only after all preceding gates pass. The 3-module/9-feature v2 public contract and Composer metadata are reviewed and regression-guarded; publication approval remains withheld, candidate notes remain unpublished, and the performance-dependent decision stays open.
+- [x] Inspect all 63 PR #20 inline review threads (zero unresolved, no further page), record executable `3f295de`, hosted PHP/toolchain/dependency provenance and synchronized trackers. Paired lock SHA-256: `b557fba7662dba32601c3840f69f7ac394f253d729246fcba08db44e26067cb9`. Recheck PR state before final readiness.
+- [ ] Review final module API docs, release notes/metadata and mark rework ready only after all preceding gates pass. The 3-module/8-feature v2 public contract and Composer metadata are reviewed and regression-guarded; publication approval remains withheld, candidate notes remain unpublished, and the performance-dependent decision stays open.
 
-**Current count:** B7 4/7 individually checked, 0/7 whole-batch accepted; module totals 46/49 engineering, 42/49 batch accepted. Foundation release ledger 32/37. Keep PR #20 draft while host performance/final acceptance remain open. Merge, tag, publication and Infbyte migration remain separate operator actions.
+**Current count:** B7 4/7 individually checked, 0/7 whole-batch accepted; module totals 46/49 engineering, 42/49 batch accepted. Foundation release ledger 33/37 after completing telemetry collection. Keep PR #20 draft while host performance/final acceptance remain open. Merge, tag, publication and Infbyte migration remain separate operator actions.
 
 **Historical B7 checkpoints:** These preserve prior-source provenance and do not replace the current checklist.
 
