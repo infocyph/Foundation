@@ -1,0 +1,142 @@
+name: Foundation 4 FPM measurement order diagnostic
+
+on:
+  push:
+    branches: [diagnostic/foundation4-fpm-order]
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  BASELINE_SHA: 6274939c395f75e5cf777aad5d7439f10792758c
+  CANDIDATE_SHA: 3f295de1a2a5a6287d016de8afe0903a0907e675
+
+jobs:
+  affinity:
+    name: Candidate-first FPM w4/c1; diagnostic only
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [fpm]
+        workers: [4]
+        concurrency: [1]
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: phpforge
+          POSTGRES_PASSWORD: Phpforge_123!
+          POSTGRES_DB: phpforge
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U phpforge -d phpforge" --health-interval 2s --health-timeout 2s --health-retries 30
+      redis:
+        image: redis:8.10-alpine
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 2s --health-timeout 2s --health-retries 30
+    env:
+      FOUNDATION_HOST_WORKLOAD_PROFILE: authenticated-read
+      FOUNDATION_HOST_FILTER_HOST: ${{ matrix.host }}
+      FOUNDATION_HOST_FILTER_WORKERS: ${{ matrix.workers }}
+      FOUNDATION_HOST_FILTER_CONCURRENCY: ${{ matrix.concurrency }}
+      FOUNDATION_HOST_REQUESTS: "1000"
+      FOUNDATION_HOST_REPEATS: "5"
+      FOUNDATION_HOST_MIN_SECONDS: "60"
+      FOUNDATION_HOST_WARMUP_SECONDS: "30"
+      FOUNDATION_HOST_SOAK_SECONDS: ${{ matrix.workers == 4 && matrix.concurrency == 10 && '120' || '0' }}
+      FOUNDATION_HOST_SERVER_CPU_SET: ${{ matrix.workers == 1 && '2' || '2,3' }}
+      FOUNDATION_HOST_LOAD_CPU_SET: "0"
+      FOUNDATION_HOST_BACKEND_CPU_SET: "1"
+      FOUNDATION_HOST_TOOL_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: tooling
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          path: candidate
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.BASELINE_SHA }}
+          path: baseline
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          extensions: "mbstring, intl, sodium, curl, pcntl, posix, sockets, pdo, pdo_sqlite, pdo_mysql, pdo_pgsql, redis, memcached"
+          ini-values: "opcache.enable_cli=1"
+          coverage: none
+      - name: Install host tools and isolate test backend CPU
+        run: |
+          test "$(nproc)" -ge 4
+          for cpu in 0 1 2 3; do
+            siblings="$(cat "/sys/devices/system/cpu/cpu$cpu/topology/thread_siblings_list")"
+            if [[ "$siblings" != "$cpu" ]]; then
+              printf 'CPU %s shares a reported core with %s; refusing this allocation.\n' "$cpu" "$siblings" >&2
+              exit 1
+            fi
+          done
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq software-properties-common
+          sudo add-apt-repository -y ppa:ondrej/php
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq nginx php8.4-fpm
+          docker update --cpuset-cpus 1 '${{ job.services.postgres.id }}' '${{ job.services.redis.id }}'
+          printf 'FOUNDATION_CERTIFICATION_HOST_ID=github-affinity-arm-%s-%s-%s-server%s-load0-backend1\n' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$(cat /proc/sys/kernel/random/boot_id)" "$FOUNDATION_HOST_SERVER_CPU_SET" >> "$GITHUB_ENV"
+      - uses: actions/download-artifact@v7
+        with:
+          name: foundation4-paired-host-lock
+          run-id: 39007164429
+          github-token: ${{ github.token }}
+          path: locked-dependencies
+      - name: Prepare identical published dependencies and isolated data
+        run: |
+          printf 'b557fba7662dba32601c3840f69f7ac394f253d729246fcba08db44e26067cb9  locked-dependencies/composer.lock\n' | sha256sum -c -
+          for variant in baseline candidate; do
+            cp locked-dependencies/composer.lock "$variant/composer.lock"
+            cp -a tooling/benchmarks/. "$variant/benchmarks/"
+            composer install --working-dir="$variant" --no-interaction --no-progress --prefer-dist
+          done
+          php <<'PHP'
+          <?php
+          $pdo = new PDO('pgsql:host=127.0.0.1;dbname=phpforge', 'phpforge', 'Phpforge_123!');
+          foreach (['foundation_baseline', 'foundation_candidate'] as $database) {
+              $pdo->exec('CREATE DATABASE ' . $database);
+          }
+          PHP
+      - name: Measure unchanged applications with candidate first to test order drift
+        run: |
+          # Controlled diagnosis only: retain both reports and unchanged budgets.
+          for variant in candidate baseline; do
+            if [[ "$variant" == baseline ]]; then source_sha="$BASELINE_SHA"; else source_sha="$CANDIDATE_SHA"; fi
+            FOUNDATION_HOST_SOURCE_SHA="$source_sha" \
+              FOUNDATION_HOST_PG_DATABASE="foundation_$variant" \
+              FOUNDATION_HOST_RESULT_DIR="$GITHUB_WORKSPACE/evidence/$variant" \
+              bash "$GITHUB_WORKSPACE/$variant/benchmarks/foundation4-host-certify.sh"
+          done
+      - name: Capture diagnostic environment
+        if: always()
+        run: |
+          mkdir -p evidence
+          lscpu > evidence/cpu.txt
+          lscpu --extended=CPU,CORE,SOCKET,ONLINE > evidence/topology.txt
+          php -v > evidence/php-version.txt
+          sha256sum locked-dependencies/composer.lock > evidence/composer-lock.sha256
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: foundation4-affinity-${{ matrix.host }}-${{ matrix.workers }}-${{ matrix.concurrency }}
+          path: |
+            evidence/*/*.json
+            evidence/*/*.csv
+            evidence/*/*.log
+            evidence/*/*.env
+            evidence/cpu.txt
+            evidence/topology.txt
+            evidence/php-version.txt
+            evidence/composer-lock.sha256
+          if-no-files-found: error
+          retention-days: 30
