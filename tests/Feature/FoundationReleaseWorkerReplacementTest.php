@@ -57,7 +57,7 @@ final class FoundationReleaseReplacementProvider extends ServiceProvider
             return;
         }
 
-        $builder->singleton(
+        $builder->factory(
             FoundationReleaseReplacementWorker::class,
             FactoryDefinition::construct(FoundationReleaseReplacementWorker::class),
         );

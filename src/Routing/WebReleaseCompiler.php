@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Routing;
 
-use Infocyph\InterMix\DI\ContainerBuilder;
+use Infocyph\Foundation\Bootstrap\Bootstrapper;
+use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Container\FoundationGraph;
+use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Router\Build\ReleaseCompiler as WebrickReleaseCompiler;
 use Infocyph\Webrick\Router\Build\RouterArtifactLoader;
-use Infocyph\Webrick\Router\Build\RouterBuildResult;
 use Infocyph\Webrick\Router\Definition\Registrar;
 use Infocyph\Webrick\Router\Matching\FusedMatcher;
 use Infocyph\Webrick\Router\Matching\GeneratedMatcher;
@@ -23,18 +25,24 @@ final readonly class WebReleaseCompiler
     ) {}
 
     /**
-     * @param array<string, mixed> $config
+     * @param array<string, mixed>|ConfigRepository $config
      * @param array<int|string, mixed> $capabilities Explicit production capability topology; [] is minimal.
      * @return array<string, mixed>
      */
     public function compile(
-        array $config,
+        array|ConfigRepository $config,
         string $intermixPath,
         string $routerPath,
         string $releaseManifestPath,
         array $capabilities = [],
     ): array {
         $graph = $this->graphs->compose($config, $capabilities);
+        $builder = FoundationGraph::compose($graph->context);
+        new Bootstrapper()->contribute($builder, $graph->context, $graph->providers);
+        new WebProductionGraph()->prepare($builder);
+        // Webrick's native release compiler registers its own scoped Request input.
+        // Remove Foundation's development declaration before that single registration.
+        $builder->unbind(Request::class);
         $settings = new WebReleaseConfiguration($graph);
         $settings->assertArtifactSafeMiddleware();
 
@@ -43,7 +51,7 @@ final readonly class WebReleaseCompiler
         $releaseManifestPath = $settings->resolvePath($releaseManifestPath);
 
         $release = $this->compiler->compile(
-            builder: $graph->builder,
+            builder: $builder,
             register: static function (Registrar $registrar) use ($graph): void {
                 $graph->application->make(RouteFileLoader::class)->loadForRelease($registrar);
             },
@@ -57,9 +65,6 @@ final readonly class WebReleaseCompiler
             postGlobal: [],
             preGlobalTags: [],
             postGlobalTags: [],
-            enrichGraph: static function (ContainerBuilder $builder, RouterBuildResult $routes): void {
-                new WebProductionGraph()->prepareBuild($builder, $routes);
-            },
         );
         $this->assertNoSkippedDefinitions($release);
         $matcherCachePath = $this->compileMatcherCache($settings, $routerPath);
@@ -80,7 +85,9 @@ final readonly class WebReleaseCompiler
         return $release;
     }
 
-    /** @param array<string, mixed> $release */
+    /**
+     * @param array<string, mixed> $release
+     */
     private function assertNoSkippedDefinitions(array $release): void
     {
         $intermix = $release['intermix'] ?? null;
@@ -88,10 +95,6 @@ final readonly class WebReleaseCompiler
         if (!is_array($skipped)) {
             throw new \UnexpectedValueException('Foundation web release is missing the InterMix skipped-definition report.');
         }
-        if ($skipped === []) {
-            return;
-        }
-
         $details = [];
         foreach ($skipped as $id => $reason) {
             $details[] = sprintf(
@@ -99,6 +102,10 @@ final readonly class WebReleaseCompiler
                 is_string($id) ? $id : (string) $id,
                 is_string($reason) ? $reason : 'unknown static-compilation failure',
             );
+        }
+
+        if ($details === []) {
+            return;
         }
 
         throw new \RuntimeException(

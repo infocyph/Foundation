@@ -19,7 +19,7 @@ cryptography library.
 Install the canonical `security` module:
 
 ```bash
-php infbyte module:install security
+php infbyte module:install security.crypto
 ```
 
 `crypto` and `epicrypt` remain accepted aliases, but `security` is the public

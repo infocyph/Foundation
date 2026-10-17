@@ -168,13 +168,16 @@ final readonly class FoundationReleaseRuntime
     /** @return array{0:string,1:array<string,mixed>,2:string,3:string,4:ReleaseGenerationLease} */
     private function activeManifest(string $releaseRoot): array
     {
-        $current = $this->active->current($releaseRoot);
+        $current = $this->active->currentPointer($releaseRoot);
         $generation = $current['generation'];
         $lease = ReleaseGenerationLease::acquireShared($releaseRoot, $generation);
         $manifestPath = $current['manifest'];
 
         try {
             $manifest = FoundationReleaseManifest::load($manifestPath);
+            if (($manifest['generation'] ?? null) !== $generation) {
+                throw new \RuntimeException('Foundation active-generation pointer does not match its release manifest.');
+            }
             $expectedDependencies = FoundationReleaseManifest::digest(
                 $manifest['dependency_fingerprint'] ?? null,
                 32,
@@ -278,14 +281,30 @@ final readonly class FoundationReleaseRuntime
             throw new \InvalidArgumentException('Trusted Foundation generation manifest SHA-256 is invalid.');
         }
 
-        [$generation, $manifest, $directory, $manifestPath, $lease] = $this->activeManifest($releaseRoot);
-        $actualSha256 = hash_file('sha256', $manifestPath);
-        if (!is_string($actualSha256) || !hash_equals($trustedSha256, $actualSha256)) {
+        $current = $this->active->currentPointer($releaseRoot);
+        $generation = $current['generation'];
+        $manifestPath = $current['manifest'];
+        $lease = ReleaseGenerationLease::acquireShared($releaseRoot, $generation);
+
+        try {
+            $manifest = FoundationReleaseManifest::loadTrusted($manifestPath, $trustedSha256);
+            if (($manifest['generation'] ?? null) !== $generation) {
+                throw new \RuntimeException('Foundation active-generation pointer does not match its release manifest.');
+            }
+            $expected = FoundationReleaseManifest::digest(
+                $manifest['dependency_fingerprint'] ?? null,
+                32,
+                'dependency_fingerprint',
+            );
+            if (!hash_equals($expected, FoundationReleaseManifest::dependencyFingerprint())) {
+                throw new \RuntimeException('Foundation generation dependency identity does not match the current Composer installation.');
+            }
+
+            return [$generation, $manifest, dirname($manifestPath), $manifestPath, $lease];
+        } catch (\Throwable $error) {
             $lease->release();
 
-            throw new \RuntimeException('Foundation generation manifest trust identity mismatch.');
+            throw $error;
         }
-
-        return [$generation, $manifest, $directory, $manifestPath, $lease];
     }
 }

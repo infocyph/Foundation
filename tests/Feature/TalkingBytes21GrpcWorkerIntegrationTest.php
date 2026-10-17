@@ -9,6 +9,7 @@ use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Worker\WorkerRuntime;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\LifetimeEnum;
 use Infocyph\TalkingBytes\Core\Support\CancellationSignal;
 use Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundExchange;
 use Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundHandlerInterface;
@@ -88,9 +89,10 @@ final class FoundationTalkingBytes21GrpcProvider extends ServiceProvider
     {
         unset($context);
         $builder->value(GrpcInboundSource::class, $this->source);
-        $builder->scoped(
+        $builder->factory(
             FoundationTalkingBytes21GrpcHandler::class,
             FactoryDefinition::construct(FoundationTalkingBytes21GrpcHandler::class),
+            LifetimeEnum::Scoped,
         );
     }
 }

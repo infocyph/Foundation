@@ -89,25 +89,19 @@ than hiding database work in policy properties.
 
 ## Purpose-first optional modules
 
-Authentication is one public `auth` capability. There are no standalone public
-OTP or passkey modules.
+Authentication is part of Core. Select optional implementations explicitly:
 
 ```bash
-php infbyte module:show auth
-php infbyte module:install auth
+php infbyte module:install security.mfa
+php infbyte module:install security.crypto
+php infbyte module:install security.passkey
 ```
 
-The module bundle contains:
-
-- `infocyph/otp ^6.1`
-- `web-auth/webauthn-lib ^5.3.9`
-
-Runtime readiness remains implementation-specific: selecting OTP MFA requires
-OTP; selecting WebAuthn passkeys requires WebAuthn. One does not make the other
-mandatory unless both behaviors are configured.
-
-Other selected auth drivers may require the core `cache` capability or the
-optional `database`, `security`, or `communication` modules.
+OTP-driver MFA uses OTP 7.0 and requires the selected Epicrypt-backed
+`security.crypto` feature. Passkeys require OTP 7.0 and WebAuthn 5.3.9 independently
+of MFA. Install `data.database` for DBLayer persistence and
+`execution.communication` for TalkingBytes delivery. CacheLayer is required Core
+infrastructure. See [module selection](modules.md).
 
 ## Driver ownership
 
@@ -118,7 +112,7 @@ infrastructure stays in its owning capability:
 - `database` storage uses DBLayer;
 - process-local auth cache requires no CacheLayer;
 - shared `cache` state uses CacheLayer;
-- `native` password/token behavior remains Foundation-owned baseline behavior;
+- `native` passwords use PHP password APIs; `simple` tokens are development-only;
 - `security` password/token behavior uses Epicrypt;
 - `simple` MFA is development/testing-oriented;
 - `otp` MFA uses the OTP package;
@@ -143,7 +137,7 @@ See [Security boundaries](security.md).
 ## OTP-backed MFA
 
 When `auth.drivers.mfa=otp`, Foundation owns factor/challenge persistence and
-maps application state to OTP 6.1 primitives. OTP owns TOTP, HOTP, OCRA,
+maps application state to OTP 7.0 primitives. OTP owns TOTP, HOTP, OCRA,
 provisioning payloads, verification semantics, and recovery-code cryptography.
 
 Replay/counter state is coordinated according to the OTP mode and Foundation's
@@ -171,20 +165,25 @@ activated only when communication-backed delivery is selected.
 ## Durable auth schema
 
 When `auth.drivers.storage=database`, inspect/install the Foundation-owned auth
-schema with the canonical module schema commands:
+schema through its Core provisioning service inside a CLI execution:
 
-```bash
-php infbyte module:schema:status auth
-php infbyte module:schema:install auth
+```php
+$app->execution()->run(static function () use ($app): void {
+    $schema = $app->make(\Infocyph\Foundation\Database\AuthSchema\AuthSchemaInstaller::class);
+    $schema->install();
+    $readiness = $schema->readiness();
+});
 ```
 
-`module:schema:sync` also provisions the auth schema when current configuration
-requires database-backed auth.
+Core auth schema provisioning is separate from optional feature schema commands.
 
 The schema includes accounts, authentication sessions, consumable verification
 requests, remember/refresh tokens, MFA factors, passkey credentials,
 authorization records, devices, audit records, and lockouts. MFA factors include
-a scalar `revision` used for portable compare-and-swap updates.
+a scalar `revision` used for portable compare-and-swap updates. Passkeys retain
+the full opaque credential ID and use a unique SHA3-256 `credential_id_hash` index
+for portable, case-sensitive lookup. Configure DBLayer `security.max_param_bytes`
+for bounded credential-record and audit JSON sizes; the native guard remains active.
 
 Expired/revoked state can be pruned explicitly:
 

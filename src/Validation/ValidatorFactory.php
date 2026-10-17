@@ -258,25 +258,31 @@ final readonly class ValidatorFactory
             if (!is_string($key) || $key === '') {
                 continue;
             }
-            if (is_string($pipeline) || is_callable($pipeline)) {
-                $normalized[$key] = $pipeline;
-
-                continue;
-            }
-            if (!is_array($pipeline)) {
-                continue;
-            }
-
-            $steps = array_values(array_filter(
-                $pipeline,
-                static fn(mixed $step): bool => is_string($step) || is_callable($step),
-            ));
-            if ($steps !== []) {
+            $steps = $this->sanitizerPipeline($pipeline);
+            if ($steps !== null) {
                 $normalized[$key] = $steps;
             }
         }
 
         return $normalized;
+    }
+
+    /** @return string|callable|list<string|callable>|null */
+    private function sanitizerPipeline(mixed $pipeline): mixed
+    {
+        if (is_string($pipeline) || is_callable($pipeline)) {
+            return $pipeline;
+        }
+        if (!is_array($pipeline)) {
+            return null;
+        }
+
+        $steps = array_values(array_filter(
+            $pipeline,
+            static fn(mixed $step): bool => is_string($step) || is_callable($step),
+        ));
+
+        return $steps !== [] ? $steps : null;
     }
 
     /** @return array<string, string> */

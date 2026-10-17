@@ -69,6 +69,7 @@ final readonly class AuthSchemaInstaller
             [$this->tables->mfaFactors(), 'revision'],
             [$this->tables->passkeyCredentials(), 'revision'],
             [$this->tables->passkeyCredentials(), 'credential_record'],
+            [$this->tables->passkeyCredentials(), 'credential_id_hash'],
         ];
         foreach ($requiredColumns as [$table, $column]) {
             if ($schema->hasTable($table) && !$schema->hasColumn($table, $column)) {

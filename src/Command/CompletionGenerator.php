@@ -116,23 +116,30 @@ BASH,
         $map = [];
         foreach ($this->registry->visible() as $descriptor) {
             $definition = $descriptor->definition;
-            $options = ['--help', '-h', '--quiet', '-q', '--no-interaction', '-n', '--json', '--env='];
-            foreach ($definition->options() as $option) {
-                $options[] = '--' . $option['name'] . ($option['accepts_value'] ? '=' : '');
-                if ($option['negatable']) {
-                    $options[] = '--no-' . $option['name'];
-                }
-                if ($option['short'] !== null) {
-                    $options[] = '-' . $option['short'];
-                }
-            }
-            $map[$definition->commandName()] = array_values(array_unique($options));
+            $map[$definition->commandName()] = $this->optionsForCommand($definition);
             foreach ($definition->aliases() as $alias) {
                 $map[$alias] = $map[$definition->commandName()];
             }
         }
 
         return $map;
+    }
+
+    /** @return list<string> */
+    private function optionsForCommand(CommandDefinition $definition): array
+    {
+        $options = ['--help', '-h', '--quiet', '-q', '--no-interaction', '-n', '--json', '--env='];
+        foreach ($definition->options() as $option) {
+            $options[] = '--' . $option['name'] . ($option['accepts_value'] ? '=' : '');
+            if ($option['negatable']) {
+                $options[] = '--no-' . $option['name'];
+            }
+            if ($option['short'] !== null) {
+                $options[] = '-' . $option['short'];
+            }
+        }
+
+        return array_values(array_unique($options));
     }
 
     private function zsh(string $executable): string

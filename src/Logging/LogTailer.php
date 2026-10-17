@@ -59,19 +59,7 @@ final readonly class LogTailer
                 return [];
             }
 
-            $buffer = '';
-            $chunkSize = 8192;
-            while ($position > 0 && substr_count($buffer, "\n") <= $lines) {
-                $read = min($chunkSize, $position);
-                $position -= $read;
-                fseek($stream, $position);
-                $chunk = fread($stream, $read);
-                if (!is_string($chunk)) {
-                    break;
-                }
-                $buffer = $chunk . $buffer;
-            }
-
+            $buffer = $this->readTailBuffer($stream, $position, $lines);
             $rows = preg_split('/\R/', rtrim($buffer, "\r\n"));
             if (!is_array($rows)) {
                 return [];
@@ -126,6 +114,25 @@ final readonly class LogTailer
         }
 
         return $stream;
+    }
+
+    /** @param resource $stream */
+    private function readTailBuffer($stream, int $position, int $lines): string
+    {
+        $buffer = '';
+        $chunkSize = 8192;
+        while ($position > 0 && substr_count($buffer, "\n") <= $lines) {
+            $read = min($chunkSize, $position);
+            $position -= $read;
+            fseek($stream, $position);
+            $chunk = fread($stream, $read);
+            if (!is_string($chunk)) {
+                break;
+            }
+            $buffer = $chunk . $buffer;
+        }
+
+        return $buffer;
     }
 
     /**

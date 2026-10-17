@@ -5,10 +5,27 @@ on:
     - cron: "0 0 * * 0"
   push:
     branches: [ "main", "master" ]
+    tags: [ "v*", "[0-9]*" ]
   pull_request:
     branches: [ "main", "master", "develop", "development" ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
+  release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    needs: [phpforge, production-consumer, release-evidence, runtime-hosts]
+    uses: infocyph/phpforge/.github/workflows/release.yml@main
+    permissions:
+      contents: write
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+  runtime-hosts:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    uses: ./.github/workflows/foundation4-host-certification.yml
+    permissions:
+      contents: read
   phpforge:
     uses: infocyph/phpforge/.github/workflows/security-standards.yml@fdec64cf4460f13116eb0e2f3405acadd3e84377
     permissions:
@@ -39,7 +56,7 @@ jobs:
         with:
           php-version: ${{ matrix.php-version }}
           tools: composer:v2
-          extensions: "mbstring, pdo, pdo_sqlite"
+          extensions: "mbstring, intl, sodium, fileinfo, zip, pdo, pdo_sqlite, pdo_mysql, pdo_pgsql, redis, memcached"
           coverage: none
       - name: Verify isolated production consumers
         shell: bash
@@ -78,6 +95,7 @@ jobs:
             cd "$minimal"
             composer update "${composer_args[@]}"
             vendor/bin/infbyte list > command-list.txt
+            php "$GITHUB_WORKSPACE/tests/Fixtures/ModuleFeatureProductionMatrix.php" core
             php -r 'require "vendor/autoload.php";'
             if composer show infocyph/phpforge >/dev/null 2>&1; then
               echo "PHPForge leaked into the production consumer." >&2
@@ -106,7 +124,7 @@ jobs:
             ],
             "require": {
               "infocyph/foundation": "*",
-              "infocyph/dblayer": "^5.1"
+              "infocyph/dblayer": "^6.1.1"
             }
           }
           JSON
@@ -115,19 +133,110 @@ jobs:
             cd "$optional"
             composer update "${composer_args[@]}"
             vendor/bin/infbyte list > command-list.txt
-            vendor/bin/infbyte module:show database --json > database-module.json
-            php -r '
+            vendor/bin/infbyte module:show data.database --json > database-module.json
+            php /dev/stdin <<'PHP'
+          <?php
               $payload = json_decode(file_get_contents("database-module.json"), true, 512, JSON_THROW_ON_ERROR);
-              if (($payload["name"] ?? null) !== "database") {
+              if (($payload["schema_version"] ?? null) !== 2
+                  || ($payload["module"] ?? null) !== "data"
+                  || !isset($payload["states"]["data.database"])) {
                   fwrite(STDERR, "Database module inspection did not return the expected payload.\n");
                   exit(1);
               }
-            '
+          PHP
             if composer show infocyph/phpforge >/dev/null 2>&1; then
               echo "PHPForge leaked into the optional production consumer." >&2
               exit 1
             fi
           )
+
+          # Exercise the full published specialist set under production --no-dev.
+          # Availability of a library does not implicitly enable a capability.
+          full="$RUNNER_TEMP/foundation-full-consumer"
+          mkdir -p "$full/storage"
+          cat > "$full/composer.json" <<JSON
+          {
+            "name": "infocyph/foundation-full-consumer",
+            "type": "project",
+            "minimum-stability": "dev",
+            "prefer-stable": true,
+            "repositories": [
+              {"type": "path", "url": "$GITHUB_WORKSPACE", "options": {"symlink": false}}
+            ],
+            "require": {
+              "infocyph/foundation": "*",
+              "infocyph/dblayer": "^6.1.1",
+              "infocyph/epicrypt": "^3.2",
+              "infocyph/omnibus": "^3.0.1",
+              "infocyph/otp": "^7.0",
+              "infocyph/pathwise": "^4.2",
+              "infocyph/reqshield": "^3.3",
+              "infocyph/talkingbytes": "^2.3",
+              "web-auth/webauthn-lib": "^5.3.9"
+            }
+          }
+          JSON
+          (
+            cd "$full"
+            composer update "${composer_args[@]}"
+            vendor/bin/infbyte list > commands.txt
+            vendor/bin/infbyte module:list --json > modules.json
+            php /dev/stdin <<'PHP'
+          <?php
+              $payload = json_decode(file_get_contents("modules.json"), true, 512, JSON_THROW_ON_ERROR);
+              if (($payload["schema_version"] ?? null) !== 2
+                  || array_column($payload["modules"] ?? [], "name") !== ["data", "security", "execution"]
+                  || count(array_merge(...array_column($payload["modules"] ?? [], "features"))) !== 8) {
+                  fwrite(STDERR, "Unexpected Foundation 4 three-module/eight-feature v2 catalog.\n");
+                  exit(1);
+              }
+          PHP
+            php /dev/stdin <<'PHP'
+          <?php
+              require "vendor/autoload.php";
+              foreach ([
+                  \Infocyph\Runwire\RuntimeContext::class,
+                  \Infocyph\DBLayer\Connection\Connection::class,
+                  \Infocyph\Omnibus\Envelope\Envelope::class,
+                  \Infocyph\TalkingBytes\Http\HttpClient::class,
+              ] as $class) {
+                  if (!class_exists($class)) {
+                      fwrite(STDERR, "Missing selected owner: " . $class . "\n");
+                      exit(1);
+                  }
+              }
+              $app = \Infocyph\Foundation\Foundation::worker([
+                  "app" => ["base_path" => getcwd(), "env" => "local", "capabilities" => []],
+                  "_config_cache" => false,
+              ])->boot();
+              $runtime = \Infocyph\Runwire\RuntimeContext::standalone();
+              $request = \Infocyph\Runwire\RequestContext::create($runtime);
+              try {
+                  $app->execution()->run(
+                      static function () use ($app, $runtime, $request): void {
+                          if ($app->make(\Infocyph\Runwire\RuntimeContext::class) !== $runtime
+                              || $app->make(\Infocyph\Runwire\RequestContext::class) !== $request
+                          ) {
+                              throw new \LogicException("Runwire host input identity changed.");
+                          }
+                      },
+                      [
+                          \Infocyph\Runwire\RuntimeContext::class => $runtime,
+                          \Infocyph\Runwire\RequestContext::class => $request,
+                      ],
+                  );
+              } finally {
+                  $request->complete();
+              }
+          PHP
+            php "$GITHUB_WORKSPACE/docs/examples/foundation-4-compiled-release.php"
+            php "$GITHUB_WORKSPACE/tests/Fixtures/ModuleFeatureProductionMatrix.php" all
+            if composer show infocyph/phpforge >/dev/null 2>&1; then
+              echo "PHPForge leaked into full production consumer." >&2
+              exit 1
+            fi
+          )
+
 
   release-evidence:
     name: Release evidence
@@ -144,10 +253,27 @@ jobs:
           coverage: none
       - name: Install release-evidence dependencies
         run: composer update --no-interaction --prefer-dist --no-progress --prefer-stable
+      - name: Diagnose Foundation 4 release tooling and active configuration
+        run: |
+          composer ic:doctor
+          composer ic:list-config
+          composer ic:active-config
       - name: Complete PHPForge release-guard constraints
         run: |
           composer validate --strict
           composer ic:release:constraints
+          composer ic:release:audit
+      - name: Execute migration bootstrap smoke examples
+        run: |
+          php docs/examples/foundation-4-core.php
+          php docs/examples/foundation-4-runwire-worker.php
+      - name: Capture pre-rework Foundation module CLI baseline
+        env:
+          FOUNDATION_MODULE_BASELINE_OUTPUT: build/release-evidence/module-cli-baseline.json
+          FOUNDATION_MODULE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          mkdir -p build/release-evidence
+          php benchmarks/foundation4-module-cli-baseline.php
       - name: Capture release evidence
         shell: bash
         env:
@@ -165,6 +291,8 @@ jobs:
           } > "$directory/manifest.env"
           php -m | sort > "$directory/php-extensions.txt"
           composer show --locked --format=json > "$directory/dependencies.json"
+          sha256sum composer.lock > "$directory/composer-lock.sha256"
+          php --ini=diff > "$directory/php-ini-diff.txt"
           git ls-files 'tests/*.php' 'tests/**/*.php' | sort > "$directory/test-files.txt"
           awk 'NF { count++ } END { printf "test_file_inventory=%d\n", count }' "$directory/test-files.txt" > "$directory/test-inventory.env"
       - uses: actions/upload-artifact@v7

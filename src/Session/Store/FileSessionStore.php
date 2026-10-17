@@ -49,17 +49,7 @@ final readonly class FileSessionStore implements SessionStoreInterface
         $iterator = new \FilesystemIterator($this->directory, \FilesystemIterator::SKIP_DOTS);
         $pruned = 0;
         foreach ($iterator as $file) {
-            if (!$file instanceof \SplFileInfo
-                || !$file->isFile()
-                || !str_ends_with($file->getFilename(), '.json')
-            ) {
-                continue;
-            }
-
-            $contents = self::filesystem(static fn(): string|false => file_get_contents($file->getPathname()));
-            $decoded = is_string($contents) ? json_decode($contents, true) : null;
-            $expiresAt = is_array($decoded) ? ($decoded['expires_at'] ?? null) : null;
-            if (is_int($expiresAt) && $expiresAt > $now) {
+            if (!$file instanceof \SplFileInfo || !$this->isPrunable($file, $now)) {
                 continue;
             }
 
@@ -131,6 +121,19 @@ final readonly class FileSessionStore implements SessionStoreInterface
         }
 
         throw new \RuntimeException(sprintf('Unable to create session directory "%s".', $this->directory));
+    }
+
+    private function isPrunable(\SplFileInfo $file, int $now): bool
+    {
+        if (!$file->isFile() || !str_ends_with($file->getFilename(), '.json')) {
+            return false;
+        }
+
+        $contents = self::filesystem(static fn(): string|false => file_get_contents($file->getPathname()));
+        $decoded = is_string($contents) ? json_decode($contents, true) : null;
+        $expiresAt = is_array($decoded) ? ($decoded['expires_at'] ?? null) : null;
+
+        return !is_int($expiresAt) || $expiresAt <= $now;
     }
 
     private function path(string $id): string

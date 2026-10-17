@@ -86,8 +86,12 @@ final readonly class EmailVerificationManager
      */
     private function completeVerification(EmailVerificationRequest $request, array $context): EmailVerificationResult
     {
-        $this->store->consume($request->id);
-        $this->accounts->markVerified($request->accountId, $this->clock->now());
+        if (!$this->store->consumeAndApply(
+            $request->id,
+            fn() => $this->accounts->markVerified($request->accountId, $this->clock->now()),
+        )) {
+            return $this->consumedVerificationResult($request, $context);
+        }
         $this->recordEvent(
             AuthEventType::EMAIL_VERIFIED,
             $request->accountId,

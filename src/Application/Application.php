@@ -25,6 +25,9 @@ final class Application
 
     private ?LoadedReleaseGeneration $loadedReleaseGeneration = null;
 
+    /** @var array<string, object>|null */
+    private ?array $testingOverrides = null;
+
     public function __construct(
         private readonly ConfigRepository $config,
         private readonly ContainerInterface $container,
@@ -39,14 +42,16 @@ final class Application
         $sourceConfig = new ConfigLoader()->load($config);
         $context = FoundationBuildContext::fromConfig($sourceConfig, $runtimeMode);
         $builder = FoundationGraph::compose($context);
-        $container = $builder->development();
+        $bootstrapper = new Bootstrapper();
+        $providers = new ServiceRegistry();
+        $bootstrapper->compose($builder, $context, $providers);
+
+        $bindings = DevelopmentRuntimeBindings::register($builder);
+        $container = $builder->build();
         $runtimeConfig = $container->get(ConfigRepository::class);
         if (!$runtimeConfig instanceof ConfigRepository) {
             throw new \LogicException('Foundation graph did not produce a ConfigRepository.');
         }
-
-        $bootstrapper = new Bootstrapper();
-        $providers = new ServiceRegistry();
         $app = new self(
             config: $runtimeConfig,
             container: $container,
@@ -54,8 +59,7 @@ final class Application
             bootstrapper: $bootstrapper,
             runtimeMode: $runtimeMode,
         );
-        DevelopmentRuntimeBindings::register($builder, $app, $container);
-        $bootstrapper->compose($builder, $context, $providers);
+        $bindings->attach($app);
 
         return $app;
     }
@@ -195,6 +199,18 @@ final class Application
     public function make(string $id): mixed
     {
         try {
+            if ($this->testingOverrides !== null && isset($this->testingOverrides[$id])) {
+                return $this->testingOverrides[$id];
+            }
+
+            if (
+                !$this->container->has($id)
+                && $this->container instanceof \Infocyph\InterMix\DI\RuntimeContainerInterface
+                && class_exists($id)
+            ) {
+                return $this->container->make($id);
+            }
+
             return $this->container->get($id);
         } catch (\Throwable $exception) {
             $message = sprintf('Unable to resolve service "%s".', $id);
@@ -219,6 +235,24 @@ final class Application
     public function publicPath(string $path = ''): string
     {
         return $this->paths()->public($path);
+    }
+
+    /**
+     * Supply an application-local fake without mutating the immutable InterMix runtime.
+     * TestKit owns this restricted boundary; compiled and production runtimes reject it.
+     *
+     * @internal
+     */
+    public function replaceForTesting(string $id, object $service): void
+    {
+        if ($this->config->isProduction() || $this->loadedReleaseGeneration !== null) {
+            throw new \LogicException('Test service replacements require a non-production, non-compiled application.');
+        }
+        if ((class_exists($id) || interface_exists($id)) && !$service instanceof $id) {
+            throw new \InvalidArgumentException(sprintf('Test replacement for "%s" has an incompatible type.', $id));
+        }
+
+        $this->testingOverrides[$id] = $service;
     }
 
     public function resourcesPath(string $path = ''): string

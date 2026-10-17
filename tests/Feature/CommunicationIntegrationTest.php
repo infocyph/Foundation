@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Infocyph\Foundation\Communication\CommunicationProfiles;
+use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Foundation;
 use Infocyph\TalkingBytes\Grpc\GrpcStatus;
 use Infocyph\TalkingBytes\Grpc\Receiver\GrpcInboundResponse;
@@ -141,4 +142,61 @@ it('creates TalkingBytes gRPC clients and inbound dispatchers through Foundation
         ->and($result->response->message)->toBe(['echo' => ['order_id' => 1001]])
         ->and($response->isOk())->toBeTrue()
         ->and($response->message)->toBe(['accepted' => ['order_id' => 1001]]);
+});
+
+
+it('preserves TalkingBytes 2.2 resolved middleware composition through the typed HTTP base path', function (): void {
+    $app = Foundation::web([
+        'app' => ['base_path' => dirname(__DIR__, 2)],
+        'communication' => [
+            'http' => [
+                'default_client' => 'api',
+                'clients' => [
+                    'api' => [
+                        'timeoutSeconds' => 17,
+                        'connectTimeoutSeconds' => 4,
+                        'verifyPeer' => true,
+                        'verifyHost' => true,
+                        'retry' => [
+                            'enabled' => true,
+                            'attempts' => 2,
+                            'base_delay_ms' => 0,
+                        ],
+                    ],
+                ],
+            ],
+        ],
+    ]);
+
+    $profiles = $app->make(CommunicationProfiles::class);
+    $config = $profiles->httpConfig();
+    $client = $profiles->http();
+
+    expect($config->timeoutSeconds)->toBe(17)
+        ->and($config->connectTimeoutSeconds)->toBe(4)
+        ->and($config->verifyPeer)->toBeTrue()
+        ->and($config->verifyHost)->toBeTrue()
+        ->and($client->hasRetryMiddleware())->toBeTrue();
+});
+
+it('keeps Foundation production TLS policy when using TalkingBytes 2.2 typed composition', function (): void {
+    $profiles = new CommunicationProfiles(new ConfigRepository([
+        'app' => [
+            'env' => 'production',
+        ],
+        'communication' => [
+            'http' => [
+                'default_client' => 'api',
+                'clients' => [
+                    'api' => [
+                        'verifyPeer' => false,
+                        'verifyHost' => true,
+                    ],
+                ],
+            ],
+        ],
+    ]));
+
+    expect(fn() => $profiles->http())
+        ->toThrow(LogicException::class, 'Production HTTP profiles must verify both TLS peers and hosts.');
 });

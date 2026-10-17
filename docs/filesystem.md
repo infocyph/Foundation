@@ -5,7 +5,7 @@ Foundation composes application storage policy; Pathwise 4.1 owns filesystem mec
 Install the optional filesystem module when the application needs configured storage, uploads, downloads, or the Webrick file-transfer bridge:
 
 ```bash
-php infbyte module:install filesystem
+php infbyte module:install data.filesystem
 ```
 
 `PathManager` remains Foundation core and does not require Pathwise. It owns application locations such as `storage/`, `public/`, `bootstrap/`, `routes/`, and `resources/`.

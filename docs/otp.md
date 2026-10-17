@@ -1,11 +1,10 @@
 # OTP-backed MFA and passkeys
 
-Foundation composes `infocyph/otp ^6.1` into application authentication without
+Foundation composes `infocyph/otp ^7.0` into application authentication without
 copying OTP algorithms, replay mechanics, or WebAuthn ceremony behavior into the
 framework.
 
-OTP is an implementation inside Foundation's canonical `auth` module; there is
-no standalone public OTP module.
+Core authentication selects OTP through `security.mfa` and `security.passkey`.
 
 ## Ownership
 
@@ -17,7 +16,7 @@ Foundation owns application concerns:
 - challenge satisfaction, notification, audit, and session authorization;
 - mapping OTP results into Foundation authentication results.
 
-OTP 6.1 owns specialist behavior:
+OTP 7.0 owns specialist behavior:
 
 - TOTP, HOTP, OCRA, AOTP, GridOTP, and legacy MobileOTP algorithms;
 - OTP verification windows/drift results and replay primitives;
@@ -40,11 +39,11 @@ when the WebAuthn passkey driver is selected.
 ],
 ```
 
-Install the `auth` capability when the optional implementation is not already
-available:
+Install the MFA implementation and its crypto prerequisite:
 
 ```bash
-php infbyte module:install auth
+php infbyte module:install security.mfa
+php infbyte module:install security.crypto
 ```
 
 OTP MFA and WebAuthn passkeys are independently selectable. TOTP/HOTP/OCRA do
@@ -243,17 +242,14 @@ the platform authenticator/security key.
 
 ## Auth schema
 
-When durable auth storage is selected, inspect/install the current schema through
-the canonical commands:
+When durable auth storage is selected, use Core `AuthSchemaInstaller::install()`
+and `readiness()` inside a CLI execution; see [Core schema provisioning](database.md).
+Optional module schema commands do not provision Core auth.
 
-```bash
-php infbyte module:schema:status auth
-php infbyte module:schema:install auth
-```
-
-The passkey schema includes independent `revision` and `credential_record`
-columns. Existing installs receive additive migrations and readiness reports
-missing columns as not ready.
+The current Foundation 4 passkey schema contains `revision`, `credential_record`
+and a unique `credential_id_hash` index. The full opaque ID remains stored, with
+exact case-sensitive lookup. Readiness rejects a schema missing required columns.
+Current 4.0 deployments must use this schema; old-major conversion is out of scope.
 
 ## Persistent runtimes
 

@@ -186,6 +186,10 @@ final class ConfigLoader
 
     private function ensureCacheDirectory(string $directory): void
     {
+        if (is_link($directory)) {
+            throw new \RuntimeException('Configuration cache publication root cannot be a symbolic link.');
+        }
+
         if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
             throw new \RuntimeException(sprintf('Unable to create config cache directory "%s".', $directory));
         }
@@ -206,11 +210,7 @@ final class ConfigLoader
         } catch (\Throwable) {
             return null;
         }
-        if (!is_array($payload) || ($payload['_format'] ?? null) !== self::CACHE_FORMAT) {
-            return null;
-        }
-        $schema = $payload['_schema'] ?? null;
-        if (!is_string($schema) || !hash_equals($this->schemaFingerprint(), $schema)) {
+        if (!is_array($payload) || !$this->validManifestHeader($payload)) {
             return null;
         }
 
@@ -226,17 +226,14 @@ final class ConfigLoader
             return null;
         }
 
-        $namespaces = [];
-        foreach ($payload['_namespaces'] as $namespace) {
-            if (!is_string($namespace) || preg_match('/^[A-Za-z0-9_-]+$/', $namespace) !== 1) {
-                return null;
-            }
-            $namespaces[$namespace] = true;
+        $namespaces = $this->validatedNamespaces($payload['_namespaces']);
+        if ($namespaces === null) {
+            return null;
         }
 
         return [
             'type' => self::TYPE_SHARDED,
-            'namespaces' => array_keys($namespaces),
+            'namespaces' => $namespaces,
             'complete' => ($payload['_complete'] ?? false) === true,
         ];
     }
@@ -381,7 +378,36 @@ final class ConfigLoader
         return hash('xxh128', implode('|', $metadata));
     }
 
-    /** @param array<string, mixed> $payload */
+    /**
+     * @param array<array-key,mixed> $values
+     * @return list<string>|null
+     */
+    private function validatedNamespaces(array $values): ?array
+    {
+        $namespaces = [];
+        foreach ($values as $namespace) {
+            if (!is_string($namespace) || preg_match('/^[A-Za-z0-9_-]+$/', $namespace) !== 1) {
+                return null;
+            }
+            $namespaces[$namespace] = true;
+        }
+
+        return array_keys($namespaces);
+    }
+
+    /** @param array<array-key,mixed> $payload */
+    private function validManifestHeader(array $payload): bool
+    {
+        if (($payload['_format'] ?? null) !== self::CACHE_FORMAT) {
+            return false;
+        }
+
+        $schema = $payload['_schema'] ?? null;
+
+        return is_string($schema) && hash_equals($this->schemaFingerprint(), $schema);
+    }
+
+    /** @param array<string,mixed> $payload */
     private function writeManifest(string $directory, array $payload): void
     {
         $target = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . self::MANIFEST_FILE;

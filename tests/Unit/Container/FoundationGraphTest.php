@@ -6,6 +6,7 @@ use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Container\FoundationGraph;
+use Infocyph\InterMix\DI\Support\FactoryDefinition;
 
 it('creates a fresh deterministic builder for each runtime composition', function (RuntimeMode $runtimeMode): void {
     $context = FoundationBuildContext::fromConfig(
@@ -15,11 +16,16 @@ it('creates a fresh deterministic builder for each runtime composition', functio
 
     $first = FoundationGraph::compose($context);
     $second = FoundationGraph::compose($context);
+    $runtimeFactory = $first->definitionGraph()->definitions()[RuntimeMode::class] ?? null;
+
+    expect($runtimeFactory)->toBeInstanceOf(FactoryDefinition::class)
+        ->and($runtimeFactory->signature()['class'])->toBe(RuntimeMode::class)
+        ->and($runtimeFactory->signature()['method'])->toBe('from');
 
     expect($first)->not->toBe($second)
-        ->and($first->development())->not->toBe($second->development())
-        ->and($first->development()->getRepository()->getAlias())->toBe($runtimeMode->containerAlias())
-        ->and($second->development()->getRepository()->getAlias())->toBe($runtimeMode->containerAlias());
+        ->and($first->build())->not->toBe($second->build())
+        ->and($first->build()->get(RuntimeMode::class))->toBe($runtimeMode)
+        ->and($second->build()->get(RuntimeMode::class))->toBe($runtimeMode);
 })->with(RuntimeMode::cases());
 
 it('keeps core graph values equivalent in development and generated production', function (RuntimeMode $runtimeMode): void {
@@ -35,7 +41,7 @@ it('keeps core graph values equivalent in development and generated production',
         ['cache' => true],
     );
     $builder = FoundationGraph::compose($context);
-    $development = $builder->development();
+    $development = $builder->build();
 
     $artifact = tempnam(sys_get_temp_dir(), 'foundation-graph-');
     if ($artifact === false) {
@@ -74,7 +80,8 @@ it('keeps non-exportable config usable in development and reports the dynamic bo
         RuntimeMode::Cli,
     );
     $builder = FoundationGraph::compose($context);
-    $development = $builder->development();
+    $builder->releaseIdentity('foundation-dynamic-config-fixture');
+    $development = $builder->build();
     $developmentConfig = $development->get(ConfigRepository::class);
     if (!$developmentConfig instanceof ConfigRepository) {
         throw new RuntimeException('Development graph did not resolve ConfigRepository.');
@@ -92,7 +99,7 @@ it('keeps non-exportable config usable in development and reports the dynamic bo
 
         expect($developmentConfig->get('runtime.factory'))->toBe($dynamicValue)
             ->and($report['skipped'])->toHaveKey(ConfigRepository::class)
-            ->and($report['skipped'][ConfigRepository::class])->toBe('definition requires the dynamic runtime')
+            ->and($report['skipped'][ConfigRepository::class])->toBe('literal value requires the frozen dynamic fallback')
             ->and($report['skipped'])->not->toHaveKey(RuntimeMode::class)
             ->and($production->get(ConfigRepository::class))->toBe($developmentConfig);
     } finally {

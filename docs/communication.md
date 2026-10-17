@@ -7,7 +7,7 @@ Install the optional communication module when the application needs outbound
 HTTP, email, webhooks, inbound email, or gRPC composition:
 
 ```bash
-php infbyte module:install communication
+php infbyte module:install execution.communication
 ```
 
 This publishes `config/communication.php` and `config/notifications.php`.

@@ -307,15 +307,10 @@ A production rollout should use this order:
    php infbyte config:validate --production
    ```
 
-4. Inspect and install the additive auth schema revision:
-
-   ```bash
-   php infbyte module:schema:status auth
-   php infbyte module:schema:install auth
-   ```
-
-   `module:schema:sync` may be used when the deployment intentionally syncs all
-   schemas required by its resolved configuration.
+4. Provision and inspect the Core auth/OAuth schema through
+   `AuthSchemaInstaller::install()` and `readiness()` inside a CLI execution,
+   with `auth.oauth.enabled=true`; see [Core schema provisioning](database.md).
+   Optional `module:schema:sync` does not provision Core auth tables.
 5. Check the active signing key and full application readiness before traffic:
 
    ```bash

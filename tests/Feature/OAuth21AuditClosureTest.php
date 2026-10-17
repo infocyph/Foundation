@@ -2,16 +2,15 @@
 
 declare(strict_types=1);
 
-use Infocyph\Epicrypt\Token\Opaque\OpaqueToken;
 use Infocyph\Foundation\Auth\Audit\AuthEventType;
-use Infocyph\Foundation\Auth\OAuth\Authorization\OAuthAuthorization;
 use Infocyph\Foundation\Auth\OAuth\Contract\JwkSetProviderInterface;
 use Infocyph\Foundation\Auth\OAuth\Exception\OAuthProtocolException;
 use Infocyph\Foundation\Auth\OAuth\Metadata\AuthorizationServerMetadata;
 use Infocyph\Foundation\Auth\OAuth\OAuthManager;
+use Infocyph\Foundation\Auth\OAuth\Token\OAuthClientAuthentication;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthIntrospectionManager;
-use Infocyph\Foundation\Auth\OAuth\Token\OAuthRefreshTokenCoordinator;
 use Infocyph\Foundation\Auth\OAuth\Token\OAuthRevocationManager;
+use Infocyph\Foundation\Auth\OAuth\Value\OAuthClientAuthenticationMethod;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthClientType;
 use Infocyph\Foundation\Auth\OAuth\Value\OAuthGrantType;
 use Infocyph\Foundation\Auth\Principal\Principal;
@@ -107,46 +106,60 @@ it('audits authorization denial revocation invalid redirect and invalid scope at
     }
 });
 
-it('audits refresh rotation explicit revocation and reuse without recording raw refresh tokens', function (): void {
+it('audits active Epicrypt refresh rotation revocation and reuse without recording raw refresh tokens', function (): void {
     $now = 1_700_000_000;
-    $fixture = new OAuth21FlowFixture($now);
+    $capture = new OAuthAuditCapture();
+    $fixture = new OAuth21FlowFixture($now, $capture->recorder($now));
+    $redirectUri = 'https://refresh.example.test/callback';
     $audience = 'https://api.example.test';
+    $verifier = str_repeat('r', 64);
 
     try {
         $registration = $fixture->clients->register(
             OAuthClientType::Public,
             [OAuthGrantType::AuthorizationCode, OAuthGrantType::RefreshToken],
-            ['https://refresh.example.test/callback'],
+            [$redirectUri],
             ['profile.read'],
             [$audience],
         );
-        $authorization = new OAuthAuthorization(
-            id: 'authorization-refresh-audit',
-            clientId: $registration->client->clientId,
-            accountId: 'account-1',
-            scopes: ['profile.read'],
-            audiences: [$audience],
-            createdAt: $now - 10,
-            expiresAt: $now + 3600,
-        );
-        $fixture->authorizationStore->save($authorization);
-        $capture = new OAuthAuditCapture();
-        $coordinator = new OAuthRefreshTokenCoordinator(
-            $fixture->refreshStore,
-            $fixture->authorizationStore,
-            $fixture->clients,
-            $fixture->scopes,
-            $fixture->accounts,
-            $fixture->clock,
-            new OpaqueToken(),
-            audit: $capture->recorder($now),
+        $request = $fixture->requests->validate([
+            'client_id' => $registration->client->clientId,
+            'redirect_uri' => $redirectUri,
+            'response_type' => 'code',
+            'code_challenge' => OAuth21FlowFixture::pkceChallenge($verifier),
+            'code_challenge_method' => 'S256',
+            'scope' => 'profile.read',
+            'audience' => $audience,
+        ]);
+        $principal = new Principal('account-1', accountId: 'account-1');
+        $fixture->consents->grant($principal, $request);
+        $code = $fixture->codes->issue($request, $principal);
+        $authentication = new OAuthClientAuthentication(
+            OAuthClientAuthenticationMethod::None,
+            $registration->client->clientId,
         );
 
-        $issued = $coordinator->issue($authorization);
-        $rotated = $coordinator->rotate($issued->token, $registration->client->clientId);
-        $coordinator->revoke($rotated->token, $registration->client->clientId);
-        expect(fn() => $coordinator->rotate($issued->token, $registration->client->clientId))
-            ->toThrow(OAuthProtocolException::class);
+        $issued = $fixture->tokens->exchange([
+            'grant_type' => OAuthGrantType::AuthorizationCode->value,
+            'code' => $code->code,
+            'redirect_uri' => $redirectUri,
+            'code_verifier' => $verifier,
+        ], $authentication);
+        $rotated = $fixture->tokens->exchange([
+            'grant_type' => OAuthGrantType::RefreshToken->value,
+            'refresh_token' => $issued->refreshToken,
+        ], $authentication);
+
+        expect(fn() => $fixture->tokens->exchange([
+            'grant_type' => OAuthGrantType::RefreshToken->value,
+            'refresh_token' => $issued->refreshToken,
+        ], $authentication))->toThrow(OAuthProtocolException::class);
+
+        $fixture->revocation->revoke(
+            (string) $rotated->refreshToken,
+            $authentication,
+            'refresh_token',
+        );
 
         $types = array_map(static fn($event): AuthEventType => $event->type, $capture->events);
         expect($types)->toContain(AuthEventType::OAUTH_REFRESH_TOKEN_ROTATED)
@@ -156,8 +169,8 @@ it('audits refresh rotation explicit revocation and reuse without recording raw 
         foreach ($capture->events as $event) {
             $encoded = json_encode($event->metadata, JSON_THROW_ON_ERROR);
             expect($encoded)
-                ->not->toContain($issued->token)
-                ->not->toContain($rotated->token);
+                ->not->toContain((string) $issued->refreshToken)
+                ->not->toContain((string) $rotated->refreshToken);
         }
     } finally {
         $fixture->close();

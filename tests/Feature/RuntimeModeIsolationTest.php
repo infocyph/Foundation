@@ -31,13 +31,7 @@ it('keeps CLI and web boot graphs isolated', function (): void {
         '_config_cache' => false,
         'router' => ['cache' => false, 'files' => ['api.php']],
     ];
-    $explicitlyBound = static function (Application $app, string $id): bool {
-        $repository = $app->container()->getRepository();
-        return $repository->hasFunctionReference($id)
-            || $repository->hasClosureResource($id)
-            || $repository->hasResolved($id)
-            || $repository->hasResolvedDefinition($id);
-    };
+    $explicitlyBound = static fn(Application $app, string $id): bool => $app->has($id);
 
     try {
         $cli = Foundation::cli($options);

@@ -2,11 +2,14 @@
 
 declare(strict_types=1);
 
+use Infocyph\Foundation\Application\FoundationBuildContext;
+use Infocyph\Foundation\Application\ServiceProvider;
 use Infocyph\Foundation\Database\DBLayerFactory;
 use Infocyph\Foundation\Exception\ConfigurationException;
 use Infocyph\Foundation\Foundation;
 use Infocyph\Foundation\Messaging\ConsumerFactory;
 use Infocyph\Foundation\Messaging\MessagingDatabaseSchema;
+use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\Omnibus\Envelope\Envelope;
 use Infocyph\Omnibus\Integration\DBLayer\AfterCommitDispatcher;
 use Infocyph\Omnibus\Integration\DBLayer\DBLayerFailureStore;
@@ -193,7 +196,7 @@ it('requires an explicit failure-store policy for durable consumers', function (
             ],
         ]))->toThrow(
             ConfigurationException::class,
-            'Durable database consumers/workers require an explicit messaging.durable.failure_store policy or FailureStore binding.',
+            'Durable database consumers/workers require an explicit messaging.durable.failure_store policy.',
         );
     } finally {
         foundationOmnibus26RemoveDatabase($database);
@@ -201,7 +204,22 @@ it('requires an explicit failure-store policy for durable consumers', function (
 });
 
 it('keeps the DBLayer durable graph cold when durable messaging is disabled', function (): void {
+    $observer = new class extends ServiceProvider {
+        /** @var array<string, bool> */
+        public array $resolved = [];
+
+        public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
+        {
+            unset($context);
+            foreach ([DBLayerFactory::class, DBLayerTransport::class] as $id) {
+                $builder->onResolved($id, function (string $resolved): void {
+                    $this->resolved[$resolved] = true;
+                });
+            }
+        }
+    };
     $app = Foundation::worker([
+        'providers' => ['common' => [$observer]],
         'messaging' => [
             'default_route' => ['transport' => 'sync', 'queue' => 'default'],
             'routes' => [],
@@ -209,23 +227,21 @@ it('keeps the DBLayer durable graph cold when durable messaging is disabled', fu
             'workers' => [],
         ],
     ]);
-    $repository = $app->container()->getRepository();
 
-    expect($repository->hasResolvedSingleton(DBLayerFactory::class))->toBeFalse()
-        ->and($repository->hasFunctionReference(DBLayerTransport::class))->toBeFalse();
+    expect($observer->resolved)->toBe([])
+        ->and($app->has(DBLayerTransport::class))->toBeFalse();
 
     $app->make(MessageBus::class);
 
-    expect($repository->hasResolvedSingleton(DBLayerFactory::class))->toBeFalse()
-        ->and($repository->hasFunctionReference(DBLayerTransport::class))->toBeFalse()
-        ->and($repository->hasResolvedSingleton(DBLayerTransport::class))->toBeFalse();
+    expect($observer->resolved)->toBe([])
+        ->and($app->has(DBLayerTransport::class))->toBeFalse();
 });
 
 /** @return array{0:\Infocyph\Foundation\Application\Application,1:string} */
-function foundationOmnibus26DurableApp(): array
+function foundationOmnibus26DurableApp(?array $selectedFeatures = null): array
 {
     $database = foundationOmnibus26DatabasePath();
-    $app = Foundation::worker([
+    $config = [
         'database' => foundationOmnibus26DatabaseConfig($database),
         'messaging' => [
             'durable' => [
@@ -259,7 +275,11 @@ function foundationOmnibus26DurableApp(): array
             ],
             'workers' => [],
         ],
-    ])->boot();
+    ];
+    if ($selectedFeatures !== null) {
+        $config['modules'] = ['features' => $selectedFeatures];
+    }
+    $app = Foundation::worker($config)->boot();
 
     return [$app, $database];
 }
@@ -294,3 +314,63 @@ function foundationOmnibus26RemoveDatabase(string $database): void
         unlink($database);
     }
 }
+
+
+it('retains durable messages and failed attempts across selected specialist execution failures', function (): void {
+    [$app, $database] = foundationOmnibus26DurableApp([
+        'data.database' => true,
+        'execution.messaging' => true,
+    ]);
+    try {
+        $schema = $app->make(MessagingDatabaseSchema::class);
+        expect($schema->readiness()['installed'])->toBeFalse();
+        $schema->install();
+        expect($schema->readiness()['installed'])->toBeTrue();
+
+        $transport = $app->make(DBLayerTransport::class);
+        $bus = $app->make(MessageBus::class);
+
+        $bus->dispatch(new FoundationOmnibus26DurableMessage('fail'));
+        expect($transport->size('work'))->toBe(1);
+        $app->make(ConsumerFactory::class)->make('database')->run('work');
+        expect($transport->size('work'))->toBe(0)
+            ->and($app->make(DBLayerFailureStore::class)->all())->toHaveCount(1);
+
+        // Failed delivery must be durable, not a destructive rollback of the
+        // native messaging schema or the subsequent successful dispatch.
+        $bus->dispatch(new FoundationOmnibus26DurableMessage('recovered'));
+        $app->make(ConsumerFactory::class)->make('database')->run('work');
+        expect($transport->size('work'))->toBe(0)
+            ->and(FoundationOmnibus26DurableHandler::$handled)->toContain('recovered')
+            ->and($app->make(DBLayerFailureStore::class)->all())->toHaveCount(1)
+            ->and($schema->readiness()['installed'])->toBeTrue();
+
+        expect(fn() => $app->execution()->run(function () use ($app): void {
+            $connection = $app->make(DBLayerFactory::class)->connection('main');
+            $dispatcher = $app->make(AfterCommitDispatcher::class);
+            $connection->transaction(function () use ($dispatcher): void {
+                $dispatcher->dispatch(new FoundationOmnibus26DurableMessage('cancelled'));
+
+                throw new RuntimeException('cancelled transaction');
+            });
+        }))->toThrow(RuntimeException::class, 'cancelled transaction')
+            ->and($transport->size('work'))->toBe(0);
+    } finally {
+        unset($app);
+        foundationOmnibus26RemoveDatabase($database);
+    }
+});
+
+it('rejects durable selected messaging without DB ownership before opening storage', function (): void {
+    $database = foundationOmnibus26DatabasePath();
+    try {
+        expect(fn() => Foundation::worker([
+            'database' => foundationOmnibus26DatabaseConfig($database),
+            'modules' => ['features' => ['execution.messaging' => true]],
+            'messaging' => ['durable' => ['enabled' => true]],
+        ]))->toThrow(LogicException::class, 'data.database')
+            ->and(filesize($database))->toBe(0);
+    } finally {
+        foundationOmnibus26RemoveDatabase($database);
+    }
+});

@@ -22,10 +22,10 @@ use Infocyph\Foundation\Http\HttpServiceProvider;
 use Infocyph\Foundation\Http\JsonDispatch\JsonDispatchServiceProvider;
 use Infocyph\Foundation\Logging\LoggingServiceProvider;
 use Infocyph\Foundation\Messaging\MessagingServiceProvider;
+use Infocyph\Foundation\Module\ModuleFeatureCapabilityPolicy;
 use Infocyph\Foundation\Notifications\NotificationServiceProvider;
 use Infocyph\Foundation\Routing\RouteFileLoader;
 use Infocyph\Foundation\Routing\RoutingServiceProvider;
-use Infocyph\Foundation\Runtime\RuntimeScopeCleanup;
 use Infocyph\Foundation\Security\SecurityServiceProvider;
 use Infocyph\Foundation\Session\SessionServiceProvider;
 use Infocyph\Foundation\Validation\ValidationServiceProvider;
@@ -89,18 +89,7 @@ final class Bootstrapper
         $registry ??= new ServiceRegistry();
         $registry->add(new PathServiceProvider());
 
-        foreach (self::OPTIONAL_BUILT_INS as $provider) {
-            $capability = self::OPTIONAL_CAPABILITIES[$provider];
-            if (($context->hasCapabilityOverride($capability) && !$context->hasCapability($capability))
-                || (!$context->hasCapabilityOverride($capability)
-                    && $context->capabilitiesExplicit
-                    && !$context->hasCapability($capability))
-                || !$this->providerDependencyAvailable($provider)
-            ) {
-                continue;
-            }
-            $registry->add($this->instantiateProvider($provider));
-        }
+        $this->registerOptionalProviders($context, $registry);
 
         if ($context->runtimeMode === RuntimeMode::Web) {
             foreach (self::WEB_BUILT_INS as $provider) {
@@ -115,10 +104,17 @@ final class Bootstrapper
             $registry->add($provider);
         }
 
-        $registry->contribute($builder, $context);
-        $this->registerScopeCleanup($builder, $context);
+        $this->contribute($builder, $context, $registry);
 
         return $registry;
+    }
+
+    public function contribute(
+        ContainerBuilder $builder,
+        FoundationBuildContext $context,
+        ServiceRegistry $registry,
+    ): void {
+        $registry->contribute($builder, $context);
     }
 
     private function assertProviderGroup(int|string $group, mixed $entries): void
@@ -252,15 +248,21 @@ final class Bootstrapper
         return $normalized;
     }
 
-    private function registerScopeCleanup(ContainerBuilder $builder, FoundationBuildContext $context): void
+    private function registerOptionalProviders(FoundationBuildContext $context, ServiceRegistry $registry): void
     {
-        if ($context->runtimeMode !== RuntimeMode::Web) {
-            return;
-        }
+        foreach (self::OPTIONAL_BUILT_INS as $provider) {
+            $capability = self::OPTIONAL_CAPABILITIES[$provider];
+            if (!$context->permitsCapability($capability)) {
+                continue;
+            }
+            if (!$this->providerDependencyAvailable($provider)) {
+                if ($context->featureSelections !== null && ModuleFeatureCapabilityPolicy::owner($capability) !== null) {
+                    throw new \LogicException(sprintf('Selected feature provider %s is unavailable.', $capability));
+                }
 
-        $builder->onScopeLeave(
-            $context->runtimeMode->scopeName(),
-            RuntimeScopeCleanup::handle(...),
-        );
+                continue;
+            }
+            $registry->add($this->instantiateProvider($provider));
+        }
     }
 }

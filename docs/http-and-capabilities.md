@@ -32,7 +32,7 @@ ReqShield owns schema compilation, normalization, validation rules, database
 batching, typed values, sanitization, and localized messages.
 
 ```bash
-php infbyte module:install validation
+php infbyte module:install security.validation
 ```
 
 Foundation adds application composition through `FormRequest`, configured
@@ -71,7 +71,7 @@ security/capability behavior, archives, sync, and retention. Foundation owns
 application disk configuration, paths, public-link policy, and Webrick bridges.
 
 ```bash
-php infbyte module:install filesystem
+php infbyte module:install data.filesystem
 php infbyte storage:status
 ```
 
@@ -84,7 +84,7 @@ TalkingBytes owns HTTP, email, webhook, gRPC, retries, signing, parsing, protoco
 fakes, and transport behavior.
 
 ```bash
-php infbyte module:install communication
+php infbyte module:install execution.communication
 ```
 
 Foundation provides named application profiles and notification/mail

@@ -74,3 +74,123 @@ it('keeps optional specialist packages out of the Foundation runtime requirement
         'web-auth/webauthn-lib',
     );
 });
+
+
+it('keeps specialist native owners selected at Foundation integration seams', function (): void {
+    $root = dirname(__DIR__, 2);
+
+    $cacheProvider = file_get_contents($root . '/src/Cache/CacheServiceProvider.php');
+    $authCacheRegistrar = file_get_contents($root . '/src/Auth/Internal/AuthCacheRegistrar.php');
+    $oauthRegistrar = file_get_contents($root . '/src/Auth/Internal/AuthOAuthRegistrar.php');
+
+    expect($cacheProvider)->toBeString()
+        ->toContain('Webrick\\Interop\\CacheLayer\\AtomicCounterAdapter')
+        ->not->toContain('WebrickAtomicCounter::class')
+        ->and($authCacheRegistrar)->toBeString()
+        ->toContain('AtomicCounterStore::class')
+        ->not->toContain('CacheLayerCounterStore::class')
+        ->and($oauthRegistrar)->toBeString()
+        ->toContain('DBLayerEpicryptRefreshTokenStore::class')
+        ->not->toContain('DBLayerOAuthRefreshTokenStore::class')
+        ->not->toContain('OAuthRefreshTokenCoordinator::class');
+});
+
+it('removes superseded native counters and OAuth refresh implementations', function (): void {
+    $root = dirname(__DIR__, 2);
+    $obsolete = [
+        'src/Auth/Adapter/WebAuthn/WebAuthnRuntime.php',
+        'src/Cache/WebrickAtomicCounter.php',
+        'src/Auth/Adapter/CacheLayer/CacheLayerCounterStore.php',
+        'src/Auth/OAuth/Token/OAuthRefreshTokenCoordinator.php',
+        'src/Auth/OAuth/Token/OAuthRefreshTokenIssue.php',
+        'src/Auth/OAuth/Token/OAuthRefreshTokenRecord.php',
+        'src/Auth/OAuth/Token/OAuthRefreshRotationResult.php',
+        'src/Auth/OAuth/Token/OAuthRefreshRotationStatus.php',
+        'src/Auth/OAuth/Contract/OAuthRefreshTokenStoreInterface.php',
+        'src/Auth/Adapter/DBLayer/OAuth/DBLayerOAuthRefreshTokenStore.php',
+    ];
+
+    foreach ($obsolete as $path) {
+        expect($root . '/' . $path)->not->toBeFile();
+    }
+});
+
+
+it('keeps application-owned named cache consumers on the CacheManager registry', function (): void {
+    $root = dirname(__DIR__, 2);
+    $paths = [
+        'src/Auth/Internal/AuthMfaGraphFactory.php',
+        'src/Auth/Internal/AuthPasskeyGraphFactory.php',
+        'src/Communication/CommunicationGraphFactory.php',
+        'src/Database/DBLayerFactory.php',
+        'src/Database/DatabaseMigrationManager.php',
+        'src/Scheduling/ScheduleManager.php',
+        'src/Session/SessionGraphFactory.php',
+        'src/Worker/WorkerManager.php',
+    ];
+
+    foreach ($paths as $path) {
+        $source = file_get_contents($root . '/' . $path);
+        expect($source)->toBeString()
+            ->toContain('CacheManager')
+            ->not->toContain('CacheLayerFactory');
+    }
+});
+
+
+it('keeps TalkingBytes typed HTTP composition on the native 2.3 path', function (): void {
+    $source = file_get_contents(
+        dirname(__DIR__, 2) . '/src/Communication/CommunicationProfiles.php',
+    );
+
+    expect($source)->toBeString()
+        ->toContain('HttpClientConfig::fromArray($array)')
+        ->toContain('$factory->fromConfig($config, $array)')
+        ->not->toContain('return HttpClient::fromResolvedConfig($array);');
+});
+
+
+it('keeps specialist benchmark commands bound to maintained entrypoint paths', function (): void {
+    $root = dirname(__DIR__, 2);
+    $composer = json_decode(
+        file_get_contents($root . '/composer.json') ?: '',
+        true,
+        flags: JSON_THROW_ON_ERROR,
+    );
+    $scripts = $composer['scripts'] ?? [];
+
+    foreach (['cachelayer', 'dblayer', 'epicrypt', 'omnibus', 'otp', 'pathwise', 'reqshield', 'talkingbytes'] as $package) {
+        $path = 'benchmarks/' . $package . '-utilization.php';
+        expect($scripts['benchmark:' . $package] ?? null)->toBe('@php ' . $path)
+            ->and(is_file($root . '/' . $path))->toBeTrue();
+    }
+});
+
+it('uses deterministic registrations without inspecting unfinished provider graphs', function (): void {
+    $root = dirname(__DIR__, 2);
+    $providers = [
+        'Auth/Internal/AuthCoreRegistrar.php',
+        'Communication/CommunicationServiceProvider.php',
+        'Logging/LoggingServiceProvider.php',
+        'Messaging/MessagingServiceProvider.php',
+        'Notifications/NotificationServiceProvider.php',
+        'Security/SecurityServiceProvider.php',
+    ];
+
+    foreach ($providers as $path) {
+        $source = file_get_contents($root . '/src/' . $path);
+        expect($source)->toBeString()
+            ->not->toContain('->definitions()->has(');
+    }
+});
+
+it('prevents partial DI graph introspection in native authentication registrations', function (): void {
+    $root = dirname(__DIR__, 2) . '/src/Auth/Internal/';
+
+    foreach (['AbstractAuthRegistrar.php', 'AuthAuthorizationRegistrar.php', 'AuthTokenRegistrar.php', 'AuthManagerRegistrar.php', 'AuthMfaRegistrar.php'] as $name) {
+        $source = file_get_contents($root . $name);
+        expect($source)->toBeString()
+            ->not->toContain('hasExplicitBinding(')
+            ->not->toContain('->definitions()->has(');
+    }
+});

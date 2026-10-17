@@ -28,8 +28,15 @@ final class InMemoryRefreshTokenStore extends AbstractInMemoryFamilyTokenStore i
 
     public function rotate(string $tokenId, RefreshTokenRecord $replacement): void
     {
-        $replacementId = $replacement->id;
-        $this->rotateStored($tokenId, $replacement, $replacementId);
+        $current = $this->find($tokenId);
+        if ($current === null || !$this->rotateIfActive($current, $replacement)) {
+            throw new \RuntimeException('Token cannot be rotated more than once.');
+        }
+    }
+
+    public function rotateIfActive(RefreshTokenRecord $current, RefreshTokenRecord $replacement): bool
+    {
+        return $this->rotateStoredIfActive($current, $replacement);
     }
 
     public function save(RefreshTokenRecord $record): void

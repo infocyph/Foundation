@@ -6,6 +6,7 @@ namespace Infocyph\Foundation\Notifications;
 
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Filesystem\PathManager;
+use Infocyph\Foundation\Runtime\NativeRunwireOperation;
 use Infocyph\Foundation\Support\ValueNormalizer;
 use Infocyph\TalkingBytes\Email\Config\ImapConfig;
 use Infocyph\TalkingBytes\Email\Config\Pop3Config;
@@ -48,14 +49,22 @@ final readonly class EmailProfiles
 
     public function imapMailbox(string $profile = 'default'): Mailbox
     {
-        return $this->mailboxes->usingImap(ImapConfig::fromArray(
+        $context = NativeRunwireOperation::current();
+        $factory = $context === null ? $this->mailboxes
+            : $this->mailboxes->withRunwire($context->runtime, $context->request, $context->scope);
+
+        return $factory->usingImap(ImapConfig::fromArray(
             $this->profile('notifications.email.mailboxes.imap', $profile),
         ));
     }
 
     public function pop3Mailbox(string $profile = 'default'): Pop3Mailbox
     {
-        return $this->mailboxes->usingPop3(Pop3Config::fromArray(
+        $context = NativeRunwireOperation::current();
+        $factory = $context === null ? $this->mailboxes
+            : $this->mailboxes->withRunwire($context->runtime, $context->request, $context->scope);
+
+        return $factory->usingPop3(Pop3Config::fromArray(
             $this->profile('notifications.email.mailboxes.pop3', $profile),
         ));
     }
@@ -75,7 +84,11 @@ final readonly class EmailProfiles
             $fallbacks[] = $this->resolvedTransport($transport);
         }
 
-        return $this->senders->fromResolvedConfig([
+        $context = NativeRunwireOperation::current();
+        $factory = $context === null ? $this->senders
+            : $this->senders->withRunwire($context->runtime, $context->request, $context->scope);
+
+        return $factory->fromResolvedConfig([
             'transport' => $this->resolvedTransport($primary),
             'fallbacks' => $fallbacks,
             'retry' => ValueNormalizer::associativeArray($config['retry'] ?? []),
@@ -90,7 +103,11 @@ final readonly class EmailProfiles
             $this->profile('notifications.email.receivers.spool', $profile),
         );
 
-        return $this->receivers->usingSpool(
+        $context = NativeRunwireOperation::current();
+        $factory = $context === null ? $this->receivers
+            : $this->receivers->withRunwire($context->runtime, $context->request, $context->scope);
+
+        return $factory->usingSpool(
             SpoolConfig::fromArray($config),
             $this->parser,
             ValueNormalizer::bool($config['deleteAfterRead'] ?? false, false),

@@ -32,7 +32,7 @@ it('keeps mutable TalkingBytes clients isolated across sequential Foundation exe
         );
         $emailer->assertable()->assertSentCount(1);
 
-        return [spl_object_id($http), spl_object_id($emailer)];
+        return [$http, $emailer];
     });
 
     $second = $container->withinScope('webrick.request', static function () use ($app): array {
@@ -41,7 +41,7 @@ it('keeps mutable TalkingBytes clients isolated across sequential Foundation exe
 
         $emailer->assertable()->assertNothingSent();
 
-        return [spl_object_id($http), spl_object_id($emailer)];
+        return [$http, $emailer];
     });
 
     expect($first[0])->not->toBe($second[0])

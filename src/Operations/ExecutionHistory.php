@@ -44,12 +44,9 @@ final readonly class ExecutionHistory
 
         return $this->withLock(false, function () use ($executionId): array {
             $records = [];
-            $storage = $this->storage();
-            foreach ($storage->filesOldestFirst() as $path) {
-                foreach ($storage->records($path) as $record) {
-                    if (($record['execution_id'] ?? null) === $executionId) {
-                        $records[] = $record;
-                    }
+            foreach ($this->storage()->allRecords() as $record) {
+                if (($record['execution_id'] ?? null) === $executionId) {
+                    $records[] = $record;
                 }
             }
 
@@ -72,16 +69,13 @@ final readonly class ExecutionHistory
 
         return $this->withLock(false, function () use ($kind, $key, $value): ?array {
             $latest = null;
-            $storage = $this->storage();
-            foreach ($storage->filesOldestFirst() as $path) {
-                foreach ($storage->records($path) as $record) {
-                    if (($record['kind'] ?? null) !== $kind) {
-                        continue;
-                    }
-                    $metadata = $record['metadata'] ?? null;
-                    if (is_array($metadata) && ($metadata[$key] ?? null) === $value) {
-                        $latest = $record;
-                    }
+            foreach ($this->storage()->allRecords() as $record) {
+                if (($record['kind'] ?? null) !== $kind) {
+                    continue;
+                }
+                $metadata = $record['metadata'] ?? null;
+                if (is_array($metadata) && ($metadata[$key] ?? null) === $value) {
+                    $latest = $record;
                 }
             }
 
@@ -110,17 +104,14 @@ final readonly class ExecutionHistory
 
         return $this->withLock(false, function () use ($limit, $kind, $name): array {
             $records = [];
-            $storage = $this->storage();
-            foreach ($storage->filesOldestFirst() as $path) {
-                foreach ($storage->records($path) as $record) {
-                    if (!$this->matches($record, $kind, $name)) {
-                        continue;
-                    }
+            foreach ($this->storage()->allRecords() as $record) {
+                if (!$this->matches($record, $kind, $name)) {
+                    continue;
+                }
 
-                    $records[] = $record;
-                    if (count($records) > $limit) {
-                        array_shift($records);
-                    }
+                $records[] = $record;
+                if (count($records) > $limit) {
+                    array_shift($records);
                 }
             }
 

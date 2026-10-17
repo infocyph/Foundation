@@ -147,7 +147,7 @@ final readonly class CacheSchemaManager
         if (!class_exists(\Infocyph\DBLayer\Connection\Connection::class)) {
             return [
                 'pdo' => null,
-                'detail' => 'Requires the database module; run "php infbyte module:install database".',
+                'detail' => 'Requires the database module; run "php infbyte module:install data.database".',
                 'state' => 'unavailable',
             ];
         }

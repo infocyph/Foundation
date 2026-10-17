@@ -14,6 +14,7 @@ use Infocyph\Foundation\Auth\Audit\AuthEventType;
 use Infocyph\Foundation\Auth\Contract\Clock\ClockInterface;
 use Infocyph\Foundation\Auth\OAuth\Audit\OAuthAuditRecorder;
 use Infocyph\Foundation\Auth\OAuth\Authorization\AuthorizationCodeManager;
+use Infocyph\Foundation\Auth\OAuth\Authorization\AuthorizationProtocolResult;
 use Infocyph\Foundation\Auth\OAuth\Authorization\AuthorizationRedirectContext;
 use Infocyph\Foundation\Auth\OAuth\Authorization\AuthorizationRequest;
 use Infocyph\Foundation\Auth\OAuth\Authorization\AuthorizationRequestValidator;
@@ -67,10 +68,30 @@ final readonly class OAuthManager
     }
 
     /** @param array<string, mixed> $parameters */
-    public function authorizationRedirectContext(array $parameters): AuthorizationRedirectContext
+    public function authorizationProtocolResult(array $parameters): AuthorizationProtocolResult
     {
         try {
-            return $this->authorizationRequests->redirectContext($parameters);
+            return $this->authorizationRequests->evaluate($parameters);
+        } catch (OAuthProtocolException $exception) {
+            $this->recordInvalidRequest($exception, 'redirect_validation');
+
+            throw $exception;
+        }
+    }
+
+    /** @param array<string, mixed> $parameters */
+    public function authorizationRedirectContext(array $parameters): AuthorizationRedirectContext
+    {
+        return $this->authorizationRedirectContextFor($parameters, $this->authorizationProtocolResult($parameters));
+    }
+
+    /** @param array<string, mixed> $parameters */
+    public function authorizationRedirectContextFor(
+        array $parameters,
+        AuthorizationProtocolResult $result,
+    ): AuthorizationRedirectContext {
+        try {
+            return $this->authorizationRequests->redirectContextFor($parameters, $result);
         } catch (OAuthProtocolException $exception) {
             $this->recordInvalidRequest($exception, 'redirect_validation');
 
@@ -187,32 +208,9 @@ final readonly class OAuthManager
             throw new \LogicException('OpenID Connect interaction policy is unavailable.');
         }
 
-        $accountId = $principal?->accountId();
-        $metadata = $principal?->metadata() ?? [];
-        $authenticationTime = $metadata['auth_time'] ?? null;
-        if (!is_int($authenticationTime) || $authenticationTime < 1) {
-            $authenticationTime = is_string($accountId) && $accountId !== ''
-                ? ($this->clock?->now() ?? time())
-                : null;
-        }
-        $authenticationContext = $metadata['acr'] ?? null;
-        $authenticationContext = is_string($authenticationContext) && $authenticationContext !== ''
-            ? $authenticationContext
-            : null;
-        $authenticationMethods = $metadata['amr'] ?? [];
-        $authenticationMethods = is_array($authenticationMethods)
-            ? array_values(array_filter($authenticationMethods, is_string(...)))
-            : [];
-
         $result = $this->openIdInteractions->evaluate(
             $request->openIdProtocol,
-            new OpenIdInteractionState(
-                subject: is_string($accountId) && $accountId !== '' ? $accountId : null,
-                authenticationTime: $authenticationTime,
-                authenticationContext: $authenticationContext,
-                authenticationMethods: $authenticationMethods,
-                consentRequired: $principal === null || !$this->hasConsent($principal, $request),
-            ),
+            $this->openIdInteractionState($request, $principal),
         );
         if ($result->error instanceof OpenIdInteractionErrorCode) {
             throw new OAuthProtocolException(
@@ -317,6 +315,48 @@ final readonly class OAuthManager
 
             throw $exception;
         }
+    }
+
+    public function validateAuthorizationResult(AuthorizationProtocolResult $result): AuthorizationRequest
+    {
+        try {
+            return $this->authorizationRequests->validateResult($result);
+        } catch (OAuthProtocolException $exception) {
+            $reason = $exception->error === 'invalid_scope' ? 'scope_validation' : 'authorization_request';
+            $this->recordInvalidRequest($exception, $reason);
+
+            throw $exception;
+        }
+    }
+
+    private function openIdInteractionState(
+        AuthorizationRequest $request,
+        ?PrincipalInterface $principal,
+    ): OpenIdInteractionState {
+        $accountId = $principal?->accountId();
+        $metadata = $principal?->metadata() ?? [];
+        $authenticationTime = $metadata['auth_time'] ?? null;
+        if (!is_int($authenticationTime) || $authenticationTime < 1) {
+            $authenticationTime = is_string($accountId) && $accountId !== ''
+                ? ($this->clock?->now() ?? time())
+                : null;
+        }
+        $authenticationContext = $metadata['acr'] ?? null;
+        $authenticationContext = is_string($authenticationContext) && $authenticationContext !== ''
+            ? $authenticationContext
+            : null;
+        $authenticationMethods = $metadata['amr'] ?? [];
+        $authenticationMethods = is_array($authenticationMethods)
+            ? array_values(array_filter($authenticationMethods, is_string(...)))
+            : [];
+
+        return new OpenIdInteractionState(
+            subject: is_string($accountId) && $accountId !== '' ? $accountId : null,
+            authenticationTime: $authenticationTime,
+            authenticationContext: $authenticationContext,
+            authenticationMethods: $authenticationMethods,
+            consentRequired: $principal === null || !$this->hasConsent($principal, $request),
+        );
     }
 
     private function recordInvalidRequest(OAuthProtocolException $exception, string $reason): void

@@ -5,12 +5,19 @@ declare(strict_types=1);
 use Infocyph\Foundation\Application\FoundationBuildContext;
 use Infocyph\Foundation\Application\RuntimeMode;
 use Infocyph\Foundation\Application\ServiceProvider;
+use Infocyph\Foundation\Command\CommandContext;
+use Infocyph\Foundation\Command\CommandDefinition;
+use Infocyph\Foundation\Command\CommandDescriptor;
+use Infocyph\Foundation\Command\CommandIO;
+use Infocyph\Foundation\Command\ParsedInput;
 use Infocyph\Foundation\Routing\WebGraphFactory;
 use Infocyph\Foundation\Routing\WebReleaseCompiler;
 use Infocyph\Foundation\Routing\WebReleaseRuntime;
 use Infocyph\Foundation\Runtime\GeneratedRuntime;
 use Infocyph\Foundation\Runtime\GeneratedRuntimeCompiler;
 use Infocyph\Foundation\Runtime\NonWebGraphFactory;
+use Infocyph\Foundation\Runtime\ExecutionId;
+use Infocyph\Foundation\Scheduling\ScheduledCommand;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
 use Infocyph\InterMix\DI\Support\LifetimeEnum;
@@ -49,12 +56,12 @@ final class Phase9ParityProvider extends ServiceProvider
     {
         unset($context);
 
-        $builder->bind(
+        $builder->factory(
             Phase9ParityLeaf::class,
             FactoryDefinition::construct(Phase9ParityLeaf::class, ['phase-9-parity']),
             LifetimeEnum::Singleton,
         );
-        $builder->bind(
+        $builder->factory(
             Phase9ParityNode::class,
             FactoryDefinition::construct(Phase9ParityNode::class, [
                 new ServiceReference(Phase9ParityLeaf::class),
@@ -62,7 +69,7 @@ final class Phase9ParityProvider extends ServiceProvider
             ]),
             LifetimeEnum::Transient,
         );
-        $builder->bind(
+        $builder->factory(
             Phase9ParityScopedProbe::class,
             FactoryDefinition::construct(Phase9ParityScopedProbe::class),
             LifetimeEnum::Scoped,
@@ -103,7 +110,23 @@ it('keeps InterMix development and generated production semantics aligned for no
 
             $artifact = $runtimeRoot . '/bootstrap/cache/container.php';
             $report = new GeneratedRuntimeCompiler()->compile($config, $mode, $artifact);
+            $inputIds = match ($mode) {
+                RuntimeMode::Cli => [
+                    CommandContext::class,
+                    CommandDefinition::class,
+                    CommandDescriptor::class,
+                    CommandIO::class,
+                    ParsedInput::class,
+                    ExecutionId::class,
+                ],
+                RuntimeMode::Worker => [ExecutionId::class],
+                RuntimeMode::Scheduler => [ExecutionId::class, ScheduledCommand::class],
+                RuntimeMode::Web => throw new LogicException('Web parity uses the Webrick graph.'),
+            };
             expect($report['skipped'])->toBe([]);
+            foreach ($inputIds as $inputId) {
+                expect($report['compiled'])->toContain($inputId);
+            }
             $production = GeneratedRuntime::load($config, $mode, $artifact);
             $productionNode = $production->application->make(Phase9ParityNode::class);
             $productionScopes = phase9ParityScopes($production->application);

@@ -20,6 +20,21 @@ use Psr\Container\ContainerInterface;
 
 final class FilesystemServiceProvider extends ServiceProvider
 {
+    public static function download(FilesystemTransferFactory $transfers): DownloadProcessor
+    {
+        return $transfers->download();
+    }
+
+    public static function operator(StorageRegistry $storage): FilesystemOperator
+    {
+        return $storage->disk();
+    }
+
+    public static function upload(FilesystemTransferFactory $transfers): UploadProcessor
+    {
+        return $transfers->upload();
+    }
+
     public function boot(Application $app): void
     {
         // Validate topology and required scanner composition before traffic while
@@ -34,59 +49,59 @@ final class FilesystemServiceProvider extends ServiceProvider
 
         if (!class_exists(StorageContext::class)) {
             throw new \LogicException(
-                'Foundation filesystem services require infocyph/pathwise ^4.1; run "php infbyte module:install filesystem".',
+                'Foundation filesystem services require infocyph/pathwise ^4.2; run "php infbyte module:install data.filesystem".',
             );
         }
 
-        $builder->singleton(StorageRegistry::class, FactoryDefinition::construct(StorageRegistry::class, [
+        $builder->factory(StorageRegistry::class, FactoryDefinition::construct(StorageRegistry::class, [
             new ServiceReference(ConfigRepository::class),
             new ServiceReference(PathManager::class),
         ]));
-        $builder->singleton(
+        $builder->factory(
             FilesystemMalwareScannerResolver::class,
             FactoryDefinition::construct(FilesystemMalwareScannerResolver::class, [
                 new ServiceReference(ConfigRepository::class),
                 new ServiceReference(ContainerInterface::class),
             ]),
         );
-        $builder->singleton(FilesystemTransferFactory::class, FactoryDefinition::construct(FilesystemTransferFactory::class, [
+        $builder->factory(FilesystemTransferFactory::class, FactoryDefinition::construct(FilesystemTransferFactory::class, [
             new ServiceReference(ConfigRepository::class),
             new ServiceReference(PathManager::class),
             new ServiceReference(StorageRegistry::class),
             new ServiceReference(FilesystemMalwareScannerResolver::class),
         ]));
-        $builder->singleton(FilesystemOperator::class, FactoryDefinition::staticFactory(
-            FilesystemGraphFactory::class,
+        $builder->factory(FilesystemOperator::class, FactoryDefinition::staticFactory(
+            self::class,
             'operator',
             [new ServiceReference(StorageRegistry::class)],
         ));
-        $builder->bind(
+        $builder->factory(
             UploadProcessor::class,
             FactoryDefinition::staticFactory(
-                FilesystemGraphFactory::class,
+                self::class,
                 'upload',
                 [new ServiceReference(FilesystemTransferFactory::class)],
             ),
             LifetimeEnum::Transient,
         );
-        $builder->bind(
+        $builder->factory(
             DownloadProcessor::class,
             FactoryDefinition::staticFactory(
-                FilesystemGraphFactory::class,
+                self::class,
                 'download',
                 [new ServiceReference(FilesystemTransferFactory::class)],
             ),
             LifetimeEnum::Transient,
         );
-        $builder->singleton(FilesystemUploadRequestHandler::class, FactoryDefinition::construct(
+        $builder->factory(FilesystemUploadRequestHandler::class, FactoryDefinition::construct(
             FilesystemUploadRequestHandler::class,
             [new ServiceReference(FilesystemTransferFactory::class)],
         ));
-        $builder->singleton(FilesystemPublicFileResolver::class, FactoryDefinition::construct(
+        $builder->factory(FilesystemPublicFileResolver::class, FactoryDefinition::construct(
             FilesystemPublicFileResolver::class,
             [new ServiceReference(ConfigRepository::class), new ServiceReference(PathManager::class)],
         ));
-        $builder->singleton(FilesystemResponseFactory::class, FactoryDefinition::construct(
+        $builder->factory(FilesystemResponseFactory::class, FactoryDefinition::construct(
             FilesystemResponseFactory::class,
             [
                 new ServiceReference(ConfigRepository::class),
@@ -95,7 +110,7 @@ final class FilesystemServiceProvider extends ServiceProvider
                 new ServiceReference(FilesystemPublicFileResolver::class),
             ],
         ));
-        $builder->singleton(StorageLinkManager::class, FactoryDefinition::construct(StorageLinkManager::class, [
+        $builder->factory(StorageLinkManager::class, FactoryDefinition::construct(StorageLinkManager::class, [
             new ServiceReference(ConfigRepository::class),
             new ServiceReference(PathManager::class),
         ]));

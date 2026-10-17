@@ -70,15 +70,29 @@ final class ActiveGeneration
     /** @return array{generation:string,manifest:string} */
     public function current(string $releaseRoot): array
     {
-        $releaseRoot = $this->root($releaseRoot);
-        $pointer = $this->pointer($releaseRoot);
-        $manifestPath = $releaseRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $pointer['manifest']);
-        $release = FoundationReleaseManifest::load($manifestPath);
-        if (($release['generation'] ?? null) !== $pointer['generation']) {
+        $current = $this->currentPointer($releaseRoot);
+        $release = FoundationReleaseManifest::load($current['manifest']);
+        if (($release['generation'] ?? null) !== $current['generation']) {
             throw new \RuntimeException('Foundation active-generation pointer does not match its release manifest.');
         }
 
-        return ['generation' => $pointer['generation'], 'manifest' => $manifestPath];
+        return $current;
+    }
+
+    /**
+     * Return the validated pointer without executing the generation PHP manifest.
+     *
+     * @return array{generation:string,manifest:string}
+     */
+    public function currentPointer(string $releaseRoot): array
+    {
+        $releaseRoot = $this->root($releaseRoot);
+        $pointer = $this->pointer($releaseRoot);
+
+        return [
+            'generation' => $pointer['generation'],
+            'manifest' => $releaseRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $pointer['manifest']),
+        ];
     }
 
     public function exists(string $releaseRoot): bool

@@ -70,6 +70,10 @@ final readonly class SessionManager
         }
 
         $now = $this->clock->now();
+        if ($existing->isExpiredAt($now)) {
+            throw new SessionException(sprintf('Session "%s" has expired.', $sessionId));
+        }
+
         $replacement = new AuthSession(
             id: $this->ids->sessionId(),
             accountId: $existing->accountId,
@@ -81,7 +85,9 @@ final readonly class SessionManager
             metadata: $existing->metadata,
         );
 
-        $this->sessions->rotate($sessionId, $replacement);
+        if (!$this->sessions->rotate($existing, $replacement, $this->clock->now())) {
+            throw new SessionException(sprintf('Session "%s" changed, expired or was revoked during rotation.', $sessionId));
+        }
 
         return $replacement;
     }

@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace Infocyph\Foundation\Database;
 
 use Infocyph\CacheLayer\Cache\CacheInterface;
+use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration;
 use Infocyph\DBLayer\Connection\Connection;
 use Infocyph\DBLayer\Connection\ConnectionConfig;
 use Infocyph\DBLayer\Connection\Pool;
 use Infocyph\DBLayer\Connection\PoolManager;
-use Infocyph\Foundation\Cache\CacheLayerFactory;
+use Infocyph\Foundation\Cache\CacheManager;
 use Infocyph\Foundation\Exception\ConfigurationException;
 use Infocyph\Foundation\Runtime\RuntimeExecutionState;
 use Psr\Container\ContainerInterface;
@@ -32,10 +33,6 @@ final class DBLayerFactory
     private array $pooledConfigurations = [];
 
     private ?PoolManager $poolManager = null;
-
-    private ?CacheInterface $queryCache = null;
-
-    private bool $queryCacheResolved = false;
 
     private bool $resolvingQueryCache = false;
 
@@ -68,14 +65,14 @@ final class DBLayerFactory
         $state = $this->executionState();
 
         if ($fresh) {
-            return $this->bindQueryCache($state->freshConnection($name, $config));
+            return $this->configureConnection($state->freshConnection($name, $config));
         }
 
         $connection = $this->resolver->poolEnabled()
             ? $this->pooledConnection($state, $name, $config)
             : $state->connection($name, $config);
 
-        return $this->bindQueryCache($connection);
+        return $this->configureConnection($connection);
     }
 
     /**
@@ -88,8 +85,11 @@ final class DBLayerFactory
     {
         $name = $this->resolver->connectionName($name);
 
-        return $this->infrastructureConnections[$name]
+        $connection = $this->infrastructureConnections[$name]
             ??= new Connection($this->configuration($name), $name);
+        $connection->setRunwireContextProvider(RunwireIntegration::current(...));
+
+        return $connection;
     }
 
     public function resolver(): DatabaseConnectionResolver
@@ -97,8 +97,16 @@ final class DBLayerFactory
         return $this->resolver;
     }
 
-    private function bindQueryCache(Connection $connection): Connection
+    private function configuration(string $name): ConnectionConfig
     {
+        return $this->configurations[$name]
+            ??= ConnectionConfig::fromArray($this->resolver->configuration($name));
+    }
+
+    private function configureConnection(Connection $connection): Connection
+    {
+        $connection->setRunwireContextProvider(RunwireIntegration::current(...));
+
         if (!$this->resolver->queryCacheEnabled() || $this->resolvingQueryCache) {
             return $connection;
         }
@@ -106,12 +114,6 @@ final class DBLayerFactory
         $connection->setQueryCache($this->queryCache());
 
         return $connection;
-    }
-
-    private function configuration(string $name): ConnectionConfig
-    {
-        return $this->configurations[$name]
-            ??= ConnectionConfig::fromArray($this->resolver->configuration($name));
     }
 
     private function executionState(): RuntimeExecutionState
@@ -145,11 +147,7 @@ final class DBLayerFactory
 
     private function queryCache(): CacheInterface
     {
-        if ($this->queryCacheResolved && $this->queryCache instanceof CacheInterface) {
-            return $this->queryCache;
-        }
-
-        if (!$this->container->has(CacheLayerFactory::class)) {
+        if (!$this->container->has(CacheManager::class)) {
             throw new ConfigurationException(
                 'Database query caching requires the Foundation cache capability and an explicit database.query_cache.store.',
             );
@@ -158,15 +156,12 @@ final class DBLayerFactory
         $this->resolvingQueryCache = true;
 
         try {
-            $factory = $this->container->get(CacheLayerFactory::class);
-            if (!$factory instanceof CacheLayerFactory) {
-                throw new ConfigurationException('CacheLayerFactory binding is invalid.');
+            $manager = $this->container->get(CacheManager::class);
+            if (!$manager instanceof CacheManager) {
+                throw new ConfigurationException('CacheManager binding is invalid.');
             }
 
-            $this->queryCache = $factory->make($this->resolver->queryCacheStore());
-            $this->queryCacheResolved = true;
-
-            return $this->queryCache;
+            return $manager->store($this->resolver->queryCacheStore());
         } finally {
             $this->resolvingQueryCache = false;
         }

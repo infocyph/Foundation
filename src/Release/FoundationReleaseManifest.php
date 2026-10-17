@@ -98,6 +98,37 @@ final class FoundationReleaseManifest
         return $manifest;
     }
 
+    /**
+     * Load only the authenticated bytes. The temporary private copy prevents
+     * a path replacement between digest verification and PHP evaluation.
+     *
+     * @return array<string,mixed>
+     */
+    public static function loadTrusted(string $path, string $sha256): array
+    {
+        $contents = file_get_contents($path);
+        if (!is_string($contents) || !hash_equals($sha256, hash('sha256', $contents))) {
+            throw new \RuntimeException('Foundation generation manifest trust identity mismatch.');
+        }
+
+        $temporary = tempnam(sys_get_temp_dir(), 'foundation-trusted-manifest-');
+        if ($temporary === false) {
+            throw new \RuntimeException('Unable to stage authenticated Foundation release manifest.');
+        }
+
+        try {
+            if (file_put_contents($temporary, $contents, LOCK_EX) !== strlen($contents)) {
+                throw new \RuntimeException('Unable to write authenticated Foundation release manifest.');
+            }
+
+            return self::load($temporary);
+        } finally {
+            if (is_file($temporary)) {
+                unlink($temporary);
+            }
+        }
+    }
+
     public static function nonEmptyString(mixed $value, string $field): string
     {
         if (!is_string($value) || trim($value) === '') {

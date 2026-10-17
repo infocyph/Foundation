@@ -15,12 +15,11 @@ use Infocyph\Foundation\Auth\OAuth\Configuration\OAuthConfigValidator;
 use Infocyph\Foundation\Config\Internal\CacheTopologyValidator;
 use Infocyph\Foundation\Config\Internal\ConfiguredCapabilities;
 use Infocyph\Foundation\Config\Internal\TokenSecretConfigValidator;
+use Infocyph\Foundation\Config\Internal\WebAuthnConfigValidator;
 
 final readonly class ConfigValidator
 {
-    public function __construct(
-        private ConfigRepository $config,
-    ) {}
+    public function __construct(private ConfigRepository $config) {}
 
     public function validate(): ConfigValidationResult
     {
@@ -47,32 +46,6 @@ final readonly class ConfigValidator
         $first = array_key_first($connections);
 
         return is_string($first) && $first !== '' ? $first : null;
-    }
-
-    /** @param array<string, mixed> $parts */
-    private function isExactWebAuthnOrigin(array $parts): bool
-    {
-        $scheme = $parts['scheme'] ?? null;
-        $host = $parts['host'] ?? null;
-        $path = $parts['path'] ?? '';
-
-        return is_string($scheme)
-            && is_string($host)
-            && in_array(strtolower($scheme), ['http', 'https'], true)
-            && !isset($parts['user'])
-            && !isset($parts['pass'])
-            && !isset($parts['query'])
-            && !isset($parts['fragment'])
-            && $path === '';
-    }
-
-    private function isLocalWebAuthnHost(mixed $host): bool
-    {
-        if (!is_string($host) || $host === '') {
-            return false;
-        }
-
-        return in_array(strtolower($host), ['localhost', '127.0.0.1', '::1'], true);
     }
 
     private function isNonNegativeInteger(mixed $value): bool
@@ -111,19 +84,6 @@ final readonly class ConfigValidator
         }
 
         return $normalized;
-    }
-
-    private function positiveIntegerValue(mixed $value): ?int
-    {
-        if (!is_int($value) && !is_string($value)) {
-            return null;
-        }
-
-        $validated = filter_var($value, FILTER_VALIDATE_INT, [
-            'options' => ['min_range' => 1],
-        ]);
-
-        return is_int($validated) ? $validated : null;
     }
 
     private function runChecks(bool $assumeProduction): ConfigValidationResult
@@ -176,7 +136,7 @@ final readonly class ConfigValidator
         }
 
         if ($passkeyDriver === AuthPasskeyDriver::WEBAUTHN->value) {
-            $this->validateWebAuthn($issues, $assumeProduction);
+            new WebAuthnConfigValidator($this->config)->validate($issues, $assumeProduction);
         }
 
         return new ConfigValidationResult($issues);
@@ -208,10 +168,26 @@ final readonly class ConfigValidator
                 sprintf('cache.stores.%s must exist when auth.drivers.cache uses cache.', $store),
                 'cache.stores.' . $store,
             );
+
+            return;
+        }
+
+        $scope = new SharedStateTopology($this->config)->cacheStoreScope($store);
+        if (!in_array($scope, [SharedStateTopology::HOST, SharedStateTopology::CLUSTER], true)) {
+            return;
         }
 
         $counter = $this->stringConfig('cache.default_counter', '');
-        if ($counter !== '' && !$this->config->has('cache.counters.' . $counter)) {
+        if ($counter === '') {
+            $issues[] = new ConfigIssue(
+                'cache.default_counter must select an atomic counter when auth.drivers.cache uses shared state.',
+                'cache.default_counter',
+            );
+
+            return;
+        }
+
+        if (!$this->config->has('cache.counters.' . $counter)) {
             $issues[] = new ConfigIssue(
                 sprintf('cache.counters.%s must exist when cache.default_counter is configured.', $counter),
                 'cache.counters.' . $counter,
@@ -379,84 +355,5 @@ final readonly class ConfigValidator
                 ...new TokenSecretConfigValidator($this->config)->validate($minimumBytes, $assumeProduction),
             );
         }
-    }
-
-    /** @param list<ConfigIssue> $issues */
-    private function validateWebAuthn(array &$issues, bool $assumeProduction): void
-    {
-        $rpId = $this->config->get('auth.webauthn.rp_id');
-        $challengeTtl = $this->config->get('auth.webauthn.challenge_ttl', 300);
-        $allowSubdomains = $this->config->get('auth.webauthn.allow_subdomains', false);
-
-        if (!is_string($rpId) || $rpId === '') {
-            $issues[] = new ConfigIssue(
-                'auth.webauthn.rp_id must be configured when auth.drivers.passkey uses webauthn.',
-                'auth.webauthn.rp_id',
-            );
-        }
-
-        $origin = $this->webAuthnOrigin($issues, $this->config->get('auth.webauthn.origin'));
-        if ($origin === null) {
-            return;
-        }
-
-        if ($assumeProduction && $origin['scheme'] !== 'https' && !$this->isLocalWebAuthnHost($origin['host'])) {
-            $issues[] = new ConfigIssue(
-                'auth.webauthn.origin must use https outside localhost/local development.',
-                'auth.webauthn.origin',
-            );
-        }
-
-        $ttl = $this->positiveIntegerValue($challengeTtl);
-        if ($ttl === null || $ttl > 600) {
-            $issues[] = new ConfigIssue(
-                'auth.webauthn.challenge_ttl must be between 1 and 600 seconds.',
-                'auth.webauthn.challenge_ttl',
-            );
-        }
-
-        if (!is_bool($allowSubdomains)) {
-            $issues[] = new ConfigIssue(
-                'auth.webauthn.allow_subdomains must be a boolean.',
-                'auth.webauthn.allow_subdomains',
-            );
-        }
-    }
-
-    /**
-     * @param list<ConfigIssue> $issues
-     * @return array{scheme:string,host:string}|null
-     */
-    private function webAuthnOrigin(array &$issues, mixed $origin): ?array
-    {
-        if (!is_string($origin) || $origin === '') {
-            $issues[] = new ConfigIssue(
-                'auth.webauthn.origin must be configured when auth.drivers.passkey uses webauthn.',
-                'auth.webauthn.origin',
-            );
-
-            return null;
-        }
-
-        $parts = parse_url($origin);
-        if (!is_array($parts) || !$this->isExactWebAuthnOrigin($parts)) {
-            $issues[] = new ConfigIssue(
-                'auth.webauthn.origin must be an exact HTTP(S) origin without path, credentials, query, or fragment.',
-                'auth.webauthn.origin',
-            );
-
-            return null;
-        }
-
-        $scheme = $parts['scheme'] ?? null;
-        $host = $parts['host'] ?? null;
-        if (!is_string($scheme) || !is_string($host)) {
-            return null;
-        }
-
-        return [
-            'scheme' => strtolower($scheme),
-            'host' => $host,
-        ];
     }
 }

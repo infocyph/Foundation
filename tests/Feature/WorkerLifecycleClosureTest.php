@@ -15,6 +15,7 @@ use Infocyph\Foundation\Worker\WorkerProvider;
 use Infocyph\Foundation\Worker\WorkerRuntime;
 use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\InterMix\DI\Support\FactoryDefinition;
+use Infocyph\InterMix\DI\Support\LifetimeEnum;
 
 final class FoundationWorkerLifecycleScopedProbe
 {
@@ -34,9 +35,10 @@ final class FoundationWorkerLifecycleServiceProvider extends ServiceProvider
     {
         unset($context);
 
-        $builder->scoped(
+        $builder->factory(
             'worker.lifecycle.scoped',
             FactoryDefinition::construct(FoundationWorkerLifecycleScopedProbe::class),
+            LifetimeEnum::Scoped,
         );
     }
 }

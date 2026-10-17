@@ -10,7 +10,7 @@ not rebuild specialist engines.
 | --- | --- |
 | Dependency injection, lifetimes, scopes | InterMix |
 | HTTP routing, requests, responses, emitters | Webrick |
-| Selected runtime engine, host adaptation and host lifecycle | Runwire |
+| Core runtime integration, host adaptation and host lifecycle | Runwire |
 | Foundation CLI parsing/definitions/execution policy | Foundation |
 | Events, messages, retries, failure storage, messaging workers | Omnibus |
 | Database connections, queries, schema, migrations, telemetry | DBLayer |
@@ -102,9 +102,13 @@ DBLayer, Omnibus, TalkingBytes, Epicrypt, Pathwise, ReqShield, OTP, or WebAuthnâ
 does not by itself activate the corresponding runtime capability, open a
 connection, construct a store, or add unrelated request work.
 
-Purpose-first modules (`database`, `security`, `auth`, `messaging`, and so on)
-select application capabilities. One module may have several backing packages;
-Foundation does not expose package-presence as runtime policy.
+Foundation 4 optional modules (`data`, `security`, `execution`) expose nine
+explicit `module.feature` selections; Core stays prebuilt and non-installable.
+Bare groups never select their siblings. Native specialist owners keep their
+own service implementations; Foundation selects and composes them without
+turning package presence into runtime activation policy. The public module
+commands use qualified feature names and machine schema version 2; see
+[Optional modules](modules.md) for lifecycle, package and upgrade contracts.
 
 ## Execution boundaries
 
@@ -154,7 +158,7 @@ convenience, not a second native emitter.
 
 ## Runwire and host ownership
 
-When Runwire is selected, Foundation composes its generated application through
+For Runwire-managed hosting, Foundation composes its generated application through
 Webrick's Runwire bridge. Runwire owns native portable/prefork execution and the
 FPM, FrankenPHP, RoadRunner and Swoole/OpenSwoole host-driver boundary. It also
 owns runtime capabilities, admission, cancellation/deadlines and drain/shutdown.
@@ -163,7 +167,7 @@ Foundation owns application policy and cleanup of its scoped services.
 
 Foundation must propagate the selected Runwire context/capabilities rather than
 infer persistence from application mode, duplicate host detection or introduce
-parallel server adapters. Ordinary PHP/FPM without Runwire continues to use the
+parallel server adapters. Ordinary PHP/FPM without Runwire host integration uses the
 Webrick SAPI path. Existing direct Webrick host adapters remain explicit
 alternatives, not evidence that Foundation needs its own host drivers.
 

@@ -124,6 +124,11 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         throw new \InvalidArgumentException(sprintf('OTP factor option "%s" must be an integer.', $key));
     }
 
+    private function ocraCounterAccepted(MfaFactor $factor, bool $counterEnabled, ?int $nextCounter): bool
+    {
+        return !$counterEnabled || ($nextCounter !== null && $this->advanceCounter($factor, $nextCounter));
+    }
+
     /** @return array{algorithm:string,counter:int,digits:int,look_ahead:int,period:int,secret:?string,suite:?string,window:int} */
     private function otpConfig(MfaFactor $factor): array
     {
@@ -246,15 +251,13 @@ final readonly class OtpMfaVerifier implements MfaVerifierInterface
         if (!$result->matched) {
             return $this->resultFailure($factor, $result);
         }
-        if ($suite->counterEnabled) {
-            if ($result->nextCounter === null || !$this->advanceCounter($factor, $result->nextCounter)) {
-                return new MfaVerificationResult(
-                    false,
-                    factorId: $factor->id,
-                    reason: 'mfa_code_replayed',
-                    context: ['otp_reason' => $result->reason->value],
-                );
-            }
+        if (!$this->ocraCounterAccepted($factor, $suite->counterEnabled, $result->nextCounter)) {
+            return new MfaVerificationResult(
+                false,
+                factorId: $factor->id,
+                reason: 'mfa_code_replayed',
+                context: ['otp_reason' => $result->reason->value],
+            );
         }
 
         return new MfaVerificationResult(true, factorId: $factor->id, context: [

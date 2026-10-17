@@ -4,21 +4,31 @@ declare(strict_types=1);
 
 namespace Infocyph\Foundation\Routing;
 
+use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwireIntegration;
+
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Http\Response\ExceptionRenderer;
 use Infocyph\Foundation\Logging\HttpExceptionLogger;
 use Infocyph\Foundation\Runtime\LoadedReleaseGeneration;
+use Infocyph\Foundation\Runtime\ReleaseGenerationLease;
 use Infocyph\InterMix\DI\ProductionContainer;
+use Infocyph\InterMix\DI\ScopeContext;
+use Infocyph\InterMix\Integration\Runwire\RunwireIntegration;
+use Infocyph\Runwire\Coroutine\CoroutineScope;
+use Infocyph\Runwire\Http\HttpRequest;
+use Infocyph\Runwire\Http\ResponseWriterInterface;
+use Infocyph\Runwire\RuntimeContext;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Response\Response;
 use Infocyph\Webrick\Router\Build\ReleaseCompiler as WebrickReleaseCompiler;
 use Infocyph\Webrick\Router\Build\ReleaseManifestLoader;
-use Infocyph\Webrick\Router\Build\RouterArtifactLoader;
 use Infocyph\Webrick\Router\Kernel\CompiledRouterKernel;
 use Infocyph\Webrick\Router\Kernel\ErrorHandler;
 use Infocyph\Webrick\Runtime\Http\RuntimeAdapterInterface;
 use Infocyph\Webrick\Runtime\Http\RuntimeCapabilities;
 use Infocyph\Webrick\Runtime\Http\RuntimeServer;
+use Infocyph\Webrick\Runtime\Http\RunwireRuntimeAdapter;
+use Infocyph\Webrick\Runtime\Http\RunwireRuntimeApplication;
 use Infocyph\Webrick\Runtime\Http\SapiRuntimeAdapter;
 use Psr\Log\LoggerInterface;
 use Throwable;
@@ -103,10 +113,112 @@ final readonly class WebReleaseRuntime
         return self::boot($config, $releaseManifestPath, $adapter, true, $foundationCapabilities, $matcherCachePath);
     }
 
+    /**
+     * Construct the selected Webrick/Runwire host application from this trusted
+     * compiled web generation and a caller-owned Runwire runtime.
+     *
+     * Webrick owns HTTP adaptation/response emission, InterMix owns scoped DI,
+     * and Runwire owns request/task/cancellation/shutdown lifetimes. Core
+     * declares the native inputs without creating a host or runtime.
+     *
+     * @param null|callable(HttpRequest):?CoroutineScope $coroutineScope
+     * @param null|callable(HttpRequest):?ScopeContext $scopeContext
+     */
+    public function runwireApplication(
+        RuntimeContext $runtime,
+        ?callable $coroutineScope = null,
+        ?callable $scopeContext = null,
+    ): RunwireRuntimeApplication {
+        foreach ([RuntimeContext::class, \Infocyph\Runwire\RequestContext::class, CoroutineScope::class] as $id) {
+            if (!$this->container->has($id)) {
+                throw new \LogicException(
+                    'Runwire web hosting requires a Foundation release with native Core runtime inputs.',
+                );
+            }
+        }
+
+        // A runtime from a retired process cannot own this host after a fork.
+        $pid = getmypid();
+        if (!is_int($pid) || $runtime->pid !== $pid) {
+            throw new \LogicException('Runwire web host runtime belongs to a different process.');
+        }
+
+        // Each Runwire host independently protects its immutable release against
+        // pruning, even if the bootstrap loader or another host is destroyed.
+        $generation = $this->loadedReleaseGeneration;
+        $hostLease = $generation === null ? null : ReleaseGenerationLease::acquireShared(
+            $generation->releaseRoot,
+            $generation->generation,
+        );
+        $integration = new RunwireIntegration($this->container);
+        $integration->bind($runtime);
+
+        try {
+            $adapter = new RunwireRuntimeAdapter(
+                runtimeContext: $runtime,
+                interMix: $integration,
+                coroutineScope: $coroutineScope === null
+                    ? null
+                    : static function (HttpRequest $request): ?CoroutineScope {
+                        unset($request);
+
+                        return CacheRunwireIntegration::current()?->scope;
+                    },
+                scopeContext: $scopeContext,
+            );
+            $server = new RuntimeServer($this->kernel, $adapter);
+
+            return new RunwireRuntimeApplication(
+                handler: static function (HttpRequest $request, ResponseWriterInterface $writer) use (
+                    $server,
+                    $runtime,
+                    $coroutineScope,
+                ): void {
+                    CacheRunwireIntegration::share(
+                        $request->context,
+                        $coroutineScope === null ? null : $coroutineScope($request),
+                        static fn() => $server->handle($request, $writer),
+                        $runtime,
+                    );
+                },
+                runtimeContext: $runtime,
+                shutdown: static function () use ($integration, $runtime, $hostLease): void {
+                    try {
+                        $integration->release($runtime);
+                    } finally {
+                        $hostLease?->release();
+                    }
+                },
+            );
+        } catch (\Throwable $exception) {
+            try {
+                $integration->release($runtime);
+            } finally {
+                $hostLease?->release();
+            }
+
+            throw $exception;
+        }
+    }
+
     private static function assertCompiledConfig(ConfigRepository $config): void
     {
         if (!$config->isCompiled()) {
             throw new \InvalidArgumentException('Foundation web release config must be marked compiled.');
+        }
+    }
+
+    /** @param array<string, mixed> $manifest */
+    private static function assertManifestIdentity(
+        array $manifest,
+        string $environment,
+        string $configFingerprint,
+    ): void {
+        if (($manifest['environment'] ?? null) !== $environment
+            || !is_string($manifest['config_fingerprint'] ?? null)
+            || !hash_equals($configFingerprint, $manifest['config_fingerprint'])
+        ) {
+            throw new \RuntimeException('Foundation web release configuration identity mismatch.');
         }
     }
 
@@ -141,7 +253,7 @@ final readonly class WebReleaseRuntime
         array $foundationCapabilities,
         ?string $matcherCachePath = null,
     ): self {
-        $graph = new WebGraphFactory()->compose($config, $foundationCapabilities);
+        $graph = new WebGraphFactory()->compose($config, $foundationCapabilities, new WebProductionGraph());
         $settings = new WebReleaseConfiguration($graph);
         $settings->assertArtifactSafeMiddleware();
         $releaseManifestPath = $settings->resolvePath($releaseManifestPath);
@@ -149,42 +261,18 @@ final readonly class WebReleaseRuntime
 
         $environment = $settings->environment();
         $configFingerprint = $settings->configFingerprint();
-        if (($manifest['environment'] ?? null) !== $environment
-            || !is_string($manifest['config_fingerprint'] ?? null)
-            || !hash_equals($configFingerprint, $manifest['config_fingerprint'])
-        ) {
-            throw new \RuntimeException('Foundation web release configuration identity mismatch.');
-        }
+        self::assertManifestIdentity($manifest, $environment, $configFingerprint);
 
-        $intermix = $manifest['intermix'] ?? null;
-        $webrick = $manifest['webrick'] ?? null;
-        if (!is_array($intermix) || !is_array($webrick)) {
-            throw new \UnexpectedValueException('Foundation web release manifest is incomplete.');
-        }
+        [$intermix, $webrick] = self::manifestArtifacts($manifest);
 
         $intermixPath = $settings->resolvePath(self::stringField($intermix, 'path'));
         $routerPath = $settings->resolvePath(self::stringField($webrick, 'path'));
         $intermixDigest = self::stringField($intermix, 'digest');
         $routerFingerprint = self::stringField($webrick, 'fingerprint');
 
-        $routerLoader = new RouterArtifactLoader();
-        $artifact = $prevalidated
-            ? $routerLoader->loadPrevalidated(
-                path: $routerPath,
-                trustedArtifactFingerprint: $routerFingerprint,
-                expectedEnvironment: $environment,
-                expectedConfigFingerprint: $configFingerprint,
-            )
-            : $routerLoader->load(
-                path: $routerPath,
-                expectedEnvironment: $environment,
-                expectedConfigFingerprint: $configFingerprint,
-            );
-        new WebProductionGraph()->prepareRuntime($graph->builder, $artifact);
         $container = $prevalidated
             ? $graph->builder->productionPrevalidated($intermixPath, $intermixDigest)
             : $graph->builder->production($intermixPath);
-        $graph->application->container()->unset();
 
         $logger = $container->get(LoggerInterface::class);
         if (!$logger instanceof LoggerInterface) {
@@ -248,6 +336,21 @@ final readonly class WebReleaseRuntime
         $server = new RuntimeServer($kernel, $runtimeAdapter);
 
         return new self($container, $kernel, $server, $capabilities);
+    }
+
+    /**
+     * @param array<string, mixed> $manifest
+     * @return array{array<array-key, mixed>, array<array-key, mixed>}
+     */
+    private static function manifestArtifacts(array $manifest): array
+    {
+        $intermix = $manifest['intermix'] ?? null;
+        $webrick = $manifest['webrick'] ?? null;
+        if (!is_array($intermix) || !is_array($webrick)) {
+            throw new \UnexpectedValueException('Foundation web release manifest is incomplete.');
+        }
+
+        return [$intermix, $webrick];
     }
 
     /** @param array<array-key, mixed> $source */

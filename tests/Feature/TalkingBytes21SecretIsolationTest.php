@@ -83,11 +83,23 @@ it('keeps communication secrets out of runtime identity metadata logs and cache 
             ['communication'],
         );
 
+        $compiledArtifact = realpath($artifact);
+        if (!is_string($compiledArtifact)) {
+            throw new RuntimeException('The InterMix runtime artifact was not published.');
+        }
+
         foreach ([
-            $artifact . '.foundation.json',
-            $artifact . '.meta.json',
+            $report['metadata_path'],
+            dirname($compiledArtifact) . '/manifest.json',
         ] as $metadataPath) {
-            $metadata = (string) file_get_contents($metadataPath);
+            if (!is_file($metadataPath)) {
+                throw new RuntimeException('The published runtime metadata is missing: ' . $metadataPath);
+            }
+            $metadata = file_get_contents($metadataPath);
+            if (!is_string($metadata)) {
+                throw new RuntimeException('Unable to inspect runtime metadata: ' . $metadataPath);
+            }
+
             expect($metadata)->not->toContain($httpToken)
                 ->not->toContain($webhookSecret)
                 ->not->toContain($smtpPassword);

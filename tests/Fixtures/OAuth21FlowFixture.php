@@ -41,7 +41,6 @@ use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerEpicryptRefreshTokenSt
 use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerOAuthAuthorizationStore;
 use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerOAuthClientStore;
 use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerOAuthConsentStore;
-use Infocyph\Foundation\Auth\Adapter\DBLayer\OAuth\DBLayerOAuthRefreshTokenStore;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\EpicryptClockAdapter;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\EpicryptOAuthAuthorizationClientStore;
 use Infocyph\Foundation\Auth\Adapter\Epicrypt\OAuth\EpicryptOAuthClientAuthenticationAdapter;
@@ -92,7 +91,6 @@ final class OAuth21FlowFixture
     public readonly ?AsymmetricSigningKeySet $openIdKeys;
     public readonly OAuthSigningKeySet $keys;
     public readonly RefreshTokenManager $refreshTokens;
-    public readonly DBLayerOAuthRefreshTokenStore $refreshStore;
     public readonly AuthorizationRequestValidator $requests;
     public readonly OAuthRevocationManager $revocation;
     public readonly OAuthResourceAccessTokenValidator $resourceValidator;
@@ -155,7 +153,6 @@ final class OAuth21FlowFixture
         $clientStore = new DBLayerOAuthClientStore($this->factory, $this->tables);
         $consentStore = new DBLayerOAuthConsentStore($this->factory, $this->tables);
         $this->authorizationStore = new DBLayerOAuthAuthorizationStore($this->factory, $this->tables);
-        $this->refreshStore = new DBLayerOAuthRefreshTokenStore($this->factory, $this->tables);
 
         $this->clients = new OAuthClientManager(
             $clientStore,

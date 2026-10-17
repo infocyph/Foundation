@@ -16,33 +16,35 @@ it('emits the email verification notification with the issued token and recipien
         'app' => ['base_path' => sys_get_temp_dir()],
         'router' => ['files' => []],
     ]);
-    $services = $app->make(AuthServices::class);
-    $account = $services->accounts()->create(
-        'release@example.test',
-        status: AccountStatus::PENDING_VERIFICATION,
-    )->account;
+    $app->container()->withinScope('webrick.request', static function () use ($app): void {
+        $services = $app->make(AuthServices::class);
+        $account = $services->accounts()->create(
+            'release@example.test',
+            status: AccountStatus::PENDING_VERIFICATION,
+        )->account;
 
-    if (!$account instanceof Account) {
-        throw new LogicException('Expected an account.');
-    }
+        if (!$account instanceof Account) {
+            throw new LogicException('Expected an account.');
+        }
 
-    $issued = $services->emailVerification()->issue($account->id(), $account->identifier());
-    $notifier = $app->make(AuthNotifierInterface::class);
-    if (!$notifier instanceof CollectingAuthNotifier) {
-        throw new LogicException('Expected the collecting auth notifier.');
-    }
+        $issued = $services->emailVerification()->issue($account->id(), $account->identifier());
+        $notifier = $app->make(AuthNotifierInterface::class);
+        if (!$notifier instanceof CollectingAuthNotifier) {
+            throw new LogicException('Expected the collecting auth notifier.');
+        }
 
-    $verificationNotifications = array_values(array_filter(
-        $notifier->notifications(),
-        static fn($notification): bool => $notification->type === AuthNotificationType::EMAIL_VERIFICATION_REQUESTED,
-    ));
+        $verificationNotifications = array_values(array_filter(
+            $notifier->notifications(),
+            static fn($notification): bool => $notification->type === AuthNotificationType::EMAIL_VERIFICATION_REQUESTED,
+        ));
 
-    expect($issued->token)->toBeString()->not->toBeEmpty()
-        ->and($verificationNotifications)->toHaveCount(1)
-        ->and($verificationNotifications[0]->accountId)->toBe($account->id())
-        ->and($verificationNotifications[0]->payload['email'] ?? null)->toBe($account->identifier())
-        ->and($verificationNotifications[0]->payload['token'] ?? null)->toBe($issued->token)
-        ->and($services->emailVerification()->verify($issued->token ?? '')->verified())->toBeTrue();
+        expect($issued->token)->toBeString()->not->toBeEmpty()
+            ->and($verificationNotifications)->toHaveCount(1)
+            ->and($verificationNotifications[0]->accountId)->toBe($account->id())
+            ->and($verificationNotifications[0]->payload['email'] ?? null)->toBe($account->identifier())
+            ->and($verificationNotifications[0]->payload['token'] ?? null)->toBe($issued->token)
+            ->and($services->emailVerification()->verify($issued->token ?? '')->verified())->toBeTrue();
+    });
 });
 
 it('distinguishes recent authentication from stale sessions before step-up', function (): void {

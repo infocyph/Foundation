@@ -15,6 +15,26 @@ final class InMemoryEmailVerificationStore extends AbstractInMemoryConsumableSto
         $this->consumeStored($storedRequestId);
     }
 
+    public function consumeAndApply(string $requestId, callable $apply): bool
+    {
+        $request = $this->find($requestId);
+        if ($request === null || $request->isConsumed() || $request->isExpiredAt($this->clock->now())) {
+            return false;
+        }
+
+        $this->consumeStored($requestId);
+
+        try {
+            $apply();
+        } catch (\Throwable $exception) {
+            $this->saveStored($request, $requestId);
+
+            throw $exception;
+        }
+
+        return true;
+    }
+
     public function find(string $requestId): ?EmailVerificationRequest
     {
         $request = $this->findStored($requestId);
