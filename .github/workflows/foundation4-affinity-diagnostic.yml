@@ -14,13 +14,15 @@ env:
 
 jobs:
   affinity:
-    name: Fixed CPU diagnostic - ${{ matrix.host }} w1/c10
+    name: Fixed CPU diagnostic - ${{ matrix.host }} w${{ matrix.workers }}/c${{ matrix.concurrency }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
         host: [fpm, runwire]
+        workers: [1, 4]
+        concurrency: [1, 10, 50]
     services:
       postgres:
         image: postgres:18-alpine
@@ -37,14 +39,14 @@ jobs:
     env:
       FOUNDATION_HOST_WORKLOAD_PROFILE: authenticated-read
       FOUNDATION_HOST_FILTER_HOST: ${{ matrix.host }}
-      FOUNDATION_HOST_FILTER_WORKERS: "1"
-      FOUNDATION_HOST_FILTER_CONCURRENCY: "10"
+      FOUNDATION_HOST_FILTER_WORKERS: ${{ matrix.workers }}
+      FOUNDATION_HOST_FILTER_CONCURRENCY: ${{ matrix.concurrency }}
       FOUNDATION_HOST_REQUESTS: "1000"
       FOUNDATION_HOST_REPEATS: "5"
       FOUNDATION_HOST_MIN_SECONDS: "60"
       FOUNDATION_HOST_WARMUP_SECONDS: "30"
-      FOUNDATION_HOST_SOAK_SECONDS: "0"
-      FOUNDATION_HOST_SERVER_CPU_SET: "2"
+      FOUNDATION_HOST_SOAK_SECONDS: ${{ matrix.workers == 4 && matrix.concurrency == 10 && '120' || '0' }}
+      FOUNDATION_HOST_SERVER_CPU_SET: ${{ matrix.workers == 1 && '2' || '2,3' }}
       FOUNDATION_HOST_LOAD_CPU_SET: "0"
       FOUNDATION_HOST_BACKEND_CPU_SET: "1"
       FOUNDATION_HOST_TOOL_SHA: ${{ github.sha }}
@@ -76,7 +78,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq nginx php8.4-fpm
           docker update --cpuset-cpus 1 '${{ job.services.postgres.id }}' '${{ job.services.redis.id }}'
-          printf 'FOUNDATION_CERTIFICATION_HOST_ID=github-affinity-%s-%s-%s-server2-load0-backend1\n' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$(cat /proc/sys/kernel/random/boot_id)" >> "$GITHUB_ENV"
+          printf 'FOUNDATION_CERTIFICATION_HOST_ID=github-affinity-%s-%s-%s-server%s-load0-backend1\n' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$(cat /proc/sys/kernel/random/boot_id)" "$FOUNDATION_HOST_SERVER_CPU_SET" >> "$GITHUB_ENV"
       - uses: actions/download-artifact@v7
         with:
           name: foundation4-paired-host-lock
@@ -117,7 +119,50 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: foundation4-affinity-${{ matrix.host }}-1-10
-          path: evidence/
+          name: foundation4-affinity-${{ matrix.host }}-${{ matrix.workers }}-${{ matrix.concurrency }}
+          path: |
+            evidence/*/*.json
+            evidence/*/*.csv
+            evidence/*/*.log
+            evidence/*/*.env
+            evidence/cpu.txt
+            evidence/php-version.txt
+            evidence/composer-lock.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+  compare:
+    name: Enforce complete fixed-CPU matrix and unchanged budgets
+    needs: affinity
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          extensions: "mbstring, intl, sodium, pdo, pdo_sqlite, redis, memcached"
+          coverage: none
+      - uses: actions/download-artifact@v7
+        with:
+          name: foundation4-paired-host-lock
+          run-id: 39007164429
+          github-token: ${{ github.token }}
+      - run: composer install --no-interaction --no-progress --prefer-dist
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: foundation4-affinity-*
+          path: build/fixed-cpu-input
+      - name: Enforce original complete-matrix comparator
+        run: |
+          mkdir -p build/fixed-cpu-comparison
+          php benchmarks/foundation4-host-merge.php build/fixed-cpu-input build/fixed-cpu-comparison/comparison.json
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: foundation4-affinity-comparison
+          path: build/fixed-cpu-comparison
           if-no-files-found: error
           retention-days: 30
