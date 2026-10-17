@@ -9,6 +9,12 @@ host-specific extensions enable capabilities rather than package installation.
 
 ## Ownership and selection
 
+There are two supported entry paths. `php infbyte serve` invokes Runwire;
+ordinary web hosting invokes Infbyte's `public/index.php` without that command.
+Shared hosting, dedicated hosts, containers and local development choose the
+path their environment supports. Installing Core Runwire does not require
+normal PHP requests to start a managed runtime.
+
 | Path | Runtime responsibility | Foundation integration |
 | --- | --- | --- |
 | Ordinary PHP / direct FPM | Web server/FPM, Webrick SAPI adaptation | Existing generated web release |
@@ -31,6 +37,58 @@ provides `RunwireRuntimeApplicationFactory`, `RunwireRuntimeApplication` and
 Foundation versions of Runwire host drivers. Webrick's direct host adapters
 remain available for deliberately selected non-Runwire deployments; they are
 not automatically rerouted through Runwire.
+
+The command accepts the installed `RuntimeDriver::cases()` values. For example,
+`php infbyte serve --runtime=swoole` explicitly requests the Swoole-family host;
+omitting `--runtime` leaves selection to Runwire. Host availability and lifecycle
+must still be validated in the actual deployment; the enum is a supported-driver
+catalog, not evidence that every host is installed or certified on this machine.
+
+## Trusted bootstrap for both paths
+
+Normal PHP/FPM uses the existing SAPI entrypoint, without starting Runwire:
+
+```php
+use Infocyph\Foundation\Release\FoundationReleaseBootstrap;
+
+$bootstrap = FoundationReleaseBootstrap::fromEnvironment(['base_path' => $basePath])
+    ?? throw new RuntimeException('A trusted Foundation release is required.');
+$bootstrap->web()->server->handle();
+```
+
+For a directly managed persistent host, pass its Webrick adapter to `web()` and
+its native request/response handles to `server->handle($request, $response)`.
+Load the application inside the actual host worker, and keep its shutdown and
+request lifetimes with that host. For example, an externally managed
+OpenSwoole host uses `SwooleRuntimeAdapter::openSwoole()` without invoking
+`infbyte serve` or opening an additional listener through Foundation.
+
+The same bootstrap implements Runwire's native
+`RuntimeApplicationFactoryInterface`. An embedding host can pass it directly to
+Runwire without an additional Foundation factory type:
+
+```php
+use Infocyph\Foundation\Release\FoundationReleaseBootstrap;
+use Infocyph\Runwire\Runtime;
+use Infocyph\Runwire\Runtime\Enum\RuntimeDriver;
+use Infocyph\Runwire\RuntimeOptions;
+use Infocyph\Runwire\Server;
+
+$bootstrap = FoundationReleaseBootstrap::fromEnvironment(['base_path' => $basePath])
+    ?? throw new RuntimeException('A trusted Foundation release is required.');
+
+Runtime::create(new RuntimeOptions(driver: RuntimeDriver::NATIVE))
+    ->listen(Server::httpApplicationFactory('tcp://127.0.0.1:8000', $bootstrap))
+    ->run();
+```
+
+An already selected Runwire host-owned driver uses
+`Runtime::create($nativeOptions)->serveApplication($bootstrap)` instead of
+registering a native listener. Configure advanced HTTP/1, HTTP/2, HTTP/3,
+independent HTTP/3 inbound/outbound policies, TLS and admission directly on
+Runwire's `Server`/`RuntimeOptions` objects. Foundation does not mirror that
+schema or adaptive scheduling. CLI `--protocol-policy` changes the native
+HTTP/1 and HTTP/2 mode only, retaining their separate tuning and FIXED defaults.
 
 ## Foundation composition contract
 

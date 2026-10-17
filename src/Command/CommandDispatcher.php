@@ -196,6 +196,7 @@ final readonly class CommandDispatcher
         if ($this->releaseBootstrap !== null
             && $runtime !== RuntimeMode::Web
             && !($runtime === RuntimeMode::Worker && $input->command === 'worker:run')
+            && !($runtime === RuntimeMode::Cli && $input->command === 'serve')
         ) {
             return $this->releaseBootstrap->nonWeb($config, $runtime);
         }
@@ -257,12 +258,15 @@ final readonly class CommandDispatcher
 
     private function resolverApplication(Application $application, CommandDescriptor $descriptor): Application
     {
-        return $this->unbootedWorkerSupervisor($descriptor) ? $application : $application->boot();
+        return $this->unbootedSupervisor($descriptor) ? $application : $application->boot();
     }
 
-    private function unbootedWorkerSupervisor(CommandDescriptor $descriptor): bool
+    private function unbootedSupervisor(CommandDescriptor $descriptor): bool
     {
-        return $descriptor->definition->commandRuntime() === RuntimeMode::Worker
-            && $descriptor->definition->commandName() === 'worker:run';
+        return match ($descriptor->definition->commandRuntime()) {
+            RuntimeMode::Worker => $descriptor->definition->commandName() === 'worker:run',
+            RuntimeMode::Cli => $descriptor->definition->commandName() === 'serve',
+            default => false,
+        };
     }
 }

@@ -1,5 +1,62 @@
 ## Core Runwire correction — approved 2026-10-16
 
+### Serve and direct-host entrypoints — user clarification, 2026-10-16
+
+`php infbyte serve` must start serving through native Runwire. No runtime flag
+means native `RuntimeDriver::AUTO`; explicit selections such as
+`--runtime=swoole` use the installed enum and native selector. Supported runtime
+values and help derive from `RuntimeDriver::cases()`, never a Foundation copy.
+Normal PHP/FPM deployment pointing at Infbyte's `public/index.php` remains
+supported without the command or a framework-owned listener, worker pool or
+event loop. Externally managed Swoole/OpenSwoole and other persistent hosts use
+Webrick's native adapters on the same application path. Both entry paths must
+work for shared hosting, dedicated hosts, containers and local development
+where the selected host's capabilities are available.
+
+The prior command launched `PHP_BINARY -S`; that reproduced gap is not covered
+by lower-level native-host benchmarks. The integration below replaces it in
+Foundation; Infbyte skeleton migration remains a separate follow-up.
+
+**2026-10-17 local implementation checkpoint:** `serve` now
+delegates to native Runwire; the existing trusted bootstrap implements its
+application-factory contract. The supervisor remains unbooted, enum-based
+selection and FIXED/default policy preflight pass, and the focused suite passes
+24 tests / 328 assertions. Real HTTP probes pass default native, portable native,
+ordinary raw-PHP/index.php and Docker nginx/FPM paths, including failure recovery.
+Direct two-worker Swoole hosting through Webrick also passes without Runwire.
+Runwire/Swoole 6.2.3 passes at one worker but **fails process ownership at two**:
+worker PIDs 7/8 receive runtime PID 1 because Runwire 2.1.1 creates the
+application/context before host forks. This native-owner defect requires a
+Runwire fix and regression coverage; no Foundation workaround or readiness claim.
+All 13 final `composer ic:ci` checks pass, including the expanded worker tests.
+Stable/lowest production consumers pass Core, database inspection, twelve full
+selected-feature configurations and trusted web/CLI/worker/scheduler generation.
+Hosted QA and performance for the new serving candidate remain pending.
+
+- [ ] Replace the built-in PHP server path with native `Runtime`, `Server` and
+  host-owned `serveApplication()` selection, using Runwire's environment probe
+  and selector. Validate configuration before compiling/publishing a generation;
+  dry-run must not open listeners or publish artifacts.
+- [ ] Make the existing trusted `FoundationReleaseBootstrap` implement native
+  `RuntimeApplicationFactoryInterface`. Its required `create(RuntimeContext)`
+  loads the generation inside the actual worker/host and forwards that exact
+  context to the existing Webrick bridge. Do not inherit a live compiled DI
+  container across prefork or add another factory/runtime engine.
+- [ ] Expose common CLI runtime/host/port/worker and protocol-policy selections
+  through native options. Runtime AUTO and protocol policy AUTO are distinct.
+  Protocol defaults remain FIXED; explicit FIXED/LATENCY/THROUGHPUT/AUTO use
+  `AdaptivePolicyMode::cases()`, preserve native protocol-specific tuning, and
+  do not raise resource/security limits. Reject options unsupported by the
+  selected host rather than pretending that its wire policy changed.
+- [ ] Retain full advanced native configuration through the same bootstrap
+  factory passed directly to Runwire's `RuntimeOptions`/`Server` APIs, including
+  HTTP/3's independent inbound/outbound policies and capability requirements;
+  do not mirror the library's option schema or implement adaptive scheduling.
+- [ ] Verify actual CLI serving, native/portable worker ownership, exact context
+  forwarding, clean shutdown and trusted releases, plus normal FPM/index.php
+  request handling without `serve`. Cover invalid selections and unavailable
+  explicit runtimes, and renew affected quality/host evidence after the change.
+
 **Hosted checkpoint, executable `3d35605`:** [Security & Standards 38917716824](https://github.com/infocyph/Foundation/actions/runs/38917716824)
 passed every required quality/production lane, and [native host smoke 38917716261](https://github.com/infocyph/Foundation/actions/runs/38917716261)
 passed. The separate manual [paired comparison 38917773579](https://github.com/infocyph/Foundation/actions/runs/38917773579)

@@ -1,5 +1,26 @@
 ## Current scope correction — Runwire is Core (2026-10-16)
 
+**2026-10-17 entrypoint checkpoint:** Native Runwire command delegation and the
+trusted bootstrap factory are implemented. Focused serving and release
+regressions pass (24 tests / 328 assertions), as do real raw-PHP,
+portable/default Runwire, Docker nginx/FPM and direct two-worker Swoole probes.
+Runwire 2.1.1 has a reproduced two-worker Swoole ownership defect: children
+receive the parent's runtime PID. The owner fix and renewed exact-source QA/host
+acceptance remain required; do not mark either hosting path fully certified.
+All 13 local `composer ic:ci` checks and stable/lowest isolated production
+consumers pass. These results do not replace the missing exact-source hosted
+and upstream lifecycle acceptance.
+
+**Entrypoint clarification:** The user requires `php infbyte serve` to delegate
+to Runwire, default to native runtime AUTO and accept native enum selections
+such as `--runtime=swoole`, while direct FPM/index.php deployment continues
+without the command. FIXED/LATENCY/THROUGHPUT/AUTO are separate native protocol
+policies. The previous command's `PHP_BINARY -S` path was a reproduced source gap;
+lower-level host benchmarks do not validate the replacement CLI entrypoint. The concrete
+native bootstrap-factory migration and required regressions are tracked in the
+[module plan's entrypoint checklist](foundation-4-module-architecture-rework-plan.md#serve-and-direct-host-entrypoints--user-clarification-2026-10-16).
+Current benchmark/QA results below do not certify this pending integration.
+
 **Hosted checkpoint, executable `3d35605`:** [Security & Standards 38917716824](https://github.com/infocyph/Foundation/actions/runs/38917716824)
 and [native host smoke 38917716261](https://github.com/infocyph/Foundation/actions/runs/38917716261)
 passed. The separate manually dispatched [paired comparison 38917773579](https://github.com/infocyph/Foundation/actions/runs/38917773579)

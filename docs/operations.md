@@ -4,16 +4,42 @@ Foundation owns application/runtime orchestration. External supervisors, web
 servers, database engines, cache engines, and queue transports remain separate
 systems rather than being reimplemented by Foundation.
 
-## Local development server
+## Serve through Runwire
 
 ```bash
 php infbyte serve
 php infbyte serve --host=localhost --port=8080
+php infbyte serve --runtime=native --workers=4 --protocol-policy=latency
+php infbyte serve --runtime=swoole --workers=4
 php infbyte serve --dry-run
+php infbyte serve --help
 ```
 
-The built-in server is for local development only. Production deployments
-should use a real web server/process manager.
+`serve` delegates serving to Runwire. With no runtime option, Runwire's native
+AUTO selector detects the environment; `--help` lists the installed
+`RuntimeDriver` enum values. Explicit unavailable runtimes fail. The command
+prepares a trusted Foundation generation and passes its bootstrap factory to
+Runwire; native workers load their own application after startup selection.
+
+Runtime AUTO is separate from `--protocol-policy=auto`. The native HTTP engine
+defaults to `fixed`; `latency`, `throughput` and `auto` preserve Runwire's
+protocol-specific tuning and limits. A host that owns its protocol engine
+rejects this option. Native workers default to one; `--workers=0` requests
+Runwire's automatic sizing. Without prefork capabilities, native serving uses
+one process and rejects counts above one. Swoole/OpenSwoole must be selected
+explicitly; an omitted worker count uses that host's native default.
+
+`--dry-run --json` reports selection without publishing a generation or starting
+a listener. Runwire owns sockets, workers and event loops. Configure advanced
+transport/TLS policies through its native APIs and the same trusted bootstrap
+factory; see [runtime hosting](runtime-hosting.md).
+
+Normal hosting remains available without the command: point PHP-FPM or an
+ordinary PHP server at Infbyte's `public/index.php`. External persistent hosts
+use Webrick's corresponding native adapter. These paths load the same trusted
+generation and keep the host's request/response lifecycle. Web servers or
+application routes handle public assets; `serve` does not reproduce PHP's
+built-in static-file server.
 
 ## Runtime and configuration inspection
 

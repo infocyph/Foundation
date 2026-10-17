@@ -303,6 +303,34 @@ it('builds activates and boots all four runtimes from one immutable Foundation g
         expect($response->getStatusCode())->toBe(200)
             ->and((string) $response->getBody())->toBe('{"generation":"phase8-e2e"}');
 
+        foundationResetWebrickProductionRegistries();
+        $bootstrap = new FoundationReleaseBootstrap($releaseRoot, $trustedFoundationSha256);
+        $hostRuntime = \Infocyph\Runwire\RuntimeContext::standalone();
+        $host = $bootstrap->create($hostRuntime);
+        $hostRequest = \Infocyph\Runwire\RequestContext::create($hostRuntime);
+        $writer = new \Infocyph\Foundation\Tests\Fixtures\RunwireCollectingWriter();
+        $host->start();
+        try {
+            $host->handle(new \Infocyph\Runwire\Http\HttpRequest(
+                method: 'GET',
+                target: '/phase8',
+                version: \Infocyph\Runwire\Http\Enum\ProtocolVersion::HTTP_1_1,
+                headers: \Infocyph\Runwire\Http\Headers::fromArray(['Host' => 'phase8.test']),
+                body: new \Infocyph\Foundation\Tests\Fixtures\RunwireEmptyBody(),
+                context: $hostRequest,
+            ), $writer, completeResponse: true);
+            expect($bootstrap)->toBeInstanceOf(\Infocyph\Runwire\Runtime\RuntimeApplicationFactoryInterface::class)
+                ->and($writer->status)->toBe(200)
+                ->and($writer->endCalls)->toBe(1)
+                ->and($writer->body)->toBe('{"generation":"phase8-e2e"}')
+                ->and($hostRequest->completed())->toBeTrue();
+        } finally {
+            $host->drain();
+            $host->shutdown();
+        }
+        expect(fn() => new FoundationReleaseBootstrap($releaseRoot, str_repeat('0', 64))->create($hostRuntime))
+            ->toThrow(RuntimeException::class);
+
         file_put_contents(
             $project . '/bootstrap/providers.php',
             "<?php\n\nthrow new RuntimeException('active release rediscovered source providers');\n",

@@ -1,5 +1,49 @@
 # Foundation 4 — Module architecture Batch 7 certification evidence
 
+## Current serving work and completed ARM repeats — 2026-10-17
+
+The serving implementation adds native Runwire command serving alongside normal
+`index.php` hosting. Focused tests pass 24 / 328 assertions. The detailed test run
+passed **782 tests / 29,780 assertions** before two additional worker scenarios;
+all **13 final `composer ic:ci` checks pass**, including the expanded suite.
+Stable/lowest no-dev consumers pass Core, database inspection, twelve full
+selected-feature configurations and trusted web/CLI/worker/scheduler generation.
+Real HTTP failure/recovery probes pass native
+prefork, native portable, raw PHP, Docker nginx/FPM and directly hosted
+two-worker Swoole. Runwire 2.1.1 with Swoole 6.2.3 has a reproduced ownership
+defect with two workers: worker PIDs 7/8 receive runtime PID 1. Its factory is
+invoked before Swoole forks. The native owner fix, affected regressions and
+exact-source hosted renewal remain required. These are implementation-stage
+results and do not certify the serving candidate for release. A separate
+Runwire-only Docker reproduction confirms the same wrong-PID context without
+any Foundation application code.
+
+The preceding committed source [`99c8921`](https://github.com/infocyph/Foundation/commit/99c89219bbbab63174b066462c636da569ccabae)
+passed [Security & Standards 38925103788](https://github.com/infocyph/Foundation/actions/runs/38925103788)
+and [native host smoke 38925108609](https://github.com/infocyph/Foundation/actions/runs/38925108609).
+Its source tree `a4fac8e7c8721195d1fb696b6d494d36cdf6ee52` matches tested merge
+`32e5bae091069db76636098506ea03776ebcf0c8`; the release-evidence archive digest
+is `sha256:7eb54083dd5000ad7e6d76f7d160d8ed20dfe98374773e6de8ee7e76b70ced8c`.
+
+The free ARM64 [paired comparison 38925110432](https://github.com/infocyph/Foundation/actions/runs/38925110432)
+completed twice on unchanged source `99c8921`, using the same lock digest
+`e6bcad0151476776a3d876d3a9948693197f940234de656df9d921cc104e8b4e`.
+Both attempts failed the unchanged 2% RPM / 2.5% CV gate:
+
+| Attempt | Pass | Stable regression | Inconclusive variance | Non-passing stable cases |
+| --- | --- | --- | --- | --- |
+| 1 | 8 | 1 | 3 | Runwire w1/c50 −2.705%, CV 0.666% |
+| 2 | 6 | 2 | 4 | FPM w1/c10 −2.339%, CV 0.793%; Runwire w1/c10 −3.656%, CV 1.655% |
+
+Passing cases from separate attempts are not combined. The repeated source did
+not reproduce the first attempt's w1/c50 classification, but the complete gate
+still fails. A pinned local Docker w1/c50 comparison measured +0.358% RPM, CV
+1.687% / 2.029%, with valid responses; it is diagnostic rather than a substitute
+for the hosted matrix. No performance defect is claimed fixed, no baseline is
+reset, and no limit is relaxed. The serving implementation needs new exact-source
+QA and host evidence after the native lifecycle issue is resolved. PR #20 remains
+draft; no merge, tag or publication.
+
 ## Current Core candidate — 2026-10-16
 
 Tested executable source: [`3d35605`](https://github.com/infocyph/Foundation/commit/3d356050bb87feeeb2861d5cb4bb13c400d798fe).

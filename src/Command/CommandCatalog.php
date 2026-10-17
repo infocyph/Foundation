@@ -14,6 +14,8 @@ use Infocyph\Foundation\Command\System\ModuleSystemCommand;
 use Infocyph\Foundation\Command\System\OAuthSystemCommand;
 use Infocyph\Foundation\Command\System\OperationsSystemCommand;
 use Infocyph\Foundation\Command\System\RuntimeSystemCommand;
+use Infocyph\Runwire\Http\Enum\AdaptivePolicyMode;
+use Infocyph\Runwire\Runtime\Enum\RuntimeDriver;
 
 final class CommandCatalog
 {
@@ -35,9 +37,12 @@ final class CommandCatalog
             new CommandDefinition('app:install', 'Install the application runtime structure.', 'Application'),
             new CommandDefinition('app:ready', 'Run deployment readiness diagnostics.', 'Application'),
             new CommandDefinition('env:show', 'Show the active application environment.', 'Application'),
-            new CommandDefinition('serve', 'Run the local development HTTP server.', 'Application')
+            new CommandDefinition('serve', 'Serve the application through Runwire.', 'Application')
                 ->option('host', 'Bind host.', acceptsValue: true)
                 ->option('port', 'Bind port.', acceptsValue: true)
+                ->option('runtime', 'Runwire runtime (default auto): ' . implode('|', array_column(RuntimeDriver::cases(), 'value')) . '.', acceptsValue: true)
+                ->option('workers', 'Runwire worker count; 0 uses its automatic sizing.', acceptsValue: true)
+                ->option('protocol-policy', 'Native HTTP protocol policy (default fixed): ' . implode('|', array_column(AdaptivePolicyMode::cases(), 'value')) . '.', acceptsValue: true)
                 ->option('dry-run', 'Validate the server configuration without starting it.'),
 
             new CommandDefinition('auth:prune', 'Prune expired and retained-revoked authentication records.', 'Authentication & Security', capabilities: ['db'])
