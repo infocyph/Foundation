@@ -130,8 +130,6 @@ jobs:
         run: |
           mkdir -p evidence
           lscpu > evidence/cpu.txt
-            evidence/*-instrumentation.patch
-            evidence/instrumentation.env
           lscpu --extended=CPU,CORE,SOCKET,ONLINE > evidence/topology.txt
           php -v > evidence/php-version.txt
           sha256sum locked-dependencies/composer.lock > evidence/composer-lock.sha256
