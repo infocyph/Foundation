@@ -1,5 +1,125 @@
 # Foundation 4 — Module architecture Batch 7 certification evidence
 
+## Final-source QA and release handoff — 2026-10-18
+
+Frozen framework, benchmark and workflow source is
+`f64cc61e9f89b8f8663b4c21220c344a04354eef`. Both
+[Security & Standards](https://github.com/infocyph/Foundation/actions/runs/39091597274)
+and [native hosting / PHP 8.4–8.5 Swoole/OpenSwoole](https://github.com/infocyph/Foundation/actions/runs/39091597067)
+finish **SUCCESS**. Local mandatory hooks and all thirteen PHPForge checks pass;
+focused transport/report/workflow coverage passes 29 tests / 138 assertions.
+The earlier 801-test detailed run precedes four additional regression cases;
+that historical count is not presented as a final-source count.
+
+Release artifact `12123154586` has digest
+`sha256:15dc63c4ba570978624ec21c960433c7b2aab614d2e50de41b7a5544479a2829`.
+Its manifest identifies source `f64cc61`, tested merge
+`0003d1c26036926cf1e00993a25a2884b868feff`, PHP 8.5.11 and reusable
+PHPForge workflow `fdec64cf4460f13116eb0e2f3405acadd3e84377`.
+The source and tested merge share tree
+`54e6aba7d735becf707c68cfcd0247bf4b856cf7`; the dependency lock remains
+`b557fba7662dba32601c3840f69f7ac394f253d729246fcba08db44e26067cb9`.
+Composer reports no advisories and no outdated direct dependencies;
+`doctrine/annotations` is an abandoned development-only dependency.
+
+[Infbyte acceptance attempt 3](https://github.com/infocyph/Infbyte/actions/runs/39090393036/attempts/3)
+finishes **SUCCESS, 13/13 jobs**, at application source
+`a8e908cb677f95fe50de5e7f2dfd0c8843d331bf`. Its actual PHP 8.5 Composer log
+records Foundation `f64cc61`; the local application uses the same source and
+passes all thirteen quality checks. A documentation-only update at
+`ba7d48519bbba5087636849f8e0957354069e76c` also passes
+[all thirteen current-head jobs](https://github.com/infocyph/Infbyte/actions/runs/39094315924).
+Infbyte's checked, unapplied stable
+Composer/README patch and release handoff are committed. Real published
+Foundation `^4.0` resolution and stable/lowest application qualification remain
+post-publication conditions; no alias or local repository simulates publication.
+
+Both package archives have been inspected: Foundation excludes development,
+tests, plans and CI files; Infbyte excludes internal QA and plans, including its
+cutover patch. Composer metadata, runtime/development dependency roles, CLI
+entrypoint, namespace and tag-derived version identity have been reviewed.
+Release notes remain an unpublished draft pending the operator's release decision.
+
+The final performance run is
+[39091593840](https://github.com/infocyph/Foundation/actions/runs/39091593840).
+It uses the same frozen dependency lock and full baseline `6274939`, and
+independently enforces two complete twelve-case matrices on standard ARM
+GitHub workers. The user explicitly retained standard workers; no paid runner,
+organization upgrade or billing change is authorized or performed. Guest CPU
+pinning and reported non-SMT topology do not establish physical-host exclusivity.
+Budgets remain <=2% median RPM regression and <=2.5% CV. No incomplete or
+selected collection of passing cases closes the full performance gate.
+Superseded runs `39090356659` and `39091030858` were cancelled for the telemetry
+and PHP-version capture corrections and are not qualification results.
+
+## Complete final performance verdict — 2026-10-18
+
+[Run 39091593840](https://github.com/infocyph/Foundation/actions/runs/39091593840)
+finishes with all **24 measurement jobs successful**, while both complete
+aggregate enforcement jobs **fail the unchanged variability gate**:
+**primary 7 pass / 5 inconclusive; confirmation 7 pass / 5 inconclusive**.
+There are no stable measured regressions. Inconclusive cases do not establish
+performance equivalence and are not accepted by substituting passing cases
+from the other batch.
+
+Independent verification of all raw and merged reports confirms **240 measured
+trials of at least 120 seconds**, **sixteen additional soak windows of at least
+120 seconds**, zero failed measured responses, exact authentication/query/cache
+accounting, live process-tree RSS samples, measured server CPU and per-worker
+response counts. All 24 case pairs have distinct runner identities, while each
+pair matches hardware, PHP, frozen dependency lock and tool/fixture identity.
+Maximum measured load-generator CPU is **2.849%**. Complete native comparison
+is recomputed independently from the downloaded merged reports with the same
+2% regression and 2.5% CV limits.
+
+| Scenario | Primary RPM change | Primary max CV | Primary verdict | Confirmation RPM change | Confirmation max CV | Confirmation verdict |
+| --- | ---: | ---: | --- | ---: | ---: | --- |
+| fpm-w1-c1 | +7.056% | 6.037% | Inconclusive | +9.069% | 2.335% | Pass |
+| fpm-w1-c10 | +6.307% | 1.418% | Pass | +7.503% | 2.899% | Inconclusive |
+| fpm-w1-c50 | +13.851% | 1.469% | Pass | +13.605% | 3.768% | Inconclusive |
+| fpm-w4-c1 | +7.703% | 2.016% | Pass | +8.857% | 1.172% | Pass |
+| fpm-w4-c10 | -1.117% | 4.579% | Inconclusive | +6.790% | 1.445% | Pass |
+| fpm-w4-c50 | +7.582% | 0.904% | Pass | -3.071% | 3.098% | Inconclusive |
+| runwire-w1-c1 | -1.981% | 3.736% | Inconclusive | -0.553% | 0.415% | Pass |
+| runwire-w1-c10 | +5.378% | 4.258% | Inconclusive | +0.616% | 1.164% | Pass |
+| runwire-w1-c50 | -1.210% | 1.769% | Pass | +7.001% | 4.049% | Inconclusive |
+| runwire-w4-c1 | +3.447% | 1.966% | Pass | -1.079% | 0.633% | Pass |
+| runwire-w4-c10 | +0.823% | 1.713% | Pass | -3.371% | 5.346% | Inconclusive |
+| runwire-w4-c50 | +1.797% | 5.191% | Inconclusive | -0.530% | 2.183% | Pass |
+
+The reproduced production FPM w4/c1 regression is resolved and independently
+confirmed: both complete batches now pass (+7.703% and +8.857%). The connection
+warm-up correction also prevents the previously observed single-worker bursts
+in these native multi-worker samples. Residual variability remains even with
+balanced request distribution and an unsaturated load generator; these facts
+do not prove the complete cause of the remaining variation or justify a new
+runtime change, workload change, discarded trial or relaxed threshold.
+
+Actual native logs in both batches verify contained HTTP failure recovery,
+client cancellation, supervisor-owned worker replacement and both post-replacement
+soak windows for each revision. Memory in the second native soak window levels
+off after replacement-worker warm-up. Direct/FPM and PHP 8.4/8.5
+Swoole/OpenSwoole acceptance is green separately. This closes functional host
+and bounded-soak acceptance, **not** stable throughput qualification.
+
+Primary aggregate artifact **12124536227**, digest
+`sha256:50de7704392742b6a015db176569b81f87599a1089069730a9c1b1aa6d8ba87f`;
+confirmation aggregate artifact **12124407008**, digest
+`sha256:c3ac16c36e9d9c196f601859ddb33f62d6c621ad1db89fd1eba43d1df98c06b8`.
+Both contain their own complete merged baseline/candidate reports and verdict;
+original raw per-case artifacts remain on the same run. The exact failing gate
+is `php benchmarks/foundation4-host-merge.php build/paired-input build/paired-comparison/comparison.json`,
+which rejects full-matrix acceptance with `Matched host comparison failed; inspect variance and regression evidence.`
+No library defect is inferred solely from a high-CV baseline or candidate.
+
+The Foundation release ledger is **35/37** after functional hosting/soak and
+reviewed notes/artifact/publication metadata. Two criteria remain open:
+stable complete-matrix performance and the dependent requirement that every
+required release gate pass. Infbyte's candidate is green; genuine stable/lowest
+published-package qualification follows Foundation publication. The user's
+standard-worker decision remains in force. Both PRs remain draft, with no merge,
+tag, publication, paid runner or billing change.
+
 ## Connection setup reproduction and correction — 2026-10-18
 
 The slow native four-worker samples below are reproducible without Foundation:
@@ -60,7 +180,7 @@ Both new subprocess suites run with `E_ALL` and reject unexpected stderr. This
 also reproduces and removes the PHP 8.4/8.5 implicit CSV-escape deprecation in
 the numeric telemetry reader by declaring its escape behavior explicitly.
 
-## Current-source hosted verification — 2026-10-18
+## Previous-source hosted verification — 2026-10-18
 
 Executable candidate `d2954021adf346aa84ffcff1c95d41678deb2a8d` passes
 [Security & Standards](https://github.com/infocyph/Foundation/actions/runs/39055130400)

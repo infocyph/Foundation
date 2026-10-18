@@ -470,7 +470,7 @@ Current evidence is recorded in [Batch 7 certification evidence](foundation-4-mo
 - [x] Inspect all 63 PR #20 inline review threads (zero unresolved, no further page), record executable `3f295de`, hosted PHP/toolchain/dependency provenance and synchronized trackers. Paired lock SHA-256: `b557fba7662dba32601c3840f69f7ac394f253d729246fcba08db44e26067cb9`. Recheck PR state before final readiness.
 - [ ] Review final module API docs, release notes/metadata and mark rework ready only after all preceding gates pass. The 3-module/8-feature v2 public contract and Composer metadata are reviewed and regression-guarded; publication approval remains withheld, candidate notes remain unpublished, and the performance-dependent decision stays open.
 
-**Current count:** B7 4/7 individually checked, 0/7 whole-batch accepted; module totals 46/49 engineering, 42/49 batch accepted. Foundation release ledger 33/37 after completing telemetry collection. Keep PR #20 draft while host performance/final acceptance remain open. Merge, tag, publication and Infbyte migration remain separate operator actions.
+**Current count:** B7 4/7 individually checked, 0/7 whole-batch accepted; module totals 46/49 engineering, 42/49 batch accepted. Foundation release ledger **35/37** after verifying telemetry, functional hosting/soaks and publication metadata; strict full-matrix performance and dependent final acceptance remain open. Keep PR #20 draft while host performance/final acceptance remain open. Merge, tag, publication and Infbyte migration remain separate operator actions.
 
 **Historical B7 checkpoints:** These preserve prior-source provenance and do not replace the current checklist.
 

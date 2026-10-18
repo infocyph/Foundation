@@ -1,3 +1,14 @@
+## Current pre-merge status — 2026-10-18
+
+Current release ledger: **35/37**. Final executable source `f64cc61` passes full hosted quality, native hosting and
+all thirteen Infbyte candidate jobs. Metadata and actual exported archives have
+been reviewed; operator approval for merge, tag or publication remains withheld.
+The user retains **standard GitHub workers**, without paid runners or billing
+changes. The full independent primary/confirmation performance gate preserves
+the <=2% RPM regression and <=2.5% CV limits. See
+[current immutable evidence](foundation-4-module-batch7-evidence.md).
+Earlier dated entries below retain historical source and result identities.
+
 ## Published Runwire worker fix adopted — 2026-10-17
 
 Runwire **2.1.2** is published and Composer-resolvable at
@@ -2795,23 +2806,31 @@ Added `docs/examples/foundation-4-compiled-release.php`, executed inside all fou
 - [x] Measure CPU, live process-tree RSS during load, p50/p95/p99 latency, errors,
   cache/query behavior, worker generation, and cleanup. Start measurement after
   readiness; do not substitute final-process RSS or a microbenchmark for host RPM.
-  Current executable `d295402` comparison
-  [39055428140](https://github.com/infocyph/Foundation/actions/runs/39055428140)
-  provides 120 primary trials, 10 independent confirmation trials and eight
-  120-second soak windows with response validation and live telemetry. All have
-  zero failed responses. This closes measurement collection only: the complete
-  matrix has seven passes, no stable regressions and five inconclusive cases;
-  independent confirmation is also inconclusive. Detailed immutable artifact
-  identities and worker-distribution evidence are in the current
-  [Batch 7 record](foundation-4-module-batch7-evidence.md). Performance
-  certification remains open. Current release ledger: **33/37**.
-- [ ] Certify the ordinary FPM path and a native Runwire 2.1.2 persistent host;
+  Final executable `f64cc61` comparison
+  [39091593840](https://github.com/infocyph/Foundation/actions/runs/39091593840)
+  provides 240 measured trials and sixteen additional 120-second soak windows,
+  all with valid authenticated/query/cache responses, live RSS, worker counts
+  and measured CPU. Generator CPU peaks at 2.849%. Both independent full
+  matrices have seven passes, five inconclusive variance cases and no stable
+  regressions. This closes collection only; strict performance remains open.
+  Immutable raw/aggregate provenance and the complete two-batch table are in
+  the [Batch 7 evidence](foundation-4-module-batch7-evidence.md).
+  Current release ledger: **35/37**.
+
+- [x] Certify the ordinary FPM path and a native Runwire 2.1.2 persistent host;
   include a bounded representative persistent-host soak with reset/cancellation/
   recycle checks. Claim other hosts only when their actual jobs pass. Existing
   execution-loop smoke tests alone do not certify a native server.
+  **Functional host acceptance verified 2026-10-18, source `f64cc61`:**
+  both independent complete matrices collect 240 sustained trials and sixteen
+  authenticated PostgreSQL/Redis soak windows, all with valid responses.
+  Native job logs verify contained failure recovery, client cancellation and
+  actual supervisor worker replacement before both soak windows. PHP 8.4/8.5
+  Swoole/OpenSwoole and direct hosting QA also pass. This closes the functional
+  hosting/soak criterion; strict RPM acceptance remains open independently.
 - [ ] Confirm all required jobs and evidence succeed on the exact final source
   and dependency set. Any source/dependency change invalidates affected evidence.
-- [ ] Prepare reviewed 4.0 release notes/artifact and verify publication metadata.
+- [x] Prepare reviewed 4.0 release notes/artifact and verify publication metadata.
   Keep implementation, CI readiness, merge, tag, and publication status separate.
 
 ## Completion boundary

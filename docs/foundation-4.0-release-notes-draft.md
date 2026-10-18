@@ -4,6 +4,21 @@
 
 > **Unpublished candidate:** PR #20 remains draft. This document is not an announcement, tag, compatibility promise, or certification. Final wording must be reviewed against the exact released source/dependency set.
 
+**Final-source QA (2026-10-18):** Source `f64cc61` passes
+[full quality and release evidence](https://github.com/infocyph/Foundation/actions/runs/39091597274),
+[native serving](https://github.com/infocyph/Foundation/actions/runs/39091597067)
+and [all thirteen Infbyte candidate checks](https://github.com/infocyph/Infbyte/actions/runs/39090393036/attempts/3).
+Publication metadata and exported archives are reviewed. The complete
+[primary and confirmation performance gate](https://github.com/infocyph/Foundation/actions/runs/39091593840)
+remains separate; standard GitHub workers and the original budgets are retained.
+See the [current provenance ledger](plans/foundation-4-module-batch7-evidence.md).
+The final run collects 240 valid measured trials and sixteen valid soak windows.
+Each complete batch has seven passing and five inconclusive cases, with no
+stable measured regressions; both aggregate jobs correctly fail the unchanged
+2.5% variability gate. Functional hosting/soak and metadata review are complete;
+the ledger is **35/37**, with strict performance and dependent release acceptance
+still open. No merge, tag or publication is authorized by these results.
+
 **Current measurement correction (2026-10-18):** A controlled native fixture
 reproduces the four-worker connection-burst imbalance. The benchmark now warms
 distinct reusable connections before starting each measured window, validates
@@ -15,7 +30,7 @@ Per-trial reports distinguish server CPU consumed within the sampled window
 from lifetime gauges and record load-generator CPU separately. This corrects
 measurement evidence without adding runtime dependencies or framework APIs.
 
-**Current production-boot correction (2026-10-17):** Production web loading now
+**Earlier production-boot checkpoint (2026-10-17):** Production web loading now
 composes each provider once and reuses that frozen InterMix graph for compiled
 loading. Regression cases reproduced two contributions before the correction;
 the focused web-release suite passes 12 tests and the full suite passes 796.
@@ -97,7 +112,7 @@ Foundation 4.0 is a deliberate breaking major release. **There are no backwards-
 
 ## Publication metadata audit (reviewed; approval withheld)
 
-The release candidate declares Composer package `infocyph/foundation`, type `library`, license `MIT`, PHP `^8.4`, Composer runtime API `^2.0`, PSR-4 root `Infocyph\\Foundation\\`, and shipped CLI entry `bin/infbyte`. The eight optional specialists are declared as suggested packages and available in `require-dev` for development/test coverage; application owners install only explicitly selected package requirements. The candidate `composer.json` does not hardcode a release `version`: Composer release identity will come from the operator-published Git tag.
+The release candidate declares Composer package `infocyph/foundation`, type `library`, license `MIT`, PHP `^8.4`, Composer runtime API `^2.0`, PSR-4 namespace `Infocyph\Foundation\`, and shipped CLI entry `bin/infbyte`. Optional specialist and passkey dependencies are declared as suggested packages and available in `require-dev` for development/test coverage; application owners install only explicitly selected package requirements. The candidate `composer.json` does not hardcode a release `version`: Composer release identity will come from the operator-published Git tag.
 
 **Documentation and dependency roles have been reviewed, but publication approval has not been granted.** The release evidence must identify the **final published source SHA**, complete resolved dependency manifest, Composer lock digest, PHP/extensions and CI runs. No tag, release asset or release date should be presented as already published. The remaining paired same-runner baseline/candidate acceptance and dependent final go/no-go decision are recorded in [Batch 7 evidence](plans/foundation-4-module-batch7-evidence.md). CI smoke and synthetic benchmark results are not substitutes.
 
