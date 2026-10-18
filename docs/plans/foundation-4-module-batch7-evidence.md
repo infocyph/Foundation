@@ -1,5 +1,105 @@
 # Foundation 4 — Module architecture Batch 7 certification evidence
 
+## Latest complete release qualification — 2026-10-18
+
+[Complete run 39107981903](https://github.com/infocyph/Foundation/actions/runs/39107981903)
+uses immutable measurement source `bc7d177c79d1354e25b40d699894dc96dc2bcc13`,
+baseline `6274939c395f75e5cf777aad5d7439f10792758c` and common lock
+`b557fba7662dba32601c3840f69f7ac394f253d729246fcba08db44e26067cb9`.
+All **24 collection jobs succeed**, while both native complete-matrix
+aggregate jobs correctly **FAIL** the existing budgets:
+**primary 4 pass / 7 inconclusive / 1 regression; confirmation 8 pass / 4 inconclusive**.
+The Foundation release ledger remains **35/37**. This PR is not release-ready.
+
+Independent verification covers all **240 measured trials >=120 seconds** and
+**sixteen additional soak windows >=120 seconds**. Every measured response is
+valid: zero failures, verified authentication, query/cache counts and actual
+worker request accounting. Both variants in all 24 pairs record actual
+controller CPU 0, load CPU 0 and backend CPU 1. Continuous process-tree RSS,
+interval server CPU and independent generator CPU are present. Generator CPU
+peaks at **2.768%**. Each pair matches its hardware/PHP/tool/fixture/dependency
+identity; all 24 case-runner identities are distinct. Native comparison is
+independently recomputed from both complete merged artifacts. No cases are
+selected across batches or attempts.
+
+| Scenario | Primary RPM change | Primary max CV | Primary verdict | Confirmation RPM change | Confirmation max CV | Confirmation verdict |
+| --- | ---: | ---: | --- | ---: | ---: | ---: |
+| fpm-w1-c1 | +12.415% | 2.977% | Inconclusive | +6.412% | 1.469% | Pass |
+| fpm-w1-c10 | +7.305% | 0.874% | Pass | +3.072% | 2.466% | Pass |
+| fpm-w1-c50 | +14.292% | 3.712% | Inconclusive | +4.919% | 2.214% | Pass |
+| fpm-w4-c1 | +8.933% | 0.649% | Pass | +3.157% | 1.539% | Pass |
+| fpm-w4-c10 | +1.387% | 3.408% | Inconclusive | +3.497% | 2.045% | Pass |
+| fpm-w4-c50 | +6.751% | 1.287% | Pass | +4.822% | 6.313% | Inconclusive |
+| runwire-w1-c1 | +4.458% | 2.587% | Inconclusive | -1.395% | 3.739% | Inconclusive |
+| runwire-w1-c10 | -2.023% | 3.484% | Inconclusive | -1.327% | 3.614% | Inconclusive |
+| runwire-w1-c50 | +1.094% | 2.778% | Inconclusive | -3.547% | 2.698% | Inconclusive |
+| runwire-w4-c1 | -4.722% | 2.279% | Regression | +0.093% | 0.427% | Pass |
+| runwire-w4-c10 | +0.909% | 1.442% | Pass | -1.615% | 1.244% | Pass |
+| runwire-w4-c50 | +3.539% | 5.909% | Inconclusive | +0.742% | 0.283% | Pass |
+
+Primary Runwire w4/c1 measures -4.722% RPM at maximum CV 2.279%, so its
+native verdict remains a regression. The independent confirmation passes
++0.093% at CV 0.427%; the slowdown does not reproduce in that confirmation.
+This is not a runtime fix and does not close the failed primary budget.
+Controller isolation is now verified, but residual variance remains. Its
+complete cause is not established, so no speculative runtime change, discarded
+trial, workload substitution or relaxed budget is introduced.
+
+Primary aggregate artifact **12129999859**, digest
+`sha256:208140e8e327453b191e07fc9462bd9eab4ab74c6472aaa974f5968419199e64`;
+confirmation aggregate artifact **12130174418**, digest
+`sha256:8d24a46778a7fad012b75b3ae96c6daba728a59d123d132157c639c801002d2c`.
+The frozen lock artifact is **12129296791**, digest
+`sha256:15cabbaabd10e7fc38e1954f7240b773366fd1d0f98ab86f4d8b7523ae2963b9`.
+All original raw reports, sample CSVs and environment records remain on the run.
+The failing command is the unchanged
+`php benchmarks/foundation4-host-merge.php build/paired-input build/paired-comparison/comparison.json`.
+
+### Current code, quality and packaging evidence
+
+Source `a2db6d88f0927f03ea865baf29ed2ffe5681b884` passes
+[all normal quality/release-evidence jobs](https://github.com/infocyph/Foundation/actions/runs/39108543643)
+and [native/FPM plus PHP 8.4/8.5 Swoole/OpenSwoole hosting](https://github.com/infocyph/Foundation/actions/runs/39108543430),
+including all lowest/stable QA lanes. The isolated real lowest-dependency
+reproduction also confirms the test cleanup fix: original code exits 1 on
+Symfony Filesystem 6.4.0 deprecation; corrected code exits 0 with 5 tests / 43
+assertions and deprecations enforced. Local complete detailed quality passes
+806 tests / 29,918 assertions, with all normal commit hooks and thirteen quality
+checks passing. Direct dependencies are current, stable runtime constraints
+pass, and Composer reports no advisories; abandoned `doctrine/annotations`
+remains development-only.
+
+Artifact **12130280479**, digest
+`sha256:3c624006fb5c76c1001a12710ccd0557ab7ca358a3d01631e4f5e7983fb89a51`,
+identifies source `a2db6d8`, tested CI merge
+`a1dad95cae760ac3e158185f47cb656da61c17c8`, matching tree
+`de2824cc37977a45872b5051a08a0704cfd9c444`, PHP 8.5.11 and PHPForge
+workflow `fdec64cf4460f13116eb0e2f3405acadd3e84377`.
+Its dependency lock matches the measurement lock above.
+
+Framework, template, benchmark, workflow and dependency files are byte-identical
+between `bc7d177` and `a2db6d8`; the latter changes only test teardown and evidence.
+Their execution-related Git trees are identical: `.github`
+`dfadfc572ca8fe4ffeef302d43608e624c40b7f9`, benchmarks
+`c207d53afc2625e5e32d9e10ddd6ee6b6fce839d`, resources
+`fffdc335c5faeaa82e651670774f7e014a821b68`, source
+`dd8774589cd77b5ba08df0a10ad69e1d81f1cd8f`, and Composer manifest blob
+`1251db9b50146d13ebec7808c52ab245907bdd5a`.
+The reviewed 2,090-entry package archive has digest
+`sha256:ad46992a391cce7dc7b9c58775e09409a29eb07fb1ad519d0e7997b2fa6422e7`;
+required Core packages, namespace, CLI and tag-derived version metadata match
+the contract, while tests, plans, CI and vendor files are excluded.
+
+Release notes are consolidated around the final Foundation 4 contracts and
+linked from the documentation index; historical measurement details stay in
+this ledger. The notes remain an unpublished draft. Final documentation-only
+changes do not change measured execution files; their exact-head quality must
+still be verified separately. Two release criteria remain open: stable complete
+performance qualification and dependent all-gates acceptance. Standard workers
+remain selected; no paid resource, merge, tag or publication is performed.
+Infbyte's actual published Foundation cutover remains deferred until Foundation
+is released. No PHPForge candidate-policy change is made.
+
 ## Controller isolation correction — 2026-10-18
 
 The user selected Foundation-first finalization, without merge, tag or
@@ -92,7 +192,7 @@ selected collection of passing cases closes the full performance gate.
 Superseded runs `39090356659` and `39091030858` were cancelled for the telemetry
 and PHP-version capture corrections and are not qualification results.
 
-## Complete final performance verdict — 2026-10-18
+## Previous complete performance verdict — 2026-10-18
 
 [Run 39091593840](https://github.com/infocyph/Foundation/actions/runs/39091593840)
 finishes with all **24 measurement jobs successful**, while both complete

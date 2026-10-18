@@ -1,64 +1,17 @@
 # Foundation 4.0 — Release candidate notes (draft)
 
-> **Core runtime correction (2026-10-17):** Runwire `^2.1.2` is required in production and integrated as Core. Its published patch constructs Swoole/OpenSwoole applications and contexts inside their actual workers. The optional `execution.runtime` feature is removed; the current catalog has three groups/eight features. Prior `60a7951` QA and performance results precede this change and do not certify this working tree.
+Foundation 4 is the framework composition, policy and application-lifecycle
+layer used by Infbyte. This is a breaking major release with current native
+library contracts, required Core Runwire, explicit optional features and trusted
+compiled generations.
 
-> **Unpublished candidate:** PR #20 remains draft. This document is not an announcement, tag, compatibility promise, or certification. Final wording must be reviewed against the exact released source/dependency set.
-
-**Final-source QA (2026-10-18):** Source `f64cc61` passes
-[full quality and release evidence](https://github.com/infocyph/Foundation/actions/runs/39091597274),
-[native serving](https://github.com/infocyph/Foundation/actions/runs/39091597067)
-and [all thirteen Infbyte candidate checks](https://github.com/infocyph/Infbyte/actions/runs/39090393036/attempts/3).
-Publication metadata and exported archives are reviewed. The complete
-[primary and confirmation performance gate](https://github.com/infocyph/Foundation/actions/runs/39091593840)
-remains separate; standard GitHub workers and the original budgets are retained.
-See the [current provenance ledger](plans/foundation-4-module-batch7-evidence.md).
-The final run collects 240 valid measured trials and sixteen valid soak windows.
-Each complete batch has seven passing and five inconclusive cases, with no
-stable measured regressions; both aggregate jobs correctly fail the unchanged
-2.5% variability gate. Functional hosting/soak and metadata review are complete;
-the ledger is **35/37**, with strict performance and dependent release acceptance
-still open. No merge, tag or publication is authorized by these results.
-
-**Current measurement correction (2026-10-18):** A controlled native fixture
-reproduces the four-worker connection-burst imbalance. The benchmark now warms
-distinct reusable connections before starting each measured window, validates
-warm-up responses and retains per-worker evidence. Native libraries and runtime
-policies are unchanged. Independent full primary/confirmation host matrices
-must both pass the existing budgets before release acceptance; local setup
-diagnostics alone do not close this gate.
-Per-trial reports distinguish server CPU consumed within the sampled window
-from lifetime gauges and record load-generator CPU separately. This corrects
-measurement evidence without adding runtime dependencies or framework APIs.
-
-**Earlier production-boot checkpoint (2026-10-17):** Production web loading now
-composes each provider once and reuses that frozen InterMix graph for compiled
-loading. Regression cases reproduced two contributions before the correction;
-the focused web-release suite passes 12 tests and the full suite passes 796.
-[Exact-source QA](https://github.com/infocyph/Foundation/actions/runs/39055130400),
-[native serving](https://github.com/infocyph/Foundation/actions/runs/39055129960)
-and [Infbyte's 13-job integration](https://github.com/infocyph/Infbyte/actions/runs/39048507633/attempts/2)
-pass against `d295402`. The renewed
-[complete performance comparison](https://github.com/infocyph/Foundation/actions/runs/39055428140)
-has **7 passes, 0 stable regressions and 5 inconclusive cases**. Stable FPM
-cases improve 1.924–13.026%, but the independent FPM confirmation also exceeds
-the 2.5% CV limit. All 130 measured trials and eight 120-second soak windows
-have zero failed responses. Uneven native Runwire worker distribution is
-observed in slow trials; its cause remains under investigation. Performance
-acceptance stays open, with budgets unchanged and the release ledger at 33/37.
-
-**Earlier pre-merge checkpoint (2026-10-17):** Foundation `cdefa10`, with executable
-code unchanged from `3f295de`, has
-[fully green PHP 8.4/8.5 stable/lowest QA, analysis, production consumers and release evidence](https://github.com/infocyph/Foundation/actions/runs/39048504642)
-and [all four Swoole/OpenSwoole serving lanes](https://github.com/infocyph/Foundation/actions/runs/39048504621).
-The complete [ARM CPU-controlled comparison](https://github.com/infocyph/Foundation/actions/runs/39047995755)
-has six passing cases, two measured FPM regressions and four inconclusive cases.
-All 120 measured trials and eight soak windows have zero failed responses;
-performance acceptance remains open under the unchanged 2% regression and 2.5%
-variance limits. The release
-ledger is 33/37 after completing telemetry collection; stable sustained host
-performance and final acceptance remain open. No throughput fix is claimed.
-Native integration/security/state evidence has been revalidated. See
-[current Batch 7 evidence](plans/foundation-4-module-batch7-evidence.md).
+This remains an **unpublished draft**. PR #20 is not yet release-ready: the strict
+complete-matrix performance gate and dependent final acceptance remain open.
+Current source, quality results, immutable dependency/artifact identities and
+all performance verdicts are recorded in the
+[release audit](plans/foundation-4.0-release-audit-and-plan.md) and
+[Batch 7 evidence](plans/foundation-4-module-batch7-evidence.md).
+No merge, tag, publication or release date is announced by these notes.
 
 ## Core runtime and architecture
 
@@ -68,6 +21,18 @@ Native integration/security/state evidence has been revalidated. See
 - Runwire is a required Core dependency with always-available native integration across supported environments. Foundation uses the host-owned RuntimeContext/RequestContext and native Webrick/InterMix integration; it does not add a competing server or coroutine scheduler.
 - Published CacheLayer 4.0.1, DBLayer 6.1.1 and Omnibus 3.0.1 provide context sharing and native operation providers. Ordinary Foundation-created database and messaging services receive the active host context; redundant Foundation operation wrappers are removed.
 - Optional specialist capabilities must be explicitly selected. Installation of an optional Composer package alone does not activate its framework integration.
+
+## Serving and host ownership
+
+- In Infbyte, `php infbyte serve` delegates to Runwire's native host selection;
+  `php infbyte serve --runtime=swoole` explicitly selects the Swoole-family host.
+  Driver detection, protocol policies, workers and event loops remain Runwire-owned.
+- Ordinary PHP/FPM or externally managed servers can continue through the normal
+  application `public/index.php` entrypoint without running `serve`. Shared,
+  dedicated, Docker and local deployments use the same framework contracts.
+- The active native runtime and request/task scope are forwarded through Core
+  services and selected libraries, including intermediary callers. Capability
+  checks retain normal synchronous paths where the host lacks a capability.
 
 ## Foundation 4 module CLI and breaking selection contract
 
@@ -104,7 +69,7 @@ The former 11-entry public module catalog and its unqualified installable aliase
 - Optional selected specialists: DBLayer `^6.1.1`, Epicrypt `^3.2`, Omnibus `^3.0.1`, OTP `^7.0`, Pathwise `^4.2`, ReqShield `^3.3`, TalkingBytes `^2.3`; passkey feature uses compatible WebAuthn dependencies.
 - The WebAuthn passkey feature requires `web-auth/webauthn-lib` `^5.3.9`; `opis/closure` `^4.5` and PHPForge remain development/engineering dependencies, not required Core runtime packages.
 - Optional transitive compatibility floors exclude PHP 8.4/8.5 implicit-nullability deprecations: Flysystem Local 3.25.1, MIME detection 1.16, PSR HTTP Factory 1.1, PKI Framework 1.6.2, Symfony Clock/PropertyAccess/PropertyInfo/Serializer/UID 6.4.3 (also excluding 7.0.0–7.0.2), and PHP 8.3 polyfill 1.30. Composer applies these conflicts when the package is present; optional feature installation remains explicit.
-- Development and production `--no-dev` configurations build standalone Foundation releases; unrelated Infbyte application migration is not included.
+- Development and production `--no-dev` configurations build standalone Foundation releases. Infbyte's stable dependency cutover follows actual Foundation 4 publication; application publication is a separate release.
 
 ## Major-version contract
 
@@ -118,18 +83,32 @@ The release candidate declares Composer package `infocyph/foundation`, type `lib
 
 ## Certification still required before publication
 
-FPM and native Runwire have passed real HTTP smoke, cancellation, error recovery, worker replacement and bounded selected-native read/credential-cache soak on the candidate. These are shared-runner **smoke** results, not controlled sustained baseline-vs-candidate RPM or production-equivalent memory/latency certification. Production service backup/disaster recovery also requires deployment-specific validation. Release certification remains open. See the [release audit and plan](plans/foundation-4.0-release-audit-and-plan.md). Publish only after all applicable release gates pass on the final immutable source and dependency set.
+FPM, native Runwire and PHP 8.4/8.5 Swoole/OpenSwoole functional hosting have
+passed actual request, error-recovery and lifecycle checks. Bounded authenticated
+PostgreSQL/Redis soaks also cover cancellation recovery and native supervisor
+worker replacement. These results establish functional hosting and bounded-soak
+behavior; they do not establish stable throughput equivalence or capacity for an
+unmeasured production deployment.
 
-Final release notes must contain the exact published source SHA, resolved dependency manifest and Composer lock hash, confirmed selected feature support, controlled baseline/candidate comparison artifacts (five sustained ≥60-second correct-response repetitions after ≥30 seconds of warm-up per FPM/Runwire case, stable variance and no greater than 2% successful-RPM regression), representative authenticated/database/cache workload metrics, and reviewed publication metadata. Until stable comparable measurements pass and the final acceptance decision is recorded, this document remains an **unpublished draft**; passing GitHub-runner smoke must not be described as release certification.
+The user selected standard GitHub workers, with Docker available for local
+verification. The current standard workflow collects **five runs of at least
+120 seconds** after 60-second warm-up for each revision/case, plus sixteen
+120-second soak windows across independent primary and confirmation batches.
+The full matrix is FPM/Runwire, one/four workers and concurrency 1/10/50.
+Each baseline/candidate pair shares its runner, dependency lock, tools and
+isolated equivalent PostgreSQL/Redis data. Confirmation reverses variant order.
+Cold compilation, first readiness and CLI measurements are reported separately.
 
-### Pre-merge measurement environment (2026-10-16)
+Acceptance preserves the **2.5% maximum coefficient of variation** and unchanged
+**2% median** successful-RPM budget. A case exceeding the 2% successful-RPM regression
+budget or the variability limit prevents complete-matrix acceptance. No subset
+of passing cases, short smoke run or invalid response replaces this gate.
+Production service backup/disaster recovery also requires deployment-specific
+validation.
 
-The user selected GitHub Actions for the matched host comparison and Docker for
-local verification. Each GitHub scenario runs the frozen baseline and candidate
-sequentially on the same runner with one dependency lock, identical benchmark
-tools and isolated equivalent PostgreSQL datasets plus Redis. The matrix covers
-FPM/Runwire, one/four workers and concurrency 1/10/50, with five runs of at least
-60 seconds after a separately recorded 30-second warm-up, a 2.5% maximum coefficient of variation and the unchanged 2% median
-successful-RPM regression budget. Cold compile/first-ready-request and CLI
-measurements are reported separately. This approval selects the pre-merge test
-environment; it does not establish capacity for an unmeasured production deployment.
+Before publication, the release evidence must identify the final published
+source SHA, complete resolved dependency manifest, Composer lock digest,
+PHP/extensions, actual supported hosts and exact CI/qualification artifacts.
+Publish only after every applicable release gate passes on the final source and
+dependency set and the operator approves the release. Until then, these notes
+remain an **unpublished draft**.

@@ -1,20 +1,30 @@
 ## Current pre-merge status — 2026-10-18
 
-Current release ledger: **35/37**. Final executable source `f64cc61` passes full hosted quality, native hosting and
-all thirteen Infbyte candidate jobs. Metadata and actual exported archives have
-been reviewed; operator approval for merge, tag or publication remains withheld.
-The user retains **standard GitHub workers**, without paid runners or billing
-changes. The full independent primary/confirmation performance gate preserves
-the <=2% RPM regression and <=2.5% CV limits. See
-[current immutable evidence](foundation-4-module-batch7-evidence.md).
-The paired benchmark controller now has a reproduced CPU-isolation correction:
-it and its telemetry children run on the load CPU, while native servers retain
-their separate CPU masks. The actual workflow regression fails before the
-correction and passes afterwards. Renew full hosted quality and both complete
-performance matrices; previous results do not certify the changed measurement
-controls. No throughput or variance improvement is inferred from this test.
+Current release ledger: **35/37**. Normal quality, lowest/stable dependencies,
+native/FPM hosting, PHP 8.4/8.5 Swoole/OpenSwoole, notes and publication metadata
+are verified. The PR remains **not release-ready** because strict performance
+qualification and dependent all-gates acceptance remain open.
 
-Earlier dated entries below retain historical source and result identities.
+[Complete standard-worker run 39107981903](https://github.com/infocyph/Foundation/actions/runs/39107981903)
+verifies measurement source `bc7d177`: 240 valid sustained trials, sixteen valid
+soak windows, actual controller affinity and no measured response failures.
+Both complete aggregate jobs fail: primary **4 pass / 7 inconclusive / 1
+regression**, confirmation **8 pass / 4 inconclusive**. The primary native
+w4/c1 slowdown does not reproduce in its independent confirmation, but the
+failed case remains in the release verdict. Budgets stay <=2% RPM regression
+and <=2.5% CV; no passing cases are mixed across batches or attempts.
+
+Current code/test source `a2db6d8` passes all normal hosted checks and fixes the
+lowest-dependency cleanup deprecation. Framework, resource, benchmark, workflow
+and dependency files are identical to measured source `bc7d177`. Final
+source/dependency identities, native comparator verdicts, raw artifact digests
+and full per-case metrics are in the
+[current evidence](foundation-4-module-batch7-evidence.md).
+
+The user selected Foundation-first finalization on standard GitHub workers.
+Infbyte's published-package cutover is deferred; no PHPForge candidate-policy
+change is made. Merging, tagging and publication remain unauthorized. Earlier
+dated entries below retain their historical source and result identities.
 
 ## Published Runwire worker fix adopted — 2026-10-17
 
@@ -2813,22 +2823,22 @@ Added `docs/examples/foundation-4-compiled-release.php`, executed inside all fou
 - [x] Measure CPU, live process-tree RSS during load, p50/p95/p99 latency, errors,
   cache/query behavior, worker generation, and cleanup. Start measurement after
   readiness; do not substitute final-process RSS or a microbenchmark for host RPM.
-  Final executable `f64cc61` comparison
-  [39091593840](https://github.com/infocyph/Foundation/actions/runs/39091593840)
+  Current measurement source `bc7d177` comparison
+  [39107981903](https://github.com/infocyph/Foundation/actions/runs/39107981903)
   provides 240 measured trials and sixteen additional 120-second soak windows,
-  all with valid authenticated/query/cache responses, live RSS, worker counts
-  and measured CPU. Generator CPU peaks at 2.849%. Both independent full
-  matrices have seven passes, five inconclusive variance cases and no stable
-  regressions. This closes collection only; strict performance remains open.
-  Immutable raw/aggregate provenance and the complete two-batch table are in
-  the [Batch 7 evidence](foundation-4-module-batch7-evidence.md).
+  all with valid authenticated/query/cache responses, live RSS, worker counts,
+  interval CPU and actual controller affinity. Generator CPU peaks at 2.768%.
+  Primary is 4 pass / 7 inconclusive / 1 regression; confirmation is 8 pass /
+  4 inconclusive. This closes collection only; strict performance remains open.
+  Complete source/lock/artifact provenance is in the
+  [Batch 7 evidence](foundation-4-module-batch7-evidence.md).
   Current release ledger: **35/37**.
 
 - [x] Certify the ordinary FPM path and a native Runwire 2.1.2 persistent host;
   include a bounded representative persistent-host soak with reset/cancellation/
   recycle checks. Claim other hosts only when their actual jobs pass. Existing
   execution-loop smoke tests alone do not certify a native server.
-  **Functional host acceptance verified 2026-10-18, source `f64cc61`:**
+  **Functional host acceptance renewed 2026-10-18, measured source `bc7d177`:**
   both independent complete matrices collect 240 sustained trials and sixteen
   authenticated PostgreSQL/Redis soak windows, all with valid responses.
   Native job logs verify contained failure recovery, client cancellation and
