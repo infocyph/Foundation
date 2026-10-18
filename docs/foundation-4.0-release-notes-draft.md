@@ -4,11 +4,29 @@
 
 > **Unpublished candidate:** PR #20 remains draft. This document is not an announcement, tag, compatibility promise, or certification. Final wording must be reviewed against the exact released source/dependency set.
 
+**Current measurement correction (2026-10-18):** A controlled native fixture
+reproduces the four-worker connection-burst imbalance. The benchmark now warms
+distinct reusable connections before starting each measured window, validates
+warm-up responses and retains per-worker evidence. Native libraries and runtime
+policies are unchanged. Independent full primary/confirmation host matrices
+must both pass the existing budgets before release acceptance; local setup
+diagnostics alone do not close this gate.
+
 **Current production-boot correction (2026-10-17):** Production web loading now
 composes each provider once and reuses that frozen InterMix graph for compiled
 loading. Regression cases reproduced two contributions before the correction;
 the focused web-release suite passes 12 tests and the full suite passes 796.
-Renewed exact-source hosted and sustained performance verification is required.
+[Exact-source QA](https://github.com/infocyph/Foundation/actions/runs/39055130400),
+[native serving](https://github.com/infocyph/Foundation/actions/runs/39055129960)
+and [Infbyte's 13-job integration](https://github.com/infocyph/Infbyte/actions/runs/39048507633/attempts/2)
+pass against `d295402`. The renewed
+[complete performance comparison](https://github.com/infocyph/Foundation/actions/runs/39055428140)
+has **7 passes, 0 stable regressions and 5 inconclusive cases**. Stable FPM
+cases improve 1.924–13.026%, but the independent FPM confirmation also exceeds
+the 2.5% CV limit. All 130 measured trials and eight 120-second soak windows
+have zero failed responses. Uneven native Runwire worker distribution is
+observed in slow trials; its cause remains under investigation. Performance
+acceptance stays open, with budgets unchanged and the release ledger at 33/37.
 
 **Earlier pre-merge checkpoint (2026-10-17):** Foundation `cdefa10`, with executable
 code unchanged from `3f295de`, has

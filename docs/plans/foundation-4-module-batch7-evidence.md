@@ -1,5 +1,127 @@
 # Foundation 4 — Module architecture Batch 7 certification evidence
 
+## Connection setup reproduction and correction — 2026-10-18
+
+The slow native four-worker samples below are reproducible without Foundation:
+a native Runwire fixture with CPU-bound requests, four workers and two server
+CPUs sometimes accepts the initial client connection burst entirely in one
+worker. Ten burst trials at each concurrency 10/50 have RPM CV 27.336% / 26.503%
+and include single-worker samples. No native-library defect is inferred from
+that connection arrival pattern.
+
+The common load harness now opens fresh HTTP/1.1 connections at 5 ms intervals,
+validates one complete response on each, retains the bounded native cURL
+connection cache and starts the measurement clock only afterwards. Keep-alive,
+server accept batching, native worker/event-loop ownership, application workload,
+required measured responses and performance budgets are unchanged. Warm-up
+responses are excluded from measured RPM, query/cache counts and latency; invalid
+warm-up responses fail collection. Raw and merged reports retain successful
+response counts by actual worker PID, connection warm-up evidence and new
+connection counts during measurement. The common fixture identity becomes
+`foundation-auth-postgres-redis-v2-warm-connections`; both revisions use it.
+Redis prefixes also use the variant's isolated database identifier, preventing
+baseline/candidate fixture cache keys from overlapping on their shared Redis
+service. The seeded data, response and authentication/authorization work remain
+equivalent.
+
+The controlled local ramp trials use all four workers in all 20 samples;
+CV is 0.717% / 1.025%. These are setup diagnostics, not application acceptance
+or a production RPM claim. Real-HTTP regressions reproduce the missing warm
+connection boundary before the change. Authenticated and minimal-response paths
+verify connection reuse and exact measured counts; hostile warm-up and measured
+response evidence remains rejected.
+The focused transport/comparison/release guard suite passes 25 tests / 106
+assertions, and the detailed full suite passes 801 tests / 29,880 assertions.
+
+The permanent manual host workflow now carries the tested CPU allocation from
+the diagnostic workflow into ordinary release qualification: load CPU 0,
+backends CPU 1 and server CPUs 2 / 2,3. It refuses reported SMT/shared-core
+allocations. Independent **primary and confirmation full matrices** each use
+five 120-second trials after 60-second server warm-up, retain both 120-second
+soak windows per four-worker host and enforce the original <=2% regression /
+<=2.5% CV limits. Confirmation reverses baseline/candidate order. Each batch
+downloads only its own twelve artifacts and independently runs the unchanged
+complete-matrix comparator. No green collection job substitutes for enforcement.
+Local and hosted checks on the final source must pass before any open release
+criterion is closed; earlier immutable measurements below remain historical.
+
+## Current-source hosted verification — 2026-10-18
+
+Executable candidate `d2954021adf346aa84ffcff1c95d41678deb2a8d` passes
+[Security & Standards](https://github.com/infocyph/Foundation/actions/runs/39055130400)
+and [native hosting plus PHP 8.4/8.5 Swoole/OpenSwoole serving](https://github.com/infocyph/Foundation/actions/runs/39055129960).
+[Infbyte candidate acceptance, attempt 2](https://github.com/infocyph/Infbyte/actions/runs/39048507633/attempts/2)
+passes all 13 jobs at application source `fcc2824`; Composer's job logs confirm
+Foundation `d295402`. Infbyte's local installation is refreshed to that same
+Foundation source; its focused lifecycle, release-entrypoint and module
+integration suite passes 13 tests / 86 assertions; its full suite passes
+51 tests / 395 assertions with local socket capability access. Composer reports no security
+advisories; abandoned development-only `doctrine/annotations` remains reported.
+
+Foundation QA artifact `12108919105` has digest
+`sha256:cbae3e13bfc0cc1ee1d353e89f452d88c4a43bf71ce3fe9cb429633f553bf3f9`.
+It records source `d295402` and tested merge
+`0a6b51da61747a2691168a7d932f54b478820dd7`, sharing source tree
+`4afcb8ce53956cbd02b50a6fd5a9b0d349dc2796`.
+
+The [complete CPU-controlled ARM comparison](https://github.com/infocyph/Foundation/actions/runs/39055428140)
+finishes with **7 pass, 0 stable regressions, 5 inconclusive cases**. All 13
+measurement jobs succeed; the aggregate acceptance job correctly fails.
+The comparison uses frozen baseline `6274939c395f75e5cf777aad5d7439f10792758c`,
+candidate `d295402`, common tooling `60372849940ec5bdddc83095c278660855f5be66`
+and dependency lock
+`b557fba7662dba32601c3840f69f7ac394f253d729246fcba08db44e26067cb9`.
+Every primary pair shares a runner, PHP version and dependency/tool identity.
+All 120 primary trials and 10 separate confirmation trials meet the five-trial,
+60-second measurement and 30-second warm-up requirements, with validated
+authentication, database queries, cache hits and live process-tree RSS samples.
+All eight additional soak windows run for at least 120 seconds. Failed responses
+are zero throughout; these correctness results do not close throughput acceptance.
+
+| Scenario | Median successful-RPM change | Maximum CV | Verdict |
+| --- | ---: | ---: | --- |
+| FPM w1/c1 | +13.026% | 1.543% | Pass |
+| FPM w1/c10 | +9.818% | 0.547% | Pass |
+| FPM w1/c50 | +7.540% | 1.220% | Pass |
+| FPM w4/c1 | +6.742% | 2.582% | Inconclusive |
+| FPM w4/c10 | +1.924% | 1.928% | Pass |
+| FPM w4/c50 | +7.575% | 2.107% | Pass |
+| Runwire w1/c1 | -0.624% | 1.193% | Pass |
+| Runwire w1/c10 | -1.794% | 3.481% | Inconclusive |
+| Runwire w1/c50 | +1.522% | 3.093% | Inconclusive |
+| Runwire w4/c1 | +0.968% | 0.671% | Pass |
+| Runwire w4/c10 | +7.085% | 15.125% | Inconclusive |
+| Runwire w4/c50 | -1.819% | 15.555% | Inconclusive |
+
+The independent FPM w4/c1 confirmation is also **inconclusive**: +0.847% median
+RPM, baseline CV 1.873% and candidate CV 6.778%. Its green measurement job
+only confirms successful collection and response validation. It does not enforce
+the performance budget and must not be represented as performance acceptance or
+substituted for a primary case. Stable FPM cases improve after graph reuse;
+the remaining noisy FPM case has not yet received stable independent confirmation.
+
+Worker identities in raw successful-response telemetry establish an additional
+source of variation: baseline Runwire w4/c10 trial 2 sends all 4,518 responses
+to one worker (4,508.92 RPM); candidate trial 3 sends all 4,149 to one worker
+(4,139.55 RPM). Candidate w4/c50 trial 5 similarly sends all 4,233 responses to
+one worker (4,183.50 RPM), while trials using several workers exceed 6,400 RPM.
+The recorded worker counts sum to successful responses in every measured trial.
+This establishes uneven request distribution, not its complete cause or a
+Foundation regression. A bounded local native-Runwire probe compares existing
+accept-batch settings 32 and 1 over ten connection bursts at each concurrency
+10/50; both remain uneven, so no listener-policy change or workaround is adopted.
+Runwire retains ownership of connection acceptance and worker scheduling.
+
+Primary aggregate artifact `12110210969` has digest
+`sha256:847c7af5fc2ac86b411fbb8f81898fd507c4c3141312e6d7dca02eaa9d0b4477`.
+Independent confirmation artifact `12109209784` has digest
+`sha256:c9df39a40d64bc8a7110cd9173fb3327e9f65734057af1c4fd44be8e058831b3`.
+The original per-case raw artifacts remain attached to the same run. Preserve
+all results together; do not merge passing cases across runs or relax the
+2% regression / 2.5% CV budgets. The ledger remains **33/37**. Release blockers
+remain stable complete-matrix performance, independent confirmation and final
+sign-off; Infbyte's genuine stable/lowest resolution follows Foundation publication.
+
 ## Production graph reuse correction — 2026-10-17
 
 The unchanged FPM w4/c1 candidate reproduces its regression independently:
@@ -22,10 +144,10 @@ production loader and its compiled-identity checks. This removes the second
 composition pass while retaining Core inputs and native specialist providers.
 
 The focused web-release suite passes 12 tests / 113 assertions; the full suite
-passes 796 tests / 29,842 assertions. Final quality hooks, new exact-source
-hosted QA/serving, Infbyte integration and full paired performance measurements
-must validate the correction before acceptance. Earlier `9fbd8cd` quality and
-`3f295de` performance results below precede this runtime change.
+passes 796 tests / 29,842 assertions. Final quality hooks, exact-source hosted
+QA/serving and Infbyte integration pass; complete paired performance acceptance
+remains open as recorded above. Earlier `9fbd8cd` quality and `3f295de`
+performance results below precede this runtime change.
 
 ## Coordinated Foundation / Infbyte release preparation — 2026-10-17
 

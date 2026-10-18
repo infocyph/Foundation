@@ -2795,10 +2795,16 @@ Added `docs/examples/foundation-4-compiled-release.php`, executed inside all fou
 - [x] Measure CPU, live process-tree RSS during load, p50/p95/p99 latency, errors,
   cache/query behavior, worker generation, and cleanup. Start measurement after
   readiness; do not substitute final-process RSS or a microbenchmark for host RPM.
-  Complete reports from comparison `39010682913` provide 120 measured trials
-  and eight 120-second soak windows with response validation and live telemetry.
-  This closes measurement collection only; four high-variance cases still block
-  performance certification. Current release ledger: **33/37**.
+  Current executable `d295402` comparison
+  [39055428140](https://github.com/infocyph/Foundation/actions/runs/39055428140)
+  provides 120 primary trials, 10 independent confirmation trials and eight
+  120-second soak windows with response validation and live telemetry. All have
+  zero failed responses. This closes measurement collection only: the complete
+  matrix has seven passes, no stable regressions and five inconclusive cases;
+  independent confirmation is also inconclusive. Detailed immutable artifact
+  identities and worker-distribution evidence are in the current
+  [Batch 7 record](foundation-4-module-batch7-evidence.md). Performance
+  certification remains open. Current release ledger: **33/37**.
 - [ ] Certify the ordinary FPM path and a native Runwire 2.1.2 persistent host;
   include a bounded representative persistent-host soak with reset/cancellation/
   recycle checks. Claim other hosts only when their actual jobs pass. Existing

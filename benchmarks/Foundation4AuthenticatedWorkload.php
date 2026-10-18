@@ -66,7 +66,7 @@ final class Foundation4AuthenticatedWorkload
             ]],
             'cache' => [
                 'default' => 'host', 'default_counter' => 'host',
-                'prefix' => 'foundation-host:' . basename($directory) . ':',
+                'prefix' => 'foundation-host:' . (getenv('FOUNDATION_HOST_PG_DATABASE') ?: basename($directory)) . ':',
                 'connections' => ['host' => ['driver' => 'redis', 'dsn' => getenv('FOUNDATION_HOST_REDIS_DSN') ?: 'redis://127.0.0.1:6379']],
                 'stores' => ['host' => [
                     'driver' => 'redis', 'connection' => 'host', 'fail_open' => false,
@@ -109,7 +109,8 @@ final class Foundation4AuthenticatedWorkload
 
         return Response::json(['ok' => true])
             ->withHeader('X-Foundation-Benchmark-Queries', (string) ($connection->getStats()['queries'] - $before))
-            ->withHeader('X-Foundation-Benchmark-Cache-Hits', '1');
+            ->withHeader('X-Foundation-Benchmark-Cache-Hits', '1')
+            ->withHeader('X-Foundation-Benchmark-Worker', (string) getmypid());
     }
 
     /** @param array<string, mixed> $configuration */

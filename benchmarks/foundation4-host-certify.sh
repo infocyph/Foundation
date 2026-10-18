@@ -31,6 +31,21 @@ AUTHORIZATION=""
 SERVICE_PID=""
 PROXY_PID=""
 SAMPLER_PID=""
+SERVER_COMMAND=(setsid)
+LOAD_COMMAND=(php)
+SERVER_CPU_SET="${FOUNDATION_HOST_SERVER_CPU_SET:-}"
+LOAD_CPU_SET="${FOUNDATION_HOST_LOAD_CPU_SET:-}"
+if [[ -n "$SERVER_CPU_SET" || -n "$LOAD_CPU_SET" ]]; then
+    if [[ ! "$SERVER_CPU_SET" =~ ^[0-9,-]+$ || ! "$LOAD_CPU_SET" =~ ^[0-9,-]+$ ]]; then
+        echo "CPU scheduling diagnostics require both server and load CPU sets." >&2
+        exit 1
+    fi
+    command -v taskset >/dev/null
+    taskset --cpu-list "$SERVER_CPU_SET" true
+    taskset --cpu-list "$LOAD_CPU_SET" true
+    SERVER_COMMAND=(taskset --cpu-list "$SERVER_CPU_SET" setsid)
+    LOAD_COMMAND=(taskset --cpu-list "$LOAD_CPU_SET" php)
+fi
 
 for command in php "$FPM_BIN" nginx curl ps awk setsid; do
     if ! command -v "$command" >/dev/null 2>&1; then
@@ -52,6 +67,8 @@ mkdir -p "$OUTPUT"
 rm -f "$OUTPUT"/*.load.json "$OUTPUT"/*.samples.csv
 printf 'source_sha=%s\nphp=%s\nfpm=%s\n' \
     "${FOUNDATION_HOST_SOURCE_SHA:-${GITHUB_SHA:-working-tree}}" "$(php -r 'echo PHP_VERSION;')" "$("$FPM_BIN" -v | head -n 1)" > "$OUTPUT/host.env"
+printf 'server_cpu_set=%s\nload_cpu_set=%s\nbackend_cpu_set=%s\n' \
+    "$SERVER_CPU_SET" "$LOAD_CPU_SET" "${FOUNDATION_HOST_BACKEND_CPU_SET:-}" >> "$OUTPUT/host.env"
 
 stop_service() {
     if [[ -n "$SAMPLER_PID" ]]; then
@@ -178,7 +195,7 @@ run_soak() {
         prefix="$host-soak-w4-c10-p$window"
         start_sampler "$OUTPUT/$prefix.samples.csv"
         if ! FOUNDATION_HOST_MIN_SECONDS="$SOAK_SECONDS" \
-            timeout "$((SOAK_SECONDS + 90))s" php "$ROOT/benchmarks/foundation4-host-load.php" \
+            timeout "$((SOAK_SECONDS + 90))s" "${LOAD_COMMAND[@]}" "$ROOT/benchmarks/foundation4-host-load.php" \
             "$url$ENDPOINT" "$REQUESTS" 10 "$OUTPUT/$prefix.load.json" \
             > "$OUTPUT/$prefix.load.log"; then
             echo "Sustained $host window $window returned an invalid response." >&2
@@ -209,7 +226,7 @@ pm.max_children = $workers
 clear_env = no
 catch_workers_output = yes
 POOL
-    FOUNDATION_HOST_APP="$app" setsid "$FPM_BIN" -F -y "$cfg" > "$OUTPUT/fpm-$workers.stdout.log" 2>&1 &
+    FOUNDATION_HOST_APP="$app" "${SERVER_COMMAND[@]}" "$FPM_BIN" -F -y "$cfg" > "$OUTPUT/fpm-$workers.stdout.log" 2>&1 &
     SERVICE_PID=$!
 
     local nginx_conf="$OUTPUT/nginx-$workers.conf"
@@ -236,7 +253,7 @@ http {
 }
 NGINX
     nginx -t -c "$nginx_conf"
-    setsid nginx -c "$nginx_conf" -g 'daemon off;' > "$OUTPUT/nginx-$workers.stdout.log" 2>&1 &
+    "${SERVER_COMMAND[@]}" nginx -c "$nginx_conf" -g 'daemon off;' > "$OUTPUT/nginx-$workers.stdout.log" 2>&1 &
     PROXY_PID=$!
 }
 
@@ -245,7 +262,7 @@ start_runwire() {
     FOUNDATION_HOST_APP="$app" \
     FOUNDATION_HOST_LISTEN="127.0.0.1:$PORT_RUNWIRE" \
         FOUNDATION_HOST_WORKERS="$workers" \
-        setsid php "$app/runwire-server.php" > "$OUTPUT/runwire-$workers.stdout.log" 2>&1 &
+        "${SERVER_COMMAND[@]}" php "$app/runwire-server.php" > "$OUTPUT/runwire-$workers.stdout.log" 2>&1 &
     SERVICE_PID=$!
 }
 
@@ -283,7 +300,7 @@ for host in "${hosts[@]}"; do
             prefix="$host-w$workers-warmup"
             start_sampler "$OUTPUT/$prefix.samples.csv"
             FOUNDATION_HOST_MIN_SECONDS="$WARMUP_SECONDS" \
-                timeout "$((WARMUP_SECONDS + 90))s" php "$ROOT/benchmarks/foundation4-host-load.php" \
+                timeout "$((WARMUP_SECONDS + 90))s" "${LOAD_COMMAND[@]}" "$ROOT/benchmarks/foundation4-host-load.php" \
                 "$url$ENDPOINT" "$REQUESTS" 50 "$OUTPUT/$prefix.load.json" > "$OUTPUT/$prefix.load.log"
             kill "$SAMPLER_PID" 2>/dev/null || true
             wait "$SAMPLER_PID" 2>/dev/null || true
@@ -302,7 +319,7 @@ for host in "${hosts[@]}"; do
                     exit 1
                 }
                 start_sampler "$OUTPUT/$prefix.samples.csv"
-                if ! timeout "${LOAD_TIMEOUT_SECONDS}s" php "$ROOT/benchmarks/foundation4-host-load.php" \
+                if ! timeout "${LOAD_TIMEOUT_SECONDS}s" "${LOAD_COMMAND[@]}" "$ROOT/benchmarks/foundation4-host-load.php" \
                     "$url$ENDPOINT" "$REQUESTS" "$concurrency" "$OUTPUT/$prefix.load.json" \
                     > "$OUTPUT/$prefix.load.log"; then
                     echo "$prefix: HTTP/1.1 response-validation load failed" >&2

@@ -16,7 +16,7 @@ on:
       host_runner:
         description: Standard public-repository runner for both revisions of each measured pair
         required: true
-        default: ubuntu-24.04
+        default: ubuntu-24.04-arm
         type: choice
         options:
           - ubuntu-24.04
@@ -31,7 +31,9 @@ on:
       - resources/**
       - tests/Feature/WebReleaseRuntimeTest.php
       - tests/Feature/ServeCommandIntegrationTest.php
+      - tests/Feature/Foundation4HostLoadTest.php
       - tests/Fixtures/ServeProbe.php
+      - tests/Fixtures/HostLoadProbe.php
       - benchmarks/foundation4-host-certify.sh
       - benchmarks/foundation4-host-load.php
       - benchmarks/foundation4-host-report.php
@@ -185,10 +187,11 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
     needs: prepare-paired-host
     runs-on: ${{ inputs.host_runner || 'ubuntu-24.04' }}
-    timeout-minutes: 35
+    timeout-minutes: 50
     strategy:
       fail-fast: false
       matrix:
+        batch: [primary, confirmation]
         host: [fpm, runwire]
         workers: [1, 4]
         concurrency: [1, 10, 50]
@@ -212,9 +215,12 @@ jobs:
       FOUNDATION_HOST_FILTER_CONCURRENCY: ${{ matrix.concurrency }}
       FOUNDATION_HOST_REQUESTS: "1000"
       FOUNDATION_HOST_REPEATS: "5"
-      FOUNDATION_HOST_MIN_SECONDS: "60"
-      FOUNDATION_HOST_WARMUP_SECONDS: "30"
+      FOUNDATION_HOST_MIN_SECONDS: "120"
+      FOUNDATION_HOST_WARMUP_SECONDS: "60"
       FOUNDATION_HOST_SOAK_SECONDS: ${{ matrix.workers == 4 && matrix.concurrency == 10 && '120' || '0' }}
+      FOUNDATION_HOST_SERVER_CPU_SET: ${{ matrix.workers == 1 && '2' || '2,3' }}
+      FOUNDATION_HOST_LOAD_CPU_SET: "0"
+      FOUNDATION_HOST_BACKEND_CPU_SET: "1"
       FOUNDATION_HOST_TOOL_SHA: ${{ needs.prepare-paired-host.outputs.candidate }}
     steps:
       - uses: actions/checkout@v7
@@ -234,11 +240,20 @@ jobs:
           coverage: none
       - name: Install host prerequisites
         run: |
+          test "$(nproc)" -ge 4
+          for cpu in 0 1 2 3; do
+            siblings="$(cat "/sys/devices/system/cpu/cpu$cpu/topology/thread_siblings_list")"
+            if [[ "$siblings" != "$cpu" ]]; then
+              printf 'CPU %s shares a reported core with %s; refusing this allocation.\n' "$cpu" "$siblings" >&2
+              exit 1
+            fi
+          done
           sudo apt-get update -qq
           sudo apt-get install -y -qq software-properties-common
           sudo add-apt-repository -y ppa:ondrej/php
           sudo apt-get update -qq
           sudo apt-get install -y -qq nginx php8.4-fpm
+          docker update --cpuset-cpus 1 '${{ job.services.postgres.id }}' '${{ job.services.redis.id }}'
       - uses: actions/download-artifact@v7
         with:
           name: foundation4-paired-host-lock
@@ -257,13 +272,16 @@ jobs:
               $pdo->exec("CREATE DATABASE " . $database);
           }
           PHP
-          printf 'FOUNDATION_CERTIFICATION_HOST_ID=github-%s-%s-%s\n' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$(cat /proc/sys/kernel/random/boot_id)" >> "$GITHUB_ENV"
+          printf 'FOUNDATION_CERTIFICATION_HOST_ID=github-%s-%s-%s-server%s-load0-backend1\n' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$(cat /proc/sys/kernel/random/boot_id)" "$FOUNDATION_HOST_SERVER_CPU_SET" >> "$GITHUB_ENV"
       - name: Run baseline and candidate on this same physical runner
         env:
           BASELINE_SHA: ${{ inputs.baseline_ref }}
           CANDIDATE_SHA: ${{ needs.prepare-paired-host.outputs.candidate }}
+          MEASUREMENT_BATCH: ${{ matrix.batch }}
         run: |
-          for variant in baseline candidate; do
+          variants=(baseline candidate)
+          if [[ "$MEASUREMENT_BATCH" == confirmation ]]; then variants=(candidate baseline); fi
+          for variant in "${variants[@]}"; do
             if [[ "$variant" == baseline ]]; then source_sha="$BASELINE_SHA"; else source_sha="$CANDIDATE_SHA"; fi
             FOUNDATION_HOST_SOURCE_SHA="$source_sha" \
               FOUNDATION_HOST_PG_DATABASE="foundation_$variant" \
@@ -287,7 +305,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: foundation4-pair-${{ matrix.host }}-${{ matrix.workers }}-${{ matrix.concurrency }}
+          name: foundation4-pair-${{ matrix.batch }}-${{ matrix.host }}-${{ matrix.workers }}-${{ matrix.concurrency }}
           path: |
             evidence/*/*.json
             evidence/*/*.csv
@@ -302,6 +320,10 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && !cancelled() && needs.prepare-paired-host.result == 'success'
     needs: [prepare-paired-host, paired-host]
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        batch: [primary, confirmation]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -318,20 +340,20 @@ jobs:
       - run: composer install --no-interaction --no-progress --prefer-dist
       - uses: actions/download-artifact@v7
         with:
-          pattern: foundation4-pair-*
+          pattern: foundation4-pair-${{ matrix.batch }}-*
           path: build/paired-input
       - name: Enforce complete matched-host matrix and unchanged budgets
         run: |
           mkdir -p build/paired-comparison
           php benchmarks/foundation4-module-cli-compare.php \
-            build/paired-input/foundation4-pair-fpm-1-1/baseline/module-cli.json \
-            build/paired-input/foundation4-pair-fpm-1-1/candidate/module-cli.json \
+            build/paired-input/foundation4-pair-${{ matrix.batch }}-fpm-1-1/baseline/module-cli.json \
+            build/paired-input/foundation4-pair-${{ matrix.batch }}-fpm-1-1/candidate/module-cli.json \
             build/paired-comparison/module-cli-comparison.json
           php benchmarks/foundation4-host-merge.php build/paired-input build/paired-comparison/comparison.json
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: foundation4-paired-comparison
+          name: foundation4-paired-comparison-${{ matrix.batch }}
           path: build/paired-comparison
           if-no-files-found: error
           retention-days: 30

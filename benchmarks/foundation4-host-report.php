@@ -12,12 +12,23 @@ function f4HostLoad(string $path, int $expectedRequests): array
         || $result['requests'] < $expectedRequests
         || ($result['successful'] ?? null) !== $result['requests']
         || ($result['failed'] ?? null) !== 0
+        || !is_array($result['connection_warmup'] ?? null)
+        || ($result['connection_warmup']['successful'] ?? null) !== ($result['concurrency'] ?? null)
+        || !is_int($result['measured_new_connections'] ?? null)
+        || $result['measured_new_connections'] < 0
+        || !is_array($result['worker_requests'] ?? null)
     ) {
         throw new RuntimeException(sprintf('Invalid response-verified host load: %s', $path));
+    }
+    if (($result['authenticated'] ?? false) && array_sum($result['worker_requests']) !== $result['successful']) {
+        throw new RuntimeException('Authenticated worker telemetry does not cover every successful response.');
     }
 
     return [
         'requests' => (int) $result['requests'],
+        'connection_warmup' => $result['connection_warmup'],
+        'measured_new_connections' => $result['measured_new_connections'],
+        'worker_requests' => $result['worker_requests'],
         'database_queries' => (int) ($result['database_queries'] ?? 0),
         'application_cache_hits' => (int) ($result['application_cache_hits'] ?? 0),
         'authenticated' => ($result['authenticated'] ?? false) === true,
@@ -96,7 +107,7 @@ $result = [
     'hardware_id' => getenv('FOUNDATION_CERTIFICATION_HOST_ID') ?: null,
     'workload_profile' => getenv('FOUNDATION_HOST_WORKLOAD_PROFILE') ?: 'json-minimal',
     'tool_sha' => getenv('FOUNDATION_HOST_TOOL_SHA') ?: null,
-    'fixture_id' => getenv('FOUNDATION_HOST_WORKLOAD_PROFILE') === 'authenticated-read' ? 'foundation-auth-postgres-redis-v1' : null,
+    'fixture_id' => getenv('FOUNDATION_HOST_WORKLOAD_PROFILE') === 'authenticated-read' ? 'foundation-auth-postgres-redis-v2-warm-connections' : null,
     'composer_lock_sha256' => is_file(dirname(__DIR__) . '/composer.lock')
         ? hash_file('sha256', dirname(__DIR__) . '/composer.lock')
         : null,

@@ -25,6 +25,7 @@ if (!extension_loaded('curl')) {
 }
 
 $multi = curl_multi_init();
+curl_multi_setopt($multi, CURLMOPT_MAXCONNECTS, $concurrency);
 $handles = [];
 $running = 0;
 $sent = 0;
@@ -32,7 +33,8 @@ $finished = 0;
 $errors = 0;
 $latencies = [];
 $firstError = null;
-$start = hrtime(true);
+$workerRequests = [];
+$newConnections = 0;
 
 try {
     for ($i = 0; $i < min($concurrency, $requests); $i++) {
@@ -48,9 +50,15 @@ try {
             CURLOPT_ENCODING => 'identity',
         ]);
         $handles[] = $handle;
-        curl_multi_add_handle($multi, $handle);
         $sent++;
     }
+
+    // Warm distinct connections gradually; a cold burst can all reach one prefork worker.
+    $connectionWarmup = f4HostPrimeConnections($multi, $handles, $authenticated);
+    foreach ($handles as $handle) {
+        curl_multi_add_handle($multi, $handle);
+    }
+    $start = hrtime(true);
 
     while ($finished < $sent || $sent < $requests || hrtime(true) - $start < $minimumNanoseconds) {
         do {
@@ -62,34 +70,19 @@ try {
 
         while (($message = curl_multi_info_read($multi)) !== false) {
             $handle = $message['handle'];
-            $status = (int) curl_getinfo($handle, CURLINFO_HTTP_CODE);
-            $body = curl_multi_getcontent($handle);
-            if ($authenticated) {
-                $headerBytes = (int) curl_getinfo($handle, CURLINFO_HEADER_SIZE);
-                $headers = substr((string) $body, 0, $headerBytes);
-                $body = substr((string) $body, $headerBytes);
-                $queryHeader = preg_match('/^X-Foundation-Benchmark-Queries:\s*(\d+)\s*$/im', $headers, $queryMatch);
-                $cacheHeader = preg_match('/^X-Foundation-Benchmark-Cache-Hits:\s*(\d+)\s*$/im', $headers, $cacheMatch);
-                if ($queryHeader !== 1 || $cacheHeader !== 1 || (int) $queryMatch[1] < 2 || (int) $cacheMatch[1] !== 1) {
-                    $body = 'missing authenticated query/cache evidence';
-                } else {
-                    $totalQueries += (int) $queryMatch[1];
-                    $totalCacheHits += (int) $cacheMatch[1];
-                }
-            }
-            $latencyMs = (float) curl_getinfo($handle, CURLINFO_TOTAL_TIME) * 1000;
-            $valid = $message['result'] === CURLE_OK && $status === 200 && $body === '{"ok":true}';
-
-            if (!$valid) {
+            $response = f4HostResponse($handle, $message['result'], $authenticated);
+            $newConnections += (int) curl_getinfo($handle, CURLINFO_NUM_CONNECTS);
+            if ($response['error'] !== null) {
                 $errors++;
-                $firstError ??= sprintf(
-                    'status=%d curl=%d body=%s',
-                    $status,
-                    $message['result'],
-                    substr((string) $body, 0, 120),
-                );
+                $firstError ??= $response['error'];
             } else {
-                $latencies[] = $latencyMs;
+                $latencies[] = $response['latency_ms'];
+                $totalQueries += $response['queries'];
+                $totalCacheHits += $response['cache_hits'];
+                if ($authenticated) {
+                    $pid = $response['worker'];
+                    $workerRequests[$pid] = ($workerRequests[$pid] ?? 0) + 1;
+                }
             }
 
             curl_multi_remove_handle($multi, $handle);
@@ -130,6 +123,9 @@ $record = [
     'requests' => $finished,
     'required_requests' => $requests,
     'minimum_duration_seconds' => $minimumSeconds,
+    'connection_warmup' => $connectionWarmup,
+    'measured_new_connections' => $newConnections,
+    'worker_requests' => $workerRequests,
     'database_queries' => $totalQueries,
     'application_cache_hits' => $totalCacheHits,
     'authenticated' => $authenticated,
@@ -150,4 +146,97 @@ if (file_put_contents($output, $json, LOCK_EX) === false) {
 fwrite(STDOUT, $json);
 if ($errors !== 0 || $finished < $requests || $duration < $minimumSeconds) {
     throw new RuntimeException(sprintf('HTTP load failed: %s', $firstError ?? 'request count mismatch'));
+}
+
+/** @return array{error:?string,latency_ms:float,queries:int,cache_hits:int,worker:int} */
+function f4HostResponse(CurlHandle $handle, int $result, bool $authenticated): array
+{
+    $status = (int) curl_getinfo($handle, CURLINFO_HTTP_CODE);
+    $body = (string) curl_multi_getcontent($handle);
+    $queries = $cacheHits = $worker = 0;
+    if ($authenticated) {
+        $headerBytes = (int) curl_getinfo($handle, CURLINFO_HEADER_SIZE);
+        $headers = substr($body, 0, $headerBytes);
+        $body = substr($body, $headerBytes);
+        preg_match('/^X-Foundation-Benchmark-Queries:\s*(\d+)\s*$/im', $headers, $queryMatch);
+        preg_match('/^X-Foundation-Benchmark-Cache-Hits:\s*(\d+)\s*$/im', $headers, $cacheMatch);
+        preg_match('/^X-Foundation-Benchmark-Worker:\s*(\d+)\s*$/im', $headers, $workerMatch);
+        $queries = (int) ($queryMatch[1] ?? 0);
+        $cacheHits = (int) ($cacheMatch[1] ?? 0);
+        $worker = (int) ($workerMatch[1] ?? 0);
+        if ($queries < 2 || $cacheHits !== 1 || $worker <= 0) {
+            $body = 'missing authenticated query/cache/worker evidence';
+        }
+    }
+
+    return [
+        'error' => $result === CURLE_OK && $status === 200 && $body === '{"ok":true}'
+            ? null
+            : sprintf('status=%d curl=%d body=%s', $status, $result, substr($body, 0, 120)),
+        'latency_ms' => (float) curl_getinfo($handle, CURLINFO_TOTAL_TIME) * 1000,
+        'queries' => $queries,
+        'cache_hits' => $cacheHits,
+        'worker' => $worker,
+    ];
+}
+
+/**
+ * @param list<CurlHandle> $handles
+ * @return array{successful:int,duration_seconds:float,worker_requests:array<int,int>}
+ */
+function f4HostPrimeConnections(CurlMultiHandle $multi, array $handles, bool $authenticated): array
+{
+    $started = hrtime(true);
+    $completed = 0;
+    $workers = [];
+    $pump = static function () use ($multi, $authenticated, &$completed, &$workers): int {
+        do {
+            $state = curl_multi_exec($multi, $running);
+        } while ($state === CURLM_CALL_MULTI_PERFORM);
+        if ($state !== CURLM_OK) {
+            throw new RuntimeException('Connection warm-up multi failed: ' . $state);
+        }
+        while (($message = curl_multi_info_read($multi)) !== false) {
+            $handle = $message['handle'];
+            $response = f4HostResponse($handle, $message['result'], $authenticated);
+            if ($response['error'] !== null) {
+                throw new RuntimeException('Connection warm-up failed: ' . $response['error']);
+            }
+            curl_multi_remove_handle($multi, $handle);
+            $completed++;
+            if ($authenticated) {
+                $pid = $response['worker'];
+                $workers[$pid] = ($workers[$pid] ?? 0) + 1;
+            }
+        }
+
+        return $running;
+    };
+    foreach ($handles as $handle) {
+        curl_setopt($handle, CURLOPT_FRESH_CONNECT, true);
+        curl_multi_add_handle($multi, $handle);
+        $next = hrtime(true) + 5_000_000;
+        do {
+            $running = $pump();
+            $remaining = ($next - hrtime(true)) / 1_000_000_000;
+            if ($remaining > 0 && ($running === 0 || curl_multi_select($multi, $remaining) === -1)) {
+                usleep((int) ceil($remaining * 1_000_000));
+            }
+        } while (hrtime(true) < $next);
+    }
+    while ($completed < count($handles)) {
+        $pump();
+        if ($completed < count($handles) && curl_multi_select($multi, 0.05) === -1) {
+            usleep(1000);
+        }
+    }
+    foreach ($handles as $handle) {
+        curl_setopt($handle, CURLOPT_FRESH_CONNECT, false);
+    }
+
+    return [
+        'successful' => $completed,
+        'duration_seconds' => round((hrtime(true) - $started) / 1_000_000_000, 6),
+        'worker_requests' => $workers,
+    ];
 }
