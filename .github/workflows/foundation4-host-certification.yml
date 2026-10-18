@@ -287,7 +287,8 @@ jobs:
             FOUNDATION_HOST_SOURCE_SHA="$source_sha" \
               FOUNDATION_HOST_PG_DATABASE="foundation_$variant" \
               FOUNDATION_HOST_RESULT_DIR="$GITHUB_WORKSPACE/evidence/$variant" \
-              bash "$GITHUB_WORKSPACE/$variant/benchmarks/foundation4-host-certify.sh"
+              taskset --cpu-list "$FOUNDATION_HOST_LOAD_CPU_SET" \
+                bash "$GITHUB_WORKSPACE/$variant/benchmarks/foundation4-host-certify.sh"
             if [[ "$FOUNDATION_HOST_FILTER_HOST" == fpm && "$FOUNDATION_HOST_FILTER_WORKERS" == 1 && "$FOUNDATION_HOST_FILTER_CONCURRENCY" == 1 ]]; then
               FOUNDATION_MODULE_SOURCE_SHA="$source_sha" \
                 FOUNDATION_MODULE_BASELINE_OUTPUT="$GITHUB_WORKSPACE/evidence/$variant/module-cli.json" \

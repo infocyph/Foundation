@@ -80,3 +80,46 @@ it('captures benchmark configuration using only options supported by its PHP ver
         rmdir($directory);
     }
 })->with([false, true]);
+
+it('keeps the benchmark controller and its telemetry children on the load CPU', function (): void {
+    $root = dirname(__DIR__, 2);
+    $workflow = Yaml::parseFile($root . '/.github/workflows/foundation4-host-certification.yml');
+    $steps = array_column($workflow['jobs']['paired-host']['steps'], 'run', 'name');
+    expect(preg_match('/^Cpus_allowed_list:\s*(\d+)/m', (string) file_get_contents('/proc/self/status'), $matches))->toBe(1);
+    $cpu = $matches[1];
+    $directory = sys_get_temp_dir() . '/foundation-controller-affinity-' . bin2hex(random_bytes(8));
+    $probe = <<<'SH'
+    set -euo pipefail
+    mkdir -p "$FOUNDATION_HOST_RESULT_DIR"
+    awk '/^Cpus_allowed_list:/ { print $2 }' "/proc/$$/status" > "$FOUNDATION_HOST_RESULT_DIR/controller.txt"
+    php -r 'preg_match("/^Cpus_allowed_list:\\s*(.+)$/m", file_get_contents("/proc/self/status"), $m); echo trim($m[1]), PHP_EOL;' > "$FOUNDATION_HOST_RESULT_DIR/child.txt"
+    SH;
+
+    try {
+        foreach (['baseline', 'candidate'] as $variant) {
+            mkdir($directory . '/' . $variant . '/benchmarks', 0700, true);
+            file_put_contents($directory . '/' . $variant . '/benchmarks/foundation4-host-certify.sh', $probe);
+        }
+        $process = new \Symfony\Component\Process\Process([
+            'bash', '-e', '-o', 'pipefail', '-c', $steps['Run baseline and candidate on this same physical runner'],
+        ], $directory, [
+            'GITHUB_WORKSPACE' => $directory,
+            'BASELINE_SHA' => str_repeat('1', 40),
+            'CANDIDATE_SHA' => str_repeat('2', 40),
+            'MEASUREMENT_BATCH' => 'primary',
+            'FOUNDATION_HOST_LOAD_CPU_SET' => $cpu,
+            'FOUNDATION_HOST_FILTER_HOST' => 'runwire',
+            'FOUNDATION_HOST_FILTER_WORKERS' => '4',
+            'FOUNDATION_HOST_FILTER_CONCURRENCY' => '10',
+        ]);
+        $process->run();
+        expect($process->getExitCode())->toBe(0, $process->getErrorOutput());
+        foreach (['baseline', 'candidate'] as $variant) {
+            foreach (['controller', 'child'] as $role) {
+                expect(trim((string) file_get_contents($directory . '/evidence/' . $variant . '/' . $role . '.txt')))->toBe($cpu);
+            }
+        }
+    } finally {
+        (new \Symfony\Component\Filesystem\Filesystem())->remove($directory);
+    }
+});

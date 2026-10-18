@@ -7,6 +7,13 @@ The user retains **standard GitHub workers**, without paid runners or billing
 changes. The full independent primary/confirmation performance gate preserves
 the <=2% RPM regression and <=2.5% CV limits. See
 [current immutable evidence](foundation-4-module-batch7-evidence.md).
+The paired benchmark controller now has a reproduced CPU-isolation correction:
+it and its telemetry children run on the load CPU, while native servers retain
+their separate CPU masks. The actual workflow regression fails before the
+correction and passes afterwards. Renew full hosted quality and both complete
+performance matrices; previous results do not certify the changed measurement
+controls. No throughput or variance improvement is inferred from this test.
+
 Earlier dated entries below retain historical source and result identities.
 
 ## Published Runwire worker fix adopted — 2026-10-17

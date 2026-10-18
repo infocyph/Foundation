@@ -1,6 +1,37 @@
 # Foundation 4 — Module architecture Batch 7 certification evidence
 
-## Final-source QA and release handoff — 2026-10-18
+## Controller isolation correction — 2026-10-18
+
+The user selected Foundation-first finalization, without merge, tag or
+publication. Infbyte's required stable-dependency gate remains deferred until
+Foundation publication; no PHPForge candidate-policy change is made.
+
+A real execution of the current paired workflow step reproduces a measurement
+control gap: the benchmark controller and telemetry children inherit the full
+runner CPU mask, despite separate server/load/backend CPU assignments. They can
+therefore compete with measured server or backend processes. This finding does
+not establish the complete cause of the historical variance failures.
+
+The paired workflow now starts the controller on the existing load CPU. Native
+server commands retain their explicit server CPU mask; the controller, sampler
+and ordinary child processes inherit CPU 0. The host environment artifact records
+the actual controller CPU set. A regression executes the actual workflow step
+for both variants and checks the real controller and child affinity through
+Linux process metadata; it fails before the correction and passes afterwards.
+Focused workflow/transport/report/comparison coverage passes **30 tests / 144
+assertions**. The complete detailed suite passes **806 tests / 29,918
+assertions**, with all configured quality checks passing. Actionlint, shell
+syntax, current direct-dependency and advisory checks pass; the required runtime
+constraint guard also passes. The common dependency lock is unchanged.
+
+Runtime source, libraries, workload, warm-up, measured duration, repetition count,
+soaks and the <=2% regression / <=2.5% CV budgets are unchanged. Both complete
+independent matrices must be collected again before accepting this correction
+as performance qualification. Earlier variance failures below remain historical
+evidence; no passing case is selected across attempts and no claim of resolved
+variance is made from the affinity regression alone. Ledger: **35/37**.
+
+## Previous final-source QA and release handoff — 2026-10-18
 
 Frozen framework, benchmark and workflow source is
 `f64cc61e9f89b8f8663b4c21220c344a04354eef`. Both

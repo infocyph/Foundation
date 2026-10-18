@@ -69,6 +69,8 @@ printf 'source_sha=%s\nphp=%s\nfpm=%s\n' \
     "${FOUNDATION_HOST_SOURCE_SHA:-${GITHUB_SHA:-working-tree}}" "$(php -r 'echo PHP_VERSION;')" "$("$FPM_BIN" -v | head -n 1)" > "$OUTPUT/host.env"
 printf 'server_cpu_set=%s\nload_cpu_set=%s\nbackend_cpu_set=%s\n' \
     "$SERVER_CPU_SET" "$LOAD_CPU_SET" "${FOUNDATION_HOST_BACKEND_CPU_SET:-}" >> "$OUTPUT/host.env"
+printf 'controller_cpu_set=%s\n' \
+    "$(awk '/^Cpus_allowed_list:/ { print $2 }' "/proc/$$/status")" >> "$OUTPUT/host.env"
 
 stop_service() {
     if [[ -n "$SAMPLER_PID" ]]; then
