@@ -5,20 +5,26 @@ native/FPM hosting, PHP 8.4/8.5 Swoole/OpenSwoole, notes and publication metadat
 are verified. The PR remains **not release-ready** because strict performance
 qualification and dependent all-gates acceptance remain open.
 
-[Complete standard-worker run 39107981903](https://github.com/infocyph/Foundation/actions/runs/39107981903)
-verifies measurement source `bc7d177`: 240 valid sustained trials, sixteen valid
-soak windows, actual controller affinity and no measured response failures.
-Both complete aggregate jobs fail: primary **4 pass / 7 inconclusive / 1
-regression**, confirmation **8 pass / 4 inconclusive**. The primary native
-w4/c1 slowdown does not reproduce in its independent confirmation, but the
-failed case remains in the release verdict. Budgets stay <=2% RPM regression
-and <=2.5% CV; no passing cases are mixed across batches or attempts.
+[Complete standard-worker run 39113415005](https://github.com/infocyph/Foundation/actions/runs/39113415005)
+verifies immutable source `9ddf937`: 240 valid sustained trials, sixteen valid
+soak windows, actual controller affinity and zero measured response failures.
+Both complete aggregate jobs fail: primary **6 pass / 6 inconclusive**;
+confirmation **6 pass / 4 inconclusive / 2 regressions**. Confirmation Runwire
+w1/c50 is -3.930% (CV 1.432%) and w4/c50 is -2.223% (CV 1.595%); their independent
+primary cases pass. The earlier w4/c1 slowdown does not recur, but its latest
+cases exceed the variability limit. Budgets stay <=2% RPM regression and <=2.5%
+CV. No passing cases are mixed across batches or attempts.
 
-Current code/test source `a2db6d8` passes all normal hosted checks and fixes the
-lowest-dependency cleanup deprecation. Framework, resource, benchmark, workflow
-and dependency files are identical to measured source `bc7d177`. Final
-source/dependency identities, native comparator verdicts, raw artifact digests
-and full per-case metrics are in the
+A separate unmodified-source Docker w4/c1 reproduction completes all ten
+120-second trials with zero errors: -0.024% median RPM, maximum CV 0.631%.
+Focused, instrumented native w1/c50 CPU profiles isolate connection setup and
+integration phases; they do not establish a runtime fix or replace hosted RPM
+acceptance. No speculative runtime change is introduced.
+
+Measured source `9ddf937` passes all normal hosted QA and native hosting. The
+fresh qualification also passes all functional hosting/collection jobs, but its
+performance verdict remains failed. Final source/dependency identities, native
+comparator verdicts, raw artifact digests and full per-case metrics are in the
 [current evidence](foundation-4-module-batch7-evidence.md).
 
 The user selected Foundation-first finalization on standard GitHub workers.
@@ -2823,13 +2829,13 @@ Added `docs/examples/foundation-4-compiled-release.php`, executed inside all fou
 - [x] Measure CPU, live process-tree RSS during load, p50/p95/p99 latency, errors,
   cache/query behavior, worker generation, and cleanup. Start measurement after
   readiness; do not substitute final-process RSS or a microbenchmark for host RPM.
-  Current measurement source `bc7d177` comparison
-  [39107981903](https://github.com/infocyph/Foundation/actions/runs/39107981903)
+  Current measurement source `9ddf937` comparison
+  [39113415005](https://github.com/infocyph/Foundation/actions/runs/39113415005)
   provides 240 measured trials and sixteen additional 120-second soak windows,
   all with valid authenticated/query/cache responses, live RSS, worker counts,
-  interval CPU and actual controller affinity. Generator CPU peaks at 2.768%.
-  Primary is 4 pass / 7 inconclusive / 1 regression; confirmation is 8 pass /
-  4 inconclusive. This closes collection only; strict performance remains open.
+  interval CPU and actual controller affinity. Generator CPU peaks at 2.728%.
+  Primary is 6 pass / 6 inconclusive; confirmation is 6 pass / 4 inconclusive /
+  2 regressions. This closes collection only; strict performance remains open.
   Complete source/lock/artifact provenance is in the
   [Batch 7 evidence](foundation-4-module-batch7-evidence.md).
   Current release ledger: **35/37**.

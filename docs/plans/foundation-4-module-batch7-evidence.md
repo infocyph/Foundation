@@ -1,6 +1,109 @@
 # Foundation 4 — Module architecture Batch 7 certification evidence
 
-## Latest complete release qualification — 2026-10-18
+## Latest complete release qualification — 2026-10-18 (`9ddf937`)
+
+[Complete standard ARM worker run 39113415005](https://github.com/infocyph/Foundation/actions/runs/39113415005)
+measures immutable candidate/tool source `9ddf937dfda77a066a3501ed6b2c15c8c8554fca`
+against frozen baseline `6274939c395f75e5cf777aad5d7439f10792758c`, using common
+Composer lock SHA-256 `b557fba7662dba32601c3840f69f7ac394f253d729246fcba08db44e26067cb9`.
+The framework and benchmark implementation are unchanged from the preceding
+measurement; this is a fresh complete qualification, not a runtime fix.
+
+All **24 collection jobs pass**. Independent verification covers **240 measured
+trials >=120 seconds and sixteen additional soak windows >=120 seconds**, with
+zero failed measured responses, valid authentication/query/cache/worker evidence,
+live process-tree RSS, interval CPU, and actual controller/load/backend affinity.
+The generator peaks at **2.728% CPU**. All 24 case runner identities are distinct;
+each baseline/candidate pair matches hardware, PHP, workload, tooling and lock.
+
+Both complete aggregate jobs **FAIL** the unchanged <=2% median successful-RPM
+regression and <=2.5% CV limits. Primary: **6 pass / 6 inconclusive**.
+Confirmation: **6 pass / 4 inconclusive / 2 regressions**. The Foundation release
+ledger remains **35/37**; strict performance and dependent all-gates acceptance
+remain open. The PR is **not release-ready**.
+
+| Scenario | Primary RPM change | Primary max CV | Primary verdict | Confirmation RPM change | Confirmation max CV | Confirmation verdict |
+| --- | ---: | ---: | --- | ---: | ---: | --- |
+| fpm-w1-c1 | +8.015% | 2.076% | Pass | +9.088% | 1.400% | Pass |
+| fpm-w1-c10 | +8.277% | 0.132% | Pass | +7.298% | 0.832% | Pass |
+| fpm-w1-c50 | +1.907% | 2.294% | Pass | +7.427% | 1.701% | Pass |
+| fpm-w4-c1 | +11.998% | 1.444% | Pass | +8.590% | 1.174% | Pass |
+| fpm-w4-c10 | +9.044% | 3.146% | Inconclusive | +8.790% | 2.105% | Pass |
+| fpm-w4-c50 | +5.262% | 2.901% | Inconclusive | +15.915% | 3.009% | Inconclusive |
+| runwire-w1-c1 | +4.668% | 3.201% | Inconclusive | +2.671% | 2.205% | Pass |
+| runwire-w1-c10 | -3.493% | 3.869% | Inconclusive | -11.802% | 7.129% | Inconclusive |
+| runwire-w1-c50 | +3.064% | 2.055% | Pass | -3.930% | 1.432% | Regression |
+| runwire-w4-c1 | +1.180% | 4.315% | Inconclusive | +4.766% | 2.577% | Inconclusive |
+| runwire-w4-c10 | -0.267% | 9.071% | Inconclusive | -7.262% | 4.463% | Inconclusive |
+| runwire-w4-c50 | +6.752% | 2.127% | Pass | -2.223% | 1.595% | Regression |
+
+The two confirmation regressions remain blocking: Runwire w1/c50 is **-3.930%**
+at maximum CV **1.432%**; Runwire w4/c50 is **-2.223%** at CV **1.595%**.
+Their independent primary cases pass (+3.064% and +6.752%). The earlier w4/c1
+-4.722% slowdown does not recur, but its latest cases exceed the variability
+limit. This disagreement does not establish a source defect or justify removing
+a failed case. No trials, cases or batches are discarded or combined for a pass.
+
+Immutable aggregate artifacts:
+
+- Primary **12133225136**, `sha256:4f4da373c3123f9c100757569d19a417942a8cab54d3f1ad60237c712186c6de`.
+- Confirmation **12132332678**, `sha256:ceb9bd75753536fcc0ebb38d8f97b1bce7b5f481f99f01b2dd95da3cde5a526d`.
+- Frozen lock **12131481914**, `sha256:83f6f51494ca73eba51f4aeccf20811daf434082dcf70a867a3460314280bab7`.
+
+All individual raw load/process samples remain attached to that same run. The
+native complete comparator is independently recomputed for both aggregate pairs.
+The failing aggregate command remains
+`php benchmarks/foundation4-host-merge.php build/paired-input build/paired-comparison/comparison.json`.
+
+### Focused local reproduction and CPU diagnosis
+
+A separate, unmodified-source Docker reproduction of the earlier Runwire w4/c1
+case uses the same frozen source pair and dependency lock, PHP 8.5.11, all four
+workers warmed, CPU 0 for controller/load and CPUs 2–3 for the server, with shared
+local PostgreSQL/Redis backends. Five >=120-second trials per revision all return
+valid authenticated responses. Baseline median is **1,043.02 RPM**, CV **0.160%**;
+candidate median is **1,042.77 RPM**, CV **0.631%**: **-0.024%**, zero errors.
+This is one-case local diagnostic evidence, not complete hosted acceptance and
+not a reproduction of the two newly failing concurrency-50 cases.
+
+Temporary copies then profile the Runwire w1/c50 path, recording actual CPU time
+for connection setup, principal resolution, authorization, SQL, cache access and
+request setup. The first profile covers 7,177 baseline and 6,653 candidate measured
+requests. A second profile reverses order and explicitly separates PDO setup
+from principal resolution, covering 6,737 baseline and 6,771 candidate requests.
+All return valid responses. Database connection setup dominates CPU time; the
+second profile records median CPU before response construction of 3.444 ms
+baseline and 3.467 ms candidate. These are instrumented diagnostic observations,
+not unmodified-source RPM proof or evidence that the hosted regressions are fixed.
+No reproducible runtime defect has been isolated by these profiles.
+
+Instrumentation exists only in temporary source copies and is explicitly
+labelled diagnostic. No runtime, SDK, cancellation, deadline, authentication or
+worker-lifecycle change is made to the release. No new library API is introduced.
+
+The [standard x64 attempt 39113314760](https://github.com/infocyph/Foundation/actions/runs/39113314760)
+was cancelled after the existing topology guard rejected CPU 0 sharing reported
+core siblings `0-1`. It provides no throughput qualification. The guard is not
+weakened and no paid/larger runner is used. The certification guide now states
+the actual 60-second warm-up, five 120-second trials, two complete batches and
+reported non-SMT topology requirement.
+
+Current measured source `9ddf937` retains green normal
+[Security & Standards 39112016175](https://github.com/infocyph/Foundation/actions/runs/39112016175)
+and [native hosting 39112015873](https://github.com/infocyph/Foundation/actions/runs/39112015873).
+The new qualification also passes native/FPM and all PHP 8.4/8.5 Swoole/OpenSwoole
+functional jobs. Functional success does not close the failed performance gate.
+Merging, tagging and publication are not performed. Infbyte's published-package
+cutover remains subsequent to Foundation publication.
+
+Final local validation passes `composer ic:process`, all thirteen checks in
+`composer ic:tests`, the stable runtime constraint guard, and documentation
+contracts (7 tests / 150 assertions). Pest passes 806 tests / 29,918 assertions.
+The initial detailed run encountered a transient Rector root-directory traversal
+error after Pest/PHPStan/Psalm passed; an unchanged focused Rector retry and the
+complete normal suite pass. No exclusions or quality thresholds are changed.
+
+## Previous complete release qualification — 2026-10-18 (`bc7d177`)
 
 [Complete run 39107981903](https://github.com/infocyph/Foundation/actions/runs/39107981903)
 uses immutable measurement source `bc7d177c79d1354e25b40d699894dc96dc2bcc13`,

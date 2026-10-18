@@ -1,3 +1,4 @@
+
 # Foundation 4.0 — Native host performance certification
 
 This procedure certifies **Foundation 4 only**. It is not a legacy-version compatibility test. The routine PR host job runs a minimal-JSON smoke and a selected-owner native-read smoke on shared GitHub hardware; neither is a production-equivalent throughput certification.
@@ -13,11 +14,20 @@ this proves paired VM reuse, not dedicated physical infrastructure or production
 capacity. Other matrix cases may use different runners.
 
 The twelve cases cover FPM/Runwire, one/four workers and concurrency 1/10/50.
-Each revision has a recorded 30-second warm-up followed by five >=60-second
-trials. Four-worker/concurrency-10 jobs include two >=120-second soak windows per
-host/revision, continuous live CPU/RSS, response/query/cache checks and recovery.
-The 2.5% CV and 2% median successful-RPM regression limits remain blocking.
-Unstable or failed comparisons cannot be certified by the environment approval.
+Each revision has a recorded 60-second warm-up followed by five >=120-second
+trials. Two independent complete batches run all twelve cases; the confirmation
+batch reverses baseline/candidate order. Four-worker/concurrency-10 jobs include
+two >=120-second soak windows per host/revision and batch, continuous live CPU/RSS,
+response/query/cache checks and recovery. The controller and load generator use
+CPU 0, PostgreSQL/Redis use CPU 1, and the server uses CPU 2 or CPUs 2–3.
+The allocation requires four reported cores without SMT siblings; standard x64
+workers reporting two cores with SMT are rejected before measurement. The default
+manual runner is `ubuntu-24.04-arm`.
+
+Both complete batches must pass the unchanged 2.5% CV and 2% median successful-RPM
+regression limits. Passing cases from different batches or attempts are never
+combined. Unstable or failed comparisons cannot be certified by the environment
+approval.
 Current results and immutable artifact identities are in [Batch 7 evidence](plans/foundation-4-module-batch7-evidence.md).
 
 The dedicated-host procedure below remains available for controlled reproduction
