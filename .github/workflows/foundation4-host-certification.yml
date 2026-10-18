@@ -300,7 +300,17 @@ jobs:
           mkdir -p evidence
           php -v > evidence/php-version.txt
           php -m > evidence/php-extensions.txt
-          php --ini=diff > evidence/php-ini-diff.txt
+          php --ini > evidence/php-ini-files.txt
+          if php -r 'exit(PHP_VERSION_ID >= 80500 ? 0 : 1);'; then
+            php --ini=diff > evidence/php-ini-diff.txt
+          fi
+          php -r '
+            $settings = [];
+            foreach (["opcache.enable", "opcache.enable_cli", "opcache.validate_timestamps", "opcache.optimization_level", "opcache.jit", "opcache.jit_buffer_size", "memory_limit", "error_reporting"] as $name) {
+                $settings[$name] = ini_get($name);
+            }
+            echo json_encode($settings, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR), PHP_EOL;
+          ' > evidence/php-runtime-settings.json
           sha256sum locked-dependencies/composer.lock > evidence/composer-lock.sha256
           lscpu > evidence/cpu.txt
       - uses: actions/upload-artifact@v7
@@ -313,6 +323,7 @@ jobs:
             evidence/*/*.log
             evidence/*/*.env
             evidence/*.txt
+            evidence/php-runtime-settings.json
             evidence/*.sha256
           if-no-files-found: error
           retention-days: 30

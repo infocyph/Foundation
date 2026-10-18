@@ -43,3 +43,40 @@ it('enforces independent complete performance batches without mixing their artif
     expect($run)->toContain('foundation4-host-merge.php', 'foundation4-module-cli-compare.php')
         ->not->toContain('|| true', 'continue-on-error');
 });
+
+it('captures benchmark configuration using only options supported by its PHP version', function (bool $php85): void {
+    $root = dirname(__DIR__, 2);
+    $workflow = Yaml::parseFile($root . '/.github/workflows/foundation4-host-certification.yml');
+    $steps = array_column($workflow['jobs']['paired-host']['steps'], 'run', 'name');
+    $directory = sys_get_temp_dir() . '/foundation-ini-capture-' . bin2hex(random_bytes(8));
+    mkdir($directory . '/bin', 0700, true);
+    mkdir($directory . '/locked-dependencies', 0700);
+    file_put_contents($directory . '/locked-dependencies/composer.lock', '{}');
+    $wrapper = "#!/bin/sh\n"
+        . 'if [ "$1" = "-r" ]; then case "$2" in *PHP_VERSION_ID*) exit ' . ($php85 ? '0' : '1') . ';; esac; fi' . "\n"
+        . 'if [ "$1" = "--ini=diff" ]; then ' . ($php85 ? 'echo enabled; exit 0;' : 'echo unsupported >&2; exit 64;') . ' fi' . "\n"
+        . 'exec ' . escapeshellarg(PHP_BINARY) . ' "$@"' . "\n";
+    file_put_contents($directory . '/bin/php', $wrapper);
+    chmod($directory . '/bin/php', 0700);
+    $process = new \Symfony\Component\Process\Process([
+        'bash', '-e', '-o', 'pipefail', '-c', $steps['Capture exact runtime and dependency identity'],
+    ], $directory, ['PATH' => $directory . '/bin:' . getenv('PATH')]);
+
+    try {
+        $process->run();
+        expect($process->getExitCode())->toBe(0, $process->getErrorOutput())
+            ->and(file_exists($directory . '/evidence/php-ini-files.txt'))->toBeTrue()
+            ->and(file_exists($directory . '/evidence/php-ini-diff.txt'))->toBe($php85);
+        $settings = json_decode((string) file_get_contents($directory . '/evidence/php-runtime-settings.json'), true, flags: JSON_THROW_ON_ERROR);
+        expect($settings)->toHaveKeys(['opcache.enable_cli', 'opcache.validate_timestamps', 'memory_limit']);
+    } finally {
+        $files = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST,
+        );
+        foreach ($files as $file) {
+            $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
+        }
+        rmdir($directory);
+    }
+})->with([false, true]);
