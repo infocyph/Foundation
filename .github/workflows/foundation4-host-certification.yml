@@ -32,6 +32,7 @@ on:
       - tests/Feature/WebReleaseRuntimeTest.php
       - tests/Feature/ServeCommandIntegrationTest.php
       - tests/Feature/Foundation4HostLoadTest.php
+      - tests/Feature/Foundation4HostReportTest.php
       - tests/Fixtures/ServeProbe.php
       - tests/Fixtures/HostLoadProbe.php
       - benchmarks/foundation4-host-certify.sh

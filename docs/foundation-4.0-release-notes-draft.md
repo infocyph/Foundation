@@ -11,6 +11,9 @@ warm-up responses and retains per-worker evidence. Native libraries and runtime
 policies are unchanged. Independent full primary/confirmation host matrices
 must both pass the existing budgets before release acceptance; local setup
 diagnostics alone do not close this gate.
+Per-trial reports distinguish server CPU consumed within the sampled window
+from lifetime gauges and record load-generator CPU separately. This corrects
+measurement evidence without adding runtime dependencies or framework APIs.
 
 **Current production-boot correction (2026-10-17):** Production web loading now
 composes each provider once and reuses that frozen InterMix graph for compiled

@@ -45,6 +45,21 @@ complete-matrix comparator. No green collection job substitutes for enforcement.
 Local and hosted checks on the final source must pass before any open release
 criterion is closed; earlier immutable measurements below remain historical.
 
+Final telemetry review also reproduces a separate reporting defect: the old
+`peak_process_cpu_percent` reads `ps pcpu`, a lifetime utilization gauge, rather
+than CPU used inside the sample window. Server samples now retain cumulative
+CPU seconds; reports calculate window utilization from counter/time deltas and
+label the original lifetime peak explicitly. Counter resolution is one second;
+a single-sample short diagnostic reports window CPU as unavailable, not zero.
+The load generator separately records its own user/system CPU consumed within
+the measured interval using `getrusage`, allowing direct saturation checks.
+Two report regressions fail against the old implementation and pass after the
+correction. The earlier dispatched `f9cbda9` performance run is superseded and
+cancelled; it must not be counted as final qualification.
+Both new subprocess suites run with `E_ALL` and reject unexpected stderr. This
+also reproduces and removes the PHP 8.4/8.5 implicit CSV-escape deprecation in
+the numeric telemetry reader by declaring its escape behavior explicitly.
+
 ## Current-source hosted verification — 2026-10-18
 
 Executable candidate `d2954021adf346aa84ffcff1c95d41678deb2a8d` passes

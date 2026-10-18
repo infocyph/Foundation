@@ -17,6 +17,9 @@ function f4HostLoad(string $path, int $expectedRequests): array
         || !is_int($result['measured_new_connections'] ?? null)
         || $result['measured_new_connections'] < 0
         || !is_array($result['worker_requests'] ?? null)
+        || (!is_int($result['load_cpu_percent'] ?? null) && !is_float($result['load_cpu_percent'] ?? null))
+        || !is_finite((float) $result['load_cpu_percent'])
+        || $result['load_cpu_percent'] < 0
     ) {
         throw new RuntimeException(sprintf('Invalid response-verified host load: %s', $path));
     }
@@ -28,6 +31,7 @@ function f4HostLoad(string $path, int $expectedRequests): array
         'requests' => (int) $result['requests'],
         'connection_warmup' => $result['connection_warmup'],
         'measured_new_connections' => $result['measured_new_connections'],
+        'load_cpu_percent' => $result['load_cpu_percent'],
         'worker_requests' => $result['worker_requests'],
         'database_queries' => (int) ($result['database_queries'] ?? 0),
         'application_cache_hits' => (int) ($result['application_cache_hits'] ?? 0),
@@ -42,7 +46,7 @@ function f4HostLoad(string $path, int $expectedRequests): array
     ];
 }
 
-/** @return array{first_rss_mb:float,last_rss_mb:float,peak_rss_mb:float,peak_process_cpu_percent:float,peak_processes:int,samples:int} */
+/** @return array<string,int|float|null> */
 function f4HostSamples(string $path): array
 {
     $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
@@ -55,9 +59,10 @@ function f4HostSamples(string $path): array
     $lastRssKb = 0.0;
     $maxCpu = 0.0;
     $maxProcesses = 0;
+    $firstTime = $lastTime = $firstCpuSeconds = $lastCpuSeconds = null;
     foreach (array_slice($lines, 1) as $line) {
-        $values = str_getcsv($line);
-        if (count($values) !== 4) {
+        $values = str_getcsv($line, escape: '');
+        if (count($values) !== 5) {
             throw new RuntimeException(sprintf('Invalid process sample: %s', $line));
         }
         $rssKb = (float) $values[1];
@@ -66,16 +71,24 @@ function f4HostSamples(string $path): array
         $maxRssKb = max($maxRssKb, $rssKb);
         $maxCpu = max($maxCpu, (float) $values[2]);
         $maxProcesses = max($maxProcesses, (int) $values[3]);
+        $firstTime ??= (float) $values[0];
+        $lastTime = (float) $values[0];
+        $firstCpuSeconds ??= (float) $values[4];
+        $lastCpuSeconds = (float) $values[4];
     }
-    if ($maxProcesses === 0 || $maxRssKb === 0.0) {
-        throw new RuntimeException('Process-tree memory telemetry is missing.');
+    if ($maxProcesses === 0 || $maxRssKb === 0.0 || $lastTime < $firstTime || $lastCpuSeconds < $firstCpuSeconds) {
+        throw new RuntimeException('Process-tree memory or CPU-window telemetry is invalid.');
     }
 
     return [
         'first_rss_mb' => round((float) $firstRssKb / 1024, 2),
         'last_rss_mb' => round($lastRssKb / 1024, 2),
         'peak_rss_mb' => round($maxRssKb / 1024, 2),
-        'peak_process_cpu_percent' => round($maxCpu, 2),
+        'peak_lifetime_process_cpu_percent' => round($maxCpu, 2),
+        'mean_process_cpu_percent' => $lastTime > $firstTime
+            ? round(($lastCpuSeconds - $firstCpuSeconds) / ($lastTime - $firstTime) * 100, 2)
+            : null,
+        'cpu_counter_resolution_seconds' => 1,
         'peak_processes' => $maxProcesses,
         'samples' => count($lines) - 1,
     ];

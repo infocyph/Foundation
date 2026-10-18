@@ -91,28 +91,28 @@ trap stop_service EXIT
 
 sample_tree() {
     local root_one="$1" root_two="$2"
-    ps -eo pid=,ppid=,rss=,pcpu= | awk -v r1="$root_one" -v r2="$root_two" '
-        { parents[$1]=$2; rss[$1]=$3; cpu[$1]=$4 }
+    ps -eo pid=,ppid=,rss=,pcpu=,cputimes= | awk -v r1="$root_one" -v r2="$root_two" '
+        { parents[$1]=$2; rss[$1]=$3; cpu[$1]=$4; seconds[$1]=$5 }
         END {
-            totalRss=0; totalCpu=0; count=0
+            totalRss=0; totalCpu=0; totalSeconds=0; count=0
             for (p in parents) {
                 cursor=p
                 for (i=0; i<12; i++) {
                     if (cursor==r1 || (r2>0 && cursor==r2)) {
-                        totalRss+=rss[p]; totalCpu+=cpu[p]; count++
+                        totalRss+=rss[p]; totalCpu+=cpu[p]; totalSeconds+=seconds[p]; count++
                         break
                     }
                     if (!parents[cursor] || parents[cursor]==cursor) break
                     cursor=parents[cursor]
                 }
             }
-            printf "%.0f,%.2f,%d\n",totalRss,totalCpu,count
+            printf "%.0f,%.2f,%d,%.0f\n",totalRss,totalCpu,count,totalSeconds
         }'
 }
 
 start_sampler() {
     local file="$1" sample
-    printf 'timestamp,rss_kb,cpu_percent,processes\n' > "$file"
+    printf 'timestamp,rss_kb,lifetime_cpu_percent,processes,cpu_seconds\n' > "$file"
     (
         while :; do
             sample="$(sample_tree "$SERVICE_PID" "${PROXY_PID:-0}")" || break

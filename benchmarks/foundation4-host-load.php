@@ -58,6 +58,7 @@ try {
     foreach ($handles as $handle) {
         curl_multi_add_handle($multi, $handle);
     }
+    $cpuStarted = getrusage();
     $start = hrtime(true);
 
     while ($finished < $sent || $sent < $requests || hrtime(true) - $start < $minimumNanoseconds) {
@@ -111,6 +112,11 @@ try {
 }
 
 $duration = max((hrtime(true) - $start) / 1_000_000_000, 0.000001);
+$cpuFinished = getrusage();
+$cpuSeconds = ($cpuFinished['ru_utime.tv_sec'] - $cpuStarted['ru_utime.tv_sec'])
+    + ($cpuFinished['ru_stime.tv_sec'] - $cpuStarted['ru_stime.tv_sec'])
+    + ($cpuFinished['ru_utime.tv_usec'] - $cpuStarted['ru_utime.tv_usec']) / 1_000_000
+    + ($cpuFinished['ru_stime.tv_usec'] - $cpuStarted['ru_stime.tv_usec']) / 1_000_000;
 sort($latencies, SORT_NUMERIC);
 $percentile = static function (float $fraction) use ($latencies): float {
     $index = max(0, min(count($latencies) - 1, (int) ceil(count($latencies) * $fraction) - 1));
@@ -125,6 +131,7 @@ $record = [
     'minimum_duration_seconds' => $minimumSeconds,
     'connection_warmup' => $connectionWarmup,
     'measured_new_connections' => $newConnections,
+    'load_cpu_percent' => round($cpuSeconds / $duration * 100, 3),
     'worker_requests' => $workerRequests,
     'database_queries' => $totalQueries,
     'application_cache_hits' => $totalCacheHits,
