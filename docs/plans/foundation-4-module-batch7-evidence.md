@@ -1,5 +1,66 @@
 # Foundation 4 — Module architecture Batch 7 certification evidence
 
+## Measured optimization candidate — 2026-10-18
+
+The owner declined a performance-gate exception and requested improvements across
+the complete framework path under PHPForge's engineering principles. The strict
+**2% RPM regression / 2.5% CV** budgets and all scenarios remain unchanged.
+Release acceptance remains **35/37** until a complete qualification passes.
+
+The request-path review covers compiled bootstrap, native scope ownership,
+authentication/authorization freshness, session loading, database connection
+lifetimes, and cache integration. Two avoidable costs are removed:
+
+- Authorization yields direct permissions before resolving role permissions.
+  A current direct grant short-circuits the role query; role/principal grants,
+  revocation, account boundaries and the denial path remain active. There is no
+  permission cache or request-to-request decision reuse.
+- Trusted web boot uses InterMix's native prevalidated artifact loader without
+  rebuilding the source graph or attaching a fallback container. Explicit
+  capability topology is bound as a native compiled InterMix value and checked
+  against the requested topology. Shared web/CLI/worker/scheduler configuration
+  identity remains unchanged. Compilation uses native InterMix validation to
+  reject source-only hooks requiring a fallback. Rebuild older candidate web
+  artifacts. Untrusted graph validation still composes providers once.
+
+Browser sessions already defer storage until accessed. Automatic database
+pooling is not enabled: eliminating connection setup requires separate evidence
+that native server-session state is safely reset before another request borrows
+it. No native mechanism is duplicated in Foundation.
+
+A focused authorization diagnostic compares frozen `efa2668` source with the
+same source plus only lazy permission resolution, on PHP 8.5.11 Docker with the
+same `b557fba...` dependency lock and PostgreSQL/Redis fixture. Two measured
+60-second, concurrency-50 native Runwire trials follow 30-second warm-up:
+
+| Variant | Successful RPM trials | Median RPM | CV | Queries per response |
+| --- | --- | ---: | ---: | ---: |
+| Before | 6589.46, 6728.20 | 6658.83 | 1.042% | 4 |
+| Lazy authorization | 7126.24, 6932.52 | 7029.38 | 1.378% | 3 |
+
+Median RPM increases **5.565%**, with zero failed responses in all four trials.
+This isolates the removed query; it is **local diagnostic evidence**, not a
+complete hosted qualification or production-capacity claim. The regression fails
+before the change (the role store is read despite a sufficient direct grant)
+and passes afterward. The source-free loader regression likewise reproduces
+provider reconstruction before the change, and covers configuration,
+environment/capability mismatch rejection and source-only-hook rejection.
+
+Local verification of the combined candidate passes required `composer
+ic:process`, complete `composer ic:tests:details`, and final `composer
+ic:release:guard`: **808 tests / 29,940 assertions**, static/security analysis,
+architecture, formatting, reference/duplicate/comment detectors and refactor
+checks. These are local results; new exact-revision hosted QA, native hosting
+and complete paired performance acceptance remain required.
+
+The next full qualification uses a fresh common dependency lock. Local
+`b5b1180b81592d106d0fe96db0bf00bc5342b4ec44318076595ac24b253d781d`
+now matches the latest hosted QA graph: development-only Whoops updates from
+2.18.6 to 2.18.7; native runtime dependency versions are unchanged. Composer
+reports no vulnerability advisories. Abandoned `doctrine/annotations` 2.0.2 is
+restricted to PHPBench via development-only PHPForge; it is not a production
+runtime dependency.
+
 ## Latest complete release qualification — 2026-10-18 (`9ddf937`)
 
 [Complete standard ARM worker run 39113415005](https://github.com/infocyph/Foundation/actions/runs/39113415005)

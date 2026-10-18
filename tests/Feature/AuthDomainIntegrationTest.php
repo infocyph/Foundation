@@ -10,6 +10,13 @@ use Infocyph\Foundation\Auth\Authentication\TokenAuth\AccessTokenClaims;
 use Infocyph\Foundation\Auth\Authentication\TokenAuth\RefreshTokenRecord;
 use Infocyph\Foundation\Auth\AuthServices;
 use Infocyph\Foundation\Auth\Authorization\Decision\AuthorizationDecision;
+use Infocyph\Foundation\Auth\Authorization\Gate\PermissionAuthorizer;
+use Infocyph\Foundation\Auth\Authorization\Grant\GrantResolver;
+use Infocyph\Foundation\Auth\Authorization\Permission\Permission;
+use Infocyph\Foundation\Auth\Authorization\Permission\PermissionResolver;
+use Infocyph\Foundation\Auth\Authorization\Role\Role;
+use Infocyph\Foundation\Auth\Authorization\Role\RolePermissionResolver;
+use Infocyph\Foundation\Auth\Authorization\Role\RoleStoreInterface;
 use Infocyph\Foundation\Auth\Contract\Notification\AuthNotifierInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\AuditEventStoreInterface;
 use Infocyph\Foundation\Auth\Contract\Storage\SessionStoreInterface;
@@ -24,6 +31,8 @@ use Infocyph\Foundation\Auth\Passkey\PasskeyRegistrationResult;
 use Infocyph\Foundation\Auth\Principal\Principal;
 use Infocyph\Foundation\Auth\Support\CollectingAuthNotifier;
 use Infocyph\Foundation\Auth\Support\InMemoryAuditEventStore;
+use Infocyph\Foundation\Auth\Support\InMemoryGrantStore;
+use Infocyph\Foundation\Auth\Support\InMemoryPermissionStore;
 use Infocyph\Foundation\Foundation;
 
 function foundationAuthApplication(): Application
@@ -426,6 +435,44 @@ it('does not extend rejected sessions for suspended locked or disabled accounts'
     $services->accounts()->disable($account->id());
     expect($resolver->resolve($request))->toBeNull()
         ->and($sessions->find($session->id)?->lastSeenAt)->toBe($issuedAt);
+});
+
+it('queries role permissions only when current direct permissions cannot grant the ability', function (): void {
+    $permissions = new InMemoryPermissionStore();
+    $permissions->save(new Permission('direct', 'reports:read'));
+    $permissions->save(new Permission('role', 'reports:approve'));
+    $permissions->assignPermissionToAccount('alpha', 'direct');
+    $permissions->assignPermissionToRole('reader', 'role');
+    $roles = new class implements RoleStoreInterface {
+        public int $reads = 0;
+
+        public function rolesForAccount(string $accountId): array
+        {
+            ++$this->reads;
+
+            return $accountId === 'alpha' ? [new Role('reader', 'reader')] : [];
+        }
+    };
+    $authorizer = new PermissionAuthorizer(
+        new PermissionResolver($permissions),
+        new RolePermissionResolver($roles, $permissions),
+        new GrantResolver(new InMemoryGrantStore()),
+    );
+    $principal = new Principal('alpha', accountId: 'alpha');
+
+    expect($authorizer->can($principal, 'reports:read')->allowed)->toBeTrue()
+        ->and($roles->reads)->toBe(0);
+
+    expect($authorizer->can($principal, 'reports:approve')->allowed)->toBeTrue()
+        ->and($roles->reads)->toBe(1);
+
+    $permissions->revokePermissionFromAccount('alpha', 'direct');
+    expect($authorizer->can($principal, 'reports:read')->allowed)->toBeFalse()
+        ->and($roles->reads)->toBe(2);
+
+    $permissions->revokePermissionFromRole('reader', 'role');
+    expect($authorizer->can($principal, 'reports:approve')->allowed)->toBeFalse()
+        ->and($authorizer->can(new Principal('beta', accountId: 'beta'), 'reports:read')->allowed)->toBeFalse();
 });
 
 it('rechecks direct and role permissions after revocation with the same authorizer instance', function (): void {

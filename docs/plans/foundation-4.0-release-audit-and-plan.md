@@ -5,6 +5,17 @@ native/FPM hosting, PHP 8.4/8.5 Swoole/OpenSwoole, notes and publication metadat
 are verified. The PR remains **not release-ready** because strict performance
 qualification and dependent all-gates acceptance remain open.
 
+The owner declined an exception and requested measured improvements across the
+whole framework path. The new optimization candidate defers role-permission
+queries after sufficient direct grants and loads trusted web artifacts through
+native InterMix without rebuilding providers or attaching a fallback container.
+Compiled capability identity remains explicit, and configuration identity stays
+consistent across all four runtime modes. Source-only web hooks requiring a
+fallback now fail during compilation. Existing candidate artifacts must be
+rebuilt. Authorization-only local diagnostics show +5.565% median successful RPM
+and four to three queries per request; full candidate qualification is still
+required. See the [optimization evidence](foundation-4-module-batch7-evidence.md#measured-optimization-candidate--2026-10-18).
+
 [Complete standard-worker run 39113415005](https://github.com/infocyph/Foundation/actions/runs/39113415005)
 verifies immutable source `9ddf937`: 240 valid sustained trials, sixteen valid
 soak windows, actual controller affinity and zero measured response failures.

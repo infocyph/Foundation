@@ -35,9 +35,11 @@ final class WebProductionGraph
         'foundation.http',
     ];
 
-    public function prepare(ContainerBuilder $builder): void
+    /** @param array<string, bool> $capabilities */
+    public function prepare(ContainerBuilder $builder, array $capabilities = []): void
     {
         $this->removeDevelopmentDefinitions($builder);
+        $builder->value('foundation.web.capabilities', $capabilities);
     }
 
     private function removeDevelopmentDefinitions(ContainerBuilder $builder): void

@@ -16,6 +16,7 @@ No merge, tag, publication or release date is announced by these notes.
 ## Core runtime and architecture
 
 - Explicit web, CLI, worker and scheduler entrypoints with immutable native InterMix graph composition.
+- Trusted web loading now uses native source-free InterMix artifacts without reconstructing providers or attaching a fallback container. Compilation rejects source-only runtime hooks, and the compiled container also binds explicit capabilities; rebuild older candidate artifacts.
 - One trusted, source-free compiled generation for web and non-web runtimes. Webrick retains ownership of native HTTP routing, request dispatch, route formats and response output.
 - Native InterMix scoped input/borrowed scope handling, controlled cleanup, generation identity and concurrent execution isolation.
 - Runwire is a required Core dependency with always-available native integration across supported environments. Foundation uses the host-owned RuntimeContext/RequestContext and native Webrick/InterMix integration; it does not add a competing server or coroutine scheduler.
@@ -61,6 +62,10 @@ The former 11-entry public module catalog and its unqualified installable aliase
 - Feature lifecycle plans capture current configuration and Composer metadata, reject stale package-removal plans, and restore configuration after detected publication-time dependency drift. External Composer maintenance must participate in the documented project lock.
 - Native TalkingBytes email sender, mailbox and receiver factories borrow the active passed Runwire context with synchronous fallback.
 - Authentication-session rotation now requires an atomic conditional store transition, preventing a revoked, changed or expired source session from being replaced. Custom stores must adopt the new boolean rotation contract documented in the setup guide.
+
+Direct account permissions now short-circuit authorization before querying role
+permissions. Role and principal grants remain fallbacks, and each decision reads
+current permissions so revocations and account isolation remain effective.
 
 ## Platform and integration
 

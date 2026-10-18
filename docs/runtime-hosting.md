@@ -117,6 +117,25 @@ response drain and scoped native selected-module propagation in [Batch 3's
 release plan](plans/foundation-4.0-release-audit-and-plan.md). A deployment must
 still rehearse its actual chosen FPM/RoadRunner/Swoole host and transport.
 
+## Compiled web loading
+
+The trusted web loader verifies the externally supplied Webrick runtime-manifest
+SHA-256, normalized configuration, environment and explicit capability topology.
+It then uses InterMix's native prevalidated artifact loader directly. It does
+not rediscover or contribute providers, build a source DI graph, or attach a
+fallback container on each application boot. Native InterMix and Webrick retain
+request scope, borrowed Runwire inputs, cancellation and cleanup ownership.
+
+Web release compilation verifies that the native InterMix artifact is
+self-contained. Source-only resolution/scope hooks requiring a frozen fallback
+are rejected during compilation. Express production behavior through compiled
+service definitions and explicit lifecycle services. Untrusted loading still
+reconstructs and validates the current source graph once.
+
+Rebuild existing Foundation 4 candidate web artifacts: the compiled container
+now binds and validates normalized explicit capabilities alongside configuration.
+Previously compiled candidate artifacts intentionally fail identity validation.
+
 ## Intermediary-library context forwarding
 
 When another library has already shared a native Runwire context, a non-web

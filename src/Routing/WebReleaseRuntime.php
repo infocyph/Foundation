@@ -6,11 +6,16 @@ namespace Infocyph\Foundation\Routing;
 
 use Infocyph\CacheLayer\Integration\Runwire\RunwireIntegration as CacheRunwireIntegration;
 
+use Infocyph\Foundation\Application\FoundationBuildContext;
+use Infocyph\Foundation\Application\RuntimeMode;
+use Infocyph\Foundation\Config\ConfigLoader;
 use Infocyph\Foundation\Config\ConfigRepository;
+use Infocyph\Foundation\Filesystem\PathManager;
 use Infocyph\Foundation\Http\Response\ExceptionRenderer;
 use Infocyph\Foundation\Logging\HttpExceptionLogger;
 use Infocyph\Foundation\Runtime\LoadedReleaseGeneration;
 use Infocyph\Foundation\Runtime\ReleaseGenerationLease;
+use Infocyph\InterMix\DI\Build\StaticRuntimeGenerator;
 use Infocyph\InterMix\DI\ProductionContainer;
 use Infocyph\InterMix\DI\ScopeContext;
 use Infocyph\InterMix\Integration\Runwire\RunwireIntegration;
@@ -253,8 +258,12 @@ final readonly class WebReleaseRuntime
         array $foundationCapabilities,
         ?string $matcherCachePath = null,
     ): self {
-        $graph = new WebGraphFactory()->compose($config, $foundationCapabilities, new WebProductionGraph());
-        $settings = new WebReleaseConfiguration($graph);
+        $graph = $prevalidated
+            ? null
+            : new WebGraphFactory()->compose($config, $foundationCapabilities, new WebProductionGraph());
+        $sourceConfig = $graph->config ?? ($config instanceof ConfigRepository ? $config : new ConfigLoader()->load($config));
+        $context = $graph->context ?? FoundationBuildContext::fromConfig($sourceConfig, RuntimeMode::Web, $foundationCapabilities);
+        $settings = new WebReleaseConfiguration($context, $sourceConfig, $graph?->application->paths());
         $settings->assertArtifactSafeMiddleware();
         $releaseManifestPath = $settings->resolvePath($releaseManifestPath);
         $manifest = new ReleaseManifestLoader()->load($releaseManifestPath);
@@ -270,9 +279,9 @@ final readonly class WebReleaseRuntime
         $intermixDigest = self::stringField($intermix, 'digest');
         $routerFingerprint = self::stringField($webrick, 'fingerprint');
 
-        $container = $prevalidated
-            ? $graph->builder->productionPrevalidated($intermixPath, $intermixDigest)
-            : $graph->builder->production($intermixPath);
+        $container = $graph?->builder->production($intermixPath) ?? new StaticRuntimeGenerator()->loadPrevalidated($intermixPath, $intermixDigest);
+
+        $settings = self::runtimeSettings($context, $container);
 
         $logger = $container->get(LoggerInterface::class);
         if (!$logger instanceof LoggerInterface) {
@@ -351,6 +360,22 @@ final readonly class WebReleaseRuntime
         }
 
         return [$intermix, $webrick];
+    }
+
+    private static function runtimeSettings(FoundationBuildContext $context, ProductionContainer $container): WebReleaseConfiguration
+    {
+        if ($container->get('foundation.web.capabilities') !== $context->capabilities) {
+            throw new \RuntimeException('Foundation web release capability identity mismatch.');
+        }
+        $runtimeConfig = $container->get(ConfigRepository::class);
+        $paths = $container->get(PathManager::class);
+        if (!$runtimeConfig instanceof ConfigRepository || !$paths instanceof PathManager) {
+            throw new \LogicException('Compiled Foundation web runtime did not produce its configuration and paths.');
+        }
+        $settings = new WebReleaseConfiguration($context, $runtimeConfig, $paths);
+        $settings->assertArtifactSafeMiddleware();
+
+        return $settings;
     }
 
     /** @param array<array-key, mixed> $source */

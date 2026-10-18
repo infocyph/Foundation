@@ -7,6 +7,7 @@ namespace Infocyph\Foundation\Routing;
 use Infocyph\Foundation\Bootstrap\Bootstrapper;
 use Infocyph\Foundation\Config\ConfigRepository;
 use Infocyph\Foundation\Container\FoundationGraph;
+use Infocyph\InterMix\DI\ContainerBuilder;
 use Infocyph\Webrick\Request\Request;
 use Infocyph\Webrick\Router\Build\ReleaseCompiler as WebrickReleaseCompiler;
 use Infocyph\Webrick\Router\Build\RouterArtifactLoader;
@@ -39,11 +40,11 @@ final readonly class WebReleaseCompiler
         $graph = $this->graphs->compose($config, $capabilities);
         $builder = FoundationGraph::compose($graph->context);
         new Bootstrapper()->contribute($builder, $graph->context, $graph->providers);
-        new WebProductionGraph()->prepare($builder);
+        new WebProductionGraph()->prepare($builder, $graph->context->capabilities);
         // Webrick's native release compiler registers its own scoped Request input.
         // Remove Foundation's development declaration before that single registration.
         $builder->unbind(Request::class);
-        $settings = new WebReleaseConfiguration($graph);
+        $settings = new WebReleaseConfiguration($graph->context, $graph->config, $graph->application->paths());
         $settings->assertArtifactSafeMiddleware();
 
         $intermixPath = $settings->resolvePath($intermixPath);
@@ -67,6 +68,12 @@ final readonly class WebReleaseCompiler
             postGlobalTags: [],
         );
         $this->assertNoSkippedDefinitions($release);
+        // Native validation rejects runtime hooks or services requiring a source graph.
+        $intermix = $release['intermix'] ?? null;
+        if (!is_array($intermix) || !is_string($intermix['graph'] ?? null)) {
+            throw new \UnexpectedValueException('Foundation web release is missing the InterMix graph identity.');
+        }
+        ContainerBuilder::loadProductionArtifact($intermixPath, $intermix['graph'], $settings->environment());
         $matcherCachePath = $this->compileMatcherCache($settings, $routerPath);
 
         $runtimeManifestPath = WebrickReleaseCompiler::runtimeManifestPath($releaseManifestPath);

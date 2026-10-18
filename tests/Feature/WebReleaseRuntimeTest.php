@@ -24,6 +24,15 @@ final class FoundationReleaseCompositionCounter extends ServiceProvider
     }
 }
 
+final class FoundationReleaseSourceHookProvider extends ServiceProvider
+{
+    public function contribute(ContainerBuilder $builder, FoundationBuildContext $context): void
+    {
+        unset($context);
+        $builder->onScopeLeave('request', static function (): void {});
+    }
+}
+
 final class FoundationCompiledReleaseHandler
 {
     public function __invoke(): Response
@@ -55,7 +64,7 @@ function foundationWebReleasePlainHandler(): Response
     return Response::json(['plain' => true]);
 }
 
-it('composes each provider once when loading a production web graph', function (bool $prevalidated): void {
+it('loads trusted web artifacts without composing providers and validates untrusted graphs once', function (bool $prevalidated): void {
     $project = foundationWebReleaseProject();
     $manifest = $project . '/bootstrap/cache/release.json';
     $config = [
@@ -79,7 +88,31 @@ it('composes each provider once when loading a production web graph', function (
             ? WebReleaseRuntime::loadPrevalidated($config, $manifest, $release['release_runtime_manifest_sha256'], foundationCapabilities: [])
             : WebReleaseRuntime::load($config, $manifest, foundationCapabilities: []);
 
-        expect(FoundationReleaseCompositionCounter::$contributions)->toBe(1);
+        expect(FoundationReleaseCompositionCounter::$contributions)->toBe($prevalidated ? 0 : 1);
+
+        expect(fn() => WebReleaseRuntime::loadPrevalidated(
+            $config,
+            $manifest,
+            $release['release_runtime_manifest_sha256'],
+            foundationCapabilities: ['database'],
+        ))->toThrow(RuntimeException::class, 'capability identity mismatch');
+        $changedConfig = $config;
+        $changedConfig['app']['env'] = 'staging';
+        expect(fn() => WebReleaseRuntime::loadPrevalidated(
+            $changedConfig,
+            $manifest,
+            $release['release_runtime_manifest_sha256'],
+            foundationCapabilities: [],
+        ))->toThrow(RuntimeException::class, 'configuration identity mismatch');
+        $changedConfig = $config;
+        $changedConfig['app']['debug'] = true;
+        expect(fn() => WebReleaseRuntime::loadPrevalidated(
+            $changedConfig,
+            $manifest,
+            $release['release_runtime_manifest_sha256'],
+            foundationCapabilities: [],
+        ))->toThrow(RuntimeException::class, 'configuration identity mismatch');
+
         $response = $runtime->kernel->handle(Request::fake(uri: 'https://release.test/plain'));
         expect($response->getStatusCode())->toBe(200)
             ->and((string) $response->getBody())->toBe('{"plain":true}');
@@ -89,6 +122,29 @@ it('composes each provider once when loading a production web graph', function (
         foundationWebReleaseRemove($project);
     }
 })->with([false, true]);
+
+it('rejects web releases requiring source runtime hooks before deployment', function (): void {
+    $project = foundationWebReleaseProject();
+    $config = [
+        'app' => ['base_path' => $project, 'env' => 'production'],
+        '_config_cache' => false,
+        'providers' => ['web' => [FoundationReleaseSourceHookProvider::class]],
+        'router' => ['files' => ['web.php']],
+    ];
+
+    try {
+        expect(fn() => new WebReleaseCompiler()->compile(
+            $config,
+            $project . '/bootstrap/cache/intermix.php',
+            $project . '/bootstrap/cache/router.php',
+            $project . '/bootstrap/cache/release.json',
+            capabilities: [],
+        ))->toThrow(\Infocyph\InterMix\Exceptions\ContainerException::class, 'requires its frozen fallback graph');
+    } finally {
+        foundationResetWebrickProductionRegistries();
+        foundationWebReleaseRemove($project);
+    }
+});
 
 it('compiles and boots a trusted route-first Webrick release without live router construction', function (): void {
     $project = foundationWebReleaseProject();
@@ -549,7 +605,7 @@ it('sends the exact host Runwire request through compiled Webrick and native Int
             $config,
             $manifest,
             (string) $report['release_runtime_manifest_sha256'],
-            foundationCapabilities: ['runwire', 'database', 'messaging'],
+            foundationCapabilities: ['messaging', 'database', 'runwire'],
         );
         $runtime = \Infocyph\Runwire\RuntimeContext::standalone();
         $request = \Infocyph\Runwire\RequestContext::create($runtime, requestId: 'foundation-native-request');

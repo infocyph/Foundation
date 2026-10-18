@@ -36,7 +36,7 @@ final class WebGraphFactory
         $bootstrapper->compose($builder, $context, $providers);
 
         // Prepare deployment definitions before freeze so loading reuses this graph.
-        $production?->prepare($builder);
+        $production?->prepare($builder, $context->capabilities);
         $bindings = $production === null ? DevelopmentRuntimeBindings::register($builder) : null;
         $container = $builder->build();
         $runtimeConfig = $container->get(ConfigRepository::class);
