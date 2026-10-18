@@ -120,6 +120,6 @@ it('keeps the benchmark controller and its telemetry children on the load CPU', 
             }
         }
     } finally {
-        (new \Symfony\Component\Filesystem\Filesystem())->remove($directory);
+        (new \Symfony\Component\Process\Process(['rm', '-rf', '--', $directory]))->mustRun();
     }
 });

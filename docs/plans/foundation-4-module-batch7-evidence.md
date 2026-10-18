@@ -31,6 +31,15 @@ as performance qualification. Earlier variance failures below remain historical
 evidence; no passing case is selected across attempts and no claim of resolved
 variance is made from the affinity regression alone. Ledger: **35/37**.
 
+The first exact-source lowest-dependency jobs reproduce a separate test-teardown
+issue: loading Symfony Filesystem 6.4.0 emits an implicit-nullability deprecation
+on PHP 8.4/8.5. The newly added regression now removes its exclusively owned
+temporary directory through the existing native Process API and `rm` argument
+vector. No dependency floor, suppression or detector is changed. Hosted
+lowest/stable QA must be renewed. This test-only correction leaves framework,
+benchmark and workflow sources identical to measurement source `bc7d177`; the
+running qualification remains attributable to that immutable source.
+
 ## Previous final-source QA and release handoff — 2026-10-18
 
 Frozen framework, benchmark and workflow source is
